@@ -54,6 +54,7 @@ import {
   isShowDeskLateEntryMode,
   resolveRegistrationCompletionPath,
 } from './RegistrationWizardPage.routes';
+import { proceedBlockedReason } from './RegistrationWizardPage/proceedGating';
 
 function RegistrationWizardContent() {
   const { showId: showIdParam } = useParams<{ showId: string }>();
@@ -334,44 +335,28 @@ function RegistrationWizardContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dogsLoading, dogs, currentWorkflowConfig.steps, registrationData.selectedDogs.length]);
 
-  // Validation
-  const canProceed = () => {
-    switch (currentStepId) {
-      case 'dog-selection':
-        return registrationData.selectedDogs.length > 0 && ownerResolution.ok;
-      case 'class-selection': {
-        const hasClasses =
-          classSelections.length > 0 && classSelections.some(s => s.selectedClasses.length > 0);
-        if (!hasClasses) return false;
-        // When handler-assignment is a separate step, don't validate handlers here
-        if (currentWorkflowConfig.steps.includes('handler-assignment')) return true;
-        // Otherwise, verify all handlers are assigned (safety net — auto-assign fills these)
-        const allKeys = classSelections.flatMap(s =>
-          s.selectedClasses.map(c => makeHandlerKey(s.dogId, c.classId))
-        );
-        return allKeys.every(key => handlerAssignments[key]?.handlerName);
-      }
-      case 'handler-assignment': {
-        const allEntryKeys = classSelections.flatMap(s =>
-          s.selectedClasses.map(c => makeHandlerKey(s.dogId, c.classId))
-        );
-        return (
-          allEntryKeys.length > 0 && allEntryKeys.every(key => handlerAssignments[key]?.handlerName)
-        );
-      }
-      case 'payment': {
-        const showNeedsAgreement = !!currentShow?.organization;
-        return (
-          (liveTotalFees <= 0 || !!registrationData.paymentMethod) &&
-          (!showNeedsAgreement || agreedToEntryAgreement)
-        );
-      }
-      case 'confirmation':
-        return true;
-      default:
-        return false;
-    }
-  };
+  // Validation — proceedBlockedReason is the single source of truth; the
+  // returned copy renders next to the disabled Next button so the user is
+  // never left guessing why the wizard won't advance.
+  const allEntryKeys = classSelections.flatMap(s =>
+    s.selectedClasses.map(c => makeHandlerKey(s.dogId, c.classId))
+  );
+  const proceedBlocked = proceedBlockedReason({
+    stepId: currentStepId,
+    selectedDogsCount: registrationData.selectedDogs.length,
+    ownerSelectionOk: ownerResolution.ok,
+    hasSelectedClasses:
+      classSelections.length > 0 && classSelections.some(s => s.selectedClasses.length > 0),
+    hasSeparateHandlerStep: currentWorkflowConfig.steps.includes('handler-assignment'),
+    entryCount: allEntryKeys.length,
+    unassignedHandlerCount: allEntryKeys.filter(key => !handlerAssignments[key]?.handlerName)
+      .length,
+    totalFees: liveTotalFees,
+    hasPaymentMethod: !!registrationData.paymentMethod,
+    needsAgreement: !!currentShow?.organization,
+    agreedToEntryAgreement,
+  });
+  const canProceed = () => proceedBlocked === null;
 
   const isLastStep = currentStep === steps.length - 1;
 
@@ -709,6 +694,11 @@ function RegistrationWizardContent() {
 
                 {/* Navigation */}
                 <div className="relative px-6 sm:px-8 pb-6 sm:pb-8">
+                  {proceedBlocked && !isSubmitting && (
+                    <p role="status" className="mb-3 text-sm text-muted-foreground">
+                      {proceedBlocked}
+                    </p>
+                  )}
                   <WizardNavigation
                     currentStep={currentStep}
                     totalSteps={steps.length}

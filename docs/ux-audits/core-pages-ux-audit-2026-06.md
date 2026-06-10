@@ -60,7 +60,7 @@
 | Registration wizard "Next" (disabled) ([RegistrationWizardPage.tsx:716](apps/myk9show/src/pages/RegistrationWizardPage.tsx:716)) | Broken/stuck | Disabled by `canProceed()` with **no inline message** explaining why | **No** |
 | Sign-up Google button (TOS-gated) ([SignUpPage.tsx:171](apps/myk9show/src/pages/SignUpPage.tsx:171)) | Loading/broken | Disabled until TOS checked, no hint | No |
 | Ringside status pill ([SortableEntryCard.tsx:307](packages/ringside/src/pages/EntryList/SortableEntryCard.tsx:307)) | Tap target | `min-h-9` = **36px**, below 44px guardrail — risky for gloved hands outdoors | No |
-| Show Map row actions (Scratch/Move up) ([ShowMapRowActionsMenu](apps/myk9show/src/features/show-map)) | Tap targets | `size="sm"` ≈ 32px, below guardrail | No |
+| Show Map row-actions trigger ([ShowMapRowActionsMenu.tsx:108](apps/myk9show/src/features/show-map/ShowMapRowActionsMenu.tsx:108)) | Tap target | `h-9 w-9` = 36px trigger, below guardrail (corrected on verification — the menu *items* are fine) | No |
 | Account Export/Import/Reset ([AccountPage.tsx:307-325](apps/myk9show/src/pages/AccountPage.tsx:307)) | Tap targets | `size="sm"` ≈ 32px | No |
 | My Entries card actions ([MyEntryCard.tsx:227-265](apps/myk9show/src/pages/MyEntriesPage/modules/MyEntryCard.tsx:227)) | Three equal buttons | Primary action (View Show) visually identical to Edit/Receipt | Partial |
 
@@ -101,7 +101,7 @@ Browse Shows, Show Details, My Entries (page level), Browse Dogs, Dog Detail, Ac
 | --- | --- | --- |
 | Judge Dashboard | Error | **Missing entirely** — query failure logs to console (JudgeDashboard.tsx:117), UI shows empty dashboard with no feedback |
 | Judge Dashboard | Empty | "No Classes Today" gives no guidance (normal? broken? what next?) |
-| ProfilePage | Success/Error | Save completes silently — no "Saved" confirmation, no error toast on photo-upload failure ([ProfilePage.tsx:275-280](apps/myk9show/src/pages/ProfilePage.tsx:275)) |
+| ~~ProfilePage save/upload~~ | — | **Withdrawn on verification:** `useProfileForm.save()` toasts success/error ([useProfileForm.ts:132-134](apps/myk9show/src/hooks/useProfileForm.ts:132)) and `useAvatarUpload` validates type + 5MB with plain-English toasts |
 | At-show Class Picker | Error | "Failed to load classes" has **no retry button** ([AtShowClassListPage.tsx:96-103](apps/myk9show/src/features/at-show/AtShowClassListPage.tsx:96)) — judge must hard-refresh |
 | Scoresheet load failure | Error | Generic "Failed to load scoresheet data" doesn't distinguish entry-missing vs network ([AtShowScoresheetPage.tsx:123-126](apps/myk9show/src/features/at-show/AtShowScoresheetPage.tsx:123)) |
 | Waitlist withdraw | Error | Failed withdraw mutation gives no UI feedback ([MyEntriesPage/index.tsx:554](apps/myk9show/src/pages/MyEntriesPage/index.tsx:554)) |
@@ -109,7 +109,7 @@ Browse Shows, Show Details, My Entries (page level), Browse Dogs, Dog Detail, Ac
 | Setup publish / Closeout | Error | No inline error states if mutations/fetches fail |
 | Sign-in rate limit (429) | Partial | "Wait a minute" with no countdown; sign-up resend handles this better (60s ticking timer) |
 | Secretary dashboard empty state | Empty | "Create your first show" copy has **no link** to the wizard ([SecretaryDashboardPage/index.tsx:112-117](apps/myk9show/src/pages/secretary/SecretaryDashboardPage/index.tsx:112)) |
-| Avatar upload | Partial | No client-side size validation before upload (Account: 2MB copy; Profile: 5MB copy — limits also disagree) |
+| Avatar upload copy | Partial | Hook enforces 5MB client-side with toasts; only the AccountPage.sections.tsx:76 *copy* said "max 2 MB" (copy bug, not a validation gap) |
 
 **Dead ends found:** Judge Dashboard is the big one — a judge signing in lands on a page from which no path to ringside scoring exists (see Pass 6).
 
@@ -125,7 +125,7 @@ Browse Shows, Show Details, My Entries (page level), Browse Dogs, Dog Detail, Ac
 | 3 | Browse → filter → tap show | None (≤3 taps) | None |
 | 4 | "Enter This Show" → wizard, pick classes | Dogs pre-selected; if user has **no dogs**, wizard dead-ends with no link to add one | Med |
 | 5 | Payment step | Disabled Next with no inline reason (e.g., unnoticed agreement checkbox) | **High** |
-| 6 | Complete | Redirects to `/shows/:id`, not My Entries — user must hunt for their new entry; no toast | Med |
+| 6 | Complete | Success toast fires ([RegistrationWizardPage.tsx:385-389](apps/myk9show/src/pages/RegistrationWizardPage.tsx:385)) and `/shows/:id` defaults to the My Entries tab for entered exhibitors — loop already closed (downgraded on verification) | Low |
 
 **Verdict: Completable with friction.** The 30-second target is reachable but steps 5–6 undermine the finish.
 
@@ -177,47 +177,54 @@ Wizard 4 steps; clone-from-previous **now implemented** (CloneFromShowCombobox i
 | Judge Dashboard: assignments hardcoded `[]`, 3 dead buttons, no error state, no path to ringside scoring ([JudgeDashboard.tsx:43](apps/myk9show/src/pages/JudgeDashboard.tsx:43)) | 1,3,5,6 | Judge's post-sign-in landing is a dead end; contradicts "invisible technology" | Med — wire real assignments query + "Open Ringside Scoring" link; or interim: land judges elsewhere / strip dead buttons |
 
 ### High priority
-| Finding | Pass | Impact | Effort |
+| Finding | Pass | Impact | Status |
 | --- | --- | --- | --- |
-| Ringside status pill 36px (`min-h-9`) ([SortableEntryCard.tsx:307](packages/ringside/src/pages/EntryList/SortableEntryCard.tsx:307)) | 3 | Steward check-in is the highest-frequency ringside tap; gloved/outdoor misses | Low |
-| Show Map Scratch/Move-up buttons 32px (`size="sm"`) | 3 | Show-day actions under stress, below guardrail | Low |
-| Wizard disabled "Next" with no inline reason ([RegistrationWizardPage.tsx:338-374,716](apps/myk9show/src/pages/RegistrationWizardPage.tsx:716)) | 3,6 | Money flow stall; users can't tell why they're stuck | Low–Med |
-| `/profile` vs `/account` duplication (inconsistent limits 5MB/2MB, inconsistent save feedback) | 2 | Violates consolidation phase + "everything in one place" | Med |
-| Scratch = 4 taps vs 1-tap INTENT (still present from Phase 2) | 6 | Show-day calm | High — needs inline-scratch-with-undo design |
-| `text-[10px]` badge in entry card ([MyEntryCard.tsx:144](apps/myk9show/src/pages/MyEntriesPage/modules/MyEntryCard.tsx:144)) | 3 | Below 14px floor (INTENT accessibility) | Low |
-| Post-registration redirect goes to show page, not My Entries; no success toast | 6 | "30 seconds" finish undermined | Low |
+| Ringside status pill 36px (`min-h-9`) ([SortableEntryCard.tsx:307](packages/ringside/src/pages/EntryList/SortableEntryCard.tsx:307)) | 3 | Steward check-in is the highest-frequency ringside tap; gloved/outdoor misses | **Fixed same session** (`min-h-11`) |
+| Show Map row-actions trigger 36px (`h-9 w-9`) ([ShowMapRowActionsMenu.tsx:108](apps/myk9show/src/features/show-map/ShowMapRowActionsMenu.tsx:108)) — corrected from "size=sm buttons" on verification | 3 | Show-day actions under stress, below guardrail | **Fixed same session** (`h-11 w-11`) |
+| Wizard disabled "Next" with no inline reason ([RegistrationWizardPage.tsx](apps/myk9show/src/pages/RegistrationWizardPage.tsx)) | 3,6 | Money flow stall; users can't tell why they're stuck | **Fixed same session** ([proceedGating.ts](apps/myk9show/src/pages/RegistrationWizardPage/proceedGating.ts) + footer message, unit-tested) |
+| `/profile` vs `/account` duplication (same form, two routes, divergent presentation) | 2 | Violates consolidation phase + "everything in one place" | Open — needs a consolidation decision |
+| Scratch = 4 taps vs 1-tap INTENT (still present from Phase 2) | 6 | Show-day calm | Open — needs inline-scratch-with-undo design |
+| `text-[10px]` badge in entry card ([MyEntryCard.tsx:144](apps/myk9show/src/pages/MyEntriesPage/modules/MyEntryCard.tsx:144)) | 3 | Below 14px floor (INTENT accessibility) | **Fixed same session** (`text-sm`, 20px chip) |
+| ~~Post-registration redirect/no toast~~ | 6 | **Withdrawn on verification:** success toast fires and `/shows/:id` defaults to the My Entries tab for entered exhibitors | Withdrawn |
 
 ### Medium priority
-| Finding | Pass | Impact | Effort |
+| Finding | Pass | Impact | Status |
 | --- | --- | --- | --- |
-| ProfilePage silent save + silent upload failure | 5 | "Did it work?" | Low |
-| Admin alerts card: static "Active," no count; most stat cards not drillable | 1,2 | "Problems surfaced automatically" not delivered | Med |
-| At-show Class Picker error lacks retry | 5 | Manual refresh at ringside | Low |
-| Wizard multi-owner guard alert renders below the fold | 3 | Invisible blocker | Low |
-| Wizard "no dogs" dead-ends without add-dog link | 6 | New-user registration stall | Low |
-| Sign-in rate-limit has no countdown; sign-up resend doesn't special-case 429 | 5 | Confused waiting | Low |
-| Secretary dashboard empty state lacks create-show link | 5 | First-run friction | Low |
-| Account action buttons 32px | 3 | Guardrail | Low |
-| Wizard validation in collapsed banner, not inline under fields | 3 | Error discoverability | Med |
-| Show Desk adaptive header may push Show Map below fold on 375px | 4 | Needs device testing | Med |
+| ~~ProfilePage silent save + silent upload failure~~ | 5 | **Withdrawn on verification:** save toasts via `actionNotifications.updated` ([useProfileForm.ts:132](apps/myk9show/src/hooks/useProfileForm.ts:132)); upload validates + toasts | Withdrawn |
+| Admin alerts card: static "Active," no count; most stat cards not drillable | 1,2 | "Problems surfaced automatically" not delivered | Open |
+| At-show Class Picker error lacks retry | 5 | Manual refresh at ringside | **Fixed same session** ("Try again" wired to `refresh`; hook now refetches both queries) |
+| Wizard multi-owner guard alert renders below the fold | 3 | Invisible blocker | Mitigated — footer blocked-reason now names the owner mismatch at the Next button |
+| Wizard "no dogs" dead-ends without add-dog link | 6 | New-user registration stall | Open |
+| Sign-in rate-limit has no countdown; sign-up resend doesn't special-case 429 | 5 | Confused waiting | Open |
+| Secretary dashboard empty state lacks create-show link | 5 | First-run friction | **Fixed same session** (CTA → `/secretary/create-show/wizard`) |
+| Account action buttons 32px | 3 | Guardrail | **Fixed same session** (`min-h-11 text-sm`) |
+| Account avatar copy "max 2 MB" vs 5MB enforced by hook | 5 | Misleading copy | **Fixed same session** (copy → 5MB) |
+| Show Creation Wizard validation in collapsed banner, not inline under fields | 3 | Error discoverability | Open |
+| Show Desk adaptive header may push Show Map below fold on 375px | 4 | Needs device testing | Open |
 
 ### Low priority
 "TBD" → "Not yet set" (QuickInfoCards); hardcoded terracotta hexes in ShowDetailsPage CTA → tokens; "My Entries" naming test; passcode error copy to name the letter rule; credential chip truncation; waitlist withdraw error toast; long-press reorder hint; trial status in at-show picker label; closeout-section "appears when ready" affordance; scoresheet error message differentiation; notification type filters.
 
 ### Quick wins (high impact, low effort)
-1. `min-h-9` → `min-h-11` on the ringside status pill — one class change.
-2. `size="sm"` → 44px on Show Map row actions and Account action buttons.
-3. `text-[10px]` → `text-xs`+ in MyEntryCard.
-4. Inline "why Next is disabled" message in the registration wizard.
-5. Redirect to `/exhibitor/entries` + success toast on registration completion.
-6. Retry button on at-show Class Picker error state.
-7. Link "Create your first show" empty-state copy to the wizard.
-8. "Saved" flash on ProfilePage (pattern already exists in AccountPage).
-9. Remove or wire the three dead Judge Dashboard buttons (independent of the assignments query).
+1. ~~`min-h-11` on the ringside status pill~~ — **done** (same session).
+2. ~~44px Show Map row-actions trigger and Account action buttons~~ — **done**.
+3. ~~`text-[10px]` → `text-sm` in MyEntryCard~~ — **done**.
+4. ~~Inline "why Next is disabled" message in the registration wizard~~ — **done** (`proceedGating.ts`, unit-tested).
+5. ~~Registration completion feedback~~ — **withdrawn**: toast + My Entries default tab already close the loop.
+6. ~~Retry button on at-show Class Picker error state~~ — **done**.
+7. ~~Link "Create your first show" empty-state copy to the wizard~~ — **done**.
+8. ~~"Saved" flash on ProfilePage~~ — **withdrawn**: already implemented in `useProfileForm`.
+9. Remove or wire the three dead Judge Dashboard buttons — **open**, covered by the spawned Judge Dashboard fix task.
 
 ### Recommendations
 1. **Triage the Judge Dashboard now.** It is the only Critical: either wire the real assignments query with an "Open Ringside Scoring" path, or (pre-launch) temporarily route judges to a working surface and delete the dead buttons. A beautiful empty shell erodes exactly the trust INTENT says judges need.
 2. **Run a single touch-target sweep.** The 36px/32px/10px violations cluster in dense row-action surfaces (ringside pill, Show Map menu, Account actions, entry-card badge) — fix as one PR against the 44px/14px guardrails.
-3. **Resolve the `/profile` vs `/account` split** in line with the consolidation phase: one canonical profile surface, one photo limit, consistent save feedback.
-4. **Close the wizard feedback loop** (inline disabled-reason + completion redirect) — these two small fixes are most of the gap between the current flow and the "that took 30 seconds" intent.
+3. **Resolve the `/profile` vs `/account` split** in line with the consolidation phase: one canonical profile surface. (The 2MB/5MB copy mismatch is fixed; the structural duplication remains.)
+4. ~~Close the wizard feedback loop~~ — **done/withdrawn**: inline disabled-reason shipped (`proceedGating.ts`); the completion-redirect concern was withdrawn on verification (toast + My Entries default tab already exist).
 5. **Design pass for 1-tap scratch** (inline action + undo, dialog reserved for move-up) — the one Phase-2 finding that survived the workbench rebuild.
+
+---
+
+## Remediation status (2026-06-09, same session)
+
+Quick wins 1–4, 6, 7 plus the Account avatar copy bug were fixed in the same session as the audit (commit on this branch). Three agent findings were withdrawn after verification against the worktree: ProfilePage silent save, missing avatar validation, and missing post-registration feedback — all three already existed in hooks the page-level read missed. Remaining open items: Judge Dashboard (spawned task), `/profile`–`/account` consolidation, 1-tap scratch design, admin alert surfacing, wizard inline field validation, sign-in rate-limit countdown, wizard add-dog link, mobile Show Desk header testing.

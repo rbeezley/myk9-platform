@@ -309,8 +309,7 @@ export default function AccountPage() {
                 <Button
                   key={key}
                   variant="ghost"
-                  size="sm"
-                  className="w-full justify-start text-muted-foreground text-xs"
+                  className="min-h-11 w-full justify-start text-muted-foreground text-sm"
                   onClick={action}
                   disabled={!!actionLoading}
                 >

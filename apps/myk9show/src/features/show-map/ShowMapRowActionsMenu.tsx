@@ -105,7 +105,7 @@ export function ShowMapRowActionsMenu({
           variant="ghost"
           size="icon"
           aria-label={`Actions for ${node.label}`}
-          className="h-9 w-9 shrink-0"
+          className="h-11 w-11 shrink-0"
         >
           <MoreHorizontal className="h-4 w-4" />
         </Button>

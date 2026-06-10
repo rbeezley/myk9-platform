@@ -142,7 +142,17 @@ COMMIT;
 
 ---
 
-## Phase 2 — Fee config + payment-intent stamping
+## Phase 2 — Fee config + payment-intent stamping ✅ COMPLETE (deployed 2026-06-09)
+
+> Shipped: `_shared/platformFee.ts` + `_shared/entryFromCartItem.ts` (15 red-first
+> tests, vitest include extended), env-driven fee in stripe-checkout, intent
+> stamping + atomic cart-claim idempotency in stripe-webhook. Deployed to the
+> unified project with `--workdir apps/myk9show` (CLI otherwise resolves the root
+> supabase dir). Deviation: the duplicate-delivery guard is enforced by the atomic
+> DB claim and verified in Phase 6 E2E, not a unit test — the Deno handler can't
+> be imported under vitest (jsr:/npm: specifiers). Discovered live: unified
+> stripe-webhook 500s pending STRIPE_WEBHOOK_SECRET (Phase 0); old project
+> eergfbehjghvfqvzkhsu still hosts stale healthy copies.
 
 ### Task 2.1: Configurable platform fee (assertion-first)
 

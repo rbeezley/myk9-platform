@@ -20,6 +20,19 @@ steps in live mode.
 
 ## Step 0 — Find out where you stand (5 min, do first)
 
+> **Partially answered 2026-06-09 (live probe during Phase 2):**
+>
+> - The **unified** project (`sojmvhhwsjxmfistvzbe`) has `STRIPE_SECRET_KEY` set
+>   (stripe-checkout boots) but **`STRIPE_WEBHOOK_SECRET` is missing — its
+>   stripe-webhook 500s on every request**, so no webhook event has ever been
+>   processed there. Setting that secret is the highest-priority Phase 0 item.
+> - The **old pre-monorepo project** (`eergfbehjghvfqvzkhsu`) still hosts healthy
+>   copies of both functions — February's deploys likely went there via a stale
+>   link in `apps/myk9show/supabase/.temp`. Nothing should target it anymore;
+>   consider pausing/archiving it after go-live to avoid a confusing third world.
+> - Webhook endpoint registration + which mode the premium product lives in are
+>   still unverified — check those in the dashboard as described below.
+
 The subscription functions deployed in February already use `STRIPE_SECRET_KEY` and
 `STRIPE_WEBHOOK_SECRET`, so some of this may exist. Check before creating duplicates:
 

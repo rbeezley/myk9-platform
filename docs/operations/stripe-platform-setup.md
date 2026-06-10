@@ -238,6 +238,12 @@ by phone.
 - **Rotating `PAYOUT_CRON_SECRET`**: new migration with `cron.unschedule` + `cron.schedule`
   carrying the new literal, plus `supabase secrets set` — the documented migration-194
   procedure.
+- **Changing the bank account your platform pays out to**: Dashboard (live mode) →
+  Settings (gear) → **Bank accounts and currencies** → add the new account, set it as
+  payout default, remove the old. Verification is instant via bank login or 1–2 days by
+  micro-deposits; in-flight payouts still go to the old account. (A *club* changing theirs
+  does it in their own Stripe Express dashboard → payout settings — never through myK9Show
+  or your dashboard.)
 
 ## Granting a founding member (12-month free premium)
 

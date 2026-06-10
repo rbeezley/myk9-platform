@@ -186,11 +186,21 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
             )}
 
             {inReview && (
-              <p className="text-sm text-muted-foreground">
-                Stripe is verifying your club&apos;s details — this usually finishes within a
-                day or two. We&apos;ll enable payouts automatically the moment it clears; nothing
-                more for you to do.
-              </p>
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Stripe is verifying your club&apos;s details — this usually finishes within a
+                  day or two, and we&apos;ll enable payouts automatically the moment it clears.
+                  If Stripe asked you for more information, you can add it here.
+                </p>
+                {/* Stripe can pause a submitted account with "actions required"
+                    (missing address/DOB/etc.) — the resume link is the only way
+                    the treasurer can un-stick it. Resuming is harmless when
+                    nothing is due: Stripe just confirms they're all set.
+                    2026-06-10 walkthrough finding. */}
+                <Button variant="outline" onClick={handleContinueToStripe}>
+                  Add missing information
+                </Button>
+              </div>
             )}
 
             {onboardingIncomplete && (

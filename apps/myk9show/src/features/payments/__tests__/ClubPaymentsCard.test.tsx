@@ -114,13 +114,31 @@ describe('ClubPaymentsCard', () => {
     expect(screen.queryByRole('button', { name: /connect payment account/i })).not.toBeInTheDocument();
   });
 
-  it('onboarded but payouts pending: shows the under-review state with no action needed', () => {
+  it('onboarded but payouts pending: under-review state still offers a resume path', () => {
+    // 2026-06-10 walkthrough: Stripe can pause an account with "actions
+    // required" AFTER details_submitted (11 past-due items). The old copy
+    // ("nothing more for you to do") deadlocked the treasurer — Stripe was
+    // waiting on THEM and the card offered no way back into onboarding.
     mockAccountState(connectedAccount({ onboarding_complete: true, payouts_enabled: false }));
     render(<ClubPaymentsCard clubId="club-1" />);
 
     expect(screen.getByText(/under review by stripe/i)).toBeInTheDocument();
-    expect(screen.getByText(/nothing\s+more for you to do/i)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /finish setting up/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /add missing information/i })).toBeInTheDocument();
+    expect(screen.queryByText(/nothing\s+more for you to do/i)).not.toBeInTheDocument();
+  });
+
+  it('under-review resume button calls the onboard function (same resume link)', async () => {
+    mockAccountState(connectedAccount({ onboarding_complete: true, payouts_enabled: false }));
+    mockedStartOnboarding.mockResolvedValue('https://connect.stripe.com/setup/resume');
+    const user = userEvent.setup();
+    render(<ClubPaymentsCard clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /add missing information/i }));
+
+    await waitFor(() => {
+      expect(mockedStartOnboarding).toHaveBeenCalledWith('club-1', '/club-admin/payments');
+    });
+    expect(window.location.assign).toHaveBeenCalledWith('https://connect.stripe.com/setup/resume');
   });
 
   it('payouts enabled: shows the green badge and no setup actions', () => {

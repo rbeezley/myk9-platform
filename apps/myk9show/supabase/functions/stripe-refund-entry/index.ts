@@ -89,7 +89,7 @@ Deno.serve(async req => {
       return corsResponse({ error: 'Missing required parameter: entry_id' }, 400);
     }
 
-    // Load the entry with its show + club through the class → trial chain.
+    // entries carry show_id directly (denormalized alongside class_id/trial_id).
     const { data: entry, error: entryError } = await supabase
       .from('entries')
       .select(
@@ -100,25 +100,18 @@ Deno.serve(async req => {
         payment_method,
         stripe_payment_intent_id,
         refunded_at,
-        class:classes!inner(
-          id,
-          trial:trials!inner(
-            id,
-            show:shows!inner(id, club_id)
-          )
-        )
+        show:show_id(id, club_id)
       `
       )
       .eq('id', entry_id)
       .single();
 
-    if (entryError || !entry) {
-      console.error('Entry not found:', entryError);
+    if (entryError || !entry || !entry.show) {
+      console.error('Entry not found or missing show:', entryError);
       return corsResponse({ error: 'Entry not found' }, 404);
     }
 
-    const show = (entry.class as unknown as { trial: { show: { id: string; club_id: string } } })
-      .trial.show;
+    const show = entry.show as unknown as { id: string; club_id: string };
 
     // Authorize: show-scoped secretary, the club's admin, or site admin —
     // evaluated AS THE CALLER via the canonical SQL predicates.

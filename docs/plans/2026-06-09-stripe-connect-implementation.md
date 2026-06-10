@@ -20,10 +20,17 @@
 
 ---
 
-## Phase 0 — Stripe dashboard prep (manual, Richard)
+## Phase 0 — Stripe dashboard prep (manual, Richard) — MOSTLY COMPLETE 2026-06-09
 
 No code. Blocks Phases 3–5; Phases 1–2 can proceed in parallel with it.
 [ADDED] Click-by-click version with current-state checks: [docs/operations/stripe-platform-setup.md](../operations/stripe-platform-setup.md).
+
+> Done 2026-06-09: sandbox `myK9Show dev` created; platform-scoped webhook
+> destination (7 events) live and proven end-to-end (`stripe trigger invoice.paid`
+> → 200 OK); all four secrets set (sandbox sk_test now replaces the live key on
+> staging); stray live self-subscription cancelled. Remaining: enable Connect in
+> the sandbox (Express + platform profile), branding "Myk9t" → "myK9Show".
+> Phase 3 adds the Connected-accounts destination + `STRIPE_CONNECT_WEBHOOK_SECRET`.
 
 1. Stripe Dashboard → Settings → Connect: enable Connect, choose **Express**, set branding.
 2. Existing webhook endpoint (`.../functions/v1/stripe-webhook`): add events `account.updated`, `account.application.deauthorized`, `charge.refunded`.

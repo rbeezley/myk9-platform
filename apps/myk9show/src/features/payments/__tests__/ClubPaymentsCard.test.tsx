@@ -12,11 +12,13 @@ vi.mock('../useClubStripeAccount', async importOriginal => {
   return {
     ...original,
     useClubStripeAccount: vi.fn(),
+    useClubPayoutHistory: vi.fn(),
     startConnectOnboarding: vi.fn(),
   };
 });
 
 const mockedUseAccount = vi.mocked(accountModule.useClubStripeAccount);
+const mockedUsePayoutHistory = vi.mocked(accountModule.useClubPayoutHistory);
 const mockedStartOnboarding = vi.mocked(accountModule.startConnectOnboarding);
 
 function mockAccountState(data: ClubStripeAccount | null, overrides: Record<string, unknown> = {}) {
@@ -27,6 +29,11 @@ function mockAccountState(data: ClubStripeAccount | null, overrides: Record<stri
     refetch: vi.fn(),
     ...overrides,
   } as unknown as ReturnType<typeof accountModule.useClubStripeAccount>);
+  mockedUsePayoutHistory.mockReturnValue({
+    data: [],
+    isLoading: false,
+    isError: false,
+  } as unknown as ReturnType<typeof accountModule.useClubPayoutHistory>);
 }
 
 const connectedAccount = (flags: Partial<ClubStripeAccount>): ClubStripeAccount => ({
@@ -131,5 +138,39 @@ describe('ClubPaymentsCard', () => {
     render(<ClubPaymentsCard clubId="club-1" />);
 
     expect(screen.getByText(/couldn't load your payment account status/i)).toBeInTheDocument();
+  });
+
+  it('renders payout history with show, amount, and status', () => {
+    mockAccountState(connectedAccount({ onboarding_complete: true, payouts_enabled: true }));
+    mockedUsePayoutHistory.mockReturnValue({
+      data: [
+        {
+          id: 'p1',
+          amount_cents: 12450,
+          status: 'completed',
+          completed_at: '2026-06-09T10:00:00Z',
+          created_at: '2026-06-09T09:00:00Z',
+          show: { name: 'Cedar Valley Classic' },
+        },
+        {
+          id: 'p2',
+          amount_cents: 8000,
+          status: 'pending',
+          completed_at: null,
+          created_at: '2026-06-08T09:00:00Z',
+          show: { name: 'Spring Trial' },
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof accountModule.useClubPayoutHistory>);
+    render(<ClubPaymentsCard clubId="club-1" />);
+
+    expect(screen.getByText('Cedar Valley Classic')).toBeInTheDocument();
+    expect(screen.getByText('$124.50')).toBeInTheDocument();
+    expect(screen.getByText('Paid')).toBeInTheDocument();
+    expect(screen.getByText('Spring Trial')).toBeInTheDocument();
+    expect(screen.getByText('$80.00')).toBeInTheDocument();
+    expect(screen.getByText('Waiting for account')).toBeInTheDocument();
   });
 });

@@ -6,7 +6,18 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Landmark, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
-import { useClubStripeAccount, startConnectOnboarding } from './useClubStripeAccount';
+import {
+  useClubStripeAccount,
+  useClubPayoutHistory,
+  startConnectOnboarding,
+} from './useClubStripeAccount';
+
+const PAYOUT_STATUS_LABELS: Record<string, { label: string; className: string }> = {
+  completed: { label: 'Paid', className: 'bg-green-600 text-white hover:bg-green-600' },
+  processing: { label: 'Sending', className: '' },
+  pending: { label: 'Waiting for account', className: '' },
+  failed: { label: 'Retrying', className: '' },
+};
 
 const RETURN_PATH = '/club-admin/payments';
 
@@ -28,6 +39,7 @@ interface ClubPaymentsCardProps {
 export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const accountQuery = useClubStripeAccount(clubId);
+  const payoutHistory = useClubPayoutHistory(clubId);
   const [showChecklist, setShowChecklist] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
   const inFlightRef = useRef(false);
@@ -130,10 +142,47 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
 
         {!accountQuery.isLoading && !accountQuery.isError && (
           <>
-            {enabled && (
+            {enabled && (payoutHistory.data?.length ?? 0) === 0 && (
               <p className="text-sm text-muted-foreground">
-                You&apos;re all set. Payout history for your shows will appear here.
+                You&apos;re all set. Payouts appear here after your first show closes.
               </p>
+            )}
+
+            {(payoutHistory.data?.length ?? 0) > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium">Show payouts</h4>
+                <ul className="divide-y rounded-lg border">
+                  {payoutHistory.data!.map(payout => {
+                    const status = PAYOUT_STATUS_LABELS[payout.status] ?? {
+                      label: payout.status,
+                      className: '',
+                    };
+                    return (
+                      <li key={payout.id} className="flex items-center justify-between px-3 py-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">
+                            {payout.show?.name ?? 'Show'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(payout.completed_at ?? payout.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold">
+                            ${(payout.amount_cents / 100).toFixed(2)}
+                          </span>
+                          <Badge
+                            variant={payout.status === 'completed' ? 'default' : 'secondary'}
+                            className={status.className}
+                          >
+                            {status.label}
+                          </Badge>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
             )}
 
             {inReview && (

@@ -32,6 +32,34 @@ export function useClubStripeAccount(clubId: string | undefined) {
   });
 }
 
+export interface ShowPayoutRow {
+  id: string;
+  amount_cents: number;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  completed_at: string | null;
+  created_at: string;
+  show: { name: string } | null;
+}
+
+export function useClubPayoutHistory(clubId: string | undefined) {
+  return useQuery({
+    queryKey: ['club-payout-history', clubId],
+    queryFn: async (): Promise<ShowPayoutRow[]> => {
+      // untypedFrom: show_payouts (migration 20260609120000) not yet in
+      // generated types. RLS scopes rows to the club; the explicit filter
+      // keeps intent visible.
+      const { data, error } = await untypedFrom('show_payouts')
+        .select('id, amount_cents, status, completed_at, created_at, show:show_id!inner(name, club_id)')
+        .eq('show.club_id', clubId!)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as ShowPayoutRow[];
+    },
+    enabled: !!clubId,
+    ...cacheStrategies.moderate,
+  });
+}
+
 /**
  * Ask the stripe-connect-onboard edge function for a Stripe Express
  * onboarding link. The caller redirects the browser to the returned URL.

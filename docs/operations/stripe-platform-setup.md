@@ -61,14 +61,19 @@ during the build. If everything is already test mode, skip this.
 
 Dashboard toggle: **Test mode ON** for all of this.
 
-### 1. Enable Connect
+### 1. Enable Connect — ✅ ALREADY ENABLED (verified 2026-06-09)
 
-- Dashboard → **Settings → Connect** (or "Connected accounts" → Get started).
-- Account type: **Express**.
-- Complete the platform profile questionnaire (what your platform does, and an
-  acknowledgment that the platform — you — bears responsibility for refunds/disputes on
-  payments it collects; this is inherent to the hold-and-transfer design, not a setting to
-  optimize).
+Connect was activated during the April 2025 attempt — the Connect overview shows a working
+dashboard, no setup wizard. Verified by creating a sandbox Express account from the
+Workbench shell. Two facts learned:
+
+- Express accounts must request **both** `card_payments` + `transfers` capabilities;
+  `transfers`-only (recipient model) is rejected without special Stripe approval
+  (`capabilities_cannot_have_transfers_without_card_payments_unless_payee`).
+- Sandbox test club for Phase 3 E2E: `acct_1TgaoXPQKr1pkcBI` (pre-onboarding state).
+
+At go-live, confirm live mode shows the same enabled state (it should — the sandbox
+inherits from the live account's platform).
 
 ### 2. Branding
 

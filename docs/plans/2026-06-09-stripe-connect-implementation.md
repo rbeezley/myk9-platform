@@ -217,7 +217,7 @@ In `checkout.session.completed` (entry path), `session.payment_intent` is availa
 Behavior (model auth/CORS on the existing `stripe-customer-portal`):
 1. Authenticated caller; body `{ club_id, return_path }`.
 2. Verify caller is club admin for `club_id` (same RBAC check pattern the RLS policy uses — query `user_roles`).
-3. Look up `club_stripe_accounts` by `club_id`. If none: `stripe.accounts.create({ type: 'express', capabilities: { transfers: { requested: true } }, metadata: { club_id } })`, upsert row (service role). [ADDED] The `transfers` capability request is required for the separate-charges-and-transfers flow — without it, Phase 5's `transfers.create` is rejected.
+3. Look up `club_stripe_accounts` by `club_id`. If none: `stripe.accounts.create({ type: 'express', capabilities: { card_payments: { requested: true }, transfers: { requested: true } }, metadata: { club_id } })`, upsert row (service role). [ADDED] The `transfers` capability is required for Phase 5's `transfers.create` — and [VERIFIED 2026-06-09 in sandbox] Stripe rejects `transfers`-only requests (`capabilities_cannot_have_transfers_without_card_payments_unless_payee`); platforms must request BOTH `card_payments` + `transfers` unless specially approved. Clubs never use card_payments; the money flow is unchanged. Test club for E2E: `acct_1TgaoXPQKr1pkcBI` (created via Workbench shell, pre-onboarding state).
 4. `stripe.accountLinks.create({ account, refresh_url, return_url, type: 'account_onboarding' })` — both URLs point at the club settings page with `?connect=refresh|return`.
 5. Return `{ url }`.
 

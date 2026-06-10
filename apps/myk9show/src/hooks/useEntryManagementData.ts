@@ -72,6 +72,15 @@ interface UseEntryManagementDataReturn {
 
 const LAST_SHOW_KEY = 'myk9show:entryMgmt:lastShowId';
 
+/** "First Last" from a joined person record, or null when absent/blank. */
+function personName(
+  person: { first_name: string | null; last_name: string | null } | null | undefined
+): string | null {
+  if (!person) return null;
+  const name = `${person.first_name ?? ''} ${person.last_name ?? ''}`.trim();
+  return name || null;
+}
+
 interface EntryManagementShowRow {
   id: string;
   name: string | null;
@@ -142,9 +151,11 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
           showId: entry.show_id || '',
           dogId: entry.dog_id || '',
           dogName: entry.dog?.name || 'Unknown Dog',
-          ownerName: entry.handler || 'Unknown',
+          // Online (webhook-created) entries set handler_id/dog.owner FKs but
+          // never the legacy `handler` text; mail-in entries set the text only.
+          ownerName: personName(entry.dog?.owner) || entry.handler || 'Unknown',
           ownerEmail: entry.dog?.owner?.email ?? '',
-          handlerName: entry.handler || 'Not specified',
+          handlerName: personName(entry.handler_person) || entry.handler || 'Not specified',
           classes: entry.class
             ? [
                 {

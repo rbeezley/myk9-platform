@@ -46,12 +46,19 @@ export interface SecretaryEntry {
     refund_notes: string | null;
     refunded_at: string | null;
   } | null;
+  /** Joined person for handler_id — online entries set the FK, not the legacy text. */
+  handler_person: { id: string; first_name: string | null; last_name: string | null } | null;
   dog: {
     id: string;
     name: string;
     call_name: string | null;
     breed: string | null;
-    owner: { id: string; email: string | null } | null;
+    owner: {
+      id: string;
+      first_name: string | null;
+      last_name: string | null;
+      email: string | null;
+    } | null;
   } | null;
   class: {
     id: string;
@@ -153,6 +160,11 @@ export const getEntriesForShow = async (showId: string) => {
         refund_amount,
         refunded_at,
         registration_id,
+        handler_person:handler_id (
+          id,
+          first_name,
+          last_name
+        ),
         registration:registration_id (
           id,
           confirmation_number,
@@ -171,6 +183,8 @@ export const getEntriesForShow = async (showId: string) => {
           breed,
           owner:owner_id (
             id,
+            first_name,
+            last_name,
             email
           )
         ),

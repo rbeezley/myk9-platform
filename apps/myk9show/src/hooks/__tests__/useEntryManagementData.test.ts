@@ -109,6 +109,52 @@ describe('useEntryManagementData', () => {
     expect(result.current.selectedShowId).toBe('');
   });
 
+  it('resolves owner/handler names from joins when the legacy handler text is empty', async () => {
+    // Webhook-created entries (online Stripe payments) set handler_id but never
+    // the legacy `handler` text column — the secretary list must fall back to
+    // the joined person records instead of showing "Unknown"/"Not specified".
+    mocks.getEntriesForShow.mockResolvedValue({
+      data: [
+        {
+          id: 'e1',
+          show_id: 'show-1',
+          handler: null,
+          handler_person: { id: 'p1', first_name: 'Richard', last_name: 'Beezley' },
+          dog: {
+            id: 'd1',
+            name: 'Alpha 1',
+            call_name: 'Alpha',
+            breed: 'Mixed Breed',
+            owner: { id: 'p1', first_name: 'Richard', last_name: 'Beezley', email: 'r@x.com' },
+          },
+          class: null,
+          registration: null,
+        },
+        {
+          // Mail-in path: legacy handler text only — must still win as fallback.
+          id: 'e2',
+          show_id: 'show-1',
+          handler: 'Jane Mailin',
+          handler_person: null,
+          dog: null,
+          class: null,
+          registration: null,
+        },
+      ],
+      error: null,
+    });
+
+    const { result } = renderHook(() => useEntryManagementData());
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+    act(() => result.current.setSelectedShowId('show-1'));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.entries[0]?.ownerName).toBe('Richard Beezley');
+    expect(result.current.entries[0]?.handlerName).toBe('Richard Beezley');
+    expect(result.current.entries[1]?.ownerName).toBe('Jane Mailin');
+    expect(result.current.entries[1]?.handlerName).toBe('Jane Mailin');
+  });
+
   it('clears entries when selectedShowId is reset to empty', async () => {
     mocks.getEntriesForShow.mockResolvedValue({
       data: [{ id: 'e1', show_id: 'show-1', class: null, dog: null, registration: null }],

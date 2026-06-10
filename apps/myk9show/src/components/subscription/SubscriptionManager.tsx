@@ -8,6 +8,14 @@ import { CreditCard, Calendar, Settings, Download, AlertCircle, Crown, Zap } fro
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
+import { products, annualPriceId } from '@/stripe-config';
+
+/** Display amount/interval per known price id; unknown ids show no price line. */
+function priceDisplay(priceId: string | null): { amount: number; interval: 'month' | 'year' } {
+  if (priceId && priceId === annualPriceId) return { amount: 4900, interval: 'year' };
+  if (priceId === products.premium.priceId) return { amount: 499, interval: 'month' };
+  return { amount: 0, interval: 'month' };
+}
 
 interface Subscription {
   id: string;
@@ -45,18 +53,34 @@ export function SubscriptionManager() {
     try {
       setLoading(true);
 
-      // Fetch subscription from Supabase
-      const { data: subData, error: subError } = await supabase
-        .from('stripe_subscriptions')
-        .select(
-          'stripe_subscription_id, status, stripe_price_id, current_period_start, current_period_end, cancel_at_period_end, customer_id'
-        )
-        .eq('customer_id', user?.id || '')
+      // stripe_subscriptions.customer_id is a stripe_customers row uuid, NOT
+      // the auth user id — resolve our own customer row first (RLS scopes
+      // stripe_customers to the signed-in person). 2026-06-10 walkthrough:
+      // querying with user.id matched nothing, so paid subscribers saw
+      // "No active subscription".
+      const { data: customer, error: customerError } = await supabase
+        .from('stripe_customers')
+        .select('id')
         .maybeSingle();
+
+      if (customerError) throw customerError;
+
+      const { data: subData, error: subError } = customer
+        ? await supabase
+            .from('stripe_subscriptions')
+            .select(
+              'stripe_subscription_id, status, stripe_price_id, current_period_start, current_period_end, cancel_at_period_end, customer_id'
+            )
+            .eq('customer_id', customer.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+        : { data: null, error: null };
 
       if (subError) throw subError;
 
       if (subData) {
+        const { amount, interval } = priceDisplay(subData.stripe_price_id);
         setSubscription({
           id: subData.stripe_subscription_id || '',
           status:
@@ -69,9 +93,9 @@ export function SubscriptionManager() {
                   : 'unpaid',
           planName: 'Premium', // Default for active subscriptions
           planType: 'premium' as const, // All paid subscriptions are premium
-          amount: 0, // Not available in view
+          amount,
           currency: 'usd',
-          interval: 'month' as const,
+          interval,
           currentPeriodStart: new Date(subData.current_period_start || new Date().toISOString()),
           currentPeriodEnd: new Date(subData.current_period_end || new Date().toISOString()),
           cancelAtPeriodEnd: subData.cancel_at_period_end || false,
@@ -204,9 +228,11 @@ export function SubscriptionManager() {
                   {getPlanIcon(subscription.planType)}
                   <div>
                     <h3 className="font-semibold text-lg">{subscription.planName}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      ${subscription.amount / 100} / {subscription.interval}
-                    </p>
+                    {subscription.amount > 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        ${subscription.amount / 100} / {subscription.interval}
+                      </p>
+                    )}
                   </div>
                 </div>
                 {getStatusBadge(subscription.status)}

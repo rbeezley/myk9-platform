@@ -12,7 +12,7 @@ Full findings in `docs/pre-launch-audit-2026-06-09.md`. Non-Stripe criticals fix
 - [ ] **Registration confirmation email** — `ConfirmationStep.tsx` still shows "Email confirmation coming soon" (clipboard fallback). Needs a send-confirmation edge function (or reuse of the existing entry-confirmation sender) wired to the registration completion path.
 - [ ] **Waitlist offer notification** — `useWaitlistManagementData.ts` logs instead of notifying the exhibitor when a spot is offered (deferred Phase 6 of waitlist plan).
 - [ ] **Verify live RLS policies against migration lineage** — one `pg_policies` query pass on the linked project to confirm migration 023+/20260604004045 policies replaced the permissive migration-006 ones for `people`/`dogs`/`entries`.
-- [ ] **Delete or finish dormant `ImpersonationService`** — 2FA validation is format-only (`/^\d{6}$/`); no UI consumer found. Delete the service or implement real TOTP before wiring it up.
+- [x] ~~**Delete or finish dormant `ImpersonationService`**~~ — Resolved 2026-06-09: deleted `apps/myk9show/src/services/ImpersonationService.ts` (576 lines). Liveness check confirmed it was dead — no imports of the file, the `impersonationService` singleton, or the `useImpersonationContext` hook; no route, no UI consumer (`UserImpersonationDialog` had already been deleted in the Phase 8 audit), and no tests. The shared `ImpersonationContext`/`ImpersonationSession` types in `audit-types.ts` were kept (still used by `AuditService`), as were the `impersonation_sessions` table and `AuditAction.IMPERSONATE_*` enum values (independent audit-log infrastructure). No real TOTP was implemented since there was no live consumer to justify the security-sensitive work.
 
 ---
 

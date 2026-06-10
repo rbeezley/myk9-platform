@@ -219,7 +219,8 @@ export default function CheckoutSuccessPage() {
                 <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
                   Confirmation Number
                 </p>
-                <p className="text-2xl font-mono font-bold text-green-700 dark:text-green-400">
+                {/* break-all: pi_… fallback ids are 27 chars and must wrap on mobile */}
+                <p className="text-xl font-mono font-bold break-all text-green-700 dark:text-green-400">
                   {orderDetails.confirmationNumber}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">

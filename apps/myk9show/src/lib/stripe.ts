@@ -108,6 +108,7 @@ export async function verifyCheckoutSession(sessionId: string): Promise<{
       entry_ids,
       show_id,
       paid_at,
+      stripe_payment_intent_id,
       shows:show_id (name),
       enrollment:enrollment_id (confirmation_number)
     `
@@ -125,6 +126,9 @@ export async function verifyCheckoutSession(sessionId: string): Promise<{
   }
 
   const enrollment = order.enrollment as { confirmation_number: string } | null;
+  // Online cart orders have no enrollment record; the payment intent id is the
+  // reference that support, refunds, and the Stripe dashboard all pivot on.
+  const confirmationNumber = enrollment?.confirmation_number || order.stripe_payment_intent_id;
 
   return {
     success: true,
@@ -133,6 +137,6 @@ export async function verifyCheckoutSession(sessionId: string): Promise<{
     ...(order.show_id != null && { showId: order.show_id }),
     ...(order.shows && { showName: (order.shows as { name: string }).name }),
     ...(order.amount_cents != null && { totalAmount: order.amount_cents }),
-    ...(enrollment?.confirmation_number && { confirmationNumber: enrollment.confirmation_number }),
+    ...(confirmationNumber && { confirmationNumber }),
   };
 }

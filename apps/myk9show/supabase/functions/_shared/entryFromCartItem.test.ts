@@ -16,20 +16,28 @@ describe('buildEntryInsert', () => {
     expect(row.stripe_payment_intent_id).toBe('pi_test_123');
   });
 
-  it('builds the exact insert shape the webhook writes today, plus the intent', () => {
+  it('builds a row matching the REAL entries schema (verified against migrations 003 + 20260518)', () => {
+    // entries has NO source/notes/entry_fee_cents columns: fee is DECIMAL
+    // dollars (entry_fee), free text goes to special_requests, and the
+    // online/desk discriminator is payment_method (May 2026 migration).
     expect(buildEntryInsert(item, 'pi_test_123', '2026-06-09T12:00:00.000Z')).toEqual({
       dog_id: 'dog-1',
       class_id: 'class-1',
       handler_id: 'handler-1',
       entry_status: 'paid',
       payment_status: 'paid',
-      entry_fee_cents: 5000,
+      entry_fee: 50,
       jump_height: '16',
-      notes: 'first dog in ring',
-      source: 'online',
+      special_requests: 'first dog in ring',
+      payment_method: 'online',
       submitted_at: '2026-06-09T12:00:00.000Z',
       stripe_payment_intent_id: 'pi_test_123',
     });
+  });
+
+  it('converts odd cent amounts to exact dollars', () => {
+    const row = buildEntryInsert({ ...item, entry_fee_cents: 4533 }, 'pi_x', 't');
+    expect(row.entry_fee).toBe(45.33);
   });
 
   it('writes NULL intent when the session had none (entry stays non-refundable)', () => {

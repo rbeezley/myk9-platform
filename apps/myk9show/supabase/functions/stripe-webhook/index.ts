@@ -97,6 +97,10 @@ async function handleEvent(event: Stripe.Event) {
       await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice);
       break;
 
+    case 'charge.refunded':
+      await handleChargeRefunded(event.data.object as Stripe.Charge);
+      break;
+
     case 'account.updated':
       await handleAccountUpdated(event.data.object as Stripe.Account);
       break;
@@ -109,6 +113,48 @@ async function handleEvent(event: Stripe.Event) {
     default:
       console.log(`Unhandled event type: ${event.type}`);
   }
+}
+
+/**
+ * Reconciliation backstop for refunds issued OUTSIDE stripe-refund-entry
+ * (e.g. the Stripe dashboard). A payment intent can cover a whole cart, so a
+ * dashboard refund can't be attributed to a single entry — mark the order and
+ * log loudly for manual entry-level reconciliation. Refunds from
+ * stripe-refund-entry carry entry_id metadata and were already recorded.
+ */
+async function handleChargeRefunded(charge: Stripe.Charge) {
+  const refunds = charge.refunds?.data ?? [];
+  const fromRefundEntry = refunds.some(r => r.metadata?.entry_id);
+  if (fromRefundEntry) {
+    console.log(`charge.refunded for ${charge.id} originated from stripe-refund-entry — already recorded`);
+    return;
+  }
+
+  const paymentIntentId = extractPaymentIntentId(charge.payment_intent);
+  if (!paymentIntentId) {
+    console.error(`charge.refunded for ${charge.id} has no payment intent — cannot reconcile`);
+    return;
+  }
+
+  // Idempotent: re-delivery (or a second partial refund) re-applies the same state.
+  const { data, error } = await supabase
+    .from('stripe_orders')
+    .update({ status: 'refunded', refunded_at: new Date().toISOString() })
+    .eq('stripe_payment_intent_id', paymentIntentId)
+    .select('id, order_type');
+
+  if (error) {
+    console.error(`Error marking order refunded for ${paymentIntentId}:`, error);
+    return;
+  }
+  if (!data || data.length === 0) {
+    console.log(`charge.refunded for ${paymentIntentId} matched no order — ignoring`);
+    return;
+  }
+  console.error(
+    `RECONCILE: dashboard refund detected for ${paymentIntentId} (order ${data[0].id}, type ${data[0].order_type}). ` +
+      `Entry-level refund columns were NOT updated — reconcile manually or re-issue via the app's refund dialog.`
+  );
 }
 
 /**

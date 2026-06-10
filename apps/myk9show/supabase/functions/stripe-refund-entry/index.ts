@@ -1,0 +1,207 @@
+import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+import Stripe from 'npm:stripe@17.7.0';
+import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
+import { validateRefund } from '../_shared/refundValidation.ts';
+
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
+
+if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey || !stripeSecret) {
+  throw new Error('Missing required environment variables');
+}
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const stripe = new Stripe(stripeSecret, {
+  appInfo: { name: 'myK9Show', version: '1.0.0' },
+});
+
+// CORS configuration — same origins as the other stripe functions
+const ALLOWED_ORIGINS = [
+  'https://myk9show.com',
+  'https://www.myk9show.com',
+  'https://app.myk9show.com',
+  'https://myk9-platform-myk9show.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://127.0.0.1:5173',
+];
+
+function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
+  const origin =
+    requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin) ? requestOrigin : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  };
+}
+
+let _corsHeaders: Record<string, string> = getCorsHeaders(null);
+
+function corsResponse(body: string | object | null, status = 200) {
+  if (status === 204) {
+    return new Response(null, { status, headers: _corsHeaders });
+  }
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ..._corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+
+interface RefundRequest {
+  entry_id: string;
+  /** Omitted = full refund of the entry fee. */
+  amount_cents?: number;
+  notes?: string;
+}
+
+Deno.serve(async req => {
+  _corsHeaders = getCorsHeaders(req.headers.get('origin'));
+
+  try {
+    if (req.method === 'OPTIONS') {
+      return corsResponse({}, 204);
+    }
+    if (req.method !== 'POST') {
+      return corsResponse({ error: 'Method not allowed' }, 405);
+    }
+
+    // Authenticate the caller
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return corsResponse({ error: 'Missing Authorization header' }, 401);
+    }
+    const token = authHeader.replace('Bearer ', '');
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      console.error('Authentication failed:', authError);
+      return corsResponse({ error: 'Authentication failed' }, 401);
+    }
+
+    const body: RefundRequest = await req.json();
+    const { entry_id, amount_cents, notes } = body;
+    if (!entry_id) {
+      return corsResponse({ error: 'Missing required parameter: entry_id' }, 400);
+    }
+
+    // Load the entry with its show + club through the class → trial chain.
+    const { data: entry, error: entryError } = await supabase
+      .from('entries')
+      .select(
+        `
+        id,
+        entry_fee,
+        payment_status,
+        payment_method,
+        stripe_payment_intent_id,
+        refunded_at,
+        class:classes!inner(
+          id,
+          trial:trials!inner(
+            id,
+            show:shows!inner(id, club_id)
+          )
+        )
+      `
+      )
+      .eq('id', entry_id)
+      .single();
+
+    if (entryError || !entry) {
+      console.error('Entry not found:', entryError);
+      return corsResponse({ error: 'Entry not found' }, 404);
+    }
+
+    const show = (entry.class as unknown as { trial: { show: { id: string; club_id: string } } })
+      .trial.show;
+
+    // Authorize: show-scoped secretary, the club's admin, or site admin —
+    // evaluated AS THE CALLER via the canonical SQL predicates.
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const [secretaryRes, clubAdminRes, siteAdminRes] = await Promise.all([
+      userClient.rpc('is_show_secretary', { check_show_id: show.id }),
+      userClient.rpc('is_club_admin', { check_club_id: show.club_id }),
+      userClient.rpc('is_site_admin'),
+    ]);
+    const authorized =
+      secretaryRes.data === true || clubAdminRes.data === true || siteAdminRes.data === true;
+    if (!authorized) {
+      return corsResponse({ error: 'Not authorized to refund entries for this show' }, 403);
+    }
+
+    // Live payout state for the show (the unique partial index guarantees at
+    // most one non-failed row).
+    const { data: payout } = await supabase
+      .from('show_payouts')
+      .select('status')
+      .eq('show_id', show.id)
+      .neq('status', 'failed')
+      .maybeSingle();
+
+    // entries.entry_fee is DECIMAL dollars; all validation runs in cents.
+    const validation = validateRefund({
+      entryFeeCents: Math.round((entry.entry_fee ?? 0) * 100),
+      requestedCents: amount_cents,
+      paymentStatus: entry.payment_status,
+      paymentMethod: entry.payment_method,
+      stripePaymentIntentId: entry.stripe_payment_intent_id,
+      payoutStatus: payout?.status ?? null,
+    });
+
+    if ('error' in validation) {
+      console.log(`Refund for entry ${entry_id} rejected: ${validation.error}`);
+      return corsResponse({ error: validation.error }, 422);
+    }
+
+    // One refund per entry: the entry-scoped idempotency key means a retry of
+    // this call returns the original refund instead of creating a second one.
+    const refund = await stripe.refunds.create(
+      {
+        payment_intent: entry.stripe_payment_intent_id!,
+        amount: validation.amountCents,
+        metadata: { entry_id },
+      },
+      { idempotencyKey: `refund-entry-${entry_id}` }
+    );
+
+    // Entry-level refund columns (NUMERIC dollars), added alongside migration
+    // 176's enrollment-level columns which track manual desk refunds.
+    const { error: updateError } = await supabase
+      .from('entries')
+      .update({
+        refund_amount: validation.amountCents / 100,
+        refunded_at: new Date().toISOString(),
+        refund_notes: notes ?? null,
+        payment_status: 'refunded',
+      })
+      .eq('id', entry_id);
+
+    if (updateError) {
+      // The Stripe refund DID happen; surface loudly for reconciliation.
+      console.error(
+        `CRITICAL: refund ${refund.id} created for entry ${entry_id} but the entry update failed:`,
+        updateError
+      );
+      return corsResponse(
+        { error: 'Refund issued but recording it failed — contact support', refund_id: refund.id },
+        500
+      );
+    }
+
+    console.log(
+      `Refunded ${validation.amountCents} cents for entry ${entry_id} (${refund.id}) by ${user.id}`
+    );
+    return corsResponse({ refund_id: refund.id, amount_cents: validation.amountCents });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('stripe-refund-entry error:', message);
+    return corsResponse({ error: message }, 500);
+  }
+});

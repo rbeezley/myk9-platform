@@ -210,7 +210,7 @@ describe('ReportControlsBar', () => {
 
       const option = await screen.findByText(/Friday Trial 1/);
       expect(option).toBeInTheDocument();
-      // No raw UUID is rendered anywhere in the open dropdown.
+      // The matched option's label shows the human name and carries no raw UUID.
       expect(option.textContent ?? '').not.toMatch(UUID_RE);
     });
 
@@ -255,6 +255,34 @@ describe('ReportControlsBar', () => {
       await user.click(screen.getByRole('combobox', { name: /select class/i }));
 
       const option = await screen.findByText(/Detective Class/);
+      expect(option).toBeInTheDocument();
+      expect(option.textContent ?? '').not.toMatch(UUID_RE);
+    });
+
+    it('falls back to a generic label (never the UUID) when name AND element/level/section are all empty', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReportControlsBar
+          {...defaultProps}
+          trials={uuidTrials}
+          classes={[
+            {
+              id: '10e39f5f-ef3d-4673-b62c-0000000000dd',
+              name: '',
+              element: '',
+              level: '',
+              section: '',
+              trial_id: '874be7e4-b187-4c11-9a3b-0000000000aa',
+            },
+          ]}
+          trialId="874be7e4-b187-4c11-9a3b-0000000000aa"
+        />
+      );
+
+      await user.click(screen.getByRole('combobox', { name: /select class/i }));
+
+      // Query by option role (not text) so we don't collide with the "Class" <label>.
+      const option = await screen.findByRole('option', { name: 'Class' });
       expect(option).toBeInTheDocument();
       expect(option.textContent ?? '').not.toMatch(UUID_RE);
     });

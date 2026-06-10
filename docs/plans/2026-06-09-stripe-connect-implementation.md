@@ -222,7 +222,16 @@ accounts**-scoped destination, which has its **own signing secret**. This task m
 (1) add `STRIPE_CONNECT_WEBHOOK_SECRET` and verify incoming signatures against
 either secret (try platform secret, fall back to Connect secret); (2) have Richard
 create the second destination (Connected accounts scope, those 2 events, same URL)
-and set the new secret. The platform-scoped destination (7 events) already exists.
+and set the new secret. The platform-scoped destination (7 events) already exists
+("myK9Show platform events", `we_1TgaTwAlej2Q9UtXU9GMVbQA`).
+
+**[ADDED] Webhook payloads are pinned to API version 2020-03-02** (account default,
+not changeable per destination; same pin will apply in live mode, so code must
+handle it — do NOT upgrade only the sandbox's version, that would diverge from
+live). One field gap found: checkout sessions in that version lack `amount_total`
+→ in `handleEntryPaymentCompleted`, write `stripe_orders.amount_cents` from
+`session.amount_total ?? cart.total_cents` (cart already snapshots the total).
+Fold into this task's webhook edit + deploy.
 
 **Files:**
 - Modify: `apps/myk9show/supabase/functions/stripe-webhook/index.ts`

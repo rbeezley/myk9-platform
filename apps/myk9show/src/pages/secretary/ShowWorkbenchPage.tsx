@@ -416,7 +416,14 @@ export function ShowWorkbenchPage() {
             <Button
               size="sm"
               className="min-h-[44px] sm:min-h-8"
-              onClick={() => handlePhaseChange('show-desk')}
+              onClick={() => {
+                handlePhaseChange('show-desk');
+                // The phase content sits below the hero; without a scroll the
+                // click looks like a no-op (walkthrough feedback 2026-06-10).
+                document
+                  .getElementById('workbench-phases')
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
             >
               Record Mail-In Entries
             </Button>
@@ -440,6 +447,7 @@ export function ShowWorkbenchPage() {
         footer={<QuickInfoCards show={currentShow} />}
       />
 
+      <div id="workbench-phases" />
       <PrimaryTabs tabs={PHASE_TABS} value={activePhase} onValueChange={handlePhaseChange}>
         <PrimaryTabsContent value="setup">
           <PhaseShell title="Setup" kicker="Before the show" />

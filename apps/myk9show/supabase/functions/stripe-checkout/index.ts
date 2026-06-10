@@ -1,6 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
+import { calculatePlatformFeeCents, resolvePlatformFeePercent } from '../_shared/platformFee.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -338,8 +339,8 @@ async function handleEntryCheckout(
     (sum: number, item: { entry_fee_cents: number }) => sum + item.entry_fee_cents,
     0
   );
-  const platformFeePercent = 3; // 3% platform fee
-  const platformFeeCents = Math.round((subtotal * platformFeePercent) / 100);
+  const platformFeePercent = resolvePlatformFeePercent(Deno.env.get('PLATFORM_FEE_PERCENT'));
+  const platformFeeCents = calculatePlatformFeeCents(subtotal, platformFeePercent);
 
   // Add platform fee as line item if > 0
   if (platformFeeCents > 0) {

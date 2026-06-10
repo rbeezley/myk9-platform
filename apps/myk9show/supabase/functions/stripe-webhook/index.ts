@@ -1,6 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
+import { buildEntryInsert, extractPaymentIntentId } from '../_shared/entryFromCartItem.ts';
 
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
@@ -144,6 +145,26 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     return;
   }
 
+  // Idempotency latch: atomically claim the cart by flipping active → submitted.
+  // Stripe gets a 200 before this handler runs (EdgeRuntime.waitUntil), so a
+  // re-delivered event would otherwise create duplicate paid entries — which
+  // the payout cron would then pay the club for twice.
+  const { data: claimed, error: claimError } = await supabase
+    .from('entry_carts')
+    .update({ status: 'submitted' })
+    .eq('id', cartId)
+    .eq('status', 'active')
+    .select('id');
+
+  if (claimError) {
+    console.error(`CRITICAL: failed to claim cart ${cartId} after payment:`, claimError);
+    return;
+  }
+  if (!claimed || claimed.length === 0) {
+    console.log(`Cart ${cartId} already processed (duplicate event delivery) — skipping`);
+    return;
+  }
+
   // Get stripe_customers record for this person
   const { data: stripeCustomer } = await supabase
     .from('stripe_customers')
@@ -151,24 +172,14 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     .eq('person_id', cart.exhibitor.person_id)
     .single();
 
-  // Create entries from cart items
+  // Create entries from cart items, stamping the payment intent as the
+  // per-entry refund key for stripe-refund-entry.
+  const paymentIntentId = extractPaymentIntentId(session.payment_intent);
   const entryIds: string[] = [];
   for (const item of cart.items) {
     const { data: entry, error: entryError } = await supabase
       .from('entries')
-      .insert({
-        dog_id: item.dog_id,
-        class_id: item.class_id,
-        handler_id: item.handler_id,
-        entry_status: 'paid',
-        payment_status: 'paid',
-        entry_fee_cents: item.entry_fee_cents,
-        jump_height: item.jump_height,
-        notes: item.special_requests,
-        // Source tracking
-        source: 'online',
-        submitted_at: new Date().toISOString(),
-      })
+      .insert(buildEntryInsert(item, paymentIntentId, new Date().toISOString()))
       .select('id')
       .single();
 
@@ -182,23 +193,21 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     }
   }
 
-  console.log(`Created ${entryIds.length} entries from cart ${cartId}`);
-
-  // Update cart status
-  const { error: updateCartError } = await supabase
-    .from('entry_carts')
-    .update({ status: 'submitted' })
-    .eq('id', cartId);
-
-  if (updateCartError) {
-    console.error('Error updating cart status:', updateCartError);
+  if (entryIds.length !== cart.items.length) {
+    // Stripe already received its 200, so it will NOT retry this event: the
+    // exhibitor has paid for entries that do not exist. Surface loudly.
+    console.error(
+      `CRITICAL: cart ${cartId} paid (${paymentIntentId ?? 'no intent'}) but only ` +
+        `${entryIds.length}/${cart.items.length} entries were created — manual reconciliation required`
+    );
   }
+
+  console.log(`Created ${entryIds.length} entries from cart ${cartId}`);
 
   // Create stripe_orders record
   const { error: orderError } = await supabase.from('stripe_orders').insert({
     customer_id: stripeCustomer?.id || null,
-    stripe_payment_intent_id:
-      typeof session.payment_intent === 'string' ? session.payment_intent : null,
+    stripe_payment_intent_id: paymentIntentId,
     stripe_checkout_session_id: session.id,
     amount_cents: session.amount_total || 0,
     currency: session.currency || 'usd',

@@ -123,6 +123,28 @@ describe('EnrollmentCard', () => {
     expect(screen.getByText('Paid')).toBeTruthy();
   });
 
+  it('payment badge is a manual-edit dropdown for enrollment (mail-in) groups', () => {
+    render(<EnrollmentCard {...defaultProps} group={makeGroup({ enrollmentId: 'enroll-1' })} />);
+    fireEvent.click(screen.getByText('Paid'));
+    expect(screen.getByText('Paid in Full — Cash')).toBeTruthy();
+  });
+
+  it('payment badge is NOT editable for online-checkout groups (no enrollment record)', () => {
+    // Stripe-paid groups have no enrollment row: the manual options would
+    // silently no-op (or worse, convince a secretary they refunded a card).
+    // Status must follow Stripe via the per-entry refund flow only.
+    render(
+      <EnrollmentCard
+        {...defaultProps}
+        group={makeGroup({ enrollmentId: null, confirmationNumber: null })}
+      />
+    );
+    const badge = screen.getByText('Paid');
+    fireEvent.click(badge);
+    expect(screen.queryByText('Paid in Full — Cash')).toBeNull();
+    expect(badge.closest('button')).toBeNull();
+  });
+
   it('collapses entries on toggle and expands again', () => {
     render(<EnrollmentCard {...defaultProps} />);
 

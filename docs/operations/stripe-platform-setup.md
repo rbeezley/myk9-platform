@@ -134,6 +134,21 @@ Toggle: **Live mode ON**. Three things exist per-mode and must be redone:
 2. **Live webhook endpoint** — same URL, same event list, new `whsec_...`:
    `supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_<live>`
 3. **Live API key**: `supabase secrets set STRIPE_SECRET_KEY=sk_live_...`
+4. **Purge sandbox-created Stripe IDs from the database.** Stripe IDs are mode-scoped: a
+   `cus_`/`acct_` ID created in the sandbox does not exist in live mode, and the checkout
+   function reuses cached customer IDs from `stripe_customers` — a stale sandbox ID makes
+   live checkout fail with "No such customer" (this bit us during the 2026-06-10 walkthrough,
+   in the other direction). In the SQL editor:
+
+   ```sql
+   delete from public.stripe_customers;  -- pre-launch: all rows are sandbox test data
+   update public.exhibitor_profiles set stripe_customer_id = null
+    where stripe_customer_id is not null;
+   delete from public.club_stripe_accounts;  -- sandbox Express accounts; clubs re-onboard live
+   ```
+
+   (Pre-launch this is a clean wipe; if real data ever shares the table, filter on the
+   sandbox account's IDs instead.)
 
 Then verify the mode-independent pieces survived (`supabase secrets list` —
 `PLATFORM_FEE_PERCENT`, `PAYOUT_CRON_SECRET` persist; verify, don't assume), run one real

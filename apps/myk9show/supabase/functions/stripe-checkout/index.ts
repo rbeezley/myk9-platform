@@ -161,9 +161,12 @@ Deno.serve(async req => {
       return corsResponse({ error: 'Failed to create payment profile' }, 500);
     }
 
-    // Handle different checkout modes
+    // Handle different checkout modes.
+    // `return await` (not bare `return`) so a rejection inside the handler is
+    // caught by this try/catch and returned as JSON-with-CORS — a bare return
+    // escapes the catch and surfaces to the browser as an opaque network error.
     if (mode === 'entry') {
-      return handleEntryCheckout(
+      return await handleEntryCheckout(
         body as EntryCheckoutRequest,
         user.id,
         customerId,
@@ -171,14 +174,14 @@ Deno.serve(async req => {
         cancel_url
       );
     } else if (mode === 'subscription') {
-      return handleSubscriptionCheckout(
+      return await handleSubscriptionCheckout(
         body as SubscriptionCheckoutRequest,
         customerId,
         success_url,
         cancel_url
       );
     } else if (mode === 'payment') {
-      return handlePaymentCheckout(
+      return await handlePaymentCheckout(
         body as PaymentCheckoutRequest,
         customerId,
         success_url,

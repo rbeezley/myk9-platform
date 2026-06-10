@@ -3,6 +3,7 @@ import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { buildEntryInsert, extractPaymentIntentId } from '../_shared/entryFromCartItem.ts';
 import { accountToRowPatch } from '../_shared/connectAccountMapper.ts';
+import { parsePremiumPriceIds, priceIdToTier } from '../_shared/premiumPrices.ts';
 
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
@@ -667,14 +668,19 @@ async function syncSubscriptionFromStripe(stripeCustomerId: string) {
 /**
  * Map Stripe price ID to subscription tier
  */
-// INTENT: Two tiers only — Free and Premium. Both Stripe price IDs map to 'premium'.
+// INTENT: Two tiers only — Free and Premium. Every configured price ID maps to
+// 'premium'. Ids come from the PREMIUM_PRICE_IDS secret (comma-separated;
+// sandbox + live + annual coexist) with the original live ids as fallback so a
+// missing secret never downgrades a paying subscriber.
+const LIVE_PREMIUM_PRICE_IDS = [
+  'price_1RHz4VAtHgBcw875bF7McPNd', // Was "Excellent" (clubs) — now Premium
+  'price_1RHz3bAtHgBcw875o2gdNaYW', // Was "Advanced" (exhibitors) — now Premium
+];
+const premiumPriceIds = parsePremiumPriceIds(
+  Deno.env.get('PREMIUM_PRICE_IDS'),
+  LIVE_PREMIUM_PRICE_IDS
+);
+
 function mapPriceToTier(priceId: string | undefined): 'free' | 'premium' {
-  if (!priceId) return 'free';
-
-  const knownPriceIds = [
-    'price_1RHz4VAtHgBcw875bF7McPNd', // Was "Excellent" (clubs) — now Premium
-    'price_1RHz3bAtHgBcw875o2gdNaYW', // Was "Advanced" (exhibitors) — now Premium
-  ];
-
-  return knownPriceIds.includes(priceId) ? 'premium' : 'free';
+  return priceIdToTier(priceId, premiumPriceIds);
 }

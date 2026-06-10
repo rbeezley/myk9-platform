@@ -158,6 +158,21 @@ by phone.
   carrying the new literal, plus `supabase secrets set` — the documented migration-194
   procedure.
 
+## Granting a founding member (12-month free premium)
+
+Site-admin-only, manual by design (Supabase dashboard → SQL editor):
+
+```sql
+update public.people
+   set early_adopter_until = now() + interval '12 months'
+ where email = 'person@example.com';
+```
+
+A write-guard trigger rejects this for non-site-admins. The member sees a
+"Founding member — premium until <date>" banner on their Subscription page and
+drops to free automatically when the date passes. To revoke early, set the
+column to `now()`; to extend, set a later date.
+
 ## What you never configure
 
 - Payout schedules on club accounts — Express defaults (automatic daily) are correct; the

@@ -54,5 +54,34 @@ export function groupEntriesByEnrollment(entries: EntryManagementEntry[]): Enrol
     }
   }
 
+  // Entry-level Stripe refunds (online checkout has no enrollment record):
+  // aggregate them up to the group so one refunded entry of several reads
+  // "Partial Refund", not the first entry's status masquerading as the group's.
+  // Enrollment-level fields, when present, stay authoritative.
+  for (const group of map.values()) {
+    const hasEnrollmentStatus = group.entries.some(e => e.enrollmentPaymentStatus != null);
+    const refunded = group.entries.filter(e => e.paymentStatus === PaymentStatus.REFUNDED);
+
+    if (!hasEnrollmentStatus && refunded.length > 0) {
+      group.paymentStatus =
+        refunded.length === group.entries.length
+          ? PaymentStatus.REFUNDED
+          : PaymentStatus.PARTIAL_REFUND;
+    }
+
+    if (group.refundAmount == null) {
+      const entryRefundTotal = group.entries.reduce((sum, e) => sum + (e.refundAmount ?? 0), 0);
+      if (entryRefundTotal > 0) {
+        group.refundAmount = entryRefundTotal;
+        group.refundedAt =
+          group.entries
+            .map(e => e.refundedAt)
+            .filter((t): t is string => t != null)
+            .sort()
+            .at(-1) ?? null;
+      }
+    }
+  }
+
   return [...map.values()];
 }

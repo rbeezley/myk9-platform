@@ -98,4 +98,64 @@ describe('groupEntriesByEnrollment', () => {
     expect(groups[0].refundNotes).toBeNull();
     expect(groups[0].refundedAt).toBeNull();
   });
+
+  // Entry-level Stripe refunds (no enrollment record — the webhook checkout
+  // path). One refunded entry of two must NOT mark the whole group Refunded.
+  it('shows Partial Refund when only some entries in the group are refunded', () => {
+    const entries: EntryManagementEntry[] = [
+      {
+        ...base,
+        id: 'e1',
+        registrationId: '',
+        paymentStatus: PaymentStatus.REFUNDED,
+        refundAmount: 30,
+        refundedAt: '2026-06-10T16:05:08Z',
+      },
+      { ...base, id: 'e2', registrationId: '', paymentStatus: PaymentStatus.PAID_ONLINE },
+    ];
+    const groups = groupEntriesByEnrollment(entries);
+    expect(groups[0].paymentStatus).toBe(PaymentStatus.PARTIAL_REFUND);
+    expect(groups[0].refundAmount).toBe(30);
+    expect(groups[0].refundedAt).toBe('2026-06-10T16:05:08Z');
+  });
+
+  it('shows Refunded when every entry in the group is refunded', () => {
+    const entries: EntryManagementEntry[] = [
+      {
+        ...base,
+        id: 'e1',
+        registrationId: '',
+        paymentStatus: PaymentStatus.REFUNDED,
+        refundAmount: 30,
+        refundedAt: '2026-06-10T16:05:08Z',
+      },
+      {
+        ...base,
+        id: 'e2',
+        registrationId: '',
+        paymentStatus: PaymentStatus.REFUNDED,
+        refundAmount: 30,
+        refundedAt: '2026-06-10T17:00:00Z',
+      },
+    ];
+    const groups = groupEntriesByEnrollment(entries);
+    expect(groups[0].paymentStatus).toBe(PaymentStatus.REFUNDED);
+    expect(groups[0].refundAmount).toBe(60);
+  });
+
+  it('keeps enrollment-level refund amount when present (entry refunds do not override)', () => {
+    const entries: EntryManagementEntry[] = [
+      {
+        ...base,
+        id: 'e1',
+        registrationId: 'reg-1',
+        enrollmentPaymentStatus: PaymentStatus.PARTIAL_REFUND,
+        enrollmentRefundAmount: 25.0,
+        refundAmount: 30,
+      },
+    ];
+    const groups = groupEntriesByEnrollment(entries);
+    expect(groups[0].refundAmount).toBe(25.0);
+    expect(groups[0].paymentStatus).toBe(PaymentStatus.PARTIAL_REFUND);
+  });
 });

@@ -13,10 +13,13 @@ no publishable key, no frontend configuration. Your entire surface is:
 2. Four Supabase secrets: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`,
    `PLATFORM_FEE_PERCENT`, `PAYOUT_CRON_SECRET`
 
-Stripe has two parallel worlds — **test mode** and **live mode** — toggled in the top-right of
-the dashboard. Connect enablement, webhook endpoints, signing secrets, and products exist
-*separately in each mode*. The build happens entirely in test mode; go-live repeats three
-steps in live mode.
+Stripe has two parallel worlds — live mode and a play-money copy. On this account
+(`acct_1GgAdNAtHgBcw875`, new-style dashboard) the copy is a **Sandbox**, not the old
+"test mode" toggle: top-left account menu ("Myk9t") → **Switch to sandbox** → `myK9Show dev`.
+A colored Sandbox banner shows which world you're in. Connect enablement, webhook endpoints,
+signing secrets, API keys, and products exist *separately* in the sandbox vs. live. The build
+happens entirely in the sandbox; go-live repeats three steps in live mode. (Wherever this
+runbook says "test mode," read "inside the sandbox.")
 
 ## Step 0 — Find out where you stand (5 min, do first)
 
@@ -32,6 +35,12 @@ steps in live mode.
 >   consider pausing/archiving it after go-live to avoid a confusing third world.
 > - Webhook endpoint registration + which mode the premium product lives in are
 >   still unverified — check those in the dashboard as described below.
+> - **2026-06-09 (screenshots):** single Stripe account confirmed
+>   (`acct_1GgAdNAtHgBcw875` — the hardcoded premium price id carries the same
+>   account fingerprint). LIVE mode had a real self-subscription billing
+>   $4.99/mo to Richard's own card since Apr 2025 (the April attempt against
+>   the old Supabase project) — cancel via Customers → beezley@cox.net.
+>   Account display name is "Myk9t" — fix to "myK9Show" in the branding step.
 
 The subscription functions deployed in February already use `STRIPE_SECRET_KEY` and
 `STRIPE_WEBHOOK_SECRET`, so some of this may exist. Check before creating duplicates:

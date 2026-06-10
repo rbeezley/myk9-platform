@@ -216,6 +216,14 @@ Behavior (model auth/CORS on the existing `stripe-customer-portal`):
 
 ### Task 3.2: Webhook Connect handlers
 
+**[ADDED 2026-06-09 — discovered during Phase 0]** Stripe's event-destination scopes
+route `account.updated` / `account.application.deauthorized` only to a **Connected
+accounts**-scoped destination, which has its **own signing secret**. This task must:
+(1) add `STRIPE_CONNECT_WEBHOOK_SECRET` and verify incoming signatures against
+either secret (try platform secret, fall back to Connect secret); (2) have Richard
+create the second destination (Connected accounts scope, those 2 events, same URL)
+and set the new secret. The platform-scoped destination (7 events) already exists.
+
 **Files:**
 - Modify: `apps/myk9show/supabase/functions/stripe-webhook/index.ts`
 - Create: `apps/myk9show/supabase/functions/_shared/connectAccountMapper.ts` + test

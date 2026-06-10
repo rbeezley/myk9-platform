@@ -79,13 +79,18 @@ Dashboard toggle: **Test mode ON** for all of this.
 ### 3. Webhook endpoint (test mode)
 
 - **Developers → Webhooks → Add endpoint** (or edit the existing one).
-- URL: `https://sojmvhhwsjxmfistvzbe.supabase.co/functions/v1/stripe-webhook`
-- Events (the full list — 6 existing + 3 new):
+Two destinations are needed because Stripe scopes them (each with its OWN signing secret):
+
+- **Destination 1 — scope "Your account"** (created 2026-06-09), URL
+  `https://sojmvhhwsjxmfistvzbe.supabase.co/functions/v1/stripe-webhook`, events:
   - `checkout.session.completed`
   - `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`
   - `invoice.paid`, `invoice.payment_failed`
-  - `account.updated`, `account.application.deauthorized`, `charge.refunded`
-- Copy the **signing secret** (`whsec_...`) from the endpoint detail page.
+  - `charge.refunded`
+  - Its signing secret → `STRIPE_WEBHOOK_SECRET`.
+- **Destination 2 — scope "Connected accounts"** (create during Phase 3, same URL), events:
+  - `account.updated`, `account.application.deauthorized`
+  - Its signing secret → `STRIPE_CONNECT_WEBHOOK_SECRET` (function support lands in Phase 3).
 
 ### 4. Set the secrets
 

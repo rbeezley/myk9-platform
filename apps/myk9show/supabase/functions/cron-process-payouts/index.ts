@@ -246,10 +246,13 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
         transfer_group: show.id,
         metadata: { show_id: show.id, show_name: show.name },
       },
-      // Per-show key: a crashed-then-retried run gets Stripe's cached transfer
-      // back instead of creating a second one (keys live ~24h; cross-day
-      // retries create a fresh transfer only because the row state allows it).
-      { idempotencyKey: `show-payout-${show.id}` }
+      // Per-ROW key, not per-show: Stripe caches the first response for a key
+      // — including failures — for ~24h. A per-show key replayed the original
+      // insufficient_balance error on every same-day retry even after funds
+      // arrived (2026-06-10 walkthrough). Each retry creates a fresh row, so
+      // a fresh key; the transfers.list(transfer_group) guard above remains
+      // the at-most-one-transfer-per-show authority.
+      { idempotencyKey: `show-payout-row-${rowId}` }
     );
 
     await supabase

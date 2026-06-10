@@ -6,8 +6,11 @@
 > 186's version silently blocked dashboard grants; PREMIUM_PRICE_IDS mapping
 > deployed with live fallback). Known transient: staging's deployed frontend
 > fails profile loads until this branch merges (pre-launch, accepted).
-> Remaining: Richard's sandbox product/prices + secrets (Task 2 tail), Task 3
-> annual toggle, Task 4 verification — fold into the Phase 6 sitting. Post-merge
+> Task 3 ✅ also complete (annual toggle, hidden until VITE_STRIPE_PRICE_ANNUAL
+> set; stripe-upgrade-subscription allowlist parameterized — its hardcoded list
+> would have rejected sandbox/annual ids — and redeployed).
+> Remaining: Richard's sandbox product/prices + secrets (Task 2 tail) and the
+> Task 4 paywall walkthrough — fold into the Phase 6 sitting. Post-merge
 > follow-up: regenerate Supabase TS types (drops is_early_adopter, adds new
 > payment tables/columns — clears the untypedFrom/`as unknown` bridges).
 

@@ -77,6 +77,7 @@ export default function ReportsPage() {
     () =>
       ((trials ?? []) as Array<Record<string, unknown>>).map(t => ({
         id: t.id as string,
+        name: (t.name ?? '') as string,
         trial_number: Number(t.trial_number ?? 0),
         date: (t.date ?? '') as string,
       })),
@@ -87,6 +88,7 @@ export default function ReportsPage() {
     () =>
       ((classes ?? []) as Array<Record<string, unknown>>).map(c => ({
         id: c.id as string,
+        name: (c.name ?? '') as string,
         element: (c.element ?? '') as string,
         level: (c.level ?? '') as string,
         section: (c.section ?? '') as string,

@@ -366,7 +366,21 @@ Tests green, **confirm**, deploy `stripe-refund-entry` + `stripe-webhook`; commi
 
 ---
 
-## Phase 5 — Automated payouts
+## Phase 5 — Automated payouts ✅ DEPLOYED UNSCHEDULED (2026-06-09)
+
+> Shipped: payoutCalc (5 red-first tests; per-entry cent rounding on entry_fee
+> dollars, payment_method='online' + payment_status='paid' only),
+> cron-process-payouts (secret guard verified 403 live; stale-recovery first;
+> pending recompute; per-show idempotency key `show-payout-<id>`; club emails +
+> admin alerts via Resend direct — send-email fn is template-locked), payout
+> history in ClubPaymentsCard. Eligibility is DATE-driven (end_date+3d minus
+> draft/cancelled) since shows rarely reach terminal statuses. Smoke-tested
+> live: clean no-op run, eligible_shows:0 cross-checked as true DB state.
+> **Task 5.3 cron.schedule migration deliberately NOT created** — per the
+> de-risk decision it's authored at go-live after a verified manual payout
+> (pattern: migration 194; secret in worktree supabase/.env). Deviation: the
+> Deno handler has no vitest harness; transfer-call correctness rides on
+> payoutCalc tests + the Phase 6 sandbox walkthrough.
 
 ### Task 5.1: Payout calculation (assertion-first, pure)
 

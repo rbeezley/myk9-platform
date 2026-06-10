@@ -17,7 +17,9 @@ export async function createCheckoutSession(priceId: string, mode: 'payment' | '
   const { data, error } = await supabase.functions.invoke('stripe-checkout', {
     body: {
       price_id: priceId,
-      success_url: `${window.location.origin}/success?session_id={CHECKOUT_SESSION_ID}`,
+      // /subscription is the registered route — `/success` never existed and
+      // 404'd every new subscriber (2026-06-10 walkthrough finding).
+      success_url: `${window.location.origin}/subscription?checkout=success`,
       cancel_url: `${window.location.origin}/pricing-page`,
       mode,
     },

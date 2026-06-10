@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
+import { useSearchParams } from 'react-router-dom';
 import { SubscriptionManager } from '@/components/subscription/SubscriptionManager';
 import { Card, CardContent } from '@/components/ui/card';
-import { CreditCard, Crown, Star, Award } from 'lucide-react';
+import { CreditCard, Crown, Star, Award, CheckCircle } from 'lucide-react';
 import { useSubscriptionGate } from '@/hooks/useSubscriptionGate';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 
@@ -9,6 +10,9 @@ export default function SubscriptionPage() {
   const { isEarlyAdopter } = useSubscriptionGate();
   const { profile } = useExhibitorProfile();
   const foundingUntil = profile?.person?.early_adopter_until;
+  const [searchParams] = useSearchParams();
+  // Stripe checkout redirects here with ?checkout=success after payment.
+  const justCheckedOut = searchParams.get('checkout') === 'success';
 
   return (
     <motion.div
@@ -28,6 +32,20 @@ export default function SubscriptionPage() {
             Manage your subscription, billing, and account preferences
           </p>
         </div>
+
+        {/* Post-checkout confirmation (Stripe redirect) */}
+        {justCheckedOut && (
+          <Card className="border-green-500/60">
+            <CardContent className="flex items-center gap-3 p-4">
+              <CheckCircle className="h-6 w-6 shrink-0 text-green-600" />
+              <p className="text-sm">
+                <span className="font-semibold">Payment received!</span> Your premium subscription
+                is activating — this can take a few seconds. Your plan below will update
+                automatically.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Founding member banner */}
         {isEarlyAdopter && foundingUntil && (

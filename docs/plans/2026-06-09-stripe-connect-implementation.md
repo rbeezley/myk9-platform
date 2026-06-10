@@ -36,7 +36,12 @@ No code. Blocks Phases 3–5; Phases 1–2 can proceed in parallel with it.
 
 ---
 
-## Phase 1 — Schema migration
+## Phase 1 — Schema migration ✅ COMPLETE (pushed 2026-06-09)
+
+> Shipped as `20260609120000_stripe_connect_payouts.sql`. Audit found one blocker
+> (zero-arg `is_show_secretary()` would have leaked payouts cross-show — fixed with
+> the show-scoped overload from migration 163) plus `updated_at` on `show_payouts`.
+> Verified live: both tables 200 (not 404) via Data API, anon sees zero rows.
 
 ### Task 1.1: Write the migration
 

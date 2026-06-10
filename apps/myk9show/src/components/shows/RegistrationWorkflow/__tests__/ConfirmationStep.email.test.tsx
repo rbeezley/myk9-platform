@@ -14,7 +14,7 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 
 // Mocks referenced inside vi.mock factories must be created via vi.hoisted so
 // they exist when the hoisted factory runs.
-const { sendMock, notificationsMock } = vi.hoisted(() => ({
+const { sendMock, notificationsMock, loggerMock } = vi.hoisted(() => ({
   sendMock: vi.fn(),
   notificationsMock: {
     success: vi.fn(),
@@ -22,6 +22,7 @@ const { sendMock, notificationsMock } = vi.hoisted(() => ({
     info: vi.fn(),
     warning: vi.fn(),
   },
+  loggerMock: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
 
 // Mock the sender so we never touch Supabase / Resend.
@@ -33,6 +34,14 @@ vi.mock('../sendRegistrationConfirmationEmail', () => ({
 vi.mock('@/lib/notifications', () => ({
   notifications: notificationsMock,
 }));
+
+// Override only `logger` so the send-failure path's diagnostic log is assertable
+// without hitting real transports. Preserve the rest of the module (the
+// `LoggingService` singleton is used transitively by dateFormat → dateLocal).
+vi.mock('@/services/LoggingService', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/services/LoggingService')>();
+  return { ...actual, logger: loggerMock };
+});
 
 // Empty stores keep the heavy receipt cards inert; we only exercise the action.
 vi.mock('@/hooks/useDogStoreCompat', () => ({
@@ -79,6 +88,7 @@ describe('ConfirmationStep — email confirmation', () => {
     notificationsMock.success.mockReset();
     notificationsMock.error.mockReset();
     notificationsMock.info.mockReset();
+    loggerMock.error.mockReset();
   });
 
   it('sends the registration confirmation email with the registration id', async () => {
@@ -129,6 +139,40 @@ describe('ConfirmationStep — email confirmation', () => {
     expect(notificationsMock.error).toHaveBeenCalledWith(
       'Could not send confirmation email',
       expect.any(Object)
+    );
+    // The failure cause is logged with the registration context for field diagnostics.
+    expect(loggerMock.error).toHaveBeenCalledWith(
+      'Registration confirmation email failed to send',
+      'registration',
+      expect.objectContaining({ registrationId: 'enrollment-123' }),
+      expect.any(Error)
+    );
+  });
+
+  it('disables the button and shows a sending state while the send is in flight', async () => {
+    // Hold the send pending so the in-flight UI is observable.
+    let resolveSend: (value: { ok: boolean }) => void = () => {};
+    sendMock.mockReturnValue(
+      new Promise<{ ok: boolean }>(resolve => {
+        resolveSend = resolve;
+      })
+    );
+
+    render(<ConfirmationStep {...baseProps} />);
+    await clickEmailButton();
+
+    // While pending, the button is disabled and labelled "Sending…" — refs alone
+    // can't drive this, so it proves the display state is wired.
+    const sendingButton = await screen.findByRole('button', { name: /sending/i });
+    expect(sendingButton).toBeDisabled();
+
+    // Settle so no work is left pending past the test.
+    resolveSend({ ok: true });
+    await waitFor(() =>
+      expect(notificationsMock.success).toHaveBeenCalledWith(
+        'Confirmation email sent',
+        expect.any(Object)
+      )
     );
   });
 

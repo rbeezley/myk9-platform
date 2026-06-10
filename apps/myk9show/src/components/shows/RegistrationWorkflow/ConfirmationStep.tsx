@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   CheckCircle,
   Download,
@@ -16,6 +16,7 @@ import {
   XCircle,
   Clock4,
   Info,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,7 @@ import { useTrialStore } from '@/store/trialStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { notifications } from '@/lib/notifications';
+import { logger } from '@/services/LoggingService';
 import {
   getPaymentMethodDisplay,
   getStatusBadgeVariant,
@@ -83,6 +85,9 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   // of truth.
   const sendInFlightRef = useRef(false);
   const emailSentRef = useRef(false);
+  // Display-only mirror of `sendInFlightRef` so the button can show a disabled
+  // spinner — a ref alone can't trigger the re-render the disabled state needs.
+  const [isSending, setIsSending] = useState(false);
 
   const buildReceiptData = useCallback((): ReceiptData => {
     const showDate =
@@ -197,14 +202,23 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
 
     // INTENT: Exhibitor — "this respects my time". The confirmation email is the
     // exhibitor's receipt; send it for real on the primary path. Guard against
-    // double-sends from rapid clicks or re-renders.
-    if (sendInFlightRef.current || emailSentRef.current) {
+    // double-sends from rapid clicks or re-renders. The two guard refs reflect
+    // distinct states and get distinct, accurate messages: `sendInFlightRef` =
+    // a request still in flight, `emailSentRef` = a completed success.
+    if (sendInFlightRef.current) {
+      notifications.info('Sending your confirmation email…', {
+        description: 'Hang tight — this only takes a moment.',
+      });
+      return;
+    }
+    if (emailSentRef.current) {
       notifications.info('Confirmation email already sent', {
         description: 'Check your inbox — it may take a minute to arrive.',
       });
       return;
     }
     sendInFlightRef.current = true;
+    setIsSending(true);
     try {
       const result = await sendRegistrationConfirmationEmail(registrationId);
       if (result.ok) {
@@ -214,8 +228,14 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
         });
         return;
       }
-      // Send failed — fall back to clipboard copy so the exhibitor still leaves
-      // with their receipt, and surface the failure.
+      // Send failed — log the cause for field diagnostics, then fall back to a
+      // clipboard copy so the exhibitor still leaves with their receipt.
+      logger.error(
+        'Registration confirmation email failed to send',
+        'registration',
+        { registrationId },
+        new Error(result.error ?? 'Unknown send error')
+      );
       const copied = await copyReceiptToClipboard();
       notifications.error('Could not send confirmation email', {
         description: copied
@@ -224,6 +244,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
       });
     } finally {
       sendInFlightRef.current = false;
+      setIsSending(false);
     }
   }, [onSendEmail, registrationId, copyReceiptToClipboard]);
 
@@ -599,9 +620,18 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
           <Download className="h-4 w-4 mr-2" />
           Download Receipt
         </Button>
-        <Button variant="outline" className="flex-1" onClick={handleSendEmail}>
-          <Mail className="h-4 w-4 mr-2" />
-          Email Confirmation
+        <Button
+          variant="outline"
+          className="flex-1"
+          onClick={handleSendEmail}
+          disabled={isSending}
+        >
+          {isSending ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
+          ) : (
+            <Mail className="h-4 w-4 mr-2" />
+          )}
+          {isSending ? 'Sending…' : 'Email Confirmation'}
         </Button>
       </div>
     </div>

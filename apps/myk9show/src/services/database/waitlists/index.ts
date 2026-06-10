@@ -9,6 +9,7 @@ export {
   bulkPromoteWaitlistEntries,
   closeWaitlistForClasses,
   offerWaitlistSpot,
+  getWaitlistOfferMessageTarget,
   promoteWaitlistEntry,
   removeFromWaitlist,
   getWaitlistPosition,

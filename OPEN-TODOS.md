@@ -52,7 +52,7 @@ Descoped from the shipped #602–#604 MVP. Not blockers for the enabled flag; bu
 
 ## Show Map
 
-- [ ] **Add "All Exhibitors" by-dog view to Show Map** — A collapsible top-level row that lists every dog (exhibitor) in the show; expanding a dog row shows that dog's class entries — a dog-pivot of the existing `trial → class → entry` tree (`All Exhibitors | dog | entries` vs `trials | classes | entries`). Mirrors myK9Q's home-page exhibitor list. Reuse the show-map tree primitives, don't fetch new data. Files: `apps/myk9show/src/features/show-map/showMapTree.ts`, `showMapTypes.ts`, `ShowMapStructureTable.tsx`, `ShowMapTab.tsx`. Full context in TO-DOS.md § "All Exhibitors by-dog view on Show Map".
+- [x] ~~**Add "All Exhibitors" by-dog view to Show Map**~~ — Implemented in branch `codex/show-map-all-exhibitors`: Show Map now has a collapsed-by-default synthetic **All Exhibitors** branch above trial rows, grouping entries by dog and showing each dog's class/trial context from the existing tree inputs with no new fetches. Focused Show Map tests and typecheck pass.
 
 ---
 

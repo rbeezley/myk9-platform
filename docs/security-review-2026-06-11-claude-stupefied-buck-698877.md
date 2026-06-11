@@ -67,6 +67,16 @@ return this.removeStaleEntries(liveIds);    // empty set → removes all non-dir
 | Payment Security | 0 | — | No changes |
 | Input Validation | 1 (ReplicatedDogsTable.ts) | 0 | — |
 
+### [FIXED] SA-P2: Non-owner handler cannot read linked dogs row
+
+**Category:** Data Exposure (availability — not a security exposure)
+**Location:** `supabase/migrations/20260611120000_tighten_dogs_people_select_rls.sql:85-87`
+**Finding source:** Codex re-review of branch after keyset-pagination implementation.
+**Evidence:** `entries_select` (mig 129) exposes entries to non-owner handlers via `handler_id`, but `dogs_select` did not have a matching branch — a secretary-assigned handler could read their entry rows but not the linked dog record.
+**Fix:** `20260611130000_dogs_select_add_handler_visibility.sql` — adds a 4th branch to `dogs_select`: `EXISTS (SELECT 1 FROM entries WHERE dog_id = dogs.id AND handler_id = get_my_person_id() AND deleted_at IS NULL)`. Circular-dependency safety verified: the EXISTS only matches rows where `handler_id = me`, which always satisfies `entries_select` branch 2 before reaching the dogs-reading branch 3. Migration-auditor confirmed SAFE.
+
+---
+
 ## Previous Audit Comparison
 
 No `docs/security-audit-*.md` / `docs/security-review-*.md` present prior to this run — first review for this branch, no comparison available.

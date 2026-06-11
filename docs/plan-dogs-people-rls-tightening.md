@@ -133,6 +133,19 @@ id set**, not "fetch-and-delete":
   (exhibitor self / exhibitor cross-owner / secretary / anon). Run `/codex:review` on
   the migration per CLAUDE.md (RLS = high-stakes).
 
+### Handler visibility (`20260611130000_dogs_select_add_handler_visibility.sql`)
+
+A Codex re-review of the final keyset-paginated implementation raised one P2: when
+a secretary assigns a handler to a dog the handler doesn't own, the handler can see
+their entry (via `entries_select` `handler_id` branch) but cannot read the linked
+`dogs` row. Fix: add a 4th `dogs_select` branch —
+`EXISTS (SELECT 1 FROM entries WHERE dog_id = dogs.id AND handler_id = get_my_person_id() AND deleted_at IS NULL)`.
+
+**Recursion safety**: `entries` has FORCE RLS. The EXISTS targets rows where
+`handler_id = get_my_person_id()`; those rows always satisfy `entries_select` branch 2
+(handler check), which OR-short-circuits before branch 3 (the dogs JOIN that would
+re-enter `dogs_select`). No 42P17. Verified by migration-auditor.
+
 ## Out of scope (this PR)
 
 - `people` column masking, show-scoped staff visibility, admin soft-delete restore path,

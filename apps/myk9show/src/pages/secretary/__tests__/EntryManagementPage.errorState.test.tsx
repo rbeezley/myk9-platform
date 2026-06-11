@@ -60,8 +60,6 @@ vi.mock('@/hooks/useEntryManagementFilters', () => ({
   useEntryManagementFilters: () => ({
     searchTerm: '',
     setSearchTerm: vi.fn(),
-    statusFilter: 'all',
-    setStatusFilter: vi.fn(),
     paymentFilter: 'all',
     setPaymentFilter: vi.fn(),
     selectedTab: 'all',
@@ -76,7 +74,6 @@ vi.mock('@/hooks/useEntryManagementFilters', () => ({
     handleSelectEntry: vi.fn(),
     handleSelectAll: vi.fn(),
     filteredEntries: [],
-    clearFilters: vi.fn(),
   }),
 }));
 

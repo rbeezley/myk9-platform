@@ -92,8 +92,6 @@ const EntryManagementPage: React.FC = () => {
   const {
     searchTerm,
     setSearchTerm,
-    statusFilter,
-    setStatusFilter,
     paymentFilter,
     setPaymentFilter,
     selectedTab,
@@ -104,7 +102,6 @@ const EntryManagementPage: React.FC = () => {
     setTrialFilter,
     setClassFilter,
     filteredEntries,
-    clearFilters,
   } = useEntryManagementFilters({ entries, tabCounts, showId: selectedShowId });
 
   const enrollmentGroups: EnrollmentGroup[] = useMemo(
@@ -371,11 +368,8 @@ const EntryManagementPage: React.FC = () => {
                   stats={stats}
                   searchTerm={searchTerm}
                   setSearchTerm={setSearchTerm}
-                  statusFilter={statusFilter}
-                  setStatusFilter={setStatusFilter}
                   paymentFilter={paymentFilter}
                   setPaymentFilter={setPaymentFilter}
-                  onClearFilters={clearFilters}
                   selectedTab={selectedTab}
                   setSelectedTab={setSelectedTab}
                   tabCounts={tabCounts}

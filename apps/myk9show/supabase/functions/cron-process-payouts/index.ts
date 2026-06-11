@@ -105,6 +105,21 @@ async function recoverStaleProcessing(summary: Record<string, number>) {
   }
 }
 
+/** Sum the show's payable online entry money from entries, in cents.
+ * Returns null on a load error (caller skips the show this run). */
+async function computePayoutCents(showId: string): Promise<number | null> {
+  const { data: entries, error } = await supabase
+    .from('entries')
+    .select('entry_fee, payment_method, payment_status, refund_amount')
+    .eq('show_id', showId);
+
+  if (error) {
+    console.error(`Entries load failed for show ${showId}:`, error);
+    return null;
+  }
+  return calculateShowPayoutCents(entries ?? []);
+}
+
 async function processShow(show: EligibleShow, summary: Record<string, number>) {
   // Existing live row decides the path: completed/processing → done elsewhere,
   // pending → reuse the row (recompute), none → create. Checked BEFORE the
@@ -122,19 +137,24 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
     return; // completed or in-flight
   }
 
-  // Recompute the amount from entries at this moment — never trust stored figures.
-  const { data: entries, error: entriesError } = await supabase
-    .from('entries')
-    .select('entry_fee, payment_method, payment_status, refund_amount')
-    .eq('show_id', show.id);
+  // Recompute the amount from entries at this moment — never trust stored
+  // figures. This PRE-claim figure only decides routing (skip / park /
+  // proceed); the amount actually transferred is recomputed again after the
+  // claim below, when validateRefund's payout_in_progress check is already
+  // rejecting new refunds.
+  const amountCents = await computePayoutCents(show.id);
+  if (amountCents === null) return;
 
-  if (entriesError) {
-    console.error(`Entries load failed for show ${show.id}:`, entriesError);
-    return;
-  }
-
-  const amountCents = calculateShowPayoutCents(entries ?? []);
   if (amountCents <= 0) {
+    if (liveRow) {
+      // A parked pending row whose show has since been fully refunded would
+      // otherwise show the club money that will never arrive — close it out.
+      await supabase
+        .from('show_payouts')
+        .update({ amount_cents: 0, status: 'completed', completed_at: new Date().toISOString() })
+        .eq('id', liveRow.id)
+        .eq('status', 'pending');
+    }
     summary.skipped_no_online_money++;
     return;
   }
@@ -222,6 +242,40 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
   }
 
   try {
+    // Authoritative amount: recomputed AFTER the claim. From the moment the
+    // row is 'processing', validateRefund rejects new refunds
+    // (payout_in_progress), so a refund committed between the routing
+    // computation above and the claim is caught here instead of overpaying
+    // the club. (A refund whose validation read 'pending' just before our
+    // claim and whose stamp lands after this read can still slip through —
+    // that residual window is the duration of one Stripe refund call,
+    // accepted for v1.)
+    const finalAmountCents = await computePayoutCents(show.id);
+    if (finalAmountCents === null) {
+      // Can't verify the amount — release the claim for tomorrow's run.
+      await supabase
+        .from('show_payouts')
+        .update({ status: 'failed', failure_reason: 'entries_load_failed_post_claim' })
+        .eq('id', rowId);
+      summary.failed++;
+      return;
+    }
+    if (finalAmountCents <= 0) {
+      // Fully refunded since routing: nothing to send, close the row out.
+      await supabase
+        .from('show_payouts')
+        .update({ amount_cents: 0, status: 'completed', completed_at: new Date().toISOString() })
+        .eq('id', rowId);
+      summary.skipped_no_online_money++;
+      return;
+    }
+    if (finalAmountCents !== amountCents) {
+      await supabase
+        .from('show_payouts')
+        .update({ amount_cents: finalAmountCents })
+        .eq('id', rowId);
+    }
+
     // Double-pay guard (PR #625 HIGH finding): a row stuck in 'processing'
     // usually means the run crashed AFTER the transfer succeeded — and Stripe
     // idempotency keys expire (~24h) BEFORE the stale recovery fires, so the
@@ -247,7 +301,7 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
 
     const transfer = await stripe.transfers.create(
       {
-        amount: amountCents,
+        amount: finalAmountCents,
         currency: 'usd',
         destination: account.stripe_account_id,
         transfer_group: show.id,
@@ -272,13 +326,13 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
       .eq('id', rowId);
 
     summary.completed++;
-    console.log(`Paid out ${dollars(amountCents)} for show ${show.id} (${transfer.id})`);
+    console.log(`Paid out ${dollars(finalAmountCents)} for show ${show.id} (${transfer.id})`);
 
     if (club?.email) {
       await sendEmail(
         club.email,
-        `${dollars(amountCents)} on its way to ${club.name}`,
-        `<p>Entry fees for <strong>${show.name}</strong> — ${dollars(amountCents)} — have been
+        `${dollars(finalAmountCents)} on its way to ${club.name}`,
+        `<p>Entry fees for <strong>${show.name}</strong> — ${dollars(finalAmountCents)} — have been
          sent to ${club.name}'s bank account and typically arrive within 2 business days.</p>
          <p>Questions about the amount? Your show secretary can see the entry-by-entry detail
          in myK9Show.</p>`
@@ -353,11 +407,18 @@ Deno.serve(async req => {
 
     // Date-driven eligibility: shows rarely get flipped to a terminal status,
     // so the trigger is end_date + 3 days, excluding only draft/cancelled.
+    // Newest-first with an explicit cap: eligibility is permanent, so without
+    // ordering PostgREST's max-rows would someday truncate ARBITRARY rows and
+    // silently drop new shows. Ordered, the rows that fall off the end are the
+    // oldest — long-settled shows whose live payout row makes processShow a
+    // one-query no-op anyway.
     const { data: shows, error: showsError } = await supabase
       .from('shows')
       .select('id, name, club_id, end_date')
       .lte('end_date', cutoff)
-      .not('status', 'in', '("draft","cancelled")');
+      .not('status', 'in', '("draft","cancelled")')
+      .order('end_date', { ascending: false })
+      .limit(1000);
 
     if (showsError) {
       console.error('Eligible-shows query failed:', showsError);

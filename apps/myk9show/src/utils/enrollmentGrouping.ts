@@ -43,7 +43,9 @@ export function groupEntriesByEnrollment(entries: EntryManagementEntry[]): Enrol
         paymentStatus: entry.enrollmentPaymentStatus ?? entry.paymentStatus,
         totalAmount: hasEnrollmentTotal ? entry.enrollmentTotalAmount! : 0,
         totalAmountUnit: hasEnrollmentTotal ? 'cents' : 'dollars',
-        paidAmount: entry.enrollmentPaidAmount ?? 0,
+        // Dollar-unit groups start at 0 and accumulate per-entry below;
+        // mixing the enrollment figure in would double-count.
+        paidAmount: hasEnrollmentTotal ? (entry.enrollmentPaidAmount ?? 0) : 0,
         paymentReference: entry.enrollmentPaymentReference ?? null,
         refundAmount: entry.enrollmentRefundAmount ?? null,
         refundNotes: entry.enrollmentRefundNotes ?? null,
@@ -56,7 +58,11 @@ export function groupEntriesByEnrollment(entries: EntryManagementEntry[]): Enrol
     group.entries.push(entry);
 
     if (group.totalAmountUnit === 'dollars') {
+      // No enrollment record (online/pi-grouped or standalone entries): both
+      // figures come from the entries themselves. With an enrollment, its
+      // total/paid stay authoritative and are never accumulated.
       group.totalAmount += entry.totalFee;
+      group.paidAmount += entry.paidAmount;
     }
   }
 

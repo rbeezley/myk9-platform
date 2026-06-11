@@ -185,3 +185,60 @@ describe('groupEntriesByEnrollment', () => {
     expect(groups[0].paymentStatus).toBe(PaymentStatus.PARTIAL_REFUND);
   });
 });
+
+// Online (pi-grouped) groups have no enrollment record, so paidAmount must be
+// summed from the entries themselves — initializing it from the (absent)
+// enrollment left it 0, and EnrollmentCard then showed the full total as
+// "amount due" after any partial refund (round-8 review minor).
+describe('paidAmount aggregation for groups without an enrollment', () => {
+  it('sums per-entry paidAmount for pi-grouped entries', () => {
+    const entries: EntryManagementEntry[] = [
+      {
+        ...base,
+        id: 'e1',
+        registrationId: '',
+        stripePaymentIntentId: 'pi_X',
+        totalFee: 30,
+        paidAmount: 30,
+      },
+      {
+        ...base,
+        id: 'e2',
+        registrationId: '',
+        stripePaymentIntentId: 'pi_X',
+        totalFee: 30,
+        paidAmount: 0,
+        paymentStatus: PaymentStatus.REFUNDED,
+        refundAmount: 30,
+      },
+    ];
+    const groups = groupEntriesByEnrollment(entries);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].paidAmount).toBe(30);
+    expect(groups[0].totalAmount).toBe(60);
+  });
+
+  it('keeps the enrollment-level paidAmount authoritative when present', () => {
+    const entries: EntryManagementEntry[] = [
+      {
+        ...base,
+        id: 'e1',
+        registrationId: 'reg-9',
+        enrollmentTotalAmount: 6000,
+        enrollmentPaidAmount: 60,
+        paidAmount: 10,
+      },
+      {
+        ...base,
+        id: 'e2',
+        registrationId: 'reg-9',
+        enrollmentTotalAmount: 6000,
+        enrollmentPaidAmount: 60,
+        paidAmount: 10,
+      },
+    ];
+    const groups = groupEntriesByEnrollment(entries);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].paidAmount).toBe(60);
+  });
+});

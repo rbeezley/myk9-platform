@@ -40,8 +40,8 @@ export default function SubscriptionPage() {
               <CheckCircle className="h-6 w-6 shrink-0 text-green-600" />
               <p className="text-sm">
                 <span className="font-semibold">Payment received!</span> Your premium subscription
-                is activating — this can take a few seconds. Your plan below will update
-                automatically.
+                is activating — this can take a few seconds. If your plan below still shows the
+                old one, refresh the page.
               </p>
             </CardContent>
           </Card>

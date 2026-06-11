@@ -16,8 +16,15 @@ import {
   Users,
   Loader2,
 } from 'lucide-react';
+import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import { useWizardStore } from '@/store/wizardStore';
 import { useClubStore } from '@/store/clubStore';
+import { useClubStripeAccount } from '@/features/payments/useClubStripeAccount';
+import {
+  canEnableOnlineEntries,
+  PUBLISH_BLOCKED_MESSAGE,
+} from '@/features/payments/onlineEntryGate';
 import { useResolvePersonName } from '@/hooks/useResolvePersonName';
 import { format } from 'date-fns';
 import { formatFee } from '@/utils/format';
@@ -49,6 +56,28 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
   const { show, trials, judgeDetails, markStepCompleted, setCurrentStep } = useWizardStore();
   const { clubs } = useClubStore();
   const resolvePersonName = useResolvePersonName();
+  const navigate = useNavigate();
+  const clubAccountQuery = useClubStripeAccount(show.clubId || undefined);
+
+  // Publish gate (same rule as ShowStatusPill/EditShowDialog): the wizard is
+  // the primary way shows get published, and a show created already-published
+  // would permanently escape the transition-surface gates — onlineEntryGate
+  // deliberately never un-publishes. Fail closed here too.
+  const handleCreateAndPublish = () => {
+    if (show.clubId) {
+      if (clubAccountQuery.isLoading) {
+        toast.info('Checking the club’s payment account — try again in a moment.');
+        return;
+      }
+      if (!canEnableOnlineEntries(clubAccountQuery.data)) {
+        toast.error(PUBLISH_BLOCKED_MESSAGE, {
+          action: { label: 'Open Payments', onClick: () => navigate('/club-admin/payments') },
+        });
+        return;
+      }
+    }
+    onCreateAndPublish?.();
+  };
 
   // Calculate summary stats
   const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
@@ -493,7 +522,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                   {isLoading ? 'Saving...' : submitLabel}
                 </Button>
 
-                <Button onClick={onCreateAndPublish} disabled={isLoading} className="flex-1">
+                <Button onClick={handleCreateAndPublish} disabled={isLoading} className="flex-1">
                   {isLoading ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   ) : (

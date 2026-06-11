@@ -5,6 +5,7 @@ import { buildEntryInsert, extractPaymentIntentId } from '../_shared/entryFromCa
 import { accountToRowPatch } from '../_shared/connectAccountMapper.ts';
 import { parsePremiumPriceIds, priceIdToTier } from '../_shared/premiumPrices.ts';
 import { sessionMatchesCart } from '../_shared/sessionCartGuard.ts';
+import { alertAdmin } from '../_shared/alertAdmin.ts';
 
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
@@ -26,38 +27,6 @@ const stripe = new Stripe(stripeSecret, {
 });
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-// Operator alerts via Resend direct — same pattern as cron-process-payouts
-// (the send-email function is template-locked).
-const resendApiKey = Deno.env.get('RESEND_API_KEY');
-const alertEmail = Deno.env.get('PLATFORM_ALERT_EMAIL') ?? 'richardbeezley1@gmail.com';
-
-async function alertAdmin(subject: string, html: string) {
-  if (!resendApiKey) {
-    console.log(`Alert email skipped (no RESEND_API_KEY): ${subject}`);
-    return;
-  }
-  try {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${resendApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'myK9Show <notifications@myk9show.com>',
-        to: alertEmail,
-        subject: `[myK9Show payments] ${subject}`,
-        html,
-      }),
-    });
-    if (!res.ok) {
-      console.error(`Alert email failed (${res.status}): ${subject}`);
-    }
-  } catch (err) {
-    console.error(`Alert email error: ${subject}`, err);
-  }
-}
 
 Deno.serve(async req => {
   try {
@@ -356,7 +325,19 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     .select('id');
 
   if (claimError) {
+    // Stripe already got its 200 (waitUntil), so this event will NOT retry:
+    // the exhibitor paid but no entries exist. Same severity as the
+    // entries-shortfall below — email, don't just log.
     console.error(`CRITICAL: failed to claim cart ${cartId} after payment:`, claimError);
+    await alertAdmin(
+      'Paid cart could not be claimed — entries NOT created',
+      `<p>Checkout session <code>${session.id}</code> was PAID, but claiming cart
+       <code>${cartId}</code> failed with a database error, so no entries were created
+       and Stripe will not retry the event.</p>
+       <pre>${claimError.message}</pre>
+       <p>Recovery: verify the payment in the Stripe dashboard, then create the
+       entries manually from the cart items (or refund the payment).</p>`
+    );
     return;
   }
   if (!claimed || claimed.length === 0) {
@@ -443,6 +424,16 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
       `CRITICAL: cart ${cartId} paid (${paymentIntentId ?? 'no intent'}) but only ` +
         `${entryIds.length}/${cart.items.length} entries were created — manual reconciliation required`
     );
+    await alertAdmin(
+      'Paid entries missing — manual reconciliation needed',
+      `<p>Cart <code>${cartId}</code> was PAID (payment intent
+       <code>${paymentIntentId ?? 'unknown'}</code>), but only
+       ${entryIds.length} of ${cart.items.length} entries were created. Stripe will
+       not retry this event.</p>
+       <p>Recovery: compare the cart's items against the show's entries and create
+       the missing ones manually, or refund the difference from the Stripe
+       dashboard (Payments → search the intent id → Refund).</p>`
+    );
   }
 
   console.log(`Created ${entryIds.length} entries from cart ${cartId}`);
@@ -468,7 +459,19 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   });
 
   if (orderError) {
+    // Entries exist and the exhibitor is fine, but the order row drives the
+    // payment-history surfaces and reconciliation — losing it silently makes
+    // the charge invisible to every dashboard.
     console.error('Error creating stripe_orders record:', orderError);
+    await alertAdmin(
+      'Entry payment recorded without a stripe_orders row',
+      `<p>Entries for cart <code>${cartId}</code> were created and the exhibitor is
+       unaffected, but inserting the <code>stripe_orders</code> record failed:</p>
+       <pre>${orderError.message}</pre>
+       <p>Recovery: insert the order row manually (payment intent
+       <code>${paymentIntentId ?? 'unknown'}</code>, session <code>${session.id}</code>)
+       so payment history and reconciliation stay complete.</p>`
+    );
   }
 
   console.log(`Entry payment completed for cart ${cartId}, created order`);

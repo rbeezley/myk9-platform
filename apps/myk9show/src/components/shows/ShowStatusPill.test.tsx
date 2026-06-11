@@ -77,7 +77,10 @@ describe('ShowStatusPill publish gate', () => {
     expect(mutateAsync).toHaveBeenCalledWith({ id: 'show-1', updates: { status: 'published' } });
   });
 
-  it('without a clubId (legacy call sites) the gate is inert', async () => {
+  it('without a clubId the gate fails CLOSED (clubless shows cannot be paid out)', async () => {
+    // Round-8 review: fail-open here meant a lost clubId prop (it happened in
+    // the #615 merge) silently disabled the gate. A clubless show also cannot
+    // receive payouts, so publishing it would collect money with nowhere to go.
     mockAccount(null);
     const user = userEvent.setup();
     render(<ShowStatusPill showId="show-1" status="draft" />);
@@ -85,7 +88,8 @@ describe('ShowStatusPill publish gate', () => {
     await user.click(screen.getByRole('button', { name: /draft/i }));
     await user.click(await screen.findByText(/publish show/i));
 
-    expect(mutateAsync).toHaveBeenCalledWith({ id: 'show-1', updates: { status: 'published' } });
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/assign a club/i));
   });
 
   it('moving a published show back to draft is never gated', async () => {

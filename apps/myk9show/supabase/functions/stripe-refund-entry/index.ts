@@ -2,6 +2,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { validateRefund } from '../_shared/refundValidation.ts';
+import { alertAdmin } from '../_shared/alertAdmin.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -156,23 +157,41 @@ Deno.serve(async req => {
       return corsResponse({ error: validation.error }, 422);
     }
 
-    // One refund per entry: the entry-scoped idempotency key means a retry of
-    // this call returns the original refund instead of creating a second one.
-    const refund = await stripe.refunds.create(
-      {
-        payment_intent: entry.stripe_payment_intent_id!,
-        amount: validation.amountCents,
-        metadata: { entry_id },
-      },
-      { idempotencyKey: `refund-entry-${entry_id}` }
-    );
+    // One refund per entry. The entry-scoped idempotency key covers fast
+    // retries, but Stripe keys expire (~24h) — a retry after that (e.g. the
+    // entry-update below failed, so payment_status never flipped to
+    // 'refunded') would create a SECOND refund. Ask Stripe directly, same as
+    // the payout cron's transfers.list guard: metadata.entry_id is stamped on
+    // creation, so an existing refund for this entry is reused, not repeated.
+    const prior = await stripe.refunds.list({
+      payment_intent: entry.stripe_payment_intent_id!,
+      limit: 100,
+    });
+    const existingRefund = prior.data.find(r => r.metadata?.entry_id === entry_id);
+    const refund =
+      existingRefund ??
+      (await stripe.refunds.create(
+        {
+          payment_intent: entry.stripe_payment_intent_id!,
+          amount: validation.amountCents,
+          metadata: { entry_id },
+        },
+        { idempotencyKey: `refund-entry-${entry_id}` }
+      ));
+    if (existingRefund) {
+      console.log(
+        `Reusing existing refund ${existingRefund.id} for entry ${entry_id} — no new refund created`
+      );
+    }
 
     // Entry-level refund columns (NUMERIC dollars), added alongside migration
     // 176's enrollment-level columns which track manual desk refunds.
     const { error: updateError } = await supabase
       .from('entries')
       .update({
-        refund_amount: validation.amountCents / 100,
+        // refund.amount, not validation.amountCents: when an existing refund
+        // is reused, Stripe's recorded amount is the authoritative one.
+        refund_amount: refund.amount / 100,
         refunded_at: new Date().toISOString(),
         refund_notes: notes ?? null,
         payment_status: 'refunded',
@@ -180,10 +199,21 @@ Deno.serve(async req => {
       .eq('id', entry_id);
 
     if (updateError) {
-      // The Stripe refund DID happen; surface loudly for reconciliation.
+      // The Stripe refund DID happen; until the entry is stamped, the payout
+      // cron will overpay the club by this amount. Email, don't just log.
       console.error(
         `CRITICAL: refund ${refund.id} created for entry ${entry_id} but the entry update failed:`,
         updateError
+      );
+      await alertAdmin(
+        'Refund issued but not recorded — payout will overpay',
+        `<p>Stripe refund <code>${refund.id}</code> (${(refund.amount / 100).toFixed(2)} USD)
+         was issued for entry <code>${entry_id}</code>, but stamping the entry failed:</p>
+         <pre>${updateError.message}</pre>
+         <p>Until the entry's refund columns are set, the payout cron computes the
+         show's transfer WITHOUT this refund. Recovery: retry the refund from the
+         entries page (it reuses the existing Stripe refund — no double refund), or
+         stamp the entry manually.</p>`
       );
       return corsResponse(
         { error: 'Refund issued but recording it failed — contact support', refund_id: refund.id },

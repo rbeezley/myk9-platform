@@ -1,5 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { Check } from 'lucide-react';
 import { products, annualPriceId } from '../stripe-config';
 import { createCheckoutSession } from '../lib/stripe';
@@ -62,6 +63,9 @@ export default function PricingPage() {
   // the display below is a literal. Change both together.
   const [interval, setBillingInterval] = useState<'month' | 'year'>('month');
   const annualActive = interval === 'year' && !!annualPriceId;
+  // Imperative in-flight latch: React Query-style isPending lags within the
+  // same sync callback, so a double-click would start two checkout sessions.
+  const checkoutInFlightRef = useRef(false);
 
   const handleSubscribe = useCallback(
     async (priceId: string | null) => {
@@ -76,10 +80,15 @@ export default function PricingPage() {
         return;
       }
 
+      if (checkoutInFlightRef.current) return;
+      checkoutInFlightRef.current = true;
       try {
         await createCheckoutSession(priceId, 'subscription');
       } catch (error) {
         logger.error('Failed to create checkout session:', 'pages', {}, error as Error);
+        toast.error('Could not start checkout. Please try again.');
+      } finally {
+        checkoutInFlightRef.current = false;
       }
     },
     [user, navigate]

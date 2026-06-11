@@ -17,7 +17,8 @@ import {
 interface ShowStatusPillProps {
   showId: string;
   status: string;
-  /** Enables the publish gate: publishing requires the club's Stripe payouts. */
+  /** Publishing requires the club's Stripe payouts. Omitting this does NOT
+   * skip the gate — publish fails closed without a club. */
   clubId?: string;
 }
 
@@ -69,7 +70,15 @@ export function ShowStatusPill({ showId, status, clubId }: ShowStatusPillProps) 
     // only fires on the draft → published transition). NOTE: this is a UI
     // guard — the DB does not enforce it; a bypass merely parks the payout
     // as 'pending' until the club connects (accepted for v1).
-    if (next === 'published' && clubId) {
+    if (next === 'published') {
+      if (!clubId) {
+        // Fail CLOSED, not open: a missing clubId is either a wiring bug
+        // (lost in the #615 merge once already) or a genuinely clubless show
+        // — and the payout cron cannot pay out a show with no club, so its
+        // entry fees would collect with nowhere to go.
+        toast.error('Assign a club to this show before publishing — entry fees are paid out to the club.');
+        return;
+      }
       if (clubAccountQuery.isLoading) {
         // Don't misreport an onboarded club as unconnected on a cold cache.
         toast.info('Checking the club’s payment account — try again in a moment.');

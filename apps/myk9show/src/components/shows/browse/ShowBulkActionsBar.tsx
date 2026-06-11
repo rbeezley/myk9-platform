@@ -18,7 +18,6 @@ import {
   CheckCircle2,
   XCircle,
   CalendarCheck,
-  Megaphone,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -42,7 +41,10 @@ import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
 
 // Must stay in sync with the shows_status_check CHECK constraint
 // (migration 072): draft | published | upcoming | in_progress | completed | cancelled.
-type ShowStatus = 'published' | 'completed' | 'cancelled';
+// 'published' is deliberately absent: publishing opens online entries and must
+// go through the Stripe-payouts gate (onlineEntryGate), which is per-club —
+// a bulk write can't evaluate it. Publish from the show's own status pill.
+type ShowStatus = 'completed' | 'cancelled';
 type DialogType = 'status' | 'export' | 'delete' | null;
 
 interface ShowBulkActionsBarProps {
@@ -52,7 +54,6 @@ interface ShowBulkActionsBarProps {
 }
 
 const STATUS_OPTIONS: { value: ShowStatus; label: string; icon: React.ElementType }[] = [
-  { value: 'published', label: 'Mark Published', icon: Megaphone },
   { value: 'completed', label: 'Mark Completed', icon: CalendarCheck },
   { value: 'cancelled', label: 'Mark Cancelled', icon: XCircle },
 ];
@@ -65,7 +66,7 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
   const [currentDialog, setCurrentDialog] = useState<DialogType>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pendingStatus, setPendingStatus] = useState<ShowStatus>('published');
+  const [pendingStatus, setPendingStatus] = useState<ShowStatus>('completed');
 
   const closeDialog = () => {
     setCurrentDialog(null);

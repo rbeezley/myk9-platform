@@ -6,7 +6,7 @@
  */
 
 import { lazy, useEffect } from 'react';
-import { Route, Navigate, useParams, useNavigate, useLocation } from 'react-router-dom';
+import { Route, Navigate, useParams, useLocation } from 'react-router-dom';
 import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
@@ -15,7 +15,6 @@ import { SuspenseWrapper } from './utils/SuspenseWrapper';
 import { useShowStore } from '@/store/showStore';
 import { useToastStore } from '@/store/toastStore';
 import { LegacySecretaryShowRedirect } from '@/routes/showRouteRedirects';
-import { SHOW_MANAGEMENT_SECTIONS } from '@/routes/showManagementSections';
 
 // Secretary Dashboard (replaces old PipelineDashboard)
 const SecretaryDashboardPage = lazy(() =>
@@ -62,11 +61,16 @@ const ScoresheetPage = lazy(() =>
 
 const ShowEditRedirect = () => {
   const { showId } = useParams<{ showId: string }>();
-  const navigate = useNavigate();
-  useEffect(() => {
-    navigate(`/shows/${showId}?edit=true`, { replace: true });
-  }, [showId, navigate]);
-  return null;
+  const { search } = useLocation();
+
+  if (!showId) {
+    return <Navigate to="/shows" replace />;
+  }
+
+  const searchParams = new URLSearchParams(search);
+  searchParams.set('edit', 'true');
+
+  return <Navigate to={`/shows/${showId}?${searchParams.toString()}`} replace />;
 };
 
 const UserDetailRedirect = () => {
@@ -339,17 +343,24 @@ export const SecretaryRoutes = () => (
         </ProtectedRoute>
       }
     />
-    {SHOW_MANAGEMENT_SECTIONS.filter(({ path }) => path !== 'setup').map(({ path }) => (
-      <Route
-        key={path}
-        path={`/secretary/shows/:showId/${path}`}
-        element={
-          <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-            <LegacySecretaryShowRedirect subPath={path} />
-          </ProtectedRoute>
-        }
-      />
-    ))}
+    <Route
+      path="/secretary/shows/:showId/edit"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+          <SuspenseWrapper>
+            <ShowEditRedirect />
+          </SuspenseWrapper>
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/secretary/shows/:showId/*"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+          <LegacySecretaryShowRedirect />
+        </ProtectedRoute>
+      }
+    />
 
     <Route
       path="/secretary/settings"
@@ -359,16 +370,6 @@ export const SecretaryRoutes = () => (
             <PageTransition>
               <ShowSettingsPage />
             </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/secretary/shows/:showId/edit"
-      element={
-        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <ShowEditRedirect />
           </SuspenseWrapper>
         </ProtectedRoute>
       }

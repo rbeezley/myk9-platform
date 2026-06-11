@@ -120,11 +120,43 @@ describe('secretary show phase redirects', () => {
     );
   });
 
+  it('redirects legacy secretary setup to the canonical setup route', async () => {
+    renderSecretaryRoutes('/secretary/shows/show-1/setup');
+
+    expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
+      '/shows/show-1/setup'
+    );
+  });
+
   it('preserves query string through legacy secretary entry management redirects', async () => {
     renderSecretaryRoutes('/secretary/shows/show-1/entry-management?entryTab=pending');
 
     expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
       '/shows/show-1/entry-management?entryTab=pending'
+    );
+  });
+
+  it('redirects unknown legacy nested show paths into the canonical show namespace', async () => {
+    renderSecretaryRoutes('/secretary/shows/show-1/legacy/path?x=1');
+
+    expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
+      '/shows/show-1/legacy/path?x=1'
+    );
+  });
+
+  it('redirects legacy show edit to the canonical edit query', async () => {
+    renderSecretaryRoutes('/secretary/shows/show-1/edit');
+
+    expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
+      '/shows/show-1?edit=true'
+    );
+  });
+
+  it('preserves existing query strings through the legacy show edit redirect', async () => {
+    renderSecretaryRoutes('/secretary/shows/show-1/edit?returnTo=dashboard');
+
+    expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
+      '/shows/show-1?returnTo=dashboard&edit=true'
     );
   });
 

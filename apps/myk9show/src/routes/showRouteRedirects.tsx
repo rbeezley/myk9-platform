@@ -5,13 +5,17 @@ interface LegacySecretaryShowRedirectProps {
 }
 
 export function LegacySecretaryShowRedirect({ subPath }: LegacySecretaryShowRedirectProps) {
-  const { showId } = useParams<{ showId: string }>();
+  const params = useParams<{ showId: string; '*': string }>();
+  const { showId } = params;
   const { search } = useLocation();
 
   if (!showId) {
     return <Navigate to="/shows" replace />;
   }
 
-  const normalizedSubPath = subPath ? `/${subPath.replace(/^\/+/, '')}` : '/setup';
+  const redirectSubPath = subPath ?? params['*'] ?? 'setup';
+  const normalizedSubPath = redirectSubPath
+    ? `/${redirectSubPath.replace(/^\/+/, '')}`
+    : '/setup';
   return <Navigate to={`/shows/${showId}${normalizedSubPath}${search}`} replace />;
 }

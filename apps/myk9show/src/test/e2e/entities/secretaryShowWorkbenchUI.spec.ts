@@ -9,7 +9,7 @@ import {
 } from '../uat/shared/artifacts';
 
 /**
- * Feature-audit smoke for the Secretary Show Workbench.
+ * Feature-audit smoke for the canonical secretary show management routes.
  *
  * This intentionally avoids posting announcements, messages, incidents, or late
  * entries. It proves the real secretary route renders the setup and Show Desk
@@ -23,7 +23,7 @@ test.describe.configure({ mode: 'serial' });
 const SHOW_ID = '4584f257-19b5-4016-aae6-5e7827b769cb';
 const healthByTest = new Map<string, BrowserHealth>();
 
-test.describe('Secretary Show Workbench UI', () => {
+test.describe('Secretary show management UI', () => {
   test.beforeEach(async ({ page }, testInfo) => {
     const health = createBrowserHealth();
     healthByTest.set(testInfo.testId, health);
@@ -37,21 +37,19 @@ test.describe('Secretary Show Workbench UI', () => {
     }
     const details = summarizeHealth(health);
     const status = testInfo.status === testInfo.expectedStatus ? 'passed' : 'failed';
-    await writeUatFinding(testInfo, 'Secretary', 'show workbench feature audit', status, details);
+    await writeUatFinding(testInfo, 'Secretary', 'show management feature audit', status, details);
     healthByTest.delete(testInfo.testId);
   });
 
   test('renders setup and show desk phases for a managed show', async ({
     page,
   }, testInfo) => {
-    await openWorkbench(page);
+    await openShowSetup(page);
 
-    await expect(page.getByRole('heading', { name: /workbench$/i })).toBeVisible({
-      timeout: 15000,
-    });
-    await expect(page.getByRole('button', { name: 'Edit' }).first()).toBeVisible();
-    await expect(page.getByRole('tab', { name: 'Setup' })).toBeVisible();
-    await expect(page.getByRole('tab', { name: 'Show Desk' })).toBeVisible();
+    await expect(page.getByTestId('canonical-show-management-nav')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Setup' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Show Desk' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'More show actions' }).first()).toBeVisible();
 
     await expect(page.getByRole('heading', { name: 'Setup', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'About Setup' })).toBeVisible();
@@ -60,7 +58,8 @@ test.describe('Secretary Show Workbench UI', () => {
     ).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Premium List' })).toBeVisible();
 
-    await page.getByRole('tab', { name: 'Show Desk' }).click();
+    await page.getByRole('link', { name: 'Show Desk' }).click();
+    await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}/show-desk`));
     const toolsPanel = await openToolsPanel(page);
     await expect(toolsPanel.getByRole('button', { name: /Message Show/i })).toHaveCount(0);
     await toolsPanel.getByRole('button', { name: /close/i }).click();
@@ -75,8 +74,7 @@ test.describe('Secretary Show Workbench UI', () => {
   });
 
   test('keeps incident actions visibly guarded before mutation', async ({ page }, testInfo) => {
-    await openWorkbench(page);
-    await page.getByRole('tab', { name: 'Show Desk' }).click();
+    await openShowDesk(page);
     const toolsPanel = await openToolsPanel(page);
 
     await expect(toolsPanel.getByRole('button', { name: /Message Show/i })).toHaveCount(0);
@@ -102,10 +100,18 @@ test.describe('Secretary Show Workbench UI', () => {
   });
 });
 
-async function openWorkbench(page: Page) {
-  await signInAsSecretary(page, `/secretary/shows/${SHOW_ID}`);
-  await expect(page).toHaveURL(new RegExp(`/secretary/shows/${SHOW_ID}`));
-  await expect(page.getByRole('heading', { name: /workbench$/i })).toBeVisible({
+async function openShowSetup(page: Page) {
+  await signInAsSecretary(page, `/shows/${SHOW_ID}/setup`);
+  await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}/setup`));
+  await expect(page.getByRole('heading', { name: 'Setup', exact: true })).toBeVisible({
+    timeout: 15000,
+  });
+}
+
+async function openShowDesk(page: Page) {
+  await signInAsSecretary(page, `/shows/${SHOW_ID}/show-desk`);
+  await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}/show-desk`));
+  await expect(page.getByRole('button', { name: /open tools panel/i })).toBeVisible({
     timeout: 15000,
   });
 }

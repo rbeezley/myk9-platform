@@ -10,6 +10,14 @@
 
 ---
 
+## Validation Profile
+
+- Risk: medium
+- Validation: app
+- Rationale: This is a production TypeScript UI/tree change inside one app that affects a secretary show-day workflow, but it does not touch shared systems, auth, database schema, payments, or replication writes.
+
+---
+
 ## File Structure
 
 - Modify `apps/myk9show/src/features/show-map/showMapTypes.ts`
@@ -27,6 +35,7 @@
   - Render `dog` rows with existing non-entry row layout.
   - Render `dog-entry` rows with class/trial context.
 - Modify `apps/myk9show/src/features/show-map/showMapActions.ts`
+  - Mirror entry attention into matching `dog-entry` ancestors so attention filters and badges work in both branches.
   - Ensure row actions are not generated for synthetic grouping nodes.
   - Reuse entry actions for `dog-entry` only when the existing action contract can resolve the underlying entry.
 - Modify tests:
@@ -258,7 +267,65 @@ it('shows dog-entry children with class and trial context', () => {
 });
 ```
 
-- [ ] **Step 2: Run the focused test and verify it fails**
+- [ ] **Step 2: Add edge-case fallback tests [ADDED]**
+
+Add these tests to `showMapTree.test.ts`:
+
+```typescript
+it('uses stable fallback dog rows when an entry has no dog id or name', () => {
+  const tree = buildShowMapTree({
+    show,
+    trials: [trial],
+    classes,
+    entries: [
+      {
+        id: 'entry-unknown',
+        class_id: 'class-1',
+        armband: '99',
+      },
+    ],
+  });
+
+  expect(tree.childIdsByParentId['all-exhibitors:show-1']).toEqual([
+    'dog:unknown-entry:entry-unknown',
+  ]);
+  expect(tree.nodesById['dog:unknown-entry:entry-unknown']).toMatchObject({
+    type: 'dog',
+    label: '#99 Unknown dog',
+    count: 1,
+    childrenCount: 1,
+  });
+});
+
+it('keeps dog-entry rows visible when class or trial context is missing', () => {
+  const tree = buildShowMapTree({
+    show,
+    trials: [trial],
+    classes,
+    entries: [
+      {
+        id: 'entry-missing-class',
+        class_id: 'missing-class',
+        dog_id: 'dog-1',
+        dog: { id: 'dog-1', call_name: 'Bella' },
+      },
+    ],
+  });
+
+  expect(tree.childIdsByParentId['dog:dog-1']).toEqual(['dog-entry:entry-missing-class']);
+  expect(tree.nodesById['dog-entry:entry-missing-class']).toMatchObject({
+    type: 'dog-entry',
+    label: 'Unknown class',
+    subtitle: undefined,
+    dogEntryDisplay: {
+      entryId: 'entry-missing-class',
+      classLabel: 'Unknown class',
+    },
+  });
+});
+```
+
+- [ ] **Step 3: Run the focused test and verify it fails**
 
 Run:
 
@@ -268,7 +335,7 @@ cd apps/myk9show && npx vitest run src/features/show-map/__tests__/showMapTree.t
 
 Expected: FAIL because dog branch helpers are not implemented.
 
-- [ ] **Step 3: Import the new display type**
+- [ ] **Step 4: Import the new display and input types [EXPANDED]**
 
 In `showMapTree.ts`, extend the existing type import:
 
@@ -279,13 +346,15 @@ import type {
   ShowMapDogEntryDisplay,
   ShowMapEntryDisplay,
   ShowMapEntryInput,
+  ShowMapClassInput,
   ShowMapNode,
   ShowMapNodeType,
+  ShowMapTrialInput,
   ShowMapTree,
 } from './showMapTypes';
 ```
 
-- [ ] **Step 4: Add dog branch helper types and readers**
+- [ ] **Step 5: Add dog branch helper types and readers**
 
 Add these helpers below `entryClassId`:
 
@@ -311,15 +380,16 @@ function entryDogKey(entry: ShowMapEntryInput): string | undefined {
 }
 ```
 
-- [ ] **Step 5: Add dog label, subtitle, and sort helpers**
+- [ ] **Step 6: Add dog label, subtitle, and sort helpers [EXPANDED]**
 
 Add these helpers below `entryLabel`:
 
 ```typescript
 function dogLabel(display: ShowMapEntryDisplay): string {
-  if (display.armband && display.dogName) return `#${display.armband} ${display.dogName}`;
+  const dogName = display.dogName === 'Unknown' ? 'Unknown dog' : display.dogName;
+  if (display.armband && dogName) return `#${display.armband} ${dogName}`;
   if (display.armband) return `#${display.armband}`;
-  return display.dogName;
+  return dogName;
 }
 
 function dogSubtitle(display: ShowMapEntryDisplay): string | undefined {
@@ -346,7 +416,7 @@ function sortDogBranchEntries(entries: DogBranchEntry[]): DogBranchEntry[] {
 }
 ```
 
-- [ ] **Step 6: Add class/trial context helpers**
+- [ ] **Step 7: Add class/trial context helpers**
 
 Add these helpers below `classRingLabel`:
 
@@ -395,7 +465,7 @@ function dogEntrySubtitle(display: ShowMapDogEntryDisplay): string | undefined {
 }
 ```
 
-- [ ] **Step 7: Add lookup maps while building the tree**
+- [ ] **Step 8: Add lookup maps while building the tree**
 
 Inside `buildShowMapTree`, after `classesByTrialId` is built, add:
 
@@ -419,7 +489,7 @@ Inside `buildShowMapTree`, after `classesByTrialId` is built, add:
   }
 ```
 
-- [ ] **Step 8: Insert the All Exhibitors branch before trial nodes**
+- [ ] **Step 9: Insert the All Exhibitors branch before trial nodes**
 
 After `tree` is initialized and before the `for (const trial of trials)` loop, add:
 
@@ -525,7 +595,7 @@ and sort groups with:
       .sort((a, b) => compareDogBranchEntries(a.entries[0]!, b.entries[0]!));
 ```
 
-- [ ] **Step 9: Run the focused test and verify it passes**
+- [ ] **Step 10: Run the focused test and verify it passes**
 
 Run:
 
@@ -535,7 +605,7 @@ cd apps/myk9show && npx vitest run src/features/show-map/__tests__/showMapTree.t
 
 Expected: PASS.
 
-- [ ] **Step 10: Commit**
+- [ ] **Step 11: Commit**
 
 ```bash
 git add apps/myk9show/src/features/show-map/showMapTree.ts apps/myk9show/src/features/show-map/__tests__/showMapTree.test.ts
@@ -548,7 +618,9 @@ git commit -m "feat(show-map): build all exhibitors branch"
 
 **Files:**
 - Modify: `apps/myk9show/src/features/show-map/showMapTreeNavigation.ts`
+- Modify: `apps/myk9show/src/features/show-map/showMapActions.ts`
 - Test: `apps/myk9show/src/features/show-map/__tests__/showMapTree.test.ts`
+- Test: `apps/myk9show/src/features/show-map/__tests__/showMapActions.test.ts`
 - Test: `apps/myk9show/src/features/show-map/__tests__/ShowMapStructureTable.emptyState.test.tsx`
 
 - [ ] **Step 1: Add expansion tests**
@@ -619,17 +691,54 @@ it('keeps All Exhibitors and matching dog ancestors visible under needs-attentio
 
 Use the existing test file's `render` import pattern. If the file uses `render` from `@/test/utils/testUtils`, keep that; do not import raw Testing Library render.
 
-- [ ] **Step 3: Run the focused tests and verify the filter test fails if keyboard support is missing**
+- [ ] **Step 3: Add action-level attention mirroring test [ADDED]**
+
+Add this test to `showMapActions.test.ts`:
+
+```typescript
+it('mirrors entry attention into the matching dog branch ancestors', () => {
+  const tree = buildShowMapTree({
+    show,
+    trials: [trial],
+    classes,
+    entries: [
+      {
+        id: 'entry-1',
+        class_id: 'class-1',
+        dog_id: 'dog-1',
+        dog: { id: 'dog-1', call_name: 'Bella' },
+        entry_status: 'submitted',
+      },
+    ],
+  });
+
+  const attentionNodeIds = getAttentionNodeIds(tree);
+  expect(Array.from(attentionNodeIds)).toEqual(
+    expect.arrayContaining([
+      'all-exhibitors:show-1',
+      'dog:dog-1',
+      'dog-entry:entry-1',
+    ])
+  );
+
+  const counts = getAttentionCountsByNodeId(tree);
+  expect(counts.get('all-exhibitors:show-1')).toBe(1);
+  expect(counts.get('dog:dog-1')).toBe(1);
+  expect(counts.get('dog-entry:entry-1')).toBe(1);
+});
+```
+
+- [ ] **Step 4: Run the focused tests and verify the attention tests fail**
 
 Run:
 
 ```bash
-cd apps/myk9show && npx vitest run src/features/show-map/__tests__/showMapTree.test.ts src/features/show-map/__tests__/ShowMapStructureTable.emptyState.test.tsx
+cd apps/myk9show && npx vitest run src/features/show-map/__tests__/showMapTree.test.ts src/features/show-map/__tests__/showMapActions.test.ts src/features/show-map/__tests__/ShowMapStructureTable.emptyState.test.tsx
 ```
 
-Expected: tree expansion tests pass after Task 2; render/filter test may fail until renderer and navigation support are added.
+Expected: tree expansion tests pass after Task 2; attention mirroring and render/filter tests fail until action and renderer support are added.
 
-- [ ] **Step 4: Add keyboard support for new node types**
+- [ ] **Step 5: Add keyboard support for new node types**
 
 In `showMapTreeNavigation.ts`, change:
 
@@ -656,20 +765,75 @@ export function supportsTreeKeyboardActions(node: ShowMapNode): boolean {
 
 No custom filter traversal is needed if `shouldRenderShowMapNode` already uses descendant matching; the new node types should inherit that behavior.
 
-- [ ] **Step 5: Run the focused tests**
+- [ ] **Step 6: Mirror entry attention into the dog branch [ADDED]**
+
+In `showMapActions.ts`, add this helper near `getAttentionNodeIds`:
+
+```typescript
+function addNodeAndAncestors(
+  tree: ShowMapTree,
+  nodeId: string,
+  visit: (nodeId: string) => void
+): void {
+  let node: ShowMapNode | undefined = tree.nodesById[nodeId];
+  while (node) {
+    visit(node.id);
+    node = node.parentId ? tree.nodesById[node.parentId] : undefined;
+  }
+}
+
+function getMirroredDogEntryNodeId(tree: ShowMapTree, actionNodeId: string): string | undefined {
+  const entryId = sourceIdFromNodeId(actionNodeId, 'entry');
+  if (!entryId) return undefined;
+  const dogEntryNodeId = `dog-entry:${entryId}`;
+  return tree.nodesById[dogEntryNodeId] ? dogEntryNodeId : undefined;
+}
+```
+
+Then replace the ancestor loop inside `getAttentionNodeIds` with:
+
+```typescript
+  for (const action of getAttentionActions('root', { tree, ...state })) {
+    addNodeAndAncestors(tree, action.nodeId, nodeId => nodeIds.add(nodeId));
+    const dogEntryNodeId = getMirroredDogEntryNodeId(tree, action.nodeId);
+    if (dogEntryNodeId) {
+      addNodeAndAncestors(tree, dogEntryNodeId, nodeId => nodeIds.add(nodeId));
+    }
+  }
+```
+
+Replace the second ancestor loop inside `getAttentionCountsByNodeId` with:
+
+```typescript
+  for (const directId of directNodeIds) {
+    addNodeAndAncestors(tree, directId, nodeId => {
+      counts.set(nodeId, (counts.get(nodeId) ?? 0) + 1);
+    });
+    const dogEntryNodeId = getMirroredDogEntryNodeId(tree, directId);
+    if (dogEntryNodeId) {
+      addNodeAndAncestors(tree, dogEntryNodeId, nodeId => {
+        counts.set(nodeId, (counts.get(nodeId) ?? 0) + 1);
+      });
+    }
+  }
+```
+
+This mirrors only entry-level attention into the by-dog branch. Class/trial wrap-up attention remains trial-branch operational work and should not create dog issues.
+
+- [ ] **Step 7: Run the focused tests**
 
 Run:
 
 ```bash
-cd apps/myk9show && npx vitest run src/features/show-map/__tests__/showMapTree.test.ts src/features/show-map/__tests__/ShowMapStructureTable.emptyState.test.tsx
+cd apps/myk9show && npx vitest run src/features/show-map/__tests__/showMapTree.test.ts src/features/show-map/__tests__/showMapActions.test.ts src/features/show-map/__tests__/ShowMapStructureTable.emptyState.test.tsx
 ```
 
 Expected: PASS once renderer support from Task 4 is complete. If this task is executed before Task 4, note the expected render failure and continue.
 
-- [ ] **Step 6: Commit after renderer support lands**
+- [ ] **Step 8: Commit after renderer support lands**
 
 ```bash
-git add apps/myk9show/src/features/show-map/showMapTreeNavigation.ts apps/myk9show/src/features/show-map/__tests__/showMapTree.test.ts apps/myk9show/src/features/show-map/__tests__/ShowMapStructureTable.emptyState.test.tsx
+git add apps/myk9show/src/features/show-map/showMapTreeNavigation.ts apps/myk9show/src/features/show-map/showMapActions.ts apps/myk9show/src/features/show-map/__tests__/showMapTree.test.ts apps/myk9show/src/features/show-map/__tests__/showMapActions.test.ts apps/myk9show/src/features/show-map/__tests__/ShowMapStructureTable.emptyState.test.tsx
 git commit -m "feat(show-map): preserve dog branch tree filters"
 ```
 

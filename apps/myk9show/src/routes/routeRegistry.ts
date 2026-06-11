@@ -64,18 +64,18 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
   // Show management
   '/shows': () => import('@/pages/BrowseShowsPage'),
   '/shows/:id': () => import('@/pages/ShowDetailsPage'),
-  '/shows/:id/setup': () =>
+  '/shows/:showId/setup': () =>
     import('@/pages/secretary/ShowWorkbenchSetupPage').then(m => ({
       default: m.ShowWorkbenchSetupPage,
     })),
-  '/shows/:id/show-desk': () =>
+  '/shows/:showId/show-desk': () =>
     import('@/pages/secretary/ShowWorkbenchShowDeskPage').then(m => ({
       default: m.ShowWorkbenchShowDeskPage,
     })),
-  '/shows/:id/entry-management': () => import('@/pages/secretary/EntryManagementPage'),
-  '/shows/:id/reports': () => import('@/pages/secretary/ReportsPage'),
-  '/shows/:id/results-control': () => import('@/pages/secretary/ResultsControlPage'),
-  '/shows/:id/submit-results': () => import('@/pages/secretary/ResultsSubmissionPage'),
+  '/shows/:showId/entry-management': () => import('@/pages/secretary/EntryManagementPage'),
+  '/shows/:showId/reports': () => import('@/pages/secretary/ReportsPage'),
+  '/shows/:showId/results-control': () => import('@/pages/secretary/ResultsControlPage'),
+  '/shows/:showId/submit-results': () => import('@/pages/secretary/ResultsSubmissionPage'),
   '/shows/:showId/trials/:trialId': () => import('@/pages/TrialDetailsPage'),
   '/trials/:trialId': () => import('@/pages/TrialDetailsPage'),
   '/shows/:showId/trials/:trialId/classes/:classId': () => import('@/pages/ClassDetailsPage'),

@@ -21,6 +21,18 @@ describe('pageDirectory (invariant)', () => {
     expect(paths).not.toContain('/secretary/classes');
   });
 
+  it('catalogs canonical show management paths instead of legacy secretary show pages', () => {
+    const paths = pageDirectory.map(e => e.path);
+    expect(paths).toContain('/shows/:showId/setup');
+    expect(paths).toContain('/shows/:showId/show-desk');
+    expect(paths).toContain('/shows/:showId/entry-management');
+    expect(paths).toContain('/shows/:showId/reports');
+    expect(paths).toContain('/shows/:showId/results-control');
+    expect(paths).toContain('/shows/:showId/submit-results');
+    expect(paths).not.toContain('/secretary/shows/:showId');
+    expect(paths).not.toContain('/secretary/shows/:showId/results-control');
+  });
+
   it('every entry has a non-empty title and description', () => {
     const invalid = pageDirectory.filter(e => !e.title.trim() || !e.description.trim());
     expect(invalid).toEqual([]);

@@ -18,9 +18,17 @@ describe('routeRegistry', () => {
   });
 
   it('resolves canonical show management parameterized routes', () => {
-    expect(publicRouteComponents['/shows/:id/results-control']).toBeDefined();
+    expect(publicRouteComponents['/shows/:showId/setup']).toBeDefined();
+    expect(publicRouteComponents['/shows/:showId/show-desk']).toBeDefined();
+    expect(publicRouteComponents['/shows/:showId/results-control']).toBeDefined();
+    expect(getRouteImportFunction('/shows/show-42/setup')).toBe(
+      publicRouteComponents['/shows/:showId/setup']
+    );
+    expect(getRouteImportFunction('/shows/show-42/show-desk')).toBe(
+      publicRouteComponents['/shows/:showId/show-desk']
+    );
     expect(getRouteImportFunction('/shows/show-42/results-control')).toBe(
-      publicRouteComponents['/shows/:id/results-control']
+      publicRouteComponents['/shows/:showId/results-control']
     );
   });
 

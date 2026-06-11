@@ -1266,7 +1266,39 @@ pnpm typecheck
 
 Expected: PASS. If the full typecheck hangs for more than 60 seconds, stop it and record the hang.
 
-- [ ] **Step 3: Run a final static search**
+- [ ] **Step 3: Run a local browser smoke [ADDED]**
+
+Start the myK9Show dev server:
+
+```bash
+pnpm dev:show
+```
+
+Open the local app in the in-app browser at:
+
+```text
+http://localhost:5173/secretary/shows/3b91e282-6e45-4a89-9446-f6ebeb0bf62c
+```
+
+If redirected to sign in, use the existing secretary seed from `docs/testing/secretary-walk-seed.md`:
+
+```text
+secretary@myk9t.com
+TestPass4567!
+```
+
+Verify:
+
+- **All Exhibitors** is visible above the trial rows.
+- It is collapsed by default.
+- Expanding **All Exhibitors** shows dog rows with armband/name labels.
+- Expanding one dog shows class/trial context rows.
+- The existing trial rows are still visible below **All Exhibitors**.
+- The needs-attention filter keeps **All Exhibitors** visible when a dog descendant needs attention.
+
+Expected: PASS. If the dev server or seed auth is unavailable, record the blocker and rely on the focused component/tree tests plus typecheck.
+
+- [ ] **Step 4: Run a final static search**
 
 Run:
 
@@ -1276,7 +1308,7 @@ rg -n "all-exhibitors|dog-entry|ShowMapNodeType" apps/myk9show/src/features/show
 
 Expected: all new node type usage is confined to Show Map tree/build/render/action/test files.
 
-- [ ] **Step 4: Update `OPEN-TODOS.md`**
+- [ ] **Step 5: Update `OPEN-TODOS.md`**
 
 Replace the open Show Map todo line:
 
@@ -1290,7 +1322,7 @@ with:
 - [x] ~~**Add "All Exhibitors" by-dog view to Show Map**~~ — Implemented in branch `codex/show-map-all-exhibitors`: Show Map now has a collapsed-by-default synthetic **All Exhibitors** branch above trial rows, grouping entries by dog and showing each dog's class/trial context from the existing tree inputs with no new fetches. Focused Show Map tests and typecheck pass.
 ```
 
-- [ ] **Step 5: Run Markdown/static checks for tracking update**
+- [ ] **Step 6: Run Markdown/static checks for tracking update**
 
 Run:
 
@@ -1301,7 +1333,7 @@ rg -n "Add \"All Exhibitors\" by-dog view to Show Map|All Exhibitors" OPEN-TODOS
 
 Expected: no whitespace errors; `OPEN-TODOS.md` shows the completed todo and the design spec still exists.
 
-- [ ] **Step 6: Commit final tracking update**
+- [ ] **Step 7: Commit final tracking update**
 
 ```bash
 git add OPEN-TODOS.md docs/superpowers/plans/2026-06-11-show-map-all-exhibitors.md

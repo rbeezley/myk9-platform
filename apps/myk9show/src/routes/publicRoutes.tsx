@@ -10,7 +10,7 @@
  */
 
 import { lazy, type ReactNode } from 'react';
-import { Route, Navigate } from 'react-router-dom';
+import { Route, Navigate, useParams } from 'react-router-dom';
 import { BarChart3, Calendar, ClipboardList } from 'lucide-react';
 import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
@@ -19,6 +19,7 @@ import { ClassDetailsRedirect } from './ClassDetailsRedirect';
 import { LegacyCheckInRedirect, LegacyShowDayRedirect } from './LegacyExhibitorRedirects';
 import { ComingSoonPage, type ComingSoonPageProps } from '@/components/common/ComingSoonPage';
 import { features } from '@/config/features';
+import { UserRole } from '@/types/auth-types';
 import BrowseDogsPage from '@/pages/BrowseDogsPage';
 import DogDetailPage from '@/pages/DogDetailPage';
 import ShowDetailsPrototype from '@/pages/ShowDetailsPrototype';
@@ -37,6 +38,20 @@ function featurePage(enabled: boolean, page: ReactNode, coming: ComingSoonPagePr
 const BrowseClubsPage = lazy(() => import('@/pages/BrowseClubsPage'));
 const ClubDetailPage = lazy(() => import('@/pages/ClubDetailPage'));
 const ShowDetailsPage = lazy(() => import('@/pages/ShowDetailsPage'));
+const ShowWorkbenchSetupPage = lazy(() =>
+  import('@/pages/secretary/ShowWorkbenchSetupPage').then(m => ({
+    default: m.ShowWorkbenchSetupPage,
+  }))
+);
+const ShowWorkbenchShowDeskPage = lazy(() =>
+  import('@/pages/secretary/ShowWorkbenchShowDeskPage').then(m => ({
+    default: m.ShowWorkbenchShowDeskPage,
+  }))
+);
+const EntryManagementPage = lazy(() => import('@/pages/secretary/EntryManagementPage'));
+const ReportsPage = lazy(() => import('@/pages/secretary/ReportsPage'));
+const ResultsControlPage = lazy(() => import('@/pages/secretary/ResultsControlPage'));
+const ResultsSubmissionPage = lazy(() => import('@/pages/secretary/ResultsSubmissionPage'));
 const TrialDetailsPage = lazy(() => import('@/pages/TrialDetailsPage'));
 const ClassDetailsPage = lazy(() => import('@/pages/ClassDetailsPage'));
 const CalendarPage = lazy(() => import('@/pages/CalendarPage'));
@@ -68,6 +83,21 @@ const CartPage = lazy(() => import('@/pages/CartPage'));
 const CheckoutSuccessPage = lazy(() => import('@/pages/CheckoutSuccessPage'));
 const CheckoutCancelPage = lazy(() => import('@/pages/CheckoutCancelPage'));
 
+function ShowManagementSectionRoute({ children }: { children: ReactNode }) {
+  const { id } = useParams<{ id?: string }>();
+  const canonicalShowPath = id ? `/shows/${id}` : '/shows';
+
+  return (
+    <ProtectedRoute
+      redirectTo={canonicalShowPath}
+      requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}
+      fallback={<Navigate to={canonicalShowPath} replace />}
+    >
+      {children}
+    </ProtectedRoute>
+  );
+}
+
 export const PublicRoutes = () => (
   <>
     {/* Browse Shows - Allow anonymous browsing */}
@@ -91,7 +121,68 @@ export const PublicRoutes = () => (
           </PageTransition>
         </SuspenseWrapper>
       }
-    />
+    >
+      <Route
+        path="setup"
+        element={
+          <ShowManagementSectionRoute>
+            <SuspenseWrapper>
+              <ShowWorkbenchSetupPage />
+            </SuspenseWrapper>
+          </ShowManagementSectionRoute>
+        }
+      />
+      <Route
+        path="show-desk"
+        element={
+          <ShowManagementSectionRoute>
+            <SuspenseWrapper>
+              <ShowWorkbenchShowDeskPage />
+            </SuspenseWrapper>
+          </ShowManagementSectionRoute>
+        }
+      />
+      <Route
+        path="entry-management"
+        element={
+          <ShowManagementSectionRoute>
+            <SuspenseWrapper>
+              <EntryManagementPage />
+            </SuspenseWrapper>
+          </ShowManagementSectionRoute>
+        }
+      />
+      <Route
+        path="reports"
+        element={
+          <ShowManagementSectionRoute>
+            <SuspenseWrapper>
+              <ReportsPage />
+            </SuspenseWrapper>
+          </ShowManagementSectionRoute>
+        }
+      />
+      <Route
+        path="results-control"
+        element={
+          <ShowManagementSectionRoute>
+            <SuspenseWrapper>
+              <ResultsControlPage />
+            </SuspenseWrapper>
+          </ShowManagementSectionRoute>
+        }
+      />
+      <Route
+        path="submit-results"
+        element={
+          <ShowManagementSectionRoute>
+            <SuspenseWrapper>
+              <ResultsSubmissionPage />
+            </SuspenseWrapper>
+          </ShowManagementSectionRoute>
+        }
+      />
+    </Route>
 
     <Route
       path="/shows/:showId/register"

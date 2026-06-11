@@ -480,6 +480,14 @@ describe('ShowDetailsPage', () => {
       'href',
       '/shows/show-1/reports'
     );
+    expect(screen.getByRole('link', { name: 'Results Control' })).toHaveAttribute(
+      'href',
+      '/shows/show-1/results-control'
+    );
+    expect(screen.getByRole('link', { name: 'Submit Results' })).toHaveAttribute(
+      'href',
+      '/shows/show-1/submit-results'
+    );
   });
 
   it('hides canonical management nav from exhibitors', () => {
@@ -494,6 +502,8 @@ describe('ShowDetailsPage', () => {
     renderPage();
 
     fireEvent.click(screen.getByRole('button', { name: /more.*actions/i }));
+    expect(screen.getByRole('menuitem', { name: /edit/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /delete/i })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /preview public page/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /manage in workbench/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /manage in workbench/i })).not.toBeInTheDocument();
@@ -510,6 +520,20 @@ describe('ShowDetailsPage', () => {
       'aria-current',
       'page'
     );
+  });
+
+  it('renders canonical child sections instead of styled landing for direct management URLs', () => {
+    mockAuthContext.user = null;
+    mockAuthContext.userWithRoles = null;
+    mockShow = {
+      ...mockShow,
+      style: 'headline',
+    };
+
+    renderPage('show-1', '/show-desk');
+
+    expect(screen.queryByTestId('headline-landing')).not.toBeInTheDocument();
+    expect(screen.getByTestId('canonical-child')).toHaveTextContent('Show Desk child');
   });
 
   it('renders the public Show Map as read-only for show managers', async () => {

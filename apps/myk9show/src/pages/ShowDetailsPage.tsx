@@ -472,7 +472,13 @@ const ShowDetailsPage: React.FC = () => {
   // enforces it), so any explicit style is guaranteed to resolve to a
   // component. The `hasExplicitStyle` gate skips the styled path
   // entirely when no style is set.
-  if (hasExplicitStyle && !isSecretary && !isAdmin && !hasRole('club_admin')) {
+  if (
+    hasExplicitStyle &&
+    !isManagementSection &&
+    !isSecretary &&
+    !isAdmin &&
+    !hasRole('club_admin')
+  ) {
     // For authenticated users, wait for entries to resolve before deciding
     // which experience to render — avoids flashing the landing page briefly.
     if (user && userEntriesLoading) {

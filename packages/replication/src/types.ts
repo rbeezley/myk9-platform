@@ -62,17 +62,44 @@ export interface ReplicatedRow<T> {
 export type SyncStatus = 'synced' | 'pending' | 'conflict' | 'error';
 
 /**
+ * Per-scope sync state.
+ *
+ * A replicated table can be synced under multiple `SyncScope.value`s — e.g.
+ * `entries` syncs globally (scope `''`, no `show_id` filter) from the provider
+ * AND per-show from show-day pages. The incremental watermark and row count are
+ * scope-specific: if they were shared, a sync under scope B would push scope A's
+ * `since` past rows A hasn't seen yet, silently dropping them from A's view until
+ * the next forced full sync. These fields live per-scope to prevent that.
+ */
+export interface ScopeSyncState {
+  /** Max-observed incremental watermark for this scope (ms epoch). */
+  lastIncrementalSyncAt: number;
+  /** Rows cached for this scope at the last successful sync. */
+  totalRows?: number;
+}
+
+/**
  * Sync metadata per table
  */
 export interface SyncMetadata {
   tableName: string;
   lastFullSyncAt: number;
+  /**
+   * Table-global incremental watermark. Used for unscoped syncs (scope.value
+   * `undefined`). Scoped syncs read/write `scopes[scope.value]` instead — see
+   * {@link ScopeSyncState}.
+   */
   lastIncrementalSyncAt: number;
   totalRows?: number; // Total rows cached
   syncStatus?: 'idle' | 'syncing' | 'error';
   errorMessage?: string;
   conflictCount?: number;
   pendingMutations?: number;
+  /**
+   * Per-(scope.value) watermark + row count. Keyed by `SyncScope.value`. Absent
+   * for tables only ever synced unscoped. Populated lazily on first scoped sync.
+   */
+  scopes?: Record<string, ScopeSyncState>;
 }
 
 /**

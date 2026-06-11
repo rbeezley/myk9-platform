@@ -664,11 +664,14 @@ describe('ReplicatedDogsTable', () => {
         expect(result.conflictsResolved).toBe(0);
 
         expect(batchSetSpy).toHaveBeenCalled();
+        // The final watermark write is now scoped — it carries the sync scope
+        // (owner-123) as a second arg so the watermark lands in scopes[owner-123].
         expect(updateMetadataSpy).toHaveBeenCalledWith(
           expect.objectContaining({
             lastIncrementalSyncAt: expect.any(Number),
             syncStatus: 'idle',
-          })
+          }),
+          'owner-123'
         );
       });
 

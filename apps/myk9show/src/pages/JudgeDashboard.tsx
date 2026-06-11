@@ -174,7 +174,7 @@ const JudgeDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user, firstName } = useAuthContext();
   const [selectedTab, setSelectedTab] = useState('today');
-  const { assignments, isLoading, isError, refetch } = useJudgeAssignments();
+  const { assignments, isLoading, isFetching, isError, refetch } = useJudgeAssignments();
 
   // Live clock so the "next class in Xm" countdown stays current.
   const [now, setNow] = useState(() => Date.now());
@@ -201,10 +201,6 @@ const JudgeDashboard: React.FC = () => {
     nextClass,
     minutesUntilNext,
   } = deriveJudgeDashboardStats(buckets.today, now);
-
-  // INTENT: judge — "invisible technology". One tap from the landing page to the
-  // ring: the header button deep-links into ringside for today's active show.
-  const activeClass = nextClass ?? buckets.today.find(c => c.status !== 'completed');
 
   const handleStartJudging = (judgeClass: JudgeClass) => {
     // Audit is fire-and-forget; never block the judge's path to the ring on it.
@@ -237,9 +233,11 @@ const JudgeDashboard: React.FC = () => {
               Manage your judging assignments
             </p>
           </div>
-          {activeClass && (
+          {/* INTENT: judge — "invisible technology". One tap from the landing page
+              to the ring: this deep-links into ringside for today's active show. */}
+          {nextClass && (
             <Button
-              onClick={() => navigate(`/at-show/${activeClass.showId}`)}
+              onClick={() => navigate(`/at-show/${nextClass.showId}`)}
               className="bg-primary text-primary-foreground hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
             >
               <Play className="h-4 w-4 mr-2" />
@@ -359,8 +357,8 @@ const JudgeDashboard: React.FC = () => {
                   <p className="text-muted-foreground max-w-sm mb-6">
                     Check your connection and try again.
                   </p>
-                  <Button variant="outline" onClick={() => refetch()}>
-                    Retry
+                  <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
+                    {isFetching ? 'Retrying…' : 'Retry'}
                   </Button>
                 </div>
               ) : isLoading ? (
@@ -393,7 +391,11 @@ const JudgeDashboard: React.FC = () => {
                         <TabEmptyState
                           icon={<Trophy className="h-12 w-12 text-primary" />}
                           title="No Classes Today"
-                          body="You have no classes scheduled for today. Check the Upcoming tab for your next assignment."
+                          body={
+                            buckets.upcoming.length > 0
+                              ? 'You have no classes scheduled for today. Check the Upcoming tab for your next assignment.'
+                              : 'You have no classes scheduled for today.'
+                          }
                         />
                       ))}
                   </TabsContent>
@@ -414,10 +416,13 @@ const JudgeDashboard: React.FC = () => {
 
                   <TabsContent value="completed" className="mt-4 space-y-4">
                     {buckets.completed.map(judgeClass => (
+                      // Past unfinished classes appear here with their true status
+                      // badge and a Continue Judging action, so they stay reachable.
                       <AssignmentRow
                         key={judgeClass.id}
                         judgeClass={judgeClass}
                         showDate
+                        onStartJudging={handleStartJudging}
                         onViewResults={handleViewResults}
                       />
                     ))}

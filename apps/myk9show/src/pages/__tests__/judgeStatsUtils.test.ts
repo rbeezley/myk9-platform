@@ -146,11 +146,11 @@ describe('splitJudgeAssignments', () => {
     expect(buckets.completed).toEqual([]);
   });
 
-  it('excludes past non-completed assignments from every bucket except completed', () => {
+  it('keeps past non-completed assignments reachable via the completed bucket', () => {
     const pastPending = makeClass({ id: 'p1', trialDate: '2026-04-20', status: 'pending' });
     const buckets = splitJudgeAssignments([pastPending], TODAY);
     expect(buckets.today).toEqual([]);
     expect(buckets.upcoming).toEqual([]);
-    expect(buckets.completed).toEqual([]);
+    expect(buckets.completed.map(c => c.id)).toEqual(['p1']);
   });
 });

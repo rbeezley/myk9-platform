@@ -50,6 +50,7 @@ const makeAssignment = (overrides: Partial<JudgeClass> = {}): JudgeClass => ({
 const hookState = (overrides: Record<string, unknown> = {}) => ({
   assignments: [] as JudgeClass[],
   isLoading: false,
+  isFetching: false,
   isError: false,
   refetch: vi.fn(),
   ...overrides,
@@ -135,6 +136,65 @@ describe('JudgeDashboard', () => {
     await user.click(screen.getAllByRole('button', { name: /view results/i })[0]);
 
     expect(mockNavigate).toHaveBeenCalledWith('/at-show/show-1/class/class-9');
+  });
+
+  it('disables Retry while the refetch is in flight', () => {
+    mockUseJudgeAssignments.mockReturnValue(hookState({ isError: true, isFetching: true }));
+
+    render(<JudgeDashboard />);
+
+    expect(screen.getByRole('button', { name: /retrying/i })).toBeDisabled();
+  });
+
+  it('shows upcoming assignments with their date and no judging action', async () => {
+    mockUseJudgeAssignments.mockReturnValue(
+      hookState({
+        assignments: [
+          makeAssignment({
+            id: 'u1',
+            name: 'Future Container Class',
+            trialDate: '2099-01-05',
+            scheduledTime: new Date('2099-01-05T09:00:00'),
+          }),
+        ],
+      })
+    );
+
+    const { user } = render(<JudgeDashboard />);
+
+    await user.click(screen.getByRole('tab', { name: /upcoming/i }));
+
+    expect(screen.getByText('Future Container Class')).toBeInTheDocument();
+    const expectedDate = new Date('2099-01-05T09:00:00').toLocaleDateString([], {
+      month: 'short',
+      day: 'numeric',
+    });
+    expect(screen.getByText(expectedDate)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /start judging/i })).not.toBeInTheDocument();
+  });
+
+  it('keeps a past unfinished class reachable from the Completed tab', async () => {
+    mockUseJudgeAssignments.mockReturnValue(
+      hookState({
+        assignments: [
+          makeAssignment({
+            id: 'p1',
+            classId: 'class-past',
+            name: 'Yesterday Buried Excellent',
+            trialDate: '2020-01-01',
+            scheduledTime: new Date('2020-01-01T09:00:00'),
+            status: 'pending',
+          }),
+        ],
+      })
+    );
+
+    const { user } = render(<JudgeDashboard />);
+
+    await user.click(screen.getByRole('tab', { name: /completed/i }));
+    await user.click(screen.getByRole('button', { name: /start judging/i }));
+
+    expect(mockNavigate).toHaveBeenCalledWith('/at-show/show-1/class/class-past');
   });
 
   it('does not render the removed dead buttons', () => {

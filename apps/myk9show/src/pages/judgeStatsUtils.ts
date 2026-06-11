@@ -37,7 +37,9 @@ export function splitJudgeAssignments(
   return {
     today: assignments.filter(c => c.trialDate === todayIso),
     upcoming: assignments.filter(c => c.trialDate > todayIso),
-    completed: assignments.filter(c => c.status === 'completed'),
+    // Past non-completed classes land here too, so unfinished work from an
+    // earlier show day stays reachable instead of vanishing from every tab.
+    completed: assignments.filter(c => c.status === 'completed' || c.trialDate < todayIso),
   };
 }
 

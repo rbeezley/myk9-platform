@@ -10,9 +10,11 @@ import {
 } from '../useJudgeAssignments';
 
 // ── Auth context mock ──────────────────────────────────────────────────────────
+const mockDatabaseUserId = vi.hoisted(() => ({ current: 'person-123' as string | undefined }));
+
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
-    userWithRoles: { databaseUserId: 'person-123' },
+    userWithRoles: { databaseUserId: mockDatabaseUserId.current },
   }),
 }));
 
@@ -150,6 +152,7 @@ describe('parseScheduledTime', () => {
 describe('useJudgeAssignments', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockDatabaseUserId.current = 'person-123';
   });
 
   it('queries judge_assignments filtered to the signed-in judge and active statuses', async () => {
@@ -164,6 +167,32 @@ describe('useJudgeAssignments', () => {
     expect(mockIn).toHaveBeenCalledWith('status', ['confirmed', 'invited']);
     expect(result.current.assignments).toEqual([]);
     expect(result.current.isError).toBe(false);
+  });
+
+  it('selects every column the mapper reads, including the nested trial embed', async () => {
+    mockIn.mockResolvedValueOnce({ data: [], error: null });
+
+    const { result } = renderHook(() => useJudgeAssignments(), { wrapper: createWrapper() });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    // Pin the select string: a typo'd column or broken embed nesting would
+    // otherwise pass every test here and 400 only at runtime.
+    const select = (mockSelect.mock.calls[0]?.[0] as string).replace(/\s+/g, '');
+    expect(select).toBe(
+      'id,class_id,show_id,status,classes(id,name,element,level,status,start_time,' +
+        'total_entries_count,scored_count,trial_id,trials(id,date,show_id))'
+    );
+  });
+
+  it('reports loading (not empty) while the judge identity is still resolving', () => {
+    mockDatabaseUserId.current = undefined;
+
+    const { result } = renderHook(() => useJudgeAssignments(), { wrapper: createWrapper() });
+
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.assignments).toEqual([]);
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 
   it('returns mapped assignments sorted by scheduled time', async () => {

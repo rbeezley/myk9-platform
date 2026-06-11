@@ -72,6 +72,7 @@ export function mapAssignmentRowToJudgeClass(row: JudgeAssignmentRow): JudgeClas
 export interface JudgeAssignmentsResult {
   assignments: JudgeClass[];
   isLoading: boolean;
+  isFetching: boolean;
   isError: boolean;
   refetch: () => void;
 }
@@ -81,9 +82,12 @@ export function useJudgeAssignments(): JudgeAssignmentsResult {
   const { userWithRoles } = useAuthContext();
   const personId = userWithRoles?.databaseUserId ?? '';
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: queryKeys.judges.assignments(personId),
     enabled: !!personId,
+    // Class status changes while the judge is in the ring; refresh on every
+    // return to the dashboard so "Continue Judging" doesn't go stale.
+    refetchOnMount: 'always',
     queryFn: async (): Promise<JudgeAssignmentRow[]> => {
       const { data: rows, error } = await supabase
         .from('judge_assignments')
@@ -128,5 +132,8 @@ export function useJudgeAssignments(): JudgeAssignmentsResult {
     [data]
   );
 
-  return { assignments, isLoading, isError, refetch };
+  // databaseUserId resolves asynchronously after sign-in; while it is missing
+  // the query is disabled and React Query reports isLoading=false, which would
+  // flash "no assignments" at the judge. Treat unresolved identity as loading.
+  return { assignments, isLoading: isLoading || !personId, isFetching, isError, refetch };
 }

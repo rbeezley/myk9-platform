@@ -176,6 +176,57 @@ describe('ShowMapStructureTable', () => {
     ).toBeInTheDocument();
   });
 
+  it('keeps fully completed dog branches out of Active and reachable in Completed', () => {
+    const completeClass = classes[1];
+    if (!completeClass) throw new Error('Expected a complete class fixture');
+
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [completeClass],
+      entries: [
+        {
+          id: 'entry-complete-dog',
+          class_id: completeClass.id,
+          dog_id: 'dog-complete',
+          armband: '12',
+          handler: 'Jane Handler',
+          dog: { id: 'dog-complete', call_name: 'Bella', breed: 'Labrador Retriever' },
+          check_in_status: 'completed',
+        },
+      ],
+    });
+    const expandedNodeIds = new Set(Object.keys(tree.nodesById));
+
+    const { rerender } = render(
+      <ShowMapStructureTable
+        tree={tree}
+        expandedNodeIds={expandedNodeIds}
+        filter="all"
+        scope={{ dayScope: 'all', completionScope: 'active' }}
+        onToggle={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByText('#12 Bella')).not.toBeInTheDocument();
+    expect(screen.queryByText('Exterior Advanced B')).not.toBeInTheDocument();
+
+    rerender(
+      <ShowMapStructureTable
+        tree={tree}
+        expandedNodeIds={expandedNodeIds}
+        filter="all"
+        scope={{ dayScope: 'all', completionScope: 'completed' }}
+        onToggle={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('All Exhibitors')).toBeInTheDocument();
+    expect(screen.getByText('#12 Bella')).toBeInTheDocument();
+    expect(screen.getAllByText('Exterior Advanced B').length).toBeGreaterThan(0);
+    expect(screen.getByText('Spring Trial · 2026-05-11')).toBeInTheDocument();
+  });
+
   it('links expanded entry dog and handler names to their detail pages', async () => {
     const attentionClass = classes[0];
     if (!attentionClass) throw new Error('Expected an attention class fixture');

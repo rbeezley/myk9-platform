@@ -44,6 +44,10 @@ function nodeMatchesScopeAndFilter(
   );
 }
 
+function nodeCanMatchDirectly(node: ShowMapNode): boolean {
+  return node.type !== 'all-exhibitors' && node.type !== 'dog';
+}
+
 function descendantsMatch(
   tree: ShowMapTree,
   nodeId: string,
@@ -73,7 +77,8 @@ export function shouldRenderShowMapNode(
 ): boolean {
   return (
     node.type === 'show' ||
-    nodeMatchesScopeAndFilter(tree, node, filter, attentionNodeIds, scope, scopeNow) ||
+    (nodeCanMatchDirectly(node) &&
+      nodeMatchesScopeAndFilter(tree, node, filter, attentionNodeIds, scope, scopeNow)) ||
     descendantsMatch(tree, node.id, filter, attentionNodeIds, scope, scopeNow)
   );
 }

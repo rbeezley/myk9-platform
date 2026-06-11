@@ -425,7 +425,7 @@ async function handleEntryCheckout(
   });
 
   // Update cart with checkout session
-  const { error: updateError } = await supabase
+  const { data: updated, error: updateError } = await supabase
     .from('entry_carts')
     .update({
       stripe_checkout_session_id: session.id,
@@ -433,7 +433,29 @@ async function handleEntryCheckout(
       platform_fee_cents: platformFeeCents,
       total_cents: subtotal + platformFeeCents,
     })
-    .eq('id', cart_id);
+    .eq('id', cart_id)
+    // Optimistic concurrency (Codex round-6 P1): a cart mutation between our
+    // read and this write clears stripe_checkout_session_id and changes
+    // totals — writing the stale snapshot back would re-legitimize a session
+    // built from items the user no longer has. updated_at auto-touches on
+    // every entry_carts update (009 trigger), so equality means "unchanged
+    // since we read it".
+    .eq('status', 'active')
+    .eq('updated_at', cart.updated_at)
+    .select('id');
+
+  if (!updateError && (!updated || updated.length === 0)) {
+    console.log(`Cart ${cart_id} changed mid-checkout — expiring session ${session.id}`);
+    try {
+      await stripe.checkout.sessions.expire(session.id);
+    } catch (expireErr) {
+      console.error(`CRITICAL: could not expire orphaned session ${session.id}:`, expireErr);
+    }
+    return corsResponse(
+      { error: 'Your cart changed while checkout was starting. Please try again.' },
+      409
+    );
+  }
 
   if (updateError) {
     // The webhook REJECTS any paid session the cart doesn't point at

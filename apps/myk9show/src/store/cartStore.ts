@@ -407,7 +407,11 @@ export const useCartStore = create<CartState>()(
             if (updates.entryFeeCents !== undefined) {
               const { subtotal, platformFee, total } = calculateCartTotals(updatedItems);
 
-              await supabase
+              // Must not be fire-and-forget: if this fails, the old payable
+              // Stripe session stays linked to a cart whose items changed —
+              // sessionCartGuard would then accept the stale charge (Codex
+              // round-6 P2).
+              const { error: totalsError } = await supabase
                 .from('entry_carts')
                 .update({
                   subtotal_cents: subtotal,
@@ -417,6 +421,16 @@ export const useCartStore = create<CartState>()(
                   stripe_checkout_session_id: null,
                 })
                 .eq('id', cart.id);
+
+              if (totalsError) {
+                logger.error(
+                  'Error updating cart totals',
+                  'cartStore',
+                  { cartId: cart.id },
+                  totalsError
+                );
+                throw totalsError;
+              }
 
               set({
                 cart: {

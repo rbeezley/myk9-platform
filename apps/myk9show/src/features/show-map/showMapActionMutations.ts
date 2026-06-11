@@ -41,6 +41,13 @@ export function sourceIdFromShowMapNodeId(nodeId: string, expectedType: string):
   return sourceId.length > 0 ? sourceId : null;
 }
 
+export function entryIdFromShowMapNodeId(nodeId: string): string | null {
+  return (
+    sourceIdFromShowMapNodeId(nodeId, 'entry') ??
+    sourceIdFromShowMapNodeId(nodeId, 'dog-entry')
+  );
+}
+
 export async function markShowMapEntryCheckedIn(entryId: string): Promise<void> {
   await updateReplicatedCheckInStatus(entryId, 'checked-in');
 }

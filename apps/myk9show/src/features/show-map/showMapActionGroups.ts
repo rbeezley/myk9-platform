@@ -18,14 +18,16 @@ function classLabelForEntryAction(
   tree: ShowMapTree
 ): string | undefined {
   const node = tree.nodesById[action.nodeId];
-  if (!node || node.type !== 'entry' || !node.parentId) return undefined;
+  if (!node) return undefined;
+  if (node.type === 'dog-entry') return node.dogEntryDisplay?.classLabel;
+  if (node.type !== 'entry' || !node.parentId) return undefined;
   const parent = tree.nodesById[node.parentId];
   return parent?.label;
 }
 
 function groupKeyFor(action: ShowMapAction, tree: ShowMapTree): string {
   const node = tree.nodesById[action.nodeId];
-  if (node?.type === 'entry') {
+  if (node?.type === 'entry' || node?.type === 'dog-entry') {
     const dogId = node.entryDisplay?.dogId;
     if (dogId) return `${action.id}:dog:${dogId}`;
   }

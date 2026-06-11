@@ -26,7 +26,13 @@ export function groupEntriesByEnrollment(entries: EntryManagementEntry[]): Enrol
   const map = new Map<string, EnrollmentGroup>();
 
   for (const entry of entries) {
-    const key = entry.registrationId || '__unregistered__';
+    // Online (webhook-created) entries have no registrationId — group them by
+    // Stripe ORDER (payment intent) so unrelated exhibitors never collapse
+    // into one card with mixed handlers/totals/refund status (Codex P1,
+    // PR #625). Entries with neither key stand alone rather than falsely merge.
+    const key =
+      entry.registrationId ||
+      (entry.stripePaymentIntentId ? `pi:${entry.stripePaymentIntentId}` : `entry:${entry.id}`);
 
     if (!map.has(key)) {
       const hasEnrollmentTotal = entry.enrollmentTotalAmount != null;

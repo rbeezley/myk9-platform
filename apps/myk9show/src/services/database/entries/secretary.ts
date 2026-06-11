@@ -34,6 +34,7 @@ export interface SecretaryEntry {
   payment_method: string | null;
   refund_amount: number | null;
   refunded_at: string | null;
+  stripe_payment_intent_id: string | null;
   registration_id: string | null;
   registration: {
     id: string;
@@ -159,6 +160,7 @@ export const getEntriesForShow = async (showId: string) => {
         payment_method,
         refund_amount,
         refunded_at,
+        stripe_payment_intent_id,
         registration_id,
         handler_person:handler_id (
           id,

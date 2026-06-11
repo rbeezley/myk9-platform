@@ -418,18 +418,25 @@ async function sendEntryConfirmationEmail(
       return;
     }
 
-    // Get entry details with dog and class info
-    const { data: entries } = await supabase
+    // Get entry details with dog and class info. entries has entry_fee in
+    // DOLLARS — there is no entry_fee_cents column; selecting it errors the
+    // whole query and silently skipped every confirmation email (Codex P1).
+    const { data: entries, error: entriesError } = await supabase
       .from('entries')
       .select(
         `
         id,
-        entry_fee_cents,
+        entry_fee,
         dogs:dog_id (name, call_name),
         classes:class_id (name, level)
       `
       )
       .in('id', entryIds);
+
+    if (entriesError) {
+      console.error('Entries fetch for confirmation email failed:', entriesError);
+      return;
+    }
 
     if (!entries || entries.length === 0) {
       console.error('No entries found for confirmation email');
@@ -472,7 +479,8 @@ async function sendEntryConfirmationEmail(
           'Unknown',
         className: (e.classes as { name: string })?.name || 'Unknown',
         classLevel: (e.classes as { level?: string })?.level || undefined,
-        entryFee: e.entry_fee_cents,
+        // cents, matching subtotal/platformFee/total below
+        entryFee: Math.round(Number(e.entry_fee ?? 0) * 100),
       })),
       subtotal: cart.subtotal_cents || session.amount_subtotal || 0,
       platformFee: cart.platform_fee_cents || 0,

@@ -205,6 +205,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
           paymentMethod: entry.payment_method ?? null,
           refundAmount: entry.refund_amount ?? null,
           refundedAt: entry.refunded_at ?? null,
+          stripePaymentIntentId: entry.stripe_payment_intent_id ?? null,
         })
       );
 

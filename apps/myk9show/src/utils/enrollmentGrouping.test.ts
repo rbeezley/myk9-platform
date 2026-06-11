@@ -44,14 +44,31 @@ describe('groupEntriesByEnrollment', () => {
     expect(groups).toHaveLength(2);
   });
 
-  it('groups entries with no registrationId under a single unregistered group', () => {
+  // Webhook-created online entries have no registrationId — they must group
+  // per Stripe ORDER (payment intent), never into one shared bucket where
+  // unrelated exhibitors' entries mix handlers, totals, and refund status
+  // (Codex P1 on PR #625).
+  it('groups unregistered entries by payment intent, not into one shared bucket', () => {
+    const entries: EntryManagementEntry[] = [
+      { ...base, id: 'e1', registrationId: '', stripePaymentIntentId: 'pi_A', handlerName: 'Ann' },
+      { ...base, id: 'e2', registrationId: '', stripePaymentIntentId: 'pi_A', handlerName: 'Ann' },
+      { ...base, id: 'e3', registrationId: '', stripePaymentIntentId: 'pi_B', handlerName: 'Bob' },
+    ];
+    const groups = groupEntriesByEnrollment(entries);
+    expect(groups).toHaveLength(2);
+    const handlers = groups.map(g => g.handlerName).sort();
+    expect(handlers).toEqual(['Ann', 'Bob']);
+    expect(groups.find(g => g.handlerName === 'Ann')?.entries).toHaveLength(2);
+    expect(groups.every(g => g.enrollmentId === null)).toBe(true);
+  });
+
+  it('falls back to one group per entry when neither registration nor intent exists', () => {
     const entries: EntryManagementEntry[] = [
       { ...base, id: 'e1', registrationId: '' },
       { ...base, id: 'e2', registrationId: '' },
     ];
     const groups = groupEntriesByEnrollment(entries);
-    expect(groups).toHaveLength(1);
-    expect(groups[0].enrollmentId).toBeNull();
+    expect(groups).toHaveLength(2);
   });
 
   it('sums entry fees as groupTotal when enrollmentTotalAmount is absent (dollars)', () => {
@@ -107,11 +124,18 @@ describe('groupEntriesByEnrollment', () => {
         ...base,
         id: 'e1',
         registrationId: '',
+        stripePaymentIntentId: 'pi_shared',
         paymentStatus: PaymentStatus.REFUNDED,
         refundAmount: 30,
         refundedAt: '2026-06-10T16:05:08Z',
       },
-      { ...base, id: 'e2', registrationId: '', paymentStatus: PaymentStatus.PAID_ONLINE },
+      {
+        ...base,
+        id: 'e2',
+        registrationId: '',
+        stripePaymentIntentId: 'pi_shared',
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+      },
     ];
     const groups = groupEntriesByEnrollment(entries);
     expect(groups[0].paymentStatus).toBe(PaymentStatus.PARTIAL_REFUND);
@@ -125,6 +149,7 @@ describe('groupEntriesByEnrollment', () => {
         ...base,
         id: 'e1',
         registrationId: '',
+        stripePaymentIntentId: 'pi_shared',
         paymentStatus: PaymentStatus.REFUNDED,
         refundAmount: 30,
         refundedAt: '2026-06-10T16:05:08Z',
@@ -133,6 +158,7 @@ describe('groupEntriesByEnrollment', () => {
         ...base,
         id: 'e2',
         registrationId: '',
+        stripePaymentIntentId: 'pi_shared',
         paymentStatus: PaymentStatus.REFUNDED,
         refundAmount: 30,
         refundedAt: '2026-06-10T17:00:00Z',

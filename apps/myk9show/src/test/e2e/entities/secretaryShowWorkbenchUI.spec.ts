@@ -51,24 +51,21 @@ test.describe('Secretary show management UI', () => {
     await expect(page.getByRole('link', { name: 'Show Desk' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'More show actions' }).first()).toBeVisible();
 
+    await expect(page.getByRole('region', { name: 'Setup', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Setup', exact: true })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'About Setup' })).toBeVisible();
-    await expect(
-      page.getByText(/confirm the schedule, judges, show page, and materials/i)
-    ).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Premium List' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Setup readiness' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Finish setup|Setup ready/ })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Premium List' }).first()).toBeVisible();
 
     await page.getByRole('link', { name: 'Show Desk' }).click();
     await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}/show-desk`));
     const toolsPanel = await openToolsPanel(page);
     await expect(toolsPanel.getByRole('button', { name: /Message Show/i })).toHaveCount(0);
     await toolsPanel.getByRole('button', { name: /close/i }).click();
-    await expectWorkbenchSection(page, 'Closeout');
-    await expect(page.getByRole('heading', { name: 'Show-day reconciliation' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Incident closeout' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Results Control Verify results' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Reports Print and export' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Submit Results Send final files' })).toBeVisible();
+    await expectWorkbenchSection(page, 'Show status');
+    await expectWorkbenchSection(page, 'Pending signals');
+    await expect(page.getByRole('heading', { name: 'Show Map' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Show map shortcuts' })).toBeVisible();
 
     await expectBrowserHealthClean(testInfo);
   });

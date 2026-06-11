@@ -69,7 +69,7 @@ describe('buildShowMapTree', () => {
     });
 
     expect(tree.root.label).toBe('Spring Trial');
-    expect(tree.childIdsByParentId[tree.root.id]).toEqual(['trial:trial-1']);
+    expect(tree.nodesById['trial:trial-1']?.parentId).toBe(tree.root.id);
     expect(tree.childIdsByParentId['trial:trial-1']).toEqual(['class:class-1']);
     expect(tree.childIdsByParentId['class:class-1']).toEqual(['entry:entry-1']);
     expect(tree.nodesById['class:class-1']?.scoreHref).toBe(
@@ -87,6 +87,39 @@ describe('buildShowMapTree', () => {
       handlerHref: '/people/person-1',
     });
     expect(tree.nodesById['entry:entry-1']?.scoreHref).toBeUndefined();
+  });
+
+  it('adds an All Exhibitors branch before trial rows', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes,
+      entries: [
+        {
+          id: 'entry-1',
+          class_id: 'class-1',
+          dog_id: 'dog-1',
+          handler_id: 'person-1',
+          armband: '12',
+          handler: 'Jane Handler',
+          dog: { id: 'dog-1', call_name: 'Bella', breed: 'Labrador Retriever' },
+        },
+      ],
+    });
+
+    expect(tree.childIdsByParentId[tree.root.id]).toEqual([
+      'all-exhibitors:show-1',
+      'trial:trial-1',
+    ]);
+    expect(tree.nodesById['all-exhibitors:show-1']).toMatchObject({
+      id: 'all-exhibitors:show-1',
+      type: 'all-exhibitors',
+      label: 'All Exhibitors',
+      count: 1,
+      childrenCount: 1,
+      isSynthetic: true,
+    });
+    expect(tree.childIdsByParentId['all-exhibitors:show-1']).toEqual(['dog:dog-1']);
   });
 
   it('keeps empty shows as a root-only tree', () => {

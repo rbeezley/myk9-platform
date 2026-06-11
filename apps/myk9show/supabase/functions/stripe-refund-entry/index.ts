@@ -140,12 +140,22 @@ Deno.serve(async req => {
     // pending → processing between this read and the refund write; the window
     // is sub-second on a daily cadence, and the cron recomputes amounts from
     // entries at transfer time, so a committed refund still drops out.
-    const { data: payout } = await supabase
+    const { data: payout, error: payoutError } = await supabase
       .from('show_payouts')
       .select('status')
       .eq('show_id', show.id)
       .neq('status', 'failed')
       .maybeSingle();
+    if (payoutError) {
+      // "No payout row" (refund freely) and "couldn't READ the payout row"
+      // have opposite safety properties — a swallowed error here would let a
+      // refund through after the club was already paid (round-13 review).
+      console.error(`Payout state read failed for show ${show.id}:`, payoutError);
+      return corsResponse(
+        { error: 'Could not verify the show’s payout state — try again in a moment.' },
+        500
+      );
+    }
 
     // entries.entry_fee is DECIMAL dollars; all validation runs in cents.
     const validation = validateRefund({

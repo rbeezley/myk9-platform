@@ -63,13 +63,6 @@ interface SubscriptionCheckoutRequest {
   cancel_url: string;
 }
 
-interface PaymentCheckoutRequest {
-  mode: 'payment';
-  price_id: string;
-  success_url: string;
-  cancel_url: string;
-}
-
 interface EntryCheckoutRequest {
   mode: 'entry';
   cart_id: string;
@@ -77,7 +70,7 @@ interface EntryCheckoutRequest {
   cancel_url: string;
 }
 
-type CheckoutRequest = SubscriptionCheckoutRequest | PaymentCheckoutRequest | EntryCheckoutRequest;
+type CheckoutRequest = SubscriptionCheckoutRequest | EntryCheckoutRequest;
 
 // Valid subscription price IDs — same env-extended allowlist as
 // stripe-upgrade-subscription and the webhook tier map (SA-024; PR #625
@@ -180,14 +173,11 @@ Deno.serve(async req => {
         success_url,
         cancel_url
       );
-    } else if (mode === 'payment') {
-      return await handlePaymentCheckout(
-        body as PaymentCheckoutRequest,
-        customerId,
-        success_url,
-        cancel_url
-      );
     }
+    // No 'payment' mode: nothing client-side used it, and it accepted any
+    // caller-supplied price_id with no allowlist — an SA-024-shaped hole the
+    // day a one-time price exists. Re-add WITH an allowlist if ever needed
+    // (round-13 review).
 
     return corsResponse({ error: 'Invalid checkout mode' }, 400);
   } catch (error: unknown) {
@@ -519,33 +509,3 @@ async function handleSubscriptionCheckout(
   return corsResponse({ sessionId: session.id, url: session.url });
 }
 
-/**
- * Handle one-time payment checkout
- */
-async function handlePaymentCheckout(
-  request: PaymentCheckoutRequest,
-  customerId: string,
-  successUrl: string,
-  cancelUrl: string
-): Promise<Response> {
-  const { price_id } = request;
-
-  if (!price_id) {
-    return corsResponse({ error: 'Missing price_id for payment checkout' }, 400);
-  }
-
-  const session = await stripe.checkout.sessions.create({
-    customer: customerId,
-    payment_method_types: ['card'],
-    line_items: [{ price: price_id, quantity: 1 }],
-    mode: 'payment',
-    success_url: successUrl,
-    cancel_url: cancelUrl,
-    metadata: {
-      type: 'payment',
-    },
-  });
-
-  console.log(`Created payment checkout session ${session.id}`);
-  return corsResponse({ sessionId: session.id, url: session.url });
-}

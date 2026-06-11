@@ -56,8 +56,25 @@ Deno.serve(async req => {
       });
     }
 
-    // Process event asynchronously
-    EdgeRuntime.waitUntil(handleEvent(event));
+    // Process event asynchronously. Stripe already has its 200, so an
+    // uncaught throw in any handler (e.g. a transient failure syncing a
+    // subscription) would otherwise vanish with no retry and no signal —
+    // the catch-all alert is the floor under every handler (round-13).
+    EdgeRuntime.waitUntil(
+      handleEvent(event).catch(async err => {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(`CRITICAL: unhandled error processing ${event.type} (${event.id}):`, err);
+        await alertAdmin(
+          `Webhook handler crashed: ${event.type}`,
+          `<p>Processing event <code>${event.id}</code> (<code>${event.type}</code>) threw
+           after Stripe already received its 200 — Stripe will NOT retry.</p>
+           <pre>${message}</pre>
+           <p>Recovery: open the event in the Stripe dashboard (Developers → Events),
+           inspect the object, and apply the corresponding state manually (the runbook's
+           Manual reconciliation section has the service-role SQL wrapper).</p>`
+        );
+      })
+    );
 
     return Response.json({ received: true });
   } catch (error: unknown) {
@@ -335,7 +352,21 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     .single();
 
   if (cartError || !cart) {
+    // A PAID session whose cart row is gone (owner DELETE is allowed by RLS,
+    // and Checkout tabs stay payable until they expire): charge taken, zero
+    // entries, no Stripe retry — same severity as every other paid-but-broken
+    // state (round-13 review).
     console.error('Cart not found:', cartError);
+    await alertAdmin(
+      'Paid checkout has no cart — entries NOT created',
+      `<p>Checkout session <code>${session.id}</code> was PAID, but cart
+       <code>${cartId}</code> no longer exists${cartError ? ' (read error below)' : ''} —
+       no entries were created and Stripe will not retry.</p>
+       ${cartError ? `<pre>${cartError.message}</pre>` : ''}
+       <p>Recovery: verify the payment in the Stripe dashboard and refund it
+       (Payments → search the session's payment intent → Refund), or recreate the
+       entries manually if the exhibitor confirms what they ordered.</p>`
+    );
     return;
   }
 

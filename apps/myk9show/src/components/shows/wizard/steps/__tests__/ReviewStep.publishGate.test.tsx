@@ -75,6 +75,7 @@ function mockAccount(payoutsEnabled: boolean | null, isLoading = false, isError 
           },
     isLoading,
     isError,
+    refetch: vi.fn(),
   } as unknown as ReturnType<typeof useClubStripeAccount>);
 }
 

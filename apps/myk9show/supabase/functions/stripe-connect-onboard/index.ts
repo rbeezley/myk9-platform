@@ -151,7 +151,19 @@ Deno.serve(async req => {
         stripe_account_id: stripeAccountId,
       });
       if (insertError) {
-        console.error(`Failed to persist stripe account ${stripeAccountId} for club ${club_id}:`, insertError);
+        console.error(
+          `Failed to persist stripe account ${stripeAccountId} for club ${club_id}:`,
+          insertError
+        );
+        // Delete the just-created Express account so a retry doesn't strand
+        // an orphan in the Stripe dashboard (same cleanup discipline as
+        // getOrCreateStripeCustomer). Nothing is onboarded yet, so deletion
+        // is safe; if it fails we just keep the litter.
+        try {
+          await stripe.accounts.del(stripeAccountId);
+        } catch (delErr) {
+          console.error(`Could not clean up orphaned account ${stripeAccountId}:`, delErr);
+        }
         return corsResponse({ error: 'Failed to save payment account' }, 500);
       }
     }

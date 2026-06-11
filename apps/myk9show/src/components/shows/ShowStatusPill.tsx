@@ -86,7 +86,10 @@ export function ShowStatusPill({ showId, status, clubId }: ShowStatusPillProps) 
       }
       if (clubAccountQuery.isError) {
         // A failed lookup is not "not connected" — fail closed with the
-        // truthful message instead of blaming the club's setup.
+        // truthful message instead of blaming the club's setup. Kick off a
+        // refetch so "try again" can actually succeed (an errored query
+        // inside staleTime would otherwise serve the same error forever).
+        void clubAccountQuery.refetch();
         toast.error('Could not check the club’s payment account. Please try again.');
         return;
       }

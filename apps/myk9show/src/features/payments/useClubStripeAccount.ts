@@ -11,7 +11,9 @@ export interface ClubStripeAccount {
   payouts_enabled: boolean;
 }
 
-async function fetchClubStripeAccount(clubId: string): Promise<ClubStripeAccount | null> {
+/** Exported for save-time (imperative) gate checks — e.g. ShowEditPanel,
+ * where a hook subscription can't see the form's possibly-changed clubId. */
+export async function fetchClubStripeAccount(clubId: string): Promise<ClubStripeAccount | null> {
   // untypedFrom: club_stripe_accounts (migration 20260609120000) is not yet in
   // the generated Database types; switch to supabase.from() after regeneration.
   const { data, error } = await untypedFrom('club_stripe_accounts')

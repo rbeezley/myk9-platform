@@ -76,7 +76,8 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
     }
     if (clubAccountQuery.isError) {
       // A failed lookup is not "not connected" — say so instead of blaming
-      // the club's setup.
+      // the club's setup. Refetch so "try again" can actually succeed.
+      void clubAccountQuery.refetch();
       toast.error('Could not check the club’s payment account. Please try again.');
       return;
     }

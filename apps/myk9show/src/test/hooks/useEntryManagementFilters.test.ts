@@ -153,36 +153,6 @@ describe('useEntryManagementFilters — trial/class filters', () => {
     expect(params.get('tab')).toBe('waitlist');
   });
 
-  it('clearFilters resets selectedTab, clears owned filters, removes entryTab, and preserves unrelated params', () => {
-    let latestSearch = '';
-    const { result } = renderHook(
-      () => useEntryManagementFilters({ entries: [], tabCounts: emptyTabCounts }),
-      {
-        wrapper: createWrapper(
-          '/?tab=waitlist&entryTab=pending&trial=trial-1&class=class-1',
-          search => (latestSearch = search)
-        ),
-      }
-    );
-
-    expect(result.current.selectedTab).toBe('pending');
-    expect(result.current.trialFilter).toBe('trial-1');
-    expect(result.current.classFilter).toBe('class-1');
-
-    act(() => {
-      result.current.clearFilters();
-    });
-
-    const params = new URLSearchParams(latestSearch);
-    expect(result.current.selectedTab).toBe('all');
-    expect(result.current.trialFilter).toBeNull();
-    expect(result.current.classFilter).toBeNull();
-    expect(params.get('entryTab')).toBeNull();
-    expect(params.get('trial')).toBeNull();
-    expect(params.get('class')).toBeNull();
-    expect(params.get('tab')).toBe('waitlist');
-  });
-
   it('initializes trialFilter and classFilter as null', () => {
     const { result } = renderHook(
       () => useEntryManagementFilters({ entries: [], tabCounts: emptyTabCounts }),
@@ -250,7 +220,7 @@ describe('useEntryManagementFilters — trial/class filters', () => {
     expect(result.current.classFilter).toBeNull();
   });
 
-  it('existing status/payment filters still apply when trial filter is active (filter stacking)', () => {
+  it('tab status filter and payment filter stack together when trial filter is active', () => {
     const entries = [
       makeEntry({ id: '1', entryStatus: 'accepted', paymentStatus: 'paid' }),
       makeEntry({ id: '2', entryStatus: 'pending', paymentStatus: 'unpaid' }),
@@ -259,43 +229,22 @@ describe('useEntryManagementFilters — trial/class filters', () => {
 
     const tabCounts = { all: 3, pending: 1, accepted: 2, waitlist: 0, issues: 0 };
 
+    // Status now comes from the tab (entryTab=accepted), not a dropdown.
     const { result } = renderHook(
       () => useEntryManagementFilters({ entries, tabCounts }),
-      { wrapper: createWrapper('/?trial=trial-1') }
+      { wrapper: createWrapper('/?trial=trial-1&entryTab=accepted') }
     );
 
-    // Set status filter to 'accepted'
-    act(() => {
-      result.current.setStatusFilter('accepted');
-    });
-
+    // Accepted tab narrows to the two accepted entries.
     expect(result.current.filteredEntries.length).toBe(2);
 
-    // Also set payment filter
+    // Payment filter stacks on top of the tab filter.
     act(() => {
       result.current.setPaymentFilter('unpaid');
     });
 
     expect(result.current.filteredEntries.length).toBe(1);
     expect(result.current.filteredEntries[0].id).toBe('3');
-  });
-
-  it('clearFilters clears trial and class filters along with other filters', () => {
-    const { result } = renderHook(
-      () => useEntryManagementFilters({ entries: [], tabCounts: emptyTabCounts }),
-      { wrapper: createWrapper('/?trial=trial-1&class=class-1') }
-    );
-
-    expect(result.current.trialFilter).toBe('trial-1');
-    expect(result.current.classFilter).toBe('class-1');
-
-    act(() => {
-      result.current.clearFilters();
-    });
-
-    expect(result.current.trialFilter).toBeNull();
-    expect(result.current.classFilter).toBeNull();
-    expect(result.current.viewMode).toBe('registration');
   });
 
   it('clears trial and class filters when showId changes', () => {

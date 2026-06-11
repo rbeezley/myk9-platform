@@ -182,29 +182,53 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
    * incremental sync can never observe the tombstone), hard-deleted dogs, or dogs
    * that left the user's visibility scope.
    *
-   * Strategy: fetch the full set of live, RLS-permitted dog ids (a cheap, index-only
-   * `select('id')`) and drop any non-dirty local row not in that set.
+   * Strategy: fetch the COMPLETE set of live, RLS-permitted dog ids (a cheap,
+   * index-only `select('id')`) and drop any non-dirty local row not in that set.
    * `removeStaleEntries` preserves dirty rows, so a pending local create/edit is
-   * never wiped. On a failed fetch we return 0 and prune nothing — never reconcile
-   * against a partial/empty result, which would erase the whole replica.
+   * never wiped.
+   *
+   * The id fetch is paginated: PostgREST caps a response at ~1000 rows, and a staff
+   * user (is_show_manager → RLS exposes every dog) can exceed that. An unpaginated
+   * `select('id')` would silently truncate, and pruning against a partial set would
+   * delete every valid cached dog beyond the first page. We page through `.range()`
+   * until a short page, and if ANY page errors we abort and prune nothing — never
+   * reconcile against an incomplete result.
    *
    * @param scopeValue Optional owner_id scope, mirroring the sync fetch filter.
    * @returns number of stale rows removed.
    */
   async reconcileDeleted(scopeValue?: string): Promise<number> {
-    let query = supabase.from('dogs').select('id').is('deleted_at', null);
-    if (scopeValue) {
-      query = query.eq('owner_id', scopeValue);
+    const PAGE_SIZE = 1000;
+    // Bound the loop so a server that keeps returning full pages can't spin forever.
+    const MAX_PAGES = 100;
+    const liveIds = new Set<string>();
+
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const from = page * PAGE_SIZE;
+      let query = supabase.from('dogs').select('id').is('deleted_at', null);
+      if (scopeValue) {
+        query = query.eq('owner_id', scopeValue);
+      }
+
+      const { data, error } = await query.range(from, from + PAGE_SIZE - 1);
+      if (error || !data) {
+        // Any fetch failure → abort. Pruning against a partial set could wipe the replica.
+        return 0;
+      }
+
+      for (const row of data) {
+        liveIds.add(String((row as { id: string }).id));
+      }
+
+      if (data.length < PAGE_SIZE) {
+        // Short page → we have the complete live id set; safe to reconcile.
+        return this.removeStaleEntries(liveIds);
+      }
     }
 
-    const { data, error } = await query;
-    if (error || !data) {
-      // Treat any fetch failure as "unknown" — pruning here could wipe the replica.
-      return 0;
-    }
-
-    const liveIds = new Set<string>(data.map(row => String((row as { id: string }).id)));
-    return this.removeStaleEntries(liveIds);
+    // Hit the page cap without a short page — treat as incomplete and prune nothing.
+    logger.warn(`[${this.getTableName()}] reconcileDeleted exceeded ${MAX_PAGES} pages; skipping prune`);
+    return 0;
   }
 
   /**

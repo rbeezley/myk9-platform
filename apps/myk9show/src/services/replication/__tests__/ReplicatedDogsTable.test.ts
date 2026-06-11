@@ -929,21 +929,22 @@ describe('ReplicatedDogsTable', () => {
   });
 
   describe('reconcileDeleted — tombstone / right-to-erasure cleanup', () => {
-    // Minimal thenable mimicking the supabase builder chain reconcileDeleted uses:
-    // from('dogs').select('id').is('deleted_at', null)[.eq('owner_id', …)]
-    const makeQuery = (result: { data: { id: string }[] | null; error: unknown }) => {
+    // Mock the supabase builder chain reconcileDeleted uses:
+    // from('dogs').select('id').is('deleted_at', null)[.eq('owner_id', …)].range(from, to)
+    // `.range()` is the awaited terminal; successive calls return successive pages.
+    const makeQuery = (pages: Array<{ data: { id: string }[] | null; error: unknown }>) => {
+      let call = 0;
       const q = {
         select: vi.fn(() => q),
         is: vi.fn(() => q),
         eq: vi.fn(() => q),
-        then: (onFulfilled: (r: typeof result) => unknown) =>
-          Promise.resolve(result).then(onFulfilled),
+        range: vi.fn(() => Promise.resolve(pages[call++] ?? { data: [], error: null })),
       };
       return q;
     };
 
     it('removes non-dirty local dogs absent from the live id set', async () => {
-      const query = makeQuery({ data: [{ id: '1' }, { id: '3' }], error: null });
+      const query = makeQuery([{ data: [{ id: '1' }, { id: '3' }], error: null }]);
       vi.mocked(supabase.from).mockReturnValue(
         query as unknown as ReturnType<typeof supabase.from>
       );
@@ -959,7 +960,7 @@ describe('ReplicatedDogsTable', () => {
 
     it('a soft-deleted dog is excluded from the live set, so its local row is pruned', async () => {
       // dog '2' was soft-deleted server-side → RLS omits it from the live-id fetch.
-      const query = makeQuery({ data: [{ id: '1' }], error: null });
+      const query = makeQuery([{ data: [{ id: '1' }], error: null }]);
       vi.mocked(supabase.from).mockReturnValue(
         query as unknown as ReturnType<typeof supabase.from>
       );
@@ -972,8 +973,33 @@ describe('ReplicatedDogsTable', () => {
       expect(liveIds.has('2')).toBe(false);
     });
 
+    it('paginates the live-id fetch and unions all pages before pruning', async () => {
+      // A full first page (=== PAGE_SIZE) must trigger a second range() before pruning,
+      // else every cached dog beyond row 1000 would be wrongly treated as deleted.
+      const page0 = Array.from({ length: 1000 }, (_, i) => ({ id: `d${i}` }));
+      const page1 = [{ id: 'd1000' }, { id: 'd1001' }];
+      const query = makeQuery([
+        { data: page0, error: null },
+        { data: page1, error: null },
+      ]);
+      vi.mocked(supabase.from).mockReturnValue(
+        query as unknown as ReturnType<typeof supabase.from>
+      );
+      const removeSpy = vi.spyOn(dogsTable, 'removeStaleEntries').mockResolvedValue(0);
+
+      await dogsTable.reconcileDeleted();
+
+      expect(query.range).toHaveBeenNthCalledWith(1, 0, 999);
+      expect(query.range).toHaveBeenNthCalledWith(2, 1000, 1999);
+      const liveIds = removeSpy.mock.calls[0]![0];
+      expect(liveIds.size).toBe(1002);
+      expect(liveIds.has('d0')).toBe(true);
+      expect(liveIds.has('d999')).toBe(true);
+      expect(liveIds.has('d1001')).toBe(true);
+    });
+
     it('scopes the live-id fetch by owner_id when a key is provided', async () => {
-      const query = makeQuery({ data: [], error: null });
+      const query = makeQuery([{ data: [], error: null }]);
       vi.mocked(supabase.from).mockReturnValue(
         query as unknown as ReturnType<typeof supabase.from>
       );
@@ -984,8 +1010,27 @@ describe('ReplicatedDogsTable', () => {
       expect(query.eq).toHaveBeenCalledWith('owner_id', 'owner-123');
     });
 
-    it('prunes nothing when the live-id fetch errors (never wipe on failure)', async () => {
-      const query = makeQuery({ data: null, error: { message: 'rls denied' } });
+    it('prunes nothing when a page fetch errors (never wipe on failure)', async () => {
+      const query = makeQuery([{ data: null, error: { message: 'rls denied' } }]);
+      vi.mocked(supabase.from).mockReturnValue(
+        query as unknown as ReturnType<typeof supabase.from>
+      );
+      const removeSpy = vi.spyOn(dogsTable, 'removeStaleEntries').mockResolvedValue(0);
+
+      const removed = await dogsTable.reconcileDeleted();
+
+      expect(removeSpy).not.toHaveBeenCalled();
+      expect(removed).toBe(0);
+    });
+
+    it('aborts the prune if a later page errors mid-pagination', async () => {
+      // First page is full (forces a second fetch); the second page errors → abort,
+      // do NOT prune against the partial first-page id set.
+      const page0 = Array.from({ length: 1000 }, (_, i) => ({ id: `d${i}` }));
+      const query = makeQuery([
+        { data: page0, error: null },
+        { data: null, error: { message: 'timeout' } },
+      ]);
       vi.mocked(supabase.from).mockReturnValue(
         query as unknown as ReturnType<typeof supabase.from>
       );

@@ -86,11 +86,14 @@ incremental sync cannot observe the deletion. Fix = **reconciliation against the
 id set**, not "fetch-and-delete":
 
 - New `reconcileDeleted(scopeValue?)`: cheap `select('id').is('deleted_at', null)`
-  (RLS-scoped to what the user may see), then `removeStaleEntries(liveIds)`. Any
-  non-dirty local dog not in the live set is dropped — soft-deleted, hard-deleted, or
-  scoped-away. `removeStaleEntries` already preserves dirty rows (pending local
-  creates/edits). On fetch error → return 0 (never prune against a partial/empty
-  result, which would wipe the replica).
+  (RLS-scoped to what the user may see), **paginated via `.range()`** until a short
+  page, then `removeStaleEntries(liveIds)`. Any non-dirty local dog not in the live
+  set is dropped — soft-deleted, hard-deleted, or scoped-away. `removeStaleEntries`
+  already preserves dirty rows (pending local creates/edits). If any page errors →
+  return 0 (never prune against a partial result). **Pagination is required, not
+  optional:** PostgREST caps a response at ~1000 rows and a staff user (is_show_manager
+  → RLS exposes every dog) can exceed that; an unpaginated fetch would silently
+  truncate and prune every valid cached dog past the first page (Codex P1, PR #633).
 - Call it from `sync()` after a successful download, fully guarded (never breaks the
   sync result). Side-effect only — does not alter `result.rowsAffected`.
 - Bonus: on existing clients that already cached the whole table under the old open

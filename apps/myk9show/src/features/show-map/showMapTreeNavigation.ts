@@ -7,7 +7,14 @@ import {
 import type { ShowMapFilter, ShowMapNode, ShowMapScopeState, ShowMapTree } from './showMapTypes';
 
 export function supportsTreeKeyboardActions(node: ShowMapNode): boolean {
-  return node.type === 'trial' || node.type === 'class' || node.type === 'entry';
+  return (
+    node.type === 'all-exhibitors' ||
+    node.type === 'trial' ||
+    node.type === 'class' ||
+    node.type === 'dog' ||
+    node.type === 'entry' ||
+    node.type === 'dog-entry'
+  );
 }
 
 function nodeMatchesFilter(

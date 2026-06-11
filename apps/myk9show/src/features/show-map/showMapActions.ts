@@ -603,16 +603,38 @@ export function getAttentionActions(
   return getRankedActions(scope, state).filter(action => action.createsAttention);
 }
 
+function addNodeAndAncestors(
+  tree: ShowMapTree,
+  nodeId: string,
+  visit: (nodeId: string) => void
+): void {
+  let node: ShowMapNode | undefined = tree.nodesById[nodeId];
+  while (node) {
+    visit(node.id);
+    node = node.parentId ? tree.nodesById[node.parentId] : undefined;
+  }
+}
+
+function getMirroredDogEntryNodeId(
+  tree: ShowMapTree,
+  actionNodeId: string
+): string | undefined {
+  const entryId = sourceIdFromNodeId(actionNodeId, 'entry');
+  if (!entryId) return undefined;
+  const dogEntryNodeId = `dog-entry:${entryId}`;
+  return tree.nodesById[dogEntryNodeId] ? dogEntryNodeId : undefined;
+}
+
 export function getAttentionNodeIds(
   tree: ShowMapTree,
   state: Omit<ShowMapActionState, 'tree'> = {}
 ): Set<string> {
   const nodeIds = new Set<string>();
   for (const action of getAttentionActions('root', { tree, ...state })) {
-    let node: ShowMapNode | undefined = tree.nodesById[action.nodeId];
-    while (node) {
-      nodeIds.add(node.id);
-      node = node.parentId ? tree.nodesById[node.parentId] : undefined;
+    addNodeAndAncestors(tree, action.nodeId, nodeId => nodeIds.add(nodeId));
+    const dogEntryNodeId = getMirroredDogEntryNodeId(tree, action.nodeId);
+    if (dogEntryNodeId) {
+      addNodeAndAncestors(tree, dogEntryNodeId, nodeId => nodeIds.add(nodeId));
     }
   }
   return nodeIds;
@@ -633,10 +655,14 @@ export function getAttentionCountsByNodeId(
     directNodeIds.add(action.nodeId);
   }
   for (const directId of directNodeIds) {
-    let node: ShowMapNode | undefined = tree.nodesById[directId];
-    while (node) {
-      counts.set(node.id, (counts.get(node.id) ?? 0) + 1);
-      node = node.parentId ? tree.nodesById[node.parentId] : undefined;
+    const countedNodeIds = new Set<string>();
+    addNodeAndAncestors(tree, directId, nodeId => countedNodeIds.add(nodeId));
+    const dogEntryNodeId = getMirroredDogEntryNodeId(tree, directId);
+    if (dogEntryNodeId) {
+      addNodeAndAncestors(tree, dogEntryNodeId, nodeId => countedNodeIds.add(nodeId));
+    }
+    for (const nodeId of countedNodeIds) {
+      counts.set(nodeId, (counts.get(nodeId) ?? 0) + 1);
     }
   }
   return counts;

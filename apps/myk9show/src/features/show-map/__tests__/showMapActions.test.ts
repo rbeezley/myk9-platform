@@ -3,6 +3,7 @@ import { buildShowMapTree } from '../showMapTree';
 import {
   getAttentionActions,
   getAttentionCountsByNodeId,
+  getAttentionNodeIds,
   getPrimaryActionForNode,
   getRankedActions,
   getRecommendedActions,
@@ -178,6 +179,37 @@ describe('showMapActions', () => {
       nodeId: 'entry:entry-submitted',
       label: 'Review entry',
     });
+  });
+
+  it('mirrors entry attention into the matching dog branch ancestors', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [classes[0]!],
+      entries: [
+        {
+          id: 'entry-1',
+          class_id: 'class-active',
+          dog_id: 'dog-1',
+          dog: { id: 'dog-1', call_name: 'Bella' },
+          entry_status: 'submitted',
+        },
+      ],
+    });
+
+    const attentionNodeIds = getAttentionNodeIds(tree);
+    expect(Array.from(attentionNodeIds)).toEqual(
+      expect.arrayContaining([
+        'all-exhibitors:show-1',
+        'dog:dog-1',
+        'dog-entry:entry-1',
+      ])
+    );
+
+    const counts = getAttentionCountsByNodeId(tree);
+    expect(counts.get('all-exhibitors:show-1')).toBe(1);
+    expect(counts.get('dog:dog-1')).toBe(1);
+    expect(counts.get('dog-entry:entry-1')).toBe(1);
   });
 
   it('does not treat generic pending entry statuses as Attention lens work', () => {

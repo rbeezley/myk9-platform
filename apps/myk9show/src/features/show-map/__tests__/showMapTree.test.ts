@@ -399,6 +399,25 @@ describe('buildShowMapTree', () => {
     expect(getTrialsExpandedNodeIds(tree)).toEqual(new Set([tree.root.id, 'trial:trial-1']));
   });
 
+  it('keeps dog branch collapsed by default and out of expand-trials', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes,
+      entries: [
+        {
+          id: 'entry-1',
+          class_id: 'class-1',
+          dog_id: 'dog-1',
+          dog: { id: 'dog-1', call_name: 'Bella' },
+        },
+      ],
+    });
+
+    expect(getDefaultExpandedNodeIds(tree)).toEqual(new Set([tree.root.id]));
+    expect(getTrialsExpandedNodeIds(tree)).toEqual(new Set([tree.root.id, 'trial:trial-1']));
+  });
+
   it('adds a deterministic marker when entries are capped', () => {
     const entries = Array.from({ length: 3 }, (_, index) => ({
       id: `entry-${index}`,

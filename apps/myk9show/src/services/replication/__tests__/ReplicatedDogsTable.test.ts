@@ -664,11 +664,14 @@ describe('ReplicatedDogsTable', () => {
         expect(result.conflictsResolved).toBe(0);
 
         expect(batchSetSpy).toHaveBeenCalled();
+        // Watermark is advanced monotonically inside the cache transaction, so the
+        // final metadata write carries the advanceWatermarkMonotonically option.
         expect(updateMetadataSpy).toHaveBeenCalledWith(
           expect.objectContaining({
             lastIncrementalSyncAt: expect.any(Number),
             syncStatus: 'idle',
-          })
+          }),
+          expect.objectContaining({ advanceWatermarkMonotonically: true })
         );
       });
 

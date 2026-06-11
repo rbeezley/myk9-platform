@@ -76,6 +76,7 @@ export interface UseRunOrderPageDataReturn {
   schedule: ReturnType<TimeCalculationEngine['calculateSchedule']>;
   stats: ReturnType<TimeCalculationEngine['getScheduleStats']>;
   availableJudges: { id: string; name: string }[];
+  showId: string | undefined;
   isLoading: boolean;
 
   // Handlers
@@ -305,6 +306,7 @@ export function useRunOrderPageData(trialId: string | undefined): UseRunOrderPag
     schedule,
     stats,
     availableJudges,
+    showId,
     isLoading: trialClassesQuery.isLoading || trialQuery.isLoading || judgesQuery.isLoading,
 
     handleReorder,

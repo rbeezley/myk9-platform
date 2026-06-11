@@ -432,6 +432,8 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   // other permanent failures don't end up hidden in the console. Prevents
   // the "UI showed success but the row never persisted" class of data-loss
   // bugs we hit on 2026-04-16 (shows_insert RLS rejecting secretary role).
+  // Failed mutations are kept in the failed_mutations IDB store until the
+  // user explicitly retries or discards them — never auto-deleted.
   useEffect(() => {
     const handleSyncFailed = (event: Event) => {
       const detail = (event as CustomEvent<SyncFailedEventDetail>).detail;
@@ -439,11 +441,62 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         count: detail.count,
         mutations: detail.mutations,
       });
-      notifications.error(formatSyncFailureToast(detail));
+
+      const ids = detail.mutations.map(m => m.id).filter(Boolean);
+      const toastId = `sync-failed:${ids[0] ?? 'unknown'}`;
+      toast.error(formatSyncFailureToast(detail), {
+        id: toastId,
+        // INTENT: Failure toasts persist until the user makes an explicit
+        // choice. The underlying mutations survive in IDB either way, so a
+        // dismissed-by-reload toast re-surfaces on the next sign-in.
+        duration: Infinity,
+        action: {
+          label: 'Retry',
+          onClick: () => {
+            void Promise.allSettled(ids.map(id => mutationManager.retryFailedMutation(id)));
+            toast.dismiss(toastId);
+          },
+        },
+        cancel: {
+          label: 'Discard',
+          onClick: () => {
+            void Promise.allSettled(ids.map(id => mutationManager.discardFailedMutation(id)));
+            toast.dismiss(toastId);
+          },
+        },
+      });
     };
     window.addEventListener('replication:sync-failed', handleSyncFailed);
     return () => window.removeEventListener('replication:sync-failed', handleSyncFailed);
   }, []);
+
+  // Re-surface persisted sync failures from previous sessions when the user
+  // authenticates. A failure toast lost to navigation or reload must not bury
+  // the underlying mutations — they stay in the failed_mutations store and
+  // re-dispatching fires the existing handleSyncFailed toast for review.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const resurface = async () => {
+      try {
+        const failed = await mutationManager.getFailedMutations();
+        if (failed.length === 0) return;
+        window.dispatchEvent(
+          new CustomEvent('replication:sync-failed', {
+            detail: {
+              count: failed.length,
+              mutations: failed,
+              message: `${failed.length} change(s) failed to sync.`,
+            } satisfies SyncFailedEventDetail,
+          })
+        );
+      } catch (err) {
+        logger.warn('Failed to re-surface failed mutations', 'replication', { err });
+      }
+    };
+
+    void resurface();
+  }, [isAuthenticated]);
 
   // Phase 4: surface same-field replication conflicts as persistent toasts.
   // Upholds the §2.5 hard guarantee — no silent data loss on any replicated table.

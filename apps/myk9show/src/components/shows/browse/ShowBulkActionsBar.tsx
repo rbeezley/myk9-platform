@@ -7,16 +7,18 @@
 
 import React, { useState } from 'react';
 import { logger } from '@/services/LoggingService';
+import { notifications } from '@/lib/notifications';
+import { updateShow, deleteShow } from '@/services/database/shows';
 import {
   Trash2,
   AlertCircle,
   X,
   ChevronDown,
   Download,
-  Archive,
   CheckCircle2,
   XCircle,
   CalendarCheck,
+  Megaphone,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -38,7 +40,9 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
 
-type ShowStatus = 'active' | 'completed' | 'cancelled' | 'archived';
+// Must stay in sync with the shows_status_check CHECK constraint
+// (migration 072): draft | published | upcoming | in_progress | completed | cancelled.
+type ShowStatus = 'published' | 'completed' | 'cancelled';
 type DialogType = 'status' | 'export' | 'delete' | null;
 
 interface ShowBulkActionsBarProps {
@@ -48,10 +52,9 @@ interface ShowBulkActionsBarProps {
 }
 
 const STATUS_OPTIONS: { value: ShowStatus; label: string; icon: React.ElementType }[] = [
-  { value: 'active', label: 'Mark Active', icon: CheckCircle2 },
+  { value: 'published', label: 'Mark Published', icon: Megaphone },
   { value: 'completed', label: 'Mark Completed', icon: CalendarCheck },
   { value: 'cancelled', label: 'Mark Cancelled', icon: XCircle },
-  { value: 'archived', label: 'Archive', icon: Archive },
 ];
 
 export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
@@ -62,7 +65,7 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
   const [currentDialog, setCurrentDialog] = useState<DialogType>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pendingStatus, setPendingStatus] = useState<ShowStatus>('active');
+  const [pendingStatus, setPendingStatus] = useState<ShowStatus>('published');
 
   const closeDialog = () => {
     setCurrentDialog(null);
@@ -79,8 +82,25 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
         showIds: selectedShows.map(s => s.id),
       });
 
-      // TODO: Replace with actual API call when backend supports bulk status update
-      await new Promise(resolve => setTimeout(resolve, 800));
+      const results = await Promise.all(
+        selectedShows.map(show => updateShow(show.id, { status: pendingStatus }))
+      );
+      const failedCount = results.filter(result => result.error).length;
+      if (failedCount === selectedShows.length) {
+        setError('Failed to update the selected shows. Please try again.');
+        return;
+      }
+      if (failedCount > 0) {
+        // Partial failure: refresh + clear selection so the succeeded subset
+        // reflects immediately and a retry can't re-hit already-updated shows.
+        notifications.error(
+          `Failed to update ${failedCount} of ${selectedShows.length} shows.`,
+          { description: 'The other shows were updated. Re-select the failed shows to retry.' }
+        );
+        closeDialog();
+        onBulkComplete();
+        return;
+      }
 
       logger.info('Bulk status change complete', 'shows', {
         status: pendingStatus,
@@ -148,8 +168,23 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
         showIds: selectedShows.map(s => s.id),
       });
 
-      // TODO: Replace with actual API call when backend supports bulk delete
-      await new Promise(resolve => setTimeout(resolve, 800));
+      const results = await Promise.all(selectedShows.map(show => deleteShow(show.id)));
+      const failedCount = results.filter(result => result.error).length;
+      if (failedCount === selectedShows.length) {
+        setError('Failed to delete the selected shows. Please try again.');
+        return;
+      }
+      if (failedCount > 0) {
+        // Partial failure: refresh + clear selection so already-deleted shows
+        // drop out of the list and a retry can't re-delete them.
+        notifications.error(
+          `Failed to delete ${failedCount} of ${selectedShows.length} shows.`,
+          { description: 'The other shows were deleted. Re-select the failed shows to retry.' }
+        );
+        closeDialog();
+        onBulkComplete();
+        return;
+      }
 
       logger.info('Bulk delete complete', 'shows', { count: selectedShows.length });
 

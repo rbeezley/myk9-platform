@@ -1,7 +1,7 @@
 // apps/myk9show/src/pages/secretary/ResultsSubmissionPage/index.tsx
 
-import { useState, useEffect, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -30,7 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useShowStore } from '@/store/showStore';
+import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { supabase } from '@/services/database/supabaseClient';
 import { listFormatters, AKCScentWorkFormatter } from '@myk9/secretary';
 import { useAKCSubmissionData } from '@/hooks/queries/useAKCSubmissionData';
@@ -78,10 +78,8 @@ function formatDate(iso: string): string {
 // ---------------------------------------------------------------------------
 
 export default function ResultsSubmissionPage() {
-  const { shows, selectedShowId, selectShow } = useShowStore();
-  const [searchParams] = useSearchParams();
-  const [initialRouteShowId] = useState(() => searchParams.get('showId')?.trim() || undefined);
-  const hasAppliedInitialShowRef = useRef(false);
+  const { showId } = useParams<{ showId: string }>();
+  const { show } = useFastShowDetails(showId);
 
   const formatters = listFormatters();
   const [formatterKey, setFormatterKey] = useState<string>(
@@ -94,42 +92,12 @@ export default function ResultsSubmissionPage() {
 
   const activeFormatter = formatters.find(f => `${f.organization}:${f.sportType}` === formatterKey);
 
-  const selectedShow = shows.find(s => s.id === selectedShowId) ?? null;
   const isAKCScentWork =
     activeFormatter?.organization === 'AKC' && activeFormatter?.sportType === 'scent_work';
 
-  // Honor show-scoped workbench links once, then let later show changes stand.
-  useEffect(() => {
-    if (!hasAppliedInitialShowRef.current) {
-      const initialShowExists = Boolean(
-        initialRouteShowId && shows.some(show => show.id === initialRouteShowId)
-      );
-
-      if (initialRouteShowId && initialShowExists) {
-        hasAppliedInitialShowRef.current = true;
-        if (initialRouteShowId !== selectedShowId) {
-          selectShow(initialRouteShowId);
-        }
-        return;
-      }
-
-      if (!initialRouteShowId || shows.length > 0) {
-        hasAppliedInitialShowRef.current = true;
-        if (!selectedShowId && shows.length > 0) {
-          selectShow(shows[0].id);
-        }
-        return;
-      }
-    }
-
-    if (!selectedShowId && shows.length > 0) {
-      selectShow(shows[0].id);
-    }
-  }, [initialRouteShowId, selectedShowId, shows, selectShow]);
-
   // Fetch real AKC data when AKC scent work formatter is selected
   const { data: akcData, isLoading: isAKCLoading } = useAKCSubmissionData(
-    isAKCScentWork ? (selectedShowId ?? '') : ''
+    isAKCScentWork ? (showId ?? '') : ''
   );
 
   const xmlPreview = isAKCScentWork && akcData ? AKCScentWorkFormatter.formatXml(akcData) : '';
@@ -137,13 +105,11 @@ export default function ResultsSubmissionPage() {
   // Pre-flight: count entries missing AKC reg numbers
   const missingAKCCount = akcData ? akcData.entries.filter(e => !e.registrationNumber).length : 0;
 
-  const filename = selectedShow ? buildFilename(selectedShow.name) : 'results.xml';
+  const filename = show ? buildFilename(show.name) : 'results.xml';
 
-  const { mutate: recordSubmission } = useResultSubmission(selectedShowId);
+  const { mutate: recordSubmission } = useResultSubmission(showId);
 
-  const { data: history = [], isLoading: historyLoading } = useResultSubmissions(
-    selectedShowId ?? ''
-  );
+  const { data: history = [], isLoading: historyLoading } = useResultSubmissions(showId ?? '');
 
   const handleDownload = () => {
     if (!xmlPreview) return;
@@ -151,7 +117,7 @@ export default function ResultsSubmissionPage() {
   };
 
   const handleSend = async () => {
-    if (!xmlPreview || !activeFormatter || !selectedShowId || !akcData) return;
+    if (!xmlPreview || !activeFormatter || !showId || !akcData) return;
 
     setSendError(null);
     setSendSuccess(false);
@@ -173,7 +139,7 @@ export default function ResultsSubmissionPage() {
 
       // Auto-record submission on success
       recordSubmission({
-        show_id: selectedShowId,
+        show_id: showId,
         organization: activeFormatter.organization,
         sport_type: activeFormatter.sportType,
         xml_payload: xmlPreview,
@@ -191,9 +157,9 @@ export default function ResultsSubmissionPage() {
   };
 
   const handleMarkSubmitted = () => {
-    if (!selectedShowId || !activeFormatter) return;
+    if (!showId || !activeFormatter) return;
     recordSubmission({
-      show_id: selectedShowId,
+      show_id: showId,
       organization: activeFormatter.organization,
       sport_type: activeFormatter.sportType,
       xml_payload: xmlPreview || null,
@@ -212,22 +178,6 @@ export default function ResultsSubmissionPage() {
           </p>
         </div>
 
-        {shows.length > 0 && (
-          <Select value={selectedShowId ?? ''} onValueChange={selectShow}>
-            <SelectTrigger className="w-[240px]" data-testid="show-selector">
-              <SelectValue placeholder="Select show">
-                {selectedShow?.name ?? 'Select show'}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {shows.map(s => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
       </div>
 
       {/* Controls */}
@@ -298,7 +248,7 @@ export default function ResultsSubmissionPage() {
           <Button
             variant="outline"
             onClick={handleMarkSubmitted}
-            disabled={!selectedShowId || !activeFormatter}
+            disabled={!showId || !activeFormatter}
             data-testid="mark-submitted-btn"
           >
             Mark as Submitted

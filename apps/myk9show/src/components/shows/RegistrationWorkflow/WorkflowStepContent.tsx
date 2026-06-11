@@ -298,6 +298,7 @@ export function WorkflowStepContent({
           : (
           <ConfirmationStep
             registrationNumber={registrationNumber}
+            registrationId={registrationId}
             selectedDogs={optimisticState.formData.selectedDogs}
             classSelections={optimisticState.classSelections}
             documents={optimisticState.formData.documents}

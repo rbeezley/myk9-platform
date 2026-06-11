@@ -4,19 +4,25 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { toast } from 'sonner';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { logger } from '@/services/LoggingService';
 import {
   getClassesWithWaitlistCounts,
   getWaitlistByClass,
   offerWaitlistSpot,
+  getWaitlistOfferMessageTarget,
   removeFromWaitlist,
 } from '@/services/database/waitlists';
 import { getSecretaryShows } from '@/services/database/shows';
+import { useMessageStore } from '@/store/messageStore';
+import { buildWaitlistOfferMessage } from './waitlistOfferMessage';
 import type { Show, ActionDialogState, WaitlistEntry, ClassWithWaitlistCount } from './types';
 
 export function useWaitlistManagementData(showId?: string) {
   const { user } = useAuthContext();
+  const getOrCreateThread = useMessageStore(s => s.getOrCreateThread);
+  const sendMessage = useMessageStore(s => s.sendMessage);
 
   const [shows, setShows] = useState<Show[]>([]);
   const [selectedShowId, setSelectedShowId] = useState<string>(showId ?? '');
@@ -134,6 +140,83 @@ export function useWaitlistManagementData(showId?: string) {
   }, [selectedClassId, loadWaitlist]);
 
   // Actions
+  // Notify the offered exhibitor through the show-messaging system. Resolves
+  // the exhibitor's auth account, opens (or reuses) their inbox thread for the
+  // show, and posts the offer message. A failure here never blocks the offer —
+  // the waitlist row is already marked `offered` — but the secretary IS told
+  // (non-blocking toast) when the exhibitor couldn't be reached: a waitlist
+  // offer is time-boxed (`offer_expires_at`), so a silent failure would let the
+  // spot tick toward expiry while the secretary believes they notified them.
+  const notifyOfferedExhibitor = useCallback(
+    async (
+      offer: { exhibitor_id?: string | null } | null | undefined,
+      entry: WaitlistEntry,
+      offerShowId: string
+    ) => {
+      const exhibitorId = offer?.exhibitor_id;
+      if (!exhibitorId || !offerShowId) return;
+
+      try {
+        const { data: target, error } = await getWaitlistOfferMessageTarget(exhibitorId);
+        if (error || !target) {
+          logger.error(
+            'Waitlist offer: could not resolve messaging target',
+            'secretary',
+            { exhibitorId, waitlistEntryId: entry.id },
+            error as Error | undefined
+          );
+          toast.warning("Spot offered, but the in-app notification couldn't be sent.");
+          return;
+        }
+
+        if (!target.participantAuthUserId) {
+          // Known, persistent condition (not a transient error): the exhibitor
+          // has no app account, so an in-app offer can't reach them. Surface it
+          // so the secretary contacts them another way before the offer lapses.
+          logger.error('Waitlist offer: exhibitor has no messaging account', 'secretary', {
+            exhibitorId,
+            waitlistEntryId: entry.id,
+          });
+          toast.warning(
+            target.exhibitorName
+              ? `Spot offered. ${target.exhibitorName} has no app account yet — notify them directly.`
+              : 'Spot offered, but this exhibitor has no app account yet — notify them directly.'
+          );
+          return;
+        }
+
+        const thread = await getOrCreateThread(offerShowId, target.participantAuthUserId);
+        if (!thread) {
+          logger.error('Waitlist offer: failed to open message thread', 'secretary', {
+            exhibitorId,
+            waitlistEntryId: entry.id,
+          });
+          toast.warning(
+            target.exhibitorName
+              ? `Spot offered, but the in-app message to ${target.exhibitorName} didn't send.`
+              : "Spot offered, but the in-app notification didn't send."
+          );
+          return;
+        }
+
+        const body = buildWaitlistOfferMessage({
+          dogName: entry.dog?.call_name ?? entry.dog?.name ?? null,
+          className: entry.class?.name ?? null,
+        });
+        await sendMessage(thread.id, offerShowId, body);
+      } catch (err) {
+        logger.error(
+          'Waitlist offer: failed to notify exhibitor',
+          'secretary',
+          { exhibitorId, waitlistEntryId: entry.id },
+          err as Error
+        );
+        toast.warning("Spot offered, but the in-app notification didn't send.");
+      }
+    },
+    [getOrCreateThread, sendMessage]
+  );
+
   const handleOfferSpot = useCallback(async () => {
     if (!actionDialog.entry) return;
 
@@ -147,13 +230,11 @@ export function useWaitlistManagementData(showId?: string) {
         setError('Failed to offer spot. Please try again.');
         logger.error('Error offering waitlist spot:', 'secretary', {}, error as Error);
       } else {
-        // TODO: Phase 6 notifications — notify exhibitor of offered spot
-        if (data?.exhibitor_id) {
-          logger.debug('Waitlist spot offered notification', 'secretary', {
-            exhibitorId: data.exhibitor_id,
-            classEntryId: actionDialog.entry.id,
-          });
-        }
+        // Notify the offered exhibitor via the show-messaging system. This
+        // writes an inbox thread + message (push fires via push-trigger-chat-
+        // message), reusing the same single-recipient transport the show-map
+        // "Message handler" action uses — not a parallel notifier.
+        await notifyOfferedExhibitor(data, actionDialog.entry, selectedShowId);
 
         // Refresh the waitlist and class counts
         if (selectedClassId) {
@@ -170,7 +251,14 @@ export function useWaitlistManagementData(showId?: string) {
       setIsProcessing(false);
       setActionDialog({ open: false, action: null, entry: null });
     }
-  }, [actionDialog.entry, selectedClassId, selectedShowId, loadWaitlist, loadClasses]);
+  }, [
+    actionDialog.entry,
+    selectedClassId,
+    selectedShowId,
+    loadWaitlist,
+    loadClasses,
+    notifyOfferedExhibitor,
+  ]);
 
   const handleRemoveFromWaitlist = useCallback(async () => {
     if (!actionDialog.entry) return;

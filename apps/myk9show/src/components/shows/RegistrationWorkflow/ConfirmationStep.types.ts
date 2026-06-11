@@ -7,6 +7,12 @@ import type { WaitlistEntryResult } from '@/store/cartStore';
 
 export interface ConfirmationStepProps {
   registrationNumber?: string | undefined;
+  /**
+   * The enrollment/registration id. Required for the "Email Confirmation"
+   * button to send a real email via the `send-registration-email` edge
+   * function. When absent, the button falls back to clipboard copy.
+   */
+  registrationId?: string | undefined;
   selectedDogs: string[];
   classSelections: ClassSelectionData[];
   documents: File[];

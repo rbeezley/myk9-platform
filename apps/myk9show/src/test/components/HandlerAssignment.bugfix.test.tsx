@@ -35,15 +35,19 @@ describe('Handler Assignment Bug Fixes', () => {
     });
   });
 
-  describe('RegistrationWizardPage canProceed validation', () => {
-    it('should validate handlerName not handlerId in canProceed', () => {
+  describe('RegistrationWizardPage proceed gating', () => {
+    // Next-button gating moved from an inline canProceed() switch into
+    // proceedBlockedReason (proceedGating.ts); the handlerName-vs-handlerId
+    // guard now lives in the gating-context construction in the page.
+    it('should derive unassigned handlers from handlerName not handlerId', () => {
       const filePath = path.join(__dirname, '../../pages/RegistrationWizardPage.tsx');
       const content = fs.readFileSync(filePath, 'utf8');
-      const canProceedStart = content.indexOf('const canProceed');
-      const canProceedEnd = content.indexOf('};', canProceedStart);
-      const canProceedBody = content.substring(canProceedStart, canProceedEnd);
-      expect(canProceedBody).toContain('handlerName');
-      expect(canProceedBody).not.toContain('handlerId');
+      const gatingStart = content.indexOf('proceedBlockedReason({');
+      expect(gatingStart).toBeGreaterThan(-1);
+      const gatingEnd = content.indexOf('});', gatingStart);
+      const gatingBody = content.substring(gatingStart, gatingEnd);
+      expect(gatingBody).toContain('handlerName');
+      expect(gatingBody).not.toContain('handlerId');
     });
   });
 });

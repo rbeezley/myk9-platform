@@ -41,9 +41,6 @@ const QUEUE_WARNING_THRESHOLD = 500;
 /** Maximum mutation queue capacity */
 const QUEUE_MAX_SIZE = 1000;
 
-/** Debounce interval for localStorage backup (ms) */
-const BACKUP_DEBOUNCE_MS = 1000;
-
 /** localStorage key for mutation backup */
 const BACKUP_STORAGE_KEY = 'replication_mutation_backup';
 
@@ -100,10 +97,6 @@ export class MutationManager {
   private maxRetries: number;
   private retryBackoffBase: number;
   private logger: Logger;
-
-  // Debounce localStorage backup to prevent race conditions
-  private backupDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-  private isBackupInProgress: boolean = false;
 
   // Auto-upload: flush mutations to server shortly after queuing
   private uploadDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -176,7 +169,11 @@ export class MutationManager {
     };
     await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation);
     this.logger.log(`[MutationManager] Queued ${operation} for ${tableName}/${rowId}`);
-    await this.backupMutationsToLocalStorage();
+    // Backup synchronously (not debounced): a page reload inside a debounce
+    // window would leave the newest mutations only in IndexedDB, where browser
+    // cache eviction can destroy them. Offline scores must hit localStorage
+    // before queueMutation resolves.
+    await this.writeCurrentMutationsBackup();
 
     // Auto-upload: schedule immediate flush to server
     this.scheduleUpload();
@@ -190,6 +187,61 @@ export class MutationManager {
   async getPendingCount(): Promise<number> {
     const db = await databaseManager.getDatabase('MutationManager');
     return db.count(REPLICATION_STORES.PENDING_MUTATIONS);
+  }
+
+  // ========================================
+  // FAILED MUTATION MANAGEMENT
+  // ========================================
+
+  /**
+   * List permanently failed mutations awaiting user review.
+   *
+   * Mutations land here when they exhaust retries or hit a non-retryable
+   * error (RLS rejection, constraint violation, expired auth). They are
+   * never deleted automatically — the user must retry or discard them.
+   */
+  async getFailedMutations(): Promise<PendingMutation[]> {
+    const db = await databaseManager.getDatabase('MutationManager');
+    return (await db.getAll(REPLICATION_STORES.FAILED_MUTATIONS)) as PendingMutation[];
+  }
+
+  /**
+   * Re-queue a failed mutation for upload (e.g. after the user re-authenticates
+   * or a secretary fixes the underlying permission problem). Resets the retry
+   * counter so the mutation gets a full set of attempts.
+   */
+  async retryFailedMutation(mutationId: string): Promise<void> {
+    const db = await databaseManager.getDatabase('MutationManager');
+    const failed = (await db.get(REPLICATION_STORES.FAILED_MUTATIONS, mutationId)) as
+      | PendingMutation
+      | undefined;
+    if (!failed) return;
+
+    const requeued: PendingMutation = {
+      ...failed,
+      status: 'pending',
+      retries: 0,
+    };
+    delete requeued.error;
+    delete requeued.nextRetryAt;
+    delete requeued.failedAt;
+
+    await db.put(REPLICATION_STORES.PENDING_MUTATIONS, requeued);
+    await db.delete(REPLICATION_STORES.FAILED_MUTATIONS, mutationId);
+    this.logger.log(
+      `[MutationManager] Re-queued failed mutation ${mutationId} (${failed.tableName}/${failed.rowId})`
+    );
+    await this.writeCurrentMutationsBackup();
+    this.scheduleUpload();
+  }
+
+  /**
+   * Permanently discard a failed mutation after user review.
+   */
+  async discardFailedMutation(mutationId: string): Promise<void> {
+    const db = await databaseManager.getDatabase('MutationManager');
+    await db.delete(REPLICATION_STORES.FAILED_MUTATIONS, mutationId);
+    this.logger.log(`[MutationManager] Discarded failed mutation ${mutationId}`);
   }
 
   /**
@@ -457,13 +509,18 @@ export class MutationManager {
             mutation.error = canRetry
               ? `Max retries exceeded: ${message}`
               : `Non-retryable error: ${message}`;
+            mutation.failedAt = Date.now();
             failedMutations.push(mutation);
 
             this.logger.error(
               `[MutationManager] Mutation ${mutation.id} (${mutation.tableName}/${mutation.operation}) failed permanently${canRetry ? ' (max retries)' : ' (non-retryable)'}: ${message}`,
               error
             );
-            // Remove permanently failed mutations from the queue
+            // Move permanently failed mutations out of the active queue but keep
+            // them in the failed_mutations store. Deleting them outright would
+            // silently destroy offline work (e.g. ringside scores blocked by an
+            // RLS/auth failure) with nothing for the user to review or retry.
+            await db.put(REPLICATION_STORES.FAILED_MUTATIONS, mutation);
             await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, mutation.id);
           } else {
             mutation.status = 'pending';
@@ -771,61 +828,21 @@ export class MutationManager {
   // BACKUP / RESTORE
   // ========================================
 
-  /** Resolve callback for the pending backup promise (if any) */
-  private backupPendingResolve: (() => void) | null = null;
-
   /**
    * Backup pending mutations to localStorage
    *
-   * Prevents data loss if IndexedDB is cleared.
-   * Debounced to coalesce rapid writes — previous callers resolve immediately
-   * when a new call supersedes their timer.
+   * Prevents data loss if IndexedDB is cleared. Writes immediately — a
+   * debounced write here would leave a window where a page reload loses the
+   * newest queued mutations (offline scores) if IndexedDB is later evicted.
    */
   async backupMutationsToLocalStorage(): Promise<void> {
     if (typeof window === 'undefined') return;
 
-    // If a previous debounce is pending, resolve its promise so the caller unblocks
-    if (this.backupDebounceTimer) {
-      clearTimeout(this.backupDebounceTimer);
-      if (this.backupPendingResolve) {
-        this.backupPendingResolve();
-        this.backupPendingResolve = null;
-      }
+    try {
+      await this.writeCurrentMutationsBackup();
+    } catch (error) {
+      this.logger.warn('[MutationManager] Failed to backup mutations to localStorage:', error);
     }
-
-    return new Promise(resolve => {
-      this.backupPendingResolve = resolve;
-      this.backupDebounceTimer = setTimeout(async () => {
-        this.backupPendingResolve = null;
-
-        // Skip if backup already in progress
-        if (this.isBackupInProgress) {
-          this.logger.log('[MutationManager] Backup already in progress, skipping duplicate call');
-          resolve();
-          return;
-        }
-
-        this.isBackupInProgress = true;
-        try {
-          const db = await databaseManager.getDatabase('MutationManager');
-          const pending = await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
-
-          if (pending.length > 0) {
-            localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(pending));
-            this.logger.log(
-              `[MutationManager] Backed up ${pending.length} mutations to localStorage`
-            );
-          } else {
-            localStorage.removeItem(BACKUP_STORAGE_KEY);
-          }
-        } catch (error) {
-          this.logger.warn('[MutationManager] Failed to backup mutations to localStorage:', error);
-        } finally {
-          this.isBackupInProgress = false;
-          resolve();
-        }
-      }, BACKUP_DEBOUNCE_MS);
-    });
   }
 
   /**
@@ -965,6 +982,12 @@ export class MutationManager {
       await tx.store.clear();
       await tx.done;
 
+      // Failed mutations belong to the same session/show context — stale ones
+      // from a previous login must not resurface for the next user.
+      const failedTx = db.transaction(REPLICATION_STORES.FAILED_MUTATIONS, 'readwrite');
+      await failedTx.store.clear();
+      await failedTx.done;
+
       // Also clear the localStorage backup
       if (typeof window !== 'undefined') {
         localStorage.removeItem(BACKUP_STORAGE_KEY);
@@ -982,10 +1005,6 @@ export class MutationManager {
    * Call when disposing of the MutationManager instance.
    */
   destroy(): void {
-    if (this.backupDebounceTimer) {
-      clearTimeout(this.backupDebounceTimer);
-      this.backupDebounceTimer = null;
-    }
     if (this.uploadDebounceTimer) {
       clearTimeout(this.uploadDebounceTimer);
       this.uploadDebounceTimer = null;

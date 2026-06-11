@@ -1,6 +1,6 @@
 export interface SyncFailedEventDetail {
   count: number;
-  mutations: Array<{ tableName: string; operation: string; error?: string }>;
+  mutations: Array<{ id: string; tableName: string; operation: string; error?: string }>;
   message: string;
 }
 

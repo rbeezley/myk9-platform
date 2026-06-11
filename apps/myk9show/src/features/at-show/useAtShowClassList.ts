@@ -38,6 +38,11 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
     // not group/render with the default ('') before the show metadata lands.
     isLoading: groupsQuery.isLoading || showQuery.isLoading,
     error: (groupsQuery.error as Error | null) ?? (showQuery.error as Error | null) ?? null,
-    refresh: () => void groupsQuery.refetch(),
+    // Refetch both queries: `error` surfaces whichever failed, so a retry
+    // that only refetched groups would no-op on a show-metadata failure.
+    refresh: () => {
+      void groupsQuery.refetch();
+      void showQuery.refetch();
+    },
   };
 }

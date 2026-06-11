@@ -88,6 +88,7 @@ describe('submitShowRegistration', () => {
       registrationNumber: 'MK9-000001',
       dbRegistrationId: 'db-reg-1',
       armbandAssignments: [{ dogId: 'dog-1', armband: '101' }],
+      armbandFailures: [],
     });
   });
 
@@ -107,6 +108,43 @@ describe('submitShowRegistration', () => {
       registrationNumber: 'MK9-000001',
       dbRegistrationId: 'db-reg-1',
       armbandAssignments: [],
+      armbandFailures: [],
+    });
+  });
+
+  it('reports armband entry-update failures instead of swallowing them', async () => {
+    // Regression: armband write errors were silently .catch(() => {})'d —
+    // the UI claimed success while the entry had no ring number in the DB.
+    const params = makeParams();
+    vi.mocked(params.deps.updateEntryRegistration).mockRejectedValue(
+      new Error('RLS policy blocked UPDATE')
+    );
+
+    const result = await submitShowRegistration(params);
+
+    expect(result).toEqual({
+      aborted: false,
+      registrationNumber: 'MK9-000001',
+      dbRegistrationId: 'db-reg-1',
+      // The armband did not persist, so it must not be reported as assigned.
+      armbandAssignments: [],
+      armbandFailures: [{ dogId: 'dog-1', error: 'RLS policy blocked UPDATE' }],
+    });
+  });
+
+  it('reports armband claim failures without failing the submission', async () => {
+    const params = makeParams();
+    vi.mocked(params.deps.claimNextArmband!).mockRejectedValue(new Error('P0001: not staff'));
+
+    const result = await submitShowRegistration(params);
+
+    expect(params.deps.updateEntryRegistration).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      aborted: false,
+      registrationNumber: 'MK9-000001',
+      dbRegistrationId: 'db-reg-1',
+      armbandAssignments: [],
+      armbandFailures: [{ dogId: 'dog-1', error: 'P0001: not staff' }],
     });
   });
 

@@ -1,4 +1,6 @@
 import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { usePendingEntries } from '@/hooks/queries/usePendingEntries';
 import { useMissionControlData } from '@/features/pipeline/hooks/useMissionControlData';
@@ -65,7 +67,7 @@ export function SecretaryDashboardPage() {
           text: `${counts.pending_review} ${
             counts.pending_review === 1 ? 'entry' : 'entries'
           } pending review`,
-          href: `/secretary/entries/${encodeURIComponent(showId)}?entryTab=pending`,
+          href: `/secretary/shows/${showId}/entry-management?entryTab=pending`,
         });
       }
       return rows;
@@ -114,6 +116,9 @@ export function SecretaryDashboardPage() {
               <p className="mt-1 text-xs text-muted-foreground">
                 Create your first show to get started.
               </p>
+              <Button asChild className="mt-4 min-h-11">
+                <Link to="/secretary/create-show/wizard">Create your first show</Link>
+              </Button>
             </div>
           )}
         <MyShowsSection

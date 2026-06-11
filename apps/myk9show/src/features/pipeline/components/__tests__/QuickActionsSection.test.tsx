@@ -68,7 +68,7 @@ describe('QuickActionsSection', () => {
       />
     );
     const link = screen.getByRole('link', { name: /review entries/i });
-    expect(link).toHaveAttribute('href', '/secretary/entries?showId=show-abc');
+    expect(link).toHaveAttribute('href', '/secretary/shows/show-abc/entry-management');
   });
 
   it('reports ready card links to reports page', () => {
@@ -81,7 +81,7 @@ describe('QuickActionsSection', () => {
       />
     );
     const link = screen.getByRole('link', { name: /export reports/i });
-    expect(link).toHaveAttribute('href', '/secretary/reports');
+    expect(link).toHaveAttribute('href', '/secretary/shows/show-abc/reports');
   });
 
   it('active trials card links to day of operations', () => {

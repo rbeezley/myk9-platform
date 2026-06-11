@@ -304,7 +304,9 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ entry, isDisabled, onClick })
   return (
     <div
       className={cn(
-        'relative inline-flex min-h-9 max-w-[140px] items-center justify-center gap-0.5 overflow-hidden text-ellipsis whitespace-nowrap rounded-bl-xl px-3 py-1 text-xs font-semibold leading-tight tracking-wider text-white transition',
+        // min-h-11 = 44px INTENT touch-target floor — stewards tap this pill
+        // outdoors, often gloved; do not shrink it back for visual density.
+        'relative inline-flex min-h-11 max-w-[140px] items-center justify-center gap-0.5 overflow-hidden text-ellipsis whitespace-nowrap rounded-bl-xl px-3 py-1 text-xs font-semibold leading-tight tracking-wider text-white transition',
         isDisabled
           ? 'cursor-not-allowed bg-muted text-muted-foreground opacity-60'
           : cn(

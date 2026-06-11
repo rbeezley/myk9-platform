@@ -21,7 +21,7 @@ test.describe.configure({ mode: 'serial' });
 const SHOW_ID = '4584f257-19b5-4016-aae6-5e7827b769cb';
 const TRIAL_ID = 'cc5065ce-797b-4d07-9611-894dcc2670b8';
 const WORKBENCH_PATH = `/secretary/shows/${SHOW_ID}`;
-const REPORT_PATH = `/secretary/reports?report=trial-secretary-report&showId=${SHOW_ID}&trialId=${TRIAL_ID}`;
+const REPORT_PATH = `/secretary/shows/${SHOW_ID}/reports?report=trial-secretary-report&trialId=${TRIAL_ID}`;
 const healthByTest = new Map<string, BrowserHealth>();
 
 test.describe('Phase 2 secretary show-day re-walk', () => {
@@ -81,7 +81,7 @@ test.describe('Phase 2 secretary show-day re-walk', () => {
     await signInAsSecretary(page, REPORT_PATH);
 
     await expect(page.getByRole('heading', { name: 'Reports' })).toBeVisible({ timeout: 15000 });
-    await expect(page).toHaveURL(new RegExp('/secretary/reports'));
+    await expect(page).toHaveURL(new RegExp('/secretary/shows/[^/]+/reports'));
     await expect(page.locator('body')).toContainText('QA Walk Show 1777260779');
     await expect(page.locator('body')).toContainText('trial-secretary-report');
     await expect(

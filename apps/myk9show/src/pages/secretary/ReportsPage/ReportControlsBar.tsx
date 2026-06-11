@@ -11,7 +11,33 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { reportRegistry, getReportById } from '@/lib/reports/reportRegistry';
 import type { ReportCategory, ReportDefinition } from '@/lib/reports/types';
+import { formatClassLabel } from '@/lib/utils';
 import { AlertTriangle, Download } from 'lucide-react';
+
+// Trial/class rows carry a non-null `name` (the canonical human label) plus
+// nullable element/level/section/trial_number columns. Build the option label
+// from the human fields and fall back to `name`, then to a generic label —
+// never to the raw UUID `value`. (An empty SelectItem label makes shadcn's
+// trigger echo the raw value — that was the "dropdowns show UUIDs" bug,
+// TO-DOS 2026-06-09.) Both formatters carry a terminal fallback so the echo
+// stays impossible even in the degenerate case where every human field is blank.
+function formatTrialOptionLabel(trial: {
+  name: string;
+  trial_number: number;
+  date: string;
+}): string {
+  const base = trial.name?.trim() || `Trial ${trial.trial_number}`;
+  return trial.date ? `${base} — ${trial.date}` : base;
+}
+
+function formatClassOptionLabel(cls: {
+  name: string;
+  element: string;
+  level: string;
+  section: string;
+}): string {
+  return formatClassLabel(cls.element, cls.level, cls.name, cls.section) || 'Class';
+}
 
 interface OfficialPdfAction {
   disabled: boolean;
@@ -27,9 +53,10 @@ interface ReportControlsBarProps {
   classId: string;
   dogId: string;
   sortOrder: string;
-  trials: Array<{ id: string; trial_number: number; date: string }>;
+  trials: Array<{ id: string; name: string; trial_number: number; date: string }>;
   classes: Array<{
     id: string;
+    name: string;
     element: string;
     level: string;
     section: string;
@@ -131,7 +158,7 @@ export function ReportControlsBar({
               <SelectItem value="all">All Trials</SelectItem>
               {trials.map(trial => (
                 <SelectItem key={trial.id} value={trial.id}>
-                  Trial {trial.trial_number} — {trial.date}
+                  {formatTrialOptionLabel(trial)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -151,8 +178,7 @@ export function ReportControlsBar({
               <SelectItem value="all">All Classes</SelectItem>
               {filteredClasses.map(cls => (
                 <SelectItem key={cls.id} value={cls.id}>
-                  {cls.element} {cls.level}
-                  {cls.section ? ` — ${cls.section}` : ''}
+                  {formatClassOptionLabel(cls)}
                 </SelectItem>
               ))}
             </SelectContent>

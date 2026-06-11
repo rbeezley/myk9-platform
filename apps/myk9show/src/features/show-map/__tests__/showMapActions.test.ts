@@ -4,6 +4,7 @@ import {
   getAttentionActions,
   getAttentionCountsByNodeId,
   getAttentionNodeIds,
+  getDirectActionsForNode,
   getPrimaryActionForNode,
   getRankedActions,
   getRecommendedActions,
@@ -210,6 +211,44 @@ describe('showMapActions', () => {
     expect(counts.get('all-exhibitors:show-1')).toBe(1);
     expect(counts.get('dog:dog-1')).toBe(1);
     expect(counts.get('dog-entry:entry-1')).toBe(1);
+  });
+
+  it('does not generate row actions for synthetic All Exhibitors or dog branch nodes', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [classes[0]!],
+      entryPreviewLimit: 1,
+      entries: [
+        {
+          id: 'entry-1',
+          class_id: 'class-active',
+          dog_id: 'dog-1',
+          dog: { id: 'dog-1', call_name: 'Bella' },
+          entry_status: 'submitted',
+        },
+        {
+          id: 'entry-2',
+          class_id: 'class-active',
+          dog_id: 'dog-2',
+          run_order: 2,
+          dog: { id: 'dog-2', call_name: 'Scout' },
+          entry_status: 'accepted',
+        },
+      ],
+    });
+
+    const syntheticNodes = [
+      tree.nodesById['all-exhibitors:show-1']!,
+      tree.nodesById['dog:dog-1']!,
+      tree.nodesById['dog-entry:entry-1']!,
+      tree.nodesById['more:class-active']!,
+    ];
+
+    for (const node of syntheticNodes) {
+      expect(getDirectActionsForNode(node, { tree })).toEqual([]);
+      expect(getRankedActions(node, { tree })).toEqual([]);
+    }
   });
 
   it('includes dog-entry attention when the trial entry is preview-capped', () => {

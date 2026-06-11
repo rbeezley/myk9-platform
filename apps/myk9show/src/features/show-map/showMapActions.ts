@@ -19,7 +19,7 @@ import type { ComponentType, SVGProps } from 'react';
 import { isShowMapActionEnabled } from './showMapActionExecution';
 import { isNodeScheduledAfter } from './showMapTimeScope';
 import { SHOW_MAP_WRAP_UP_STATUS } from './showMapTypes';
-import type { ShowMapNode, ShowMapTree } from './showMapTypes';
+import type { ShowMapNode, ShowMapNodeType, ShowMapTree } from './showMapTypes';
 
 export const SHOW_MAP_RECOMMENDED_ACTION_LIMIT = 2;
 
@@ -85,6 +85,17 @@ function descendantsOf(tree: ShowMapTree, nodeId: string): ShowMapNode[] {
 function scopedNodes(scope: ShowMapActionScope, tree: ShowMapTree): ShowMapNode[] {
   if (scope === 'root') return [tree.root, ...descendantsOf(tree, tree.root.id)];
   return [scope, ...descendantsOf(tree, scope.id)];
+}
+
+const SYNTHETIC_DISPLAY_ACTION_NODE_TYPES = new Set<ShowMapNodeType>([
+  'all-exhibitors',
+  'dog',
+  'dog-entry',
+  'more',
+]);
+
+function isSyntheticDisplayActionNode(node: ShowMapNode): boolean {
+  return SYNTHETIC_DISPLAY_ACTION_NODE_TYPES.has(node.type);
 }
 
 function isClassReadyToScore(node: ShowMapNode): boolean {
@@ -522,6 +533,8 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
 // safety net — it catches future contributors who accidentally emit the
 // same action id from both branches for the same node.
 function actionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAction[] {
+  if (isSyntheticDisplayActionNode(node)) return [];
+
   const merged = [...liveOpsActionsForNode(node, tree), ...wrapUpActionsForNode(node, tree)];
   assertNoActionCollision(merged);
   return merged;

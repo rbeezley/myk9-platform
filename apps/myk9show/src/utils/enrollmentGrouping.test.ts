@@ -265,3 +265,44 @@ describe('groupKey', () => {
     );
   });
 });
+
+// Round-12 P2: stripe-refund-entry flips payment_status to 'refunded' for
+// BOTH full and partial refunds, so "every entry refunded" is not the same
+// as "all the money came back." A $20-of-$50 refund on a one-entry group
+// must read Partial Refund, not Refunded.
+describe('partial single-entry refunds', () => {
+  it('reports PARTIAL_REFUND when refunded dollars are less than the group total', () => {
+    const entries: EntryManagementEntry[] = [
+      {
+        ...base,
+        id: 'e1',
+        registrationId: '',
+        stripePaymentIntentId: 'pi_P',
+        totalFee: 50,
+        paidAmount: 30,
+        paymentStatus: PaymentStatus.REFUNDED,
+        refundAmount: 20,
+      },
+    ];
+    const groups = groupEntriesByEnrollment(entries);
+    expect(groups[0].paymentStatus).toBe(PaymentStatus.PARTIAL_REFUND);
+    expect(groups[0].refundAmount).toBe(20);
+  });
+
+  it('still reports REFUNDED when the full amount came back', () => {
+    const entries: EntryManagementEntry[] = [
+      {
+        ...base,
+        id: 'e1',
+        registrationId: '',
+        stripePaymentIntentId: 'pi_F',
+        totalFee: 50,
+        paidAmount: 0,
+        paymentStatus: PaymentStatus.REFUNDED,
+        refundAmount: 50,
+      },
+    ];
+    const groups = groupEntriesByEnrollment(entries);
+    expect(groups[0].paymentStatus).toBe(PaymentStatus.REFUNDED);
+  });
+});

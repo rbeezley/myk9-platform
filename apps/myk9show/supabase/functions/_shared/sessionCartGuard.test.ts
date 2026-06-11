@@ -12,6 +12,8 @@ describe('sessionMatchesCart', () => {
     cartSessionId: 'cs_live_current',
     cartTotalCents: 6180,
     cartItemCount: 2,
+    cartExpiresAt: '2026-06-11T12:30:00Z',
+    nowIso: '2026-06-11T12:10:00Z',
   };
 
   it('accepts the cart’s current session with matching amount', () => {
@@ -49,6 +51,20 @@ describe('sessionMatchesCart', () => {
   // Codex round-4 P1: "Clear Cart" empties the items; paying the abandoned
   // session would otherwise claim the empty cart, create ZERO entries for a
   // real charge, and dodge the amount check (old payloads omit amount_total).
+  // Round-12 P1: app carts expire after ~30 minutes but a Stripe Checkout
+  // page stays payable far longer by default — paying the old page must not
+  // resurrect an expired cart (entries could land after entry-close from a
+  // cart frozen before it).
+  it('rejects a paid session for an EXPIRED cart', () => {
+    const result = sessionMatchesCart({ ...current, nowIso: '2026-06-11T12:31:00Z' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toMatch(/expired/i);
+  });
+
+  it('tolerates a cart with no expiry (legacy rows) when everything else matches', () => {
+    expect(sessionMatchesCart({ ...current, cartExpiresAt: null })).toEqual({ ok: true });
+  });
+
   it('rejects a paid session for an empty cart regardless of id/amount match', () => {
     const result = sessionMatchesCart({ ...current, cartItemCount: 0, cartTotalCents: 0 });
     expect(result.ok).toBe(false);

@@ -351,6 +351,8 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     cartSessionId: cart.stripe_checkout_session_id ?? null,
     cartTotalCents: cart.total_cents ?? null,
     cartItemCount: cart.items?.length ?? 0,
+    cartExpiresAt: cart.expires_at ?? null,
+    nowIso: new Date().toISOString(),
   });
   if (!staleGuard.ok) {
     const stalePiId = extractPaymentIntentId(session.payment_intent);
@@ -377,6 +379,10 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     .update({ status: 'submitted' })
     .eq('id', cartId)
     .eq('status', 'active')
+    // Belt-and-suspenders for the guard's expiry check above: closes the
+    // seconds-wide TOCTOU between the cart read and this claim. NULL expiry
+    // (legacy rows) is tolerated, matching sessionMatchesCart.
+    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
     .select('id');
 
   if (claimError) {

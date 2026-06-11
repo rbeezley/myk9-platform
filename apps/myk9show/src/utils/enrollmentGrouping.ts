@@ -79,8 +79,13 @@ export function groupEntriesByEnrollment(entries: EntryManagementEntry[]): Enrol
     const refunded = group.entries.filter(e => e.paymentStatus === PaymentStatus.REFUNDED);
 
     if (!hasEnrollmentStatus && refunded.length > 0) {
+      // "Every entry refunded" is not "all the money came back": the refund
+      // function flips payment_status to 'refunded' for PARTIAL refunds too
+      // (round-12 P2). Compare dollars — both sides are dollars in the
+      // no-enrollment case (totalAmountUnit === 'dollars').
+      const refundDollars = group.entries.reduce((sum, e) => sum + (e.refundAmount ?? 0), 0);
       group.paymentStatus =
-        refunded.length === group.entries.length
+        refunded.length === group.entries.length && refundDollars >= group.totalAmount
           ? PaymentStatus.REFUNDED
           : PaymentStatus.PARTIAL_REFUND;
     }

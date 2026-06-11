@@ -227,10 +227,13 @@ Deno.serve(async req => {
       );
     }
 
+    // refund.amount, not validation.amountCents: on a reused refund the
+    // requested amount may differ from what Stripe actually refunded, and the
+    // dialog toast reports this number.
     console.log(
-      `Refunded ${validation.amountCents} cents for entry ${entry_id} (${refund.id}) by ${user.id}`
+      `Refunded ${refund.amount} cents for entry ${entry_id} (${refund.id}) by ${user.id}`
     );
-    return corsResponse({ refund_id: refund.id, amount_cents: validation.amountCents });
+    return corsResponse({ refund_id: refund.id, amount_cents: refund.amount });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('stripe-refund-entry error:', message);

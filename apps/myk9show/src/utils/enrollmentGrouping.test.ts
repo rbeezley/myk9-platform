@@ -242,3 +242,26 @@ describe('paidAmount aggregation for groups without an enrollment', () => {
     expect(groups[0].paidAmount).toBe(60);
   });
 });
+
+// React keys: the view keyed cards on enrollmentId ?? '__unregistered__',
+// but per-intent grouping deliberately emits MULTIPLE null-enrollmentId
+// groups — sibling cards shared a key, corrupting per-card state when the
+// list reorders after a refund (round-11 review). Each group exposes its
+// (unique) grouping key for the view to use.
+describe('groupKey', () => {
+  it('gives every group a unique key, including null-enrollment groups', () => {
+    const entries: EntryManagementEntry[] = [
+      { ...base, id: 'e1', registrationId: 'reg-1' },
+      { ...base, id: 'e2', registrationId: '', stripePaymentIntentId: 'pi_A' },
+      { ...base, id: 'e3', registrationId: '', stripePaymentIntentId: 'pi_B' },
+      { ...base, id: 'e4', registrationId: '' },
+    ];
+    const groups = groupEntriesByEnrollment(entries);
+    expect(groups).toHaveLength(4);
+    const keys = groups.map(g => g.groupKey);
+    expect(new Set(keys).size).toBe(4);
+    expect(keys).toEqual(
+      expect.arrayContaining(['reg-1', 'pi:pi_A', 'pi:pi_B', 'entry:e4'])
+    );
+  });
+});

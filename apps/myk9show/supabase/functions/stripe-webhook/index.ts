@@ -109,6 +109,14 @@ async function handleEvent(event: Stripe.Event) {
       await handleChargeRefunded(event.data.object as Stripe.Charge);
       break;
 
+    case 'refund.failed':
+      await handleRefundFailed(event.data.object as Stripe.Refund);
+      break;
+
+    case 'charge.dispute.created':
+      await handleDisputeCreated(event.data.object as Stripe.Dispute);
+      break;
+
     case 'account.updated':
       await handleAccountUpdated(event.data.object as Stripe.Account);
       break;
@@ -121,6 +129,53 @@ async function handleEvent(event: Stripe.Event) {
     default:
       console.log(`Unhandled event type: ${event.type}`);
   }
+}
+
+/**
+ * A refund that was created (pending) and LATER failed leaves the entry
+ * stamped refunded — customer unpaid, club's payout still docked — with no
+ * signal anywhere (round-11 review). Alert-only: the operator clears the
+ * entry's refund columns (runbook "Manual reconciliation") and re-issues.
+ */
+async function handleRefundFailed(refund: Stripe.Refund) {
+  const entryId = refund.metadata?.entry_id ?? null;
+  console.error(
+    `CRITICAL: refund ${refund.id} (${refund.amount}¢) FAILED after creation` +
+      (entryId ? ` for entry ${entryId}` : '')
+  );
+  await alertAdmin(
+    'Stripe refund FAILED after it was issued',
+    `<p>Refund <code>${refund.id}</code> for ${(refund.amount / 100).toFixed(2)} USD has
+     status <code>failed</code>${entryId ? ` (entry <code>${entryId}</code>)` : ''} —
+     the customer was NOT paid, but the entry was already stamped refunded, so the
+     payout math is docking the club for money that never left.</p>
+     <p>Recovery: clear the entry's refund columns (see the runbook's
+     "Manual reconciliation" section), then re-issue the refund from the entries
+     page. The refund function ignores dead refunds, so re-issuing is safe.</p>`
+  );
+}
+
+/**
+ * Chargebacks pull platform funds while the payout cron would still pay the
+ * club in full — silent platform loss without an operator signal (round-11
+ * review). Alert-only for v1; dispute handling stays manual.
+ */
+async function handleDisputeCreated(dispute: Stripe.Dispute) {
+  const intentId =
+    typeof dispute.payment_intent === 'string'
+      ? dispute.payment_intent
+      : (dispute.payment_intent?.id ?? 'unknown');
+  console.error(`CRITICAL: dispute ${dispute.id} created on ${intentId} (${dispute.amount}¢)`);
+  await alertAdmin(
+    'Chargeback opened against an entry payment',
+    `<p>Dispute <code>${dispute.id}</code> (${(dispute.amount / 100).toFixed(2)} USD,
+     reason: ${dispute.reason}) was opened on payment intent <code>${intentId}</code>.
+     Stripe has pulled the funds from the platform balance, but the show's payout
+     still counts these entries — if the dispute stands, mark the entries refunded
+     BEFORE the payout settles (end date + 3 days) or the club gets paid for a
+     charge the platform lost.</p>
+     <p>Respond in the Stripe dashboard: Payments → Disputes.</p>`
+  );
 }
 
 /**
@@ -357,13 +412,17 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
           `CRITICAL: paid session ${session.id} (${dupIntentId}) hit already-claimed cart ${cartId} — duplicate charge, needs manual refund`
         );
         await alertAdmin(
-          'Duplicate entry payment needs a refund',
+          'Possible duplicate entry payment — verify, then refund',
           `<p>Checkout session <code>${session.id}</code> was PAID for cart
-           <code>${cartId}</code>, but that cart's entries were already created by an
-           earlier payment. The exhibitor has been charged twice.</p>
-           <p>Refund payment intent <code>${dupIntentId}</code> from the Stripe
-           dashboard (Payments → search the id → Refund). No entries or orders were
-           created for it, so the dashboard refund is the complete fix.</p>`
+           <code>${cartId}</code>, but that cart was already claimed and this payment
+           intent owns no entries — most likely the exhibitor was charged twice.</p>
+           <p>VERIFY FIRST (a racing duplicate webhook delivery can trip this while
+           the winner's entries are still inserting): in the Stripe dashboard confirm
+           TWO separate successful payments exist for this cart, and in the entries
+           page confirm the cart's entries exist once. Then refund payment intent
+           <code>${dupIntentId}</code> (Payments → search the id → Refund). No entries
+           or orders were created for it, so the dashboard refund is the complete
+           fix.</p>`
         );
         return;
       }
@@ -383,10 +442,23 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   // FKs that nothing else populates, and the payout calc + refund join +
   // secretary entries list all filter on show_id.
   const classIds = [...new Set(cart.items.map((i: { class_id: string }) => i.class_id))];
-  const { data: classRows } = await supabase
+  const { data: classRows, error: classesError } = await supabase
     .from('classes')
     .select('id, trial_id')
     .in('id', classIds);
+  if (classesError) {
+    // Entries still insert (trial_id null) so the exhibitor isn't stranded,
+    // but null trial_id breaks ringside/trial views — surface it.
+    console.error(`Classes lookup failed for cart ${cartId}:`, classesError);
+    await alertAdmin(
+      'Entries created without trial ids',
+      `<p>The classes lookup failed while creating entries for cart
+       <code>${cartId}</code>; entries were created with <code>trial_id = NULL</code>.</p>
+       <pre>${classesError.message}</pre>
+       <p>Recovery: backfill <code>entries.trial_id</code> from each entry's class
+       (classes.trial_id) for this cart's entries.</p>`
+    );
+  }
   const trialByClass = new Map<string, string | null>(
     (classRows ?? []).map((c: { id: string; trial_id: string | null }) => [c.id, c.trial_id])
   );

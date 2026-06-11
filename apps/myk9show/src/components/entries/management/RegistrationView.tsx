@@ -208,7 +208,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
             <div className="space-y-3">
               {enrollmentGroups.map(group => (
                 <EnrollmentCard
-                  key={group.enrollmentId ?? '__unregistered__'}
+                  key={group.groupKey}
                   group={group}
                   onStatusChange={onStatusChange}
                   onEntryRefunded={onRefresh}

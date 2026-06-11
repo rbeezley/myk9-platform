@@ -59,22 +59,32 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
   const navigate = useNavigate();
   const clubAccountQuery = useClubStripeAccount(show.clubId || undefined);
 
-  // Publish gate (same rule as ShowStatusPill/EditShowDialog): the wizard is
-  // the primary way shows get published, and a show created already-published
-  // would permanently escape the transition-surface gates — onlineEntryGate
-  // deliberately never un-publishes. Fail closed here too.
+  // Publish gate (same rule as ShowStatusPill): the wizard is the primary way
+  // shows get published, and a show created already-published would
+  // permanently escape the transition-surface gates — onlineEntryGate
+  // deliberately never un-publishes. Fail closed here too, INCLUDING on a
+  // missing club (round-11 review: the pill fails closed clubless; the wizard
+  // inverting that was a gap reachable via stale drafts/back-nav).
   const handleCreateAndPublish = () => {
-    if (show.clubId) {
-      if (clubAccountQuery.isLoading) {
-        toast.info('Checking the club’s payment account — try again in a moment.');
-        return;
-      }
-      if (!canEnableOnlineEntries(clubAccountQuery.data)) {
-        toast.error(PUBLISH_BLOCKED_MESSAGE, {
-          action: { label: 'Open Payments', onClick: () => navigate('/club-admin/payments') },
-        });
-        return;
-      }
+    if (!show.clubId) {
+      toast.error('Select a club before publishing — entry fees are paid out to the club.');
+      return;
+    }
+    if (clubAccountQuery.isLoading) {
+      toast.info('Checking the club’s payment account — try again in a moment.');
+      return;
+    }
+    if (clubAccountQuery.isError) {
+      // A failed lookup is not "not connected" — say so instead of blaming
+      // the club's setup.
+      toast.error('Could not check the club’s payment account. Please try again.');
+      return;
+    }
+    if (!canEnableOnlineEntries(clubAccountQuery.data)) {
+      toast.error(PUBLISH_BLOCKED_MESSAGE, {
+        action: { label: 'Open Payments', onClick: () => navigate('/club-admin/payments') },
+      });
+      return;
     }
     onCreateAndPublish?.();
   };

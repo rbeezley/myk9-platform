@@ -242,7 +242,7 @@ sorts apart from entity folders. Today's contents:
   PostgREST on failure.
 - `untyped-from.ts` — the `untypedFrom(table)` escape hatch for Supabase
   tables not yet in the generated Database type. Used by judges, the
-  premium-template workflow, the search cluster, and the EditShowDialog.
+  premium-template workflow, and the search cluster.
   Callers should switch back to typed `supabase.from(...)` once the table
   joins the generated types.
 

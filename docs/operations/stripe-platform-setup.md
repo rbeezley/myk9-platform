@@ -245,6 +245,40 @@ by phone.
   does it in their own Stripe Express dashboard → payout settings — never through myK9Show
   or your dashboard.)
 
+## Manual reconciliation (refund columns are service-role-only)
+
+A database trigger (migrations `20260609220000` + `20260611090000`) rejects any write to
+`entries.refund_amount / refund_notes / refunded_at` that doesn't come from the
+service role — that's what stops a forged refund from shrinking a club's payout. The
+side effect: when an alert email tells you to "stamp the entry manually" or "clear the
+entry's refund columns" (refund issued but not recorded, or a refund that later
+**failed**), a plain SQL-editor UPDATE will hit `permission denied`. Wrap it:
+
+```sql
+begin;
+set local role service_role;
+
+-- Record a refund that Stripe issued but the function failed to stamp:
+update public.entries
+set refund_amount = 30.00,            -- dollars, from the Stripe refund
+    refunded_at   = now(),
+    refund_notes  = 'manual reconcile: re_xxx',
+    payment_status = 'refunded'
+where id = '<entry-id>';
+
+-- Or clear a stamp whose refund later FAILED (customer never paid):
+-- update public.entries
+-- set refund_amount = null, refunded_at = null, refund_notes = null,
+--     payment_status = 'paid'
+-- where id = '<entry-id>';
+
+commit;
+```
+
+`set local` scopes the role to the transaction — nothing to undo afterward. The same
+wrapper works for any other service-role-guarded column (e.g. `people.early_adopter_until`
+when granting founding members by SQL).
+
 ## Granting a founding member (12-month free premium)
 
 Site-admin-only, manual by design (Supabase dashboard → SQL editor):

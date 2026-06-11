@@ -84,6 +84,12 @@ export function ShowStatusPill({ showId, status, clubId }: ShowStatusPillProps) 
         toast.info('Checking the club’s payment account — try again in a moment.');
         return;
       }
+      if (clubAccountQuery.isError) {
+        // A failed lookup is not "not connected" — fail closed with the
+        // truthful message instead of blaming the club's setup.
+        toast.error('Could not check the club’s payment account. Please try again.');
+        return;
+      }
       if (!canEnableOnlineEntries(clubAccountQuery.data)) {
         toast.error(PUBLISH_BLOCKED_MESSAGE, {
           action: { label: 'Open Payments', onClick: () => navigate('/club-admin/payments') },

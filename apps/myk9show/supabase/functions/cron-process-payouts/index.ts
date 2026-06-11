@@ -106,18 +106,29 @@ async function recoverStaleProcessing(summary: Record<string, number>) {
 }
 
 /** Sum the show's payable online entry money from entries, in cents.
- * Returns null on a load error (caller skips the show this run). */
+ * Returns null on a load error (caller skips the show this run).
+ * Paginated: PostgREST caps responses at max_rows (1000, config.toml) — an
+ * unpaginated select would silently TRUNCATE a big show's entries and
+ * underpay the club with no error (round-11 review). */
 async function computePayoutCents(showId: string): Promise<number | null> {
-  const { data: entries, error } = await supabase
-    .from('entries')
-    .select('entry_fee, payment_method, payment_status, refund_amount')
-    .eq('show_id', showId);
+  const PAGE = 1000;
+  let totalCents = 0;
+  for (let from = 0; ; from += PAGE) {
+    const { data: entries, error } = await supabase
+      .from('entries')
+      .select('entry_fee, payment_method, payment_status, refund_amount')
+      .eq('show_id', showId)
+      .order('id')
+      .range(from, from + PAGE - 1);
 
-  if (error) {
-    console.error(`Entries load failed for show ${showId}:`, error);
-    return null;
+    if (error) {
+      console.error(`Entries load failed for show ${showId}:`, error);
+      return null;
+    }
+    totalCents += calculateShowPayoutCents(entries ?? []);
+    if ((entries?.length ?? 0) < PAGE) break;
   }
-  return calculateShowPayoutCents(entries ?? []);
+  return totalCents;
 }
 
 async function processShow(show: EligibleShow, summary: Record<string, number>) {
@@ -296,6 +307,20 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
       console.log(
         `Reconciled existing transfer ${priorTransfer.id} for show ${show.id} — no new transfer sent`
       );
+      if (priorTransfer.amount !== finalAmountCents) {
+        // A refund that landed during the crash window means the club already
+        // received more than today's recompute says it is owed (round-11
+        // review). Reconciling silently would hide the discrepancy.
+        await alertAdmin(
+          `Reconciled payout amount mismatch: ${show.name}`,
+          `<p>Show <code>${show.id}</code> was reconciled to existing transfer
+           <code>${priorTransfer.id}</code> for ${dollars(priorTransfer.amount)}, but
+           today's recompute from entries says ${dollars(finalAmountCents)} is owed.</p>
+           <p>Most likely a refund landed after the original transfer was sent. If the
+           club was overpaid, recover the difference with a transfer reversal from the
+           Stripe dashboard (Connect → Transfers → ${priorTransfer.id} → Reverse).</p>`
+        );
+      }
       return;
     }
 

@@ -24,3 +24,27 @@ export function findReusableRefund<T extends PriorRefund>(
     r => r.metadata?.entry_id === entryId && !DEAD_STATUSES.has(r.status ?? '')
   );
 }
+
+/** Idempotency-key attempt counter. Counts only THIS entry's prior refunds —
+ * an intent-wide count let a sibling entry's refund landing between two
+ * concurrent same-entry requests give them different keys, defeating the
+ * dedupe and double-refunding the entry (round-11 review). */
+export function refundAttemptCount(refunds: PriorRefund[], entryId: string): number {
+  return refunds.filter(r => r.metadata?.entry_id === entryId).length;
+}
+
+/** The entries-row stamp for a completed refund. amountCents must be
+ * refund.amount (Stripe's authoritative figure, in cents) — entries
+ * refund_amount is NUMERIC dollars. */
+export function buildEntryRefundStamp(
+  amountCents: number,
+  notes: string | null | undefined,
+  refundedAtIso: string
+) {
+  return {
+    refund_amount: amountCents / 100,
+    refunded_at: refundedAtIso,
+    refund_notes: notes ?? null,
+    payment_status: 'refunded' as const,
+  };
+}

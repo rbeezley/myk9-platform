@@ -24,6 +24,8 @@ vi.mock('@/hooks/useResolvePersonName', () => ({
 vi.mock('@/store/clubStore', () => ({
   useClubStore: () => ({ clubs: [{ id: 'club-1', name: 'Test Club' }] }),
 }));
+// Mutable so tests can exercise the clubless publish path.
+const wizardShowHolder = { clubId: 'club-1' as string | '' };
 vi.mock('@/store/wizardStore', () => ({
   useWizardStore: () => ({
     show: {
@@ -36,7 +38,9 @@ vi.mock('@/store/wizardStore', () => ({
       preEntryFee: 30,
       dayOfShowFee: 35,
       location: 'Fairgrounds',
-      clubId: 'club-1',
+      get clubId() {
+        return wizardShowHolder.clubId;
+      },
       judgeIds: ['judge-1'],
       officials: { chairman: ['p-1'], secretary: ['p-2'] },
     },
@@ -57,7 +61,7 @@ vi.mock('@/store/wizardStore', () => ({
 
 const mockedUseAccount = vi.mocked(useClubStripeAccount);
 
-function mockAccount(payoutsEnabled: boolean | null, isLoading = false) {
+function mockAccount(payoutsEnabled: boolean | null, isLoading = false, isError = false) {
   mockedUseAccount.mockReturnValue({
     data:
       payoutsEnabled === null
@@ -70,6 +74,7 @@ function mockAccount(payoutsEnabled: boolean | null, isLoading = false) {
             payouts_enabled: payoutsEnabled,
           },
     isLoading,
+    isError,
   } as unknown as ReturnType<typeof useClubStripeAccount>);
 }
 
@@ -79,6 +84,7 @@ describe('ReviewStep publish gate', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     onCreateAndPublish = vi.fn();
+    wizardShowHolder.clubId = 'club-1';
   });
 
   it('blocks Create & Publish when the club has no payout-enabled account', async () => {
@@ -104,6 +110,29 @@ describe('ReviewStep publish gate', () => {
 
     expect(onCreateAndPublish).toHaveBeenCalledTimes(1);
     expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('fails CLOSED when no club is selected (round-11: pill and wizard must agree)', async () => {
+    wizardShowHolder.clubId = '';
+    mockAccount(true);
+    const user = userEvent.setup();
+    render(<ReviewStep onCreateAndPublish={onCreateAndPublish} />);
+
+    await user.click(screen.getByRole('button', { name: /create & publish/i }));
+
+    expect(onCreateAndPublish).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/select a club/i));
+  });
+
+  it('reports a lookup failure honestly instead of "not connected"', async () => {
+    mockAccount(null, false, true);
+    const user = userEvent.setup();
+    render(<ReviewStep onCreateAndPublish={onCreateAndPublish} />);
+
+    await user.click(screen.getByRole('button', { name: /create & publish/i }));
+
+    expect(onCreateAndPublish).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/could not check/i));
   });
 
   it('waits instead of misreporting while the account query is loading', async () => {

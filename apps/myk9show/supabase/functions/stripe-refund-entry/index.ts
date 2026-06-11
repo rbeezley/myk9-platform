@@ -2,7 +2,11 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { validateRefund } from '../_shared/refundValidation.ts';
-import { findReusableRefund } from '../_shared/refundReuse.ts';
+import {
+  buildEntryRefundStamp,
+  findReusableRefund,
+  refundAttemptCount,
+} from '../_shared/refundReuse.ts';
 import { alertAdmin } from '../_shared/alertAdmin.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -182,7 +186,10 @@ Deno.serve(async req => {
           amount: validation.amountCents,
           metadata: { entry_id },
         },
-        { idempotencyKey: `refund-entry-${entry_id}-${prior.data.length}` }
+        // Attempt count for THIS entry only: an intent-wide count would let a
+        // sibling entry's refund shift the key between two concurrent
+        // same-entry requests, defeating the dedupe (round-11 review).
+        { idempotencyKey: `refund-entry-${entry_id}-${refundAttemptCount(prior.data, entry_id)}` }
       ));
     if (existingRefund) {
       console.log(
@@ -192,16 +199,11 @@ Deno.serve(async req => {
 
     // Entry-level refund columns (NUMERIC dollars), added alongside migration
     // 176's enrollment-level columns which track manual desk refunds.
+    // refund.amount, not validation.amountCents: when an existing refund is
+    // reused, Stripe's recorded amount is the authoritative one.
     const { error: updateError } = await supabase
       .from('entries')
-      .update({
-        // refund.amount, not validation.amountCents: when an existing refund
-        // is reused, Stripe's recorded amount is the authoritative one.
-        refund_amount: refund.amount / 100,
-        refunded_at: new Date().toISOString(),
-        refund_notes: notes ?? null,
-        payment_status: 'refunded',
-      })
+      .update(buildEntryRefundStamp(refund.amount, notes, new Date().toISOString()))
       .eq('id', entry_id);
 
     if (updateError) {

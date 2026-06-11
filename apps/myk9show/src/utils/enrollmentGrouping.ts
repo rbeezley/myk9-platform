@@ -2,6 +2,9 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { PaymentStatus } from '@/types/show-registration-types';
 
 export interface EnrollmentGroup {
+  /** Unique per group (registrationId | pi:<intent> | entry:<id>) — the React
+   * key. enrollmentId is NOT unique: every online group has null. */
+  groupKey: string;
   enrollmentId: string | null;
   confirmationNumber: string | null;
   handlerName: string;
@@ -37,6 +40,7 @@ export function groupEntriesByEnrollment(entries: EntryManagementEntry[]): Enrol
     if (!map.has(key)) {
       const hasEnrollmentTotal = entry.enrollmentTotalAmount != null;
       map.set(key, {
+        groupKey: key,
         enrollmentId: entry.registrationId || null,
         confirmationNumber: entry.confirmationNumber ?? null,
         handlerName: entry.handlerName,

@@ -421,6 +421,26 @@ describe('syncReplicatedTable', () => {
       expect(metaUnseen?.lastIncrementalSyncAt).toBe(0);
     });
 
+    it('does not leak a table-global totalRows into a scope that has none', async () => {
+      // Scope A records only a watermark (no per-scope totalRows); a table-global
+      // totalRows also exists on the row. A scoped read must NOT surface that
+      // legacy table-global count — totalRows is documented as scope-specific.
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 1_000 }, 'show-A');
+      await table.updateSyncMetadata({ totalRows: 42 });
+
+      // Sanity: the row genuinely carries a table-global totalRows alongside a
+      // scope-A sub-record that lacks one (asserted before later writes mutate it).
+      expect((await table.getSyncMetadata())?.totalRows).toBe(42);
+
+      const metaScoped = await table.getSyncMetadata('show-A');
+      expect(metaScoped?.lastIncrementalSyncAt).toBe(1_000);
+      expect(metaScoped?.totalRows).toBeUndefined();
+
+      // A scope that DOES record totalRows still reports its own count.
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 2_000, totalRows: 5 }, 'show-B');
+      expect((await table.getSyncMetadata('show-B'))?.totalRows).toBe(5);
+    });
+
     it('does not let one scope advance the watermark wipe a status-only update of another', async () => {
       await table.updateSyncMetadata({ lastIncrementalSyncAt: 4_000 }, 'show-A');
       await table.updateSyncMetadata({ lastIncrementalSyncAt: 8_000 }, 'show-B');

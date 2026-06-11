@@ -367,11 +367,19 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
       return row;
     }
     const scoped = row.scopes?.[scopeValue];
-    return {
+    const projected: SyncMetadata = {
       ...row,
       lastIncrementalSyncAt: scoped?.lastIncrementalSyncAt ?? 0,
-      ...(scoped?.totalRows !== undefined && { totalRows: scoped.totalRows }),
     };
+    // totalRows is scope-specific. Replace the spread-in table-global value with
+    // this scope's count, and DROP it entirely for a scope that has never synced
+    // — otherwise a brand-new scope would report a stale legacy/unscoped count.
+    if (scoped?.totalRows !== undefined) {
+      projected.totalRows = scoped.totalRows;
+    } else {
+      delete projected.totalRows;
+    }
+    return projected;
   }
 
   /**

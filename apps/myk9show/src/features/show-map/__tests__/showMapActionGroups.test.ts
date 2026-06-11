@@ -130,6 +130,73 @@ describe('groupActionsByEntity', () => {
     expect(disambiguators).toEqual(['Container Novice', 'Exterior Novice', 'Interior Novice']);
   });
 
+  it('collapses capped dog-entry review actions by dog with class disambiguators', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes,
+      entryPreviewLimit: 1,
+      entries: [
+        {
+          id: 'entry-visible-a',
+          class_id: 'class-a',
+          dog_id: 'dog-visible-a',
+          run_order: 1,
+          dog: { id: 'dog-visible-a', call_name: 'Visible A' },
+          armband: '99',
+          entry_status: 'accepted',
+        },
+        {
+          id: 'entry-bravo-a',
+          class_id: 'class-a',
+          dog_id: 'dog-bravo',
+          run_order: 2,
+          dog: { id: 'dog-bravo', call_name: 'Bravo' },
+          armband: '100',
+          entry_status: 'submitted',
+        },
+        {
+          id: 'entry-visible-b',
+          class_id: 'class-b',
+          dog_id: 'dog-visible-b',
+          run_order: 1,
+          dog: { id: 'dog-visible-b', call_name: 'Visible B' },
+          armband: '98',
+          entry_status: 'accepted',
+        },
+        {
+          id: 'entry-bravo-b',
+          class_id: 'class-b',
+          dog_id: 'dog-bravo',
+          run_order: 2,
+          dog: { id: 'dog-bravo', call_name: 'Bravo' },
+          armband: '100',
+          entry_status: 'submitted',
+        },
+      ],
+    });
+    expect(tree.nodesById['entry:entry-bravo-a']).toBeUndefined();
+    expect(tree.nodesById['entry:entry-bravo-b']).toBeUndefined();
+
+    const reviewActions = getRankedActions('root', { tree }).filter(
+      a => a.id === 'review-entry'
+    );
+    expect(reviewActions.map(action => action.nodeId).sort()).toEqual([
+      'dog-entry:entry-bravo-a',
+      'dog-entry:entry-bravo-b',
+    ]);
+
+    const groups = groupActionsByEntity(reviewActions, tree);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].key).toBe('review-entry:dog:dog-bravo');
+    expect(groups[0].count).toBe(2);
+    expect(groups[0].items.map(item => item.disambiguator).sort()).toEqual([
+      'Container Novice',
+      'Interior Novice',
+    ]);
+  });
+
   it('does not collapse the same dog across different action types', () => {
     const tree = makeBravoTree();
     const reviewBravoA = fakeAction({

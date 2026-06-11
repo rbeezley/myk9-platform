@@ -286,6 +286,12 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         queryClient.invalidateQueries({ queryKey: [name] });
       }
 
+      // The judge dashboard query reads a denormalized join of judge_assignments
+      // + classes under ['judges','assignments',...]; no table-name prefix above
+      // matches it, so invalidate it explicitly or it would stay stale until
+      // remount after a background sync.
+      queryClient.invalidateQueries({ queryKey: ['judges', 'assignments'] });
+
       logger.info('Full sync complete', 'replication');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Sync failed';

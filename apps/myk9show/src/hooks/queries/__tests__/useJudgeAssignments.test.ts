@@ -23,8 +23,10 @@ vi.mock('@/hooks/useAuthContext', () => ({
 
 // ── Replication store mock ───────────────────────────────────────────────────────
 const mockGetAll = vi.fn();
+const mockClassesGetAll = vi.fn();
 vi.mock('@/services/replication', () => ({
   replicatedJudgeAssignmentsTable: { getAll: () => mockGetAll() },
+  replicatedClassesTable: { getAll: () => mockClassesGetAll() },
 }));
 
 // ── Supabase mock (PostgREST fallback path + fallback helper plumbing) ────────────
@@ -112,7 +114,8 @@ describe('mapAssignmentRowToJudgeClass (PostgREST shape)', () => {
       level: 'Novice',
       trialDate: '2026-06-10',
       trialTimezone: 'America/Chicago',
-      scheduledTime: new Date('2026-06-10T09:00:00'),
+      // 09:00 CDT (June, UTC-5) resolves to 14:00 UTC — not device-local 09:00.
+      scheduledTime: new Date('2026-06-10T14:00:00Z'),
       ringNumber: null,
       totalEntries: 20,
       completedEntries: 5,
@@ -184,7 +187,7 @@ describe('mapReplicatedAssignmentToJudgeClass (denormalized replication shape)',
       level: 'Novice',
       trialDate: '2026-06-10',
       trialTimezone: 'America/Chicago',
-      scheduledTime: new Date('2026-06-10T09:00:00'),
+      scheduledTime: new Date('2026-06-10T14:00:00Z'),
       ringNumber: null,
       totalEntries: 20,
       completedEntries: 5,
@@ -212,18 +215,24 @@ describe('mapReplicatedAssignmentToJudgeClass (denormalized replication shape)',
 });
 
 describe('parseScheduledTime', () => {
-  it('combines trial date with a Postgres TIME value', () => {
-    expect(parseScheduledTime('2026-06-10', '14:30:00')).toEqual(new Date('2026-06-10T14:30:00'));
+  it('resolves a Postgres TIME against the trial timezone', () => {
+    // 14:30 CDT (June) === 19:30 UTC.
+    expect(parseScheduledTime('2026-06-10', '14:30:00', 'America/Chicago')).toEqual(
+      new Date('2026-06-10T19:30:00Z')
+    );
   });
 
-  it('parses a full ISO timestamp directly', () => {
-    expect(parseScheduledTime('2026-06-10', '2026-06-11T08:00:00Z')).toEqual(
+  it('parses a full ISO timestamp directly (already absolute)', () => {
+    expect(parseScheduledTime('2026-06-10', '2026-06-11T08:00:00Z', 'America/Chicago')).toEqual(
       new Date('2026-06-11T08:00:00Z')
     );
   });
 
-  it('falls back to local midnight of the trial date when start_time is null', () => {
-    expect(parseScheduledTime('2026-06-10', null)).toEqual(new Date('2026-06-10T00:00:00'));
+  it('falls back to midnight in the trial timezone when start_time is null', () => {
+    // Midnight CDT === 05:00 UTC.
+    expect(parseScheduledTime('2026-06-10', null, 'America/Chicago')).toEqual(
+      new Date('2026-06-10T05:00:00Z')
+    );
   });
 });
 
@@ -242,6 +251,8 @@ describe('useJudgeAssignments', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockDatabaseUserId.current = 'person-123';
+    // Default: no class rows replicated → dashboard uses the embedded snapshot.
+    mockClassesGetAll.mockResolvedValue([]);
   });
 
   it('reads from the replication store first and skips PostgREST when warm', async () => {
@@ -260,6 +271,50 @@ describe('useJudgeAssignments', () => {
     expect(result.current.assignments.map(a => a.id).sort()).toEqual(['a-mine', 'a-pending-invite']);
     expect(mockFrom).not.toHaveBeenCalled();
     expect(result.current.isError).toBe(false);
+  });
+
+  it('overlays live class status/progress from the classes store over the snapshot', async () => {
+    // Snapshot says in_progress with 5 scored; the live class has finished.
+    mockGetAll.mockResolvedValueOnce([
+      makeReplicated({ id: 'a-1', classId: 'class-1', classStatus: 'in_progress', classScoredCount: 5 }),
+    ]);
+    mockClassesGetAll.mockResolvedValueOnce([
+      { id: 'class-1', classStatus: 'completed', scoredCount: 20, totalEntriesCount: 20 },
+    ]);
+
+    const { result } = renderHook(() => useJudgeAssignments(), { wrapper: createWrapper() });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.assignments[0]).toMatchObject({
+      status: 'completed',
+      completedEntries: 20,
+      totalEntries: 20,
+    });
+  });
+
+  it('drops a class the live classes store reports as cancelled', async () => {
+    mockGetAll.mockResolvedValueOnce([makeReplicated({ id: 'a-1', classId: 'class-1' })]);
+    mockClassesGetAll.mockResolvedValueOnce([{ id: 'class-1', classStatus: 'cancelled' }]);
+
+    const { result } = renderHook(() => useJudgeAssignments(), { wrapper: createWrapper() });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.assignments).toEqual([]);
+  });
+
+  it('keeps the snapshot when the class is not replicated (show not entered)', async () => {
+    mockGetAll.mockResolvedValueOnce([
+      makeReplicated({ id: 'a-1', classId: 'class-elsewhere', classStatus: 'in_progress' }),
+    ]);
+    mockClassesGetAll.mockResolvedValueOnce([{ id: 'some-other-class', classStatus: 'completed' }]);
+
+    const { result } = renderHook(() => useJudgeAssignments(), { wrapper: createWrapper() });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.assignments[0]).toMatchObject({ status: 'in-progress' });
   });
 
   it('falls back to a PostgREST query when the replication store is cold', async () => {

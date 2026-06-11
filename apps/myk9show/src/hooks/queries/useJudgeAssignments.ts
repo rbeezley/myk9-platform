@@ -5,9 +5,10 @@ import { queryKeys } from '@/lib/queryClient';
 import { withReplicationFallback } from '@/services/database/_shared/replication-fallback';
 import {
   replicatedJudgeAssignmentsTable,
+  replicatedClassesTable,
   type ReplicatedJudgeAssignment,
 } from '@/services/replication';
-import type { JudgeClass } from '@/pages/judgeStatsUtils';
+import { zonedWallTimeToInstant, type JudgeClass } from '@/pages/judgeStatsUtils';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const supabase = supabaseClient as any;
@@ -63,14 +64,19 @@ export interface JudgeAssignmentRow {
 }
 
 /**
- * classes.start_time is a Postgres TIME ("HH:MM:SS"); combine it with the
- * trial date so the dashboard can sort classes and show a clock time.
- * Tolerates a full ISO timestamp in case the column shape ever changes.
+ * classes.start_time is a Postgres TIME ("HH:MM:SS") in the trial's local zone;
+ * resolve it to the correct absolute instant so sorting and the next-class
+ * countdown are right regardless of the viewing device's timezone. Tolerates a
+ * full ISO timestamp (already absolute) in case the column shape ever changes.
  */
-export function parseScheduledTime(trialDate: string, startTime: string | null): Date {
+export function parseScheduledTime(
+  trialDate: string,
+  startTime: string | null,
+  timeZone: string
+): Date {
   if (startTime?.includes('T')) return new Date(startTime);
-  if (startTime && /^\d{1,2}:\d{2}/.test(startTime)) return new Date(`${trialDate}T${startTime}`);
-  return new Date(`${trialDate}T00:00:00`);
+  const time = startTime && /^\d{1,2}:\d{2}/.test(startTime) ? startTime : '00:00:00';
+  return zonedWallTimeToInstant(trialDate, time, timeZone);
 }
 
 function toDashboardStatus(classStatus: string | null): JudgeClass['status'] {
@@ -96,7 +102,7 @@ export function mapAssignmentRowToJudgeClass(row: JudgeAssignmentRow): JudgeClas
     level: cls.level ?? '',
     trialDate: trial.date,
     trialTimezone: trial.timezone ?? DEFAULT_TIMEZONE,
-    scheduledTime: parseScheduledTime(trial.date, cls.start_time),
+    scheduledTime: parseScheduledTime(trial.date, cls.start_time, trial.timezone ?? DEFAULT_TIMEZONE),
     ringNumber: null,
     totalEntries: cls.total_entries_count ?? 0,
     completedEntries: cls.scored_count ?? 0,
@@ -125,7 +131,11 @@ export function mapReplicatedAssignmentToJudgeClass(
     level: a.classLevel ?? '',
     trialDate: a.trialDate,
     trialTimezone: a.trialTimezone ?? DEFAULT_TIMEZONE,
-    scheduledTime: parseScheduledTime(a.trialDate, a.classStartTime),
+    scheduledTime: parseScheduledTime(
+      a.trialDate,
+      a.classStartTime,
+      a.trialTimezone ?? DEFAULT_TIMEZONE
+    ),
     ringNumber: null,
     totalEntries: a.classTotalEntries ?? 0,
     completedEntries: a.classScoredCount ?? 0,
@@ -167,13 +177,33 @@ export async function fetchJudgeAssignments(personId: string): Promise<JudgeClas
       // judge with assignments never sees a false empty state on first load.
       if (all.length === 0) return fetchFromPostgrest(personId);
 
+      // The embedded class snapshot rides the judge_assignments cursor, which
+      // does NOT advance on class-only scoring updates. Overlay live mutable
+      // fields from the classes store (re-synced per-show on its own cursor) so
+      // the active ring shows current status/progress; fall back to the snapshot
+      // for shows the judge hasn't entered (class not yet replicated).
+      const liveClasses = await replicatedClassesTable.getAll();
+      const liveByClassId = new Map(liveClasses.map(c => [c.id, c]));
+
       const mine = all
         .filter(
           a =>
-            a.personId === personId &&
-            ACTIVE_ASSIGNMENT_STATUSES.includes(a.status ?? '')
+            a.personId === personId && ACTIVE_ASSIGNMENT_STATUSES.includes(a.status ?? '')
         )
-        .map(mapReplicatedAssignmentToJudgeClass)
+        .map(a => {
+          const jc = mapReplicatedAssignmentToJudgeClass(a);
+          if (!jc) return null;
+          const live = liveByClassId.get(jc.classId);
+          if (!live) return jc;
+          // A class cancelled after the snapshot was taken should disappear.
+          if (live.classStatus === 'cancelled') return null;
+          return {
+            ...jc,
+            status: toDashboardStatus(live.classStatus ?? null),
+            totalEntries: live.totalEntriesCount ?? jc.totalEntries,
+            completedEntries: live.scoredCount ?? jc.completedEntries,
+          };
+        })
         .filter((c): c is JudgeClass => c !== null);
 
       return sortBySchedule(mine);

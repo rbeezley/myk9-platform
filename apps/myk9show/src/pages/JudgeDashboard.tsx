@@ -107,15 +107,19 @@ const AssignmentRow: React.FC<AssignmentRowProps> = ({
                   {judgeClass.scheduledTime.toLocaleDateString([], {
                     month: 'short',
                     day: 'numeric',
+                    timeZone: judgeClass.trialTimezone,
                   })}
                 </span>
                 <span>&bull;</span>
               </>
             )}
+            {/* Render the clock in the trial's zone, not the device's, so a
+                judge on an Eastern device reads a Chicago trial's real time. */}
             <span>
               {judgeClass.scheduledTime.toLocaleTimeString([], {
                 hour: '2-digit',
                 minute: '2-digit',
+                timeZone: judgeClass.trialTimezone,
               })}
             </span>
             <span>&bull;</span>

@@ -51,6 +51,50 @@ export function currentDateInTimeZone(epochMs: number, timeZone: string): string
   }
 }
 
+/**
+ * Offset (ms) of `timeZone` from UTC at a given instant — negative west of UTC.
+ * Computed by reading the instant's wall clock in the zone and treating it as
+ * UTC, then differencing against the instant.
+ */
+function timeZoneOffsetMs(instant: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(instant);
+  const f: Record<string, number> = {};
+  for (const p of parts) if (p.type !== 'literal') f[p.type] = Number(p.value);
+  // Some ICU builds render midnight as hour 24; normalize to 0.
+  const wallAsUtc = Date.UTC(f.year, f.month - 1, f.day, f.hour % 24, f.minute, f.second);
+  return wallAsUtc - instant.getTime();
+}
+
+/**
+ * Convert a wall-clock date + time in `timeZone` to its absolute instant. A
+ * class scheduled "09:00 in America/Chicago" must resolve to the same moment
+ * regardless of the viewing device's zone, so countdowns and sorting are
+ * correct. Approximate only within a DST transition hour; fine for scheduling.
+ */
+export function zonedWallTimeToInstant(
+  dateStr: string,
+  timeStr: string,
+  timeZone: string
+): Date {
+  const wallAsUtc = new Date(`${dateStr}T${timeStr}Z`).getTime();
+  if (Number.isNaN(wallAsUtc)) return new Date(`${dateStr}T${timeStr}`);
+  try {
+    const offset = timeZoneOffsetMs(new Date(wallAsUtc), timeZone);
+    return new Date(wallAsUtc - offset);
+  } catch {
+    return new Date(`${dateStr}T${timeStr}`);
+  }
+}
+
 export function splitJudgeAssignments(
   assignments: JudgeClass[],
   nowMs: number

@@ -4,6 +4,7 @@ import {
   splitJudgeAssignments,
   localIsoDate,
   currentDateInTimeZone,
+  zonedWallTimeToInstant,
   type JudgeClass,
 } from '../judgeStatsUtils';
 
@@ -136,6 +137,35 @@ describe('currentDateInTimeZone', () => {
   it('falls back to device-local date on an invalid timezone', () => {
     const epoch = new Date(2026, 0, 5, 9, 30).getTime();
     expect(currentDateInTimeZone(epoch, 'Not/AZone')).toBe('2026-01-05');
+  });
+});
+
+describe('zonedWallTimeToInstant', () => {
+  it('resolves a wall time in a western zone to the correct UTC instant (DST)', () => {
+    // 09:00 on Jun 10 in Chicago is CDT (UTC-5) → 14:00 UTC.
+    expect(zonedWallTimeToInstant('2026-06-10', '09:00:00', 'America/Chicago')).toEqual(
+      new Date('2026-06-10T14:00:00Z')
+    );
+  });
+
+  it('resolves a wall time in a standard-time (non-DST) date', () => {
+    // 09:00 on Jan 10 in Chicago is CST (UTC-6) → 15:00 UTC.
+    expect(zonedWallTimeToInstant('2026-01-10', '09:00:00', 'America/Chicago')).toEqual(
+      new Date('2026-01-10T15:00:00Z')
+    );
+  });
+
+  it('resolves a wall time in an eastern (UTC+) zone', () => {
+    // 09:00 on Jun 10 in Tokyo is JST (UTC+9) → 00:00 UTC.
+    expect(zonedWallTimeToInstant('2026-06-10', '09:00:00', 'Asia/Tokyo')).toEqual(
+      new Date('2026-06-10T00:00:00Z')
+    );
+  });
+
+  it('falls back to a device-local parse on an invalid timezone', () => {
+    expect(zonedWallTimeToInstant('2026-06-10', '09:00:00', 'Not/AZone')).toEqual(
+      new Date('2026-06-10T09:00:00')
+    );
   });
 });
 

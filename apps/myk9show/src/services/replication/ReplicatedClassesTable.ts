@@ -77,6 +77,8 @@ export interface ReplicatedClass {
   selfCheckinEnabled?: boolean | undefined;
   visibilityPreset?: string | undefined;
   totalEntriesCount?: number | undefined;
+  /** Count of judged entries; drives the judge dashboard's live progress overlay. */
+  scoredCount?: number | undefined;
   classOrder?: number | undefined;
   /** Secretary-controlled display order within a trial (per-column Kanban reorder). */
   displayOrder?: number | undefined;
@@ -178,6 +180,7 @@ function rowToClass(row: ClassRow): ReplicatedClass {
     })(),
     classStatus: (dbRow.class_status as string | undefined) ?? row.status ?? undefined,
     totalEntriesCount: (dbRow.total_entries_count as number | undefined) ?? undefined,
+    scoredCount: (dbRow.scored_count as number | undefined) ?? undefined,
     classOrder: (dbRow.class_order as number | undefined) ?? undefined,
     displayOrder: (dbRow.display_order as number | undefined) ?? undefined,
     isCompleted: (dbRow.is_completed as boolean | undefined) ?? false,

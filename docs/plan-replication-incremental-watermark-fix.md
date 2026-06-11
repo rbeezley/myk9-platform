@@ -313,12 +313,18 @@ A three-agent adversarial review ran against the implemented diff. Dispositions:
   `lastIncrementalSyncAt` in IndexedDB could wedge a table's sync. Added a
   `Number.isFinite` guard so a bad watermark degrades to a full-ish fetch (`since = 0`)
   instead of throwing. Tested (`it.each(['Infinity','NaN'])`).
-- **Concurrent no-op watermark clobber.** Two overlapping syncs of the same table each
-  computed `Math.max` against their own pre-fetch snapshot; a no-op sync could re-persist
-  a stale snapshot over a concurrent advance. Now the watermark is only written when it
-  actually advanced. (Note: this direction is *safe* either way — a lower watermark causes
-  idempotent re-fetching, never dropped rows — so this is an efficiency guard, not a
-  data-loss fix.)
+- **Concurrent watermark regression.** Two overlapping syncs of the same table each
+  computed `Math.max` against their own pre-fetch metadata snapshot, then wrote
+  last-write-wins — so a slow sync could regress a watermark a faster concurrent sync had
+  already advanced. **Fixed properly** (post-review): the monotonic advance now happens
+  *inside* the cache's read-modify-write transaction
+  (`ReplicatedTableCache.updateSyncMetadata(..., { advanceWatermarkMonotonically: true })`),
+  maxing against the **live** persisted value, not the caller's stale snapshot. The reset
+  path (literal write to 0) is preserved by gating the max behind the flag. (Note: the
+  regression direction was *safe* either way — a lower watermark causes idempotent
+  re-fetching, never dropped rows — but the watermark is now genuinely monotonic under
+  concurrency.) Tested: a stale 6000 write does not regress a persisted 7000; a reset to 0
+  still applies.
 
 **Verified non-issues:**
 - **Pagination > 1000 rows:** the ascending-order + server-authoritative watermark gives

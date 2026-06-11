@@ -345,9 +345,18 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
   }
 
   /**
-   * Update sync metadata (with atomic increment for numeric fields)
+   * Update sync metadata (with atomic increment for numeric fields).
+   *
+   * @param options.advanceWatermarkMonotonically When set, `lastIncrementalSyncAt`
+   *   is advanced to `max(existing, update)` INSIDE this read-modify-write
+   *   transaction rather than overwritten — so a slow concurrent sync that
+   *   snapshotted an older watermark cannot regress a newer one. Leave unset for a
+   *   literal write (e.g. cache reset to 0).
    */
-  async updateSyncMetadata(updates: Partial<SyncMetadata>): Promise<void> {
+  async updateSyncMetadata(
+    updates: Partial<SyncMetadata>,
+    options?: { advanceWatermarkMonotonically?: boolean }
+  ): Promise<void> {
     const METADATA_TIMEOUT_MS = 5000;
 
     const updatePromise = (async () => {
@@ -363,6 +372,17 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
       }
       if (updates.pendingMutations !== undefined && existing) {
         atomicUpdates.pendingMutations = (existing.pendingMutations || 0) + updates.pendingMutations;
+      }
+
+      // Monotonic watermark advance against the LIVE persisted value (see jsdoc).
+      if (options?.advanceWatermarkMonotonically && updates.lastIncrementalSyncAt !== undefined) {
+        const existingWatermark = Number.isFinite(existing?.lastIncrementalSyncAt)
+          ? (existing!.lastIncrementalSyncAt as number)
+          : 0;
+        atomicUpdates.lastIncrementalSyncAt = Math.max(
+          existingWatermark,
+          updates.lastIncrementalSyncAt
+        );
       }
 
       const metadata: SyncMetadata = {

@@ -540,6 +540,26 @@ describe('syncReplicatedTable', () => {
       expect(await table.get('1')).toMatchObject({ name: 'Just Uploaded' });
     });
 
+    it('advances the watermark monotonically inside the cache tx (no regression from a stale concurrent write)', async () => {
+      // Simulates: fast sync advanced the persisted watermark to 7000; a slower
+      // sync that snapshotted an older value now writes 6000. The max-in-transaction
+      // must keep 7000, not regress to 6000.
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 7000 });
+      await table.updateSyncMetadata(
+        { lastIncrementalSyncAt: 6000 },
+        { advanceWatermarkMonotonically: true }
+      );
+      const meta = await table.getSyncMetadata();
+      expect(meta?.lastIncrementalSyncAt).toBe(7000);
+    });
+
+    it('still allows a literal watermark reset to 0 (cache clear path, no monotonic flag)', async () => {
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 7000 });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 0 });
+      const meta = await table.getSyncMetadata();
+      expect(meta?.lastIncrementalSyncAt).toBe(0);
+    });
+
     it('reports recoveredFromEmptyReplica when an emptied replica re-fetches', async () => {
       // Metadata says the replica previously held rows (totalRows > 0) but the local
       // store is now empty — an unexpected eviction. The result flags it for logging.

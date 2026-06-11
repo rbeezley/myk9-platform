@@ -818,8 +818,11 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     return this.cacheManager.getSyncMetadata();
   }
 
-  async updateSyncMetadata(updates: Partial<SyncMetadata>): Promise<void> {
-    return this.cacheManager.updateSyncMetadata(updates);
+  async updateSyncMetadata(
+    updates: Partial<SyncMetadata>,
+    options?: { advanceWatermarkMonotonically?: boolean }
+  ): Promise<void> {
+    return this.cacheManager.updateSyncMetadata(updates, options);
   }
 
   // ========================================

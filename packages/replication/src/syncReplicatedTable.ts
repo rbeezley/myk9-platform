@@ -291,26 +291,31 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     // client has actually received from the server, and never backward (a backdated
     // row or out-of-order delivery must not widen the window). Fall back to the
     // legacy client clock ONLY when the adapter provides no timestamp hook.
-    const priorWatermark = safeWatermark;
-    const nextWatermark = adapter.getRemoteUpdatedAt
-      ? sawRemoteTimestamp
-        ? Math.max(priorWatermark, maxRemoteUpdatedAt)
-        : priorWatermark
-      : Date.now();
+    // When the adapter supplies server timestamps and we observed at least one,
+    // advance the persisted watermark monotonically INSIDE the cache transaction
+    // (max against the LIVE value, not this sync's stale pre-fetch snapshot) so a
+    // concurrent sync of the same table cannot regress it. With no hook, keep the
+    // legacy client-clock last-write-wins behavior. With a hook but nothing
+    // observed (empty fetch), leave the watermark untouched.
+    const advanceWatermark = Boolean(adapter.getRemoteUpdatedAt) && sawRemoteTimestamp;
+    const watermarkUpdate: Partial<{ lastIncrementalSyncAt: number }> = advanceWatermark
+      ? { lastIncrementalSyncAt: maxRemoteUpdatedAt }
+      : adapter.getRemoteUpdatedAt
+        ? {}
+        : { lastIncrementalSyncAt: Date.now() };
 
-    await table.updateSyncMetadata({
-      // Only persist the watermark when it actually advanced. Skipping the write
-      // on a no-op (nothing newer observed) avoids re-persisting this sync's stale
-      // pre-fetch snapshot over a value a concurrent sync of the same table may
-      // have advanced in the meantime.
-      ...(nextWatermark !== priorWatermark ? { lastIncrementalSyncAt: nextWatermark } : {}),
-      // Record full-sync completions so the 24h self-heal (above) has a baseline.
-      ...(forceFullSync ? { lastFullSyncAt: Date.now() } : {}),
-      syncStatus: 'idle',
-      errorMessage: undefined,
-      conflictCount: conflictsResolved,
-      totalRows: (await getLocalRowsForScope()).length,
-    });
+    await table.updateSyncMetadata(
+      {
+        ...watermarkUpdate,
+        // Record full-sync completions so the 24h self-heal (above) has a baseline.
+        ...(forceFullSync ? { lastFullSyncAt: Date.now() } : {}),
+        syncStatus: 'idle',
+        errorMessage: undefined,
+        conflictCount: conflictsResolved,
+        totalRows: (await getLocalRowsForScope()).length,
+      },
+      { advanceWatermarkMonotonically: advanceWatermark }
+    );
 
     return {
       tableName: table.getTableName(),

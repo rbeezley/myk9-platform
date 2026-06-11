@@ -471,11 +471,12 @@ async function handleEntryCheckout(
 
   // Create checkout session. Stripe pages default to 24h payable; an app
   // cart lives ~30 min — without clamping, a user could pay a page whose
-  // cart expired hours earlier (round-12 P1). 30 min is Stripe's MINIMUM
-  // expires_at, which conveniently equals the cart TTL; the cart's expiry is
-  // then extended below to die at the same instant, so page and cart always
-  // agree. The webhook independently rejects expired-cart payments.
-  const sessionExpiresAtEpoch = Math.floor(Date.now() / 1000) + 30 * 60;
+  // cart expired hours earlier (round-12 P1). Stripe's MINIMUM expires_at is
+  // 30 minutes measured at THEIR clock on arrival — an exact +30:00 computed
+  // before the network hop gets rejected as under the minimum (round-15 P1).
+  // 31 minutes buys the buffer; the cart is then aligned below to the expiry
+  // Stripe actually RETURNS, so page and cart still die at the same instant.
+  const sessionExpiresAtEpoch = Math.floor(Date.now() / 1000) + 31 * 60;
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     payment_method_types: ['card'],
@@ -504,7 +505,8 @@ async function handleEntryCheckout(
       subtotal_cents: subtotal,
       platform_fee_cents: platformFeeCents,
       total_cents: subtotal + platformFeeCents,
-      expires_at: new Date(sessionExpiresAtEpoch * 1000).toISOString(),
+      // Stripe's returned expiry is authoritative (it may round/adjust ours).
+      expires_at: new Date((session.expires_at ?? sessionExpiresAtEpoch) * 1000).toISOString(),
     })
     .eq('id', cart_id)
     // Optimistic concurrency (Codex round-6 P1): a cart mutation between our

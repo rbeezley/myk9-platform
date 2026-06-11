@@ -6,6 +6,8 @@ import { accountToRowPatch } from '../_shared/connectAccountMapper.ts';
 import { parsePremiumPriceIds, priceIdToTier } from '../_shared/premiumPrices.ts';
 import { sessionMatchesCart } from '../_shared/sessionCartGuard.ts';
 import { alertAdmin } from '../_shared/alertAdmin.ts';
+import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
+import { calculatePlatformFeeCents, resolvePlatformFeePercent } from '../_shared/platformFee.ts';
 
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
@@ -406,6 +408,94 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     return;
   }
 
+  // Round-15 P1: every number the guard above compared is OWNER-WRITABLE
+  // (cart totals, item fees — migration 009's update policies have no column
+  // restrictions), and the pinned webhook payload omits amount_total. A user
+  // could mutate item fees AND the stored subtotal in lockstep after starting
+  // checkout, pay the original Stripe amount, and get inflated paid entries
+  // (which the payout cron would then pay the club for). Verify against two
+  // sources the payer cannot write: a FRESH session retrieve from Stripe's
+  // API (modern SDK version — amount_total always present) and authoritative
+  // per-item fees recomputed from show/class pricing. Runs BEFORE the claim
+  // so a rejected cart stays active.
+  const freshSession = await stripe.checkout.sessions.retrieve(session.id);
+  const freshTotalCents = freshSession.amount_total ?? null;
+
+  const { data: showFees, error: showFeesError } = await supabase
+    .from('shows')
+    .select('pre_entry_fee, day_of_show_fee, start_date')
+    .eq('id', cart.show_id)
+    .single();
+
+  const classIds = [...new Set(cart.items.map((i: { class_id: string }) => i.class_id))];
+  const { data: classRows, error: classesError } = await supabase
+    .from('classes')
+    .select('id, trial_id, entry_fee')
+    .in('id', classIds);
+
+  if (freshTotalCents == null || showFeesError || !showFees || classesError || !classRows) {
+    console.error(
+      `CRITICAL: cannot verify paid amount for cart ${cartId} — ` +
+        `freshTotal=${freshTotalCents}, showFeesError=${showFeesError?.message}, classesError=${classesError?.message}`
+    );
+    await alertAdmin(
+      'Paid checkout could not be verified — entries NOT created',
+      `<p>Checkout session <code>${session.id}</code> was PAID, but the authoritative
+       fee data needed to verify the amount could not be loaded, so no entries were
+       created and Stripe will not retry. The cart is untouched.</p>
+       <p>Recovery: check the function logs; if this was a transient database error,
+       re-send the event from the Stripe dashboard (Developers → Events → Resend).</p>`
+    );
+    return;
+  }
+
+  const feeByClass = new Map<string, number | string | null>(
+    classRows.map((c: { id: string; entry_fee: number | string | null }) => [c.id, c.entry_fee])
+  );
+  const nowIso = new Date().toISOString();
+  const authoritativeByClass = new Map<string, number>(
+    classIds.map((classId: string) => [
+      classId,
+      authoritativeEntryFeeCents({
+        showPreEntryFee: showFees.pre_entry_fee,
+        showDayOfShowFee: showFees.day_of_show_fee,
+        showStartDate: showFees.start_date,
+        classEntryFee: feeByClass.get(classId) ?? null,
+        nowIso,
+      }),
+    ])
+  );
+  const authoritativeSubtotal = (cart.items as { class_id: string }[]).reduce(
+    (sum, i) => sum + (authoritativeByClass.get(i.class_id) ?? 0),
+    0
+  );
+  const authoritativeTotal =
+    authoritativeSubtotal +
+    calculatePlatformFeeCents(
+      authoritativeSubtotal,
+      resolvePlatformFeePercent(Deno.env.get('PLATFORM_FEE_PERCENT'))
+    );
+  if (authoritativeTotal !== freshTotalCents) {
+    const piId = extractPaymentIntentId(session.payment_intent);
+    console.error(
+      `CRITICAL: paid total ${freshTotalCents}¢ does not match authoritative pricing ` +
+        `${authoritativeTotal}¢ for cart ${cartId} — entries NOT created`
+    );
+    await alertAdmin(
+      'Paid amount disagrees with authoritative pricing — verify, then refund',
+      `<p>Checkout session <code>${session.id}</code> charged ${(freshTotalCents / 100).toFixed(2)}
+       USD, but the show/class pricing says this cart is worth
+       ${(authoritativeTotal / 100).toFixed(2)} USD. No entries were created; the cart
+       is untouched.</p>
+       <p>Benign cause: the show's fees changed (or the day-of-show fee tier started)
+       between checkout and payment. Malicious cause: cart values were tampered after
+       checkout started. Either way the charge doesn't match current pricing — refund
+       payment intent <code>${piId ?? 'unknown'}</code> from the Stripe dashboard and
+       ask the exhibitor to check out again.</p>`
+    );
+    return;
+  }
+
   // Idempotency latch: atomically claim the cart by flipping active → submitted.
   // Stripe gets a 200 before this handler runs (EdgeRuntime.waitUntil), so a
   // re-delivered event would otherwise create duplicate paid entries — which
@@ -482,41 +572,31 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
 
   // Resolve each class's trial: entries carry denormalized show_id/trial_id
   // FKs that nothing else populates, and the payout calc + refund join +
-  // secretary entries list all filter on show_id.
-  const classIds = [...new Set(cart.items.map((i: { class_id: string }) => i.class_id))];
-  const { data: classRows, error: classesError } = await supabase
-    .from('classes')
-    .select('id, trial_id')
-    .in('id', classIds);
-  if (classesError) {
-    // Entries still insert (trial_id null) so the exhibitor isn't stranded,
-    // but null trial_id breaks ringside/trial views — surface it.
-    console.error(`Classes lookup failed for cart ${cartId}:`, classesError);
-    await alertAdmin(
-      'Entries created without trial ids',
-      `<p>The classes lookup failed while creating entries for cart
-       <code>${cartId}</code>; entries were created with <code>trial_id = NULL</code>.</p>
-       <pre>${classesError.message}</pre>
-       <p>Recovery: backfill <code>entries.trial_id</code> from each entry's class
-       (classes.trial_id) for this cart's entries.</p>`
-    );
-  }
+  // secretary entries list all filter on show_id. classRows was loaded (and
+  // error-gated) by the verification block above.
   const trialByClass = new Map<string, string | null>(
-    (classRows ?? []).map((c: { id: string; trial_id: string | null }) => [c.id, c.trial_id])
+    classRows.map((c: { id: string; trial_id: string | null }) => [c.id, c.trial_id])
   );
 
   // Create entries from cart items, stamping the payment intent as the
-  // per-entry refund key for stripe-refund-entry.
+  // per-entry refund key for stripe-refund-entry. Fees come from the
+  // AUTHORITATIVE map (verified against the paid amount above), never from
+  // the owner-writable item rows.
   const paymentIntentId = extractPaymentIntentId(session.payment_intent);
   const entryIds: string[] = [];
   for (const item of cart.items) {
     const { data: entry, error: entryError } = await supabase
       .from('entries')
       .insert(
-        buildEntryInsert(item, paymentIntentId, new Date().toISOString(), {
-          showId: cart.show_id,
-          trialId: trialByClass.get(item.class_id) ?? null,
-        })
+        buildEntryInsert(
+          { ...item, entry_fee_cents: authoritativeByClass.get(item.class_id) ?? item.entry_fee_cents },
+          paymentIntentId,
+          new Date().toISOString(),
+          {
+            showId: cart.show_id,
+            trialId: trialByClass.get(item.class_id) ?? null,
+          }
+        )
       )
       .select('id')
       .single();

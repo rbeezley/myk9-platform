@@ -1,7 +1,50 @@
 import { render, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { MemoryRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { LegacySecretaryShowRedirect } from '@/routes/showRouteRedirects';
+import { PublicRoutes } from '@/routes/publicRoutes';
+
+const mockCanManage = vi.hoisted(() => ({ value: false }));
+
+vi.mock('@/context/AuthContext', () => ({
+  ProtectedRoute: ({
+    children,
+    fallback,
+    requiredRole,
+  }: {
+    children: ReactNode;
+    fallback?: ReactNode;
+    requiredRole?: unknown;
+  }) => <>{requiredRole && !mockCanManage.value ? fallback : children}</>,
+}));
+
+vi.mock('@/components/common/PageTransition', () => ({
+  PageTransition: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
+
+vi.mock('@/routes/utils/SuspenseWrapper', () => ({
+  SuspenseWrapper: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
+
+vi.mock('@/pages/ShowDetailsPage', async () => {
+  const router = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return {
+    default: function MockShowDetailsPage() {
+      const location = router.useLocation();
+      return (
+        <div data-testid="production-show-details">
+          <div data-testid="production-show-details-location">{location.pathname}</div>
+          <router.Outlet />
+        </div>
+      );
+    },
+  };
+});
+
+vi.mock('@/pages/secretary/ShowWorkbenchShowDeskPage', () => ({
+  ShowWorkbenchShowDeskPage: () => <div data-testid="production-show-desk">Show Desk</div>,
+}));
 
 function LocationProbe() {
   const location = useLocation();
@@ -123,5 +166,22 @@ describe('canonical show management routes', () => {
     );
 
     expect(await screen.findByTestId('location')).toHaveTextContent('/shows/show-1');
+  });
+
+  it('redirects non-manager direct management URLs through the production PublicRoutes tree', async () => {
+    mockCanManage.value = false;
+
+    render(
+      <MemoryRouter initialEntries={['/shows/show-1/show-desk']}>
+        <Routes>
+          {PublicRoutes()}
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByTestId('production-show-details-location')).toHaveTextContent(
+      '/shows/show-1'
+    );
+    expect(screen.queryByTestId('production-show-desk')).not.toBeInTheDocument();
   });
 });

@@ -83,7 +83,8 @@ function toIncidentEntryOption(
 }
 
 export function ShowWorkbenchShowDeskPage() {
-  const { showId } = useParams<{ showId: string }>();
+  const params = useParams<{ showId?: string; id?: string }>();
+  const showId = params.showId ?? params.id;
   const { show: currentShow, isLoading } = useFastShowDetails(showId);
   const { trials, trialClasses } = useTrialStore(
     useShallow(s => ({ trials: s.trials, trialClasses: s.trialClasses }))

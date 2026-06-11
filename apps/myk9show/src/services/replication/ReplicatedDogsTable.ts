@@ -210,7 +210,13 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
         query = query.eq('owner_id', scopeValue);
       }
 
-      const { data, error } = await query.range(from, from + PAGE_SIZE - 1);
+      // A deterministic total order (unique PK) is required for offset pagination —
+      // without it Postgres may return rows in scan order that shifts between pages,
+      // skipping/duplicating ids and yielding an incomplete liveIds set that would
+      // over-prune valid cached dogs.
+      const { data, error } = await query
+        .order('id', { ascending: true })
+        .range(from, from + PAGE_SIZE - 1);
       if (error || !data) {
         // Any fetch failure → abort. Pruning against a partial set could wipe the replica.
         return 0;

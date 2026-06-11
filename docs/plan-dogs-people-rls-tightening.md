@@ -97,6 +97,9 @@ id set**, not "fetch-and-delete":
   optional:** PostgREST caps a response at ~1000 rows and a staff user (is_show_manager
   → RLS exposes every dog) can exceed that; an unpaginated fetch would silently
   truncate and prune every valid cached dog past the first page (Codex P1, PR #633).
+  The paged fetch also carries `.order('id', { ascending: true })` — offset pagination
+  without a deterministic total order can skip/duplicate rows across pages, yielding an
+  incomplete `liveIds` set that over-prunes (second Codex P1, PR #633).
 - Call it from `sync()` after a successful download, fully guarded (never breaks the
   sync result). Side-effect only — does not alter `result.rowsAffected`.
 - Bonus: on existing clients that already cached the whole table under the old open

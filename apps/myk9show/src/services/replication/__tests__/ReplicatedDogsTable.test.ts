@@ -938,6 +938,7 @@ describe('ReplicatedDogsTable', () => {
         select: vi.fn(() => q),
         is: vi.fn(() => q),
         eq: vi.fn(() => q),
+        order: vi.fn(() => q),
         range: vi.fn(() => Promise.resolve(pages[call++] ?? { data: [], error: null })),
       };
       return q;
@@ -989,6 +990,8 @@ describe('ReplicatedDogsTable', () => {
 
       await dogsTable.reconcileDeleted();
 
+      // Deterministic total order is required or offset pages can skip/duplicate rows.
+      expect(query.order).toHaveBeenCalledWith('id', { ascending: true });
       expect(query.range).toHaveBeenNthCalledWith(1, 0, 999);
       expect(query.range).toHaveBeenNthCalledWith(2, 1000, 1999);
       const liveIds = removeSpy.mock.calls[0]![0];

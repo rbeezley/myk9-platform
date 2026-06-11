@@ -107,6 +107,43 @@ describe('ShowMapStructureTable — data-node-id / data-node-type / ARIA', () =>
     expect(moreRow?.getAttribute('data-node-id')).toBe('more:class-1');
   });
 
+  it('adds data-node attributes and ARIA levels for all exhibitors branch rows', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [baseClass],
+      entries: [
+        {
+          id: 'entry-1',
+          class_id: 'class-1',
+          dog_id: 'dog-1',
+          dog: { id: 'dog-1', call_name: 'Bella' },
+        },
+      ],
+    });
+
+    render(
+      <ShowMapStructureTable
+        tree={tree}
+        expandedNodeIds={new Set([tree.root.id, 'all-exhibitors:show-1', 'dog:dog-1'])}
+        filter="all"
+        onToggle={vi.fn()}
+      />
+    );
+
+    const allExhibitorsRow = screen.getByText('All Exhibitors').closest('[role="treeitem"]');
+    expect(allExhibitorsRow).toHaveAttribute('data-node-id', 'all-exhibitors:show-1');
+    expect(allExhibitorsRow).toHaveAttribute('data-node-type', 'all-exhibitors');
+    expect(screen.getByText('Bella').closest('[role="treeitem"]')).toHaveAttribute(
+      'aria-level',
+      '2'
+    );
+    expect(screen.getByText('Interior Novice A').closest('[role="treeitem"]')).toHaveAttribute(
+      'aria-level',
+      '3'
+    );
+  });
+
   it('exposes ARIA tree semantics: tree, treeitem, group, aria-expanded, aria-level', () => {
     const { tree, expandedNodeIds } = buildExpandedAll({
       show,
@@ -127,13 +164,13 @@ describe('ShowMapStructureTable — data-node-id / data-node-type / ARIA', () =>
     // Outer container is a tree
     expect(screen.getAllByRole('tree')).toHaveLength(1);
 
-    // Each rendered node is a treeitem (trial + class + entry = 3)
+    // Each rendered node is a treeitem (all exhibitors + dog + dog-entry + trial + class + entry)
     const treeitems = screen.getAllByRole('treeitem');
-    expect(treeitems).toHaveLength(3);
+    expect(treeitems).toHaveLength(6);
 
-    // Nested ULs are groups (trial → classes, class → entries = 2 groups)
+    // Nested ULs are groups (all exhibitors → dogs, dog → dog-entry, trial → classes, class → entries)
     const groups = screen.getAllByRole('group');
-    expect(groups).toHaveLength(2);
+    expect(groups).toHaveLength(4);
 
     // Trial row (has children, expanded) → aria-expanded="true"
     const trialRow = document.querySelector('[data-node-id="trial:trial-1"]');

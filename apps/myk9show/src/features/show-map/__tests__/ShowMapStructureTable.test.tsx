@@ -93,7 +93,7 @@ describe('ShowMapStructureTable', () => {
     );
 
     expect(screen.getByText('Trial 1')).toBeInTheDocument();
-    expect(screen.getByText('Interior Novice A')).toBeInTheDocument();
+    expect(document.querySelector('[data-node-id="class:class-attention"]')).not.toBeNull();
     expect(screen.getByText('12')).toBeInTheDocument();
     expect(screen.getByText('Bella')).toBeInTheDocument();
     expect(screen.getByText('Labrador Retriever')).toBeInTheDocument();
@@ -127,8 +127,53 @@ describe('ShowMapStructureTable', () => {
       />
     );
 
-    expect(screen.getByText('Interior Novice A')).toBeInTheDocument();
+    expect(document.querySelector('[data-node-id="class:class-attention"]')).not.toBeNull();
     expect(screen.getByText('Riley')).toBeInTheDocument();
+  });
+
+  it('renders expanded All Exhibitors dog rows and dog-entry class context', () => {
+    const attentionClass = classes[0];
+    if (!attentionClass) throw new Error('Expected an attention class fixture');
+
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [
+        {
+          ...attentionClass,
+          ring: 2,
+          judgeName: 'Judge Judy',
+          time: '09:30',
+        },
+      ],
+      entries: [
+        {
+          id: 'entry-1',
+          class_id: attentionClass.id,
+          dog_id: 'dog-1',
+          armband: '12',
+          handler: 'Jane Handler',
+          dog: { id: 'dog-1', call_name: 'Bella', breed: 'Labrador Retriever' },
+        },
+      ],
+    });
+
+    render(
+      <ShowMapStructureTable
+        tree={tree}
+        expandedNodeIds={new Set([tree.root.id, 'all-exhibitors:show-1', 'dog:dog-1'])}
+        filter="all"
+        onToggle={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('All Exhibitors')).toBeInTheDocument();
+    expect(screen.getByText('#12 Bella')).toBeInTheDocument();
+    expect(screen.getByText('Jane Handler · Labrador Retriever')).toBeInTheDocument();
+    expect(screen.getByText('Interior Novice A')).toBeInTheDocument();
+    expect(
+      screen.getByText('Spring Trial · 2026-05-11 · Ring 2 · Judge Judy · 09:30')
+    ).toBeInTheDocument();
   });
 
   it('links expanded entry dog and handler names to their detail pages', async () => {

@@ -72,7 +72,7 @@ export default function PricingPage() {
 
       if (!user) {
         // Redirect to sign-in page using navigate instead of window.location
-        navigate('/signin');
+        navigate('/sign-in');
         return;
       }
 

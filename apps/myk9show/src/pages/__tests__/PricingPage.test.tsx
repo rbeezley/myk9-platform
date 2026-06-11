@@ -23,9 +23,16 @@ vi.mock('@/stripe-config', () => ({
   },
 }));
 vi.mock('@/lib/stripe', () => ({ createCheckoutSession: vi.fn() }));
+// Mutable holder so tests can exercise the signed-out subscribe path.
+const authHolder: { user: { id: string } | null } = { user: { id: 'user-1' } };
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({ user: { id: 'user-1' } }),
+  useAuthContext: () => ({ user: authHolder.user }),
 }));
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return { ...actual, useNavigate: () => mockNavigate };
+});
 vi.mock('@/components/layout/AppHeader', () => ({ default: () => null }));
 vi.mock('@/components/layout/Footer', () => ({ default: () => null }));
 
@@ -34,6 +41,7 @@ const mockedCheckout = vi.mocked(createCheckoutSession);
 beforeEach(() => {
   vi.clearAllMocks();
   configHolder.annual = 'price_annual_test';
+  authHolder.user = { id: 'user-1' };
 });
 
 describe('PricingPage billing interval', () => {
@@ -62,6 +70,18 @@ describe('PricingPage billing interval', () => {
     await waitFor(() => {
       expect(mockedCheckout).toHaveBeenCalledWith('price_annual_test', 'subscription');
     });
+  });
+
+  it('sends a signed-out subscriber to the registered /sign-in route', async () => {
+    authHolder.user = null;
+    const user = userEvent.setup();
+    render(<PricingPage />);
+
+    await user.click(screen.getByRole('button', { name: /subscribe now/i }));
+
+    // App.tsx registers "/sign-in" (plus a "/login" alias) — "/signin" 404s.
+    expect(mockNavigate).toHaveBeenCalledWith('/sign-in');
+    expect(mockedCheckout).not.toHaveBeenCalled();
   });
 
   it('hides the toggle entirely when no annual price is configured', () => {

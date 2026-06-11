@@ -94,6 +94,6 @@ describe('QuickActionsSection', () => {
       />
     );
     const link = screen.getByRole('link', { name: /day of ops/i });
-    expect(link).toHaveAttribute('href', '/secretary/day-of-operations');
+    expect(link).toHaveAttribute('href', '/shows/show-abc/show-desk');
   });
 });

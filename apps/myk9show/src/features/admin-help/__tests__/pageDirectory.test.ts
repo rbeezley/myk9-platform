@@ -31,6 +31,7 @@ describe('pageDirectory (invariant)', () => {
     expect(paths).toContain('/shows/:showId/submit-results');
     expect(paths).not.toContain('/secretary/shows/:showId');
     expect(paths).not.toContain('/secretary/shows/:showId/results-control');
+    expect(paths).not.toContain('/secretary/run-order');
   });
 
   it('every entry has a non-empty title and description', () => {

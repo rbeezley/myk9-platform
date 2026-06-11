@@ -8,10 +8,12 @@ import type { ClassPipelineData } from '../types';
 
 interface ScoringDaySummaryProps {
   classes: ClassPipelineData[];
+  showId?: string | null;
 }
 
 export const ScoringDaySummary: React.FC<ScoringDaySummaryProps> = ({
   classes,
+  showId,
 }) => {
   const navigate = useNavigate();
   const completedCount = classes.filter((c) => c.status === 'completed').length;
@@ -23,15 +25,17 @@ export const ScoringDaySummary: React.FC<ScoringDaySummaryProps> = ({
           <CardTitle className="text-base">
             Scoring Day: {completedCount} of {classes.length} classes complete
           </CardTitle>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1"
-            onClick={() => navigate('/secretary/day-of')}
-          >
-            Open Scoring View
-            <ExternalLink className="h-3 w-3" />
-          </Button>
+          {showId ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              onClick={() => navigate(`/shows/${showId}/show-desk`)}
+            >
+              Open Scoring View
+              <ExternalLink className="h-3 w-3" />
+            </Button>
+          ) : null}
         </div>
       </CardHeader>
       <CardContent>

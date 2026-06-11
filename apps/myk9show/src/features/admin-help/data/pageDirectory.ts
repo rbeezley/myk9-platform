@@ -294,16 +294,6 @@ export const pageDirectory: readonly PageEntry[] = [
     status: 'working',
     linksTo: ['/shows/:showId/results-control', '/shows/:showId/reports'],
   },
-  {
-    path: '/secretary/run-order',
-    title: 'Run Order',
-    description: 'Drag-and-drop run order for trial classes; assign judges per class.',
-    roles: [UserRole.SECRETARY],
-    classification: 'critical-path',
-    category: 'Trial Operations',
-    status: 'working',
-    linksTo: [],
-  },
 
   // =========================
   // EXHIBITOR / PUBLIC

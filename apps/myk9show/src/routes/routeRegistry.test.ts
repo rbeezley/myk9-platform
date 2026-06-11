@@ -10,6 +10,7 @@ describe('routeRegistry', () => {
   it('registers the canonical secretary show creation wizard route', () => {
     expect(secretaryRouteComponents['/secretary/create-show/wizard']).toBeDefined();
     expect(secretaryRouteComponents['/secretary/classes']).toBeUndefined();
+    expect(secretaryRouteComponents['/secretary/run-order']).toBeUndefined();
   });
 
   it('preloads the canonical show creation route from the secretary dashboard', () => {
@@ -42,5 +43,9 @@ describe('routeRegistry', () => {
     expect(getRouteImportFunction('/secretary/shows/show-42/legacy/path')).toBe(
       secretaryRouteComponents['/secretary/shows/:showId/*']
     );
+  });
+
+  it('does not preload legacy standalone run order as a direct page', () => {
+    expect(getRouteImportFunction('/secretary/run-order')).toBeNull();
   });
 });

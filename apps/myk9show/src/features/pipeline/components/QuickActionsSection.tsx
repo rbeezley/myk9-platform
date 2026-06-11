@@ -72,7 +72,7 @@ export function QuickActionsSection({
         title="Active Trials"
         subtitle="not yet completed"
         ctaLabel="Day of Ops"
-        href="/secretary/day-of-operations"
+        href={`/shows/${showId}/show-desk`}
         borderClass="border-amber-500"
         numberClass="text-amber-400"
       />

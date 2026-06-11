@@ -769,13 +769,16 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   async clearCache(): Promise<void> {
     await this.batchManager.clearCache();
 
-    // Also reset sync metadata so next sync does a full fetch
+    // Also reset sync metadata so next sync does a full fetch. `scopes: {}` clears
+    // every per-scope watermark too, so a scoped sync after clearCache re-fetches
+    // from epoch rather than reading a stale scoped watermark.
     await this.cacheManager.updateSyncMetadata({
       lastFullSyncAt: 0,
       lastIncrementalSyncAt: 0,
       totalRows: 0,
       syncStatus: 'idle',
       errorMessage: undefined,
+      scopes: {},
     });
     this.logger.log(`[${this.tableName}] Sync metadata reset`);
   }
@@ -814,12 +817,12 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     return this.cacheManager.evictLRU(targetSizeBytes);
   }
 
-  async getSyncMetadata(): Promise<SyncMetadata | null> {
-    return this.cacheManager.getSyncMetadata();
+  async getSyncMetadata(scopeValue?: string): Promise<SyncMetadata | null> {
+    return this.cacheManager.getSyncMetadata(scopeValue);
   }
 
-  async updateSyncMetadata(updates: Partial<SyncMetadata>): Promise<void> {
-    return this.cacheManager.updateSyncMetadata(updates);
+  async updateSyncMetadata(updates: Partial<SyncMetadata>, scopeValue?: string): Promise<void> {
+    return this.cacheManager.updateSyncMetadata(updates, scopeValue);
   }
 
   // ========================================

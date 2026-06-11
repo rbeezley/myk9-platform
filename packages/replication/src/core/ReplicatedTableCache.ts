@@ -9,7 +9,7 @@
  */
 
 import type { IDBPDatabase } from 'idb';
-import type { ReplicatedRow, SyncMetadata, CacheStats } from '../types';
+import type { ReplicatedRow, SyncMetadata, ScopeSyncState, CacheStats } from '../types';
 import type { Logger } from '../dependencies';
 import { REPLICATION_STORES } from './DatabaseManager';
 import { NOTIFY_DEBOUNCE_MS } from '../constants';
@@ -320,14 +320,23 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
   // ========================================
 
   /**
-   * Get sync metadata for this table
+   * Get sync metadata for this table.
+   *
+   * When `scopeValue` is provided, the returned `lastIncrementalSyncAt` and
+   * `totalRows` are projected from that scope's `scopes[scopeValue]` sub-record
+   * (defaulting to `0` when the scope has never synced). Callers therefore read
+   * a scope-correct watermark without any branching. When `scopeValue` is
+   * `undefined`, the raw table-global row is returned unchanged (back-compat).
    */
-  async getSyncMetadata(): Promise<SyncMetadata | null> {
+  async getSyncMetadata(scopeValue?: string): Promise<SyncMetadata | null> {
     const METADATA_TIMEOUT_MS = 5000;
 
     const readPromise = (async () => {
       const db = await this.getDb();
-      return await db.get(REPLICATION_STORES.SYNC_METADATA, this.tableName) as SyncMetadata | null;
+      const row = (await db.get(REPLICATION_STORES.SYNC_METADATA, this.tableName)) as
+        | SyncMetadata
+        | undefined;
+      return this.projectScopedMetadata(row ?? null, scopeValue);
     })();
 
     const timeoutPromise = new Promise<never>((_, reject) => {
@@ -345,9 +354,45 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
   }
 
   /**
-   * Update sync metadata (with atomic increment for numeric fields)
+   * Overlay the per-scope watermark/row-count onto the returned metadata so the
+   * scope-sensitive fields reflect `scopes[scopeValue]` rather than the shared
+   * table-global slot. Missing scope → watermark of `0` (forces a fetch from
+   * epoch, which is safe: it can never skip rows).
    */
-  async updateSyncMetadata(updates: Partial<SyncMetadata>): Promise<void> {
+  private projectScopedMetadata(
+    row: SyncMetadata | null,
+    scopeValue?: string
+  ): SyncMetadata | null {
+    if (!row || scopeValue === undefined) {
+      return row;
+    }
+    const scoped = row.scopes?.[scopeValue];
+    const projected: SyncMetadata = {
+      ...row,
+      lastIncrementalSyncAt: scoped?.lastIncrementalSyncAt ?? 0,
+    };
+    // totalRows is scope-specific. Replace the spread-in table-global value with
+    // this scope's count, and DROP it entirely for a scope that has never synced
+    // — otherwise a brand-new scope would report a stale legacy/unscoped count.
+    if (scoped?.totalRows !== undefined) {
+      projected.totalRows = scoped.totalRows;
+    } else {
+      delete projected.totalRows;
+    }
+    return projected;
+  }
+
+  /**
+   * Update sync metadata (with atomic increment for numeric fields).
+   *
+   * When `scopeValue` is provided, the scope-sensitive fields
+   * (`lastIncrementalSyncAt`, `totalRows`) are routed into `scopes[scopeValue]`
+   * instead of the table-global slot — table-global fields (`syncStatus`,
+   * `errorMessage`, `conflictCount`, `pendingMutations`) still update globally.
+   * The full `scopes` map is always preserved across calls so an unscoped
+   * status-only update can't wipe other scopes' watermarks.
+   */
+  async updateSyncMetadata(updates: Partial<SyncMetadata>, scopeValue?: string): Promise<void> {
     const METADATA_TIMEOUT_MS = 5000;
 
     const updatePromise = (async () => {
@@ -365,6 +410,39 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
         atomicUpdates.pendingMutations = (existing.pendingMutations || 0) + updates.pendingMutations;
       }
 
+      // Per-scope watermark routing. Scope-sensitive fields belong to the
+      // scope's sub-record so a sync under scope B can't advance scope A's
+      // `since` past rows A hasn't fetched yet.
+      let scopes = existing?.scopes;
+      if (scopeValue !== undefined) {
+        const prevScope = existing?.scopes?.[scopeValue];
+        const nextWatermark =
+          updates.lastIncrementalSyncAt ?? prevScope?.lastIncrementalSyncAt ?? 0;
+        const nextScope: ScopeSyncState = { lastIncrementalSyncAt: nextWatermark };
+        const nextTotalRows = updates.totalRows ?? prevScope?.totalRows;
+        if (nextTotalRows !== undefined) {
+          nextScope.totalRows = nextTotalRows;
+        }
+        scopes = { ...existing?.scopes, [scopeValue]: nextScope };
+
+        // Mirror an informational, monotonic "last incremental sync across ANY
+        // scope" onto the table-global field so unscoped getSyncMetadata() reads
+        // stay meaningful (e.g. a "last synced" UI indicator). The scoped READ
+        // path — getSyncMetadata(scopeValue) — NEVER consults this; it uses
+        // scopes[scopeValue] defaulting to 0. So this mirror cannot reintroduce
+        // cross-scope row-skipping.
+        if (updates.lastIncrementalSyncAt !== undefined) {
+          atomicUpdates.lastIncrementalSyncAt = Math.max(
+            existing?.lastIncrementalSyncAt ?? 0,
+            updates.lastIncrementalSyncAt
+          );
+        } else {
+          delete atomicUpdates.lastIncrementalSyncAt;
+        }
+        // totalRows has no meaningful table-global aggregate — keep it scope-only.
+        delete atomicUpdates.totalRows;
+      }
+
       const metadata: SyncMetadata = {
         tableName: this.tableName,
         lastFullSyncAt: existing?.lastFullSyncAt || 0,
@@ -372,6 +450,7 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
         syncStatus: existing?.syncStatus || 'idle',
         conflictCount: existing?.conflictCount || 0,
         pendingMutations: existing?.pendingMutations || 0,
+        ...(scopes !== undefined && { scopes }),
         ...atomicUpdates,
       };
 

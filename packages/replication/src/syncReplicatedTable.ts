@@ -95,7 +95,11 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       await options.uploadPendingMutations();
     }
 
-    const metadata = await table.getSyncMetadata();
+    // Read the watermark for THIS scope. A table synced under multiple scopes
+    // (e.g. entries: global '' from the provider AND per-show from show-day pages)
+    // keeps an independent watermark per scope, so one scope's advance can't push
+    // another's `since` past unsynced rows. See ScopeSyncState in types.ts.
+    const metadata = await table.getSyncMetadata(scope.value);
     const localRows = await getLocalRowsForScope();
     const forceFullSync = options.forceFullSync === true || localRows.length === 0;
     const rawSince = forceFullSync ? 0 : metadata?.lastIncrementalSyncAt || 0;
@@ -212,13 +216,18 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
 
     await adapter.afterSuccessfulSync?.({ scope, serverIds, localRows });
 
-    await table.updateSyncMetadata({
-      lastIncrementalSyncAt: Date.now(),
-      syncStatus: 'idle',
-      errorMessage: undefined,
-      conflictCount: conflictsResolved,
-      totalRows: (await getLocalRowsForScope()).length,
-    });
+    // Persist the advanced watermark + row count under THIS scope; syncStatus,
+    // errorMessage and conflictCount remain table-global.
+    await table.updateSyncMetadata(
+      {
+        lastIncrementalSyncAt: Date.now(),
+        syncStatus: 'idle',
+        errorMessage: undefined,
+        conflictCount: conflictsResolved,
+        totalRows: (await getLocalRowsForScope()).length,
+      },
+      scope.value
+    );
 
     return {
       tableName: table.getTableName(),

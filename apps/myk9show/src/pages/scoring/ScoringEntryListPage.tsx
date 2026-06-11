@@ -175,8 +175,12 @@ export function ScoringEntryListPage() {
     if (!classId) return;
     setIsLoading(true);
     try {
-      // Trigger sync then reload with dog data
-      await replicatedEntriesTable.sync(classId);
+      // Trigger sync then reload with dog data.
+      // The entries adapter scopes by `show_id` (see ReplicatedEntriesTable.sync),
+      // so it must be passed the SHOW id, not the classId — passing classId filtered
+      // `.eq('show_id', classId)` and matched zero rows. Falls back to '' (a global
+      // entries sync) only if the breadcrumb hierarchy hasn't resolved yet.
+      await replicatedEntriesTable.sync(breadcrumb.showId ?? '');
       setEntries(await loadEntriesWithDogs(classId));
     } catch (err) {
       logger.error('Refresh failed:', 'pages', {}, err as Error);

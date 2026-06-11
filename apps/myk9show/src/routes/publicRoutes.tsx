@@ -23,6 +23,10 @@ import { UserRole } from '@/types/auth-types';
 import BrowseDogsPage from '@/pages/BrowseDogsPage';
 import DogDetailPage from '@/pages/DogDetailPage';
 import ShowDetailsPrototype from '@/pages/ShowDetailsPrototype';
+import {
+  SHOW_MANAGEMENT_SECTIONS,
+  type ShowManagementSectionPath,
+} from './showManagementSections';
 
 function featurePage(enabled: boolean, page: ReactNode, coming: ComingSoonPageProps): ReactNode {
   return enabled ? (
@@ -83,6 +87,15 @@ const CartPage = lazy(() => import('@/pages/CartPage'));
 const CheckoutSuccessPage = lazy(() => import('@/pages/CheckoutSuccessPage'));
 const CheckoutCancelPage = lazy(() => import('@/pages/CheckoutCancelPage'));
 
+const SHOW_MANAGEMENT_SECTION_ELEMENTS: Record<ShowManagementSectionPath, ReactNode> = {
+  setup: <ShowWorkbenchSetupPage />,
+  'show-desk': <ShowWorkbenchShowDeskPage />,
+  'entry-management': <EntryManagementPage />,
+  reports: <ReportsPage />,
+  'results-control': <ResultsControlPage />,
+  'submit-results': <ResultsSubmissionPage />,
+};
+
 function ShowManagementSectionRoute({ children }: { children: ReactNode }) {
   const { id } = useParams<{ id?: string }>();
   const canonicalShowPath = id ? `/shows/${id}` : '/shows';
@@ -122,66 +135,17 @@ export const PublicRoutes = () => (
         </SuspenseWrapper>
       }
     >
-      <Route
-        path="setup"
-        element={
-          <ShowManagementSectionRoute>
-            <SuspenseWrapper>
-              <ShowWorkbenchSetupPage />
-            </SuspenseWrapper>
-          </ShowManagementSectionRoute>
-        }
-      />
-      <Route
-        path="show-desk"
-        element={
-          <ShowManagementSectionRoute>
-            <SuspenseWrapper>
-              <ShowWorkbenchShowDeskPage />
-            </SuspenseWrapper>
-          </ShowManagementSectionRoute>
-        }
-      />
-      <Route
-        path="entry-management"
-        element={
-          <ShowManagementSectionRoute>
-            <SuspenseWrapper>
-              <EntryManagementPage />
-            </SuspenseWrapper>
-          </ShowManagementSectionRoute>
-        }
-      />
-      <Route
-        path="reports"
-        element={
-          <ShowManagementSectionRoute>
-            <SuspenseWrapper>
-              <ReportsPage />
-            </SuspenseWrapper>
-          </ShowManagementSectionRoute>
-        }
-      />
-      <Route
-        path="results-control"
-        element={
-          <ShowManagementSectionRoute>
-            <SuspenseWrapper>
-              <ResultsControlPage />
-            </SuspenseWrapper>
-          </ShowManagementSectionRoute>
-        }
-      />
-      <Route
-        path="submit-results"
-        element={
-          <ShowManagementSectionRoute>
-            <SuspenseWrapper>
-              <ResultsSubmissionPage />
-            </SuspenseWrapper>
-          </ShowManagementSectionRoute>
-        }
-      />
+      {SHOW_MANAGEMENT_SECTIONS.map(({ path }) => (
+        <Route
+          key={path}
+          path={path}
+          element={
+            <ShowManagementSectionRoute>
+              <SuspenseWrapper>{SHOW_MANAGEMENT_SECTION_ELEMENTS[path]}</SuspenseWrapper>
+            </ShowManagementSectionRoute>
+          }
+        />
+      ))}
     </Route>
 
     <Route

@@ -77,17 +77,9 @@ import { countCatalogEntries } from '@/features/show-map/entryCounts';
 import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
 import { ShowPresenceStack } from '@/features/show-presence/ShowPresenceStack';
 import { LiveUpdateIndicator } from '@/features/show-live-sync/LiveUpdateIndicator';
+import { SHOW_MANAGEMENT_SECTIONS } from '@/routes/showManagementSections';
 
 const ShowMapTab = React.lazy(() => import('@/features/show-map/ShowMapTab'));
-
-const SHOW_MANAGEMENT_NAV = [
-  { label: 'Setup', path: 'setup' },
-  { label: 'Show Desk', path: 'show-desk' },
-  { label: 'Entry Management', path: 'entry-management' },
-  { label: 'Reports', path: 'reports' },
-  { label: 'Results Control', path: 'results-control' },
-  { label: 'Submit Results', path: 'submit-results' },
-] as const;
 
 const ENTRY_STATUS_HERO_VARIANT: Record<
   EntryStatus,
@@ -221,7 +213,7 @@ const ShowDetailsPage: React.FC = () => {
   const activeManagementSection = managementSectionMatch?.params.section;
   const isManagementSection = Boolean(
     activeManagementSection &&
-      SHOW_MANAGEMENT_NAV.some(item => item.path === activeManagementSection)
+      SHOW_MANAGEMENT_SECTIONS.some(item => item.path === activeManagementSection)
   );
 
   useEffect(() => {
@@ -618,7 +610,7 @@ const ShowDetailsPage: React.FC = () => {
             data-testid="canonical-show-management-nav"
           >
             <div className="flex overflow-x-auto px-4 sm:px-6">
-              {SHOW_MANAGEMENT_NAV.map(({ label, path }) => {
+              {SHOW_MANAGEMENT_SECTIONS.map(({ label, path }) => {
                 const href = `${canonicalShowHref}/${path}`;
                 const isActive = activeManagementSection === path;
                 return (

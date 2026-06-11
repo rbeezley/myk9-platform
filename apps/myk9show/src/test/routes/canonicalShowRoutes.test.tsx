@@ -4,6 +4,10 @@ import { MemoryRouter, Navigate, Outlet, Route, Routes, useLocation } from 'reac
 import { describe, expect, it, vi } from 'vitest';
 import { LegacySecretaryShowRedirect } from '@/routes/showRouteRedirects';
 import { PublicRoutes } from '@/routes/publicRoutes';
+import {
+  SHOW_MANAGEMENT_SECTIONS,
+  type ShowManagementSectionPath,
+} from '@/routes/showManagementSections';
 
 const mockCanManage = vi.hoisted(() => ({ value: false }));
 
@@ -45,6 +49,39 @@ vi.mock('@/pages/ShowDetailsPage', async () => {
 vi.mock('@/pages/secretary/ShowWorkbenchShowDeskPage', () => ({
   ShowWorkbenchShowDeskPage: () => <div data-testid="production-show-desk">Show Desk</div>,
 }));
+vi.mock('@/pages/secretary/ShowWorkbenchSetupPage', () => ({
+  ShowWorkbenchSetupPage: () => <div data-testid="production-setup">Setup</div>,
+}));
+vi.mock('@/pages/secretary/EntryManagementPage', () => ({
+  default: () => <div data-testid="production-entry-management">Entry Management</div>,
+}));
+vi.mock('@/pages/secretary/ReportsPage', () => ({
+  default: () => <div data-testid="production-reports">Reports</div>,
+}));
+vi.mock('@/pages/secretary/ResultsControlPage', () => ({
+  default: () => <div data-testid="production-results-control">Results Control</div>,
+}));
+vi.mock('@/pages/secretary/ResultsSubmissionPage', () => ({
+  default: () => <div data-testid="production-submit-results">Submit Results</div>,
+}));
+
+const PRODUCTION_SECTION_TEST_IDS: Record<ShowManagementSectionPath, string> = {
+  setup: 'production-setup',
+  'show-desk': 'production-show-desk',
+  'entry-management': 'production-entry-management',
+  reports: 'production-reports',
+  'results-control': 'production-results-control',
+  'submit-results': 'production-submit-results',
+};
+
+const HARNESS_SECTION_TEST_IDS: Record<ShowManagementSectionPath, string> = {
+  setup: 'setup-section',
+  'show-desk': 'show-desk-section',
+  'entry-management': 'entries-section',
+  reports: 'reports-section',
+  'results-control': 'results-control-section',
+  'submit-results': 'submit-results-section',
+};
 
 function LocationProbe() {
   const location = useLocation();
@@ -134,21 +171,35 @@ describe('canonical show route redirects', () => {
 });
 
 describe('canonical show management routes', () => {
-  it.each([
-    ['/shows/show-1/setup', 'setup-section'],
-    ['/shows/show-1/show-desk', 'show-desk-section'],
-    ['/shows/show-1/entry-management', 'entries-section'],
-    ['/shows/show-1/reports', 'reports-section'],
-    ['/shows/show-1/results-control', 'results-control-section'],
-    ['/shows/show-1/submit-results', 'submit-results-section'],
-  ])('renders %s at the canonical section path', async (path, sectionTestId) => {
+  it.each(SHOW_MANAGEMENT_SECTIONS.map(({ path }) => [`/shows/show-1/${path}`, path] as const))(
+    'renders %s at the canonical section path',
+    async (path, sectionPath) => {
+      render(
+        <MemoryRouter initialEntries={[path]}>
+          <CanonicalShowRouteHarness />
+        </MemoryRouter>
+      );
+
+      expect(await screen.findByTestId('show-shell')).toBeInTheDocument();
+      expect(screen.getByTestId(HARNESS_SECTION_TEST_IDS[sectionPath])).toBeInTheDocument();
+    }
+  );
+
+  it.each(
+    SHOW_MANAGEMENT_SECTIONS.map(({ path }) => [
+      `/shows/show-1/${path}`,
+      PRODUCTION_SECTION_TEST_IDS[path],
+    ] as const)
+  )('renders %s through the production PublicRoutes tree', async (path, sectionTestId) => {
+    mockCanManage.value = true;
+
     render(
       <MemoryRouter initialEntries={[path]}>
-        <CanonicalShowRouteHarness />
+        <Routes>{PublicRoutes()}</Routes>
       </MemoryRouter>
     );
 
-    expect(await screen.findByTestId('show-shell')).toBeInTheDocument();
+    expect(await screen.findByTestId('production-show-details')).toBeInTheDocument();
     expect(screen.getByTestId(sectionTestId)).toBeInTheDocument();
   });
 

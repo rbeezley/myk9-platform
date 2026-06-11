@@ -341,7 +341,7 @@ const TrialDetailsPage: React.FC = () => {
                     size="sm"
                     onClick={() =>
                       navigate(
-                        `/secretary/shows/${currentTrial?.showId || showId}/entry-management?trial=${trialId}`
+                        `/shows/${currentTrial?.showId || showId}/entry-management?trial=${trialId}`
                       )
                     }
                   >

@@ -13,15 +13,15 @@ import {
  *
  * Phase 2 re-walk proof for the post-Phase-A-through-F secretary show-day arc.
  * The fixture is the shared Heritage/June 2026 managed show used by recent
- * secretary workbench audits.
+ * secretary show management audits.
  */
 
 test.describe.configure({ mode: 'serial' });
 
 const SHOW_ID = '4584f257-19b5-4016-aae6-5e7827b769cb';
 const TRIAL_ID = 'cc5065ce-797b-4d07-9611-894dcc2670b8';
-const WORKBENCH_PATH = `/secretary/shows/${SHOW_ID}`;
-const REPORT_PATH = `/secretary/shows/${SHOW_ID}/reports?report=trial-secretary-report&trialId=${TRIAL_ID}`;
+const SETUP_PATH = `/shows/${SHOW_ID}/setup`;
+const REPORT_PATH = `/shows/${SHOW_ID}/reports?report=trial-secretary-report&trialId=${TRIAL_ID}`;
 const healthByTest = new Map<string, BrowserHealth>();
 
 test.describe('Phase 2 secretary show-day re-walk', () => {
@@ -45,14 +45,15 @@ test.describe('Phase 2 secretary show-day re-walk', () => {
   test('walks Setup, Show Desk row actions, and closeout without blockers', async ({
     page,
   }, testInfo) => {
-    await openWorkbench(page);
+    await openShowSetup(page);
 
-    await expect(page.getByRole('tab', { name: 'Setup' })).toBeVisible();
-    await expect(page.getByRole('tab', { name: 'Show Desk' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Setup' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Show Desk' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'About Setup' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Premium List' })).toBeVisible();
 
-    await page.getByRole('tab', { name: 'Show Desk' }).click();
+    await page.getByRole('link', { name: 'Show Desk' }).click();
+    await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}/show-desk`));
     await page.getByRole('button', { name: /open tools panel/i }).click();
     const toolsPanel = page.getByRole('dialog', { name: /show desk tools/i });
     await expect(toolsPanel).toBeVisible({ timeout: 10000 });
@@ -81,7 +82,7 @@ test.describe('Phase 2 secretary show-day re-walk', () => {
     await signInAsSecretary(page, REPORT_PATH);
 
     await expect(page.getByRole('heading', { name: 'Reports' })).toBeVisible({ timeout: 15000 });
-    await expect(page).toHaveURL(new RegExp('/secretary/shows/[^/]+/reports'));
+    await expect(page).toHaveURL(new RegExp('/shows/[^/]+/reports'));
     await expect(page.locator('body')).toContainText('QA Walk Show 1777260779');
     await expect(page.locator('body')).toContainText('trial-secretary-report');
     await expect(
@@ -92,10 +93,10 @@ test.describe('Phase 2 secretary show-day re-walk', () => {
   });
 });
 
-async function openWorkbench(page: Page) {
-  await signInAsSecretary(page, WORKBENCH_PATH);
-  await expect(page).toHaveURL(new RegExp(`/secretary/shows/${SHOW_ID}`));
-  await expect(page.getByRole('heading', { name: /workbench$/i })).toBeVisible({
+async function openShowSetup(page: Page) {
+  await signInAsSecretary(page, SETUP_PATH);
+  await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}/setup`));
+  await expect(page.getByRole('heading', { name: 'Setup', exact: true })).toBeVisible({
     timeout: 15000,
   });
 }

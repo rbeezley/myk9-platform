@@ -29,8 +29,8 @@ import { SelfCheckinSection } from './SelfCheckinSection';
 const getClassId = (c: { id: string }) => c.id;
 
 export default function ResultsControlPage() {
-  const { showId: rawShowId } = useParams<{ showId: string }>();
-  const showId = rawShowId!;
+  const params = useParams<{ showId?: string; id?: string }>();
+  const showId = params.showId ?? params.id ?? '';
   const { trials } = useTrialStore();
   const { classes } = useClassStore();
 

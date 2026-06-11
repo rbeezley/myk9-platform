@@ -3,11 +3,11 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ShowContextNav } from './ShowContextNav';
 
-function renderNav(path = '/secretary/shows/show-42') {
+function renderNav(path = '/shows/show-42/setup') {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route path="/secretary/shows/:showId/*" element={<ShowContextNav />} />
+        <Route path="/shows/:showId/*" element={<ShowContextNav />} />
       </Routes>
     </MemoryRouter>
   );
@@ -22,11 +22,11 @@ describe('ShowContextNav', () => {
     }
   });
 
-  it('Setup link points to the show base path', () => {
+  it('Setup link points to the canonical setup sub-route', () => {
     renderNav();
     expect(screen.getByRole('link', { name: 'Setup' })).toHaveAttribute(
       'href',
-      '/secretary/shows/show-42'
+      '/shows/show-42/setup'
     );
   });
 
@@ -34,26 +34,42 @@ describe('ShowContextNav', () => {
     renderNav();
     expect(screen.getByRole('link', { name: 'Show Desk' })).toHaveAttribute(
       'href',
-      '/secretary/shows/show-42/show-desk'
+      '/shows/show-42/show-desk'
     );
   });
 
-  it('marks Setup as active on the base path', () => {
-    renderNav('/secretary/shows/show-42');
+  it('marks Setup as active on the setup path', () => {
+    renderNav('/shows/show-42/setup');
     expect(screen.getByRole('link', { name: 'Setup' })).toHaveAttribute('aria-current', 'page');
   });
 
   it('marks Show Desk as active on the show-desk path', () => {
-    renderNav('/secretary/shows/show-42/show-desk');
+    renderNav('/shows/show-42/show-desk');
     expect(screen.getByRole('link', { name: 'Show Desk' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: 'Setup' })).not.toHaveAttribute('aria-current', 'page');
   });
 
+  it('supports canonical routes that use an id param name', () => {
+    render(
+      <MemoryRouter initialEntries={['/shows/show-42/reports']}>
+        <Routes>
+          <Route path="/shows/:id/*" element={<ShowContextNav />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('link', { name: 'Reports' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Setup' })).toHaveAttribute(
+      'href',
+      '/shows/show-42/setup'
+    );
+  });
+
   it('renders nothing when showId is absent', () => {
     render(
-      <MemoryRouter initialEntries={['/secretary/shows']}>
+      <MemoryRouter initialEntries={['/shows']}>
         <Routes>
-          <Route path="/secretary/shows" element={<ShowContextNav />} />
+          <Route path="/shows" element={<ShowContextNav />} />
         </Routes>
       </MemoryRouter>
     );

@@ -44,12 +44,6 @@ Descoped from the shipped #602–#604 MVP. Not blockers for the enabled flag; bu
 
 ---
 
-## Secretary Workbench — Show Card UI
-
-- [ ] **Restore 3-dot menu + edit capability on secretary workbench show card** — The 3-dot overflow menu and direct edit affordance on the show card were lost (likely in the workbench collapse/sidebar refactor). The publish/status button also needs to move from bottom-right of the card to top-right. Files: `apps/myk9show/src/features/show-map/` and `apps/myk9show/src/pages/secretary/SecretaryShowPage.tsx`. Full context in TO-DOS.md § "Secretary Workbench Show Card — lost 3-dot menu and publish button position".
-
----
-
 ## Show Map
 
 - [ ] **Add "All Exhibitors" by-dog view to Show Map** — A collapsible top-level row that lists every dog (exhibitor) in the show; expanding a dog row shows that dog's class entries — a dog-pivot of the existing `trial → class → entry` tree (`All Exhibitors | dog | entries` vs `trials | classes | entries`). Mirrors myK9Q's home-page exhibitor list. Reuse the show-map tree primitives, don't fetch new data. Files: `apps/myk9show/src/features/show-map/showMapTree.ts`, `showMapTypes.ts`, `ShowMapStructureTable.tsx`, `ShowMapTab.tsx`. Full context in TO-DOS.md § "All Exhibitors by-dog view on Show Map".

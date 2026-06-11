@@ -205,7 +205,7 @@ const ClassDetailsPage: React.FC = () => {
             size="sm"
             onClick={() =>
               navigate(
-                `/secretary/shows/${parentShow.id}/entry-management?trial=${trialId || currentClass?.trialId}`
+                `/shows/${parentShow.id}/entry-management?trial=${trialId || currentClass?.trialId}`
               )
             }
           >
@@ -225,9 +225,7 @@ const ClassDetailsPage: React.FC = () => {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             {(isSecretary || isAdmin) && parentShow?.id && (
-              <DropdownMenuItem
-                onClick={() => navigate(`/secretary/shows/${parentShow.id}/show-desk`)}
-              >
+              <DropdownMenuItem onClick={() => navigate(`/shows/${parentShow.id}/show-desk`)}>
                 <LayoutDashboard className="mr-2 h-4 w-4" />
                 Open in Workbench
               </DropdownMenuItem>

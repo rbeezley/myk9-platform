@@ -2,7 +2,7 @@ import React, { Suspense, useState, useEffect, useMemo } from 'react';
 import { getShowStyle } from '@/features/registries';
 import { publishExperience } from '@/features/experience/publishExperience';
 import { STYLED_LANDING_BY_STYLE } from '@/features/_shared/styledLandingRegistry';
-import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, Outlet, useParams, useNavigate, useSearchParams, useMatch } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   LayoutDashboard,
@@ -14,6 +14,7 @@ import {
   Trash2,
   Pencil,
   ListTree,
+  MoreHorizontal,
 } from 'lucide-react';
 import { TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -61,6 +62,7 @@ import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
 import { LandingPageCard } from '@/features/premium/LandingPageCard';
 import { notifications } from '@/lib/notifications';
 import { features } from '@/config/features';
+import { cn } from '@/lib/utils';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
@@ -75,6 +77,7 @@ import { countCatalogEntries } from '@/features/show-map/entryCounts';
 import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
 import { ShowPresenceStack } from '@/features/show-presence/ShowPresenceStack';
 import { LiveUpdateIndicator } from '@/features/show-live-sync/LiveUpdateIndicator';
+import { SHOW_MANAGEMENT_SECTIONS } from '@/routes/showManagementSections';
 
 const ShowMapTab = React.lazy(() => import('@/features/show-map/ShowMapTab'));
 
@@ -147,6 +150,7 @@ const ShowDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const managementSectionMatch = useMatch('/shows/:id/:section');
   const { endNavigation } = useNavigationPerformance();
   const { user, userWithRoles, isSecretary, isAdmin, hasRole } = useAuthContext();
   const trials = useTrialStore(s => s.trials);
@@ -205,6 +209,12 @@ const ShowDetailsPage: React.FC = () => {
 
   const { data: armbandCount } = useArmbandCount(actualCurrentShow?.id);
   const canManageShow = isSecretary || isAdmin;
+  const canonicalShowHref = actualCurrentShow?.id ? `/shows/${actualCurrentShow.id}` : '';
+  const activeManagementSection = managementSectionMatch?.params.section;
+  const isManagementSection = Boolean(
+    activeManagementSection &&
+      SHOW_MANAGEMENT_SECTIONS.some(item => item.path === activeManagementSection)
+  );
 
   useEffect(() => {
     if (!id) return;
@@ -354,10 +364,6 @@ const ShowDetailsPage: React.FC = () => {
     }
   }
 
-  const workbenchHref = actualCurrentShow?.id
-    ? `/secretary/shows/${actualCurrentShow.id}`
-    : undefined;
-
   // Breadcrumbs for PageHeader
   const breadcrumbs = useMemo(
     () => [
@@ -459,7 +465,13 @@ const ShowDetailsPage: React.FC = () => {
   // enforces it), so any explicit style is guaranteed to resolve to a
   // component. The `hasExplicitStyle` gate skips the styled path
   // entirely when no style is set.
-  if (hasExplicitStyle && !isSecretary && !isAdmin && !hasRole('club_admin')) {
+  if (
+    hasExplicitStyle &&
+    !isManagementSection &&
+    !isSecretary &&
+    !isAdmin &&
+    !hasRole('club_admin')
+  ) {
     // For authenticated users, wait for entries to resolve before deciding
     // which experience to render — avoids flashing the landing page briefly.
     if (user && userEntriesLoading) {
@@ -524,36 +536,24 @@ const ShowDetailsPage: React.FC = () => {
           closedMessage={
             !canManageShow && !entryStatus.canEnter ? entryStatus.description : undefined
           }
-          secondaryActions={
-            <div className="flex flex-wrap items-center justify-end gap-3">
-              <LiveUpdateIndicator />
-              <ShowPresenceStack />
-              {canManageShow ? (
-              <div className="flex flex-wrap items-center gap-2">
+          headerActions={
+            canManageShow ? (
+              <>
+                <LiveUpdateIndicator />
+                <ShowPresenceStack />
                 <ShowStatusPill showId={actualCurrentShow.id} status={actualCurrentShow.status} />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="outline"
-                      size="sm"
-                      aria-label="More actions"
-                      className="min-h-[44px] sm:min-h-8"
+                      size="icon"
+                      aria-label="More show actions"
+                      className="h-10 w-10 sm:h-9 sm:w-9"
                     >
-                      <span className="text-base leading-none tracking-widest">···</span>
+                      <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    {workbenchHref && (
-                      <>
-                        <DropdownMenuItem asChild>
-                          <Link to={workbenchHref}>
-                            <LayoutDashboard className="h-4 w-4 mr-2" />
-                            Manage in Workbench
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                      </>
-                    )}
                     <DropdownMenuItem onClick={() => setShowEditPanel(true)}>
                       <Pencil className="h-4 w-4 mr-2" />
                       Edit
@@ -568,25 +568,31 @@ const ShowDetailsPage: React.FC = () => {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+              </>
+            ) : undefined
+          }
+          secondaryActions={
+            !canManageShow ? (
+              <div className="flex flex-wrap items-center justify-end gap-3">
+                {entryStatus.canEnter ? (
+                  <button
+                    className="min-h-[44px] sm:h-9 px-5 text-sm font-medium rounded-md inline-flex items-center gap-2 transition-colors bg-[#c96442] hover:bg-[#b45a3a] text-[#faf9f5] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3898ec] focus-visible:ring-offset-2"
+                    onClick={handleRegisterForShow}
+                  >
+                    {hasUserEntries ? 'Manage Entry' : 'Enter This Show'}
+                  </button>
+                ) : hasUserEntries ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="min-h-[44px] sm:min-h-8"
+                    onClick={handleRegisterForShow}
+                  >
+                    View Entry
+                  </Button>
+                ) : null}
               </div>
-            ) : entryStatus.canEnter ? (
-              <button
-                className="min-h-[44px] sm:h-9 px-5 text-sm font-medium rounded-md inline-flex items-center gap-2 transition-colors bg-[#c96442] hover:bg-[#b45a3a] text-[#faf9f5] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3898ec] focus-visible:ring-offset-2"
-                onClick={handleRegisterForShow}
-              >
-                {hasUserEntries ? 'Manage Entry' : 'Enter This Show'}
-              </button>
-            ) : hasUserEntries ? (
-              <Button
-                variant="outline"
-                size="sm"
-                className="min-h-[44px] sm:min-h-8"
-                onClick={handleRegisterForShow}
-              >
-                View Entry
-              </Button>
-            ) : null}
-            </div>
+            ) : undefined
           }
           footer={
             <QuickInfoCards
@@ -596,6 +602,36 @@ const ShowDetailsPage: React.FC = () => {
             />
           }
         />
+
+        {canManageShow && actualCurrentShow?.id && (
+          <nav
+            className="border-b border-border bg-background"
+            aria-label="Show management sections"
+            data-testid="canonical-show-management-nav"
+          >
+            <div className="flex overflow-x-auto px-4 sm:px-6">
+              {SHOW_MANAGEMENT_SECTIONS.map(({ label, path }) => {
+                const href = `${canonicalShowHref}/${path}`;
+                const isActive = activeManagementSection === path;
+                return (
+                  <Link
+                    key={path}
+                    to={href}
+                    aria-current={isActive ? 'page' : undefined}
+                    className={cn(
+                      'shrink-0 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition-colors',
+                      isActive
+                        ? 'border-primary text-foreground'
+                        : 'border-transparent text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    {label}
+                  </Link>
+                );
+              })}
+            </div>
+          </nav>
+        )}
 
         {canManageShow && (
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -607,7 +643,9 @@ const ShowDetailsPage: React.FC = () => {
           </div>
         )}
 
-        {isWaitingForExhibitorEntryDefault ? (
+        {isManagementSection ? (
+          <Outlet />
+        ) : isWaitingForExhibitorEntryDefault ? (
           <div className="mt-6">
             <LoadingSkeleton variant="cards" count={2} />
           </div>

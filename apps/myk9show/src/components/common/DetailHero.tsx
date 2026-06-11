@@ -25,6 +25,7 @@ interface DetailHeroProps {
   subtitle?: string | undefined;
   metadata?: MetadataItem[];
   badges?: HeroBadge[];
+  headerActions?: React.ReactNode;
   closedMessage?: string | undefined;
   primaryAction?: HeroAction;
   secondaryActions?: React.ReactNode;
@@ -46,14 +47,27 @@ export function DetailHero({
   subtitle,
   metadata,
   badges,
+  headerActions,
   closedMessage,
   primaryAction,
   secondaryActions,
   footer,
   className,
 }: DetailHeroProps) {
+  const hasSideActions = Boolean(secondaryActions || primaryAction || closedMessage);
+
   return (
-    <div className={cn('rounded-xl border border-border/50 bg-card overflow-hidden', className)}>
+    <div
+      className={cn(
+        'relative rounded-xl border border-border/50 bg-card overflow-hidden',
+        className
+      )}
+    >
+      {headerActions && (
+        <div className="absolute right-4 top-4 z-10 flex flex-wrap items-center justify-end gap-2 sm:right-6 sm:top-6">
+          {headerActions}
+        </div>
+      )}
       <div
         className={cn(
           'gap-4 sm:gap-6 p-6',
@@ -70,7 +84,12 @@ export function DetailHero({
               {eyebrow}
             </p>
           )}
-          <div className="flex items-center gap-3 flex-wrap">
+          <div
+            className={cn(
+              'flex min-w-0 flex-wrap items-center gap-3',
+              headerActions && 'pr-28 sm:pr-44'
+            )}
+          >
             <h2 className="text-2xl font-bold tracking-tight">{name}</h2>
             {badges?.map((badge, i) => (
               <span
@@ -97,21 +116,23 @@ export function DetailHero({
           )}
         </div>
 
-        <div className="flex flex-col items-end gap-2 w-full sm:w-auto sm:flex-shrink-0 self-start">
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            {secondaryActions}
-            {primaryAction && (
-              <button
-                onClick={primaryAction.onClick}
-                className="h-12 px-6 text-base font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors inline-flex items-center gap-2"
-              >
-                {primaryAction.icon}
-                {primaryAction.label}
-              </button>
-            )}
+        {hasSideActions && (
+          <div className="flex flex-col items-end gap-2 w-full sm:w-auto sm:flex-shrink-0 self-start">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {secondaryActions}
+              {primaryAction && (
+                <button
+                  onClick={primaryAction.onClick}
+                  className="h-12 px-6 text-base font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors inline-flex items-center gap-2"
+                >
+                  {primaryAction.icon}
+                  {primaryAction.label}
+                </button>
+              )}
+            </div>
+            {closedMessage && <p className="text-sm text-muted-foreground">{closedMessage}</p>}
           </div>
-          {closedMessage && <p className="text-sm text-muted-foreground">{closedMessage}</p>}
-        </div>
+        )}
       </div>
       {footer && <div className="border-t border-border/50 bg-muted/30">{footer}</div>}
     </div>

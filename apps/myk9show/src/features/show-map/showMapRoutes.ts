@@ -24,7 +24,7 @@ export function getShowMapClassScoringHref(classId: string): string {
 }
 
 export function getShowMapTrialScheduleHref(showId: string): string {
-  return `/secretary/shows/${showId}`;
+  return `/shows/${showId}/setup`;
 }
 
 export function getShowMapReportHref({
@@ -36,5 +36,5 @@ export function getShowMapReportHref({
   const params = new URLSearchParams({ report: reportId });
   if (trialId) params.set('trialId', trialId);
   if (classId) params.set('classId', classId);
-  return `/secretary/shows/${showId}/reports?${params.toString()}`;
+  return `/shows/${showId}/reports?${params.toString()}`;
 }

@@ -65,7 +65,7 @@ const permissionTests: PermissionTest[] = [
     id: 'show-dashboard-actions',
     name: 'Show Dashboard Quick Actions',
     description: 'Admin quick actions on show dashboard',
-    testPath: '/secretary/shows/*/dashboard',
+    testPath: '/shows/*/show-desk',
     expectedResult: {
       [UserRole.EXHIBITOR]: false, // Should only see limited actions
       [UserRole.SECRETARY]: true,

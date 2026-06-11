@@ -14,6 +14,7 @@ import {
   Trash2,
   Pencil,
   ListTree,
+  MoreHorizontal,
 } from 'lucide-react';
 import { TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -543,22 +544,21 @@ const ShowDetailsPage: React.FC = () => {
           closedMessage={
             !canManageShow && !entryStatus.canEnter ? entryStatus.description : undefined
           }
-          secondaryActions={
-            <div className="flex flex-wrap items-center justify-end gap-3">
-              <LiveUpdateIndicator />
-              <ShowPresenceStack />
-              {canManageShow ? (
-              <div className="flex flex-wrap items-center gap-2">
+          headerActions={
+            canManageShow ? (
+              <>
+                <LiveUpdateIndicator />
+                <ShowPresenceStack />
                 <ShowStatusPill showId={actualCurrentShow.id} status={actualCurrentShow.status} />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="outline"
-                      size="sm"
-                      aria-label="More actions"
-                      className="min-h-[44px] sm:min-h-8"
+                      size="icon"
+                      aria-label="More show actions"
+                      className="h-10 w-10 sm:h-9 sm:w-9"
                     >
-                      <span className="text-base leading-none tracking-widest">···</span>
+                      <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
@@ -576,25 +576,31 @@ const ShowDetailsPage: React.FC = () => {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+              </>
+            ) : undefined
+          }
+          secondaryActions={
+            !canManageShow ? (
+              <div className="flex flex-wrap items-center justify-end gap-3">
+                {entryStatus.canEnter ? (
+                  <button
+                    className="min-h-[44px] sm:h-9 px-5 text-sm font-medium rounded-md inline-flex items-center gap-2 transition-colors bg-[#c96442] hover:bg-[#b45a3a] text-[#faf9f5] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3898ec] focus-visible:ring-offset-2"
+                    onClick={handleRegisterForShow}
+                  >
+                    {hasUserEntries ? 'Manage Entry' : 'Enter This Show'}
+                  </button>
+                ) : hasUserEntries ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="min-h-[44px] sm:min-h-8"
+                    onClick={handleRegisterForShow}
+                  >
+                    View Entry
+                  </Button>
+                ) : null}
               </div>
-            ) : entryStatus.canEnter ? (
-              <button
-                className="min-h-[44px] sm:h-9 px-5 text-sm font-medium rounded-md inline-flex items-center gap-2 transition-colors bg-[#c96442] hover:bg-[#b45a3a] text-[#faf9f5] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3898ec] focus-visible:ring-offset-2"
-                onClick={handleRegisterForShow}
-              >
-                {hasUserEntries ? 'Manage Entry' : 'Enter This Show'}
-              </button>
-            ) : hasUserEntries ? (
-              <Button
-                variant="outline"
-                size="sm"
-                className="min-h-[44px] sm:min-h-8"
-                onClick={handleRegisterForShow}
-              >
-                View Entry
-              </Button>
-            ) : null}
-            </div>
+            ) : undefined
           }
           footer={
             <QuickInfoCards

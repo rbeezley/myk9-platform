@@ -192,17 +192,20 @@ vi.mock('@/components/common/PageHeader', () => ({
 vi.mock('@/components/common/DetailHero', () => ({
   DetailHero: ({
     name,
+    headerActions,
     primaryAction,
     secondaryActions,
   }: {
     name: string;
+    headerActions?: React.ReactNode;
     primaryAction?: { label: string; onClick: () => void };
     secondaryActions?: React.ReactNode;
   }) => (
     <div data-testid="detail-hero">
       {name}
+      <div data-testid="hero-header-actions">{headerActions}</div>
       {primaryAction && <button data-testid="hero-action">{primaryAction.label}</button>}
-      {secondaryActions}
+      <div data-testid="hero-secondary-actions">{secondaryActions}</div>
     </div>
   ),
 }));
@@ -454,8 +457,21 @@ describe('ShowDetailsPage', () => {
 
     renderPage();
 
-    expect(screen.getByRole('button', { name: /more actions/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /more show actions/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /premium list/i })).toBeNull();
+  });
+
+  it('keeps show manager status and overflow actions in the hero header slot', () => {
+    mockAuthContext.isSecretary = true;
+
+    renderPage();
+
+    const heroActions = screen.getByTestId('hero-header-actions');
+    expect(heroActions).toHaveTextContent('Upcoming');
+    expect(heroActions).toContainElement(
+      screen.getByRole('button', { name: /more show actions/i })
+    );
+    expect(screen.getByTestId('hero-secondary-actions')).toBeEmptyDOMElement();
   });
 
   it('shows canonical management nav for show managers', () => {
@@ -501,7 +517,7 @@ describe('ShowDetailsPage', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /more.*actions/i }));
+    fireEvent.click(screen.getByRole('button', { name: /more show actions/i }));
     expect(screen.getByRole('menuitem', { name: /edit/i })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /delete/i })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /preview public page/i })).not.toBeInTheDocument();

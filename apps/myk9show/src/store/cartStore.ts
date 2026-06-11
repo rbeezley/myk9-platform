@@ -476,7 +476,15 @@ export const useCartStore = create<CartState>()(
 
             const { error: updateError } = await supabase
               .from('entry_carts')
-              .update({ subtotal_cents: 0, platform_fee_cents: 0, total_cents: 0 })
+              .update({
+                subtotal_cents: 0,
+                platform_fee_cents: 0,
+                total_cents: 0,
+                // Sever the checkout-session link (see addItem) — paying an
+                // abandoned session after Clear Cart must not claim the empty
+                // cart (Codex round-4 P1).
+                stripe_checkout_session_id: null,
+              })
               .eq('id', cart.id);
 
             if (updateError) {
@@ -495,6 +503,7 @@ export const useCartStore = create<CartState>()(
                 subtotal_cents: 0,
                 platform_fee_cents: 0,
                 total_cents: 0,
+                stripe_checkout_session_id: null,
               },
               lastSyncedAt: new Date().toISOString(),
             });

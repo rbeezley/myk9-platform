@@ -373,6 +373,22 @@ async function handleEntryCheckout(
   if (cart.stripe_checkout_session_id) {
     try {
       const existing = await stripe.checkout.sessions.retrieve(cart.stripe_checkout_session_id);
+      // Paid but the webhook hasn't claimed the cart yet (it's still active):
+      // creating a replacement session here would re-point the cart and make
+      // the REAL payment fail the webhook's current-session guard (Codex
+      // round-4 P1). Tell the caller to wait instead.
+      if (existing.status === 'complete') {
+        console.log(
+          `Cart ${cart_id} session ${existing.id} already paid — webhook processing, no new session`
+        );
+        return corsResponse(
+          {
+            error:
+              'Your payment for this cart is already processing. Give it a few seconds, then check My Entries.',
+          },
+          409
+        );
+      }
       if (existing.status === 'open') {
         if (existing.amount_total === subtotal + platformFeeCents && existing.url) {
           console.log(`Reusing open checkout session ${existing.id} for cart ${cart_id}`);

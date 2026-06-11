@@ -19,11 +19,22 @@ export interface SessionCartGuardInput {
   cartSessionId: string | null;
   /** entry_carts.total_cents at webhook time */
   cartTotalCents: number | null;
+  /** number of items on the cart at webhook time */
+  cartItemCount: number;
 }
 
 export type SessionCartGuardResult = { ok: true } | { ok: false; reason: string };
 
 export function sessionMatchesCart(input: SessionCartGuardInput): SessionCartGuardResult {
+  // An empty cart can never legitimately be paid for — "Clear Cart" after
+  // starting checkout would otherwise produce a real charge with zero entries
+  // (Codex round-4 P1). Checked first: id/amount equality is meaningless here.
+  if (input.cartItemCount === 0) {
+    return {
+      ok: false,
+      reason: `cart is empty — session ${input.sessionId} paid for items that were since removed`,
+    };
+  }
   if (input.cartSessionId !== input.sessionId) {
     return {
       ok: false,

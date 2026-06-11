@@ -197,6 +197,20 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
     `RECONCILE: dashboard refund detected for ${paymentIntentId} (order ${data[0].id}, type ${data[0].order_type}). ` +
       `Entry-level refund columns were NOT updated — reconcile manually or re-issue via the app's refund dialog.`
   );
+  // Payout math reads entries.refund_amount, which a dashboard refund never
+  // touches — without action the club would be paid the refunded fee too
+  // (Codex round-4 P2). The end-date+3-day payout delay is the window to act.
+  await alertAdmin(
+    'Dashboard refund needs reconciling before payout',
+    `<p>A refund for payment intent <code>${paymentIntentId}</code> (order
+     <code>${data[0].id}</code>) was issued from the Stripe dashboard, not the app.</p>
+     <p><strong>The payout calculation will NOT see this refund</strong> — entry-level
+     refund columns were not updated. Before the show's payout runs (end date + 3
+     days), either re-issue the refund through the app's entry refund dialog (then
+     refund the duplicate in Stripe), or set <code>refund_amount</code> on the affected
+     entries. The runbook's "Never refund from the Stripe dashboard" section covers
+     this.</p>`
+  );
 }
 
 /**
@@ -312,6 +326,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     sessionAmountTotal: session.amount_total ?? null,
     cartSessionId: cart.stripe_checkout_session_id ?? null,
     cartTotalCents: cart.total_cents ?? null,
+    cartItemCount: cart.items?.length ?? 0,
   });
   if (!staleGuard.ok) {
     const stalePiId = extractPaymentIntentId(session.payment_intent);

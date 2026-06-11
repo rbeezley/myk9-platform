@@ -11,6 +11,7 @@ describe('sessionMatchesCart', () => {
     sessionAmountTotal: 6180,
     cartSessionId: 'cs_live_current',
     cartTotalCents: 6180,
+    cartItemCount: 2,
   };
 
   it('accepts the cart’s current session with matching amount', () => {
@@ -43,5 +44,14 @@ describe('sessionMatchesCart', () => {
 
   it('tolerates a cart with no stored total (legacy rows) when ids match', () => {
     expect(sessionMatchesCart({ ...current, cartTotalCents: null })).toEqual({ ok: true });
+  });
+
+  // Codex round-4 P1: "Clear Cart" empties the items; paying the abandoned
+  // session would otherwise claim the empty cart, create ZERO entries for a
+  // real charge, and dodge the amount check (old payloads omit amount_total).
+  it('rejects a paid session for an empty cart regardless of id/amount match', () => {
+    const result = sessionMatchesCart({ ...current, cartItemCount: 0, cartTotalCents: 0 });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toMatch(/empty/i);
   });
 });

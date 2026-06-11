@@ -99,7 +99,7 @@ export const secretaryRouteComponents: Record<string, ImportFunction> = {
     import('@/pages/secretary/SecretaryDashboardPage').then(m => ({
       default: m.SecretaryDashboardPage,
     })),
-  '/secretary/shows/:showId': () => import('@/pages/secretary/ShowWorkbenchPage'),
+  '/secretary/shows/:showId': () => import('@/pages/ShowDetailsPage'),
   '/shows': () => import('@/pages/BrowseShowsPage'),
   '/secretary/create-show/wizard': () => import('@/pages/secretary/ShowCreationWizardPage'),
   '/secretary/shows/:showId/results-control': () => import('@/pages/secretary/ResultsControlPage'),

@@ -90,7 +90,6 @@ function scopedNodes(scope: ShowMapActionScope, tree: ShowMapTree): ShowMapNode[
 const SYNTHETIC_DISPLAY_ACTION_NODE_TYPES = new Set<ShowMapNodeType>([
   'all-exhibitors',
   'dog',
-  'dog-entry',
   'more',
 ]);
 
@@ -132,6 +131,10 @@ function sourceIdFromNodeId(nodeId: string | undefined, expectedType: string): s
 
 function getNodeSourceId(node: ShowMapNode, expectedType: string): string | undefined {
   return sourceIdFromNodeId(node.id, expectedType);
+}
+
+function getEntrySourceId(node: ShowMapNode): string | undefined {
+  return getNodeSourceId(node, 'entry') ?? getNodeSourceId(node, 'dog-entry');
 }
 
 function getParentSourceId(
@@ -299,6 +302,27 @@ function isActionEligibleForScope(
 }
 
 function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAction[] {
+  if (node.type === 'dog-entry') {
+    const entryId = getEntrySourceId(node);
+    if (!entryId || tree.nodesById[`entry:${entryId}`] || node.status?.value !== 'submitted') {
+      return [];
+    }
+
+    return [
+      {
+        id: 'review-entry',
+        nodeId: node.id,
+        label: 'Review entry',
+        why: withEntryContext(node, 'Entry is waiting for secretary review'),
+        priority: 85,
+        icon: ClipboardList,
+        recommended: true,
+        createsAttention: true,
+        ...(node.dogEntryDisplay?.classId ? { classId: node.dogEntryDisplay.classId } : {}),
+      },
+    ];
+  }
+
   if (node.type === 'entry') {
     const actions: ShowMapAction[] = [];
     const classId = sourceIdFromNodeId(node.parentId, 'class');

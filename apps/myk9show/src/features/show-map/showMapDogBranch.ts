@@ -224,6 +224,7 @@ export function addAllExhibitorsBranch({
         type: 'dog-entry',
         label: display.classLabel,
         subtitle: dogEntrySubtitle(display),
+        entryDisplay: entryDisplay(entry, organization),
         dogEntryDisplay: display,
         status: classifyEntryRunStatus(entry),
         checkInStatus: classifyEntryCheckInStatus(entry),

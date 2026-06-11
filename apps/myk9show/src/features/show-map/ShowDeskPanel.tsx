@@ -21,7 +21,7 @@ import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
 import { ShowMapScratchNoShowDialog } from './ShowMapScratchNoShowDialog';
 import ShowMapTab from './ShowMapTab';
 import { resolveShowMapActionExecution } from './showMapActionExecution';
-import { sourceIdFromShowMapNodeId } from './showMapActionMutations';
+import { entryIdFromShowMapNodeId } from './showMapActionMutations';
 import { computeShowDeskPendingSignals } from './showDeskPendingSignals';
 import { computeShowDeskStatus } from './showDeskStatus';
 import { useShowMapWorkbenchState } from './useShowMapWorkbenchState';
@@ -121,6 +121,8 @@ export default function ShowDeskPanel({
 
   const reviewNode = reviewAction ? tree.nodesById[reviewAction.nodeId] : undefined;
   const reviewParent = reviewNode?.parentId ? tree.nodesById[reviewNode.parentId] : undefined;
+  const reviewParentClassLabel =
+    reviewNode?.type === 'dog-entry' ? reviewNode.dogEntryDisplay?.classLabel : reviewParent?.label;
 
   const [bulkApproveRequest, setBulkApproveRequest] = useState<{
     entryIds: string[];
@@ -155,7 +157,7 @@ export default function ShowDeskPanel({
   const handleBulkApproveGroup = useCallback(
     (group: ShowMapActionGroup) => {
       const entryIds = group.items
-        .map(item => sourceIdFromShowMapNodeId(item.action.nodeId, 'entry'))
+        .map(item => entryIdFromShowMapNodeId(item.action.nodeId))
         .filter((id): id is string => Boolean(id));
       const repNode = tree.nodesById[group.representative.nodeId];
       const dogName = repNode?.entryDisplay?.dogName ?? 'this dog';
@@ -337,7 +339,7 @@ export default function ShowDeskPanel({
             onApprove={confirmReviewApprove}
             isApproving={isApprovingReview}
             entryDisplay={reviewNode?.entryDisplay}
-            parentClassLabel={reviewParent?.label}
+            parentClassLabel={reviewParentClassLabel}
           />
           <AlertDialog
             open={bulkApproveRequest !== null}

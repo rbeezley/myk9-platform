@@ -218,14 +218,14 @@ describe('showMapActions', () => {
       show,
       trials: [trial],
       classes: [classes[0]!],
-      entryPreviewLimit: 1,
+      entryPreviewLimit: 2,
       entries: [
         {
           id: 'entry-1',
           class_id: 'class-active',
           dog_id: 'dog-1',
           dog: { id: 'dog-1', call_name: 'Bella' },
-          entry_status: 'submitted',
+          entry_status: 'accepted',
         },
         {
           id: 'entry-2',
@@ -233,6 +233,14 @@ describe('showMapActions', () => {
           dog_id: 'dog-2',
           run_order: 2,
           dog: { id: 'dog-2', call_name: 'Scout' },
+          entry_status: 'accepted',
+        },
+        {
+          id: 'entry-3',
+          class_id: 'class-active',
+          dog_id: 'dog-3',
+          run_order: 3,
+          dog: { id: 'dog-3', call_name: 'Ranger' },
           entry_status: 'accepted',
         },
       ],
@@ -295,6 +303,25 @@ describe('showMapActions', () => {
     expect(counts.get('all-exhibitors:show-1')).toBe(1);
     expect(counts.get('dog:dog-capped')).toBe(1);
     expect(counts.get('dog-entry:entry-capped')).toBe(1);
+
+    const cappedDogEntryNode = tree.nodesById['dog-entry:entry-capped'];
+    if (!cappedDogEntryNode) throw new Error('Expected capped dog-entry node');
+    expect(getDirectActionsForNode(cappedDogEntryNode, { tree })).toEqual([
+      expect.objectContaining({
+        id: 'review-entry',
+        nodeId: 'dog-entry:entry-capped',
+        recommended: true,
+        createsAttention: true,
+      }),
+    ]);
+    expect(getRankedActions('root', { tree })).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'review-entry',
+          nodeId: 'dog-entry:entry-capped',
+        }),
+      ])
+    );
   });
 
   it('counts one attention item when the same entry is mirrored through both branches', () => {

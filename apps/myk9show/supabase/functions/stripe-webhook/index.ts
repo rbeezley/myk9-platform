@@ -26,6 +26,38 @@ const stripe = new Stripe(stripeSecret, {
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+// Operator alerts via Resend direct — same pattern as cron-process-payouts
+// (the send-email function is template-locked).
+const resendApiKey = Deno.env.get('RESEND_API_KEY');
+const alertEmail = Deno.env.get('PLATFORM_ALERT_EMAIL') ?? 'richardbeezley1@gmail.com';
+
+async function alertAdmin(subject: string, html: string) {
+  if (!resendApiKey) {
+    console.log(`Alert email skipped (no RESEND_API_KEY): ${subject}`);
+    return;
+  }
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'myK9Show <notifications@myk9show.com>',
+        to: alertEmail,
+        subject: `[myK9Show payments] ${subject}`,
+        html,
+      }),
+    });
+    if (!res.ok) {
+      console.error(`Alert email failed (${res.status}): ${subject}`);
+    }
+  } catch (err) {
+    console.error(`Alert email error: ${subject}`, err);
+  }
+}
+
 Deno.serve(async req => {
   try {
     if (req.method === 'OPTIONS') {
@@ -284,6 +316,33 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     return;
   }
   if (!claimed || claimed.length === 0) {
+    // Already-claimed cart: benign for a RE-DELIVERED event (same payment
+    // intent that created the entries), but a SECOND paid session on the same
+    // cart is a real duplicate CHARGE with nothing to show for it (Codex P1).
+    // Distinguish them by whether this intent created any entries.
+    const dupIntentId = extractPaymentIntentId(session.payment_intent);
+    if (dupIntentId) {
+      const { data: intentEntries } = await supabase
+        .from('entries')
+        .select('id')
+        .eq('stripe_payment_intent_id', dupIntentId)
+        .limit(1);
+      if (!intentEntries || intentEntries.length === 0) {
+        console.error(
+          `CRITICAL: paid session ${session.id} (${dupIntentId}) hit already-claimed cart ${cartId} — duplicate charge, needs manual refund`
+        );
+        await alertAdmin(
+          'Duplicate entry payment needs a refund',
+          `<p>Checkout session <code>${session.id}</code> was PAID for cart
+           <code>${cartId}</code>, but that cart's entries were already created by an
+           earlier payment. The exhibitor has been charged twice.</p>
+           <p>Refund payment intent <code>${dupIntentId}</code> from the Stripe
+           dashboard (Payments → search the id → Refund). No entries or orders were
+           created for it, so the dashboard refund is the complete fix.</p>`
+        );
+        return;
+      }
+    }
     console.log(`Cart ${cartId} already processed (duplicate event delivery) — skipping`);
     return;
   }

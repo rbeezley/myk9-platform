@@ -155,6 +155,44 @@ describe('useEntryManagementData', () => {
     expect(result.current.entries[1]?.handlerName).toBe('Jane Mailin');
   });
 
+  it('partial refund keeps the net amount as paid, not $0 (Codex P2)', async () => {
+    // stripe-refund-entry marks partial refunds payment_status='refunded';
+    // paidAmount must be fee - refund (e.g. $50 - $20 = $30), not zero.
+    mocks.getEntriesForShow.mockResolvedValue({
+      data: [
+        {
+          id: 'e1',
+          show_id: 'show-1',
+          payment_status: 'refunded',
+          entry_fee: 50,
+          refund_amount: 20,
+          dog: null,
+          class: null,
+          registration: null,
+        },
+        {
+          id: 'e2',
+          show_id: 'show-1',
+          payment_status: 'refunded',
+          entry_fee: 30,
+          refund_amount: 30,
+          dog: null,
+          class: null,
+          registration: null,
+        },
+      ],
+      error: null,
+    });
+
+    const { result } = renderHook(() => useEntryManagementData());
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+    act(() => result.current.setSelectedShowId('show-1'));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.entries[0]?.paidAmount).toBe(30);
+    expect(result.current.entries[1]?.paidAmount).toBe(0);
+  });
+
   it('clears entries when selectedShowId is reset to empty', async () => {
     mocks.getEntriesForShow.mockResolvedValue({
       data: [{ id: 'e1', show_id: 'show-1', class: null, dog: null, registration: null }],

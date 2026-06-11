@@ -54,18 +54,29 @@ export function SubscriptionManager() {
       setLoading(true);
 
       // stripe_subscriptions.customer_id is a stripe_customers row uuid, NOT
-      // the auth user id — resolve our own customer row first (RLS scopes
-      // stripe_customers to the signed-in person). 2026-06-10 walkthrough:
-      // querying with user.id matched nothing, so paid subscribers saw
-      // "No active subscription".
+      // the auth user id — resolve our own customer row first. Filter by the
+      // caller's person id explicitly: RLS scopes normal users, but site
+      // admins can read EVERY customer row, so "newest visible row" alone
+      // would show an admin someone else's subscription (Codex P2).
+      const { data: me, error: meError } = await supabase
+        .from('people')
+        .select('id')
+        .eq('auth_user_id', user?.id ?? '')
+        .maybeSingle();
+
+      if (meError) throw meError;
+
       // order+limit: maybeSingle() throws if a person ever accrues two
       // customer rows; prefer the newest rather than erroring the page.
-      const { data: customer, error: customerError } = await supabase
-        .from('stripe_customers')
-        .select('id')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const { data: customer, error: customerError } = me
+        ? await supabase
+            .from('stripe_customers')
+            .select('id')
+            .eq('person_id', me.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+        : { data: null, error: null };
 
       if (customerError) throw customerError;
 

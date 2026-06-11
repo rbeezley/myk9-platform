@@ -365,6 +365,29 @@ async function handleEntryCheckout(
     });
   }
 
+  // Two tabs / a retry must converge on ONE payable session — a second
+  // session on the same cart double-charges, and the webhook's cart claim
+  // makes the second payment vanish silently (Codex P1). Reuse the open
+  // session when the cart is unchanged; expire it (so it can't be paid
+  // later) and recreate when the items/total differ.
+  if (cart.stripe_checkout_session_id) {
+    try {
+      const existing = await stripe.checkout.sessions.retrieve(cart.stripe_checkout_session_id);
+      if (existing.status === 'open') {
+        if (existing.amount_total === subtotal + platformFeeCents && existing.url) {
+          console.log(`Reusing open checkout session ${existing.id} for cart ${cart_id}`);
+          return corsResponse({ sessionId: existing.id, url: existing.url });
+        }
+        await stripe.checkout.sessions.expire(existing.id);
+        console.log(`Expired stale checkout session ${existing.id} (cart ${cart_id} changed)`);
+      }
+    } catch (err) {
+      // Unknown/foreign session id (e.g. created under the other key mode):
+      // fall through and create a fresh one.
+      console.log(`Could not inspect prior session for cart ${cart_id}:`, err);
+    }
+  }
+
   // Create checkout session
   const session = await stripe.checkout.sessions.create({
     customer: customerId,

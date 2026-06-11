@@ -154,7 +154,14 @@ export function ShowWorkbenchPage() {
                   Enter My Dogs
                 </Button>
               )}
-              <ShowStatusPill showId={currentShow.id} status={currentShow.status} />
+              {/* clubId is load-bearing: without it the pill's draft→published
+                  payment-account gate silently never runs (Codex P1 — lost in
+                  the #615 merge resolution). */}
+              <ShowStatusPill
+                showId={currentShow.id}
+                status={currentShow.status}
+                clubId={currentShow.clubId}
+              />
             </div>
           }
           footer={<QuickInfoCards show={currentShow} />}

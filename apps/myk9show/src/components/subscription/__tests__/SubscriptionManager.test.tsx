@@ -27,6 +27,7 @@ const { builders, fromMock, loggerErrorMock } = vi.hoisted(() => {
     return b;
   }
   const builders = {
+    people: makeBuilder(),
     stripe_customers: makeBuilder(),
     stripe_subscriptions: makeBuilder(),
     stripe_orders: makeBuilder(),
@@ -66,6 +67,7 @@ describe('SubscriptionManager', () => {
   beforeEach(() => {
     fromMock.mockClear();
     loggerErrorMock.mockClear();
+    builders.people.result = { data: { id: 'person-1' }, error: null };
     builders.stripe_customers.result = { data: null, error: null };
     builders.stripe_subscriptions.result = { data: null, error: null };
     builders.stripe_orders.result = { data: [], error: null };
@@ -103,6 +105,12 @@ describe('SubscriptionManager', () => {
     const subsEq = builders.stripe_subscriptions.eq as ReturnType<typeof vi.fn>;
     expect(subsEq).toHaveBeenCalledWith('customer_id', 'cus-row-uuid');
     expect(subsEq).not.toHaveBeenCalledWith('customer_id', 'auth-user-uuid');
+
+    // Site admins can read every stripe_customers row, so the lookup must be
+    // pinned to the caller's person id — newest-visible-row alone would show
+    // an admin someone else's subscription (Codex P2).
+    const customersEq = builders.stripe_customers.eq as ReturnType<typeof vi.fn>;
+    expect(customersEq).toHaveBeenCalledWith('person_id', 'person-1');
   });
 
   it('shows the annual price and interval for the annual price id', async () => {

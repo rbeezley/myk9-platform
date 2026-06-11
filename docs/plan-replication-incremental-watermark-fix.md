@@ -271,6 +271,14 @@ bug, then turn green with the fix.
 9. **[ADDED] Buffer-payload test** — with a show-sized fixture (e.g. 500 churning
    `entries`), assert the per-table buffer does not re-fetch more than an agreed
    ceiling of rows per incremental tick (guards §3.2 performance choice).
+   **DEFERRED (2026-06-11):** not implemented. The buffer mechanism (`since =
+   watermark − buffer`) is covered at the engine level, and the per-table buffer
+   size is a tuning choice rather than a correctness property, so a heavy
+   adapter+PostgREST-mock fixture was judged low-value for this PR. Re-add if a
+   high-churn table shows a payload regression in practice. The dogs-specific
+   adapter test (§5.3 intent) was likewise folded into the `parseUpdatedAtMs` unit
+   tests, since all 8 adapters share the identical `parseUpdatedAtMs(remote.updated_at)`
+   one-liner.
 10. Run `pnpm typecheck` and the replication + dogs suites green before considering
     any phase complete.
 

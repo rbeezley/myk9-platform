@@ -929,17 +929,19 @@ describe('ReplicatedDogsTable', () => {
   });
 
   describe('reconcileDeleted — tombstone / right-to-erasure cleanup', () => {
-    // Mock the supabase builder chain reconcileDeleted uses:
-    // from('dogs').select('id').is('deleted_at', null)[.eq('owner_id', …)].range(from, to)
-    // `.range()` is the awaited terminal; successive calls return successive pages.
+    // Mock the supabase builder chain reconcileDeleted uses (keyset pagination):
+    // from('dogs').select('id').is('deleted_at', null)[.eq('owner_id', …)]
+    //   [.gt('id', lastId)].order('id', { ascending: true }).limit(PAGE_SIZE)
+    // `.limit()` is the awaited terminal; successive calls return successive pages.
     const makeQuery = (pages: Array<{ data: { id: string }[] | null; error: unknown }>) => {
       let call = 0;
       const q = {
         select: vi.fn(() => q),
         is: vi.fn(() => q),
         eq: vi.fn(() => q),
+        gt: vi.fn(() => q),
         order: vi.fn(() => q),
-        range: vi.fn(() => Promise.resolve(pages[call++] ?? { data: [], error: null })),
+        limit: vi.fn(() => Promise.resolve(pages[call++] ?? { data: [], error: null })),
       };
       return q;
     };
@@ -974,9 +976,11 @@ describe('ReplicatedDogsTable', () => {
       expect(liveIds.has('2')).toBe(false);
     });
 
-    it('paginates the live-id fetch and unions all pages before pruning', async () => {
-      // A full first page (=== PAGE_SIZE) must trigger a second range() before pruning,
+    it('keyset-paginates the live-id fetch and unions all pages before pruning', async () => {
+      // A full first page (=== PAGE_SIZE) must trigger a second fetch before pruning,
       // else every cached dog beyond row 1000 would be wrongly treated as deleted.
+      // The second page is fetched with a keyset cursor (id > last id of page 1),
+      // which is immune to concurrent insert/delete drift that offset paging suffers.
       const page0 = Array.from({ length: 1000 }, (_, i) => ({ id: `d${i}` }));
       const page1 = [{ id: 'd1000' }, { id: 'd1001' }];
       const query = makeQuery([
@@ -990,10 +994,12 @@ describe('ReplicatedDogsTable', () => {
 
       await dogsTable.reconcileDeleted();
 
-      // Deterministic total order is required or offset pages can skip/duplicate rows.
       expect(query.order).toHaveBeenCalledWith('id', { ascending: true });
-      expect(query.range).toHaveBeenNthCalledWith(1, 0, 999);
-      expect(query.range).toHaveBeenNthCalledWith(2, 1000, 1999);
+      expect(query.limit).toHaveBeenCalledTimes(2);
+      expect(query.limit).toHaveBeenCalledWith(1000);
+      // First page has no cursor; second page fetches strictly after page 1's last id.
+      expect(query.gt).toHaveBeenCalledTimes(1);
+      expect(query.gt).toHaveBeenCalledWith('id', 'd999');
       const liveIds = removeSpy.mock.calls[0]![0];
       expect(liveIds.size).toBe(1002);
       expect(liveIds.has('d0')).toBe(true);

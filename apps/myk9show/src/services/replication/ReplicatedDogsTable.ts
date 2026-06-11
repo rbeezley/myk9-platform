@@ -190,9 +190,13 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
    * The id fetch is paginated: PostgREST caps a response at ~1000 rows, and a staff
    * user (is_show_manager → RLS exposes every dog) can exceed that. An unpaginated
    * `select('id')` would silently truncate, and pruning against a partial set would
-   * delete every valid cached dog beyond the first page. We page through `.range()`
-   * until a short page, and if ANY page errors we abort and prune nothing — never
-   * reconcile against an incomplete result.
+   * delete every valid cached dog beyond the first page.
+   *
+   * Pagination is KEYSET (`id > lastId` ordered by `id`), not offset (`.range()`):
+   * offset pages can skip or duplicate rows when dogs are inserted/deleted between
+   * page fetches, producing an incomplete liveIds set that over-prunes. A keyset
+   * cursor on the unique PK is immune to that concurrent-write drift. If ANY page
+   * errors we abort and prune nothing — never reconcile against an incomplete result.
    *
    * @param scopeValue Optional owner_id scope, mirroring the sync fetch filter.
    * @returns number of stale rows removed.
@@ -202,21 +206,19 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
     // Bound the loop so a server that keeps returning full pages can't spin forever.
     const MAX_PAGES = 100;
     const liveIds = new Set<string>();
+    let lastId: string | undefined;
 
     for (let page = 0; page < MAX_PAGES; page++) {
-      const from = page * PAGE_SIZE;
       let query = supabase.from('dogs').select('id').is('deleted_at', null);
       if (scopeValue) {
         query = query.eq('owner_id', scopeValue);
       }
+      if (lastId !== undefined) {
+        // Keyset cursor: fetch the next page strictly after the last id we saw.
+        query = query.gt('id', lastId);
+      }
 
-      // A deterministic total order (unique PK) is required for offset pagination —
-      // without it Postgres may return rows in scan order that shifts between pages,
-      // skipping/duplicating ids and yielding an incomplete liveIds set that would
-      // over-prune valid cached dogs.
-      const { data, error } = await query
-        .order('id', { ascending: true })
-        .range(from, from + PAGE_SIZE - 1);
+      const { data, error } = await query.order('id', { ascending: true }).limit(PAGE_SIZE);
       if (error || !data) {
         // Any fetch failure → abort. Pruning against a partial set could wipe the replica.
         return 0;
@@ -230,6 +232,9 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
         // Short page → we have the complete live id set; safe to reconcile.
         return this.removeStaleEntries(liveIds);
       }
+
+      // Advance the cursor to the last id of this full page.
+      lastId = String((data[data.length - 1] as { id: string }).id);
     }
 
     // Hit the page cap without a short page — treat as incomplete and prune nothing.

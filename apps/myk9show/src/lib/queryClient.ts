@@ -179,6 +179,7 @@ export const queryKeys = {
     trends: (year?: number) => ['judges', 'trends', year] as const,
     myStats: (personId: string, year?: number) => ['judges', 'my-stats', personId, year] as const,
     upcoming: (personId: string) => ['judges', 'upcoming', personId] as const,
+    assignments: (personId: string) => ['judges', 'assignments', personId] as const,
     qualificationSummary: (personId: string) =>
       ['judges', 'qualification-summary', personId] as const,
   },

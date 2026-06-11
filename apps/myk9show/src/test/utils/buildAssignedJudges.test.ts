@@ -19,6 +19,15 @@ const makeAssignment = (
   confirmedAt: null,
   fee: null,
   notes: null,
+  className: null,
+  classElement: null,
+  classLevel: null,
+  classStatus: null,
+  classStartTime: null,
+  classScoredCount: null,
+  classTotalEntries: null,
+  trialDate: null,
+  trialTimezone: null,
   ...overrides,
 });
 

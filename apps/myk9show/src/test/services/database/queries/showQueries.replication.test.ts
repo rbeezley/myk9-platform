@@ -139,6 +139,15 @@ function makeJudgeAssignment(
     confirmedAt: '2026-03-05T00:00:00Z',
     fee: 200,
     notes: 'Experienced judge',
+    className: null,
+    classElement: null,
+    classLevel: null,
+    classStatus: null,
+    classStartTime: null,
+    classScoredCount: null,
+    classTotalEntries: null,
+    trialDate: null,
+    trialTimezone: null,
     ...overrides,
   };
 }

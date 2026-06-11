@@ -585,4 +585,3 @@ async function handleSubscriptionCheckout(
   console.log(`Created subscription checkout session ${session.id}`);
   return corsResponse({ sessionId: session.id, url: session.url });
 }
-

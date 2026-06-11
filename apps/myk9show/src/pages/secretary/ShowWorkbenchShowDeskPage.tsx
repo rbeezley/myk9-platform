@@ -256,7 +256,7 @@ export function ShowWorkbenchShowDeskPage() {
             <IncidentCloseoutSummary showId={currentShow.id} />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
-                <Link to={`/secretary/shows/${currentShow.id}/results-control`}>
+                <Link to={`/shows/${currentShow.id}/results-control`}>
                   <ListChecks className="h-5 w-5" />
                   <span className="text-left">
                     <span className="block font-medium">Results Control</span>
@@ -265,7 +265,7 @@ export function ShowWorkbenchShowDeskPage() {
                 </Link>
               </Button>
               <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
-                <Link to={`/secretary/shows/${currentShow.id}/reports`}>
+                <Link to={`/shows/${currentShow.id}/reports`}>
                   <FileBarChart className="h-5 w-5" />
                   <span className="text-left">
                     <span className="block font-medium">Reports</span>
@@ -274,7 +274,7 @@ export function ShowWorkbenchShowDeskPage() {
                 </Link>
               </Button>
               <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
-                <Link to={`/secretary/shows/${currentShow.id}/submit-results`}>
+                <Link to={`/shows/${currentShow.id}/submit-results`}>
                   <Send className="h-5 w-5" />
                   <span className="text-left">
                     <span className="block font-medium">Submit Results</span>

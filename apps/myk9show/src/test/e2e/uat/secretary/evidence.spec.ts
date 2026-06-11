@@ -57,7 +57,7 @@ test.describe('Phase 1 UAT - Secretary evidence pass', () => {
     await captureSecretaryPage(
       page,
       testInfo,
-      `/secretary/shows/${SHOW_ID}/reports`,
+      `/shows/${SHOW_ID}/reports`,
       'secretary-reports',
       page.getByRole('heading', { name: 'Reports' })
     );

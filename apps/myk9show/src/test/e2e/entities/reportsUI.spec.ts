@@ -24,7 +24,7 @@ const SECRETARY_PASSWORD = 'TestPass4567!';
 // Reports now live under the show-scoped workbench route; the standalone
 // /secretary/reports redirects to the dashboard (no show context).
 const SHOW_ID = '4584f257-19b5-4016-aae6-5e7827b769cb';
-const REPORTS_PATH = `/secretary/shows/${SHOW_ID}/reports`;
+const REPORTS_PATH = `/shows/${SHOW_ID}/reports`;
 
 async function signIn(page: Page, email: string, password: string) {
   await page.goto('/sign-in', { waitUntil: 'networkidle' });

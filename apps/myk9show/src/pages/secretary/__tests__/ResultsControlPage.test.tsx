@@ -105,10 +105,10 @@ vi.mock('@/hooks/useAuth', () => ({
 import ResultsControlPage from '../ResultsControlPage';
 import { Routes, Route } from 'react-router-dom';
 
-function renderPage(initialRoute = '/secretary/shows/show-1/results-control') {
+function renderPage(initialRoute = '/shows/show-1/results-control') {
   return render(
     <Routes>
-      <Route path="/secretary/shows/:showId/results-control" element={<ResultsControlPage />} />
+      <Route path="/shows/:id/results-control" element={<ResultsControlPage />} />
     </Routes>,
     { initialRoute }
   );

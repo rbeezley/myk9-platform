@@ -38,7 +38,7 @@ describe('ShowPhaseCard — today', () => {
     const show = makeShow({ id: 'show-42', startDate: TODAY, status: 'in_progress' });
     renderCard({ show, phase: 'today' });
     const link = screen.getByRole('link', { name: /go to show/i });
-    expect(link).toHaveAttribute('href', '/secretary/shows/show-42/show-desk');
+    expect(link).toHaveAttribute('href', '/shows/show-42/show-desk');
   });
 });
 
@@ -77,7 +77,7 @@ describe('ShowPhaseCard — upcoming', () => {
     const show = makeShow({ id: 'show-99', startDate: FUTURE, status: 'published' });
     renderCard({ show, phase: 'upcoming' });
     const link = screen.getByRole('link', { name: /manage/i });
-    expect(link).toHaveAttribute('href', '/secretary/shows/show-99');
+    expect(link).toHaveAttribute('href', '/shows/show-99/setup');
   });
 });
 
@@ -98,7 +98,7 @@ describe('ShowPhaseCard — draft', () => {
     const show = makeShow({ id: 'draft-1', startDate: FUTURE, status: 'draft' });
     renderCard({ show, phase: 'draft' });
     const link = screen.getByRole('link', { name: /continue setup/i });
-    expect(link).toHaveAttribute('href', '/secretary/shows/draft-1');
+    expect(link).toHaveAttribute('href', '/shows/draft-1/setup');
   });
 });
 
@@ -120,6 +120,6 @@ describe('ShowPhaseCard — past', () => {
     const show = makeShow({ id: 'past-7', startDate: PAST, status: 'completed' });
     renderCard({ show, phase: 'past' });
     const link = screen.getByRole('link', { name: /view/i });
-    expect(link).toHaveAttribute('href', '/secretary/shows/past-7/show-desk');
+    expect(link).toHaveAttribute('href', '/shows/past-7/show-desk');
   });
 });

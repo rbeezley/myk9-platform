@@ -140,7 +140,7 @@ describe('ShowDeskPanel', () => {
     await user.click(screen.getByTestId('open-entry-management'));
 
     expect(screen.getByTestId('current-location')).toHaveTextContent(
-      '/secretary/shows/show-1/entry-management?entryTab=pending'
+      '/shows/show-1/entry-management?entryTab=pending'
     );
   });
 });

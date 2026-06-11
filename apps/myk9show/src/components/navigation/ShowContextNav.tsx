@@ -2,7 +2,7 @@ import { NavLink, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
-  { label: 'Setup', path: '' },
+  { label: 'Setup', path: 'setup' },
   { label: 'Show Desk', path: 'show-desk' },
   { label: 'Entry Management', path: 'entry-management' },
   { label: 'Reports', path: 'reports' },
@@ -11,9 +11,10 @@ const NAV_ITEMS = [
 ] as const;
 
 export function ShowContextNav() {
-  const { showId } = useParams<{ showId: string }>();
+  const { id, showId } = useParams<{ id?: string; showId?: string }>();
+  const resolvedShowId = showId ?? id;
 
-  if (!showId) return null;
+  if (!resolvedShowId) return null;
 
   return (
     <nav
@@ -23,14 +24,12 @@ export function ShowContextNav() {
     >
       <div className="flex overflow-x-auto px-4 sm:px-6">
         {NAV_ITEMS.map(({ label, path }) => {
-          const to = path
-            ? `/secretary/shows/${showId}/${path}`
-            : `/secretary/shows/${showId}`;
+          const to = `/shows/${resolvedShowId}/${path}`;
           return (
             <NavLink
-              key={path || 'setup'}
+              key={path}
               to={to}
-              end={!path}
+              end
               className={({ isActive }) =>
                 cn(
                   'shrink-0 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition-colors',

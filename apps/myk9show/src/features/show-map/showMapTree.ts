@@ -14,6 +14,7 @@ import {
   getShowMapShowHref,
   getShowMapTrialHref,
 } from './showMapRoutes';
+import { addAllExhibitorsBranch } from './showMapDogBranch';
 import { getRegisteredBreedForOrganization } from '@/lib/dogRegistrationBreed';
 import { formatRingLabel } from '@/utils/ringLabel';
 import type {
@@ -179,6 +180,23 @@ export function buildShowMapTree({
     childIdsByParentId: { [root.id]: [] },
   };
 
+  const hasAllExhibitorsBranch = addAllExhibitorsBranch({
+    tree,
+    showId: show.id,
+    organization: show.organization,
+    trials,
+    classes,
+    entries,
+    addNode,
+    getNodeId: getShowMapNodeId,
+    entryClassId,
+    entryDisplay,
+    classRingLabel,
+  });
+  if (hasAllExhibitorsBranch) {
+    tree.root.childrenCount += 1;
+  }
+
   for (const trial of trials) {
     const trialClasses = [...(classesByTrialId.get(trial.id) ?? [])].sort((a, b) => {
       const element = (a.element ?? '').localeCompare(b.element ?? '');
@@ -332,5 +350,8 @@ export function getDefaultExpandedNodeIds(tree: ShowMapTree): Set<string> {
 // every class row is visible at once. This is the previous default; it now
 // only fires when the secretary explicitly asks for it.
 export function getTrialsExpandedNodeIds(tree: ShowMapTree): Set<string> {
-  return new Set([tree.root.id, ...(tree.childIdsByParentId[tree.root.id] ?? [])]);
+  const trialNodeIds = (tree.childIdsByParentId[tree.root.id] ?? []).filter(
+    nodeId => tree.nodesById[nodeId]?.type === 'trial'
+  );
+  return new Set([tree.root.id, ...trialNodeIds]);
 }

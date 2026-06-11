@@ -14,6 +14,8 @@
 import {
   ReplicatedTable,
   syncReplicatedTable,
+  parseUpdatedAtMs,
+  REPLICATION_INCREMENTAL_BUFFER_MS,
   type SyncReplicatedTableAdapter,
   type SyncResult,
 } from '@myk9/replication';
@@ -107,11 +109,14 @@ export class ReplicatedWaitlistEntriesTable extends ReplicatedTable<ReplicatedWa
         return (data ?? []) as unknown as WaitlistEntryRow[];
       },
       getRemoteId: remote => String(remote.id),
+      getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
       toLocalRow: rowToWaitlistEntry,
       resolveConflict: (_local, remote) => remote,
     };
 
-    const result = await syncReplicatedTable(this, adapter);
+    const result = await syncReplicatedTable(this, adapter, {}, {
+      incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
+    });
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {
       logger.error(`[${this.getTableName()}] Sync failed:`, result.error);

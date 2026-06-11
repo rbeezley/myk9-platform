@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReplicatedTable } from './core/ReplicatedTable';
 import { syncReplicatedTable, type SyncReplicatedTableAdapter } from './syncReplicatedTable';
+import { parseUpdatedAtMs } from './parseUpdatedAt';
 import type { SyncOptions, SyncResult } from './types';
 
 interface LocalEntry {
@@ -19,6 +20,7 @@ interface RemoteEntry {
   result_status?: string;
   final_placement?: number | null;
   license_key?: string;
+  updated_at?: string | number | null;
 }
 
 class TestTable extends ReplicatedTable<LocalEntry> {
@@ -397,6 +399,208 @@ describe('syncReplicatedTable', () => {
         remoteData: expect.objectContaining({ status: 'scratched' }),
       });
       expect(result.conflictsResolved).toBe(1);
+    });
+  });
+
+  describe('server-authoritative incremental watermark', () => {
+    // Adapter that advances the watermark from the server `updated_at`, mirroring
+    // the real Replicated*Table adapters (getRemoteUpdatedAt + parseUpdatedAtMs).
+    function makeTsAdapter(
+      remoteRows: RemoteEntry[]
+    ): SyncReplicatedTableAdapter<RemoteEntry, LocalEntry> {
+      return {
+        ...makeAdapter(remoteRows),
+        getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
+      };
+    }
+
+    it('advances the watermark to the max server updated_at, NOT the client clock', async () => {
+      // Red-first: under the old code lastIncrementalSyncAt = Date.now() (~1.7e12),
+      // which sits far in the "future" of the server timestamps and silently skips
+      // any row whose updated_at is below it. The fix anchors the watermark to a
+      // server timestamp actually observed (here: 2000).
+      const adapter = makeTsAdapter([
+        { id: 1, name: 'Rex', updated_at: 1000 },
+        { id: 2, name: 'Max', updated_at: 2000 },
+      ]);
+
+      await syncReplicatedTable(table, adapter);
+
+      const meta = await table.getSyncMetadata();
+      expect(meta?.lastIncrementalSyncAt).toBe(2000);
+      // Full sync also stamps lastFullSyncAt (client clock is fine for the 24h heal).
+      expect(meta?.lastFullSyncAt).toBeGreaterThan(0);
+    });
+
+    it('derives the next incremental `since` from the server watermark (minus buffer)', async () => {
+      // First sync establishes watermark = 2000 from the server.
+      await syncReplicatedTable(table, makeTsAdapter([{ id: 1, name: 'Rex', updated_at: 2000 }]));
+
+      // Second sync is incremental (replica non-empty). A row created at 2001 — just
+      // after the last watermark — must be inside the fetch window, proving no drop.
+      const second = makeTsAdapter([{ id: 1, name: 'Rex', updated_at: 2001 }]);
+      await syncReplicatedTable(table, second, {}, { incrementalBufferMs: 500 });
+
+      const since = vi.mocked(second.fetchRemoteRows).mock.calls[0]![0].since;
+      expect(since).toBe(1500); // 2000 (server watermark) - 500 (buffer)
+      expect(since).toBeLessThan(2001); // the new row is fetchable
+    });
+
+    it('never regresses the watermark (monotonic) when a backdated row arrives', async () => {
+      await table.set('seed', { id: 'seed', name: 'Seed' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 5000 });
+
+      // Server returns a row stamped earlier than the current watermark.
+      await syncReplicatedTable(table, makeTsAdapter([{ id: 1, name: 'Old', updated_at: 3000 }]));
+
+      const meta = await table.getSyncMetadata();
+      expect(meta?.lastIncrementalSyncAt).toBe(5000); // max(5000, 3000), not 3000
+    });
+
+    it('caches a row with no usable timestamp but never lets it poison the watermark', async () => {
+      await table.set('seed', { id: 'seed', name: 'Seed' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 2000 });
+
+      // updated_at = null → parseUpdatedAtMs → null → excluded from the max.
+      await syncReplicatedTable(table, makeTsAdapter([{ id: 1, name: 'NoTs', updated_at: null }]));
+
+      // Row is still cached as data...
+      expect(await table.get('1')).toMatchObject({ id: '1', name: 'NoTs' });
+      const meta = await table.getSyncMetadata();
+      // ...and the watermark is unchanged and finite (not NaN).
+      expect(meta?.lastIncrementalSyncAt).toBe(2000);
+      expect(Number.isFinite(meta?.lastIncrementalSyncAt)).toBe(true);
+
+      // Proof the watermark didn't become NaN: the next fetch's `since` is a valid number.
+      const next = makeTsAdapter([]);
+      await syncReplicatedTable(table, next);
+      const since = vi.mocked(next.fetchRemoteRows).mock.calls[0]![0].since;
+      expect(Number.isFinite(since)).toBe(true);
+    });
+
+    it('does NOT advance the watermark when the sync fails', async () => {
+      await table.set('seed', { id: 'seed', name: 'Seed' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 1234 });
+
+      const adapter = makeTsAdapter([]);
+      vi.mocked(adapter.fetchRemoteRows).mockRejectedValue(new Error('network down'));
+
+      const result = await syncReplicatedTable(table, adapter);
+
+      expect(result.success).toBe(false);
+      const meta = await table.getSyncMetadata();
+      expect(meta?.lastIncrementalSyncAt).toBe(1234); // unchanged
+      expect(meta?.syncStatus).toBe('error');
+    });
+
+    it('leaves the watermark unchanged when the fetch returns no rows', async () => {
+      await table.set('seed', { id: 'seed', name: 'Seed' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 7000 });
+
+      await syncReplicatedTable(table, makeTsAdapter([]));
+
+      const meta = await table.getSyncMetadata();
+      expect(meta?.lastIncrementalSyncAt).toBe(7000);
+    });
+
+    it('falls back to the client clock when the adapter provides no timestamp hook', async () => {
+      // Back-compat: adapters without getRemoteUpdatedAt keep the legacy Date.now()
+      // watermark. The row's old updated_at (1000) must NOT become the watermark.
+      const adapter = makeAdapter([{ id: 1, name: 'Rex', updated_at: 1000 }]);
+
+      await syncReplicatedTable(table, adapter);
+
+      const meta = await table.getSyncMetadata();
+      expect(meta?.lastIncrementalSyncAt).toBeGreaterThan(1_000_000_000_000); // ~Date.now()
+    });
+
+    it('re-fetches a locally-created row after upload and stores its server version', async () => {
+      // Same-device path: a row created locally then uploaded gets a server updated_at
+      // newer than the last watermark, so the corrected `since` window includes it and
+      // its server `version` lands on the IDB row (OCC precondition for the next edit).
+      await table.set('seed', { id: 'seed', name: 'Seed' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 1000 });
+
+      type RemoteWithVersion = RemoteEntry & { version: number };
+      const adapter: SyncReplicatedTableAdapter<RemoteWithVersion, LocalEntry> = {
+        fetchRemoteRows: vi.fn(async () => [
+          { id: 1, name: 'Just Uploaded', updated_at: 2000, version: 3 },
+        ]),
+        getRemoteId: r => String(r.id),
+        getRemoteUpdatedAt: r => parseUpdatedAtMs(r.updated_at),
+        toLocalRow: r => ({ id: String(r.id), name: r.name }),
+      };
+
+      await syncReplicatedTable(table, adapter, {}, { incrementalBufferMs: 500 });
+
+      const since = vi.mocked(adapter.fetchRemoteRows).mock.calls[0]![0].since;
+      expect(since).toBe(500); // 1000 - 500 buffer; < 2000 so the uploaded row is in-window
+      const row = await table.getReplicatedRow('1');
+      expect(row?.serverVersion).toBe(3);
+      expect(await table.get('1')).toMatchObject({ name: 'Just Uploaded' });
+    });
+
+    it('reports recoveredFromEmptyReplica when an emptied replica re-fetches', async () => {
+      // Metadata says the replica previously held rows (totalRows > 0) but the local
+      // store is now empty — an unexpected eviction. The result flags it for logging.
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 1000, totalRows: 5 });
+
+      const result = await syncReplicatedTable(
+        table,
+        makeTsAdapter([{ id: 1, name: 'Rex', updated_at: 2000 }])
+      );
+
+      expect(result.recoveredFromEmptyReplica).toBe(true);
+      expect(result.operation).toBe('full-sync');
+    });
+
+    it('forces a full re-sync when the last full sync is older than the heal interval', async () => {
+      // A non-empty replica would normally sync incrementally — but a stale full sync
+      // (here 25h ago, past the 24h default) forces a full re-sync so any drift heals.
+      await table.set('seed', { id: 'seed', name: 'Seed' });
+      await table.updateSyncMetadata({
+        lastIncrementalSyncAt: 5000,
+        lastFullSyncAt: Date.now() - 25 * 60 * 60 * 1000,
+      });
+
+      const result = await syncReplicatedTable(
+        table,
+        makeTsAdapter([{ id: 1, name: 'Rex', updated_at: 6000 }])
+      );
+
+      expect(result.operation).toBe('full-sync');
+    });
+
+    it.each([
+      ['Infinity', Infinity],
+      ['NaN', NaN],
+    ])('does not throw when the persisted watermark is corrupt (%s)', async (_label, bad) => {
+      // A corrupt IDB watermark must degrade to a finite `since`, not reach
+      // new Date(Infinity|NaN).toISOString() and throw, wedging the table's sync.
+      await table.set('seed', { id: 'seed', name: 'Seed' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: bad });
+      const adapter = makeTsAdapter([{ id: 1, name: 'Rex', updated_at: 2000 }]);
+
+      const result = await syncReplicatedTable(table, adapter);
+
+      expect(result.success).toBe(true);
+      const since = vi.mocked(adapter.fetchRemoteRows).mock.calls[0]![0].since;
+      expect(Number.isFinite(since)).toBe(true);
+      expect(since).toBe(0);
+    });
+
+    it('does NOT force a full sync every tick when a full sync has never run (lastFullSyncAt = 0)', async () => {
+      // Guard on `lastFullSyncAt > 0`: a never-full-synced non-empty replica must stay
+      // incremental, not force-full on every sync.
+      await table.set('seed', { id: 'seed', name: 'Seed' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 5000 }); // lastFullSyncAt stays 0
+
+      const result = await syncReplicatedTable(
+        table,
+        makeTsAdapter([{ id: 1, name: 'Rex', updated_at: 6000 }])
+      );
+
+      expect(result.operation).toBe('incremental-sync');
     });
   });
 });

@@ -128,6 +128,12 @@ export interface SyncResult {
   conflictsResolved?: number;
   duration: number; // Milliseconds
   error?: string; // Error message if failed
+  /** The `since` watermark (epoch ms) used for this fetch. Observability only. */
+  since?: number;
+  /** True when this sync ran a full re-sync because the local replica was empty
+   *  despite metadata indicating it previously held rows — an unexpected eviction
+   *  worth logging (it is the silent failure mode the watermark fix guards). */
+  recoveredFromEmptyReplica?: boolean;
 }
 
 /**

@@ -296,6 +296,63 @@ Do not consider the work done until every test above is written and passing.
 shared offline-first code (per CLAUDE.md "Codex second opinion" + memory
 `feedback_codex_review_default_on`).
 
+## 7a. Harden findings & dispositions (adversarial pass, 2026-06-11)
+
+A three-agent adversarial review ran against the implemented diff. Dispositions:
+
+**Fixed in this PR (cheap robustness guards):**
+- **Corrupt persisted watermark → `new Date(since).toISOString()` throw.** A NaN/Infinity
+  `lastIncrementalSyncAt` in IndexedDB could wedge a table's sync. Added a
+  `Number.isFinite` guard so a bad watermark degrades to a full-ish fetch (`since = 0`)
+  instead of throwing. Tested (`it.each(['Infinity','NaN'])`).
+- **Concurrent no-op watermark clobber.** Two overlapping syncs of the same table each
+  computed `Math.max` against their own pre-fetch snapshot; a no-op sync could re-persist
+  a stale snapshot over a concurrent advance. Now the watermark is only written when it
+  actually advanced. (Note: this direction is *safe* either way — a lower watermark causes
+  idempotent re-fetching, never dropped rows — so this is an efficiency guard, not a
+  data-loss fix.)
+
+**Verified non-issues:**
+- **Pagination > 1000 rows:** the ascending-order + server-authoritative watermark gives
+  *progressive paging* (each sync advances past the previous batch). This is an
+  improvement over the old `Date.now()` watermark, which wedged tables over the PostgREST
+  default cap.
+- **NaN-poisoned `Math.max`:** guarded by `Number.isFinite` before the max + the
+  `sawRemoteTimestamp` fallback. `parseUpdatedAtMs` returns `null`, never `NaN`.
+- **numeric-string / tz-less `updated_at`:** the columns are `timestamptz` (ISO strings);
+  this parse path does not occur in practice.
+
+**Documented limitations / deferred (NOT fixed here):**
+- **Cross-scope shared watermark (entries/classes).** Sync metadata is keyed by table name
+  only (`ReplicatedTableCache` uses `this.tableName` as the IDB key), so a table synced
+  under multiple `scope.value`s (e.g. `entries` via the provider's `licenseKey=''` AND via
+  `ScoringEntryListPage.sync(classId)`) shares one watermark. Advancing it under one scope
+  can cause the other scope's next incremental fetch to skip rows. **This is pre-existing**
+  — the old `Date.now()` watermark was shared the same way — and is **not introduced or
+  worsened in a data-loss direction by this fix.** This fix is fully correct for
+  single-scope tables, which includes the reported bug (`dogs`, synced only under
+  `licenseKey=''`). Proper fix: key sync metadata by `(tableName, scope.value)`. Tracked as
+  a follow-up.
+- **Far-future corrupt `updated_at` poisoning the monotonic watermark.** A single row with
+  an absurd future timestamp would stick (monotonic can't recede). Corrupt-data-only, very
+  low likelihood; not guarded because a `Date.now()` upper clamp would reintroduce the
+  client-clock coupling this fix exists to remove. Documented edge.
+
+## 7b. Pre-existing security findings surfaced (separate work)
+
+The security agent flagged real issues that **predate this diff** and are out of scope for a
+watermark fix (fixing them is a separate, high-stakes change). Flagged as follow-up tasks:
+- `dogs_select` / `people_select` RLS are `deleted_at IS NULL AND auth.uid() IS NOT NULL`
+  (any authenticated user reads all rows); ownership is enforced *only* client-side
+  (`filterByOwnership`). The provider syncs with `licenseKey=''`, so the adapter's own
+  `.eq('owner_id', …)` is dead at runtime and the full table seeds every client's local
+  cache. `loadOwnersMap` then pulls owner PII (email/phone) for every cached owner.
+- No tombstone cleanup on `dogs`: soft-deleted rows linger in the local replica
+  indefinitely (`shouldCleanupStaleRows` unset; deleted rows simply stop arriving).
+
+These were deliberately simplified pre-launch for query performance; they need revisiting
+before real users — but not inside this PR.
+
 ## 8. Out of scope / follow-ups
 
 - Migrating the watermark to a logical (per-row monotonic) cursor instead of a

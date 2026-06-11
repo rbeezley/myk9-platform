@@ -8,6 +8,8 @@
 import {
   ReplicatedTable,
   syncReplicatedTable,
+  parseUpdatedAtMs,
+  REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
   type SyncReplicatedTableAdapter,
   type SyncResult,
 } from '@myk9/replication';
@@ -346,6 +348,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
         }));
       },
       getRemoteId: remote => String(remote.id),
+      getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
       toLocalRow: remote => ({
         ...rowToClass(remote),
         selfCheckinEnabled: remote._selfCheckinEnabled,
@@ -356,7 +359,9 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       resolveConflict: (local, remote) => this.resolveConflict(local, remote),
     };
 
-    const result = await syncReplicatedTable(this, adapter, { value: licenseKey });
+    const result = await syncReplicatedTable(this, adapter, { value: licenseKey }, {
+      incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
+    });
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {
       logger.error(`[${this.getTableName()}] Sync failed:`, result.error);

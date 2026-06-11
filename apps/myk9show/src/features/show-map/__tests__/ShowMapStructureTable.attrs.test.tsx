@@ -132,16 +132,20 @@ describe('ShowMapStructureTable — data-node-id / data-node-type / ARIA', () =>
     );
 
     const allExhibitorsRow = screen.getByText('All Exhibitors').closest('[role="treeitem"]');
+    const dogRow = screen.getByText('Bella').closest('[role="treeitem"]');
+    const dogEntryRow = screen.getByText('Interior Novice A').closest('[role="treeitem"]');
+
     expect(allExhibitorsRow).toHaveAttribute('data-node-id', 'all-exhibitors:show-1');
     expect(allExhibitorsRow).toHaveAttribute('data-node-type', 'all-exhibitors');
-    expect(screen.getByText('Bella').closest('[role="treeitem"]')).toHaveAttribute(
-      'aria-level',
-      '2'
-    );
-    expect(screen.getByText('Interior Novice A').closest('[role="treeitem"]')).toHaveAttribute(
-      'aria-level',
-      '3'
-    );
+    expect(allExhibitorsRow).toHaveAttribute('aria-level', '1');
+
+    expect(dogRow).toHaveAttribute('data-node-id', 'dog:dog-1');
+    expect(dogRow).toHaveAttribute('data-node-type', 'dog');
+    expect(dogRow).toHaveAttribute('aria-level', '2');
+
+    expect(dogEntryRow).toHaveAttribute('data-node-id', 'dog-entry:entry-1');
+    expect(dogEntryRow).toHaveAttribute('data-node-type', 'dog-entry');
+    expect(dogEntryRow).toHaveAttribute('aria-level', '3');
   });
 
   it('exposes ARIA tree semantics: tree, treeitem, group, aria-expanded, aria-level', () => {

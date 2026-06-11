@@ -14,6 +14,8 @@ describe('sessionMatchesCart', () => {
     cartItemCount: 2,
     cartExpiresAt: '2026-06-11T12:30:00Z',
     nowIso: '2026-06-11T12:10:00Z',
+    cartSubtotalCents: 6000,
+    itemFeesSumCents: 6000,
   };
 
   it('accepts the cart’s current session with matching amount', () => {
@@ -63,6 +65,21 @@ describe('sessionMatchesCart', () => {
 
   it('tolerates a cart with no expiry (legacy rows) when everything else matches', () => {
     expect(sessionMatchesCart({ ...current, cartExpiresAt: null })).toEqual({ ok: true });
+  });
+
+  // Round-14 P1: cart mutations write item rows FIRST and the cart row
+  // second — if the second write fails (or a direct PostgREST update tampers
+  // with item fees), the stored totals still match the paid session while the
+  // items no longer do. Entries are built from the ITEMS, so the items are
+  // what must reconcile with what was charged.
+  it('rejects when the items no longer sum to the subtotal the session charged', () => {
+    const result = sessionMatchesCart({ ...current, itemFeesSumCents: 4000 });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toMatch(/items.*sum|sum.*items/i);
+  });
+
+  it('tolerates a cart with no stored subtotal (legacy rows)', () => {
+    expect(sessionMatchesCart({ ...current, cartSubtotalCents: null })).toEqual({ ok: true });
   });
 
   it('rejects a paid session for an empty cart regardless of id/amount match', () => {

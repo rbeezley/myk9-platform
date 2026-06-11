@@ -384,6 +384,11 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     cartItemCount: cart.items?.length ?? 0,
     cartExpiresAt: cart.expires_at ?? null,
     nowIso: new Date().toISOString(),
+    cartSubtotalCents: cart.subtotal_cents ?? null,
+    itemFeesSumCents: (cart.items ?? []).reduce(
+      (sum: number, i: { entry_fee_cents: number }) => sum + (i.entry_fee_cents ?? 0),
+      0
+    ),
   });
   if (!staleGuard.ok) {
     const stalePiId = extractPaymentIntentId(session.payment_intent);

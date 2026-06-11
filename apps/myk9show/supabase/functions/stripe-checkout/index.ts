@@ -2,6 +2,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { calculatePlatformFeeCents, resolvePlatformFeePercent } from '../_shared/platformFee.ts';
+import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
 import { parsePremiumPriceIds } from '../_shared/premiumPrices.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -282,6 +283,7 @@ async function handleEntryCheckout(
         dog:dogs(call_name),
         class:classes(
           name,
+          entry_fee,
           trial:trials(
             show:shows(name)
           )
@@ -309,6 +311,79 @@ async function handleEntryCheckout(
     return corsResponse({ error: 'Cart has expired. Please create a new cart.' }, 410);
   }
 
+  const platformFeePercent = resolvePlatformFeePercent(Deno.env.get('PLATFORM_FEE_PERCENT'));
+
+  // NEVER trust entry_cart_items.entry_fee_cents (round-14 P1): the
+  // owner-update RLS policy covers every column, so a direct PostgREST write
+  // can lower an item's fee. Recompute each fee from the authority chain
+  // (show date-tiered fees → class fee → default). Drift — tampering OR a
+  // legitimate fee change since the item was added — heals the cart to
+  // authoritative pricing and asks the user to review; we never silently
+  // charge a number the cart page didn't show.
+  const { data: showFees, error: showFeesError } = await supabase
+    .from('shows')
+    .select('pre_entry_fee, day_of_show_fee, start_date')
+    .eq('id', cart.show_id)
+    .single();
+  if (showFeesError || !showFees) {
+    console.error(`Show fee lookup failed for cart ${cart_id} (show ${cart.show_id}):`, showFeesError);
+    return corsResponse({ error: 'Could not verify entry fees. Please try again.' }, 500);
+  }
+
+  const nowIso = new Date().toISOString();
+  const itemsWithAuthoritativeFee = (
+    cart.items as { id: string; entry_fee_cents: number; class?: { entry_fee?: number | string | null } }[]
+  ).map(item => ({
+    item,
+    authoritativeCents: authoritativeEntryFeeCents({
+      showPreEntryFee: showFees.pre_entry_fee,
+      showDayOfShowFee: showFees.day_of_show_fee,
+      showStartDate: showFees.start_date,
+      classEntryFee: item.class?.entry_fee ?? null,
+      nowIso,
+    }),
+  }));
+  const driftedItems = itemsWithAuthoritativeFee.filter(
+    x => x.item.entry_fee_cents !== x.authoritativeCents
+  );
+  if (driftedItems.length > 0) {
+    console.error(
+      `Cart ${cart_id}: ${driftedItems.length}/${cart.items.length} item fees differ from ` +
+        `authoritative pricing — healing and refusing checkout`
+    );
+    for (const { item, authoritativeCents } of driftedItems) {
+      await supabase
+        .from('entry_cart_items')
+        .update({ entry_fee_cents: authoritativeCents })
+        .eq('id', item.id);
+    }
+    const healedSubtotal = itemsWithAuthoritativeFee.reduce((s, x) => s + x.authoritativeCents, 0);
+    const healedFeeCents = calculatePlatformFeeCents(healedSubtotal, platformFeePercent);
+    await supabase
+      .from('entry_carts')
+      .update({
+        subtotal_cents: healedSubtotal,
+        platform_fee_cents: healedFeeCents,
+        total_cents: healedSubtotal + healedFeeCents,
+        // Sever any prior session — it priced the unhealed items.
+        stripe_checkout_session_id: null,
+      })
+      .eq('id', cart_id)
+      // Never heal a cart the webhook just claimed (paid mid-checkout).
+      .eq('status', 'active');
+    if (cart.stripe_checkout_session_id) {
+      try {
+        await stripe.checkout.sessions.expire(cart.stripe_checkout_session_id);
+      } catch {
+        // Already expired/paid/foreign — the severed link above is decisive.
+      }
+    }
+    return corsResponse(
+      { error: 'Entry fees were updated to current show pricing — review your cart and try again.' },
+      409
+    );
+  }
+
   // Build line items for Stripe
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = cart.items.map(
     (item: {
@@ -332,12 +407,12 @@ async function handleEntryCheckout(
     return corsResponse({ error: 'Cart is empty' }, 400);
   }
 
-  // Calculate platform fee (if applicable)
+  // Calculate platform fee (if applicable). Item fees are verified equal to
+  // the authoritative pricing above, so summing them is summing the authority.
   const subtotal = cart.items.reduce(
     (sum: number, item: { entry_fee_cents: number }) => sum + item.entry_fee_cents,
     0
   );
-  const platformFeePercent = resolvePlatformFeePercent(Deno.env.get('PLATFORM_FEE_PERCENT'));
   const platformFeeCents = calculatePlatformFeeCents(subtotal, platformFeePercent);
 
   // Add platform fee as line item if > 0

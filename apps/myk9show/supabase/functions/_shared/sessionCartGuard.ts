@@ -25,6 +25,10 @@ export interface SessionCartGuardInput {
   cartExpiresAt: string | null;
   /** the webhook's clock, ISO — injected so the guard stays pure/testable */
   nowIso: string;
+  /** entry_carts.subtotal_cents written at checkout — null tolerated (legacy) */
+  cartSubtotalCents: number | null;
+  /** sum of the CURRENT items' entry_fee_cents at webhook time */
+  itemFeesSumCents: number;
 }
 
 export type SessionCartGuardResult = { ok: true } | { ok: false; reason: string };
@@ -59,6 +63,20 @@ export function sessionMatchesCart(input: SessionCartGuardInput): SessionCartGua
       reason:
         `paid session ${input.sessionId} is not the cart's current session ` +
         `(${input.cartSessionId ?? 'none'}) — the cart changed after this checkout started`,
+    };
+  }
+  // Round-14 P1: entries are built from the ITEMS, but the id/total checks
+  // above only prove the CART ROW is the one the session charged. Cart
+  // mutations write items first and the cart row second — a failed second
+  // write (or a direct PostgREST tamper of item fees, which the owner-update
+  // RLS permits) leaves stored totals matching the paid session while the
+  // items no longer do. Reconcile the items against what was charged.
+  if (input.cartSubtotalCents != null && input.itemFeesSumCents !== input.cartSubtotalCents) {
+    return {
+      ok: false,
+      reason:
+        `items sum to ${input.itemFeesSumCents}¢ but the paid session charged a subtotal of ` +
+        `${input.cartSubtotalCents}¢ — the cart's items drifted after checkout started`,
     };
   }
   if (

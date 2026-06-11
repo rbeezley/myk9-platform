@@ -117,7 +117,8 @@ Deno.serve(async req => {
       return corsResponse({ error: 'Entry not found' }, 404);
     }
 
-    const show = entry.show as unknown as { id: string; club_id: string };
+    // club_id is nullable (shows.club_id is ON DELETE SET NULL).
+    const show = entry.show as unknown as { id: string; club_id: string | null };
 
     // Authorize: show-scoped secretary, the club's admin, or site admin —
     // evaluated AS THE CALLER via the canonical SQL predicates.
@@ -126,7 +127,12 @@ Deno.serve(async req => {
     });
     const [secretaryRes, clubAdminRes, siteAdminRes] = await Promise.all([
       userClient.rpc('is_show_secretary', { check_show_id: show.id }),
-      userClient.rpc('is_club_admin', { check_club_id: show.club_id }),
+      // is_club_admin(NULL) means "admin of ANY club" (round-8 RLS finding) —
+      // for a clubless show, any club admin could refund entries they have no
+      // stake in. No club, no club-admin path (round-14 P2).
+      show.club_id
+        ? userClient.rpc('is_club_admin', { check_club_id: show.club_id })
+        : Promise.resolve({ data: false }),
       userClient.rpc('is_site_admin'),
     ]);
     const authorized =

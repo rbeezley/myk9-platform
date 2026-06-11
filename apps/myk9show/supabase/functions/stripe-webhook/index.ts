@@ -4,6 +4,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { buildEntryInsert, extractPaymentIntentId } from '../_shared/entryFromCartItem.ts';
 import { accountToRowPatch } from '../_shared/connectAccountMapper.ts';
 import { parsePremiumPriceIds, priceIdToTier } from '../_shared/premiumPrices.ts';
+import { sessionMatchesCart } from '../_shared/sessionCartGuard.ts';
 
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
@@ -297,6 +298,34 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
 
   if (cartError || !cart) {
     console.error('Cart not found:', cartError);
+    return;
+  }
+
+  // Refuse a paid session the cart no longer points at: the exhibitor started
+  // checkout, abandoned the Stripe tab, changed the cart, then paid the OLD
+  // page — entries from the CURRENT cart would not match the stale charge
+  // (Codex round-3 P1). Cart mutations null stripe_checkout_session_id, which
+  // is what makes this id equality decisive. The cart stays active so a fresh
+  // checkout works; the operator refunds the stale charge.
+  const staleGuard = sessionMatchesCart({
+    sessionId: session.id,
+    sessionAmountTotal: session.amount_total ?? null,
+    cartSessionId: cart.stripe_checkout_session_id ?? null,
+    cartTotalCents: cart.total_cents ?? null,
+  });
+  if (!staleGuard.ok) {
+    const stalePiId = extractPaymentIntentId(session.payment_intent);
+    console.error(`CRITICAL: stale-session payment for cart ${cartId} — ${staleGuard.reason}`);
+    await alertAdmin(
+      'Stale checkout payment needs a refund',
+      `<p>Checkout session <code>${session.id}</code> was PAID, but cart
+       <code>${cartId}</code> changed after that checkout started
+       (${staleGuard.reason}).</p>
+       <p>No entries were created for this charge. Refund payment intent
+       <code>${stalePiId ?? 'unknown — look up the session in Stripe'}</code> from the
+       Stripe dashboard. The exhibitor's cart is untouched and they can check out
+       again normally.</p>`
+    );
     return;
   }
 

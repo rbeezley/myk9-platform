@@ -261,6 +261,11 @@ export const useCartStore = create<CartState>()(
                 subtotal_cents: subtotal,
                 platform_fee_cents: platformFee,
                 total_cents: total,
+                // Sever the checkout-session link: an abandoned-but-open Stripe
+                // page must not be able to pay for a cart that has since
+                // changed. The webhook rejects sessions the cart no longer
+                // points at (sessionCartGuard, Codex round-3 P1).
+                stripe_checkout_session_id: null,
               })
               .eq('id', cart.id);
 
@@ -281,6 +286,7 @@ export const useCartStore = create<CartState>()(
                 subtotal_cents: subtotal,
                 platform_fee_cents: platformFee,
                 total_cents: total,
+                stripe_checkout_session_id: null,
               },
               lastSyncedAt: new Date().toISOString(),
             });
@@ -322,6 +328,11 @@ export const useCartStore = create<CartState>()(
                 subtotal_cents: subtotal,
                 platform_fee_cents: platformFee,
                 total_cents: total,
+                // Sever the checkout-session link: an abandoned-but-open Stripe
+                // page must not be able to pay for a cart that has since
+                // changed. The webhook rejects sessions the cart no longer
+                // points at (sessionCartGuard, Codex round-3 P1).
+                stripe_checkout_session_id: null,
               })
               .eq('id', cart.id);
 
@@ -342,6 +353,7 @@ export const useCartStore = create<CartState>()(
                 subtotal_cents: subtotal,
                 platform_fee_cents: platformFee,
                 total_cents: total,
+                stripe_checkout_session_id: null,
               },
               lastSyncedAt: new Date().toISOString(),
             });
@@ -401,6 +413,8 @@ export const useCartStore = create<CartState>()(
                   subtotal_cents: subtotal,
                   platform_fee_cents: platformFee,
                   total_cents: total,
+                  // Sever the checkout-session link (see addItem).
+                  stripe_checkout_session_id: null,
                 })
                 .eq('id', cart.id);
 
@@ -411,6 +425,7 @@ export const useCartStore = create<CartState>()(
                   subtotal_cents: subtotal,
                   platform_fee_cents: platformFee,
                   total_cents: total,
+                  stripe_checkout_session_id: null,
                 },
                 lastSyncedAt: new Date().toISOString(),
               });

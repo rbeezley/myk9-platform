@@ -37,10 +37,27 @@ export const WIZARD_SURFACE_PATHS = [
   '/shows/:id/*',
 ] as const;
 
+const WIZARD_SURFACE_BLOCKED_PATHS = [
+  '/shows/:id/setup',
+  '/shows/:id/show-desk',
+  '/shows/:id/entry-management',
+  '/shows/:id/reports',
+  '/shows/:id/results-control',
+  '/shows/:id/submit-results',
+] as const;
+
 // Pure check — does this path match the wizard-surface allowlist? Useful
 // in tests and in any code that needs to ask the question independently of
 // whether the surface flag is currently on.
 export function isPathInWizardAllowlist(pathname: string): boolean {
+  if (
+    WIZARD_SURFACE_BLOCKED_PATHS.some(
+      pattern => matchPath({ path: pattern, end: true }, pathname) !== null
+    )
+  ) {
+    return false;
+  }
+
   return WIZARD_SURFACE_PATHS.some((pattern) =>
     matchPath({ path: pattern, end: !pattern.endsWith('*') }, pathname) !== null
   );

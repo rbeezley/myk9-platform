@@ -64,9 +64,12 @@ cross-tenant read hole and an offline right-to-erasure gap.
 ### Migration `20260611120000_tighten_dogs_people_select_rls.sql`
 
 - New helper `public.is_show_manager()` — parameterless, SECURITY DEFINER, STABLE;
-  true if the caller holds an active, unexpired `secretary | trial_secretary |
-  club_admin | site_admin | platform_admin` role. `REVOKE ALL … FROM public; GRANT
-  EXECUTE … TO authenticated`.
+  composed as `is_site_admin() OR is_trial_secretary() OR is_club_admin()`. **All three
+  MUST be the migration-156 denormalized helpers that read `user_roles.auth_user_id`
+  and do NOT join `public.people`** — `has_role()` (mig 082) still joins `people` and
+  would cause RLS recursion (error 42P17) under FORCE RLS when evaluated inside
+  `people_select` (Codex P1, PR #633). `REVOKE ALL … FROM public; GRANT EXECUTE …
+  TO authenticated`.
 - `dogs_select` (TO authenticated): `deleted_at IS NULL AND ( owner_id =
   (SELECT get_my_person_id()) OR co_owner_id = (SELECT get_my_person_id()) OR
   (SELECT is_show_manager()) )`.

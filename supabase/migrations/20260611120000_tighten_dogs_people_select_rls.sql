@@ -39,14 +39,25 @@
 BEGIN;
 
 -- Cheap, parameterless "is this user show staff anywhere?" gate.
--- Composed from the existing, maintained role helpers rather than hardcoding role
--- names — is_site_admin() is the canonical admin check (site_admin), is_trial_secretary()
--- (no club arg) matches secretary/trial_secretary in any club, has_role('club_admin')
--- covers club admins. This keeps the policy correct if the canonical role set changes
--- and avoids duplicating a role-name list that has accreted dead names (platform_admin,
--- trial_secretary were removed from the seed in migrations 066/124 but linger in older
--- IN-lists). STABLE so a `(SELECT …)` call site is hoisted into a per-statement InitPlan
--- rather than re-evaluated per row; the inner helpers are SECURITY DEFINER and bypass
+-- Composed from the migration-156 denormalized role helpers rather than hardcoding
+-- role names — is_site_admin() is the canonical admin check (site_admin),
+-- is_trial_secretary() (no club arg) matches secretary/trial_secretary in any club,
+-- is_club_admin() (no club arg) covers club admins. This keeps the policy correct if
+-- the canonical role set changes and avoids duplicating a role-name list that has
+-- accreted dead names (platform_admin, trial_secretary were removed from the seed in
+-- migrations 066/124 but linger in older IN-lists).
+--
+-- CRITICAL — all three helpers MUST be the migration-156 versions that query
+-- public.user_roles.auth_user_id directly and DO NOT join public.people. Because
+-- people_select (below) evaluates (SELECT is_show_manager()), any helper that reads
+-- public.people would recurse: read people → people_select → is_show_manager →
+-- read people → … (error 42P17), even under SECURITY DEFINER, because people has
+-- FORCE ROW LEVEL SECURITY (mig 021). That is exactly why has_role() (mig 082, still
+-- joins people) must NOT be used here — use is_club_admin() instead. See migrations
+-- 154/156 which introduced this denormalization to break the recursion.
+--
+-- STABLE so a `(SELECT …)` call site is hoisted into a per-statement InitPlan rather
+-- than re-evaluated per row; the inner helpers are SECURITY DEFINER and bypass
 -- user_roles RLS.
 CREATE OR REPLACE FUNCTION public.is_show_manager()
 RETURNS boolean
@@ -57,7 +68,7 @@ SET search_path = ''
 AS $$
   SELECT public.is_site_admin()
       OR public.is_trial_secretary()
-      OR public.has_role('club_admin');
+      OR public.is_club_admin();
 $$;
 
 REVOKE ALL ON FUNCTION public.is_show_manager() FROM public;

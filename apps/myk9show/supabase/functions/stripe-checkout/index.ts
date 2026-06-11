@@ -436,7 +436,17 @@ async function handleEntryCheckout(
     .eq('id', cart_id);
 
   if (updateError) {
-    console.error('Error updating cart with session:', updateError);
+    // The webhook REJECTS any paid session the cart doesn't point at
+    // (sessionCartGuard) — handing out this URL without the persisted link
+    // would let the user pay a session the webhook must then refuse (Codex
+    // round-5 P1). Kill the session and fail the request instead.
+    console.error('Error updating cart with session — expiring session:', updateError);
+    try {
+      await stripe.checkout.sessions.expire(session.id);
+    } catch (expireErr) {
+      console.error(`CRITICAL: could not expire orphaned session ${session.id}:`, expireErr);
+    }
+    return corsResponse({ error: 'Could not start checkout. Please try again.' }, 500);
   }
 
   console.log(`Created entry checkout session ${session.id} for cart ${cart_id}`);

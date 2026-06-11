@@ -625,16 +625,60 @@ function getMirroredDogEntryNodeId(
   return tree.nodesById[dogEntryNodeId] ? dogEntryNodeId : undefined;
 }
 
+function attentionSourceKey(nodeId: string): string {
+  const entryId = sourceIdFromNodeId(nodeId, 'entry') ?? sourceIdFromNodeId(nodeId, 'dog-entry');
+  return entryId ? `entry:${entryId}` : nodeId;
+}
+
+function isEntryReviewAttentionNode(node: ShowMapNode): boolean {
+  return node.type === 'dog-entry' && node.status?.value === 'submitted';
+}
+
+function getDirectAttentionNodeIdsBySource(
+  tree: ShowMapTree,
+  state: Omit<ShowMapActionState, 'tree'>
+): Map<string, Set<string>> {
+  const nodeIdsBySource = new Map<string, Set<string>>();
+  const addDirectNodeId = (nodeId: string): void => {
+    const key = attentionSourceKey(nodeId);
+    const nodeIds = nodeIdsBySource.get(key) ?? new Set<string>();
+    nodeIds.add(nodeId);
+    nodeIdsBySource.set(key, nodeIds);
+  };
+
+  for (const action of getAttentionActions('root', { tree, ...state })) {
+    addDirectNodeId(action.nodeId);
+  }
+
+  for (const node of Object.values(tree.nodesById)) {
+    if (isEntryReviewAttentionNode(node)) {
+      addDirectNodeId(node.id);
+    }
+  }
+
+  return nodeIdsBySource;
+}
+
+function collectAttentionNodeIdsForSource(tree: ShowMapTree, directNodeIds: Set<string>): Set<string> {
+  const nodeIds = new Set<string>();
+  for (const directId of directNodeIds) {
+    addNodeAndAncestors(tree, directId, nodeId => nodeIds.add(nodeId));
+    const dogEntryNodeId = getMirroredDogEntryNodeId(tree, directId);
+    if (dogEntryNodeId) {
+      addNodeAndAncestors(tree, dogEntryNodeId, nodeId => nodeIds.add(nodeId));
+    }
+  }
+  return nodeIds;
+}
+
 export function getAttentionNodeIds(
   tree: ShowMapTree,
   state: Omit<ShowMapActionState, 'tree'> = {}
 ): Set<string> {
   const nodeIds = new Set<string>();
-  for (const action of getAttentionActions('root', { tree, ...state })) {
-    addNodeAndAncestors(tree, action.nodeId, nodeId => nodeIds.add(nodeId));
-    const dogEntryNodeId = getMirroredDogEntryNodeId(tree, action.nodeId);
-    if (dogEntryNodeId) {
-      addNodeAndAncestors(tree, dogEntryNodeId, nodeId => nodeIds.add(nodeId));
+  for (const directNodeIds of getDirectAttentionNodeIdsBySource(tree, state).values()) {
+    for (const nodeId of collectAttentionNodeIdsForSource(tree, directNodeIds)) {
+      nodeIds.add(nodeId);
     }
   }
   return nodeIds;
@@ -650,18 +694,8 @@ export function getAttentionCountsByNodeId(
   state: Omit<ShowMapActionState, 'tree'> = {}
 ): Map<string, number> {
   const counts = new Map<string, number>();
-  const directNodeIds = new Set<string>();
-  for (const action of getAttentionActions('root', { tree, ...state })) {
-    directNodeIds.add(action.nodeId);
-  }
-  for (const directId of directNodeIds) {
-    const countedNodeIds = new Set<string>();
-    addNodeAndAncestors(tree, directId, nodeId => countedNodeIds.add(nodeId));
-    const dogEntryNodeId = getMirroredDogEntryNodeId(tree, directId);
-    if (dogEntryNodeId) {
-      addNodeAndAncestors(tree, dogEntryNodeId, nodeId => countedNodeIds.add(nodeId));
-    }
-    for (const nodeId of countedNodeIds) {
+  for (const directNodeIds of getDirectAttentionNodeIdsBySource(tree, state).values()) {
+    for (const nodeId of collectAttentionNodeIdsForSource(tree, directNodeIds)) {
       counts.set(nodeId, (counts.get(nodeId) ?? 0) + 1);
     }
   }

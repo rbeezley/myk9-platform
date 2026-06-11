@@ -212,6 +212,110 @@ describe('showMapActions', () => {
     expect(counts.get('dog-entry:entry-1')).toBe(1);
   });
 
+  it('includes dog-entry attention when the trial entry is preview-capped', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [classes[0]!],
+      entryPreviewLimit: 1,
+      entries: [
+        {
+          id: 'entry-visible',
+          class_id: 'class-active',
+          dog_id: 'dog-visible',
+          run_order: 1,
+          dog: { id: 'dog-visible', call_name: 'Visible' },
+          entry_status: 'accepted',
+        },
+        {
+          id: 'entry-capped',
+          class_id: 'class-active',
+          dog_id: 'dog-capped',
+          run_order: 2,
+          dog: { id: 'dog-capped', call_name: 'Capped' },
+          entry_status: 'submitted',
+        },
+      ],
+    });
+
+    expect(tree.nodesById['entry:entry-capped']).toBeUndefined();
+    expect(tree.nodesById['dog-entry:entry-capped']).toBeDefined();
+
+    const attentionNodeIds = getAttentionNodeIds(tree);
+    expect(Array.from(attentionNodeIds)).toEqual(
+      expect.arrayContaining([
+        'show:show-1',
+        'all-exhibitors:show-1',
+        'dog:dog-capped',
+        'dog-entry:entry-capped',
+      ])
+    );
+
+    const counts = getAttentionCountsByNodeId(tree);
+    expect(counts.get(tree.root.id)).toBe(1);
+    expect(counts.get('all-exhibitors:show-1')).toBe(1);
+    expect(counts.get('dog:dog-capped')).toBe(1);
+    expect(counts.get('dog-entry:entry-capped')).toBe(1);
+  });
+
+  it('counts one attention item when the same entry is mirrored through both branches', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [classes[0]!],
+      entries: [
+        {
+          id: 'entry-1',
+          class_id: 'class-active',
+          dog_id: 'dog-1',
+          dog: { id: 'dog-1', call_name: 'Bella' },
+          entry_status: 'submitted',
+        },
+      ],
+    });
+
+    const counts = getAttentionCountsByNodeId(tree);
+    expect(counts.get(tree.root.id)).toBe(1);
+    expect(counts.get('trial:trial-1')).toBe(1);
+    expect(counts.get('class:class-active')).toBe(1);
+    expect(counts.get('all-exhibitors:show-1')).toBe(1);
+    expect(counts.get('dog:dog-1')).toBe(1);
+  });
+
+  it('keeps class and trial wrap-up attention out of dog branch ancestors', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [
+        {
+          id: 'class-needs-signature',
+          trialId: 'trial-1',
+          name: 'Container Novice A',
+          status: 'Complete',
+        },
+      ],
+      entries: [
+        {
+          id: 'entry-needs-signature',
+          class_id: 'class-needs-signature',
+          dog_id: 'dog-1',
+          dog: { id: 'dog-1', call_name: 'Bella' },
+          is_scored: true,
+        },
+      ],
+    });
+
+    const attentionNodeIds = getAttentionNodeIds(tree);
+    expect(attentionNodeIds.has('class:class-needs-signature')).toBe(true);
+    expect(attentionNodeIds.has('all-exhibitors:show-1')).toBe(false);
+    expect(attentionNodeIds.has('dog:dog-1')).toBe(false);
+
+    const counts = getAttentionCountsByNodeId(tree);
+    expect(counts.get('class:class-needs-signature')).toBe(1);
+    expect(counts.has('all-exhibitors:show-1')).toBe(false);
+    expect(counts.has('dog:dog-1')).toBe(false);
+  });
+
   it('does not treat generic pending entry statuses as Attention lens work', () => {
     const tree = buildShowMapTree({
       show,

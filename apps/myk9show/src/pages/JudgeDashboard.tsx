@@ -32,7 +32,6 @@ import { FadeIn } from '@/components/layout/FadeIn';
 import {
   deriveJudgeDashboardStats,
   splitJudgeAssignments,
-  localIsoDate,
   type JudgeClass,
 } from './judgeStatsUtils';
 import { useJudgeAssignments } from '@/hooks/queries/useJudgeAssignments';
@@ -192,7 +191,7 @@ const JudgeDashboard: React.FC = () => {
     });
   }, [user?.id]);
 
-  const buckets = splitJudgeAssignments(assignments, localIsoDate(now));
+  const buckets = splitJudgeAssignments(assignments, now);
   const {
     completedCount,
     totalEntries,

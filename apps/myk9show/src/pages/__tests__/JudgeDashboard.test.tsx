@@ -29,6 +29,8 @@ vi.mock('@/services/AuditService', () => ({
 }));
 
 const TODAY = localIsoDate(Date.now());
+// Bucket fixtures in the device's own zone so device-local TODAY == "today".
+const DEVICE_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 const makeAssignment = (overrides: Partial<JudgeClass> = {}): JudgeClass => ({
   id: 'assignment-1',
@@ -39,6 +41,7 @@ const makeAssignment = (overrides: Partial<JudgeClass> = {}): JudgeClass => ({
   element: 'Interior',
   level: 'Novice',
   trialDate: TODAY,
+  trialTimezone: DEVICE_TZ,
   scheduledTime: new Date(`${TODAY}T09:00:00`),
   ringNumber: null,
   totalEntries: 20,

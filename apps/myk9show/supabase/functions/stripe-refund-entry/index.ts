@@ -2,6 +2,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { validateRefund } from '../_shared/refundValidation.ts';
+import { findReusableRefund } from '../_shared/refundReuse.ts';
 import { alertAdmin } from '../_shared/alertAdmin.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -157,17 +158,22 @@ Deno.serve(async req => {
       return corsResponse({ error: validation.error }, 422);
     }
 
-    // One refund per entry. The entry-scoped idempotency key covers fast
-    // retries, but Stripe keys expire (~24h) — a retry after that (e.g. the
-    // entry-update below failed, so payment_status never flipped to
-    // 'refunded') would create a SECOND refund. Ask Stripe directly, same as
-    // the payout cron's transfers.list guard: metadata.entry_id is stamped on
-    // creation, so an existing refund for this entry is reused, not repeated.
+    // One refund per entry. The idempotency key covers fast retries, but
+    // Stripe keys expire (~24h) — a retry after that (e.g. the entry-update
+    // below failed, so payment_status never flipped to 'refunded') would
+    // create a SECOND refund. Ask Stripe directly, same as the payout cron's
+    // transfers.list guard: metadata.entry_id is stamped on creation, so a
+    // LIVE refund for this entry is reused, not repeated. Dead refunds
+    // (failed/canceled — round-9 review) are ignored: honoring one would
+    // stamp the entry refunded and shrink the payout while the customer was
+    // never paid. The attempt-count key suffix keeps a retry after a failure
+    // from replaying the cached failure (same lesson as the cron's per-row
+    // key); refunds.list remains the at-most-one-live-refund authority.
     const prior = await stripe.refunds.list({
       payment_intent: entry.stripe_payment_intent_id!,
       limit: 100,
     });
-    const existingRefund = prior.data.find(r => r.metadata?.entry_id === entry_id);
+    const existingRefund = findReusableRefund(prior.data, entry_id);
     const refund =
       existingRefund ??
       (await stripe.refunds.create(
@@ -176,7 +182,7 @@ Deno.serve(async req => {
           amount: validation.amountCents,
           metadata: { entry_id },
         },
-        { idempotencyKey: `refund-entry-${entry_id}` }
+        { idempotencyKey: `refund-entry-${entry_id}-${prior.data.length}` }
       ));
     if (existingRefund) {
       console.log(

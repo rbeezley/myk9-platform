@@ -155,7 +155,56 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
       return { ...result, error: getSyncErrorMessage(result.error) };
     }
 
+    // Right-to-erasure / tombstone cleanup. The dogs sync is incremental and the
+    // dogs_select policy keeps `deleted_at IS NULL` in USING, so RLS hides
+    // soft-deleted rows from the sync query — the client never receives the
+    // tombstone and a deleted dog would otherwise linger in every cached replica
+    // forever. Reconcile against the live id set instead. Side-effect only and
+    // fully guarded: a failure here must never turn a successful download into a
+    // failed sync.
+    if (result.success) {
+      try {
+        const removed = await this.reconcileDeleted(licenseKey || undefined);
+        if (removed > 0) {
+          logger.log(`[${this.getTableName()}] reconcileDeleted removed ${removed} stale rows`);
+        }
+      } catch (err) {
+        logger.warn(`[${this.getTableName()}] reconcileDeleted skipped`, err);
+      }
+    }
+
     return result;
+  }
+
+  /**
+   * Remove locally-cached dogs the server no longer exposes to this user —
+   * soft-deleted dogs (RLS filters `deleted_at IS NOT NULL` out of every read, so
+   * incremental sync can never observe the tombstone), hard-deleted dogs, or dogs
+   * that left the user's visibility scope.
+   *
+   * Strategy: fetch the full set of live, RLS-permitted dog ids (a cheap, index-only
+   * `select('id')`) and drop any non-dirty local row not in that set.
+   * `removeStaleEntries` preserves dirty rows, so a pending local create/edit is
+   * never wiped. On a failed fetch we return 0 and prune nothing — never reconcile
+   * against a partial/empty result, which would erase the whole replica.
+   *
+   * @param scopeValue Optional owner_id scope, mirroring the sync fetch filter.
+   * @returns number of stale rows removed.
+   */
+  async reconcileDeleted(scopeValue?: string): Promise<number> {
+    let query = supabase.from('dogs').select('id').is('deleted_at', null);
+    if (scopeValue) {
+      query = query.eq('owner_id', scopeValue);
+    }
+
+    const { data, error } = await query;
+    if (error || !data) {
+      // Treat any fetch failure as "unknown" — pruning here could wipe the replica.
+      return 0;
+    }
+
+    const liveIds = new Set<string>(data.map(row => String((row as { id: string }).id)));
+    return this.removeStaleEntries(liveIds);
   }
 
   /**

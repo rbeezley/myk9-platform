@@ -928,6 +928,125 @@ describe('ReplicatedDogsTable', () => {
     });
   });
 
+  describe('reconcileDeleted — tombstone / right-to-erasure cleanup', () => {
+    // Minimal thenable mimicking the supabase builder chain reconcileDeleted uses:
+    // from('dogs').select('id').is('deleted_at', null)[.eq('owner_id', …)]
+    const makeQuery = (result: { data: { id: string }[] | null; error: unknown }) => {
+      const q = {
+        select: vi.fn(() => q),
+        is: vi.fn(() => q),
+        eq: vi.fn(() => q),
+        then: (onFulfilled: (r: typeof result) => unknown) =>
+          Promise.resolve(result).then(onFulfilled),
+      };
+      return q;
+    };
+
+    it('removes non-dirty local dogs absent from the live id set', async () => {
+      const query = makeQuery({ data: [{ id: '1' }, { id: '3' }], error: null });
+      vi.mocked(supabase.from).mockReturnValue(
+        query as unknown as ReturnType<typeof supabase.from>
+      );
+      const removeSpy = vi.spyOn(dogsTable, 'removeStaleEntries').mockResolvedValue(2);
+
+      const removed = await dogsTable.reconcileDeleted();
+
+      expect(query.select).toHaveBeenCalledWith('id');
+      expect(query.is).toHaveBeenCalledWith('deleted_at', null);
+      expect(removeSpy).toHaveBeenCalledWith(new Set(['1', '3']));
+      expect(removed).toBe(2);
+    });
+
+    it('a soft-deleted dog is excluded from the live set, so its local row is pruned', async () => {
+      // dog '2' was soft-deleted server-side → RLS omits it from the live-id fetch.
+      const query = makeQuery({ data: [{ id: '1' }], error: null });
+      vi.mocked(supabase.from).mockReturnValue(
+        query as unknown as ReturnType<typeof supabase.from>
+      );
+      const removeSpy = vi.spyOn(dogsTable, 'removeStaleEntries').mockResolvedValue(1);
+
+      await dogsTable.reconcileDeleted();
+
+      const liveIds = removeSpy.mock.calls[0]![0];
+      expect(liveIds.has('1')).toBe(true);
+      expect(liveIds.has('2')).toBe(false);
+    });
+
+    it('scopes the live-id fetch by owner_id when a key is provided', async () => {
+      const query = makeQuery({ data: [], error: null });
+      vi.mocked(supabase.from).mockReturnValue(
+        query as unknown as ReturnType<typeof supabase.from>
+      );
+      vi.spyOn(dogsTable, 'removeStaleEntries').mockResolvedValue(0);
+
+      await dogsTable.reconcileDeleted('owner-123');
+
+      expect(query.eq).toHaveBeenCalledWith('owner_id', 'owner-123');
+    });
+
+    it('prunes nothing when the live-id fetch errors (never wipe on failure)', async () => {
+      const query = makeQuery({ data: null, error: { message: 'rls denied' } });
+      vi.mocked(supabase.from).mockReturnValue(
+        query as unknown as ReturnType<typeof supabase.from>
+      );
+      const removeSpy = vi.spyOn(dogsTable, 'removeStaleEntries').mockResolvedValue(0);
+
+      const removed = await dogsTable.reconcileDeleted();
+
+      expect(removeSpy).not.toHaveBeenCalled();
+      expect(removed).toBe(0);
+    });
+
+    it('sync() invokes reconcileDeleted after a successful download', async () => {
+      vi.spyOn(dogsTable, 'getSyncMetadata').mockResolvedValue(null);
+      vi.spyOn(dogsTable, 'getAll').mockResolvedValue([]);
+      vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(null);
+      vi.spyOn(dogsTable, 'batchSet').mockResolvedValue();
+      vi.spyOn(dogsTable, 'updateSyncMetadata').mockResolvedValue();
+
+      const mockQuery = {
+        select: vi.fn().mockReturnThis(),
+        gt: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+      };
+      vi.mocked(supabase.from).mockReturnValue(
+        mockQuery as unknown as ReturnType<typeof supabase.from>
+      );
+
+      const reconcileSpy = vi.spyOn(dogsTable, 'reconcileDeleted').mockResolvedValue(0);
+
+      const result = await dogsTable.sync('owner-123');
+
+      expect(result.success).toBe(true);
+      expect(reconcileSpy).toHaveBeenCalledWith('owner-123');
+    });
+
+    it('a throwing reconcileDeleted does not fail the sync', async () => {
+      vi.spyOn(dogsTable, 'getSyncMetadata').mockResolvedValue(null);
+      vi.spyOn(dogsTable, 'getAll').mockResolvedValue([]);
+      vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(null);
+      vi.spyOn(dogsTable, 'batchSet').mockResolvedValue();
+      vi.spyOn(dogsTable, 'updateSyncMetadata').mockResolvedValue();
+
+      const mockQuery = {
+        select: vi.fn().mockReturnThis(),
+        gt: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+      };
+      vi.mocked(supabase.from).mockReturnValue(
+        mockQuery as unknown as ReturnType<typeof supabase.from>
+      );
+
+      vi.spyOn(dogsTable, 'reconcileDeleted').mockRejectedValue(new Error('boom'));
+
+      const result = await dogsTable.sync('owner-123');
+
+      expect(result.success).toBe(true);
+    });
+  });
+
   describe('Cache Management', () => {
     it('should track sync metadata', async () => {
       const mockMetadata: SyncMetadata = {

@@ -51,5 +51,11 @@ describe('isPathInWizardAllowlist', () => {
     expect(isPathInWizardAllowlist('/secretary/results-control')).toBe(false);
     expect(isPathInWizardAllowlist('/secretary/reports')).toBe(false);
     expect(isPathInWizardAllowlist('/secretary/entries')).toBe(false);
+    expect(isPathInWizardAllowlist('/shows/abc-123/setup')).toBe(false);
+    expect(isPathInWizardAllowlist('/shows/abc-123/show-desk')).toBe(false);
+    expect(isPathInWizardAllowlist('/shows/abc-123/entry-management')).toBe(false);
+    expect(isPathInWizardAllowlist('/shows/abc-123/reports')).toBe(false);
+    expect(isPathInWizardAllowlist('/shows/abc-123/results-control')).toBe(false);
+    expect(isPathInWizardAllowlist('/shows/abc-123/submit-results')).toBe(false);
   });
 });

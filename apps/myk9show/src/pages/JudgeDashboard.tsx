@@ -11,6 +11,7 @@ import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
 import { logger } from '@/services/LoggingService';
 import { GlassCard } from '@/components/common/GlassCard';
+import { LoadingEmptyState } from '@/components/common/EmptyState';
 import {
   Trophy,
   Clock,
@@ -24,10 +25,16 @@ import {
   CalendarDays,
   CheckCircle,
   Eye,
+  Play,
 } from 'lucide-react';
 import { StaggeredGrid } from '@/components/layout/StaggeredGrid';
 import { FadeIn } from '@/components/layout/FadeIn';
-import { deriveJudgeDashboardStats, type JudgeClass } from './judgeStatsUtils';
+import {
+  deriveJudgeDashboardStats,
+  splitJudgeAssignments,
+  type JudgeClass,
+} from './judgeStatsUtils';
+import { useJudgeAssignments } from '@/hooks/queries/useJudgeAssignments';
 import { formatRingLabel } from '@/utils/ringLabel';
 
 const JUDGE_TABS: PrimaryTabDef[] = [
@@ -36,12 +43,148 @@ const JUDGE_TABS: PrimaryTabDef[] = [
   { id: 'completed', label: 'Completed', icon: CheckCircle },
 ];
 
+const getStatusIcon = (status: JudgeClass['status']) => {
+  switch (status) {
+    case 'completed':
+      return <CheckCircle2 className="h-5 w-5 text-[#34C759]" />;
+    case 'in-progress':
+      return <Timer className="h-5 w-5 text-[#007AFF] animate-pulse" />;
+    default:
+      return <Circle className="h-5 w-5 text-muted-foreground" />;
+  }
+};
+
+const getStatusBadge = (status: JudgeClass['status']) => {
+  switch (status) {
+    case 'completed':
+      return (
+        <Badge className="bg-success-green/10 text-success-green border-success-green/20 border">
+          Completed
+        </Badge>
+      );
+    case 'in-progress':
+      return (
+        <Badge className="bg-primary/10 text-primary border-primary/20 border">In Progress</Badge>
+      );
+    default:
+      return (
+        <Badge className="bg-muted text-muted-foreground border-border border">Pending</Badge>
+      );
+  }
+};
+
+interface AssignmentRowProps {
+  judgeClass: JudgeClass;
+  showDate?: boolean;
+  onStartJudging?: (judgeClass: JudgeClass) => void;
+  onViewResults?: (judgeClass: JudgeClass) => void;
+}
+
+const AssignmentRow: React.FC<AssignmentRowProps> = ({
+  judgeClass,
+  showDate = false,
+  onStartJudging,
+  onViewResults,
+}) => {
+  const ringLabel = formatRingLabel(judgeClass.ringNumber);
+  const isCompleted = judgeClass.status === 'completed';
+
+  return (
+    <div className="group relative overflow-hidden flex items-center justify-between p-4 sm:p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]">
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+      <div className="relative flex items-center gap-4">
+        {getStatusIcon(judgeClass.status)}
+        <div>
+          <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors duration-300">
+            {judgeClass.name}
+          </h3>
+          <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+            {ringLabel && <span>{ringLabel}</span>}
+            {ringLabel && <span>&bull;</span>}
+            {showDate && (
+              <>
+                <span>
+                  {judgeClass.scheduledTime.toLocaleDateString([], {
+                    month: 'short',
+                    day: 'numeric',
+                    timeZone: judgeClass.trialTimezone,
+                  })}
+                </span>
+                <span>&bull;</span>
+              </>
+            )}
+            {/* Render the clock in the trial's zone, not the device's, so a
+                judge on an Eastern device reads a Chicago trial's real time. */}
+            <span>
+              {judgeClass.scheduledTime.toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+                timeZone: judgeClass.trialTimezone,
+              })}
+            </span>
+            <span>&bull;</span>
+            <span>
+              {isCompleted
+                ? `${judgeClass.totalEntries} entries judged`
+                : `${judgeClass.completedEntries}/${judgeClass.totalEntries} entries`}
+            </span>
+          </div>
+        </div>
+      </div>
+      <div className="relative flex items-center gap-2">
+        {getStatusBadge(judgeClass.status)}
+        {!isCompleted && onStartJudging && (
+          <Button
+            size="sm"
+            onClick={() => onStartJudging(judgeClass)}
+            className="bg-primary text-primary-foreground hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
+          >
+            {judgeClass.status === 'in-progress' ? 'Continue' : 'Start'} Judging
+            <ArrowRight className="h-4 w-4 ml-2" />
+          </Button>
+        )}
+        {isCompleted && onViewResults && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onViewResults(judgeClass)}
+            className="relative border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300"
+          >
+            <Eye className="h-4 w-4 mr-2" />
+            View Results
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const TabEmptyState: React.FC<{ icon: React.ReactNode; title: string; body: string }> = ({
+  icon,
+  title,
+  body,
+}) => (
+  <div className="flex flex-col items-center justify-center py-16">
+    <div className="mx-auto w-24 h-24 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center mb-6">
+      {icon}
+    </div>
+    <h3 className="text-lg font-semibold text-foreground mb-2">{title}</h3>
+    <p className="text-muted-foreground max-w-sm text-center">{body}</p>
+  </div>
+);
+
 const JudgeDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user, firstName } = useAuthContext();
   const [selectedTab, setSelectedTab] = useState('today');
-  const [assignments] = useState<JudgeClass[]>([]); // TODO: wire to real query
-  const [mountTime] = useState(() => Date.now());
+  const { assignments, isLoading, isFetching, isError, refetch } = useJudgeAssignments();
+
+  // Live clock so the "next class in Xm" countdown stays current.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     auditService.log({
@@ -52,8 +195,7 @@ const JudgeDashboard: React.FC = () => {
     });
   }, [user?.id]);
 
-  // KNOWN-LIMITATION: mountTime is frozen at mount; replace with a setInterval
-  // ticker once the real query is wired so the countdown stays live.
+  const buckets = splitJudgeAssignments(assignments, now);
   const {
     completedCount,
     totalEntries,
@@ -61,61 +203,23 @@ const JudgeDashboard: React.FC = () => {
     completionRate,
     nextClass,
     minutesUntilNext,
-  } = deriveJudgeDashboardStats(assignments, mountTime);
+  } = deriveJudgeDashboardStats(buckets.today, now);
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle2 className="h-5 w-5 text-[#34C759]" />;
-      case 'in-progress':
-        return <Timer className="h-5 w-5 text-[#007AFF] animate-pulse" />;
-      default:
-        return <Circle className="h-5 w-5 text-muted-foreground" />;
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return (
-          <Badge className="bg-success-green/10 text-success-green border-success-green/20 border">
-            Completed
-          </Badge>
-        );
-      case 'in-progress':
-        return (
-          <Badge className="bg-primary/10 text-primary border-primary/20 border">In Progress</Badge>
-        );
-      default:
-        return (
-          <Badge className="bg-muted text-muted-foreground border-border border">Pending</Badge>
-        );
-    }
-  };
-
-  const handleStartJudging = async (judgeClass: JudgeClass) => {
-    try {
-      // Audit log the start of judging
-      await auditService.log({
+  const handleStartJudging = (judgeClass: JudgeClass) => {
+    // Audit is fire-and-forget; never block the judge's path to the ring on it.
+    void auditService
+      .log({
         action: AuditAction.UPDATE,
         entityType: 'judge_class',
         entityId: judgeClass.id,
-        changes: {
-          status: { from: judgeClass.status, to: 'in-progress' },
-        },
-        metadata: {
-          action: 'start_judging',
-          classId: judgeClass.classId,
-          judgeId: user?.id,
-        },
-      });
+        metadata: { action: 'start_judging', classId: judgeClass.classId, judgeId: user?.id },
+      })
+      .catch(error => logger.error('Failed to log start of judging', 'pages', {}, error as Error));
+    navigate(`/at-show/${judgeClass.showId}/class/${judgeClass.classId}`);
+  };
 
-      navigate(
-        `/shows/${judgeClass.showId}/trials/${judgeClass.trialId}/classes/${judgeClass.classId}/judge`
-      );
-    } catch (error) {
-      logger.error('Failed to start judging:', 'pages', {}, error as Error);
-    }
+  const handleViewResults = (judgeClass: JudgeClass) => {
+    navigate(`/at-show/${judgeClass.showId}/class/${judgeClass.classId}`);
   };
 
   return (
@@ -132,13 +236,17 @@ const JudgeDashboard: React.FC = () => {
               Manage your judging assignments
             </p>
           </div>
-          <Button
-            variant="outline"
-            className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300 shadow-sm"
-          >
-            <Calendar className="h-4 w-4 mr-2" />
-            View Schedule
-          </Button>
+          {/* INTENT: judge — "invisible technology". One tap from the landing page
+              to the ring: this deep-links into ringside for today's active show. */}
+          {nextClass && (
+            <Button
+              onClick={() => navigate(`/at-show/${nextClass.showId}`)}
+              className="bg-primary text-primary-foreground hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
+            >
+              <Play className="h-4 w-4 mr-2" />
+              Open Ringside Scoring
+            </Button>
+          )}
         </div>
 
         {/* Statistics Cards */}
@@ -156,7 +264,7 @@ const JudgeDashboard: React.FC = () => {
             </CardHeader>
             <CardContent className="pt-0">
               <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-                {assignments.length}
+                {buckets.today.length}
               </div>
               <p className="text-sm text-muted-foreground font-medium">
                 {completedCount} completed
@@ -243,232 +351,98 @@ const JudgeDashboard: React.FC = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <PrimaryTabs
-                tabs={JUDGE_TABS}
-                value={selectedTab}
-                onValueChange={setSelectedTab}
-                className="space-y-6"
-              >
-                <TabsContent value="today" className="space-y-4">
-                  {assignments.map(judgeClass => {
-                    const ringLabel = formatRingLabel(judgeClass.ringNumber);
-
-                    return (
-                      <div
+              {isError ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <AlertCircle className="h-12 w-12 text-warning-orange mb-4" />
+                  <h3 className="text-lg font-semibold text-foreground mb-2">
+                    We couldn&apos;t load your assignments
+                  </h3>
+                  <p className="text-muted-foreground max-w-sm mb-6">
+                    Check your connection and try again.
+                  </p>
+                  <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
+                    {isFetching ? 'Retrying…' : 'Retry'}
+                  </Button>
+                </div>
+              ) : isLoading ? (
+                <LoadingEmptyState message="Loading your assignments…" />
+              ) : (
+                <PrimaryTabs
+                  tabs={JUDGE_TABS}
+                  value={selectedTab}
+                  onValueChange={setSelectedTab}
+                  className="space-y-6"
+                >
+                  <TabsContent value="today" className="space-y-4">
+                    {buckets.today.map(judgeClass => (
+                      <AssignmentRow
                         key={judgeClass.id}
-                        className="group relative overflow-hidden flex items-center justify-between p-4 sm:p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
-                      >
-                        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                        <div className="relative flex items-center gap-4">
-                          {getStatusIcon(judgeClass.status)}
-                          <div>
-                            <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors duration-300">
-                              {judgeClass.name}
-                            </h3>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                              {ringLabel && <span>{ringLabel}</span>}
-                              {ringLabel && <span>&bull;</span>}
-                              <span>
-                                {judgeClass.scheduledTime.toLocaleTimeString([], {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })}
-                              </span>
-                              <span>&bull;</span>
-                              <span>
-                                {judgeClass.completedEntries}/{judgeClass.totalEntries} entries
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="relative flex items-center gap-2">
-                          {getStatusBadge(judgeClass.status)}
-                          {judgeClass.status !== 'completed' && (
-                            <Button
-                              size="sm"
-                              onClick={() => handleStartJudging(judgeClass)}
-                              className="bg-primary text-primary-foreground hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
-                            >
-                              {judgeClass.status === 'in-progress' ? 'Continue' : 'Start'} Judging
-                              <ArrowRight className="h-4 w-4 ml-2" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                        judgeClass={judgeClass}
+                        onStartJudging={handleStartJudging}
+                        onViewResults={handleViewResults}
+                      />
+                    ))}
 
-                  {assignments.length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-16">
-                      <div className="mx-auto w-24 h-24 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center mb-6">
-                        <Trophy className="h-12 w-12 text-primary" />
-                      </div>
-                      <h3 className="text-lg font-semibold text-foreground mb-2">
-                        No Classes Today
-                      </h3>
-                      <p className="text-muted-foreground max-w-sm text-center">
-                        You have no classes scheduled for today. Check upcoming assignments below.
-                      </p>
-                    </div>
-                  )}
-                </TabsContent>
+                    {buckets.today.length === 0 &&
+                      (assignments.length === 0 ? (
+                        <TabEmptyState
+                          icon={<Trophy className="h-12 w-12 text-primary" />}
+                          title="No Judging Assignments Yet"
+                          body="When a club assigns you to judge a class, it will appear here automatically. No setup needed."
+                        />
+                      ) : (
+                        <TabEmptyState
+                          icon={<Trophy className="h-12 w-12 text-primary" />}
+                          title="No Classes Today"
+                          body={
+                            buckets.upcoming.length > 0
+                              ? 'You have no classes scheduled for today. Check the Upcoming tab for your next assignment.'
+                              : 'You have no classes scheduled for today.'
+                          }
+                        />
+                      ))}
+                  </TabsContent>
 
-                <TabsContent value="upcoming" className="mt-4">
-                  <div className="flex flex-col items-center justify-center py-16">
-                    <div className="mx-auto w-24 h-24 bg-gradient-to-br from-blue-500/20 to-blue-500/10 rounded-full flex items-center justify-center mb-6">
-                      <Calendar className="h-12 w-12 text-blue-500" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-foreground mb-2">
-                      No Upcoming Classes
-                    </h3>
-                    <p className="text-muted-foreground max-w-sm text-center">
-                      Your upcoming judging assignments will appear here when scheduled.
-                    </p>
-                  </div>
-                </TabsContent>
+                  <TabsContent value="upcoming" className="mt-4 space-y-4">
+                    {buckets.upcoming.map(judgeClass => (
+                      <AssignmentRow key={judgeClass.id} judgeClass={judgeClass} showDate />
+                    ))}
 
-                <TabsContent value="completed" className="mt-4">
-                  <div className="space-y-4">
-                    {assignments
-                      .filter(c => c.status === 'completed')
-                      .map(judgeClass => {
-                        const ringLabel = formatRingLabel(judgeClass.ringNumber);
-
-                        return (
-                          <div
-                            key={judgeClass.id}
-                            className="group relative overflow-hidden flex items-center justify-between p-4 sm:p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
-                          >
-                            <div className="absolute inset-0 bg-gradient-to-r from-success-green/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                            <div className="relative flex items-center gap-4">
-                              {getStatusIcon(judgeClass.status)}
-                              <div>
-                                <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors duration-300">
-                                  {judgeClass.name}
-                                </h3>
-                                <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                                  {ringLabel && <span>{ringLabel}</span>}
-                                  {ringLabel && <span>&bull;</span>}
-                                  <span>{judgeClass.totalEntries} entries judged</span>
-                                </div>
-                              </div>
-                            </div>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="relative border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300"
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              View Results
-                            </Button>
-                          </div>
-                        );
-                      })}
-
-                    {assignments.filter(c => c.status === 'completed').length === 0 && (
-                      <div className="flex flex-col items-center justify-center py-16">
-                        <div className="mx-auto w-24 h-24 bg-gradient-to-br from-success-green/20 to-success-green/10 rounded-full flex items-center justify-center mb-6">
-                          <CheckCircle2 className="h-12 w-12 text-success-green" />
-                        </div>
-                        <h3 className="text-lg font-semibold text-foreground mb-2">
-                          No Completed Classes
-                        </h3>
-                        <p className="text-muted-foreground max-w-sm text-center">
-                          Completed judging assignments will appear here.
-                        </p>
-                      </div>
+                    {buckets.upcoming.length === 0 && (
+                      <TabEmptyState
+                        icon={<Calendar className="h-12 w-12 text-blue-500" />}
+                        title="No Upcoming Classes"
+                        body="Your upcoming judging assignments will appear here when scheduled."
+                      />
                     )}
-                  </div>
-                </TabsContent>
-              </PrimaryTabs>
+                  </TabsContent>
+
+                  <TabsContent value="completed" className="mt-4 space-y-4">
+                    {buckets.completed.map(judgeClass => (
+                      // Past unfinished classes appear here with their true status
+                      // badge and a Continue Judging action, so they stay reachable.
+                      <AssignmentRow
+                        key={judgeClass.id}
+                        judgeClass={judgeClass}
+                        showDate
+                        onStartJudging={handleStartJudging}
+                        onViewResults={handleViewResults}
+                      />
+                    ))}
+
+                    {buckets.completed.length === 0 && (
+                      <TabEmptyState
+                        icon={<CheckCircle2 className="h-12 w-12 text-success-green" />}
+                        title="No Completed Classes"
+                        body="Completed judging assignments will appear here."
+                      />
+                    )}
+                  </TabsContent>
+                </PrimaryTabs>
+              )}
             </CardContent>
           </Card>
         </FadeIn>
-
-        {/* Quick Actions */}
-        <StaggeredGrid className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8">
-          <GlassCard>
-            <CardHeader className="pb-6">
-              <CardTitle className="text-xl font-bold flex items-center gap-4">
-                <div className="p-4 bg-gradient-to-br from-primary/20 to-primary/10 rounded-2xl shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
-                  <Timer className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <div className="text-foreground group-hover:text-primary transition-colors duration-300">
-                    Timer Practice
-                  </div>
-                  <div className="text-sm font-normal text-muted-foreground mt-1">
-                    Practice with the timer system
-                  </div>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Button
-                className="w-full font-semibold py-3 border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 transition-all duration-300"
-                variant="outline"
-              >
-                <Timer className="h-4 w-4 mr-2" />
-                Open Timer Practice
-              </Button>
-            </CardContent>
-          </GlassCard>
-
-          <GlassCard overlayGradient="from-warning-orange/5">
-            <CardHeader className="pb-6">
-              <CardTitle className="text-xl font-bold flex items-center gap-4">
-                <div className="p-4 bg-gradient-to-br from-warning-orange/20 to-warning-orange/10 rounded-2xl shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
-                  <AlertCircle className="h-6 w-6 text-warning-orange" />
-                </div>
-                <div>
-                  <div className="text-foreground group-hover:text-warning-orange transition-colors duration-300">
-                    Quick Reference
-                  </div>
-                  <div className="text-sm font-normal text-muted-foreground mt-1">
-                    Judging guidelines and rules
-                  </div>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Button
-                className="w-full font-semibold py-3 border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 transition-all duration-300"
-                variant="outline"
-              >
-                <AlertCircle className="h-4 w-4 mr-2" />
-                View Guidelines
-              </Button>
-            </CardContent>
-          </GlassCard>
-
-          <GlassCard overlayGradient="from-success-green/5">
-            <CardHeader className="pb-6">
-              <CardTitle className="text-xl font-bold flex items-center gap-4">
-                <div className="p-4 bg-gradient-to-br from-success-green/20 to-success-green/10 rounded-2xl shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
-                  <Users className="h-6 w-6 text-success-green" />
-                </div>
-                <div>
-                  <div className="text-foreground group-hover:text-success-green transition-colors duration-300">
-                    Class Management
-                  </div>
-                  <div className="text-sm font-normal text-muted-foreground mt-1">
-                    Manage entries and check-in status
-                  </div>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Button
-                className="w-full font-semibold py-3 border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 transition-all duration-300"
-                variant="outline"
-                disabled
-              >
-                <Users className="h-4 w-4 mr-2" />
-                Integrated in Class View
-              </Button>
-            </CardContent>
-          </GlassCard>
-        </StaggeredGrid>
       </div>
     </div>
   );

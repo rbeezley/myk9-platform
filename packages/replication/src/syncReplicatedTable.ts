@@ -114,12 +114,12 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
   };
 
   try {
-    // Snapshot metadata BEFORE the 'syncing' write below. A partial
-    // updateSyncMetadata does not preserve `totalRows`, so reading after the
-    // status write would lose the previous row count needed to detect an
-    // unexpected empty-replica recovery. `lastIncrementalSyncAt` / `lastFullSyncAt`
-    // are preserved either way, so this snapshot is equivalent for them.
-    const metadata = await table.getSyncMetadata();
+    // Snapshot metadata BEFORE the 'syncing' write below, scoped to this sync's
+    // scope.value so `since` is derived from the correct per-scope watermark. A
+    // partial updateSyncMetadata does not preserve `totalRows`, so reading after
+    // the status write would lose the previous row count needed to detect an
+    // unexpected empty-replica recovery.
+    const metadata = await table.getSyncMetadata(scope.value);
 
     await table.updateSyncMetadata({ syncStatus: 'syncing', errorMessage: undefined });
 
@@ -287,16 +287,12 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
 
     await adapter.afterSuccessfulSync?.({ scope, serverIds, localRows });
 
-    // Server-authoritative, monotonic watermark. Advance only to a timestamp the
-    // client has actually received from the server, and never backward (a backdated
-    // row or out-of-order delivery must not widen the window). Fall back to the
-    // legacy client clock ONLY when the adapter provides no timestamp hook.
-    // When the adapter supplies server timestamps and we observed at least one,
-    // advance the persisted watermark monotonically INSIDE the cache transaction
-    // (max against the LIVE value, not this sync's stale pre-fetch snapshot) so a
-    // concurrent sync of the same table cannot regress it. With no hook, keep the
-    // legacy client-clock last-write-wins behavior. With a hook but nothing
-    // observed (empty fetch), leave the watermark untouched.
+    // Server-authoritative, monotonic watermark, routed to the correct scope slot.
+    // Advance only to a timestamp the client actually observed from the server, and
+    // never backward (monotonic inside the cache transaction so a concurrent slow
+    // sync can't regress a faster one). Fall back to the legacy client clock ONLY
+    // when the adapter provides no timestamp hook. With a hook but nothing observed
+    // (empty fetch), leave the watermark untouched.
     const advanceWatermark = Boolean(adapter.getRemoteUpdatedAt) && sawRemoteTimestamp;
     const watermarkUpdate: Partial<{ lastIncrementalSyncAt: number }> = advanceWatermark
       ? { lastIncrementalSyncAt: maxRemoteUpdatedAt }
@@ -314,7 +310,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
         conflictCount: conflictsResolved,
         totalRows: (await getLocalRowsForScope()).length,
       },
-      { advanceWatermarkMonotonically: advanceWatermark }
+      { scopeValue: scope.value, advanceWatermarkMonotonically: advanceWatermark }
     );
 
     return {

@@ -78,7 +78,8 @@ function formatDate(iso: string): string {
 // ---------------------------------------------------------------------------
 
 export default function ResultsSubmissionPage() {
-  const { showId } = useParams<{ showId: string }>();
+  const params = useParams<{ showId?: string; id?: string }>();
+  const showId = params.showId ?? params.id;
   const { show } = useFastShowDetails(showId);
 
   const formatters = listFormatters();

@@ -48,7 +48,7 @@ export function SecretaryRunSheet({
       {parentShowId && sortedEntries.length > 1 && (
         <div className="flex justify-end">
           <Link
-            to={`/secretary/shows/${parentShowId}/show-desk`}
+            to={`/shows/${parentShowId}/show-desk`}
             className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <ListTree className="h-4 w-4" aria-hidden="true" />

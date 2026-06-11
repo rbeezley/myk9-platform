@@ -67,7 +67,7 @@ export function SecretaryDashboardPage() {
           text: `${counts.pending_review} ${
             counts.pending_review === 1 ? 'entry' : 'entries'
           } pending review`,
-          href: `/secretary/shows/${showId}/entry-management?entryTab=pending`,
+          href: `/shows/${showId}/entry-management?entryTab=pending`,
         });
       }
       return rows;

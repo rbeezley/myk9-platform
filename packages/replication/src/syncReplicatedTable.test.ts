@@ -623,4 +623,129 @@ describe('syncReplicatedTable', () => {
       expect(result.operation).toBe('incremental-sync');
     });
   });
+
+  describe('per-scope incremental watermark', () => {
+    it('stores and reads the incremental watermark independently per scope', async () => {
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 1_000, totalRows: 3 }, { scopeValue: 'show-A' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 9_000, totalRows: 7 }, { scopeValue: 'show-B' });
+
+      const metaA = await table.getSyncMetadata('show-A');
+      const metaB = await table.getSyncMetadata('show-B');
+
+      expect(metaA?.lastIncrementalSyncAt).toBe(1_000);
+      expect(metaA?.totalRows).toBe(3);
+      expect(metaB?.lastIncrementalSyncAt).toBe(9_000);
+      expect(metaB?.totalRows).toBe(7);
+    });
+
+    it('returns watermark 0 for a scope that has never synced', async () => {
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 5_000 }, { scopeValue: 'show-A' });
+
+      const metaUnseen = await table.getSyncMetadata('show-Z');
+      expect(metaUnseen?.lastIncrementalSyncAt).toBe(0);
+    });
+
+    it('does not leak a table-global totalRows into a scope that has none', async () => {
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 1_000 }, { scopeValue: 'show-A' });
+      await table.updateSyncMetadata({ totalRows: 42 });
+
+      expect((await table.getSyncMetadata())?.totalRows).toBe(42);
+
+      const metaScoped = await table.getSyncMetadata('show-A');
+      expect(metaScoped?.lastIncrementalSyncAt).toBe(1_000);
+      expect(metaScoped?.totalRows).toBeUndefined();
+
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 2_000, totalRows: 5 }, { scopeValue: 'show-B' });
+      expect((await table.getSyncMetadata('show-B'))?.totalRows).toBe(5);
+    });
+
+    it('does not let one scope advance the watermark wipe a status-only update of another', async () => {
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 4_000 }, { scopeValue: 'show-A' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 8_000 }, { scopeValue: 'show-B' });
+
+      await table.updateSyncMetadata({ syncStatus: 'syncing' });
+
+      expect((await table.getSyncMetadata('show-A'))?.lastIncrementalSyncAt).toBe(4_000);
+      expect((await table.getSyncMetadata('show-B'))?.lastIncrementalSyncAt).toBe(8_000);
+    });
+
+    it('does not drop one scope\'s rows after another scope advances its watermark', async () => {
+      // The core regression. Two scopes share the `entries` table. The server has a
+      // row for scope A updated at t=150. Both scopes previously synced up to t=100.
+      // Scope B syncs (advancing ONLY B's watermark to "now" >> 150), then scope A
+      // syncs. With a shared watermark, A's `since` would be "now" and the t=150 row
+      // would be skipped. With per-scope watermarks, A's `since` is still 100.
+      interface RemoteScoped {
+        id: string;
+        name: string;
+        license_key: string;
+        updatedAt: number;
+      }
+      const server: RemoteScoped[] = [
+        { id: 'a-new', name: 'A New', license_key: 'show-A', updatedAt: 150 },
+      ];
+      const sinceByScope: Record<string, number> = {};
+
+      const adapter: SyncReplicatedTableAdapter<Omit<RemoteScoped, 'updatedAt'>, LocalEntry> = {
+        fetchRemoteRows: vi.fn(async ({ scope, since }) => {
+          sinceByScope[scope.value!] = since;
+          return server
+            .filter(r => r.license_key === scope.value && r.updatedAt > since)
+            .map(({ updatedAt: _updatedAt, ...rest }) => rest);
+        }),
+        getRemoteId: r => String(r.id),
+        toLocalRow: r => ({ id: String(r.id), name: r.name, license_key: r.license_key }),
+        filterLocalRows: (rows, scope) => rows.filter(row => row.license_key === scope.value),
+      };
+
+      await table.set('a-old', { id: 'a-old', name: 'A Old', license_key: 'show-A' });
+      await table.set('b-old', { id: 'b-old', name: 'B Old', license_key: 'show-B' });
+
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 100 }, { scopeValue: 'show-A' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 100 }, { scopeValue: 'show-B' });
+
+      await syncReplicatedTable(table, adapter, { value: 'show-B' });
+      await syncReplicatedTable(table, adapter, { value: 'show-A' });
+
+      expect(sinceByScope['show-A']).toBe(100);
+      expect(await table.get('a-new')).toMatchObject({ id: 'a-new', name: 'A New' });
+
+      const metaB = await table.getSyncMetadata('show-B');
+      expect(metaB?.lastIncrementalSyncAt).toBeGreaterThan(150);
+    });
+
+    it('records totalRows per scope after a sync', async () => {
+      await table.set('1', { id: '1', name: 'Rex', license_key: 'show-1' });
+      await table.set('2', { id: '2', name: 'Max', license_key: 'show-2' });
+      const adapter = makeAdapter([{ id: 1, name: 'Server Rex', license_key: 'show-1' }]);
+      adapter.filterLocalRows = (rows, scope) =>
+        rows.filter(row => row.license_key === scope.value);
+
+      await syncReplicatedTable(table, adapter, { value: 'show-1' });
+
+      const meta = await table.getSyncMetadata('show-1');
+      expect(meta?.totalRows).toBe(1);
+      expect((await table.getSyncMetadata('show-2'))?.lastIncrementalSyncAt).toBe(0);
+    });
+
+    it('mirrors a monotonic "last sync across any scope" onto the unscoped read', async () => {
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 3_000 }, { scopeValue: 'show-A' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 7_000 }, { scopeValue: 'show-B' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 1_000 }, { scopeValue: 'show-A' });
+
+      expect((await table.getSyncMetadata())?.lastIncrementalSyncAt).toBe(7_000);
+      expect((await table.getSyncMetadata('show-A'))?.lastIncrementalSyncAt).toBe(1_000);
+      expect((await table.getSyncMetadata('show-B'))?.lastIncrementalSyncAt).toBe(7_000);
+    });
+
+    it('clearCache resets every per-scope watermark', async () => {
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 5_000, totalRows: 4 }, { scopeValue: 'show-A' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 6_000, totalRows: 2 }, { scopeValue: 'show-B' });
+
+      await table.clearCache();
+
+      expect((await table.getSyncMetadata('show-A'))?.lastIncrementalSyncAt).toBe(0);
+      expect((await table.getSyncMetadata('show-B'))?.lastIncrementalSyncAt).toBe(0);
+    });
+  });
 });

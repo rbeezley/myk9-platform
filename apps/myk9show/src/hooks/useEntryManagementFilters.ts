@@ -42,8 +42,6 @@ interface UseEntryManagementFiltersReturn {
   // Filter state
   searchTerm: string;
   setSearchTerm: (term: string) => void;
-  statusFilter: string;
-  setStatusFilter: (status: string) => void;
   paymentFilter: string;
   setPaymentFilter: (payment: string) => void;
   selectedTab: string;
@@ -65,9 +63,6 @@ interface UseEntryManagementFiltersReturn {
   // Filtered results
   filteredEntries: EntryManagementEntry[];
 
-  // Actions
-  clearFilters: () => void;
-
   // Tab counts (precomputed, passed through)
   tabCounts: TabCounts;
 }
@@ -83,7 +78,6 @@ export function useEntryManagementFilters({
 }: UseEntryManagementFiltersProps): UseEntryManagementFiltersReturn {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
   const [paymentFilter, setPaymentFilter] = useState('all');
   const routeEntryTab = searchParams.get('entryTab');
   const resolvedEntryTab = isEntryTab(routeEntryTab) ? routeEntryTab : 'all';
@@ -190,11 +184,6 @@ export function useEntryManagementFilters({
       filtered = filtered.filter(isIssueEntry);
     }
 
-    // Apply status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(e => e.entryStatus === statusFilter);
-    }
-
     // Apply payment filter
     if (paymentFilter !== 'all') {
       filtered = filtered.filter(e => e.paymentStatus === paymentFilter);
@@ -214,7 +203,7 @@ export function useEntryManagementFilters({
     }
 
     return filtered;
-  }, [entries, selectedTab, searchTerm, statusFilter, paymentFilter]);
+  }, [entries, selectedTab, searchTerm, paymentFilter]);
 
   // Selection handlers
   const handleSelectEntry = useCallback((entryId: string, checked: boolean) => {
@@ -240,28 +229,9 @@ export function useEntryManagementFilters({
     [filteredEntries]
   );
 
-  // Clear filters
-  const clearFilters = useCallback(() => {
-    setSearchTerm('');
-    setStatusFilter('all');
-    setPaymentFilter('all');
-    setSearchParams(
-      prev => {
-        const next = new URLSearchParams(prev);
-        next.delete('trial');
-        next.delete('class');
-        next.delete('entryTab');
-        return next;
-      },
-      { replace: true }
-    );
-  }, [setSearchParams]);
-
   return {
     searchTerm,
     setSearchTerm,
-    statusFilter,
-    setStatusFilter,
     paymentFilter,
     setPaymentFilter,
     selectedTab,
@@ -276,7 +246,6 @@ export function useEntryManagementFilters({
     handleSelectEntry,
     handleSelectAll,
     filteredEntries,
-    clearFilters,
     tabCounts,
   };
 }

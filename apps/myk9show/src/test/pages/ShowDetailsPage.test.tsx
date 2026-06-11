@@ -192,17 +192,20 @@ vi.mock('@/components/common/PageHeader', () => ({
 vi.mock('@/components/common/DetailHero', () => ({
   DetailHero: ({
     name,
+    headerActions,
     primaryAction,
     secondaryActions,
   }: {
     name: string;
+    headerActions?: React.ReactNode;
     primaryAction?: { label: string; onClick: () => void };
     secondaryActions?: React.ReactNode;
   }) => (
     <div data-testid="detail-hero">
       {name}
+      <div data-testid="hero-header-actions">{headerActions}</div>
       {primaryAction && <button data-testid="hero-action">{primaryAction.label}</button>}
-      {secondaryActions}
+      <div data-testid="hero-secondary-actions">{secondaryActions}</div>
     </div>
   ),
 }));
@@ -213,13 +216,18 @@ vi.mock('@/components/common/LoadingSkeleton', () => ({
   LoadingSkeleton: () => <div data-testid="loading-skeleton" className="animate-pulse" />,
 }));
 
-function renderPage(showId = 'show-1', query = '') {
+function renderPage(showId = 'show-1', subPath = '', query = '') {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={[`/shows/${showId}${query}`]}>
+      <MemoryRouter initialEntries={[`/shows/${showId}${subPath}${query}`]}>
         <Routes>
-          <Route path="/shows/:id" element={<ShowDetailsPage />} />
+          <Route path="/shows/:id" element={<ShowDetailsPage />}>
+            <Route
+              path="show-desk"
+              element={<div data-testid="canonical-child">Show Desk child</div>}
+            />
+          </Route>
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>
@@ -449,27 +457,99 @@ describe('ShowDetailsPage', () => {
 
     renderPage();
 
-    expect(screen.getByRole('button', { name: /more actions/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /more show actions/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /premium list/i })).toBeNull();
   });
 
-  it('shows a workbench link only for show managers on public show details', () => {
+  it('keeps show manager status and overflow actions in the hero header slot', () => {
     mockAuthContext.isSecretary = true;
 
     renderPage();
 
-    // The link lives inside the 3-dot dropdown; open it first.
-    // Base UI renders the asChild Link as <a role="menuitem">, so query by menuitem.
-    fireEvent.click(screen.getByRole('button', { name: /more actions/i }));
-    const workbenchItem = screen.getByRole('menuitem', { name: /manage in workbench/i });
-    expect(workbenchItem).toHaveAttribute('href', '/secretary/shows/show-1');
+    const heroActions = screen.getByTestId('hero-header-actions');
+    expect(heroActions).toHaveTextContent('Upcoming');
+    expect(heroActions).toContainElement(
+      screen.getByRole('button', { name: /more show actions/i })
+    );
+    expect(screen.getByTestId('hero-secondary-actions')).toBeEmptyDOMElement();
   });
 
-  it('hides the workbench link from exhibitors on public show details', () => {
+  it('shows canonical management nav for show managers', () => {
+    mockAuthContext.isSecretary = true;
+
     renderPage();
 
-    // canManageShow is false for exhibitors so the 3-dot menu is never rendered.
+    expect(screen.getByTestId('canonical-show-management-nav')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Setup' })).toHaveAttribute(
+      'href',
+      '/shows/show-1/setup'
+    );
+    expect(screen.getByRole('link', { name: 'Show Desk' })).toHaveAttribute(
+      'href',
+      '/shows/show-1/show-desk'
+    );
+    expect(screen.getByRole('link', { name: 'Entry Management' })).toHaveAttribute(
+      'href',
+      '/shows/show-1/entry-management'
+    );
+    expect(screen.getByRole('link', { name: 'Reports' })).toHaveAttribute(
+      'href',
+      '/shows/show-1/reports'
+    );
+    expect(screen.getByRole('link', { name: 'Results Control' })).toHaveAttribute(
+      'href',
+      '/shows/show-1/results-control'
+    );
+    expect(screen.getByRole('link', { name: 'Submit Results' })).toHaveAttribute(
+      'href',
+      '/shows/show-1/submit-results'
+    );
+  });
+
+  it('hides canonical management nav from exhibitors', () => {
+    renderPage();
+
+    expect(screen.queryByTestId('canonical-show-management-nav')).not.toBeInTheDocument();
+  });
+
+  it('does not expose preview public page or manage in workbench destinations for managers', () => {
+    mockAuthContext.isSecretary = true;
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /more show actions/i }));
+    expect(screen.getByRole('menuitem', { name: /edit/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /delete/i })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /preview public page/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /manage in workbench/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /manage in workbench/i })).not.toBeInTheDocument();
+  });
+
+  it('renders canonical child sections below the show hero', () => {
+    mockAuthContext.isSecretary = true;
+
+    renderPage('show-1', '/show-desk');
+
+    expect(screen.getByTestId('detail-hero')).toBeInTheDocument();
+    expect(screen.getByTestId('canonical-child')).toHaveTextContent('Show Desk child');
+    expect(screen.getByRole('link', { name: 'Show Desk' })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
+  });
+
+  it('renders canonical child sections instead of styled landing for direct management URLs', () => {
+    mockAuthContext.user = null;
+    mockAuthContext.userWithRoles = null;
+    mockShow = {
+      ...mockShow,
+      style: 'headline',
+    };
+
+    renderPage('show-1', '/show-desk');
+
+    expect(screen.queryByTestId('headline-landing')).not.toBeInTheDocument();
+    expect(screen.getByTestId('canonical-child')).toHaveTextContent('Show Desk child');
   });
 
   it('renders the public Show Map as read-only for show managers', async () => {
@@ -484,7 +564,7 @@ describe('ShowDetailsPage', () => {
       },
     ];
 
-    renderPage('show-1', '?tab=map');
+    renderPage('show-1', '', '?tab=map');
 
     const showMap = await screen.findByTestId('show-map-tab');
     expect(showMap).toHaveAttribute('data-can-manage', 'false');

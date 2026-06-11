@@ -46,7 +46,8 @@ const PAGE_TABS: PrimaryTabDef[] = [
  * Original: 1,428 lines -> Refactored: ~400 lines (72% reduction)
  */
 const EntryManagementPage: React.FC = () => {
-  const { showId: urlShowId } = useParams<{ showId: string }>();
+  const params = useParams<{ showId?: string; id?: string }>();
+  const urlShowId = params.showId ?? params.id;
   const navigate = useNavigate();
   const [activePageTab] = useUrlTab(['entries', 'waitlist'] as const, 'entries');
   const [, setSearchParams] = useSearchParams();
@@ -92,8 +93,6 @@ const EntryManagementPage: React.FC = () => {
   const {
     searchTerm,
     setSearchTerm,
-    statusFilter,
-    setStatusFilter,
     paymentFilter,
     setPaymentFilter,
     selectedTab,
@@ -104,7 +103,6 @@ const EntryManagementPage: React.FC = () => {
     setTrialFilter,
     setClassFilter,
     filteredEntries,
-    clearFilters,
   } = useEntryManagementFilters({ entries, tabCounts, showId: selectedShowId });
 
   const enrollmentGroups: EnrollmentGroup[] = useMemo(
@@ -371,11 +369,8 @@ const EntryManagementPage: React.FC = () => {
                   stats={stats}
                   searchTerm={searchTerm}
                   setSearchTerm={setSearchTerm}
-                  statusFilter={statusFilter}
-                  setStatusFilter={setStatusFilter}
                   paymentFilter={paymentFilter}
                   setPaymentFilter={setPaymentFilter}
-                  onClearFilters={clearFilters}
                   selectedTab={selectedTab}
                   setSelectedTab={setSelectedTab}
                   tabCounts={tabCounts}

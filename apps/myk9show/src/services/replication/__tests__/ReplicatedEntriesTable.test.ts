@@ -839,10 +839,17 @@ describe('ReplicatedEntriesTable', () => {
         showId: TEST_LICENSE_KEY,
         classId: 'class-1',
       });
-      await table.updateSyncMetadata({
-        lastIncrementalSyncAt,
-        syncStatus: 'idle',
-      });
+      // Seed the watermark under the SHOW scope the sync reads — the incremental
+      // watermark is now per-(table, scope.value), not table-global. sync() scopes
+      // by show_id (TEST_LICENSE_KEY), so its `since` derives from this scope's
+      // sub-record.
+      await table.updateSyncMetadata(
+        {
+          lastIncrementalSyncAt,
+          syncStatus: 'idle',
+        },
+        { scopeValue: TEST_LICENSE_KEY }
+      );
 
       const mockQueryChain = {
         data: [],

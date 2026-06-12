@@ -18,6 +18,17 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-06-11
+
+- **Playwright command:** fail. Phase 1 Vitest passed (`18/18`). Phase 2 Wave 1 failed with `32 passed, 16 failed, 2 did not run (4.2m, --retries=0)`. No individual runner hung over 60s without useful output.
+- **Route sweep:** fail. Standalone Phase 3 route-health audited all six configured role groups. Public passed (`1/6` group tests green); exhibitor, secretary, judge, club-admin, and admin all authenticated but failed browser-health budgets due to the same owned Supabase 400s. No role group was skipped.
+- **Active specs:** Vitest `18/18`; active Playwright `32/50`.
+- **Failures:** Opened `QA-NETWORK-ERROR-018`. Root cause signal is schema drift between `origin/main` code and the linked Nightly database: `useExhibitorProfile` selects nested `people.is_early_adopter`, but Supabase returns Postgres `42703` (`column people_1.is_early_adopter does not exist`). The repo already contains `supabase/migrations/185_add_is_early_adopter_to_people.sql`, so this is not a missing source migration; the linked DB appears not to have the column applied/exposed. Representative failures: `cross-role-workflows.spec.ts:47` redirected exhibitor to `/onboarding` instead of My Shows; `exhibitorSelfRegistration.spec.ts:212` never reached `Register for Show`; `secretaryExistingUsers.spec.ts` and `singleDogSingleClass.spec.ts` could not progress after dog selection; strict secretary QA proof failed on the owned 400; route-health failed all authenticated groups with the same 400/error budget.
+- **Fixes made:** docs only (`docs/qa/findings.md`, `docs/qa/nightly-history.md`). No product/test code change and no Supabase push: applying migration 185 or changing early-adopter fallback semantics is a shared-system/product decision outside Nightly auto-fix bounds.
+- **Demotions/promotions:** none.
+- **Findings:** opened `QA-NETWORK-ERROR-018`. Existing closed route-health guards were not reopened because the new failure is a distinct schema-drift/owned-400 issue rather than the prior replication flood or mobile/loading findings.
+- **Notes:** Ran from isolated detached worktree `.worktrees/nightly-qa-2026-06-11-023124` on `origin/main` `7de825394187a9f3afc9e7c662de3070d047a83d`, using `PLAYWRIGHT_PORT=6430`, `PLAYWRIGHT_BASE_URL=http://127.0.0.1:6430`, and `PLAYWRIGHT_HMR_PORT=26430`. Public routes were clean, confirming the app/dev server itself was reachable. Highest-leverage next step: confirm/apply `185_add_is_early_adopter_to_people.sql` to the linked staging/dev Supabase project, then rerun the exact Phase 2 and Phase 3 commands.
+
 ### 2026-06-08
 
 - **Playwright command:** pass after one low-risk test-only fix. Phase 1 Vitest `18/18`. Phase 2 Wave 1 initial run `44 passed, 2 failed, 4 did not run (3.4m, --retries=0)` — no hang (slowest spec ~16s, total 3.4m well under budget). After the fix, the exact active Nightly Playwright command passed `50 passed (3.5m, --retries=0)` with no >60s stalls.

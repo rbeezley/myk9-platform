@@ -53,6 +53,7 @@ import { atShowDialogSlots } from './slots/atShowDialogSlots';
 import { useAtShowDogFavorites } from './ringsideDogFavorites';
 import { useMyAtShowEntries } from './useMyAtShowEntries';
 import { useMyRingConflicts } from './useMyRingConflicts';
+import { useAtShowRealtimeRefresh } from './useAtShowRealtimeRefresh';
 
 export const AtShowEntryListPage: React.FC = () => {
   const { showId, classId } = useParams<{ showId: string; classId: string }>();
@@ -121,6 +122,9 @@ export const AtShowEntryListPage: React.FC = () => {
   });
 
   const actions = useAtShowEntryListActions({ refresh });
+
+  // ── Realtime: scoring/check-in changes elsewhere re-sync this list ─────
+  useAtShowRealtimeRefresh(showId, refresh);
 
   // ── Shim-owned entry mirror state (see uiState hook ownership note) ────
   const [localEntries, setLocalEntries] = useState<Entry[]>([]);

@@ -404,51 +404,51 @@ export const useCartStore = create<CartState>()(
               i.id === itemId ? { ...i, ...updateData } : i
             );
 
-            if (updates.entryFeeCents !== undefined) {
-              const { subtotal, platformFee, total } = calculateCartTotals(updatedItems);
+            // Sever the session on ANY item change (round-19 P2): handler,
+            // jump height, and special requests are all stamped on the entry
+            // via buildEntryInsert — an old Stripe page must not lock in
+            // values the user changed after checkout started. Fee changes also
+            // require a totals refresh.
+            const totals =
+              updates.entryFeeCents !== undefined
+                ? calculateCartTotals(updatedItems)
+                : null;
 
-              // Must not be fire-and-forget: if this fails, the old payable
-              // Stripe session stays linked to a cart whose items changed —
-              // sessionCartGuard would then accept the stale charge (Codex
-              // round-6 P2).
-              const { error: totalsError } = await supabase
-                .from('entry_carts')
-                .update({
-                  subtotal_cents: subtotal,
-                  platform_fee_cents: platformFee,
-                  total_cents: total,
-                  // Sever the checkout-session link (see addItem).
-                  stripe_checkout_session_id: null,
-                })
-                .eq('id', cart.id);
+            const { error: cartUpdateError } = await supabase
+              .from('entry_carts')
+              .update({
+                stripe_checkout_session_id: null,
+                ...(totals !== null && {
+                  subtotal_cents: totals.subtotal,
+                  platform_fee_cents: totals.platformFee,
+                  total_cents: totals.total,
+                }),
+              })
+              .eq('id', cart.id);
 
-              if (totalsError) {
-                logger.error(
-                  'Error updating cart totals',
-                  'cartStore',
-                  { cartId: cart.id },
-                  totalsError
-                );
-                throw totalsError;
-              }
-
-              set({
-                cart: {
-                  ...cart,
-                  items: updatedItems,
-                  subtotal_cents: subtotal,
-                  platform_fee_cents: platformFee,
-                  total_cents: total,
-                  stripe_checkout_session_id: null,
-                },
-                lastSyncedAt: new Date().toISOString(),
-              });
-            } else {
-              set({
-                cart: { ...cart, items: updatedItems },
-                lastSyncedAt: new Date().toISOString(),
-              });
+            if (cartUpdateError) {
+              logger.error(
+                'Error updating cart',
+                'cartStore',
+                { cartId: cart.id },
+                cartUpdateError
+              );
+              throw cartUpdateError;
             }
+
+            set({
+              cart: {
+                ...cart,
+                items: updatedItems,
+                stripe_checkout_session_id: null,
+                ...(totals !== null && {
+                  subtotal_cents: totals.subtotal,
+                  platform_fee_cents: totals.platformFee,
+                  total_cents: totals.total,
+                }),
+              },
+              lastSyncedAt: new Date().toISOString(),
+            });
 
             return true;
           } catch (error) {

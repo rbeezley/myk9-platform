@@ -637,9 +637,10 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     customer_id: stripeCustomer?.id || null,
     stripe_payment_intent_id: paymentIntentId,
     stripe_checkout_session_id: session.id,
-    // 2020-03-02 API payloads (this account's pinned version) lack amount_total;
-    // the cart snapshots the same number at checkout time.
-    amount_cents: session.amount_total ?? cart.total_cents ?? 0,
+    // freshTotalCents was verified against both the Stripe API and
+    // authoritative pricing above — use it as the source of record.
+    // cart.total_cents is owner-writable and must not drive payment history.
+    amount_cents: freshTotalCents ?? 0,
     currency: session.currency || 'usd',
     status: 'succeeded',
     order_type: 'entry',
@@ -670,8 +671,13 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
 
   console.log(`Entry payment completed for cart ${cartId}, created order`);
 
-  // Send confirmation email
-  await sendEntryConfirmationEmail(cart, entryIds, session);
+  // Send confirmation email. Pass authoritative totals — cart snapshot totals
+  // are owner-writable and must not appear on a payment receipt.
+  await sendEntryConfirmationEmail(cart, entryIds, session, {
+    subtotalCents: authoritativeSubtotal,
+    platformFeeCents: authoritativeTotal - authoritativeSubtotal,
+    totalCents: authoritativeTotal,
+  });
 }
 
 /**
@@ -686,12 +692,10 @@ async function sendEntryConfirmationEmail(
       class_id: string;
       entry_fee_cents: number;
     }>;
-    subtotal_cents: number;
-    platform_fee_cents: number;
-    total_cents: number;
   },
   entryIds: string[],
-  session: Stripe.Checkout.Session
+  session: Stripe.Checkout.Session,
+  authoritative: { subtotalCents: number; platformFeeCents: number; totalCents: number }
 ) {
   try {
     // Get exhibitor email and name
@@ -782,9 +786,9 @@ async function sendEntryConfirmationEmail(
         // cents, matching subtotal/platformFee/total below
         entryFee: Math.round(Number(e.entry_fee ?? 0) * 100),
       })),
-      subtotal: cart.subtotal_cents || session.amount_subtotal || 0,
-      platformFee: cart.platform_fee_cents || 0,
-      total: cart.total_cents || session.amount_total || 0,
+      subtotal: authoritative.subtotalCents,
+      platformFee: authoritative.platformFeeCents,
+      total: authoritative.totalCents,
       orderId: session.id,
     };
 

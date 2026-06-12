@@ -175,6 +175,8 @@ Output: each finding marked `confirmed` / `refuted` / `needs-human` with one-lin
 
 After one full execution, distill what worked into `.claude/skills/code-quality-audit/SKILL.md` modeled on `security-audit` (two modes: full sweep / targeted dimension). Bake in: the generated-file exclusions, the INTENT guardrail, the false-positive verification step, and the baseline-delta table so each run measures drift since the last. Re-run cadence: before each launch milestone.
 
+**CI ratchets [ADDED 2026-06-12]:** alongside the skill, turn the mechanical baseline metrics into CI regression gates so the fixed counts cannot regrow between audits. A small script (in `scripts/`, run from the existing Quality Checks job) fails the build if a metric exceeds its recorded baseline and auto-lowers the baseline when a PR improves it: files >500 lines (excluding the generated-file list), `as any` count, TODO/FIXME/HACK count, and — once 1b adds a `knip` config — unused exports. Add an ESLint restriction (custom rule or `no-restricted-syntax`) against direct `supabase.from(...)` in the core-flow paths Wave D reroutes, with the documented `withReplicationFallback` exclusions, so new replication bypasses fail at PR time instead of waiting for the next audit. Set the ratchet baselines *after* the fix waves land — they encode the post-audit state, not the pre-audit one. Judgment-heavy dimensions (duplication, intent, oversized-file concern-counting) stay with the periodic skill run; ratchets only take the mechanical counts.
+
 ---
 
 ## Execution options

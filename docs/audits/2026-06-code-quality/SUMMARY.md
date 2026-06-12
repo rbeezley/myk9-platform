@@ -2,7 +2,7 @@
 
 Status: Phase 1 inventory drafted from subagent findings; initial Phase 2 source-level verification is complete for the P1/P2 queue. Deployed-system checks and product decisions remain gated.
 
-Phase 3 human gate: this file does not approve fix waves by itself. Wave A was approved after Phase 2 verification and implemented on branch `codex/code-quality-wave-a-dead-code`; Waves B-D still require explicit approval before implementation. Fix-list approval is also not approval for shared-system mutations; confirm separately before PR creation/comments/merge, Supabase pushes, function deploys, external-service writes, or any push to `main`.
+Phase 3 human gate: this file does not approve fix waves by itself. Wave A was approved after Phase 2 verification and implemented on branch `codex/code-quality-wave-a-dead-code`; Wave B type-file unification was approved and implemented as slice 1 on branch `codex/code-quality-wave-b-consolidations`; remaining Waves B-D items still require explicit approval before implementation. Fix-list approval is also not approval for shared-system mutations; confirm separately before PR creation/comments/merge, Supabase pushes, function deploys, external-service writes, or any push to `main`.
 
 Phase 2 results are recorded in `09-phase-2-verification.md`. The short version: all P1 test/type/judge findings were confirmed; the initial dead-code queue was confirmed except `send-notification`, which still needs deployed Supabase usage checks; two replication-bypass candidates were refuted/reclassified; and env/config plus several public-contract questions still need human decisions.
 
@@ -10,7 +10,7 @@ Phase 2 results are recorded in `09-phase-2-verification.md`. The short version:
 
 | Severity | Area | Finding | Evidence | Proposed Fix | Verification |
 | --- | --- | --- | --- | --- | --- |
-| P1 | Duplication / schema typing | Generated Supabase type files are divergent, not just duplicated. | Four generated files differ in line count/hash and expose different DB surfaces. | Pick one canonical package-owned generated file, regenerate once, make app imports consume/re-export it, delete stale copies or type-only re-export them, and fix generation docs/scripts. | Phase-2 confirmed; see `09-phase-2-verification.md`. |
+| P1 | Duplication / schema typing | Generated Supabase type files are divergent, not just duplicated. | Four generated files differed in line count/hash and exposed different DB surfaces. | Implemented in Wave B slice 1: one package-owned canonical generated file, compatibility re-exports, package helper exports, and fixed generation docs/scripts. | Phase-2 confirmed; Wave B slice 1 implemented; see `09-phase-2-verification.md`. |
 | P1 | Tests / fee calculation | `calculateCartTotals` has no direct unit test despite fee rounding contract. | No test imports found; comment calls out 350-cent half-cent rounding. | Add focused `cartStore.helpers.test.ts` and verify authoritative server fee location. | Phase-2 confirmed; see `09-phase-2-verification.md`. |
 | P1 | Tests / scoring validation | `ScoreValidatorService` is complex and untested directly. | 475 lines, exported service, many branch-heavy business rules; no test references. | Add unit tests for scoring validation, real-time validation, custom rules, timestamps, and Q/NQ consistency. | Phase-2 confirmed; see `09-phase-2-verification.md`. |
 | P1 | Tests / placement math | `PlacementCalculatorService.helpers.ts` has untested tie/placement helpers. | 13 exported helpers and no direct tests for placement/tie logic. | Add table-driven sorting, tie-breaker, placement-gap, and serialization tests. | Phase-2 confirmed; see `09-phase-2-verification.md`. |
@@ -75,6 +75,6 @@ Phase 2 results are recorded in `09-phase-2-verification.md`. The short version:
 
 | Metric | Before | After | Notes |
 | --- | --- | --- | --- |
-| Files > 500 lines | 181 raw / approx. 177 real on 2026-06-10 | 182 raw / 178 real in 2026-06-12 finder run | Drift is from rerunning the literal Phase 1a pattern; use the 2026-06-12 count for this audit run. |
+| Files > 500 lines | 181 raw / approx. 177 real on 2026-06-10 | 178 raw / 177 real after Wave B type-file unification | The 2026-06-12 finder run found 182 raw / 178 real before type-file consolidation; generated shims removed three raw oversized files. |
 | `as any` casts | 32 | TBD | Recount after fix waves. |
 | TODO/FIXME/HACK markers | 24 | TBD | Recount after fix waves. |

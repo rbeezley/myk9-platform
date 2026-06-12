@@ -19,7 +19,16 @@ export {
 export { useSupabase } from './hooks/useSupabase';
 
 // Database types (generated from Supabase schema)
-export type { Database, Json } from './types/database.types';
+export type {
+  CompositeTypes,
+  Database,
+  Enums,
+  Json,
+  Tables,
+  TablesInsert,
+  TablesUpdate,
+} from './types/database.types';
+export { Constants } from './types/database.types';
 
 // Re-export useful types from @supabase/supabase-js
 export type {

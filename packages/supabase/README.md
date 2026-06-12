@@ -630,13 +630,14 @@ pnpm generate-types
 
 This runs:
 ```bash
-supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > src/types/database.ts
+supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > src/types/database.types.ts
 ```
 
 **Notes:**
 - Requires `SUPABASE_PROJECT_ID` environment variable
 - Requires Supabase CLI installed and authenticated
 - Run after schema changes to update types
+- Generated types live in `src/types/database.types.ts`; other database type files re-export from that canonical source.
 
 ## Package Structure
 

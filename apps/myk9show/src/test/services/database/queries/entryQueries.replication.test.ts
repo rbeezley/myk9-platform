@@ -256,6 +256,24 @@ describe('entryQueries (replication)', () => {
       expect(result.data).toEqual([]);
     });
 
+    it('orders replicated entries by created_at descending', async () => {
+      const entries = [
+        makeEntry({ id: 'oldest', submittedAt: '2026-04-01T00:00:00Z' }),
+        makeEntry({ id: 'newest', submittedAt: '2026-04-03T00:00:00Z' }),
+        makeEntry({ id: 'middle', submittedAt: '2026-04-02T00:00:00Z' }),
+      ] as ReplicatedEntry[];
+      setupListMocks(entries);
+
+      const result = await getAllEntries();
+
+      expect(result.data.map(row => (row as Record<string, unknown>).id)).toEqual([
+        'newest',
+        'middle',
+        'oldest',
+      ]);
+      expect(entries.map(entry => entry.id)).toEqual(['oldest', 'newest', 'middle']);
+    });
+
     it('sets dog/class/show to null when IDs are missing', async () => {
       setupListMocks([makeEntry({ dogId: undefined, classId: undefined, showId: undefined })]);
 
@@ -326,6 +344,22 @@ describe('entryQueries (replication)', () => {
       expect(result.data).toEqual([]);
       expect(result.error).toBeNull();
     });
+
+    it('orders replicated show entries by created_at descending', async () => {
+      const entries = [
+        makeEntry({ id: 'first-created', submittedAt: '2026-04-01T00:00:00Z' }),
+        makeEntry({ id: 'last-created', submittedAt: '2026-04-05T00:00:00Z' }),
+      ] as ReplicatedEntry[];
+      setupListMocks(entries);
+      mockEntriesTable.getEntriesByShow.mockResolvedValue(entries);
+
+      const result = await getEntriesByShow('show-1');
+
+      expect(result.data.map(row => (row as Record<string, unknown>).id)).toEqual([
+        'last-created',
+        'first-created',
+      ]);
+    });
   });
 
   // -----------------------------------------------------------------------
@@ -379,6 +413,23 @@ describe('entryQueries (replication)', () => {
       // Only entry with class-1 should be included (class-other is not in trial)
       expect(result.data).toHaveLength(1);
       expect((result.data[0] as Record<string, unknown>).id).toBe('e1');
+    });
+
+    it('orders replicated trial entries by created_at descending after class filtering', async () => {
+      const entries = [
+        makeEntry({ id: 'older', classId: 'class-1', submittedAt: '2026-04-01T00:00:00Z' }),
+        makeEntry({ id: 'newer', classId: 'class-1', submittedAt: '2026-04-02T00:00:00Z' }),
+      ] as ReplicatedEntry[];
+      const classes = [makeClass({ id: 'class-1', trialId: 'trial-1' })];
+      setupListMocks(entries, [makeDog()], classes);
+      mockClassesTable.getClassesByTrial.mockResolvedValue(classes);
+
+      const result = await getEntriesByTrial('trial-1');
+
+      expect(result.data.map(row => (row as Record<string, unknown>).id)).toEqual([
+        'newer',
+        'older',
+      ]);
     });
 
     it('returns empty when no classes match trial', async () => {

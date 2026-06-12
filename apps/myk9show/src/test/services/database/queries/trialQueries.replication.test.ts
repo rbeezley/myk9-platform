@@ -254,6 +254,23 @@ describe('trialQueries (replication)', () => {
       expect((result.data[0] as Record<string, unknown>).show_id).toBe('show-1');
     });
 
+    it('orders replicated show trials by date ascending without mutating source rows', async () => {
+      const trials = [
+        makeTrial({ id: 'later', showId: 'show-1', date: '2026-05-03' }),
+        makeTrial({ id: 'earlier', showId: 'show-1', date: '2026-05-01' }),
+      ];
+      mockTrialsTable.getTrialsByShow.mockResolvedValue(trials);
+      mockShowsTable.getShowById.mockResolvedValue(makeShow());
+
+      const result = await getTrialsByShow('show-1');
+
+      expect(result.data.map(row => (row as Record<string, unknown>).id)).toEqual([
+        'earlier',
+        'later',
+      ]);
+      expect(trials.map(trial => trial.id)).toEqual(['later', 'earlier']);
+    });
+
     it('returns empty array when show has no trials', async () => {
       mockTrialsTable.getTrialsByShow.mockResolvedValue([]);
       mockShowsTable.getShowById.mockResolvedValue(makeShow());
@@ -316,6 +333,20 @@ describe('trialQueries (replication)', () => {
 
       expect(result.data).toEqual([]);
       expect(result.error).toBeNull();
+    });
+
+    it('orders replicated status-filtered trials by date ascending', async () => {
+      setupListMocks([
+        makeTrial({ id: 'later', status: 'upcoming', date: '2026-06-01' }),
+        makeTrial({ id: 'earlier', status: 'upcoming', date: '2026-04-01' }),
+      ]);
+
+      const result = await getTrialsByStatus('upcoming');
+
+      expect(result.data.map(row => (row as Record<string, unknown>).id)).toEqual([
+        'earlier',
+        'later',
+      ]);
     });
   });
 

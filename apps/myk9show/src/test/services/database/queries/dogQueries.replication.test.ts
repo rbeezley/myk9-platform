@@ -186,6 +186,24 @@ describe('dogQueries (replication)', () => {
       expect(result.error).toBeNull();
       expect(result.data).toEqual([]);
     });
+
+    it('orders replicated showAll dogs by name ascending without mutating the source rows', async () => {
+      const dogs = [
+        makeDog({ id: 'dog-z', name: 'Zeus', ownerId: 'person-1' }),
+        makeDog({ id: 'dog-a', name: 'Ada', ownerId: 'person-2' }),
+        makeDog({ id: 'dog-m', name: 'Mabel', ownerId: 'person-3' }),
+      ];
+      mockDogsTable.getAllDogs.mockResolvedValue(dogs);
+
+      const result = await getAllDogs('secretary-person', true);
+
+      expect(result.data.map(row => (row as Record<string, unknown>).name)).toEqual([
+        'Ada',
+        'Mabel',
+        'Zeus',
+      ]);
+      expect(dogs.map(dog => dog.id)).toEqual(['dog-z', 'dog-a', 'dog-m']);
+    });
   });
 
   // -----------------------------------------------------------------------

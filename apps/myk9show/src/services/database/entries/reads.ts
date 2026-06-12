@@ -6,7 +6,13 @@
  * Mutation functions live in writes.ts and secretary.ts.
  */
 import { supabase, createDatabaseError, type DatabaseError } from '../supabaseClient';
-import { withReplicationFallback } from '../_shared/replication-fallback';
+import {
+  compareDateDesc,
+  compareNumberAscNullsLast,
+  loadLookupMap,
+  readWithReplicationFallback,
+  sortedCopy,
+} from '../_shared/read-shape';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
@@ -27,18 +33,21 @@ import type { DbEntryWithRelations } from '@/services/mappers/classMappers';
 // ---------------------------------------------------------------------------
 
 async function loadDogsMap(): Promise<Map<string, ReplicatedDog>> {
-  const dogs = await replicatedDogsTable.getAllDogs();
-  return buildMapFromArray(dogs, d => d.id);
+  return loadLookupMap(() => replicatedDogsTable.getAllDogs(), d => d.id);
 }
 
 async function loadClassesMap(): Promise<Map<string, ReplicatedClass>> {
-  const classes = await replicatedClassesTable.getAll();
-  return buildMapFromArray(classes, c => c.id);
+  return loadLookupMap(() => replicatedClassesTable.getAll(), c => c.id);
 }
 
 async function loadShowsMap(): Promise<Map<string, ReplicatedShow>> {
-  const shows = await replicatedShowsTable.getAllShows();
-  return buildMapFromArray(shows, s => s.id);
+  return loadLookupMap(() => replicatedShowsTable.getAllShows(), s => s.id);
+}
+
+function getEntryCreatedSortValue(entry: ReplicatedEntry): string | undefined {
+  // Replication stores submitted_at as submittedAt; the mapper emits it as
+  // created_at for the DB-shaped row, matching the PostgREST order column.
+  return entry.submittedAt ?? entry.updated_at;
 }
 
 /**
@@ -449,219 +458,197 @@ async function postgrestGetEntriesByStatus(status: EntryStatus) {
 
 // Get all entries with related data
 export const getAllEntries = async () => {
-  try {
-    return await withReplicationFallback(
-      async () => {
-        const [entries, dogsMap, classesMap, showsMap] = await Promise.all([
-          replicatedEntriesTable.getAll(),
-          loadDogsMap(),
-          loadClassesMap(),
-          loadShowsMap(),
-        ]);
-        const data = mapEntriesWithStandardJoins(entries, dogsMap, classesMap, showsMap);
-        return { data, error: null };
-      },
-      postgrestGetAllEntries,
-      'entries',
-      'select_all_with_details'
-    );
-  } catch (error) {
-    return { data: [], error: error as DatabaseError };
-  }
+  return readWithReplicationFallback({
+    replication: async () => {
+      const [entries, dogsMap, classesMap, showsMap] = await Promise.all([
+        replicatedEntriesTable.getAll(),
+        loadDogsMap(),
+        loadClassesMap(),
+        loadShowsMap(),
+      ]);
+      const sortedEntries = sortedCopy(entries, compareDateDesc(getEntryCreatedSortValue));
+      const data = mapEntriesWithStandardJoins(sortedEntries, dogsMap, classesMap, showsMap);
+      return { data, error: null };
+    },
+    postgrest: postgrestGetAllEntries,
+    table: 'entries',
+    operation: 'select_all_with_details',
+    errorData: [],
+  });
 };
 
 // Get entry by ID with full details
 export const getEntryById = async (id: string) => {
-  try {
-    return await withReplicationFallback(
-      async () => {
-        const entry = await replicatedEntriesTable.getEntryById(id);
-        if (!entry) return { data: null, error: null };
-        const [dog, cls, show] = await Promise.all([
-          entry.dogId ? replicatedDogsTable.getDogById(entry.dogId) : Promise.resolve(null),
-          entry.classId
-            ? replicatedClassesTable.getClassById(entry.classId)
-            : Promise.resolve(null),
-          entry.showId ? replicatedShowsTable.getShowById(entry.showId) : Promise.resolve(null),
-        ]);
-        const data = mapReplicatedEntryToDbRow(entry, { dog, cls, show });
-        return { data, error: null };
-      },
-      () => postgrestGetEntryById(id),
-      'entries',
-      'select_by_id_detailed'
-    );
-  } catch (error) {
-    return { data: null, error: error as DatabaseError };
-  }
+  return readWithReplicationFallback({
+    replication: async () => {
+      const entry = await replicatedEntriesTable.getEntryById(id);
+      if (!entry) return { data: null, error: null };
+      const [dog, cls, show] = await Promise.all([
+        entry.dogId ? replicatedDogsTable.getDogById(entry.dogId) : Promise.resolve(null),
+        entry.classId ? replicatedClassesTable.getClassById(entry.classId) : Promise.resolve(null),
+        entry.showId ? replicatedShowsTable.getShowById(entry.showId) : Promise.resolve(null),
+      ]);
+      const data = mapReplicatedEntryToDbRow(entry, { dog, cls, show });
+      return { data, error: null };
+    },
+    postgrest: () => postgrestGetEntryById(id),
+    table: 'entries',
+    operation: 'select_by_id_detailed',
+    errorData: null,
+  });
 };
 
 // Get entries by show ID
 export const getEntriesByShow = async (showId: string) => {
-  try {
-    return await withReplicationFallback(
-      async () => {
-        const [entries, dogsMap, classesMap] = await Promise.all([
-          replicatedEntriesTable.getEntriesByShow(showId),
-          loadDogsMap(),
-          loadClassesMap(),
-        ]);
-        const data = entries.map(entry =>
-          mapReplicatedEntryToDbRow(entry, {
-            dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
-            cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
-          })
-        );
-        return { data, error: null };
-      },
-      () => postgrestGetEntriesByShow(showId),
-      'entries',
-      'select_by_show'
-    );
-  } catch (error) {
-    return { data: [], error: error as DatabaseError };
-  }
+  return readWithReplicationFallback({
+    replication: async () => {
+      const [entries, dogsMap, classesMap] = await Promise.all([
+        replicatedEntriesTable.getEntriesByShow(showId),
+        loadDogsMap(),
+        loadClassesMap(),
+      ]);
+      const sortedEntries = sortedCopy(entries, compareDateDesc(getEntryCreatedSortValue));
+      const data = sortedEntries.map(entry =>
+        mapReplicatedEntryToDbRow(entry, {
+          dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
+          cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
+        })
+      );
+      return { data, error: null };
+    },
+    postgrest: () => postgrestGetEntriesByShow(showId),
+    table: 'entries',
+    operation: 'select_by_show',
+    errorData: [],
+  });
 };
 
 // Get entries by show ID with financial joins (promo_code, trial name)
 export const getEntriesByShowForFinancials = async (showId: string) => {
-  try {
-    return await withReplicationFallback(
-      async () => {
-        const [entries, dogsMap, classesMap, trials] = await Promise.all([
-          replicatedEntriesTable.getEntriesByShow(showId),
-          loadDogsMap(),
-          loadClassesMap(),
-          replicatedTrialsTable.getTrialsByShow(showId),
-        ]);
+  return readWithReplicationFallback({
+    replication: async () => {
+      const [entries, dogsMap, classesMap, trials] = await Promise.all([
+        replicatedEntriesTable.getEntriesByShow(showId),
+        loadDogsMap(),
+        loadClassesMap(),
+        replicatedTrialsTable.getTrialsByShow(showId),
+      ]);
 
-        // Build trial lookup map
-        const trialsMap = new Map(trials.map(t => [t.id, { id: t.id, name: t.name }]));
+      // Build trial lookup map
+      const trialsMap = new Map(trials.map(t => [t.id, { id: t.id, name: t.name }]));
 
-        // Collect unique promo_code_ids for batch PostgREST fetch
-        // promoCodeId is not in the ReplicatedEntry type but may exist on the raw object
-        const promoCodeIds = [
-          ...new Set(
-            entries
-              .map(e => (e as unknown as Record<string, unknown>).promoCodeId as string | undefined)
-              .filter((id): id is string => !!id)
-          ),
-        ];
+      // Collect unique promo_code_ids for batch PostgREST fetch
+      // promoCodeId is not in the ReplicatedEntry type but may exist on the raw object
+      const promoCodeIds = [
+        ...new Set(
+          entries
+            .map(e => (e as unknown as Record<string, unknown>).promoCodeId as string | undefined)
+            .filter((id): id is string => !!id)
+        ),
+      ];
 
-        // Batch-fetch promo codes from PostgREST (not replicated)
-        let promoCodesMap = new Map<string, Record<string, unknown>>();
-        if (promoCodeIds.length > 0) {
-          const { data: promoCodes } = await supabase
-            .from('promo_codes')
-            .select('id, code, discount_type, discount_value')
-            .in('id', promoCodeIds);
-          if (promoCodes) {
-            promoCodesMap = buildMapFromArray(promoCodes, pc => pc.id);
-          }
+      // Batch-fetch promo codes from PostgREST (not replicated)
+      let promoCodesMap = new Map<string, Record<string, unknown>>();
+      if (promoCodeIds.length > 0) {
+        const { data: promoCodes } = await supabase
+          .from('promo_codes')
+          .select('id, code, discount_type, discount_value')
+          .in('id', promoCodeIds);
+        if (promoCodes) {
+          promoCodesMap = buildMapFromArray(promoCodes, pc => pc.id);
         }
+      }
 
-        const data = entries.map(entry => {
-          const raw = entry as unknown as Record<string, unknown>;
-          const promoCodeId = raw.promoCodeId as string | undefined;
-          const cls = entry.classId ? classesMap.get(entry.classId) : null;
-          const trialRow = cls?.trialId ? (trialsMap.get(cls.trialId) ?? null) : null;
-          return mapReplicatedEntryToDbRow(entry, {
-            dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
-            cls: cls ?? null,
-            promoCode: promoCodeId ? (promoCodesMap.get(promoCodeId) ?? null) : null,
-            trial: trialRow,
-          });
+      const sortedEntries = sortedCopy(entries, compareDateDesc(getEntryCreatedSortValue));
+      const data = sortedEntries.map(entry => {
+        const raw = entry as unknown as Record<string, unknown>;
+        const promoCodeId = raw.promoCodeId as string | undefined;
+        const cls = entry.classId ? classesMap.get(entry.classId) : null;
+        const trialRow = cls?.trialId ? (trialsMap.get(cls.trialId) ?? null) : null;
+        return mapReplicatedEntryToDbRow(entry, {
+          dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
+          cls: cls ?? null,
+          promoCode: promoCodeId ? (promoCodesMap.get(promoCodeId) ?? null) : null,
+          trial: trialRow,
         });
+      });
 
-        return { data, error: null };
-      },
-      () => postgrestGetEntriesByShowForFinancials(showId),
-      'entries',
-      'select_by_show_financials'
-    );
-  } catch (error) {
-    return { data: [], error: error as DatabaseError };
-  }
+      return { data, error: null };
+    },
+    postgrest: () => postgrestGetEntriesByShowForFinancials(showId),
+    table: 'entries',
+    operation: 'select_by_show_financials',
+    errorData: [],
+  });
 };
 
 // Get entries by trial ID (via class join — inner join behavior)
 export const getEntriesByTrial = async (trialId: string) => {
-  try {
-    return await withReplicationFallback(
-      async () => {
-        // Get classes for this trial, then filter entries by those class IDs
-        const [trialClasses, allEntries, dogsMap] = await Promise.all([
-          replicatedClassesTable.getClassesByTrial(trialId),
-          replicatedEntriesTable.getAll(),
-          loadDogsMap(),
-        ]);
-        const trialClassIds = new Set(trialClasses.map(c => c.id));
-        const classesMap = buildMapFromArray(trialClasses, c => c.id);
-        // Filter entries to only those whose classId is in the trial's classes (inner join)
-        const filtered = allEntries.filter(e => e.classId && trialClassIds.has(e.classId));
-        const data = filtered.map(entry =>
-          mapReplicatedEntryToDbRow(entry, {
-            dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
-            cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
-          })
-        );
-        return { data, error: null };
-      },
-      () => postgrestGetEntriesByTrial(trialId),
-      'entries',
-      'select_by_trial'
-    );
-  } catch (error) {
-    return { data: [], error: error as DatabaseError };
-  }
+  return readWithReplicationFallback({
+    replication: async () => {
+      // Get classes for this trial, then filter entries by those class IDs
+      const [trialClasses, allEntries, dogsMap] = await Promise.all([
+        replicatedClassesTable.getClassesByTrial(trialId),
+        replicatedEntriesTable.getAll(),
+        loadDogsMap(),
+      ]);
+      const trialClassIds = new Set(trialClasses.map(c => c.id));
+      const classesMap = buildMapFromArray(trialClasses, c => c.id);
+      // Filter entries to only those whose classId is in the trial's classes (inner join)
+      const filtered = allEntries.filter(e => e.classId && trialClassIds.has(e.classId));
+      const sortedEntries = sortedCopy(filtered, compareDateDesc(getEntryCreatedSortValue));
+      const data = sortedEntries.map(entry =>
+        mapReplicatedEntryToDbRow(entry, {
+          dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
+          cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
+        })
+      );
+      return { data, error: null };
+    },
+    postgrest: () => postgrestGetEntriesByTrial(trialId),
+    table: 'entries',
+    operation: 'select_by_trial',
+    errorData: [],
+  });
 };
 
 // Get entries by class ID (sorted by run_order, nulls last)
 export const getEntriesByClass = async (classId: string) => {
-  try {
-    return await withReplicationFallback(
-      async () => {
-        const [entries, dogsMap] = await Promise.all([
-          replicatedEntriesTable.getEntriesByClass(classId),
-          loadDogsMap(),
-        ]);
-        // Sort by run_order ascending, nulls last (matching PostgREST behavior)
-        entries.sort((a, b) => {
-          if (a.runOrder == null && b.runOrder == null) return 0;
-          if (a.runOrder == null) return 1;
-          if (b.runOrder == null) return -1;
-          return a.runOrder - b.runOrder;
-        });
-        const data = entries.map(entry =>
-          mapReplicatedEntryToDbRow(entry, {
-            dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
-          })
-        );
-        // Backfill armbands from the authoritative armbands table for entries
-        // whose replication UPDATE hasn't synced yet
-        const armbandMap = await fetchMissingArmbands(
-          data.map(d => ({
-            armband: d.armband as string | null,
-            show_id: d.show_id as string | null,
-            dog_id: d.dog_id as string | null,
-          }))
-        );
-        const backfilledData = data.map(e => {
-          if (!e.armband && e.show_id && e.dog_id) {
-            const armband = armbandMap.get(`${e.show_id}:${e.dog_id}`);
-            if (armband) return { ...e, armband };
-          }
-          return e;
-        });
-        return { data: backfilledData, error: null };
-      },
-      () => postgrestGetEntriesByClass(classId),
-      'entries',
-      'select_by_class'
-    );
-  } catch (error) {
-    return { data: [], error: error as DatabaseError };
-  }
+  return readWithReplicationFallback({
+    replication: async () => {
+      const [entries, dogsMap] = await Promise.all([
+        replicatedEntriesTable.getEntriesByClass(classId),
+        loadDogsMap(),
+      ]);
+      const sortedEntries = sortedCopy(entries, compareNumberAscNullsLast(entry => entry.runOrder));
+      const data = sortedEntries.map(entry =>
+        mapReplicatedEntryToDbRow(entry, {
+          dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
+        })
+      );
+      // Backfill armbands from the authoritative armbands table for entries
+      // whose replication UPDATE hasn't synced yet
+      const armbandMap = await fetchMissingArmbands(
+        data.map(d => ({
+          armband: d.armband as string | null,
+          show_id: d.show_id as string | null,
+          dog_id: d.dog_id as string | null,
+        }))
+      );
+      const backfilledData = data.map(e => {
+        if (!e.armband && e.show_id && e.dog_id) {
+          const armband = armbandMap.get(`${e.show_id}:${e.dog_id}`);
+          if (armband) return { ...e, armband };
+        }
+        return e;
+      });
+      return { data: backfilledData, error: null };
+    },
+    postgrest: () => postgrestGetEntriesByClass(classId),
+    table: 'entries',
+    operation: 'select_by_class',
+    errorData: [],
+  });
 };
 
 // Compatibility name used by class-oriented callers. Keep the implementation
@@ -671,59 +658,55 @@ export const getEntriesByClassId = async (
 ): Promise<{ data: DbEntryWithRelations[]; error: DatabaseError | null }> => {
   const result = await getEntriesByClass(classId);
   return {
-    data: result.data as DbEntryWithRelations[],
+    data: result.data as unknown as DbEntryWithRelations[],
     error: result.error,
   };
 };
 
 // Get entries by dog ID
 export const getEntriesByDog = async (dogId: string) => {
-  try {
-    return await withReplicationFallback(
-      async () => {
-        const [allEntries, classesMap, showsMap] = await Promise.all([
-          replicatedEntriesTable.getAll(),
-          loadClassesMap(),
-          loadShowsMap(),
-        ]);
-        const filtered = allEntries.filter(e => e.dogId === dogId);
-        const data = filtered.map(entry =>
-          mapReplicatedEntryToDbRow(entry, {
-            cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
-            show: entry.showId ? (showsMap.get(entry.showId) ?? null) : null,
-          })
-        );
-        return { data, error: null };
-      },
-      () => postgrestGetEntriesByDog(dogId),
-      'entries',
-      'select_by_dog'
-    );
-  } catch (error) {
-    return { data: [], error: error as DatabaseError };
-  }
+  return readWithReplicationFallback({
+    replication: async () => {
+      const [allEntries, classesMap, showsMap] = await Promise.all([
+        replicatedEntriesTable.getAll(),
+        loadClassesMap(),
+        loadShowsMap(),
+      ]);
+      const filtered = allEntries.filter(e => e.dogId === dogId);
+      const sortedEntries = sortedCopy(filtered, compareDateDesc(getEntryCreatedSortValue));
+      const data = sortedEntries.map(entry =>
+        mapReplicatedEntryToDbRow(entry, {
+          cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
+          show: entry.showId ? (showsMap.get(entry.showId) ?? null) : null,
+        })
+      );
+      return { data, error: null };
+    },
+    postgrest: () => postgrestGetEntriesByDog(dogId),
+    table: 'entries',
+    operation: 'select_by_dog',
+    errorData: [],
+  });
 };
 
 // Get entries by status
 export const getEntriesByStatus = async (status: EntryStatus) => {
-  try {
-    return await withReplicationFallback(
-      async () => {
-        const [allEntries, dogsMap, classesMap, showsMap] = await Promise.all([
-          replicatedEntriesTable.getAll(),
-          loadDogsMap(),
-          loadClassesMap(),
-          loadShowsMap(),
-        ]);
-        const filtered = allEntries.filter(e => e.entryStatus === status);
-        const data = mapEntriesWithStandardJoins(filtered, dogsMap, classesMap, showsMap);
-        return { data, error: null };
-      },
-      () => postgrestGetEntriesByStatus(status),
-      'entries',
-      'select_by_status'
-    );
-  } catch (error) {
-    return { data: [], error: error as DatabaseError };
-  }
+  return readWithReplicationFallback({
+    replication: async () => {
+      const [allEntries, dogsMap, classesMap, showsMap] = await Promise.all([
+        replicatedEntriesTable.getAll(),
+        loadDogsMap(),
+        loadClassesMap(),
+        loadShowsMap(),
+      ]);
+      const filtered = allEntries.filter(e => e.entryStatus === status);
+      const sortedEntries = sortedCopy(filtered, compareDateDesc(getEntryCreatedSortValue));
+      const data = mapEntriesWithStandardJoins(sortedEntries, dogsMap, classesMap, showsMap);
+      return { data, error: null };
+    },
+    postgrest: () => postgrestGetEntriesByStatus(status),
+    table: 'entries',
+    operation: 'select_by_status',
+    errorData: [],
+  });
 };

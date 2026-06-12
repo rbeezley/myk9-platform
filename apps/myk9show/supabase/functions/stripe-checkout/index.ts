@@ -221,7 +221,11 @@ async function getOrCreateStripeCustomer(
       },
     });
 
-    // Save to stripe_customers table
+    // Save to stripe_customers table.
+    // stripe_customers.person_id is UNIQUE — a second concurrent checkout for
+    // the same person will hit a 23505 unique violation. In that case, delete
+    // the Stripe customer we just created (it would be orphaned) and re-query
+    // to return the winning row's stripe_customer_id.
     const { error: insertError } = await supabase.from('stripe_customers').insert({
       person_id: personId,
       stripe_customer_id: stripeCustomer.id,
@@ -229,9 +233,17 @@ async function getOrCreateStripeCustomer(
     });
 
     if (insertError) {
-      console.error('Error saving stripe customer:', insertError);
-      // Clean up Stripe customer
       await stripe.customers.del(stripeCustomer.id);
+      if (insertError.code === '23505') {
+        // Another concurrent request won the race — return the existing row.
+        const { data: raceWinner } = await supabase
+          .from('stripe_customers')
+          .select('stripe_customer_id')
+          .eq('person_id', personId)
+          .single();
+        return raceWinner?.stripe_customer_id ?? null;
+      }
+      console.error('Error saving stripe customer:', insertError);
       return null;
     }
 
@@ -568,6 +580,22 @@ async function handleSubscriptionCheckout(
   // Validate price_id against allowlist (SA-024)
   if (!VALID_PRICE_IDS.has(price_id)) {
     return corsResponse({ error: 'Invalid price_id' }, 400);
+  }
+
+  // Pre-flight: reject if the customer already has an active subscription.
+  // Without this guard, multi-tab or direct-call scenarios create duplicate
+  // Stripe subscriptions; syncSubscriptionFromStripe's limit:1 query may then
+  // sync the wrong one and silently downgrade the user.
+  const existingActive = await stripe.subscriptions.list({
+    customer: customerId,
+    status: 'active',
+    limit: 1,
+  });
+  if (existingActive.data.length > 0) {
+    return corsResponse(
+      { error: 'You already have an active subscription. Visit your account settings to manage it.' },
+      400
+    );
   }
 
   const session = await stripe.checkout.sessions.create({

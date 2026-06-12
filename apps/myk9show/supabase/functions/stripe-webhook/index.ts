@@ -428,10 +428,15 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     .single();
 
   const classIds = [...new Set(cart.items.map((i: { class_id: string }) => i.class_id))];
+  // Filter to only classes whose trial belongs to this show (P1b class-show
+  // membership check). A class from a different show would pass the fee
+  // verification only by coincidence of equal fees, but would produce an entry
+  // with a trial_id from the wrong show.
   const { data: classRows, error: classesError } = await supabase
     .from('classes')
-    .select('id, trial_id, entry_fee')
-    .in('id', classIds);
+    .select('id, trial_id, entry_fee, trial:trials!inner(show_id)')
+    .in('id', classIds)
+    .eq('trial.show_id', cart.show_id);
 
   if (freshTotalCents == null || showFeesError || !showFees || classesError || !classRows) {
     console.error(
@@ -824,8 +829,14 @@ async function handleSubscriptionCheckoutCompleted(session: Stripe.Checkout.Sess
     return;
   }
 
-  // Sync subscription from Stripe
-  await syncSubscriptionFromStripe(customerId);
+  // Use the specific subscription ID from the session instead of a customer-level
+  // list (limit:1 ordering would pick the wrong sub if the user has duplicates).
+  const subscriptionId =
+    typeof session.subscription === 'string'
+      ? session.subscription
+      : (session.subscription as { id?: string } | null)?.id;
+
+  await syncSubscriptionFromStripe(customerId, subscriptionId ?? undefined);
 }
 
 /**
@@ -898,7 +909,10 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
  * Sync subscription data from Stripe to database
  * Updates both stripe_subscriptions and exhibitor_profiles
  */
-async function syncSubscriptionFromStripe(stripeCustomerId: string) {
+async function syncSubscriptionFromStripe(
+  stripeCustomerId: string,
+  knownSubscriptionId?: string
+) {
   try {
     // Get stripe_customers record
     const { data: stripeCustomer, error: customerError } = await supabase
@@ -912,13 +926,23 @@ async function syncSubscriptionFromStripe(stripeCustomerId: string) {
       return;
     }
 
-    // Fetch subscriptions from Stripe
-    const subscriptions = await stripe.subscriptions.list({
-      customer: stripeCustomerId,
-      limit: 1,
-      status: 'all',
-      expand: ['data.default_payment_method'],
-    });
+    // When the specific subscription ID is known (e.g. from checkout.session.completed),
+    // retrieve it directly — avoids the limit:1 ordering ambiguity that could
+    // pick a newer canceled/incomplete sub over an older active one.
+    let subscriptions: { data: Stripe.Subscription[] };
+    if (knownSubscriptionId) {
+      const sub = await stripe.subscriptions.retrieve(knownSubscriptionId, {
+        expand: ['default_payment_method'],
+      });
+      subscriptions = { data: [sub] };
+    } else {
+      subscriptions = await stripe.subscriptions.list({
+        customer: stripeCustomerId,
+        limit: 1,
+        status: 'all',
+        expand: ['data.default_payment_method'],
+      });
+    }
 
     if (subscriptions.data.length === 0) {
       console.log(`No subscriptions found for customer: ${stripeCustomerId}`);

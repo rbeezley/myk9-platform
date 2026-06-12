@@ -4,6 +4,17 @@ Active work items only. Resolved historical context lives in git history and dat
 
 ---
 
+## QA Program — execution order — 2026-06-12
+
+Four steps toward the fall launch, in dependency order. Detailed phase checklists live in the sections below; this list is the master sequence.
+
+- [ ] **1. Code-Quality Audit** — remove static debt first; every later step audits or builds on the post-cleanup surfaces. Plan: [`docs/plan-code-quality-audit.md`](docs/plan-code-quality-audit.md). *In progress — Phase 2 verification underway.*
+- [ ] **2. UX Journey Audit** — exhibitor + secretary journeys scored against INTENT; walks double as the golden-path browser walkthroughs the scorecard requires. Plan: [`docs/plan-ux-journey-audit.md`](docs/plan-ux-journey-audit.md). *Recon can start now; main phases after code-audit Waves A–C.*
+- [ ] **3. Dynamic QA Infrastructure** — permanent guards: chaos tests, mutation scoring, drift checks, observability, flaky quarantine. Plan: [`docs/plan-dynamic-qa-infrastructure.md`](docs/plan-dynamic-qa-infrastructure.md). *Mutation testing after code-audit Wave D; phases 1/3/4/5 may overlap with step 2 in separate worktrees.*
+- [ ] **4. Golden Path sign-off** — final launch gate: post-remediation re-walk of both golden paths, flipping the two `Unknown` rows in [`docs/goals/fall-2026-launch-readiness-scorecard.md`](docs/goals/fall-2026-launch-readiness-scorecard.md) against the scorecard's own pass thresholds. Initial evidence lands during step 2; the sign-off re-walk runs last, after steps 2–3 remediation is in.
+
+---
+
 ## Code-Quality Audit — 2026-06-12
 
 Plan: [`docs/plan-code-quality-audit.md`](docs/plan-code-quality-audit.md). Current status in [`docs/audits/2026-06-code-quality/SUMMARY.md`](docs/audits/2026-06-code-quality/SUMMARY.md). Phase 1 inventory done; Phase 2 verification pending before any fix wave starts.

@@ -15,6 +15,7 @@
 
 | Plan | Relationship |
 | --- | --- |
+| `docs/goals/fall-2026-launch-readiness-scorecard.md` | **The contract this audit serves.** Its Golden Path Criteria (Secretary: 11 numbered steps; Exhibitor: 8) are the canonical journey definitions — Phase 1's journey maps adopt them verbatim as segment lists. Both golden path scorecard rows are currently `Unknown`; this audit's walks are the "browser walkthrough with realistic show data" the scorecard names as their verification method. A finding that blocks a golden path step is automatically P0/P1 (launch-blocking), not a UX nit. |
 | `plan-code-quality-audit.md` | Run this audit **after Waves A–C land** — no point auditing pages about to be consolidated or deleted. Independent of Wave D. |
 | `plan-dynamic-qa-infrastructure.md` | Independent. Its Phase 4 (error boundaries) shares the INTENT-fallback concern; cross-reference findings, don't duplicate. |
 | April 2026 UX sprint (`docs/ux-audits/`) | This **continues** that thread (its Phases 3–5 were never run). Phase 1 below dispositions every prior finding before any new auditing starts. |
@@ -22,9 +23,13 @@
 
 ## The two journeys
 
+The canonical segment lists are the scorecard's Golden Path Criteria — Secretary steps 1–11, Exhibitor steps 1–8 in `docs/goals/fall-2026-launch-readiness-scorecard.md`. In narrative form:
+
 **Exhibitor:** discover show → show details/premium → register dog(s) → cart/pay → confirmation email → pre-show prep (entries, armbands, schedule) → `/at-show` day (check-in, dogs-ahead, conflicts, results) → post-show results/share.
 
 **Secretary:** create show (or clone) → setup (trials, classes, judges, fees) → entries management (approve, waitlist, armbands) → pre-show prep (catalogs, labels, reports) → show day (check-in oversight, scratches, move-ups, scoring oversight) → wrap-up (results, reports, sanctioning-body submission).
+
+If Phase 1 finds a divergence between this narrative and the scorecard's numbered steps, the scorecard wins.
 
 ---
 
@@ -79,14 +84,16 @@ For each: latency of visibility (does the other side see it without refresh?), s
 
 ## Phase 5 — Synthesis and remediation plan
 
-1. Compile `SUMMARY.md`: single severity-ordered findings table across all four docs, each finding tagged with the INTENT feeling it violates and its journey segment.
-2. For any finding proposing new UI, answer the duplication question explicitly (CLAUDE.md consolidation rule) — the default remedy at this phase is a link, a deletion, or a tightening, not a new surface.
-3. Human gate: user approves the remediation list before any fix work starts.
-4. Remediation waves mirror the code-audit pattern: one PR per cohesive cluster, highest-severity exhibitor money-path items first.
+1. Compile `SUMMARY.md`: single severity-ordered findings table across all four docs, each finding tagged with the INTENT feeling it violates and its golden-path step (scorecard numbering).
+2. **Update the launch-readiness scorecard:** the secretary and exhibitor golden path rows are currently `Unknown`. Using the walk evidence, set each to its earned status against the scorecard's own pass thresholds (no dead ends, no duplicate implementations, no developer-only recovery, no P0/P1). The final flip to green happens only at the post-remediation re-walk (Phase 6), but the initial evidence-based status lands here.
+3. For any finding proposing new UI, answer the duplication question explicitly (CLAUDE.md consolidation rule) — the default remedy at this phase is a link, a deletion, or a tightening, not a new surface.
+4. Human gate: user approves the remediation list before any fix work starts.
+5. Remediation waves mirror the code-audit pattern: one PR per cohesive cluster, highest-severity exhibitor money-path items first.
 
 ## Phase 6 — Testing (required)
 
 - **Audit byproducts:** cold-start and seam walks that surface real bugs get fixed at root cause with a committed Playwright spec (the `/qa-feature` pattern) in the same PR.
 - **Per remediation wave:** unit tests for changed components/hooks (CLAUDE.md: phase isn't complete until tests pass); `pnpm typecheck` + `pnpm lint` + affected tests green.
 - **Baseline re-measure:** after remediation waves, re-run the time-to-task measurements and record the delta in `SUMMARY.md` — the audit's success metric is those numbers moving, not findings counted.
+- **Golden path sign-off:** re-walk both golden paths end-to-end against the scorecard's pass thresholds and update the secretary/exhibitor rows in `docs/goals/fall-2026-launch-readiness-scorecard.md` with the earned status and evidence link. This is the audit's exit criterion.
 - **INTENT regression:** any remediation touching a surface with `// INTENT:` comments preserves the documented behavior or stops for explicit approval.

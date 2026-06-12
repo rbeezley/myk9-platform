@@ -13,28 +13,35 @@ import type {
 
 describe('canonical database type exports', () => {
   it('exports runtime constants for the public schema', () => {
-    expect(Constants.public.Enums).toBeDefined();
+    expect(Constants.public.Enums).toEqual({});
   });
 
   it('exposes generated helper aliases used by app consumers', () => {
-    const showRow: Pick<Tables<'shows'>, 'id' | 'name'> = {
-      id: 'show-id',
-      name: 'Test Show',
-    };
-    const showInsert: Pick<TablesInsert<'shows'>, 'name'> = { name: 'Test Show' };
-    const showUpdate: TablesUpdate<'shows'> = { name: 'Updated Show' };
-    const secretaryTask: Partial<Tables<'secretary_tasks'>> = { id: 'task-id' };
-    const jsonValue: Json = { ok: true };
+    type PublicCompositeTypeName = keyof Database['public']['CompositeTypes'];
+    type PublicEnumName = keyof Database['public']['Enums'];
 
     expectTypeOf<Database['public']['Tables']>().toHaveProperty('shows');
     expectTypeOf<Database['public']['Tables']>().toHaveProperty('secretary_tasks');
-    expectTypeOf<Enums<never>>().toEqualTypeOf<never>();
-    expectTypeOf<CompositeTypes<never>>().toEqualTypeOf<never>();
-
-    expect(showRow).toEqual({ id: 'show-id', name: 'Test Show' });
-    expect(showInsert.name).toBe('Test Show');
-    expect(showUpdate.name).toBe('Updated Show');
-    expect(secretaryTask.id).toBe('task-id');
-    expect(jsonValue).toEqual({ ok: true });
+    expectTypeOf<Tables<'shows'>>().toMatchTypeOf<{
+      id: string;
+      name: string;
+    }>();
+    expectTypeOf<TablesInsert<'shows'>>().toMatchTypeOf<{
+      end_date: string;
+      name: string;
+      organization: string;
+      start_date: string;
+    }>();
+    expectTypeOf<TablesUpdate<'shows'>>().toMatchTypeOf<{ name?: string }>();
+    expectTypeOf<Tables<'secretary_tasks'>>().toMatchTypeOf<{
+      id: string;
+      status: string;
+      title: string;
+    }>();
+    expectTypeOf<{ ok: true }>().toMatchTypeOf<Json>();
+    expectTypeOf<PublicEnumName>().toEqualTypeOf<never>();
+    expectTypeOf<Enums<PublicEnumName>>().toEqualTypeOf<never>();
+    expectTypeOf<PublicCompositeTypeName>().toEqualTypeOf<never>();
+    expectTypeOf<CompositeTypes<PublicCompositeTypeName>>().toEqualTypeOf<never>();
   });
 });

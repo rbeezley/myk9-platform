@@ -1,10 +1,14 @@
-import { supabase, createDatabaseError, type DatabaseError } from '../supabaseClient';
+import { supabase, createDatabaseError } from '../supabaseClient';
 import type { Database, TablesUpdate } from '@/types/supabase';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
 import { mapReplicatedTrialToDbRow } from '@/services/mappers/trialMappers';
-import { buildMapFromArray } from '../_shared/maps';
-import { withReplicationFallback } from '../_shared/replication-fallback';
+import {
+  compareDateAsc,
+  loadLookupMap,
+  readWithReplicationFallback,
+  sortedCopy,
+} from '../_shared/read-shape';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
 
@@ -12,8 +16,7 @@ type DbTrialInsert = Database['public']['Tables']['trials']['Insert'];
 type DbTrialUpdate = Database['public']['Tables']['trials']['Update'];
 
 async function loadShowsMap(): Promise<Map<string, ReplicatedShow>> {
-  const shows = await replicatedShowsTable.getAllShows();
-  return buildMapFromArray(shows, s => s.id);
+  return loadLookupMap(() => replicatedShowsTable.getAllShows(), s => s.id);
 }
 
 function mapTrialsWithJoins(
@@ -228,193 +231,164 @@ async function postgrestGetTrialStatistics() {
 
 // Get all trials with show information (excluding soft-deleted)
 export const getAllTrials = async () => {
-  try {
-    return await withReplicationFallback(
-      async () => {
-        const [trials, showsMap] = await Promise.all([
-          replicatedTrialsTable.getAll(),
-          loadShowsMap(),
-        ]);
-        // Sort by date ascending (matching original PostgREST behavior)
-        trials.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        const data = mapTrialsWithJoins(trials, showsMap);
-        return { data, error: null };
-      },
-      postgrestGetAllTrials,
-      'trial',
-      'select_all'
-    );
-  } catch (error) {
-    return { data: [], error: error as DatabaseError };
-  }
+  return readWithReplicationFallback({
+    replication: async () => {
+      const [trials, showsMap] = await Promise.all([replicatedTrialsTable.getAll(), loadShowsMap()]);
+      const sortedTrials = sortedCopy(trials, compareDateAsc(trial => trial.date));
+      const data = mapTrialsWithJoins(sortedTrials, showsMap);
+      return { data, error: null };
+    },
+    postgrest: postgrestGetAllTrials,
+    table: 'trial',
+    operation: 'select_all',
+    errorData: [],
+  });
 };
 
 // Get trial by ID (excluding soft-deleted)
 export const getTrialById = async (id: string) => {
-  try {
-    return await withReplicationFallback(
-      async () => {
-        const trial = await replicatedTrialsTable.getTrialById(id);
-        if (!trial) return { data: null, error: null };
-        const show = trial.showId ? await replicatedShowsTable.getShowById(trial.showId) : null;
-        const data = mapReplicatedTrialToDbRow(trial, { show });
-        return { data, error: null };
-      },
-      () => postgrestGetTrialById(id),
-      'trial',
-      'select_by_id'
-    );
-  } catch (error) {
-    return { data: null, error: error as DatabaseError };
-  }
+  return readWithReplicationFallback({
+    replication: async () => {
+      const trial = await replicatedTrialsTable.getTrialById(id);
+      if (!trial) return { data: null, error: null };
+      const show = trial.showId ? await replicatedShowsTable.getShowById(trial.showId) : null;
+      const data = mapReplicatedTrialToDbRow(trial, { show });
+      return { data, error: null };
+    },
+    postgrest: () => postgrestGetTrialById(id),
+    table: 'trial',
+    operation: 'select_by_id',
+    errorData: null,
+  });
 };
 
 // Get trials by show ID (excluding soft-deleted)
 export const getTrialsByShow = async (showId: string) => {
-  try {
-    return await withReplicationFallback(
-      async () => {
-        const [trials, show] = await Promise.all([
-          replicatedTrialsTable.getTrialsByShow(showId),
-          replicatedShowsTable.getShowById(showId),
-        ]);
+  return readWithReplicationFallback({
+    replication: async () => {
+      const [trials, show] = await Promise.all([
+        replicatedTrialsTable.getTrialsByShow(showId),
+        replicatedShowsTable.getShowById(showId),
+      ]);
 
-        if (!show) {
-          return await postgrestGetTrialsByShow(showId);
-        }
+      if (!show) {
+        return await postgrestGetTrialsByShow(showId);
+      }
 
-        const data = trials.map(trial => mapReplicatedTrialToDbRow(trial, { show }));
-        return { data, error: null };
-      },
-      () => postgrestGetTrialsByShow(showId),
-      'trial',
-      'select_by_show'
-    );
-  } catch (error) {
-    return { data: [], error: error as DatabaseError };
-  }
+      const sortedTrials = sortedCopy(trials, compareDateAsc(trial => trial.date));
+      const data = sortedTrials.map(trial => mapReplicatedTrialToDbRow(trial, { show }));
+      return { data, error: null };
+    },
+    postgrest: () => postgrestGetTrialsByShow(showId),
+    table: 'trial',
+    operation: 'select_by_show',
+    errorData: [],
+  });
 };
 
 // Search trials by name (excluding soft-deleted)
 export const searchTrials = async (searchTerm: string) => {
-  try {
-    return await withReplicationFallback(
-      async () => {
-        const [allTrials, showsMap] = await Promise.all([
-          replicatedTrialsTable.getAll(),
-          loadShowsMap(),
-        ]);
-        const term = searchTerm.toLowerCase();
-        const filtered = allTrials.filter(trial => trial.name.toLowerCase().includes(term));
-        const data = mapTrialsWithJoins(filtered, showsMap);
-        return { data, error: null };
-      },
-      () => postgrestSearchTrials(searchTerm),
-      'trial',
-      'search'
-    );
-  } catch (error) {
-    return { data: [], error: error as DatabaseError };
-  }
+  return readWithReplicationFallback({
+    replication: async () => {
+      const [allTrials, showsMap] = await Promise.all([
+        replicatedTrialsTable.getAll(),
+        loadShowsMap(),
+      ]);
+      const term = searchTerm.toLowerCase();
+      const filtered = allTrials.filter(trial => trial.name.toLowerCase().includes(term));
+      const sortedTrials = sortedCopy(filtered, compareDateAsc(trial => trial.date));
+      const data = mapTrialsWithJoins(sortedTrials, showsMap);
+      return { data, error: null };
+    },
+    postgrest: () => postgrestSearchTrials(searchTerm),
+    table: 'trial',
+    operation: 'search',
+    errorData: [],
+  });
 };
 
 // Get trials by status (excluding soft-deleted)
 export const getTrialsByStatus = async (status: string) => {
-  try {
-    return await withReplicationFallback(
-      async () => {
-        const [allTrials, showsMap] = await Promise.all([
-          replicatedTrialsTable.getAll(),
-          loadShowsMap(),
-        ]);
-        const filtered = allTrials.filter(trial => trial.status === status);
-        // Sort by date ascending (matching original PostgREST behavior)
-        filtered.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        const data = mapTrialsWithJoins(filtered, showsMap);
-        return { data, error: null };
-      },
-      () => postgrestGetTrialsByStatus(status),
-      'trial',
-      'select_by_status'
-    );
-  } catch (error) {
-    return { data: [], error: error as DatabaseError };
-  }
+  return readWithReplicationFallback({
+    replication: async () => {
+      const [allTrials, showsMap] = await Promise.all([
+        replicatedTrialsTable.getAll(),
+        loadShowsMap(),
+      ]);
+      const filtered = allTrials.filter(trial => trial.status === status);
+      const sortedTrials = sortedCopy(filtered, compareDateAsc(trial => trial.date));
+      const data = mapTrialsWithJoins(sortedTrials, showsMap);
+      return { data, error: null };
+    },
+    postgrest: () => postgrestGetTrialsByStatus(status),
+    table: 'trial',
+    operation: 'select_by_status',
+    errorData: [],
+  });
 };
 
 // Get upcoming trials (excluding soft-deleted)
 export const getUpcomingTrials = async (limit?: number) => {
-  try {
-    return await withReplicationFallback(
-      async () => {
-        const [allTrials, showsMap] = await Promise.all([
-          replicatedTrialsTable.getAll(),
-          loadShowsMap(),
-        ]);
-        const today = new Date().toISOString().split('T')[0];
-        const filtered = allTrials
-          .filter(trial => trial.date >= today)
-          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        const limited = limit ? filtered.slice(0, limit) : filtered;
-        const data = mapTrialsWithJoins(limited, showsMap);
-        return { data, error: null };
-      },
-      () => postgrestGetUpcomingTrials(limit),
-      'trial',
-      'select_upcoming'
-    );
-  } catch (error) {
-    return { data: [], error: error as DatabaseError };
-  }
+  return readWithReplicationFallback({
+    replication: async () => {
+      const [allTrials, showsMap] = await Promise.all([
+        replicatedTrialsTable.getAll(),
+        loadShowsMap(),
+      ]);
+      const today = new Date().toISOString().split('T')[0];
+      const filtered = allTrials.filter(trial => trial.date >= today);
+      const sortedTrials = sortedCopy(filtered, compareDateAsc(trial => trial.date));
+      const limited = limit ? sortedTrials.slice(0, limit) : sortedTrials;
+      const data = mapTrialsWithJoins(limited, showsMap);
+      return { data, error: null };
+    },
+    postgrest: () => postgrestGetUpcomingTrials(limit),
+    table: 'trial',
+    operation: 'select_upcoming',
+    errorData: [],
+  });
 };
 
 // Get trials by date range (excluding soft-deleted)
 export const getTrialsByDateRange = async (startDate: string, endDate: string) => {
-  try {
-    return await withReplicationFallback(
-      async () => {
-        const [allTrials, showsMap] = await Promise.all([
-          replicatedTrialsTable.getAll(),
-          loadShowsMap(),
-        ]);
-        const filtered = allTrials
-          .filter(trial => trial.date >= startDate && trial.date <= endDate)
-          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        const data = mapTrialsWithJoins(filtered, showsMap);
-        return { data, error: null };
-      },
-      () => postgrestGetTrialsByDateRange(startDate, endDate),
-      'trial',
-      'select_by_date_range'
-    );
-  } catch (error) {
-    return { data: [], error: error as DatabaseError };
-  }
+  return readWithReplicationFallback({
+    replication: async () => {
+      const [allTrials, showsMap] = await Promise.all([
+        replicatedTrialsTable.getAll(),
+        loadShowsMap(),
+      ]);
+      const filtered = allTrials.filter(trial => trial.date >= startDate && trial.date <= endDate);
+      const sortedTrials = sortedCopy(filtered, compareDateAsc(trial => trial.date));
+      const data = mapTrialsWithJoins(sortedTrials, showsMap);
+      return { data, error: null };
+    },
+    postgrest: () => postgrestGetTrialsByDateRange(startDate, endDate),
+    table: 'trial',
+    operation: 'select_by_date_range',
+    errorData: [],
+  });
 };
 
 // Get trial statistics (excluding soft-deleted)
 export const getTrialStatistics = async () => {
-  try {
-    return await withReplicationFallback(
-      async () => {
-        const allTrials = await replicatedTrialsTable.getAll();
-        const byStatus = allTrials.reduce(
-          (acc: Record<string, number>, trial) => {
-            const status = trial.status || 'Unknown';
-            acc[status] = (acc[status] || 0) + 1;
-            return acc;
-          },
-          {} as Record<string, number>
-        );
-        return { data: { total: allTrials.length, byStatus }, error: null };
-      },
-      postgrestGetTrialStatistics,
-      'trial',
-      'statistics'
-    );
-  } catch (error) {
-    return { data: null, error: error as DatabaseError };
-  }
+  return readWithReplicationFallback({
+    replication: async () => {
+      const allTrials = await replicatedTrialsTable.getAll();
+      const byStatus = allTrials.reduce(
+        (acc: Record<string, number>, trial) => {
+          const status = trial.status || 'Unknown';
+          acc[status] = (acc[status] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>
+      );
+      return { data: { total: allTrials.length, byStatus }, error: null };
+    },
+    postgrest: postgrestGetTrialStatistics,
+    table: 'trial',
+    operation: 'statistics',
+    errorData: null,
+  });
 };
 
 // ---------------------------------------------------------------------------

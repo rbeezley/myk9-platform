@@ -224,6 +224,26 @@ describe('classQueries (replication)', () => {
       expect((row1.entries as unknown[]).length).toBe(2);
       expect((row2.entries as unknown[]).length).toBe(1);
     });
+
+    it('orders replicated classes by start_time ascending', async () => {
+      const classes = [
+        makeClass({ id: 'late', startTime: '13:00:00' }),
+        makeClass({ id: 'unscheduled', startTime: undefined }),
+        makeClass({ id: 'early', startTime: '08:00:00' }),
+        makeClass({ id: 'middle', startTime: '10:30:00' }),
+      ];
+      setupListMocks(classes);
+
+      const result = await getAllClasses();
+
+      expect(result.data.map(row => (row as Record<string, unknown>).id)).toEqual([
+        'early',
+        'middle',
+        'late',
+        'unscheduled',
+      ]);
+      expect(classes.map(cls => cls.id)).toEqual(['late', 'unscheduled', 'early', 'middle']);
+    });
   });
 
   // -----------------------------------------------------------------------
@@ -342,6 +362,25 @@ describe('classQueries (replication)', () => {
       expect(ja[0].person_id).toBe('judge-1');
       expect((ja[0].people as Record<string, unknown>).first_name).toBe('Richard');
       expect((ja[0].people as Record<string, unknown>).last_name).toBe('Beezley');
+    });
+
+    it('orders replicated trial classes by start_time ascending', async () => {
+      const classes = [
+        makeClass({ id: 'late', startTime: '14:00:00' }),
+        makeClass({ id: 'unscheduled', startTime: undefined }),
+        makeClass({ id: 'early', startTime: '07:30:00' }),
+      ];
+      mockClassesTable.getClassesByTrial.mockResolvedValue(classes);
+      mockEntriesTable.getAll.mockResolvedValue([]);
+
+      const result = await getClassesByTrialId('trial-1');
+
+      expect(result.data.map(row => (row as Record<string, unknown>).id)).toEqual([
+        'early',
+        'late',
+        'unscheduled',
+      ]);
+      expect(classes.map(cls => cls.id)).toEqual(['late', 'unscheduled', 'early']);
     });
 
     it('returns empty array when no classes for trial', async () => {

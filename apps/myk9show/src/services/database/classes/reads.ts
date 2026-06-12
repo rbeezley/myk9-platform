@@ -2,8 +2,13 @@
 // SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
 // Mutation functions (create, update, delete) remain on PostgREST.
 
-import { supabase, createDatabaseError, type DatabaseError } from '../supabaseClient';
-import { withReplicationFallback } from '../_shared/replication-fallback';
+import { supabase, createDatabaseError } from '../supabaseClient';
+import {
+  compareStringAscNullsLast,
+  loadLookupMap,
+  readWithReplicationFallback,
+  sortedCopy,
+} from '../_shared/read-shape';
 import type { DbClassInsert, DbClassUpdate } from '@/types/database-mappings';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
@@ -22,8 +27,7 @@ import { buildMapFromArray } from '../_shared/maps';
 // ---------------------------------------------------------------------------
 
 async function loadTrialsMap(): Promise<Map<string, ReplicatedTrial>> {
-  const trials = await replicatedTrialsTable.getAll();
-  return buildMapFromArray(trials, t => t.id);
+  return loadLookupMap(() => replicatedTrialsTable.getAll(), t => t.id);
 }
 
 async function loadEntryCountsByClassMap(): Promise<Map<string, number>> {
@@ -227,98 +231,91 @@ async function postgrestGetClassStatistics() {
  * Get all classes with trial relationships and entry counts (excluding soft-deleted)
  */
 export const getAllClasses = async () => {
-  try {
-    return await withReplicationFallback(
-      async () => {
-        const [classes, trialsMap, entryCountsMap] = await Promise.all([
-          replicatedClassesTable.getAll(),
-          loadTrialsMap(),
-          loadEntryCountsByClassMap(),
-        ]);
-        const data = mapClassesWithJoins(classes, trialsMap, entryCountsMap);
-        return { data, error: null };
-      },
-      postgrestGetAllClasses,
-      'class',
-      'select_all_with_relations'
-    );
-  } catch (error) {
-    return { data: [], error: error as DatabaseError };
-  }
+  return readWithReplicationFallback({
+    replication: async () => {
+      const [classes, trialsMap, entryCountsMap] = await Promise.all([
+        replicatedClassesTable.getAll(),
+        loadTrialsMap(),
+        loadEntryCountsByClassMap(),
+      ]);
+      const sortedClasses = sortedCopy(classes, compareStringAscNullsLast(cls => cls.startTime));
+      const data = mapClassesWithJoins(sortedClasses, trialsMap, entryCountsMap);
+      return { data, error: null };
+    },
+    postgrest: postgrestGetAllClasses,
+    table: 'class',
+    operation: 'select_all_with_relations',
+    errorData: [],
+  });
 };
 
 /**
  * Get a class by ID with full details including entries (excluding soft-deleted)
  */
 export const getClassById = async (id: string) => {
-  try {
-    return await withReplicationFallback(
-      async () => {
-        const cls = await replicatedClassesTable.getClassById(id);
-        if (!cls) return { data: null, error: null };
+  return readWithReplicationFallback({
+    replication: async () => {
+      const cls = await replicatedClassesTable.getClassById(id);
+      if (!cls) return { data: null, error: null };
 
-        const [trial, classEntries, allDogs] = await Promise.all([
-          cls.trialId ? replicatedTrialsTable.getTrialById(cls.trialId) : Promise.resolve(null),
-          replicatedEntriesTable.getEntriesByClass(id),
-          replicatedDogsTable.getAll(),
-        ]);
+      const [trial, classEntries, allDogs] = await Promise.all([
+        cls.trialId ? replicatedTrialsTable.getTrialById(cls.trialId) : Promise.resolve(null),
+        replicatedEntriesTable.getEntriesByClass(id),
+        replicatedDogsTable.getAll(),
+      ]);
 
-        const dogsMap = buildMapFromArray(allDogs, d => d.id);
-        const entries = classEntries.map(entry => {
-          const dog = entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null;
-          return mapReplicatedEntryToDetailRow(entry, dog);
-        });
+      const dogsMap = buildMapFromArray(allDogs, d => d.id);
+      const entries = classEntries.map(entry => {
+        const dog = entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null;
+        return mapReplicatedEntryToDetailRow(entry, dog);
+      });
 
-        const trialObj = trial
-          ? {
-              id: trial.id,
-              name: trial.name,
-              date: trial.date,
-              ...(trial.trialNumber != null && { trialNumber: trial.trialNumber }),
-              ...(trial.status != null && { status: trial.status }),
-            }
-          : null;
+      const trialObj = trial
+        ? {
+            id: trial.id,
+            name: trial.name,
+            date: trial.date,
+            ...(trial.trialNumber != null && { trialNumber: trial.trialNumber }),
+            ...(trial.status != null && { status: trial.status }),
+          }
+        : null;
 
-        const data = mapReplicatedClassToDbRow(cls, { trial: trialObj, entries });
-        return { data, error: null };
-      },
-      () => postgrestGetClassById(id),
-      'class',
-      'select_by_id'
-    );
-  } catch (error) {
-    return { data: null, error: error as DatabaseError };
-  }
+      const data = mapReplicatedClassToDbRow(cls, { trial: trialObj, entries });
+      return { data, error: null };
+    },
+    postgrest: () => postgrestGetClassById(id),
+    table: 'class',
+    operation: 'select_by_id',
+    errorData: null,
+  });
 };
 
 /**
  * Get classes by trial ID (excluding soft-deleted)
  */
 export const getClassesByTrialId = async (trialId: string) => {
-  try {
-    return await withReplicationFallback(
-      async () => {
-        const [classes, entryCountsMap] = await Promise.all([
-          replicatedClassesTable.getClassesByTrial(trialId),
-          loadEntryCountsByClassMap(),
-        ]);
+  return readWithReplicationFallback({
+    replication: async () => {
+      const [classes, entryCountsMap] = await Promise.all([
+        replicatedClassesTable.getClassesByTrial(trialId),
+        loadEntryCountsByClassMap(),
+      ]);
 
-        if (classes.length === 0) {
-          return await postgrestGetClassesByTrialId(trialId);
-        }
+      if (classes.length === 0) {
+        return await postgrestGetClassesByTrialId(trialId);
+      }
 
-        const data = classes.map(cls =>
-          mapReplicatedClassToDbRow(cls, { entryCount: entryCountsMap.get(cls.id) ?? 0 })
-        );
-        return { data, error: null };
-      },
-      () => postgrestGetClassesByTrialId(trialId),
-      'class',
-      'select_by_trial'
-    );
-  } catch (error) {
-    return { data: [], error: error as DatabaseError };
-  }
+      const sortedClasses = sortedCopy(classes, compareStringAscNullsLast(cls => cls.startTime));
+      const data = sortedClasses.map(cls =>
+        mapReplicatedClassToDbRow(cls, { entryCount: entryCountsMap.get(cls.id) ?? 0 })
+      );
+      return { data, error: null };
+    },
+    postgrest: () => postgrestGetClassesByTrialId(trialId),
+    table: 'class',
+    operation: 'select_by_trial',
+    errorData: [],
+  });
 };
 
 // ---------------------------------------------------------------------------
@@ -452,48 +449,41 @@ export const deleteClass = async (id: string, _deletedBy?: string) => {
  * Search classes by name, level, or description (excluding soft-deleted)
  */
 export const searchClasses = async (searchTerm: string, limit = 50) => {
-  try {
-    return await withReplicationFallback(
-      async () => {
-        const allClasses = await replicatedClassesTable.getAll();
-        const term = searchTerm.toLowerCase();
-        const filtered = allClasses
-          .filter(
-            cls =>
-              cls.name.toLowerCase().includes(term) ||
-              (cls.level && cls.level.toLowerCase().includes(term)) ||
-              (cls.description && cls.description.toLowerCase().includes(term))
-          )
-          .slice(0, limit);
-        const data = filtered.map(cls => mapReplicatedClassToDbRow(cls));
-        return { data, error: null };
-      },
-      () => postgrestSearchClasses(searchTerm, limit),
-      'class',
-      'search'
-    );
-  } catch (error) {
-    return { data: [], error: error as DatabaseError };
-  }
+  return readWithReplicationFallback({
+    replication: async () => {
+      const allClasses = await replicatedClassesTable.getAll();
+      const term = searchTerm.toLowerCase();
+      const filtered = allClasses.filter(
+        cls =>
+          cls.name.toLowerCase().includes(term) ||
+          (cls.level && cls.level.toLowerCase().includes(term)) ||
+          (cls.description && cls.description.toLowerCase().includes(term))
+      );
+      const sortedClasses = sortedCopy(filtered, compareStringAscNullsLast(cls => cls.startTime));
+      const data = sortedClasses.slice(0, limit).map(cls => mapReplicatedClassToDbRow(cls));
+      return { data, error: null };
+    },
+    postgrest: () => postgrestSearchClasses(searchTerm, limit),
+    table: 'class',
+    operation: 'search',
+    errorData: [],
+  });
 };
 
 /**
  * Get class statistics (total count, by level, etc.) (excluding soft-deleted)
  */
 export const getClassStatistics = async () => {
-  try {
-    return await withReplicationFallback(
-      async () => {
-        const allClasses = await replicatedClassesTable.getAll();
-        return { data: { total: allClasses.length }, error: null };
-      },
-      postgrestGetClassStatistics,
-      'class',
-      'statistics'
-    );
-  } catch (error) {
-    return { data: null, error: error as DatabaseError };
-  }
+  return readWithReplicationFallback({
+    replication: async () => {
+      const allClasses = await replicatedClassesTable.getAll();
+      return { data: { total: allClasses.length }, error: null };
+    },
+    postgrest: postgrestGetClassStatistics,
+    table: 'class',
+    operation: 'statistics',
+    errorData: null,
+  });
 };
 
 /**

@@ -79,6 +79,8 @@ export interface ReplicatedClass {
   selfCheckinEnabled?: boolean | undefined;
   visibilityPreset?: string | undefined;
   totalEntriesCount?: number | undefined;
+  /** Count of checked-in entries; drives judge check-in progress offline. */
+  checkedInCount?: number | undefined;
   /** Count of judged entries; drives the judge dashboard's live progress overlay. */
   scoredCount?: number | undefined;
   classOrder?: number | undefined;
@@ -182,6 +184,7 @@ function rowToClass(row: ClassRow): ReplicatedClass {
     })(),
     classStatus: (dbRow.class_status as string | undefined) ?? row.status ?? undefined,
     totalEntriesCount: (dbRow.total_entries_count as number | undefined) ?? undefined,
+    checkedInCount: (dbRow.checked_in_count as number | undefined) ?? undefined,
     scoredCount: (dbRow.scored_count as number | undefined) ?? undefined,
     classOrder: (dbRow.class_order as number | undefined) ?? undefined,
     displayOrder: (dbRow.display_order as number | undefined) ?? undefined,
@@ -289,8 +292,12 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       ...(cls.isResultsReviewed !== undefined && { is_results_reviewed: cls.isResultsReviewed }),
       ...(cls.resultsReleasedAt !== undefined && { results_released_at: cls.resultsReleasedAt }),
       ...(cls.resultsReleasedBy !== undefined && { results_released_by: cls.resultsReleasedBy }),
-      ...(cls.results_released_at !== undefined && { results_released_at: cls.results_released_at }),
-      ...(cls.results_released_by !== undefined && { results_released_by: cls.results_released_by }),
+      ...(cls.results_released_at !== undefined && {
+        results_released_at: cls.results_released_at,
+      }),
+      ...(cls.results_released_by !== undefined && {
+        results_released_by: cls.results_released_by,
+      }),
       ...(cls.displayOrder !== undefined && { display_order: cls.displayOrder }),
       actual_start_time: cls.actual_start_time ?? null,
       actual_end_time: cls.actual_end_time ?? null,
@@ -362,9 +369,14 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       resolveConflict: (local, remote) => this.resolveConflict(local, remote),
     };
 
-    const result = await syncReplicatedTable(this, adapter, { value: licenseKey }, {
-      incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
-    });
+    const result = await syncReplicatedTable(
+      this,
+      adapter,
+      { value: licenseKey },
+      {
+        incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
+      }
+    );
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {
       logger.error(`[${this.getTableName()}] Sync failed:`, result.error);

@@ -14,6 +14,7 @@ export interface JudgeClass {
   /** Rings are not modeled on classes yet; null hides the ring label. */
   ringNumber: number | null;
   totalEntries: number;
+  checkedInEntries: number;
   completedEntries: number;
   status: 'pending' | 'in-progress' | 'completed';
 }
@@ -80,11 +81,7 @@ function timeZoneOffsetMs(instant: Date, timeZone: string): number {
  * regardless of the viewing device's zone, so countdowns and sorting are
  * correct. Approximate only within a DST transition hour; fine for scheduling.
  */
-export function zonedWallTimeToInstant(
-  dateStr: string,
-  timeStr: string,
-  timeZone: string
-): Date {
+export function zonedWallTimeToInstant(dateStr: string, timeStr: string, timeZone: string): Date {
   const wallAsUtc = new Date(`${dateStr}T${timeStr}Z`).getTime();
   if (Number.isNaN(wallAsUtc)) return new Date(`${dateStr}T${timeStr}`);
   try {

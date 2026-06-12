@@ -47,9 +47,11 @@ Plan: [`docs/plan-ux-journey-audit.md`](docs/plan-ux-journey-audit.md). Journey-
 
 ## Code-Quality Audit Follow-ups — 2026-06-12
 
-Source: PR [#642](https://github.com/rbeezley/myk9-platform/pull/642), `docs/audits/2026-06-code-quality/`.
+Source: PR [#642](https://github.com/rbeezley/myk9-platform/pull/642), PR [#647](https://github.com/rbeezley/myk9-platform/pull/647), `docs/audits/2026-06-code-quality/`.
 
 - [ ] **[P1] Wire Judge Check-In dashboard to real ring assignments** — `/judge/check-in` is routed, but `JudgeCheckInDashboard.tsx` initializes ring assignments with an empty array plus TODO, so a live judge-facing show-day page can show a false empty state. Verify the correct judge/ring assignment source, use the offline-safe show-day data path where required, and add focused coverage before closing.
+
+- [ ] **[P2] Wave A code-quality cleanup: delete Phase-2-confirmed dead code** — Source-level verification confirmed these are safe delete-first candidates: `apps/myk9show/src/lib/lazyLoading.ts`, `usePaginatedQueries.ts`, `useOptimizedSearch.ts`, `apps/myk9show/src/services/entryService.ts`, unreachable demo/test pages, `components/forms/OptimisticForm.tsx`, unused sync panels, and `apps/myk9show/src/config/performance-budget.ts`. Keep `supabase/functions/send-notification` out of this wave until deployed Supabase usage/log/config checks are done.
 
 ---
 

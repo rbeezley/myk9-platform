@@ -1,7 +1,11 @@
 # 08 Config And Flag Debt
 
 Finder: subagent `019eb9d7-3082-7260-8a2e-38a4fb36dd26`
-Status: Phase 1 inventory complete.
+Status: Phase 1 inventory complete; initial Phase 2 verification recorded in `09-phase-2-verification.md`.
+
+## Phase 2 Update
+
+Missing env vars remain needs-human because source verification cannot distinguish operator-facing vars from smoke-test/kill-switch vars, and Vercel envs were not inspected. Use `apps/myk9show/.env.example` as the app-local example file when updating docs.
 
 ## Findings
 

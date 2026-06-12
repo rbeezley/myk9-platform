@@ -124,4 +124,26 @@ describe('useDraftPersistence — cross-user scoping', () => {
     const loaded = result.current.loadDraft(draftId);
     expect(loaded).toBeNull();
   });
+
+  it('discardDraftsWithoutFinalSave clears drafts and skips the unmount auto-save', () => {
+    seedDraftData({ selectedDogs: ['dog-1'] });
+    const metadataKey = `registration-draft-metadata-${SHOW_ID}-${USER_A}`;
+    const { result, unmount } = renderHook(() =>
+      useDraftPersistence(SHOW_ID, USER_A, 'dog-selection')
+    );
+
+    act(() => {
+      result.current.saveDraft('Draft to discard');
+    });
+    expect(JSON.parse(localStorage.getItem(metadataKey) ?? '[]')).toHaveLength(1);
+
+    act(() => {
+      result.current.discardDraftsWithoutFinalSave();
+    });
+    expect(localStorage.getItem(metadataKey)).toBeNull();
+
+    unmount();
+
+    expect(localStorage.getItem(metadataKey)).toBeNull();
+  });
 });

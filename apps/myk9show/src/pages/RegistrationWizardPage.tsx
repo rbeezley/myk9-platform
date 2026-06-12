@@ -26,6 +26,7 @@ import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStore } from '@/store/showStore';
 import { useEntryStore } from '@/store/entryStore';
+import { useCartStore } from '@/store/cartStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { calculateTotalFees } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
 import { RegistrationErrorBoundary } from '@/components/common/ErrorBoundary';
@@ -50,6 +51,7 @@ import {
   type SelectedDogsOwnerResult,
 } from '@/features/registration/selectedDogsOwner';
 import { submitShowRegistration } from '@/features/registration/submitShowRegistration';
+import { submitRegistrationCartCheckout } from '@/features/registration/registrationCartCheckout';
 import {
   isShowDeskLateEntryMode,
   resolveRegistrationCompletionPath,
@@ -100,6 +102,11 @@ function RegistrationWizardContent() {
   const { shows = [] } = useShowStore();
   const { classes = [] } = useClassStoreCompat();
   const { updateRegistration } = useEntryStore();
+  const loadCart = useCartStore(state => state.loadCart);
+  const clearCart = useCartStore(state => state.clearCart);
+  const createCart = useCartStore(state => state.createCart);
+  const addItem = useCartStore(state => state.addItem);
+  const abandonCart = useCartStore(state => state.abandonCart);
   const currentShow = useMemo(() => shows.find(s => s.id === showId), [shows, showId]);
 
   // Derived from role flags, not RegistrationContext.mode — that value defaults
@@ -175,6 +182,7 @@ function RegistrationWizardContent() {
     confirmRegistration,
     currentRegistration,
     setDraftData,
+    clearDraftData,
     updateRegistration: updateShowRegistration,
     updatePaymentStatus: storeUpdatePaymentStatus,
     updateEntryStatus: storeUpdateEntryStatus,
@@ -191,6 +199,7 @@ function RegistrationWizardContent() {
     deleteDraft: draftDelete,
     availableDrafts,
     clearAllDrafts,
+    discardDraftsWithoutFinalSave,
     hasUnsavedChanges,
   } = useDraftPersistence(showId || '', userId, currentStepId, {
     autoSaveInterval: 30000,
@@ -386,12 +395,39 @@ function RegistrationWizardContent() {
       const previousStatus = currentRegistration.status;
       const paymentDetails = paymentDetailsRef.current;
       try {
+        if (registrationData.paymentMethod === 'credit_card') {
+          await submitRegistrationCartCheckout({
+            showId,
+            ownerResolution,
+            classSelections,
+            handlerAssignments,
+            classes,
+            showFeeInfo: {
+              preEntryFee: currentShow.preEntryFee || '0',
+              dayOfShowFee: currentShow.dayOfShowFee,
+              startDate: currentShow.startDate,
+            },
+            deps: {
+              loadCart,
+              clearCart,
+              createCart,
+              addItem,
+              abandonCart,
+              deleteDraft: async () => {
+                discardDraftsWithoutFinalSave();
+                clearDraftData();
+              },
+              navigate: path => navigate(path),
+            },
+          });
+          return;
+        }
+
         // Update local Zustand state to reflect submission in progress
         const submissionResult = await submitShowRegistration({
           showId,
           userId,
           registrationId,
-          currentRegistration,
           ownerResolution,
           paymentMethod: registrationData.paymentMethod,
           paymentDetails,

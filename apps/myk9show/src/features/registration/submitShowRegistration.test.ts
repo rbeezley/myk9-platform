@@ -9,9 +9,8 @@ function makeParams(
     showId: 'show-1',
     userId: 'user-1',
     registrationId: 'local-reg-1',
-    currentRegistration: { registrationNumber: 'LOCAL-1' },
     ownerResolution: { ok: true, ownerId: 'owner-1' },
-    paymentMethod: 'credit_card',
+    paymentMethod: 'check',
     paymentDetails: { paymentReference: 'check-1' },
     classSelections: [
       {
@@ -53,43 +52,26 @@ function makeParams(
 }
 
 describe('submitShowRegistration', () => {
-  it('confirms credit-card registration, submits entries, and writes armbands back', async () => {
-    const params = makeParams();
+  it('throws when called without a payment method', async () => {
+    const params = makeParams({ paymentMethod: undefined });
 
-    const result = await submitShowRegistration(params);
+    await expect(submitShowRegistration(params)).rejects.toThrow(
+      'Payment method is required to submit show registration'
+    );
 
-    expect(params.deps.confirmRegistration).toHaveBeenCalledWith(
-      'local-reg-1',
-      'MOCK-PAYMENT-REF',
-      params.paymentDetails
+    expect(params.deps.submitRegistration).not.toHaveBeenCalled();
+    expect(params.deps.submitShowEntries).not.toHaveBeenCalled();
+  });
+
+  it('throws when called with credit_card payment method', async () => {
+    const params = makeParams({ paymentMethod: 'credit_card' });
+
+    await expect(submitShowRegistration(params)).rejects.toThrow(
+      'Invariant: submitShowRegistration called with credit_card payment method'
     );
-    expect(params.deps.submitShowEntries).toHaveBeenCalledWith({
-      showId: 'show-1',
-      registrationId: 'db-reg-1',
-      entries: [
-        {
-          dogId: 'dog-1',
-          classId: 'class-1',
-          handlerName: 'Pat Handler',
-          paymentMethod: 'credit_card',
-          clientFeeCents: 3000,
-        },
-      ],
-      submissionId: 'submission-1',
-      paymentMethod: 'credit_card',
-    });
-    expect(params.deps.updateEntryRegistration).toHaveBeenCalledWith(
-      'entry-1',
-      { armband: '101' },
-      'user-1'
-    );
-    expect(result).toEqual({
-      aborted: false,
-      registrationNumber: 'MK9-000001',
-      dbRegistrationId: 'db-reg-1',
-      armbandAssignments: [{ dogId: 'dog-1', armband: '101' }],
-      armbandFailures: [],
-    });
+
+    expect(params.deps.confirmRegistration).not.toHaveBeenCalled();
+    expect(params.deps.submitShowEntries).not.toHaveBeenCalled();
   });
 
   it('skips armband assignment for exhibitor self-entries (canAssignArmbands=false)', async () => {
@@ -105,8 +87,8 @@ describe('submitShowRegistration', () => {
     expect(params.deps.updateEntryRegistration).not.toHaveBeenCalled();
     expect(result).toEqual({
       aborted: false,
-      registrationNumber: 'MK9-000001',
-      dbRegistrationId: 'db-reg-1',
+      registrationNumber: 'MK9-000002',
+      dbRegistrationId: 'db-reg-2',
       armbandAssignments: [],
       armbandFailures: [],
     });
@@ -124,8 +106,8 @@ describe('submitShowRegistration', () => {
 
     expect(result).toEqual({
       aborted: false,
-      registrationNumber: 'MK9-000001',
-      dbRegistrationId: 'db-reg-1',
+      registrationNumber: 'MK9-000002',
+      dbRegistrationId: 'db-reg-2',
       // The armband did not persist, so it must not be reported as assigned.
       armbandAssignments: [],
       armbandFailures: [{ dogId: 'dog-1', error: 'RLS policy blocked UPDATE' }],
@@ -141,8 +123,8 @@ describe('submitShowRegistration', () => {
     expect(params.deps.updateEntryRegistration).not.toHaveBeenCalled();
     expect(result).toEqual({
       aborted: false,
-      registrationNumber: 'MK9-000001',
-      dbRegistrationId: 'db-reg-1',
+      registrationNumber: 'MK9-000002',
+      dbRegistrationId: 'db-reg-2',
       armbandAssignments: [],
       armbandFailures: [{ dogId: 'dog-1', error: 'P0001: not staff' }],
     });

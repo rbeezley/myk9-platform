@@ -41,7 +41,7 @@ export const PaymentSummaryCard: React.FC<PaymentSummaryCardProps> = ({
           {paymentMethod === 'credit_card' && (
             <Alert>
               <CreditCard className="h-4 w-4" />
-              <AlertDescription>{PAYMENT_MESSAGES.CARD_COMING_SOON}</AlertDescription>
+              <AlertDescription>{PAYMENT_MESSAGES.CARD_CHECKOUT_REDIRECT}</AlertDescription>
             </Alert>
           )}
           {requiresPaymentMethod && (

@@ -31,20 +31,20 @@
       "catalog-cream": {
         "role": "neutral",
         "displayName": "Catalog Cream",
-        "canonical": "#f5f4ed",
-        "tonalRamp": ["#181411", "#1e1c19", "#403a31", "#8c8376", "#b9b1a0", "#e4dccc", "#f0eee6", "#f5f4ed"]
+        "canonical": "#faf7f2",
+        "tonalRamp": ["#181411", "#403a31", "#8c8376", "#b9b1a0", "#e4dccc", "#ede9e0", "#f3efe6", "#faf7f2"]
       },
-      "ivory": {
+      "card-white": {
         "role": "neutral",
-        "displayName": "Ivory",
-        "canonical": "#faf9f5",
-        "tonalRamp": ["#181411", "#252522", "#403a31", "#8c8376", "#b9b1a0", "#e8e6dc", "#f3efe6", "#faf9f5"]
+        "displayName": "Card White",
+        "canonical": "#ffffff",
+        "tonalRamp": ["#181411", "#403a31", "#8c8376", "#b9b1a0", "#e4dccc", "#f0eee6", "#faf9f5", "#ffffff"]
       },
       "ink": {
         "role": "neutral",
         "displayName": "Ink",
-        "canonical": "#141413",
-        "tonalRamp": ["#141413", "#181411", "#1e1c19", "#2e2b27", "#3a3a36", "#5e5d59", "#87867f", "#b0aea5"]
+        "canonical": "#181411",
+        "tonalRamp": ["#141413", "#181411", "#1e1c19", "#2e2b27", "#3a3a36", "#5e5d59", "#8c8376", "#b0aea5"]
       },
       "ring-green": {
         "role": "secondary",
@@ -54,8 +54,8 @@
       }
     },
     "typographyMeta": {
-      "display": { "displayName": "Display (Fraunces)", "purpose": "Celebration moments only: The Podium, titles earned, heritage landings. Forbidden in working UI." },
-      "headline": { "displayName": "Headline", "purpose": "Page titles. Multiplied by user --font-scale." },
+      "display": { "displayName": "Display / h1 (Fraunces 450)", "purpose": "Page titles — editorial serif at display optical sizing. Viewport-clamped, not --font-scale." },
+      "headline": { "displayName": "Headline / h2 (Fraunces 450)", "purpose": "Major section headings; .display-serif applies the same voice to celebrations. Serif stops here — h3 and below are Montserrat." },
       "body": { "displayName": "Body", "purpose": "All working text. 16px minimum before user scaling." },
       "label": { "displayName": "Label", "purpose": "Chips, badges, form labels, metadata." },
       "mono": { "displayName": "Mono (JetBrains Mono)", "purpose": "Armband numbers, times, scores — tabular digits." }
@@ -86,7 +86,7 @@
       "refersTo": "button-primary",
       "description": "The one chromatic button on a screen; renders in the user's chosen accent.",
       "html": "<button class=\"ds-btn-primary\">Enter Show</button>",
-      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 8px 24px; background: var(--primary, #c96442); color: #ffffff; font-family: Montserrat, system-ui, sans-serif; font-size: 14px; font-weight: 500; border: none; border-radius: 8px; cursor: pointer; transition: all 0.15s ease; } .ds-btn-primary:hover { opacity: 0.9; transform: translateY(-1px); } .ds-btn-primary:active { transform: translateY(0); } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 1px var(--background, #f5f4ed), 0 0 0 3px color-mix(in srgb, var(--primary, #c96442) 30%, transparent); }"
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 8px 24px; background: var(--primary, #c96442); color: #ffffff; font-family: Montserrat, system-ui, sans-serif; font-size: 14px; font-weight: 500; border: none; border-radius: 8px; cursor: pointer; transition: all 0.15s ease; } .ds-btn-primary:hover { opacity: 0.9; transform: translateY(-1px); } .ds-btn-primary:active { transform: translateY(0); } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 1px var(--background, #faf7f2), 0 0 0 3px color-mix(in srgb, var(--primary, #c96442) 30%, transparent); }"
     },
     {
       "name": "Outline Button",
@@ -94,23 +94,23 @@
       "refersTo": "button-outline",
       "description": "Secondary action: sand surface, ink text, quiet next to the primary.",
       "html": "<button class=\"ds-btn-outline\">Cancel</button>",
-      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 8px 24px; background: var(--secondary, #e8e6dc); color: var(--secondary-foreground, #4d4c48); font-family: Montserrat, system-ui, sans-serif; font-size: 14px; font-weight: 500; border: 1px solid var(--border, #e8e6dc); border-radius: 8px; cursor: pointer; transition: all 0.15s ease; } .ds-btn-outline:hover { background: var(--muted, #f0eee6); transform: translateY(-1px); } .ds-btn-outline:active { transform: translateY(0); } .ds-btn-outline:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary, #c96442) 30%, transparent); }"
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 8px 24px; background: var(--secondary, #e8e6dc); color: var(--secondary-foreground, #4d4c48); font-family: Montserrat, system-ui, sans-serif; font-size: 14px; font-weight: 500; border: 1px solid var(--border, #e4dccc); border-radius: 8px; cursor: pointer; transition: all 0.15s ease; } .ds-btn-outline:hover { background: var(--muted, #f0eee6); transform: translateY(-1px); } .ds-btn-outline:active { transform: translateY(0); } .ds-btn-outline:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary, #c96442) 30%, transparent); }"
     },
     {
       "name": "Card",
       "kind": "card",
       "refersTo": "card",
-      "description": "Ivory surface with sand border; flat at rest, soft lift on hover.",
+      "description": "Pure-white surface with warm sand border on the cream canvas; flat at rest, soft lift on hover.",
       "html": "<div class=\"ds-card\"><div class=\"ds-card-title\">Ring 2 — Scent Work</div><div class=\"ds-card-body\">Interior Search, Excellent A. 14 entries, judging starts 9:00 AM.</div></div>",
-      "css": ".ds-card { background: var(--card, #faf9f5); color: var(--card-foreground, #141413); border: 1px solid var(--border, #e8e6dc); border-radius: 12px; padding: 24px; font-family: Montserrat, system-ui, sans-serif; transition: box-shadow 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94); } .ds-card:hover { box-shadow: 0 0 0 1px var(--border, #e8e6dc), rgba(61, 37, 22, 0.06) 0 8px 28px; transform: translateY(-1px); } .ds-card-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; } .ds-card-body { font-size: 14px; color: var(--muted-foreground, #87867f); line-height: 1.5; }"
+      "css": ".ds-card { background: var(--card, #ffffff); color: var(--card-foreground, #141413); border: 1px solid var(--border, #e4dccc); border-radius: 12px; padding: 24px; font-family: Montserrat, system-ui, sans-serif; transition: box-shadow 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94); } .ds-card:hover { box-shadow: 0 0 0 1px var(--border, #e4dccc), rgba(61, 37, 22, 0.06) 0 8px 28px; transform: translateY(-1px); } .ds-card-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; } .ds-card-body { font-size: 14px; color: var(--muted-foreground, #8c8376); line-height: 1.5; }"
     },
     {
       "name": "Text Input",
       "kind": "input",
       "refersTo": "input",
-      "description": "Catalog-cream fill with accent-tinted focus ring; 44px touch height.",
+      "description": "White fill matching cards, with accent-tinted focus ring; 44px touch height.",
       "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Dog's call name\" />",
-      "css": ".ds-input { height: 44px; width: 260px; padding: 8px 12px; background: var(--input-bg, #f5f4ed); color: var(--input-text, #141413); font-family: Montserrat, system-ui, sans-serif; font-size: 16px; border: 1px solid var(--input-border, #e8e6dc); border-radius: 8px; transition: all 0.15s ease; } .ds-input::placeholder { color: var(--muted-foreground, #87867f); } .ds-input:hover { background: var(--input-bg-hover, #ede9e0); } .ds-input:focus-visible { outline: none; border-color: var(--ring, #f2c8a8); box-shadow: 0 0 0 2px var(--ring, #f2c8a8); }"
+      "css": ".ds-input { height: 44px; width: 260px; padding: 8px 12px; background: var(--input, #ffffff); color: var(--input-text, #141413); font-family: Montserrat, system-ui, sans-serif; font-size: 16px; border: 1px solid var(--input-border, #e4dccc); border-radius: 8px; transition: all 0.15s ease; } .ds-input::placeholder { color: var(--muted-foreground, #8c8376); } .ds-input:hover { border-color: var(--input-border-hover, #d1cfc5); } .ds-input:focus-visible { outline: none; border-color: var(--ring, #f2c8a8); box-shadow: 0 0 0 2px var(--ring, #f2c8a8); }"
     },
     {
       "name": "Status Chip",
@@ -134,27 +134,27 @@
       "refersTo": "button-ghost",
       "description": "Sidebar item: stone at rest, accent tint fill when active.",
       "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item\" href=\"#\">Entries</a><a class=\"ds-nav-item ds-nav-active\" href=\"#\">Show Map</a><a class=\"ds-nav-item\" href=\"#\">Reports</a></nav>",
-      "css": ".ds-nav { display: flex; flex-direction: column; gap: 2px; width: 200px; font-family: Montserrat, system-ui, sans-serif; } .ds-nav-item { display: flex; align-items: center; min-height: 44px; padding: 8px 12px; border-radius: 8px; color: var(--muted-foreground, #87867f); font-size: 14px; font-weight: 500; text-decoration: none; transition: all 0.15s ease; } .ds-nav-item:hover { color: var(--foreground, #141413); background: var(--muted, #f0eee6); } .ds-nav-active { background: var(--accent, #fdf5ef); color: var(--accent-foreground, #7c4a2e); } .ds-nav-item:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ring, #f2c8a8); }"
+      "css": ".ds-nav { display: flex; flex-direction: column; gap: 2px; width: 200px; font-family: Montserrat, system-ui, sans-serif; } .ds-nav-item { display: flex; align-items: center; min-height: 44px; padding: 8px 12px; border-radius: 8px; color: var(--muted-foreground, #8c8376); font-size: 14px; font-weight: 500; text-decoration: none; transition: all 0.15s ease; } .ds-nav-item:hover { color: var(--foreground, #181411); background: var(--muted, #f0eee6); } .ds-nav-active { background: var(--accent, #fdf5ef); color: var(--accent-foreground, #7c4a2e); } .ds-nav-item:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ring, #f2c8a8); }"
     }
   ],
   "narrative": {
     "northStar": "The Show Morning",
-    "overview": "Warm early light at the venue. Rings taped, catalogs stacked, armbands sorted — everything laid out and ready before the first dog runs. The interface should feel like that hour: calm, prepared, unhurried, and quietly warm. The visual foundation is warm paper, not cold glass: a catalog-cream canvas with ivory cards, sand borders, and ink text. Color arrives through a user-selectable accent (Clay, Grove, Dusk, Heather); components speak var(--primary) and let the user's preference flow through. Dark mode is a different time of day, not an inversion. Built for older, non-technical users operating outdoors: 44px targets, scalable 16px+ text, density preferences, and calm offline states.",
+    "overview": "Warm early light at the venue. Rings taped, catalogs stacked, armbands sorted — everything laid out and ready before the first dog runs. The interface should feel like that hour: calm, prepared, unhurried, and quietly warm. The visual foundation is warm paper, not cold glass: a catalog-cream canvas carrying pure-white cards with warm sand borders and ink text. Editorial Fraunces serif speaks at the display level (h1/h2); Montserrat handles everything functional. Color arrives through a user-selectable accent (Clay, Grove, Dusk, Heather); components speak var(--primary) and let the user's preference flow through. Dark mode is a different time of day, not an inversion. Built for older, non-technical users operating outdoors: 44px targets, scalable 16px+ text, density preferences, and calm offline states.",
     "keyCharacteristics": [
-      "Warm catalog-cream canvas (#f5f4ed) with exclusively warm-toned neutrals",
+      "Warm catalog-cream canvas (#faf7f2) with exclusively warm-toned neutrals; pure white reserved for cards and inputs",
       "User-selectable accent system (Clay / Grove / Dusk / Heather) wired through --primary",
-      "Montserrat for all UI; Fraunces serif reserved for celebration moments only",
-      "Flat by default; soft warm shadows appear in response to interaction",
+      "Fraunces serif (450, display optical sizing) for h1/h2 and celebrations; Montserrat for all working UI",
+      "Flat by default; warm ring shadows and soft lifts appear in response to interaction",
       "Semantic status-color vocabulary never used decoratively",
       "Accessibility as identity: 44px targets, font scaling, density preferences, calm offline states",
-      "Token layering: base UI tokens, accent system, redesign tokens, chip pairs"
+      "Token layering: base UI tokens, v2 surface overrides (index.css @layer base — canonical), accent system, redesign tokens, chip pairs"
     ],
     "rules": [
       { "name": "The Accent Is the User's Rule", "body": "Components never hardcode #c96442 or any accent hex. Always var(--primary), var(--accent), var(--ring). A component that only looks right in Clay is broken.", "section": "colors" },
       { "name": "The Ring Green Rule", "body": "Ring Green (#4e7c53) appears only on live-judging indicators. Never for success states, never for decoration.", "section": "colors" },
       { "name": "The Status Is Sacred Rule", "body": "Status colors are a vocabulary the whole show day depends on. Never repurpose a status color for decoration, and never invent a new status color when one exists.", "section": "colors" },
-      { "name": "The Podium Rule", "body": "Fraunces is forbidden in working UI. If the screen helps someone do a task, it is Montserrat. If the screen honors something a dog just did, Fraunces may speak.", "section": "typography" },
-      { "name": "The Font Scale Rule", "body": "All body and heading sizes multiply by --font-scale (user preference). Never set text in fixed px that escapes the scale, and never below 12px equivalent.", "section": "typography" },
+      { "name": "The Two Voices Rule", "body": "Fraunces speaks only at the display level: h1, h2, .display-serif, and celebration moments like The Podium. Everything a user reads while working — h3 and below, body, buttons, labels, tables, data — is Montserrat. Serif in a button, chip, or table cell is always wrong.", "section": "typography" },
+      { "name": "The Font Scale Rule", "body": "Body and h3-and-below sizes multiply by --font-scale (user preference); h1/h2 use viewport clamps instead. Never set working text in fixed px that escapes the scale, and never below 12px equivalent.", "section": "typography" },
       { "name": "The Flat-by-Default Rule", "body": "A surface earns a shadow by being interacted with or by floating above the page (modal, popover, toast). Resting content stays flat.", "section": "elevation" }
     ],
     "dos": [
@@ -172,9 +172,9 @@
       "Don't use wizard-heavy workflows for interrupt-driven show-day tasks or confirmation dialogs for routine actions.",
       "Don't ship tiny controls, hover-only affordances, gesture-only actions, or text that is hard to read outdoors.",
       "Don't show technical error messages, sync anxiety, or anything that makes poor connectivity feel like user failure.",
-      "Don't use pure white (#ffffff) as a page background, pure black as text, or cool blue-grays anywhere outside the status vocabulary.",
+      "Don't use pure white as a page background (cards and inputs are the sanctioned white surfaces), pure black as text, or cool blue-grays anywhere outside the status vocabulary.",
       "Don't hardcode #c96442 (or any accent hex) in a component — it breaks the other three accents.",
-      "Don't use Fraunces in working UI, Ring Green outside live-judging, or status colors as decoration.",
+      "Don't use Fraunces below the display level (h3+, body, buttons, labels, tables), Ring Green outside live-judging, or status colors as decoration.",
       "Don't use colored side-stripe borders (border-left > 1px) on cards or alerts; use full borders, tints, or nothing.",
       "Don't reach for a modal first — exhaust inline and progressive disclosure; modals are for genuine interruptions."
     ]

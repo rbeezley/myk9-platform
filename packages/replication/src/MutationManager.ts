@@ -24,8 +24,17 @@ import {
   isRetryableError,
   TIMEOUT_PRESETS,
 } from './mutation-utils';
+import { sortMutationsByDependencies } from './mutation-ordering';
 import {
-  MUTATION_OPERATIONS,
+  getMutationQueueCapacity,
+  QUEUE_MAX_SIZE,
+} from './mutation-queue-capacity';
+import {
+  MUTATION_BACKUP_STORAGE_KEY,
+  parseMutationBackup,
+  writeMutationBackup,
+} from './mutation-backup';
+import {
   type PendingMutation,
   type ReplicatedRow,
   type SyncResult,
@@ -34,15 +43,6 @@ import {
 // ============================================
 // CONSTANTS
 // ============================================
-
-/** Warn when mutation queue exceeds this size */
-const QUEUE_WARNING_THRESHOLD = 500;
-
-/** Maximum mutation queue capacity */
-const QUEUE_MAX_SIZE = 1000;
-
-/** localStorage key for mutation backup */
-const BACKUP_STORAGE_KEY = 'replication_mutation_backup';
 
 // ============================================
 // ERRORS
@@ -138,7 +138,8 @@ export class MutationManager {
   ): Promise<string> {
     // Queue overflow protection
     const pendingCount = await this.getPendingCount();
-    if (pendingCount >= QUEUE_MAX_SIZE) {
+    const capacity = getMutationQueueCapacity(pendingCount);
+    if (capacity === 'overflow') {
       this.logger.error(`[MutationManager] Queue overflow: ${pendingCount} pending mutations`);
       if (typeof window !== 'undefined') {
         window.dispatchEvent(
@@ -149,7 +150,7 @@ export class MutationManager {
       }
       throw new Error(`Mutation queue overflow: ${pendingCount} pending`);
     }
-    if (pendingCount >= QUEUE_WARNING_THRESHOLD) {
+    if (capacity === 'warning') {
       this.logger.warn(`[MutationManager] Queue warning: ${pendingCount} pending mutations`);
     }
 
@@ -394,7 +395,8 @@ export class MutationManager {
       }
 
       // Warn if mutation queue is getting large
-      if (pending.length >= QUEUE_MAX_SIZE) {
+      const capacity = getMutationQueueCapacity(pending.length);
+      if (capacity === 'overflow') {
         this.logger.error(
           `[MutationManager] Mutation queue at maximum capacity (${pending.length}/${QUEUE_MAX_SIZE}). ` +
             `Please sync immediately to prevent data loss!`
@@ -408,7 +410,7 @@ export class MutationManager {
             })
           );
         }
-      } else if (pending.length >= QUEUE_WARNING_THRESHOLD) {
+      } else if (capacity === 'warning') {
         this.logger.warn(
           `[MutationManager] Mutation queue is getting large (${pending.length}/${QUEUE_MAX_SIZE}). Consider syncing soon.`
         );
@@ -417,11 +419,12 @@ export class MutationManager {
       this.logger.log(`[MutationManager] Uploading ${pending.length} pending mutations...`);
 
       // Sort mutations to respect dependencies
-      const sortedMutations = this.topologicalSortMutations(pending as PendingMutation[]);
+      const ordering = sortMutationsByDependencies(pending as PendingMutation[]);
+      const sortedMutations = ordering.sorted;
 
-      if (sortedMutations.length < pending.length) {
+      if (ordering.circularCount > 0) {
         this.logger.warn(
-          `[MutationManager] Circular dependency detected! ${pending.length - sortedMutations.length} mutations skipped`
+          `[MutationManager] Circular dependency detected, adding ${ordering.circularCount} mutations in timestamp order`
         );
       }
 
@@ -729,102 +732,6 @@ export class MutationManager {
   }
 
   // ========================================
-  // TOPOLOGICAL SORTING
-  // ========================================
-
-  /**
-   * Topological sort mutations to respect dependencies (Kahn's algorithm)
-   *
-   * Prevents out-of-order execution by processing dependencies first.
-   * Cycles are broken by appending remaining mutations in timestamp order.
-   *
-   * @returns Sorted mutations array
-   */
-  private topologicalSortMutations(mutations: PendingMutation[]): PendingMutation[] {
-    // Build adjacency list (mutation ID -> dependents)
-    const graph = new Map<string, string[]>();
-    const inDegree = new Map<string, number>();
-    const mutationMap = new Map<string, PendingMutation>();
-
-    // Initialize
-    for (const mutation of mutations) {
-      mutationMap.set(mutation.id, mutation);
-      graph.set(mutation.id, []);
-      inDegree.set(mutation.id, 0);
-    }
-
-    // Build dependency graph
-    for (const mutation of mutations) {
-      if (mutation.dependsOn && mutation.dependsOn.length > 0) {
-        for (const depId of mutation.dependsOn) {
-          // Only add edge if dependency exists in current batch
-          if (mutationMap.has(depId)) {
-            graph.get(depId)!.push(mutation.id);
-            inDegree.set(mutation.id, (inDegree.get(mutation.id) || 0) + 1);
-          }
-        }
-      }
-    }
-
-    // Kahn's algorithm for topological sort
-    const queue: string[] = [];
-    const sorted: PendingMutation[] = [];
-
-    // Find all nodes with no dependencies, sorted by timestamp
-    // (ensures parent records like shows are uploaded before children like trials/classes)
-    const roots: PendingMutation[] = [];
-    for (const [id, degree] of inDegree) {
-      if (degree === 0) {
-        roots.push(mutationMap.get(id)!);
-      }
-    }
-    roots.sort((a, b) => a.timestamp - b.timestamp);
-    for (const m of roots) {
-      queue.push(m.id);
-    }
-
-    // Process queue
-    while (queue.length > 0) {
-      const id = queue.shift()!;
-      const mutation = mutationMap.get(id)!;
-      sorted.push(mutation);
-
-      // Reduce in-degree of dependents
-      const dependents = graph.get(id) || [];
-      for (const depId of dependents) {
-        const newDegree = (inDegree.get(depId) || 0) - 1;
-        inDegree.set(depId, newDegree);
-
-        if (newDegree === 0) {
-          queue.push(depId);
-        }
-      }
-    }
-
-    // Fallback: If circular dependency detected, add remaining mutations by sequence/timestamp
-    if (sorted.length < mutations.length) {
-      const sortedIds = new Set(sorted.map(m => m.id));
-      const remaining = mutations.filter(m => !sortedIds.has(m.id));
-
-      // Sort remaining by sequenceNumber (if exists) or timestamp
-      remaining.sort((a, b) => {
-        if (a.sequenceNumber !== undefined && b.sequenceNumber !== undefined) {
-          return a.sequenceNumber - b.sequenceNumber;
-        }
-        return a.timestamp - b.timestamp;
-      });
-
-      this.logger.warn(
-        `[MutationManager] Circular dependency detected, adding ${remaining.length} mutations in timestamp order`
-      );
-
-      sorted.push(...remaining);
-    }
-
-    return sorted;
-  }
-
-  // ========================================
   // BACKUP / RESTORE
   // ========================================
 
@@ -856,11 +763,9 @@ export class MutationManager {
     const db = await databaseManager.getDatabase('MutationManager');
     const pending = await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
 
+    writeMutationBackup(localStorage, pending as PendingMutation[]);
     if (pending.length > 0) {
-      localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(pending));
       this.logger.log(`[MutationManager] Backed up ${pending.length} mutations to localStorage`);
-    } else {
-      localStorage.removeItem(BACKUP_STORAGE_KEY);
     }
   }
 
@@ -874,39 +779,28 @@ export class MutationManager {
     if (typeof window === 'undefined') return;
 
     try {
-      const backup = localStorage.getItem(BACKUP_STORAGE_KEY);
+      const backup = localStorage.getItem(MUTATION_BACKUP_STORAGE_KEY);
 
-      if (!backup) {
-        return; // No backup to restore
-      }
-
-      const parsed: unknown = JSON.parse(backup);
-
-      if (!Array.isArray(parsed) || parsed.length === 0) {
+      const parsed = parseMutationBackup(backup);
+      if (parsed.error) {
+        this.logger.error(
+          '[MutationManager] Failed to restore mutations from localStorage:',
+          parsed.error
+        );
         return;
       }
 
-      // A corrupt backup must not introduce malformed mutations that crash executeMutation.
-      const validOps = new Set<string>(MUTATION_OPERATIONS);
-      const mutations = parsed.filter((m): m is PendingMutation => {
-        if (typeof m !== 'object' || m === null) return false;
-        const candidate = m as Record<string, unknown>;
-        return (
-          typeof candidate.id === 'string' &&
-          typeof candidate.tableName === 'string' &&
-          typeof candidate.operation === 'string' &&
-          validOps.has(candidate.operation) &&
-          typeof candidate.rowId === 'string'
-        );
-      });
+      if (!backup || (parsed.mutations.length === 0 && parsed.malformedCount === 0)) {
+        return; // No backup to restore
+      }
 
-      if (mutations.length < parsed.length) {
+      if (parsed.malformedCount > 0) {
         this.logger.warn(
-          `[MutationManager] Discarded ${parsed.length - mutations.length} malformed mutation(s) from localStorage backup`
+          `[MutationManager] Discarded ${parsed.malformedCount} malformed mutation(s) from localStorage backup`
         );
       }
 
-      if (mutations.length === 0) {
+      if (parsed.mutations.length === 0) {
         return;
       }
 
@@ -918,10 +812,9 @@ export class MutationManager {
 
       let restoredCount = 0;
 
-      for (const mutation of mutations) {
+      for (const mutation of parsed.mutations) {
         // Only restore pending mutations that aren't already in IndexedDB
-        // Skip failed mutations to prevent infinite retry loops
-        if (!existingIds.has(mutation.id) && mutation.status !== 'failed') {
+        if (!existingIds.has(mutation.id)) {
           await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation);
           restoredCount++;
         }
@@ -990,7 +883,7 @@ export class MutationManager {
 
       // Also clear the localStorage backup
       if (typeof window !== 'undefined') {
-        localStorage.removeItem(BACKUP_STORAGE_KEY);
+        localStorage.removeItem(MUTATION_BACKUP_STORAGE_KEY);
       }
 
       this.logger.log('[MutationManager] Cleared all pending mutations and localStorage backup');

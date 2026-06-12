@@ -182,7 +182,7 @@ Route inventory confirms the current app treats `/at-show/:showId` as the day-of
 Add these rows:
 
 ```markdown
-| Secretary operational work | Yes, if rebuilt outside Show Desk | Current plans make `/secretary/shows/:showId?phase=show-desk` the single-show operational hub. Recon should prefer links into Show Desk over new surfaces. |
+| Secretary operational work | Yes, if rebuilt outside Show Desk | Current plans make `/shows/:showId/show-desk` the single-show operational hub. Recon should prefer links into Show Desk over new surfaces. |
 | Bulk entry approval/check-in | Yes, if rebuilt in Show Desk | Entry Management owns cross-entry and bulk workflows. Show Desk can deep-link to filtered Entry Management, but should not duplicate bulk tables. |
 | Exhibitor show-day status | Yes, if rebuilt under old `/exhibitor/show-day` | `/at-show/:showId` and the My Entries show-day banner are the canonical day-of path. Old `/exhibitor/show-day` is a legacy redirect surface. |
 ```
@@ -355,7 +355,7 @@ Add one row per scorecard step. Use this shape:
 
 ```markdown
 | 1. Create or open a show | Create Show wizard or Secretary Dashboard | `/secretary/create-show/wizard`, `/secretary/dashboard` | Static route evidence | Phase 3 should verify cold-start setup flow and clone-from-previous-show status. |
-| 5. Use the show workbench to understand what needs attention | Show Desk inside the single-show workbench | `/secretary/shows/:showId?phase=show-desk` | Static route and consolidation-plan evidence | Phase 3 pressure pass should verify it surfaces problems, not raw data. |
+| 5. Use the show workbench to understand what needs attention | Show Desk inside the single-show workbench | `/shows/:showId/show-desk` | Static route and consolidation-plan evidence | Phase 3 pressure pass should verify it surfaces problems, not raw data. |
 | 6. Print required sheets, labels, and official forms | Reports and workbench closeout links | `/shows/:showId/reports` or current reports route exposed by routing | Static route evidence; browser route check needed | Print quality belongs to separate venue hardware todo, not this recon. |
 | 11. Recover safely from offline/reconnect conditions | Replication-backed show-day paths | Show Desk, Entry Management, scoring/ringside surfaces | Static evidence insufficient | Dynamic QA and later golden-path walks must verify offline/reconnect behavior. |
 ```

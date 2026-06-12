@@ -43,6 +43,30 @@ const classes: ShowMapClassInput[] = [
 ];
 
 describe('ShowMapRowActionsMenu', () => {
+  it('does not render a row actions trigger for the synthetic All Exhibitors row', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [classes[0]!],
+      entries: [
+        {
+          id: 'entry-1',
+          class_id: 'class-active',
+          dog_id: 'dog-1',
+          dog: { id: 'dog-1', call_name: 'Bella' },
+          entry_status: 'submitted',
+        },
+      ],
+    });
+    const allExhibitorsNode = tree.nodesById['all-exhibitors:show-1'];
+    if (!allExhibitorsNode) throw new Error('Expected All Exhibitors node');
+
+    render(<ShowMapRowActionsMenu node={allExhibitorsNode} tree={tree} />);
+
+    expect(screen.queryByRole('button', { name: /actions for all exhibitors/i })).toBeNull();
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
   it('caps Recommended at two actions and keeps the full list below the separator', async () => {
     const tree = buildShowMapTree({
       show,

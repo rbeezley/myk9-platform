@@ -50,7 +50,8 @@ export function resolveInitialReportScope(params: URLSearchParams): InitialRepor
 }
 
 export default function ReportsPage() {
-  const { showId } = useParams<{ showId: string }>();
+  const params = useParams<{ showId?: string; id?: string }>();
+  const showId = params.showId ?? params.id;
   const { show: currentShow } = useFastShowDetails(showId);
   const [searchParams] = useSearchParams();
   const [initialScope] = useState(() => resolveInitialReportScope(searchParams));

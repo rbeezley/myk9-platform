@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReplicatedTable } from './core/ReplicatedTable';
 import { syncReplicatedTable, type SyncReplicatedTableAdapter } from './syncReplicatedTable';
+import { parseUpdatedAtMs } from './parseUpdatedAt';
 import type { SyncOptions, SyncResult } from './types';
 
 interface LocalEntry {
@@ -19,6 +20,7 @@ interface RemoteEntry {
   result_status?: string;
   final_placement?: number | null;
   license_key?: string;
+  updated_at?: string | number | null;
 }
 
 class TestTable extends ReplicatedTable<LocalEntry> {
@@ -397,6 +399,353 @@ describe('syncReplicatedTable', () => {
         remoteData: expect.objectContaining({ status: 'scratched' }),
       });
       expect(result.conflictsResolved).toBe(1);
+    });
+  });
+
+  describe('server-authoritative incremental watermark', () => {
+    // Adapter that advances the watermark from the server `updated_at`, mirroring
+    // the real Replicated*Table adapters (getRemoteUpdatedAt + parseUpdatedAtMs).
+    function makeTsAdapter(
+      remoteRows: RemoteEntry[]
+    ): SyncReplicatedTableAdapter<RemoteEntry, LocalEntry> {
+      return {
+        ...makeAdapter(remoteRows),
+        getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
+      };
+    }
+
+    it('advances the watermark to the max server updated_at, NOT the client clock', async () => {
+      // Red-first: under the old code lastIncrementalSyncAt = Date.now() (~1.7e12),
+      // which sits far in the "future" of the server timestamps and silently skips
+      // any row whose updated_at is below it. The fix anchors the watermark to a
+      // server timestamp actually observed (here: 2000).
+      const adapter = makeTsAdapter([
+        { id: 1, name: 'Rex', updated_at: 1000 },
+        { id: 2, name: 'Max', updated_at: 2000 },
+      ]);
+
+      await syncReplicatedTable(table, adapter);
+
+      const meta = await table.getSyncMetadata();
+      expect(meta?.lastIncrementalSyncAt).toBe(2000);
+      // Full sync also stamps lastFullSyncAt (client clock is fine for the 24h heal).
+      expect(meta?.lastFullSyncAt).toBeGreaterThan(0);
+    });
+
+    it('derives the next incremental `since` from the server watermark (minus buffer)', async () => {
+      // First sync establishes watermark = 2000 from the server.
+      await syncReplicatedTable(table, makeTsAdapter([{ id: 1, name: 'Rex', updated_at: 2000 }]));
+
+      // Second sync is incremental (replica non-empty). A row created at 2001 — just
+      // after the last watermark — must be inside the fetch window, proving no drop.
+      const second = makeTsAdapter([{ id: 1, name: 'Rex', updated_at: 2001 }]);
+      await syncReplicatedTable(table, second, {}, { incrementalBufferMs: 500 });
+
+      const since = vi.mocked(second.fetchRemoteRows).mock.calls[0]![0].since;
+      expect(since).toBe(1500); // 2000 (server watermark) - 500 (buffer)
+      expect(since).toBeLessThan(2001); // the new row is fetchable
+    });
+
+    it('never regresses the watermark (monotonic) when a backdated row arrives', async () => {
+      await table.set('seed', { id: 'seed', name: 'Seed' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 5000 });
+
+      // Server returns a row stamped earlier than the current watermark.
+      await syncReplicatedTable(table, makeTsAdapter([{ id: 1, name: 'Old', updated_at: 3000 }]));
+
+      const meta = await table.getSyncMetadata();
+      expect(meta?.lastIncrementalSyncAt).toBe(5000); // max(5000, 3000), not 3000
+    });
+
+    it('caches a row with no usable timestamp but never lets it poison the watermark', async () => {
+      await table.set('seed', { id: 'seed', name: 'Seed' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 2000 });
+
+      // updated_at = null → parseUpdatedAtMs → null → excluded from the max.
+      await syncReplicatedTable(table, makeTsAdapter([{ id: 1, name: 'NoTs', updated_at: null }]));
+
+      // Row is still cached as data...
+      expect(await table.get('1')).toMatchObject({ id: '1', name: 'NoTs' });
+      const meta = await table.getSyncMetadata();
+      // ...and the watermark is unchanged and finite (not NaN).
+      expect(meta?.lastIncrementalSyncAt).toBe(2000);
+      expect(Number.isFinite(meta?.lastIncrementalSyncAt)).toBe(true);
+
+      // Proof the watermark didn't become NaN: the next fetch's `since` is a valid number.
+      const next = makeTsAdapter([]);
+      await syncReplicatedTable(table, next);
+      const since = vi.mocked(next.fetchRemoteRows).mock.calls[0]![0].since;
+      expect(Number.isFinite(since)).toBe(true);
+    });
+
+    it('does NOT advance the watermark when the sync fails', async () => {
+      await table.set('seed', { id: 'seed', name: 'Seed' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 1234 });
+
+      const adapter = makeTsAdapter([]);
+      vi.mocked(adapter.fetchRemoteRows).mockRejectedValue(new Error('network down'));
+
+      const result = await syncReplicatedTable(table, adapter);
+
+      expect(result.success).toBe(false);
+      const meta = await table.getSyncMetadata();
+      expect(meta?.lastIncrementalSyncAt).toBe(1234); // unchanged
+      expect(meta?.syncStatus).toBe('error');
+    });
+
+    it('leaves the watermark unchanged when the fetch returns no rows', async () => {
+      await table.set('seed', { id: 'seed', name: 'Seed' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 7000 });
+
+      await syncReplicatedTable(table, makeTsAdapter([]));
+
+      const meta = await table.getSyncMetadata();
+      expect(meta?.lastIncrementalSyncAt).toBe(7000);
+    });
+
+    it('falls back to the client clock when the adapter provides no timestamp hook', async () => {
+      // Back-compat: adapters without getRemoteUpdatedAt keep the legacy Date.now()
+      // watermark. The row's old updated_at (1000) must NOT become the watermark.
+      const adapter = makeAdapter([{ id: 1, name: 'Rex', updated_at: 1000 }]);
+
+      await syncReplicatedTable(table, adapter);
+
+      const meta = await table.getSyncMetadata();
+      expect(meta?.lastIncrementalSyncAt).toBeGreaterThan(1_000_000_000_000); // ~Date.now()
+    });
+
+    it('re-fetches a locally-created row after upload and stores its server version', async () => {
+      // Same-device path: a row created locally then uploaded gets a server updated_at
+      // newer than the last watermark, so the corrected `since` window includes it and
+      // its server `version` lands on the IDB row (OCC precondition for the next edit).
+      await table.set('seed', { id: 'seed', name: 'Seed' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 1000 });
+
+      type RemoteWithVersion = RemoteEntry & { version: number };
+      const adapter: SyncReplicatedTableAdapter<RemoteWithVersion, LocalEntry> = {
+        fetchRemoteRows: vi.fn(async () => [
+          { id: 1, name: 'Just Uploaded', updated_at: 2000, version: 3 },
+        ]),
+        getRemoteId: r => String(r.id),
+        getRemoteUpdatedAt: r => parseUpdatedAtMs(r.updated_at),
+        toLocalRow: r => ({ id: String(r.id), name: r.name }),
+      };
+
+      await syncReplicatedTable(table, adapter, {}, { incrementalBufferMs: 500 });
+
+      const since = vi.mocked(adapter.fetchRemoteRows).mock.calls[0]![0].since;
+      expect(since).toBe(500); // 1000 - 500 buffer; < 2000 so the uploaded row is in-window
+      const row = await table.getReplicatedRow('1');
+      expect(row?.serverVersion).toBe(3);
+      expect(await table.get('1')).toMatchObject({ name: 'Just Uploaded' });
+    });
+
+    it('advances the watermark monotonically inside the cache tx (no regression from a stale concurrent write)', async () => {
+      // Simulates: fast sync advanced the persisted watermark to 7000; a slower
+      // sync that snapshotted an older value now writes 6000. The max-in-transaction
+      // must keep 7000, not regress to 6000.
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 7000 });
+      await table.updateSyncMetadata(
+        { lastIncrementalSyncAt: 6000 },
+        { advanceWatermarkMonotonically: true }
+      );
+      const meta = await table.getSyncMetadata();
+      expect(meta?.lastIncrementalSyncAt).toBe(7000);
+    });
+
+    it('still allows a literal watermark reset to 0 (cache clear path, no monotonic flag)', async () => {
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 7000 });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 0 });
+      const meta = await table.getSyncMetadata();
+      expect(meta?.lastIncrementalSyncAt).toBe(0);
+    });
+
+    it('reports recoveredFromEmptyReplica when an emptied replica re-fetches', async () => {
+      // Metadata says the replica previously held rows (totalRows > 0) but the local
+      // store is now empty — an unexpected eviction. The result flags it for logging.
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 1000, totalRows: 5 });
+
+      const result = await syncReplicatedTable(
+        table,
+        makeTsAdapter([{ id: 1, name: 'Rex', updated_at: 2000 }])
+      );
+
+      expect(result.recoveredFromEmptyReplica).toBe(true);
+      expect(result.operation).toBe('full-sync');
+    });
+
+    it('forces a full re-sync when the last full sync is older than the heal interval', async () => {
+      // A non-empty replica would normally sync incrementally — but a stale full sync
+      // (here 25h ago, past the 24h default) forces a full re-sync so any drift heals.
+      await table.set('seed', { id: 'seed', name: 'Seed' });
+      await table.updateSyncMetadata({
+        lastIncrementalSyncAt: 5000,
+        lastFullSyncAt: Date.now() - 25 * 60 * 60 * 1000,
+      });
+
+      const result = await syncReplicatedTable(
+        table,
+        makeTsAdapter([{ id: 1, name: 'Rex', updated_at: 6000 }])
+      );
+
+      expect(result.operation).toBe('full-sync');
+    });
+
+    it.each([
+      ['Infinity', Infinity],
+      ['NaN', NaN],
+    ])('does not throw when the persisted watermark is corrupt (%s)', async (_label, bad) => {
+      // A corrupt IDB watermark must degrade to a finite `since`, not reach
+      // new Date(Infinity|NaN).toISOString() and throw, wedging the table's sync.
+      await table.set('seed', { id: 'seed', name: 'Seed' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: bad });
+      const adapter = makeTsAdapter([{ id: 1, name: 'Rex', updated_at: 2000 }]);
+
+      const result = await syncReplicatedTable(table, adapter);
+
+      expect(result.success).toBe(true);
+      const since = vi.mocked(adapter.fetchRemoteRows).mock.calls[0]![0].since;
+      expect(Number.isFinite(since)).toBe(true);
+      expect(since).toBe(0);
+    });
+
+    it('does NOT force a full sync every tick when a full sync has never run (lastFullSyncAt = 0)', async () => {
+      // Guard on `lastFullSyncAt > 0`: a never-full-synced non-empty replica must stay
+      // incremental, not force-full on every sync.
+      await table.set('seed', { id: 'seed', name: 'Seed' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 5000 }); // lastFullSyncAt stays 0
+
+      const result = await syncReplicatedTable(
+        table,
+        makeTsAdapter([{ id: 1, name: 'Rex', updated_at: 6000 }])
+      );
+
+      expect(result.operation).toBe('incremental-sync');
+    });
+  });
+
+  describe('per-scope incremental watermark', () => {
+    it('stores and reads the incremental watermark independently per scope', async () => {
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 1_000, totalRows: 3 }, { scopeValue: 'show-A' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 9_000, totalRows: 7 }, { scopeValue: 'show-B' });
+
+      const metaA = await table.getSyncMetadata('show-A');
+      const metaB = await table.getSyncMetadata('show-B');
+
+      expect(metaA?.lastIncrementalSyncAt).toBe(1_000);
+      expect(metaA?.totalRows).toBe(3);
+      expect(metaB?.lastIncrementalSyncAt).toBe(9_000);
+      expect(metaB?.totalRows).toBe(7);
+    });
+
+    it('returns watermark 0 for a scope that has never synced', async () => {
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 5_000 }, { scopeValue: 'show-A' });
+
+      const metaUnseen = await table.getSyncMetadata('show-Z');
+      expect(metaUnseen?.lastIncrementalSyncAt).toBe(0);
+    });
+
+    it('does not leak a table-global totalRows into a scope that has none', async () => {
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 1_000 }, { scopeValue: 'show-A' });
+      await table.updateSyncMetadata({ totalRows: 42 });
+
+      expect((await table.getSyncMetadata())?.totalRows).toBe(42);
+
+      const metaScoped = await table.getSyncMetadata('show-A');
+      expect(metaScoped?.lastIncrementalSyncAt).toBe(1_000);
+      expect(metaScoped?.totalRows).toBeUndefined();
+
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 2_000, totalRows: 5 }, { scopeValue: 'show-B' });
+      expect((await table.getSyncMetadata('show-B'))?.totalRows).toBe(5);
+    });
+
+    it('does not let one scope advance the watermark wipe a status-only update of another', async () => {
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 4_000 }, { scopeValue: 'show-A' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 8_000 }, { scopeValue: 'show-B' });
+
+      await table.updateSyncMetadata({ syncStatus: 'syncing' });
+
+      expect((await table.getSyncMetadata('show-A'))?.lastIncrementalSyncAt).toBe(4_000);
+      expect((await table.getSyncMetadata('show-B'))?.lastIncrementalSyncAt).toBe(8_000);
+    });
+
+    it('does not drop one scope\'s rows after another scope advances its watermark', async () => {
+      // The core regression. Two scopes share the `entries` table. The server has a
+      // row for scope A updated at t=150. Both scopes previously synced up to t=100.
+      // Scope B syncs (advancing ONLY B's watermark to "now" >> 150), then scope A
+      // syncs. With a shared watermark, A's `since` would be "now" and the t=150 row
+      // would be skipped. With per-scope watermarks, A's `since` is still 100.
+      interface RemoteScoped {
+        id: string;
+        name: string;
+        license_key: string;
+        updatedAt: number;
+      }
+      const server: RemoteScoped[] = [
+        { id: 'a-new', name: 'A New', license_key: 'show-A', updatedAt: 150 },
+      ];
+      const sinceByScope: Record<string, number> = {};
+
+      const adapter: SyncReplicatedTableAdapter<Omit<RemoteScoped, 'updatedAt'>, LocalEntry> = {
+        fetchRemoteRows: vi.fn(async ({ scope, since }) => {
+          sinceByScope[scope.value!] = since;
+          return server
+            .filter(r => r.license_key === scope.value && r.updatedAt > since)
+            .map(({ updatedAt: _updatedAt, ...rest }) => rest);
+        }),
+        getRemoteId: r => String(r.id),
+        toLocalRow: r => ({ id: String(r.id), name: r.name, license_key: r.license_key }),
+        filterLocalRows: (rows, scope) => rows.filter(row => row.license_key === scope.value),
+      };
+
+      await table.set('a-old', { id: 'a-old', name: 'A Old', license_key: 'show-A' });
+      await table.set('b-old', { id: 'b-old', name: 'B Old', license_key: 'show-B' });
+
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 100 }, { scopeValue: 'show-A' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 100 }, { scopeValue: 'show-B' });
+
+      await syncReplicatedTable(table, adapter, { value: 'show-B' });
+      await syncReplicatedTable(table, adapter, { value: 'show-A' });
+
+      expect(sinceByScope['show-A']).toBe(100);
+      expect(await table.get('a-new')).toMatchObject({ id: 'a-new', name: 'A New' });
+
+      const metaB = await table.getSyncMetadata('show-B');
+      expect(metaB?.lastIncrementalSyncAt).toBeGreaterThan(150);
+    });
+
+    it('records totalRows per scope after a sync', async () => {
+      await table.set('1', { id: '1', name: 'Rex', license_key: 'show-1' });
+      await table.set('2', { id: '2', name: 'Max', license_key: 'show-2' });
+      const adapter = makeAdapter([{ id: 1, name: 'Server Rex', license_key: 'show-1' }]);
+      adapter.filterLocalRows = (rows, scope) =>
+        rows.filter(row => row.license_key === scope.value);
+
+      await syncReplicatedTable(table, adapter, { value: 'show-1' });
+
+      const meta = await table.getSyncMetadata('show-1');
+      expect(meta?.totalRows).toBe(1);
+      expect((await table.getSyncMetadata('show-2'))?.lastIncrementalSyncAt).toBe(0);
+    });
+
+    it('mirrors a monotonic "last sync across any scope" onto the unscoped read', async () => {
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 3_000 }, { scopeValue: 'show-A' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 7_000 }, { scopeValue: 'show-B' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 1_000 }, { scopeValue: 'show-A' });
+
+      expect((await table.getSyncMetadata())?.lastIncrementalSyncAt).toBe(7_000);
+      expect((await table.getSyncMetadata('show-A'))?.lastIncrementalSyncAt).toBe(1_000);
+      expect((await table.getSyncMetadata('show-B'))?.lastIncrementalSyncAt).toBe(7_000);
+    });
+
+    it('clearCache resets every per-scope watermark', async () => {
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 5_000, totalRows: 4 }, { scopeValue: 'show-A' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 6_000, totalRows: 2 }, { scopeValue: 'show-B' });
+
+      await table.clearCache();
+
+      expect((await table.getSyncMetadata('show-A'))?.lastIncrementalSyncAt).toBe(0);
+      expect((await table.getSyncMetadata('show-B'))?.lastIncrementalSyncAt).toBe(0);
     });
   });
 });

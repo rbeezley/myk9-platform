@@ -19,7 +19,7 @@ function usePhaseWithPath() {
 describe('useActivePhase', () => {
   it('returns show-desk when no phase is present (Phase B2a default, B5 canonical)', () => {
     const { result } = renderHook(() => useActivePhase(), {
-      wrapper: createWrapper('/secretary/shows/show-1'),
+      wrapper: createWrapper('/shows/show-1/show-desk'),
     });
 
     expect(result.current[0]).toBe('show-desk');
@@ -27,7 +27,7 @@ describe('useActivePhase', () => {
 
   it('reads a valid phase from the URL', () => {
     const { result } = renderHook(() => useActivePhase(), {
-      wrapper: createWrapper('/secretary/shows/show-1?phase=setup'),
+      wrapper: createWrapper('/shows/show-1/setup?phase=setup'),
     });
 
     expect(result.current[0]).toBe('setup');
@@ -35,7 +35,7 @@ describe('useActivePhase', () => {
 
   it('falls back to the default for an invalid phase', () => {
     const { result } = renderHook(() => useActivePhase(), {
-      wrapper: createWrapper('/secretary/shows/show-1?phase=dashboard'),
+      wrapper: createWrapper('/shows/show-1/show-desk?phase=dashboard'),
     });
 
     expect(result.current[0]).toBe('show-desk');
@@ -43,7 +43,7 @@ describe('useActivePhase', () => {
 
   it('updates the phase while preserving unrelated query params', () => {
     const { result } = renderHook(() => usePhaseWithPath(), {
-      wrapper: createWrapper('/secretary/shows/show-1?focus=check-in&phase=setup'),
+      wrapper: createWrapper('/shows/show-1/setup?focus=check-in&phase=setup'),
     });
 
     act(() => {
@@ -58,7 +58,7 @@ describe('useActivePhase', () => {
 
   it('preserves the phase=setup param when leaving the default', () => {
     const { result } = renderHook(() => usePhaseWithPath(), {
-      wrapper: createWrapper('/secretary/shows/show-1?focus=check-in'),
+      wrapper: createWrapper('/shows/show-1/show-desk?focus=check-in'),
     });
 
     act(() => {
@@ -75,7 +75,7 @@ describe('useActivePhase', () => {
   // auto-cleaned on mount so the stale value doesn't linger.
   it('redirects legacy ?phase=today to show-desk and cleans the URL', async () => {
     const { result } = renderHook(() => usePhaseWithPath(), {
-      wrapper: createWrapper('/secretary/shows/show-1?phase=today'),
+      wrapper: createWrapper('/shows/show-1/show-desk?phase=today'),
     });
 
     expect(result.current.phase).toBe('show-desk');
@@ -86,7 +86,7 @@ describe('useActivePhase', () => {
 
   it('redirects legacy ?phase=wrap-up to show-desk and cleans the URL', async () => {
     const { result } = renderHook(() => usePhaseWithPath(), {
-      wrapper: createWrapper('/secretary/shows/show-1?phase=wrap-up'),
+      wrapper: createWrapper('/shows/show-1/show-desk?phase=wrap-up'),
     });
 
     expect(result.current.phase).toBe('show-desk');

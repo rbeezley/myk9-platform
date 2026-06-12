@@ -169,8 +169,8 @@ export function buildUnifiedSidebarConfig(
           title: nextShow.name,
           href:
             nextShow.phase === 'today'
-              ? `/secretary/shows/${nextShow.id}/show-desk`
-              : `/secretary/shows/${nextShow.id}`,
+              ? `/shows/${nextShow.id}/show-desk`
+              : `/shows/${nextShow.id}/setup`,
           icon: nextShow.phase === 'today' ? ClipboardCheck : List,
           description: nextShowDescription(nextShow.phase),
         });

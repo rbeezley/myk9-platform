@@ -97,12 +97,12 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     expect(titles).not.toContain('Day of Show');
   });
 
-  it('upcoming nextShow links to show setup (base path)', () => {
+  it('upcoming nextShow links to show setup sub-route', () => {
     const nextShow: NextShowContext = { id: 'show-1', name: 'Spring Classic', phase: 'upcoming' };
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY], undefined, nextShow);
     const group = config.groups.find(g => g.title === 'Manage');
     const item = group?.items.find(i => i.title === 'Spring Classic');
-    expect(item?.href).toBe('/secretary/shows/show-1');
+    expect(item?.href).toBe('/shows/show-1/setup');
     expect(item?.description).toBe('Setup & scheduling');
   });
 
@@ -111,16 +111,16 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY], undefined, nextShow);
     const group = config.groups.find(g => g.title === 'Manage');
     const item = group?.items.find(i => i.title === 'Spring Classic');
-    expect(item?.href).toBe('/secretary/shows/show-1/show-desk');
+    expect(item?.href).toBe('/shows/show-1/show-desk');
     expect(item?.description).toBe('Live today');
   });
 
-  it('draft nextShow links to show setup (base path)', () => {
+  it('draft nextShow links to show setup sub-route', () => {
     const nextShow: NextShowContext = { id: 'show-1', name: 'Spring Classic', phase: 'draft' };
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY], undefined, nextShow);
     const group = config.groups.find(g => g.title === 'Manage');
     const item = group?.items.find(i => i.title === 'Spring Classic');
-    expect(item?.href).toBe('/secretary/shows/show-1');
+    expect(item?.href).toBe('/shows/show-1/setup');
     expect(item?.description).toBe('Draft · finish setup');
   });
 

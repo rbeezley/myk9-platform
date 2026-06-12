@@ -54,7 +54,7 @@ export function QuickActionsSection({
         title="Pending Entries"
         subtitle="awaiting review"
         ctaLabel="Review Entries"
-        href={`/secretary/shows/${showId}/entry-management`}
+        href={`/shows/${showId}/entry-management`}
         borderClass="border-blue-500"
         numberClass="text-blue-400"
       />
@@ -63,7 +63,7 @@ export function QuickActionsSection({
         title="Reports Ready"
         subtitle="classes finalized"
         ctaLabel="Export Reports"
-        href={`/secretary/shows/${showId}/reports`}
+        href={`/shows/${showId}/reports`}
         borderClass="border-green-500"
         numberClass="text-green-400"
       />
@@ -72,7 +72,7 @@ export function QuickActionsSection({
         title="Active Trials"
         subtitle="not yet completed"
         ctaLabel="Day of Ops"
-        href="/secretary/day-of-operations"
+        href={`/shows/${showId}/show-desk`}
         borderClass="border-amber-500"
         numberClass="text-amber-400"
       />

@@ -823,8 +823,11 @@ describe('ReplicatedEntriesTable', () => {
       const afterSync = Date.now();
 
       const metadata = await table.getSyncMetadata();
-      expect(metadata?.lastIncrementalSyncAt).toBeGreaterThanOrEqual(beforeSync);
-      expect(metadata?.lastIncrementalSyncAt).toBeLessThanOrEqual(afterSync);
+      // Full sync stamps lastFullSyncAt with the client clock (the 24h self-heal
+      // baseline). The incremental watermark is now server-derived and stays 0 on
+      // an empty fetch (no server updated_at observed) rather than the client clock.
+      expect(metadata?.lastFullSyncAt).toBeGreaterThanOrEqual(beforeSync);
+      expect(metadata?.lastFullSyncAt).toBeLessThanOrEqual(afterSync);
       expect(metadata?.syncStatus).toBe('idle');
     });
 
@@ -836,10 +839,17 @@ describe('ReplicatedEntriesTable', () => {
         showId: TEST_LICENSE_KEY,
         classId: 'class-1',
       });
-      await table.updateSyncMetadata({
-        lastIncrementalSyncAt,
-        syncStatus: 'idle',
-      });
+      // Seed the watermark under the SHOW scope the sync reads — the incremental
+      // watermark is now per-(table, scope.value), not table-global. sync() scopes
+      // by show_id (TEST_LICENSE_KEY), so its `since` derives from this scope's
+      // sub-record.
+      await table.updateSyncMetadata(
+        {
+          lastIncrementalSyncAt,
+          syncStatus: 'idle',
+        },
+        { scopeValue: TEST_LICENSE_KEY }
+      );
 
       const mockQueryChain = {
         data: [],
@@ -861,7 +871,8 @@ describe('ReplicatedEntriesTable', () => {
       expect(mockGt).toHaveBeenCalled();
       const gtArg = mockGt.mock.calls[0][1];
       expect(typeof gtArg).toBe('string'); // ISO timestamp string
-      expect(new Date(gtArg).getTime()).toBe(lastIncrementalSyncAt);
+      // since = watermark - high-churn incremental buffer (5000ms for entries/classes)
+      expect(new Date(gtArg).getTime()).toBe(lastIncrementalSyncAt - 5000);
     });
 
     it('should preserve dirty local entries when remote has the same entry', async () => {

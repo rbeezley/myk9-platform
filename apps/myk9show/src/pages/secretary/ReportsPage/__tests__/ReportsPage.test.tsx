@@ -52,12 +52,12 @@ vi.mock('../ReportPreview', () => ({
 
 describe('ReportsPage', () => {
   it('renders "Reports" title', () => {
-    render(<ReportsPage />, { initialRoute: '/secretary/shows/show-1/reports' });
+    render(<ReportsPage />, { initialRoute: '/shows/show-1/reports' });
     expect(screen.getByText('Reports')).toBeInTheDocument();
   });
 
   it('renders Print button', () => {
-    render(<ReportsPage />, { initialRoute: '/secretary/shows/show-1/reports' });
+    render(<ReportsPage />, { initialRoute: '/shows/show-1/reports' });
     expect(screen.getByRole('button', { name: /print/i })).toBeInTheDocument();
   });
 
@@ -66,7 +66,7 @@ describe('ReportsPage', () => {
 
     render(<ReportsPage />, {
       initialRoute:
-        '/secretary/shows/show-1/reports?report=result-catalog&trialId=trial-1&classId=class-1',
+        '/shows/show-1/reports?report=result-catalog&trialId=trial-1&classId=class-1',
     });
 
     expect(screen.getByTestId('report-preview')).toHaveAttribute('data-class-id', 'class-1');

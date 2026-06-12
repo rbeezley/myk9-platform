@@ -1,7 +1,15 @@
 import type { Show } from '@/types/show-types';
 import type { SyncableTrial } from '@/store/trial-store-types';
 
-export type ShowMapNodeType = 'show' | 'trial' | 'class' | 'entry' | 'more';
+export type ShowMapNodeType =
+  | 'show'
+  | 'all-exhibitors'
+  | 'trial'
+  | 'class'
+  | 'dog'
+  | 'entry'
+  | 'dog-entry'
+  | 'more';
 
 export type ShowMapStatusKind = 'neutral' | 'active' | 'complete' | 'muted' | 'attention';
 
@@ -61,6 +69,7 @@ export interface ShowMapNode {
   judgeName?: string | undefined;
   startTime?: string | undefined;
   entryDisplay?: ShowMapEntryDisplay | undefined;
+  dogEntryDisplay?: ShowMapDogEntryDisplay | undefined;
   parentId?: string | undefined;
   childrenCount: number;
   isSynthetic?: boolean | undefined;
@@ -75,6 +84,18 @@ export interface ShowMapEntryDisplay {
   handlerId?: string | undefined;
   dogHref?: string | undefined;
   handlerHref?: string | undefined;
+}
+
+export interface ShowMapDogEntryDisplay {
+  entryId: string;
+  classId?: string | undefined;
+  classLabel: string;
+  trialId?: string | undefined;
+  trialLabel?: string | undefined;
+  trialDate?: string | undefined;
+  ringLabel?: string | undefined;
+  judgeName?: string | undefined;
+  startTime?: string | undefined;
 }
 
 export interface ShowMapTree {

@@ -8,6 +8,8 @@
 import {
   ReplicatedTable,
   syncReplicatedTable,
+  parseUpdatedAtMs,
+  REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
   type SyncReplicatedTableAdapter,
   type SyncResult,
 } from '@myk9/replication';
@@ -77,6 +79,8 @@ export interface ReplicatedClass {
   selfCheckinEnabled?: boolean | undefined;
   visibilityPreset?: string | undefined;
   totalEntriesCount?: number | undefined;
+  /** Count of judged entries; drives the judge dashboard's live progress overlay. */
+  scoredCount?: number | undefined;
   classOrder?: number | undefined;
   /** Secretary-controlled display order within a trial (per-column Kanban reorder). */
   displayOrder?: number | undefined;
@@ -178,6 +182,7 @@ function rowToClass(row: ClassRow): ReplicatedClass {
     })(),
     classStatus: (dbRow.class_status as string | undefined) ?? row.status ?? undefined,
     totalEntriesCount: (dbRow.total_entries_count as number | undefined) ?? undefined,
+    scoredCount: (dbRow.scored_count as number | undefined) ?? undefined,
     classOrder: (dbRow.class_order as number | undefined) ?? undefined,
     displayOrder: (dbRow.display_order as number | undefined) ?? undefined,
     isCompleted: (dbRow.is_completed as boolean | undefined) ?? false,
@@ -346,6 +351,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
         }));
       },
       getRemoteId: remote => String(remote.id),
+      getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
       toLocalRow: remote => ({
         ...rowToClass(remote),
         selfCheckinEnabled: remote._selfCheckinEnabled,
@@ -356,7 +362,9 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       resolveConflict: (local, remote) => this.resolveConflict(local, remote),
     };
 
-    const result = await syncReplicatedTable(this, adapter, { value: licenseKey });
+    const result = await syncReplicatedTable(this, adapter, { value: licenseKey }, {
+      incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
+    });
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {
       logger.error(`[${this.getTableName()}] Sync failed:`, result.error);

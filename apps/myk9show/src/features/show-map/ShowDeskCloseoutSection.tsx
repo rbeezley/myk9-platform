@@ -13,10 +13,7 @@ interface ShowDeskCloseoutSectionProps {
 // any class enters wrap-up, this section is absent entirely — keeps the
 // surface calm rather than parking dead links the secretary can't act on.
 //
-// The section is a pure container — the caller (ShowWorkbenchPage)
-// composes the actual closeout cards as children, mirroring the pattern
-// used by ShowDeskToolsSheet's toolsContent. This component never needs
-// to know about entries, incident state, or the destination routes.
+// The section is a pure container; the canonical show-desk route owns page-level decisions.
 export function ShowDeskCloseoutSection({ tree, children }: ShowDeskCloseoutSectionProps) {
   if (!hasAnyWrapUpEligibleNode(tree)) return null;
 

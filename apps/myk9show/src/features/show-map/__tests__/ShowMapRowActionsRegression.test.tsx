@@ -84,7 +84,7 @@ describe('ShowMap row actions closeout regression', () => {
     await user.click(printAction);
 
     expect(onNavigate).toHaveBeenCalledWith(
-      '/secretary/shows/show-1/reports?report=check-in-sheet&trialId=trial-1&classId=class-future'
+      '/shows/show-1/reports?report=check-in-sheet&trialId=trial-1&classId=class-future'
     );
   });
 

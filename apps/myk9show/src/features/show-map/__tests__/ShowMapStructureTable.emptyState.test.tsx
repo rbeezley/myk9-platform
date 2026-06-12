@@ -37,6 +37,37 @@ const cleanClasses: ShowMapClassInput[] = [
 ];
 
 describe('ShowMapStructureTable filtered empty state', () => {
+  it('keeps All Exhibitors and matching dog ancestors visible under needs-attention filter', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: cleanClasses,
+      entries: [
+        {
+          id: 'entry-1',
+          class_id: 'class-1',
+          dog_id: 'dog-1',
+          dog: { id: 'dog-1', call_name: 'Bella' },
+          entry_status: 'submitted',
+        },
+      ],
+    });
+    const expandedNodeIds = new Set([tree.root.id, 'all-exhibitors:show-1', 'dog:dog-1']);
+
+    render(
+      <ShowMapStructureTable
+        tree={tree}
+        expandedNodeIds={expandedNodeIds}
+        filter="needs-attention"
+        onToggle={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('All Exhibitors')).toBeInTheDocument();
+    expect(screen.getByText('Bella')).toBeInTheDocument();
+    expect(screen.getByText('Interior Novice A')).toBeInTheDocument();
+  });
+
   it('renders the empty state when the filter hides every row', () => {
     const tree = buildShowMapTree({
       show,

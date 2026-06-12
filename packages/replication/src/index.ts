@@ -141,6 +141,11 @@ export type {
   SyncReplicatedTableOptions,
   SyncScope,
 } from './syncReplicatedTable';
+export {
+  parseUpdatedAtMs,
+  REPLICATION_INCREMENTAL_BUFFER_MS,
+  REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
+} from './parseUpdatedAt';
 
 // Mutation utilities
 export {

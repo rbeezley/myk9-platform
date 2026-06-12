@@ -249,6 +249,22 @@ function EntryIdentity({
   );
 }
 
+function DogEntryIdentity({ node }: { node: ShowMapNode }) {
+  const display = node.dogEntryDisplay;
+  if (!display) {
+    return <span className="block truncate text-sm font-semibold">{node.label}</span>;
+  }
+
+  return (
+    <div className="min-w-0">
+      <div className="truncate text-sm font-semibold">{display.classLabel}</div>
+      {node.subtitle && (
+        <div className="truncate text-xs text-muted-foreground">{node.subtitle}</div>
+      )}
+    </div>
+  );
+}
+
 export function ShowMapStructureTable({
   tree,
   expandedNodeIds,
@@ -425,7 +441,7 @@ export function ShowMapStructureTable({
     const hasChildren = visibleChildIds.length > 0;
     const { isDimmed, ...scopeAttrs } = getShowMapNodeScopeAttrs(tree, node, scope, scopeNow);
 
-    if (node.type === 'entry') {
+    if (node.type === 'entry' || node.type === 'dog-entry') {
       const isReorderEntry =
         activeReorderClassNodeId !== undefined && node.parentId === activeReorderClassNodeId;
       if (isReorderEntry) {
@@ -463,10 +479,14 @@ export function ShowMapStructureTable({
             )}
             {...getRowActionOpenProps(node.id)}
           >
-            <EntryIdentity
-              node={node}
-              onNavigate={isAnyReorderActive ? undefined : onNavigate}
-            />
+            {node.type === 'dog-entry' ? (
+              <DogEntryIdentity node={node} />
+            ) : (
+              <EntryIdentity
+                node={node}
+                onNavigate={isAnyReorderActive ? undefined : onNavigate}
+              />
+            )}
             <StatusCell
               node={node}
               attentionCount={attentionCountsByNodeId?.get(node.id) ?? node.attentionCount ?? 0}
@@ -607,7 +627,7 @@ export function ShowMapStructureTable({
       </>
     );
 
-    if (node.type === 'trial') {
+    if (node.type === 'trial' || node.type === 'all-exhibitors') {
       return (
         <li
           key={nodeId}

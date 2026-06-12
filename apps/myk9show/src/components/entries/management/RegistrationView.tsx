@@ -29,14 +29,9 @@ interface RegistrationViewProps {
   /** Search term for filtering */
   searchTerm: string;
   setSearchTerm: (v: string) => void;
-  /** Status filter */
-  statusFilter: string;
-  setStatusFilter: (v: string) => void;
   /** Payment filter */
   paymentFilter: string;
   setPaymentFilter: (v: string) => void;
-  /** Clear all filters */
-  onClearFilters: () => void;
   /** Tab state */
   selectedTab: string;
   setSelectedTab: (tab: string) => void;
@@ -83,11 +78,8 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   stats,
   searchTerm,
   setSearchTerm,
-  statusFilter,
-  setStatusFilter,
   paymentFilter,
   setPaymentFilter,
-  onClearFilters,
   selectedTab,
   setSelectedTab,
   tabCounts,
@@ -150,11 +142,8 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
       <EntryFiltersCard
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
-        statusFilter={statusFilter}
-        setStatusFilter={setStatusFilter}
         paymentFilter={paymentFilter}
         setPaymentFilter={setPaymentFilter}
-        onClearFilters={onClearFilters}
       />
 
       {/* Entries Tabs */}

@@ -51,6 +51,17 @@ describe('DetailHero', () => {
     expect(screen.getByRole('button', { name: /sign up for this show/i })).toBeInTheDocument();
   });
 
+  it('renders header actions beside the title area', () => {
+    const { container } = render(
+      <DetailHero
+        name="Test Show"
+        headerActions={<button type="button">More show actions</button>}
+      />
+    );
+    expect(screen.getByRole('button', { name: /more show actions/i })).toBeInTheDocument();
+    expect(container.querySelector('[class*="sm:w-auto"]')).toBeNull();
+  });
+
   it('renders footer content', () => {
     render(<DetailHero name="Test Show" footer={<div data-testid="footer-content">footer</div>} />);
     expect(screen.getByTestId('footer-content')).toBeInTheDocument();

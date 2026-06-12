@@ -105,6 +105,17 @@ for (const { table } of REPLICATED_TABLES) {
 // flag state at startup governs the full session (consistent with kill-switch use).
 configureConflictSurfacing(showConflictSurfacingEnabled());
 
+/**
+ * A full re-sync triggered by an empty replica that metadata says previously held
+ * rows is an unexpected eviction/heal — the silent failure mode the
+ * server-authoritative watermark fix guards against. A recurring warning here
+ * means a client keeps losing its replica between sessions, which is worth
+ * investigating. Shared by both sync paths (single-table + full sync).
+ */
+function warnRecoveredFromEmptyReplica(tableName: string): void {
+  logger.warn('Replica recovered from unexpected empty state', 'replication', { tableName });
+}
+
 export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = ({
   children,
   licenseKey = '',
@@ -164,7 +175,12 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           logger.info('Table synced', 'replication', {
             tableName,
             rowsAffected: result.rowsAffected,
+            operation: result.operation,
+            since: result.since,
           });
+          if (result.recoveredFromEmptyReplica) {
+            warnRecoveredFromEmptyReplica(tableName);
+          }
           queryClient.invalidateQueries({ queryKey: [tableName] });
           setStatus(prev => ({
             ...prev,
@@ -236,10 +252,20 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         REPLICATED_TABLES.map(async ({ name, table }) => {
           try {
             const result = await table.sync(licenseKey);
-            return { name, ok: result.success, error: result.error };
+            return {
+              name,
+              ok: result.success,
+              error: result.error,
+              recoveredFromEmptyReplica: result.recoveredFromEmptyReplica ?? false,
+            };
           } catch (err) {
             logger.error('Table sync threw', 'replication', { name }, err as Error);
-            return { name, ok: false, error: err instanceof Error ? err.message : String(err) };
+            return {
+              name,
+              ok: false,
+              error: err instanceof Error ? err.message : String(err),
+              recoveredFromEmptyReplica: false,
+            };
           }
         })
       );
@@ -247,9 +273,12 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       const downloadFailures: Array<{ name: string; error: string }> = [];
       const tableStatusUpdates: Record<string, SyncStatus['tablesStatus'][string]> = {};
 
-      for (const { name, ok, error } of syncResults) {
+      for (const { name, ok, error, recoveredFromEmptyReplica } of syncResults) {
         if (ok) {
           tableStatusUpdates[name] = 'success';
+          if (recoveredFromEmptyReplica) {
+            warnRecoveredFromEmptyReplica(name);
+          }
         } else if (isAbortSyncError(error)) {
           logger.debug('Table sync aborted', 'replication', { name, error });
           tableStatusUpdates[name] = 'idle';
@@ -285,6 +314,12 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       for (const { name } of REPLICATED_TABLES) {
         queryClient.invalidateQueries({ queryKey: [name] });
       }
+
+      // The judge dashboard query reads a denormalized join of judge_assignments
+      // + classes under ['judges','assignments',...]; no table-name prefix above
+      // matches it, so invalidate it explicitly or it would stay stale until
+      // remount after a background sync.
+      queryClient.invalidateQueries({ queryKey: ['judges', 'assignments'] });
 
       logger.info('Full sync complete', 'replication');
     } catch (error) {

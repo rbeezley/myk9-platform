@@ -1,87 +1,80 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Filter } from 'lucide-react';
-import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import type { FC } from 'react';
+import { CreditCard } from 'lucide-react';
+import { SearchBar } from '@/components/common/SearchBar';
+import { FilterBar } from '@/components/common/FilterBar';
+import type { FilterDefinition, FilterBarState } from '@/components/common/FilterBar';
+import { PaymentStatus } from '@/types/show-registration-types';
 
 interface EntryFiltersCardProps {
   searchTerm: string;
   setSearchTerm: (term: string) => void;
-  statusFilter: string;
-  setStatusFilter: (status: string) => void;
   paymentFilter: string;
   setPaymentFilter: (payment: string) => void;
-  onClearFilters: () => void;
 }
 
+const PAYMENT_FILTER_KEY = 'payment';
+
+const PAYMENT_FILTER_DEFS: FilterDefinition[] = [
+  {
+    key: PAYMENT_FILTER_KEY,
+    label: 'Payment',
+    type: 'select',
+    icon: CreditCard,
+    options: [
+      { label: 'Payment Due', value: PaymentStatus.PENDING },
+      { label: 'Paid Online', value: PaymentStatus.PAID_ONLINE },
+      { label: 'Paid by Check', value: PaymentStatus.PAID_BY_CHECK },
+      { label: 'Refunded', value: PaymentStatus.REFUNDED },
+    ],
+  },
+];
+
 /**
- * Filters card for entry management
- * Extracted from EntryManagementPage.tsx as part of DEBT-002 refactoring
+ * Compact filter bar for entry management.
+ *
+ * INTENT: Entry *status* is filtered exclusively by the tab row below this bar
+ * (All / Pending / Accepted / Waitlist / Issues / Move-Ups / Pulled), so this
+ * bar deliberately carries no status dropdown — a second status control would
+ * let the user set contradictory state (e.g. "Pending" tab + "Accepted" filter
+ * = 0 rows). The only structured filter here is Payment, surfaced as a pill
+ * through the shared `FilterBar` so it stays hidden until the secretary opts in.
+ * Search is the primary triage tool and uses the shared `SearchBar` (same chrome
+ * as Browse Shows / Dogs / People) so the secretary sees one search affordance
+ * app-wide.
  */
-export const EntryFiltersCard: React.FC<EntryFiltersCardProps> = ({
+export const EntryFiltersCard: FC<EntryFiltersCardProps> = ({
   searchTerm,
   setSearchTerm,
-  statusFilter,
-  setStatusFilter,
   paymentFilter,
   setPaymentFilter,
-  onClearFilters,
 }) => {
+  const filterBarState: FilterBarState = {
+    filters: paymentFilter !== 'all' ? { [PAYMENT_FILTER_KEY]: paymentFilter } : {},
+    sortKey: null,
+    sortDirection: 'asc',
+  };
+
+  const handleFilterBarChange = (next: FilterBarState) => {
+    setPaymentFilter((next.filters[PAYMENT_FILTER_KEY] as string) || 'all');
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Filter className="h-5 w-5" />
-          Filters
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search entries..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
-            />
-          </div>
+    <div className="flex flex-wrap items-center gap-3">
+      <SearchBar
+        value={searchTerm}
+        onChange={setSearchTerm}
+        placeholder="Search entries..."
+        aria-label="Search entries"
+        size="sm"
+        className="flex-1 min-w-[200px] max-w-sm"
+      />
 
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger>
-              <SelectValue placeholder="Entry Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value={EntryStatus.PENDING}>Pending</SelectItem>
-              <SelectItem value={EntryStatus.ACCEPTED}>Accepted</SelectItem>
-              <SelectItem value={EntryStatus.WAITLIST}>Waitlist</SelectItem>
-              <SelectItem value={EntryStatus.REJECTED}>Rejected</SelectItem>
-              <SelectItem value={EntryStatus.MISSING_INFO}>Missing Info</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={paymentFilter} onValueChange={setPaymentFilter}>
-            <SelectTrigger>
-              <SelectValue placeholder="Payment Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Payments</SelectItem>
-              <SelectItem value={PaymentStatus.PENDING}>Payment Due</SelectItem>
-              <SelectItem value={PaymentStatus.PAID_ONLINE}>Paid Online</SelectItem>
-              <SelectItem value={PaymentStatus.PAID_BY_CHECK}>Paid by Check</SelectItem>
-              <SelectItem value={PaymentStatus.REFUNDED}>Refunded</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Button variant="outline" onClick={onClearFilters}>
-            Clear Filters
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      <FilterBar
+        filterDefs={PAYMENT_FILTER_DEFS}
+        state={filterBarState}
+        onStateChange={handleFilterBarChange}
+      />
+    </div>
   );
 };
 

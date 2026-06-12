@@ -41,8 +41,9 @@ const activeClass = {
 const entry = {
   id: 'entry-1',
   class_id: 'class-1',
+  dog_id: 'dog-1',
   armband: '12',
-  dog: { call_name: 'Bella' },
+  dog: { id: 'dog-1', call_name: 'Bella' },
 } satisfies ShowMapEntryInput;
 
 function getTreeItem(nodeId: string): HTMLElement {
@@ -75,10 +76,22 @@ describe('ShowMapStructureTable keyboard tree navigation', () => {
       />
     );
 
-    expectRovingTabStop('trial:trial-1');
+    expectRovingTabStop('all-exhibitors:show-1');
 
     await user.tab();
+    expect(getTreeItem('all-exhibitors:show-1')).toHaveFocus();
+
+    await user.keyboard('{ArrowDown}');
+    expect(getTreeItem('dog:dog-1')).toHaveFocus();
+    expectRovingTabStop('dog:dog-1');
+
+    await user.keyboard('{ArrowDown}');
+    expect(getTreeItem('dog-entry:entry-1')).toHaveFocus();
+    expectRovingTabStop('dog-entry:entry-1');
+
+    await user.keyboard('{ArrowDown}');
     expect(getTreeItem('trial:trial-1')).toHaveFocus();
+    expectRovingTabStop('trial:trial-1');
 
     await user.keyboard('{ArrowDown}');
     expect(getTreeItem('class:class-1')).toHaveFocus();
@@ -92,7 +105,7 @@ describe('ShowMapStructureTable keyboard tree navigation', () => {
     expect(getTreeItem('class:class-1')).toHaveFocus();
 
     await user.keyboard('{Home}');
-    expect(getTreeItem('trial:trial-1')).toHaveFocus();
+    expect(getTreeItem('all-exhibitors:show-1')).toHaveFocus();
 
     await user.keyboard('{End}');
     expect(getTreeItem('entry:entry-1')).toHaveFocus();
@@ -120,6 +133,9 @@ describe('ShowMapStructureTable keyboard tree navigation', () => {
     );
 
     await user.tab();
+    await user.keyboard('{ArrowDown}');
+    await user.keyboard('{ArrowDown}');
+    await user.keyboard('{ArrowDown}');
     await user.keyboard('{ArrowDown}');
     expect(getTreeItem('class:class-1')).toHaveFocus();
 
@@ -150,7 +166,7 @@ describe('ShowMapStructureTable keyboard tree navigation', () => {
 
     await user.tab();
     await user.keyboard('{ArrowRight}');
-    expect(onToggle).toHaveBeenCalledWith('trial:trial-1');
+    expect(onToggle).toHaveBeenCalledWith('all-exhibitors:show-1');
 
     rerender(
       <ShowMapStructureTable
@@ -161,15 +177,20 @@ describe('ShowMapStructureTable keyboard tree navigation', () => {
       />
     );
 
-    expect(getTreeItem('trial:trial-1')).toHaveFocus();
+    expect(getTreeItem('all-exhibitors:show-1')).toHaveFocus();
 
     await user.keyboard('{ArrowDown}');
+    expect(getTreeItem('trial:trial-1')).toHaveFocus();
+
+    await user.keyboard('{ArrowRight}');
     expect(getTreeItem('class:class-1')).toHaveFocus();
 
     await user.keyboard('{ArrowLeft}');
     expect(getTreeItem('trial:trial-1')).toHaveFocus();
 
-    await user.keyboard('{ArrowDown}');
+    await user.keyboard('{ArrowRight}');
+    expect(getTreeItem('class:class-1')).toHaveFocus();
+
     await user.keyboard('{ArrowRight}');
     expect(onToggle).toHaveBeenCalledWith('class:class-1');
   });

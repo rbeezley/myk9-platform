@@ -11,6 +11,7 @@ import type { ShowDayDetailRow } from '@/types/show-day-types';
 import type { ShowMapAction } from './showMapActions';
 import type { ExecutableShowMapActionExecution } from './showMapActionExecution';
 import {
+  entryIdFromShowMapNodeId,
   getShowMapHandlerMessageTarget,
   markShowMapClassComplete,
   markShowMapClassStarted,
@@ -386,7 +387,7 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
 
   const approveEntryMutation = useMutation({
     mutationFn: async ({ action }: { action: ShowMapAction }) => {
-      const entryId = sourceIdFromShowMapNodeId(action.nodeId, 'entry');
+      const entryId = entryIdFromShowMapNodeId(action.nodeId);
       if (!entryId) throw new Error('Unable to find the entry for this action.');
       return approveShowMapEntry(entryId);
     },

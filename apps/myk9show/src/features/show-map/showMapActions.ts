@@ -19,7 +19,7 @@ import type { ComponentType, SVGProps } from 'react';
 import { isShowMapActionEnabled } from './showMapActionExecution';
 import { isNodeScheduledAfter } from './showMapTimeScope';
 import { SHOW_MAP_WRAP_UP_STATUS } from './showMapTypes';
-import type { ShowMapNode, ShowMapTree } from './showMapTypes';
+import type { ShowMapNode, ShowMapNodeType, ShowMapTree } from './showMapTypes';
 
 export const SHOW_MAP_RECOMMENDED_ACTION_LIMIT = 2;
 
@@ -87,6 +87,16 @@ function scopedNodes(scope: ShowMapActionScope, tree: ShowMapTree): ShowMapNode[
   return [scope, ...descendantsOf(tree, scope.id)];
 }
 
+const SYNTHETIC_DISPLAY_ACTION_NODE_TYPES = new Set<ShowMapNodeType>([
+  'all-exhibitors',
+  'dog',
+  'more',
+]);
+
+function isSyntheticDisplayActionNode(node: ShowMapNode): boolean {
+  return SYNTHETIC_DISPLAY_ACTION_NODE_TYPES.has(node.type);
+}
+
 function isClassReadyToScore(node: ShowMapNode): boolean {
   return node.type === 'class' && node.status?.kind === 'active' && Boolean(node.scoreHref);
 }
@@ -121,6 +131,10 @@ function sourceIdFromNodeId(nodeId: string | undefined, expectedType: string): s
 
 function getNodeSourceId(node: ShowMapNode, expectedType: string): string | undefined {
   return sourceIdFromNodeId(node.id, expectedType);
+}
+
+function getEntrySourceId(node: ShowMapNode): string | undefined {
+  return getNodeSourceId(node, 'entry') ?? getNodeSourceId(node, 'dog-entry');
 }
 
 function getParentSourceId(
@@ -233,7 +247,7 @@ function wrapUpActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapActi
           label: 'Review results',
           why: 'Confirm placements before final submission',
           priority: 52,
-          ...(showId ? { href: `/secretary/shows/${showId}/results-control` } : {}),
+          ...(showId ? { href: `/shows/${showId}/results-control` } : {}),
           icon: FileText,
           recommended: true,
           createsAttention: true,
@@ -254,7 +268,7 @@ function wrapUpActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapActi
         label: 'Submit final results',
         why: 'Completed trial is ready for closeout submission',
         priority: 50,
-        ...(showId ? { href: `/secretary/shows/${showId}/submit-results` } : {}),
+        ...(showId ? { href: `/shows/${showId}/submit-results` } : {}),
         icon: Send,
         recommended: true,
         createsAttention: true,
@@ -288,6 +302,27 @@ function isActionEligibleForScope(
 }
 
 function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAction[] {
+  if (node.type === 'dog-entry') {
+    const entryId = getEntrySourceId(node);
+    if (!entryId || tree.nodesById[`entry:${entryId}`] || node.status?.value !== 'submitted') {
+      return [];
+    }
+
+    return [
+      {
+        id: 'review-entry',
+        nodeId: node.id,
+        label: 'Review entry',
+        why: withEntryContext(node, 'Entry is waiting for secretary review'),
+        priority: 85,
+        icon: ClipboardList,
+        recommended: true,
+        createsAttention: true,
+        ...(node.dogEntryDisplay?.classId ? { classId: node.dogEntryDisplay.classId } : {}),
+      },
+    ];
+  }
+
   if (node.type === 'entry') {
     const actions: ShowMapAction[] = [];
     const classId = sourceIdFromNodeId(node.parentId, 'class');
@@ -522,6 +557,8 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
 // safety net — it catches future contributors who accidentally emit the
 // same action id from both branches for the same node.
 function actionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAction[] {
+  if (isSyntheticDisplayActionNode(node)) return [];
+
   const merged = [...liveOpsActionsForNode(node, tree), ...wrapUpActionsForNode(node, tree)];
   assertNoActionCollision(merged);
   return merged;
@@ -603,16 +640,82 @@ export function getAttentionActions(
   return getRankedActions(scope, state).filter(action => action.createsAttention);
 }
 
+function addNodeAndAncestors(
+  tree: ShowMapTree,
+  nodeId: string,
+  visit: (nodeId: string) => void
+): void {
+  let node: ShowMapNode | undefined = tree.nodesById[nodeId];
+  while (node) {
+    visit(node.id);
+    node = node.parentId ? tree.nodesById[node.parentId] : undefined;
+  }
+}
+
+function getMirroredDogEntryNodeId(
+  tree: ShowMapTree,
+  actionNodeId: string
+): string | undefined {
+  const entryId = sourceIdFromNodeId(actionNodeId, 'entry');
+  if (!entryId) return undefined;
+  const dogEntryNodeId = `dog-entry:${entryId}`;
+  return tree.nodesById[dogEntryNodeId] ? dogEntryNodeId : undefined;
+}
+
+function attentionSourceKey(nodeId: string): string {
+  const entryId = sourceIdFromNodeId(nodeId, 'entry') ?? sourceIdFromNodeId(nodeId, 'dog-entry');
+  return entryId ? `entry:${entryId}` : nodeId;
+}
+
+function isEntryReviewAttentionNode(node: ShowMapNode): boolean {
+  return node.type === 'dog-entry' && node.status?.value === 'submitted';
+}
+
+function getDirectAttentionNodeIdsBySource(
+  tree: ShowMapTree,
+  state: Omit<ShowMapActionState, 'tree'>
+): Map<string, Set<string>> {
+  const nodeIdsBySource = new Map<string, Set<string>>();
+  const addDirectNodeId = (nodeId: string): void => {
+    const key = attentionSourceKey(nodeId);
+    const nodeIds = nodeIdsBySource.get(key) ?? new Set<string>();
+    nodeIds.add(nodeId);
+    nodeIdsBySource.set(key, nodeIds);
+  };
+
+  for (const action of getAttentionActions('root', { tree, ...state })) {
+    addDirectNodeId(action.nodeId);
+  }
+
+  for (const node of Object.values(tree.nodesById)) {
+    if (isEntryReviewAttentionNode(node)) {
+      addDirectNodeId(node.id);
+    }
+  }
+
+  return nodeIdsBySource;
+}
+
+function collectAttentionNodeIdsForSource(tree: ShowMapTree, directNodeIds: Set<string>): Set<string> {
+  const nodeIds = new Set<string>();
+  for (const directId of directNodeIds) {
+    addNodeAndAncestors(tree, directId, nodeId => nodeIds.add(nodeId));
+    const dogEntryNodeId = getMirroredDogEntryNodeId(tree, directId);
+    if (dogEntryNodeId) {
+      addNodeAndAncestors(tree, dogEntryNodeId, nodeId => nodeIds.add(nodeId));
+    }
+  }
+  return nodeIds;
+}
+
 export function getAttentionNodeIds(
   tree: ShowMapTree,
   state: Omit<ShowMapActionState, 'tree'> = {}
 ): Set<string> {
   const nodeIds = new Set<string>();
-  for (const action of getAttentionActions('root', { tree, ...state })) {
-    let node: ShowMapNode | undefined = tree.nodesById[action.nodeId];
-    while (node) {
-      nodeIds.add(node.id);
-      node = node.parentId ? tree.nodesById[node.parentId] : undefined;
+  for (const directNodeIds of getDirectAttentionNodeIdsBySource(tree, state).values()) {
+    for (const nodeId of collectAttentionNodeIdsForSource(tree, directNodeIds)) {
+      nodeIds.add(nodeId);
     }
   }
   return nodeIds;
@@ -628,15 +731,9 @@ export function getAttentionCountsByNodeId(
   state: Omit<ShowMapActionState, 'tree'> = {}
 ): Map<string, number> {
   const counts = new Map<string, number>();
-  const directNodeIds = new Set<string>();
-  for (const action of getAttentionActions('root', { tree, ...state })) {
-    directNodeIds.add(action.nodeId);
-  }
-  for (const directId of directNodeIds) {
-    let node: ShowMapNode | undefined = tree.nodesById[directId];
-    while (node) {
-      counts.set(node.id, (counts.get(node.id) ?? 0) + 1);
-      node = node.parentId ? tree.nodesById[node.parentId] : undefined;
+  for (const directNodeIds of getDirectAttentionNodeIdsBySource(tree, state).values()) {
+    for (const nodeId of collectAttentionNodeIdsForSource(tree, directNodeIds)) {
+      counts.set(nodeId, (counts.get(nodeId) ?? 0) + 1);
     }
   }
   return counts;

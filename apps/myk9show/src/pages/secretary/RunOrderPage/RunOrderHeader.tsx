@@ -57,7 +57,7 @@ export const RunOrderHeader: React.FC<RunOrderHeaderProps> = ({
           onClick={() =>
             showId &&
             startTransition(() =>
-              navigate(`/secretary/shows/${showId}/reports?report=judge-supply-checklist`)
+              navigate(`/shows/${showId}/reports?report=judge-supply-checklist`)
             )
           }
         >

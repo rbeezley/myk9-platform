@@ -96,9 +96,9 @@ vi.mock('@/services/database/supabaseClient', () => ({
 function renderPage() {
   return render(
     <Routes>
-      <Route path="/secretary/shows/:showId/*" element={<ResultsSubmissionPage />} />
+      <Route path="/shows/:id/*" element={<ResultsSubmissionPage />} />
     </Routes>,
-    { initialRoute: '/secretary/shows/show-1/submit-results' }
+    { initialRoute: '/shows/show-1/submit-results' }
   );
 }
 

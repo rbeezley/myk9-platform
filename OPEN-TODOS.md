@@ -32,6 +32,19 @@ Plan: [`docs/plan-dynamic-qa-infrastructure.md`](docs/plan-dynamic-qa-infrastruc
 
 ---
 
+## UX Journey Audit — Exhibitor & Secretary — 2026-06-12
+
+Plan: [`docs/plan-ux-journey-audit.md`](docs/plan-ux-journey-audit.md). Journey-scoped follow-on to the April 2026 page-scoped sprint (`docs/ux-audits/`, Phases 3–5 never ran; surfaces changed since — `/at-show` absorbed show-day, workbench collapsed). Main audit phases wait for code-audit **Waves A–C** (don't audit pages about to be consolidated); Phase 1 recon can start now.
+
+- [ ] **Phase 1 — recon** — disposition every April finding (fixed / still-open / obsolete), map both journeys against the current router *(can start now)*
+- [ ] **Phase 2 — exhibitor journey** — cold-start walk, 6-pass rubric per segment, phone-at-ringside pass for `/at-show`, money-path state sweep, time-to-task baselines *(after Waves A–C)*
+- [ ] **Phase 3 — secretary journey** — cold-start walk, show-day pressure pass, bulk-op failure states, time-to-task baselines *(after Waves A–C)*
+- [ ] **Phase 4 — cross-role seams** — scratch request, waitlist offer, entry question, refund, results publish; two-context walks
+- [ ] **Phase 5 — synthesis + human gate** — severity-ordered SUMMARY.md, duplication question per proposed UI, user approves remediation list
+- [ ] **Phase 6 — remediation waves + baseline re-measure** — tests per wave; success metric is the time-to-task delta
+
+---
+
 ## Code-Quality Audit Follow-ups — 2026-06-12
 
 Source: PR [#642](https://github.com/rbeezley/myk9-platform/pull/642), `docs/audits/2026-06-code-quality/`.

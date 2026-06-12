@@ -3,9 +3,11 @@
  * order, computed from the SAME entries array the list renders so the pill can
  * never disagree with the visible list.
  *
- * Semantics match the platform's existing `computeDogsAhead` convention: the
- * in-ring dog counts as "ahead", so 0 = "you're next" means every entry before
- * yours is scored and the gate is yours NOW.
+ * INTENT (user decision 2026-06-11): the in-ring dog is EXCLUDED from the
+ * count — "You're next" shows while a dog is still in the ring, because that is
+ * how exhibitors think about the queue ("I'm next after this one"). This
+ * deliberately diverges from the legacy `computeDogsAhead` convention in
+ * apps/myk9show/src/utils/dogsAhead.ts, which counted the in-ring dog.
  */
 
 import type { Entry } from '../../stores/entryStore';
@@ -31,11 +33,10 @@ export function computeDogsAheadInList(entries: Entry[], entryId: string): DogsA
   if (!target || !isInQueue(target)) return null;
   if (isInRing(target)) return { kind: 'in-ring' };
 
-  const queue = entries.filter(isInQueue).sort((a, b) => {
-    // In-ring first — the display list floats it to the top for the same reason.
-    if (isInRing(a) !== isInRing(b)) return isInRing(a) ? -1 : 1;
-    return byRunOrder(a, b);
-  });
+  // Waiting queue only — the in-ring dog is excluded (see INTENT above).
+  const queue = entries
+    .filter(entry => isInQueue(entry) && !isInRing(entry))
+    .sort(byRunOrder);
 
   const position = queue.findIndex(entry => entry.id === entryId);
   if (position === -1) return null;
@@ -58,11 +59,18 @@ export function formatDogsAheadInList(result: DogsAheadResult): string | null {
 export interface EntryListOwnership {
   ownEntryIds: ReadonlySet<string>;
   dogsAheadByEntryId: ReadonlyMap<string, DogsAheadResult>;
+  /**
+   * Ring-conflict annotations: entry id → human label describing the OTHER
+   * class ("Also 2 away in Container Master"). Computed app-side from
+   * show-wide replicated data; ringside only renders.
+   */
+  conflictLabelByEntryId?: ReadonlyMap<string, string>;
 }
 
 export function buildEntryListOwnership(
   entries: Entry[],
-  ownEntryIds: ReadonlySet<string>
+  ownEntryIds: ReadonlySet<string>,
+  conflictLabelByEntryId?: ReadonlyMap<string, string>
 ): EntryListOwnership | undefined {
   if (ownEntryIds.size === 0) return undefined;
   const dogsAheadByEntryId = new Map<string, DogsAheadResult>();
@@ -71,5 +79,5 @@ export function buildEntryListOwnership(
     dogsAheadByEntryId.set(entry.id, computeDogsAheadInList(entries, entry.id));
   }
   if (dogsAheadByEntryId.size === 0) return undefined;
-  return { ownEntryIds, dogsAheadByEntryId };
+  return { ownEntryIds, dogsAheadByEntryId, conflictLabelByEntryId };
 }

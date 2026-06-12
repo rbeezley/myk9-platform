@@ -27,6 +27,7 @@ import {
   useDragAndDropEntries,
   useEntryHandlers,
   compareEntries,
+  buildEntryListOwnership,
   type Entry,
   type EntryListDataDependencies,
   type RingsideShowContext,
@@ -47,6 +48,7 @@ import { useAtShowEntryListActions } from './useAtShowEntryListActions';
 import { atShowLayoutSlots } from './slots/atShowLayoutSlots';
 import { atShowDialogSlots } from './slots/atShowDialogSlots';
 import { useAtShowDogFavorites } from './ringsideDogFavorites';
+import { useMyAtShowEntries } from './useMyAtShowEntries';
 
 export const AtShowCombinedEntryListPage: React.FC = () => {
   const { showId, classIdA, classIdB } = useParams<{
@@ -198,6 +200,15 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   }, []);
   const onPrefetchScoresheet = useCallback(() => {}, []);
 
+  // ── Ownership annotations (own-dog highlight + dogs-ahead pills) ────────
+  // Combined A/B run together, so the queue is computed over the merged
+  // localEntries — exactly what the page renders.
+  const { ownEntryIds } = useMyAtShowEntries(showId);
+  const ownership = useMemo(
+    () => buildEntryListOwnership(localEntries, ownEntryIds),
+    [localEntries, ownEntryIds]
+  );
+
   // ── Context ────────────────────────────────────────────────────────────
   const canManageClasses = hasPermission('canManageClasses');
   const pageShowContext = useMemo(
@@ -252,6 +263,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             entryCounts,
           }}
           favorites={{ favoriteArmbands, onToggleFavoriteArmband: toggleFavoriteArmband }}
+          {...(ownership ? { ownership } : {})}
           drag={{ sensors, handleDragStart, handleDragEnd, isDraggingRef }}
           dialogs={{
             CheckinStatusDialog: atShowDialogSlots.CheckinStatusDialog,

@@ -27,7 +27,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { SortableEntryCard } from '../SortableEntryCard';
 import type { Entry } from '../../../stores/entryStore';
 import type { EntryListPermission } from '../permissions';
-import type { DogCardProps, EntryListFavorites } from '../pageProps';
+import type { DogCardProps, EntryListFavorites, EntryListOwnership } from '../pageProps';
 import type { ClassInfo } from '../hooks/useEntryListData';
 
 export interface EntryListContentProps {
@@ -67,6 +67,8 @@ export interface EntryListContentProps {
   onOpenDragMode?: () => void;
   /** Optional exhibitor dog-favorite state for notification fanout */
   favorites?: EntryListFavorites;
+  /** Optional ownership annotations (own-dog highlight + dogs-ahead pills). */
+  ownership?: EntryListOwnership;
   /** Host-injected card primitive — passed through to SortableEntryCard. */
   DogCard: ComponentType<DogCardProps>;
 }
@@ -93,6 +95,7 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
   onDragEnd,
   onOpenDragMode,
   favorites,
+  ownership,
   DogCard,
 }) => {
   // Track when entries first load to trigger stagger animation
@@ -166,6 +169,13 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
                 ? {
                     isFavorite: favorites.favoriteArmbands.has(entry.armband),
                     onToggleFavorite: favorites.onToggleFavoriteArmband,
+                  }
+                : {})}
+              {...(ownership?.ownEntryIds.has(entry.id)
+                ? {
+                    isOwnEntry: true,
+                    dogsAhead: ownership.dogsAheadByEntryId.get(entry.id) ?? null,
+                    conflictLabel: ownership.conflictLabelByEntryId?.get(entry.id) ?? null,
                   }
                 : {})}
               DogCard={DogCard}

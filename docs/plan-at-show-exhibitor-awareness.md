@@ -45,15 +45,20 @@ Does this duplicate an existing surface? **No — it completes one.**
    persisted set; online refresh overwrites it.
 2. **Match by entry id, not armband.** The RPC returns entry ids; armbands can collide across
    trials. The favorites bag uses armbands for historical reasons — do not copy that.
-3. **Dogs-ahead is computed from the same entries array the list renders.** Position of my
-   entry among unscored entries in run order, minus in-ring offset — consistency with the
-   visible list by construction. New pure util in ringside (`computeDogsAheadInList`), because
-   the existing `computeDogsAhead` consumes the orphaned `ShowDayClass` shape.
+3. **Dogs-ahead is computed from the same entries array the list renders.** New pure util in
+   ringside (`computeDogsAheadInList`), because the existing `computeDogsAhead` consumes the
+   orphaned `ShowDayClass` shape. **User decision 2026-06-11:** the in-ring dog is EXCLUDED
+   from the count — "You're next" shows while a dog is still in the ring, because that is how
+   exhibitors think about the queue. (Deliberate divergence from the legacy `computeDogsAhead`
+   convention, which counted the in-ring dog as "ahead".)
 4. **Conflict = two of MY entries near-up simultaneously.** Across all in-progress classes in
    the show: if ≥2 of my unscored entries are each within `leadDogs` of the front, warn. This
    covers both the same-dog-two-classes case and the one-handler-multiple-dogs case (the
-   common one). Generalize `detectConflicts` into a pure util over a minimal structural shape;
-   `useNotificationMonitor` migrates to it so there is exactly one conflict definition.
+   common one). **Both involved entries get the badge**, each in its own class's entry list,
+   labeled with the *other* class ("Also 2 away in Container Master").
+   `useNotificationMonitor`'s `detectConflicts` stays untouched — it computes per-dog at
+   alert time over a different data shape; ours computes per-account at render time over
+   replicated rows. Same concept, deliberately separate computations (not a deferral).
 5. **Ringside package changes are additive and optional.** New `ownership?` prop bag —
    absent bag = today's rendering, byte-for-byte. myK9Q-era hosts unaffected.
 6. **No auto-writes.** Detection renders a warning chip/banner with a link to the other
@@ -76,8 +81,9 @@ Does this duplicate an existing surface? **No — it completes one.**
 Package (`packages/ringside`):
 - `pageProps.ts`: add `EntryListOwnership` bag — `{ ownEntryIds: ReadonlySet<string> }` —
   optional on both `EntryListPageProps` and `CombinedEntryListPageProps`.
-- New pure util `computeDogsAheadInList(entries: Entry[], entryId: string): number | null`
-  in `pages/EntryList/` (null when scored/absent; 0 = next; respects in-ring entry).
+- New pure util `computeDogsAheadInList(entries: Entry[], entryId: string)` in
+  `pages/EntryList/` (null when scored/pulled/absent; own entry in-ring → distinct state;
+  in-ring dog excluded from the count, so 0 = "You're next" while a dog runs).
 - `SortableEntryCard`: new optional `isOwnEntry` + `dogsAhead` props. Own entry renders a
   distinct ring/glow on `DogCard` (via `className`, no DogCard API change) plus a calm
   "You're next" / "N ahead" pill rendered through the existing `resultBadges` /
@@ -97,55 +103,53 @@ App shim:
   pill + highlight only when bag present.
 - **Tests (app):** shim passes the bag; absent for signed-out/passcode-only users.
 
-### Phase 3 — Class-card chips on the at-show class list
+### Phase 3 — CUT (user decision 2026-06-11)
 
-- `atShowClassListAdapter.ts`: it already groups all show entries per class. For classes in
-  `ownClassIds`, annotate the card model with `myDogsAhead: { callName, dogsAhead }[]`
-  (reuse the Phase 2 util; entries are already in run order).
-- `AtShowClassListPage.tsx`: render a chip on those cards — `Ditto · 3 ahead` /
-  `Ditto · You're next` (pulse only at 0, calm otherwise). No chip when class not started
-  or entry scored.
-- **Tests:** adapter annotation (multiple own dogs in one class, scored entry drops chip,
-  not-started class), chip rendering states.
+Class-card chips on the at-show class list were cut: everything surfaces on the entry
+lists only. Keeps the class list calm; the entry list is where exhibitors track the queue.
 
-### Phase 4 — Ring-conflict detection
+### Phase 4 — Ring-conflict detection (entry-list only)
 
-- Generalize `detectConflicts`:
-  - New pure util (ringside or `apps/.../at-show/ringConflicts.ts` — prefer app if no
-    package consumer): input = my unscored entries grouped by in-progress class with
-    positions; output = conflict pairs `{ classA, classB, dogsAheadA, dogsAheadB, callName }`
-    when both positions ≤ `leadDogs`.
-  - Migrate `useNotificationMonitor` to the shared util (single definition; its tests move
-    with it).
-- Surfaces:
-  - `AtShowClassListPage`: warning banner above the trial list when a conflict is live —
-    "Possible ring conflict: Ditto is 2 away in Container Novice and 3 away in Buried
-    Master" with links to both classes. Banner, not modal (calm-over-clever).
-  - Entry list: small `Conflict?` chip on my own card when that entry's dog/handler is also
-    near-up elsewhere; links to the other class.
+- New pure util `apps/myk9show/src/features/at-show/ringConflicts.ts`:
+  - Input: my entry ids + show-wide replicated entries/classes; threshold = the existing
+    `notificationStore.preferences.leadDogs` (1–5).
+  - Output: `Map<entryId, ConflictInfo[]>` where each involved entry maps to the OTHER
+    class(es): `{ otherClassName, dogsAhead }`. Both sides of a conflict get an annotation.
+  - `useNotificationMonitor` is deliberately NOT migrated (see design decision 4).
+- Hook `useMyRingConflicts(showId, ownEntryIds)`: reads `replicatedEntriesTable` /
+  `replicatedClassesTable` (offline-safe), recomputes on replication change events.
+- Surface: amber informational chip on my own entry card via the ownership bag
+  (`conflictLabelByEntryId`) — "Also 2 away in Container Master". No banner, no links,
+  no class-list presence. Marking `check_in_status='conflict'` remains the human action.
 - **Tests:** pure util (threshold boundaries 0/leadDogs/leadDogs+1, not-in-progress classes
-  excluded, scored entries excluded, two-dogs-one-handler case, same-dog case); banner/chip
-  render + link targets; notification-monitor regression tests still green after migration.
+  excluded, scored/pulled excluded, two-dogs-one-handler case, same-dog case, both sides
+  annotated); chip renders only with a label.
 
-### Phase 5 — Liveness (make "live" actually live)
+### Phase 5 — Realtime refresh (user decision 2026-06-11: myK9Q parity)
 
 Today the at-show lists refresh on pull-to-refresh only (`subscribeToReplicationChanges`
-is a no-op). Dogs-ahead/conflict chips are only as fresh as the list.
+is a no-op). Exhibitors expect realtime because legacy myK9Q is realtime.
 
-- Add a visibility-aware periodic sync to the at-show list pages: `forceSync` every 30s
-  while `document.visibilityState === 'visible'` (matches `useNotificationMonitor`'s 30s
-  poll cadence; pauses in background to save battery).
-- Optional realtime nudge (same pattern as `useNotificationMonitor`'s per-show entries
-  channel): on entries UPDATE for this show → debounced `refresh()`. Implement only if the
-  30s poll feels laggy in verification; do not build both speculatively.
-- **Tests:** interval respects visibility; cleanup on unmount; no overlapping syncs.
+- New hook `useAtShowRealtimeRefresh(showId, refresh)` in the at-show feature:
+  - Supabase channel per show: `postgres_changes` UPDATE on `entries`
+    (`show_id=eq.<showId>`) and on `classes` → debounced (~1.5s) `refresh(true)`
+    (forceSync → replication pull → list re-render). Same pattern as
+    `useNotificationMonitor`'s channels; `entries`/`classes` are already in the
+    `supabase_realtime` publication (PR #584).
+  - `visibilitychange` → immediate refresh when returning to foreground (mobile
+    tab-switch is the common case ringside).
+  - Offline-safe: channel silently idle without a connection; pull-to-refresh remains.
+- Wire into `AtShowEntryListPage` + `AtShowCombinedEntryListPage` shims.
+- **Tests:** debounce coalesces bursts, cleanup removes channel on unmount, visibility
+  handler fires refresh, no refresh while already refreshing.
 
 ### Phase 6 — Verification & hygiene
 
 - `pnpm --filter @myk9/ringside build && pnpm typecheck && pnpm lint`
 - `cd apps/myk9show && pnpm test` (full suite) + ringside package suite.
-- Manual walk: signed-in exhibitor with entries → class list chips → entry list highlight →
-  simulate scoring progression → chip counts down → conflict banner appears.
+- Manual walk: signed-in exhibitor with entries → entry list highlight + queue pill →
+  simulate scoring progression → pill counts down in realtime → conflict chip appears on
+  both involved entries.
 - Update `OPEN-TODOS.md`.
 
 ## Out of scope (explicitly)

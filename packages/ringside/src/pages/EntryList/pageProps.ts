@@ -546,6 +546,12 @@ export interface EntryListFavorites {
   onToggleFavoriteArmband: (armband: number) => void;
 }
 
+// Ownership annotations ("these entries are YOURS") + per-entry queue position.
+// Defined next to its builder in ./dogsAheadInList.ts; re-exported here so the
+// props bags below and host shims import from one place.
+export type { EntryListOwnership } from './dogsAheadInList';
+import type { EntryListOwnership as EntryListOwnershipBag } from './dogsAheadInList';
+
 // =============================================================================
 // EntryListPageProps — single-class page
 // =============================================================================
@@ -599,6 +605,13 @@ export interface EntryListPageProps {
 
   /** Optional exhibitor dog-favorite state for notification fanout. */
   favorites?: EntryListFavorites;
+
+  /**
+   * Optional ownership annotations for the signed-in exhibitor: own-dog
+   * highlighting + "N dogs ahead" pills. Absent bag = no exhibitor context;
+   * rendering is unchanged.
+   */
+  ownership?: EntryListOwnershipBag;
 
   /** Drag-and-drop sensors + handlers from the shim's `useDragAndDropEntries` call. */
   drag: EntryListDrag;
@@ -714,6 +727,9 @@ export interface CombinedEntryListPageProps {
 
   /** Optional exhibitor dog-favorite state for notification fanout. */
   favorites?: EntryListFavorites;
+
+  /** Optional ownership annotations — same contract as the single-class page. */
+  ownership?: EntryListOwnershipBag;
 
   /** Drag-and-drop state from the shim's `useDragAndDropEntries` call. */
   drag: EntryListDrag;

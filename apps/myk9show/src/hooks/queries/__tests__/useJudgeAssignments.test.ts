@@ -68,6 +68,7 @@ const makeRow = (overrides: Partial<JudgeAssignmentRow> = {}): JudgeAssignmentRo
     status: 'upcoming',
     start_time: '09:00:00',
     total_entries_count: 20,
+    checked_in_count: 14,
     scored_count: 5,
     trial_id: 'trial-1',
     trials: { id: 'trial-1', date: '2026-06-10', timezone: 'America/Chicago', show_id: 'show-1' },
@@ -93,6 +94,7 @@ const makeReplicated = (
   classLevel: 'Novice',
   classStatus: 'in_progress',
   classStartTime: '09:00:00',
+  classCheckedInCount: 14,
   classScoredCount: 5,
   classTotalEntries: 20,
   trialDate: '2026-06-10',
@@ -118,6 +120,7 @@ describe('mapAssignmentRowToJudgeClass (PostgREST shape)', () => {
       scheduledTime: new Date('2026-06-10T14:00:00Z'),
       ringNumber: null,
       totalEntries: 20,
+      checkedInEntries: 14,
       completedEntries: 5,
       status: 'pending',
     });
@@ -168,9 +171,11 @@ describe('mapAssignmentRowToJudgeClass (PostgREST shape)', () => {
   it('defaults null entry counts to zero', () => {
     const row = makeRow();
     row.classes!.total_entries_count = null;
+    row.classes!.checked_in_count = null;
     row.classes!.scored_count = null;
     const result = mapAssignmentRowToJudgeClass(row);
     expect(result?.totalEntries).toBe(0);
+    expect(result?.checkedInEntries).toBe(0);
     expect(result?.completedEntries).toBe(0);
   });
 });
@@ -190,6 +195,7 @@ describe('mapReplicatedAssignmentToJudgeClass (denormalized replication shape)',
       scheduledTime: new Date('2026-06-10T14:00:00Z'),
       ringNumber: null,
       totalEntries: 20,
+      checkedInEntries: 14,
       completedEntries: 5,
       status: 'in-progress',
     });
@@ -242,7 +248,8 @@ describe('JUDGE_ASSIGNMENTS_SELECT', () => {
     // here and 400 only at runtime.
     expect(JUDGE_ASSIGNMENTS_SELECT.replace(/\s+/g, '')).toBe(
       'id,class_id,show_id,status,classes(id,name,element,level,status,start_time,' +
-        'total_entries_count,scored_count,trial_id,trials(id,date,timezone,show_id))'
+        'total_entries_count,checked_in_count,scored_count,trial_id,' +
+        'trials(id,date,timezone,show_id))'
     );
   });
 });
@@ -268,7 +275,10 @@ describe('useJudgeAssignments', () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     // Only this judge's confirmed/invited assignments survive.
-    expect(result.current.assignments.map(a => a.id).sort()).toEqual(['a-mine', 'a-pending-invite']);
+    expect(result.current.assignments.map(a => a.id).sort()).toEqual([
+      'a-mine',
+      'a-pending-invite',
+    ]);
     expect(mockFrom).not.toHaveBeenCalled();
     expect(result.current.isError).toBe(false);
   });
@@ -276,10 +286,21 @@ describe('useJudgeAssignments', () => {
   it('overlays live class status/progress from the classes store over the snapshot', async () => {
     // Snapshot says in_progress with 5 scored; the live class has finished.
     mockGetAll.mockResolvedValueOnce([
-      makeReplicated({ id: 'a-1', classId: 'class-1', classStatus: 'in_progress', classScoredCount: 5 }),
+      makeReplicated({
+        id: 'a-1',
+        classId: 'class-1',
+        classStatus: 'in_progress',
+        classScoredCount: 5,
+      }),
     ]);
     mockClassesGetAll.mockResolvedValueOnce([
-      { id: 'class-1', classStatus: 'completed', scoredCount: 20, totalEntriesCount: 20 },
+      {
+        id: 'class-1',
+        classStatus: 'completed',
+        checkedInCount: 18,
+        scoredCount: 20,
+        totalEntriesCount: 20,
+      },
     ]);
 
     const { result } = renderHook(() => useJudgeAssignments(), { wrapper: createWrapper() });
@@ -288,6 +309,7 @@ describe('useJudgeAssignments', () => {
 
     expect(result.current.assignments[0]).toMatchObject({
       status: 'completed',
+      checkedInEntries: 18,
       completedEntries: 20,
       totalEntries: 20,
     });

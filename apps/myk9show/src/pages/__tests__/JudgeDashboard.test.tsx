@@ -45,6 +45,7 @@ const makeAssignment = (overrides: Partial<JudgeClass> = {}): JudgeClass => ({
   scheduledTime: new Date(`${TODAY}T09:00:00`),
   ringNumber: null,
   totalEntries: 20,
+  checkedInEntries: 12,
   completedEntries: 5,
   status: 'pending',
   ...overrides,
@@ -55,6 +56,7 @@ const hookState = (overrides: Record<string, unknown> = {}) => ({
   isLoading: false,
   isFetching: false,
   isError: false,
+  error: null,
   refetch: vi.fn(),
   ...overrides,
 });

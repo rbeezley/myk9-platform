@@ -23,6 +23,7 @@ const makeClass = (overrides: Partial<JudgeClass> = {}): JudgeClass => ({
   scheduledTime: new Date(NOW + 30 * 60000),
   ringNumber: 1,
   totalEntries: 10,
+  checkedInEntries: 0,
   completedEntries: 0,
   status: 'pending',
   ...overrides,
@@ -199,7 +200,7 @@ describe('splitJudgeAssignments', () => {
     expect(buckets.completed.map(c => c.id)).toEqual(['p1']);
   });
 
-  it("buckets each class against today in its OWN trial timezone", () => {
+  it('buckets each class against today in its OWN trial timezone', () => {
     // 02:00Z: it is May 2 in New York but already May 3 in Tokyo.
     const now = new Date('2026-05-03T02:00:00Z').getTime();
     const nyToday = makeClass({

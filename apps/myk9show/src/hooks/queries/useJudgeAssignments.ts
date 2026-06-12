@@ -32,6 +32,7 @@ export const JUDGE_ASSIGNMENTS_SELECT = `
     status,
     start_time,
     total_entries_count,
+    checked_in_count,
     scored_count,
     trial_id,
     trials (
@@ -57,6 +58,7 @@ export interface JudgeAssignmentRow {
     status: string | null;
     start_time: string | null;
     total_entries_count: number | null;
+    checked_in_count: number | null;
     scored_count: number | null;
     trial_id: string;
     trials: { id: string; date: string; timezone: string | null; show_id: string } | null;
@@ -102,9 +104,14 @@ export function mapAssignmentRowToJudgeClass(row: JudgeAssignmentRow): JudgeClas
     level: cls.level ?? '',
     trialDate: trial.date,
     trialTimezone: trial.timezone ?? DEFAULT_TIMEZONE,
-    scheduledTime: parseScheduledTime(trial.date, cls.start_time, trial.timezone ?? DEFAULT_TIMEZONE),
+    scheduledTime: parseScheduledTime(
+      trial.date,
+      cls.start_time,
+      trial.timezone ?? DEFAULT_TIMEZONE
+    ),
     ringNumber: null,
     totalEntries: cls.total_entries_count ?? 0,
+    checkedInEntries: cls.checked_in_count ?? 0,
     completedEntries: cls.scored_count ?? 0,
     status: toDashboardStatus(cls.status),
   };
@@ -138,6 +145,7 @@ export function mapReplicatedAssignmentToJudgeClass(
     ),
     ringNumber: null,
     totalEntries: a.classTotalEntries ?? 0,
+    checkedInEntries: a.classCheckedInCount ?? 0,
     completedEntries: a.classScoredCount ?? 0,
     status: toDashboardStatus(a.classStatus),
   };
@@ -186,10 +194,7 @@ export async function fetchJudgeAssignments(personId: string): Promise<JudgeClas
       const liveByClassId = new Map(liveClasses.map(c => [c.id, c]));
 
       const mine = all
-        .filter(
-          a =>
-            a.personId === personId && ACTIVE_ASSIGNMENT_STATUSES.includes(a.status ?? '')
-        )
+        .filter(a => a.personId === personId && ACTIVE_ASSIGNMENT_STATUSES.includes(a.status ?? ''))
         .map(a => {
           const jc = mapReplicatedAssignmentToJudgeClass(a);
           if (!jc) return null;
@@ -201,6 +206,7 @@ export async function fetchJudgeAssignments(personId: string): Promise<JudgeClas
             ...jc,
             status: toDashboardStatus(live.classStatus ?? null),
             totalEntries: live.totalEntriesCount ?? jc.totalEntries,
+            checkedInEntries: live.checkedInCount ?? jc.checkedInEntries,
             completedEntries: live.scoredCount ?? jc.completedEntries,
           };
         })
@@ -219,6 +225,7 @@ export interface JudgeAssignmentsResult {
   isLoading: boolean;
   isFetching: boolean;
   isError: boolean;
+  error: string | null;
   refetch: () => void;
 }
 
@@ -227,7 +234,7 @@ export function useJudgeAssignments(): JudgeAssignmentsResult {
   const { userWithRoles } = useAuthContext();
   const personId = userWithRoles?.databaseUserId ?? '';
 
-  const { data, isLoading, isFetching, isError, refetch } = useQuery({
+  const { data, isLoading, isFetching, isError, error, refetch } = useQuery({
     queryKey: queryKeys.judges.assignments(personId),
     enabled: !!personId,
     // Class status changes while the judge is in the ring; refresh on every
@@ -244,6 +251,7 @@ export function useJudgeAssignments(): JudgeAssignmentsResult {
     isLoading: isLoading || !personId,
     isFetching,
     isError,
+    error: error ? (error as Error).message : null,
     refetch,
   };
 }

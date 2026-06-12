@@ -35,6 +35,7 @@ interface JudgeAssignmentEnrichment {
   classLevel: string | null;
   classStatus: string | null;
   classStartTime: string | null;
+  classCheckedInCount: number | null;
   classScoredCount: number | null;
   classTotalEntries: number | null;
   trialDate: string | null;
@@ -69,6 +70,7 @@ export type JudgeAssignmentJoinedRow = JudgeAssignmentRow & {
     status: string | null;
     start_time: string | null;
     scored_count: number | null;
+    checked_in_count: number | null;
     total_entries_count: number | null;
     trial_id: string | null;
     trials?: {
@@ -85,6 +87,7 @@ const EMPTY_ENRICHMENT: JudgeAssignmentEnrichment = {
   classLevel: null,
   classStatus: null,
   classStartTime: null,
+  classCheckedInCount: null,
   classScoredCount: null,
   classTotalEntries: null,
   trialDate: null,
@@ -112,6 +115,7 @@ export function rowToJudgeAssignment(row: JudgeAssignmentJoinedRow): ReplicatedJ
     classLevel: cls?.level ?? null,
     classStatus: cls?.status ?? null,
     classStartTime: cls?.start_time ?? null,
+    classCheckedInCount: cls?.checked_in_count ?? null,
     classScoredCount: cls?.scored_count ?? null,
     classTotalEntries: cls?.total_entries_count ?? null,
     trialDate: trial?.date ?? null,
@@ -154,38 +158,44 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
   async sync(_licenseKey?: string): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
-    const adapter: SyncReplicatedTableAdapter<JudgeAssignmentJoinedRow, ReplicatedJudgeAssignment> = {
-      fetchRemoteRows: async ({ since }) => {
-        // Embed the class/trial snapshot so the globally-synced assignment row
-        // is self-sufficient for the offline judge dashboard. To-one embeds via
-        // class_id / trial_id, mirroring useJudgeTodayStats' working shape.
-        const { data, error } = await supabase
-          .from('judge_assignments')
-          .select(
-            `*, classes (
-               name, element, level, status, start_time, scored_count,
+    const adapter: SyncReplicatedTableAdapter<JudgeAssignmentJoinedRow, ReplicatedJudgeAssignment> =
+      {
+        fetchRemoteRows: async ({ since }) => {
+          // Embed the class/trial snapshot so the globally-synced assignment row
+          // is self-sufficient for the offline judge dashboard. To-one embeds via
+          // class_id / trial_id, mirroring useJudgeTodayStats' working shape.
+          const { data, error } = await supabase
+            .from('judge_assignments')
+            .select(
+              `*, classes (
+               name, element, level, status, start_time, checked_in_count, scored_count,
                total_entries_count, trial_id,
                trials ( date, timezone, show_id )
              )`
-          )
-          .gt('updated_at', new Date(since).toISOString())
-          .order('updated_at', { ascending: true });
+            )
+            .gt('updated_at', new Date(since).toISOString())
+            .order('updated_at', { ascending: true });
 
-        if (error) {
-          throw new Error(`Supabase query failed: ${error.message}`);
-        }
+          if (error) {
+            throw new Error(`Supabase query failed: ${error.message}`);
+          }
 
-        return (data ?? []) as unknown as JudgeAssignmentJoinedRow[];
-      },
-      getRemoteId: remote => String(remote.id),
-      getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
-      toLocalRow: rowToJudgeAssignment,
-      resolveConflict: (_local, remote) => remote,
-    };
+          return (data ?? []) as unknown as JudgeAssignmentJoinedRow[];
+        },
+        getRemoteId: remote => String(remote.id),
+        getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
+        toLocalRow: rowToJudgeAssignment,
+        resolveConflict: (_local, remote) => remote,
+      };
 
-    const result = await syncReplicatedTable(this, adapter, {}, {
-      incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
-    });
+    const result = await syncReplicatedTable(
+      this,
+      adapter,
+      {},
+      {
+        incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
+      }
+    );
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {
       logger.error(`[${this.getTableName()}] Sync failed:`, result.error);

@@ -8,21 +8,21 @@ Active work items only. Resolved historical context lives in git history and dat
 
 Four steps toward the fall launch, in dependency order. Detailed phase checklists live in the sections below; this list is the master sequence.
 
-- [ ] **1. Code-Quality Audit** — remove static debt first; every later step audits or builds on the post-cleanup surfaces. Plan: [`docs/plan-code-quality-audit.md`](docs/plan-code-quality-audit.md). *In progress — Wave A implemented; Wave B type-file unification underway.*
-- [ ] **2. UX Journey Audit** — exhibitor + secretary journeys scored against INTENT; walks double as the golden-path browser walkthroughs the scorecard requires. Plan: [`docs/plan-ux-journey-audit.md`](docs/plan-ux-journey-audit.md). *Recon can start now; main phases after code-audit Waves A–C.*
-- [ ] **3. Dynamic QA Infrastructure** — permanent guards: chaos tests, mutation scoring, drift checks, observability, flaky quarantine. Plan: [`docs/plan-dynamic-qa-infrastructure.md`](docs/plan-dynamic-qa-infrastructure.md). *Mutation testing after code-audit Wave D; phases 1/3/4/5 may overlap with step 2 in separate worktrees.*
+- [ ] **1. Code-Quality Audit** — remove static debt first; every later step audits or builds on the post-cleanup surfaces. Plan: [`docs/plan-code-quality-audit.md`](docs/plan-code-quality-audit.md). _In progress — Wave A implemented; Wave B type-file unification merged; P1 launch-gate slice underway._
+- [ ] **2. UX Journey Audit** — exhibitor + secretary journeys scored against INTENT; walks double as the golden-path browser walkthroughs the scorecard requires. Plan: [`docs/plan-ux-journey-audit.md`](docs/plan-ux-journey-audit.md). _Recon can start now; main phases after code-audit Waves A–C._
+- [ ] **3. Dynamic QA Infrastructure** — permanent guards: chaos tests, mutation scoring, drift checks, observability, flaky quarantine. Plan: [`docs/plan-dynamic-qa-infrastructure.md`](docs/plan-dynamic-qa-infrastructure.md). _Mutation testing after code-audit Wave D; phases 1/3/4/5 may overlap with step 2 in separate worktrees._
 - [ ] **4. Scorecard close-out (golden path sign-off)** — final launch gate: post-remediation re-walk of all **three** golden paths — secretary, exhibitor, and admin (the admin walkthrough has a lighter bar: support actions available or documented; it is not part of the UX journey audit) — flipping their `Unknown` rows in [`docs/goals/fall-2026-launch-readiness-scorecard.md`](docs/goals/fall-2026-launch-readiness-scorecard.md) against the scorecard's own pass thresholds. Then sweep the remaining scorecard dimensions, attaching evidence produced by steps 1–3 (offline-first behavior and data correctness from the dynamic-QA chaos/drift work, UX clarity from the journey audit, test/CI health from flaky quarantine) and listing what still lacks evidence. Initial golden-path evidence lands during step 2; the close-out runs last, after steps 2–3 remediation is in.
 
 ---
 
 ## Code-Quality Audit — 2026-06-12
 
-Plan: [`docs/plan-code-quality-audit.md`](docs/plan-code-quality-audit.md). Current status in [`docs/audits/2026-06-code-quality/SUMMARY.md`](docs/audits/2026-06-code-quality/SUMMARY.md). Phase 1 inventory and Phase 2 verification are done; Wave A cleanup is implemented on branch `codex/code-quality-wave-a-dead-code`; Wave B slice 1 is in branch `codex/code-quality-wave-b-consolidations`.
+Plan: [`docs/plan-code-quality-audit.md`](docs/plan-code-quality-audit.md). Current status in [`docs/audits/2026-06-code-quality/SUMMARY.md`](docs/audits/2026-06-code-quality/SUMMARY.md). Phase 1 inventory and Phase 2 verification are done; Wave A cleanup merged in PR [#652](https://github.com/rbeezley/myk9-platform/pull/652); Wave B type-file unification merged in PR [#653](https://github.com/rbeezley/myk9-platform/pull/653); Wave B P1 launch-gate coverage/fix is underway on branch `codex/code-quality-wave-b-p1-launch-gates`.
 
 - [x] ~~**Phase 2 — verify all P1/P2 findings**~~ — PR [#647](https://github.com/rbeezley/myk9-platform/pull/647). Source-level verification confirmed/refuted the finder results and kept `send-notification` out of the delete wave pending deployed-system checks.
 - [x] ~~**Human gate — approve fix list**~~ — Wave A delete-first cleanup approved 2026-06-12; broader judgment-heavy waves still remain as separate todos below.
 - [x] ~~**Wave A — pure deletions**~~ — Removed Phase-2-confirmed dead code in branch `codex/code-quality-wave-a-dead-code`; `send-notification` intentionally remains pending deployed usage/log/config verification.
-- [ ] **Wave B — consolidations** (duplication clusters, type-file unification) — type-file unification implemented in branch `codex/code-quality-wave-b-consolidations`; remaining Wave B work: P1 launch-gate tests/fix and confirmed P2 duplication clusters.
+- [ ] **Wave B — consolidations** (duplication clusters, type-file unification) — type-file unification merged in PR [#653](https://github.com/rbeezley/myk9-platform/pull/653); P1 launch-gate coverage/fix is underway on branch `codex/code-quality-wave-b-p1-launch-gates`; remaining Wave B work after that branch: confirmed P2 duplication clusters.
 - [ ] **Wave C — extractions** (multi-concern oversized files only)
 - [ ] **Wave D — replication-bypass reroutes + targeted test additions**
 - [ ] **Phase 5 — codify as repeatable skill + set CI ratchet baselines** (after all waves land)
@@ -34,11 +34,11 @@ Plan: [`docs/plan-code-quality-audit.md`](docs/plan-code-quality-audit.md). Curr
 Plan: [`docs/plan-dynamic-qa-infrastructure.md`](docs/plan-dynamic-qa-infrastructure.md). Starts after the code-quality audit fix waves are done. Phases 1/3/4/5 can run in parallel worktrees; Phase 2 (mutation testing) requires audit Wave D tests first; Phase 6 (bundle budget) requires Wave A.
 
 - [ ] **Phase 1 — offline/replication chaos tests** (conflict-injection unit tests, sync-queue replay idempotency, Playwright offline round-trip)
-- [ ] **Phase 2 — mutation testing on fee/scoring/placement math** *(after audit Wave D)*
+- [ ] **Phase 2 — mutation testing on fee/scoring/placement math** _(after audit Wave D)_
 - [ ] **Phase 3 — database-side drift checks** (Supabase advisors sweep, enum/CHECK drift script, deployed-vs-repo function inventory)
 - [ ] **Phase 4 — error observability** (error-boundary coverage audit, Sentry wiring — confirm vendor before creating external project)
 - [ ] **Phase 5 — flaky-test quarantine + suite health**
-- [ ] **Phase 6 — bundle budget + a11y smoke + dependency cadence** *(Phase 6 bundle budget after audit Wave A)*
+- [ ] **Phase 6 — bundle budget + a11y smoke + dependency cadence** _(Phase 6 bundle budget after audit Wave A)_
 - [ ] **Phase 7 — final regression + fold into launch-milestone checklist**
 
 ---
@@ -47,9 +47,9 @@ Plan: [`docs/plan-dynamic-qa-infrastructure.md`](docs/plan-dynamic-qa-infrastruc
 
 Plan: [`docs/plan-ux-journey-audit.md`](docs/plan-ux-journey-audit.md). Journey-scoped follow-on to the April 2026 page-scoped sprint (`docs/ux-audits/`, Phases 3–5 never ran; surfaces changed since — `/at-show` absorbed show-day, workbench collapsed). Main audit phases wait for code-audit **Waves A–C** (don't audit pages about to be consolidated); Phase 1 recon can start now.
 
-- [ ] **Phase 1 — recon** — disposition every April finding (fixed / still-open / obsolete), map both journeys against the current router *(can start now)*
-- [ ] **Phase 2 — exhibitor journey** — cold-start walk, 6-pass rubric per segment, phone-at-ringside pass for `/at-show`, money-path state sweep, time-to-task baselines *(after Waves A–C)*
-- [ ] **Phase 3 — secretary journey** — cold-start walk, show-day pressure pass, bulk-op failure states, time-to-task baselines *(after Waves A–C)*
+- [ ] **Phase 1 — recon** — disposition every April finding (fixed / still-open / obsolete), map both journeys against the current router _(can start now)_
+- [ ] **Phase 2 — exhibitor journey** — cold-start walk, 6-pass rubric per segment, phone-at-ringside pass for `/at-show`, money-path state sweep, time-to-task baselines _(after Waves A–C)_
+- [ ] **Phase 3 — secretary journey** — cold-start walk, show-day pressure pass, bulk-op failure states, time-to-task baselines _(after Waves A–C)_
 - [ ] **Phase 4 — cross-role seams** — scratch request, waitlist offer, entry question, refund, results publish; two-context walks
 - [ ] **Phase 5 — synthesis + human gate** — severity-ordered SUMMARY.md, duplication question per proposed UI, user approves remediation list
 - [ ] **Phase 6 — remediation waves + baseline re-measure** — tests per wave; success metric is the time-to-task delta
@@ -60,7 +60,7 @@ Plan: [`docs/plan-ux-journey-audit.md`](docs/plan-ux-journey-audit.md). Journey-
 
 Source: PR [#642](https://github.com/rbeezley/myk9-platform/pull/642), PR [#647](https://github.com/rbeezley/myk9-platform/pull/647), `docs/audits/2026-06-code-quality/`.
 
-- [ ] **[P1] Wire Judge Check-In dashboard to real ring assignments** — `/judge/check-in` is routed, but `JudgeCheckInDashboard.tsx` initializes ring assignments with an empty array plus TODO, so a live judge-facing show-day page can show a false empty state. Verify the correct judge/ring assignment source, use the offline-safe show-day data path where required, and add focused coverage before closing.
+- [ ] **[P1] Wire Judge Check-In dashboard to real ring assignments** — `/judge/check-in` is routed, but `JudgeCheckInDashboard.tsx` initializes ring assignments with an empty array plus TODO, so a live judge-facing show-day page can show a false empty state. Underway on branch `codex/code-quality-wave-b-p1-launch-gates`: dashboard now reads the offline-first judge assignment hook, preserves loading/error states, carries checked-in counts through replicated class/assignment data, and adds focused coverage before this item is closed.
 
 - [x] ~~**[P2] Wave A code-quality cleanup: delete Phase-2-confirmed dead code**~~ — Removed `apps/myk9show/src/lib/lazyLoading.ts`, `usePaginatedQueries.ts`, `useOptimizedSearch.ts`, their direct dead-hook tests, `apps/myk9show/src/services/entryService.ts`, unreachable demo/test pages, `components/forms/OptimisticForm.tsx`, unused sync panels, and `apps/myk9show/src/config/performance-budget.ts`. Kept `supabase/functions/send-notification` out of this wave until deployed Supabase usage/log/config checks are done.
 
@@ -552,6 +552,7 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
   - **Platform fee setting:** replace the three-place manual fee change (secret + server fallback + compiled client rate, raised 3%→7% on 2026-06-10) with a `platform_settings` row (site-admin-only write, RLS + write-guard trigger) read by BOTH stripe-checkout and the cart preview (React Query), so the rate is one number changeable from this page with no deploy. Migrate `PLATFORM_FEE_PERCENT` secret → table (keep `resolvePlatformFeePercent` bounds 0–20 as validation); delete `PLATFORM_FEE_RATE`/`PLATFORM_FEE_PERCENT_LABEL` client constants in favor of the fetched value. Subsumes the parked "Configurable Exhibitor Convenience Fee" item's site-admin-default half (per-show override stays parked until a club negotiates one).
 
   Pairs with the Exhibitor Payments page below.
+
 - [ ] **Exhibitor Payments page** — `/exhibitor/payments` list view: date, show name, amount, Stripe reference, status, receipt link. Now unblocked: `stripe_orders` carries amount/status/`show_id`/`entry_ids` per payment. Files: `apps/myk9show/src/pages/`.
 
 ## Pre-Launch Housekeeping

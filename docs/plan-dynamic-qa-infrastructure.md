@@ -1,4 +1,4 @@
-# Plan: Proactive QA Hardening (follow-on to the Code-Quality Audit)
+# Plan: Dynamic QA Infrastructure (follow-on to the Code-Quality Audit)
 
 **Created:** 2026-06-12 · **Status:** Draft — not started
 **Goal:** Build the QA infrastructure the code-quality audit cannot: dynamic tests for offline/replication behavior, mutation testing of money-path math, database-side drift checks, error observability, and flaky-test quarantine. Where the audit *finds and removes* existing static debt, this plan *builds new guards* so quality holds after launch.

@@ -1,7 +1,7 @@
 # 01 Oversized Files
 
 Finder: subagent `019eb9d1-fe43-7720-baa6-ab09980fda6f`
-Status: Phase 1 inventory complete; Phase 2 verification still needed for P2 fix waves.
+Status: Phase 1 inventory complete; initial Phase 2 source-level verification recorded in `09-phase-2-verification.md`.
 
 ## Commands And Exclusions
 
@@ -30,9 +30,9 @@ Actionability note: broad clusters below are Phase 1 inventory only. Before any 
 
 | Files | Severity | Classification | Evidence | Verification | Proposed Fix | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `packages/replication/src/MutationManager.ts`, `packages/replication/src/core/ReplicatedTable.ts`, `apps/myk9show/src/providers/ReplicationSyncProvider.tsx`, sync/offline helpers | P2 | Multiple concerns | Queueing, backup, OCC, upload, conflict, and toast/provider orchestration are mixed. | finder-confirmed by line count and symbol scan; Phase-2 pending file:line narrowing | Split pure queue/OCC/backup/conflict helpers with focused tests. | High launch priority: offline-first reliability. |
-| Scoring service/components including `OfflineScoringService.ts` | P2 | Multiple concerns | Scoring state, sync, conflict UI, save confirmation, and calculations are colocated in large files. | finder-confirmed; Phase-2 pending file:line narrowing | Extract scoring math, save dialogs, and conflict helpers with behavior tests. | High launch priority: scoring correctness. |
-| `ShowMapStructureTable.tsx`, `showMapActions.ts` | P2 | Multiple concerns; INTENT-sensitive | Row rendering, keyboard focus, recommendations, and attention logic are colocated; many `// INTENT:` comments. | finder-confirmed; INTENT checked; Phase-2 pending file:line narrowing | Extract render cells and pure action helpers only. | Preserve protected secretary workflow behavior. |
+| `packages/replication/src/MutationManager.ts`, `packages/replication/src/core/ReplicatedTable.ts`, `apps/myk9show/src/providers/ReplicationSyncProvider.tsx`, sync/offline helpers | P2 | Multiple concerns | Queueing, backup, OCC, upload, conflict, and toast/provider orchestration are mixed. | Phase-2 confirmed; see `09-phase-2-verification.md` | Split pure queue/OCC/backup/conflict helpers with focused tests. | High launch priority: offline-first reliability. |
+| Scoring service/components including `OfflineScoringService.ts` | P2 | Multiple concerns | Scoring state, sync, conflict UI, save confirmation, and calculations are colocated in large files. | Phase-2 confirmed; see `09-phase-2-verification.md` | Extract scoring math, save dialogs, and conflict helpers with behavior tests. | High launch priority: scoring correctness. |
+| `ShowMapStructureTable.tsx`, `showMapActions.ts` | P2 | Multiple concerns; INTENT-sensitive | Row rendering, keyboard focus, recommendations, and attention logic are colocated; many `// INTENT:` comments. | Phase-2 confirmed; see `09-phase-2-verification.md` | Extract render cells and pure action helpers only. | Preserve protected secretary workflow behavior. |
 | Entry secretary ops: `PullManagementTab.tsx`, `useEntryManagementActions.ts`, `entries/lifecycle.ts`, `entries/secretary.ts`, `OfflineEntryCreator.ts`, `EntryValidator.ts`, `MoveUpRequestsTab.tsx` | P2 | Multiple concerns | Entry lifecycle, day-of changes, validation, bulk actions, and dialogs spread across large files. | finder-confirmed; Phase-2 pending file:line narrowing | Extract lifecycle transitions, validation, and dialog view components. | High launch priority. |
 | Database read facades: `entries/reads.ts`, `judges/reads.ts`, `dogs/reads.ts`, `classes/reads.ts`, `waitlists/reads.ts`, `users/reads.ts` | P2 | Multiple concerns | Many exported query families plus PostgREST fallback/local mapping. | finder-confirmed; Phase-2 pending file:line narrowing | Split by query family and shared mapping/fallback helpers. | Also relevant to duplication audit. |
 | Registration/show creation wizards and dog/class selection steps | P2 | Multiple concerns | Page orchestration plus data loading, audience behavior, dialogs, and UI rows. | finder-confirmed; Phase-2 pending file:line narrowing | Extract wizard orchestration hooks and row/list subcomponents. | Dog picker audience issue already tracked. |

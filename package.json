@@ -16,6 +16,8 @@
     "qa:db-drift:enum": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/db-drift/enum-check-drift.ts",
     "qa:db-drift:functions": "SUPABASE_PROJECT_REF=sojmvhhwsjxmfistvzbe node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/db-drift/function-inventory.ts",
     "qa:db-drift:test": "vitest run scripts/qa/db-drift/*.test.ts",
+    "qa:rls-smoke": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/rls-smoke/rls-recursion-smoke.ts",
+    "qa:rls-smoke:test": "vitest run scripts/qa/rls-smoke/*.test.ts",
     "test": "turbo test",
     "test:packages": "turbo test --filter=@myk9/core --filter=@myk9/replication --filter=@myk9/ringside --filter=@myk9/scoring --filter=@myk9/scoring-ui --filter=@myk9/supabase --filter=@myk9/ui",
     "test:packages:coverage": "turbo test --filter=@myk9/core --filter=@myk9/replication --filter=@myk9/ringside --filter=@myk9/scoring --filter=@myk9/scoring-ui --filter=@myk9/supabase --filter=@myk9/ui -- --coverage",

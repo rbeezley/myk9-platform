@@ -75,8 +75,21 @@ Route inventory confirms the current app treats `/at-show/:showId` as the day-of
 
 ## Light Browser Checks
 
+Dev server used: `http://localhost:5173/`.
+
+Credentials came from `apps/myk9show/src/test/e2e/helpers/testUsers.ts`: exhibitor `exhibitor1@myk9t.com` and secretary `secretary@myk9t.com`, both with the checked-in password from that file. No forms were submitted beyond sign-in. Seeded show ids were discovered from rendered read-only pages: exhibitor show `3b91e282-6e45-4a89-9446-f6ebeb0bf62c` and secretary show `4584f257-19b5-4016-aae6-5e7827b769cb`.
+
 | Route | Expected behavior | Result | Evidence |
 | --- | --- | --- | --- |
+| `/exhibitor/show-day` | Legacy path redirects to show-specific `/at-show/:showId` when show context exists, otherwise falls back to My Entries | Confirmed | Signed-in exhibitor landed on `http://localhost:5173/exhibitor/entries`; this matches the no-selected-show fallback in `getLegacyShowDayRedirectTarget`. Page rendered `My Shows` with a show-day banner. |
+| `/exhibitor/entries` | Exhibitor My Shows / My Entries hub renders for the signed-in exhibitor | Confirmed | Signed-in exhibitor stayed on `http://localhost:5173/exhibitor/entries`; page rendered `My Shows`, `My Dogs`, and `My Entries`. A server data-load toast appeared for `dogs`/`entries` policy recursion, so this is route/render evidence, not a clean data-state pass. |
+| `/shows/:showId` | Show details page renders for a safe seeded show id | Confirmed | With exhibitor show id `3b91e282-6e45-4a89-9446-f6ebeb0bf62c`, final URL was `http://localhost:5173/shows/3b91e282-6e45-4a89-9446-f6ebeb0bf62c`; page rendered `Heritage`, entry status, tabs, and `My run schedule`. |
+| `/shows/:showId/register` | Registration wizard route renders for a safe seeded show id without submitting entry data | Confirmed | With exhibitor show id `3b91e282-6e45-4a89-9446-f6ebeb0bf62c`, final URL was `http://localhost:5173/shows/3b91e282-6e45-4a89-9446-f6ebeb0bf62c/register`; page rendered `Register for Show` and the class-selection step. No class selection or submission was performed. |
+| `/at-show/:showId` | At-show class picker renders for a safe seeded show id | Confirmed | With exhibitor show id `3b91e282-6e45-4a89-9446-f6ebeb0bf62c`, final URL was `http://localhost:5173/at-show/3b91e282-6e45-4a89-9446-f6ebeb0bf62c`; page rendered `Heritage` and grouped class cards by trial. |
+| `/secretary/dashboard` | Secretary dashboard renders for the signed-in secretary | Confirmed | Signed-in secretary stayed on `http://localhost:5173/secretary/dashboard`; page rendered `Good afternoon, Test`, show sections, and task content. A server data-load toast appeared for `dogs`/`entries` policy recursion, so this is route/render evidence, not a clean data-state pass. |
+| `/secretary/shows/:showId?phase=setup` | Legacy secretary show route redirects to canonical single-show setup surface | Confirmed | With secretary show id `4584f257-19b5-4016-aae6-5e7827b769cb`, final URL was `http://localhost:5173/shows/4584f257-19b5-4016-aae6-5e7827b769cb/setup?phase=setup`; page rendered the single-show workbench `Setup` surface. |
+| `/secretary/shows/:showId?phase=show-desk` | Expected show-desk phase link should land on the canonical Show Desk surface | Different | With secretary show id `4584f257-19b5-4016-aae6-5e7827b769cb`, final URL was `http://localhost:5173/shows/4584f257-19b5-4016-aae6-5e7827b769cb/setup?phase=show-desk`; page rendered `Setup`, not Show Desk. Code-backed cause: `LegacySecretaryShowRedirect` preserves the query string but defaults the subpath to `setup`. |
+| `/secretary/shows/:showId/entry-management` | Legacy secretary show subroute redirects to canonical show-scoped Entry Management | Confirmed | With secretary show id `4584f257-19b5-4016-aae6-5e7827b769cb`, final URL was `http://localhost:5173/shows/4584f257-19b5-4016-aae6-5e7827b769cb/entry-management`; page rendered `Entry Management`. |
 
 ## Recon Gaps For Later Phases
 

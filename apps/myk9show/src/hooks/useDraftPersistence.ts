@@ -53,6 +53,7 @@ export function useDraftPersistence(
   const { draftData } = useShowRegistrationStore();
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedDataRef = useRef<string>('');
+  const skipFinalSaveRef = useRef(false);
   const [lastAutoSaveTime, setLastAutoSaveTime] = useState<Date | null>(null);
 
   const log = useCallback(
@@ -288,6 +289,11 @@ export function useDraftPersistence(
     log('Cleared all drafts for show:', showId);
   }, [getDraftMetadata, getDraftKey, getMetadataKey, showId, log]);
 
+  const discardDraftsWithoutFinalSave = useCallback(() => {
+    skipFinalSaveRef.current = true;
+    clearAllDrafts();
+  }, [clearAllDrafts]);
+
   // Keep a ref to the latest autoSave so the timer effect can call it without
   // having `autoSave` as a dependency — otherwise the timer gets cleared and
   // restarted on every render (because `autoSave` depends on `draftData`,
@@ -317,6 +323,10 @@ export function useDraftPersistence(
   // Save on component unmount
   useEffect(() => {
     return () => {
+      if (skipFinalSaveRef.current) {
+        log('Component unmounting, final draft save skipped');
+        return;
+      }
       log('Component unmounting, performing final save');
       autoSaveRef.current();
     };
@@ -336,6 +346,7 @@ export function useDraftPersistence(
     // Draft management
     availableDrafts,
     clearAllDrafts,
+    discardDraftsWithoutFinalSave,
 
     // State
     hasUnsavedChanges: draftData && Object.keys(draftData).length > 0,

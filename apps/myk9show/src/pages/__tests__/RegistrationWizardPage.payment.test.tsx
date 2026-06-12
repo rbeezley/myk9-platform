@@ -14,6 +14,8 @@ const submitShowRegistrationMock = vi.hoisted(() => vi.fn());
 const submitRegistrationCartCheckoutMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const deleteDraftMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const createRegistrationMock = vi.hoisted(() => vi.fn(() => ({ id: 'reg-1' })));
+const clearDraftDataMock = vi.hoisted(() => vi.fn());
+const discardDraftsWithoutFinalSaveMock = vi.hoisted(() => vi.fn());
 const cartActionsMock = vi.hoisted(() => ({
   loadCart: vi.fn(),
   clearCart: vi.fn(),
@@ -47,6 +49,7 @@ vi.mock('@/store/showRegistrationStore', () => ({
     confirmRegistration: vi.fn(),
     currentRegistration: { id: 'reg-1', status: 'draft', registrationNumber: 'REG-1' },
     setDraftData: vi.fn(),
+    clearDraftData: clearDraftDataMock,
     updateRegistration: vi.fn(),
     updatePaymentStatus: vi.fn(),
     updateEntryStatus: vi.fn(),
@@ -102,6 +105,7 @@ vi.mock('@/hooks/useDraftPersistence', () => ({
     deleteDraft: deleteDraftMock,
     availableDrafts: [],
     clearAllDrafts: vi.fn(),
+    discardDraftsWithoutFinalSave: discardDraftsWithoutFinalSaveMock,
     hasUnsavedChanges: false,
   }),
 }));
@@ -187,6 +191,8 @@ describe('RegistrationWizardPage — Stripe payment handoff', () => {
     submitRegistrationCartCheckoutMock.mockClear();
     deleteDraftMock.mockClear();
     createRegistrationMock.mockClear();
+    clearDraftDataMock.mockClear();
+    discardDraftsWithoutFinalSaveMock.mockClear();
   });
 
   it('hands credit-card payment to the cart checkout flow instead of submitShowRegistration', async () => {
@@ -205,5 +211,30 @@ describe('RegistrationWizardPage — Stripe payment handoff', () => {
 
     await waitFor(() => expect(submitRegistrationCartCheckoutMock).toHaveBeenCalledTimes(1));
     expect(submitShowRegistrationMock).not.toHaveBeenCalled();
+  });
+
+  it('discards wizard drafts without allowing final auto-save during Stripe handoff', async () => {
+    const { user } = render(<RegistrationWizardPage />, {
+      initialRoute: '/shows/show-1/register',
+    });
+
+    await waitFor(() => expect(screen.getByTestId('step-content')).toHaveTextContent('class-selection'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+
+    await waitFor(() => expect(screen.getByTestId('step-content')).toHaveTextContent('payment'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+
+    await waitFor(() => expect(submitRegistrationCartCheckoutMock).toHaveBeenCalledTimes(1));
+    const [{ deps }] = submitRegistrationCartCheckoutMock.mock.calls[0] as Array<{
+      deps: { deleteDraft: () => Promise<void> };
+    }>;
+
+    await deps.deleteDraft();
+
+    expect(discardDraftsWithoutFinalSaveMock).toHaveBeenCalledTimes(1);
+    expect(clearDraftDataMock).toHaveBeenCalledTimes(1);
+    expect(deleteDraftMock).not.toHaveBeenCalled();
   });
 });

@@ -182,6 +182,7 @@ function RegistrationWizardContent() {
     confirmRegistration,
     currentRegistration,
     setDraftData,
+    clearDraftData,
     updateRegistration: updateShowRegistration,
     updatePaymentStatus: storeUpdatePaymentStatus,
     updateEntryStatus: storeUpdateEntryStatus,
@@ -198,6 +199,7 @@ function RegistrationWizardContent() {
     deleteDraft: draftDelete,
     availableDrafts,
     clearAllDrafts,
+    discardDraftsWithoutFinalSave,
     hasUnsavedChanges,
   } = useDraftPersistence(showId || '', userId, currentStepId, {
     autoSaveInterval: 30000,
@@ -412,9 +414,8 @@ function RegistrationWizardContent() {
               addItem,
               abandonCart,
               deleteDraft: async () => {
-                for (const draft of availableDrafts) {
-                  await Promise.resolve(draftDelete(draft.id));
-                }
+                discardDraftsWithoutFinalSave();
+                clearDraftData();
               },
               navigate: path => navigate(path),
             },

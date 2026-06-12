@@ -1,0 +1,182 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-12T00:00:00Z",
+  "title": "Design System: myK9 Platform",
+  "extensions": {
+    "colorMeta": {
+      "clay": {
+        "role": "primary",
+        "displayName": "Clay",
+        "canonical": "#c96442",
+        "tonalRamp": ["#3d2516", "#7c4a2e", "#b05338", "#c96442", "#db8561", "#f2c8a8", "#f9e5d5", "#fdf5ef"]
+      },
+      "grove": {
+        "role": "primary",
+        "displayName": "Grove",
+        "canonical": "#2f8a7f",
+        "tonalRamp": ["#0d2e2b", "#184d47", "#226b63", "#2f8a7f", "#3aa898", "#b9dcd6", "#cce9e4", "#ecf6f4"]
+      },
+      "dusk": {
+        "role": "primary",
+        "displayName": "Dusk",
+        "canonical": "#3d6d8c",
+        "tonalRamp": ["#0d1e2a", "#213e53", "#305875", "#3d6d8c", "#5088a8", "#b9cbd9", "#cfdbe6", "#edf2f6"]
+      },
+      "heather": {
+        "role": "primary",
+        "displayName": "Heather",
+        "canonical": "#7b5aa6",
+        "tonalRamp": ["#1e1028", "#432f61", "#634689", "#7b5aa6", "#9572bf", "#cdbedb", "#e0d5ed", "#f1ecf6"]
+      },
+      "catalog-cream": {
+        "role": "neutral",
+        "displayName": "Catalog Cream",
+        "canonical": "#f5f4ed",
+        "tonalRamp": ["#181411", "#1e1c19", "#403a31", "#8c8376", "#b9b1a0", "#e4dccc", "#f0eee6", "#f5f4ed"]
+      },
+      "ivory": {
+        "role": "neutral",
+        "displayName": "Ivory",
+        "canonical": "#faf9f5",
+        "tonalRamp": ["#181411", "#252522", "#403a31", "#8c8376", "#b9b1a0", "#e8e6dc", "#f3efe6", "#faf9f5"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#141413",
+        "tonalRamp": ["#141413", "#181411", "#1e1c19", "#2e2b27", "#3a3a36", "#5e5d59", "#87867f", "#b0aea5"]
+      },
+      "ring-green": {
+        "role": "secondary",
+        "displayName": "Ring Green",
+        "canonical": "#4e7c53",
+        "tonalRamp": ["#1c2e1e", "#385a3b", "#4e7c53", "#5f8f64", "#7fa883", "#b3ccb5", "#d8e6d9", "#f1f8f1"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display (Fraunces)", "purpose": "Celebration moments only: The Podium, titles earned, heritage landings. Forbidden in working UI." },
+      "headline": { "displayName": "Headline", "purpose": "Page titles. Multiplied by user --font-scale." },
+      "body": { "displayName": "Body", "purpose": "All working text. 16px minimum before user scaling." },
+      "label": { "displayName": "Label", "purpose": "Chips, badges, form labels, metadata." },
+      "mono": { "displayName": "Mono (JetBrains Mono)", "purpose": "Armband numbers, times, scores — tabular digits." }
+    },
+    "shadows": [
+      { "name": "card-rest", "value": "rgba(61, 37, 22, 0.05) 0 4px 24px", "purpose": "Whisper-soft ambient lift for elevated cards; optional, borders often suffice." },
+      { "name": "card-hover", "value": "0 0 0 1px var(--border), rgba(61, 37, 22, 0.06) 0 8px 28px", "purpose": "Hover response paired with a 1-2px translateY rise." },
+      { "name": "header", "value": "0 1px 3px rgba(61, 37, 22, 0.04)", "purpose": "Faintest separation under sticky headers." },
+      { "name": "ring-primary", "value": "0 0 0 1px var(--primary)", "purpose": "Selected / active containment in the user's accent." },
+      { "name": "modal", "value": "0 12px 32px rgba(0, 0, 0, 0.15)", "purpose": "Floating layers only: modals, popovers, toasts." }
+    ],
+    "motion": [
+      { "name": "transition-fast", "value": "0.15s ease", "purpose": "Hover and press feedback on buttons and links." },
+      { "name": "transition-normal", "value": "0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)", "purpose": "Default ease-out for state transitions and lifts." },
+      { "name": "spring", "value": "cubic-bezier(0.175, 0.885, 0.32, 1.275)", "purpose": "Celebration moments only (The Podium); never in working UI." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one chromatic button on a screen; renders in the user's chosen accent.",
+      "html": "<button class=\"ds-btn-primary\">Enter Show</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 8px 24px; background: var(--primary, #c96442); color: #ffffff; font-family: Montserrat, system-ui, sans-serif; font-size: 14px; font-weight: 500; border: none; border-radius: 8px; cursor: pointer; transition: all 0.15s ease; } .ds-btn-primary:hover { opacity: 0.9; transform: translateY(-1px); } .ds-btn-primary:active { transform: translateY(0); } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 1px var(--background, #f5f4ed), 0 0 0 3px color-mix(in srgb, var(--primary, #c96442) 30%, transparent); }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Secondary action: sand surface, ink text, quiet next to the primary.",
+      "html": "<button class=\"ds-btn-outline\">Cancel</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 8px 24px; background: var(--secondary, #e8e6dc); color: var(--secondary-foreground, #4d4c48); font-family: Montserrat, system-ui, sans-serif; font-size: 14px; font-weight: 500; border: 1px solid var(--border, #e8e6dc); border-radius: 8px; cursor: pointer; transition: all 0.15s ease; } .ds-btn-outline:hover { background: var(--muted, #f0eee6); transform: translateY(-1px); } .ds-btn-outline:active { transform: translateY(0); } .ds-btn-outline:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary, #c96442) 30%, transparent); }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Ivory surface with sand border; flat at rest, soft lift on hover.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-title\">Ring 2 — Scent Work</div><div class=\"ds-card-body\">Interior Search, Excellent A. 14 entries, judging starts 9:00 AM.</div></div>",
+      "css": ".ds-card { background: var(--card, #faf9f5); color: var(--card-foreground, #141413); border: 1px solid var(--border, #e8e6dc); border-radius: 12px; padding: 24px; font-family: Montserrat, system-ui, sans-serif; transition: box-shadow 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94); } .ds-card:hover { box-shadow: 0 0 0 1px var(--border, #e8e6dc), rgba(61, 37, 22, 0.06) 0 8px 28px; transform: translateY(-1px); } .ds-card-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; } .ds-card-body { font-size: 14px; color: var(--muted-foreground, #87867f); line-height: 1.5; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Catalog-cream fill with accent-tinted focus ring; 44px touch height.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Dog's call name\" />",
+      "css": ".ds-input { height: 44px; width: 260px; padding: 8px 12px; background: var(--input-bg, #f5f4ed); color: var(--input-text, #141413); font-family: Montserrat, system-ui, sans-serif; font-size: 16px; border: 1px solid var(--input-border, #e8e6dc); border-radius: 8px; transition: all 0.15s ease; } .ds-input::placeholder { color: var(--muted-foreground, #87867f); } .ds-input:hover { background: var(--input-bg-hover, #ede9e0); } .ds-input:focus-visible { outline: none; border-color: var(--ring, #f2c8a8); box-shadow: 0 0 0 2px var(--ring, #f2c8a8); }"
+    },
+    {
+      "name": "Status Chip",
+      "kind": "chip",
+      "refersTo": "chip-status",
+      "description": "Pill chip from the hue-named pair system; tinted background, same-hue ink.",
+      "html": "<span class=\"ds-chip ds-chip-green\">Checked in</span> <span class=\"ds-chip ds-chip-amber\">Conflict</span> <span class=\"ds-chip ds-chip-stone\">No status</span>",
+      "css": ".ds-chip { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 9999px; font-family: Montserrat, system-ui, sans-serif; font-size: 12px; font-weight: 500; line-height: 1.6; margin-right: 6px; } .ds-chip-green { background: var(--chip-green-bg, #dcfce7); color: var(--chip-green-fg, #166534); } .ds-chip-amber { background: var(--chip-amber-bg, #fef3c7); color: var(--chip-amber-fg, #92400e); } .ds-chip-stone { background: var(--chip-stone-bg, #f1efe7); color: var(--chip-stone-fg, #3a3a36); }"
+    },
+    {
+      "name": "Live Indicator",
+      "kind": "custom",
+      "refersTo": "chip-status",
+      "description": "Ring Green badge reserved exclusively for judging-in-progress.",
+      "html": "<span class=\"ds-live\"><span class=\"ds-live-dot\"></span>LIVE — Ring 1</span>",
+      "css": ".ds-live { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 9999px; background: var(--live-tint, #f1f8f1); color: var(--live-ink, #385a3b); font-family: Montserrat, system-ui, sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.02em; } .ds-live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--live, #4e7c53); }"
+    },
+    {
+      "name": "Nav Item",
+      "kind": "nav",
+      "refersTo": "button-ghost",
+      "description": "Sidebar item: stone at rest, accent tint fill when active.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item\" href=\"#\">Entries</a><a class=\"ds-nav-item ds-nav-active\" href=\"#\">Show Map</a><a class=\"ds-nav-item\" href=\"#\">Reports</a></nav>",
+      "css": ".ds-nav { display: flex; flex-direction: column; gap: 2px; width: 200px; font-family: Montserrat, system-ui, sans-serif; } .ds-nav-item { display: flex; align-items: center; min-height: 44px; padding: 8px 12px; border-radius: 8px; color: var(--muted-foreground, #87867f); font-size: 14px; font-weight: 500; text-decoration: none; transition: all 0.15s ease; } .ds-nav-item:hover { color: var(--foreground, #141413); background: var(--muted, #f0eee6); } .ds-nav-active { background: var(--accent, #fdf5ef); color: var(--accent-foreground, #7c4a2e); } .ds-nav-item:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ring, #f2c8a8); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Show Morning",
+    "overview": "Warm early light at the venue. Rings taped, catalogs stacked, armbands sorted — everything laid out and ready before the first dog runs. The interface should feel like that hour: calm, prepared, unhurried, and quietly warm. The visual foundation is warm paper, not cold glass: a catalog-cream canvas with ivory cards, sand borders, and ink text. Color arrives through a user-selectable accent (Clay, Grove, Dusk, Heather); components speak var(--primary) and let the user's preference flow through. Dark mode is a different time of day, not an inversion. Built for older, non-technical users operating outdoors: 44px targets, scalable 16px+ text, density preferences, and calm offline states.",
+    "keyCharacteristics": [
+      "Warm catalog-cream canvas (#f5f4ed) with exclusively warm-toned neutrals",
+      "User-selectable accent system (Clay / Grove / Dusk / Heather) wired through --primary",
+      "Montserrat for all UI; Fraunces serif reserved for celebration moments only",
+      "Flat by default; soft warm shadows appear in response to interaction",
+      "Semantic status-color vocabulary never used decoratively",
+      "Accessibility as identity: 44px targets, font scaling, density preferences, calm offline states",
+      "Token layering: base UI tokens, accent system, redesign tokens, chip pairs"
+    ],
+    "rules": [
+      { "name": "The Accent Is the User's Rule", "body": "Components never hardcode #c96442 or any accent hex. Always var(--primary), var(--accent), var(--ring). A component that only looks right in Clay is broken.", "section": "colors" },
+      { "name": "The Ring Green Rule", "body": "Ring Green (#4e7c53) appears only on live-judging indicators. Never for success states, never for decoration.", "section": "colors" },
+      { "name": "The Status Is Sacred Rule", "body": "Status colors are a vocabulary the whole show day depends on. Never repurpose a status color for decoration, and never invent a new status color when one exists.", "section": "colors" },
+      { "name": "The Podium Rule", "body": "Fraunces is forbidden in working UI. If the screen helps someone do a task, it is Montserrat. If the screen honors something a dog just did, Fraunces may speak.", "section": "typography" },
+      { "name": "The Font Scale Rule", "body": "All body and heading sizes multiply by --font-scale (user preference). Never set text in fixed px that escapes the scale, and never below 12px equivalent.", "section": "typography" },
+      { "name": "The Flat-by-Default Rule", "body": "A surface earns a shadow by being interacted with or by floating above the page (modal, popover, toast). Resting content stays flat.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep every neutral warm-toned — if a gray has no yellow-brown undertone, it doesn't belong here.",
+      "Do route all accent color through var(--primary) / var(--accent) tokens so Clay, Grove, Dusk, and Heather all render correctly.",
+      "Do keep touch targets at 44px minimum and body text at 16px+ before user scaling — the audience is older, outdoors, often wearing gloves.",
+      "Do use the existing status vocabulary (--status-*, chip pairs) for any state communication; check both light and dark renderings.",
+      "Do make offline and sync states quiet and reassuring — offline is normal, not broken.",
+      "Do write plain-English microcopy in dog-show terminology; plain language beats clever language.",
+      "Do add new tokens to the layer they belong to (base / accent / redesign / chip) rather than introducing one-off values."
+    ],
+    "donts": [
+      "Don't build flashy or trendy product UI that competes with the work — no gradient text, no glassmorphism as decoration, no hero-metric dashboards.",
+      "Don't create dense passive tool palettes that leave a new secretary wondering what to do next — each role gets one clear home and one clear next step.",
+      "Don't use wizard-heavy workflows for interrupt-driven show-day tasks or confirmation dialogs for routine actions.",
+      "Don't ship tiny controls, hover-only affordances, gesture-only actions, or text that is hard to read outdoors.",
+      "Don't show technical error messages, sync anxiety, or anything that makes poor connectivity feel like user failure.",
+      "Don't use pure white (#ffffff) as a page background, pure black as text, or cool blue-grays anywhere outside the status vocabulary.",
+      "Don't hardcode #c96442 (or any accent hex) in a component — it breaks the other three accents.",
+      "Don't use Fraunces in working UI, Ring Green outside live-judging, or status colors as decoration.",
+      "Don't use colored side-stripe borders (border-left > 1px) on cards or alerts; use full borders, tints, or nothing.",
+      "Don't reach for a modal first — exhaust inline and progressive disclosure; modals are for genuine interruptions."
+    ]
+  }
+}

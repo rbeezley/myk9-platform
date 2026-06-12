@@ -370,7 +370,7 @@ async function handleEntryCheckout(
   {
     const connectPayoutsEnabled = showFees.club_id
       ? await supabase
-          .from('stripe_connect_accounts')
+          .from('club_stripe_accounts')
           .select('payouts_enabled')
           .eq('club_id', showFees.club_id)
           .maybeSingle()
@@ -533,7 +533,6 @@ async function handleEntryCheckout(
   const sessionExpiresAtEpoch = Math.floor(Date.now() / 1000) + 31 * 60;
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
-    payment_method_types: ['card'],
     line_items: lineItems,
     mode: 'payment',
     expires_at: sessionExpiresAtEpoch,
@@ -642,7 +641,6 @@ async function handleSubscriptionCheckout(
 
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
-    payment_method_types: ['card'],
     line_items: [{ price: price_id, quantity: 1 }],
     mode: 'subscription',
     success_url: successUrl,

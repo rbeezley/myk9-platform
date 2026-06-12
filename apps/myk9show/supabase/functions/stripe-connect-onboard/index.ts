@@ -132,6 +132,13 @@ Deno.serve(async req => {
 
     let stripeAccountId = existing?.stripe_account_id;
     if (!stripeAccountId) {
+      // TODO (pre-launch): Stripe now recommends Accounts v2 (controller-based)
+      // instead of type:'express' for new Connect integrations. Migration path:
+      // drop `type` and pass `controller: { stripe_dashboard: { type: 'express' },
+      // fees: { payer: 'application' }, losses: { payments: 'application' } }`.
+      // Express accounts created here still work but are considered legacy.
+      // Migrate before opening club onboarding to real users.
+      //
       // Stripe rejects transfers-only capability requests for Express
       // (capabilities_cannot_have_transfers_without_card_payments_unless_payee);
       // both must be requested even though clubs never take card payments.

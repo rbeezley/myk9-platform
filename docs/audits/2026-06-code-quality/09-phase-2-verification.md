@@ -14,7 +14,7 @@ Method: four read-only verification tracks plus targeted main-agent checks. Veri
 | `calculateCartTotals` lacks direct unit tests | Confirmed, with path correction | No direct test imports for `calculateCartTotals`, `PLATFORM_FEE_PERCENT`, or `cartStore.helpers`. The server fee helper does exist at `apps/myk9show/supabase/functions/_shared/platformFee.ts`; the missing path was the root `supabase/functions/_shared/platformFee.ts`. | Add focused helper tests for empty cart, multi-item subtotal, the 350-cent boundary, label percent, and parity with the server helper. |
 | `ScoreValidatorService` lacks direct unit tests | Confirmed | `apps/myk9show/src/services/scoring/ScoreValidatorService.ts` exports a branch-heavy validator and singleton; test scans found no direct references to `ScoreValidatorService`, `scoreValidatorService`, `validateRealTime`, or `validateScores`. | Add direct unit tests before refactor: required/range rules, real-time mode, custom rules, timestamp validation, judge ID validation, and Q/NQ consistency. |
 | `PlacementCalculatorService.helpers` lacks direct unit tests | Confirmed | `apps/myk9show/src/services/scoring/PlacementCalculatorService.helpers.ts` exports placement/tie/sort/serialization helpers consumed by `PlacementCalculatorService.ts`; no direct helper tests found. | Add table-driven tests for sorting by format, ties, tie resolution, placement shifts/gaps, empty calculation, and serialize/deserialize date behavior. |
-| `/judge/check-in` false empty state | Confirmed | Live route exists in `apps/myk9show/src/routes/judgeRoutes.tsx`; `JudgeCheckInDashboard.tsx` initializes `ringAssignments` to `[]` with a TODO and can render "No Ring Assignments" from that hardcoded state. | Wire a real judge/ring assignment query or add a launch-blocking backlog item. |
+| `/judge/check-in` false empty state | Confirmed launch-blocking unless removed from launch scope | Live route exists in `apps/myk9show/src/routes/judgeRoutes.tsx`; `JudgeCheckInDashboard.tsx` initializes `ringAssignments` to `[]` with a TODO and can render "No Ring Assignments" from that hardcoded state. | Wire a real judge/ring assignment query, or explicitly remove/de-scope the route before launch. |
 
 ## Confirmed P2 Items
 
@@ -75,7 +75,7 @@ Method: four read-only verification tracks plus targeted main-agent checks. Veri
 ## Recommended Implementation Order
 
 1. Wave A: safe delete-first cleanup for Phase-2-confirmed dead code.
-2. Wave B: P1 tests and type canonicalization prep, especially fee/scoring/placement/judge check-in.
+2. Wave B / P1 launch gate: fee/scoring/placement tests, type canonicalization prep, and the `/judge/check-in` false-empty fix or route de-scope decision.
 3. Wave C: replication bypass fixes for secretary and show-day reliability.
 4. Wave D: lower-risk refactors and config/test cleanup after the critical paths are covered.
 

@@ -4,6 +4,15 @@ Active work items only. Resolved historical context lives in git history and dat
 
 ---
 
+## At-Show Exhibitor Awareness — implemented 2026-06-11, PR pending
+
+Plan: `docs/plan-at-show-exhibitor-awareness.md`. Branch `claude/at-show-exhibitor-awareness`. Own-dog highlighting, live "N dogs ahead" pills, and ring-conflict chips on the `/at-show` entry lists, plus realtime refresh (myK9Q parity). Locked decisions: in-ring dog EXCLUDED from the count ("You're next" while a dog runs), entry-list-only surfaces (class-card chips cut), conflict = ≥2 own entries within `leadDogs` in different in-progress classes (both sides badged).
+
+- [ ] **Open PR + review** — all 5 phases implemented with tests green (ringside 373 + at-show suites); needs `/review` and merge.
+- [ ] **Manual show-day walk** — exhibitor account with entries: highlight → pill counts down live → conflict chip on both entries.
+
+---
+
 ## Pre-Launch Critical Audit — 2026-06-09
 
 Full findings in `docs/pre-launch-audit-2026-06-09.md`. Non-Stripe criticals fixed same day (failed-mutation persistence + synchronous backup in `@myk9/replication`, bulk show actions wired to real mutations, armband failures surfaced).

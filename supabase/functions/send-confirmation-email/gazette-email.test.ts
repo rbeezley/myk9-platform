@@ -101,8 +101,20 @@ describe('buildGazetteHtml', () => {
     const html = buildGazetteHtml(
       makeData({
         runs: [
-          { numeral: 'I', dayLabel: 'Fri Jun 12', classLabel: 'Containers', judgeName: 'Mrs. B', armband: '247' },
-          { numeral: 'III', dayLabel: 'Sat Jun 13', classLabel: 'Interiors', judgeName: 'Mrs. B', armband: null },
+          {
+            numeral: 'I',
+            dayLabel: 'Fri Jun 12',
+            classLabel: 'Containers',
+            judgeName: 'Mrs. B',
+            armband: '247',
+          },
+          {
+            numeral: 'III',
+            dayLabel: 'Sat Jun 13',
+            classLabel: 'Interiors',
+            judgeName: 'Mrs. B',
+            armband: null,
+          },
         ],
       })
     );
@@ -110,6 +122,26 @@ describe('buildGazetteHtml', () => {
     expect(html).toContain('>iii<');
     expect(html).toContain('247');
     expect(html).toContain('—'); // null armband fallback
+  });
+
+  it('renders production-shaped runs using the numeral field', () => {
+    const html = buildGazetteHtml(
+      makeData({
+        runs: [
+          {
+            numeral: 'III',
+            dayLabel: 'Sat Jun 13',
+            classLabel: 'Excellent · Interiors',
+            judgeName: 'Mrs. B',
+            armband: '314',
+          },
+        ],
+      })
+    );
+
+    expect(html).toContain('>iii<');
+    expect(html).toContain('Excellent · Interiors');
+    expect(html).toContain('314');
   });
 
   it('renders pluralization correctly for run count', () => {
@@ -193,9 +225,7 @@ describe('buildGazetteHtml', () => {
   });
 
   it('falls back to firstClassTime when doorsTime is null', () => {
-    const html = buildGazetteHtml(
-      makeData({ doorsTime: null, firstClassTime: '8:30 AM' })
-    );
+    const html = buildGazetteHtml(makeData({ doorsTime: null, firstClassTime: '8:30 AM' }));
     expect(html).toContain('Be on site by');
     expect(html).toContain('8:30 AM');
   });
@@ -221,9 +251,7 @@ describe('buildGazetteHtml', () => {
   // doorsTime should be treated as "absent" and fall through to
   // firstClassTime, not render an empty <em></em> headline.
   it('treats an empty-string doorsTime as absent and falls through to firstClassTime', () => {
-    const html = buildGazetteHtml(
-      makeData({ doorsTime: '', firstClassTime: '8:30 AM' })
-    );
+    const html = buildGazetteHtml(makeData({ doorsTime: '', firstClassTime: '8:30 AM' }));
     expect(html).toContain('Be on site by');
     expect(html).toContain('8:30 AM');
     expect(html).not.toMatch(/Be on site by\s*<em[^>]*>\s*<\/em>/);

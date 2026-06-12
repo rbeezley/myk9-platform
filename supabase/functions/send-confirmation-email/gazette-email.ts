@@ -13,6 +13,16 @@
 //   - background-clip / OKLCH / color-mix() never used
 //   - All horizontal layout via <table> for Outlook compatibility
 
+import {
+  esc,
+  escMultiline,
+  formatDogLine,
+  formatRunCountLabel,
+  hasOnTheDayDetails,
+  type ConfirmationEmailBaseData,
+  type ConfirmationEmailRunRow,
+} from './confirmation-email-shared.ts';
+
 const GZ_PAPER = '#f7f1e3';
 const GZ_PAPER_WARM = '#ede5d2';
 const GZ_INK = '#2a2520';
@@ -24,63 +34,9 @@ const GZ_DISPLAY = "'Playfair Display', Georgia, serif";
 const GZ_BODY = "'Source Serif 4', Georgia, serif";
 const GZ_META = "'IBM Plex Mono', Courier, monospace";
 
-interface RunRow {
-  numeral: string;
-  dayLabel: string;
-  classLabel: string;
-  judgeName: string;
-  armband: string | null;
-}
-
-export interface GazetteEmailData {
-  clubName: string;
-  clubEstablished: string | null;
-  clubCity: string | null;
-  showTitle: string;
-  dateRange: string;
+export interface GazetteEmailData extends ConfirmationEmailBaseData {
   /** Optional edition strip, e.g. "VOL LXXIX · NO 47". Omit to suppress. */
   editionLabel: string | null;
-
-  salutation: string;
-  dogName: string;
-  dogCallName: string | null;
-  dogBreed: string | null;
-  dogSex: string | null;
-
-  runs: RunRow[];
-  runCount: number;
-  totalFeesFormatted: string;
-  receiptNumber: string | null;
-
-  venue: string | null;
-  doorsTime: string | null;
-  firstClassTime: string | null;
-  parkingNotes: string | null;
-  hospitalityNotes: string | null;
-  cratingNotes: string | null;
-
-  secretaryEmail: string | null;
-  secretaryPhone: string | null;
-
-  trialUrl: string | null;
-  trialChairName: string | null;
-  trialChairTitle: string | null;
-
-  memberClubLanguage: string;
-}
-
-// ─── HTML escape helpers ────────────────────────────────────────────────────
-function esc(s: string | null | undefined): string {
-  if (!s) return '';
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function escMultiline(s: string | null | undefined): string {
-  return esc(s).replace(/\n/g, '<br/>');
 }
 
 /**
@@ -101,7 +57,7 @@ function italicizeMasthead(clubName: string): string {
 }
 
 // ─── Runs table ─────────────────────────────────────────────────────────────
-function runsTable(runs: RunRow[]): string {
+function runsTable(runs: ConfirmationEmailRunRow[]): string {
   const headerCellBase = `padding:10px 8px 8px;border-bottom:1px dotted ${GZ_HAIR};font-family:${GZ_META};font-weight:500;font-size:9px;letter-spacing:0.18em;color:${GZ_MUTE};text-transform:uppercase;`;
   const header = `<tr>
   <th align="left" style="${headerCellBase}padding-left:0;">Trial</th>
@@ -137,9 +93,7 @@ function infoBlock(label: string, value: string | null): string {
 }
 
 export function buildGazetteHtml(data: GazetteEmailData): string {
-  const dogLine = [data.dogCallName ? `"${data.dogCallName}"` : null, data.dogBreed, data.dogSex]
-    .filter(Boolean)
-    .join(' · ');
+  const dogLine = formatDogLine(data, { callNameStyle: 'quoted' });
 
   const editionStrip = data.editionLabel
     ? `<tr>
@@ -168,14 +122,8 @@ export function buildGazetteHtml(data: GazetteEmailData): string {
     ? `Be on site by <em style="font-style:italic;font-weight:400;color:${GZ_BROWN};">${esc(arrivalAccent)}</em>.`
     : `On the <em style="font-style:italic;font-weight:400;color:${GZ_BROWN};">day</em>.`;
 
-  const onTheDayBlock =
-    data.doorsTime ||
-    data.firstClassTime ||
-    data.venue ||
-    data.parkingNotes ||
-    data.hospitalityNotes ||
-    data.cratingNotes
-      ? `<tr>
+  const onTheDayBlock = hasOnTheDayDetails(data)
+    ? `<tr>
   <td style="padding:32px 40px 0;">
     <div style="font-family:${GZ_META};font-weight:600;font-size:10px;letter-spacing:0.28em;text-transform:uppercase;color:${GZ_BROWN};margin-bottom:6px;">Section B · On the Day</div>
     <h2 style="margin:0 0 18px;font-family:${GZ_DISPLAY};font-weight:900;font-size:28px;letter-spacing:-0.012em;line-height:1;color:${GZ_INK};">${onTheDayHeadline}</h2>
@@ -195,7 +143,7 @@ export function buildGazetteHtml(data: GazetteEmailData): string {
     </table>
   </td>
 </tr>`
-      : '';
+    : '';
 
   const noticeContact = data.secretaryEmail
     ? `<a href="mailto:${esc(data.secretaryEmail)}" style="color:${GZ_INK};font-family:${GZ_DISPLAY};font-style:italic;font-size:17px;text-decoration:underline;text-decoration-color:${GZ_HAIR};">${esc(data.secretaryEmail)}</a>`
@@ -288,7 +236,7 @@ export function buildGazetteHtml(data: GazetteEmailData): string {
           <td style="padding:14px 0;border-top:1px solid ${GZ_INK};">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr>
-                <td align="left" style="font-family:${GZ_DISPLAY};font-style:italic;font-weight:400;font-size:15px;color:${GZ_SOFT};">${data.runCount} ${data.runCount === 1 ? 'run' : 'runs'} · Armband across all</td>
+                <td align="left" style="font-family:${GZ_DISPLAY};font-style:italic;font-weight:400;font-size:15px;color:${GZ_SOFT};">${formatRunCountLabel(data.runCount)} · Armband across all</td>
                 <td align="right" style="font-family:${GZ_META};font-weight:500;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:${GZ_MUTE};">Total ${esc(data.totalFeesFormatted)}</td>
               </tr>
             </table>

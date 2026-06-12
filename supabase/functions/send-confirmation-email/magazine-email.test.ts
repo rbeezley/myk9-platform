@@ -16,7 +16,7 @@ function makeData(overrides: Partial<MagazineEmailData> = {}): MagazineEmailData
     dogSex: 'F',
     runs: [
       {
-        trialNumeral: 'i',
+        numeral: 'I',
         dayLabel: 'Fri 12 Jun',
         classLabel: 'Excellent · Containers',
         judgeName: 'C. Beagles',
@@ -63,9 +63,7 @@ describe('buildMagazineHtml', () => {
 
   it('renders the dark editorial footer gradient', () => {
     const html = buildMagazineHtml(makeData());
-    expect(html).toContain(
-      'linear-gradient(135deg, #4a3826 0%, #2e2820 60%, #1a1a1a 100%)'
-    );
+    expect(html).toContain('linear-gradient(135deg, #4a3826 0%, #2e2820 60%, #1a1a1a 100%)');
   });
 
   // ─── Outlook safety (per reconciliation notes) ────────────────────────────
@@ -98,7 +96,7 @@ describe('buildMagazineHtml', () => {
 
   it('renders the dog name and call-name byline', () => {
     const html = buildMagazineHtml(makeData());
-    expect(html).toContain("GCh. Ridgeway");
+    expect(html).toContain('GCh. Ridgeway');
     expect(html).toContain('called &quot;Cooper&quot;');
   });
 
@@ -115,7 +113,7 @@ describe('buildMagazineHtml', () => {
         runCount: 3,
         runs: [
           {
-            trialNumeral: 'i',
+            numeral: 'I',
             dayLabel: 'Fri 12 Jun',
             classLabel: 'Containers',
             judgeName: 'C. Beagles',
@@ -160,9 +158,7 @@ describe('buildMagazineHtml', () => {
   });
 
   it('renders the On The Day block when any on-the-day field is set', () => {
-    const html = buildMagazineHtml(
-      makeData({ doorsTime: '7:00 AM', firstClassTime: '8:30 AM' })
-    );
+    const html = buildMagazineHtml(makeData({ doorsTime: '7:00 AM', firstClassTime: '8:30 AM' }));
     expect(html).toContain('Article ii · On the day');
     expect(html).toContain('7:00 AM');
     expect(html).toContain('8:30 AM');
@@ -174,9 +170,7 @@ describe('buildMagazineHtml', () => {
   });
 
   it('renders the CTA + "View in browser" link when trialUrl is set', () => {
-    const html = buildMagazineHtml(
-      makeData({ trialUrl: 'https://myk9show.com/bckc-spring-2026' })
-    );
+    const html = buildMagazineHtml(makeData({ trialUrl: 'https://myk9show.com/bckc-spring-2026' }));
     expect(html).toContain('View trial particulars →');
     expect(html).toContain('View in browser');
   });
@@ -196,14 +190,14 @@ describe('buildMagazineHtml', () => {
       makeData({
         runs: [
           {
-            trialNumeral: 'i',
+            numeral: 'I',
             dayLabel: 'Fri 12 Jun',
             classLabel: 'Containers',
             judgeName: 'C. Beagles',
             armband: '247',
           },
           {
-            trialNumeral: 'iii',
+            numeral: 'III',
             dayLabel: 'Sat 13 Jun',
             classLabel: 'Interiors',
             judgeName: 'C. Beagles',
@@ -214,7 +208,29 @@ describe('buildMagazineHtml', () => {
     );
     expect(html).toContain('Fri 12 Jun');
     expect(html).toContain('Sat 13 Jun');
+    expect(html).toContain('>i<');
+    expect(html).toContain('>iii<');
     expect(html).toContain('—'); // null-armband fallback
+  });
+
+  it('renders production-shaped runs using numeral, not preview trialNumeral', () => {
+    const html = buildMagazineHtml(
+      makeData({
+        runs: [
+          {
+            numeral: 'III',
+            dayLabel: 'Sat 13 Jun',
+            classLabel: 'Excellent · Interiors',
+            judgeName: 'C. Beagles',
+            armband: '314',
+          },
+        ],
+      })
+    );
+
+    expect(html).toContain('>iii<');
+    expect(html).toContain('Excellent · Interiors');
+    expect(html).toContain('314');
   });
 
   it('renders the trial chair signature when provided', () => {

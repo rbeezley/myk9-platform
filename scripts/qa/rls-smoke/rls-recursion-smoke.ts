@@ -114,10 +114,20 @@ function resolveConfig(): { url: string; anonKey: string } {
   return { url: url.replace(/\/$/, ''), anonKey };
 }
 
+const FETCH_TIMEOUT_MS = 10_000;
+
+function fetchWithTimeout(url: string, init?: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  return fetch(url, { ...init, signal: controller.signal }).finally(() =>
+    clearTimeout(timer)
+  );
+}
+
 async function signIn(url: string, anonKey: string): Promise<string> {
   const email = process.env.E2E_SECRETARY_EMAIL ?? 'secretary@myk9t.com';
   const password = process.env.E2E_SECRETARY_PASSWORD ?? 'TestPass4567!';
-  const res = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+  const res = await fetchWithTimeout(`${url}/auth/v1/token?grant_type=password`, {
     method: 'POST',
     headers: { apikey: anonKey, 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
@@ -137,13 +147,14 @@ async function main(): Promise<void> {
 
   let failed = false;
   for (const query of buildSmokeQueries(showId)) {
-    const res = await fetch(`${url}/rest/v1/${query.path}`, {
+    const res = await fetchWithTimeout(`${url}/rest/v1/${query.path}`, {
       headers: { apikey: anonKey, Authorization: `Bearer ${token}` },
     });
     const body = await res.text();
     if (res.ok) {
-      const rows = JSON.parse(body) as unknown[];
-      console.log(`  PASS ${query.label} (${rows.length} rows)`);
+      const parsed: unknown = JSON.parse(body);
+      const count = Array.isArray(parsed) ? parsed.length : '?';
+      console.log(`  PASS ${query.label} (${count} rows)`);
     } else {
       failed = true;
       const { summary } = classifyPostgrestFailure(res.status, body);

@@ -79,6 +79,15 @@ Every repeated customer question should end in one of these outcomes:
 
 Support material should be written so Richard can say: "Here is the exact page for that," instead of rewriting the answer each time. Two lookup paths must work: by task ("check in a dog") and by symptom ("entry not showing" or a quoted error string).
 
+## Sensitive Content Rules (Public Repository) [ADDED]
+
+This repository is **public**. Every doc written under this plan is world-readable the moment it merges, including internal support material. Rules:
+
+- Never include customer PII, real names/emails, or production account data in any doc, example, or screenshot. Use seeded fixture accounts only (the shot list's seeded-account column enforces this for screenshots).
+- The investigation cookbook may reference table/column names and dashboard navigation paths, but must never include credentials, service keys, webhook secrets, RLS-bypass techniques, or anything that materially helps an attacker.
+- Triage runbooks and macros must not embed internal phone numbers, personal contact details, or escalation secrets — use role names and link placeholders.
+- If a future doc genuinely cannot be public-safe (e.g., a fraud-handling playbook), store it outside the repo and reference it by name only.
+
 ## QA-Draft Mode: Documentation as a Testing Instrument
 
 Drafting docs during development is deliberate, not premature. Writing a task-based guide is the cheapest UX audit available: to write "Step 3: Click **Approve Entries**," you must walk the real flow, and friction becomes visible in the prose itself. The rules that keep this from backfiring:
@@ -91,6 +100,7 @@ Drafting docs during development is deliberate, not premature. Writing a task-ba
   - "You can also do this from…" — a duplicated surface to consolidate (this phase's core goal).
   - A button label that can't be used in a sentence without explanation — a naming bug.
   - A predicted question with no good answer — a missing error/empty state.
+  - [ADDED] A flow that outright fails during the walk — a functional bug; file it through the same loop, tagged as a bug rather than UX debt.
 - **File findings immediately** to `OPEN-TODOS.md` (or the relevant sprint/debt doc) with the guide section that surfaced them, so the draft-walk produces a concrete punch list each time.
 
 ## Canonical Source Inventory
@@ -233,6 +243,7 @@ The most common support report quotes an error verbatim. This inventory makes th
 - [ ] Define article naming convention: `how-to-enter-a-show.md`, `payment-under-review.md`, `secretary-closeout-checklist.md`.
 - [ ] Add article priority rules: high-volume first, show-day stress second, sales/onboarding third.
 - [ ] Link every KB article back to a user-guide source section.
+- [ ] [ADDED] Define the interim delivery mechanism: how a customer actually receives an article before a help-center platform exists (rendered GitHub link, emailed PDF, or pasted macro text), and update the macro placeholders to match. "Send a link" must work on day one, not after the platform decision.
 
 ### Task 8: Admin Investigation Cookbook
 
@@ -244,6 +255,7 @@ Internal-only. For each symptom support cannot resolve from docs alone, the exac
 - [ ] For each high-priority symptom from the question bank, write the concrete investigation steps: which Supabase table/query to check (e.g., entry missing after payment → `entries.confirmation_email_status`, then Stripe dashboard → Payments → search by email), which dashboard path, which log.
 - [ ] Cover the known investigation surfaces: Supabase tables and RLS-visible state, Stripe Connect dashboard (payments, payouts, account review status), Resend email delivery, and replication/sync state for offline reports.
 - [ ] Mark which recipes are read-only versus which involve mutating data, and require an explicit confirmation step before any mutation.
+- [ ] [ADDED] Keep every recipe public-safe per the Sensitive Content Rules: table/column names and dashboard paths are fine; credentials, secrets, customer data, and auth/RLS-bypass detail are not.
 - [ ] Note per recipe what to tell the customer while investigating (link to the matching macro).
 - [ ] Flag recurring investigation patterns that justify an admin UI affordance later — file those to the product backlog rather than expanding the cookbook forever.
 
@@ -424,6 +436,7 @@ Outlines may begin immediately and should include rough numbered-step drafts (`q
 - [ ] Add a single pre-launch documentation parent item.
 - [ ] Track child items by role guide and support area.
 - [ ] Make staleness detection mechanical, not honor-system: each guide's source map lists the routes it depends on by path; because `pageDirectory.ts` is already test-synced to the route registry, a small script (or at minimum a PR-template checkbox) can compare changed routes against guide source maps and flag "this doc may be stale."
+- [ ] [ADDED] Any helper script this plan creates (workflow-source-map generator in Task 2, staleness checker here) ships with a unit test in the same PR, per the repo's testing requirement.
 - [ ] Review docs after each workflow consolidation PR that changes routes, labels, or screenshots.
 - [ ] Do not publish docs that point users to deprecated or duplicate surfaces.
 - [ ] Keep a "questions we keep getting" loop: every repeated support question updates the question bank, KB, macro library, error inventory, or product backlog.
@@ -443,6 +456,8 @@ Outlines may begin immediately and should include rough numbered-step drafts (`q
 - [ ] Blog/customer education topics are mapped to real support needs and guide sections.
 - [ ] Richard can answer common launch questions by sending a link or macro rather than rewriting the answer.
 - [ ] Final guides require real browser verification before publication.
+- [ ] [ADDED] No doc contains customer PII, secrets, or non-public-safe investigation detail (the repo is public — see Sensitive Content Rules).
+- [ ] [ADDED] A customer can receive any published answer through a working delivery mechanism (link, PDF, or macro text) from day one.
 
 ## Out of Scope for This Plan
 

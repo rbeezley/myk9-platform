@@ -107,7 +107,6 @@
     "src/pages/scoring/hooks/useEntryNavigation.ts",
 
     "src/services/NotificationService.ts",
-    "src/services/entryService.ts",
     "src/services/error/GlobalErrorHandler.ts",
     "src/services/error/ErrorClassificationService.ts",
     "src/services/compression/CompressionService.ts",
@@ -127,7 +126,6 @@
 
     "src/pages/admin/permissions/SecurityDashboardPage.tsx",
     "src/pages/BrowseShowsPage.tsx",
-    "src/pages/ScoringDemoPage.tsx",
     "src/components/dogs/OptimisticAddDogDialog.tsx",
 
     "src/providers/StoreProvider.tsx",

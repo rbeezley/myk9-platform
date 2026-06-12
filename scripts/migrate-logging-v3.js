@@ -286,7 +286,6 @@ const files = [
   'apps/myk9show/src/hooks/useFieldLevelSync.ts',
   'apps/myk9show/src/lib/errorMonitoring.ts',
   'apps/myk9show/src/lib/networkUtils.ts',
-  'apps/myk9show/src/pages/OfflineTestPage.tsx',
   'apps/myk9show/src/pages/scoring/hooks/useEntryNavigationHelpers.ts',
   'apps/myk9show/src/routes/utils/SuspenseWrapper.tsx',
   'apps/myk9show/src/services/database/performance/performanceMonitor.ts',

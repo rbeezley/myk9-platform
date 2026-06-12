@@ -74,6 +74,8 @@ The new `pnpm qa:db-drift:enum` script found one app-write value outside the lat
 
 Route: migration-auditor follow-up. The likely fix is a small migration restoring the hyphenated request values and backfilling any underscore rows, but do not push as part of this read-only phase.
 
+Parser note: this is a heuristic drift detector, not a full TypeScript or SQL AST. It catches direct Supabase object-literal writes and simple local object variables, but nested object literals or values assembled through function returns can still produce false negatives.
+
 ## Edge Function Inventory
 
 The new `pnpm qa:db-drift:functions` script compares `supabase functions list` against `supabase/functions/`.

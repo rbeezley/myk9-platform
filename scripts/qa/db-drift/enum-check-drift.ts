@@ -136,34 +136,36 @@ export function compareEnumWritesToChecks({
   const constraintsByColumn = new Map(
     constraints.map(constraint => [`${constraint.table}.${constraint.column}`, constraint])
   );
-  const findingFiles = new Map<string, Set<string>>();
+  const findingFiles = new Map<string, Map<string, Set<string>>>();
 
   for (const write of writes) {
     const constraint = constraintsByColumn.get(`${write.table}.${write.column}`);
     if (!constraint || constraint.allowedValues.includes(write.value)) continue;
 
-    const key = `${write.table}.${write.column}.${write.value}`;
-    const files = findingFiles.get(key) ?? new Set<string>();
+    const columnKey = `${write.table}.${write.column}`;
+    const values = findingFiles.get(columnKey) ?? new Map<string, Set<string>>();
+    const files = values.get(write.value) ?? new Set<string>();
     files.add(write.file);
-    findingFiles.set(key, files);
+    values.set(write.value, files);
+    findingFiles.set(columnKey, values);
   }
 
   return [...findingFiles.entries()]
-    .map(([key, files]) => {
-      const [table, column, value] = key.split('.');
+    .flatMap(([columnKey, values]) => {
+      const [table, column] = columnKey.split('.');
       const constraint = constraintsByColumn.get(`${table}.${column}`);
       if (!constraint) {
-        throw new Error(`Missing constraint for finding ${key}`);
+        throw new Error(`Missing constraint for finding ${columnKey}`);
       }
 
-      return {
+      return [...values.entries()].map(([value, files]) => ({
         table,
         column,
         value,
         files: [...files].sort(),
         allowedValues: constraint.allowedValues,
         constraintSource: constraint.source,
-      };
+      }));
     })
     .sort((a, b) =>
       `${a.table}.${a.column}.${a.value}`.localeCompare(`${b.table}.${b.column}.${b.value}`)
@@ -196,14 +198,14 @@ export function renderEnumDriftMarkdown(findings: EnumDriftFinding[]): string {
 
   for (const finding of findings) {
     lines.push(
-      [
+      `| ${[
         finding.table,
         finding.column,
         `\`${finding.value}\``,
         finding.constraintSource,
         finding.allowedValues.map(value => `\`${value}\``).join(', '),
         finding.files.map(file => `\`${file}\``).join('<br>'),
-      ].join(' | ')
+      ].join(' | ')} |`
     );
   }
 

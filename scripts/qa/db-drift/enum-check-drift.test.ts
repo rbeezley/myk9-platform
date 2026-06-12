@@ -4,6 +4,7 @@ import {
   compareEnumWritesToChecks,
   extractCheckConstraints,
   extractEnumWritesFromSource,
+  renderEnumDriftMarkdown,
   resolveSchemaSqlPath,
 } from './enum-check-drift';
 
@@ -146,6 +147,57 @@ describe('compareEnumWritesToChecks', () => {
         constraintSource: 'entries_entry_status_check',
       },
     ]);
+  });
+
+  it('preserves written values that contain dots', () => {
+    expect(
+      compareEnumWritesToChecks({
+        constraints: [
+          {
+            table: 'subscriptions',
+            column: 'version',
+            allowedValues: ['2.0'],
+            source: 'subscriptions_version_check',
+          },
+        ],
+        writes: [
+          {
+            file: 'apps/myk9show/src/services/subscriptionService.ts',
+            table: 'subscriptions',
+            column: 'version',
+            value: '1.0',
+          },
+        ],
+      })
+    ).toEqual([
+      {
+        table: 'subscriptions',
+        column: 'version',
+        value: '1.0',
+        files: ['apps/myk9show/src/services/subscriptionService.ts'],
+        allowedValues: ['2.0'],
+        constraintSource: 'subscriptions_version_check',
+      },
+    ]);
+  });
+});
+
+describe('renderEnumDriftMarkdown', () => {
+  it('renders findings as valid markdown table rows', () => {
+    expect(
+      renderEnumDriftMarkdown([
+        {
+          table: 'entries',
+          column: 'entry_status',
+          value: 'scratch-requested',
+          files: ['apps/myk9show/src/services/database/entries/lifecycle.ts'],
+          allowedValues: ['scratch_requested'],
+          constraintSource: 'entries_entry_status_check',
+        },
+      ])
+    ).toContain(
+      '| entries | entry_status | `scratch-requested` | entries_entry_status_check | `scratch_requested` | `apps/myk9show/src/services/database/entries/lifecycle.ts` |'
+    );
   });
 });
 

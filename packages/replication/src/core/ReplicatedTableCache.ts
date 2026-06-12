@@ -385,14 +385,23 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
   /**
    * Update sync metadata (with atomic increment for numeric fields).
    *
-   * When `scopeValue` is provided, the scope-sensitive fields
+   * When `options.scopeValue` is provided, the scope-sensitive fields
    * (`lastIncrementalSyncAt`, `totalRows`) are routed into `scopes[scopeValue]`
    * instead of the table-global slot — table-global fields (`syncStatus`,
    * `errorMessage`, `conflictCount`, `pendingMutations`) still update globally.
    * The full `scopes` map is always preserved across calls so an unscoped
    * status-only update can't wipe other scopes' watermarks.
+   *
+   * When `options.advanceWatermarkMonotonically` is set, `lastIncrementalSyncAt`
+   * is advanced to `max(existing, update)` INSIDE this read-modify-write
+   * transaction rather than overwritten — so a slow concurrent sync that
+   * snapshotted an older watermark cannot regress a newer one. Applies to both
+   * the scope-specific slot (when scoped) and the table-global mirror.
    */
-  async updateSyncMetadata(updates: Partial<SyncMetadata>, scopeValue?: string): Promise<void> {
+  async updateSyncMetadata(
+    updates: Partial<SyncMetadata>,
+    options?: { scopeValue?: string; advanceWatermarkMonotonically?: boolean }
+  ): Promise<void> {
     const METADATA_TIMEOUT_MS = 5000;
 
     const updatePromise = (async () => {
@@ -410,14 +419,23 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
         atomicUpdates.pendingMutations = (existing.pendingMutations || 0) + updates.pendingMutations;
       }
 
-      // Per-scope watermark routing. Scope-sensitive fields belong to the
-      // scope's sub-record so a sync under scope B can't advance scope A's
-      // `since` past rows A hasn't fetched yet.
+      // Per-scope watermark routing + optional monotonic advance.
+      // Scope-sensitive fields belong to the scope's sub-record so a sync under
+      // scope B can't advance scope A's `since` past rows A hasn't fetched yet.
+      // advanceWatermarkMonotonically additionally ensures a slow concurrent sync
+      // can never regress a faster one's watermark — applies inside this transaction
+      // so the max is always against the LIVE persisted value.
       let scopes = existing?.scopes;
+      const { scopeValue, advanceWatermarkMonotonically } = options ?? {};
+
       if (scopeValue !== undefined) {
         const prevScope = existing?.scopes?.[scopeValue];
-        const nextWatermark =
+        const rawWatermark =
           updates.lastIncrementalSyncAt ?? prevScope?.lastIncrementalSyncAt ?? 0;
+        const nextWatermark =
+          advanceWatermarkMonotonically && updates.lastIncrementalSyncAt !== undefined
+            ? Math.max(prevScope?.lastIncrementalSyncAt ?? 0, updates.lastIncrementalSyncAt)
+            : rawWatermark;
         const nextScope: ScopeSyncState = { lastIncrementalSyncAt: nextWatermark };
         const nextTotalRows = updates.totalRows ?? prevScope?.totalRows;
         if (nextTotalRows !== undefined) {
@@ -441,6 +459,15 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
         }
         // totalRows has no meaningful table-global aggregate — keep it scope-only.
         delete atomicUpdates.totalRows;
+      } else if (advanceWatermarkMonotonically && updates.lastIncrementalSyncAt !== undefined) {
+        // No scope: advance table-global watermark monotonically.
+        const existingWatermark = Number.isFinite(existing?.lastIncrementalSyncAt)
+          ? (existing!.lastIncrementalSyncAt as number)
+          : 0;
+        atomicUpdates.lastIncrementalSyncAt = Math.max(
+          existingWatermark,
+          updates.lastIncrementalSyncAt
+        );
       }
 
       const metadata: SyncMetadata = {

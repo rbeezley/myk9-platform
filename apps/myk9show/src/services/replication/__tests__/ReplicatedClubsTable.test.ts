@@ -784,8 +784,10 @@ describe('ReplicatedClubsTable', () => {
       const afterSync = Date.now();
 
       const metadata = await table.getSyncMetadata();
-      expect(metadata?.lastIncrementalSyncAt).toBeGreaterThanOrEqual(beforeSync);
-      expect(metadata?.lastIncrementalSyncAt).toBeLessThanOrEqual(afterSync);
+      // Full sync stamps lastFullSyncAt with the client clock; the incremental
+      // watermark is server-derived and stays 0 on an empty fetch.
+      expect(metadata?.lastFullSyncAt).toBeGreaterThanOrEqual(beforeSync);
+      expect(metadata?.lastFullSyncAt).toBeLessThanOrEqual(afterSync);
       expect(metadata?.syncStatus).toBe('idle');
     });
 

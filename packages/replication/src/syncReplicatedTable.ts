@@ -26,6 +26,21 @@ export interface SyncReplicatedTableAdapter<TRemote, TLocal extends { id: string
   fetchRemoteRows(context: RemoteFetchContext<TLocal>): Promise<TRemote[]>;
   getRemoteId(remote: TRemote): string;
   toLocalRow(remote: TRemote): TLocal;
+
+  /**
+   * Server-side `updated_at` for a fetched remote row, as epoch milliseconds
+   * (or null/undefined when the row carries no usable timestamp). When provided,
+   * the engine advances the incremental watermark to the maximum value actually
+   * observed from the server — never the client's wall clock — which eliminates
+   * the clock-skew and round-trip-race classes of silently dropped rows. Omit to
+   * keep the legacy client-clock (`Date.now()`) watermark behavior.
+   *
+   * Returning a non-finite number / null for a row means "do not advance the
+   * watermark past this row"; the row is still cached as data, only excluded
+   * from the watermark max so a bad timestamp can't poison it.
+   */
+  getRemoteUpdatedAt?(remote: TRemote): number | null | undefined;
+
   filterLocalRows?: (rows: TLocal[], scope: SyncScope) => TLocal[];
   resolveConflict?: (local: TLocal, remote: TLocal) => TLocal;
 
@@ -44,9 +59,19 @@ export interface SyncReplicatedTableAdapter<TRemote, TLocal extends { id: string
   }) => Promise<void> | void;
 }
 
+/** Default self-heal interval: force a full re-sync if the last full sync is
+ *  older than this. Catches any residual watermark drift within a day even if an
+ *  unforeseen path slips past the server-authoritative watermark. */
+const DEFAULT_FULL_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
 export interface SyncReplicatedTableOptions extends Partial<SyncOptions> {
   uploadPendingMutations?: () => Promise<unknown>;
   incrementalBufferMs?: number;
+  /** Force a full re-sync when the last full sync is older than this many ms.
+   *  Self-heals a partially-stale replica that incremental sync would otherwise
+   *  never re-fetch (forceFullSync alone only fires on a fully empty replica).
+   *  Default {@link DEFAULT_FULL_SYNC_INTERVAL_MS} (24h). */
+  fullSyncIntervalMs?: number;
   /** Phase 4 kill switch (docs/plan-show-presence.md §12). When false (default),
    *  same-field collisions are silently resolved last-write-wins, matching the
    *  pre-Phase-4 behavior exactly. Flip to true to surface conflicts as
@@ -89,20 +114,49 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
   };
 
   try {
+    // Snapshot metadata BEFORE the 'syncing' write below, scoped to this sync's
+    // scope.value so `since` is derived from the correct per-scope watermark. A
+    // partial updateSyncMetadata does not preserve `totalRows`, so reading after
+    // the status write would lose the previous row count needed to detect an
+    // unexpected empty-replica recovery.
+    const metadata = await table.getSyncMetadata(scope.value);
+
     await table.updateSyncMetadata({ syncStatus: 'syncing', errorMessage: undefined });
 
     if (!options.skipMutationUpload && options.uploadPendingMutations) {
       await options.uploadPendingMutations();
     }
 
-    // Read the watermark for THIS scope. A table synced under multiple scopes
-    // (e.g. entries: global '' from the provider AND per-show from show-day pages)
-    // keeps an independent watermark per scope, so one scope's advance can't push
-    // another's `since` past unsynced rows. See ScopeSyncState in types.ts.
-    const metadata = await table.getSyncMetadata(scope.value);
     const localRows = await getLocalRowsForScope();
-    const forceFullSync = options.forceFullSync === true || localRows.length === 0;
-    const rawSince = forceFullSync ? 0 : metadata?.lastIncrementalSyncAt || 0;
+
+    // Periodic self-heal. The server-authoritative watermark below removes the
+    // systemic drop, but a *partially* stale replica (most rows present, a few
+    // missing) would never re-run a full sync on its own — `forceFullSync` would
+    // otherwise only fire on a fully empty replica. Force a full sync when the
+    // last full sync is older than the staleness window. Guarded on `> 0` so a
+    // never-full-synced table (lastFullSyncAt = 0) does NOT force-full every tick.
+    const fullSyncIntervalMs = options.fullSyncIntervalMs ?? DEFAULT_FULL_SYNC_INTERVAL_MS;
+    const lastFullSyncAt = metadata?.lastFullSyncAt || 0;
+    const fullSyncStale = lastFullSyncAt > 0 && Date.now() - lastFullSyncAt > fullSyncIntervalMs;
+
+    const forceFullSync =
+      options.forceFullSync === true || localRows.length === 0 || fullSyncStale;
+
+    // Observability: a full sync triggered by an empty local replica that metadata
+    // says previously held rows is an unexpected eviction/heal — the silent failure
+    // mode this engine guards against. Surfaced on the result so callers can log it
+    // (the engine itself stays logger-free).
+    const recoveredFromEmptyReplica =
+      localRows.length === 0 && (metadata?.totalRows ?? 0) > 0;
+
+    // Finite-guard the persisted watermark: a corrupt IDB value (NaN/Infinity)
+    // would otherwise reach `new Date(since).toISOString()` in the adapter and
+    // throw a RangeError, wedging that table's sync. NaN is already falsy (→ 0);
+    // this also catches Infinity. A bad watermark degrades to a full-ish fetch,
+    // never a thrown sync.
+    const persistedWatermark = metadata?.lastIncrementalSyncAt;
+    const safeWatermark = Number.isFinite(persistedWatermark) ? (persistedWatermark as number) : 0;
+    const rawSince = forceFullSync ? 0 : safeWatermark;
     const since =
       rawSince > (options.incrementalBufferMs ?? 0)
         ? rawSince - (options.incrementalBufferMs ?? 0)
@@ -120,9 +174,26 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     const cleanRowsToCache: TLocal[] = [];
     const serverVersionMap = new Map<string, number>();
 
+    // Track the max server `updated_at` actually observed this fetch. This — not
+    // the client clock — becomes the next incremental watermark.
+    let maxRemoteUpdatedAt = 0;
+    let sawRemoteTimestamp = false;
+
     for (const remote of remoteRows) {
       const id = String(adapter.getRemoteId(remote));
       serverIds.add(id);
+
+      if (adapter.getRemoteUpdatedAt) {
+        const ts = adapter.getRemoteUpdatedAt(remote);
+        // NaN/null guard: a row with no usable server timestamp is still cached as
+        // data below, but must never enter the watermark max — Math.max(NaN, …) is
+        // NaN, and new Date(NaN).toISOString() throws on the next fetch, breaking
+        // every subsequent sync.
+        if (typeof ts === 'number' && Number.isFinite(ts)) {
+          if (ts > maxRemoteUpdatedAt) maxRemoteUpdatedAt = ts;
+          sawRemoteTimestamp = true;
+        }
+      }
 
       const existing = await table.getReplicatedRow(id);
       const remoteLocal = { ...adapter.toLocalRow(remote), id } as TLocal;
@@ -216,17 +287,30 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
 
     await adapter.afterSuccessfulSync?.({ scope, serverIds, localRows });
 
-    // Persist the advanced watermark + row count under THIS scope; syncStatus,
-    // errorMessage and conflictCount remain table-global.
+    // Server-authoritative, monotonic watermark, routed to the correct scope slot.
+    // Advance only to a timestamp the client actually observed from the server, and
+    // never backward (monotonic inside the cache transaction so a concurrent slow
+    // sync can't regress a faster one). Fall back to the legacy client clock ONLY
+    // when the adapter provides no timestamp hook. With a hook but nothing observed
+    // (empty fetch), leave the watermark untouched.
+    const advanceWatermark = Boolean(adapter.getRemoteUpdatedAt) && sawRemoteTimestamp;
+    const watermarkUpdate: Partial<{ lastIncrementalSyncAt: number }> = advanceWatermark
+      ? { lastIncrementalSyncAt: maxRemoteUpdatedAt }
+      : adapter.getRemoteUpdatedAt
+        ? {}
+        : { lastIncrementalSyncAt: Date.now() };
+
     await table.updateSyncMetadata(
       {
-        lastIncrementalSyncAt: Date.now(),
+        ...watermarkUpdate,
+        // Record full-sync completions so the 24h self-heal (above) has a baseline.
+        ...(forceFullSync ? { lastFullSyncAt: Date.now() } : {}),
         syncStatus: 'idle',
         errorMessage: undefined,
         conflictCount: conflictsResolved,
         totalRows: (await getLocalRowsForScope()).length,
       },
-      scope.value
+      { scopeValue: scope.value, advanceWatermarkMonotonically: advanceWatermark }
     );
 
     return {
@@ -236,6 +320,8 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       rowsAffected,
       conflictsResolved,
       duration: Date.now() - startedAt,
+      since,
+      recoveredFromEmptyReplica,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

@@ -10,6 +10,12 @@
 
 ---
 
+## Validation Profile
+
+- Risk: low
+- Validation: focused
+- Rationale: This plan changes Markdown audit/tracking files only. Route checks are read-only and any app-code change forces a stop and reclassification before continuing.
+
 ## File Structure
 
 - Create: `docs/audits/2026-06-ux-journeys/00-recon.md`
@@ -387,7 +393,19 @@ Run:
 curl -sf http://localhost:5173 >/dev/null && echo "RUNNING" || echo "NOT_RUNNING"
 ```
 
-If not running, start it:
+If not running, first confirm Vite exists in this worktree:
+
+```bash
+test -x apps/myk9show/node_modules/.bin/vite && echo "VITE_READY" || echo "MISSING_VITE"
+```
+
+If Vite is missing, bootstrap the worktree:
+
+```bash
+bash scripts/bootstrap-worktree.sh
+```
+
+Then start the server:
 
 ```bash
 pnpm dev:show
@@ -410,7 +428,13 @@ rg -n "showId|show-1|heritage|fixture|seed" apps/myk9show/src/test apps/myk9show
 
 If no safe show id is obvious, do not create database rows. Mark show-id-dependent browser checks as blocked.
 
-- [ ] **Step 3: Verify routes without changing data**
+- [ ] **Step 3: Sign in only if needed**
+
+Protected routes may redirect to `/sign-in`. If that happens, sign in with the relevant test user from `apps/myk9show/src/test/e2e/helpers/testUsers.ts` and password `Test123!`.
+
+Use exhibitor credentials for exhibitor routes and secretary credentials for secretary routes. If sign-in fails or no credential is available, mark protected-route browser checks as blocked instead of creating accounts or changing auth data.
+
+- [ ] **Step 4: Verify routes without changing data**
 
 Open these routes with Codex Browser or Playwright CLI. Record only final URL, whether a page/redirect renders, and any blocked reason:
 
@@ -428,7 +452,7 @@ Open these routes with Codex Browser or Playwright CLI. Record only final URL, w
 
 Do not submit forms, click destructive actions, run checkout, or write data.
 
-- [ ] **Step 4: Fill Light Browser Checks**
+- [ ] **Step 5: Fill Light Browser Checks**
 
 Use this row shape:
 
@@ -436,7 +460,7 @@ Use this row shape:
 | `/exhibitor/show-day` | Legacy path redirects to show-specific `/at-show/:showId` when show context exists, otherwise falls back to My Entries | Confirmed / Blocked / Different | Evidence note with final URL or code-backed blocker |
 ```
 
-- [ ] **Step 5: Commit Task 6**
+- [ ] **Step 6: Commit Task 6**
 
 Run:
 

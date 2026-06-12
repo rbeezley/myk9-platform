@@ -26,7 +26,8 @@ export interface ExhibitorProfile {
     email: string;
     phone: string | null;
     profile_image: string | null;
-    is_early_adopter: boolean;
+    /** Founding-member premium grant end; null = never granted. */
+    early_adopter_until: string | null;
   };
 }
 
@@ -93,7 +94,7 @@ export function useExhibitorProfile() {
             email,
             phone,
             profile_image,
-            is_early_adopter
+            early_adopter_until
           )
         `
         )

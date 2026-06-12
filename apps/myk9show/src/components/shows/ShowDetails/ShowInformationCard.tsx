@@ -5,7 +5,25 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { formatFee } from '@/utils/format';
 
-import type { ShowFormData } from './dialogs/EditShowDialog';
+import type { ShowJudgeAssignment } from '@/types/judge-types';
+
+// Relocated from the deleted EditShowDialog (dead since ShowEditPanel took
+// over editing — round-11 review); this card is the shape's only consumer.
+export interface ShowFormData {
+  name: string;
+  status: string;
+  type: string;
+  clubId: string;
+  startDate: string;
+  endDate: string;
+  entryOpenDate: string;
+  entryCloseDate: string;
+  preEntryFee: string;
+  dayOfShowFee: string; // Fee for registrations made on the day of the show (typically higher)
+  confirmationMessage?: string; // Optional message included in registration confirmation emails
+  startingArmbandNumber?: number; // Starting armband number for auto-assignment
+  assignedJudges: ShowJudgeAssignment[];
+}
 
 interface ShowInformationCardProps {
   showData: ShowFormData;

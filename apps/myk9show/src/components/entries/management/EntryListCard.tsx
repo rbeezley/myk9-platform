@@ -30,6 +30,7 @@ import type { EmailLogEntry } from '@/hooks/useEmailStatus';
 import type { CheckInStatus } from '@myk9/core';
 import { CHECKIN_STATUS } from '@myk9/core';
 import { WithdrawalReasonDialog } from './WithdrawalReasonDialog';
+import { RefundEntryDialog, isStripeRefundable } from './RefundEntryDialog';
 
 interface EntryListCardProps {
   entries: EntryManagementEntry[];
@@ -49,6 +50,8 @@ interface EntryListCardProps {
   hidePaymentBadge?: boolean | undefined;
   /** Suppress the Card wrapper and title — use when nested inside EnrollmentCard */
   hideHeader?: boolean | undefined;
+  /** Reload entries after a successful Stripe refund (e.g. loadEntries). */
+  onEntryRefunded?: (() => void) | undefined;
 }
 
 export const EntryListCard: React.FC<EntryListCardProps> = ({
@@ -64,6 +67,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
   isResendDisabled,
   hidePaymentBadge,
   hideHeader,
+  onEntryRefunded,
 }) => {
   const [withdrawalDialog, setWithdrawalDialog] = useState<{
     open: boolean;
@@ -73,14 +77,25 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
     open: boolean;
     entry: EntryManagementEntry | null;
   }>({ open: false, entry: null });
+  const [refundDialog, setRefundDialog] = useState<{
+    open: boolean;
+    entry: EntryManagementEntry | null;
+  }>({ open: false, entry: null });
 
   const openWithdrawalDialog = (entryId: string) => {
     setWithdrawalDialog({ open: true, entryId });
   };
 
   const confirmWithdrawal = (reason: string) => {
-    if (withdrawalDialog.entryId) {
-      onStatusChange(withdrawalDialog.entryId, EntryStatus.CANCELLED, reason);
+    const entryId = withdrawalDialog.entryId;
+    if (entryId) {
+      onStatusChange(entryId, EntryStatus.CANCELLED, reason);
+      // Withdrawn = refund due (April status model): chain straight into the
+      // refund dialog when the entry was paid online and not yet refunded.
+      const entry = entries.find(e => e.id === entryId);
+      if (entry && isStripeRefundable(entry)) {
+        setRefundDialog({ open: true, entry });
+      }
     }
     setWithdrawalDialog({ open: false, entryId: null });
   };
@@ -251,6 +266,16 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                         >
                           Pulled
                         </DropdownMenuItem>
+                        {isStripeRefundable(entry) && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => setRefundDialog({ open: true, entry })}
+                            >
+                              Refund payment…
+                            </DropdownMenuItem>
+                          </>
+                        )}
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive"
@@ -326,6 +351,12 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
           setWithdrawalDialog(open ? prev => prev : { open: false, entryId: null })
         }
         onConfirm={confirmWithdrawal}
+      />
+      <RefundEntryDialog
+        open={refundDialog.open}
+        onOpenChange={open => setRefundDialog(open ? prev => prev : { open: false, entry: null })}
+        entry={refundDialog.entry}
+        onRefunded={() => onEntryRefunded?.()}
       />
       <AlertDialog
         open={removeDialog.open}

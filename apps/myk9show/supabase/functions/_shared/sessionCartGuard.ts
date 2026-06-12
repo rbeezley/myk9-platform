@@ -1,0 +1,95 @@
+// Pure guard shared by stripe-webhook (Deno) and vitest. Keep this module
+// free of Deno/npm imports so the colocated test runs under Node.
+//
+// Codex round-3 P1: a Stripe Checkout session stays payable after the exhibitor
+// abandons the tab. If they then mutate the cart and pay the OLD page, the
+// webhook would build entries from the CURRENT cart against the STALE charge.
+// Defense is two-sided: cart mutations null out stripe_checkout_session_id
+// (cartStore), and the webhook refuses any paid session the cart no longer
+// points at. The amount check is belt-and-suspenders — the pinned 2020-03-02
+// webhook payloads usually omit amount_total, so the id equality (made
+// reliable by the mutation-nulling) is the load-bearing half.
+
+export interface SessionCartGuardInput {
+  /** id of the checkout session Stripe says was paid */
+  sessionId: string;
+  /** session.amount_total — null/undefined on 2020-03-02 payloads */
+  sessionAmountTotal: number | null | undefined;
+  /** entry_carts.stripe_checkout_session_id at webhook time */
+  cartSessionId: string | null;
+  /** entry_carts.total_cents at webhook time */
+  cartTotalCents: number | null;
+  /** number of items on the cart at webhook time */
+  cartItemCount: number;
+  /** entry_carts.expires_at at webhook time — null tolerated for legacy rows */
+  cartExpiresAt: string | null;
+  /** the webhook's clock, ISO — injected so the guard stays pure/testable */
+  nowIso: string;
+  /** entry_carts.subtotal_cents written at checkout — null tolerated (legacy) */
+  cartSubtotalCents: number | null;
+  /** sum of the CURRENT items' entry_fee_cents at webhook time */
+  itemFeesSumCents: number;
+}
+
+export type SessionCartGuardResult = { ok: true } | { ok: false; reason: string };
+
+export function sessionMatchesCart(input: SessionCartGuardInput): SessionCartGuardResult {
+  // An empty cart can never legitimately be paid for — "Clear Cart" after
+  // starting checkout would otherwise produce a real charge with zero entries
+  // (Codex round-4 P1). Checked first: id/amount equality is meaningless here.
+  if (input.cartItemCount === 0) {
+    return {
+      ok: false,
+      reason: `cart is empty — session ${input.sessionId} paid for items that were since removed`,
+    };
+  }
+  // Round-12 P1: app carts expire (~30 min) but a Stripe Checkout page stays
+  // payable far longer by default. Paying the old page must not resurrect an
+  // expired cart — its contents were frozen while deadlines (entry close,
+  // class capacity) kept moving. Checkout also clamps the Stripe session
+  // lifetime to the cart's, so post-fix this fires only for pre-fix sessions
+  // or clock-skew seconds; the webhook alerts and the operator refunds.
+  if (input.cartExpiresAt != null && new Date(input.cartExpiresAt) < new Date(input.nowIso)) {
+    return {
+      ok: false,
+      reason:
+        `cart expired at ${input.cartExpiresAt} — session ${input.sessionId} was paid ` +
+        `after the cart's contents stopped being valid`,
+    };
+  }
+  if (input.cartSessionId !== input.sessionId) {
+    return {
+      ok: false,
+      reason:
+        `paid session ${input.sessionId} is not the cart's current session ` +
+        `(${input.cartSessionId ?? 'none'}) — the cart changed after this checkout started`,
+    };
+  }
+  // Round-14 P1: entries are built from the ITEMS, but the id/total checks
+  // above only prove the CART ROW is the one the session charged. Cart
+  // mutations write items first and the cart row second — a failed second
+  // write (or a direct PostgREST tamper of item fees, which the owner-update
+  // RLS permits) leaves stored totals matching the paid session while the
+  // items no longer do. Reconcile the items against what was charged.
+  if (input.cartSubtotalCents != null && input.itemFeesSumCents !== input.cartSubtotalCents) {
+    return {
+      ok: false,
+      reason:
+        `items sum to ${input.itemFeesSumCents}¢ but the paid session charged a subtotal of ` +
+        `${input.cartSubtotalCents}¢ — the cart's items drifted after checkout started`,
+    };
+  }
+  if (
+    input.sessionAmountTotal != null &&
+    input.cartTotalCents != null &&
+    input.sessionAmountTotal !== input.cartTotalCents
+  ) {
+    return {
+      ok: false,
+      reason:
+        `paid amount ${input.sessionAmountTotal}¢ does not match the cart total ` +
+        `${input.cartTotalCents}¢ for session ${input.sessionId}`,
+    };
+  }
+  return { ok: true };
+}

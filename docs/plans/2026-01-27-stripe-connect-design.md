@@ -1,5 +1,10 @@
 # Stripe Payment Design for myK9 Platform
 
+> **SUPERSEDED 2026-06-09** by [2026-06-09-stripe-payments-revision-design.md](2026-06-09-stripe-payments-revision-design.md).
+> The subscription half of this document shipped (Feb 2026); the Connect half was redesigned —
+> hold-and-transfer instead of destination charges, secretary one-click refunds instead of the
+> policy hierarchy, 3% fee instead of 5%, no `entry_payments` table. Do not implement from this file.
+
 > Design document for payment processing including marketplace entry fees and premium subscriptions.
 
 ## Overview

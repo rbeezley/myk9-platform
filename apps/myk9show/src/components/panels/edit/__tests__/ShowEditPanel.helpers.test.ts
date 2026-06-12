@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { showSchemas } from '@/lib/validation';
-import { formDataToShowSaveData, showToFormData } from '../ShowEditPanel.helpers';
+import { formDataToShowSaveData, showToFormData, publishGateError } from '../ShowEditPanel.helpers';
 import type { ShowEditFormData } from '../ShowEditPanel.types';
 
 const generatedPremium: GeneratedPremium = {
@@ -109,5 +109,38 @@ describe('ShowEditPanel helpers', () => {
 
     expect(parsed.success).toBe(false);
     expect(parsed.error?.issues[0]?.message).toMatch(/shared show content/i);
+  });
+});
+
+// Round-13 review: the panel's Basic Info tab offers "Published" in its
+// Status dropdown, and the save path wrote formData.status straight through —
+// the one remaining ungated shows.status write surface after rounds 8/11
+// gated the pill, wizard, and bulk bar. Same fail-closed rules as the pill.
+describe('publishGateError', () => {
+  const enabled = { payouts_enabled: true };
+  const disabled = { payouts_enabled: false };
+
+  it('allows publishing with a payout-enabled account', () => {
+    expect(publishGateError('draft', 'published', 'club-1', enabled)).toBeNull();
+  });
+
+  it('blocks newly publishing without a payout-enabled account', () => {
+    expect(publishGateError('draft', 'published', 'club-1', null)).toMatch(/payment account/i);
+    expect(publishGateError('draft', 'published', 'club-1', disabled)).toMatch(
+      /payment account/i
+    );
+  });
+
+  it('fails closed when no club is assigned', () => {
+    expect(publishGateError('draft', 'published', '', enabled)).toMatch(/club/i);
+  });
+
+  it('never re-gates an already-published show (unrelated edits must save)', () => {
+    expect(publishGateError('published', 'published', 'club-1', null)).toBeNull();
+  });
+
+  it('ignores non-publish transitions', () => {
+    expect(publishGateError('draft', 'cancelled', 'club-1', null)).toBeNull();
+    expect(publishGateError('published', 'draft', '', null)).toBeNull();
   });
 });

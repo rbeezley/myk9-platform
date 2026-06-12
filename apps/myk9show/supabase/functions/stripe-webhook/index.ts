@@ -1,9 +1,19 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
+import { buildEntryInsert, extractPaymentIntentId } from '../_shared/entryFromCartItem.ts';
+import { accountToRowPatch } from '../_shared/connectAccountMapper.ts';
+import { parsePremiumPriceIds, priceIdToTier } from '../_shared/premiumPrices.ts';
+import { sessionMatchesCart } from '../_shared/sessionCartGuard.ts';
+import { alertAdmin } from '../_shared/alertAdmin.ts';
+import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
+import { calculatePlatformFeeCents, resolvePlatformFeePercent } from '../_shared/platformFee.ts';
 
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
+// Connect-scoped event destination signs with its OWN secret; optional until
+// the Connected-accounts destination exists in the dashboard.
+const stripeConnectWebhookSecret = Deno.env.get('STRIPE_CONNECT_WEBHOOK_SECRET');
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
@@ -39,7 +49,7 @@ Deno.serve(async req => {
     let event: Stripe.Event;
 
     try {
-      event = await stripe.webhooks.constructEventAsync(body, signature, stripeWebhookSecret);
+      event = await verifyWithEitherSecret(body, signature);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error(`Webhook signature verification failed: ${errorMessage}`);
@@ -48,8 +58,25 @@ Deno.serve(async req => {
       });
     }
 
-    // Process event asynchronously
-    EdgeRuntime.waitUntil(handleEvent(event));
+    // Process event asynchronously. Stripe already has its 200, so an
+    // uncaught throw in any handler (e.g. a transient failure syncing a
+    // subscription) would otherwise vanish with no retry and no signal —
+    // the catch-all alert is the floor under every handler (round-13).
+    EdgeRuntime.waitUntil(
+      handleEvent(event).catch(async err => {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(`CRITICAL: unhandled error processing ${event.type} (${event.id}):`, err);
+        await alertAdmin(
+          `Webhook handler crashed: ${event.type}`,
+          `<p>Processing event <code>${event.id}</code> (<code>${event.type}</code>) threw
+           after Stripe already received its 200 — Stripe will NOT retry.</p>
+           <pre>${message}</pre>
+           <p>Recovery: open the event in the Stripe dashboard (Developers → Events),
+           inspect the object, and apply the corresponding state manually (the runbook's
+           Manual reconciliation section has the service-role SQL wrapper).</p>`
+        );
+      })
+    );
 
     return Response.json({ received: true });
   } catch (error: unknown) {
@@ -58,6 +85,22 @@ Deno.serve(async req => {
     return Response.json({ error: errorMessage }, { status: 500 });
   }
 });
+
+// Platform-scoped and Connect-scoped destinations sign with different secrets;
+// try the platform secret first, then the Connect secret when configured.
+async function verifyWithEitherSecret(body: string, signature: string): Promise<Stripe.Event> {
+  try {
+    return await stripe.webhooks.constructEventAsync(body, signature, stripeWebhookSecret);
+  } catch (platformError) {
+    if (!stripeConnectWebhookSecret) throw platformError;
+    // Log the platform-secret failure so a misconfigured PRIMARY secret isn't
+    // masked by the Connect-secret error when both verifications fail.
+    console.log(
+      `Platform-secret verification failed (${platformError instanceof Error ? platformError.message : 'unknown'}); trying Connect secret`
+    );
+    return await stripe.webhooks.constructEventAsync(body, signature, stripeConnectWebhookSecret);
+  }
+}
 
 async function handleEvent(event: Stripe.Event) {
   console.log(`Processing event: ${event.type}`);
@@ -81,9 +124,180 @@ async function handleEvent(event: Stripe.Event) {
       await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice);
       break;
 
+    case 'charge.refunded':
+      await handleChargeRefunded(event.data.object as Stripe.Charge);
+      break;
+
+    case 'refund.failed':
+      await handleRefundFailed(event.data.object as Stripe.Refund);
+      break;
+
+    case 'charge.dispute.created':
+      await handleDisputeCreated(event.data.object as Stripe.Dispute);
+      break;
+
+    case 'account.updated':
+      await handleAccountUpdated(event.data.object as Stripe.Account);
+      break;
+
+    case 'account.application.deauthorized':
+      // data.object is the Application; the connected account id rides on event.account
+      await handleAccountDeauthorized(event.account ?? undefined);
+      break;
+
     default:
       console.log(`Unhandled event type: ${event.type}`);
   }
+}
+
+/**
+ * A refund that was created (pending) and LATER failed leaves the entry
+ * stamped refunded — customer unpaid, club's payout still docked — with no
+ * signal anywhere (round-11 review). Alert-only: the operator clears the
+ * entry's refund columns (runbook "Manual reconciliation") and re-issues.
+ */
+async function handleRefundFailed(refund: Stripe.Refund) {
+  const entryId = refund.metadata?.entry_id ?? null;
+  console.error(
+    `CRITICAL: refund ${refund.id} (${refund.amount}¢) FAILED after creation` +
+      (entryId ? ` for entry ${entryId}` : '')
+  );
+  await alertAdmin(
+    'Stripe refund FAILED after it was issued',
+    `<p>Refund <code>${refund.id}</code> for ${(refund.amount / 100).toFixed(2)} USD has
+     status <code>failed</code>${entryId ? ` (entry <code>${entryId}</code>)` : ''} —
+     the customer was NOT paid, but the entry was already stamped refunded, so the
+     payout math is docking the club for money that never left.</p>
+     <p>Recovery: clear the entry's refund columns (see the runbook's
+     "Manual reconciliation" section), then re-issue the refund from the entries
+     page. The refund function ignores dead refunds, so re-issuing is safe.</p>`
+  );
+}
+
+/**
+ * Chargebacks pull platform funds while the payout cron would still pay the
+ * club in full — silent platform loss without an operator signal (round-11
+ * review). Alert-only for v1; dispute handling stays manual.
+ */
+async function handleDisputeCreated(dispute: Stripe.Dispute) {
+  const intentId =
+    typeof dispute.payment_intent === 'string'
+      ? dispute.payment_intent
+      : (dispute.payment_intent?.id ?? 'unknown');
+  console.error(`CRITICAL: dispute ${dispute.id} created on ${intentId} (${dispute.amount}¢)`);
+  await alertAdmin(
+    'Chargeback opened against an entry payment',
+    `<p>Dispute <code>${dispute.id}</code> (${(dispute.amount / 100).toFixed(2)} USD,
+     reason: ${dispute.reason}) was opened on payment intent <code>${intentId}</code>.
+     Stripe has pulled the funds from the platform balance, but the show's payout
+     still counts these entries — if the dispute stands, mark the entries refunded
+     BEFORE the payout settles (end date + 3 days) or the club gets paid for a
+     charge the platform lost.</p>
+     <p>Respond in the Stripe dashboard: Payments → Disputes.</p>`
+  );
+}
+
+/**
+ * Reconciliation backstop for refunds issued OUTSIDE stripe-refund-entry
+ * (e.g. the Stripe dashboard). A payment intent can cover a whole cart, so a
+ * dashboard refund can't be attributed to a single entry — mark the order and
+ * log loudly for manual entry-level reconciliation. Refunds from
+ * stripe-refund-entry carry entry_id metadata and were already recorded.
+ */
+async function handleChargeRefunded(charge: Stripe.Charge) {
+  const refunds = charge.refunds?.data ?? [];
+  // Skip only when EVERY refund came from stripe-refund-entry (.some would let
+  // an app refund mask a later dashboard refund on the same charge — review
+  // finding #3). Mixed charges fall through to the RECONCILE log below.
+  const allFromRefundEntry = refunds.length > 0 && refunds.every(r => r.metadata?.entry_id);
+  if (allFromRefundEntry) {
+    console.log(`charge.refunded for ${charge.id} originated from stripe-refund-entry — already recorded`);
+    return;
+  }
+
+  const paymentIntentId = extractPaymentIntentId(charge.payment_intent);
+  if (!paymentIntentId) {
+    console.error(`charge.refunded for ${charge.id} has no payment intent — cannot reconcile`);
+    return;
+  }
+
+  // Idempotent: re-delivery (or a second partial refund) re-applies the same state.
+  const { data, error } = await supabase
+    .from('stripe_orders')
+    .update({ status: 'refunded', refunded_at: new Date().toISOString() })
+    .eq('stripe_payment_intent_id', paymentIntentId)
+    .select('id, order_type');
+
+  if (error) {
+    console.error(`Error marking order refunded for ${paymentIntentId}:`, error);
+    return;
+  }
+  if (!data || data.length === 0) {
+    console.log(`charge.refunded for ${paymentIntentId} matched no order — ignoring`);
+    return;
+  }
+  console.error(
+    `RECONCILE: dashboard refund detected for ${paymentIntentId} (order ${data[0].id}, type ${data[0].order_type}). ` +
+      `Entry-level refund columns were NOT updated — reconcile manually or re-issue via the app's refund dialog.`
+  );
+  // Payout math reads entries.refund_amount, which a dashboard refund never
+  // touches — without action the club would be paid the refunded fee too
+  // (Codex round-4 P2). The end-date+3-day payout delay is the window to act.
+  await alertAdmin(
+    'Dashboard refund needs reconciling before payout',
+    `<p>A refund for payment intent <code>${paymentIntentId}</code> (order
+     <code>${data[0].id}</code>) was issued from the Stripe dashboard, not the app.</p>
+     <p><strong>The payout calculation will NOT see this refund</strong> — entry-level
+     refund columns were not updated. Before the show's payout runs (end date + 3
+     days), either re-issue the refund through the app's entry refund dialog (then
+     refund the duplicate in Stripe), or set <code>refund_amount</code> on the affected
+     entries. The runbook's "Never refund from the Stripe dashboard" section covers
+     this.</p>`
+  );
+}
+
+/**
+ * Mirror a connected account's onboarding/payout flags onto club_stripe_accounts.
+ */
+async function handleAccountUpdated(account: Stripe.Account) {
+  const patch = accountToRowPatch(account);
+  const { data, error } = await supabase
+    .from('club_stripe_accounts')
+    .update(patch)
+    .eq('stripe_account_id', account.id)
+    .select('id');
+
+  if (error) {
+    console.error(`Error updating club_stripe_accounts for ${account.id}:`, error);
+    return;
+  }
+  if (!data || data.length === 0) {
+    console.log(`account.updated for ${account.id} matched no club — ignoring`);
+    return;
+  }
+  console.log(
+    `Connect account ${account.id}: onboarding_complete=${patch.onboarding_complete}, payouts_enabled=${patch.payouts_enabled}`
+  );
+}
+
+/**
+ * A club disconnected the platform from their Stripe account: stop payouts.
+ */
+async function handleAccountDeauthorized(accountId: string | undefined) {
+  if (!accountId) {
+    console.error('account.application.deauthorized without event.account — cannot map to a club');
+    return;
+  }
+  const { error } = await supabase
+    .from('club_stripe_accounts')
+    .update({ onboarding_complete: false, payouts_enabled: false })
+    .eq('stripe_account_id', accountId);
+
+  if (error) {
+    console.error(`Error disabling deauthorized account ${accountId}:`, error);
+    return;
+  }
+  console.log(`Connect account ${accountId} deauthorized — payouts disabled`);
 }
 
 /**
@@ -140,7 +354,240 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     .single();
 
   if (cartError || !cart) {
+    // A PAID session whose cart row is gone (owner DELETE is allowed by RLS,
+    // and Checkout tabs stay payable until they expire): charge taken, zero
+    // entries, no Stripe retry — same severity as every other paid-but-broken
+    // state (round-13 review).
     console.error('Cart not found:', cartError);
+    await alertAdmin(
+      'Paid checkout has no cart — entries NOT created',
+      `<p>Checkout session <code>${session.id}</code> was PAID, but cart
+       <code>${cartId}</code> no longer exists${cartError ? ' (read error below)' : ''} —
+       no entries were created and Stripe will not retry.</p>
+       ${cartError ? `<pre>${cartError.message}</pre>` : ''}
+       <p>Recovery: verify the payment in the Stripe dashboard and refund it
+       (Payments → search the session's payment intent → Refund), or recreate the
+       entries manually if the exhibitor confirms what they ordered.</p>`
+    );
+    return;
+  }
+
+  // Refuse a paid session the cart no longer points at: the exhibitor started
+  // checkout, abandoned the Stripe tab, changed the cart, then paid the OLD
+  // page — entries from the CURRENT cart would not match the stale charge
+  // (Codex round-3 P1). Cart mutations null stripe_checkout_session_id, which
+  // is what makes this id equality decisive. The cart stays active so a fresh
+  // checkout works; the operator refunds the stale charge.
+  const staleGuard = sessionMatchesCart({
+    sessionId: session.id,
+    sessionAmountTotal: session.amount_total ?? null,
+    cartSessionId: cart.stripe_checkout_session_id ?? null,
+    cartTotalCents: cart.total_cents ?? null,
+    cartItemCount: cart.items?.length ?? 0,
+    cartExpiresAt: cart.expires_at ?? null,
+    nowIso: new Date().toISOString(),
+    cartSubtotalCents: cart.subtotal_cents ?? null,
+    itemFeesSumCents: (cart.items ?? []).reduce(
+      (sum: number, i: { entry_fee_cents: number }) => sum + (i.entry_fee_cents ?? 0),
+      0
+    ),
+  });
+  if (!staleGuard.ok) {
+    const stalePiId = extractPaymentIntentId(session.payment_intent);
+    console.error(`CRITICAL: stale-session payment for cart ${cartId} — ${staleGuard.reason}`);
+    await alertAdmin(
+      'Stale checkout payment needs a refund',
+      `<p>Checkout session <code>${session.id}</code> was PAID, but cart
+       <code>${cartId}</code> changed after that checkout started
+       (${staleGuard.reason}).</p>
+       <p>No entries were created for this charge. Refund payment intent
+       <code>${stalePiId ?? 'unknown — look up the session in Stripe'}</code> from the
+       Stripe dashboard. The exhibitor's cart is untouched and they can check out
+       again normally.</p>`
+    );
+    return;
+  }
+
+  // Round-15 P1: every number the guard above compared is OWNER-WRITABLE
+  // (cart totals, item fees — migration 009's update policies have no column
+  // restrictions), and the pinned webhook payload omits amount_total. A user
+  // could mutate item fees AND the stored subtotal in lockstep after starting
+  // checkout, pay the original Stripe amount, and get inflated paid entries
+  // (which the payout cron would then pay the club for). Verify against two
+  // sources the payer cannot write: a FRESH session retrieve from Stripe's
+  // API (modern SDK version — amount_total always present) and authoritative
+  // per-item fees recomputed from show/class pricing. Runs BEFORE the claim
+  // so a rejected cart stays active.
+  const freshSession = await stripe.checkout.sessions.retrieve(session.id);
+  const freshTotalCents = freshSession.amount_total ?? null;
+
+  const { data: showFees, error: showFeesError } = await supabase
+    .from('shows')
+    .select('pre_entry_fee, day_of_show_fee, start_date')
+    .eq('id', cart.show_id)
+    .single();
+
+  const classIds = [...new Set(cart.items.map((i: { class_id: string }) => i.class_id))];
+  // Filter to only classes whose trial belongs to this show (P1b class-show
+  // membership check). A class from a different show would pass the fee
+  // verification only by coincidence of equal fees, but would produce an entry
+  // with a trial_id from the wrong show.
+  const { data: classRows, error: classesError } = await supabase
+    .from('classes')
+    .select('id, trial_id, entry_fee, trial:trials!inner(show_id)')
+    .in('id', classIds)
+    .eq('trial.show_id', cart.show_id);
+
+  if (freshTotalCents == null || showFeesError || !showFees || classesError || !classRows) {
+    console.error(
+      `CRITICAL: cannot verify paid amount for cart ${cartId} — ` +
+        `freshTotal=${freshTotalCents}, showFeesError=${showFeesError?.message}, classesError=${classesError?.message}`
+    );
+    await alertAdmin(
+      'Paid checkout could not be verified — entries NOT created',
+      `<p>Checkout session <code>${session.id}</code> was PAID, but the authoritative
+       fee data needed to verify the amount could not be loaded, so no entries were
+       created and Stripe will not retry. The cart is untouched.</p>
+       <p>Recovery: check the function logs; if this was a transient database error,
+       re-send the event from the Stripe dashboard (Developers → Events → Resend).</p>`
+    );
+    return;
+  }
+
+  // Fail closed if any cart item's class was filtered out (cross-show class_id).
+  // A missing class produces trial_id: null entries and distorts payout math.
+  // !classRows above catches null; this catches a partial result (truthy array
+  // with fewer rows than classIds).
+  const classRowIds = new Set(classRows.map((c: { id: string }) => c.id));
+  const missingClassIds = classIds.filter((id: string) => !classRowIds.has(id));
+  if (missingClassIds.length > 0) {
+    console.error(
+      `CRITICAL: ${missingClassIds.length} class(es) not found in show ${cart.show_id} ` +
+        `for cart ${cartId} — possible cross-show class_id: ${missingClassIds.join(', ')}`
+    );
+    await alertAdmin(
+      'Cart classes do not belong to show — entries NOT created',
+      `<p>Checkout session <code>${session.id}</code> was PAID, but ${missingClassIds.length}
+       class(es) in cart <code>${cartId}</code> did not pass the show-membership filter.
+       This may indicate a cross-show class_id was injected into the cart.</p>
+       <p>Missing class IDs: <code>${missingClassIds.join(', ')}</code></p>
+       <p>No entries were created. Refund payment intent from the Stripe dashboard and
+       investigate the cart before manually re-entering.</p>`
+    );
+    return;
+  }
+
+  const feeByClass = new Map<string, number | string | null>(
+    classRows.map((c: { id: string; entry_fee: number | string | null }) => [c.id, c.entry_fee])
+  );
+  const nowIso = new Date().toISOString();
+  const authoritativeByClass = new Map<string, number>(
+    classIds.map((classId: string) => [
+      classId,
+      authoritativeEntryFeeCents({
+        showPreEntryFee: showFees.pre_entry_fee,
+        showDayOfShowFee: showFees.day_of_show_fee,
+        showStartDate: showFees.start_date,
+        classEntryFee: feeByClass.get(classId) ?? null,
+        nowIso,
+      }),
+    ])
+  );
+  const authoritativeSubtotal = (cart.items as { class_id: string }[]).reduce(
+    (sum, i) => sum + (authoritativeByClass.get(i.class_id) ?? 0),
+    0
+  );
+  const authoritativeTotal =
+    authoritativeSubtotal +
+    calculatePlatformFeeCents(
+      authoritativeSubtotal,
+      resolvePlatformFeePercent(Deno.env.get('PLATFORM_FEE_PERCENT'))
+    );
+  if (authoritativeTotal !== freshTotalCents) {
+    const piId = extractPaymentIntentId(session.payment_intent);
+    console.error(
+      `CRITICAL: paid total ${freshTotalCents}¢ does not match authoritative pricing ` +
+        `${authoritativeTotal}¢ for cart ${cartId} — entries NOT created`
+    );
+    await alertAdmin(
+      'Paid amount disagrees with authoritative pricing — verify, then refund',
+      `<p>Checkout session <code>${session.id}</code> charged ${(freshTotalCents / 100).toFixed(2)}
+       USD, but the show/class pricing says this cart is worth
+       ${(authoritativeTotal / 100).toFixed(2)} USD. No entries were created; the cart
+       is untouched.</p>
+       <p>Benign cause: the show's fees changed (or the day-of-show fee tier started)
+       between checkout and payment. Malicious cause: cart values were tampered after
+       checkout started. Either way the charge doesn't match current pricing — refund
+       payment intent <code>${piId ?? 'unknown'}</code> from the Stripe dashboard and
+       ask the exhibitor to check out again.</p>`
+    );
+    return;
+  }
+
+  // Idempotency latch: atomically claim the cart by flipping active → submitted.
+  // Stripe gets a 200 before this handler runs (EdgeRuntime.waitUntil), so a
+  // re-delivered event would otherwise create duplicate paid entries — which
+  // the payout cron would then pay the club for twice.
+  const { data: claimed, error: claimError } = await supabase
+    .from('entry_carts')
+    .update({ status: 'submitted' })
+    .eq('id', cartId)
+    .eq('status', 'active')
+    // Belt-and-suspenders for the guard's expiry check above: closes the
+    // seconds-wide TOCTOU between the cart read and this claim. NULL expiry
+    // (legacy rows) is tolerated, matching sessionMatchesCart.
+    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+    .select('id');
+
+  if (claimError) {
+    // Stripe already got its 200 (waitUntil), so this event will NOT retry:
+    // the exhibitor paid but no entries exist. Same severity as the
+    // entries-shortfall below — email, don't just log.
+    console.error(`CRITICAL: failed to claim cart ${cartId} after payment:`, claimError);
+    await alertAdmin(
+      'Paid cart could not be claimed — entries NOT created',
+      `<p>Checkout session <code>${session.id}</code> was PAID, but claiming cart
+       <code>${cartId}</code> failed with a database error, so no entries were created
+       and Stripe will not retry the event.</p>
+       <pre>${claimError.message}</pre>
+       <p>Recovery: verify the payment in the Stripe dashboard, then create the
+       entries manually from the cart items (or refund the payment).</p>`
+    );
+    return;
+  }
+  if (!claimed || claimed.length === 0) {
+    // Already-claimed cart: benign for a RE-DELIVERED event (same payment
+    // intent that created the entries), but a SECOND paid session on the same
+    // cart is a real duplicate CHARGE with nothing to show for it (Codex P1).
+    // Distinguish them by whether this intent created any entries.
+    const dupIntentId = extractPaymentIntentId(session.payment_intent);
+    if (dupIntentId) {
+      const { data: intentEntries } = await supabase
+        .from('entries')
+        .select('id')
+        .eq('stripe_payment_intent_id', dupIntentId)
+        .limit(1);
+      if (!intentEntries || intentEntries.length === 0) {
+        console.error(
+          `CRITICAL: paid session ${session.id} (${dupIntentId}) hit already-claimed cart ${cartId} — duplicate charge, needs manual refund`
+        );
+        await alertAdmin(
+          'Possible duplicate entry payment — verify, then refund',
+          `<p>Checkout session <code>${session.id}</code> was PAID for cart
+           <code>${cartId}</code>, but that cart was already claimed and this payment
+           intent owns no entries — most likely the exhibitor was charged twice.</p>
+           <p>VERIFY FIRST (a racing duplicate webhook delivery can trip this while
+           the winner's entries are still inserting): in the Stripe dashboard confirm
+           TWO separate successful payments exist for this cart, and in the entries
+           page confirm the cart's entries exist once. Then refund payment intent
+           <code>${dupIntentId}</code> (Payments → search the id → Refund). No entries
+           or orders were created for it, so the dashboard refund is the complete
+           fix.</p>`
+        );
+        return;
+      }
+    }
+    console.log(`Cart ${cartId} already processed (duplicate event delivery) — skipping`);
     return;
   }
 
@@ -151,24 +598,34 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     .eq('person_id', cart.exhibitor.person_id)
     .single();
 
-  // Create entries from cart items
+  // Resolve each class's trial: entries carry denormalized show_id/trial_id
+  // FKs that nothing else populates, and the payout calc + refund join +
+  // secretary entries list all filter on show_id. classRows was loaded (and
+  // error-gated) by the verification block above.
+  const trialByClass = new Map<string, string | null>(
+    classRows.map((c: { id: string; trial_id: string | null }) => [c.id, c.trial_id])
+  );
+
+  // Create entries from cart items, stamping the payment intent as the
+  // per-entry refund key for stripe-refund-entry. Fees come from the
+  // AUTHORITATIVE map (verified against the paid amount above), never from
+  // the owner-writable item rows.
+  const paymentIntentId = extractPaymentIntentId(session.payment_intent);
   const entryIds: string[] = [];
   for (const item of cart.items) {
     const { data: entry, error: entryError } = await supabase
       .from('entries')
-      .insert({
-        dog_id: item.dog_id,
-        class_id: item.class_id,
-        handler_id: item.handler_id,
-        entry_status: 'paid',
-        payment_status: 'paid',
-        entry_fee_cents: item.entry_fee_cents,
-        jump_height: item.jump_height,
-        notes: item.special_requests,
-        // Source tracking
-        source: 'online',
-        submitted_at: new Date().toISOString(),
-      })
+      .insert(
+        buildEntryInsert(
+          { ...item, entry_fee_cents: authoritativeByClass.get(item.class_id) ?? item.entry_fee_cents },
+          paymentIntentId,
+          new Date().toISOString(),
+          {
+            showId: cart.show_id,
+            trialId: trialByClass.get(item.class_id) ?? null,
+          }
+        )
+      )
       .select('id')
       .single();
 
@@ -182,25 +639,36 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     }
   }
 
-  console.log(`Created ${entryIds.length} entries from cart ${cartId}`);
-
-  // Update cart status
-  const { error: updateCartError } = await supabase
-    .from('entry_carts')
-    .update({ status: 'submitted' })
-    .eq('id', cartId);
-
-  if (updateCartError) {
-    console.error('Error updating cart status:', updateCartError);
+  if (entryIds.length !== cart.items.length) {
+    // Stripe already received its 200, so it will NOT retry this event: the
+    // exhibitor has paid for entries that do not exist. Surface loudly.
+    console.error(
+      `CRITICAL: cart ${cartId} paid (${paymentIntentId ?? 'no intent'}) but only ` +
+        `${entryIds.length}/${cart.items.length} entries were created — manual reconciliation required`
+    );
+    await alertAdmin(
+      'Paid entries missing — manual reconciliation needed',
+      `<p>Cart <code>${cartId}</code> was PAID (payment intent
+       <code>${paymentIntentId ?? 'unknown'}</code>), but only
+       ${entryIds.length} of ${cart.items.length} entries were created. Stripe will
+       not retry this event.</p>
+       <p>Recovery: compare the cart's items against the show's entries and create
+       the missing ones manually, or refund the difference from the Stripe
+       dashboard (Payments → search the intent id → Refund).</p>`
+    );
   }
+
+  console.log(`Created ${entryIds.length} entries from cart ${cartId}`);
 
   // Create stripe_orders record
   const { error: orderError } = await supabase.from('stripe_orders').insert({
     customer_id: stripeCustomer?.id || null,
-    stripe_payment_intent_id:
-      typeof session.payment_intent === 'string' ? session.payment_intent : null,
+    stripe_payment_intent_id: paymentIntentId,
     stripe_checkout_session_id: session.id,
-    amount_cents: session.amount_total || 0,
+    // freshTotalCents was verified against both the Stripe API and
+    // authoritative pricing above — use it as the source of record.
+    // cart.total_cents is owner-writable and must not drive payment history.
+    amount_cents: freshTotalCents ?? 0,
     currency: session.currency || 'usd',
     status: 'succeeded',
     order_type: 'entry',
@@ -214,13 +682,30 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   });
 
   if (orderError) {
+    // Entries exist and the exhibitor is fine, but the order row drives the
+    // payment-history surfaces and reconciliation — losing it silently makes
+    // the charge invisible to every dashboard.
     console.error('Error creating stripe_orders record:', orderError);
+    await alertAdmin(
+      'Entry payment recorded without a stripe_orders row',
+      `<p>Entries for cart <code>${cartId}</code> were created and the exhibitor is
+       unaffected, but inserting the <code>stripe_orders</code> record failed:</p>
+       <pre>${orderError.message}</pre>
+       <p>Recovery: insert the order row manually (payment intent
+       <code>${paymentIntentId ?? 'unknown'}</code>, session <code>${session.id}</code>)
+       so payment history and reconciliation stay complete.</p>`
+    );
   }
 
   console.log(`Entry payment completed for cart ${cartId}, created order`);
 
-  // Send confirmation email
-  await sendEntryConfirmationEmail(cart, entryIds, session);
+  // Send confirmation email. Pass authoritative totals — cart snapshot totals
+  // are owner-writable and must not appear on a payment receipt.
+  await sendEntryConfirmationEmail(cart, entryIds, session, {
+    subtotalCents: authoritativeSubtotal,
+    platformFeeCents: authoritativeTotal - authoritativeSubtotal,
+    totalCents: authoritativeTotal,
+  });
 }
 
 /**
@@ -235,12 +720,10 @@ async function sendEntryConfirmationEmail(
       class_id: string;
       entry_fee_cents: number;
     }>;
-    subtotal_cents: number;
-    platform_fee_cents: number;
-    total_cents: number;
   },
   entryIds: string[],
-  session: Stripe.Checkout.Session
+  session: Stripe.Checkout.Session,
+  authoritative: { subtotalCents: number; platformFeeCents: number; totalCents: number }
 ) {
   try {
     // Get exhibitor email and name
@@ -267,18 +750,25 @@ async function sendEntryConfirmationEmail(
       return;
     }
 
-    // Get entry details with dog and class info
-    const { data: entries } = await supabase
+    // Get entry details with dog and class info. entries has entry_fee in
+    // DOLLARS — there is no entry_fee_cents column; selecting it errors the
+    // whole query and silently skipped every confirmation email (Codex P1).
+    const { data: entries, error: entriesError } = await supabase
       .from('entries')
       .select(
         `
         id,
-        entry_fee_cents,
+        entry_fee,
         dogs:dog_id (name, call_name),
         classes:class_id (name, level)
       `
       )
       .in('id', entryIds);
+
+    if (entriesError) {
+      console.error('Entries fetch for confirmation email failed:', entriesError);
+      return;
+    }
 
     if (!entries || entries.length === 0) {
       console.error('No entries found for confirmation email');
@@ -321,11 +811,12 @@ async function sendEntryConfirmationEmail(
           'Unknown',
         className: (e.classes as { name: string })?.name || 'Unknown',
         classLevel: (e.classes as { level?: string })?.level || undefined,
-        entryFee: e.entry_fee_cents,
+        // cents, matching subtotal/platformFee/total below
+        entryFee: Math.round(Number(e.entry_fee ?? 0) * 100),
       })),
-      subtotal: cart.subtotal_cents || session.amount_subtotal || 0,
-      platformFee: cart.platform_fee_cents || 0,
-      total: cart.total_cents || session.amount_total || 0,
+      subtotal: authoritative.subtotalCents,
+      platformFee: authoritative.platformFeeCents,
+      total: authoritative.totalCents,
       orderId: session.id,
     };
 
@@ -361,8 +852,14 @@ async function handleSubscriptionCheckoutCompleted(session: Stripe.Checkout.Sess
     return;
   }
 
-  // Sync subscription from Stripe
-  await syncSubscriptionFromStripe(customerId);
+  // Use the specific subscription ID from the session instead of a customer-level
+  // list (limit:1 ordering would pick the wrong sub if the user has duplicates).
+  const subscriptionId =
+    typeof session.subscription === 'string'
+      ? session.subscription
+      : (session.subscription as { id?: string } | null)?.id;
+
+  await syncSubscriptionFromStripe(customerId, subscriptionId ?? undefined);
 }
 
 /**
@@ -406,7 +903,9 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
   const customerId = subscription.customer as string;
   console.log(`Subscription ${subscription.status} for customer: ${customerId}`);
 
-  await syncSubscriptionFromStripe(customerId);
+  // Pass the exact subscription ID so syncSubscriptionFromStripe retrieves it
+  // directly instead of listing by customer (limit:1 could return the wrong sub).
+  await syncSubscriptionFromStripe(customerId, subscription.id);
 }
 
 /**
@@ -417,7 +916,11 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
   if (!customerId) return;
 
   console.log(`Invoice paid for customer: ${customerId}`);
-  await syncSubscriptionFromStripe(customerId);
+  const subscriptionId =
+    typeof invoice.subscription === 'string'
+      ? invoice.subscription
+      : (invoice.subscription as { id?: string } | null)?.id;
+  await syncSubscriptionFromStripe(customerId, subscriptionId ?? undefined);
 }
 
 /**
@@ -428,14 +931,21 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   if (!customerId) return;
 
   console.log(`Invoice payment failed for customer: ${customerId}`);
-  await syncSubscriptionFromStripe(customerId);
+  const subscriptionId =
+    typeof invoice.subscription === 'string'
+      ? invoice.subscription
+      : (invoice.subscription as { id?: string } | null)?.id;
+  await syncSubscriptionFromStripe(customerId, subscriptionId ?? undefined);
 }
 
 /**
  * Sync subscription data from Stripe to database
  * Updates both stripe_subscriptions and exhibitor_profiles
  */
-async function syncSubscriptionFromStripe(stripeCustomerId: string) {
+async function syncSubscriptionFromStripe(
+  stripeCustomerId: string,
+  knownSubscriptionId?: string
+) {
   try {
     // Get stripe_customers record
     const { data: stripeCustomer, error: customerError } = await supabase
@@ -449,13 +959,23 @@ async function syncSubscriptionFromStripe(stripeCustomerId: string) {
       return;
     }
 
-    // Fetch subscriptions from Stripe
-    const subscriptions = await stripe.subscriptions.list({
-      customer: stripeCustomerId,
-      limit: 1,
-      status: 'all',
-      expand: ['data.default_payment_method'],
-    });
+    // When the specific subscription ID is known (e.g. from checkout.session.completed),
+    // retrieve it directly — avoids the limit:1 ordering ambiguity that could
+    // pick a newer canceled/incomplete sub over an older active one.
+    let subscriptions: { data: Stripe.Subscription[] };
+    if (knownSubscriptionId) {
+      const sub = await stripe.subscriptions.retrieve(knownSubscriptionId, {
+        expand: ['default_payment_method'],
+      });
+      subscriptions = { data: [sub] };
+    } else {
+      subscriptions = await stripe.subscriptions.list({
+        customer: stripeCustomerId,
+        limit: 1,
+        status: 'all',
+        expand: ['data.default_payment_method'],
+      });
+    }
 
     if (subscriptions.data.length === 0) {
       console.log(`No subscriptions found for customer: ${stripeCustomerId}`);
@@ -542,14 +1062,19 @@ async function syncSubscriptionFromStripe(stripeCustomerId: string) {
 /**
  * Map Stripe price ID to subscription tier
  */
-// INTENT: Two tiers only — Free and Premium. Both Stripe price IDs map to 'premium'.
+// INTENT: Two tiers only — Free and Premium. Every configured price ID maps to
+// 'premium'. Ids come from the PREMIUM_PRICE_IDS secret (comma-separated;
+// sandbox + live + annual coexist) with the original live ids as fallback so a
+// missing secret never downgrades a paying subscriber.
+const LIVE_PREMIUM_PRICE_IDS = [
+  'price_1RHz4VAtHgBcw875bF7McPNd', // Was "Excellent" (clubs) — now Premium
+  'price_1RHz3bAtHgBcw875o2gdNaYW', // Was "Advanced" (exhibitors) — now Premium
+];
+const premiumPriceIds = parsePremiumPriceIds(
+  Deno.env.get('PREMIUM_PRICE_IDS'),
+  LIVE_PREMIUM_PRICE_IDS
+);
+
 function mapPriceToTier(priceId: string | undefined): 'free' | 'premium' {
-  if (!priceId) return 'free';
-
-  const knownPriceIds = [
-    'price_1RHz4VAtHgBcw875bF7McPNd', // Was "Excellent" (clubs) — now Premium
-    'price_1RHz3bAtHgBcw875o2gdNaYW', // Was "Advanced" (exhibitors) — now Premium
-  ];
-
-  return knownPriceIds.includes(priceId) ? 'premium' : 'free';
+  return priceIdToTier(priceId, premiumPriceIds);
 }

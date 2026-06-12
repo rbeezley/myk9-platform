@@ -46,6 +46,7 @@ import {
 interface EnrollmentCardProps {
   group: EnrollmentGroup;
   onStatusChange: (entryId: string, status: EntryStatus, withdrawalReason?: string) => void;
+  onEntryRefunded?: () => void;
   onCheckInStatusChange: (
     entry: EntryManagementEntry,
     cls: EntryClass,
@@ -120,6 +121,7 @@ const PAID_STATUSES = new Set([
 export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   group,
   onStatusChange,
+  onEntryRefunded,
   onCheckInStatusChange,
   onOpenArmbandDialog,
   onCompEntry,
@@ -224,6 +226,14 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
 
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5">
+              {/* Manual payment recording only exists for enrollment (mail-in)
+                  groups. Online-checkout groups have no enrollment row, so the
+                  manual options would silently no-op — and "Refunded…" would
+                  read like a real card refund. Their status follows Stripe via
+                  the per-entry Withdrawn → refund flow. */}
+              {!group.enrollmentId ? (
+                getPaymentStatusBadge(group.paymentStatus)
+              ) : (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="inline-flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity">
@@ -269,6 +279,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              )}
 
               <span className="text-sm font-medium">${totalDollars.toFixed(2)}</span>
 
@@ -396,6 +407,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
           <EntryListCard
             entries={group.entries}
             onStatusChange={onStatusChange}
+            onEntryRefunded={onEntryRefunded}
             onCheckInStatusChange={onCheckInStatusChange}
             onOpenArmbandDialog={onOpenArmbandDialog}
             onCompEntry={onCompEntry}

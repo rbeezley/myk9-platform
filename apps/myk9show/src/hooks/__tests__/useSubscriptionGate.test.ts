@@ -27,12 +27,12 @@ function mockPremiumProfile(expiresAt: string) {
   });
 }
 
-function mockEarlyAdopterProfile() {
+function mockEarlyAdopterProfile(until: string = futureDate) {
   mockUseExhibitorProfile.mockReturnValue({
     profile: {
       subscription_tier: 'free',
       subscription_expires_at: null,
-      person: { is_early_adopter: true },
+      person: { early_adopter_until: until },
     },
     isLoading: false,
   });
@@ -179,12 +179,12 @@ describe('useSubscriptionGate', () => {
       expect(result.current.isPremium).toBe(false);
     });
 
-    it('isEarlyAdopter is false when person.is_early_adopter is false', () => {
+    it('isEarlyAdopter is false when early_adopter_until is null (never granted)', () => {
       mockUseExhibitorProfile.mockReturnValue({
         profile: {
           subscription_tier: 'free',
           subscription_expires_at: null,
-          person: { is_early_adopter: false },
+          person: { early_adopter_until: null },
         },
         isLoading: false,
       });
@@ -195,12 +195,21 @@ describe('useSubscriptionGate', () => {
       expect(result.current.isPremium).toBe(false);
     });
 
-    it('early adopter with expired paid subscription still gets premium via early adopter flag', () => {
+    it('founding membership EXPIRES: a past early_adopter_until no longer grants premium', () => {
+      mockEarlyAdopterProfile(pastDate);
+
+      const { result } = renderHook(() => useSubscriptionGate());
+
+      expect(result.current.isEarlyAdopter).toBe(false);
+      expect(result.current.isPremium).toBe(false);
+    });
+
+    it('early adopter with expired paid subscription still gets premium via founding grant', () => {
       mockUseExhibitorProfile.mockReturnValue({
         profile: {
           subscription_tier: 'premium',
           subscription_expires_at: pastDate,
-          person: { is_early_adopter: true },
+          person: { early_adopter_until: futureDate },
         },
         isLoading: false,
       });

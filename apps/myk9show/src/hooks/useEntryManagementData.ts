@@ -72,6 +72,15 @@ interface UseEntryManagementDataReturn {
 
 const LAST_SHOW_KEY = 'myk9show:entryMgmt:lastShowId';
 
+/** "First Last" from a joined person record, or null when absent/blank. */
+function personName(
+  person: { first_name: string | null; last_name: string | null } | null | undefined
+): string | null {
+  if (!person) return null;
+  const name = `${person.first_name ?? ''} ${person.last_name ?? ''}`.trim();
+  return name || null;
+}
+
 interface EntryManagementShowRow {
   id: string;
   name: string | null;
@@ -131,7 +140,10 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
 
       // Transform database entries to UI format
       // SecretaryEntry is a flat row (one per class entry), not a grouped structure
-      const transformedEntries: EntryManagementEntry[] = ((data || []) as SecretaryEntry[]).map(
+      // `as unknown` bridge: entries.refund_amount/refunded_at (migration
+      // 20260609220000) aren't in the generated Database types yet — drop the
+      // bridge after the next `supabase gen types` run.
+      const transformedEntries: EntryManagementEntry[] = ((data || []) as unknown as SecretaryEntry[]).map(
         (entry): EntryManagementEntry => ({
           id: entry.id,
           registrationId: entry.registration?.id ?? '',
@@ -139,9 +151,11 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
           showId: entry.show_id || '',
           dogId: entry.dog_id || '',
           dogName: entry.dog?.name || 'Unknown Dog',
-          ownerName: entry.handler || 'Unknown',
+          // Online (webhook-created) entries set handler_id/dog.owner FKs but
+          // never the legacy `handler` text; mail-in entries set the text only.
+          ownerName: personName(entry.dog?.owner) || entry.handler || 'Unknown',
           ownerEmail: entry.dog?.owner?.email ?? '',
-          handlerName: entry.handler || 'Not specified',
+          handlerName: personName(entry.handler_person) || entry.handler || 'Not specified',
           classes: entry.class
             ? [
                 {
@@ -156,7 +170,14 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
               ]
             : [],
           totalFee: entry.entry_fee || 0,
-          paidAmount: entry.payment_status === 'paid' ? entry.entry_fee || 0 : 0,
+          // 'refunded' covers partial refunds too (stripe-refund-entry sets it
+          // for both) — net paid is fee minus refund, not zero (Codex P2).
+          paidAmount:
+            entry.payment_status === 'paid'
+              ? entry.entry_fee || 0
+              : entry.payment_status === 'refunded'
+                ? Math.max(0, (entry.entry_fee || 0) - (entry.refund_amount ?? 0))
+                : 0,
           entryStatus: mapEntryStatus(entry.entry_status),
           paymentStatus: mapPaymentStatus(entry.payment_status),
           submittedAt: entry.submitted_at
@@ -187,6 +208,11 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
           ...(entry.registration?.refunded_at != null
             ? { enrollmentRefundedAt: entry.registration.refunded_at }
             : {}),
+          // Entry-level Stripe payment/refund state (migration 20260609220000)
+          paymentMethod: entry.payment_method ?? null,
+          refundAmount: entry.refund_amount ?? null,
+          refundedAt: entry.refunded_at ?? null,
+          stripePaymentIntentId: entry.stripe_payment_intent_id ?? null,
         })
       );
 

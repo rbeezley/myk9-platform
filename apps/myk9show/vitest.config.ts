@@ -12,7 +12,11 @@ export default defineConfig({
       VITE_SUPABASE_URL: 'https://test.supabase.co',
       VITE_SUPABASE_ANON_KEY: 'eyJ0ZXN0IjoidGVzdCJ9.test-anon-key',
     },
-    include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    include: [
+      'src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+      // Pure (Deno-free) helper modules colocated with edge functions
+      'supabase/functions/_shared/*.test.ts',
+    ],
     exclude: [
       '**/node_modules/**',
       '**/dist/**',

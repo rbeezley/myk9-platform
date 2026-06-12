@@ -1,6 +1,9 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
+import { calculatePlatformFeeCents, resolvePlatformFeePercent } from '../_shared/platformFee.ts';
+import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
+import { parsePremiumPriceIds } from '../_shared/premiumPrices.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -61,13 +64,6 @@ interface SubscriptionCheckoutRequest {
   cancel_url: string;
 }
 
-interface PaymentCheckoutRequest {
-  mode: 'payment';
-  price_id: string;
-  success_url: string;
-  cancel_url: string;
-}
-
 interface EntryCheckoutRequest {
   mode: 'entry';
   cart_id: string;
@@ -75,13 +71,17 @@ interface EntryCheckoutRequest {
   cancel_url: string;
 }
 
-type CheckoutRequest = SubscriptionCheckoutRequest | PaymentCheckoutRequest | EntryCheckoutRequest;
+type CheckoutRequest = SubscriptionCheckoutRequest | EntryCheckoutRequest;
 
-// Valid subscription price IDs — must match stripe-upgrade-subscription allowlist (SA-024)
-const VALID_PRICE_IDS = new Set([
-  'price_1RHz4VAtHgBcw875bF7McPNd', // legacy "excellent" — now premium
-  'price_1RHz3bAtHgBcw875o2gdNaYW', // premium (exhibitors)
-]);
+// Valid subscription price IDs — same env-extended allowlist as
+// stripe-upgrade-subscription and the webhook tier map (SA-024; PR #625
+// review caught this one still hardcoded, which 400'd annual checkout).
+const VALID_PRICE_IDS = new Set(
+  parsePremiumPriceIds(Deno.env.get('PREMIUM_PRICE_IDS'), [
+    'price_1RHz4VAtHgBcw875bF7McPNd', // legacy "excellent" — now premium
+    'price_1RHz3bAtHgBcw875o2gdNaYW', // premium (exhibitors)
+  ])
+);
 
 /** Validate that a URL starts with one of our allowed origins (prevents open redirect) */
 function isAllowedRedirectUrl(url: string): boolean {
@@ -155,9 +155,12 @@ Deno.serve(async req => {
       return corsResponse({ error: 'Failed to create payment profile' }, 500);
     }
 
-    // Handle different checkout modes
+    // Handle different checkout modes.
+    // `return await` (not bare `return`) so a rejection inside the handler is
+    // caught by this try/catch and returned as JSON-with-CORS — a bare return
+    // escapes the catch and surfaces to the browser as an opaque network error.
     if (mode === 'entry') {
-      return handleEntryCheckout(
+      return await handleEntryCheckout(
         body as EntryCheckoutRequest,
         user.id,
         customerId,
@@ -165,20 +168,17 @@ Deno.serve(async req => {
         cancel_url
       );
     } else if (mode === 'subscription') {
-      return handleSubscriptionCheckout(
+      return await handleSubscriptionCheckout(
         body as SubscriptionCheckoutRequest,
         customerId,
         success_url,
         cancel_url
       );
-    } else if (mode === 'payment') {
-      return handlePaymentCheckout(
-        body as PaymentCheckoutRequest,
-        customerId,
-        success_url,
-        cancel_url
-      );
     }
+    // No 'payment' mode: nothing client-side used it, and it accepted any
+    // caller-supplied price_id with no allowlist — an SA-024-shaped hole the
+    // day a one-time price exists. Re-add WITH an allowlist if ever needed
+    // (round-13 review).
 
     return corsResponse({ error: 'Invalid checkout mode' }, 400);
   } catch (error: unknown) {
@@ -221,7 +221,11 @@ async function getOrCreateStripeCustomer(
       },
     });
 
-    // Save to stripe_customers table
+    // Save to stripe_customers table.
+    // stripe_customers.person_id is UNIQUE — a second concurrent checkout for
+    // the same person will hit a 23505 unique violation. In that case, delete
+    // the Stripe customer we just created (it would be orphaned) and re-query
+    // to return the winning row's stripe_customer_id.
     const { error: insertError } = await supabase.from('stripe_customers').insert({
       person_id: personId,
       stripe_customer_id: stripeCustomer.id,
@@ -229,9 +233,17 @@ async function getOrCreateStripeCustomer(
     });
 
     if (insertError) {
-      console.error('Error saving stripe customer:', insertError);
-      // Clean up Stripe customer
       await stripe.customers.del(stripeCustomer.id);
+      if (insertError.code === '23505') {
+        // Another concurrent request won the race — return the existing row.
+        const { data: raceWinner } = await supabase
+          .from('stripe_customers')
+          .select('stripe_customer_id')
+          .eq('person_id', personId)
+          .single();
+        return raceWinner?.stripe_customer_id ?? null;
+      }
+      console.error('Error saving stripe customer:', insertError);
       return null;
     }
 
@@ -283,6 +295,7 @@ async function handleEntryCheckout(
         dog:dogs(call_name),
         class:classes(
           name,
+          entry_fee,
           trial:trials(
             show:shows(name)
           )
@@ -310,6 +323,121 @@ async function handleEntryCheckout(
     return corsResponse({ error: 'Cart has expired. Please create a new cart.' }, 410);
   }
 
+  const platformFeePercent = resolvePlatformFeePercent(Deno.env.get('PLATFORM_FEE_PERCENT'));
+
+  // NEVER trust entry_cart_items.entry_fee_cents (round-14 P1): the
+  // owner-update RLS policy covers every column, so a direct PostgREST write
+  // can lower an item's fee. Recompute each fee from the authority chain
+  // (show date-tiered fees → class fee → default). Drift — tampering OR a
+  // legitimate fee change since the item was added — heals the cart to
+  // authoritative pricing and asks the user to review; we never silently
+  // charge a number the cart page didn't show.
+  const { data: showFees, error: showFeesError } = await supabase
+    .from('shows')
+    .select(
+      `pre_entry_fee, day_of_show_fee, start_date, status,
+       entry_open_date, entry_close_date, club_id`
+    )
+    .eq('id', cart.show_id)
+    .single();
+  if (showFeesError || !showFees) {
+    console.error(`Show fee lookup failed for cart ${cart_id} (show ${cart.show_id}):`, showFeesError);
+    return corsResponse({ error: 'Could not verify entry fees. Please try again.' }, 500);
+  }
+
+  // Server-side online-entry gate: the UI enforces this, but any direct API
+  // call to stripe-checkout bypasses the UI. Fail closed on each condition.
+  const entryStatuses = ['published', 'accepting_entries'];
+  if (!entryStatuses.includes(showFees.status)) {
+    return corsResponse(
+      { error: 'Online entries are not currently open for this show.' },
+      403
+    );
+  }
+  const nowMs = Date.now();
+  if (showFees.entry_open_date && nowMs < new Date(showFees.entry_open_date).getTime()) {
+    return corsResponse(
+      { error: 'Online entry has not opened yet for this show.' },
+      403
+    );
+  }
+  if (showFees.entry_close_date && nowMs > new Date(showFees.entry_close_date).getTime()) {
+    return corsResponse(
+      { error: 'Online entry has closed for this show.' },
+      403
+    );
+  }
+  {
+    const connectPayoutsEnabled = showFees.club_id
+      ? await supabase
+          .from('club_stripe_accounts')
+          .select('payouts_enabled')
+          .eq('club_id', showFees.club_id)
+          .maybeSingle()
+          .then(({ data }) => data?.payouts_enabled === true)
+      : false;
+    if (!connectPayoutsEnabled) {
+      return corsResponse(
+        { error: "This club's payment account is not set up to receive online entry fees." },
+        403
+      );
+    }
+  }
+
+  const nowIso = new Date().toISOString();
+  const itemsWithAuthoritativeFee = (
+    cart.items as { id: string; entry_fee_cents: number; class?: { entry_fee?: number | string | null } }[]
+  ).map(item => ({
+    item,
+    authoritativeCents: authoritativeEntryFeeCents({
+      showPreEntryFee: showFees.pre_entry_fee,
+      showDayOfShowFee: showFees.day_of_show_fee,
+      showStartDate: showFees.start_date,
+      classEntryFee: item.class?.entry_fee ?? null,
+      nowIso,
+    }),
+  }));
+  const driftedItems = itemsWithAuthoritativeFee.filter(
+    x => x.item.entry_fee_cents !== x.authoritativeCents
+  );
+  if (driftedItems.length > 0) {
+    console.error(
+      `Cart ${cart_id}: ${driftedItems.length}/${cart.items.length} item fees differ from ` +
+        `authoritative pricing — healing and refusing checkout`
+    );
+    for (const { item, authoritativeCents } of driftedItems) {
+      await supabase
+        .from('entry_cart_items')
+        .update({ entry_fee_cents: authoritativeCents })
+        .eq('id', item.id);
+    }
+    const healedSubtotal = itemsWithAuthoritativeFee.reduce((s, x) => s + x.authoritativeCents, 0);
+    const healedFeeCents = calculatePlatformFeeCents(healedSubtotal, platformFeePercent);
+    await supabase
+      .from('entry_carts')
+      .update({
+        subtotal_cents: healedSubtotal,
+        platform_fee_cents: healedFeeCents,
+        total_cents: healedSubtotal + healedFeeCents,
+        // Sever any prior session — it priced the unhealed items.
+        stripe_checkout_session_id: null,
+      })
+      .eq('id', cart_id)
+      // Never heal a cart the webhook just claimed (paid mid-checkout).
+      .eq('status', 'active');
+    if (cart.stripe_checkout_session_id) {
+      try {
+        await stripe.checkout.sessions.expire(cart.stripe_checkout_session_id);
+      } catch {
+        // Already expired/paid/foreign — the severed link above is decisive.
+      }
+    }
+    return corsResponse(
+      { error: 'Entry fees were updated to current show pricing — review your cart and try again.' },
+      409
+    );
+  }
+
   // Build line items for Stripe
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = cart.items.map(
     (item: {
@@ -333,13 +461,13 @@ async function handleEntryCheckout(
     return corsResponse({ error: 'Cart is empty' }, 400);
   }
 
-  // Calculate platform fee (if applicable)
+  // Calculate platform fee (if applicable). Item fees are verified equal to
+  // the authoritative pricing above, so summing them is summing the authority.
   const subtotal = cart.items.reduce(
     (sum: number, item: { entry_fee_cents: number }) => sum + item.entry_fee_cents,
     0
   );
-  const platformFeePercent = 3; // 3% platform fee
-  const platformFeeCents = Math.round((subtotal * platformFeePercent) / 100);
+  const platformFeeCents = calculatePlatformFeeCents(subtotal, platformFeePercent);
 
   // Add platform fee as line item if > 0
   if (platformFeeCents > 0) {
@@ -356,12 +484,58 @@ async function handleEntryCheckout(
     });
   }
 
-  // Create checkout session
+  // Two tabs / a retry must converge on ONE payable session — a second
+  // session on the same cart double-charges, and the webhook's cart claim
+  // makes the second payment vanish silently (Codex P1). Reuse the open
+  // session when the cart is unchanged; expire it (so it can't be paid
+  // later) and recreate when the items/total differ.
+  if (cart.stripe_checkout_session_id) {
+    try {
+      const existing = await stripe.checkout.sessions.retrieve(cart.stripe_checkout_session_id);
+      // Paid but the webhook hasn't claimed the cart yet (it's still active):
+      // creating a replacement session here would re-point the cart and make
+      // the REAL payment fail the webhook's current-session guard (Codex
+      // round-4 P1). Tell the caller to wait instead.
+      if (existing.status === 'complete') {
+        console.log(
+          `Cart ${cart_id} session ${existing.id} already paid — webhook processing, no new session`
+        );
+        return corsResponse(
+          {
+            error:
+              'Your payment for this cart is already processing. Give it a few seconds, then check My Entries.',
+          },
+          409
+        );
+      }
+      if (existing.status === 'open') {
+        if (existing.amount_total === subtotal + platformFeeCents && existing.url) {
+          console.log(`Reusing open checkout session ${existing.id} for cart ${cart_id}`);
+          return corsResponse({ sessionId: existing.id, url: existing.url });
+        }
+        await stripe.checkout.sessions.expire(existing.id);
+        console.log(`Expired stale checkout session ${existing.id} (cart ${cart_id} changed)`);
+      }
+    } catch (err) {
+      // Unknown/foreign session id (e.g. created under the other key mode):
+      // fall through and create a fresh one.
+      console.log(`Could not inspect prior session for cart ${cart_id}:`, err);
+    }
+  }
+
+  // Create checkout session. Stripe pages default to 24h payable; an app
+  // cart lives ~30 min — without clamping, a user could pay a page whose
+  // cart expired hours earlier (round-12 P1). Stripe's MINIMUM expires_at is
+  // 30 minutes measured at THEIR clock on arrival — an exact +30:00 computed
+  // before the network hop gets rejected as under the minimum (round-15 P1).
+  // 31 minutes buys the buffer; the cart is then aligned below to the expiry
+  // Stripe actually RETURNS, so page and cart still die at the same instant.
+  const sessionExpiresAtEpoch = Math.floor(Date.now() / 1000) + 31 * 60;
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
-    payment_method_types: ['card'],
     line_items: lineItems,
     mode: 'payment',
+    expires_at: sessionExpiresAtEpoch,
     success_url: successUrl,
     cancel_url: cancelUrl,
     metadata: {
@@ -377,18 +551,52 @@ async function handleEntryCheckout(
   });
 
   // Update cart with checkout session
-  const { error: updateError } = await supabase
+  const { data: updated, error: updateError } = await supabase
     .from('entry_carts')
     .update({
       stripe_checkout_session_id: session.id,
       subtotal_cents: subtotal,
       platform_fee_cents: platformFeeCents,
       total_cents: subtotal + platformFeeCents,
+      // Stripe's returned expiry is authoritative (it may round/adjust ours).
+      expires_at: new Date((session.expires_at ?? sessionExpiresAtEpoch) * 1000).toISOString(),
     })
-    .eq('id', cart_id);
+    .eq('id', cart_id)
+    // Optimistic concurrency (Codex round-6 P1): a cart mutation between our
+    // read and this write clears stripe_checkout_session_id and changes
+    // totals — writing the stale snapshot back would re-legitimize a session
+    // built from items the user no longer has. updated_at auto-touches on
+    // every entry_carts update (009 trigger), so equality means "unchanged
+    // since we read it".
+    .eq('status', 'active')
+    .eq('updated_at', cart.updated_at)
+    .select('id');
+
+  if (!updateError && (!updated || updated.length === 0)) {
+    console.log(`Cart ${cart_id} changed mid-checkout — expiring session ${session.id}`);
+    try {
+      await stripe.checkout.sessions.expire(session.id);
+    } catch (expireErr) {
+      console.error(`CRITICAL: could not expire orphaned session ${session.id}:`, expireErr);
+    }
+    return corsResponse(
+      { error: 'Your cart changed while checkout was starting. Please try again.' },
+      409
+    );
+  }
 
   if (updateError) {
-    console.error('Error updating cart with session:', updateError);
+    // The webhook REJECTS any paid session the cart doesn't point at
+    // (sessionCartGuard) — handing out this URL without the persisted link
+    // would let the user pay a session the webhook must then refuse (Codex
+    // round-5 P1). Kill the session and fail the request instead.
+    console.error('Error updating cart with session — expiring session:', updateError);
+    try {
+      await stripe.checkout.sessions.expire(session.id);
+    } catch (expireErr) {
+      console.error(`CRITICAL: could not expire orphaned session ${session.id}:`, expireErr);
+    }
+    return corsResponse({ error: 'Could not start checkout. Please try again.' }, 500);
   }
 
   console.log(`Created entry checkout session ${session.id} for cart ${cart_id}`);
@@ -415,9 +623,24 @@ async function handleSubscriptionCheckout(
     return corsResponse({ error: 'Invalid price_id' }, 400);
   }
 
+  // Pre-flight: reject if the customer already has an active subscription.
+  // Without this guard, multi-tab or direct-call scenarios create duplicate
+  // Stripe subscriptions; syncSubscriptionFromStripe's limit:1 query may then
+  // sync the wrong one and silently downgrade the user.
+  const existingActive = await stripe.subscriptions.list({
+    customer: customerId,
+    status: 'active',
+    limit: 1,
+  });
+  if (existingActive.data.length > 0) {
+    return corsResponse(
+      { error: 'You already have an active subscription. Visit your account settings to manage it.' },
+      400
+    );
+  }
+
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
-    payment_method_types: ['card'],
     line_items: [{ price: price_id, quantity: 1 }],
     mode: 'subscription',
     success_url: successUrl,
@@ -428,36 +651,5 @@ async function handleSubscriptionCheckout(
   });
 
   console.log(`Created subscription checkout session ${session.id}`);
-  return corsResponse({ sessionId: session.id, url: session.url });
-}
-
-/**
- * Handle one-time payment checkout
- */
-async function handlePaymentCheckout(
-  request: PaymentCheckoutRequest,
-  customerId: string,
-  successUrl: string,
-  cancelUrl: string
-): Promise<Response> {
-  const { price_id } = request;
-
-  if (!price_id) {
-    return corsResponse({ error: 'Missing price_id for payment checkout' }, 400);
-  }
-
-  const session = await stripe.checkout.sessions.create({
-    customer: customerId,
-    payment_method_types: ['card'],
-    line_items: [{ price: price_id, quantity: 1 }],
-    mode: 'payment',
-    success_url: successUrl,
-    cancel_url: cancelUrl,
-    metadata: {
-      type: 'payment',
-    },
-  });
-
-  console.log(`Created payment checkout session ${session.id}`);
   return corsResponse({ sessionId: session.id, url: session.url });
 }

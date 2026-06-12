@@ -47,6 +47,14 @@ export interface EntryManagementEntry {
   enrollmentRefundAmount?: number | null;
   enrollmentRefundNotes?: string | null;
   enrollmentRefundedAt?: string | null;
+  /** entries.payment_method — 'online' marks Stripe-paid (refundable) entries */
+  paymentMethod?: string | null;
+  /** Entry-level Stripe refund in dollars, issued via stripe-refund-entry */
+  refundAmount?: number | null;
+  refundedAt?: string | null;
+  /** Stripe charge this entry was paid under — the per-ORDER grouping key for
+   * online entries, which have no registrationId */
+  stripePaymentIntentId?: string | null;
 }
 
 export interface EntryManagementShow {

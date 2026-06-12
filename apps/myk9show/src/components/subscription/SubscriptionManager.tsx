@@ -8,6 +8,14 @@ import { CreditCard, Calendar, Settings, Download, AlertCircle, Crown, Zap } fro
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
+import { products, annualPriceId } from '@/stripe-config';
+
+/** Display amount/interval per known price id; unknown ids show no price line. */
+function priceDisplay(priceId: string | null): { amount: number; interval: 'month' | 'year' } {
+  if (priceId && priceId === annualPriceId) return { amount: 4900, interval: 'year' };
+  if (priceId === products.premium.priceId) return { amount: 499, interval: 'month' };
+  return { amount: 0, interval: 'month' };
+}
 
 interface Subscription {
   id: string;
@@ -45,18 +53,49 @@ export function SubscriptionManager() {
     try {
       setLoading(true);
 
-      // Fetch subscription from Supabase
-      const { data: subData, error: subError } = await supabase
-        .from('stripe_subscriptions')
-        .select(
-          'stripe_subscription_id, status, stripe_price_id, current_period_start, current_period_end, cancel_at_period_end, customer_id'
-        )
-        .eq('customer_id', user?.id || '')
+      // stripe_subscriptions.customer_id is a stripe_customers row uuid, NOT
+      // the auth user id — resolve our own customer row first. Filter by the
+      // caller's person id explicitly: RLS scopes normal users, but site
+      // admins can read EVERY customer row, so "newest visible row" alone
+      // would show an admin someone else's subscription (Codex P2).
+      const { data: me, error: meError } = await supabase
+        .from('people')
+        .select('id')
+        .eq('auth_user_id', user?.id ?? '')
         .maybeSingle();
+
+      if (meError) throw meError;
+
+      // order+limit: maybeSingle() throws if a person ever accrues two
+      // customer rows; prefer the newest rather than erroring the page.
+      const { data: customer, error: customerError } = me
+        ? await supabase
+            .from('stripe_customers')
+            .select('id')
+            .eq('person_id', me.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+        : { data: null, error: null };
+
+      if (customerError) throw customerError;
+
+      const { data: subData, error: subError } = customer
+        ? await supabase
+            .from('stripe_subscriptions')
+            .select(
+              'stripe_subscription_id, status, stripe_price_id, current_period_start, current_period_end, cancel_at_period_end, customer_id'
+            )
+            .eq('customer_id', customer.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+        : { data: null, error: null };
 
       if (subError) throw subError;
 
       if (subData) {
+        const { amount, interval } = priceDisplay(subData.stripe_price_id);
         setSubscription({
           id: subData.stripe_subscription_id || '',
           status:
@@ -69,9 +108,9 @@ export function SubscriptionManager() {
                   : 'unpaid',
           planName: 'Premium', // Default for active subscriptions
           planType: 'premium' as const, // All paid subscriptions are premium
-          amount: 0, // Not available in view
+          amount,
           currency: 'usd',
-          interval: 'month' as const,
+          interval,
           currentPeriodStart: new Date(subData.current_period_start || new Date().toISOString()),
           currentPeriodEnd: new Date(subData.current_period_end || new Date().toISOString()),
           cancelAtPeriodEnd: subData.cancel_at_period_end || false,
@@ -204,9 +243,11 @@ export function SubscriptionManager() {
                   {getPlanIcon(subscription.planType)}
                   <div>
                     <h3 className="font-semibold text-lg">{subscription.planName}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      ${subscription.amount / 100} / {subscription.interval}
-                    </p>
+                    {subscription.amount > 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        ${subscription.amount / 100} / {subscription.interval}
+                      </p>
+                    )}
                   </div>
                 </div>
                 {getStatusBadge(subscription.status)}

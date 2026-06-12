@@ -1,20 +1,25 @@
 import { supabase } from './supabase';
-import { products } from '../stripe-config';
+import { products, annualPriceId } from '../stripe-config';
 
 /**
  * Create a Stripe checkout session for subscription or one-time payment
  */
 export async function createCheckoutSession(priceId: string, mode: 'payment' | 'subscription') {
-  const product = Object.values(products).find(p => p.priceId === priceId);
+  // The annual price lives outside `products` (env-driven, optional); without
+  // this branch the PricingPage annual toggle could never check out (PR #625).
+  const isKnownPrice =
+    priceId === annualPriceId || Object.values(products).some(p => p.priceId === priceId);
 
-  if (!product) {
+  if (!isKnownPrice) {
     throw new Error('Invalid price ID');
   }
 
   const { data, error } = await supabase.functions.invoke('stripe-checkout', {
     body: {
       price_id: priceId,
-      success_url: `${window.location.origin}/success?session_id={CHECKOUT_SESSION_ID}`,
+      // /subscription is the registered route — `/success` never existed and
+      // 404'd every new subscriber (2026-06-10 walkthrough finding).
+      success_url: `${window.location.origin}/subscription?checkout=success`,
       cancel_url: `${window.location.origin}/pricing-page`,
       mode,
     },
@@ -105,6 +110,7 @@ export async function verifyCheckoutSession(sessionId: string): Promise<{
       entry_ids,
       show_id,
       paid_at,
+      stripe_payment_intent_id,
       shows:show_id (name),
       enrollment:enrollment_id (confirmation_number)
     `
@@ -122,6 +128,9 @@ export async function verifyCheckoutSession(sessionId: string): Promise<{
   }
 
   const enrollment = order.enrollment as { confirmation_number: string } | null;
+  // Online cart orders have no enrollment record; the payment intent id is the
+  // reference that support, refunds, and the Stripe dashboard all pivot on.
+  const confirmationNumber = enrollment?.confirmation_number || order.stripe_payment_intent_id;
 
   return {
     success: true,
@@ -130,6 +139,6 @@ export async function verifyCheckoutSession(sessionId: string): Promise<{
     ...(order.show_id != null && { showId: order.show_id }),
     ...(order.shows && { showName: (order.shows as { name: string }).name }),
     ...(order.amount_cents != null && { totalAmount: order.amount_cents }),
-    ...(enrollment?.confirmation_number && { confirmationNumber: enrollment.confirmation_number }),
+    ...(confirmationNumber && { confirmationNumber }),
   };
 }

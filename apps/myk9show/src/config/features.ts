@@ -8,8 +8,9 @@
  *  - features.*       → shows a "coming soon" screen (feature not ready yet)
  *  - BlurGate/premium → blurs content, shows upgrade CTA (premium upsell)
  *
- * Early adopter users bypass BlurGate via `is_early_adopter` on `people`
- * (see useSubscriptionGate), but still see "coming soon" for flagged features.
+ * Founding members bypass BlurGate while `people.early_adopter_until` is in
+ * the future (see useSubscriptionGate), but still see "coming soon" for
+ * flagged features.
  */
 export const features = {
   // Dog tools — live for early adopters

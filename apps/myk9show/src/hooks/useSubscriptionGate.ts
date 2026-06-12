@@ -28,7 +28,10 @@ export function useSubscriptionGate(options?: SubscriptionGateOptions) {
   const paidTier: PlanType = isExpired ? 'free' : rawTier;
   const isPaidPremium = paidTier === 'premium';
 
-  const isEarlyAdopter = profile?.person?.is_early_adopter === true;
+  // Founding member: premium for 12 months from grant (early_adopter_until),
+  // not for life — an elapsed date is identical to never having the grant.
+  const earlyAdopterUntil = profile?.person?.early_adopter_until;
+  const isEarlyAdopter = !!earlyAdopterUntil && new Date(earlyAdopterUntil) > new Date();
 
   const isInTrial =
     !isPaidPremium &&

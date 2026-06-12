@@ -1130,6 +1130,29 @@ Low because monitoring works and doesn't cause issues.
 
 ---
 
+### DEBT-031: Module-level mutable `_corsHeaders` in Stripe edge functions
+
+**Category:** Code Quality
+
+**Severity:** Low
+
+**Created:** 2026-06-10 (PR #625 self-review finding #5)
+
+**Status:** Open
+
+**Description:** `stripe-checkout` established a pattern of assigning a module-level
+`_corsHeaders` at request start and reading it inside `corsResponse()`; PR #625 copied it
+into `stripe-connect-onboard`, `stripe-refund-entry`, and `stripe-webhook`. Two concurrent
+requests in one isolate can race, so a response may carry the *other* request's
+`Access-Control-Allow-Origin`. Worst case is a browser-blocked response (both origins come
+from the same allowlist) — not a security hole, which is why it didn't block merge.
+
+**Fix:** one mechanical refactor across the four functions — compute headers per-request
+and pass them to `corsResponse(body, status, headers)` explicitly. Do it in a quiet window
+with a sandbox smoke test after redeploy, not mid-payments-launch.
+
+---
+
 ## Debt Trends
 
 ### By Category (after Sprint 28 verification)

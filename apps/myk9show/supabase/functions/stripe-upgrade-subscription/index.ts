@@ -1,6 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
+import { parsePremiumPriceIds } from '../_shared/premiumPrices.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -48,11 +49,14 @@ function corsResponse(body: string | object | null, status = 200) {
   });
 }
 
-// Valid price IDs — both map to premium tier now
-const VALID_PRICE_IDS = new Set([
-  'price_1RHz4VAtHgBcw875bF7McPNd', // legacy "excellent" — now premium
-  'price_1RHz3bAtHgBcw875o2gdNaYW', // premium (exhibitors)
-]);
+// Valid price IDs — every configured premium price (PREMIUM_PRICE_IDS secret;
+// sandbox + live + annual coexist) with the original live ids as fallback.
+const VALID_PRICE_IDS = new Set(
+  parsePremiumPriceIds(Deno.env.get('PREMIUM_PRICE_IDS'), [
+    'price_1RHz4VAtHgBcw875bF7McPNd', // legacy "excellent" — now premium
+    'price_1RHz3bAtHgBcw875o2gdNaYW', // premium (exhibitors)
+  ])
+);
 
 interface UpgradeRequest {
   subscriptionId: string; // Stripe subscription ID (sub_xxx)

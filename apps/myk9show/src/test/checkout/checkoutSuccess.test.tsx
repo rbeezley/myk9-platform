@@ -91,7 +91,7 @@ describe('verifyCheckoutSession', () => {
     expect(result.totalAmount).toBe(7500);
   });
 
-  it('returns success without confirmationNumber when enrollment is not yet linked', async () => {
+  it('falls back to the payment intent id when no enrollment is linked (online cart path)', async () => {
     mockSingle.mockResolvedValue({
       data: {
         id: 'order-uuid',
@@ -100,6 +100,29 @@ describe('verifyCheckoutSession', () => {
         entry_ids: ['entry-1'],
         show_id: 'show-uuid',
         paid_at: '2026-04-13T10:00:00Z',
+        stripe_payment_intent_id: 'pi_3TgoK2AIej2Q9UtX3HSHZh3M',
+        shows: { name: 'Spring Invitational' },
+        enrollment: null,
+      },
+      error: null,
+    });
+
+    const result = await verifyCheckoutSession('cs_test_abc123');
+
+    expect(result.success).toBe(true);
+    expect(result.confirmationNumber).toBe('pi_3TgoK2AIej2Q9UtX3HSHZh3M');
+  });
+
+  it('returns success without confirmationNumber when neither source exists', async () => {
+    mockSingle.mockResolvedValue({
+      data: {
+        id: 'order-uuid',
+        status: 'succeeded',
+        amount_cents: 7500,
+        entry_ids: ['entry-1'],
+        show_id: 'show-uuid',
+        paid_at: '2026-04-13T10:00:00Z',
+        stripe_payment_intent_id: null,
         shows: { name: 'Spring Invitational' },
         enrollment: null,
       },
@@ -175,7 +198,7 @@ describe('CheckoutSuccessPage', () => {
     expect(screen.getByText('Confirmation Number')).toBeInTheDocument();
   });
 
-  it('does not render the confirmation block when no enrollment is linked', async () => {
+  it('displays the payment intent id as confirmation when no enrollment is linked', async () => {
     mockSingle.mockResolvedValue({
       data: {
         id: 'order-uuid',
@@ -184,6 +207,31 @@ describe('CheckoutSuccessPage', () => {
         entry_ids: [],
         show_id: 'show-uuid',
         paid_at: '2026-04-13T10:00:00Z',
+        stripe_payment_intent_id: 'pi_3TgoK2AIej2Q9UtX3HSHZh3M',
+        shows: { name: 'Spring Invitational' },
+        enrollment: null,
+      },
+      error: null,
+    });
+
+    renderSuccessPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('pi_3TgoK2AIej2Q9UtX3HSHZh3M')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Confirmation Number')).toBeInTheDocument();
+  });
+
+  it('does not render the confirmation block when neither source exists', async () => {
+    mockSingle.mockResolvedValue({
+      data: {
+        id: 'order-uuid',
+        status: 'succeeded',
+        amount_cents: 7500,
+        entry_ids: [],
+        show_id: 'show-uuid',
+        paid_at: '2026-04-13T10:00:00Z',
+        stripe_payment_intent_id: null,
         shows: { name: 'Spring Invitational' },
         enrollment: null,
       },

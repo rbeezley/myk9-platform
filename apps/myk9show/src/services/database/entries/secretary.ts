@@ -31,6 +31,10 @@ export interface SecretaryEntry {
   is_in_ring: boolean | null;
   check_in_status: string | null;
   withdrawal_reason: string | null;
+  payment_method: string | null;
+  refund_amount: number | null;
+  refunded_at: string | null;
+  stripe_payment_intent_id: string | null;
   registration_id: string | null;
   registration: {
     id: string;
@@ -43,12 +47,19 @@ export interface SecretaryEntry {
     refund_notes: string | null;
     refunded_at: string | null;
   } | null;
+  /** Joined person for handler_id — online entries set the FK, not the legacy text. */
+  handler_person: { id: string; first_name: string | null; last_name: string | null } | null;
   dog: {
     id: string;
     name: string;
     call_name: string | null;
     breed: string | null;
-    owner: { id: string; email: string | null } | null;
+    owner: {
+      id: string;
+      first_name: string | null;
+      last_name: string | null;
+      email: string | null;
+    } | null;
   } | null;
   class: {
     id: string;
@@ -146,7 +157,16 @@ export const getEntriesForShow = async (showId: string) => {
         is_in_ring,
         check_in_status,
         withdrawal_reason,
+        payment_method,
+        refund_amount,
+        refunded_at,
+        stripe_payment_intent_id,
         registration_id,
+        handler_person:handler_id (
+          id,
+          first_name,
+          last_name
+        ),
         registration:registration_id (
           id,
           confirmation_number,
@@ -165,6 +185,8 @@ export const getEntriesForShow = async (showId: string) => {
           breed,
           owner:owner_id (
             id,
+            first_name,
+            last_name,
             email
           )
         ),

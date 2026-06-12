@@ -390,9 +390,11 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
         issues.push('Too young (must be 6+ months)');
       }
     }
-    if (!dog.registrations || dog.registrations.length === 0) {
-      issues.push('No registration on file');
-    }
+    // Registration is NOT a blocker — mixed-breed dogs routinely have no
+    // registration number, and class-level eligibility (including any
+    // registration requirements) is validated later in the flow. Mirrors the
+    // documented policy in DogSelectionStep.getDogEligibilityStatus, which
+    // this enhanced variant had diverged from (2026-06-10 walkthrough).
     return { eligible: issues.length === 0, issues };
   }, []);
 

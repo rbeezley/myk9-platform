@@ -1,7 +1,8 @@
-import { useCallback } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { Check } from 'lucide-react';
-import { products } from '../stripe-config';
+import { products, annualPriceId } from '../stripe-config';
 import { createCheckoutSession } from '../lib/stripe';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import AppHeader from '../components/layout/AppHeader';
@@ -56,6 +57,15 @@ const tiers = [
 export default function PricingPage() {
   const { user } = useAuthContext();
   const navigate = useNavigate();
+  // Annual exists only when VITE_STRIPE_PRICE_ANNUAL is configured; the
+  // toggle hides entirely otherwise (premium launch plan, Task 3).
+  // INVARIANT: the Stripe annual price MUST be $49.00/yr (unit_amount=4900) —
+  // the display below is a literal. Change both together.
+  const [interval, setBillingInterval] = useState<'month' | 'year'>('month');
+  const annualActive = interval === 'year' && !!annualPriceId;
+  // Imperative in-flight latch: React Query-style isPending lags within the
+  // same sync callback, so a double-click would start two checkout sessions.
+  const checkoutInFlightRef = useRef(false);
 
   const handleSubscribe = useCallback(
     async (priceId: string | null) => {
@@ -66,14 +76,19 @@ export default function PricingPage() {
 
       if (!user) {
         // Redirect to sign-in page using navigate instead of window.location
-        navigate('/signin');
+        navigate('/sign-in');
         return;
       }
 
+      if (checkoutInFlightRef.current) return;
+      checkoutInFlightRef.current = true;
       try {
         await createCheckoutSession(priceId, 'subscription');
       } catch (error) {
         logger.error('Failed to create checkout session:', 'pages', {}, error as Error);
+        toast.error('Could not start checkout. Please try again.');
+      } finally {
+        checkoutInFlightRef.current = false;
       }
     },
     [user, navigate]
@@ -96,8 +111,42 @@ export default function PricingPage() {
                 </p>
               </div>
 
+              {annualPriceId && (
+                <div className="mb-10 flex items-center justify-center gap-2">
+                  <div className="inline-flex rounded-full border bg-card p-1">
+                    <button
+                      onClick={() => setBillingInterval('month')}
+                      aria-pressed={interval === 'month'}
+                      className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                        interval === 'month'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground'
+                      }`}
+                    >
+                      Monthly
+                    </button>
+                    <button
+                      onClick={() => setBillingInterval('year')}
+                      aria-pressed={interval === 'year'}
+                      className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                        interval === 'year'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground'
+                      }`}
+                    >
+                      Annual <span className="font-normal">— 2 months free</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-                {tiers.map(tier => (
+                {tiers.map(tier => {
+                  const isPaidTier = tier.priceId !== null;
+                  const price = isPaidTier && annualActive ? '$49' : tier.price;
+                  const period = isPaidTier && annualActive ? '/year' : tier.period;
+                  const priceId = isPaidTier && annualActive ? annualPriceId! : tier.priceId;
+                  return (
                   <div
                     key={tier.name}
                     className="relative bg-card rounded-2xl shadow-lg border border-primary"
@@ -111,15 +160,15 @@ export default function PricingPage() {
                     <div className="p-8">
                       <h3 className="text-2xl font-bold text-foreground mb-2">{tier.name}</h3>
                       <div className="flex items-baseline mb-2">
-                        <span className="text-4xl font-bold text-foreground">{tier.price}</span>
-                        {tier.period && (
-                          <span className="ml-1 text-muted-foreground">{tier.period}</span>
+                        <span className="text-4xl font-bold text-foreground">{price}</span>
+                        {period && (
+                          <span className="ml-1 text-muted-foreground">{period}</span>
                         )}
                       </div>
                       <p className="text-muted-foreground mb-6">{tier.description}</p>
 
                       <button
-                        onClick={() => handleSubscribe(tier.priceId)}
+                        onClick={() => handleSubscribe(priceId)}
                         className={`w-full py-3 px-6 rounded-xl font-medium transition-colors ${
                           tier.buttonVariant === 'solid'
                             ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
@@ -142,7 +191,8 @@ export default function PricingPage() {
                       </ul>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </section>

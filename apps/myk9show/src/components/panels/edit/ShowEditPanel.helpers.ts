@@ -5,9 +5,31 @@
  * Validation is handled by showSchemas.edit in @/lib/validation.
  */
 
+import { PUBLISH_BLOCKED_MESSAGE } from '@/features/payments/onlineEntryGate';
 import type { Show } from '@/types/show-types';
 import type { ShowStyle } from '@/features/registries';
 import type { ShowEditFormData, ShowEditSaveData } from './ShowEditPanel.types';
+
+// Publish gate for the panel's save path (round-13 review): the Basic Info
+// tab offers "Published" in its Status dropdown, making this the fourth
+// shows.status write surface — pill, wizard, and bulk bar are already
+// gated/stripped. Same fail-closed rules as ShowStatusPill; already-published
+// shows are never re-gated so unrelated edits keep saving.
+export function publishGateError(
+  originalStatus: string | undefined,
+  nextStatus: string,
+  clubId: string,
+  account: { payouts_enabled: boolean } | null
+): string | null {
+  if (nextStatus !== 'published' || originalStatus === 'published') return null;
+  if (!clubId) {
+    return 'Assign a club to this show before publishing — entry fees are paid out to the club.';
+  }
+  if (account?.payouts_enabled !== true) {
+    return PUBLISH_BLOCKED_MESSAGE;
+  }
+  return null;
+}
 
 // Convert Show to form data
 export const showToFormData = (show: Partial<Show>): ShowEditFormData => {

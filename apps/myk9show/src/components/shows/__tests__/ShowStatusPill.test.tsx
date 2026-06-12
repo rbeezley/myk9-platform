@@ -22,6 +22,22 @@ vi.mock('sonner', () => ({
   },
 }));
 
+// Publish fails closed without a payout-enabled club (round-8 review), so the
+// publish-path tests below pass clubId and this mock reports payouts enabled.
+// Gate behavior itself is covered in ../ShowStatusPill.test.tsx.
+vi.mock('@/features/payments/useClubStripeAccount', () => ({
+  useClubStripeAccount: () => ({
+    data: {
+      id: 'csa-1',
+      club_id: 'club-1',
+      stripe_account_id: 'acct_x',
+      onboarding_complete: true,
+      payouts_enabled: true,
+    },
+    isLoading: false,
+  }),
+}));
+
 describe('ShowStatusPill', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -102,7 +118,7 @@ describe('ShowStatusPill', () => {
   });
 
   it('calls updateShow with published when "Publish Show" is clicked', async () => {
-    render(<ShowStatusPill showId="show-1" status="draft" />);
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
     fireEvent.click(screen.getByRole('button', { name: /draft/i }));
     fireEvent.click(await screen.findByText('Publish Show'));
     await waitFor(() =>
@@ -125,7 +141,7 @@ describe('ShowStatusPill', () => {
   it('shows error toast when mutation fails', async () => {
     const { toast } = await import('sonner');
     mockMutateAsync.mockRejectedValueOnce(new Error('Network error'));
-    render(<ShowStatusPill showId="show-1" status="draft" />);
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
     fireEvent.click(screen.getByRole('button', { name: /draft/i }));
     fireEvent.click(await screen.findByText('Publish Show'));
     await waitFor(() =>

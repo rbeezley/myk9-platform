@@ -131,6 +131,33 @@ export const useCartStore = create<CartState>()(
           }
         },
 
+        // Load the most recent active cart regardless of show — lets /cart be
+        // visited directly (deep link, refresh, new tab). Without this the
+        // page renders only whatever happens to be in tab memory
+        // (2026-06-10 walkthrough finding).
+        loadActiveCart: async (exhibitorId: string) => {
+          const { data, error } = await supabase
+            .from('entry_carts')
+            .select('show_id')
+            .eq('exhibitor_id', exhibitorId)
+            .eq('status', 'active')
+            .gt('expires_at', new Date().toISOString())
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (error) {
+            logger.error('Error finding active cart', 'cartStore', { exhibitorId }, error);
+            set({ cart: null, isLoading: false });
+            return null;
+          }
+          if (!data) {
+            set({ cart: null, isLoading: false });
+            return null;
+          }
+          return get().loadCart(data.show_id, exhibitorId);
+        },
+
         // Create a new cart
         createCart: async (showId: string, exhibitorId: string) => {
           set({ isLoading: true, error: null });
@@ -234,6 +261,11 @@ export const useCartStore = create<CartState>()(
                 subtotal_cents: subtotal,
                 platform_fee_cents: platformFee,
                 total_cents: total,
+                // Sever the checkout-session link: an abandoned-but-open Stripe
+                // page must not be able to pay for a cart that has since
+                // changed. The webhook rejects sessions the cart no longer
+                // points at (sessionCartGuard, Codex round-3 P1).
+                stripe_checkout_session_id: null,
               })
               .eq('id', cart.id);
 
@@ -254,6 +286,7 @@ export const useCartStore = create<CartState>()(
                 subtotal_cents: subtotal,
                 platform_fee_cents: platformFee,
                 total_cents: total,
+                stripe_checkout_session_id: null,
               },
               lastSyncedAt: new Date().toISOString(),
             });
@@ -295,6 +328,11 @@ export const useCartStore = create<CartState>()(
                 subtotal_cents: subtotal,
                 platform_fee_cents: platformFee,
                 total_cents: total,
+                // Sever the checkout-session link: an abandoned-but-open Stripe
+                // page must not be able to pay for a cart that has since
+                // changed. The webhook rejects sessions the cart no longer
+                // points at (sessionCartGuard, Codex round-3 P1).
+                stripe_checkout_session_id: null,
               })
               .eq('id', cart.id);
 
@@ -315,6 +353,7 @@ export const useCartStore = create<CartState>()(
                 subtotal_cents: subtotal,
                 platform_fee_cents: platformFee,
                 total_cents: total,
+                stripe_checkout_session_id: null,
               },
               lastSyncedAt: new Date().toISOString(),
             });
@@ -365,34 +404,51 @@ export const useCartStore = create<CartState>()(
               i.id === itemId ? { ...i, ...updateData } : i
             );
 
-            if (updates.entryFeeCents !== undefined) {
-              const { subtotal, platformFee, total } = calculateCartTotals(updatedItems);
+            // Sever the session on ANY item change (round-19 P2): handler,
+            // jump height, and special requests are all stamped on the entry
+            // via buildEntryInsert — an old Stripe page must not lock in
+            // values the user changed after checkout started. Fee changes also
+            // require a totals refresh.
+            const totals =
+              updates.entryFeeCents !== undefined
+                ? calculateCartTotals(updatedItems)
+                : null;
 
-              await supabase
-                .from('entry_carts')
-                .update({
-                  subtotal_cents: subtotal,
-                  platform_fee_cents: platformFee,
-                  total_cents: total,
-                })
-                .eq('id', cart.id);
+            const { error: cartUpdateError } = await supabase
+              .from('entry_carts')
+              .update({
+                stripe_checkout_session_id: null,
+                ...(totals !== null && {
+                  subtotal_cents: totals.subtotal,
+                  platform_fee_cents: totals.platformFee,
+                  total_cents: totals.total,
+                }),
+              })
+              .eq('id', cart.id);
 
-              set({
-                cart: {
-                  ...cart,
-                  items: updatedItems,
-                  subtotal_cents: subtotal,
-                  platform_fee_cents: platformFee,
-                  total_cents: total,
-                },
-                lastSyncedAt: new Date().toISOString(),
-              });
-            } else {
-              set({
-                cart: { ...cart, items: updatedItems },
-                lastSyncedAt: new Date().toISOString(),
-              });
+            if (cartUpdateError) {
+              logger.error(
+                'Error updating cart',
+                'cartStore',
+                { cartId: cart.id },
+                cartUpdateError
+              );
+              throw cartUpdateError;
             }
+
+            set({
+              cart: {
+                ...cart,
+                items: updatedItems,
+                stripe_checkout_session_id: null,
+                ...(totals !== null && {
+                  subtotal_cents: totals.subtotal,
+                  platform_fee_cents: totals.platformFee,
+                  total_cents: totals.total,
+                }),
+              },
+              lastSyncedAt: new Date().toISOString(),
+            });
 
             return true;
           } catch (error) {
@@ -434,7 +490,15 @@ export const useCartStore = create<CartState>()(
 
             const { error: updateError } = await supabase
               .from('entry_carts')
-              .update({ subtotal_cents: 0, platform_fee_cents: 0, total_cents: 0 })
+              .update({
+                subtotal_cents: 0,
+                platform_fee_cents: 0,
+                total_cents: 0,
+                // Sever the checkout-session link (see addItem) — paying an
+                // abandoned session after Clear Cart must not claim the empty
+                // cart (Codex round-4 P1).
+                stripe_checkout_session_id: null,
+              })
               .eq('id', cart.id);
 
             if (updateError) {
@@ -453,6 +517,7 @@ export const useCartStore = create<CartState>()(
                 subtotal_cents: 0,
                 platform_fee_cents: 0,
                 total_cents: 0,
+                stripe_checkout_session_id: null,
               },
               lastSyncedAt: new Date().toISOString(),
             });

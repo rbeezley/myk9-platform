@@ -8,7 +8,7 @@ Active work items only. Resolved historical context lives in git history and dat
 
 Four steps toward the fall launch, in dependency order. Detailed phase checklists live in the sections below; this list is the master sequence.
 
-- [ ] **1. Code-Quality Audit** — remove static debt first; every later step audits or builds on the post-cleanup surfaces. Plan: [`docs/plan-code-quality-audit.md`](docs/plan-code-quality-audit.md). *In progress — Phase 2 verification underway.*
+- [ ] **1. Code-Quality Audit** — remove static debt first; every later step audits or builds on the post-cleanup surfaces. Plan: [`docs/plan-code-quality-audit.md`](docs/plan-code-quality-audit.md). *In progress — Wave A (pure deletions) running.*
 - [ ] **2. UX Journey Audit** — exhibitor + secretary journeys scored against INTENT; walks double as the golden-path browser walkthroughs the scorecard requires. Plan: [`docs/plan-ux-journey-audit.md`](docs/plan-ux-journey-audit.md). *Recon can start now; main phases after code-audit Waves A–C.*
 - [ ] **3. Dynamic QA Infrastructure** — permanent guards: chaos tests, mutation scoring, drift checks, observability, flaky quarantine. Plan: [`docs/plan-dynamic-qa-infrastructure.md`](docs/plan-dynamic-qa-infrastructure.md). *Mutation testing after code-audit Wave D; phases 1/3/4/5 may overlap with step 2 in separate worktrees.*
 - [ ] **4. Scorecard close-out (golden path sign-off)** — final launch gate: post-remediation re-walk of all **three** golden paths — secretary, exhibitor, and admin (the admin walkthrough has a lighter bar: support actions available or documented; it is not part of the UX journey audit) — flipping their `Unknown` rows in [`docs/goals/fall-2026-launch-readiness-scorecard.md`](docs/goals/fall-2026-launch-readiness-scorecard.md) against the scorecard's own pass thresholds. Then sweep the remaining scorecard dimensions, attaching evidence produced by steps 1–3 (offline-first behavior and data correctness from the dynamic-QA chaos/drift work, UX clarity from the journey audit, test/CI health from flaky quarantine) and listing what still lacks evidence. Initial golden-path evidence lands during step 2; the close-out runs last, after steps 2–3 remediation is in.
@@ -17,10 +17,10 @@ Four steps toward the fall launch, in dependency order. Detailed phase checklist
 
 ## Code-Quality Audit — 2026-06-12
 
-Plan: [`docs/plan-code-quality-audit.md`](docs/plan-code-quality-audit.md). Current status in [`docs/audits/2026-06-code-quality/SUMMARY.md`](docs/audits/2026-06-code-quality/SUMMARY.md). Phase 1 inventory done; Phase 2 verification pending before any fix wave starts.
+Plan: [`docs/plan-code-quality-audit.md`](docs/plan-code-quality-audit.md). Current status in [`docs/audits/2026-06-code-quality/SUMMARY.md`](docs/audits/2026-06-code-quality/SUMMARY.md). Phase 1 inventory and source-level Phase 2 verification are done; Wave A is approved and being handled in a separate worktree.
 
-- [ ] **Phase 2 — verify all P1/P2 findings** — adversarially refute each finder-confirmed item before approving the fix list. Key unverified candidates: `lazyLoading.ts` / `usePaginatedQueries.ts` / `useOptimizedSearch.ts` dead-code trio; `markInRing` schema drift; `send-notification` edge function deployed-usage check.
-- [ ] **Human gate — approve fix list** — review the SUMMARY.md confirmed table before Wave A starts. Some findings are judgment calls (type-file consolidation touches every import).
+- [x] ~~**Phase 2 — verify all P1/P2 findings**~~ — source-level verification completed in [`docs/audits/2026-06-code-quality/09-phase-2-verification.md`](docs/audits/2026-06-code-quality/09-phase-2-verification.md). `send-notification` remains excluded from Wave A until deployed Supabase usage/log/config checks are done.
+- [x] ~~**Human gate — approve fix list**~~ — Wave A delete-first cleanup approved 2026-06-12; broader judgment-heavy waves still remain as separate todos below.
 - [ ] **Wave A — pure deletions** (dead code, stale TODOs, dead flags)
 - [ ] **Wave B — consolidations** (duplication clusters, type-file unification)
 - [ ] **Wave C — extractions** (multi-concern oversized files only)

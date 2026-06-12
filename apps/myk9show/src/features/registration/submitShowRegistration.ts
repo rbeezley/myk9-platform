@@ -17,10 +17,6 @@ interface ClassLike {
   entryFee?: number | undefined;
 }
 
-interface CurrentRegistrationLike {
-  registrationNumber?: string | undefined;
-}
-
 export interface ArmbandAssignmentFailure {
   dogId: string;
   error: string;
@@ -69,7 +65,6 @@ export interface SubmitShowRegistrationParams {
   showId: string;
   userId: string;
   registrationId: string;
-  currentRegistration: CurrentRegistrationLike;
   ownerResolution: SelectedDogsOwnerResult;
   paymentMethod?: PaymentMethod | undefined;
   paymentDetails?: PaymentDetails | undefined;
@@ -111,7 +106,6 @@ export async function submitShowRegistration({
   showId,
   userId,
   registrationId,
-  currentRegistration,
   ownerResolution,
   paymentMethod = 'credit_card',
   paymentDetails,
@@ -125,15 +119,16 @@ export async function submitShowRegistration({
 }: SubmitShowRegistrationParams): Promise<SubmitShowRegistrationResult> {
   const resolvedDeps: SubmitShowRegistrationDeps = { ...DEFAULT_DEPS, ...deps };
 
+  if (paymentMethod === 'credit_card') {
+    throw new Error('Invariant: submitShowRegistration called with credit_card payment method');
+  }
+
   await resolvedDeps.submitRegistration(registrationId, paymentDetails);
   if (!isStillActive(isActive)) return { aborted: true };
 
   const enrollment = await ensureEnrollment({
     showId,
-    registrationId,
-    currentRegistration,
     ownerResolution,
-    paymentMethod,
     paymentDetails,
     deps: resolvedDeps,
   });
@@ -191,29 +186,15 @@ export async function submitShowRegistration({
 
 async function ensureEnrollment({
   showId,
-  registrationId,
-  currentRegistration,
   ownerResolution,
-  paymentMethod,
   paymentDetails,
   deps,
 }: {
   showId: string;
-  registrationId: string;
-  currentRegistration: CurrentRegistrationLike;
   ownerResolution: SelectedDogsOwnerResult;
-  paymentMethod: PaymentMethod;
   paymentDetails?: PaymentDetails | undefined;
   deps: SubmitShowRegistrationDeps;
 }): Promise<{ registrationNumber?: string | undefined; dbRegistrationId?: string | undefined }> {
-  if (paymentMethod === 'credit_card') {
-    const result = await deps.confirmRegistration(registrationId, 'MOCK-PAYMENT-REF', paymentDetails);
-    return {
-      registrationNumber: result.confirmationNumber ?? currentRegistration.registrationNumber,
-      dbRegistrationId: result.dbRegistrationId,
-    };
-  }
-
   if (!ownerResolution.ok) {
     throw new Error(
       'Internal: payment submit reached with unresolved enrollment owner. ' +

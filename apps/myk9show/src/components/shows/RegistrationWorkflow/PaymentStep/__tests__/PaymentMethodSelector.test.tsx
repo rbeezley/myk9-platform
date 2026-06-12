@@ -44,4 +44,13 @@ describe('PaymentMethodSelector — acceptedMethods filtering', () => {
     );
     expect(screen.getByText('Credit/Debit Card (Online Payment)')).toBeInTheDocument();
   });
+
+  it('tells card payers they will continue to secure checkout', () => {
+    render(<PaymentMethodSelector {...baseProps} paymentMethod="credit_card" />);
+
+    expect(
+      screen.getByText(/You'll be taken to our secure checkout to complete payment/)
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Online card payment is coming soon/)).not.toBeInTheDocument();
+  });
 });

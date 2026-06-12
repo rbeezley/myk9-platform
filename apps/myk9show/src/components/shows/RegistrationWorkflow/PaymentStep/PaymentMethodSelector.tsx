@@ -9,7 +9,6 @@ import {
   Users,
   AlertTriangle,
   CircleCheck,
-  Info,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -156,18 +155,17 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               selected={paymentMethod === 'credit_card'}
               icon={CreditCard}
               title="Credit/Debit Card (Online Payment)"
-              description="Online payment coming soon — entry submitted, payment collected later"
+              description="Secure online payment via credit or debit card"
               onSelect={handleSelect}
             />
 
-            {/* INTENT: No card form here — online payment via Stripe is not yet
-                integrated. Showing fake card inputs would be trust-breaking.
-                When Stripe Elements is ready, replace this notice. */}
+            {/* INTENT: No card form here — Stripe-hosted checkout keeps payment
+                details off myK9 pages and preserves user trust. */}
             {paymentMethod === 'credit_card' && (
               <div className="ml-4 border-l-2 border-primary/20 pl-4">
                 <Alert>
-                  <Info className="h-4 w-4" />
-                  <AlertDescription>{PAYMENT_MESSAGES.CARD_COMING_SOON}</AlertDescription>
+                  <CreditCard className="h-4 w-4" />
+                  <AlertDescription>{PAYMENT_MESSAGES.CARD_CHECKOUT_REDIRECT}</AlertDescription>
                 </Alert>
               </div>
             )}

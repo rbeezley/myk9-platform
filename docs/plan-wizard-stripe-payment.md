@@ -13,7 +13,7 @@ shows "Online payment coming soon." The parallel cart path (`createEntryCheckout
 
 | Question | Decision | Reason |
 |---|---|---|
-| When is `show_registrations` created for `credit_card`? | **Never before Stripe** — webhook creates it on `checkout.session.completed` | Avoids orphan registration rows when the user abandons Stripe |
+| When is `show_registrations` created for `credit_card`? | **Not in the wizard handoff** — the canonical cart/Stripe path writes paid entries and Stripe order records after checkout | Avoids orphan registration rows when the user abandons Stripe |
 | Does the wizard navigate away for credit_card? | **Yes — navigate to `/cart`** | Keeps the cart/checkout flow as the single entry-creation path; no ConfirmationStep in the wizard |
 | Armbands pre-payment? | **No** — not claimed until show day | `CheckoutSuccessPage` already says "armband assigned at check-in"; this is correct |
 | Duplicate-cart race for re-entries? | **`loadCart` first, clear items if found, then repopulate** | Handles back-button and browser-refresh without creating orphan carts |
@@ -126,7 +126,9 @@ const submissionResult = await submitShowRegistration({ ... });
 ```
 
 Note: the local Zustand `registrationId` is **not** persisted to the DB on the
-credit_card path. The webhook creates `show_registrations` after Stripe payment.
+credit_card path. The cart/Stripe completion path inserts the paid entries and
+Stripe order records after payment rather than creating a `show_registrations`
+row during wizard handoff.
 
 ---
 

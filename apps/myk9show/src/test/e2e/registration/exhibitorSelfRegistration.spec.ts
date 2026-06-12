@@ -100,7 +100,18 @@ async function preventSharedEntryWrites(page: Page, captured: CapturedWrites) {
     await route.fallback();
   });
 
-  await page.route('**/rest/v1/enrollments**', route => route.abort());
+  await page.route('**/rest/v1/enrollments**', async route => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: 'null',
+      });
+      return;
+    }
+
+    await route.abort();
+  });
   await page.route('**/rest/v1/rpc/submit_show_entries', route => route.abort());
   await page.route('**/rest/v1/rpc/assign_armband', route => route.abort());
   await page.route('**/functions/v1/send-registration-email', route => route.abort());

@@ -15,6 +15,16 @@
 //  - The footer's dark gradient is on a `<td>` with a `bgcolor` fallback
 //  - The gold rule is a 2px-high `<div>` (not a CSS-on-text effect)
 
+import {
+  esc,
+  escMultiline,
+  formatDogLine,
+  formatRunCountLabel,
+  hasOnTheDayDetails,
+  type ConfirmationEmailBaseData,
+  type ConfirmationEmailRunRow,
+} from './confirmation-email-shared.ts';
+
 const MZ_PAPER = '#f6f1e8';
 const MZ_PAPER_DEEP = '#ece4d3';
 const MZ_INK = '#1a1a1a';
@@ -29,67 +39,18 @@ const MZ_DISPLAY = "'Cormorant Garamond', Georgia, serif";
 const MZ_BODY = "'Source Serif 4', Georgia, serif";
 const MZ_META = "'Inter Tight', Arial, sans-serif";
 
-interface RunRow {
-  /** Lowercase Roman numeral, e.g. "i", "iii". */
-  trialNumeral: string;
-  dayLabel: string;
-  classLabel: string;
-  judgeName: string;
-  armband: string | null;
-}
-
-export interface MagazineEmailData {
-  clubName: string;
-  clubEstablished: string | null;
-  clubCity: string | null;
-  showTitle: string;
-  dateRange: string;
+export interface MagazineEmailData extends ConfirmationEmailBaseData {
   /** Edition strip kicker, e.g. "Vol LXXIX · Spring 2026". */
   editionLabel: string;
-  salutation: string;
-  dogName: string;
-  dogCallName: string | null;
-  dogBreed: string | null;
-  dogSex: string | null;
-  runs: RunRow[];
-  runCount: number;
-  totalFeesFormatted: string;
-  receiptNumber: string | null;
   /** Single armband when all runs share one. Null when no armband assigned
    *  or runs have different armbands. */
   primaryArmband: string | null;
-  venue: string | null;
-  doorsTime: string | null;
-  firstClassTime: string | null;
-  parkingNotes: string | null;
-  hospitalityNotes: string | null;
-  cratingNotes: string | null;
-  secretaryEmail: string | null;
-  secretaryPhone: string | null;
-  trialUrl: string | null;
-  trialChairName: string | null;
-  trialChairTitle: string | null;
-  memberClubLanguage: string;
   /** e.g. "License № 2026-2841" — optional fine-print line in the footer. */
   licenseReference: string | null;
 }
 
-// ─── HTML escape helpers ────────────────────────────────────────────────────
-function esc(s: string | null | undefined): string {
-  if (!s) return '';
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function escMultiline(s: string | null | undefined): string {
-  return esc(s).replace(/\n/g, '<br/>');
-}
-
 // ─── Runs table ─────────────────────────────────────────────────────────────
-function runsTable(runs: RunRow[]): string {
+function runsTable(runs: ConfirmationEmailRunRow[]): string {
   const dottedGold = `1px dotted ${MZ_GOLD2}`;
 
   const header = ['Trial', 'Day', 'Class', 'Judge', '№']
@@ -104,7 +65,7 @@ function runsTable(runs: RunRow[]): string {
       const isLast = i === runs.length - 1;
       const border = isLast ? '' : `border-bottom:${dottedGold};`;
       return `<tr>
-  <td style="padding:11px 8px 11px 0;font-family:${MZ_DISPLAY};font-style:italic;font-weight:500;font-size:18px;color:${MZ_GOLD3};${border}">${esc(r.trialNumeral)}</td>
+  <td style="padding:11px 8px 11px 0;font-family:${MZ_DISPLAY};font-style:italic;font-weight:500;font-size:18px;color:${MZ_GOLD3};${border}">${esc(r.numeral.toLowerCase())}</td>
   <td style="padding:11px 8px;font-family:${MZ_BODY};font-size:13px;color:${MZ_INK};${border}">${esc(r.dayLabel)}</td>
   <td style="padding:11px 8px;font-family:${MZ_DISPLAY};font-style:italic;font-size:15px;color:${MZ_INK};${border}">${esc(r.classLabel)}</td>
   <td style="padding:11px 8px;font-family:${MZ_BODY};font-size:13px;color:${MZ_INK};${border}">${esc(r.judgeName)}</td>
@@ -140,13 +101,7 @@ function infoCell(
 }
 
 export function buildMagazineHtml(data: MagazineEmailData): string {
-  const dogLine = [
-    data.dogCallName ? `called "${data.dogCallName}"` : null,
-    data.dogBreed,
-    data.dogSex,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  const dogLine = formatDogLine(data, { callNameStyle: 'called' });
 
   const eyebrow = data.receiptNumber
     ? `Confirmed · Entry № ${data.receiptNumber}`
@@ -161,16 +116,9 @@ export function buildMagazineHtml(data: MagazineEmailData): string {
 
   const armbandRowLeft = data.primaryArmband
     ? `Armband <span style="color:${MZ_GOLD3};font-weight:500;font-size:22px;">${esc(data.primaryArmband)}</span> across all runs`
-    : `${data.runCount} ${data.runCount === 1 ? 'run' : 'runs'} entered`;
+    : `${formatRunCountLabel(data.runCount)} entered`;
 
-  const hasOnTheDay = !!(
-    data.doorsTime ||
-    data.firstClassTime ||
-    data.venue ||
-    data.parkingNotes ||
-    data.hospitalityNotes ||
-    data.cratingNotes
-  );
+  const hasOnTheDay = hasOnTheDayDetails(data);
 
   const onTheDayBlock = hasOnTheDay
     ? `<tr>

@@ -408,6 +408,7 @@ export type Database = {
           is_available: boolean | null
           show_id: string
           trial_id: string | null
+          version: number
         }
         Insert: {
           armband_number: string
@@ -419,6 +420,7 @@ export type Database = {
           is_available?: boolean | null
           show_id: string
           trial_id?: string | null
+          version?: number
         }
         Update: {
           armband_number?: string
@@ -430,6 +432,7 @@ export type Database = {
           is_available?: boolean | null
           show_id?: string
           trial_id?: string | null
+          version?: number
         }
         Relationships: [
           {
@@ -788,6 +791,7 @@ export type Database = {
           total_entries_count: number | null
           trial_id: string
           updated_at: string | null
+          version: number
         }
         Insert: {
           actual_end_time?: string | null
@@ -841,6 +845,7 @@ export type Database = {
           total_entries_count?: number | null
           trial_id: string
           updated_at?: string | null
+          version?: number
         }
         Update: {
           actual_end_time?: string | null
@@ -894,6 +899,7 @@ export type Database = {
           total_entries_count?: number | null
           trial_id?: string
           updated_at?: string | null
+          version?: number
         }
         Relationships: [
           {
@@ -1190,6 +1196,44 @@ export type Database = {
           },
         ]
       }
+      club_stripe_accounts: {
+        Row: {
+          club_id: string
+          created_at: string
+          id: string
+          onboarding_complete: boolean
+          payouts_enabled: boolean
+          stripe_account_id: string
+          updated_at: string
+        }
+        Insert: {
+          club_id: string
+          created_at?: string
+          id?: string
+          onboarding_complete?: boolean
+          payouts_enabled?: boolean
+          stripe_account_id: string
+          updated_at?: string
+        }
+        Update: {
+          club_id?: string
+          created_at?: string
+          id?: string
+          onboarding_complete?: boolean
+          payouts_enabled?: boolean
+          stripe_account_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_stripe_accounts_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: true
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clubs: {
         Row: {
           accent_color: string | null
@@ -1209,6 +1253,7 @@ export type Database = {
           phone: string | null
           state: string | null
           updated_at: string | null
+          version: number
           website: string | null
           zip_code: string | null
         }
@@ -1230,6 +1275,7 @@ export type Database = {
           phone?: string | null
           state?: string | null
           updated_at?: string | null
+          version?: number
           website?: string | null
           zip_code?: string | null
         }
@@ -1251,6 +1297,7 @@ export type Database = {
           phone?: string | null
           state?: string | null
           updated_at?: string | null
+          version?: number
           website?: string | null
           zip_code?: string | null
         }
@@ -1346,6 +1393,7 @@ export type Database = {
           status: string | null
           ukc_number: string | null
           updated_at: string | null
+          version: number
           weight: string | null
         }
         Insert: {
@@ -1375,6 +1423,7 @@ export type Database = {
           status?: string | null
           ukc_number?: string | null
           updated_at?: string | null
+          version?: number
           weight?: string | null
         }
         Update: {
@@ -1404,6 +1453,7 @@ export type Database = {
           status?: string | null
           ukc_number?: string | null
           updated_at?: string | null
+          version?: number
           weight?: string | null
         }
         Relationships: [
@@ -1649,6 +1699,9 @@ export type Database = {
           points_possible: number | null
           preferred_judge: string | null
           promo_code_id: string | null
+          refund_amount: number | null
+          refund_notes: string | null
+          refunded_at: string | null
           registration_id: string | null
           result_status: string | null
           ring_entry_time: string | null
@@ -1659,6 +1712,7 @@ export type Database = {
           search_time_seconds: number | null
           show_id: string | null
           special_requests: string | null
+          stripe_payment_intent_id: string | null
           submitted_at: string | null
           sync_version: number | null
           time_limit_exceeded_seconds: number | null
@@ -1669,6 +1723,7 @@ export type Database = {
           total_score: number | null
           trial_id: string | null
           updated_at: string | null
+          version: number
           video_review_notes: string | null
           withdrawal_reason: string | null
         }
@@ -1728,6 +1783,9 @@ export type Database = {
           points_possible?: number | null
           preferred_judge?: string | null
           promo_code_id?: string | null
+          refund_amount?: number | null
+          refund_notes?: string | null
+          refunded_at?: string | null
           registration_id?: string | null
           result_status?: string | null
           ring_entry_time?: string | null
@@ -1738,6 +1796,7 @@ export type Database = {
           search_time_seconds?: number | null
           show_id?: string | null
           special_requests?: string | null
+          stripe_payment_intent_id?: string | null
           submitted_at?: string | null
           sync_version?: number | null
           time_limit_exceeded_seconds?: number | null
@@ -1748,6 +1807,7 @@ export type Database = {
           total_score?: number | null
           trial_id?: string | null
           updated_at?: string | null
+          version?: number
           video_review_notes?: string | null
           withdrawal_reason?: string | null
         }
@@ -1807,6 +1867,9 @@ export type Database = {
           points_possible?: number | null
           preferred_judge?: string | null
           promo_code_id?: string | null
+          refund_amount?: number | null
+          refund_notes?: string | null
+          refunded_at?: string | null
           registration_id?: string | null
           result_status?: string | null
           ring_entry_time?: string | null
@@ -1817,6 +1880,7 @@ export type Database = {
           search_time_seconds?: number | null
           show_id?: string | null
           special_requests?: string | null
+          stripe_payment_intent_id?: string | null
           submitted_at?: string | null
           sync_version?: number | null
           time_limit_exceeded_seconds?: number | null
@@ -1827,6 +1891,7 @@ export type Database = {
           total_score?: number | null
           trial_id?: string | null
           updated_at?: string | null
+          version?: number
           video_review_notes?: string | null
           withdrawal_reason?: string | null
         }
@@ -2535,6 +2600,7 @@ export type Database = {
           status: string | null
           trial_id: string | null
           updated_at: string | null
+          version: number
         }
         Insert: {
           class_id?: string | null
@@ -2550,6 +2616,7 @@ export type Database = {
           status?: string | null
           trial_id?: string | null
           updated_at?: string | null
+          version?: number
         }
         Update: {
           class_id?: string | null
@@ -2565,6 +2632,7 @@ export type Database = {
           status?: string | null
           trial_id?: string | null
           updated_at?: string | null
+          version?: number
         }
         Relationships: [
           {
@@ -3669,10 +3737,10 @@ export type Database = {
           created_at: string | null
           deleted_at: string | null
           deleted_by: string | null
+          early_adopter_until: string | null
           email: string | null
           first_name: string
           id: string
-          is_early_adopter: boolean
           last_name: string
           license_key: string | null
           phone: string | null
@@ -3692,10 +3760,10 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
+          early_adopter_until?: string | null
           email?: string | null
           first_name: string
           id?: string
-          is_early_adopter?: boolean
           last_name: string
           license_key?: string | null
           phone?: string | null
@@ -3715,10 +3783,10 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
+          early_adopter_until?: string | null
           email?: string | null
           first_name?: string
           id?: string
-          is_early_adopter?: boolean
           last_name?: string
           license_key?: string | null
           phone?: string | null
@@ -5615,6 +5683,105 @@ export type Database = {
           },
         ]
       }
+      show_payouts: {
+        Row: {
+          amount_cents: number
+          club_stripe_account_id: string | null
+          completed_at: string | null
+          created_at: string
+          failure_reason: string | null
+          id: string
+          scheduled_date: string | null
+          show_id: string
+          status: string
+          stripe_transfer_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          club_stripe_account_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          scheduled_date?: string | null
+          show_id: string
+          status?: string
+          stripe_transfer_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          club_stripe_account_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          scheduled_date?: string | null
+          show_id?: string
+          status?: string
+          stripe_transfer_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "show_payouts_club_stripe_account_id_fkey"
+            columns: ["club_stripe_account_id"]
+            isOneToOne: false
+            referencedRelation: "club_stripe_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_payouts_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_payouts_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_payouts_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_payouts_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_payouts_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_payouts_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_payouts_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["show_id"]
+          },
+        ]
+      }
       show_templates: {
         Row: {
           club_id: string | null
@@ -5822,6 +5989,7 @@ export type Database = {
           venue_name: string | null
           venue_wifi_network: string | null
           venue_wifi_password: string | null
+          version: number
           waitlist_payment_deadline_hours: number
           zip_code: string | null
         }
@@ -5879,6 +6047,7 @@ export type Database = {
           venue_name?: string | null
           venue_wifi_network?: string | null
           venue_wifi_password?: string | null
+          version?: number
           waitlist_payment_deadline_hours?: number
           zip_code?: string | null
         }
@@ -5936,6 +6105,7 @@ export type Database = {
           venue_name?: string | null
           venue_wifi_network?: string | null
           venue_wifi_password?: string | null
+          version?: number
           waitlist_payment_deadline_hours?: number
           zip_code?: string | null
         }
@@ -6193,7 +6363,7 @@ export type Database = {
           {
             foreignKeyName: "stripe_customers_person_id_fkey"
             columns: ["person_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "people"
             referencedColumns: ["id"]
           },
@@ -6923,6 +7093,7 @@ export type Database = {
           trial_number: string | null
           trial_type: string | null
           updated_at: string | null
+          version: number
         }
         Insert: {
           actual_end_time?: string | null
@@ -6951,6 +7122,7 @@ export type Database = {
           trial_number?: string | null
           trial_type?: string | null
           updated_at?: string | null
+          version?: number
         }
         Update: {
           actual_end_time?: string | null
@@ -6979,6 +7151,7 @@ export type Database = {
           trial_number?: string | null
           trial_type?: string | null
           updated_at?: string | null
+          version?: number
         }
         Relationships: [
           {
@@ -7793,6 +7966,7 @@ export type Database = {
           position: number
           status: string | null
           updated_at: string | null
+          version: number
         }
         Insert: {
           class_id: string
@@ -7806,6 +7980,7 @@ export type Database = {
           position: number
           status?: string | null
           updated_at?: string | null
+          version?: number
         }
         Update: {
           class_id?: string
@@ -7819,6 +7994,7 @@ export type Database = {
           position?: number
           status?: string | null
           updated_at?: string | null
+          version?: number
         }
         Relationships: [
           {
@@ -8375,6 +8551,7 @@ export type Database = {
           position: number
           status: string | null
           updated_at: string | null
+          version: number
         }
         SetofOptions: {
           from: "*"
@@ -8400,6 +8577,10 @@ export type Database = {
       can_manage_show_dog: { Args: { check_dog_id: string }; Returns: boolean }
       can_manage_show_person: {
         Args: { check_person_id: string }
+        Returns: boolean
+      }
+      can_manage_show_person_for_show: {
+        Args: { p_person_id: string; p_show_id: string }
         Returns: boolean
       }
       can_manage_trial: { Args: { check_trial_id: string }; Returns: boolean }
@@ -8462,13 +8643,13 @@ export type Database = {
       get_account_today_entries: {
         Args: never
         Returns: {
-          class_id: string | null
-          class_name: string | null
-          class_start_time: string | null
+          class_id: string
+          class_name: string
+          class_start_time: string
           entry_id: string
           show_id: string
           show_name: string
-          trial_id: string | null
+          trial_id: string
         }[]
       }
       get_admin_user_list: {
@@ -8530,13 +8711,6 @@ export type Database = {
           submitted_at: string
         }[]
       }
-      get_message_class_entry_counts: {
-        Args: { p_class_ids: string[] }
-        Returns: {
-          class_id: string
-          entry_count: number
-        }[]
-      }
       get_judge_day_capacity: {
         Args: { p_date: string; p_judge_id: string; p_show_id: string }
         Returns: {
@@ -8551,6 +8725,13 @@ export type Database = {
         }[]
       }
       get_license_key: { Args: never; Returns: string }
+      get_message_class_entry_counts: {
+        Args: { p_class_ids: string[] }
+        Returns: {
+          class_id: string
+          entry_count: number
+        }[]
+      }
       get_my_person_id: { Args: never; Returns: string }
       get_user_permissions: {
         Args: {
@@ -8623,6 +8804,7 @@ export type Database = {
       }
       is_club_admin: { Args: { check_club_id?: string }; Returns: boolean }
       is_platform_admin: { Args: never; Returns: boolean }
+      is_show_manager: { Args: never; Returns: boolean }
       is_show_official: { Args: { check_show_id: string }; Returns: boolean }
       is_show_secretary:
         | { Args: never; Returns: boolean }
@@ -8703,6 +8885,10 @@ export type Database = {
       test_as_anon: { Args: never; Returns: undefined }
       test_as_user: { Args: { user_id: string }; Returns: undefined }
       test_reset: { Args: never; Returns: undefined }
+      update_entry_handler: {
+        Args: { p_entry_id: string; p_handler: string }
+        Returns: undefined
+      }
       upsert_ringside_session: {
         Args: {
           p_favorited_armbands?: string[]

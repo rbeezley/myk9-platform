@@ -6,7 +6,7 @@ Plan: `docs/plan-code-quality-audit.md`
 
 ## Scope
 
-This run executes Phase 1 inventory of the proactive code-quality audit. Phase 2 independent verification remains pending for P1/P2 items, and fix waves wait for the Phase 3 human approval gate.
+This run executes Phase 1 inventory and the initial Phase 2 source-level verification pass of the proactive code-quality audit. Fix waves still wait for the Phase 3 human approval gate.
 
 ## Phase 0 Inputs
 
@@ -25,4 +25,5 @@ This run executes Phase 1 inventory of the proactive code-quality audit. Phase 2
 - `06-todo-fixme-hack-triage.md`
 - `07-test-coverage-gaps.md`
 - `08-config-flag-debt.md`
+- `09-phase-2-verification.md`
 - `SUMMARY.md`

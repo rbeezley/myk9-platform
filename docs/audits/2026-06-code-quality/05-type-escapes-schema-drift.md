@@ -1,7 +1,13 @@
 # 05 Type Escapes And Schema Drift
 
 Finder: subagent `019eb9d2-75a5-7762-a1bc-d62d120a8829`
-Status: Phase 1 inventory complete; P1/P2 items need independent verification before fixes.
+Status: Phase 1 inventory complete; initial Phase 2 verification recorded in `09-phase-2-verification.md`.
+
+## Phase 2 Update
+
+Confirmed: generated type divergence, stale visibility/settings/secretary/judge casts, and the dead/schema-drift status of `entryService.ts`.
+
+Caveat: `audit_entry` remains a real type gap, but current DB existence should be verified before adding a typed table contract. Type-file canonicalization is the prerequisite for most cleanup here.
 
 ## Counts
 
@@ -18,7 +24,7 @@ Status: Phase 1 inventory complete; P1/P2 items need independent verification be
 
 | File:Line | Pattern | Classification | Severity | Evidence | Verification | Proposed Fix | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `apps/myk9show/src/services/AuditService.ts:175`, `:218`, `:546` | `query: any`, `supabase as any`, `data as any[]`, `row: any` | real type gap | P2 | `audit_entry` exists only in app-local migrations and is absent from app generated types. | finder-confirmed; Phase-2 pending | Add/regenerate canonical `audit_entry` type and type query/insert rows. | Verify with canonical type-file consolidation. |
+| `apps/myk9show/src/services/AuditService.ts:175`, `:218`, `:546` | `query: any`, `supabase as any`, `data as any[]`, `row: any` | real type gap | P2 | `audit_entry` exists only in app-local migrations and is absent from app generated types. | Phase-2 confirmed with DB-schema caveat | Add/regenerate canonical `audit_entry` type and type query/insert rows. | Verify current DB table existence before typing; then handle with canonical type-file consolidation. |
 | `apps/myk9show/src/hooks/mutations/useShowSettingsMutations.ts:17` | `supabase as any` | lazy escape | P2 | Visibility tables exist in app generated types. | finder-confirmed; Phase-2 pending | Remove cast; use typed client/`TablesInsert`. | Comment is stale. |
 | `apps/myk9show/src/services/database/shows/writes.ts:105` | `supabase.rpc as any` | lazy escape | P3 | `soft_delete_show` exists in generated RPC types. | confirmed | Use typed RPC call. |  |
 | `apps/myk9show/src/hooks/useExhibitorProfile.ts:219` | `from(...) as any` | lazy escape | P3 | `exhibitor_profiles.onboarding_completed_at` exists in app types. | confirmed | Remove cast. |  |
@@ -37,7 +43,7 @@ Status: Phase 1 inventory complete; P1/P2 items need independent verification be
 | `apps/myk9show/src/hooks/queries/useJudgeCheckInStats.ts:7` | `supabaseClient as any` | lazy escape | P2 | `judge_assignments`, `classes`, and `trials` columns exist. | finder-confirmed; Phase-2 pending | Use typed client or explicit return type. |  |
 | `apps/myk9show/src/components/shows/ShowDetails/dialogs/DeleteShowDialog.tsx:46` | `supabase.rpc as any` | lazy escape | P3 | `hard_delete_show` exists in RPC types. | confirmed | Remove cast. | Admin-only. |
 | `apps/myk9show/src/features/admin-help/hooks/useExampleIds.ts:11` | `table as any` | deliberate boundary coercion | P3 | Runtime table name cannot infer literal table union. | confirmed | Prefer constraining `table` to `keyof Database['public']['Tables']` or keep with comment. | Admin-help utility. |
-| `apps/myk9show/src/services/entryService.ts:21` | writes `{ status }` to `entries` | schema drift | P2 | Generated `entries` has `entry_status`, `check_in_status`, `is_in_ring`; no `status` column. `markInRing` had no direct app caller found. | finder-confirmed; Phase-2 pending | Verify liveness in Wave A; delete if dead. Only route to replicated entry/check-in update if a live caller is found. | Cross-referenced in dead-code inventory so deletion is considered before schema repair. |
+| `apps/myk9show/src/services/entryService.ts:21` | writes `{ status }` to `entries` | schema drift | P2 | Generated `entries` has `entry_status`, `check_in_status`, `is_in_ring`; no `status` column. `markInRing` had no direct app caller found. | Phase-2 confirmed dead/schema-drift | Delete in Wave A rather than repairing. | Cross-referenced in dead-code inventory; future in-ring work should use a replication-backed adapter. |
 
 ## Deliberate Boundary Coercions
 

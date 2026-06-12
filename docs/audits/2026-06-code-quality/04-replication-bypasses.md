@@ -1,7 +1,15 @@
 # 04 Replication-Layer Bypasses
 
 Finder: subagent `019eb9d2-5b82-7af2-9a49-453d9efbfcac`
-Status: Phase 1 inventory complete; P2 findings need independent verification before fix waves.
+Status: Phase 1 inventory complete; initial Phase 2 verification recorded in `09-phase-2-verification.md`.
+
+## Phase 2 Update
+
+Confirmed source-live bypasses: secretary entry reads/writes, armband assignment reads/writes, day-of scratch/move-up list reads, secretary check-in report reads, and exhibitor show-day data reads.
+
+Reclassified/refuted: legacy move-up processor direct path is not confirmed live; `useClassEntries` is a dead-code candidate rather than a confirmed live bypass.
+
+Needs human: Pull Management processed pulls need a local-state versus refund/accounting split decision; `packages/ringside` class-status hook needs a public-contract decision.
 
 ## Findings
 

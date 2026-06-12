@@ -1,7 +1,13 @@
 # 06 TODO/FIXME/HACK Triage
 
 Finder: subagent `019eb9d2-8fa7-7c72-9a5e-9c6c68232486`
-Status: Phase 1 inventory complete.
+Status: Phase 1 inventory complete; initial Phase 2 verification recorded in `09-phase-2-verification.md`.
+
+## Phase 2 Update
+
+Confirmed P1/P2 items: `/judge/check-in` is a live routed page with a hardcoded empty ring-assignment state; Nationals/Regular is hardcoded in both passcode/function placement paths; dog plus child registration remains non-atomic.
+
+The judge check-in item should be treated as launch-blocking unless the route is intentionally removed from launch scope.
 
 Counts:
 
@@ -25,7 +31,7 @@ Counts:
 | `apps/myk9show/src/services/mappers/showMappers.ts:40`, `:243` | Remove show casts after type regen | fix-now | P3 | Generated types include referenced columns. | Finder-confirmed. | Remove casts/comments if typecheck passes. | Same cleanup cluster. |
 | `packages/ringside/src/pages/EntryList/pageProps.ts:11`, `:609`, `:731`; `packages/ringside/src/index.ts:283` | Resolved TODO placeholder/layout-slot comments | delete-comment | P3 | Comments say or refer to resolved placeholders. | Finder-confirmed. | Reword/remove TODO markers. | Stale. |
 | `apps/myk9show/src/hooks/useDogStoreCompat.ts:98` | Dog and registrations not atomic | file-as-todo | P2 | Dog create can succeed before registration sync. | finder-confirmed; Phase-2 pending | Add OPEN-TODOS item for `create_dog_with_children` RPC. | Reliability gap. |
-| `apps/myk9show/src/pages/judge/JudgeCheckInDashboard.tsx:37` | Hardcoded empty ring assignments | file-as-todo | P1 | `/judge/check-in` is routed; UI can show false empty state. | finder-confirmed; Phase-2 pending route/data verification | Add launch-blocking TODO or wire real query. | Show-day reliability. |
+| `apps/myk9show/src/pages/judge/JudgeCheckInDashboard.tsx:37` | Hardcoded empty ring assignments | file-as-todo | P1 | `/judge/check-in` is routed; UI can show false empty state. | Phase-2 confirmed | Add launch-blocking TODO or wire real query. | Show-day reliability. |
 | `apps/myk9show/src/utils/show-management-tracking.ts:133` | Site admin treated as club admin pending real membership | file-as-todo | P2 | Scope accuracy matters for role semantics. | finder-confirmed; Phase-2 pending liveness verification | Verify liveness, then use RBAC scopes or delete utility. | Avoid misleading relationship state. |
 | `apps/myk9show/src/hooks/useEmailStatus.ts:22` | `as any` for `email_log` | fix-now | P3 | Generated types include `email_log`. | Finder-confirmed. | Remove bridge/comment. | Type cleanup. |
 | `apps/myk9show/src/components/shows/ShowDetails/ShowStatistics/index.tsx:38`, `:58` | Legacy icon/color class adapters | keep-with-reason | P3 | Upstream `ShowStat` still uses class strings. | Finder-confirmed. | Keep until stat model changes. | Not launch-critical. |

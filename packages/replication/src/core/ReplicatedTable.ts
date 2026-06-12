@@ -35,6 +35,12 @@ import {
 import { databaseManager, REPLICATION_STORES, trackTransaction } from './DatabaseManager';
 import { ReplicatedTableCacheManager } from './ReplicatedTableCache';
 import { ReplicatedTableBatchManager } from './ReplicatedTableBatch';
+import {
+  applyConflictSnapshot,
+  buildRemoteReplacementRow,
+  clearConflictSnapshot,
+  getConflictSnapshots,
+} from './ReplicatedTableConflict';
 import { isConflictSurfacingEnabled } from '../conflictConfig';
 
 // Re-export REPLICATION_STORES for backward compatibility
@@ -355,17 +361,13 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       | ReplicatedRow<T>
       | undefined;
 
-    if (!existingRow || existingRow.version !== conflict.localVersion) {
+    const conflictedRow = applyConflictSnapshot(existingRow, conflict);
+    if (!conflictedRow) {
       await tx.done;
       return false;
     }
 
-    await tx.store.put({
-      ...existingRow,
-      isDirty: true,
-      syncStatus: 'conflict',
-      conflict,
-    });
+    await tx.store.put(conflictedRow);
     await tx.done;
 
     this.notifyListeners();
@@ -388,17 +390,13 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       | ReplicatedRow<T>
       | undefined;
 
-    if (!existingRow || existingRow.syncStatus !== 'conflict') {
+    const clearedRow = clearConflictSnapshot(existingRow, newServerVersion);
+    if (!clearedRow) {
       await tx.done;
       return;
     }
 
-    await tx.store.put({
-      ...existingRow,
-      syncStatus: 'pending',
-      conflict: undefined,
-      ...(newServerVersion !== undefined && { serverVersion: newServerVersion }),
-    });
+    await tx.store.put(clearedRow);
     await tx.done;
     this.notifyListeners();
   }
@@ -411,22 +409,13 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       | ReplicatedRow<T>
       | undefined;
 
-    const row: ReplicatedRow<T> = {
+    const row = buildRemoteReplacementRow({
       tableName: this.tableName,
       id: normalizedId,
-      data: { ...remoteData, id: normalizedId } as T,
-      version: existingRow ? existingRow.version + 1 : 1,
-      lastSyncedAt: Date.now(),
-      lastAccessedAt: Date.now(),
-      accessCount: existingRow?.accessCount || 0,
-      lastModifiedAt: Date.now(),
-      isDirty: false,
-      syncStatus: 'synced',
-      baseData: undefined,
-      baseVersion: undefined,
-      serverVersion: remoteServerVersion ?? existingRow?.serverVersion,
-      conflict: undefined,
-    };
+      remoteData,
+      existingRow,
+      remoteServerVersion,
+    });
 
     await tx.store.put(row);
     await tx.done;
@@ -616,9 +605,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readonly');
     const index = tx.store.index('tableName');
     const rows = (await index.getAll(this.tableName)) as ReplicatedRow<T>[];
-    return rows
-      .filter(row => row.syncStatus === 'conflict' && row.conflict !== undefined)
-      .map(row => row.conflict!);
+    return getConflictSnapshots(rows);
   }
 
   /**

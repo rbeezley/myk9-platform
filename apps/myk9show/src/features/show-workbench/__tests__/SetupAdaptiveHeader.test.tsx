@@ -10,25 +10,47 @@ describe('SetupAdaptiveHeader', () => {
     expect(screen.queryByTestId('setup-signals')).not.toBeInTheDocument();
   });
 
-  it('renders the pending state with a chip per signal', () => {
+  it('renders each pending signal as a link to its fixing surface', () => {
     render(
       <SetupAdaptiveHeader
         signals={[
-          { id: 'no-trials', label: 'No trials yet' },
-          { id: 'judges-missing', label: 'Judges not assigned' },
+          { id: 'no-trials', label: 'No trials yet', href: '/shows/s1?tab=trials' },
+          { id: 'judges-missing', label: 'Judges not assigned', href: '/trials/t1/classes' },
         ]}
       />
     );
     expect(screen.getByRole('heading', { name: 'Finish setup' })).toBeInTheDocument();
-    const chips = screen.getByTestId('setup-signals');
-    expect(chips).toHaveTextContent('No trials yet');
-    expect(chips).toHaveTextContent('Judges not assigned');
+    expect(screen.getByRole('link', { name: 'No trials yet' })).toHaveAttribute(
+      'href',
+      '/shows/s1?tab=trials'
+    );
+    expect(screen.getByRole('link', { name: 'Judges not assigned' })).toHaveAttribute(
+      'href',
+      '/trials/t1/classes'
+    );
+  });
+
+  it('renders hash signals as in-page anchors', () => {
+    render(
+      <SetupAdaptiveHeader
+        signals={[
+          {
+            id: 'exhibitor-materials-unpublished',
+            label: 'Exhibitor materials unpublished',
+            href: '#setup-publish',
+          },
+        ]}
+      />
+    );
+    expect(
+      screen.getByRole('link', { name: 'Exhibitor materials unpublished' })
+    ).toHaveAttribute('href', '#setup-publish');
   });
 
   it('uses singular vs plural copy correctly', () => {
     const { rerender } = render(
       <SetupAdaptiveHeader
-        signals={[{ id: 'no-trials', label: 'No trials yet' }]}
+        signals={[{ id: 'no-trials', label: 'No trials yet', href: '/shows/s1?tab=trials' }]}
       />
     );
     expect(screen.getByText(/1 item left/i)).toBeInTheDocument();
@@ -36,8 +58,8 @@ describe('SetupAdaptiveHeader', () => {
     rerender(
       <SetupAdaptiveHeader
         signals={[
-          { id: 'no-trials', label: 'No trials yet' },
-          { id: 'no-classes', label: 'No classes built' },
+          { id: 'no-trials', label: 'No trials yet', href: '/shows/s1?tab=trials' },
+          { id: 'no-classes', label: 'No classes built', href: '/trials/t1/classes' },
         ]}
       />
     );

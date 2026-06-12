@@ -197,13 +197,22 @@ function SingleItemRow({
   onStart: (action: ShowMapAction) => void;
 }) {
   const action = group.representative;
+  // Identical actions on different classes must say which class they
+  // belong to — three bare "Print Check-In Sheet" rows are unanswerable
+  // for a secretary scanning the queue.
+  const disambiguator = group.items[0]?.disambiguator;
   return (
     <li
       className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
       data-group-key={group.key}
     >
       <div className="min-w-0">
-        <div className="text-sm font-medium">{action.label}</div>
+        <div className="text-sm font-medium">
+          {action.label}
+          {disambiguator && (
+            <span className="font-normal text-muted-foreground"> · {disambiguator}</span>
+          )}
+        </div>
         <div className="text-xs text-muted-foreground">{action.why}</div>
       </div>
       <Button

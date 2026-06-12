@@ -2,6 +2,7 @@ import { Megaphone } from 'lucide-react';
 import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
 import { LandingPageCard } from '@/features/premium/LandingPageCard';
 import type { ShowStyle } from '@/features/registries';
+import { SETUP_PUBLISH_ANCHOR } from './setupReadinessSignals';
 
 interface SetupPublishSectionProps {
   showId: string;
@@ -14,7 +15,9 @@ interface SetupPublishSectionProps {
 // Setup feels like coherent stages rather than two more scattered cards.
 export function SetupPublishSection({ showId, showStyle }: SetupPublishSectionProps) {
   return (
-    <section aria-labelledby="setup-publish-heading">
+    // scroll-mt keeps the anchor target clear of the fixed app header
+    // when the readiness chip jumps here.
+    <section id={SETUP_PUBLISH_ANCHOR} className="scroll-mt-20" aria-labelledby="setup-publish-heading">
       <div className="mb-2 flex items-center gap-2">
         <Megaphone className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
         <h3

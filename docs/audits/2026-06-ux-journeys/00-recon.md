@@ -17,7 +17,7 @@
 | `apps/myk9show/src/routes/` | Current route map | Yes |
 | Light browser checks | Route existence and redirects | Pending |
 
-Route inventory confirms the current app treats `/at-show/:showId` as the day-of class picker, `/exhibitor/entries` as the exhibitor show hub, `/secretary/dashboard` as the cross-show secretary home, and `/secretary/shows/:showId` as the single-show workbench. The consolidation plans define Show Desk as the operational hub and Entry Management as the bulk entry surface.
+Route inventory confirms the current app treats `/at-show/:showId` as the day-of class picker, `/exhibitor/entries` as the exhibitor show hub, `/secretary/dashboard` as the cross-show secretary home, and `/shows/:showId` / `/shows/:showId/show-desk` as the canonical single-show workbench and Show Desk surfaces. `/secretary/shows/:showId` is a legacy redirect. The consolidation plans define Show Desk as the operational hub and Entry Management as the bulk entry surface.
 
 ## Prior Finding Disposition
 
@@ -48,6 +48,6 @@ Route inventory confirms the current app treats `/at-show/:showId` as the day-of
 
 | Surface or task | Does this duplicate an existing page? | Recon note |
 | --- | --- | --- |
-| Secretary operational work | Yes, if rebuilt outside Show Desk | Current plans make `/secretary/shows/:showId?phase=show-desk` the single-show operational hub. Recon should prefer links into Show Desk over new surfaces. |
+| Secretary operational work | Yes, if rebuilt outside Show Desk | Current plans make `/shows/:showId/show-desk` the canonical single-show operational hub; `/secretary/shows/:showId` is a legacy redirect. Recon should prefer links into Show Desk over new surfaces. |
 | Bulk entry approval/check-in | Yes, if rebuilt in Show Desk | Entry Management owns cross-entry and bulk workflows. Show Desk can deep-link to filtered Entry Management, but should not duplicate bulk tables. |
 | Exhibitor show-day status | Yes, if rebuilt under old `/exhibitor/show-day` | `/at-show/:showId` and the My Entries show-day banner are the canonical day-of path. Old `/exhibitor/show-day` is a legacy redirect surface. |

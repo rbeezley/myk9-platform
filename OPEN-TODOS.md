@@ -4,6 +4,34 @@ Active work items only. Resolved historical context lives in git history and dat
 
 ---
 
+## Code-Quality Audit — 2026-06-12
+
+Plan: [`docs/plan-code-quality-audit.md`](docs/plan-code-quality-audit.md). Current status in [`docs/audits/2026-06-code-quality/SUMMARY.md`](docs/audits/2026-06-code-quality/SUMMARY.md). Phase 1 inventory done; Phase 2 verification pending before any fix wave starts.
+
+- [ ] **Phase 2 — verify all P1/P2 findings** — adversarially refute each finder-confirmed item before approving the fix list. Key unverified candidates: `lazyLoading.ts` / `usePaginatedQueries.ts` / `useOptimizedSearch.ts` dead-code trio; `markInRing` schema drift; `send-notification` edge function deployed-usage check.
+- [ ] **Human gate — approve fix list** — review the SUMMARY.md confirmed table before Wave A starts. Some findings are judgment calls (type-file consolidation touches every import).
+- [ ] **Wave A — pure deletions** (dead code, stale TODOs, dead flags)
+- [ ] **Wave B — consolidations** (duplication clusters, type-file unification)
+- [ ] **Wave C — extractions** (multi-concern oversized files only)
+- [ ] **Wave D — replication-bypass reroutes + targeted test additions**
+- [ ] **Phase 5 — codify as repeatable skill + set CI ratchet baselines** (after all waves land)
+
+---
+
+## Dynamic QA Infrastructure — 2026-06-12
+
+Plan: [`docs/plan-dynamic-qa-infrastructure.md`](docs/plan-dynamic-qa-infrastructure.md). Starts after the code-quality audit fix waves are done. Phases 1/3/4/5 can run in parallel worktrees; Phase 2 (mutation testing) requires audit Wave D tests first; Phase 6 (bundle budget) requires Wave A.
+
+- [ ] **Phase 1 — offline/replication chaos tests** (conflict-injection unit tests, sync-queue replay idempotency, Playwright offline round-trip)
+- [ ] **Phase 2 — mutation testing on fee/scoring/placement math** *(after audit Wave D)*
+- [ ] **Phase 3 — database-side drift checks** (Supabase advisors sweep, enum/CHECK drift script, deployed-vs-repo function inventory)
+- [ ] **Phase 4 — error observability** (error-boundary coverage audit, Sentry wiring — confirm vendor before creating external project)
+- [ ] **Phase 5 — flaky-test quarantine + suite health**
+- [ ] **Phase 6 — bundle budget + a11y smoke + dependency cadence** *(Phase 6 bundle budget after audit Wave A)*
+- [ ] **Phase 7 — final regression + fold into launch-milestone checklist**
+
+---
+
 ## Code-Quality Audit Follow-ups — 2026-06-12
 
 Source: PR [#642](https://github.com/rbeezley/myk9-platform/pull/642), `docs/audits/2026-06-code-quality/`.

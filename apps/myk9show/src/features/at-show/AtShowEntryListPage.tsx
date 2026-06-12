@@ -52,6 +52,7 @@ import { atShowLayoutSlots } from './slots/atShowLayoutSlots';
 import { atShowDialogSlots } from './slots/atShowDialogSlots';
 import { useAtShowDogFavorites } from './ringsideDogFavorites';
 import { useMyAtShowEntries } from './useMyAtShowEntries';
+import { useMyRingConflicts } from './useMyRingConflicts';
 
 export const AtShowEntryListPage: React.FC = () => {
   const { showId, classId } = useParams<{ showId: string; classId: string }>();
@@ -234,9 +235,10 @@ export const AtShowEntryListPage: React.FC = () => {
   // can never disagree with the visible list. Undefined for accounts with no
   // entries here (staff, passcode grantees) — rendering is then unchanged.
   const { ownEntryIds } = useMyAtShowEntries(showId);
+  const conflictLabels = useMyRingConflicts(showId, ownEntryIds);
   const ownership = useMemo(
-    () => buildEntryListOwnership(localEntries, ownEntryIds),
-    [localEntries, ownEntryIds]
+    () => buildEntryListOwnership(localEntries, ownEntryIds, conflictLabels),
+    [localEntries, ownEntryIds, conflictLabels]
   );
 
   // ── Context bag ──────────────────────────────────────────────────────────

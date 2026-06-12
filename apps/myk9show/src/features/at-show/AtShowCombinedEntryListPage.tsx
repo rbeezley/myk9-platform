@@ -49,6 +49,7 @@ import { atShowLayoutSlots } from './slots/atShowLayoutSlots';
 import { atShowDialogSlots } from './slots/atShowDialogSlots';
 import { useAtShowDogFavorites } from './ringsideDogFavorites';
 import { useMyAtShowEntries } from './useMyAtShowEntries';
+import { useMyRingConflicts } from './useMyRingConflicts';
 
 export const AtShowCombinedEntryListPage: React.FC = () => {
   const { showId, classIdA, classIdB } = useParams<{
@@ -204,9 +205,10 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   // Combined A/B run together, so the queue is computed over the merged
   // localEntries — exactly what the page renders.
   const { ownEntryIds } = useMyAtShowEntries(showId);
+  const conflictLabels = useMyRingConflicts(showId, ownEntryIds);
   const ownership = useMemo(
-    () => buildEntryListOwnership(localEntries, ownEntryIds),
-    [localEntries, ownEntryIds]
+    () => buildEntryListOwnership(localEntries, ownEntryIds, conflictLabels),
+    [localEntries, ownEntryIds, conflictLabels]
   );
 
   // ── Context ────────────────────────────────────────────────────────────

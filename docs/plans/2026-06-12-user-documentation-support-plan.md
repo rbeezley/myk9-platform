@@ -48,6 +48,10 @@ Does this duplicate an existing page or feature surface? No. This plan creates a
 | Create | `docs/knowledge-base/README.md` | Customer-facing KB index and article status |
 | Create | `docs/knowledge-base/article-template.md` | Standard article structure with search-alias frontmatter |
 | Create later | `docs/knowledge-base/articles/*.md` | Future customer-facing help articles |
+| Create | `docs/user-guides/secretary-guide-outline.md` | Secretary guide outline + QA-draft steps (Task 12) |
+| Create | `docs/user-guides/exhibitor-guide-outline.md` | Exhibitor guide outline + QA-draft steps (Task 13) |
+| Create | `docs/user-guides/judge-steward-quickstart-outline.md` | Ringside quickstart outline (Task 14) |
+| Create | `docs/user-guides/club-admin-guide-outline.md` | Club admin/treasurer guide outline (Task 15) |
 | Create later | `docs/user-guides/secretary-guide.md` | Secretary setup, entry management, show-day, and closeout guide |
 | Create later | `docs/user-guides/exhibitor-guide.md` | Exhibitor account, dog, entry, check-in, payment, and results guide |
 | Create later | `docs/user-guides/judge-steward-quickstart.md` | Ringside quickstart for judges and gate stewards |
@@ -58,6 +62,7 @@ Does this duplicate an existing page or feature surface? No. This plan creates a
 | Create | `docs/training/screenshot-shot-list.md` | Required screenshots/video captures by workflow |
 | Create | `docs/blog/README.md` | Customer education/blog content calendar and article status |
 | Create | `docs/blog/post-template.md` | Standard structure for educational posts |
+| Create | `docs/blog/content-calendar-outline.md` | First 12 blog/post ideas by title and audience (Task 20) |
 | Create | `docs/user-guides/documentation-qa-checklist.md` | Verification checklist for final guides |
 | Modify | `OPEN-TODOS.md` | Track when documentation tasks become ready to execute |
 

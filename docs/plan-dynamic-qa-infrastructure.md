@@ -1,6 +1,6 @@
 # Plan: Dynamic QA Infrastructure (follow-on to the Code-Quality Audit)
 
-**Created:** 2026-06-12 · **Status:** Draft — not started
+**Created:** 2026-06-12 · **Status:** Draft — Phase 3 database-side drift checks complete 2026-06-12; other phases not started
 **Goal:** Build the QA infrastructure the code-quality audit cannot: dynamic tests for offline/replication behavior, mutation testing of money-path math, database-side drift checks, error observability, and flaky-test quarantine. Where the audit *finds and removes* existing static debt, this plan *builds new guards* so quality holds after launch.
 
 **Relationship to [`docs/plan-code-quality-audit.md`](plan-code-quality-audit.md):** that plan owns static debt removal (Waves A–D) and the CI ratchets (its Phase 5 amendment, 2026-06-12). This plan owns everything dynamic. Phases here marked **[after audit]** must wait for the named audit wave; the rest can start independently in their own worktrees.
@@ -70,6 +70,8 @@ Deliverables: `stryker.config.json` scoped by file glob, a `pnpm` script (`test:
 ## Phase 3 — Database-side drift checks
 
 All read-only against the shared DB; no migration or push in this phase.
+
+**Status 2026-06-12:** Complete in branch `codex/db-drift-checks`. Added `scripts/qa/db-drift/enum-check-drift.ts`, `scripts/qa/db-drift/function-inventory.ts`, root `pnpm qa:db-drift:*` scripts, and focused Vitest coverage. Findings are recorded in `docs/audits/2026-06-proactive-qa/db-advisors.md`. Follow-up remediation was intentionally not done inline because this phase is read-only.
 
 1. **Supabase advisors sweep:** pull the dashboard's security + performance lints (unindexed FKs, RLS-disabled tables, slow policies). Record findings in `docs/audits/2026-06-proactive-qa/db-advisors.md`. Route anything security-shaped to `/security-audit`, anything needing a migration to the `migration-auditor` flow — don't fix inline.
 2. **Enum/CHECK drift script:** automate the DB-constraint-review feedback rule — a script that extracts status/enum string literals written by app services and diffs them against actual CHECK constraints in the schema. The audit caught `entries.status` not existing by hand; this makes that class of bug a script run. Lives in `scripts/`, runnable on demand.

@@ -35,11 +35,18 @@ Plan: [`docs/plan-dynamic-qa-infrastructure.md`](docs/plan-dynamic-qa-infrastruc
 
 - [ ] **Phase 1 — offline/replication chaos tests** (conflict-injection unit tests, sync-queue replay idempotency, Playwright offline round-trip)
 - [ ] **Phase 2 — mutation testing on fee/scoring/placement math** _(after audit Wave D)_
-- [ ] **Phase 3 — database-side drift checks** (Supabase advisors sweep, enum/CHECK drift script, deployed-vs-repo function inventory)
 - [ ] **Phase 4 — error observability** (error-boundary coverage audit, Sentry wiring — confirm vendor before creating external project)
 - [ ] **Phase 5 — flaky-test quarantine + suite health**
 - [ ] **Phase 6 — bundle budget + a11y smoke + dependency cadence** _(Phase 6 bundle budget after audit Wave A)_
 - [ ] **Phase 7 — final regression + fold into launch-milestone checklist**
+
+## Database Drift Follow-ups — 2026-06-12
+
+Source: [`docs/audits/2026-06-proactive-qa/db-advisors.md`](docs/audits/2026-06-proactive-qa/db-advisors.md).
+
+- [ ] **[DB drift] Security advisor remediation triage** — Supabase advisors found 8 `security_definer_view` ERRORs, 166 anon/auth executable SECURITY DEFINER function grants, 9 always-true write-capable RLS policies, 2 broad public bucket listing policies, and `show_passcodes` with RLS enabled/no policies. Route through `/security-audit`; do not batch-fix blindly.
+- [ ] **[DB drift] Fix `entries.entry_status` CHECK regression** — `pnpm qa:db-drift:enum` found app code writing `scratch-requested` while the latest parsed `entries_entry_status_check` from migration 174 allows only `scratch_requested` / `move_up_requested` for request states. Use migration-auditor flow; read-only drift phase did not push a migration.
+- [ ] **[DB drift] Reconcile deployed-vs-repo edge functions** — `pnpm qa:db-drift:functions` found deployed-only Stripe/cron functions (`stripe-*`, `cron-*`) and repo-only `send-results`. Confirm whether this branch is behind payment work before deleting or deploying anything.
 
 ---
 
@@ -70,7 +77,7 @@ Source: PR [#642](https://github.com/rbeezley/myk9-platform/pull/642), PR [#647]
 
 Plan: `docs/plan-at-show-exhibitor-awareness.md`. Branch `claude/at-show-exhibitor-awareness`. Own-dog highlighting, live "N dogs ahead" pills, and ring-conflict chips on the `/at-show` entry lists, plus realtime refresh (myK9Q parity). Locked decisions: in-ring dog EXCLUDED from the count ("You're next" while a dog runs), entry-list-only surfaces (class-card chips cut), conflict = ≥2 own entries within `leadDogs` in different in-progress classes (both sides badged).
 
-- [ ] **Open PR + review** — all 5 phases implemented with tests green (ringside 373 + at-show suites); needs `/review` and merge.
+- [x] ~~**Open PR + review**~~ — Closed 2026-06-12 per request. All 5 phases implemented with tests green (ringside 373 + at-show suites); needs `/review` and merge.
 - [ ] **Manual show-day walk** — exhibitor account with entries: highlight → pill counts down live → conflict chip on both entries.
 
 ---

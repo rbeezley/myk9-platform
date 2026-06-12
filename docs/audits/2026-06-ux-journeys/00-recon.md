@@ -12,10 +12,12 @@
 | `docs/goals/fall-2026-launch-readiness-scorecard.md` | Canonical golden-path steps | Yes |
 | `docs/ux-audits/phase-1-summary.md` | April exhibitor findings | Pending |
 | `docs/ux-audits/phase-2-summary.md` | April secretary findings | Pending |
-| `docs/plan-show-map-workbench-collapse.md` | Intended secretary workbench boundary | Pending |
-| `docs/plan-secretary-show-day-ux-consolidation.md` | Intended secretary routing boundary | Pending |
-| `apps/myk9show/src/routes/` | Current route map | Pending |
+| `docs/plan-show-map-workbench-collapse.md` | Intended secretary workbench boundary | Yes |
+| `docs/plan-secretary-show-day-ux-consolidation.md` | Intended secretary routing boundary | Yes |
+| `apps/myk9show/src/routes/` | Current route map | Yes |
 | Light browser checks | Route existence and redirects | Pending |
+
+Route inventory confirms the current app treats `/at-show/:showId` as the day-of class picker, `/exhibitor/entries` as the exhibitor show hub, `/secretary/dashboard` as the cross-show secretary home, and `/secretary/shows/:showId` as the single-show workbench. The consolidation plans define Show Desk as the operational hub and Entry Management as the bulk entry surface.
 
 ## Prior Finding Disposition
 
@@ -46,3 +48,6 @@
 
 | Surface or task | Does this duplicate an existing page? | Recon note |
 | --- | --- | --- |
+| Secretary operational work | Yes, if rebuilt outside Show Desk | Current plans make `/secretary/shows/:showId?phase=show-desk` the single-show operational hub. Recon should prefer links into Show Desk over new surfaces. |
+| Bulk entry approval/check-in | Yes, if rebuilt in Show Desk | Entry Management owns cross-entry and bulk workflows. Show Desk can deep-link to filtered Entry Management, but should not duplicate bulk tables. |
+| Exhibitor show-day status | Yes, if rebuilt under old `/exhibitor/show-day` | `/at-show/:showId` and the My Entries show-day banner are the canonical day-of path. Old `/exhibitor/show-day` is a legacy redirect surface. |

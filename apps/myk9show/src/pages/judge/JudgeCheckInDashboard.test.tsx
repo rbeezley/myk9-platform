@@ -92,7 +92,8 @@ describe('JudgeCheckInDashboard', () => {
 
     expect(screen.getByText('Interior Novice A')).toBeInTheDocument();
     expect(screen.getByText('20 entries')).toBeInTheDocument();
-    expect(screen.getAllByText('14')).not.toHaveLength(0);
+    const checkedInSummary = screen.getByText('70% ready').parentElement;
+    expect(checkedInSummary).toHaveTextContent('14');
     expect(screen.getByRole('button', { name: /multi-ring view/i })).toBeEnabled();
   });
 

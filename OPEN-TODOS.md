@@ -60,7 +60,7 @@ Plan: [`docs/plan-ux-journey-audit.md`](docs/plan-ux-journey-audit.md). Journey-
 
 Source: PR [#642](https://github.com/rbeezley/myk9-platform/pull/642), PR [#647](https://github.com/rbeezley/myk9-platform/pull/647), `docs/audits/2026-06-code-quality/`.
 
-- [ ] **[P1] Wire Judge Check-In dashboard to real ring assignments** — `/judge/check-in` is routed, but `JudgeCheckInDashboard.tsx` initializes ring assignments with an empty array plus TODO, so a live judge-facing show-day page can show a false empty state. Underway on branch `codex/code-quality-wave-b-p1-launch-gates`: dashboard now reads the offline-first judge assignment hook, preserves loading/error states, carries checked-in counts through replicated class/assignment data, and adds focused coverage before this item is closed.
+- [x] ~~**[P1] Wire Judge Check-In dashboard to real ring assignments**~~ — Fixed in PR #654: `/judge/check-in` now reads the offline-first judge assignment hook, preserves loading/error states, carries checked-in counts through replicated class/assignment data, and has focused coverage for loading, error, populated, and true-empty states.
 
 - [x] ~~**[P2] Wave A code-quality cleanup: delete Phase-2-confirmed dead code**~~ — Removed `apps/myk9show/src/lib/lazyLoading.ts`, `usePaginatedQueries.ts`, `useOptimizedSearch.ts`, their direct dead-hook tests, `apps/myk9show/src/services/entryService.ts`, unreachable demo/test pages, `components/forms/OptimisticForm.tsx`, unused sync panels, and `apps/myk9show/src/config/performance-budget.ts`. Kept `supabase/functions/send-notification` out of this wave until deployed Supabase usage/log/config checks are done.
 

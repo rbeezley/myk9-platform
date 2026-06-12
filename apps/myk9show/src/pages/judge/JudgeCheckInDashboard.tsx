@@ -36,6 +36,7 @@ const JudgeCheckInDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [selectedRing, setSelectedRing] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'overview' | 'ring-detail' | 'multi-ring'>('overview');
+  // Keep today's assignment bucket stable for this mount; React calls Date.now once as a lazy initializer.
   const [todayBucketNowMs] = useState(Date.now);
   const {
     assignments,

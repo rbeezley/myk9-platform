@@ -251,7 +251,7 @@ export function useJudgeAssignments(): JudgeAssignmentsResult {
     isLoading: isLoading || !personId,
     isFetching,
     isError,
-    error: error ? (error as Error).message : null,
+    error: error instanceof Error ? error.message : error ? String(error) : null,
     refetch,
   };
 }

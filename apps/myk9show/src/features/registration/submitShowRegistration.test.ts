@@ -52,6 +52,17 @@ function makeParams(
 }
 
 describe('submitShowRegistration', () => {
+  it('throws when called without a payment method', async () => {
+    const params = makeParams({ paymentMethod: undefined });
+
+    await expect(submitShowRegistration(params)).rejects.toThrow(
+      'Payment method is required to submit show registration'
+    );
+
+    expect(params.deps.submitRegistration).not.toHaveBeenCalled();
+    expect(params.deps.submitShowEntries).not.toHaveBeenCalled();
+  });
+
   it('throws when called with credit_card payment method', async () => {
     const params = makeParams({ paymentMethod: 'credit_card' });
 

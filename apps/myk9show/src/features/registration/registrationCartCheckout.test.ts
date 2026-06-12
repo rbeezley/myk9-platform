@@ -81,4 +81,94 @@ describe('submitRegistrationCartCheckout', () => {
     expect(deps.deleteDraft).not.toHaveBeenCalled();
     expect(deps.navigate).not.toHaveBeenCalled();
   });
+
+  it('reuses and clears an existing cart before adding registration items', async () => {
+    const deps = makeDeps();
+    deps.loadCart.mockResolvedValue({ id: 'cart-existing' });
+
+    await submitRegistrationCartCheckout({
+      showId: 'show-1',
+      ownerResolution: { ok: true, ownerId: 'owner-1' },
+      classSelections: [
+        {
+          dogId: 'dog-1',
+          trialId: 'trial-1',
+          selectedClasses: [{ classId: 'class-1' }],
+        },
+      ],
+      handlerAssignments: {},
+      classes: [{ id: 'class-1' }],
+      showFeeInfo: {
+        preEntryFee: '25',
+        startDate: '2099-05-01',
+      },
+      deps,
+    });
+
+    expect(deps.clearCart).toHaveBeenCalledTimes(1);
+    expect(deps.createCart).not.toHaveBeenCalled();
+    expect(deps.addItem).toHaveBeenCalledTimes(1);
+    expect(deps.navigate).toHaveBeenCalledWith('/cart');
+  });
+
+  it('stops before adding items when clearing an existing cart fails', async () => {
+    const deps = makeDeps();
+    deps.loadCart.mockResolvedValue({ id: 'cart-existing' });
+    deps.clearCart.mockResolvedValue(false);
+
+    await expect(
+      submitRegistrationCartCheckout({
+        showId: 'show-1',
+        ownerResolution: { ok: true, ownerId: 'owner-1' },
+        classSelections: [
+          {
+            dogId: 'dog-1',
+            trialId: 'trial-1',
+            selectedClasses: [{ classId: 'class-1' }],
+          },
+        ],
+        handlerAssignments: {},
+        classes: [{ id: 'class-1' }],
+        showFeeInfo: {
+          preEntryFee: '25',
+          startDate: '2099-05-01',
+        },
+        deps,
+      })
+    ).rejects.toThrow('Failed to clear existing cart');
+
+    expect(deps.addItem).not.toHaveBeenCalled();
+    expect(deps.deleteDraft).not.toHaveBeenCalled();
+    expect(deps.navigate).not.toHaveBeenCalled();
+  });
+
+  it('leaves a newly empty cart in place when the first item fails to add', async () => {
+    const deps = makeDeps();
+    deps.addItem.mockResolvedValue(false);
+
+    await expect(
+      submitRegistrationCartCheckout({
+        showId: 'show-1',
+        ownerResolution: { ok: true, ownerId: 'owner-1' },
+        classSelections: [
+          {
+            dogId: 'dog-1',
+            trialId: 'trial-1',
+            selectedClasses: [{ classId: 'class-1' }],
+          },
+        ],
+        handlerAssignments: {},
+        classes: [{ id: 'class-1' }],
+        showFeeInfo: {
+          preEntryFee: '25',
+          startDate: '2099-05-01',
+        },
+        deps,
+      })
+    ).rejects.toThrow('Failed to add entry to cart');
+
+    expect(deps.abandonCart).not.toHaveBeenCalled();
+    expect(deps.deleteDraft).not.toHaveBeenCalled();
+    expect(deps.navigate).not.toHaveBeenCalled();
+  });
 });

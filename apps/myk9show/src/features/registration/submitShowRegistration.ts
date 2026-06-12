@@ -107,7 +107,7 @@ export async function submitShowRegistration({
   userId,
   registrationId,
   ownerResolution,
-  paymentMethod = 'credit_card',
+  paymentMethod,
   paymentDetails,
   classSelections,
   handlerAssignments,
@@ -118,6 +118,10 @@ export async function submitShowRegistration({
   deps,
 }: SubmitShowRegistrationParams): Promise<SubmitShowRegistrationResult> {
   const resolvedDeps: SubmitShowRegistrationDeps = { ...DEFAULT_DEPS, ...deps };
+
+  if (!paymentMethod) {
+    throw new Error('Payment method is required to submit show registration');
+  }
 
   if (paymentMethod === 'credit_card') {
     throw new Error('Invariant: submitShowRegistration called with credit_card payment method');

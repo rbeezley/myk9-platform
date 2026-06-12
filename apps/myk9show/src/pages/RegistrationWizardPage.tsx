@@ -413,7 +413,7 @@ function RegistrationWizardContent() {
               abandonCart,
               deleteDraft: async () => {
                 for (const draft of availableDrafts) {
-                  draftDelete(draft.id);
+                  await Promise.resolve(draftDelete(draft.id));
                 }
               },
               navigate: path => navigate(path),

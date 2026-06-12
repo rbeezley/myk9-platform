@@ -15,9 +15,27 @@ vi.mock('@/lib/notifications', () => ({
   },
 }));
 
+vi.mock('sonner', () => ({
+  toast: Object.assign(vi.fn(), {
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    success: vi.fn(),
+    dismiss: vi.fn(),
+  }),
+}));
+
 vi.mock('@/hooks/useStoreSubscriptions', () => ({
   useStoreSubscriptions: () => undefined,
 }));
+
+const { retryFailedMutationMock, discardFailedMutationMock, getFailedMutationsMock } = vi.hoisted(
+  () => ({
+    retryFailedMutationMock: vi.fn().mockResolvedValue(undefined),
+    discardFailedMutationMock: vi.fn().mockResolvedValue(undefined),
+    getFailedMutationsMock: vi.fn().mockResolvedValue([]),
+  })
+);
 
 vi.mock(import('@myk9/replication'), async importOriginal => {
   const actual = await importOriginal();
@@ -27,12 +45,22 @@ vi.mock(import('@myk9/replication'), async importOriginal => {
       uploadPendingMutations = vi.fn().mockResolvedValue([]);
       getPendingCount = vi.fn().mockResolvedValue(0);
       restoreMutationsFromLocalStorage = vi.fn().mockResolvedValue(undefined);
+      getFailedMutations = getFailedMutationsMock;
+      retryFailedMutation = retryFailedMutationMock;
+      discardFailedMutation = discardFailedMutationMock;
     } as unknown as typeof actual.MutationManager,
   };
 });
 
 import { ReplicationSyncProvider } from '../ReplicationSyncProvider';
-import { notifications } from '@/lib/notifications';
+import { toast } from 'sonner';
+
+type ToastOptions = {
+  id?: string;
+  duration?: number;
+  action?: { label: string; onClick: () => void };
+  cancel?: { label: string; onClick: () => void };
+};
 
 function renderProvider() {
   const queryClient = new QueryClient({
@@ -56,36 +84,82 @@ function renderProvider() {
   );
 }
 
+function dispatchSyncFailed() {
+  window.dispatchEvent(
+    new CustomEvent('replication:sync-failed', {
+      detail: {
+        count: 1,
+        mutations: [
+          {
+            id: 'mut-1',
+            tableName: 'shows',
+            operation: 'INSERT',
+            error: "new row violates row-level security policy for table 'shows'",
+          },
+        ],
+        message: '',
+      },
+    })
+  );
+}
+
 describe('ReplicationSyncProvider — replication:sync-failed listener', () => {
   beforeEach(() => {
-    vi.mocked(notifications.error).mockClear();
+    vi.mocked(toast.error).mockClear();
+    vi.mocked(toast.dismiss).mockClear();
+    retryFailedMutationMock.mockClear();
+    discardFailedMutationMock.mockClear();
   });
 
-  it('surfaces a toast when a sync-failed event fires while mounted', () => {
+  it('surfaces a persistent toast with Retry/Discard when a sync-failed event fires', () => {
     renderProvider();
 
     act(() => {
-      window.dispatchEvent(
-        new CustomEvent('replication:sync-failed', {
-          detail: {
-            count: 1,
-            mutations: [
-              {
-                tableName: 'shows',
-                operation: 'INSERT',
-                error: "new row violates row-level security policy for table 'shows'",
-              },
-            ],
-            message: '',
-          },
-        })
-      );
+      dispatchSyncFailed();
     });
 
-    expect(notifications.error).toHaveBeenCalledTimes(1);
-    expect(notifications.error).toHaveBeenCalledWith(
-      "Failed to save 1 change. shows insert: new row violates row-level security policy for table 'shows'"
+    expect(toast.error).toHaveBeenCalledTimes(1);
+    expect(toast.error).toHaveBeenCalledWith(
+      "Failed to save 1 change. shows insert: new row violates row-level security policy for table 'shows'",
+      expect.objectContaining({
+        duration: Infinity,
+        action: expect.objectContaining({ label: 'Retry' }),
+        cancel: expect.objectContaining({ label: 'Discard' }),
+      })
     );
+  });
+
+  it('Retry re-queues the failed mutations and dismisses the toast', () => {
+    renderProvider();
+
+    act(() => {
+      dispatchSyncFailed();
+    });
+
+    const options = vi.mocked(toast.error).mock.calls[0]?.[1] as ToastOptions;
+    act(() => {
+      options.action!.onClick();
+    });
+
+    expect(retryFailedMutationMock).toHaveBeenCalledWith('mut-1');
+    expect(toast.dismiss).toHaveBeenCalledWith('sync-failed:mut-1');
+  });
+
+  it('Discard removes the failed mutations and dismisses the toast', () => {
+    renderProvider();
+
+    act(() => {
+      dispatchSyncFailed();
+    });
+
+    const options = vi.mocked(toast.error).mock.calls[0]?.[1] as ToastOptions;
+    act(() => {
+      options.cancel!.onClick();
+    });
+
+    expect(discardFailedMutationMock).toHaveBeenCalledWith('mut-1');
+    expect(retryFailedMutationMock).not.toHaveBeenCalled();
+    expect(toast.dismiss).toHaveBeenCalledWith('sync-failed:mut-1');
   });
 
   it('removes the listener on unmount so late events do not toast', () => {
@@ -93,17 +167,9 @@ describe('ReplicationSyncProvider — replication:sync-failed listener', () => {
     unmount();
 
     act(() => {
-      window.dispatchEvent(
-        new CustomEvent('replication:sync-failed', {
-          detail: {
-            count: 2,
-            mutations: [{ tableName: 'trials', operation: 'INSERT' }],
-            message: '',
-          },
-        })
-      );
+      dispatchSyncFailed();
     });
 
-    expect(notifications.error).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
   });
 });

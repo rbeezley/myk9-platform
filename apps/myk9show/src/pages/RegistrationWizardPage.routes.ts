@@ -8,6 +8,6 @@ export function resolveRegistrationCompletionPath(
 ): string {
   const encodedShowId = encodeURIComponent(showId);
   return isLateEntryMode
-    ? `/secretary/shows/${encodedShowId}?phase=show-desk`
+    ? `/shows/${encodedShowId}/show-desk`
     : `/shows/${encodedShowId}`;
 }

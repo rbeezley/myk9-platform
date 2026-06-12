@@ -13,7 +13,15 @@
  */
 
 import type { IDBPDatabase, IDBPObjectStore } from 'idb';
-import type { ReplicatedRow, SyncMetadata, SyncResult, SyncOptions, CacheStats } from '../types';
+import type {
+  ReplicatedRow,
+  ReplicationConflictResolution,
+  ReplicationConflictSnapshot,
+  SyncMetadata,
+  SyncResult,
+  SyncOptions,
+  CacheStats,
+} from '../types';
 import type { Logger, GetTableTTL, ReplicatedTableDependencies } from '../dependencies';
 import { noopLogger, defaultGetTableTTL } from '../dependencies';
 import type { MutationManager } from '../MutationManager';
@@ -27,6 +35,7 @@ import {
 import { databaseManager, REPLICATION_STORES, trackTransaction } from './DatabaseManager';
 import { ReplicatedTableCacheManager } from './ReplicatedTableCache';
 import { ReplicatedTableBatchManager } from './ReplicatedTableBatch';
+import { isConflictSurfacingEnabled } from '../conflictConfig';
 
 // Re-export REPLICATION_STORES for backward compatibility
 export { REPLICATION_STORES } from './DatabaseManager';
@@ -120,12 +129,28 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       this.logger.warn(`[${this.tableName}] No MutationManager set — mutation not queued`);
       return null;
     }
+
+    // Capture the server-side version for OCC precondition on UPDATE — but only
+    // when conflict surfacing is enabled. When the flag is off, no precondition is
+    // attached and last-write-wins behavior is preserved end-to-end (the kill-switch
+    // contract documented in syncReplicatedTable.ts).
+    let serverVersion: number | undefined;
+    if (operation === 'UPDATE' && isConflictSurfacingEnabled()) {
+      const db = await databaseManager.getDatabase(this.tableName);
+      const row = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, [
+        this.tableName,
+        String(rowId),
+      ])) as ReplicatedRow<unknown> | undefined;
+      serverVersion = row?.serverVersion;
+    }
+
     return this.mutationManager.queueMutation(
       this.tableName,
       operation,
       rowId,
       supabasePayload,
-      dependsOn
+      dependsOn,
+      serverVersion
     );
   }
 
@@ -227,8 +252,18 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
   /**
    * Set (upsert) a row in local cache
+   *
+   * @param incomingServerVersion - The server's `version` column value from the
+   *   downloaded row. Only pass for clean (isDirty=false) server writes; dirty
+   *   writes preserve the existing serverVersion from the IDB row.
    */
-  async set(id: string, data: T, isDirty = false, expectedVersion?: number): Promise<void> {
+  async set(
+    id: string,
+    data: T,
+    isDirty = false,
+    expectedVersion?: number,
+    incomingServerVersion?: number
+  ): Promise<void> {
     const db = await this.init();
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
 
@@ -259,6 +294,29 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     }
 
     const normalizedData = { ...data, id: normalizedId } as T;
+    const shouldCaptureBase = isDirty && existingRow && !existingRow.isDirty;
+    const baseData = isDirty
+      ? existingRow?.isDirty
+        ? existingRow.baseData
+        : shouldCaptureBase
+          ? existingRow.data
+          : undefined
+      : undefined;
+    const baseVersion = isDirty
+      ? existingRow?.isDirty
+        ? existingRow.baseVersion
+        : shouldCaptureBase
+          ? existingRow.version
+          : undefined
+      : undefined;
+    const shouldPreserveConflict = isDirty && existingRow?.syncStatus === 'conflict';
+    const conflict = shouldPreserveConflict ? existingRow.conflict : undefined;
+    // Dirty writes: preserve existing serverVersion (the precondition captured when
+    // the mutation was queued). Clean writes from server: use the incoming server
+    // version if provided, else fall back to whatever was already stored.
+    const serverVersion = isDirty
+      ? existingRow?.serverVersion
+      : (incomingServerVersion ?? existingRow?.serverVersion);
 
     const row: ReplicatedRow<T> = {
       tableName: this.tableName,
@@ -270,7 +328,11 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       accessCount: existingRow?.accessCount || 0,
       lastModifiedAt: Date.now(),
       isDirty,
-      syncStatus: isDirty ? 'pending' : 'synced',
+      syncStatus: isDirty ? (shouldPreserveConflict ? 'conflict' : 'pending') : 'synced',
+      ...(baseData !== undefined && { baseData }),
+      ...(baseVersion !== undefined && { baseVersion }),
+      ...(serverVersion !== undefined && { serverVersion }),
+      conflict,
     };
 
     await tx.store.put(row);
@@ -280,6 +342,94 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       `[${this.tableName}] Cached row: ${normalizedId} (version: ${row.version}, dirty: ${isDirty})`
     );
 
+    this.notifyListeners();
+  }
+
+  /** Returns true when the conflict was written; false if the version changed
+   *  under us (row edited concurrently — stale snapshot, safe to ignore). */
+  async markConflict(id: string, conflict: ReplicationConflictSnapshot<T>): Promise<boolean> {
+    const db = await this.init();
+    const normalizedId = String(id);
+    const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
+    const existingRow = (await tx.store.get([this.tableName, normalizedId])) as
+      | ReplicatedRow<T>
+      | undefined;
+
+    if (!existingRow || existingRow.version !== conflict.localVersion) {
+      await tx.done;
+      return false;
+    }
+
+    await tx.store.put({
+      ...existingRow,
+      isDirty: true,
+      syncStatus: 'conflict',
+      conflict,
+    });
+    await tx.done;
+
+    this.notifyListeners();
+    return true;
+  }
+
+  /** Resolve a conflict by keeping the local edit.
+   *  Clears the conflict snapshot and resets syncStatus to 'pending' so the
+   *  local mutation uploads naturally on the next sync cycle.
+   *
+   *  @param newServerVersion - The remote row's server version from the conflict
+   *    snapshot. Pass this so the next upload uses the correct OCC precondition
+   *    (the server has moved to this version) rather than the stale snapshot that
+   *    caused the original rejection. */
+  async clearConflict(id: string, newServerVersion?: number): Promise<void> {
+    const db = await this.init();
+    const normalizedId = String(id);
+    const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
+    const existingRow = (await tx.store.get([this.tableName, normalizedId])) as
+      | ReplicatedRow<T>
+      | undefined;
+
+    if (!existingRow || existingRow.syncStatus !== 'conflict') {
+      await tx.done;
+      return;
+    }
+
+    await tx.store.put({
+      ...existingRow,
+      syncStatus: 'pending',
+      conflict: undefined,
+      ...(newServerVersion !== undefined && { serverVersion: newServerVersion }),
+    });
+    await tx.done;
+    this.notifyListeners();
+  }
+
+  async replaceFromRemote(id: string, remoteData: T, remoteServerVersion?: number): Promise<void> {
+    const db = await this.init();
+    const normalizedId = String(id);
+    const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
+    const existingRow = (await tx.store.get([this.tableName, normalizedId])) as
+      | ReplicatedRow<T>
+      | undefined;
+
+    const row: ReplicatedRow<T> = {
+      tableName: this.tableName,
+      id: normalizedId,
+      data: { ...remoteData, id: normalizedId } as T,
+      version: existingRow ? existingRow.version + 1 : 1,
+      lastSyncedAt: Date.now(),
+      lastAccessedAt: Date.now(),
+      accessCount: existingRow?.accessCount || 0,
+      lastModifiedAt: Date.now(),
+      isDirty: false,
+      syncStatus: 'synced',
+      baseData: undefined,
+      baseVersion: undefined,
+      serverVersion: remoteServerVersion ?? existingRow?.serverVersion,
+      conflict: undefined,
+    };
+
+    await tx.store.put(row);
+    await tx.done;
     this.notifyListeners();
   }
 
@@ -325,6 +475,9 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       isDirty: false,
       syncStatus: 'synced',
       lastSyncedAt: Date.now(),
+      baseData: undefined,
+      baseVersion: undefined,
+      conflict: undefined,
     });
     await tx.done;
 
@@ -452,6 +605,52 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   /**
+   * Return the persisted conflict snapshots for every row in this table that is
+   * currently in `syncStatus: 'conflict'`.  Used by the app shell on provider
+   * mount to re-surface conflicts the user navigated away from before resolving,
+   * so the Sonner resolution toast reappears on next visit rather than silently
+   * disappearing.
+   */
+  async getConflictedRows(): Promise<ReplicationConflictSnapshot<T>[]> {
+    const db = await this.init();
+    const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readonly');
+    const index = tx.store.index('tableName');
+    const rows = (await index.getAll(this.tableName)) as ReplicatedRow<T>[];
+    return rows
+      .filter(row => row.syncStatus === 'conflict' && row.conflict !== undefined)
+      .map(row => row.conflict!);
+  }
+
+  /**
+   * Resolve a persisted conflict in one call, reading all required params from
+   * the stored conflict snapshot so callers only need the rowId + choice.
+   *
+   * - 'keep-local': clears the conflict, resets syncStatus → 'pending'.  The
+   *   existing local mutation re-uploads with an updated OCC precondition.
+   * - 'take-remote': replaces local data with the remote version, marks the row
+   *   synced.  Callers should also call
+   *   `mutationManager.discardPendingMutationsForRow` to drop any queued upload.
+   *
+   * Returns false and is a no-op when the row has no persisted conflict snapshot
+   * (e.g. already resolved or row doesn't exist).
+   */
+  async resolveReplicationConflict(
+    id: string,
+    resolution: ReplicationConflictResolution
+  ): Promise<boolean> {
+    const row = await this.getReplicatedRow(id);
+    const snapshot = row?.conflict;
+    if (!snapshot) return false;
+
+    if (resolution === 'keep-local') {
+      await this.clearConflict(id, snapshot.remoteServerVersion);
+    } else {
+      await this.replaceFromRemote(id, snapshot.remoteData, snapshot.remoteServerVersion);
+    }
+    return true;
+  }
+
+  /**
    * Get all rows for this table
    */
   async getAll(licenseKey?: string): Promise<T[]> {
@@ -555,12 +754,12 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
   // --- Batch Operations ---
 
-  async batchSet(items: T[]): Promise<void> {
-    return this.batchManager.batchSet(items);
+  async batchSet(items: T[], serverVersions?: Map<string, number>): Promise<void> {
+    return this.batchManager.batchSet(items, serverVersions);
   }
 
-  async batchSetChunked(items: T[], chunkSize?: number): Promise<void> {
-    return this.batchManager.batchSetChunked(items, chunkSize);
+  async batchSetChunked(items: T[], chunkSize?: number, serverVersions?: Map<string, number>): Promise<void> {
+    return this.batchManager.batchSetChunked(items, chunkSize, serverVersions);
   }
 
   async batchDelete(ids: string[]): Promise<void> {
@@ -570,13 +769,16 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   async clearCache(): Promise<void> {
     await this.batchManager.clearCache();
 
-    // Also reset sync metadata so next sync does a full fetch
+    // Also reset sync metadata so next sync does a full fetch. `scopes: {}` clears
+    // every per-scope watermark too, so a scoped sync after clearCache re-fetches
+    // from epoch rather than reading a stale scoped watermark.
     await this.cacheManager.updateSyncMetadata({
       lastFullSyncAt: 0,
       lastIncrementalSyncAt: 0,
       totalRows: 0,
       syncStatus: 'idle',
       errorMessage: undefined,
+      scopes: {},
     });
     this.logger.log(`[${this.tableName}] Sync metadata reset`);
   }
@@ -615,12 +817,15 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     return this.cacheManager.evictLRU(targetSizeBytes);
   }
 
-  async getSyncMetadata(): Promise<SyncMetadata | null> {
-    return this.cacheManager.getSyncMetadata();
+  async getSyncMetadata(scopeValue?: string): Promise<SyncMetadata | null> {
+    return this.cacheManager.getSyncMetadata(scopeValue);
   }
 
-  async updateSyncMetadata(updates: Partial<SyncMetadata>): Promise<void> {
-    return this.cacheManager.updateSyncMetadata(updates);
+  async updateSyncMetadata(
+    updates: Partial<SyncMetadata>,
+    options?: { scopeValue?: string; advanceWatermarkMonotonically?: boolean }
+  ): Promise<void> {
+    return this.cacheManager.updateSyncMetadata(updates, options);
   }
 
   // ========================================

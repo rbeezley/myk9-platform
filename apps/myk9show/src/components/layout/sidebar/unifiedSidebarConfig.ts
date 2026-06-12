@@ -30,9 +30,6 @@ import {
   ShieldCheck,
   Compass,
   Search,
-  FileBarChart,
-  Send,
-  ListChecks,
   HelpCircle,
   BarChart3,
 } from 'lucide-react';
@@ -45,14 +42,26 @@ export interface ClubContext {
   clubName: string;
 }
 
+export interface NextShowContext {
+  id: string;
+  name: string;
+  phase: 'today' | 'upcoming' | 'draft';
+}
+
 function hasAnyRole(userRoles: UserRole[], required: UserRole[]): boolean {
   return required.some(r => userRoles.includes(r));
+}
+
+function nextShowDescription(phase: NextShowContext['phase']): string {
+  if (phase === 'today') return 'Live today';
+  if (phase === 'draft') return 'Draft · finish setup';
+  return 'Setup & scheduling';
 }
 
 export function buildUnifiedSidebarConfig(
   userRoles: UserRole[],
   clubContext?: ClubContext,
-  activeShowId?: string
+  nextShow?: NextShowContext
 ): SidebarConfig {
   const groups: NavGroup[] = [];
 
@@ -144,61 +153,29 @@ export function buildUnifiedSidebarConfig(
       const manageDashboardHref = hasAnyRole(userRoles, [UserRole.SECRETARY, UserRole.SITE_ADMIN])
         ? '/secretary/dashboard'
         : '/club-admin/members';
-      const setupHref = activeShowId
-        ? `/secretary/shows/${activeShowId}?phase=setup`
-        : '/secretary/dashboard';
-      const todayHref = activeShowId
-        ? `/secretary/shows/${activeShowId}?phase=show-desk`
-        : '/secretary/dashboard';
 
-      groups.push({
-        title: 'Manage',
-        items: [
-          {
-            title: 'Dashboard',
-            href: manageDashboardHref,
-            icon: LayoutDashboard,
-            description: 'Show management dashboard',
-          },
-          {
-            title: 'Entries',
-            href: '/secretary/entries',
-            icon: FileText,
-            description: 'Manage show entries',
-          },
+      const manageItems: NavItem[] = [
+        {
+          title: 'Dashboard',
+          href: manageDashboardHref,
+          icon: LayoutDashboard,
+          description: 'Show management dashboard',
+        },
+      ];
 
-          {
-            title: 'Schedule',
-            href: setupHref,
-            icon: List,
-            description: 'Class and ring scheduling',
-          },
-          {
-            title: 'Day of Show',
-            href: todayHref,
-            icon: ClipboardCheck,
-            description: 'Walk-ins, pulled entries, move-ups',
-          },
-          {
-            title: 'Reports',
-            href: '/secretary/reports',
-            icon: FileBarChart,
-            description: 'Generate and print reports',
-          },
-          {
-            title: 'Results Control',
-            href: '/secretary/results-control',
-            icon: ListChecks,
-            description: 'Verify results and release to exhibitors',
-          },
-          {
-            title: 'Submit Results',
-            href: '/secretary/results-submission',
-            icon: Send,
-            description: 'Submit results to sanctioning organizations',
-          },
-        ],
-      });
+      if (nextShow) {
+        manageItems.push({
+          title: nextShow.name,
+          href:
+            nextShow.phase === 'today'
+              ? `/shows/${nextShow.id}/show-desk`
+              : `/shows/${nextShow.id}/setup`,
+          icon: nextShow.phase === 'today' ? ClipboardCheck : List,
+          description: nextShowDescription(nextShow.phase),
+        });
+      }
+
+      groups.push({ title: 'Manage', items: manageItems });
     }
 
     // 3. As Exhibitor section (exhibitor with other roles)

@@ -21,6 +21,10 @@ test.describe.configure({ mode: 'serial' });
 
 const SECRETARY_EMAIL = 'secretary@myk9t.com';
 const SECRETARY_PASSWORD = 'TestPass4567!';
+// Reports now live under the show-scoped workbench route; the standalone
+// /secretary/reports redirects to the dashboard (no show context).
+const SHOW_ID = '4584f257-19b5-4016-aae6-5e7827b769cb';
+const REPORTS_PATH = `/shows/${SHOW_ID}/reports`;
 
 async function signIn(page: Page, email: string, password: string) {
   await page.goto('/sign-in', { waitUntil: 'networkidle' });
@@ -49,7 +53,7 @@ test.describe('Reports UI — secretary', () => {
   });
 
   test('report-type dropdown renders all four category groups', async ({ page }) => {
-    await page.goto('/secretary/reports');
+    await page.goto(REPORTS_PATH);
     await getReportPicker(page).click();
 
     // INTENT (regression guard): all four group labels must be present in the
@@ -74,7 +78,7 @@ test.describe('Reports UI — secretary', () => {
   test('selecting Financial Report changes the report type and renders some result', async ({
     page,
   }) => {
-    await page.goto('/secretary/reports');
+    await page.goto(REPORTS_PATH);
     const picker = getReportPicker(page);
     await picker.click();
     await page.getByRole('option', { name: 'Financial Report' }).click();

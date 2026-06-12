@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildUnifiedSidebarConfig } from '../unifiedSidebarConfig';
+import type { NextShowContext } from '../unifiedSidebarConfig';
 import { UserRole } from '@/types/auth-types';
 
 describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
@@ -32,19 +33,19 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
   });
 
   // ── Manage ───────────────────────────────────────────────────────────────
-  it('manage sidebar items are in lifecycle order', () => {
+  it('manage sidebar items are in lifecycle order (no next show)', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
     const group = config.groups.find(g => g.title === 'Manage');
     const titles = group?.items.map(i => i.title) ?? [];
-    expect(titles).toEqual([
-      'Dashboard',
-      'Entries',
-      'Schedule',
-      'Day of Show',
-      'Reports',
-      'Results Control',
-      'Submit Results',
-    ]);
+    expect(titles).toEqual(['Dashboard']);
+  });
+
+  it('manage sidebar includes show name item when nextShow is provided', () => {
+    const nextShow: NextShowContext = { id: 'show-1', name: 'Spring Classic', phase: 'upcoming' };
+    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY], undefined, nextShow);
+    const group = config.groups.find(g => g.title === 'Manage');
+    const titles = group?.items.map(i => i.title) ?? [];
+    expect(titles).toEqual(['Dashboard', 'Spring Classic']);
   });
 
   it('manage sidebar omits Messages because Message Center is the communication hub', () => {
@@ -88,41 +89,48 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     expect(config.dashboardHref).toBe('/club-admin/members');
   });
 
-  it('manage Schedule href falls back to dashboard without an active show', () => {
+  it('manage omits show link when no nextShow provided', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
     const group = config.groups.find(g => g.title === 'Manage');
-    const item = group?.items.find(i => i.title === 'Schedule');
-    expect(item?.href).toBe('/secretary/dashboard');
+    const titles = group?.items.map(i => i.title) ?? [];
+    expect(titles).not.toContain('Schedule');
+    expect(titles).not.toContain('Day of Show');
   });
 
-  it('manage Schedule href points to Setup when an active show is known', () => {
-    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY], undefined, 'show-1');
+  it('upcoming nextShow links to show setup sub-route', () => {
+    const nextShow: NextShowContext = { id: 'show-1', name: 'Spring Classic', phase: 'upcoming' };
+    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY], undefined, nextShow);
     const group = config.groups.find(g => g.title === 'Manage');
-    const item = group?.items.find(i => i.title === 'Schedule');
-    expect(item?.href).toBe('/secretary/shows/show-1?phase=setup');
+    const item = group?.items.find(i => i.title === 'Spring Classic');
+    expect(item?.href).toBe('/shows/show-1/setup');
+    expect(item?.description).toBe('Setup & scheduling');
   });
 
-  it('manage Day of Show href falls back to dashboard without an active show', () => {
+  it('today nextShow links to show-desk sub-route', () => {
+    const nextShow: NextShowContext = { id: 'show-1', name: 'Spring Classic', phase: 'today' };
+    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY], undefined, nextShow);
+    const group = config.groups.find(g => g.title === 'Manage');
+    const item = group?.items.find(i => i.title === 'Spring Classic');
+    expect(item?.href).toBe('/shows/show-1/show-desk');
+    expect(item?.description).toBe('Live today');
+  });
+
+  it('draft nextShow links to show setup sub-route', () => {
+    const nextShow: NextShowContext = { id: 'show-1', name: 'Spring Classic', phase: 'draft' };
+    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY], undefined, nextShow);
+    const group = config.groups.find(g => g.title === 'Manage');
+    const item = group?.items.find(i => i.title === 'Spring Classic');
+    expect(item?.href).toBe('/shows/show-1/setup');
+    expect(item?.description).toBe('Draft · finish setup');
+  });
+
+  it('manage sidebar omits standalone Entries, Reports, Results Control, and Submit Results', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
     const group = config.groups.find(g => g.title === 'Manage');
-    const item = group?.items.find(i => i.title === 'Day of Show');
-    expect(item?.href).toBe('/secretary/dashboard');
-  });
-
-  it('manage Day of Show href points to Show Desk when an active show is known', () => {
-    // Phase B5: the Today tab was removed; Show Desk is the canonical
-    // operational surface, so the sidebar's day-of-show link goes there.
-    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY], undefined, 'show-1');
-    const group = config.groups.find(g => g.title === 'Manage');
-    const item = group?.items.find(i => i.title === 'Day of Show');
-    expect(item?.href).toBe('/secretary/shows/show-1?phase=show-desk');
-  });
-
-  it('manage Results Control href is /secretary/results-control', () => {
-    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
-    const group = config.groups.find(g => g.title === 'Manage');
-    const item = group?.items.find(i => i.title === 'Results Control');
-    expect(item?.href).toBe('/secretary/results-control');
+    const titles = group?.items.map(i => i.title) ?? [];
+    for (const removed of ['Entries', 'Reports', 'Results Control', 'Submit Results']) {
+      expect(titles, `"${removed}" should be absent from sidebar`).not.toContain(removed);
+    }
   });
 
   // ── Judging ──────────────────────────────────────────────────────────────

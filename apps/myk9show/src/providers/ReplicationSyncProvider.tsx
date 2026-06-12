@@ -21,7 +21,15 @@ import {
   ReplicationSyncContext,
   type ReplicationSyncContextValue,
 } from '@/context/ReplicationSyncContext';
-import { MutationManager, SYNC_INTERVAL_MS } from '@myk9/replication';
+import {
+  MutationManager,
+  SYNC_INTERVAL_MS,
+  ReplicatedTable,
+  configureConflictSurfacing,
+  type ReplicationConflictEventDetail,
+} from '@myk9/replication';
+import { toast } from 'sonner';
+import { showConflictSurfacingEnabled } from '@/features/show-presence/conflictSurfacingFlag';
 import { supabase } from '@/services/database/supabaseClient';
 
 // Import replicated table singletons
@@ -93,6 +101,21 @@ for (const { table } of REPLICATED_TABLES) {
   table.setMutationManager(mutationManager);
 }
 
+// Configure Phase 4 conflict surfacing at module load — evaluated once so the
+// flag state at startup governs the full session (consistent with kill-switch use).
+configureConflictSurfacing(showConflictSurfacingEnabled());
+
+/**
+ * A full re-sync triggered by an empty replica that metadata says previously held
+ * rows is an unexpected eviction/heal — the silent failure mode the
+ * server-authoritative watermark fix guards against. A recurring warning here
+ * means a client keeps losing its replica between sessions, which is worth
+ * investigating. Shared by both sync paths (single-table + full sync).
+ */
+function warnRecoveredFromEmptyReplica(tableName: string): void {
+  logger.warn('Replica recovered from unexpected empty state', 'replication', { tableName });
+}
+
 export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = ({
   children,
   licenseKey = '',
@@ -152,7 +175,12 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           logger.info('Table synced', 'replication', {
             tableName,
             rowsAffected: result.rowsAffected,
+            operation: result.operation,
+            since: result.since,
           });
+          if (result.recoveredFromEmptyReplica) {
+            warnRecoveredFromEmptyReplica(tableName);
+          }
           queryClient.invalidateQueries({ queryKey: [tableName] });
           setStatus(prev => ({
             ...prev,
@@ -224,10 +252,20 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         REPLICATED_TABLES.map(async ({ name, table }) => {
           try {
             const result = await table.sync(licenseKey);
-            return { name, ok: result.success, error: result.error };
+            return {
+              name,
+              ok: result.success,
+              error: result.error,
+              recoveredFromEmptyReplica: result.recoveredFromEmptyReplica ?? false,
+            };
           } catch (err) {
             logger.error('Table sync threw', 'replication', { name }, err as Error);
-            return { name, ok: false, error: err instanceof Error ? err.message : String(err) };
+            return {
+              name,
+              ok: false,
+              error: err instanceof Error ? err.message : String(err),
+              recoveredFromEmptyReplica: false,
+            };
           }
         })
       );
@@ -235,9 +273,12 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       const downloadFailures: Array<{ name: string; error: string }> = [];
       const tableStatusUpdates: Record<string, SyncStatus['tablesStatus'][string]> = {};
 
-      for (const { name, ok, error } of syncResults) {
+      for (const { name, ok, error, recoveredFromEmptyReplica } of syncResults) {
         if (ok) {
           tableStatusUpdates[name] = 'success';
+          if (recoveredFromEmptyReplica) {
+            warnRecoveredFromEmptyReplica(name);
+          }
         } else if (isAbortSyncError(error)) {
           logger.debug('Table sync aborted', 'replication', { name, error });
           tableStatusUpdates[name] = 'idle';
@@ -273,6 +314,12 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       for (const { name } of REPLICATED_TABLES) {
         queryClient.invalidateQueries({ queryKey: [name] });
       }
+
+      // The judge dashboard query reads a denormalized join of judge_assignments
+      // + classes under ['judges','assignments',...]; no table-name prefix above
+      // matches it, so invalidate it explicitly or it would stay stale until
+      // remount after a background sync.
+      queryClient.invalidateQueries({ queryKey: ['judges', 'assignments'] });
 
       logger.info('Full sync complete', 'replication');
     } catch (error) {
@@ -420,6 +467,8 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   // other permanent failures don't end up hidden in the console. Prevents
   // the "UI showed success but the row never persisted" class of data-loss
   // bugs we hit on 2026-04-16 (shows_insert RLS rejecting secretary role).
+  // Failed mutations are kept in the failed_mutations IDB store until the
+  // user explicitly retries or discards them — never auto-deleted.
   useEffect(() => {
     const handleSyncFailed = (event: Event) => {
       const detail = (event as CustomEvent<SyncFailedEventDetail>).detail;
@@ -427,11 +476,144 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         count: detail.count,
         mutations: detail.mutations,
       });
-      notifications.error(formatSyncFailureToast(detail));
+
+      const ids = detail.mutations.map(m => m.id).filter(Boolean);
+      const toastId = `sync-failed:${ids[0] ?? 'unknown'}`;
+      toast.error(formatSyncFailureToast(detail), {
+        id: toastId,
+        // INTENT: Failure toasts persist until the user makes an explicit
+        // choice. The underlying mutations survive in IDB either way, so a
+        // dismissed-by-reload toast re-surfaces on the next sign-in.
+        duration: Infinity,
+        action: {
+          label: 'Retry',
+          onClick: () => {
+            void Promise.allSettled(ids.map(id => mutationManager.retryFailedMutation(id)));
+            toast.dismiss(toastId);
+          },
+        },
+        cancel: {
+          label: 'Discard',
+          onClick: () => {
+            void Promise.allSettled(ids.map(id => mutationManager.discardFailedMutation(id)));
+            toast.dismiss(toastId);
+          },
+        },
+      });
     };
     window.addEventListener('replication:sync-failed', handleSyncFailed);
     return () => window.removeEventListener('replication:sync-failed', handleSyncFailed);
   }, []);
+
+  // Re-surface persisted sync failures from previous sessions when the user
+  // authenticates. A failure toast lost to navigation or reload must not bury
+  // the underlying mutations — they stay in the failed_mutations store and
+  // re-dispatching fires the existing handleSyncFailed toast for review.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const resurface = async () => {
+      try {
+        const failed = await mutationManager.getFailedMutations();
+        if (failed.length === 0) return;
+        window.dispatchEvent(
+          new CustomEvent('replication:sync-failed', {
+            detail: {
+              count: failed.length,
+              mutations: failed,
+              message: `${failed.length} change(s) failed to sync.`,
+            } satisfies SyncFailedEventDetail,
+          })
+        );
+      } catch (err) {
+        logger.warn('Failed to re-surface failed mutations', 'replication', { err });
+      }
+    };
+
+    void resurface();
+  }, [isAuthenticated]);
+
+  // Phase 4: surface same-field replication conflicts as persistent toasts.
+  // Upholds the §2.5 hard guarantee — no silent data loss on any replicated table.
+  // The toast ID deduplicates re-fires from repeated sync cycles on the same row.
+  useEffect(() => {
+    const handleConflict = (event: Event) => {
+      const detail = (event as CustomEvent<ReplicationConflictEventDetail>).detail;
+      const conflictId = `conflict:${detail.tableName}:${detail.rowId}`;
+
+      logger.warn('Replication conflict detected', 'replication', {
+        tableName: detail.tableName,
+        rowId: detail.rowId,
+        fields: detail.fields,
+      });
+
+      const tableConfig = REPLICATED_TABLES.find(t => t.name === detail.tableName);
+      const anyTable = tableConfig?.table as ReplicatedTable<{ id: string }> | undefined;
+
+      toast.warning('This record was changed elsewhere', {
+        id: conflictId,
+        // INTENT: Conflict toasts persist until the user makes an explicit choice.
+        // See docs/plan-show-presence.md §7 conflict-state lifecycle.
+        duration: Infinity,
+        description: `${detail.fields.length === 1 ? 'Field' : 'Fields'} changed: ${detail.fields.join(', ')}`,
+        action: {
+          label: 'Take theirs',
+          onClick: () => {
+            // Replace local row with remote data (reads snapshot from IDB) AND
+            // discard the pending mutation that would re-upload the old local value.
+            if (anyTable) {
+              void anyTable.resolveReplicationConflict(detail.rowId, 'take-remote');
+              void mutationManager.discardPendingMutationsForRow(
+                detail.tableName,
+                detail.rowId
+              );
+            }
+            toast.dismiss(conflictId);
+          },
+        },
+        cancel: {
+          label: 'Keep mine',
+          onClick: () => {
+            // Clear the conflict snapshot (reads remoteServerVersion from IDB snapshot)
+            // then update queued mutation(s) with the correct OCC precondition.
+            void anyTable?.resolveReplicationConflict(detail.rowId, 'keep-local');
+            void mutationManager.updateMutationServerVersions(
+              detail.tableName,
+              detail.rowId,
+              detail.remoteServerVersion
+            );
+            toast.dismiss(conflictId);
+          },
+        },
+      });
+    };
+
+    window.addEventListener('replication:conflict', handleConflict);
+    return () => window.removeEventListener('replication:conflict', handleConflict);
+  }, []);
+
+  // Re-surface persisted conflicts from previous sessions when the user
+  // authenticates.  A conflict navigated away from before resolving stays
+  // syncStatus:'conflict' in IDB — re-dispatching fires the existing
+  // handleConflict toast automatically so the resolution prompt reappears.
+  useEffect(() => {
+    if (!isAuthenticated || !showConflictSurfacingEnabled()) return;
+
+    const resurface = async () => {
+      for (const { table } of REPLICATED_TABLES) {
+        try {
+          const conflicts = await (table as ReplicatedTable<{ id: string }>).getConflictedRows();
+          for (const snapshot of conflicts) {
+            window.dispatchEvent(new CustomEvent('replication:conflict', { detail: snapshot }));
+          }
+        } catch (err) {
+          logger.warn('Failed to re-surface conflicts for table', 'replication', { err });
+        }
+      }
+    };
+
+    void resurface();
+  }, [isAuthenticated]);
 
   // Expose diagnostic helpers on window for browser console debugging
   useEffect(() => {

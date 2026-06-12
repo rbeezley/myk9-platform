@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { deriveJudgeDashboardStats, type JudgeClass } from '../judgeStatsUtils';
+import {
+  deriveJudgeDashboardStats,
+  splitJudgeAssignments,
+  localIsoDate,
+  currentDateInTimeZone,
+  zonedWallTimeToInstant,
+  type JudgeClass,
+} from '../judgeStatsUtils';
 
 const NOW = new Date('2026-05-03T14:00:00Z').getTime();
 
@@ -11,6 +18,8 @@ const makeClass = (overrides: Partial<JudgeClass> = {}): JudgeClass => ({
   name: 'Interior Novice A',
   element: 'Interior',
   level: 'Novice',
+  trialDate: '2026-05-03',
+  trialTimezone: 'America/New_York',
   scheduledTime: new Date(NOW + 30 * 60000),
   ringNumber: 1,
   totalEntries: 10,
@@ -106,5 +115,109 @@ describe('deriveJudgeDashboardStats', () => {
     ];
     const { minutesUntilNext } = deriveJudgeDashboardStats(classes, NOW);
     expect(minutesUntilNext).toBe(0);
+  });
+});
+
+describe('localIsoDate', () => {
+  it('formats the local calendar date as yyyy-mm-dd with zero padding', () => {
+    // Construct from local-time parts so the expectation holds in any timezone.
+    const epoch = new Date(2026, 0, 5, 9, 30).getTime(); // Jan 5, 2026 local
+    expect(localIsoDate(epoch)).toBe('2026-01-05');
+  });
+});
+
+describe('currentDateInTimeZone', () => {
+  it('returns the show-local date, which can differ from UTC near midnight', () => {
+    // 02:00Z on May 3 is still May 2 in New York (UTC-4 in May).
+    const epoch = new Date('2026-05-03T02:00:00Z').getTime();
+    expect(currentDateInTimeZone(epoch, 'America/New_York')).toBe('2026-05-02');
+    expect(currentDateInTimeZone(epoch, 'Asia/Tokyo')).toBe('2026-05-03');
+  });
+
+  it('falls back to device-local date on an invalid timezone', () => {
+    const epoch = new Date(2026, 0, 5, 9, 30).getTime();
+    expect(currentDateInTimeZone(epoch, 'Not/AZone')).toBe('2026-01-05');
+  });
+});
+
+describe('zonedWallTimeToInstant', () => {
+  it('resolves a wall time in a western zone to the correct UTC instant (DST)', () => {
+    // 09:00 on Jun 10 in Chicago is CDT (UTC-5) → 14:00 UTC.
+    expect(zonedWallTimeToInstant('2026-06-10', '09:00:00', 'America/Chicago')).toEqual(
+      new Date('2026-06-10T14:00:00Z')
+    );
+  });
+
+  it('resolves a wall time in a standard-time (non-DST) date', () => {
+    // 09:00 on Jan 10 in Chicago is CST (UTC-6) → 15:00 UTC.
+    expect(zonedWallTimeToInstant('2026-01-10', '09:00:00', 'America/Chicago')).toEqual(
+      new Date('2026-01-10T15:00:00Z')
+    );
+  });
+
+  it('resolves a wall time in an eastern (UTC+) zone', () => {
+    // 09:00 on Jun 10 in Tokyo is JST (UTC+9) → 00:00 UTC.
+    expect(zonedWallTimeToInstant('2026-06-10', '09:00:00', 'Asia/Tokyo')).toEqual(
+      new Date('2026-06-10T00:00:00Z')
+    );
+  });
+
+  it('falls back to a device-local parse on an invalid timezone', () => {
+    expect(zonedWallTimeToInstant('2026-06-10', '09:00:00', 'Not/AZone')).toEqual(
+      new Date('2026-06-10T09:00:00')
+    );
+  });
+});
+
+describe('splitJudgeAssignments', () => {
+  // 14:00Z on May 3 is May 3 in both NY and Tokyo — unambiguous baseline.
+  it('buckets assignments into today, upcoming, and completed', () => {
+    const todayPending = makeClass({ id: 't1', trialDate: '2026-05-03', status: 'pending' });
+    const todayDone = makeClass({ id: 't2', trialDate: '2026-05-03', status: 'completed' });
+    const future = makeClass({ id: 'f1', trialDate: '2026-05-10', status: 'pending' });
+    const pastDone = makeClass({ id: 'p1', trialDate: '2026-04-20', status: 'completed' });
+
+    const buckets = splitJudgeAssignments([todayPending, todayDone, future, pastDone], NOW);
+
+    expect(buckets.today.map(c => c.id)).toEqual(['t1', 't2']);
+    expect(buckets.upcoming.map(c => c.id)).toEqual(['f1']);
+    expect(buckets.completed.map(c => c.id)).toEqual(['t2', 'p1']);
+  });
+
+  it('returns empty buckets for no assignments', () => {
+    const buckets = splitJudgeAssignments([], NOW);
+    expect(buckets.today).toEqual([]);
+    expect(buckets.upcoming).toEqual([]);
+    expect(buckets.completed).toEqual([]);
+  });
+
+  it('keeps past non-completed assignments reachable via the completed bucket', () => {
+    const pastPending = makeClass({ id: 'p1', trialDate: '2026-04-20', status: 'pending' });
+    const buckets = splitJudgeAssignments([pastPending], NOW);
+    expect(buckets.today).toEqual([]);
+    expect(buckets.upcoming).toEqual([]);
+    expect(buckets.completed.map(c => c.id)).toEqual(['p1']);
+  });
+
+  it("buckets each class against today in its OWN trial timezone", () => {
+    // 02:00Z: it is May 2 in New York but already May 3 in Tokyo.
+    const now = new Date('2026-05-03T02:00:00Z').getTime();
+    const nyToday = makeClass({
+      id: 'ny',
+      trialDate: '2026-05-02',
+      trialTimezone: 'America/New_York',
+    });
+    const tokyoToday = makeClass({
+      id: 'tokyo',
+      trialDate: '2026-05-03',
+      trialTimezone: 'Asia/Tokyo',
+    });
+
+    const buckets = splitJudgeAssignments([nyToday, tokyoToday], now);
+
+    // Both are "today" in their own zone; a device-local-only split would have
+    // mis-bucketed at least one of them.
+    expect(buckets.today.map(c => c.id).sort()).toEqual(['ny', 'tokyo']);
+    expect(buckets.upcoming).toEqual([]);
   });
 });

@@ -5,14 +5,13 @@
  * self check-in, and releasing results with bulk operations.
  */
 
-import { useEffect, useMemo, useCallback, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Eye, UserCheck, Settings, AlertCircle } from 'lucide-react';
-import { useShowStore } from '@/store/showStore';
+import { Eye, UserCheck, AlertCircle } from 'lucide-react';
 import { useTrialStore } from '@/store/trialStore';
 import { useClassStore } from '@/store/classStore';
 import {
@@ -30,17 +29,14 @@ import { SelfCheckinSection } from './SelfCheckinSection';
 const getClassId = (c: { id: string }) => c.id;
 
 export default function ResultsControlPage() {
-  const { selectedShowId, shows, selectShow } = useShowStore();
+  const params = useParams<{ showId?: string; id?: string }>();
+  const showId = params.showId ?? params.id ?? '';
   const { trials } = useTrialStore();
   const { classes } = useClassStore();
-  const [searchParams] = useSearchParams();
-  const [initialRouteShowId] = useState(() => searchParams.get('showId')?.trim() || undefined);
-  const hasAppliedInitialShowRef = useRef(false);
 
-  const selectedShow = shows.find(s => s.id === selectedShowId) ?? null;
   const showTrials = useMemo(
-    () => trials.filter(t => t.showId === selectedShowId),
-    [trials, selectedShowId]
+    () => trials.filter(t => t.showId === showId),
+    [trials, showId]
   );
   const showTrialIds = useMemo(() => new Set(showTrials.map(t => t.id)), [showTrials]);
   const showClasses = useMemo(
@@ -50,38 +46,9 @@ export default function ResultsControlPage() {
 
   const bulkOps = useBulkSelection({ items: showClasses, getItemId: getClassId });
 
-  // Honor show-scoped workbench links once, then let later show changes stand.
-  useEffect(() => {
-    if (!hasAppliedInitialShowRef.current) {
-      const initialShowExists = Boolean(
-        initialRouteShowId && shows.some(show => show.id === initialRouteShowId)
-      );
-
-      if (initialRouteShowId && initialShowExists) {
-        hasAppliedInitialShowRef.current = true;
-        if (initialRouteShowId !== selectedShowId) {
-          selectShow(initialRouteShowId);
-        }
-        return;
-      }
-
-      if (!initialRouteShowId || shows.length > 0) {
-        hasAppliedInitialShowRef.current = true;
-        if (!selectedShowId && shows.length > 0) {
-          selectShow(shows[0].id);
-        }
-        return;
-      }
-    }
-
-    if (!selectedShowId && shows.length > 0) {
-      selectShow(shows[0].id);
-    }
-  }, [initialRouteShowId, selectedShowId, shows, selectShow]);
-
   useEffect(() => {
     bulkOps.clearSelection();
-  }, [selectedShowId]); // eslint-disable-line react-hooks/exhaustive-deps -- intentionally only on show change
+  }, [showId]); // eslint-disable-line react-hooks/exhaustive-deps -- intentionally only on show change
 
   const allClassIds = useMemo(() => showClasses.map(c => c.id), [showClasses]);
 
@@ -90,19 +57,19 @@ export default function ResultsControlPage() {
     isLoading: settingsLoading,
     isError: settingsError,
     refetch: refetchSettings,
-  } = useShowSettings(selectedShowId ?? null);
+  } = useShowSettings(showId ?? null);
   const {
     data: trialOverrides = [],
     isLoading: overridesLoading,
     isError: trialOverridesError,
     refetch: refetchTrialOverrides,
-  } = useTrialOverrides(selectedShowId ?? null);
+  } = useTrialOverrides(showId ?? null);
   const {
     data: classOverrides = [],
     isLoading: classOverridesLoading,
     isError: classOverridesError,
     refetch: refetchClassOverrides,
-  } = useClassOverrides(selectedShowId ?? null);
+  } = useClassOverrides(showId ?? null);
 
   const isLoading = settingsLoading || overridesLoading || classOverridesLoading;
   const isError = settingsError || trialOverridesError || classOverridesError;
@@ -161,24 +128,9 @@ export default function ResultsControlPage() {
     });
   }, [bulkOps.selectedIds, classOverrides, trialOverrides, showClasses, settings]);
 
-  if (!selectedShowId) {
-    return (
-      <div className="container mx-auto py-6">
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-          <Settings className="mb-4 h-12 w-12 text-muted-foreground/40" />
-          <p className="text-muted-foreground">Select a show to manage results.</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="container mx-auto py-6 space-y-8 pb-24">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Results Control</h1>
-        {selectedShow && <p className="text-muted-foreground">{selectedShow.name}</p>}
-      </div>
+      <h1 className="text-3xl font-bold">Results Control</h1>
 
       {/* Query error state */}
       {isError && (
@@ -212,14 +164,14 @@ export default function ResultsControlPage() {
             </div>
           ) : (
             <div className="space-y-6">
-              <PresetSelector showId={selectedShowId} settings={settings} />
+              <PresetSelector showId={showId} settings={settings} />
               <TrialOverrides
-                showId={selectedShowId}
+                showId={showId}
                 trials={showTrials}
                 trialOverrides={trialOverrides}
               />
               <ClassOverrides
-                showId={selectedShowId}
+                showId={showId}
                 trials={showTrials}
                 classes={showClasses}
                 classOverrides={classOverrides}
@@ -248,7 +200,7 @@ export default function ResultsControlPage() {
             </div>
           ) : (
             <SelfCheckinSection
-              showId={selectedShowId}
+              showId={showId}
               settings={settings}
               trialOverrides={trialOverrides}
               classOverrides={classOverrides}
@@ -261,7 +213,7 @@ export default function ResultsControlPage() {
 
       {/* Bulk Operations Bar */}
       <BulkOperationsBar
-        showId={selectedShowId}
+        showId={showId}
         selectedClasses={bulkOps.selectedIds}
         allClassIds={allClassIds}
         onSelectAll={bulkOps.selectAll}

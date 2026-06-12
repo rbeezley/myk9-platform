@@ -173,7 +173,7 @@ describe('ClassDetailsPage header actions', () => {
 
     await user.click(screen.getByRole('menuitem', { name: /open in workbench/i }));
 
-    expect(screen.getByTestId('location')).toHaveTextContent('/secretary/shows/show-1?phase=show-desk');
+    expect(screen.getByTestId('location')).toHaveTextContent('/shows/show-1/show-desk');
   });
 
   it('does not duplicate show messaging from the class header', () => {

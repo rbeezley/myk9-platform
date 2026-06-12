@@ -124,7 +124,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
   });
 
   test('reports page exposes financial and statistics report choices', async ({ page }) => {
-    await signInAsSecretary(page, '/secretary/reports');
+    await signInAsSecretary(page, `/shows/${SHOW_ID}/reports`);
 
     await expect(page.getByRole('heading', { name: 'Reports' })).toBeVisible({ timeout: 15000 });
     const picker = page.locator('label:has-text("Report")').locator('..').getByRole('combobox');

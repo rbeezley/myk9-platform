@@ -637,7 +637,7 @@ describe('ReplicatedDogsTable', () => {
         // syncReplicatedTable uses getReplicatedRow (not get) to check existing rows
         vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(null);
 
-        // syncReplicatedTable uses batchSet (not set) to write clean rows
+        // syncReplicatedTable uses batchSet to write clean rows in a single IDB transaction
         const batchSetSpy = vi.spyOn(dogsTable, 'batchSet').mockResolvedValue();
 
         // Mock updateSyncMetadata
@@ -663,12 +663,15 @@ describe('ReplicatedDogsTable', () => {
         expect(result.rowsAffected).toBe(2);
         expect(result.conflictsResolved).toBe(0);
 
-        expect(batchSetSpy).toHaveBeenCalledWith(expect.arrayContaining([expect.any(Object)]));
+        expect(batchSetSpy).toHaveBeenCalled();
+        // The final watermark write is scoped AND monotonically advanced — carries
+        // both options so the watermark lands in scopes[owner-123] and never regresses.
         expect(updateMetadataSpy).toHaveBeenCalledWith(
           expect.objectContaining({
             lastIncrementalSyncAt: expect.any(Number),
             syncStatus: 'idle',
-          })
+          }),
+          expect.objectContaining({ scopeValue: 'owner-123', advanceWatermarkMonotonically: true })
         );
       });
 
@@ -832,7 +835,7 @@ describe('ReplicatedDogsTable', () => {
         expect(result.conflictsResolved).toBe(1);
 
         // Verify resolved data: server wins but local image preserved
-        const resolvedDog = batchSetSpy.mock.calls[0][0][0];
+        const resolvedDog = batchSetSpy.mock.calls[0]![0][0] as ReplicatedDog;
         expect(resolvedDog.name).toBe('Updated Max'); // Server value
         expect(resolvedDog.weight).toBe('85 lbs'); // Server value
         expect(resolvedDog.imageUrl).toBe('https://local.com/dog.jpg'); // Local value preserved
@@ -878,7 +881,7 @@ describe('ReplicatedDogsTable', () => {
 
         await dogsTable.sync('owner-123');
 
-        const resolvedDog = batchSetSpy.mock.calls[0][0][0];
+        const resolvedDog = batchSetSpy.mock.calls[0]![0][0] as ReplicatedDog;
         expect(resolvedDog.imageUrl).toBe('https://remote.com/dog.jpg');
       });
 
@@ -922,9 +925,182 @@ describe('ReplicatedDogsTable', () => {
 
         await dogsTable.sync('owner-123');
 
-        const resolvedDog = batchSetSpy.mock.calls[0][0][0];
+        const resolvedDog = batchSetSpy.mock.calls[0]![0][0] as ReplicatedDog;
         expect(resolvedDog.imageUrl).toBe('https://remote.com/dog.jpg');
       });
+    });
+  });
+
+  describe('reconcileDeleted — tombstone / right-to-erasure cleanup', () => {
+    // Mock the supabase builder chain reconcileDeleted uses (keyset pagination):
+    // from('dogs').select('id').is('deleted_at', null)[.eq('owner_id', …)]
+    //   [.gt('id', lastId)].order('id', { ascending: true }).limit(PAGE_SIZE)
+    // `.limit()` is the awaited terminal; successive calls return successive pages.
+    const makeQuery = (pages: Array<{ data: { id: string }[] | null; error: unknown }>) => {
+      let call = 0;
+      const q = {
+        select: vi.fn(() => q),
+        is: vi.fn(() => q),
+        eq: vi.fn(() => q),
+        gt: vi.fn(() => q),
+        order: vi.fn(() => q),
+        limit: vi.fn(() => Promise.resolve(pages[call++] ?? { data: [], error: null })),
+      };
+      return q;
+    };
+
+    it('removes non-dirty local dogs absent from the live id set', async () => {
+      const query = makeQuery([{ data: [{ id: '1' }, { id: '3' }], error: null }]);
+      vi.mocked(supabase.from).mockReturnValue(
+        query as unknown as ReturnType<typeof supabase.from>
+      );
+      const removeSpy = vi.spyOn(dogsTable, 'removeStaleEntries').mockResolvedValue(2);
+
+      const removed = await dogsTable.reconcileDeleted();
+
+      expect(query.select).toHaveBeenCalledWith('id');
+      expect(query.is).toHaveBeenCalledWith('deleted_at', null);
+      expect(removeSpy).toHaveBeenCalledWith(new Set(['1', '3']));
+      expect(removed).toBe(2);
+    });
+
+    it('a soft-deleted dog is excluded from the live set, so its local row is pruned', async () => {
+      // dog '2' was soft-deleted server-side → RLS omits it from the live-id fetch.
+      const query = makeQuery([{ data: [{ id: '1' }], error: null }]);
+      vi.mocked(supabase.from).mockReturnValue(
+        query as unknown as ReturnType<typeof supabase.from>
+      );
+      const removeSpy = vi.spyOn(dogsTable, 'removeStaleEntries').mockResolvedValue(1);
+
+      await dogsTable.reconcileDeleted();
+
+      const liveIds = removeSpy.mock.calls[0]![0];
+      expect(liveIds.has('1')).toBe(true);
+      expect(liveIds.has('2')).toBe(false);
+    });
+
+    it('keyset-paginates the live-id fetch and unions all pages before pruning', async () => {
+      // A full first page (=== PAGE_SIZE) must trigger a second fetch before pruning,
+      // else every cached dog beyond row 1000 would be wrongly treated as deleted.
+      // The second page is fetched with a keyset cursor (id > last id of page 1),
+      // which is immune to concurrent insert/delete drift that offset paging suffers.
+      const page0 = Array.from({ length: 1000 }, (_, i) => ({ id: `d${i}` }));
+      const page1 = [{ id: 'd1000' }, { id: 'd1001' }];
+      const query = makeQuery([
+        { data: page0, error: null },
+        { data: page1, error: null },
+      ]);
+      vi.mocked(supabase.from).mockReturnValue(
+        query as unknown as ReturnType<typeof supabase.from>
+      );
+      const removeSpy = vi.spyOn(dogsTable, 'removeStaleEntries').mockResolvedValue(0);
+
+      await dogsTable.reconcileDeleted();
+
+      expect(query.order).toHaveBeenCalledWith('id', { ascending: true });
+      expect(query.limit).toHaveBeenCalledTimes(2);
+      expect(query.limit).toHaveBeenCalledWith(1000);
+      // First page has no cursor; second page fetches strictly after page 1's last id.
+      expect(query.gt).toHaveBeenCalledTimes(1);
+      expect(query.gt).toHaveBeenCalledWith('id', 'd999');
+      const liveIds = removeSpy.mock.calls[0]![0];
+      expect(liveIds.size).toBe(1002);
+      expect(liveIds.has('d0')).toBe(true);
+      expect(liveIds.has('d999')).toBe(true);
+      expect(liveIds.has('d1001')).toBe(true);
+    });
+
+    it('scopes the live-id fetch by owner_id when a key is provided', async () => {
+      const query = makeQuery([{ data: [], error: null }]);
+      vi.mocked(supabase.from).mockReturnValue(
+        query as unknown as ReturnType<typeof supabase.from>
+      );
+      vi.spyOn(dogsTable, 'removeStaleEntries').mockResolvedValue(0);
+
+      await dogsTable.reconcileDeleted('owner-123');
+
+      expect(query.eq).toHaveBeenCalledWith('owner_id', 'owner-123');
+    });
+
+    it('prunes nothing when a page fetch errors (never wipe on failure)', async () => {
+      const query = makeQuery([{ data: null, error: { message: 'rls denied' } }]);
+      vi.mocked(supabase.from).mockReturnValue(
+        query as unknown as ReturnType<typeof supabase.from>
+      );
+      const removeSpy = vi.spyOn(dogsTable, 'removeStaleEntries').mockResolvedValue(0);
+
+      const removed = await dogsTable.reconcileDeleted();
+
+      expect(removeSpy).not.toHaveBeenCalled();
+      expect(removed).toBe(0);
+    });
+
+    it('aborts the prune if a later page errors mid-pagination', async () => {
+      // First page is full (forces a second fetch); the second page errors → abort,
+      // do NOT prune against the partial first-page id set.
+      const page0 = Array.from({ length: 1000 }, (_, i) => ({ id: `d${i}` }));
+      const query = makeQuery([
+        { data: page0, error: null },
+        { data: null, error: { message: 'timeout' } },
+      ]);
+      vi.mocked(supabase.from).mockReturnValue(
+        query as unknown as ReturnType<typeof supabase.from>
+      );
+      const removeSpy = vi.spyOn(dogsTable, 'removeStaleEntries').mockResolvedValue(0);
+
+      const removed = await dogsTable.reconcileDeleted();
+
+      expect(removeSpy).not.toHaveBeenCalled();
+      expect(removed).toBe(0);
+    });
+
+    it('sync() invokes reconcileDeleted after a successful download', async () => {
+      vi.spyOn(dogsTable, 'getSyncMetadata').mockResolvedValue(null);
+      vi.spyOn(dogsTable, 'getAll').mockResolvedValue([]);
+      vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(null);
+      vi.spyOn(dogsTable, 'batchSet').mockResolvedValue();
+      vi.spyOn(dogsTable, 'updateSyncMetadata').mockResolvedValue();
+
+      const mockQuery = {
+        select: vi.fn().mockReturnThis(),
+        gt: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+      };
+      vi.mocked(supabase.from).mockReturnValue(
+        mockQuery as unknown as ReturnType<typeof supabase.from>
+      );
+
+      const reconcileSpy = vi.spyOn(dogsTable, 'reconcileDeleted').mockResolvedValue(0);
+
+      const result = await dogsTable.sync('owner-123');
+
+      expect(result.success).toBe(true);
+      expect(reconcileSpy).toHaveBeenCalledWith('owner-123');
+    });
+
+    it('a throwing reconcileDeleted does not fail the sync', async () => {
+      vi.spyOn(dogsTable, 'getSyncMetadata').mockResolvedValue(null);
+      vi.spyOn(dogsTable, 'getAll').mockResolvedValue([]);
+      vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(null);
+      vi.spyOn(dogsTable, 'batchSet').mockResolvedValue();
+      vi.spyOn(dogsTable, 'updateSyncMetadata').mockResolvedValue();
+
+      const mockQuery = {
+        select: vi.fn().mockReturnThis(),
+        gt: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+      };
+      vi.mocked(supabase.from).mockReturnValue(
+        mockQuery as unknown as ReturnType<typeof supabase.from>
+      );
+
+      vi.spyOn(dogsTable, 'reconcileDeleted').mockRejectedValue(new Error('boom'));
+
+      const result = await dogsTable.sync('owner-123');
+
+      expect(result.success).toBe(true);
     });
   });
 
@@ -1004,7 +1180,7 @@ describe('ReplicatedDogsTable', () => {
 
       await dogsTable.sync('owner-123');
 
-      const camelCaseDog = batchSetSpy.mock.calls[0][0][0];
+      const camelCaseDog = batchSetSpy.mock.calls[0]![0][0] as ReplicatedDog;
 
       expect(camelCaseDog.callName).toBe('Maxie');
       expect(camelCaseDog.dateOfBirth).toBe('2020-01-15');
@@ -1064,7 +1240,7 @@ describe('ReplicatedDogsTable', () => {
 
       await dogsTable.sync('owner-123');
 
-      const dog = batchSetSpy.mock.calls[0][0][0];
+      const dog = batchSetSpy.mock.calls[0]![0][0] as ReplicatedDog;
 
       expect(dog.callName).toBeUndefined();
       expect(dog.sex).toBeUndefined();

@@ -1,16 +1,9 @@
-import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useState, useRef, useMemo, useCallback } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { useShowStore } from '@/store/showStore';
+import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useReportData } from '@/hooks/queries/useReportData';
 import { getReportById } from '@/lib/reports/reportRegistry';
 import { ReportControlsBar } from './ReportControlsBar';
@@ -28,7 +21,6 @@ import {
 const DEFAULT_REPORT_ID = 'check-in-sheet';
 
 export interface InitialReportScope {
-  showId?: string | undefined;
   trialId: string;
   classId: string;
   dogId: string;
@@ -51,7 +43,6 @@ export function resolveInitialReportId(queryParam: string | null): string {
 // eslint-disable-next-line react-refresh/only-export-components
 export function resolveInitialReportScope(params: URLSearchParams): InitialReportScope {
   return {
-    showId: nonEmptyParam(params, 'showId'),
     trialId: nonEmptyParam(params, 'trialId') ?? 'all',
     classId: nonEmptyParam(params, 'classId') ?? 'all',
     dogId: nonEmptyParam(params, 'dogId') ?? 'all',
@@ -59,7 +50,9 @@ export function resolveInitialReportScope(params: URLSearchParams): InitialRepor
 }
 
 export default function ReportsPage() {
-  const { selectedShowId, shows, selectShow } = useShowStore();
+  const params = useParams<{ showId?: string; id?: string }>();
+  const showId = params.showId ?? params.id;
+  const { show: currentShow } = useFastShowDetails(showId);
   const [searchParams] = useSearchParams();
   const [initialScope] = useState(() => resolveInitialReportScope(searchParams));
   // Resolve once on mount so subsequent ?report= changes don't fight the
@@ -74,40 +67,9 @@ export default function ReportsPage() {
   const [sortOrder, setSortOrder] = useState(report?.defaultSort ?? 'run-order');
   const [isDownloadingOfficialPdf, setIsDownloadingOfficialPdf] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const hasAppliedInitialShowRef = useRef(false);
-
-  const selectedShow = shows.find(s => s.id === selectedShowId) ?? null;
-
-  useEffect(() => {
-    if (!hasAppliedInitialShowRef.current) {
-      const initialShowExists = Boolean(
-        initialScope.showId && shows.some(show => show.id === initialScope.showId)
-      );
-
-      if (initialScope.showId && initialShowExists) {
-        hasAppliedInitialShowRef.current = true;
-        if (selectedShowId !== initialScope.showId) {
-          selectShow(initialScope.showId);
-        }
-        return;
-      }
-
-      if (!initialScope.showId || shows.length > 0) {
-        hasAppliedInitialShowRef.current = true;
-        if (!selectedShowId && shows.length > 0) {
-          selectShow(shows[0].id);
-        }
-        return;
-      }
-    }
-
-    if (!selectedShowId && shows.length > 0) {
-      selectShow(shows[0].id);
-    }
-  }, [initialScope.showId, selectedShowId, shows, selectShow]);
 
   const { show, trials, classes, entries, isLoading, isError } = useReportData({
-    show: selectedShow,
+    show: currentShow,
     trialId,
     classId,
   });
@@ -116,6 +78,7 @@ export default function ReportsPage() {
     () =>
       ((trials ?? []) as Array<Record<string, unknown>>).map(t => ({
         id: t.id as string,
+        name: (t.name ?? '') as string,
         trial_number: Number(t.trial_number ?? 0),
         date: (t.date ?? '') as string,
       })),
@@ -126,6 +89,7 @@ export default function ReportsPage() {
     () =>
       ((classes ?? []) as Array<Record<string, unknown>>).map(c => ({
         id: c.id as string,
+        name: (c.name ?? '') as string,
         element: (c.element ?? '') as string,
         level: (c.level ?? '') as string,
         section: (c.section ?? '') as string,
@@ -135,13 +99,13 @@ export default function ReportsPage() {
   );
 
   const { data: dogOptionsRaw } = useQuery({
-    queryKey: ['entry-form-dog-options', selectedShowId],
+    queryKey: ['entry-form-dog-options', showId],
     queryFn: async () => {
-      if (!selectedShowId) return [];
+      if (!showId) return [];
       const { data: entryDogs } = await supabase
         .from('entries')
         .select('dog_id, armband, dog:dogs!inner(id, call_name)')
-        .eq('show_id', selectedShowId)
+        .eq('show_id', showId)
         .is('deleted_at', null);
 
       if (!entryDogs?.length) return [];
@@ -169,7 +133,7 @@ export default function ReportsPage() {
         }))
         .sort((a, b) => (a.armband ?? 0) - (b.armband ?? 0));
     },
-    enabled: !!selectedShowId && (report?.supportsDogFilter ?? false),
+    enabled: !!showId && (report?.supportsDogFilter ?? false),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -188,13 +152,6 @@ export default function ReportsPage() {
     setTrialId(value);
     setDogId('all');
     setClassId('all');
-  };
-
-  const handleShowChange = (value: string) => {
-    selectShow(value);
-    setTrialId('all');
-    setClassId('all');
-    setDogId('all');
   };
 
   const handlePrint = () => {
@@ -260,29 +217,8 @@ export default function ReportsPage() {
   return (
     <div className="container mx-auto py-6 flex flex-col">
       {/* Page header */}
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
-          {selectedShow && (
-            <p className="text-sm text-muted-foreground mt-1">{selectedShow.name}</p>
-          )}
-        </div>
-        {shows.length > 0 && (
-          <Select value={selectedShowId} onValueChange={handleShowChange}>
-            <SelectTrigger className="w-[240px]">
-              <SelectValue placeholder="Select show">
-                {selectedShow?.name ?? 'Select show'}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {shows.map(s => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
       </div>
 
       {/* Controls */}
@@ -308,7 +244,7 @@ export default function ReportsPage() {
       <div className="mt-6 flex justify-center">
         {reportType === 'armband-labels' ? (
           <div className="w-full">
-            <ArmbandLabelsReport showId={selectedShowId} iframeRef={iframeRef} />
+            <ArmbandLabelsReport showId={showId} iframeRef={iframeRef} />
             <iframe ref={iframeRef} title="Label Print" style={{ display: 'none' }} />
           </div>
         ) : (

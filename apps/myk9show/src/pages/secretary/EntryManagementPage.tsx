@@ -4,21 +4,13 @@ import { useUrlTab } from '@/hooks/useUrlTab';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import WaitlistManagementPage from './WaitlistManagementPage/index';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { auditService } from '@/services/AuditService';
 import { UserRole } from '@/types/auth-types';
 import { AuditAction } from '@/types/audit-types';
 import {
-  Calendar,
   Users,
   AlertCircle,
   Download,
@@ -41,7 +33,6 @@ import {
   ScoringModeWrapper,
   RegistrationView,
 } from '@/components/entries/management';
-import { formatDate } from '@/utils/entryManagementUtils';
 import { groupEntriesByEnrollment, type EnrollmentGroup } from '@/utils/enrollmentGrouping';
 
 const PAGE_TABS: PrimaryTabDef[] = [
@@ -55,7 +46,8 @@ const PAGE_TABS: PrimaryTabDef[] = [
  * Original: 1,428 lines -> Refactored: ~400 lines (72% reduction)
  */
 const EntryManagementPage: React.FC = () => {
-  const { showId: urlShowId } = useParams<{ showId?: string }>();
+  const params = useParams<{ showId?: string; id?: string }>();
+  const urlShowId = params.showId ?? params.id;
   const navigate = useNavigate();
   const [activePageTab] = useUrlTab(['entries', 'waitlist'] as const, 'entries');
   const [, setSearchParams] = useSearchParams();
@@ -84,7 +76,6 @@ const EntryManagementPage: React.FC = () => {
     hasRole,
     shows,
     selectedShowId,
-    setSelectedShowId,
     isLoadingShows,
     entries,
     setEntries,
@@ -102,8 +93,6 @@ const EntryManagementPage: React.FC = () => {
   const {
     searchTerm,
     setSearchTerm,
-    statusFilter,
-    setStatusFilter,
     paymentFilter,
     setPaymentFilter,
     selectedTab,
@@ -114,7 +103,6 @@ const EntryManagementPage: React.FC = () => {
     setTrialFilter,
     setClassFilter,
     filteredEntries,
-    clearFilters,
   } = useEntryManagementFilters({ entries, tabCounts, showId: selectedShowId });
 
   const enrollmentGroups: EnrollmentGroup[] = useMemo(
@@ -276,56 +264,15 @@ const EntryManagementPage: React.FC = () => {
         </Alert>
       )}
 
-      {/* Show Selection */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Select Show
-          </CardTitle>
-          <CardDescription>Choose a show to manage its entries</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Select
-            value={selectedShowId}
-            onValueChange={setSelectedShowId}
-            disabled={isLoadingShows}
-          >
-            <SelectTrigger className="w-full md:w-96">
-              <SelectValue placeholder={isLoadingShows ? 'Loading shows...' : 'Select a show'}>
-                {selectedShowId
-                  ? (() => {
-                      const show = shows.find(s => s.id === selectedShowId);
-                      return show
-                        ? `${show.name || 'Unnamed Show'} (${formatDate(show.start_date)})`
-                        : undefined;
-                    })()
-                  : undefined}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {shows.map(show => (
-                <SelectItem key={show.id} value={show.id}>
-                  {show.name || 'Unnamed Show'} ({formatDate(show.start_date)})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
-
       {/* Page-level tabs: Entries | Waitlist */}
       <PrimaryTabs tabs={PAGE_TABS} value={activePageTab} onValueChange={handlePageTabChange}>
         <TabsContent value="entries">
-          {/* No Show Selected */}
-          {!selectedShowId && !isLoadingShows && (
+          {/* No Show Selected — kept as loading guard while useEntryManagementData resolves the show */}
+          {!selectedShowId && isLoadingShows && (
             <Card>
               <CardContent className="py-12 text-center">
                 <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <h3 className="text-lg font-medium mb-2">Select a Show</h3>
-                <p className="text-muted-foreground">
-                  Choose a show from the dropdown above to manage its entries.
-                </p>
+                <h3 className="text-lg font-medium mb-2">Loading...</h3>
               </CardContent>
             </Card>
           )}
@@ -422,11 +369,8 @@ const EntryManagementPage: React.FC = () => {
                   stats={stats}
                   searchTerm={searchTerm}
                   setSearchTerm={setSearchTerm}
-                  statusFilter={statusFilter}
-                  setStatusFilter={setStatusFilter}
                   paymentFilter={paymentFilter}
                   setPaymentFilter={setPaymentFilter}
-                  onClearFilters={clearFilters}
                   selectedTab={selectedTab}
                   setSelectedTab={setSelectedTab}
                   tabCounts={tabCounts}

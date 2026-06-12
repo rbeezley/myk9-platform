@@ -17,7 +17,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MutationManager, type MutationManagerOptions } from './MutationManager';
-import type { PendingMutation } from './types';
+import type { PendingMutation, ReplicatedRow } from './types';
 import type { Logger } from './dependencies';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { IDBPDatabase } from 'idb';
@@ -145,6 +145,9 @@ describe('MutationManager', () => {
         const tx = mockDb.transaction(REPLICATION_STORES.PENDING_MUTATIONS, 'readwrite');
         await tx.store.clear();
         await tx.done;
+        const failedTx = mockDb.transaction(REPLICATION_STORES.FAILED_MUTATIONS, 'readwrite');
+        await failedTx.store.clear();
+        await failedTx.done;
       } catch {
         // Ignore errors during cleanup
       }
@@ -456,6 +459,102 @@ describe('MutationManager', () => {
   });
 
   // ========================================
+  // CONFLICT HOLD
+  // ========================================
+
+  describe('Conflict Hold', () => {
+    function makeConflictedRow(tableName: string, id: string): ReplicatedRow<{ id: string }> {
+      return {
+        tableName,
+        id,
+        data: { id },
+        version: 2,
+        serverVersion: 1,
+        lastSyncedAt: 0,
+        lastAccessedAt: 0,
+        isDirty: true,
+        syncStatus: 'conflict',
+      };
+    }
+
+    it('holds upload for a mutation whose row has an unresolved conflict', async () => {
+      await mockDb.put(
+        REPLICATION_STORES.REPLICATED_TABLES,
+        makeConflictedRow('entries', 'entry-hold')
+      );
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({ id: 'mut-hold', tableName: 'entries', rowId: 'entry-hold' })
+      );
+
+      const results = await manager.uploadPendingMutations();
+
+      // Skipped — not in results
+      expect(results).toHaveLength(0);
+      // Mutation still in queue
+      const remaining = await mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0]!.id).toBe('mut-hold');
+      // Supabase never touched
+      expect(mockSupabase.from).not.toHaveBeenCalled();
+    });
+
+    it('uploads non-conflicted rows while holding conflicted ones', async () => {
+      // Conflicted row + its mutation
+      await mockDb.put(
+        REPLICATION_STORES.REPLICATED_TABLES,
+        makeConflictedRow('entries', 'entry-conflict')
+      );
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({ id: 'mut-conflict', tableName: 'entries', rowId: 'entry-conflict' })
+      );
+      // Clean row mutation (no REPLICATED_TABLES row needed — absent row is not 'conflict')
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({ id: 'mut-clean', tableName: 'dogs', rowId: 'dog-1' })
+      );
+
+      const results = await manager.uploadPendingMutations();
+
+      // Only the clean mutation uploaded
+      expect(results).toHaveLength(1);
+      expect(results[0]!.tableName).toBe('dogs');
+      // Conflicted mutation still in queue
+      const remaining = await mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0]!.id).toBe('mut-conflict');
+    });
+
+    it('uploads the mutation once the conflict is resolved (row back to pending)', async () => {
+      // Start with a conflicted row
+      await mockDb.put(
+        REPLICATION_STORES.REPLICATED_TABLES,
+        makeConflictedRow('entries', 'entry-resolved')
+      );
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({ id: 'mut-resolved', tableName: 'entries', rowId: 'entry-resolved' })
+      );
+
+      // First upload — held
+      await manager.uploadPendingMutations();
+      expect(await mockDb.count(REPLICATION_STORES.PENDING_MUTATIONS)).toBe(1);
+
+      // User resolves "keep mine" — row status transitions back to pending
+      await mockDb.put(REPLICATION_STORES.REPLICATED_TABLES, {
+        ...makeConflictedRow('entries', 'entry-resolved'),
+        syncStatus: 'pending',
+      });
+
+      const results = await manager.uploadPendingMutations();
+
+      expect(results).toHaveLength(1);
+      expect(results[0]!.success).toBe(true);
+    });
+  });
+
+  // ========================================
   // RETRY LOGIC
   // ========================================
 
@@ -539,6 +638,82 @@ describe('MutationManager', () => {
       expect(window.dispatchEvent).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'replication:sync-failed' })
       );
+    });
+
+    it('moves permanently failed mutations to the failed_mutations store instead of deleting them', async () => {
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({ id: 'mut-archive', retries: 0 })
+      );
+
+      vi.mocked(mockSupabase.from).mockReturnValue({
+        update: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            select: vi.fn(() => Promise.reject(new Error('RLS policy blocked UPDATE'))),
+          })),
+        })),
+      } as unknown as ReturnType<typeof mockSupabase.from>);
+
+      await manager.uploadPendingMutations();
+
+      const pending = await mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
+      expect(pending).toHaveLength(0);
+
+      const failed = await mockDb.getAll(REPLICATION_STORES.FAILED_MUTATIONS);
+      expect(failed).toHaveLength(1);
+      expect(failed[0]!.id).toBe('mut-archive');
+      expect(failed[0]!.status).toBe('failed');
+      expect(failed[0]!.error).toContain('RLS policy blocked UPDATE');
+      expect(failed[0]!.failedAt).toEqual(expect.any(Number));
+    });
+
+    it('retryFailedMutation re-queues with a fresh retry budget', async () => {
+      await mockDb.put(REPLICATION_STORES.FAILED_MUTATIONS, {
+        ...makeMutation({ id: 'mut-retry-failed', retries: 3 }),
+        status: 'failed',
+        error: 'Non-retryable error: auth expired',
+        failedAt: Date.now(),
+      });
+
+      await manager.retryFailedMutation('mut-retry-failed');
+
+      const failed = await mockDb.getAll(REPLICATION_STORES.FAILED_MUTATIONS);
+      expect(failed).toHaveLength(0);
+
+      const pending = await mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
+      expect(pending).toHaveLength(1);
+      expect(pending[0]!.id).toBe('mut-retry-failed');
+      expect(pending[0]!.status).toBe('pending');
+      expect(pending[0]!.retries).toBe(0);
+      expect(pending[0]!.error).toBeUndefined();
+      expect(pending[0]!.failedAt).toBeUndefined();
+    });
+
+    it('discardFailedMutation removes the mutation permanently', async () => {
+      await mockDb.put(REPLICATION_STORES.FAILED_MUTATIONS, {
+        ...makeMutation({ id: 'mut-discard-failed' }),
+        status: 'failed',
+        failedAt: Date.now(),
+      });
+
+      await manager.discardFailedMutation('mut-discard-failed');
+
+      const failed = await mockDb.getAll(REPLICATION_STORES.FAILED_MUTATIONS);
+      expect(failed).toHaveLength(0);
+      const pending = await mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
+      expect(pending).toHaveLength(0);
+    });
+
+    it('getFailedMutations lists archived failures', async () => {
+      await mockDb.put(REPLICATION_STORES.FAILED_MUTATIONS, {
+        ...makeMutation({ id: 'mut-list-failed' }),
+        status: 'failed',
+        failedAt: Date.now(),
+      });
+
+      const failed = await manager.getFailedMutations();
+      expect(failed).toHaveLength(1);
+      expect(failed[0]!.id).toBe('mut-list-failed');
     });
 
     it('should handle supabase error objects', async () => {
@@ -662,11 +837,7 @@ describe('MutationManager', () => {
     it('should backup mutations to localStorage', async () => {
       await mockDb.put(REPLICATION_STORES.PENDING_MUTATIONS, makeMutation({ id: 'mut-backup-1' }));
 
-      const backupPromise = manager.backupMutationsToLocalStorage();
-
-      // Advance past debounce (1000ms)
-      await vi.advanceTimersByTimeAsync(1100);
-      await backupPromise;
+      await manager.backupMutationsToLocalStorage();
 
       const backup = localStorageMock['replication_mutation_backup'];
       expect(backup).toBeDefined();
@@ -681,9 +852,7 @@ describe('MutationManager', () => {
         { id: 'old-mut', tableName: 'entries' },
       ]);
 
-      const backupPromise = manager.backupMutationsToLocalStorage();
-      await vi.advanceTimersByTimeAsync(1100);
-      await backupPromise;
+      await manager.backupMutationsToLocalStorage();
 
       expect(localStorageMock['replication_mutation_backup']).toBeUndefined();
     });
@@ -728,21 +897,20 @@ describe('MutationManager', () => {
       );
     });
 
-    it('should debounce multiple backup calls', async () => {
-      await mockDb.put(REPLICATION_STORES.PENDING_MUTATIONS, makeMutation({ id: 'mut-d' }));
+    it('persists the backup before queueMutation resolves (no debounce window)', async () => {
+      // Regression: a debounced backup left a window where a page reload lost
+      // the newest offline mutations if IndexedDB was later evicted. Queued
+      // scores must reach localStorage before the queueing call resolves.
+      await manager.queueMutation('entries', 'UPDATE', 'entry-9', {
+        id: 'entry-9',
+        is_scored: true,
+      });
 
-      // Call backup multiple times rapidly
-      manager.backupMutationsToLocalStorage();
-      manager.backupMutationsToLocalStorage();
-      manager.backupMutationsToLocalStorage();
-
-      // Before debounce completes
-      await vi.advanceTimersByTimeAsync(500);
-      expect(localStorageMock['replication_mutation_backup']).toBeUndefined();
-
-      // After debounce
-      await vi.advanceTimersByTimeAsync(600);
-      expect(localStorageMock['replication_mutation_backup']).toBeDefined();
+      const backup = localStorageMock['replication_mutation_backup'];
+      expect(backup).toBeDefined();
+      const parsed = JSON.parse(backup!);
+      expect(parsed).toHaveLength(1);
+      expect(parsed[0].rowId).toBe('entry-9');
     });
   });
 
@@ -758,12 +926,19 @@ describe('MutationManager', () => {
         await mockDb.put(REPLICATION_STORES.PENDING_MUTATIONS, m);
       }
       localStorageMock['replication_mutation_backup'] = JSON.stringify(mutations);
+      await mockDb.put(REPLICATION_STORES.FAILED_MUTATIONS, {
+        ...makeMutation({ id: 'mut-clear-failed' }),
+        status: 'failed',
+        failedAt: Date.now(),
+      });
 
       await manager.clearAllMutations();
 
       const remaining = await mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
       expect(remaining).toHaveLength(0);
       expect(localStorageMock['replication_mutation_backup']).toBeUndefined();
+      const failed = await mockDb.getAll(REPLICATION_STORES.FAILED_MUTATIONS);
+      expect(failed).toHaveLength(0);
     });
 
     it('should handle empty queue gracefully', async () => {

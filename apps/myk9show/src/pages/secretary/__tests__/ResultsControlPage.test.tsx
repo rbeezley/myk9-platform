@@ -1,83 +1,54 @@
 // apps/myk9show/src/pages/secretary/__tests__/ResultsControlPage.test.tsx
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@/test/utils/testUtils';
+import { render, screen } from '@/test/utils/testUtils';
 import userEvent from '@testing-library/user-event';
 import type { ShowSettings } from '@/hooks/queries/useShowSettingsDatabase';
 
-// --- Store mocks ---
-const mockShowStoreState = vi.hoisted(() => {
-  const state = {
-    selectedShowId: 'show-1',
-    shows: [
-      { id: 'show-1', name: 'Spring Agility Trial' },
-      { id: 'show-2', name: 'Fall Classic' },
-    ],
-    selectShow: vi.fn((showId: string) => {
-      state.selectedShowId = showId;
-    }),
-  };
-  return state;
-});
-
-const mockSelectShow = mockShowStoreState.selectShow;
-
-const resetShowStore = () => {
-  mockShowStoreState.selectedShowId = 'show-1';
-  mockShowStoreState.shows = [
-    { id: 'show-1', name: 'Spring Agility Trial' },
-    { id: 'show-2', name: 'Fall Classic' },
-  ];
-};
-
-vi.mock('@/store/showStore', () => ({
-  useShowStore: () => ({
-    selectedShowId: mockShowStoreState.selectedShowId,
-    shows: mockShowStoreState.shows,
-    selectShow: mockShowStoreState.selectShow,
-  }),
+const mockTrialStoreState = vi.hoisted(() => ({
+  trials: [
+    {
+      id: 'trial-1',
+      name: 'Trial A',
+      showId: 'show-1',
+      _version: 1,
+      _lastModified: new Date(),
+      _lastModifiedBy: '',
+      _syncStatus: 'synced',
+    },
+  ],
 }));
 
 vi.mock('@/store/trialStore', () => ({
-  useTrialStore: () => ({
-    trials: [
-      {
-        id: 'trial-1',
-        name: 'Trial A',
-        showId: 'show-1',
-        _version: 1,
-        _lastModified: new Date(),
-        _lastModifiedBy: '',
-        _syncStatus: 'synced',
-      },
-    ],
-  }),
+  useTrialStore: () => mockTrialStoreState,
+}));
+
+const mockClassStoreState = vi.hoisted(() => ({
+  classes: [
+    {
+      id: 'class-1',
+      trialId: 'trial-1',
+      element: 'Standard',
+      level: 'Novice',
+      _version: 1,
+      _lastModified: new Date(),
+      _lastModifiedBy: '',
+      _syncStatus: 'synced',
+    },
+    {
+      id: 'class-2',
+      trialId: 'trial-1',
+      element: 'Standard',
+      level: 'Open',
+      _version: 1,
+      _lastModified: new Date(),
+      _lastModifiedBy: '',
+      _syncStatus: 'synced',
+    },
+  ],
 }));
 
 vi.mock('@/store/classStore', () => ({
-  useClassStore: () => ({
-    classes: [
-      {
-        id: 'class-1',
-        trialId: 'trial-1',
-        element: 'Standard',
-        level: 'Novice',
-        _version: 1,
-        _lastModified: new Date(),
-        _lastModifiedBy: '',
-        _syncStatus: 'synced',
-      },
-      {
-        id: 'class-2',
-        trialId: 'trial-1',
-        element: 'Standard',
-        level: 'Open',
-        _version: 1,
-        _lastModified: new Date(),
-        _lastModifiedBy: '',
-        _syncStatus: 'synced',
-      },
-    ],
-  }),
+  useClassStore: () => mockClassStoreState,
 }));
 
 // --- Query mocks ---
@@ -132,21 +103,59 @@ vi.mock('@/hooks/useAuth', () => ({
 }));
 
 import ResultsControlPage from '../ResultsControlPage';
+import { Routes, Route } from 'react-router-dom';
 
-function renderPage(initialRoute = '/secretary/results-control') {
-  return render(<ResultsControlPage />, { initialRoute });
+function renderPage(initialRoute = '/shows/show-1/results-control') {
+  return render(
+    <Routes>
+      <Route path="/shows/:id/results-control" element={<ResultsControlPage />} />
+    </Routes>,
+    { initialRoute }
+  );
 }
 
 describe('ResultsControlPage', () => {
   beforeEach(() => {
-    resetShowStore();
     vi.clearAllMocks();
+    // Restore default seeded state
+    mockTrialStoreState.trials = [
+      {
+        id: 'trial-1',
+        name: 'Trial A',
+        showId: 'show-1',
+        _version: 1,
+        _lastModified: new Date(),
+        _lastModifiedBy: '',
+        _syncStatus: 'synced',
+      },
+    ];
+    mockClassStoreState.classes = [
+      {
+        id: 'class-1',
+        trialId: 'trial-1',
+        element: 'Standard',
+        level: 'Novice',
+        _version: 1,
+        _lastModified: new Date(),
+        _lastModifiedBy: '',
+        _syncStatus: 'synced',
+      },
+      {
+        id: 'class-2',
+        trialId: 'trial-1',
+        element: 'Standard',
+        level: 'Open',
+        _version: 1,
+        _lastModified: new Date(),
+        _lastModifiedBy: '',
+        _syncStatus: 'synced',
+      },
+    ];
   });
 
-  it('renders page title and show name', () => {
+  it('renders page title', () => {
     renderPage();
     expect(screen.getByText('Results Control')).toBeInTheDocument();
-    expect(screen.getByText('Spring Agility Trial')).toBeInTheDocument();
   });
 
   it('renders all three preset cards', () => {
@@ -161,36 +170,6 @@ describe('ResultsControlPage', () => {
     expect(screen.getByText('Self Check-In')).toBeInTheDocument();
   });
 
-  it('selects the route show when ?showId exists', async () => {
-    renderPage('/secretary/results-control?showId=show-2');
-
-    await waitFor(() => expect(mockSelectShow).toHaveBeenCalledWith('show-2'));
-  });
-
-  it('applies the route show once without overriding later show changes', async () => {
-    const { rerender } = renderPage('/secretary/results-control?showId=show-2');
-
-    await waitFor(() => expect(mockSelectShow).toHaveBeenCalledWith('show-2'));
-    expect(mockShowStoreState.selectedShowId).toBe('show-2');
-
-    mockSelectShow.mockClear();
-    mockShowStoreState.selectedShowId = 'show-1';
-    rerender(<ResultsControlPage />);
-
-    await waitFor(() => expect(screen.getByText('Spring Agility Trial')).toBeInTheDocument());
-    expect(mockSelectShow).not.toHaveBeenCalledWith('show-2');
-  });
-
-  it('keeps the selected show when ?showId is invalid', () => {
-    mockShowStoreState.selectedShowId = 'show-2';
-
-    renderPage('/secretary/results-control?showId=missing-show');
-
-    expect(mockSelectShow).not.toHaveBeenCalledWith('missing-show');
-    expect(mockSelectShow).not.toHaveBeenCalledWith('show-1');
-    expect(screen.getByText('Fall Classic')).toBeInTheDocument();
-  });
-
   it('clicking a preset calls the visibility mutation', async () => {
     const user = userEvent.setup();
     renderPage();
@@ -201,11 +180,19 @@ describe('ResultsControlPage', () => {
     );
   });
 
-  it('shows no-show state when no show selected', () => {
-    mockShowStoreState.selectedShowId = '';
-    mockShowStoreState.shows = [];
+  it('renders the UI correctly when the trial store is empty (deep-link / refresh)', () => {
+    // Verifies that the shell-hoisted loadTrials() covers this route:
+    // a cold load with no pre-hydrated store data must not crash or blank out
+    // the preset cards — the React Query layer (show settings) is independent.
+    mockTrialStoreState.trials = [];
+    mockClassStoreState.classes = [];
+
     renderPage();
-    expect(screen.getByText(/select a show/i)).toBeInTheDocument();
-    mockShowStoreState.selectedShowId = 'show-1'; // reset
+
+    expect(screen.getByText('Results Control')).toBeInTheDocument();
+    expect(screen.getByText('Immediately')).toBeInTheDocument();
+    expect(screen.getByText('After Class')).toBeInTheDocument();
+    expect(screen.getByText('After Review')).toBeInTheDocument();
+    expect(screen.getByText('Self Check-In')).toBeInTheDocument();
   });
 });

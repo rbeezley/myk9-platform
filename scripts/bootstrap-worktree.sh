@@ -58,6 +58,8 @@ fi
 # 2. Copy .env files from main repo
 ENV_FILES=(
   "apps/myk9show/.env"
+  "apps/myk9show/.env.local"
+  "supabase/.env"
 )
 
 for env_file in "${ENV_FILES[@]}"; do

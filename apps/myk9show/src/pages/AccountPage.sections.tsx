@@ -73,7 +73,7 @@ export function ProfileSection() {
                   if (f) upload(f);
                 }}
               />
-              <p className="mt-1.5 text-xs text-muted-foreground">JPG, PNG, WebP · max 2 MB</p>
+              <p className="mt-1.5 text-xs text-muted-foreground">JPG, PNG, WebP · max 5MB</p>
             </div>
           </div>
         </CardContent>

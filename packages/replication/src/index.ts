@@ -13,6 +13,9 @@
 // Types
 export type {
   ReplicatedRow,
+  ReplicationConflictSnapshot,
+  ReplicationConflictEventDetail,
+  ReplicationConflictResolution,
   SyncStatus,
   SyncMetadata,
   PendingMutation,
@@ -38,6 +41,11 @@ export type {
 export { ConflictResolver, conflictResolver } from './conflict/ConflictResolver';
 export { ConflictManager, conflictManager } from './conflict/ConflictManager';
 export type { ConflictEvent, ConflictEventType, ConflictStats } from './conflict/ConflictManager';
+export {
+  detectDirtyRowConflict,
+  type DirtyRowConflictInput,
+  type DirtyRowConflictResult,
+} from './conflict/detectDirtyRowConflict';
 
 // Dependency injection interfaces
 export type {
@@ -123,13 +131,21 @@ export {
 export { ReplicatedTableCacheManager } from './core/ReplicatedTableCache';
 export { ReplicatedTableBatchManager } from './core/ReplicatedTableBatch';
 export { ReplicatedTable } from './core/ReplicatedTable';
-export { syncReplicatedTable } from './syncReplicatedTable';
+export {
+  syncReplicatedTable,
+  configureConflictSurfacing,
+} from './syncReplicatedTable';
 export type {
   RemoteFetchContext,
   SyncReplicatedTableAdapter,
   SyncReplicatedTableOptions,
   SyncScope,
 } from './syncReplicatedTable';
+export {
+  parseUpdatedAtMs,
+  REPLICATION_INCREMENTAL_BUFFER_MS,
+  REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
+} from './parseUpdatedAt';
 
 // Mutation utilities
 export {

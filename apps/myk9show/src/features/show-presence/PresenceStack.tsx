@@ -7,6 +7,7 @@
 
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ShowPresence } from './types';
 import { presenceInitials } from './presenceFormat';
 
@@ -28,18 +29,22 @@ export function PresenceStack({ present, max = 4, className }: PresenceStackProp
     <div className={cn('flex items-center', className)} aria-label={label}>
       <div className="flex -space-x-2">
         {shown.map(p => (
-          <span
-            key={p.userId}
-            title={p.role ? `${p.name} · ${p.role}` : p.name}
-            className="inline-block rounded-full ring-2 ring-background"
-          >
-            <Avatar className="h-7 w-7">
-              {p.avatarUrl && <AvatarImage src={p.avatarUrl} alt={p.name} />}
-              <AvatarFallback className="bg-primary text-primary-foreground text-xs font-medium">
-                {presenceInitials(p.name)}
-              </AvatarFallback>
-            </Avatar>
-          </span>
+          <Tooltip key={p.userId}>
+            <TooltipTrigger asChild>
+              <span className="inline-block rounded-full ring-2 ring-background">
+                <Avatar className="h-7 w-7">
+                  {p.avatarUrl && <AvatarImage src={p.avatarUrl} alt={p.name} />}
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xs font-medium">
+                    {presenceInitials(p.name)}
+                  </AvatarFallback>
+                </Avatar>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="font-medium">{p.name}</p>
+              {p.role && <p className="text-xs text-muted-foreground capitalize">{p.role}</p>}
+            </TooltipContent>
+          </Tooltip>
         ))}
         {overflow > 0 && (
           <span

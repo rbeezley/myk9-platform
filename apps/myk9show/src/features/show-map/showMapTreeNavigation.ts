@@ -7,7 +7,14 @@ import {
 import type { ShowMapFilter, ShowMapNode, ShowMapScopeState, ShowMapTree } from './showMapTypes';
 
 export function supportsTreeKeyboardActions(node: ShowMapNode): boolean {
-  return node.type === 'trial' || node.type === 'class' || node.type === 'entry';
+  return (
+    node.type === 'all-exhibitors' ||
+    node.type === 'trial' ||
+    node.type === 'class' ||
+    node.type === 'dog' ||
+    node.type === 'entry' ||
+    node.type === 'dog-entry'
+  );
 }
 
 function nodeMatchesFilter(
@@ -35,6 +42,10 @@ function nodeMatchesScopeAndFilter(
     nodeMatchesCompletionScope(node, scope.completionScope) &&
     nodeMatchesFilter(node, filter, attentionNodeIds)
   );
+}
+
+function nodeCanMatchDirectly(node: ShowMapNode): boolean {
+  return node.type !== 'all-exhibitors' && node.type !== 'dog';
 }
 
 function descendantsMatch(
@@ -66,7 +77,8 @@ export function shouldRenderShowMapNode(
 ): boolean {
   return (
     node.type === 'show' ||
-    nodeMatchesScopeAndFilter(tree, node, filter, attentionNodeIds, scope, scopeNow) ||
+    (nodeCanMatchDirectly(node) &&
+      nodeMatchesScopeAndFilter(tree, node, filter, attentionNodeIds, scope, scopeNow)) ||
     descendantsMatch(tree, node.id, filter, attentionNodeIds, scope, scopeNow)
   );
 }

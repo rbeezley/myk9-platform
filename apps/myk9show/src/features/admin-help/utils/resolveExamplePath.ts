@@ -15,6 +15,21 @@ const makeResolver =
 const PATTERN_RESOLVERS: Record<string, Resolver> = {
   // Shows / trials / classes chain
   '/shows/:id': makeResolver(ids => `/shows/${ids.showId}`, ['showId']),
+  '/shows/:showId/setup': makeResolver(ids => `/shows/${ids.showId}/setup`, ['showId']),
+  '/shows/:showId/show-desk': makeResolver(ids => `/shows/${ids.showId}/show-desk`, ['showId']),
+  '/shows/:showId/entry-management': makeResolver(
+    ids => `/shows/${ids.showId}/entry-management`,
+    ['showId']
+  ),
+  '/shows/:showId/reports': makeResolver(ids => `/shows/${ids.showId}/reports`, ['showId']),
+  '/shows/:showId/results-control': makeResolver(
+    ids => `/shows/${ids.showId}/results-control`,
+    ['showId']
+  ),
+  '/shows/:showId/submit-results': makeResolver(
+    ids => `/shows/${ids.showId}/submit-results`,
+    ['showId']
+  ),
   '/shows/:showId/trials/:trialId': makeResolver(
     ids => `/shows/${ids.trialShowId}/trials/${ids.trialId}`,
     ['trialShowId', 'trialId']

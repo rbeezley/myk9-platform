@@ -79,6 +79,22 @@ Copy this block for each new finding.
 
 ## Open Findings
 
+### QA-NETWORK-ERROR-018
+
+- **Status:** open
+- **Severity:** high
+- **Role:** all authenticated roles, strongest user impact for exhibitor
+- **Surface:** `apps/myk9show/src/hooks/useExhibitorProfile.ts` querying `exhibitor_profiles` with nested `person:people!person_id(..., is_early_adopter)`.
+- **Suite category:** nightly
+- **Pattern:** network-error
+- **Detected by:** Playwright + audit-pages
+- **Evidence:** 2026-06-11 isolated Nightly from `origin/main` `7de825394` failed Phase 2 (`32 passed, 16 failed, 2 skipped`) and standalone Phase 3 (`1 passed, 5 failed`) because Supabase returned `400` / Postgres `42703` for `people_1.is_early_adopter`. Representative failed request: `GET /rest/v1/exhibitor_profiles?select=*%2Cperson%3Apeople%21person_id%28id%2Cfirst_name%2Clast_name%2Cemail%2Cphone%2Cprofile_image%2Cis_early_adopter%29&auth_user_id=eq...`. Representative console error: `[useExhibitorProfile] Error fetching exhibitor profile {code: 42703, message: column people_1.is_early_adopter does not exist}`. The repo contains `supabase/migrations/185_add_is_early_adopter_to_people.sql`, so current `origin/main` expects a DB column that the linked Nightly database does not expose. Evidence paths include `apps/myk9show/test-results/route-health-by-role-Route-26df1-hibitor-routes-render-clean-chromium/error-context.md`, `apps/myk9show/test-results/cross-role-workflows-Cross-ba1f7--continue-to-show-discovery-chromium/error-context.md`, and `apps/myk9show/test-results/uat-secretary-qa-regressio-3f0be-tay-scoped-to-managed-shows-chromium/error-context.md`.
+- **User impact:** Exhibitors are redirected to onboarding instead of My Shows because their profile query fails. All authenticated role groups also log recurring profile-query 400s, which breaks the strict browser-health budget and hides real route-health signal.
+- **Intent check:** Harms exhibitor trust and the secretary/admin "calm control" feeling because authenticated pages appear noisy or redirect unexpectedly even though public routes render clean.
+- **Fix owner:** Supabase schema state for migration `185_add_is_early_adopter_to_people.sql`; secondary owner is `useExhibitorProfile` only if product decides to tolerate missing early-adopter metadata by degrading to `false`.
+- **Proof required:** After the DB schema is repaired or a deliberate code fallback is implemented, rerun Phase 1 Vitest, the exact Phase 2 active Nightly Playwright command from `docs/qa/e2e-suite-map.md`, and standalone Phase 3 route-health on an isolated port. Required proof targets: Phase 2 `50/50` and Phase 3 `6/6` role groups with zero `42703` / owned 400s.
+- **Notes:** Not auto-fixed during Nightly because applying the existing migration or changing early-adopter semantics is a shared-system/product decision. Do not hide this by suppressing 400s in tests.
+
 ### QA-TEST-FLAKE-010
 
 - **Status:** fixed

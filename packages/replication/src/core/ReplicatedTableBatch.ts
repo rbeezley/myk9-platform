@@ -41,7 +41,7 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
    * yet. Allowing a sync download (isDirty=false) to clobber it would cause
    * data loss — this mirrors the Phase 1 set() guard (scoring-sync-bug fix).
    */
-  async batchSet(items: T[]): Promise<void> {
+  async batchSet(items: T[], serverVersions?: Map<string, number>): Promise<void> {
     const db = await this.getDb();
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
 
@@ -60,6 +60,9 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
       }
 
       const normalizedData = { ...item, id: normalizedId } as T;
+      // Prefer the caller-supplied server version; fall back to what was already
+      // stored so a re-sync without a version column doesn't wipe the OCC precondition.
+      const serverVersion = serverVersions?.get(normalizedId) ?? existingRow?.serverVersion;
 
       const row: ReplicatedRow<T> = {
         tableName: this.tableName,
@@ -70,6 +73,7 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
         lastAccessedAt: Date.now(),
         isDirty: false,
         syncStatus: 'synced',
+        ...(serverVersion !== undefined && { serverVersion }),
       };
 
       await tx.store.put(row);
@@ -100,11 +104,11 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
    * chunks would re-introduce the timeout risk.  The write-ahead log gives us
    * atomicity without that constraint.
    */
-  async batchSetChunked(items: T[], chunkSize: number = MAX_CHUNK_SIZE): Promise<void> {
+  async batchSetChunked(items: T[], chunkSize: number = MAX_CHUNK_SIZE, serverVersions?: Map<string, number>): Promise<void> {
     const totalRows = items.length;
 
     if (totalRows <= chunkSize) {
-      return this.batchSet(items);
+      return this.batchSet(items, serverVersions);
     }
 
     this.logger.log(
@@ -149,6 +153,7 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
           }
 
           const normalizedData = { ...item, id: normalizedId } as T;
+          const serverVersion = serverVersions?.get(normalizedId) ?? existingRow?.serverVersion;
 
           const row: ReplicatedRow<T> = {
             tableName: this.tableName,
@@ -159,6 +164,7 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
             lastAccessedAt: Date.now(),
             isDirty: false,
             syncStatus: 'synced',
+            ...(serverVersion !== undefined && { serverVersion }),
           };
 
           await tx.store.put(row);

@@ -4,9 +4,67 @@ Active work items only. Resolved historical context lives in git history and dat
 
 ---
 
+## Pre-Launch Critical Audit — 2026-06-09
+
+Full findings in `docs/pre-launch-audit-2026-06-09.md`. Non-Stripe criticals fixed same day (failed-mutation persistence + synchronous backup in `@myk9/replication`, bulk show actions wired to real mutations, armband failures surfaced).
+
+- [ ] **Stripe launch checklist (blocked on Stripe implementation)** — when building payments: webhook idempotency (UNIQUE on `stripe_orders.stripe_checkout_session_id` + processed-event guard), all-or-nothing entry creation in the webhook, non-200 response on processing failure, server-side fee re-derivation in `stripe-checkout` (never trust cart `entry_fee_cents`), `charge.refunded`/dispute handlers, remove `'MOCK-PAYMENT-REF'` from `submitShowRegistration.ts` and the selectable credit-card option.
+- [x] ~~**Registration confirmation email**~~ — PR [#619](https://github.com/rbeezley/myk9-platform/pull/619). `ConfirmationStep` now sends via the existing registration-scoped `send-registration-email` edge function (same sender the Entries page uses for resends), with two-layer idempotency (server `Idempotency-Key` + client `useRef` guards) and clipboard kept as a graceful fallback. No new migration/deploy.
+- [x] ~~**Waitlist offer notification**~~ — PR [#618](https://github.com/rbeezley/myk9-platform/pull/618). `useWaitlistManagementData` now notifies the offered exhibitor via the show-messaging single-recipient path (`getOrCreateThread` + `sendMessage`, fires the deployed `push-trigger-chat-message`). Resolves `people.id` → `auth_user_id` for the thread participant. Not `send-targeted-message` (it can't target one exhibitor). No deploy needed.
+- [x] ~~**Verify live RLS policies against migration lineage**~~ — Verified CLEAN 2026-06-09 (read-only `pg_policies` audit on live project `sojmvhhwsjxmfistvzbe`). RLS is enabled+FORCED on all three tables; zero `USING(true)`/`WITH CHECK(true)` policies survive; every migration-006 policy was dropped+recreated with a real predicate downstream (016 → … → `20260524121000` for people/dogs, `20260604004045` for `entries_update`). Note: migration 023 does NOT touch these tables (it tightens health/stripe/notification) — the todo's "023+" lineage label was imprecise but the concern is satisfied. Only `anon`-readable surface is `entries_anon_select_for_tv` (mig 108, scoped to published/active shows for TV display — intentional, not a hole). No DROP POLICY follow-up needed.
+- [x] ~~**Delete or finish dormant `ImpersonationService`**~~ — Resolved 2026-06-09: deleted `apps/myk9show/src/services/ImpersonationService.ts` (576 lines). Liveness check confirmed it was dead — no imports of the file, the `impersonationService` singleton, or the `useImpersonationContext` hook; no route, no UI consumer (`UserImpersonationDialog` had already been deleted in the Phase 8 audit), and no tests. The shared `ImpersonationContext`/`ImpersonationSession` types in `audit-types.ts` were kept (still used by `AuditService`), as were the `impersonation_sessions` table and `AuditAction.IMPERSONATE_*` enum values (independent audit-log infrastructure). No real TOTP was implemented since there was no live consumer to justify the security-sensitive work.
+
+---
+
+## Phase 4 Conflict Surfacing — Shipped 2026-06-08
+
+PRs [#602](https://github.com/rbeezley/myk9-platform/pull/602) (detection primitives) + [#603](https://github.com/rbeezley/myk9-platform/pull/603) (OCC version preconditions + test fixes) + [#604](https://github.com/rbeezley/myk9-platform/pull/604) (flag enable). `features.showConflictSurfacing: true` as of 2026-06-08.
+
+- [x] ~~**[BLOCKER] Fix upload-before-download ordering — OCC required**~~ — Resolved 2026-06-08 by PR [#603](https://github.com/rbeezley/myk9-platform/pull/603): `MutationManager` uploads now carry a `WHERE version = <baseVersion>` OCC precondition; a stale write is rejected (0-row result = conflict), leaving the row dirty for the download loop to detect. Server trigger auto-increments `version` on each accepted write.
+- [x] ~~**Two-browser smoke validation**~~ — Completed 2026-06-08 in this session. Synthetic `replication:conflict` event dispatch confirmed the Sonner toast appears; "Keep mine" (clears conflict state + updates server version) and "Take theirs" (replaces local data + discards pending mutation) both confirmed correct in live browser. Flag flipped `true` in PR [#604](https://github.com/rbeezley/myk9-platform/pull/604).
+
+---
+
+## Phase 4 Conflict Surfacing — Deferred Polish
+
+Descoped from the shipped #602–#604 MVP. Not blockers for the enabled flag; build when the need surfaces.
+
+- [x] **Mount-time conflict re-prompt (`getConflictedRows()`)** — Shipped PR #606 (2026-06-08). `getConflictedRows()` on `ReplicatedTable<T>` + `ReplicationSyncProvider` re-emits persisted conflicts on auth. Kill-switch gated; per-table error isolation.
+- [x] **Mutation-hold for conflicted rows (Task 4)** — Shipped PR #609 (2026-06-08). Upload-skip guard in `MutationManager.uploadPendingMutations` reads `syncStatus` from IDB; holds mutations while `'conflict'`, releases when user resolves.
+- [x] ~~**Two-context Playwright E2E spec**~~ — PR [#621](https://github.com/rbeezley/myk9-platform/pull/621). `showConflictSurfacing.spec.ts`: two `browser.newContext()` instances on the same Heritage show seed conflicted `entries` rows into the real replication IndexedDB, dispatch `replication:conflict`, assert the Sonner toast + both buttons, and exercise the real `resolveReplicationConflict` API (Keep mine / Take theirs) with state read back from IDB. Synthetic dispatch (full-offline divergence not deterministic since the OCC hold was descoped in #602) — documented in the spec header. Passed alone twice.
+- [x] **`resolveReplicationConflict()` unified API** — Shipped (2026-06-09). `resolveReplicationConflict(id, resolution)` on `ReplicatedTable<T>` reads `remoteData` / `remoteServerVersion` from the persisted IDB conflict snapshot; callers no longer thread event-detail params through the toast handler. `ReplicationSyncProvider` toast updated to use the unified API. 3 new tests in `ReplicatedTable.test.ts` (keep-local, take-remote, no-op).
+
+---
+
+---
+
+## Reports Page — Filter UI Bugs
+
+- [x] ~~**Fix Reports page trial/class dropdowns showing raw UUIDs**~~ — PR [#617](https://github.com/rbeezley/myk9-platform/pull/617). Root cause: labels built from nullable columns collapsed to whitespace, and Base UI `<Select.Item>` falls back to echoing the option `value` (the UUID). Now reuses `formatClassLabel` for classes + `trial.name` fallback for trials; values stay UUIDs. (Show-selector half still deferred to the top-nav overhaul.)
+
+---
+
+## Show Map
+
+- [x] ~~**Add "All Exhibitors" by-dog view to Show Map**~~ — Implemented in branch `codex/show-map-all-exhibitors`: Show Map now has a collapsed-by-default synthetic **All Exhibitors** branch above trial rows, grouping entries by dog and showing each dog's class/trial context from the existing tree inputs with no new fetches. Focused Show Map tests and typecheck pass.
+
+---
+
+## UX Consistency
+
+- [ ] **Standardize item actions into a shared 3-dot menu** — Buttons for per-item actions are spread across pages and cards; consolidate them into one reusable overflow (3-dot/kebab) menu so users learn a single place to find actions on any item. Already FOUR ad-hoc menus exist (`ShowMapRowActionsMenu`, `ClassRowActionsMenu`, `DogActionsMenu`, `EntryActionsMenu`) + 36 files using 3-dot icons — collapse them onto one primitive, generalizing the shipped Show Map `RowActionsMenu` pattern. Keep the single primary CTA visible; menu is for secondary/overflow only (check `docs/INTENT.md`). Files: `apps/myk9show/src/components/ui/dropdown-menu/dropdown-menu.tsx`, `apps/myk9show/src/features/show-map/ShowMapRowActionsMenu.tsx`, `apps/myk9show/src/components/classes/ClassRowActionsMenu.tsx`, `apps/myk9show/src/components/dogs/DogDetails/DogActionsMenu.tsx`, `apps/myk9show/src/components/classes/ClassEntriesTable/components/EntryActionsMenu.tsx`. Full context in TO-DOS.md § "Standardize item actions into a 3-dot menu".
+
+---
+
+## Entry Management
+
+- [ ] **Add checkbox multi-select for bulk editing on Entry Management** — Each entry row needs a checkbox plus a select-all checkbox; bulk actions apply to the checked set. Today bulk is scope-based (`onBulkCheckIn(entryIds)` via `BulkCheckInDialog` acts on a whole tab) with no row-level selection — add a selection layer and route existing bulk handlers through it. Mind the enrollment grouping (page-level vs per-exhibitor select-all) and extract the UI — `EnrollmentCard.tsx` is already 691 lines (>500 limit). Files: `apps/myk9show/src/components/entries/management/RegistrationView.tsx`, `apps/myk9show/src/components/entries/management/EnrollmentCard.tsx`, `apps/myk9show/src/components/entries/management/BulkCheckInDialog.tsx`, `apps/myk9show/src/components/ui/checkbox`. Full context in TO-DOS.md § "Checkbox bulk-select on Entry Management".
+
+---
+
 ## Platform Unification — myK9Show + myK9Q
 
-- [ ] **Disable/delete monorepo myK9Q Vercel project** — After PR #570 merges, disable or delete the unused `myk9-platform-myk9q` Vercel project so monorepo myK9Show changes no longer trigger stale/failing myK9Q deploys. This is a shared-system mutation and requires separate explicit approval at execution time. Do **not** touch the separate myK9Qv3 repository or production `myk9q.com`.
+- [x] ~~**Disable/delete monorepo myK9Q Vercel project**~~ — Deleted 2026-06-10. `myk9-platform-myk9q` Vercel project permanently removed. `my-k9-q-react` (myk9q.com) untouched.
 - [x] ~~**Execute myK9Show + myK9Q unification plan**~~ — Resolved 2026-06-06 in branch `codex/delete-myk9q-app`: the unused monorepo `apps/myk9q` app was deleted after ringside UI moved into myK9Show `/at-show` backed by `packages/ringside`; root scripts, CI, bootstrap helpers, and tracking docs were updated. The separate myK9Qv3 repository and production `myk9q.com` deployment were not touched. Any later deletion/disablement of the monorepo `myk9-platform-myk9q` Vercel project remains a separate approval-gated shared-system operation. Full plan in [docs/plans/2026-05-17-unify-myk9show-myk9q.md](docs/plans/2026-05-17-unify-myk9show-myk9q.md).
   - [x] ~~**Phase 3 follow-up: regenerate Supabase types for ringside RPCs**~~ — Generated database types now include `upsert_ringside_session` / `clear_ringside_session_presence`, and `RingsideSessionHeartbeat` calls the typed RPC client directly.
   - [x] ~~**Phase 3 follow-up: wire ringside favorite armbands read path into presence**~~ — `RingsideSessionHeartbeat` now sends normalized `dog_favorites_<showId>` armbands to `upsert_ringside_session`.

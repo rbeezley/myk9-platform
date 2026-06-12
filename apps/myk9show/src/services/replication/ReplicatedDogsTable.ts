@@ -11,6 +11,8 @@
 import {
   ReplicatedTable,
   syncReplicatedTable,
+  parseUpdatedAtMs,
+  REPLICATION_INCREMENTAL_BUFFER_MS,
   type SyncReplicatedTableAdapter,
   type SyncResult,
 } from '@myk9/replication';
@@ -142,20 +144,107 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
         return data ?? [];
       },
       getRemoteId: remote => String(remote.id),
+      getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
       toLocalRow: rowToDog,
       filterLocalRows: (rows, scope) =>
         scope.value ? rows.filter(r => r.ownerId === scope.value) : rows,
       resolveConflict: (local, remote) => this.resolveConflict(local, remote),
     };
 
-    const result = await syncReplicatedTable(this, adapter, { value: licenseKey });
+    const result = await syncReplicatedTable(this, adapter, { value: licenseKey }, {
+      incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
+    });
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {
       logger.error(`[${this.getTableName()}] Sync failed:`, result.error);
       return { ...result, error: getSyncErrorMessage(result.error) };
     }
 
+    // Right-to-erasure / tombstone cleanup. The dogs sync is incremental and the
+    // dogs_select policy keeps `deleted_at IS NULL` in USING, so RLS hides
+    // soft-deleted rows from the sync query — the client never receives the
+    // tombstone and a deleted dog would otherwise linger in every cached replica
+    // forever. Reconcile against the live id set instead. Side-effect only and
+    // fully guarded: a failure here must never turn a successful download into a
+    // failed sync.
+    if (result.success) {
+      try {
+        const removed = await this.reconcileDeleted(licenseKey || undefined);
+        if (removed > 0) {
+          logger.log(`[${this.getTableName()}] reconcileDeleted removed ${removed} stale rows`);
+        }
+      } catch (err) {
+        logger.warn(`[${this.getTableName()}] reconcileDeleted skipped`, err);
+      }
+    }
+
     return result;
+  }
+
+  /**
+   * Remove locally-cached dogs the server no longer exposes to this user —
+   * soft-deleted dogs (RLS filters `deleted_at IS NOT NULL` out of every read, so
+   * incremental sync can never observe the tombstone), hard-deleted dogs, or dogs
+   * that left the user's visibility scope.
+   *
+   * Strategy: fetch the COMPLETE set of live, RLS-permitted dog ids (a cheap,
+   * index-only `select('id')`) and drop any non-dirty local row not in that set.
+   * `removeStaleEntries` preserves dirty rows, so a pending local create/edit is
+   * never wiped.
+   *
+   * The id fetch is paginated: PostgREST caps a response at ~1000 rows, and a staff
+   * user (is_show_manager → RLS exposes every dog) can exceed that. An unpaginated
+   * `select('id')` would silently truncate, and pruning against a partial set would
+   * delete every valid cached dog beyond the first page.
+   *
+   * Pagination is KEYSET (`id > lastId` ordered by `id`), not offset (`.range()`):
+   * offset pages can skip or duplicate rows when dogs are inserted/deleted between
+   * page fetches, producing an incomplete liveIds set that over-prunes. A keyset
+   * cursor on the unique PK is immune to that concurrent-write drift. If ANY page
+   * errors we abort and prune nothing — never reconcile against an incomplete result.
+   *
+   * @param scopeValue Optional owner_id scope, mirroring the sync fetch filter.
+   * @returns number of stale rows removed.
+   */
+  async reconcileDeleted(scopeValue?: string): Promise<number> {
+    const PAGE_SIZE = 1000;
+    // Bound the loop so a server that keeps returning full pages can't spin forever.
+    const MAX_PAGES = 100;
+    const liveIds = new Set<string>();
+    let lastId: string | undefined;
+
+    for (let page = 0; page < MAX_PAGES; page++) {
+      let query = supabase.from('dogs').select('id').is('deleted_at', null);
+      if (scopeValue) {
+        query = query.eq('owner_id', scopeValue);
+      }
+      if (lastId !== undefined) {
+        // Keyset cursor: fetch the next page strictly after the last id we saw.
+        query = query.gt('id', lastId);
+      }
+
+      const { data, error } = await query.order('id', { ascending: true }).limit(PAGE_SIZE);
+      if (error || !data) {
+        // Any fetch failure → abort. Pruning against a partial set could wipe the replica.
+        return 0;
+      }
+
+      for (const row of data) {
+        liveIds.add(String((row as { id: string }).id));
+      }
+
+      if (data.length < PAGE_SIZE) {
+        // Short page → we have the complete live id set; safe to reconcile.
+        return this.removeStaleEntries(liveIds);
+      }
+
+      // Advance the cursor to the last id of this full page.
+      lastId = String((data[data.length - 1] as { id: string }).id);
+    }
+
+    // Hit the page cap without a short page — treat as incomplete and prune nothing.
+    logger.warn(`[${this.getTableName()}] reconcileDeleted exceeded ${MAX_PAGES} pages; skipping prune`);
+    return 0;
   }
 
   /**

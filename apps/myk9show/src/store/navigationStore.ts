@@ -76,7 +76,6 @@ const ROUTE_METADATA = {
   '/admin/templates': { title: 'Template Management', roles: ['site_admin'] },
   '/admin/templates/new': { title: 'New Template', roles: ['site_admin'] },
   '/admin/templates/:templateId/edit': { title: 'Edit Template', roles: ['site_admin'] },
-  '/secretary/run-order': { title: 'Run Order', roles: ['secretary', 'site_admin'] },
 };
 
 // Helper function to match route patterns with actual paths

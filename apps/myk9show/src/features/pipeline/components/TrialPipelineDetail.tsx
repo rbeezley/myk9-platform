@@ -204,7 +204,7 @@ export const TrialPipelineDetail: React.FC = () => {
               </CardHeader>
               <CardContent>
                 {viewingStage === 4 && evalCtx && evalCtx.classes.length > 0 && (
-                  <ScoringDaySummary classes={evalCtx.classes} />
+                  <ScoringDaySummary classes={evalCtx.classes} showId={showId} />
                 )}
 
                 <ChecklistSection

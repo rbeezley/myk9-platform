@@ -2,6 +2,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { Routes, Route } from 'react-router-dom';
 import { render } from '@/test/utils/testUtils';
 import ResultsSubmissionPage from '../ResultsSubmissionPage';
 
@@ -30,30 +31,15 @@ const mockAKCData = vi.hoisted(() => ({
   isSuccess: true,
 }));
 
-const mockShowStoreState = vi.hoisted(() => {
-  const state = {
-    selectedShowId: 'show-1',
-    shows: [
-      { id: 'show-1', name: 'Spring Scent Trial' },
-      { id: 'show-2', name: 'Fall Classic' },
-    ],
-    selectShow: vi.fn((showId: string) => {
-      state.selectedShowId = showId;
-    }),
-  };
-  return state;
-});
-const mockSelectShow = mockShowStoreState.selectShow;
-
 // ---------------------------------------------------------------------------
 // Module mocks
 // ---------------------------------------------------------------------------
 
-vi.mock('@/store/showStore', () => ({
-  useShowStore: () => ({
-    selectedShowId: mockShowStoreState.selectedShowId,
-    shows: mockShowStoreState.shows,
-    selectShow: mockShowStoreState.selectShow,
+vi.mock('@/hooks/useFastShowDetails', () => ({
+  useFastShowDetails: (showId: string | undefined) => ({
+    show: showId
+      ? { id: showId, name: 'Spring Scent Trial', organization: 'AKC' }
+      : null,
   }),
 }));
 
@@ -104,6 +90,19 @@ vi.mock('@/services/database/supabaseClient', () => ({
 }));
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function renderPage() {
+  return render(
+    <Routes>
+      <Route path="/shows/:id/*" element={<ResultsSubmissionPage />} />
+    </Routes>,
+    { initialRoute: '/shows/show-1/submit-results' }
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -114,78 +113,32 @@ describe('ResultsSubmissionPage', () => {
     mockAKCData.isLoading = false;
     mockAKCData.isError = false;
     mockAKCData.isSuccess = true;
-    mockShowStoreState.selectedShowId = 'show-1';
-    mockShowStoreState.shows = [
-      { id: 'show-1', name: 'Spring Scent Trial' },
-      { id: 'show-2', name: 'Fall Classic' },
-    ];
     mockInvoke.mockResolvedValue({ data: { success: true }, error: null });
     vi.clearAllMocks();
   });
 
   it('renders the page heading', async () => {
-    render(<ResultsSubmissionPage />);
+    renderPage();
     await waitFor(() => expect(screen.getByText('Results Submission')).toBeInTheDocument());
   });
 
-  it('renders the show selector', async () => {
-    render(<ResultsSubmissionPage />);
-    await waitFor(() => expect(screen.getByTestId('show-selector')).toBeInTheDocument());
-  });
-
   it('renders the organization selector', async () => {
-    render(<ResultsSubmissionPage />);
+    renderPage();
     await waitFor(() => expect(screen.getByTestId('org-selector')).toBeInTheDocument());
   });
 
-  it('selects the route show when ?showId exists', async () => {
-    render(<ResultsSubmissionPage />, {
-      initialRoute: '/secretary/results-submission?showId=show-2',
-    });
-
-    await waitFor(() => expect(mockSelectShow).toHaveBeenCalledWith('show-2'));
-  });
-
-  it('applies the route show once without overriding later show changes', async () => {
-    const { rerender } = render(<ResultsSubmissionPage />, {
-      initialRoute: '/secretary/results-submission?showId=show-2',
-    });
-
-    await waitFor(() => expect(mockSelectShow).toHaveBeenCalledWith('show-2'));
-    expect(mockShowStoreState.selectedShowId).toBe('show-2');
-
-    mockSelectShow.mockClear();
-    mockShowStoreState.selectedShowId = 'show-1';
-    rerender(<ResultsSubmissionPage />);
-
-    await waitFor(() => expect(screen.getByText('Spring Scent Trial')).toBeInTheDocument());
-    expect(mockSelectShow).not.toHaveBeenCalledWith('show-2');
-  });
-
-  it('keeps the selected show when ?showId is invalid', async () => {
-    mockShowStoreState.selectedShowId = 'show-2';
-
-    render(<ResultsSubmissionPage />, {
-      initialRoute: '/secretary/results-submission?showId=missing-show',
-    });
-
-    await waitFor(() => expect(screen.getByText('Fall Classic')).toBeInTheDocument());
-    expect(mockSelectShow).not.toHaveBeenCalledWith('missing-show');
-    expect(mockSelectShow).not.toHaveBeenCalledWith('show-1');
-  });
-
   it('renders the XML preview area', async () => {
-    render(<ResultsSubmissionPage />);
+    renderPage();
     await waitFor(() => expect(screen.getByTestId('xml-preview')).toBeInTheDocument());
   });
 
   it('renders the Download XML button', async () => {
-    render(<ResultsSubmissionPage />);
+    renderPage();
     await waitFor(() => expect(screen.getByTestId('download-btn')).toBeInTheDocument());
   });
 
   it('renders the Send to AKC button', async () => {
-    render(<ResultsSubmissionPage />);
+    renderPage();
     await waitFor(() => expect(screen.getByTestId('send-btn')).toBeInTheDocument());
   });
 
@@ -230,7 +183,7 @@ describe('ResultsSubmissionPage', () => {
       ],
     } as import('@myk9/secretary').AKCSubmissionData;
 
-    render(<ResultsSubmissionPage />);
+    renderPage();
     await waitFor(() => expect(screen.queryByTestId('preflight-warning')).not.toBeInTheDocument());
   });
 
@@ -275,7 +228,7 @@ describe('ResultsSubmissionPage', () => {
       ],
     } as import('@myk9/secretary').AKCSubmissionData;
 
-    render(<ResultsSubmissionPage />);
+    renderPage();
     await waitFor(() => expect(screen.getByTestId('preflight-warning')).toBeInTheDocument());
     expect(screen.getByTestId('preflight-warning').textContent).toContain('1');
   });
@@ -295,7 +248,7 @@ describe('ResultsSubmissionPage', () => {
       entries: [],
     } as import('@myk9/secretary').AKCSubmissionData;
 
-    render(<ResultsSubmissionPage />);
+    renderPage();
     const sendBtn = await screen.findByTestId('send-btn');
     fireEvent.click(sendBtn);
 
@@ -318,7 +271,7 @@ describe('ResultsSubmissionPage', () => {
   });
 
   it('shows empty submission history message when no history exists', async () => {
-    render(<ResultsSubmissionPage />);
+    renderPage();
     await waitFor(() =>
       expect(screen.getByText('No submissions recorded for this show.')).toBeInTheDocument()
     );
@@ -339,7 +292,7 @@ describe('ResultsSubmissionPage', () => {
       },
     ];
 
-    render(<ResultsSubmissionPage />);
+    renderPage();
     await waitFor(() => expect(screen.getByTestId('history-table')).toBeInTheDocument());
   });
 
@@ -358,7 +311,7 @@ describe('ResultsSubmissionPage', () => {
       entries: [],
     } as import('@myk9/secretary').AKCSubmissionData;
 
-    render(<ResultsSubmissionPage />);
+    renderPage();
     const sendBtn = await screen.findByTestId('send-btn');
     fireEvent.click(sendBtn);
 
@@ -382,7 +335,7 @@ describe('ResultsSubmissionPage', () => {
       entries: [],
     } as import('@myk9/secretary').AKCSubmissionData;
 
-    render(<ResultsSubmissionPage />);
+    renderPage();
     const sendBtn = await screen.findByTestId('send-btn');
     fireEvent.click(sendBtn);
 

@@ -275,6 +275,47 @@ export const offerWaitlistSpot = async (waitlistEntryId: string, expirationHours
 };
 
 /**
+ * Resolve the messaging recipient for a waitlist offer.
+ *
+ * Maps the waitlist entry's `exhibitor_id` (a `people.id`) to the exhibitor's
+ * `auth_user_id`, which is the `participant_id` the show-messaging system keys
+ * inbox threads on. Mirrors `getShowMapHandlerMessageTarget` so the waitlist
+ * offer reuses the same single-recipient notification transport.
+ */
+export const getWaitlistOfferMessageTarget = async (exhibitorId: string) => {
+  const startTime = Date.now();
+
+  try {
+    const { data, error } = await supabase
+      .from('people')
+      .select('id, auth_user_id, first_name, last_name')
+      .eq('id', exhibitorId)
+      .single();
+
+    const duration = Date.now() - startTime;
+    logQuery('people', 'waitlist_offer_message_target', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'people', 'waitlist_offer_message_target');
+    }
+
+    const authUserId = data?.auth_user_id ?? null;
+    const exhibitorName =
+      [data?.first_name, data?.last_name].filter(Boolean).join(' ').trim() || null;
+
+    return {
+      data: { participantAuthUserId: authUserId, exhibitorName },
+      error: null,
+    };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'people', 'waitlist_offer_message_target');
+    logQuery('people', 'waitlist_offer_message_target', duration, dbError.message);
+    return { data: null, error: dbError };
+  }
+};
+
+/**
  * Remove from waitlist (delete the waitlist entry)
  */
 export const removeFromWaitlist = async (waitlistEntryId: string) => {

@@ -15,6 +15,16 @@ type ImportFunction = () => Promise<
   { default: ComponentType<Record<string, unknown>> } | ComponentType<Record<string, unknown>>
 >;
 
+function routePatternToRegex(routePattern: string): RegExp {
+  const escapedSegments = routePattern.split('/').map(segment => {
+    if (segment === '*') return '.*';
+    if (segment.startsWith(':')) return '[^/]+';
+    return segment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  });
+
+  return new RegExp(`^${escapedSegments.join('/')}$`);
+}
+
 // Admin route components
 export const adminRouteComponents: Record<string, ImportFunction> = {
   '/admin/dashboard': () => import('@/pages/admin/AdminDashboard'),
@@ -54,6 +64,18 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
   // Show management
   '/shows': () => import('@/pages/BrowseShowsPage'),
   '/shows/:id': () => import('@/pages/ShowDetailsPage'),
+  '/shows/:showId/setup': () =>
+    import('@/pages/secretary/ShowWorkbenchSetupPage').then(m => ({
+      default: m.ShowWorkbenchSetupPage,
+    })),
+  '/shows/:showId/show-desk': () =>
+    import('@/pages/secretary/ShowWorkbenchShowDeskPage').then(m => ({
+      default: m.ShowWorkbenchShowDeskPage,
+    })),
+  '/shows/:showId/entry-management': () => import('@/pages/secretary/EntryManagementPage'),
+  '/shows/:showId/reports': () => import('@/pages/secretary/ReportsPage'),
+  '/shows/:showId/results-control': () => import('@/pages/secretary/ResultsControlPage'),
+  '/shows/:showId/submit-results': () => import('@/pages/secretary/ResultsSubmissionPage'),
   '/shows/:showId/trials/:trialId': () => import('@/pages/TrialDetailsPage'),
   '/trials/:trialId': () => import('@/pages/TrialDetailsPage'),
   '/shows/:showId/trials/:trialId/classes/:classId': () => import('@/pages/ClassDetailsPage'),
@@ -99,12 +121,16 @@ export const secretaryRouteComponents: Record<string, ImportFunction> = {
     import('@/pages/secretary/SecretaryDashboardPage').then(m => ({
       default: m.SecretaryDashboardPage,
     })),
-  '/secretary/shows/:showId': () => import('@/pages/secretary/ShowWorkbenchPage'),
+  '/secretary/shows/:showId': () =>
+    import('@/routes/showRouteRedirects').then(m => ({
+      default: m.LegacySecretaryShowRedirect,
+    })),
+  '/secretary/shows/:showId/*': () =>
+    import('@/routes/showRouteRedirects').then(m => ({
+      default: m.LegacySecretaryShowRedirect,
+    })),
   '/shows': () => import('@/pages/BrowseShowsPage'),
   '/secretary/create-show/wizard': () => import('@/pages/secretary/ShowCreationWizardPage'),
-  '/secretary/results-control': () => import('@/pages/secretary/ResultsControlPage'),
-  '/secretary/run-order': () =>
-    import('@/pages/secretary/RunOrderPage').then(m => ({ default: m.RunOrderPage })),
   // Add more secretary routes as they're defined
 } as const;
 
@@ -176,9 +202,8 @@ export function getRouteImportFunction(path: string): ImportFunction | null {
 
   // Then try pattern matching for parameterized routes
   for (const [routePattern, importFn] of Object.entries(fullRouteRegistry)) {
-    if (routePattern.includes(':')) {
-      const regex = new RegExp('^' + routePattern.replace(/:[^/]+/g, '[^/]+') + '$');
-      if (regex.test(path)) {
+    if (routePattern.includes(':') || routePattern.includes('*')) {
+      if (routePatternToRegex(routePattern).test(path)) {
         return importFn;
       }
     }
@@ -192,9 +217,8 @@ export function getRoutePriority(path: string): 'critical' | 'high' | 'medium' |
   for (const [priority, routes] of Object.entries(routeCategories)) {
     if (
       routes.some(route => {
-        if (route.includes(':')) {
-          const regex = new RegExp('^' + route.replace(/:[^/]+/g, '[^/]+') + '$');
-          return regex.test(path);
+        if (route.includes(':') || route.includes('*')) {
+          return routePatternToRegex(route).test(path);
         }
         return route === path;
       })

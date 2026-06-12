@@ -37,8 +37,8 @@ function buildAttentionItems(shows: Show[], phases: Map<string, ShowPhase>): Att
 
   for (const show of shows) {
     const phase = phases.get(show.id);
-    const setupHref = `/secretary/shows/${show.id}?phase=setup`;
-    const showDeskHref = `/secretary/shows/${show.id}?phase=show-desk`;
+    const setupHref = `/shows/${show.id}/setup`;
+    const showDeskHref = `/shows/${show.id}/show-desk`;
 
     if (show.status === 'draft') {
       items.push({
@@ -106,6 +106,7 @@ export function useMyShows(shows: Show[]): MyShowsBuckets {
     }
 
     upcoming.sort((a, b) => a.startDate.localeCompare(b.startDate));
+    draft.sort((a, b) => a.startDate.localeCompare(b.startDate));
     past.sort((a, b) => b.startDate.localeCompare(a.startDate));
 
     return { today, upcoming, draft, past, attentionNeeded: buildAttentionItems(shows, phases) };

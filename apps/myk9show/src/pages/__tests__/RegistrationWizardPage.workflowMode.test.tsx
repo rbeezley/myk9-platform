@@ -253,9 +253,9 @@ describe('RegistrationWizardPage — workflowMode derivation', () => {
     expect(isShowDeskLateEntryMode(new URLSearchParams('entryMode=late'))).toBe(false);
   });
 
-  it('returns to Show Desk after late-entry completion', () => {
+  it('returns to Show Desk sub-route after late-entry completion', () => {
     expect(resolveRegistrationCompletionPath('show 1/late', true)).toBe(
-      '/secretary/shows/show%201%2Flate?phase=show-desk'
+      '/shows/show%201%2Flate/show-desk'
     );
     expect(resolveRegistrationCompletionPath('show 1/late', false)).toBe('/shows/show%201%2Flate');
   });

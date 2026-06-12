@@ -9,6 +9,30 @@
  */
 
 /**
+ * Persisted row conflict snapshot for dirty local rows that diverge from the
+ * clean base and remote replacement.
+ */
+export interface ReplicationConflictSnapshot<T = Record<string, unknown>> {
+  tableName: string;
+  rowId: string;
+  fields: string[];
+  localData: T;
+  remoteData: T;
+  baseData: T;
+  baseVersion: number;
+  localVersion: number;
+  /** Server-side `version` column of the remote row — used to update the OCC
+   *  precondition after the user chooses "Keep mine" so the next upload succeeds. */
+  remoteServerVersion: number;
+  detectedAt: number;
+}
+
+export interface ReplicationConflictEventDetail<T = Record<string, unknown>>
+  extends ReplicationConflictSnapshot<T> {}
+
+export type ReplicationConflictResolution = 'keep-local' | 'take-remote';
+
+/**
  * Generic replicated row wrapper
  * Wraps any table row with replication metadata
  */
@@ -23,6 +47,13 @@ export interface ReplicatedRow<T> {
   lastModifiedAt?: number; // Protect recently edited data
   isDirty: boolean; // Has local changes not yet synced
   syncStatus: SyncStatus;
+  baseData?: T; // Clean row snapshot captured when the row first became dirty
+  baseVersion?: number; // Version of the clean base snapshot
+  /** Server-side `version` column value from the last successful sync.
+   *  Used as the OCC precondition on the next UPDATE: WHERE version = serverVersion.
+   *  Updated by set() when a clean row arrives from the server. */
+  serverVersion?: number;
+  conflict?: ReplicationConflictSnapshot<T>; // Persisted conflict snapshot
 }
 
 /**
@@ -31,17 +62,44 @@ export interface ReplicatedRow<T> {
 export type SyncStatus = 'synced' | 'pending' | 'conflict' | 'error';
 
 /**
+ * Per-scope sync state.
+ *
+ * A replicated table can be synced under multiple `SyncScope.value`s — e.g.
+ * `entries` syncs globally (scope `''`, no `show_id` filter) from the provider
+ * AND per-show from show-day pages. The incremental watermark and row count are
+ * scope-specific: if they were shared, a sync under scope B would push scope A's
+ * `since` past rows A hasn't seen yet, silently dropping them from A's view until
+ * the next forced full sync. These fields live per-scope to prevent that.
+ */
+export interface ScopeSyncState {
+  /** Max-observed incremental watermark for this scope (ms epoch). */
+  lastIncrementalSyncAt: number;
+  /** Rows cached for this scope at the last successful sync. */
+  totalRows?: number;
+}
+
+/**
  * Sync metadata per table
  */
 export interface SyncMetadata {
   tableName: string;
   lastFullSyncAt: number;
+  /**
+   * Table-global incremental watermark. Used for unscoped syncs (scope.value
+   * `undefined`). Scoped syncs read/write `scopes[scope.value]` instead — see
+   * {@link ScopeSyncState}.
+   */
   lastIncrementalSyncAt: number;
   totalRows?: number; // Total rows cached
   syncStatus?: 'idle' | 'syncing' | 'error';
   errorMessage?: string;
   conflictCount?: number;
   pendingMutations?: number;
+  /**
+   * Per-(scope.value) watermark + row count. Keyed by `SyncScope.value`. Absent
+   * for tables only ever synced unscoped. Populated lazily on first scoped sync.
+   */
+  scopes?: Record<string, ScopeSyncState>;
 }
 
 /**
@@ -62,8 +120,17 @@ export interface PendingMutation {
   dependsOn?: string[]; // IDs of mutations that must complete before this one
   sequenceNumber?: number; // Global sequence for ordering
 
+  /** OCC precondition: the server-side `version` column value when this mutation
+   *  was queued. UPDATE carries WHERE version = serverVersion so a concurrent
+   *  server write (version bumped by trigger) causes 0-row rejection rather than
+   *  silent last-write-wins. Absent on INSERT/DELETE or legacy queued mutations. */
+  serverVersion?: number;
+
   /** @internal Set by MutationManager; do not read or mutate externally. */
   nextRetryAt?: number;
+
+  /** When the mutation was moved to the failed_mutations store (permanent failure) */
+  failedAt?: number;
 }
 
 /**
@@ -88,6 +155,12 @@ export interface SyncResult {
   conflictsResolved?: number;
   duration: number; // Milliseconds
   error?: string; // Error message if failed
+  /** The `since` watermark (epoch ms) used for this fetch. Observability only. */
+  since?: number;
+  /** True when this sync ran a full re-sync because the local replica was empty
+   *  despite metadata indicating it previously held rows — an unexpected eviction
+   *  worth logging (it is the silent failure mode the watermark fix guards). */
+  recoveredFromEmptyReplica?: boolean;
 }
 
 /**

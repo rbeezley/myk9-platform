@@ -41,11 +41,30 @@ const QUEUE_WARNING_THRESHOLD = 500;
 /** Maximum mutation queue capacity */
 const QUEUE_MAX_SIZE = 1000;
 
-/** Debounce interval for localStorage backup (ms) */
-const BACKUP_DEBOUNCE_MS = 1000;
-
 /** localStorage key for mutation backup */
 const BACKUP_STORAGE_KEY = 'replication_mutation_backup';
+
+// ============================================
+// ERRORS
+// ============================================
+
+/**
+ * Thrown by executeMutation when an UPDATE is rejected because the server's
+ * version column has moved past the mutation's baseServerVersion. This signals
+ * a concurrent write (not a transient error), so the upload loop must NOT
+ * retry or delete the mutation — it leaves the row dirty so the download phase
+ * can detect the same-field conflict.
+ */
+export class OccRejectionError extends Error {
+  constructor(
+    public readonly tableName: string,
+    public readonly rowId: string,
+    public readonly expectedVersion: number
+  ) {
+    super(`OCC rejection: ${tableName}/${rowId} (expected server version ${expectedVersion})`);
+    this.name = 'OccRejectionError';
+  }
+}
 
 // ============================================
 // TYPES
@@ -78,10 +97,6 @@ export class MutationManager {
   private maxRetries: number;
   private retryBackoffBase: number;
   private logger: Logger;
-
-  // Debounce localStorage backup to prevent race conditions
-  private backupDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-  private isBackupInProgress: boolean = false;
 
   // Auto-upload: flush mutations to server shortly after queuing
   private uploadDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -118,7 +133,8 @@ export class MutationManager {
     operation: PendingMutation['operation'],
     rowId: string,
     data: Record<string, unknown>,
-    dependsOn?: string[]
+    dependsOn?: string[],
+    serverVersion?: number
   ): Promise<string> {
     // Queue overflow protection
     const pendingCount = await this.getPendingCount();
@@ -149,10 +165,15 @@ export class MutationManager {
       retries: 0,
       status: 'pending',
       dependsOn,
+      ...(serverVersion !== undefined && { serverVersion }),
     };
     await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation);
     this.logger.log(`[MutationManager] Queued ${operation} for ${tableName}/${rowId}`);
-    await this.backupMutationsToLocalStorage();
+    // Backup synchronously (not debounced): a page reload inside a debounce
+    // window would leave the newest mutations only in IndexedDB, where browser
+    // cache eviction can destroy them. Offline scores must hit localStorage
+    // before queueMutation resolves.
+    await this.writeCurrentMutationsBackup();
 
     // Auto-upload: schedule immediate flush to server
     this.scheduleUpload();
@@ -166,6 +187,118 @@ export class MutationManager {
   async getPendingCount(): Promise<number> {
     const db = await databaseManager.getDatabase('MutationManager');
     return db.count(REPLICATION_STORES.PENDING_MUTATIONS);
+  }
+
+  // ========================================
+  // FAILED MUTATION MANAGEMENT
+  // ========================================
+
+  /**
+   * List permanently failed mutations awaiting user review.
+   *
+   * Mutations land here when they exhaust retries or hit a non-retryable
+   * error (RLS rejection, constraint violation, expired auth). They are
+   * never deleted automatically — the user must retry or discard them.
+   */
+  async getFailedMutations(): Promise<PendingMutation[]> {
+    const db = await databaseManager.getDatabase('MutationManager');
+    return (await db.getAll(REPLICATION_STORES.FAILED_MUTATIONS)) as PendingMutation[];
+  }
+
+  /**
+   * Re-queue a failed mutation for upload (e.g. after the user re-authenticates
+   * or a secretary fixes the underlying permission problem). Resets the retry
+   * counter so the mutation gets a full set of attempts.
+   */
+  async retryFailedMutation(mutationId: string): Promise<void> {
+    const db = await databaseManager.getDatabase('MutationManager');
+    const failed = (await db.get(REPLICATION_STORES.FAILED_MUTATIONS, mutationId)) as
+      | PendingMutation
+      | undefined;
+    if (!failed) return;
+
+    const requeued: PendingMutation = {
+      ...failed,
+      status: 'pending',
+      retries: 0,
+    };
+    delete requeued.error;
+    delete requeued.nextRetryAt;
+    delete requeued.failedAt;
+
+    await db.put(REPLICATION_STORES.PENDING_MUTATIONS, requeued);
+    await db.delete(REPLICATION_STORES.FAILED_MUTATIONS, mutationId);
+    this.logger.log(
+      `[MutationManager] Re-queued failed mutation ${mutationId} (${failed.tableName}/${failed.rowId})`
+    );
+    await this.writeCurrentMutationsBackup();
+    this.scheduleUpload();
+  }
+
+  /**
+   * Permanently discard a failed mutation after user review.
+   */
+  async discardFailedMutation(mutationId: string): Promise<void> {
+    const db = await databaseManager.getDatabase('MutationManager');
+    await db.delete(REPLICATION_STORES.FAILED_MUTATIONS, mutationId);
+    this.logger.log(`[MutationManager] Discarded failed mutation ${mutationId}`);
+  }
+
+  /**
+   * Discard all queued mutations for a specific row.
+   *
+   * Call this when the user chooses "Take theirs" in the conflict resolution UI —
+   * otherwise the old local value re-uploads on the next sync cycle and silently
+   * overwrites the remote version the user just accepted.
+   */
+  async discardPendingMutationsForRow(tableName: string, rowId: string): Promise<void> {
+    const db = await databaseManager.getDatabase('MutationManager');
+    const all = await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
+    const toDelete = all
+      .filter(m => m.tableName === tableName && m.rowId === rowId)
+      .map(m => m.id);
+
+    if (toDelete.length === 0) return;
+
+    const tx = db.transaction(REPLICATION_STORES.PENDING_MUTATIONS, 'readwrite');
+    for (const id of toDelete) {
+      await tx.store.delete(id);
+    }
+    await tx.done;
+    this.logger.log(
+      `[MutationManager] Discarded ${toDelete.length} mutation(s) for ${tableName}/${rowId} (conflict resolved: take remote)`
+    );
+    await this.writeCurrentMutationsBackup();
+  }
+
+  /**
+   * Update the OCC serverVersion on all pending mutations for a row.
+   *
+   * Call this after the user chooses "Keep mine" so that the next upload uses
+   * the conflict-snapshot's remoteServerVersion as the WHERE precondition.
+   * Without this, the re-upload still carries the stale snapshot version and
+   * is immediately rejected again, causing an infinite conflict loop.
+   */
+  async updateMutationServerVersions(
+    tableName: string,
+    rowId: string,
+    newServerVersion: number
+  ): Promise<void> {
+    const db = await databaseManager.getDatabase('MutationManager');
+    const all = await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
+    const toUpdate = all.filter(m => m.tableName === tableName && m.rowId === rowId);
+
+    if (toUpdate.length === 0) return;
+
+    const tx = db.transaction(REPLICATION_STORES.PENDING_MUTATIONS, 'readwrite');
+    for (const mutation of toUpdate) {
+      await tx.store.put({ ...mutation, serverVersion: newServerVersion });
+    }
+    await tx.done;
+    this.logger.log(
+      `[MutationManager] Updated serverVersion → ${newServerVersion} for ${toUpdate.length} mutation(s) on ${tableName}/${rowId}`
+    );
+    await this.writeCurrentMutationsBackup();
   }
 
   // ========================================
@@ -310,9 +443,27 @@ export class MutationManager {
           continue;
         }
 
+        // Hold uploads for rows with unresolved conflicts. Uploading would either
+        // be immediately OCC-rejected (noisy retry loop) or, if OCC were somehow
+        // bypassed, silently overwrite the remote value the user just accepted via
+        // "Take theirs". The mutation stays in the queue until the user resolves.
+        const replicatedRow = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, [
+          mutation.tableName,
+          String(mutation.rowId),
+        ])) as ReplicatedRow<unknown> | undefined;
+        if (replicatedRow?.syncStatus === 'conflict') {
+          this.logger.log(
+            `[MutationManager] Skipping ${mutation.id} — ${mutation.tableName}/${mutation.rowId} has unresolved conflict`
+          );
+          continue;
+        }
+
         try {
-          await this.executeMutation(mutation);
-          await this.markReplicatedRowSynced(db, mutation);
+          const { newServerVersion } = await this.executeMutation(mutation);
+          await this.markReplicatedRowSynced(db, mutation, newServerVersion);
+          if (newServerVersion !== undefined) {
+            await this.updateMutationServerVersions(mutation.tableName, mutation.rowId, newServerVersion);
+          }
 
           await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, mutation.id);
 
@@ -326,6 +477,26 @@ export class MutationManager {
 
           this.logger.log(`[MutationManager] Mutation ${mutation.id} uploaded successfully`);
         } catch (error) {
+          if (error instanceof OccRejectionError) {
+            // Concurrent server write rejected this stale offline mutation.
+            // Do NOT delete the mutation and do NOT clear isDirty — the row
+            // stays dirty so the download loop can detect the same-field conflict
+            // and prompt the user to reconcile.
+            this.logger.warn(
+              `[MutationManager] OCC rejection for ${error.tableName}/${error.rowId} ` +
+                `(expected server version ${error.expectedVersion}). ` +
+                `Row stays dirty for conflict detection.`
+            );
+            results.push({
+              success: false,
+              tableName: mutation.tableName,
+              operation: mutation.operation,
+              rowsAffected: 0,
+              duration: 0,
+              error: error.message,
+            });
+            continue;
+          }
           const message = error instanceof Error ? error.message : String(error);
           const canRetry = isRetryableError(error);
 
@@ -338,13 +509,18 @@ export class MutationManager {
             mutation.error = canRetry
               ? `Max retries exceeded: ${message}`
               : `Non-retryable error: ${message}`;
+            mutation.failedAt = Date.now();
             failedMutations.push(mutation);
 
             this.logger.error(
               `[MutationManager] Mutation ${mutation.id} (${mutation.tableName}/${mutation.operation}) failed permanently${canRetry ? ' (max retries)' : ' (non-retryable)'}: ${message}`,
               error
             );
-            // Remove permanently failed mutations from the queue
+            // Move permanently failed mutations out of the active queue but keep
+            // them in the failed_mutations store. Deleting them outright would
+            // silently destroy offline work (e.g. ringside scores blocked by an
+            // RLS/auth failure) with nothing for the user to review or retry.
+            await db.put(REPLICATION_STORES.FAILED_MUTATIONS, mutation);
             await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, mutation.id);
           } else {
             mutation.status = 'pending';
@@ -428,7 +604,7 @@ export class MutationManager {
    * Uses `select()` after upsert/delete to get the returned rows,
    * which lets us detect RLS silent rejections (0 rows affected = RLS blocked).
    */
-  private async executeMutation(mutation: PendingMutation): Promise<void> {
+  private async executeMutation(mutation: PendingMutation): Promise<{ newServerVersion?: number }> {
     const { tableName, operation, data } = mutation;
 
     switch (operation) {
@@ -445,27 +621,56 @@ export class MutationManager {
               `Check that the authenticated user has the required role.`
           );
         }
-        break;
+        return {};
       }
 
       case 'UPDATE': {
+        // Build the query: add OCC precondition when serverVersion is set so a
+        // concurrent server write (trigger bumped version) causes 0-row rejection
+        // rather than silently overwriting with last-write-wins.
+        let updateQuery = this.supabase.from(tableName).update(data).eq('id', data.id as string);
+        if (mutation.serverVersion !== undefined) {
+          updateQuery = updateQuery.eq('version', mutation.serverVersion);
+        }
         const { data: rows, error } = await withTimeout(
-          this.supabase
-            .from(tableName)
-            .update(data)
-            .eq('id', data.id as string)
-            .select('id'),
+          updateQuery.select('id, version'),
           TIMEOUT_PRESETS.standard,
           `${tableName} update`
         );
         if (error) throw error;
         if (!rows || rows.length === 0) {
+          if (mutation.serverVersion !== undefined) {
+            // Disambiguate: OCC rejection (version advanced) vs RLS denial (version unchanged)
+            // vs row deleted. One bounded re-check avoids silent permanent queue stall.
+            const { data: check } = await withTimeout(
+              this.supabase
+                .from(tableName)
+                .select('version')
+                .eq('id', data.id as string)
+                .maybeSingle(),
+              TIMEOUT_PRESETS.standard,
+              `${tableName} occ-check`
+            );
+            if (!check) {
+              throw new Error(
+                `Row ${mutation.rowId} on ${tableName} no longer exists server-side.`
+              );
+            }
+            if ((check as { version: number }).version !== mutation.serverVersion) {
+              // Version advanced → genuine OCC rejection (concurrent write).
+              // Throw so the upload loop keeps the mutation queued and the row
+              // dirty for the download loop's conflict detector.
+              throw new OccRejectionError(tableName, mutation.rowId, mutation.serverVersion);
+            }
+          }
+          // Version unchanged (or no precondition) → RLS blocked the write.
           throw new Error(
             `RLS policy blocked UPDATE on ${tableName} for row ${mutation.rowId}. ` +
               `Check that the authenticated user has the required role.`
           );
         }
-        break;
+        const newServerVersion = (rows[0] as { version?: number }).version;
+        return { newServerVersion };
       }
 
       case 'DELETE': {
@@ -489,7 +694,7 @@ export class MutationManager {
               `Row may have already been deleted, or RLS policy blocked the operation.`
           );
         }
-        break;
+        return {};
       }
 
       default:
@@ -499,7 +704,8 @@ export class MutationManager {
 
   private async markReplicatedRowSynced(
     db: Awaited<ReturnType<typeof databaseManager.getDatabase>>,
-    mutation: PendingMutation
+    mutation: PendingMutation,
+    newServerVersion?: number
   ): Promise<void> {
     if (mutation.operation === 'DELETE') return;
 
@@ -515,6 +721,10 @@ export class MutationManager {
       isDirty: false,
       syncStatus: 'synced',
       lastSyncedAt: Date.now(),
+      // Refresh OCC precondition so subsequent queued mutations use the post-write
+      // version (trigger incremented it on the server). Without this, a second
+      // offline edit to the same row would carry a stale version and spuriously reject.
+      ...(newServerVersion !== undefined && { serverVersion: newServerVersion }),
     });
   }
 
@@ -618,61 +828,21 @@ export class MutationManager {
   // BACKUP / RESTORE
   // ========================================
 
-  /** Resolve callback for the pending backup promise (if any) */
-  private backupPendingResolve: (() => void) | null = null;
-
   /**
    * Backup pending mutations to localStorage
    *
-   * Prevents data loss if IndexedDB is cleared.
-   * Debounced to coalesce rapid writes — previous callers resolve immediately
-   * when a new call supersedes their timer.
+   * Prevents data loss if IndexedDB is cleared. Writes immediately — a
+   * debounced write here would leave a window where a page reload loses the
+   * newest queued mutations (offline scores) if IndexedDB is later evicted.
    */
   async backupMutationsToLocalStorage(): Promise<void> {
     if (typeof window === 'undefined') return;
 
-    // If a previous debounce is pending, resolve its promise so the caller unblocks
-    if (this.backupDebounceTimer) {
-      clearTimeout(this.backupDebounceTimer);
-      if (this.backupPendingResolve) {
-        this.backupPendingResolve();
-        this.backupPendingResolve = null;
-      }
+    try {
+      await this.writeCurrentMutationsBackup();
+    } catch (error) {
+      this.logger.warn('[MutationManager] Failed to backup mutations to localStorage:', error);
     }
-
-    return new Promise(resolve => {
-      this.backupPendingResolve = resolve;
-      this.backupDebounceTimer = setTimeout(async () => {
-        this.backupPendingResolve = null;
-
-        // Skip if backup already in progress
-        if (this.isBackupInProgress) {
-          this.logger.log('[MutationManager] Backup already in progress, skipping duplicate call');
-          resolve();
-          return;
-        }
-
-        this.isBackupInProgress = true;
-        try {
-          const db = await databaseManager.getDatabase('MutationManager');
-          const pending = await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
-
-          if (pending.length > 0) {
-            localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(pending));
-            this.logger.log(
-              `[MutationManager] Backed up ${pending.length} mutations to localStorage`
-            );
-          } else {
-            localStorage.removeItem(BACKUP_STORAGE_KEY);
-          }
-        } catch (error) {
-          this.logger.warn('[MutationManager] Failed to backup mutations to localStorage:', error);
-        } finally {
-          this.isBackupInProgress = false;
-          resolve();
-        }
-      }, BACKUP_DEBOUNCE_MS);
-    });
   }
 
   /**
@@ -812,6 +982,12 @@ export class MutationManager {
       await tx.store.clear();
       await tx.done;
 
+      // Failed mutations belong to the same session/show context — stale ones
+      // from a previous login must not resurface for the next user.
+      const failedTx = db.transaction(REPLICATION_STORES.FAILED_MUTATIONS, 'readwrite');
+      await failedTx.store.clear();
+      await failedTx.done;
+
       // Also clear the localStorage backup
       if (typeof window !== 'undefined') {
         localStorage.removeItem(BACKUP_STORAGE_KEY);
@@ -829,10 +1005,6 @@ export class MutationManager {
    * Call when disposing of the MutationManager instance.
    */
   destroy(): void {
-    if (this.backupDebounceTimer) {
-      clearTimeout(this.backupDebounceTimer);
-      this.backupDebounceTimer = null;
-    }
     if (this.uploadDebounceTimer) {
       clearTimeout(this.uploadDebounceTimer);
       this.uploadDebounceTimer = null;

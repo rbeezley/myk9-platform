@@ -64,7 +64,7 @@ export default function ShowSettingsPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate('/secretary/results-control')}
+              onClick={() => navigate(`/shows/${selectedShowId}/results-control`)}
             >
               Manage <ArrowRight className="ml-1 h-4 w-4" />
             </Button>
@@ -94,7 +94,7 @@ export default function ShowSettingsPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate('/secretary/results-control')}
+              onClick={() => navigate(`/shows/${selectedShowId}/results-control`)}
             >
               Manage <ArrowRight className="ml-1 h-4 w-4" />
             </Button>

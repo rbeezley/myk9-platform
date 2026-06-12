@@ -6,13 +6,15 @@
  */
 
 import { lazy, useEffect } from 'react';
-import { Route, Navigate, useParams, useNavigate } from 'react-router-dom';
+import { Route, Navigate, useParams, useLocation } from 'react-router-dom';
 import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { UserRole } from '@/types/auth-types';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
 import { useShowStore } from '@/store/showStore';
+import { useToastStore } from '@/store/toastStore';
+import { LegacySecretaryShowRedirect } from '@/routes/showRouteRedirects';
 
 // Secretary Dashboard (replaces old PipelineDashboard)
 const SecretaryDashboardPage = lazy(() =>
@@ -41,26 +43,13 @@ const SecretaryClassDashboard = lazy(() =>
 // People pages
 const BrowsePeoplePage = lazy(() => import('@/pages/BrowsePeoplePage'));
 const PersonDetailPage = lazy(() => import('@/pages/PersonDetailPage'));
-// Entry management
-const EntryManagementPage = lazy(() =>
-  import('@/pages/secretary/EntryManagementPage').catch(() => ({
-    default: () => <div>Entry Management Coming Soon</div>,
-  }))
-);
+
 const RegistrationWizardPage = lazy(() => import('@/pages/RegistrationWizardPage'));
-const ShowWorkbenchPage = lazy(() =>
-  import('@/pages/secretary/ShowWorkbenchPage').then(m => ({
-    default: m.ShowWorkbenchPage,
-  }))
-);
 
 const VolunteerSchedulingPage = lazy(
   () => import('@/pages/secretary/VolunteerSchedulingPage')
 );
 const ShowSettingsPage = lazy(() => import('@/pages/secretary/ShowSettingsPage'));
-const ResultsControlPage = lazy(() => import('@/pages/secretary/ResultsControlPage'));
-const ReportsPage = lazy(() => import('@/pages/secretary/ReportsPage'));
-const ResultsSubmissionPage = lazy(() => import('@/pages/secretary/ResultsSubmissionPage'));
 const SecretaryMessagesPage = lazy(() => import('@/features/messages/pages/SecretaryMessagesPage'));
 // Scoring pages
 const PaperScoresheetPage = lazy(() =>
@@ -72,11 +61,16 @@ const ScoresheetPage = lazy(() =>
 
 const ShowEditRedirect = () => {
   const { showId } = useParams<{ showId: string }>();
-  const navigate = useNavigate();
-  useEffect(() => {
-    navigate(`/shows/${showId}?edit=true`, { replace: true });
-  }, [showId, navigate]);
-  return null;
+  const { search } = useLocation();
+
+  if (!showId) {
+    return <Navigate to="/shows" replace />;
+  }
+
+  const searchParams = new URLSearchParams(search);
+  searchParams.set('edit', 'true');
+
+  return <Navigate to={`/shows/${showId}?${searchParams.toString()}`} replace />;
 };
 
 const UserDetailRedirect = () => {
@@ -119,10 +113,46 @@ function useSecretaryRedirectShowId(): { showId: string; isResolving: boolean } 
   };
 }
 
-const SecretaryShowPhaseRedirect = ({
-  phase,
+// Redirects /secretary/entries/:showId? to the show-scoped entry management route.
+// Preserves location.search so filters like ?entryTab=pending survive the redirect.
+const SecretaryEntriesRedirect = () => {
+  const { showId: paramShowId } = useParams<{ showId?: string }>();
+  const { showId: storeShowId, isResolving } = useSecretaryRedirectShowId();
+  const resolvedShowId = paramShowId || storeShowId;
+  const { search } = useLocation();
+
+  if (isResolving) {
+    return <LoadingSkeleton variant="cards" count={2} />;
+  }
+
+  if (resolvedShowId) {
+    return <Navigate to={`/shows/${resolvedShowId}/entry-management${search}`} replace />;
+  }
+
+  return <Navigate to="/secretary/dashboard" replace />;
+};
+
+// Redirects old standalone routes (reports, results-control, results-submission)
+// that have no show context to the dashboard, with a contextual toast.
+const SecretaryNoContextRedirect = () => {
+  const addToast = useToastStore(s => s.addToast);
+  useEffect(() => {
+    addToast({
+      id: 'no-show-context',
+      type: 'announcement',
+      title: 'Select a show to continue',
+      body: '',
+      priority: 'normal',
+      timestamp: Date.now(),
+    });
+  }, [addToast]);
+  return <Navigate to="/secretary/dashboard" replace />;
+};
+
+const SecretaryShowRedirect = ({
+  subPath,
 }: {
-  phase: 'setup' | 'show-desk';
+  subPath: 'show-desk' | '';
 }) => {
   const { showId, isResolving } = useSecretaryRedirectShowId();
 
@@ -134,9 +164,11 @@ const SecretaryShowPhaseRedirect = ({
     return <Navigate to="/secretary/dashboard" replace />;
   }
 
-  const params = new URLSearchParams({ phase });
+  const to = subPath
+    ? `/shows/${showId}/${subPath}`
+    : `/shows/${showId}/setup`;
 
-  return <Navigate to={`/secretary/shows/${showId}?${params.toString()}`} replace />;
+  return <Navigate to={to} replace />;
 };
 
 const SecretaryIndexRedirect = () => {
@@ -146,7 +178,7 @@ const SecretaryIndexRedirect = () => {
     return <LoadingSkeleton variant="cards" count={2} />;
   }
 
-  return <Navigate to={showId ? `/secretary/shows/${showId}` : '/secretary/dashboard'} replace />;
+  return <Navigate to={showId ? `/shows/${showId}/setup` : '/secretary/dashboard'} replace />;
 };
 
 /** All secretary routes — rendered inside UnifiedAppLayout */
@@ -205,26 +237,67 @@ export const SecretaryRoutes = () => (
         </ProtectedRoute>
       }
     />
+
+    {/* Legacy phase redirects — now map to show sub-routes */}
     <Route
       path="/secretary/run-order"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SecretaryShowPhaseRedirect phase="setup" />
+          <SecretaryShowRedirect subPath="" />
         </ProtectedRoute>
       }
     />
     <Route
-      path="/secretary/entries/:showId?"
+      path="/secretary/day-of"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <EntryManagementPage />
-            </PageTransition>
-          </SuspenseWrapper>
+          <SecretaryShowRedirect subPath="show-desk" />
         </ProtectedRoute>
       }
     />
+    <Route
+      path="/secretary/check-in"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+          <SecretaryShowRedirect subPath="show-desk" />
+        </ProtectedRoute>
+      }
+    />
+
+    {/* Legacy standalone routes — redirect to dashboard (no show context available) */}
+    <Route
+      path="/secretary/entries/:showId?"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+          <SecretaryEntriesRedirect />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/secretary/reports"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+          <SecretaryNoContextRedirect />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/secretary/results-control"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+          <SecretaryNoContextRedirect />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/secretary/results-submission"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+          <SecretaryNoContextRedirect />
+        </ProtectedRoute>
+      }
+    />
+
     <Route
       path="/secretary/register/:showId"
       element={
@@ -241,23 +314,7 @@ export const SecretaryRoutes = () => (
       path="/secretary/waitlist"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <Navigate to="/secretary/entries?tab=waitlist" replace />
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/secretary/day-of"
-      element={
-        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SecretaryShowPhaseRedirect phase="show-desk" />
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/secretary/check-in"
-      element={
-        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SecretaryShowPhaseRedirect phase="show-desk" />
+          <Navigate to="/secretary/dashboard" replace />
         </ProtectedRoute>
       }
     />
@@ -276,63 +333,13 @@ export const SecretaryRoutes = () => (
       element={<Navigate to="/secretary/volunteers" replace />}
     />
     <Route path="/secretary/tasks" element={<Navigate to="/secretary/dashboard" replace />} />
+
+    {/* Legacy secretary show routes — canonical management lives under /shows/:id/* */}
     <Route
       path="/secretary/shows/:showId"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <ShowWorkbenchPage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/secretary/settings"
-      element={
-        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <ShowSettingsPage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/secretary/results-control"
-      element={
-        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <ResultsControlPage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/secretary/reports"
-      element={
-        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <ReportsPage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/secretary/results-submission"
-      element={
-        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <ResultsSubmissionPage />
-            </PageTransition>
-          </SuspenseWrapper>
+          <LegacySecretaryShowRedirect />
         </ProtectedRoute>
       }
     />
@@ -342,6 +349,27 @@ export const SecretaryRoutes = () => (
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
           <SuspenseWrapper>
             <ShowEditRedirect />
+          </SuspenseWrapper>
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/secretary/shows/:showId/*"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+          <LegacySecretaryShowRedirect />
+        </ProtectedRoute>
+      }
+    />
+
+    <Route
+      path="/secretary/settings"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+          <SuspenseWrapper>
+            <PageTransition>
+              <ShowSettingsPage />
+            </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>
       }
@@ -375,7 +403,7 @@ export const SecretaryRoutes = () => (
     <Route
       path="/shows/:showId/trials/:trialId/classes/:classId/secretary"
       element={
-        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.JUDGE, UserRole.SITE_ADMIN]}>
           <SuspenseWrapper>
             <PageTransition>
               <SecretaryClassDashboard />

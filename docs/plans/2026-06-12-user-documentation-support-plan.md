@@ -84,6 +84,18 @@ Every repeated customer question should end in one of these outcomes:
 
 Support material should be written so Richard can say: "Here is the exact page for that," instead of rewriting the answer each time. Two lookup paths must work: by task ("check in a dog") and by symptom ("entry not showing" or a quoted error string).
 
+## Delivery Decision: Where Documentation Lives [ADDED]
+
+Decided 2026-06-12 (resolves the former review questions on doc hosting). Customer-facing documentation is delivered as a **separate public static docs site, not in-app pages**, in three stages:
+
+1. **Day one (interim):** rendered GitHub links to the markdown files (the repo is public), per the Task 7 interim-delivery checkbox. Works immediately; ugly but functional.
+2. **At launch:** a static docs site (Astro Starlight or VitePress) added to the monorepo as `apps/docs`, built directly from `docs/knowledge-base/` and `docs/user-guides/`, deployed as its own Vercel project at a help subdomain (e.g., `help.myk9show.com`). One source of truth: the same markdown, PR flow, and staleness checks govern site content. The Task 7 frontmatter feeds the site for free — `aliases` become search keywords (Pagefind/local search), `audience` drives role-based navigation, `last-verified` renders as a per-page trust signal. The landing page is organized both by role ("I'm a secretary / exhibitor / treasurer") and by task category ("Entering shows", "Payments", "Show day"). Phase 5 blog posts publish on this same site — no second platform.
+3. **In the app: links only, never a help center.** A single "Help" item in the app shell pointing to the docs site, and later optional per-page contextual links resolved from the `route` frontmatter field. This follows the consolidation rule: a fast path is a link, not new UI.
+
+Why a public site instead of in-app pages: the locked-out user ("I can't sign in") can still reach help; links work in email for logged-out recipients; Google indexes articles and deflects tickets before they are sent; doc fixes deploy without app deploys. Third-party help-desk KBs (Zendesk, Intercom, etc.) are rejected at this stage: recurring cost, content lock-in, and they solve a multi-agent inbox problem a one-person team does not have.
+
+Standing up `apps/docs` waits until the first articles pass Task 22 verification — an empty site is pure maintenance. Building the site is **not** part of this plan; when ready, it gets its own small plan (scaffold, frontmatter wiring, search, subdomain, deploy) including unit tests for any frontmatter-parsing code.
+
 ## Sensitive Content Rules (Public Repository) [ADDED]
 
 This repository is **public**. Every doc written under this plan is world-readable the moment it merges, including internal support material. Rules:
@@ -468,16 +480,16 @@ Outlines may begin immediately and should include rough numbered-step drafts (`q
 
 - Writing the final user guides now.
 - Creating a PowerPoint, PDF, or video asset now.
-- Building an in-app help center (KB frontmatter is structured so articles could render in-app later without rewriting, but no app routes or UI are added by this plan).
-- Choosing a public knowledge-base/blog platform.
+- Building an in-app help center (decided against — see Delivery Decision; the app gets links to the docs site only).
+- Building the static docs site (`apps/docs`) now — the platform decision is recorded in Delivery Decision, but scaffolding waits until first articles pass verification and gets its own plan.
 - Adding new app routes, dialogs, tours, or onboarding UI.
 - Rebuilding any deleted `apps/myk9q` documentation.
 
 ## Review Questions Before Implementation
 
 - Which role guide should be drafted first after secretary/show-day workflows stabilize?
-- Should support docs live only in the repo, or should they also be prepared for an external help center later?
-- Where should customer-facing KB and blog content ultimately live: repo-rendered docs, website, app help center, or a support tool?
+- ~~Should support docs live only in the repo, or should they also be prepared for an external help center later?~~ **Answered** — see Delivery Decision: repo markdown is the source of truth; a static site renders it publicly.
+- ~~Where should customer-facing KB and blog content ultimately live: repo-rendered docs, website, app help center, or a support tool?~~ **Answered** — see Delivery Decision: static docs site at a help subdomain; blog on the same site; app gets links only.
 - Do we want a printed quickstart packet for show-day volunteers separate from the full user guide?
 - What seeded shows/accounts should become the canonical screenshot fixtures?
 - Who is the non-author reviewer for the first secretary guide walkthrough (recruit before drafting begins)?

@@ -334,12 +334,54 @@ async function handleEntryCheckout(
   // charge a number the cart page didn't show.
   const { data: showFees, error: showFeesError } = await supabase
     .from('shows')
-    .select('pre_entry_fee, day_of_show_fee, start_date')
+    .select(
+      `pre_entry_fee, day_of_show_fee, start_date, status,
+       entry_open_date, entry_close_date, club_id`
+    )
     .eq('id', cart.show_id)
     .single();
   if (showFeesError || !showFees) {
     console.error(`Show fee lookup failed for cart ${cart_id} (show ${cart.show_id}):`, showFeesError);
     return corsResponse({ error: 'Could not verify entry fees. Please try again.' }, 500);
+  }
+
+  // Server-side online-entry gate: the UI enforces this, but any direct API
+  // call to stripe-checkout bypasses the UI. Fail closed on each condition.
+  const entryStatuses = ['published', 'accepting_entries'];
+  if (!entryStatuses.includes(showFees.status)) {
+    return corsResponse(
+      { error: 'Online entries are not currently open for this show.' },
+      403
+    );
+  }
+  const nowMs = Date.now();
+  if (showFees.entry_open_date && nowMs < new Date(showFees.entry_open_date).getTime()) {
+    return corsResponse(
+      { error: 'Online entry has not opened yet for this show.' },
+      403
+    );
+  }
+  if (showFees.entry_close_date && nowMs > new Date(showFees.entry_close_date).getTime()) {
+    return corsResponse(
+      { error: 'Online entry has closed for this show.' },
+      403
+    );
+  }
+  {
+    const connectPayoutsEnabled = showFees.club_id
+      ? await supabase
+          .from('stripe_connect_accounts')
+          .select('payouts_enabled')
+          .eq('club_id', showFees.club_id)
+          .maybeSingle()
+          .then(({ data }) => data?.payouts_enabled === true)
+      : false;
+    if (!connectPayoutsEnabled) {
+      return corsResponse(
+        { error: "This club's payment account is not set up to receive online entry fees." },
+        403
+      );
+    }
   }
 
   const nowIso = new Date().toISOString();

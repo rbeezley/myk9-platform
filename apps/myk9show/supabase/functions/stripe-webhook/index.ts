@@ -454,6 +454,29 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     return;
   }
 
+  // Fail closed if any cart item's class was filtered out (cross-show class_id).
+  // A missing class produces trial_id: null entries and distorts payout math.
+  // !classRows above catches null; this catches a partial result (truthy array
+  // with fewer rows than classIds).
+  const classRowIds = new Set(classRows.map((c: { id: string }) => c.id));
+  const missingClassIds = classIds.filter((id: string) => !classRowIds.has(id));
+  if (missingClassIds.length > 0) {
+    console.error(
+      `CRITICAL: ${missingClassIds.length} class(es) not found in show ${cart.show_id} ` +
+        `for cart ${cartId} — possible cross-show class_id: ${missingClassIds.join(', ')}`
+    );
+    await alertAdmin(
+      'Cart classes do not belong to show — entries NOT created',
+      `<p>Checkout session <code>${session.id}</code> was PAID, but ${missingClassIds.length}
+       class(es) in cart <code>${cartId}</code> did not pass the show-membership filter.
+       This may indicate a cross-show class_id was injected into the cart.</p>
+       <p>Missing class IDs: <code>${missingClassIds.join(', ')}</code></p>
+       <p>No entries were created. Refund payment intent from the Stripe dashboard and
+       investigate the cart before manually re-entering.</p>`
+    );
+    return;
+  }
+
   const feeByClass = new Map<string, number | string | null>(
     classRows.map((c: { id: string; entry_fee: number | string | null }) => [c.id, c.entry_fee])
   );
@@ -880,7 +903,9 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
   const customerId = subscription.customer as string;
   console.log(`Subscription ${subscription.status} for customer: ${customerId}`);
 
-  await syncSubscriptionFromStripe(customerId);
+  // Pass the exact subscription ID so syncSubscriptionFromStripe retrieves it
+  // directly instead of listing by customer (limit:1 could return the wrong sub).
+  await syncSubscriptionFromStripe(customerId, subscription.id);
 }
 
 /**
@@ -891,7 +916,11 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
   if (!customerId) return;
 
   console.log(`Invoice paid for customer: ${customerId}`);
-  await syncSubscriptionFromStripe(customerId);
+  const subscriptionId =
+    typeof invoice.subscription === 'string'
+      ? invoice.subscription
+      : (invoice.subscription as { id?: string } | null)?.id;
+  await syncSubscriptionFromStripe(customerId, subscriptionId ?? undefined);
 }
 
 /**
@@ -902,7 +931,11 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   if (!customerId) return;
 
   console.log(`Invoice payment failed for customer: ${customerId}`);
-  await syncSubscriptionFromStripe(customerId);
+  const subscriptionId =
+    typeof invoice.subscription === 'string'
+      ? invoice.subscription
+      : (invoice.subscription as { id?: string } | null)?.id;
+  await syncSubscriptionFromStripe(customerId, subscriptionId ?? undefined);
 }
 
 /**

@@ -48,6 +48,14 @@ Route inventory confirms the current app treats `/at-show/:showId` as the day-of
 
 | Scorecard step | Current surface | Route/component | Evidence | Audit notes |
 | --- | --- | --- | --- | --- |
+| 1. Find an eligible show. | Browse Shows / public show list | `/shows` via `PublicRoutes`; `/browse-shows` and `/shows/browse` redirect to `/shows` | Static route evidence | Phase 2 should test cold-start discoverability from landing/search, not just route existence. |
+| 2. Understand whether the show is right for their dog. | Show Details overview, trials, classes, and styled public landing | `/shows/:id`, tabs for `overview`, `trials`, `classes`, `results`; styled landing path for non-entered exhibitors | Static route evidence; `ShowDetailsPage` derives show classes, entry status, and trial stats | Verify dog-fit clarity in Phase 2, especially class eligibility, closed-entry messaging, and premium/download expectations. |
+| 3. Enter a dog in the right classes. | Registration Wizard from Show Details | `/shows/:showId/register` via `RegistrationWizardPage`; Show Details CTA navigates to registration | Static route evidence | Confirm class-selection copy and edit/re-entry behavior in the exhibitor registration walkthrough. |
+| 4. Pay or understand payment status. | Registration Wizard payment step and My Entries receipt/status surfaces | `/shows/:showId/register`; `/exhibitor/entries` / `/my-entries` via `MyEntriesPage` | Static route evidence; payment code paths and receipt dialog exist | Keep Stripe handoff, pending states, receipts, and failed/retry recovery in the exhibitor money-path sweep. |
+| 5. Receive confirmation and show-day updates. | My Entries plus registration completion/receipt path | `/exhibitor/entries`, `/my-entries`, registration completion path after wizard submit | Static route evidence; April email/payment findings need Phase 2 confirmation | Keep payment and email state checks in the exhibitor money-path sweep. |
+| 6. Know where/when to appear. | Show Details class/trial tabs, My Entries show hub, and at-show class picker | `/shows/:id?tab=classes`, `/shows/:id?tab=my-entries`, `/exhibitor/entries`, `/at-show/:showId` | Static route evidence; `AtShowClassListPage` groups classes by trial/date | Phase 2 should verify this can be found from an accepted entry without guessing the route. |
+| 7. Understand check-in, scratches, move-ups, and results. | My Entries check-in dialog plus at-show class picker and entry lists | `/exhibitor/entries`, `/exhibitor/check-in/:entryId` legacy redirect, `/at-show/:showId`, `/at-show/:showId/class/:classId` | Static route evidence; `AtShowEntryListPage` uses real check-in actions and ringside filters | Phone-at-ringside pass must verify one-handed use, dogs-ahead/conflict chips, scratch/move-up clarity, and offline tone. |
+| 8. View results after the show. | Show Details results tab and class results route | `/shows/:id?tab=results`, `/shows/:showId/trials/:trialId/classes/:classId/results` | Static route evidence | Phase 2 should prove an exhibitor can get from My Entries/show history to post-show results without hunting. |
 
 ## Secretary Journey Map
 
@@ -63,6 +71,9 @@ Route inventory confirms the current app treats `/at-show/:showId` as the day-of
 
 | Gap | Why recon cannot close it | Recommended phase |
 | --- | --- | --- |
+| Payment and confirmation confidence | Static route evidence cannot prove Stripe handoff, confirmation email feedback, or failed payment recovery. | Phase 2 exhibitor money-path state sweep |
+| `/at-show` ringside clarity | Static evidence cannot prove 380px glanceability, tap target quality, dogs-ahead comprehension, or offline tone. | Phase 2 phone-at-ringside pass |
+| Results/share completion | Static evidence cannot prove an exhibitor can find post-show results without hunting. | Phase 2 exhibitor journey audit |
 
 ## Duplication Notes
 

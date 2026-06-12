@@ -33,7 +33,7 @@ Method: four read-only verification tracks plus targeted main-agent checks. Veri
 | Duplication | Magazine/Gazette email duplication | Confirmed, refined | Extract shared Deno-safe helpers/data contract; add preview-vs-production parity/golden tests. |
 | Type escapes | `AuditService` `audit_entry` casts | Confirmed with caveat | Verify `audit_entry` exists in the current DB before typing; then resolve through canonical type generation. |
 | Type escapes | Visibility/settings/secretary/judge stale casts | Confirmed | Remove casts using generated row/return types after type canonicalization. |
-| Schema drift/dead code | `entryService.ts` writes nonexistent `entries.status` | Confirmed dead/schema-drift | Delete in Wave A rather than repair; future in-ring behavior should use a replication-backed adapter. |
+| Schema drift/dead code | `entryService.ts` writes nonexistent `entries.status` | Confirmed dead/schema-drift | Deleted in Wave A branch rather than repaired; future in-ring behavior should use a replication-backed adapter. |
 | TODO triage | Nationals/Regular discriminator hardcoded | Confirmed | Track launch backlog or add real discriminator via approved migration path. |
 | TODO triage | Dog creation plus child registration is non-atomic | Confirmed | Backlog RPC/mutation work before relying on partial failure recovery. |
 | Test gaps | Bulk result-entry helper duplication/coverage | Confirmed | Consolidate one helper and test time/fault/qualification edge cases. |
@@ -45,14 +45,14 @@ Method: four read-only verification tracks plus targeted main-agent checks. Veri
 
 | Candidate | Phase 2 Result | Evidence | Next Step |
 | --- | --- | --- | --- |
-| `apps/myk9show/src/lib/lazyLoading.ts` | Confirmed dead | Exact import sweep found no `@/lib/lazyLoading` imports; hits were audit docs and unrelated live files with similar names. | Delete in Wave A. |
-| `apps/myk9show/src/hooks/queries/usePaginatedQueries.ts` | Confirmed tests-only through dead preloader | Exact sweep found only `src/lib/lazyLoading.ts` dynamic imports and direct tests. | Delete module and direct tests in Wave A. |
-| `apps/myk9show/src/hooks/queries/useOptimizedSearch.ts` | Confirmed tests-only through dead preloader | Exact sweep found only `src/lib/lazyLoading.ts` dynamic imports and direct tests; live search uses other hooks/utilities. | Delete or explicitly replace with live search hooks if product need appears. |
-| `apps/myk9show/src/services/entryService.ts` / `markInRing` | Confirmed dead/schema-drift | No app source caller found; file writes `entries.status`, which is not in generated entry update types; file is excluded from app tsconfig. | Delete in Wave A. |
-| Demo/test pages listed in `02-dead-code-unused-exports.md` | Confirmed unreachable | Route checks found no active routes/imports. Live `RBACTestPage` and `TemplateTestingPage` remain routed and were not flagged. | Delete unreachable demo/test pages. |
-| `components/forms/OptimisticForm.tsx` | Confirmed unused wrapper | No imports/re-exports of wrapper components; separate `useOptimisticForm` hook is live. | Delete wrapper only; keep live hook. |
-| Sync panels: `GlobalSyncStatusBar`, `QueueManagementPanel`, `SyncIntegrationSummary` | Confirmed unused | No consumers outside own files/audit docs; not exported from `components/sync/index.ts`; routed `/admin/sync` uses `SyncMonitoringPage`. | Delete unused panels; keep routed sync monitoring page. |
-| `config/performance-budget.ts` | Confirmed dead | No app imports; live budget logic exists in script/RUM constants. | Delete or consolidate docs to the live script/RUM constants. |
+| `apps/myk9show/src/lib/lazyLoading.ts` | Confirmed dead | Exact import sweep found no `@/lib/lazyLoading` imports; hits were audit docs and unrelated live files with similar names. | Deleted in Wave A branch. |
+| `apps/myk9show/src/hooks/queries/usePaginatedQueries.ts` | Confirmed tests-only through dead preloader | Exact sweep found only `src/lib/lazyLoading.ts` dynamic imports and direct tests. | Deleted module and direct tests in Wave A branch. |
+| `apps/myk9show/src/hooks/queries/useOptimizedSearch.ts` | Confirmed tests-only through dead preloader | Exact sweep found only `src/lib/lazyLoading.ts` dynamic imports and direct tests; live search uses other hooks/utilities. | Deleted in Wave A branch. |
+| `apps/myk9show/src/services/entryService.ts` / `markInRing` | Confirmed dead/schema-drift | No app source caller found; file writes `entries.status`, which is not in generated entry update types; file is excluded from app tsconfig. | Deleted in Wave A branch. |
+| Demo/test pages listed in `02-dead-code-unused-exports.md` | Confirmed unreachable | Route checks found no active routes/imports. Live `RBACTestPage` and `TemplateTestingPage` remain routed and were not flagged. | Deleted unreachable demo/test pages in Wave A branch. |
+| `components/forms/OptimisticForm.tsx` | Confirmed unused wrapper | No imports/re-exports of wrapper components; separate `useOptimisticForm` hook is live. | Deleted wrapper only; kept live hook. |
+| Sync panels: `GlobalSyncStatusBar`, `QueueManagementPanel`, `SyncIntegrationSummary` | Confirmed unused | No consumers outside own files/audit docs; not exported from `components/sync/index.ts`; routed `/admin/sync` uses `SyncMonitoringPage`. | Deleted unused panels; kept routed sync monitoring page. |
+| `config/performance-budget.ts` | Confirmed dead | No app imports; live budget logic exists in script/RUM constants. | Deleted in Wave A branch; future budget work should use script/RUM constants or the QA budget plan. |
 
 ## Refuted Or Reclassified
 
@@ -74,7 +74,7 @@ Method: four read-only verification tracks plus targeted main-agent checks. Veri
 
 ## Recommended Implementation Order
 
-1. Wave A: safe delete-first cleanup for Phase-2-confirmed dead code.
+1. Wave A: safe delete-first cleanup for Phase-2-confirmed dead code. Implemented on branch `codex/code-quality-wave-a-dead-code`.
 2. Wave B / P1 launch gate: fee/scoring/placement tests, type canonicalization prep, and the `/judge/check-in` false-empty fix or route de-scope decision.
 3. Wave C: replication bypass fixes for secretary and show-day reliability.
 4. Wave D: lower-risk refactors and config/test cleanup after the critical paths are covered.

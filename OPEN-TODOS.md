@@ -8,7 +8,7 @@ Active work items only. Resolved historical context lives in git history and dat
 
 Four steps toward the fall launch, in dependency order. Detailed phase checklists live in the sections below; this list is the master sequence.
 
-- [ ] **1. Code-Quality Audit** — remove static debt first; every later step audits or builds on the post-cleanup surfaces. Plan: [`docs/plan-code-quality-audit.md`](docs/plan-code-quality-audit.md). *In progress — Wave A (pure deletions) running.*
+- [ ] **1. Code-Quality Audit** — remove static debt first; every later step audits or builds on the post-cleanup surfaces. Plan: [`docs/plan-code-quality-audit.md`](docs/plan-code-quality-audit.md). *In progress — Wave A implemented; Wave B next.*
 - [ ] **2. UX Journey Audit** — exhibitor + secretary journeys scored against INTENT; walks double as the golden-path browser walkthroughs the scorecard requires. Plan: [`docs/plan-ux-journey-audit.md`](docs/plan-ux-journey-audit.md). *Recon can start now; main phases after code-audit Waves A–C.*
 - [ ] **3. Dynamic QA Infrastructure** — permanent guards: chaos tests, mutation scoring, drift checks, observability, flaky quarantine. Plan: [`docs/plan-dynamic-qa-infrastructure.md`](docs/plan-dynamic-qa-infrastructure.md). *Mutation testing after code-audit Wave D; phases 1/3/4/5 may overlap with step 2 in separate worktrees.*
 - [ ] **4. Scorecard close-out (golden path sign-off)** — final launch gate: post-remediation re-walk of all **three** golden paths — secretary, exhibitor, and admin (the admin walkthrough has a lighter bar: support actions available or documented; it is not part of the UX journey audit) — flipping their `Unknown` rows in [`docs/goals/fall-2026-launch-readiness-scorecard.md`](docs/goals/fall-2026-launch-readiness-scorecard.md) against the scorecard's own pass thresholds. Then sweep the remaining scorecard dimensions, attaching evidence produced by steps 1–3 (offline-first behavior and data correctness from the dynamic-QA chaos/drift work, UX clarity from the journey audit, test/CI health from flaky quarantine) and listing what still lacks evidence. Initial golden-path evidence lands during step 2; the close-out runs last, after steps 2–3 remediation is in.
@@ -17,11 +17,11 @@ Four steps toward the fall launch, in dependency order. Detailed phase checklist
 
 ## Code-Quality Audit — 2026-06-12
 
-Plan: [`docs/plan-code-quality-audit.md`](docs/plan-code-quality-audit.md). Current status in [`docs/audits/2026-06-code-quality/SUMMARY.md`](docs/audits/2026-06-code-quality/SUMMARY.md). Phase 1 inventory and source-level Phase 2 verification are done; Wave A is approved and being handled in a separate worktree.
+Plan: [`docs/plan-code-quality-audit.md`](docs/plan-code-quality-audit.md). Current status in [`docs/audits/2026-06-code-quality/SUMMARY.md`](docs/audits/2026-06-code-quality/SUMMARY.md). Phase 1 inventory and Phase 2 verification are done; Wave A cleanup is implemented on branch `codex/code-quality-wave-a-dead-code`.
 
-- [x] ~~**Phase 2 — verify all P1/P2 findings**~~ — source-level verification completed in [`docs/audits/2026-06-code-quality/09-phase-2-verification.md`](docs/audits/2026-06-code-quality/09-phase-2-verification.md). `send-notification` remains excluded from Wave A until deployed Supabase usage/log/config checks are done.
+- [x] ~~**Phase 2 — verify all P1/P2 findings**~~ — PR [#647](https://github.com/rbeezley/myk9-platform/pull/647). Source-level verification confirmed/refuted the finder results and kept `send-notification` out of the delete wave pending deployed-system checks.
 - [x] ~~**Human gate — approve fix list**~~ — Wave A delete-first cleanup approved 2026-06-12; broader judgment-heavy waves still remain as separate todos below.
-- [ ] **Wave A — pure deletions** (dead code, stale TODOs, dead flags)
+- [x] ~~**Wave A — pure deletions**~~ — Removed Phase-2-confirmed dead code in branch `codex/code-quality-wave-a-dead-code`; `send-notification` intentionally remains pending deployed usage/log/config verification.
 - [ ] **Wave B — consolidations** (duplication clusters, type-file unification)
 - [ ] **Wave C — extractions** (multi-concern oversized files only)
 - [ ] **Wave D — replication-bypass reroutes + targeted test additions**
@@ -62,7 +62,7 @@ Source: PR [#642](https://github.com/rbeezley/myk9-platform/pull/642), PR [#647]
 
 - [ ] **[P1] Wire Judge Check-In dashboard to real ring assignments** — `/judge/check-in` is routed, but `JudgeCheckInDashboard.tsx` initializes ring assignments with an empty array plus TODO, so a live judge-facing show-day page can show a false empty state. Verify the correct judge/ring assignment source, use the offline-safe show-day data path where required, and add focused coverage before closing.
 
-- [ ] **[P2] Wave A code-quality cleanup: delete Phase-2-confirmed dead code** — Source-level verification confirmed these are safe delete-first candidates: `apps/myk9show/src/lib/lazyLoading.ts`, `usePaginatedQueries.ts`, `useOptimizedSearch.ts`, `apps/myk9show/src/services/entryService.ts`, unreachable demo/test pages, `components/forms/OptimisticForm.tsx`, unused sync panels, and `apps/myk9show/src/config/performance-budget.ts`. Keep `supabase/functions/send-notification` out of this wave until deployed Supabase usage/log/config checks are done.
+- [x] ~~**[P2] Wave A code-quality cleanup: delete Phase-2-confirmed dead code**~~ — Removed `apps/myk9show/src/lib/lazyLoading.ts`, `usePaginatedQueries.ts`, `useOptimizedSearch.ts`, their direct dead-hook tests, `apps/myk9show/src/services/entryService.ts`, unreachable demo/test pages, `components/forms/OptimisticForm.tsx`, unused sync panels, and `apps/myk9show/src/config/performance-budget.ts`. Kept `supabase/functions/send-notification` out of this wave until deployed Supabase usage/log/config checks are done.
 
 ---
 

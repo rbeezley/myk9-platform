@@ -2,7 +2,7 @@
 
 Status: Phase 1 inventory drafted from subagent findings; initial Phase 2 source-level verification is complete for the P1/P2 queue. Deployed-system checks and product decisions remain gated.
 
-Phase 3 human gate: no fix wave is approved by this file. Before any Wave A-D implementation starts, the finder-confirmed lists below require human approval and every P1/P2 item requires independent Phase 2 verification, even when the row says "finder-confirmed." Fix-list approval is also not approval for shared-system mutations; confirm separately before PR creation/comments/merge, Supabase pushes, function deploys, external-service writes, or any push to `main`.
+Phase 3 human gate: this file does not approve fix waves by itself. Wave A was approved after Phase 2 verification and implemented on branch `codex/code-quality-wave-a-dead-code`; Waves B-D still require explicit approval before implementation. Fix-list approval is also not approval for shared-system mutations; confirm separately before PR creation/comments/merge, Supabase pushes, function deploys, external-service writes, or any push to `main`.
 
 Phase 2 results are recorded in `09-phase-2-verification.md`. The short version: all P1 test/type/judge findings were confirmed; the initial dead-code queue was confirmed except `send-notification`, which still needs deployed Supabase usage checks; two replication-bypass candidates were refuted/reclassified; and env/config plus several public-contract questions still need human decisions.
 
@@ -39,10 +39,10 @@ Phase 2 results are recorded in `09-phase-2-verification.md`. The short version:
 
 | Severity | Area | Candidate | Evidence | Phase 2 Result |
 | --- | --- | --- | --- | --- |
-| P2 | Dead code | `lazyLoading.ts`, `usePaginatedQueries.ts`, and `useOptimizedSearch.ts` appear dead or tests-only. | No production imports except candidate-dead preloader; `knip` unavailable, fallback `rg` used. | Confirmed dead/tests-only; Wave A delete candidate. |
+| P2 | Dead code | `lazyLoading.ts`, `usePaginatedQueries.ts`, and `useOptimizedSearch.ts` appear dead or tests-only. | No production imports except candidate-dead preloader; `knip` unavailable, fallback `rg` used. | Confirmed dead/tests-only; deleted in Wave A branch. |
 | P2 | Dead code / schema drift | `entryService.ts` `markInRing` appears uncalled but writes nonexistent `entries.status`. | Source grep found no direct app caller; type audit confirmed no `entries.status` column. | Confirmed dead/schema-drift; delete rather than repair. |
 | P2 | Dead code | `supabase/functions/send-notification` has no source caller and overlaps current send flows. | No invoke/source caller found. | Source-unreferenced, but still needs deployed Supabase usage/log/config check before deletion. |
-| P3 | Dead code | Demo/test pages, optimistic form wrapper, unused sync UI panels, performance-budget config. | Source grep found no active route/import references. | Confirmed unreachable/unused; Wave A delete candidate. |
+| P3 | Dead code | Demo/test pages, optimistic form wrapper, unused sync UI panels, performance-budget config. | Source grep found no active route/import references. | Confirmed unreachable/unused; deleted in Wave A branch. |
 
 ## Needs Human
 

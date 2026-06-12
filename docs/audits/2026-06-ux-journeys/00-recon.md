@@ -15,7 +15,7 @@
 | `docs/plan-show-map-workbench-collapse.md` | Intended secretary workbench boundary | Yes |
 | `docs/plan-secretary-show-day-ux-consolidation.md` | Intended secretary routing boundary | Yes |
 | `apps/myk9show/src/routes/` | Current route map | Yes |
-| Light browser checks | Route existence and redirects | Pending |
+| Light browser checks | Route existence and redirects | Yes |
 
 Route inventory confirms the current app treats `/at-show/:showId` as the day-of class picker, `/exhibitor/entries` as the exhibitor show hub, `/secretary/dashboard` as the cross-show secretary home, and `/shows/:showId` / `/shows/:showId/show-desk` as the canonical single-show workbench and Show Desk surfaces. `/secretary/shows/:showId` is a legacy redirect. The consolidation plans define Show Desk as the operational hub and Entry Management as the bulk entry surface.
 
@@ -99,7 +99,9 @@ Credentials came from `apps/myk9show/src/test/e2e/helpers/testUsers.ts`: exhibit
 | `/at-show` ringside clarity | Static evidence cannot prove 380px glanceability, tap target quality, dogs-ahead comprehension, or offline tone. | Phase 2 phone-at-ringside pass |
 | Results/share completion | Static evidence cannot prove an exhibitor can find post-show results without hunting. | Phase 2 exhibitor journey audit |
 | Show Desk pressure behavior | Static evidence cannot prove the secretary sees the right next action during scratches, move-ups, and scoring interruptions. | Phase 3 secretary show-day pressure pass |
+| Legacy phase/query redirect mismatch | Light browser checks found `/secretary/shows/:showId?phase=show-desk` landed on `/shows/:showId/setup?phase=show-desk`, rendering Setup instead of Show Desk. | Phase 3 secretary routing cleanup |
 | Bulk-operation failure states | Static route evidence cannot prove partial approve/check-in/armband failures recover calmly. | Phase 3 secretary state coverage |
+| Route-check data-load toasts | Light browser checks surfaced `dogs`/`entries` policy-recursion data-load toasts on route/render checks; this needs investigation outside recon before golden-path walkthroughs. | Dynamic QA infrastructure plus scorecard close-out |
 | Offline/reconnect recovery | Static route evidence cannot prove sync recovery or conflict tone. | Dynamic QA infrastructure plus scorecard close-out |
 
 ## Duplication Notes

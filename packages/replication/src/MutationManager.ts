@@ -20,10 +20,14 @@ import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import { markPerf, measurePerf } from './perf';
 import {
   withTimeout,
-  calculateBackoffDelay,
-  isRetryableError,
   TIMEOUT_PRESETS,
 } from './mutation-utils';
+import { classifyMutationFailure } from './mutation-retry';
+import {
+  classifyEmptyUpdateResult,
+  getReturnedServerVersion,
+  OccRejectionError,
+} from './mutation-occ';
 import { sortMutationsByDependencies } from './mutation-ordering';
 import {
   getMutationQueueCapacity,
@@ -43,28 +47,6 @@ import {
 // ============================================
 // CONSTANTS
 // ============================================
-
-// ============================================
-// ERRORS
-// ============================================
-
-/**
- * Thrown by executeMutation when an UPDATE is rejected because the server's
- * version column has moved past the mutation's baseServerVersion. This signals
- * a concurrent write (not a transient error), so the upload loop must NOT
- * retry or delete the mutation — it leaves the row dirty so the download phase
- * can detect the same-field conflict.
- */
-export class OccRejectionError extends Error {
-  constructor(
-    public readonly tableName: string,
-    public readonly rowId: string,
-    public readonly expectedVersion: number
-  ) {
-    super(`OCC rejection: ${tableName}/${rowId} (expected server version ${expectedVersion})`);
-    this.name = 'OccRejectionError';
-  }
-}
 
 // ============================================
 // TYPES
@@ -500,46 +482,38 @@ export class MutationManager {
             });
             continue;
           }
-          const message = error instanceof Error ? error.message : String(error);
-          const canRetry = isRetryableError(error);
+          const failure = classifyMutationFailure({
+            mutation,
+            error,
+            maxRetries: this.maxRetries,
+            retryBackoffBase: this.retryBackoffBase,
+          });
 
-          // Increment retry count
-          mutation.retries = (mutation.retries || 0) + 1;
-
-          // Mark as failed if max retries exceeded OR error is not retryable
-          if (mutation.retries >= this.maxRetries || !canRetry) {
-            mutation.status = 'failed';
-            mutation.error = canRetry
-              ? `Max retries exceeded: ${message}`
-              : `Non-retryable error: ${message}`;
-            mutation.failedAt = Date.now();
-            failedMutations.push(mutation);
-
+          if (failure.permanentlyFailed) {
+            failedMutations.push(failure.mutation);
             this.logger.error(
-              `[MutationManager] Mutation ${mutation.id} (${mutation.tableName}/${mutation.operation}) failed permanently${canRetry ? ' (max retries)' : ' (non-retryable)'}: ${message}`,
+              `[MutationManager] Mutation ${mutation.id} (${mutation.tableName}/${mutation.operation}) failed permanently${failure.canRetry ? ' (max retries)' : ' (non-retryable)'}: ${failure.message}`,
               error
             );
             // Move permanently failed mutations out of the active queue but keep
             // them in the failed_mutations store. Deleting them outright would
             // silently destroy offline work (e.g. ringside scores blocked by an
             // RLS/auth failure) with nothing for the user to review or retry.
-            await db.put(REPLICATION_STORES.FAILED_MUTATIONS, mutation);
+            await db.put(REPLICATION_STORES.FAILED_MUTATIONS, failure.mutation);
             await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, mutation.id);
           } else {
-            mutation.status = 'pending';
-            mutation.error = message;
-            mutation.nextRetryAt =
-              Date.now() + calculateBackoffDelay(mutation.retries - 1, this.retryBackoffBase);
-
             this.logger.warn(
-              `[MutationManager] Mutation ${mutation.id} failed (retry ${mutation.retries}/${this.maxRetries}), next attempt after ${new Date(mutation.nextRetryAt).toISOString()}:`,
+              `[MutationManager] Mutation ${mutation.id} failed (retry ${failure.mutation.retries}/${this.maxRetries}), next attempt after ${new Date(failure.mutation.nextRetryAt!).toISOString()}:`,
               error
             );
 
-            await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation);
+            await db.put(REPLICATION_STORES.PENDING_MUTATIONS, failure.mutation);
 
-            if (earliestBackoff === null || mutation.nextRetryAt < earliestBackoff) {
-              earliestBackoff = mutation.nextRetryAt;
+            if (
+              failure.mutation.nextRetryAt !== undefined &&
+              (earliestBackoff === null || failure.mutation.nextRetryAt < earliestBackoff)
+            ) {
+              earliestBackoff = failure.mutation.nextRetryAt;
             }
           }
 
@@ -549,7 +523,7 @@ export class MutationManager {
             operation: mutation.operation,
             rowsAffected: 0,
             duration: 0,
-            error: message,
+            error: failure.message,
           });
         }
       }
@@ -642,6 +616,7 @@ export class MutationManager {
         );
         if (error) throw error;
         if (!rows || rows.length === 0) {
+          let serverCheck: { version?: number } | null | undefined;
           if (mutation.serverVersion !== undefined) {
             // Disambiguate: OCC rejection (version advanced) vs RLS denial (version unchanged)
             // vs row deleted. One bounded re-check avoids silent permanent queue stall.
@@ -654,25 +629,16 @@ export class MutationManager {
               TIMEOUT_PRESETS.standard,
               `${tableName} occ-check`
             );
-            if (!check) {
-              throw new Error(
-                `Row ${mutation.rowId} on ${tableName} no longer exists server-side.`
-              );
-            }
-            if ((check as { version: number }).version !== mutation.serverVersion) {
-              // Version advanced → genuine OCC rejection (concurrent write).
-              // Throw so the upload loop keeps the mutation queued and the row
-              // dirty for the download loop's conflict detector.
-              throw new OccRejectionError(tableName, mutation.rowId, mutation.serverVersion);
-            }
+            serverCheck = check as { version?: number } | null | undefined;
           }
-          // Version unchanged (or no precondition) → RLS blocked the write.
-          throw new Error(
-            `RLS policy blocked UPDATE on ${tableName} for row ${mutation.rowId}. ` +
-              `Check that the authenticated user has the required role.`
-          );
+          throw classifyEmptyUpdateResult({
+            tableName,
+            rowId: mutation.rowId,
+            serverVersion: mutation.serverVersion,
+            serverCheck,
+          });
         }
-        const newServerVersion = (rows[0] as { version?: number }).version;
+        const newServerVersion = getReturnedServerVersion(rows as Array<{ version?: number }>);
         return { newServerVersion };
       }
 

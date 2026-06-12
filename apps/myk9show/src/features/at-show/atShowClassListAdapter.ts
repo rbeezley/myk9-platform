@@ -29,7 +29,7 @@ export interface AtShowClassGroup {
 }
 
 /** Render the class name from element + level (+ section unless '-'). */
-function buildClassName(cls: ReplicatedClass): string {
+export function buildClassName(cls: ReplicatedClass): string {
   const section = cls.section && cls.section !== '-' ? ` ${cls.section}` : '';
   return `${cls.element ?? ''} ${cls.level ?? ''}${section}`.trim();
 }

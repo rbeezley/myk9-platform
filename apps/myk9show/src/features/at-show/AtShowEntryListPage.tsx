@@ -35,6 +35,7 @@ import {
   useEntryListData,
   useEntryListFilters,
   useDragAndDropEntries,
+  buildEntryListOwnership,
   type Entry,
   type EntryListDataDependencies,
   type RingsideShowContext,
@@ -50,6 +51,9 @@ import { useAtShowEntryListUiState } from './useAtShowEntryListUiState';
 import { atShowLayoutSlots } from './slots/atShowLayoutSlots';
 import { atShowDialogSlots } from './slots/atShowDialogSlots';
 import { useAtShowDogFavorites } from './ringsideDogFavorites';
+import { useMyAtShowEntries } from './useMyAtShowEntries';
+import { useMyRingConflicts } from './useMyRingConflicts';
+import { useAtShowRealtimeRefresh } from './useAtShowRealtimeRefresh';
 
 export const AtShowEntryListPage: React.FC = () => {
   const { showId, classId } = useParams<{ showId: string; classId: string }>();
@@ -118,6 +122,9 @@ export const AtShowEntryListPage: React.FC = () => {
   });
 
   const actions = useAtShowEntryListActions({ refresh });
+
+  // ── Realtime: scoring/check-in changes elsewhere re-sync this list ─────
+  useAtShowRealtimeRefresh(showId, refresh);
 
   // ── Shim-owned entry mirror state (see uiState hook ownership note) ────
   const [localEntries, setLocalEntries] = useState<Entry[]>([]);
@@ -227,6 +234,17 @@ export const AtShowEntryListPage: React.FC = () => {
     }
   }, [isRefreshing, hasCompletedInitialLoad, setHasCompletedInitialLoad, setIsLoaded]);
 
+  // ── Ownership annotations (own-dog highlight + dogs-ahead pills) ────────
+  // Built from the same `localEntries` array the page renders, so the pill
+  // can never disagree with the visible list. Undefined for accounts with no
+  // entries here (staff, passcode grantees) — rendering is then unchanged.
+  const { ownEntryIds } = useMyAtShowEntries(showId);
+  const conflictLabels = useMyRingConflicts(showId, ownEntryIds);
+  const ownership = useMemo(
+    () => buildEntryListOwnership(localEntries, ownEntryIds, conflictLabels),
+    [localEntries, ownEntryIds, conflictLabels]
+  );
+
   // ── Context bag ──────────────────────────────────────────────────────────
   const canManageClasses = hasPermission('canManageClasses');
   const pageShowContext = useMemo(
@@ -258,6 +276,7 @@ export const AtShowEntryListPage: React.FC = () => {
             entryCounts,
           }}
           favorites={{ favoriteArmbands, onToggleFavoriteArmband: toggleFavoriteArmband }}
+          {...(ownership ? { ownership } : {})}
           drag={{ sensors, handleDragStart, handleDragEnd, isDraggingRef }}
           dialogs={atShowDialogSlots}
           layout={atShowLayoutSlots}

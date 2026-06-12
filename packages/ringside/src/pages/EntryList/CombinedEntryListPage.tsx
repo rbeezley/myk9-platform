@@ -38,6 +38,7 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
   uiActions,
   derived,
   favorites,
+  ownership,
   drag,
   dialogs,
   layout,
@@ -326,6 +327,7 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
             onDragEnd={handleDragEnd}
             onOpenDragMode={handleOpenDragMode}
             {...(favorites ? { favorites } : {})}
+            {...(ownership ? { ownership } : {})}
             DogCard={layout.DogCard}
           />
         </div>

@@ -26,6 +26,7 @@ import type { DogCardProps } from './pageProps';
 import type { EntryListPermission } from './permissions';
 import { getStatusBorderClass } from './sortableEntryCardUtils';
 import { ResultBadges, StatusBadgeContent } from './SortableEntryCardComponents';
+import { formatDogsAheadInList, type DogsAheadResult } from './dogsAheadInList';
 
 // ========================================
 // TYPES
@@ -59,6 +60,12 @@ export interface SortableEntryCardProps {
   isFavorite?: boolean;
   /** Toggle the exhibitor's favorite state for this armband. */
   onToggleFavorite?: (armband: number) => void;
+  /** Whether this entry belongs to the signed-in exhibitor (own-dog highlight). */
+  isOwnEntry?: boolean;
+  /** Live queue position for an own entry; renders the "N dogs ahead" pill. */
+  dogsAhead?: DogsAheadResult;
+  /** Ring-conflict annotation for an own entry ("Also 2 away in ..."). */
+  conflictLabel?: string | null;
   /**
    * Host-injected card primitive. The host renders this with the
    * armband / dog details / badges; ringside controls only what's
@@ -86,6 +93,9 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
   onOpenDragMode,
   isFavorite = false,
   onToggleFavorite,
+  isOwnEntry = false,
+  dogsAhead = null,
+  conflictLabel = null,
   DogCard,
 }) => {
   const isInRing = entry.inRing || entry.status === 'in-ring';
@@ -195,11 +205,21 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
         handler={entry.handler}
         onClick={handleCardClick}
         onPrefetch={() => onPrefetch?.(entry)}
-        className={`${
-          hasPermission('canScore') && !entry.isScored ? 'clickable' : ''
-        } ${entry.status === 'in-ring' ? 'in-ring' : ''}`}
+        className={cn(
+          hasPermission('canScore') && !entry.isScored && 'clickable',
+          entry.status === 'in-ring' && 'in-ring',
+          // Own-dog highlight: calm primary ring + faint tint. Layered via
+          // className so the DogCard primitive's API stays untouched.
+          isOwnEntry && 'ring-1 ring-primary/50 border-primary/40 bg-primary/[0.04]'
+        )}
         statusBorder={getStatusBorderClass(entry)}
-        resultBadges={<ResultBadges entry={entry} showContext={showContext} />}
+        resultBadges={
+          <>
+            {isOwnEntry && <OwnDogQueuePill dogsAhead={dogsAhead} />}
+            {isOwnEntry && conflictLabel && <OwnDogConflictChip label={conflictLabel} />}
+            <ResultBadges entry={entry} showContext={showContext} />
+          </>
+        }
         sectionBadge={sectionBadge}
         favoriteButton={
           onToggleFavorite ? (
@@ -324,6 +344,48 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ entry, isDisabled, onClick })
     </div>
   );
 };
+
+/**
+ * Queue-position pill for the exhibitor's own entries ("You're next",
+ * "3 dogs ahead"). Persistent counterpart of the notification monitor's
+ * transient "your turn" toast — same facts, glanceable on the list.
+ * Renders nothing once the entry is scored (dogsAhead === null).
+ */
+const OwnDogQueuePill: React.FC<{ dogsAhead: DogsAheadResult }> = ({ dogsAhead }) => {
+  const label = formatDogsAheadInList(dogsAhead);
+  if (label === null) return null;
+
+  const emphasis =
+    dogsAhead?.kind === 'in-ring' || (dogsAhead?.kind === 'waiting' && dogsAhead.dogsAhead === 0);
+
+  return (
+    <span
+      data-testid="own-dog-queue-pill"
+      className={cn(
+        'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold',
+        emphasis
+          ? 'bg-primary text-primary-foreground'
+          : 'border border-solid border-primary/30 bg-primary/10 text-primary'
+      )}
+    >
+      {label}
+    </span>
+  );
+};
+
+/**
+ * Ring-conflict chip for the exhibitor's own entries. Informational only —
+ * marking `check_in_status='conflict'` stays a human action via the status
+ * dialog. Amber, calm, no animation.
+ */
+const OwnDogConflictChip: React.FC<{ label: string }> = ({ label }) => (
+  <span
+    data-testid="own-dog-conflict-chip"
+    className="inline-flex items-center gap-1 rounded-full border border-solid border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400"
+  >
+    {label}
+  </span>
+);
 
 /**
  * Reset button for scored entries

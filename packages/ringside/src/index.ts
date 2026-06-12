@@ -234,6 +234,16 @@ export type {
 export { useEntryListFilters } from './pages/EntryList';
 export type { TabType, SortType, SectionFilter } from './pages/EntryList';
 
+// Exhibitor ownership annotations — own-dog highlight + dogs-ahead pills.
+// `buildEntryListOwnership` is the bag builder host shims call with their
+// localEntries and the account's own-entry id set.
+export {
+  computeDogsAheadInList,
+  formatDogsAheadInList,
+  buildEntryListOwnership,
+} from './pages/EntryList';
+export type { DogsAheadResult, EntryListOwnership } from './pages/EntryList';
+
 export { useResetScore } from './pages/EntryList';
 
 export { useDragAndDropEntries } from './pages/EntryList';

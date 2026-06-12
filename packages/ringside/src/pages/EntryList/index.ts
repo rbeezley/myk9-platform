@@ -67,6 +67,16 @@ export {
   StatusBadgeContent,
 } from './SortableEntryCardComponents';
 
+// ── Exhibitor ownership annotations (own-dog highlight + dogs-ahead) ────
+// Pure utils + the `ownership` bag builder the host shim calls with its
+// localEntries and the account's own-entry id set.
+export {
+  computeDogsAheadInList,
+  formatDogsAheadInList,
+  buildEntryListOwnership,
+} from './dogsAheadInList';
+export type { DogsAheadResult, EntryListOwnership } from './dogsAheadInList';
+
 // ── Hooks ────────────────────────────────────────────────────────────────
 export { useEntryListFilters } from './hooks/useEntryListFilters';
 export type { TabType, SortType, SectionFilter } from './hooks/useEntryListFilters';

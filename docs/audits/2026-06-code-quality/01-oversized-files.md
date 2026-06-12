@@ -9,20 +9,19 @@ Commands included `find apps packages ... '*.ts' '*.tsx'`, `wc -l`, generated-fi
 
 Exclusions: `node_modules`, `dist`, `build`, `coverage`, `*.test.*`, `*.spec.*`, `*.d.ts`, and generated Supabase type files:
 
-- `apps/myk9show/src/types/supabase.ts` at 9,052 lines
-- `packages/supabase/src/types/database.types.ts` at 7,742 lines
-- `packages/supabase/src/types.ts` at 7,550 lines
-- `packages/supabase/src/database.types.ts` at 5,204 lines
+- `packages/supabase/src/types/database.types.ts` at 9,052 lines
+
+Wave B slice 1 collapsed the prior generated type duplicates into 11-line compatibility re-exports at `apps/myk9show/src/types/supabase.ts`, `packages/supabase/src/types.ts`, and `packages/supabase/src/database.types.ts`.
 
 Counts:
 
-- Raw oversized `.ts`/`.tsx`: 182
-- Generated Supabase type files excluded: 4
-- Real oversized files after generated exclusions: 178
+- Raw oversized `.ts`/`.tsx`: 178
+- Generated Supabase type files excluded: 1
+- Real oversized files after generated exclusions: 177
 - Test/mock support included by literal pattern: 7
 - P1 findings from size alone: 0
 
-Count note: the original 2026-06-10 plan baseline was 181 raw / approximately 177 real. This 2026-06-12 finder rerun used the documented literal Phase 1a pattern and found 182 raw / 178 real. Treat this file's count as the current audit-run count and the plan count as historical baseline.
+Count note: the original 2026-06-10 plan baseline was 181 raw / approximately 177 real. The 2026-06-12 finder rerun used the documented literal Phase 1a pattern and found 182 raw / 178 real before Wave B type-file unification. Treat this file's count as the current audit-run count and the plan count as historical baseline.
 
 Actionability note: broad clusters below are Phase 1 inventory only. Before any extraction wave, Phase 2 must narrow the chosen cluster to concrete file:line ranges and confirm the extraction boundary.
 

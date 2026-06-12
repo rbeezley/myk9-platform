@@ -10,7 +10,7 @@ Method: four read-only verification tracks plus targeted main-agent checks. Veri
 
 | Finding | Phase 2 Result | Evidence | Next Step |
 | --- | --- | --- | --- |
-| Generated Supabase type files diverge | Confirmed | Four generated files differ in size and content: `packages/supabase/src/database.types.ts`, `packages/supabase/src/types/database.types.ts`, `packages/supabase/src/types.ts`, and `apps/myk9show/src/types/supabase.ts`. Package exports `packages/supabase/src/types/database.types.ts`; the app client imports `apps/myk9show/src/types/supabase.ts`. | Make one package-owned canonical generated type source, re-export/consume it from the app, delete or type-only re-export stale copies, and fix generation docs/scripts. |
+| Generated Supabase type files diverge | Confirmed; Wave B slice 1 implemented | Four generated files differed in size and content: `packages/supabase/src/database.types.ts`, `packages/supabase/src/types/database.types.ts`, `packages/supabase/src/types.ts`, and `apps/myk9show/src/types/supabase.ts`. Package exports and app imports now converge on `packages/supabase/src/types/database.types.ts` through compatibility re-exports. | Complete focused verification, then continue Wave B with remaining P1 launch-gate tests and P2 duplication clusters. |
 | `calculateCartTotals` lacks direct unit tests | Confirmed, with path correction | No direct test imports for `calculateCartTotals`, `PLATFORM_FEE_PERCENT`, or `cartStore.helpers`. The server fee helper does exist at `apps/myk9show/supabase/functions/_shared/platformFee.ts`; the missing path was the root `supabase/functions/_shared/platformFee.ts`. | Add focused helper tests for empty cart, multi-item subtotal, the 350-cent boundary, label percent, and parity with the server helper. |
 | `ScoreValidatorService` lacks direct unit tests | Confirmed | `apps/myk9show/src/services/scoring/ScoreValidatorService.ts` exports a branch-heavy validator and singleton; test scans found no direct references to `ScoreValidatorService`, `scoreValidatorService`, `validateRealTime`, or `validateScores`. | Add direct unit tests before refactor: required/range rules, real-time mode, custom rules, timestamp validation, judge ID validation, and Q/NQ consistency. |
 | `PlacementCalculatorService.helpers` lacks direct unit tests | Confirmed | `apps/myk9show/src/services/scoring/PlacementCalculatorService.helpers.ts` exports placement/tie/sort/serialization helpers consumed by `PlacementCalculatorService.ts`; no direct helper tests found. | Add table-driven tests for sorting by format, ties, tie resolution, placement shifts/gaps, empty calculation, and serialize/deserialize date behavior. |
@@ -75,7 +75,7 @@ Method: four read-only verification tracks plus targeted main-agent checks. Veri
 ## Recommended Implementation Order
 
 1. Wave A: safe delete-first cleanup for Phase-2-confirmed dead code. Implemented on branch `codex/code-quality-wave-a-dead-code`.
-2. Wave B / P1 launch gate: fee/scoring/placement tests, type canonicalization prep, and the `/judge/check-in` false-empty fix or route de-scope decision.
+2. Wave B / P1 launch gate: fee/scoring/placement tests, the `/judge/check-in` false-empty fix or route de-scope decision, and remaining P2 duplication clusters. Type canonicalization was implemented in Wave B slice 1.
 3. Wave C: replication bypass fixes for secretary and show-day reliability.
 4. Wave D: lower-risk refactors and config/test cleanup after the critical paths are covered.
 

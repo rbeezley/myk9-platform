@@ -8,7 +8,7 @@ Active work items only. Resolved historical context lives in git history and dat
 
 Four steps toward the fall launch, in dependency order. Detailed phase checklists live in the sections below; this list is the master sequence.
 
-- [ ] **1. Code-Quality Audit** — remove static debt first; every later step audits or builds on the post-cleanup surfaces. Plan: [`docs/plan-code-quality-audit.md`](docs/plan-code-quality-audit.md). *In progress — Wave A implemented; Wave B next.*
+- [ ] **1. Code-Quality Audit** — remove static debt first; every later step audits or builds on the post-cleanup surfaces. Plan: [`docs/plan-code-quality-audit.md`](docs/plan-code-quality-audit.md). *In progress — Wave A implemented; Wave B type-file unification underway.*
 - [ ] **2. UX Journey Audit** — exhibitor + secretary journeys scored against INTENT; walks double as the golden-path browser walkthroughs the scorecard requires. Plan: [`docs/plan-ux-journey-audit.md`](docs/plan-ux-journey-audit.md). *Recon can start now; main phases after code-audit Waves A–C.*
 - [ ] **3. Dynamic QA Infrastructure** — permanent guards: chaos tests, mutation scoring, drift checks, observability, flaky quarantine. Plan: [`docs/plan-dynamic-qa-infrastructure.md`](docs/plan-dynamic-qa-infrastructure.md). *Mutation testing after code-audit Wave D; phases 1/3/4/5 may overlap with step 2 in separate worktrees.*
 - [ ] **4. Scorecard close-out (golden path sign-off)** — final launch gate: post-remediation re-walk of all **three** golden paths — secretary, exhibitor, and admin (the admin walkthrough has a lighter bar: support actions available or documented; it is not part of the UX journey audit) — flipping their `Unknown` rows in [`docs/goals/fall-2026-launch-readiness-scorecard.md`](docs/goals/fall-2026-launch-readiness-scorecard.md) against the scorecard's own pass thresholds. Then sweep the remaining scorecard dimensions, attaching evidence produced by steps 1–3 (offline-first behavior and data correctness from the dynamic-QA chaos/drift work, UX clarity from the journey audit, test/CI health from flaky quarantine) and listing what still lacks evidence. Initial golden-path evidence lands during step 2; the close-out runs last, after steps 2–3 remediation is in.
@@ -17,12 +17,12 @@ Four steps toward the fall launch, in dependency order. Detailed phase checklist
 
 ## Code-Quality Audit — 2026-06-12
 
-Plan: [`docs/plan-code-quality-audit.md`](docs/plan-code-quality-audit.md). Current status in [`docs/audits/2026-06-code-quality/SUMMARY.md`](docs/audits/2026-06-code-quality/SUMMARY.md). Phase 1 inventory and Phase 2 verification are done; Wave A cleanup is implemented on branch `codex/code-quality-wave-a-dead-code`.
+Plan: [`docs/plan-code-quality-audit.md`](docs/plan-code-quality-audit.md). Current status in [`docs/audits/2026-06-code-quality/SUMMARY.md`](docs/audits/2026-06-code-quality/SUMMARY.md). Phase 1 inventory and Phase 2 verification are done; Wave A cleanup is implemented on branch `codex/code-quality-wave-a-dead-code`; Wave B slice 1 is in branch `codex/code-quality-wave-b-consolidations`.
 
 - [x] ~~**Phase 2 — verify all P1/P2 findings**~~ — PR [#647](https://github.com/rbeezley/myk9-platform/pull/647). Source-level verification confirmed/refuted the finder results and kept `send-notification` out of the delete wave pending deployed-system checks.
 - [x] ~~**Human gate — approve fix list**~~ — Wave A delete-first cleanup approved 2026-06-12; broader judgment-heavy waves still remain as separate todos below.
 - [x] ~~**Wave A — pure deletions**~~ — Removed Phase-2-confirmed dead code in branch `codex/code-quality-wave-a-dead-code`; `send-notification` intentionally remains pending deployed usage/log/config verification.
-- [ ] **Wave B — consolidations** (duplication clusters, type-file unification)
+- [ ] **Wave B — consolidations** (duplication clusters, type-file unification) — type-file unification implemented in branch `codex/code-quality-wave-b-consolidations`; remaining Wave B work: P1 launch-gate tests/fix and confirmed P2 duplication clusters.
 - [ ] **Wave C — extractions** (multi-concern oversized files only)
 - [ ] **Wave D — replication-bypass reroutes + targeted test additions**
 - [ ] **Phase 5 — codify as repeatable skill + set CI ratchet baselines** (after all waves land)

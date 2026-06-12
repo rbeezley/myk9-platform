@@ -10,8 +10,8 @@
 | --- | --- | --- |
 | `docs/INTENT.md` | Role feelings and UX guardrails | Yes |
 | `docs/goals/fall-2026-launch-readiness-scorecard.md` | Canonical golden-path steps | Yes |
-| `docs/ux-audits/phase-1-summary.md` | April exhibitor findings | Pending |
-| `docs/ux-audits/phase-2-summary.md` | April secretary findings | Pending |
+| `docs/ux-audits/phase-1-summary.md` | April exhibitor findings | Yes |
+| `docs/ux-audits/phase-2-summary.md` | April secretary findings | Yes |
 | `docs/plan-show-map-workbench-collapse.md` | Intended secretary workbench boundary | Yes |
 | `docs/plan-secretary-show-day-ux-consolidation.md` | Intended secretary routing boundary | Yes |
 | `apps/myk9show/src/routes/` | Current route map | Yes |
@@ -23,6 +23,26 @@ Route inventory confirms the current app treats `/at-show/:showId` as the day-of
 
 | Finding | April surface | Current status | Evidence | Follow-up phase |
 | --- | --- | --- | --- | --- |
+| Mock credit card form collects fake data, never submits to Stripe | Registration Wizard | fixed | `PaymentStep` now shows secure-checkout copy instead of card fields; covered by `apps/myk9show/src/test/components/phase3-5-payment-components.test.tsx` and `apps/myk9show/src/test/e2e/registration/exhibitorSelfRegistration.spec.ts`. | Phase 2 exhibitor money-path sweep |
+| Zero loading feedback during payment-to-confirmation | Registration Wizard | fixed | `apps/myk9show/src/test/components/RegistrationWorkflow.simple.test.tsx` asserts `isSubmitting` wraps async submission and is passed to `WizardNavigation` as `isLoading`. | Phase 2 exhibitor money-path sweep |
+| `UpcomingShowsSection` injects mock competitions when store is empty | Dog Detail | fixed | `apps/myk9show/src/components/dogs/DogDetails/Competitions/UpcomingShows/UpcomingShowsSection.tsx` renders an empty state when `competitions.length === 0`; `apps/myk9show/src/test/components/UpcomingShowsSection.test.tsx` asserts mock/fake data is not injected. | Phase 2 exhibitor dog-profile pass |
+| Error states show as empty lists | Cross-cutting | needs-browser-confirmation | April finding spans My Entries, Show Details, and Show Day; current code has changed enough that static evidence should be paired with actual failed-query route walks. | Phase 2 exhibitor state-coverage pass |
+| Show Day `onNavigate` not wired | Show Day | obsolete | `/exhibitor/show-day` now redirects via `LegacyShowDayRedirect` to `/at-show/:showId` or `/exhibitor/entries`; replacement cards in `ShowDayHero` pass `onClassNavigate` to `NextUpCard` and `ClassTimelineCard`. | Phase 2 phone-at-ringside pass |
+| "Add Achievement" dialog unreachable / "Add Past Result" no-op | Dog Detail | fixed | `apps/myk9show/src/components/dogs/DogDetails/Competitions/CompetitionsTabs.tsx` wires the add button to `setAddPastResultOpen(true)` and `setAddAchievementOpen(true)`, then passes both dialog states into the child sections. | Phase 2 exhibitor dog-profile pass |
+| No entry status badge in Show Details hero | Show Details | fixed | `apps/myk9show/src/pages/ShowDetailsPage.tsx` adds the non-secretary `entryStatus.label` to hero badges. | Phase 2 exhibitor show-details pass |
+| Register button silently disappears when entries close | Show Details | fixed | `apps/myk9show/src/pages/ShowDetailsPage.tsx` passes `entryStatus.description` as `closedMessage`; `apps/myk9show/src/test/pages/ShowDetailsPage.test.tsx` covers closed-entry button behavior. | Phase 2 exhibitor show-details pass |
+| Title progress absent from Dashboard / buried on Dog Detail | Cross-cutting | needs-browser-confirmation | Static code shows newer Dog Detail title-progress surfaces, including `RollingTitleProgress` and a sidebar `TitleProgressCard`, but the exhibitor dashboard replacement still needs a browser journey check. | Phase 2 exhibitor dog-profile/dashboard pass |
+| 62% of Dog Detail tabs are premium-gated | Dog Detail | still-open | Current canonical surface is `/dogs/:id`: `DogDetailsTabs.tsx` still locks Title Progress, Statistics, Health Records, Training Journal, and Pedigree for non-premium exhibitors. | Phase 2 exhibitor dog-profile pass |
+| Pipeline hardcoded scoring/review booleans | Pipeline Dashboard | obsolete | `apps/myk9show/src/routes/secretaryRoutes.tsx` documents Secretary Dashboard as replacing old PipelineDashboard; class review now lives under canonical `/shows/:showId/results-control` and trial detail `/secretary/pipeline/:trialId`. | Phase 3 secretary journey audit |
+| Scratch/move-up takes 4-5 taps | Day-of Operations | needs-browser-confirmation | Day-of Operations has been redirected/collapsed toward Show Desk, and `showMapActions.ts` marks Show Desk as the canonical operational surface; actual tap count must be verified in the replacement flow. | Phase 3 secretary show-day operations pass |
+| No "Clone from Previous Show" | Show Creation Wizard | fixed | `apps/myk9show/src/components/shows/wizard/steps/ShowDetailsStep.tsx` includes `CloneFromShowCombobox`; e2e coverage asserts the "Select a past show to clone" affordance in `showWizardUI.spec.ts` and `critical-path.spec.ts`. | Phase 3 secretary show-setup pass |
+| CSV export missing owner/contact/reg columns | Entry Management | fixed | `apps/myk9show/src/hooks/useEntryManagementActions.ts` exports `Registration #`, owner first/last name, email, and phone headers via `buildExportRow`. | Phase 3 secretary entry-management pass |
+| "Send Email" bulk button does nothing | Entry Management | fixed | Current canonical Entry Management uses enrollment-level email flow: `EnrollmentCard.tsx` opens an email dialog and calls `onSendDecisionEmail` from the dialog's `Send Email` button. | Phase 3 secretary entry-management pass |
+| Check-in status clickable but looks static | Entry Management | fixed | `apps/myk9show/src/components/entries/management/EntryListCard.tsx` renders check-in status as a button with clickable styling; `EntryListCard.test.tsx` asserts `cursor-pointer` and border affordance. | Phase 3 secretary entry-management pass |
+| Results Control query failure skeletons forever | Results Control | fixed | `apps/myk9show/src/pages/secretary/ResultsControlPage/index.tsx` derives `isError` from all settings queries and renders a destructive alert with `Retry`. | Phase 3 secretary results-control pass |
+| No effective-settings summary after overrides | Results Control | needs-browser-confirmation | `SettingsOverrideCard` accepts resolved `currentSettings` and displays inherited labels, and `SecretaryClassDashboard` reads `useClassEffectiveSettings`; browser verification should confirm the summary is visible after override edits. | Phase 3 secretary results-control pass |
+| Event number validation blocks wizard despite optional copy | Show Creation Wizard | fixed | `TrialConfigurationStep.tsx` now makes event number required only for AKC and changes placeholder copy between "Required: AKC event number" and "Optional event number". | Phase 3 secretary show-setup pass |
+| Pipeline pushed below fold by stats/announcements | Pipeline Dashboard | obsolete | Old Pipeline Dashboard was replaced by Secretary Dashboard and canonical single-show Show Desk; any fold-order review belongs on `/secretary/dashboard` and `/shows/:showId/show-desk`. | Phase 3 secretary journey audit |
 
 ## Exhibitor Journey Map
 

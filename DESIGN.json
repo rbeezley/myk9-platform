@@ -54,8 +54,9 @@
       }
     },
     "typographyMeta": {
-      "display": { "displayName": "Display / h1 (Fraunces 450)", "purpose": "Page titles — editorial serif at display optical sizing. Viewport-clamped, not --font-scale." },
-      "headline": { "displayName": "Headline / h2 (Fraunces 450)", "purpose": "Major section headings; .display-serif applies the same voice to celebrations. Serif stops here — h3 and below are Montserrat." },
+      "display": { "displayName": "Display / h1 (Montserrat 600)", "purpose": "Page titles. Viewport-clamped, not --font-scale." },
+      "headline": { "displayName": "Headline / h2 (Montserrat 600)", "purpose": "Major section headings. Viewport-clamped, not --font-scale." },
+      "celebration": { "displayName": "Celebration (Fraunces)", "purpose": "The Podium only: .display-serif (450, opsz 144) at heading sizes, .celebration-serif (500, opsz 24) at text sizes." },
       "body": { "displayName": "Body", "purpose": "All working text. 16px minimum before user scaling." },
       "label": { "displayName": "Label", "purpose": "Chips, badges, form labels, metadata." },
       "mono": { "displayName": "Mono (JetBrains Mono)", "purpose": "Armband numbers, times, scores — tabular digits." }
@@ -139,11 +140,11 @@
   ],
   "narrative": {
     "northStar": "The Show Morning",
-    "overview": "Warm early light at the venue. Rings taped, catalogs stacked, armbands sorted — everything laid out and ready before the first dog runs. The interface should feel like that hour: calm, prepared, unhurried, and quietly warm. The visual foundation is warm paper, not cold glass: a catalog-cream canvas carrying pure-white cards with warm sand borders and ink text. Editorial Fraunces serif speaks at the display level (h1/h2); Montserrat handles everything functional. Color arrives through a user-selectable accent (Clay, Grove, Dusk, Heather); components speak var(--primary) and let the user's preference flow through. Dark mode is a different time of day, not an inversion. Built for older, non-technical users operating outdoors: 44px targets, scalable 16px+ text, density preferences, and calm offline states.",
+    "overview": "Warm early light at the venue. Rings taped, catalogs stacked, armbands sorted — everything laid out and ready before the first dog runs. The interface should feel like that hour: calm, prepared, unhurried, and quietly warm. The visual foundation is warm paper, not cold glass: a catalog-cream canvas carrying pure-white cards with warm sand borders and ink text. Montserrat carries the entire working interface; Fraunces serif appears only at celebration moments (The Podium). Color arrives through a user-selectable accent (Clay, Grove, Dusk, Heather); components speak var(--primary) and let the user's preference flow through. Dark mode is a different time of day, not an inversion. Built for older, non-technical users operating outdoors: 44px targets, scalable 16px+ text, density preferences, and calm offline states.",
     "keyCharacteristics": [
       "Warm catalog-cream canvas (#faf7f2) with exclusively warm-toned neutrals; pure white reserved for cards and inputs",
       "User-selectable accent system (Clay / Grove / Dusk / Heather) wired through --primary",
-      "Fraunces serif (450, display optical sizing) for h1/h2 and celebrations; Montserrat for all working UI",
+      "Montserrat for all working UI, display headings included; Fraunces reserved for celebration moments (The Podium)",
       "Flat by default; warm ring shadows and soft lifts appear in response to interaction",
       "Semantic status-color vocabulary never used decoratively",
       "Accessibility as identity: 44px targets, font scaling, density preferences, calm offline states",
@@ -153,7 +154,7 @@
       { "name": "The Accent Is the User's Rule", "body": "Components never hardcode #c96442 or any accent hex. Always var(--primary), var(--accent), var(--ring). A component that only looks right in Clay is broken.", "section": "colors" },
       { "name": "The Ring Green Rule", "body": "Ring Green (#4e7c53) appears only on live-judging indicators. Never for success states, never for decoration.", "section": "colors" },
       { "name": "The Status Is Sacred Rule", "body": "Status colors are a vocabulary the whole show day depends on. Never repurpose a status color for decoration, and never invent a new status color when one exists.", "section": "colors" },
-      { "name": "The Two Voices Rule", "body": "Fraunces speaks only at the display level: h1, h2, .display-serif, and celebration moments like The Podium. Everything a user reads while working — h3 and below, body, buttons, labels, tables, data — is Montserrat. Serif in a button, chip, or table cell is always wrong.", "section": "typography" },
+      { "name": "The Podium Rule", "body": "Fraunces is forbidden in working UI. If the screen helps someone do a task, it is Montserrat. If the screen honors something a dog just did — a placement, a title, a qualifying run — Fraunces may speak. Use .display-serif above ~20px and .celebration-serif below it.", "section": "typography" },
       { "name": "The Font Scale Rule", "body": "Body and h3-and-below sizes multiply by --font-scale (user preference); h1/h2 use viewport clamps instead. Never set working text in fixed px that escapes the scale, and never below 12px equivalent.", "section": "typography" },
       { "name": "The Flat-by-Default Rule", "body": "A surface earns a shadow by being interacted with or by floating above the page (modal, popover, toast). Resting content stays flat.", "section": "elevation" }
     ],
@@ -174,7 +175,7 @@
       "Don't show technical error messages, sync anxiety, or anything that makes poor connectivity feel like user failure.",
       "Don't use pure white as a page background (cards and inputs are the sanctioned white surfaces), pure black as text, or cool blue-grays anywhere outside the status vocabulary.",
       "Don't hardcode #c96442 (or any accent hex) in a component — it breaks the other three accents.",
-      "Don't use Fraunces below the display level (h3+, body, buttons, labels, tables), Ring Green outside live-judging, or status colors as decoration.",
+      "Don't use Fraunces in working UI (headings, body, buttons, labels, tables), Ring Green outside live-judging, or status colors as decoration.",
       "Don't use colored side-stripe borders (border-left > 1px) on cards or alerts; use full borders, tints, or nothing.",
       "Don't reach for a modal first — exhaust inline and progressive disclosure; modals are for genuine interruptions."
     ]

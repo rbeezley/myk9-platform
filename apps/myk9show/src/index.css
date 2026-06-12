@@ -504,23 +504,23 @@ select:hover {
     line-height: 1.6; /* Editorial spacing — generous like a book, not a dashboard */
   }
 
-  /* v2 typography — Fraunces display for h1/h2, Montserrat for h3/h4 */
+  /* v2 typography — Montserrat throughout the working UI. Fraunces is
+     reserved for celebration moments (The Podium) via .display-serif /
+     .celebration-serif, per the original design-tokens.css intent. */
   h1 {
-    font-family: var(--font-serif);
-    font-weight: 450;
-    font-variation-settings: var(--fraunces-settings-display);
+    font-family: var(--font-sans);
+    font-weight: 600;
     font-size: clamp(36px, 5vw, 60px);
     line-height: 1.05;
-    letter-spacing: -0.018em;
+    letter-spacing: -0.01em;
   }
 
   h2 {
-    font-family: var(--font-serif);
-    font-weight: 450;
-    font-variation-settings: var(--fraunces-settings-display);
+    font-family: var(--font-sans);
+    font-weight: 600;
     font-size: clamp(28px, 3.5vw, 40px);
     line-height: 1.2;
-    letter-spacing: -0.015em;
+    letter-spacing: -0.01em;
   }
 
   h3,
@@ -550,6 +550,15 @@ select:hover {
     font-family: var(--font-serif);
     font-weight: 450;
     font-variation-settings: var(--fraunces-settings-display);
+  }
+
+  /* Fraunces at text sizes (podium names, class titles) — the text
+     optical settings keep strokes sturdy below ~20px where the display
+     axis would render spindly. */
+  .celebration-serif {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    font-variation-settings: var(--fraunces-settings-text);
   }
 
   /* Rosette utility — inline SVG via mask so it recolors via currentColor */

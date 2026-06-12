@@ -47,10 +47,11 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Production's @layer base sets h1/h2 to use Fraunces optical-size
-   variation settings. Playfair Display doesn't have those axes, so
-   the setting is silently ignored — but explicitly clearing it keeps
-   browser font-shaping predictable. */
+/* The app's @layer base h1/h2 are Montserrat (Fraunces is celebration-
+   only via .display-serif / .celebration-serif). Clearing variation
+   settings here is defensive: Playfair Display lacks Fraunces' axes,
+   so if a serif utility ever leaks into this subtree the font-shaping
+   stays predictable. */
 .landing-v2 h1,
 .landing-v2 h2 {
   font-variation-settings: normal;

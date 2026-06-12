@@ -59,7 +59,7 @@ export function PodiumPosition({
         {config.label}
       </div>
       <p className="text-sm font-semibold leading-tight">{handlerName}</p>
-      <p className={cn('text-xs font-medium italic', config.text)}>&ldquo;{dogName}&rdquo;</p>
+      <p className={cn('celebration-serif text-sm italic', config.text)}>&ldquo;{dogName}&rdquo;</p>
       <p className="text-xs text-muted-foreground">{breed}</p>
       {armband && <p className="text-[10px] text-muted-foreground/70">#{armband}</p>}
       <div className={cn('mt-1 w-full rounded-t-sm', config.platform)} />

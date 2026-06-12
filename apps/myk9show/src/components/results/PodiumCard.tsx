@@ -11,7 +11,7 @@ export function PodiumCard({ classTitle, placements }: PodiumCardProps) {
   return (
     <Card className="overflow-hidden">
       <div className="border-b bg-muted/40 px-4 py-2.5">
-        <h3 className="text-sm font-semibold tracking-tight">{classTitle}</h3>
+        <h3 className="celebration-serif text-base">{classTitle}</h3>
       </div>
       <div className="grid grid-cols-2 gap-4 p-4 sm:grid-cols-4 sm:items-end">
         {placements.map(p => (

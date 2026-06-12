@@ -28,17 +28,21 @@ colors:
   info: "#3d6d8c"
 typography:
   display:
-    fontFamily: "Fraunces, Georgia, serif"
+    fontFamily: "Montserrat, system-ui, sans-serif"
     fontSize: "clamp(36px, 5vw, 60px)"
-    fontWeight: 450
+    fontWeight: 600
     lineHeight: 1.05
-    letterSpacing: "-0.018em"
+    letterSpacing: "-0.01em"
   headline:
-    fontFamily: "Fraunces, Georgia, serif"
+    fontFamily: "Montserrat, system-ui, sans-serif"
     fontSize: "clamp(28px, 3.5vw, 40px)"
+    fontWeight: 600
+    lineHeight: 1.2
+    letterSpacing: "-0.01em"
+  celebration:
+    fontFamily: "Fraunces, Georgia, serif"
     fontWeight: 450
     lineHeight: 1.2
-    letterSpacing: "-0.015em"
   title:
     fontFamily: "Montserrat, system-ui, sans-serif"
     fontSize: "1.25rem"
@@ -118,7 +122,7 @@ components:
 
 Warm early light at the venue. Rings taped, catalogs stacked, armbands sorted, coffee in hand — everything laid out and ready before the first dog runs. The interface should feel like that hour: calm, prepared, unhurried, and quietly warm. PRODUCT.md's doctrine is "the software disappears so the dogs can shine," and this system serves it by being a competent backdrop, never a performance. It explicitly rejects flashy or trendy product UI that competes with the work, dense passive tool palettes, and anything that makes poor connectivity feel like user failure.
 
-The visual foundation is warm paper, not cold glass: a catalog-cream canvas (`#faf7f2`) carrying pure-white cards with warm sand borders and ink text — every neutral has a yellow-brown undertone, with no cool grays anywhere. Editorial Fraunces serif speaks at the display level (h1/h2), giving pages the cadence of a show catalog; Montserrat handles everything functional. Color arrives through a **user-selectable accent**: Clay terracotta by default, with Grove teal, Dusk slate-blue, and Heather aubergine as the exhibitor's choice. Components never hardcode an accent; they speak `var(--primary)` and let the user's preference flow through. Dark mode is not an inversion but a different time of day — warm olive-dark surfaces (`#181411`, `#1e1c19`) like the show grounds after sunset, with the accent brightened one step for legibility.
+The visual foundation is warm paper, not cold glass: a catalog-cream canvas (`#faf7f2`) carrying pure-white cards with warm sand borders and ink text — every neutral has a yellow-brown undertone, with no cool grays anywhere. Montserrat carries the entire working interface; Fraunces serif appears only at celebration moments (The Podium), so the typeface itself signals that something was earned. Color arrives through a **user-selectable accent**: Clay terracotta by default, with Grove teal, Dusk slate-blue, and Heather aubergine as the exhibitor's choice. Components never hardcode an accent; they speak `var(--primary)` and let the user's preference flow through. Dark mode is not an inversion but a different time of day — warm olive-dark surfaces (`#181411`, `#1e1c19`) like the show grounds after sunset, with the accent brightened one step for legibility.
 
 Built for older, non-technical users operating outdoors under time pressure: 44px minimum touch targets, 16px+ body text with a user-controlled font scale (`--font-scale`), user-selectable layout density (compact / comfortable / spacious), high contrast, and no hover-only or gesture-only interactions. Components feel **calm and tactile** — soft 8px corners, gentle 1px hover lifts, quiet feedback.
 
@@ -126,7 +130,7 @@ Built for older, non-technical users operating outdoors under time pressure: 44p
 
 - Warm catalog-cream canvas (`#faf7f2`) with exclusively warm-toned neutrals; pure white reserved for cards and inputs
 - User-selectable accent system (Clay / Grove / Dusk / Heather) wired through `--primary`, each with light and dark variants
-- Fraunces serif (weight 450, display optical sizing) for h1/h2 display headings and celebrations; Montserrat for all working UI
+- Montserrat for all working UI, including display headings; Fraunces serif reserved for celebration moments (The Podium)
 - Flat by default; warm ring shadows and soft lifts appear in response to interaction
 - A semantic status-color vocabulary for check-in, class, and result states that is never used decoratively
 - Accessibility as identity: 44px targets, font scaling, density preferences, calm offline states
@@ -174,25 +178,28 @@ The canonical surface values live in `index.css`'s `@layer base :root` block (th
 
 ## 3. Typography
 
-**Display Font:** Fraunces (with Georgia fallback) — variable, weight 450, display optical settings (`opsz 144, SOFT 50, WONK 0`)
-**Body Font:** Montserrat (with system-ui fallback)
+**UI Font:** Montserrat (with system-ui fallback) — the entire working interface, display headings included
+**Celebration Font:** Fraunces (with Georgia fallback) — variable; `.display-serif` (450, `opsz 144`) for large moments, `.celebration-serif` (500, `opsz 24`) at text sizes
 **Mono Font:** JetBrains Mono (with SF Mono, Consolas fallback) — tabular numerals
 
-**Character:** Fraunces gives every page title the cadence of a show catalog — editorial, warm, a little literary. Montserrat carries the working interface with quiet geometric clarity beneath it. The split is structural: serif for what a page *is*, sans for what a user *does*.
+**Character:** Montserrat carries everything with quiet geometric clarity — the software disappearing behind the task. Fraunces appears only when a dog earns it: podium names, class titles on result cards. Its rarity is what makes it festive; the typeface change *is* the celebration.
 
 ### Hierarchy
 
-- **Display / h1** (Fraunces 450, `clamp(36px, 5vw, 60px)`, 1.05, -0.018em): Page titles.
-- **Headline / h2** (Fraunces 450, `clamp(28px, 3.5vw, 40px)`, 1.2, -0.015em): Major section headings. The `.display-serif` utility applies the same voice to celebration moments (The Podium).
-- **Title / h3–h4** (Montserrat 600, 1.125–1.25rem × `--font-scale`, 1.3): Card titles, sub-sections — the handoff point from serif to sans.
+- **Display / h1** (Montserrat 600, `clamp(36px, 5vw, 60px)`, 1.05, -0.01em): Page titles.
+- **Headline / h2** (Montserrat 600, `clamp(28px, 3.5vw, 40px)`, 1.2, -0.01em): Major section headings.
+- **Title / h3–h4** (Montserrat 600, 1.125–1.25rem × `--font-scale`, 1.3): Card titles, sub-sections.
 - **Body** (Montserrat 400, 1rem × `--font-scale`, 1.6): All standard text. 16px minimum before scaling; generous book-like line height is deliberate. Respect a 65–75ch line cap in prose contexts.
 - **Label** (Montserrat 500, 0.75rem, 1.25): Chips, badges, form labels, metadata.
 - **Eyebrow** (Montserrat 600, 12px, 0.12em tracking, uppercase, terra-700): Kicker labels above display headings.
+- **Celebration** (Fraunces via `.display-serif` at heading sizes, `.celebration-serif` at text sizes): The Podium and result celebrations only.
 - **Mono** (JetBrains Mono 400, `tabular-nums`): Armband numbers, times, scores — the `.numeric` utility, plus `code` and `kbd`.
 
-**The Two Voices Rule.** Fraunces speaks only at the display level: h1, h2, `.display-serif`, and celebration moments like The Podium. Everything a user reads while working — h3 and below, body, buttons, labels, tables, data — is Montserrat. Serif in a button, chip, or table cell is always wrong.
+**The Podium Rule.** Fraunces is forbidden in working UI. If the screen helps someone do a task, it is Montserrat. If the screen honors something a dog just did — a placement, a title, a qualifying run — Fraunces may speak. Use `.display-serif` above ~20px and `.celebration-serif` below it (the text optical axis keeps small sizes sturdy).
 
 **The Font Scale Rule.** Body and h3-and-below sizes multiply by `--font-scale` (user preference); h1/h2 use viewport clamps instead. Never set working text in fixed px that escapes the scale, and never below 12px equivalent.
+
+> Note: global serif h1/h2 existed briefly during the Fall 2026 redesign and was deliberately reverted (PR #659) — don't reintroduce it. The original `design-tokens.css` intent ("Reserved for celebration/editorial moments — The Podium") is the standing doctrine. The public landing page keeps its own editorial serif (Playfair) scoped under `.landing-v2`.
 
 ## 4. Elevation
 
@@ -249,7 +256,7 @@ Calm and tactile: soft 8px corners, generous touch targets, gentle 1px hover lif
 
 ### The Podium (signature)
 
-Result celebrations get the fullest editorial voice: `.display-serif` Fraunces, placement medal colors, and the only sanctioned use of playful motion (`wag`, `happy-bounce`, the spring curve). Delight concentrates here — at the moment a dog earns it — instead of leaking into the workday screens.
+Result celebrations get the fullest editorial voice: Fraunces on the class title and the dog's name (`.celebration-serif`), placement medal colors, and the only sanctioned use of playful motion (`wag`, `happy-bounce`, the spring curve). Delight concentrates here — at the moment a dog earns it — instead of leaking into the workday screens.
 
 ## 6. Do's and Don'ts
 
@@ -272,6 +279,6 @@ Result celebrations get the fullest editorial voice: `.display-serif` Fraunces, 
 - **Don't** show "technical error messages, sync anxiety, or anything that makes poor connectivity feel like user failure."
 - **Don't** use pure white as a *page background* (cards and inputs are the sanctioned white surfaces), pure black as text, or cool blue-grays anywhere outside the status vocabulary.
 - **Don't** hardcode `#c96442` (or any accent hex) in a component — it breaks the other three accents.
-- **Don't** use Fraunces below the display level (h3+, body, buttons, labels, tables), Ring Green outside live-judging, or status colors as decoration.
+- **Don't** use Fraunces in working UI (headings, body, buttons, labels, tables), Ring Green outside live-judging, or status colors as decoration.
 - **Don't** use colored side-stripe borders (`border-left` > 1px) on cards or alerts; use full borders, tints, or nothing.
 - **Don't** reach for a modal first — exhaust inline and progressive disclosure; modals are for genuine interruptions.

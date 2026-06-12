@@ -4,6 +4,14 @@ Active work items only. Resolved historical context lives in git history and dat
 
 ---
 
+## Code-Quality Audit Follow-ups — 2026-06-12
+
+Source: PR [#642](https://github.com/rbeezley/myk9-platform/pull/642), `docs/audits/2026-06-code-quality/`.
+
+- [ ] **[P1] Wire Judge Check-In dashboard to real ring assignments** — `/judge/check-in` is routed, but `JudgeCheckInDashboard.tsx` initializes ring assignments with an empty array plus TODO, so a live judge-facing show-day page can show a false empty state. Verify the correct judge/ring assignment source, use the offline-safe show-day data path where required, and add focused coverage before closing.
+
+---
+
 ## At-Show Exhibitor Awareness — implemented 2026-06-11, PR pending
 
 Plan: `docs/plan-at-show-exhibitor-awareness.md`. Branch `claude/at-show-exhibitor-awareness`. Own-dog highlighting, live "N dogs ahead" pills, and ring-conflict chips on the `/at-show` entry lists, plus realtime refresh (myK9Q parity). Locked decisions: in-ring dog EXCLUDED from the count ("You're next" while a dog runs), entry-list-only surfaces (class-card chips cut), conflict = ≥2 own entries within `leadDogs` in different in-progress classes (both sides badged).

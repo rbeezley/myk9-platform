@@ -37,7 +37,7 @@ Status: Phase 1 inventory complete; P1/P2 items need independent verification be
 | `apps/myk9show/src/hooks/queries/useJudgeCheckInStats.ts:7` | `supabaseClient as any` | lazy escape | P2 | `judge_assignments`, `classes`, and `trials` columns exist. | finder-confirmed; Phase-2 pending | Use typed client or explicit return type. |  |
 | `apps/myk9show/src/components/shows/ShowDetails/dialogs/DeleteShowDialog.tsx:46` | `supabase.rpc as any` | lazy escape | P3 | `hard_delete_show` exists in RPC types. | confirmed | Remove cast. | Admin-only. |
 | `apps/myk9show/src/features/admin-help/hooks/useExampleIds.ts:11` | `table as any` | deliberate boundary coercion | P3 | Runtime table name cannot infer literal table union. | confirmed | Prefer constraining `table` to `keyof Database['public']['Tables']` or keep with comment. | Admin-help utility. |
-| `apps/myk9show/src/services/entryService.ts:21` | writes `{ status }` to `entries` | schema drift | P2 | Generated `entries` has `entry_status`, `check_in_status`, `is_in_ring`; no `status` column. `markInRing` had no direct app caller found. | finder-confirmed; Phase-2 pending | Delete if dead, or route to replicated entry/check-in update. | Could pair with dead-code verification. |
+| `apps/myk9show/src/services/entryService.ts:21` | writes `{ status }` to `entries` | schema drift | P2 | Generated `entries` has `entry_status`, `check_in_status`, `is_in_ring`; no `status` column. `markInRing` had no direct app caller found. | finder-confirmed; Phase-2 pending | Verify liveness in Wave A; delete if dead. Only route to replicated entry/check-in update if a live caller is found. | Cross-referenced in dead-code inventory so deletion is considered before schema repair. |
 
 ## Deliberate Boundary Coercions
 
@@ -50,4 +50,4 @@ Status: Phase 1 inventory complete; P1/P2 items need independent verification be
 
 ## Main Takeaway
 
-Most non-audit `as any` casts are stale after codegen caught up. The real type gap is `audit_entry`; the schema-drift bug is `entryService.ts` writing `entries.status`.
+Most non-audit `as any` casts are stale after codegen caught up. The real type gap is `audit_entry`; the `entryService.ts` schema-drift finding should be handled deletion-first because `markInRing` appears uncalled.

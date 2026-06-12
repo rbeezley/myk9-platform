@@ -1,7 +1,40 @@
 # Plan: Proactive Code-Quality Audit
 
-**Created:** 2026-06-10 · **Status:** Draft — not yet executed
+**Created:** 2026-06-10 · **Status:** Phase 1 inventory executed; Phase 2 verification pending
 **Goal:** A repeatable, repo-wide static-quality sweep that finds maintainability debt the diff-scoped skills (`/code-review`, `/simplify`, `/harden`) never see, verifies findings to kill false positives, and fixes them in severity order. Pre-launch (no real users) is the cheapest moment: fixes can be deletions and refactors with no backwards-compat shims.
+
+## Validation Profile
+
+- Risk: high
+- Validation: full
+- Rationale: Fix waves may touch shared utilities, generated types, offline/replication paths, and cross-app imports, so local verification must be broad before PR and CI must remain the final gate.
+
+## Plan verification (2026-06-12)
+
+Coverage: **84/100**. The plan strongly covers audit dimensions, false-positive control, fix sequencing, and test expectations, but needed more explicit setup safety, command/tool failure handling, rollback, and handoff paths for out-of-scope security or migration discoveries.
+
+| Requirement | Status | Evidence |
+| --- | --- | --- |
+| Define a repo-wide quality audit that does not duplicate existing skills | **Covered** | Goal says the sweep finds debt "the diff-scoped skills (`/code-review`, `/simplify`, `/harden`) never see"; Not in scope maps security, runtime health, UX/IA, diff correctness, and migration safety to existing tools. |
+| Preserve launch-readiness and consolidation priorities | **Partial** | Plan says pre-launch fixes can be deletions/refactors; missing an explicit read of `docs/goals/fall-2026-launch-readiness.md` and the duplication question before findings are filed. |
+| Establish safe execution context before writes | **Missing** | No worktree/bootstrap/start-check phase existed. |
+| Inventory the intended quality dimensions | **Covered** | Phase 1 lists 1a-1h: oversized files, dead code, duplication, replication bypasses, type escapes/schema drift, TODO triage, test gaps, and config/flag debt. |
+| Protect INTENT behavior | **Covered** | INTENT guardrail requires checking `// INTENT:` comments and `docs/INTENT.md`, and says INTENT-backed code is not a finding. |
+| Verify findings before fixes | **Covered** | Phase 2 requires adversarial verification for every P1/P2 and spot checks for P3s, with `confirmed` / `refuted` / `needs-human` output. |
+| Handle audit-tool failure and long-running commands | **Partial** | Phase 1 includes fallback from `knip` to targeted grep; missing explicit command timeout, partial-output capture, and no-retry-loop guidance. |
+| Avoid false positives from concurrency/stale state | **Covered** | Phase 2 says to verify against git refs, not the working tree, because concurrent agents may have stale state. |
+| Route out-of-scope security/migration discoveries | **Partial** | Not in scope lists `/security-audit` and `migration-auditor`; missing instructions for what to do if these issues are discovered incidentally. |
+| Triage and fix in reviewable waves | **Covered** | Phase 3 defines waves A-D and one PR per cohesive cluster. |
+| Include rollback/recovery expectations per wave | **Missing** | No explicit rollback strategy or revert boundary existed. |
+| Require human approval before judgment-heavy or broad fixes | **Covered** | Phase 3 requires a human pass before fix list approval, especially for type-file consolidation. |
+| Include adequate testing | **Covered** | Phase 4 lists typecheck, lint, affected tests, extraction tests, assertion-first replication tests, app tests, and baseline delta reruns. |
+| Codify the audit as a repeatable skill | **Covered** | Phase 5 creates `.claude/skills/code-quality-audit/SKILL.md` with modes and drift tracking. |
+
+Top gaps patched below:
+
+1. [ADDED] Phase 0 for worktree safety, launch-readiness/INTENT inputs, audit directory setup, and command-failure handling.
+2. [EXPANDED] Phase 1 and Phase 2 to capture partial tool failures and route security/migration findings to the right audit process.
+3. [EXPANDED] Phase 3 with rollback/recovery boundaries for each fix wave.
 
 **Not in scope** (covered by existing skills — run those separately, don't duplicate):
 
@@ -31,6 +64,15 @@
 
 ---
 
+## Phase 0 — Setup and safety [ADDED]
+
+1. Run the mandatory worktree check before any file write: `git branch --show-current` and `git rev-parse --git-dir --git-common-dir`. If in the primary checkout on `main`, create or enter a feature worktree before continuing.
+2. Read `docs/goals/fall-2026-launch-readiness.md` and `docs/INTENT.md` before filing findings. Use launch-readiness as the prioritization frame and INTENT as a hard guardrail.
+3. Create `docs/audits/2026-06-code-quality/` and write every dimension's raw findings there. The audit directory is the durable handoff between sessions or agents.
+4. For each finding that proposes new UI, workflow, or affordance, answer the duplication question before filing: "Does this duplicate an existing page? If so, why is duplication justified instead of a link?"
+5. Treat audit commands as fallible. If a command fails, times out, or returns partial output, record the command, exit state, and fallback used in that dimension's findings doc. If a test runner hangs for more than 60 seconds without useful output, stop that run and record it instead of retrying in a loop.
+6. Do not mutate shared systems during the audit inventory. Supabase pushes, function deploys, GitHub comments/PR creation, and external-service writes wait for the approved fix-wave workflow.
+
 ## Severity rubric
 
 | Severity | Definition | Example |
@@ -39,15 +81,15 @@
 | **P2** | Maintainability debt with a clear owner-fix | 700-line component doing 3 jobs; service bypassing the replication layer outside core flows |
 | **P3** | Hygiene | Unused exports, stale TODOs, dead feature flags, orphaned test fixtures |
 
-Every finding gets: file:line, severity, evidence, verification status (see Phase 2), and proposed fix (delete / extract / consolidate / keep-with-comment).
+Every fix-wave finding gets: file:line, severity, evidence, verification status (see Phase 2), and proposed fix (delete / extract / consolidate / keep-with-comment). Phase 1 may record broad clusters, but Phase 2 must narrow any P1/P2 cluster to actionable file:line evidence before implementation.
 
 ---
 
 ## Phase 1 — Inventory sweep (finders)
 
-Eight independent check dimensions. Each produces a findings table in `docs/audits/2026-06-code-quality/` (one file per dimension). Dimensions are independent — parallelizable as subagents, or run sequentially inline.
+Eight independent check dimensions. Each produces a findings table in `docs/audits/2026-06-code-quality/` (one file per dimension). Dimensions are independent — parallelizable as subagents, or run sequentially inline. [EXPANDED] Each dimension doc must include the exact commands or scripts used, excluded paths, known false-positive classes, and any command failures or fallbacks from Phase 0.
 
-### 1a. Oversized files (~177 real findings)
+### 1a. Oversized files (~178 real findings in the 2026-06-12 finder run)
 
 `find apps packages -name '*.ts' -o -name '*.tsx' | grep -vE '(node_modules|\.test\.|\.spec\.)' | xargs wc -l | awk '$1>500'`, excluding generated files (Supabase types, anything with a `// generated` header). For each: is it one concern that's just long (acceptable, e.g. a template registry) or multiple concerns (extract per CLAUDE.md rule 4)? Don't mechanically split — `EnrollmentCard.tsx` (691 lines) already has an extraction note in OPEN-TODOS; cross-reference existing todos to avoid duplicate findings.
 
@@ -83,6 +125,10 @@ Dead feature flags (flag checked but permanently true/false everywhere, e.g. fla
 
 Before filing any finding, check for `// INTENT:` comments (96 sites) and `docs/INTENT.md`. Code that looks wrong but carries INTENT is **not a finding**. A finding that would *touch* an INTENT site must say so explicitly.
 
+### Out-of-scope discovery handling [ADDED]
+
+If the sweep finds a credible security, auth/RLS, payment, migration-safety, or runtime-health issue, do not fold it into this audit's fix waves. File a short pointer in the relevant dimension doc with evidence and route it to `/security-audit`, `migration-auditor`, or `/audit-pages` as appropriate. Only include it in `SUMMARY.md` as an out-of-scope handoff item.
+
 ---
 
 ## Phase 2 — Verification pass (kill false positives)
@@ -93,6 +139,7 @@ Every P1/P2 finding gets independently verified before triage; P3s get spot-chec
 - **Duplication:** confirm the copies are genuinely the same concern (not coincidentally-similar code that will diverge for good reasons).
 - **Replication bypass:** confirm the surface actually needs offline support before flagging.
 - **Verify against git refs, not the working tree** (concurrent agents may have stale state — per project feedback rule).
+- **Tool uncertainty:** [ADDED] if the finder used a fallback because tooling failed or was unavailable, verify at least one representative sample with an independent method before confirming the finding.
 
 Output: each finding marked `confirmed` / `refuted` / `needs-human` with one-line evidence. Refuted findings stay in the doc (struck through) so the next audit doesn't re-find them.
 
@@ -100,6 +147,7 @@ Output: each finding marked `confirmed` / `refuted` / `needs-human` with one-lin
 
 1. Compile confirmed findings into `docs/audits/2026-06-code-quality/SUMMARY.md` — single severity-ordered table.
 2. Human pass: user approves the fix list (some findings are judgment calls — e.g. "consolidate 4 type files" touches every import).
+   - [ADDED] Fix-list approval is not shared-system mutation approval. Confirm separately before GitHub PR creation/comments/merge, Supabase pushes, function deploys, external-service writes, or any push to `main`.
 3. Fix in waves, one PR per cohesive cluster (not per finding, not one mega-PR):
    - Wave A: pure deletions (dead code, stale TODOs, dead flags) — lowest risk, biggest line-count win.
    - Wave B: consolidations (duplication clusters, type-file unification).
@@ -108,12 +156,20 @@ Output: each finding marked `confirmed` / `refuted` / `needs-human` with one-lin
 4. Each wave goes through the standard workflow: implement → `/simplify` → `/commit` → PR → `/review` (+ Codex review for anything touching behavior, per the default-ON rule) → merge → `/cleanup`.
 5. Anything deferred gets a real OPEN-TODOS entry with TO-DOS.md context — no silent drops (avoid-deferring-followups rule: prefer bundling into the waves).
 
+### Rollback and recovery [ADDED]
+
+- Keep each wave revertable as a single PR. Do not mix pure deletions, behavior changes, and generated-type rewrites in one branch.
+- For deletion waves, record the symbol-level grep proof in the PR body so a revert decision is evidence-based.
+- For consolidations/extractions, preserve public exports or add deliberate migration commits within the same wave; if import churn becomes broad enough to obscure review, split the wave before continuing.
+- For replication reroutes, keep the old path visible in the diff until assertion-first tests prove the new call target. If tests reveal semantic drift, stop the wave and move the item back to `needs-human`.
+
 ## Phase 4 — Testing (required)
 
 - **Per Wave A (deletions):** full `pnpm typecheck` + `pnpm lint` + affected unit tests; grep docs for deleted symbols; run any `readFileSync` source-text pin tests (known repo pattern).
 - **Per Wave B/C (consolidations/extractions):** unit tests for every extracted module (CLAUDE.md: phase isn't complete until tests written and passing); re-point `vi.mock()` paths in sibling tests when imports move (known footgun).
 - **Per Wave D:** assertion-first tests for rerouted writes (`expect(replicatedXTable.method).toHaveBeenCalledWith(...)` red-first); new tests for the 1g gaps ride in this wave.
 - **Audit-level regression:** after all waves, `pnpm typecheck` (25/25 packages), `pnpm lint` clean, `cd apps/myk9show && pnpm test` green, and re-run the Phase 1a/1e/1f counts to record the delta in SUMMARY.md.
+- **Command failure handling:** [ADDED] if a required suite hangs or fails for a pre-existing reason, stop after one focused attempt, capture the failing command and useful output, and mark the wave blocked or partially verified in the PR notes.
 
 ## Phase 5 — Codify as a repeatable skill
 

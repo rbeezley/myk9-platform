@@ -49,7 +49,7 @@ function getEntryDogId(entry: ReplicatedEntry) {
 }
 
 function getEntryStatus(entry: ReplicatedEntry) {
-  return entry.entryStatus ?? entry.entry_status ?? entry.status ?? null;
+  return entry.entryStatus ?? entry.entry_status ?? null;
 }
 
 function getEntryTrialId(entry: ReplicatedEntry) {
@@ -96,9 +96,17 @@ function toDogPayload(dog: ReplicatedDog | null, entry: ReplicatedEntry): DayOfR
 
   return {
     id: dogId,
-    name: dog?.name ?? entry.dogCallName ?? entry.dog_call_name ?? '',
-    call_name: dog?.callName ?? entry.dogCallName ?? entry.dog_call_name ?? null,
+    name: dog?.name ?? '',
+    call_name: dog?.callName ?? null,
   };
+}
+
+function getClassNumber(cls: ReplicatedClass | null) {
+  return (
+    (cls as { class_number?: string | null; classNumber?: string | null } | null)?.class_number ??
+    (cls as { classNumber?: string | null } | null)?.classNumber ??
+    null
+  );
 }
 
 function toClassPayload(
@@ -108,16 +116,12 @@ function toClassPayload(
   const classId = getEntryClassId(entry);
   if (!classId) return null;
 
-  const classNumber =
-    (cls as { class_number?: string | null; classNumber?: string | null } | null)?.class_number ??
-    (cls as { classNumber?: string | null } | null)?.classNumber ??
-    null;
   const trialId = cls?.trialId ?? cls?.trial_id ?? getEntryTrialId(entry);
 
   return {
     id: classId,
     name: cls?.name ?? '',
-    class_number: classNumber,
+    class_number: getClassNumber(cls),
     ...(trialId ? { trial_id: trialId } : {}),
   };
 }
@@ -164,7 +168,7 @@ export async function getReplicatedDayOfEntries(
   showId: string,
   statuses: readonly string[],
   sort: SortMode
-) {
+): Promise<DayOfReadEntry[]> {
   const entries = await replicatedEntriesTable.getEntriesByShow(showId);
   const classCache = new Map<string, Promise<ReplicatedClass | null>>();
   const dogCache = new Map<string, Promise<ReplicatedDog | null>>();

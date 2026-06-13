@@ -77,7 +77,7 @@ const entries = [
     classId: 'class-1',
     dogId: 'dog-1',
     entryStatus: 'confirmed',
-    deleted_at: '2026-06-08T10:00:00.000Z',
+    deletedAt: '2026-06-08T10:00:00.000Z',
   },
 ];
 

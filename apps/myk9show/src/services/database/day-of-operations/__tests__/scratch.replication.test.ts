@@ -57,6 +57,7 @@ const entries = [
     runOrder: 1,
     handler: 'Taylor Rivera',
     armband: '8',
+    dogCallName: 'Bright',
     entryFee: 45,
     paymentStatus: 'paid',
     specialRequests: null,
@@ -100,6 +101,13 @@ const entries = [
     dogId: 'dog-1',
     entryStatus: 'confirmed',
     deletedAt: '2026-06-08T10:00:00.000Z',
+  },
+  {
+    id: 'status-only-entry',
+    showId: 'show-1',
+    classId: 'class-1',
+    dogId: 'dog-1',
+    status: 'confirmed',
   },
 ];
 
@@ -168,5 +176,33 @@ describe('scratch day-of read queries', () => {
         created_at: '2026-06-01T09:00:00.000Z',
       }),
     ]);
+  });
+
+  it('does not use call name as the dog full-name fallback when dog lookup misses', async () => {
+    replicationMocks.getDogById.mockImplementation((dogId: string) =>
+      Promise.resolve(
+        dogId === 'dog-2'
+          ? null
+          : {
+              id: dogId,
+              name: 'Rocket Dog',
+              callName: 'Rocket',
+            }
+      )
+    );
+
+    const result = await getScratchableEntries('show-1');
+
+    expect(result.data[0].dog).toEqual({
+      id: 'dog-2',
+      name: '',
+      call_name: null,
+    });
+  });
+
+  it('requires canonical entry status fields instead of loose status fallback', async () => {
+    const result = await getScratchableEntries('show-1');
+
+    expect(result.data.map(entry => entry.id)).not.toContain('status-only-entry');
   });
 });

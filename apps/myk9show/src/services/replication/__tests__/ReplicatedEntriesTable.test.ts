@@ -90,6 +90,25 @@ describe('ReplicatedEntriesTable', () => {
       expect(entry.deletedAt).toBe(deletedAt);
       expect(entry.deleted_at).toBe(deletedAt);
     });
+
+    it('maps created_at for read adapters that preserve PostGREST ordering', () => {
+      const createdAt = '2026-06-01T09:00:00.000Z';
+      const submittedAt = '2026-06-01T10:00:00.000Z';
+
+      const entry = rowToEntry({
+        id: 'entry-created',
+        class_id: 'class-1',
+        show_id: 'show-1',
+        dog_id: 'dog-1',
+        created_at: createdAt,
+        submitted_at: submittedAt,
+        updated_at: '2026-06-01T11:00:00.000Z',
+      } as Parameters<typeof rowToEntry>[0]);
+
+      expect(entry.createdAt).toBe(createdAt);
+      expect(entry.created_at).toBe(createdAt);
+      expect(entry.submittedAt).toBe(submittedAt);
+    });
   });
 
   describe('Entry CRUD Operations', () => {

@@ -379,4 +379,31 @@ describe('secretary entry read replication', () => {
       })
     );
   });
+
+  it('orders replicated secretary entries by created_at when it differs from submitted_at', async () => {
+    mocks.getEntriesByShow.mockResolvedValue([
+      {
+        id: 'entry-later-created',
+        showId: 'show-1',
+        submittedAt: '2026-06-01T08:00:00.000Z',
+        createdAt: '2026-06-01T11:00:00.000Z',
+      },
+      {
+        id: 'entry-earlier-created',
+        showId: 'show-1',
+        submittedAt: '2026-06-01T09:00:00.000Z',
+        createdAt: '2026-06-01T10:00:00.000Z',
+      },
+    ]);
+    mocks.getAllDogs.mockResolvedValue([]);
+    mocks.getAllClasses.mockResolvedValue([]);
+    mocks.getArmbandsByShow.mockResolvedValue([]);
+
+    const result = await getEntriesForShow('show-1');
+
+    expect(result.data.map(entry => entry.id)).toEqual([
+      'entry-earlier-created',
+      'entry-later-created',
+    ]);
+  });
 });

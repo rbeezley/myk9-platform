@@ -91,9 +91,7 @@ describe('useEntryManagementData', () => {
     mocks.getSecretaryShows.mockResolvedValue({ data: [], error: null });
 
     let resolveFetch!: (v: unknown) => void;
-    mocks.getShowById.mockImplementation(
-      () => new Promise(res => (resolveFetch = res))
-    );
+    mocks.getShowById.mockImplementation(() => new Promise(res => (resolveFetch = res)));
 
     const { result, unmount } = renderHook(() => useEntryManagementData('show-deeplink'));
     // Give the effect time to fire and start the fetch
@@ -191,6 +189,29 @@ describe('useEntryManagementData', () => {
 
     expect(result.current.entries[0]?.paidAmount).toBe(30);
     expect(result.current.entries[1]?.paidAmount).toBe(0);
+  });
+
+  it('preserves registration id when offline metadata enrichment is unavailable', async () => {
+    mocks.getEntriesForShow.mockResolvedValue({
+      data: [
+        {
+          id: 'e1',
+          show_id: 'show-1',
+          registration_id: 'reg-offline-1',
+          dog: null,
+          class: null,
+          registration: null,
+        },
+      ],
+      error: null,
+    });
+
+    const { result } = renderHook(() => useEntryManagementData());
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+    act(() => result.current.setSelectedShowId('show-1'));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.entries[0]?.registrationId).toBe('reg-offline-1');
   });
 
   it('clears entries when selectedShowId is reset to empty', async () => {

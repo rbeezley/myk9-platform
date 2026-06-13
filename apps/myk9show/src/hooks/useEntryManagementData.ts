@@ -149,7 +149,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
       ).map(
         (entry): EntryManagementEntry => ({
           id: entry.id,
-          registrationId: entry.registration?.id ?? '',
+          registrationId: entry.registration?.id ?? entry.registration_id ?? '',
           entryNumber: entry.armband || entry.id.slice(0, 8).toUpperCase(),
           showId: entry.show_id || '',
           dogId: entry.dog_id || '',

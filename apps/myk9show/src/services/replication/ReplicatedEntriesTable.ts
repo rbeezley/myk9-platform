@@ -111,6 +111,8 @@ export interface ReplicatedEntry {
   ring_exit_time?: string | undefined;
 
   // Timestamps
+  createdAt?: string | undefined;
+  created_at?: string | undefined;
   updated_at?: string | undefined;
   deletedAt?: string | null | undefined;
   deleted_at?: string | null | undefined;
@@ -214,6 +216,8 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     ring_exit_time: (row.ring_exit_time as string | undefined) ?? undefined,
 
     // Timestamps
+    createdAt: row.created_at ?? undefined,
+    created_at: row.created_at ?? undefined,
     updated_at: row.updated_at ?? undefined,
     deletedAt: row.deleted_at ?? undefined,
     deleted_at: row.deleted_at ?? undefined,

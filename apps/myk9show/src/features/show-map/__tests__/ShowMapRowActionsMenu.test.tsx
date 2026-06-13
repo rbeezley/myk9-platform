@@ -1,4 +1,4 @@
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { ShowMapRowActionsMenu } from '../ShowMapRowActionsMenu';
@@ -102,7 +102,7 @@ describe('ShowMapRowActionsMenu', () => {
     await user.click(screen.getByRole('button', { name: /actions for spring trial/i }));
 
     const menu = await screen.findByRole('menu');
-    expect(menu.contains(document.activeElement)).toBe(true);
+    await waitFor(() => expect(menu.contains(document.activeElement)).toBe(true));
     expect(onAction).not.toHaveBeenCalled();
     expect(onNavigate).not.toHaveBeenCalled();
 

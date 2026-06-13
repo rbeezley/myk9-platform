@@ -1,6 +1,6 @@
 import type { ShowMapNode, ShowMapNodeType, ShowMapTree } from './showMapTypes';
 
-export const SYNTHETIC_DISPLAY_ACTION_NODE_TYPES = new Set<ShowMapNodeType>([
+const SYNTHETIC_DISPLAY_ACTION_NODE_TYPES = new Set<ShowMapNodeType>([
   'all-exhibitors',
   'dog',
   'more',

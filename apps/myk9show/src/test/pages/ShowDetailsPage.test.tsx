@@ -542,7 +542,7 @@ describe('ShowDetailsPage', () => {
     );
   });
 
-  // Regression: the Setup readiness chip "Premium list not posted yet" is a
+  // Regression: the Setup readiness chip "Exhibitor info not published yet" is a
   // hash link to #setup-publish. That anchor lives in ShowDetailsPage (the
   // parent route that hosts the Setup page via <Outlet>), NOT in the Setup
   // page itself. This locks the half of the invariant that the chip-source

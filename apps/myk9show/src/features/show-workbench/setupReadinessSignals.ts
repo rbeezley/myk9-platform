@@ -97,7 +97,7 @@ export function computeSetupReadinessSignals(
   if (!exhibitorMaterialsPublished(input.show)) {
     signals.push({
       id: 'exhibitor-materials-unpublished',
-      label: 'Premium list not posted yet',
+      label: 'Exhibitor info not published yet',
       href: `#${SETUP_PUBLISH_ANCHOR}`,
     });
   }

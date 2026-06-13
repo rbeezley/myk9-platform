@@ -160,7 +160,7 @@ describe('computeSetupReadinessSignals', () => {
     });
     expect(signals).toContainEqual({
       id: 'exhibitor-materials-unpublished',
-      label: 'Premium list not posted yet',
+      label: 'Exhibitor info not published yet',
       href: '#setup-publish',
     });
   });

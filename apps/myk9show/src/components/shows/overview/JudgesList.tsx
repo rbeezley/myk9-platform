@@ -18,10 +18,13 @@ export function JudgesList({ judges }: JudgesListProps) {
       </div>
       {hasJudges ? (
         <div className="divide-y divide-border/30">
-          {displayableJudges.map(judge => {
+          {displayableJudges.map((judge, index) => {
             const classCount = judge.assignedClasses?.length || 0;
             return (
-              <div key={judge.judgeId || judge.judgeName} className="flex items-center gap-3 p-4">
+              <div
+                key={judge.judgeId || `${judge.judgeName}-${index}`}
+                className="flex items-center gap-3 p-4"
+              >
                 <PersonAvatar name={judge.judgeName} size="md" />
                 <div className="min-w-0">
                   <div className="font-medium text-foreground text-sm">{judge.judgeName}</div>

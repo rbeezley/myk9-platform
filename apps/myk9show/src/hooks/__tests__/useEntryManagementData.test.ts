@@ -61,6 +61,7 @@ function makeShow(id = 'show-1') {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.removeItem('myk9show:entryMgmt:lastShowId');
   mocks.useAuthContext.mockReturnValue({ user: { id: 'sec-1' }, hasRole: vi.fn() });
   mocks.getSecretaryShows.mockResolvedValue({ data: [makeShow()], error: null });
   mocks.getEntriesForShow.mockResolvedValue({ data: [], error: null });
@@ -146,8 +147,8 @@ describe('useEntryManagementData', () => {
     };
     rerender();
 
-    await waitFor(() => expect(mocks.getEntriesForShow).toHaveBeenCalledTimes(2));
-    expect(result.current.entries[0]?.id).toBe('entry-after-sync');
+    await waitFor(() => expect(result.current.entries[0]?.id).toBe('entry-after-sync'));
+    expect(mocks.getEntriesForShow).toHaveBeenCalledTimes(2);
   });
 
   it('applies initialShowId from URL param once shows are loaded', async () => {

@@ -22,6 +22,13 @@ import {
 import { getEntryCountsByStatus } from '../../entries/secretary';
 import { autoAssignArmbands, getNextArmbandForShow } from '../../armbands';
 
+const replicationMocks = vi.hoisted(() => ({
+  getArmbandsByShow: vi.fn(),
+  getEntriesByShow: vi.fn(),
+  upsertAssignedArmband: vi.fn(),
+  updateArmbandForDogInShow: vi.fn(),
+}));
+
 const mockFrom = vi.fn();
 
 vi.mock('../../supabaseClient', () => ({
@@ -30,6 +37,20 @@ vi.mock('../../supabaseClient', () => ({
   },
   logQuery: vi.fn(),
   createDatabaseError: (err: unknown) => (err instanceof Error ? err : new Error(String(err))),
+}));
+
+vi.mock('@/services/replication/ReplicatedArmbandsTable', () => ({
+  replicatedArmbandsTable: {
+    getByShow: replicationMocks.getArmbandsByShow,
+    upsertAssignedArmband: replicationMocks.upsertAssignedArmband,
+  },
+}));
+
+vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
+  replicatedEntriesTable: {
+    getEntriesByShow: replicationMocks.getEntriesByShow,
+    updateArmbandForDogInShow: replicationMocks.updateArmbandForDogInShow,
+  },
 }));
 
 function chainMock(overrides: Record<string, unknown> = {}) {
@@ -59,6 +80,13 @@ function chainMock(overrides: Record<string, unknown> = {}) {
 describe('entry_status enum values used by query layer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    replicationMocks.getArmbandsByShow.mockResolvedValue([]);
+    replicationMocks.getEntriesByShow.mockResolvedValue([]);
+    replicationMocks.upsertAssignedArmband.mockResolvedValue('armband-mutation');
+    replicationMocks.updateArmbandForDogInShow.mockResolvedValue({
+      updated: 1,
+      mutationIds: ['entry-mutation'],
+    });
   });
 
   describe('moveUpQueries', () => {
@@ -179,20 +207,20 @@ describe('entry_status enum values used by query layer', () => {
     });
 
     it('getNextArmbandForShow starts after the existing max armband', async () => {
-      const armbandsChain = chainMock({
-        not: vi.fn().mockResolvedValue({
-          data: [{ armband_number: '100' }, { armband_number: '104' }],
-          error: null,
-        }),
-      });
+      replicationMocks.getArmbandsByShow.mockResolvedValue([
+        { id: 'a1', showId: 'show-1', dogId: 'dog-1', armbandNumber: '100' },
+        { id: 'a2', showId: 'show-1', dogId: 'dog-2', armbandNumber: '104' },
+      ]);
       const showsChain = chainMock({
         maybeSingle: vi
           .fn()
           .mockResolvedValue({ data: { starting_armband_number: 100 }, error: null }),
       });
-      mockFrom.mockImplementation(table => (table === 'armbands' ? armbandsChain : showsChain));
+      mockFrom.mockReturnValue(showsChain);
 
       await expect(getNextArmbandForShow('show-1')).resolves.toBe(105);
+      expect(replicationMocks.getArmbandsByShow).toHaveBeenCalledWith('show-1');
+      expect(mockFrom).not.toHaveBeenCalledWith('armbands');
     });
 
     it('autoAssignArmbands reports the configured start when no entries need assignment', async () => {
@@ -213,18 +241,26 @@ describe('entry_status enum values used by query layer', () => {
       expect(data?.startedAt).toBe(100);
     });
 
-    it('autoAssignArmbands selects entries with entry_status in ["accepted", "confirmed"]', async () => {
-      const chain = chainMock({
-        is: vi.fn().mockResolvedValue({ data: [], error: null }),
+    it('autoAssignArmbands selects replicated entries with accepted or confirmed status', async () => {
+      replicationMocks.getEntriesByShow.mockResolvedValue([
+        { id: 'e1', showId: 'show-1', dogId: 'dog-1', entryStatus: 'accepted', armband: null },
+        { id: 'e2', showId: 'show-1', dogId: 'dog-2', entryStatus: 'confirmed', armband: null },
+        { id: 'e3', showId: 'show-1', dogId: 'dog-3', entryStatus: 'submitted', armband: null },
+      ]);
+
+      await autoAssignArmbands('show-1', 100);
+
+      expect(replicationMocks.upsertAssignedArmband).toHaveBeenCalledTimes(2);
+      expect(replicationMocks.upsertAssignedArmband).toHaveBeenNthCalledWith(1, {
+        showId: 'show-1',
+        dogId: 'dog-1',
+        armbandNumber: '100',
       });
-      mockFrom.mockReturnValue(chain);
-
-      await autoAssignArmbands('show-1');
-
-      expect(chain.in).toHaveBeenCalledWith('entry_status', ['accepted', 'confirmed']);
-      // Regression guard: never filter to only one status
-      expect(chain.eq).not.toHaveBeenCalledWith('entry_status', 'confirmed');
-      expect(chain.eq).not.toHaveBeenCalledWith('entry_status', 'accepted');
+      expect(replicationMocks.upsertAssignedArmband).toHaveBeenNthCalledWith(2, {
+        showId: 'show-1',
+        dogId: 'dog-2',
+        armbandNumber: '101',
+      });
     });
 
     it('getEntryCountsByStatus counts submitted/confirmed/pending-payment', async () => {

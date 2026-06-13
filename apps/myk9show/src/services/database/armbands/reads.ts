@@ -1,7 +1,8 @@
 // Armband-related database queries
 //
 // SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
-// Mutation functions (claimNextArmband) stay on PostgREST (RPC call — DO NOT CHANGE).
+// claimNextArmband still uses the server allocator RPC, then patches entries
+// through the replication layer so show-day entry state remains offline-first.
 
 import { supabase, createDatabaseError , type DatabaseError } from '../supabaseClient';
 import { withReplicationFallback } from '../_shared/replication-fallback';
@@ -174,14 +175,9 @@ export const claimNextArmband = async (
     );
     if (!error && data != null) {
       const armband = String(data);
-      const { error: updateError } = await supabase
-        .from('entries')
-        .update({ armband, updated_at: new Date().toISOString() })
-        .eq('show_id', showId)
-        .eq('dog_id', dogId)
-        .is('deleted_at', null);
-
-      if (updateError) {
+      try {
+        await replicatedEntriesTable.updateArmbandForDogInShow(showId, dogId, armband);
+      } catch (updateError) {
         return {
           armband: null,
           error: createDatabaseError(updateError, 'entries', 'sync_assigned_armband'),

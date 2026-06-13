@@ -364,6 +364,45 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     return mutationId;
   }
 
+  async updateArmbandForDogInShow(
+    showId: string,
+    dogId: string,
+    armband: string
+  ): Promise<{ updated: number; mutationIds: string[] }> {
+    const entries = (await this.getEntriesByShow(showId)).filter(
+      entry =>
+        entry.dogId === dogId &&
+        !entry.deletedAt &&
+        !entry.deleted_at
+    );
+
+    const mutationIds: string[] = [];
+    for (const entry of entries) {
+      const updated: ReplicatedEntry = {
+        ...entry,
+        armband,
+        _lastModified: new Date(),
+        _syncStatus: 'pending',
+      };
+
+      await this.set(entry.id, updated, true);
+      const mutationId = await this.queueMutation('UPDATE', entry.id, {
+        id: entry.id,
+        armband,
+        updated_at: new Date().toISOString(),
+      });
+      if (mutationId) {
+        mutationIds.push(mutationId);
+      }
+      this._lastMutationId = mutationId;
+    }
+
+    logger.log(
+      `[${this.getTableName()}] Updated ${entries.length} entries for dog ${dogId} to armband ${armband}`
+    );
+    return { updated: entries.length, mutationIds };
+  }
+
   /**
    * Create a new entry locally (queued for sync)
    * @param entry - Entry data (must include id)

@@ -98,8 +98,8 @@ export function ShowWorkbenchSetupPage() {
             section tabs in ShowDetailsPage); the exhibitor-materials chip
             deep-links up to them via #setup-publish. */}
         <SetupAdaptiveHeader signals={setupSignals} />
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          <div className="space-y-6 md:col-span-2">
+        <div className="setup-detail-grid">
+          <div className="space-y-6">
             <ScheduleSummary showId={currentShow.id} />
             <VenueMap location={currentShow.location} />
           </div>

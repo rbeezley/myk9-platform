@@ -3,6 +3,7 @@ import {
   classifyTableSyncResults,
   createTablesStatus,
   getPostSyncInvalidationKeys,
+  shouldRequestPostUploadSync,
 } from '../replicationSyncStatus';
 
 describe('replicationSyncStatus helpers', () => {
@@ -44,5 +45,20 @@ describe('replicationSyncStatus helpers', () => {
       ['entries'],
       ['judges', 'assignments'],
     ]);
+  });
+
+  it('requests a follow-up download sync after replicated table uploads', () => {
+    expect(shouldRequestPostUploadSync(['entries'], ['shows', 'entries', 'armbands'], false)).toBe(
+      true
+    );
+    expect(
+      shouldRequestPostUploadSync(['entry_carts'], ['shows', 'entries', 'armbands'], false)
+    ).toBe(false);
+  });
+
+  it('does not request a nested download sync while a full sync is already running', () => {
+    expect(shouldRequestPostUploadSync(['entries'], ['shows', 'entries', 'armbands'], true)).toBe(
+      false
+    );
   });
 });

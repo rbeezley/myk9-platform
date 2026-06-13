@@ -240,15 +240,20 @@ export default function ReportsPage() {
         officialPdfAction={officialPdfAction}
       />
 
-      {/* Preview */}
-      <div className="mt-6 flex justify-center">
+      {/* Preview — the report iframe is a fixed 8.5in (letter) page. On viewports
+          narrower than that (tablet/phone) it must scroll horizontally inside this
+          container rather than overflow the page and clip the report's left edge.
+          `w-fit mx-auto` centers it when there's room and keeps the left edge
+          reachable when it overflows (unlike `flex justify-center`). */}
+      <div className="mt-6 overflow-x-auto">
         {reportType === 'armband-labels' ? (
           <div className="w-full">
             <ArmbandLabelsReport showId={showId} iframeRef={iframeRef} />
             <iframe ref={iframeRef} title="Label Print" style={{ display: 'none' }} />
           </div>
         ) : (
-          <ReportPreview
+          <div className="w-fit mx-auto">
+            <ReportPreview
             reportType={reportType}
             show={show}
             trials={trials as Parameters<typeof ReportPreview>[0]['trials']}
@@ -261,7 +266,8 @@ export default function ReportsPage() {
             isLoading={isLoading}
             isError={isError}
             iframeRef={iframeRef}
-          />
+            />
+          </div>
         )}
       </div>
     </div>

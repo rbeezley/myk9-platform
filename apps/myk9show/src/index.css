@@ -370,7 +370,7 @@ select:hover {
 
 @layer base {
   :root {
-    color-scheme: light dark;
+    color-scheme: light;
     /* ---- Font stack ----
        --font-sans is defined only at :root (not redeclared in .dark),
        so it cascades into dark mode unchanged. If you ever move this

@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { loadOpenToolIds, saveOpenToolIds } from './showDeskToolsState';
+import type { ShowDeskActionableTone } from './showDeskActionable';
 
 export interface ShowDeskToolSection {
   id: string;
@@ -32,12 +33,18 @@ interface ShowDeskToolsSheetProps {
   // Total number of tools available — used as the default fallback badge
   // when no actionable count is supplied.
   toolCount?: number;
-  // Optional actionable count (e.g., open incidents). When provided and > 0,
-  // the badge shows this number in an attention-toned style; when absent or
-  // 0, the badge falls back to `toolCount` in a muted style. Plan B3 spec:
-  // "make the badge a meaningful 'you have unread/open items' signal, not
-  // just decoration."
+  // Optional actionable count aggregated across every attention-worthy tool
+  // (reportable incidents + hospitality reminders + open tasks — see
+  // computeShowDeskActionable). When provided and > 0, the badge shows this
+  // number; when absent or 0, the badge falls back to `toolCount` in a muted
+  // style. Plan B3 spec: "make the badge a meaningful 'you have unread/open
+  // items' signal, not just decoration."
   actionableCount?: number;
+  // Tone for the actionable badge. 'urgent' (reportable/urgent incidents) is
+  // alarming/red; 'routine' (reminders, open tasks) is ambient. Defaults to
+  // 'urgent' to preserve the original incident-only behavior for callers that
+  // pass a count without a tone.
+  actionableTone?: ShowDeskActionableTone;
   tools: readonly ShowDeskToolSection[];
 }
 
@@ -52,6 +59,7 @@ export function ShowDeskToolsSheet({
   showId,
   toolCount,
   actionableCount,
+  actionableTone = 'urgent',
   tools,
 }: ShowDeskToolsSheetProps) {
   const effectiveToolCount = toolCount ?? tools.length;
@@ -60,6 +68,15 @@ export function ShowDeskToolsSheet({
   const badgeAriaLabel = hasActionable
     ? `${actionableCount} ${actionableCount === 1 ? 'item needs' : 'items need'} attention`
     : `${effectiveToolCount} tools available`;
+  // Urgent → destructive (red, alarming). Routine actionable → secondary
+  // (ambient "you have items"). Nothing actionable → outline (muted idle), so
+  // an idle tool-count never reads as a pending signal.
+  const badgeVariant = !hasActionable
+    ? 'outline'
+    : actionableTone === 'urgent'
+      ? 'destructive'
+      : 'secondary';
+  const badgeTone = hasActionable ? actionableTone : 'idle';
   const toolStateSignature = JSON.stringify(
     tools.map(tool => ({
       id: tool.id,
@@ -81,9 +98,10 @@ export function ShowDeskToolsSheet({
           <Wrench className="h-4 w-4" aria-hidden="true" />
           Tools
           <Badge
-            variant={hasActionable ? 'destructive' : 'secondary'}
+            variant={badgeVariant}
             aria-label={badgeAriaLabel}
             data-testid="show-desk-tools-badge"
+            data-tone={badgeTone}
           >
             {badgeValue}
           </Badge>

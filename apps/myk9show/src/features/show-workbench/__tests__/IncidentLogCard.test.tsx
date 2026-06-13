@@ -152,6 +152,19 @@ describe('IncidentLogCard', () => {
     expect(screen.getByText(/Urgent incident logged/)).toBeInTheDocument();
   });
 
+  it('shows an error message when the incident log fails to load', async () => {
+    // Regression: a failed query must not masquerade as "No incidents logged"
+    // on a permanent-record surface — the secretary needs to know it didn't load.
+    mockListShowIncidents.mockRejectedValue(new Error('network down'));
+
+    render(<IncidentLogCard showId="show-1" entries={entries} judges={judges} />);
+
+    expect(
+      await screen.findByText('Could not load the incident log. Refresh to try again.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText('No incidents logged for this show.')).not.toBeInTheDocument();
+  });
+
   it('does not save without a summary', async () => {
     const { user } = render(
       <IncidentLogCard showId="show-1" entries={entries} judges={judges} />

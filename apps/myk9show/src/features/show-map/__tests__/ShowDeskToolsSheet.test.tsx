@@ -70,6 +70,7 @@ describe('ShowDeskToolsSheet', () => {
   function renderSheet(props?: {
     toolCount?: number;
     actionableCount?: number;
+    actionableTone?: 'urgent' | 'routine';
     showId?: string;
   }) {
     return render(
@@ -78,6 +79,7 @@ describe('ShowDeskToolsSheet', () => {
         tools={makeTools()}
         toolCount={props?.toolCount}
         {...(props?.actionableCount !== undefined && { actionableCount: props.actionableCount })}
+        {...(props?.actionableTone !== undefined && { actionableTone: props.actionableTone })}
       />
     );
   }
@@ -151,6 +153,30 @@ describe('ShowDeskToolsSheet', () => {
     const badge = screen.getByTestId('show-desk-tools-badge');
     expect(badge).toHaveTextContent('3');
     expect(badge).toHaveAttribute('aria-label', '3 tools available');
+    expect(badge).toHaveAttribute('data-tone', 'idle');
+  });
+
+  it('uses the urgent tone for incident-driven attention', () => {
+    renderSheet({ actionableCount: 2, actionableTone: 'urgent' });
+
+    const badge = screen.getByTestId('show-desk-tools-badge');
+    expect(badge).toHaveTextContent('2');
+    expect(badge).toHaveAttribute('data-tone', 'urgent');
+  });
+
+  it('uses the ambient routine tone for hospitality/task attention', () => {
+    renderSheet({ actionableCount: 4, actionableTone: 'routine' });
+
+    const badge = screen.getByTestId('show-desk-tools-badge');
+    expect(badge).toHaveTextContent('4');
+    expect(badge).toHaveAttribute('data-tone', 'routine');
+    expect(badge).toHaveAttribute('aria-label', '4 items need attention');
+  });
+
+  it('defaults an untoned actionable count to the urgent tone', () => {
+    renderSheet({ actionableCount: 1 });
+
+    expect(screen.getByTestId('show-desk-tools-badge')).toHaveAttribute('data-tone', 'urgent');
   });
 
   it('expands and collapses a single tool section', async () => {

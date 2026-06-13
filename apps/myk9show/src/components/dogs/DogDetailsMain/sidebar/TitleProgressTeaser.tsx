@@ -8,11 +8,11 @@ interface TitleProgressTeaserProps {
 }
 
 const TitleProgressTeaser: React.FC<TitleProgressTeaserProps> = ({ dogName }) => (
-  <Card className="border-orange-200 dark:border-orange-900/50 bg-gradient-to-br from-orange-50/60 to-card dark:from-orange-950/20">
+  <Card className="border-warning/30 bg-gradient-to-br from-orange-50/60 to-card dark:from-orange-950/20">
     <CardContent className="pt-4 pb-4 px-4">
       <div className="flex items-center gap-2 mb-2">
         <Sparkles className="h-4 w-4 text-orange-500" />
-        <span className="text-xs font-semibold uppercase tracking-wide text-orange-600 dark:text-orange-400">
+        <span className="text-xs font-semibold uppercase tracking-wide text-warning ">
           Premium feature
         </span>
       </div>

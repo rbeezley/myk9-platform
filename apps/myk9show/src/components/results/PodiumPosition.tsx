@@ -28,7 +28,7 @@ const PLACEMENT_CONFIG: Record<
     label: '3rd',
     badge: 'bg-orange-400 text-orange-950 shadow-orange-400/30',
     platform: 'h-10 bg-gradient-to-t from-orange-500 to-orange-400',
-    text: 'text-orange-600 dark:text-orange-400',
+    text: 'text-warning ',
   },
   4: {
     label: '4th',

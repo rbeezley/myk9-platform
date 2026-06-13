@@ -37,8 +37,8 @@ const ELEMENT_ICONS: Record<string, ElementIconConfig> = {
   },
   Buried: {
     icon: Layers,
-    bg: 'bg-orange-100 dark:bg-orange-900/40',
-    fg: 'text-orange-700 dark:text-orange-300',
+    bg: 'bg-warning/10 ',
+    fg: 'text-warning ',
   },
   Detective: {
     icon: Search,

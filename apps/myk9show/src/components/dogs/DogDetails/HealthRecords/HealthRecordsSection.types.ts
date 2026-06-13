@@ -224,5 +224,5 @@ export const geneticStatusColors: Record<string, string> = {
   clear: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-300',
   carrier: 'bg-warning/10 text-warning ',
   affected: 'bg-destructive/10 text-destructive ',
-  at_risk: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
+  at_risk: 'bg-warning/10 text-warning ',
 };

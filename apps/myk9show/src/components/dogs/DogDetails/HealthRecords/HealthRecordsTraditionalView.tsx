@@ -240,7 +240,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                       allergy.severity === 'life_threatening'
                         ? 'bg-destructive/10 text-destructive '
                         : allergy.severity === 'severe'
-                          ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300'
+                          ? 'bg-warning/10 text-warning '
                           : 'bg-muted text-muted-foreground'
                     }`}
                   >

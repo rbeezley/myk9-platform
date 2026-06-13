@@ -243,8 +243,8 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
   return (
     <div className="myk9-section-card">
       {vaccinationAlerts.length > 0 && (
-        <div className="mb-4 p-3 rounded-lg border border-yellow-300 bg-yellow-50 dark:bg-yellow-950/20 dark:border-yellow-800">
-          <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-300">
+        <div className="mb-4 p-3 rounded-lg border border-warning/30 bg-warning/10 ">
+          <div className="flex items-center gap-2 text-warning ">
             <AlertTriangle className="h-4 w-4" />
             <span className="text-sm font-medium">Vaccination Reminders</span>
           </div>
@@ -255,7 +255,7 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
               return (
                 <li
                   key={v.id}
-                  className={`text-sm ${isOverdue ? 'text-destructive ' : 'text-yellow-700 dark:text-yellow-400'}`}
+                  className={`text-sm ${isOverdue ? 'text-destructive ' : 'text-warning '}`}
                 >
                   {v.vaccine_name} — {isOverdue ? 'overdue since' : 'due'}{' '}
                   {exp.toLocaleDateString()}

@@ -83,26 +83,24 @@ const RingMonitor: React.FC<RingMonitorProps> = ({ userEntry, ringStatus, onRefr
 
       {/* Ring Status */}
       {ringStatus.isPaused && (
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
+        <div className="bg-warning/10 border border-warning/30 rounded-lg p-4 mb-4">
           <div className="flex items-center gap-3">
-            <Coffee className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+            <Coffee className="w-5 h-5 text-warning " />
             <div>
-              <div className="font-medium text-yellow-800 dark:text-yellow-200">Ring Paused</div>
-              <div className="text-sm text-yellow-600 dark:text-yellow-400">
-                {ringStatus.pauseReason || 'Judge break'}
-              </div>
+              <div className="font-medium text-warning ">Ring Paused</div>
+              <div className="text-sm text-warning ">{ringStatus.pauseReason || 'Judge break'}</div>
             </div>
           </div>
         </div>
       )}
 
       {ringStatus.delayMinutes && ringStatus.delayMinutes > 0 && (
-        <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4 mb-4">
+        <div className="bg-warning/10 border border-warning/30 rounded-lg p-4 mb-4">
           <div className="flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+            <AlertCircle className="w-5 h-5 text-warning " />
             <div>
-              <div className="font-medium text-orange-800 dark:text-orange-200">Ring Delayed</div>
-              <div className="text-sm text-orange-600 dark:text-orange-400">
+              <div className="font-medium text-warning ">Ring Delayed</div>
+              <div className="text-sm text-warning ">
                 Running approximately {ringStatus.delayMinutes} minutes behind schedule
               </div>
             </div>

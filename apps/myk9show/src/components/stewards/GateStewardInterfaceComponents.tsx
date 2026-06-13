@@ -92,7 +92,7 @@ export const GateEntryRow: React.FC<GateEntryRowProps> = ({
     <div
       className={cn(
         'border-b last:border-b-0 p-4 hover:bg-muted/50 transition-colors',
-        entry.isUrgent && 'bg-orange-50 dark:bg-orange-950/20 border-orange-200',
+        entry.isUrgent && 'bg-warning/10 border-orange-200',
         entry.checkInStatus === 'conflict' && 'bg-destructive/10 border-red-200'
       )}
     >

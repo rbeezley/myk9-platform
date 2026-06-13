@@ -111,8 +111,8 @@ const LiveResults: React.FC<LiveResultsProps> = ({
       case 3:
         return {
           place: 3,
-          color: 'text-yellow-600 dark:text-yellow-400',
-          bgColor: 'bg-yellow-100 dark:bg-yellow-900/30',
+          color: 'text-warning ',
+          bgColor: 'bg-warning/10 ',
           icon: <Medal className="w-5 h-5" />,
         };
       case 4:

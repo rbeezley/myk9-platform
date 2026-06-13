@@ -600,7 +600,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
               )}
             <li>Check-in at the show secretary&apos;s table upon arrival</li>
             {entryStatus === EntryStatus.WAITLIST && (
-              <li className="text-orange-600 dark:text-orange-400 font-medium">
+              <li className="text-warning font-medium">
                 You are currently on the waitlist - check for updates before the show
               </li>
             )}

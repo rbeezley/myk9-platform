@@ -217,7 +217,7 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                   <Button
                     variant="outline"
                     onClick={() => handleEntryStatusChange(EntryStatus.WAITLIST)}
-                    className="justify-start text-yellow-700 border-yellow-200 hover:bg-yellow-50 dark:text-yellow-400 dark:border-yellow-800 dark:hover:bg-yellow-950/40"
+                    className="justify-start text-warning border-warning/30 hover:bg-warning/10 "
                   >
                     <Calendar className="h-4 w-4 mr-2" />
                     Add to Waitlist
@@ -225,7 +225,7 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                   <Button
                     variant="outline"
                     onClick={() => handleEntryStatusChange(EntryStatus.MISSING_INFO)}
-                    className="justify-start text-orange-700 border-orange-200 hover:bg-orange-50 dark:text-orange-400 dark:border-orange-800 dark:hover:bg-orange-950/40"
+                    className="justify-start text-warning border-warning/30 hover:bg-warning/10 "
                   >
                     <AlertTriangle className="h-4 w-4 mr-2" />
                     Request More Info

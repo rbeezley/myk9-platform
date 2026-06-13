@@ -607,7 +607,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
             <div className="text-sm text-muted-foreground">
               {visibleDogs.length} dog{visibleDogs.length !== 1 ? 's' : ''}
               {serverHitLimit && (
-                <span className="ml-2 text-xs text-yellow-600 dark:text-yellow-400">
+                <span className="ml-2 text-xs text-warning ">
                   (showing top {SEARCH_ALL_DOGS_LIMIT} — refine your search for more)
                 </span>
               )}

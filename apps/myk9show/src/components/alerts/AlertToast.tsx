@@ -90,9 +90,9 @@ export const AlertToast: React.FC<AlertToastProps> = ({
       case AlertSeverity.CRITICAL:
         return 'border-l-red-500 bg-destructive/10 ';
       case AlertSeverity.HIGH:
-        return 'border-l-orange-500 bg-orange-50 dark:bg-orange-950';
+        return 'border-l-orange-500 bg-warning/10 ';
       case AlertSeverity.MEDIUM:
-        return 'border-l-yellow-500 bg-yellow-50 dark:bg-yellow-950';
+        return 'border-l-yellow-500 bg-warning/10 ';
       default:
         return 'border-l-blue-500 bg-info/10 ';
     }

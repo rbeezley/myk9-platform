@@ -144,9 +144,7 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({ entries }) => {
             <div className="text-sm text-gray-600 dark:text-gray-400">Classes</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-              {stats.conflicts}
-            </div>
+            <div className="text-2xl font-bold text-warning ">{stats.conflicts}</div>
             <div className="text-sm text-gray-600 dark:text-gray-400">Conflicts</div>
           </div>
         </div>
@@ -187,7 +185,7 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({ entries }) => {
           className={cn(
             'w-full mb-4 px-4 py-3 rounded-lg flex items-center justify-between transition-colors',
             showConflictsOnly
-              ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'
+              ? 'bg-warning/10 text-warning '
               : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
           )}
         >
@@ -213,7 +211,7 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({ entries }) => {
                   {formatTime(slot.time)}
                 </span>
                 {slot.hasConflict && (
-                  <span className="flex items-center gap-1 text-xs text-orange-600 dark:text-orange-400">
+                  <span className="flex items-center gap-1 text-xs text-warning ">
                     <AlertTriangle className="w-3 h-3" />
                     Conflict
                   </span>
@@ -224,8 +222,7 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({ entries }) => {
               <div
                 className={cn(
                   'ml-7 space-y-2',
-                  slot.hasConflict &&
-                    'p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800'
+                  slot.hasConflict && 'p-3 bg-warning/10 rounded-lg border border-warning/30 '
                 )}
               >
                 {slot.entries.map(entry => {

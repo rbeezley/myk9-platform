@@ -254,7 +254,7 @@ export default function RegistrationsSection({
                 </div>
                 {typeof reg.status === 'string' && reg.status.trim() !== '' ? (
                   <span
-                    className={`inline-flex w-fit px-2 py-0.5 rounded text-xs font-medium mb-1 ${reg.status === 'Active' ? 'bg-green-500/20 text-green-800 dark:text-green-200' : reg.status === 'Pending' || reg.status === 'Under review' ? 'bg-yellow-500/20 text-yellow-800 dark:text-yellow-200' : 'bg-muted text-muted-foreground'}`}
+                    className={`inline-flex w-fit px-2 py-0.5 rounded text-xs font-medium mb-1 ${reg.status === 'Active' ? 'bg-green-500/20 text-green-800 dark:text-green-200' : reg.status === 'Pending' || reg.status === 'Under review' ? 'bg-yellow-500/20 text-warning ' : 'bg-muted text-muted-foreground'}`}
                   >
                     {reg.status}
                   </span>

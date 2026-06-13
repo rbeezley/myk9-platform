@@ -92,10 +92,7 @@ export function MultiAreaTimerDisplay({
       case 'failed':
         return cn(baseClasses, 'border-red-200 bg-destructive/10 ');
       case 'ready':
-        return cn(
-          baseClasses,
-          'border-yellow-200 bg-yellow-50 dark:bg-yellow-950 hover:shadow-md cursor-pointer'
-        );
+        return cn(baseClasses, 'border-yellow-200 bg-warning/10 hover:shadow-md cursor-pointer');
       case 'locked':
       default:
         return cn(baseClasses, 'border-gray-200 bg-gray-50 dark:bg-gray-800 opacity-60');

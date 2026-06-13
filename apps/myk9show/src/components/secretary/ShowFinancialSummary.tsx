@@ -360,14 +360,12 @@ export const ShowFinancialSummary: React.FC<ShowFinancialSummaryProps> = ({ show
                 ${summary.paidAmount.toFixed(2)}
               </p>
             </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-yellow-50 dark:bg-yellow-950">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-warning/10 ">
               <div>
-                <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">Pending</p>
-                <p className="text-lg font-bold text-yellow-900 dark:text-yellow-100">
-                  {summary.pendingCount}
-                </p>
+                <p className="text-sm font-medium text-warning ">Pending</p>
+                <p className="text-lg font-bold text-warning ">{summary.pendingCount}</p>
               </div>
-              <p className="text-sm font-semibold text-yellow-700 dark:text-yellow-300">
+              <p className="text-sm font-semibold text-warning ">
                 ${summary.pendingAmount.toFixed(2)}
               </p>
             </div>

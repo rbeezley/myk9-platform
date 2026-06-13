@@ -6,15 +6,15 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { logger } from '@/services/LoggingService';
 import {
-  Trophy, 
-  Award, 
-  Star, 
+  Trophy,
+  Award,
+  Star,
   Medal,
   Crown,
   Target,
   CheckCircle2,
   Clock,
-  Calculator
+  Calculator,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -54,7 +54,7 @@ export function AwardsProcessor({
   trialId: _trialId,
   trialName,
   onProcessingComplete,
-  onClose
+  onClose,
 }: AwardsProcessorProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState<string>('');
@@ -64,7 +64,7 @@ export function AwardsProcessor({
     processedClasses: 0,
     totalAwards: 0,
     newTitles: 0,
-    qualifyingScores: 0
+    qualifyingScores: 0,
   });
   const [awards, setAwards] = useState<AwardResult[]>([]);
   const [completed, setCompleted] = useState(false);
@@ -72,33 +72,33 @@ export function AwardsProcessor({
   const processAwards = async () => {
     setIsProcessing(true);
     setProgress(0);
-    
+
     try {
       // Step 1: Calculate class placements
       setProcessingStep('Calculating class placements...');
       await simulateProcessing(500);
       setProgress(20);
-      
+
       // Step 2: Determine qualifying scores
       setProcessingStep('Determining qualifying scores...');
       await simulateProcessing(700);
       setProgress(40);
-      
+
       // Step 3: Calculate trial awards
       setProcessingStep('Calculating trial awards...');
       await simulateProcessing(800);
       setProgress(60);
-      
+
       // Step 4: Process title achievements
       setProcessingStep('Processing title achievements...');
       await simulateProcessing(600);
       setProgress(80);
-      
+
       // Step 5: Generate award certificates
       setProcessingStep('Generating award certificates...');
       await simulateProcessing(400);
       setProgress(100);
-      
+
       // Generate mock awards data
       const mockAwards: AwardResult[] = [
         {
@@ -114,7 +114,7 @@ export function AwardsProcessor({
           className: 'Open A',
           trialName: trialName,
           qualified: true,
-          placement: 1
+          placement: 1,
         },
         {
           id: 'winner-1',
@@ -129,7 +129,7 @@ export function AwardsProcessor({
           className: 'Novice A',
           trialName: trialName,
           qualified: true,
-          placement: 1
+          placement: 1,
         },
         {
           id: 'title-1',
@@ -144,7 +144,7 @@ export function AwardsProcessor({
           className: 'Novice A',
           trialName: trialName,
           qualified: true,
-          placement: 2
+          placement: 2,
         },
         {
           id: 'qual-1',
@@ -159,10 +159,10 @@ export function AwardsProcessor({
           className: 'Open A',
           trialName: trialName,
           qualified: true,
-          placement: 2
-        }
+          placement: 2,
+        },
       ];
-      
+
       setAwards(mockAwards);
       setStats({
         totalClasses: 6,
@@ -170,12 +170,11 @@ export function AwardsProcessor({
         totalAwards: mockAwards.length,
         highInTrial: mockAwards.find(a => a.awardType === 'High_In_Trial'),
         newTitles: mockAwards.filter(a => a.awardType === 'New_Title').length,
-        qualifyingScores: mockAwards.filter(a => a.awardType === 'Qualifying_Score').length
+        qualifyingScores: mockAwards.filter(a => a.awardType === 'Qualifying_Score').length,
       });
-      
+
       setCompleted(true);
       setProcessingStep('Awards processing complete!');
-      
     } catch (error) {
       logger.error('Awards processing error:', 'components', {}, error as Error);
       setProcessingStep('Error processing awards');
@@ -190,29 +189,41 @@ export function AwardsProcessor({
 
   const getAwardIcon = (awardType: string) => {
     switch (awardType) {
-      case 'High_In_Trial': return Crown;
-      case 'High_Combined': return Trophy;
-      case 'Class_Winner': return Medal;
-      case 'New_Title': return Star;
-      case 'Qualifying_Score': return Target;
-      default: return Award;
+      case 'High_In_Trial':
+        return Crown;
+      case 'High_Combined':
+        return Trophy;
+      case 'Class_Winner':
+        return Medal;
+      case 'New_Title':
+        return Star;
+      case 'Qualifying_Score':
+        return Target;
+      default:
+        return Award;
     }
   };
 
   const getAwardColor = (awardType: string) => {
     switch (awardType) {
-      case 'High_In_Trial': return 'text-yellow-600';
-      case 'High_Combined': return 'text-blue-600';
-      case 'Class_Winner': return 'text-green-600';
-      case 'New_Title': return 'text-purple-600';
-      case 'Qualifying_Score': return 'text-orange-600';
-      default: return 'text-gray-600';
+      case 'High_In_Trial':
+        return 'text-yellow-600';
+      case 'High_Combined':
+        return 'text-blue-600';
+      case 'Class_Winner':
+        return 'text-green-600';
+      case 'New_Title':
+        return 'text-purple-600';
+      case 'Qualifying_Score':
+        return 'text-orange-600';
+      default:
+        return 'text-gray-600';
     }
   };
 
   if (completed && awards.length > 0) {
     return (
-      <motion.div 
+      <motion.div
         className="space-y-6"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -252,7 +263,7 @@ export function AwardsProcessor({
         {stats.highInTrial && (
           <Card className="border-yellow-200 bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-950 dark:to-amber-950">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
+              <CardTitle className="flex items-center gap-2 text-warning ">
                 <Crown className="h-6 w-6" />
                 High In Trial Winner
               </CardTitle>
@@ -268,9 +279,7 @@ export function AwardsProcessor({
                   <div className="text-2xl font-bold text-yellow-600">
                     {stats.highInTrial.score}/100
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    {stats.highInTrial.time}s
-                  </div>
+                  <div className="text-sm text-muted-foreground">{stats.highInTrial.time}s</div>
                   <Badge variant="secondary" className="mt-1">
                     {stats.highInTrial.points} Points
                   </Badge>
@@ -290,17 +299,17 @@ export function AwardsProcessor({
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {awards.map((award) => {
+              {awards.map(award => {
                 const IconComponent = getAwardIcon(award.awardType);
                 const iconColor = getAwardColor(award.awardType);
-                
+
                 return (
-                  <div 
+                  <div
                     key={award.id}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <div className={cn("p-2 rounded-full bg-muted", iconColor)}>
+                      <div className={cn('p-2 rounded-full bg-muted', iconColor)}>
                         <IconComponent className="h-4 w-4" />
                       </div>
                       <div>
@@ -309,7 +318,7 @@ export function AwardsProcessor({
                           {award.dogName} • {award.ownerName}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {award.className} • {award.score ? `${award.score}/100` : ''} 
+                          {award.className} • {award.score ? `${award.score}/100` : ''}
                           {award.time ? ` • ${award.time}s` : ''}
                         </p>
                       </div>
@@ -319,10 +328,13 @@ export function AwardsProcessor({
                         {award.points} Points
                       </Badge>
                       <div className="text-xs text-muted-foreground">
-                        {award.placement === 1 ? '1st Place' : 
-                         award.placement === 2 ? '2nd Place' : 
-                         award.placement === 3 ? '3rd Place' : 
-                         `${award.placement}th Place`}
+                        {award.placement === 1
+                          ? '1st Place'
+                          : award.placement === 2
+                            ? '2nd Place'
+                            : award.placement === 3
+                              ? '3rd Place'
+                              : `${award.placement}th Place`}
                       </div>
                     </div>
                   </div>
@@ -334,10 +346,7 @@ export function AwardsProcessor({
 
         {/* Action Buttons */}
         <div className="flex gap-3">
-          <Button 
-            onClick={() => onProcessingComplete(awards)}
-            className="flex-1"
-          >
+          <Button onClick={() => onProcessingComplete(awards)} className="flex-1">
             <CheckCircle2 className="h-4 w-4 mr-2" />
             Finalize Awards
           </Button>
@@ -350,7 +359,7 @@ export function AwardsProcessor({
   }
 
   return (
-    <motion.div 
+    <motion.div
       className="space-y-6"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -381,9 +390,7 @@ export function AwardsProcessor({
                 <span className="text-sm font-medium">{processingStep}</span>
               </div>
               <Progress value={progress} className="w-full" />
-              <div className="text-xs text-muted-foreground text-center">
-                {progress}% Complete
-              </div>
+              <div className="text-xs text-muted-foreground text-center">{progress}% Complete</div>
             </div>
           </CardContent>
         </Card>
@@ -417,7 +424,7 @@ export function AwardsProcessor({
                 </div>
               </div>
             </div>
-            
+
             <div>
               <h4 className="font-medium mb-3">Processing Steps</h4>
               <div className="space-y-2 text-sm text-muted-foreground">
@@ -434,11 +441,7 @@ export function AwardsProcessor({
 
       {/* Action Buttons */}
       <div className="flex gap-3">
-        <Button 
-          onClick={processAwards}
-          disabled={isProcessing}
-          className="flex-1"
-        >
+        <Button onClick={processAwards} disabled={isProcessing} className="flex-1">
           {isProcessing ? (
             <>
               <Clock className="h-4 w-4 mr-2 animate-spin" />

@@ -477,14 +477,14 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
 
               {/* Warning if judges not fully assigned */}
               {totalJudges > 0 && classesWithJudges < totalClasses && (
-                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/50 rounded-lg p-3">
+                <div className="bg-warning/10 border border-warning/30 rounded-lg p-3">
                   <div className="flex items-start gap-2">
-                    <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+                    <AlertTriangle className="h-4 w-4 text-warning mt-0.5 flex-shrink-0" />
                     <div className="flex-1">
-                      <div className="font-medium text-yellow-800 dark:text-yellow-200 text-sm">
+                      <div className="font-medium text-warning text-sm">
                         Incomplete Judge Assignments
                       </div>
-                      <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-0.5">
+                      <p className="text-xs text-warning mt-0.5">
                         {totalClasses - classesWithJudges} of {totalClasses} classes need judges
                       </p>
                     </div>

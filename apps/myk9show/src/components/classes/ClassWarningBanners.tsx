@@ -33,7 +33,7 @@ export function ClassWarningBanners({
     <div className="space-y-1.5 mt-2">
       {/* Offline Scoring Banner */}
       {isOfflineScoring && (
-        <div className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium rounded bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+        <div className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium rounded bg-warning/10 text-warning ">
           <WifiOff className="h-2.5 w-2.5 flex-shrink-0" />
           <span className="truncate">Offline - updates when reconnected</span>
         </div>

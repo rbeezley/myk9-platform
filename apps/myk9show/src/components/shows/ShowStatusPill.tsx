@@ -38,8 +38,7 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   },
   in_progress: {
     label: 'In Progress',
-    className:
-      'bg-orange-100 border border-orange-300 text-orange-800 dark:bg-orange-950 dark:border-orange-800 dark:text-orange-400',
+    className: 'bg-warning/10 border border-warning/30 text-warning ',
   },
   completed: {
     label: 'Completed',

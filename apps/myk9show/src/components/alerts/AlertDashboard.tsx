@@ -176,9 +176,9 @@ export const AlertDashboard: React.FC<AlertDashboardProps> = ({ className }) => 
       case AlertSeverity.CRITICAL:
         return 'bg-red-500/10 text-destructive border-red-200 ';
       case AlertSeverity.HIGH:
-        return 'bg-orange-500/10 text-orange-700 border-orange-200 dark:text-orange-400';
+        return 'bg-orange-500/10 text-warning border-orange-200 ';
       case AlertSeverity.MEDIUM:
-        return 'bg-yellow-500/10 text-yellow-700 border-yellow-200 dark:text-yellow-400';
+        return 'bg-yellow-500/10 text-warning border-yellow-200 ';
       default:
         return 'bg-blue-500/10 text-info border-blue-200 ';
     }

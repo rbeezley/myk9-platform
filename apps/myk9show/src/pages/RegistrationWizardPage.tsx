@@ -584,11 +584,15 @@ function RegistrationWizardContent() {
   return (
     <RegistrationErrorBoundary>
       <div className={isInsideSidebar ? 'bg-background' : 'min-h-screen bg-background'}>
-        {/* Header with back button and breadcrumb */}
+        {/* Sticky header stack — breadcrumb + title + step indicator as ONE
+            sticky unit. Keeping them together means the stepper can never slide
+            under the breadcrumb: the previous separate top-28 offset was
+            inherited from the vertical sidebar and didn't clear this header's own
+            height. One sticky element has no offset to mis-tune. */}
         <div
           className={`border-b bg-card/95 backdrop-blur-xl sticky ${isInsideSidebar ? 'top-0' : 'top-16'} z-40`}
         >
-          <div className="container mx-auto px-4 py-4 max-w-7xl sm:px-6">
+          <div className="container mx-auto px-4 py-3 max-w-7xl sm:px-6">
             <div className="flex items-center gap-3 sm:gap-4">
               <Button
                 variant="ghost"
@@ -607,43 +611,33 @@ function RegistrationWizardContent() {
                 <span className="text-foreground font-medium">{workflowLabel}</span>
               </div>
             </div>
+
+            {/* Title + horizontal step indicator */}
+            <div className="mt-3">
+              <h2 className="text-base font-semibold text-foreground">{sidebarTitle}</h2>
+              {currentShow && (
+                <p className="text-xs text-muted-foreground truncate">{currentShow.name}</p>
+              )}
+              <div className="mt-3">
+                <HorizontalProgressIndicator
+                  steps={steps}
+                  currentStep={currentStep}
+                  completedSteps={completedSteps}
+                  onStepClick={(step: number) => {
+                    if (isStepCompleted(step) || step <= Math.max(-1, ...completedSteps) + 1) {
+                      if (currentStepId === 'payment') {
+                        setAgreedToEntryAgreement(false);
+                      }
+                      setCurrentStep(step);
+                    }
+                  }}
+                />
+              </div>
+            </div>
           </div>
         </div>
 
-        <div
-          className={`container mx-auto px-4 sm:px-6 ${isInsideSidebar ? 'pt-6' : 'pt-20 sm:pt-24'} pb-8 max-w-7xl`}
-        >
-          {/* Title */}
-          <div className="mb-1">
-            <h2 className="text-base font-semibold text-foreground">{sidebarTitle}</h2>
-            {currentShow && (
-              <p className="text-xs text-muted-foreground truncate">{currentShow.name}</p>
-            )}
-          </div>
-
-          {/* Horizontal step indicator — sticky under the wizard header so the
-              steps stay visible while the form scrolls. The offset adapts to
-              context (embedded sidebar vs full page), reusing the offsets the
-              old vertical sidebar used. Direct child of the tall container so it
-              sticks for the whole scroll, not just while the title is on screen. */}
-          <div
-            className={`sticky ${isInsideSidebar ? 'top-14' : 'top-28 lg:top-32'} z-30 mb-4 mt-3 rounded-2xl border border-border bg-card/95 px-3 py-4 shadow-sm backdrop-blur-xl sm:mb-6 sm:px-6`}
-          >
-            <HorizontalProgressIndicator
-              steps={steps}
-              currentStep={currentStep}
-              completedSteps={completedSteps}
-              onStepClick={(step: number) => {
-                if (isStepCompleted(step) || step <= Math.max(-1, ...completedSteps) + 1) {
-                  if (currentStepId === 'payment') {
-                    setAgreedToEntryAgreement(false);
-                  }
-                  setCurrentStep(step);
-                }
-              }}
-            />
-          </div>
-
+        <div className="container mx-auto px-4 sm:px-6 pt-6 pb-8 max-w-7xl">
           {/* Main Content */}
           <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl min-h-[600px] flex flex-col transition-all duration-300 hover:shadow-lg">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />

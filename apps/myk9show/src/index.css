@@ -222,14 +222,22 @@
     scrollbar-width: none;
   }
 
-  /* myK9 semantic colors */
+  /* myK9 semantic status scale */
   :root {
+    /* Canonical semantic tokens — use these */
+    --success: 22 163 74;              /* green-600 */
+    --success-foreground: 255 255 255;
+    --warning: 217 119 6;              /* amber-600 */
+    --warning-foreground: 255 255 255;
+    --info: 37 99 235;                 /* blue-600 */
+    --info-foreground: 255 255 255;
+    /* Deprecated aliases — remove after migration to text-success/warning/info */
     --success-green: 52 199 89;
     --warning-orange: 255 149 0;
     --error-red: 255 59 48;
   }
 
-  /* success-green, warning-orange, error-red registered in tailwind.config.js */
+  /* Semantic status tokens registered in tailwind.config.js as success/warning/info/destructive */
 
   /* Primary color opacity variants - use CSS variables for dynamic accent colors */
   /* Using color-mix() because Tailwind's opacity syntax doesn't work with CSS variables */
@@ -408,8 +416,8 @@ select:hover {
     --secondary-foreground: #4d4c48;
     --accent: #f5f0e8;
     --accent-foreground: #7c4a2e;
-    --destructive: #ef4444;
-    --destructive-foreground: #ffffff;
+    --destructive: 239 68 68;
+    --destructive-foreground: 255 255 255;
     --border: #e4dccc; /* was #e8e6dc — v2 ivory-200 */
     --input: #ffffff; /* was #f5f4ed — inputs match card */
     --input-border: #e4dccc; /* was #e8e6dc */
@@ -480,8 +488,11 @@ select:hover {
     --secondary-foreground: var(--ivory-50);
     --accent: #2a2520;
     --accent-foreground: #d97757;
-    --destructive: #dc2626;
-    --destructive-foreground: #ffffff;
+    --destructive: 220 38 38;
+    --destructive-foreground: 255 255 255;
+    --success: 74 222 128;             /* green-400 */
+    --warning: 251 191 36;             /* amber-400 */
+    --info: 96 165 250;                /* blue-400 */
     --border: #2e2b27;
     --input: #1e1c19;
     --input-border: #2e2b27;

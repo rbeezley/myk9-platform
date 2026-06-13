@@ -11,7 +11,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { isCheckInStatus } from '@myk9/core';
-import { supabase } from '@/services/database/supabaseClient';
 import { queryKeys } from '@/lib/queryClient';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import type {
@@ -24,6 +23,11 @@ import type {
 } from '@/types/show-day-types';
 import { DEFAULT_MINUTES_PER_DOG, MIN_SCORED_FOR_ADAPTIVE } from '@/types/show-day-types';
 import { getTodayLocal } from '@/utils/dateLocal';
+import {
+  fetchReplicatedRingProgress,
+  fetchReplicatedShowDayCheck,
+  fetchReplicatedShowDayDetails,
+} from './showDayDataReplication';
 
 /**
  * Compute estimated minutes until this exhibitor's run using adaptive timing.
@@ -60,83 +64,6 @@ export function computeEstimatedTime(
 
 // ---------------------------------------------------------------------------
 // Query functions
-// ---------------------------------------------------------------------------
-
-/** Tier 1: Lightweight check — does this user have entries for trials today? */
-async function fetchShowDayCheck(userId: string, today: string): Promise<ShowDayCheckRow[]> {
-  const { data, error } = await supabase
-    .from('entries')
-    .select(
-      `
-      id,
-      trial:trials!inner(
-        id, date,
-        show:shows!inner(
-          id, name, location, status, start_date, end_date,
-          club:clubs(name)
-        )
-      )
-    `
-    )
-    .eq('handler_id', userId)
-    .eq('trial.date', today);
-
-  if (error) throw error;
-  return (data || []) as unknown as ShowDayCheckRow[];
-}
-
-/** Tier 2a: Full entry details for the exhibitor's classes today */
-async function fetchShowDayDetails(userId: string, today: string): Promise<ShowDayDetailRow[]> {
-  const { data, error } = await supabase
-    .from('entries')
-    .select(
-      `
-      id, check_in_status, armband, run_order,
-      is_scored, result_status, is_in_ring,
-      dog:dogs!inner(id, call_name),
-      class:classes!inner(
-        id, name, element, level, status,
-        total_entries_count, scored_count
-      ),
-      trial:trials!inner(
-        id, date,
-        show:shows!inner(
-          id, name, location, status,
-          club:clubs(name)
-        )
-      )
-    `
-    )
-    .eq('handler_id', userId)
-    .eq('trial.date', today)
-    .order('run_order', { ascending: true });
-
-  if (error) throw error;
-  return (data || []) as unknown as ShowDayDetailRow[];
-}
-
-/** Tier 2b: Ring progress for all entries in the exhibitor's classes */
-async function fetchRingProgress(classIds: string[]): Promise<RingProgressRow[]> {
-  if (classIds.length === 0) return [];
-
-  const { data, error } = await supabase
-    .from('entries')
-    .select(
-      `
-      class_id, is_in_ring, is_scored, scoring_completed_at, run_order,
-      dog:dogs!inner(call_name)
-    `
-    )
-    .in('class_id', classIds)
-    .or('is_in_ring.eq.true,is_scored.eq.true')
-    .order('scoring_completed_at', { ascending: true });
-
-  if (error) throw error;
-  return (data || []) as unknown as RingProgressRow[];
-}
-
-// ---------------------------------------------------------------------------
-// Data transformation
 // ---------------------------------------------------------------------------
 
 /** Extract unique active shows from check rows */
@@ -242,7 +169,7 @@ export function useShowDayData(): ShowDayData {
   // Tier 1: Lightweight check (60s interval, always active)
   const checkQuery = useQuery({
     queryKey: queryKeys.showDayCheck(userId),
-    queryFn: () => fetchShowDayCheck(userId, today),
+    queryFn: () => fetchReplicatedShowDayCheck(userId, today),
     enabled: !!userId,
     staleTime: 60_000,
     gcTime: 120_000,
@@ -259,7 +186,7 @@ export function useShowDayData(): ShowDayData {
   // Tier 2a: Full entry details (30s interval, only when show day)
   const detailsQuery = useQuery({
     queryKey: queryKeys.showDayDetails(userId),
-    queryFn: () => fetchShowDayDetails(userId, today),
+    queryFn: () => fetchReplicatedShowDayDetails(userId, today),
     enabled: !!userId && isShowDay,
     staleTime: 30_000,
     gcTime: 60_000,
@@ -280,7 +207,7 @@ export function useShowDayData(): ShowDayData {
   // Tier 2b: Ring progress (30s interval, only when we have class IDs)
   const progressQuery = useQuery({
     queryKey: queryKeys.showDayRingProgress(userId, classIds),
-    queryFn: () => fetchRingProgress(classIds),
+    queryFn: () => fetchReplicatedRingProgress(classIds),
     enabled: !!userId && isShowDay && classIds.length > 0,
     staleTime: 30_000,
     gcTime: 60_000,

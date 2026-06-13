@@ -1,6 +1,23 @@
 /**
  * Type definitions for the Show Creation Wizard
  */
+import type { ShowPasscodes } from '@myk9/core';
+
+/**
+ * A show the wizard just created, used to drive the success overlay before
+ * navigating away.
+ */
+export interface CreatedShow {
+  id: string;
+  name: string;
+  /**
+   * Server-generated plaintext passcodes returned from insert_show_passcodes.
+   * Null when the passcode insert failed — the access card falls back to the
+   * legacy UUID-derivation in that case so the secretary still gets working
+   * codes for the existing-show fallback path.
+   */
+  passcodes: ShowPasscodes | null;
+}
 
 export interface WizardStep {
   id: number;

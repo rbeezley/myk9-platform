@@ -17,8 +17,14 @@ const reviewStep = read(path.join(stepsDir, 'ReviewStep.tsx'));
 const showDetailsStep = read(path.join(stepsDir, 'ShowDetailsStep.tsx'));
 const trialConfigStep = read(path.join(stepsDir, 'TrialConfigurationStep.tsx'));
 const classSelectionStep = read(path.join(stepsDir, 'ClassSelectionStep.tsx'));
-const wizardPage = read(
-  path.join(__dirname, '../../../pages/secretary/ShowCreationWizardPage.tsx')
+// The validation-banner disclosure was extracted out of ShowCreationWizardPage
+// into its own sibling component; the a11y guard follows the markup to its new
+// home. The pinned aria string-literals stay byte-identical.
+const validationBanner = read(
+  path.join(
+    __dirname,
+    '../../../pages/secretary/ShowCreationWizard/WizardValidationBanner.tsx'
+  )
 );
 
 describe('Show creation wizard — dark-mode theming guards', () => {
@@ -57,8 +63,8 @@ describe('Show creation wizard — a11y guards', () => {
   });
 
   it('Wizard validation banner is a labelled disclosure (aria-expanded/controls)', () => {
-    expect(wizardPage).toContain('aria-expanded={validationExpanded}');
-    expect(wizardPage).toContain('aria-controls="wizard-validation-details"');
-    expect(wizardPage).toContain('id="wizard-validation-details"');
+    expect(validationBanner).toContain('aria-expanded={expanded}');
+    expect(validationBanner).toContain('aria-controls="wizard-validation-details"');
+    expect(validationBanner).toContain('id="wizard-validation-details"');
   });
 });

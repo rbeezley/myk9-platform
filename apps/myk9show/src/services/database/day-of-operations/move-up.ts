@@ -19,6 +19,7 @@ import {
   rollbackEntryMove,
   denyMoveUpRequest as denyMoveUpRequestTransition,
 } from '../entries/lifecycle';
+import { getReplicatedDayOfEntries } from './replicatedReadAdapter';
 
 /**
  * Process a move-up request (move entry from one class to a higher class)
@@ -152,44 +153,12 @@ export const getMoveUpEligibleEntries = async (showId: string) => {
   const startTime = Date.now();
 
   try {
-    // Get entries that are accepted/checked-in and could move up
-    const { data, error } = await supabase
-      .from('entries')
-      .select(
-        `
-        id,
-        class_id,
-        trial_id,
-        entry_status,
-        jump_height,
-        handler,
-        armband,
-        dog:dog_id (
-          id,
-          name,
-          call_name
-        ),
-        class:class_id (
-          id,
-          name,
-          class_number,
-          trial_id
-        )
-      `
-      )
-      .eq('show_id', showId)
-      .in('entry_status', ['confirmed', 'checked-in'])
-      .is('deleted_at', null)
-      .order('class_id');
+    const data = await getReplicatedDayOfEntries(showId, ['confirmed', 'checked-in'], 'class-id');
 
     const duration = Date.now() - startTime;
-    logQuery('entries', 'get_move_up_eligible', duration, error?.message);
+    logQuery('entries', 'get_move_up_eligible', duration);
 
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'get_move_up_eligible');
-    }
-
-    return { data: data || [], error: null };
+    return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'entries', 'get_move_up_eligible');
@@ -205,47 +174,12 @@ export const getPendingMoveUpRequests = async (showId: string) => {
   const startTime = Date.now();
 
   try {
-    // Get entries with move-up requests (entry_status = 'move-up-requested')
-    const { data, error } = await supabase
-      .from('entries')
-      .select(
-        `
-        id,
-        class_id,
-        trial_id,
-        entry_status,
-        jump_height,
-        special_requests,
-        created_at,
-        updated_at,
-        handler,
-        armband,
-        dog:dog_id (
-          id,
-          name,
-          call_name
-        ),
-        class:class_id (
-          id,
-          name,
-          class_number,
-          trial_id
-        )
-      `
-      )
-      .eq('show_id', showId)
-      .eq('entry_status', 'move-up-requested')
-      .is('deleted_at', null)
-      .order('created_at', { ascending: true });
+    const data = await getReplicatedDayOfEntries(showId, ['move-up-requested'], 'created-asc');
 
     const duration = Date.now() - startTime;
-    logQuery('entries', 'get_pending_move_up_requests', duration, error?.message);
+    logQuery('entries', 'get_pending_move_up_requests', duration);
 
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'get_pending_move_up_requests');
-    }
-
-    return { data: data || [], error: null };
+    return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'entries', 'get_pending_move_up_requests');

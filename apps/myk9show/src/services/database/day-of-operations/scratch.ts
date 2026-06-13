@@ -15,6 +15,7 @@
 
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import type { TablesUpdate } from '@/types/supabase';
+import { getReplicatedDayOfEntries } from './replicatedReadAdapter';
 
 /**
  * Day-of pull — re-exported from the canonical lifecycle seam. The lifecycle
@@ -34,44 +35,12 @@ export const getScratchableEntries = async (showId: string) => {
   const startTime = Date.now();
 
   try {
-    // Get entries that can be scratched
-    const { data, error } = await supabase
-      .from('entries')
-      .select(
-        `
-        id,
-        class_id,
-        trial_id,
-        entry_status,
-        jump_height,
-        run_order,
-        handler,
-        armband,
-        dog:dog_id (
-          id,
-          name,
-          call_name
-        ),
-        class:class_id (
-          id,
-          name,
-          class_number
-        )
-      `
-      )
-      .eq('show_id', showId)
-      .in('entry_status', ['confirmed', 'checked-in'])
-      .is('deleted_at', null)
-      .order('run_order', { ascending: true, nullsFirst: false });
+    const data = await getReplicatedDayOfEntries(showId, ['confirmed', 'checked-in'], 'run-order');
 
     const duration = Date.now() - startTime;
-    logQuery('entries', 'get_scratchable_entries', duration, error?.message);
+    logQuery('entries', 'get_scratchable_entries', duration);
 
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'get_scratchable_entries');
-    }
-
-    return { data: data || [], error: null };
+    return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'entries', 'get_scratchable_entries');
@@ -87,46 +56,12 @@ export const getScratchedEntries = async (showId: string) => {
   const startTime = Date.now();
 
   try {
-    // Get scratched entries
-    const { data, error } = await supabase
-      .from('entries')
-      .select(
-        `
-        id,
-        class_id,
-        trial_id,
-        entry_status,
-        entry_fee,
-        handler,
-        armband,
-        payment_status,
-        special_requests,
-        updated_at,
-        dog:dog_id (
-          id,
-          name,
-          call_name
-        ),
-        class:class_id (
-          id,
-          name,
-          class_number
-        )
-      `
-      )
-      .eq('show_id', showId)
-      .eq('entry_status', 'scratched')
-      .is('deleted_at', null)
-      .order('updated_at', { ascending: false });
+    const data = await getReplicatedDayOfEntries(showId, ['scratched'], 'updated-desc');
 
     const duration = Date.now() - startTime;
-    logQuery('entries', 'get_scratched_entries', duration, error?.message);
+    logQuery('entries', 'get_scratched_entries', duration);
 
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'get_scratched_entries');
-    }
-
-    return { data: data || [], error: null };
+    return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'entries', 'get_scratched_entries');
@@ -149,46 +84,12 @@ export const getPendingScratchRequests = async (showId: string) => {
   const startTime = Date.now();
 
   try {
-    // Get entries with scratch-requested status
-    const { data, error } = await supabase
-      .from('entries')
-      .select(
-        `
-        id,
-        class_id,
-        trial_id,
-        entry_status,
-        entry_fee,
-        special_requests,
-        created_at,
-        handler,
-        armband,
-        payment_status,
-        dog:dog_id (
-          id,
-          name,
-          call_name
-        ),
-        class:class_id (
-          id,
-          name,
-          class_number
-        )
-      `
-      )
-      .eq('show_id', showId)
-      .eq('entry_status', 'scratch-requested')
-      .is('deleted_at', null)
-      .order('created_at', { ascending: true });
+    const data = await getReplicatedDayOfEntries(showId, ['scratch-requested'], 'created-asc');
 
     const duration = Date.now() - startTime;
-    logQuery('entries', 'get_pending_scratch_requests', duration, error?.message);
+    logQuery('entries', 'get_pending_scratch_requests', duration);
 
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'get_pending_scratch_requests');
-    }
-
-    return { data: data || [], error: null };
+    return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'entries', 'get_pending_scratch_requests');

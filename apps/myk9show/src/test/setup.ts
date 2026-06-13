@@ -190,12 +190,3 @@ beforeAll(() => {
   vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
-
-// Mock theme provider
-vi.mock('@/components/theme-provider', () => ({
-  ThemeProvider: ({ children }: { children: React.ReactNode }) => children,
-  useTheme: () => ({
-    theme: 'light',
-    setTheme: vi.fn(),
-  }),
-}));

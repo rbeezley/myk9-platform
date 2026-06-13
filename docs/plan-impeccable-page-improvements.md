@@ -63,7 +63,7 @@ consolidation phase) they split four ways:
 
 | Command | Trigger from critique/audit |
 |---|---|
-| `clarify` | Confusing labels, jargon, passive voice, unhelpful errors, tone mismatch. (Earlier sweeps found stale copy like the "Today" reference — this is the pass that catches those.) |
+| `clarify` | Confusing labels, jargon, passive voice, unhelpful errors, tone mismatch. (Earlier sweeps found stale copy like the "Today" reference — this is the pass that catches those.) **Gate check:** when renaming a label that's driven by a boolean/predicate (a readiness chip, a status badge, an error condition), match the gate's *full satisfaction set*, not just the dominant case — read the predicate, not only the old string. Narrowing a label to the common case lets an off-case dismiss a chip whose text no longer describes what cleared it (PR #676: "Premium list not posted yet" named one of three OR'd conditions → widened to "Exhibitor info not published yet"). |
 | `layout` | Spacing/rhythm/alignment findings, flat hierarchy, nested cards, everything-in-a-container. |
 | `typeset` | Flat type scale (<1.25 ratio), line lengths over 75ch, hierarchy problems. |
 | `colorize` | Monochrome UI that buries status meaning, OR hardcoded palette bugs (see watchlist below). |

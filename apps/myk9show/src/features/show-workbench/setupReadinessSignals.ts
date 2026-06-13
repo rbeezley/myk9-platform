@@ -16,7 +16,12 @@ export interface SetupReadinessSignal {
   href: string;
 }
 
-/** In-page anchor for the publish section on the Setup tab. */
+// Anchor id for the publish section. The cards render in ShowDetailsPage —
+// the PARENT route that hosts the Setup page via <Outlet> — so the element
+// is in the same document while /shows/:id/setup is active, and a `#`-href
+// chip resolves to it. See ShowDetailsPage.tsx (id={SETUP_PUBLISH_ANCHOR})
+// and the regression test setupPublishAnchor.test.tsx. Keep them nested: if
+// the Setup route is ever un-nested from ShowDetailsPage, this anchor dies.
 export const SETUP_PUBLISH_ANCHOR = 'setup-publish';
 
 export interface SetupReadinessInput {
@@ -91,7 +96,7 @@ export function computeSetupReadinessSignals(
   if (!exhibitorMaterialsPublished(input.show)) {
     signals.push({
       id: 'exhibitor-materials-unpublished',
-      label: 'Exhibitor materials unpublished',
+      label: 'Premium list not posted yet',
       href: `#${SETUP_PUBLISH_ANCHOR}`,
     });
   }

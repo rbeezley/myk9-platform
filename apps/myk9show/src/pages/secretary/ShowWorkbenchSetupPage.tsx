@@ -94,9 +94,11 @@ export function ShowWorkbenchSetupPage() {
     <>
       <PhaseShell title="Setup" kicker="Before the show" />
       <div className="space-y-6">
-        {/* The publish cards render once at the show level (above the
-            section tabs in ShowDetailsPage); the exhibitor-materials chip
-            deep-links up to them via #setup-publish. */}
+        {/* The publish cards render once at the show level — in
+            ShowDetailsPage, the PARENT route that hosts this page via
+            <Outlet>. Because the parent stays mounted, that #setup-publish
+            anchor is in the same document while /shows/:id/setup is active,
+            so the premium-list chip below resolves to it. */}
         <SetupAdaptiveHeader signals={setupSignals} />
         <div className="setup-detail-grid">
           <div className="space-y-6">

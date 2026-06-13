@@ -117,8 +117,8 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
       if (prev.size > 0) return prev; // already has expansions, don't override
       return new Set(showTrials.map(t => t.id));
     });
-  // only on length change, not full deep compare
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // only on length change, not full deep compare
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showTrials.length]);
 
   // Build grouped class data: Map<trialId, ElementGroup[]>
@@ -310,7 +310,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList
-          className="flex gap-0 border-b-0 border-0 bg-transparent h-auto p-0"
+          className="flex gap-0 border-b-0 border-0 bg-transparent h-auto p-0 overflow-x-auto"
           style={{ borderBottom: '0.5px solid var(--border)' }}
         >
           {selectedDogs.map(dogId => (

@@ -31,7 +31,7 @@ export const DogTabTrigger: React.FC<DogTabTriggerProps> = ({
     key={dogId}
     value={dogId}
     className={cn(
-      'relative inline-flex items-center gap-2 px-5 py-3 -mb-[0.5px]',
+      'relative inline-flex items-center gap-2 px-3 py-3 -mb-[0.5px] sm:px-5',
       'border-0 border-b-2 font-medium text-sm transition-all duration-200',
       'bg-transparent rounded-none cursor-pointer',
       isActive
@@ -97,6 +97,7 @@ export const TrialSection: React.FC<TrialSectionProps> = ({
     <button
       type="button"
       onClick={onToggle}
+      aria-expanded={isExpanded}
       className="flex items-center justify-between w-full pb-2 border-b cursor-pointer hover:bg-muted/30 -mx-1 px-1 rounded-sm transition-colors"
     >
       <div className="flex items-center gap-2">
@@ -160,13 +161,14 @@ export const ElementCard: React.FC<ElementCardProps> = ({
               htmlFor={`single-${cls.classId}`}
               className={cn(
                 'font-semibold text-sm cursor-pointer',
-                cls.isAlreadyEntered && 'text-teal-600'
+                cls.isAlreadyEntered && 'text-teal-600 dark:text-teal-400'
               )}
             >
-              <span className="sr-only">Select</span>{' '}
-              {element}
+              <span className="sr-only">Select</span> {element}
             </Label>
-            {cls.isAlreadyEntered && <CheckCircle2 className="h-3.5 w-3.5 text-teal-600" />}
+            {cls.isAlreadyEntered && (
+              <CheckCircle2 className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+            )}
             {cls.isJudgeDayFull && !cls.isAlreadyEntered && (
               <WaitlistBadge waitlistCount={cls.waitlistCount} />
             )}
@@ -255,8 +257,7 @@ const LevelChip: React.FC<LevelChipProps> = ({
           onCheckedChange={() => !isAlreadyEntered && onToggle(classId)}
           className="h-3.5 w-3.5"
         />
-        <span className="sr-only">Select</span>{' '}
-        <span className="text-xs">{displayLabel}</span>
+        <span className="sr-only">Select</span> <span className="text-xs">{displayLabel}</span>
       </label>
       {isJudgeDayFull && !isAlreadyEntered && <WaitlistBadge waitlistCount={waitlistCount} />}
     </div>
@@ -327,7 +328,7 @@ export const OverallCartSummary: React.FC<OverallCartSummaryProps> = ({
 }) => {
   if (totalItems <= 0) return null;
   return (
-    <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+    <div className="mt-4 p-4 bg-muted rounded-lg">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
           <ShoppingCart className="h-5 w-5 text-muted-foreground" />

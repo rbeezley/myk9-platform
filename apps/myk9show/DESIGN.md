@@ -73,6 +73,21 @@ The **platform accent** is user-configurable (4 options). The default is teal â€
 | Blue               | `#3b82f6` | Classic tech/trust                               |
 | Purple             | `#8b5cf6` | Elegant alternative                              |
 
+### Semantic Status Colors (UI)
+
+Four semantic roles for UI feedback (alerts, badges, form validation). All support Tailwind opacity modifiers (`/10`, `/20`) for tinted backgrounds. **Never hand-pair `dark:text-{color}-N` for these â€” use the semantic utilities.**
+
+| Role            | Light value          | Dark value           | Tailwind utilities                                    |
+| --------------- | -------------------- | -------------------- | ----------------------------------------------------- |
+| **success**     | green-600 `#16a34a`  | green-400 `#4ade80`  | `text-success`, `bg-success/10`, `border-success/30`  |
+| **warning**     | amber-600 `#d97706`  | amber-400 `#fbbf24`  | `text-warning`, `bg-warning/10`, `border-warning/30`  |
+| **info**        | blue-600 `#2563eb`   | blue-400 `#60a5fa`   | `text-info`, `bg-info/10`, `border-info/30`           |
+| **destructive** | red-500 `#ef4444`    | red-600 `#dc2626`    | `text-destructive`, `bg-destructive/10`, etc.         |
+
+Each role also has a `-foreground` (white) for text on a solid fill: `bg-success text-success-foreground`.
+
+These are distinct from the pipeline `--status-*` tokens (which drive the ringside check-in/scoring flow). Do not conflate them.
+
 ### Status Colors (Pipeline)
 
 These are semantic, non-negotiable. Never remap them to accent colors.

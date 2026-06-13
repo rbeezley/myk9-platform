@@ -20,9 +20,9 @@
 }
 
 .myk9-badge-inactive {
-  background: var(--destructive/10);
-  color: var(--destructive);
-  border: 1px solid var(--destructive/20);
+  background: rgb(var(--destructive) / 0.1);
+  color: rgb(var(--destructive));
+  border: 1px solid rgb(var(--destructive) / 0.2);
   font-weight: 500;
 }
 

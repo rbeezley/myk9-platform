@@ -78,11 +78,23 @@ export default {
           foreground: 'var(--accent-foreground)',
         },
         destructive: {
-          DEFAULT: 'var(--destructive)',
-          foreground: 'var(--destructive-foreground)',
+          DEFAULT: 'rgb(var(--destructive) / <alpha-value>)',
+          foreground: 'rgb(var(--destructive-foreground) / <alpha-value>)',
         },
-        'success-green': 'rgb(var(--success-green) / <alpha-value>)',
-        'warning-orange': 'rgb(var(--warning-orange) / <alpha-value>)',
+        success: {
+          DEFAULT: 'rgb(var(--success) / <alpha-value>)',
+          foreground: 'rgb(var(--success-foreground) / <alpha-value>)',
+        },
+        warning: {
+          DEFAULT: 'rgb(var(--warning) / <alpha-value>)',
+          foreground: 'rgb(var(--warning-foreground) / <alpha-value>)',
+        },
+        info: {
+          DEFAULT: 'rgb(var(--info) / <alpha-value>)',
+          foreground: 'rgb(var(--info-foreground) / <alpha-value>)',
+        },
+        'success-green': 'rgb(var(--success) / <alpha-value>)',
+        'warning-orange': 'rgb(var(--warning) / <alpha-value>)',
         'error-red': 'rgb(var(--error-red) / <alpha-value>)',
         border: 'var(--border)',
         input: 'var(--input)',

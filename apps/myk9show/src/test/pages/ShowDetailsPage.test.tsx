@@ -551,6 +551,9 @@ describe('ShowDetailsPage', () => {
   // chip resolves instead of scrolling to nothing. If the Setup route is ever
   // un-nested from ShowDetailsPage, this fails — which is the point.
   it('renders the #setup-publish anchor target on the Setup route so its chip resolves', () => {
+    // isSecretary=true makes canManageShow true, which is the gate the anchor
+    // renders under — so this also implicitly asserts that auth gate. If a
+    // refactor moves the anchor behind a different gate, expect this to fail.
     mockAuthContext.isSecretary = true;
     // mockShow (beforeEach) has no publishedPremiumUrl/At/experienceIsPublished,
     // so the unpublished chip is what a secretary sees here.

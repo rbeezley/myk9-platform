@@ -20,8 +20,9 @@ export interface SetupReadinessSignal {
 // the PARENT route that hosts the Setup page via <Outlet> — so the element
 // is in the same document while /shows/:id/setup is active, and a `#`-href
 // chip resolves to it. See ShowDetailsPage.tsx (id={SETUP_PUBLISH_ANCHOR})
-// and the regression test setupPublishAnchor.test.tsx. Keep them nested: if
-// the Setup route is ever un-nested from ShowDetailsPage, this anchor dies.
+// and the regression test in src/test/pages/ShowDetailsPage.test.tsx
+// ("renders the #setup-publish anchor target on the Setup route ..."). Keep
+// them nested: if the Setup route is ever un-nested, this anchor dies.
 export const SETUP_PUBLISH_ANCHOR = 'setup-publish';
 
 export interface SetupReadinessInput {

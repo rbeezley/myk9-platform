@@ -35,6 +35,13 @@ export function judgeHospitalityStorageKey(showId: string): string {
   return `myk9show:judge-hospitality:${showId}`;
 }
 
+// Hospitality state lives in localStorage, which is not reactive. The Show Desk
+// Tools trigger badge (rendered outside this card) needs to recompute its
+// "N reminders" glance when the secretary toggles a checkbox inside the open
+// sheet. writeJudgeHospitalityState fires this event on every persist so
+// useJudgeHospitalityReminderCount can re-read without polling.
+export const JUDGE_HOSPITALITY_CHANGE_EVENT = 'myk9show:judge-hospitality-change';
+
 function normalizeItem(value: unknown): JudgeHospitalityItem {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return { ...EMPTY_HOSPITALITY_ITEM };
@@ -74,6 +81,7 @@ export function readJudgeHospitalityState(
 export function writeJudgeHospitalityState(showId: string, state: JudgeHospitalityState) {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(judgeHospitalityStorageKey(showId), JSON.stringify(state));
+  window.dispatchEvent(new CustomEvent(JUDGE_HOSPITALITY_CHANGE_EVENT, { detail: { showId } }));
 }
 
 export function summarizeJudgeHospitality(

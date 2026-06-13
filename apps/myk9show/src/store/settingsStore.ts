@@ -10,6 +10,7 @@ import { devtools, persist } from 'zustand/middleware';
 import { importSettingsWithMigration } from '@/utils/settingsMigration';
 import { ACCENT_V1_TO_V2 } from '@/utils/accentMigrationMap';
 import { logger } from '@/utils/logger';
+import { applyThemeClasses } from '@/context/themeClasses';
 
 export const SETTINGS_VERSION = '1.0.0';
 
@@ -177,19 +178,10 @@ export const useSettingsStore = create<SettingsState>()(
  * Applies both theme-light/theme-dark classes AND Tailwind's .dark class
  */
 function applyTheme(theme: 'light' | 'dark' | 'auto') {
-  const root = document.documentElement;
-
-  if (theme === 'auto') {
-    // Detect system preference and apply appropriate class
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    root.classList.remove('theme-light', 'theme-dark', 'dark');
-    root.classList.add(prefersDark ? 'theme-dark' : 'theme-light');
-    if (prefersDark) root.classList.add('dark'); // Tailwind dark mode
-  } else {
-    root.classList.remove('theme-light', 'theme-dark', 'dark');
-    root.classList.add(`theme-${theme}`);
-    if (theme === 'dark') root.classList.add('dark'); // Tailwind dark mode
-  }
+  const isDark =
+    theme === 'dark' ||
+    (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  applyThemeClasses(document.documentElement, isDark);
 }
 
 /**
@@ -209,10 +201,7 @@ function setupSystemThemeListener() {
   systemThemeListener = (e: MediaQueryListEvent) => {
     const { settings } = useSettingsStore.getState();
     if (settings.theme === 'auto') {
-      const root = document.documentElement;
-      root.classList.remove('theme-light', 'theme-dark', 'dark');
-      root.classList.add(e.matches ? 'theme-dark' : 'theme-light');
-      if (e.matches) root.classList.add('dark'); // Tailwind dark mode
+      applyThemeClasses(document.documentElement, e.matches);
     }
   };
 

@@ -102,7 +102,7 @@ export const InlineHandlerSection: React.FC<InlineHandlerSectionProps> = ({
                 key={entry.key}
                 className="flex flex-col items-start gap-2 py-2 px-3 rounded-md bg-muted/30 sm:flex-row sm:items-center sm:justify-between"
               >
-                <div className="flex items-center gap-2 min-w-0 flex-1">
+                <div className="flex w-full items-center gap-2 min-w-0 flex-1 sm:w-auto">
                   <span className="text-sm truncate">
                     {entry.dogName} — {entry.className}
                   </span>

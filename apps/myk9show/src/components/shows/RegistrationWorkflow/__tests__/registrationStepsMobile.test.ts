@@ -57,8 +57,12 @@ describe('registration steps — mobile responsive guards', () => {
     expect(classStep).toContain('overflow-x-auto');
   });
 
-  it('the inline-handler entry row stacks on mobile', () => {
+  it('the inline-handler entry row stacks on mobile and lets the name truncate', () => {
     expect(inlineHandler).toContain('sm:flex-row');
+    // The text row must be full-width when stacked, or truncate has no width to
+    // act on and long dog/class names overflow the card instead of clipping.
+    expect(inlineHandler).toContain('w-full');
+    expect(inlineHandler).toContain('sm:w-auto');
   });
 
   it('level chips keep a 44px tap height on phones', () => {

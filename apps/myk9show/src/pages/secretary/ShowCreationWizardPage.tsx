@@ -527,27 +527,30 @@ const ShowCreationWizardPage: React.FC = () => {
         </div>
 
         <div className="container mx-auto px-4 sm:px-6 pt-6 pb-8 max-w-6xl">
-          {/* Title + horizontal step indicator */}
-          <div className="mb-4 sm:mb-6">
-            <h2 className="text-base font-semibold mb-4 text-foreground">
-              {editMode
-                ? `${
-                    editMode.mode === 'add-trials'
-                      ? 'Add Trials'
-                      : editMode.mode === 'add-classes'
-                        ? 'Add Classes'
-                        : 'Edit Show'
-                  }`
-                : 'Create New Show'}
-            </h2>
-            <div className="rounded-2xl border border-border bg-card/80 px-4 py-5 shadow-sm backdrop-blur-xl sm:px-6">
-              <HorizontalProgressIndicator
-                steps={WIZARD_STEPS}
-                currentStep={currentStep}
-                completedSteps={completedSteps}
-                onStepClick={goToStep}
-              />
-            </div>
+          {/* Title */}
+          <h2 className="text-base font-semibold mb-4 text-foreground">
+            {editMode
+              ? `${
+                  editMode.mode === 'add-trials'
+                    ? 'Add Trials'
+                    : editMode.mode === 'add-classes'
+                      ? 'Add Classes'
+                      : 'Edit Show'
+                }`
+              : 'Create New Show'}
+          </h2>
+
+          {/* Horizontal step indicator — sticky under the page header so the
+              steps stay visible while the form scrolls. Kept a direct child of
+              the tall container (not nested in a short title wrapper) so it
+              sticks for the whole scroll, not just while the title is on screen. */}
+          <div className="sticky top-16 z-30 mb-4 sm:mb-6 rounded-2xl border border-border bg-card/95 px-4 py-5 shadow-sm backdrop-blur-xl sm:px-6">
+            <HorizontalProgressIndicator
+              steps={WIZARD_STEPS}
+              currentStep={currentStep}
+              completedSteps={completedSteps}
+              onStepClick={goToStep}
+            />
           </div>
 
           {/* Main Content */}

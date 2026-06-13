@@ -37,9 +37,7 @@ const mockAKCData = vi.hoisted(() => ({
 
 vi.mock('@/hooks/useFastShowDetails', () => ({
   useFastShowDetails: (showId: string | undefined) => ({
-    show: showId
-      ? { id: showId, name: 'Spring Scent Trial', organization: 'AKC' }
-      : null,
+    show: showId ? { id: showId, name: 'Spring Scent Trial', organization: 'AKC' } : null,
   }),
 }));
 
@@ -117,9 +115,14 @@ describe('ResultsSubmissionPage', () => {
     vi.clearAllMocks();
   });
 
-  it('renders the page heading', async () => {
+  it('renders the page heading matching the nav label ("Submit Results")', async () => {
     renderPage();
-    await waitFor(() => expect(screen.getByText('Results Submission')).toBeInTheDocument());
+    // Heading text must match the nav tab / route / Show Desk card, which all say
+    // "Submit Results" — not the old standalone "Results Submission".
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'Submit Results' })).toBeInTheDocument()
+    );
+    expect(screen.queryByText('Results Submission')).not.toBeInTheDocument();
   });
 
   it('renders the organization selector', async () => {
@@ -230,7 +233,13 @@ describe('ResultsSubmissionPage', () => {
 
     renderPage();
     await waitFor(() => expect(screen.getByTestId('preflight-warning')).toBeInTheDocument());
-    expect(screen.getByTestId('preflight-warning').textContent).toContain('1');
+    const warning = screen.getByTestId('preflight-warning');
+    expect(warning.textContent).toContain('1');
+    // Theme-aware: the warning must carry dark-mode variants so it isn't a pale
+    // box on a dark surface, and be announced as an alert.
+    expect(warning.className).toContain('dark:bg-amber-900/20');
+    expect(warning.className).toContain('dark:text-amber-200');
+    expect(warning).toHaveAttribute('role', 'alert');
   });
 
   it('"Send to AKC" calls supabase.functions.invoke with send-results', async () => {

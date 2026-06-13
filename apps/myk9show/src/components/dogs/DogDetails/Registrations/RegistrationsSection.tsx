@@ -259,7 +259,7 @@ export default function RegistrationsSection({
                     {reg.status}
                   </span>
                 ) : (
-                  <span className="text-xs text-red-600 dark:text-red-400 mb-1">No status</span>
+                  <span className="text-xs text-destructive mb-1">No status</span>
                 )}
                 <div className="grid grid-cols-1 gap-y-2 gap-x-6 md:grid-cols-2">
                   <div>

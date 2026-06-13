@@ -211,7 +211,7 @@ export const EntriesStatisticsPanel: React.FC<EntriesStatisticsPanelProps> = ({
           className={cn(
             'p-4 rounded-lg border-l-4',
             statistics.invalidChanges > 0
-              ? 'bg-red-50 border-l-red-500 dark:bg-red-950/20'
+              ? 'bg-destructive/10 border-l-red-500 '
               : 'bg-blue-50 border-l-blue-500 dark:bg-blue-950/20'
           )}
         >

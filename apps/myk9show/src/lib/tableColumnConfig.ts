@@ -232,7 +232,7 @@ function getStatusClassName(status: string): string {
       return 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200';
     case 'not qualified':
     case 'nq':
-      return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      return 'bg-destructive/10 text-destructive ';
     case 'absent':
       return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200';
     case 'withdrawn':

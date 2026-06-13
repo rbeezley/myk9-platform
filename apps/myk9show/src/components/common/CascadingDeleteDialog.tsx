@@ -122,12 +122,12 @@ export function CascadingDeleteDialog({
           </div>
         ) : (
           <>
-            <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/30 rounded-xl px-3 py-1">
-              <div className="flex items-center gap-2 text-red-600 dark:text-red-400 font-medium leading-none m-0">
+            <div className="bg-destructive/10 border border-destructive/30 rounded-xl px-3 py-1">
+              <div className="flex items-center gap-2 text-destructive font-medium leading-none m-0">
                 <AlertTriangle className="h-4 w-4" />
                 Warning: This will permanently delete all related data
               </div>
-              <div className="text-sm text-red-700 dark:text-red-300 leading-tight m-0">
+              <div className="text-sm text-destructive leading-tight m-0">
                 Deleting this {entityType} will also permanently delete {preview.totalToDelete}{' '}
                 related records. This action cannot be undone.
               </div>

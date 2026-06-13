@@ -233,7 +233,7 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                   <Button
                     variant="outline"
                     onClick={() => handleEntryStatusChange(EntryStatus.REJECTED)}
-                    className="justify-start text-red-700 border-red-200 hover:bg-red-50 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-950/40"
+                    className="justify-start text-destructive border-destructive/30 hover:bg-destructive/10 "
                   >
                     <AlertTriangle className="h-4 w-4 mr-2" />
                     Reject Entry

@@ -31,7 +31,7 @@ function StatusBadge({ status }: { status: RoleRequestStatus }) {
   const styles: Record<RoleRequestStatus, string> = {
     pending: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
     approved: 'border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300',
-    denied: 'border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300',
+    denied: 'border-red-500/30 bg-red-500/10 text-destructive ',
   };
 
   return (
@@ -230,7 +230,7 @@ export default function RoleRequestsPage() {
                     </div>
                   )}
                   {request.status === 'denied' && (
-                    <div className="inline-flex items-center gap-2 text-sm text-red-700 dark:text-red-300">
+                    <div className="inline-flex items-center gap-2 text-sm text-destructive ">
                       <XCircle className="h-4 w-4" />
                       Denied {request.reviewedAt ? formatDate(request.reviewedAt) : ''}
                     </div>

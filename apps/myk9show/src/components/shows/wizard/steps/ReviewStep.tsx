@@ -139,17 +139,17 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
         <div className="max-w-6xl mx-auto space-y-6">
           {/* Validation Errors */}
           {errors.length > 0 && (
-            <Card className="border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-900/20">
+            <Card className="border-destructive/30 bg-destructive/10 ">
               <CardContent className="pt-4">
                 <div className="flex gap-3">
-                  <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                  <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
                   <div>
-                    <h4 className="font-medium text-red-900 dark:text-red-200 mb-2">
+                    <h4 className="font-medium text-destructive mb-2">
                       Please address the following issues:
                     </h4>
                     <ul className="space-y-1">
                       {errors.map((error, index) => (
-                        <li key={index} className="text-sm text-red-700 dark:text-red-300">
+                        <li key={index} className="text-sm text-destructive ">
                           • {error}
                         </li>
                       ))}

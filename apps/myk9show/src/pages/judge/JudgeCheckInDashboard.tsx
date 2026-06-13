@@ -73,7 +73,7 @@ const JudgeCheckInDashboard: React.FC = () => {
   };
 
   const getStatusColor = (checked: number, total: number, conflicts: number) => {
-    if (conflicts > 0) return 'border-red-200 bg-red-50 dark:bg-red-950/20';
+    if (conflicts > 0) return 'border-red-200 bg-destructive/10 ';
     if (total === 0) return 'border-gray-200 bg-gray-50 dark:bg-gray-950/20';
     const percentage = (checked / total) * 100;
     if (percentage >= 80) return 'border-green-200 bg-green-50 dark:bg-green-950/20';

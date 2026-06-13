@@ -11,7 +11,7 @@ import {
   MoreHorizontal,
   Eye,
   Check,
-  AlertCircle
+  AlertCircle,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -24,15 +24,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '../ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import AlertingService from '../../services/alerts/AlertingService';
 import {
   Alert,
@@ -40,7 +34,7 @@ import {
   AlertStatus,
   AlertType,
   AlertStatistics,
-  AlertQuery
+  AlertQuery,
 } from '../../types/alert-types';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '../../lib/utils';
@@ -59,7 +53,7 @@ export const AlertDashboard: React.FC<AlertDashboardProps> = ({ className }) => 
   const [typeFilter, setTypeFilter] = useState<AlertType | 'all'>('all');
   const [currentPage, setCurrentPage] = useState(0);
   const [activeTab, setActiveTab] = useState('active');
-  
+
   const alertingService = AlertingService.getInstance();
   const ITEMS_PER_PAGE = 20;
 
@@ -68,7 +62,7 @@ export const AlertDashboard: React.FC<AlertDashboardProps> = ({ className }) => 
       limit: ITEMS_PER_PAGE,
       offset: currentPage * ITEMS_PER_PAGE,
       sortBy: 'createdAt',
-      sortOrder: 'desc'
+      sortOrder: 'desc',
     };
 
     // Tab-based status filtering
@@ -108,7 +102,7 @@ export const AlertDashboard: React.FC<AlertDashboardProps> = ({ className }) => 
       setLoading(true);
       const stats = alertingService.getAlertStatistics();
       setStatistics(stats);
-      
+
       const query = buildQuery();
       const alertData = alertingService.getAlerts(query);
       setAlerts(alertData);
@@ -121,7 +115,7 @@ export const AlertDashboard: React.FC<AlertDashboardProps> = ({ className }) => 
 
   useEffect(() => {
     loadData();
-    
+
     const handleAlertUpdate = () => {
       loadData();
     };
@@ -143,9 +137,10 @@ export const AlertDashboard: React.FC<AlertDashboardProps> = ({ className }) => 
     setCurrentPage(0);
   }, [searchTerm, statusFilter, severityFilter, typeFilter, activeTab]);
 
-
-
-  const handleAlertAction = async (alertId: string, action: 'acknowledge' | 'resolve' | 'snooze') => {
+  const handleAlertAction = async (
+    alertId: string,
+    action: 'acknowledge' | 'resolve' | 'snooze'
+  ) => {
     try {
       switch (action) {
         case 'acknowledge':
@@ -179,7 +174,7 @@ export const AlertDashboard: React.FC<AlertDashboardProps> = ({ className }) => 
   const getSeverityColor = (severity: AlertSeverity): string => {
     switch (severity) {
       case AlertSeverity.CRITICAL:
-        return 'bg-red-500/10 text-red-700 border-red-200 dark:text-red-400';
+        return 'bg-red-500/10 text-destructive border-red-200 ';
       case AlertSeverity.HIGH:
         return 'bg-orange-500/10 text-orange-700 border-orange-200 dark:text-orange-400';
       case AlertSeverity.MEDIUM:
@@ -223,9 +218,10 @@ export const AlertDashboard: React.FC<AlertDashboardProps> = ({ className }) => 
     }
   };
 
-  const filteredAlerts = alerts.filter(alert =>
-    alert.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    alert.message.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredAlerts = alerts.filter(
+    alert =>
+      alert.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      alert.message.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (loading && !statistics) {
@@ -240,75 +236,95 @@ export const AlertDashboard: React.FC<AlertDashboardProps> = ({ className }) => 
   }
 
   return (
-    <div className={cn("space-y-6", className)}>
+    <div className={cn('space-y-6', className)}>
       {/* Dashboard-Specific Statistics Cards */}
       {statistics && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Critical Alerts Card - Unique to dashboard */}
-          <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 
+          <div
+            className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 
                            border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl 
-                           transition-all duration-500 hover:shadow-xl hover:-translate-y-2">
-            <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent 
-                             opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                           transition-all duration-500 hover:shadow-xl hover:-translate-y-2"
+          >
+            <div
+              className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent 
+                             opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+            />
             <div className="relative flex items-start justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Critical Alerts</p>
+                <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                  Critical Alerts
+                </p>
                 <p className="text-2xl font-bold mt-2 text-red-600 group-hover:scale-105 transition-transform duration-300">
                   {statistics.bySeverity[AlertSeverity.CRITICAL] || 0}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Requires immediate attention
-                </p>
+                <p className="text-xs text-muted-foreground mt-1">Requires immediate attention</p>
               </div>
-              <div className="p-2 bg-gradient-to-br from-red-500/20 to-red-500/10 rounded-xl 
+              <div
+                className="p-2 bg-gradient-to-br from-red-500/20 to-red-500/10 rounded-xl 
                                shadow-sm group-hover:shadow-xl group-hover:scale-110 
-                               transition-all duration-300">
+                               transition-all duration-300"
+              >
                 <AlertTriangle className="h-5 w-5 text-red-500" />
               </div>
             </div>
           </div>
 
           {/* Resolved Today Card - Unique to dashboard */}
-          <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 
+          <div
+            className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 
                            border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl 
-                           transition-all duration-500 hover:shadow-xl hover:-translate-y-2">
-            <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent 
-                             opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                           transition-all duration-500 hover:shadow-xl hover:-translate-y-2"
+          >
+            <div
+              className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent 
+                             opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+            />
             <div className="relative flex items-start justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Resolved Today</p>
+                <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                  Resolved Today
+                </p>
                 <p className="text-2xl font-bold mt-2 text-green-600 group-hover:scale-105 transition-transform duration-300">
                   {statistics.byStatus[AlertStatus.RESOLVED] || 0}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Issues resolved
-                </p>
+                <p className="text-xs text-muted-foreground mt-1">Issues resolved</p>
               </div>
-              <div className="p-2 bg-gradient-to-br from-green-500/20 to-green-500/10 rounded-xl 
+              <div
+                className="p-2 bg-gradient-to-br from-green-500/20 to-green-500/10 rounded-xl 
                                shadow-sm group-hover:shadow-xl group-hover:scale-110 
-                               transition-all duration-300">
+                               transition-all duration-300"
+              >
                 <CheckCircle className="h-5 w-5 text-green-500" />
               </div>
             </div>
           </div>
 
           {/* Response Time Card - Unique to dashboard */}
-          <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 
+          <div
+            className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 
                            border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl 
-                           transition-all duration-500 hover:shadow-xl hover:-translate-y-2">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent 
-                             opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                           transition-all duration-500 hover:shadow-xl hover:-translate-y-2"
+          >
+            <div
+              className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent 
+                             opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+            />
             <div className="relative flex items-start justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Response Time</p>
-                <p className="text-2xl font-bold mt-2 group-hover:text-primary transition-colors duration-300">2.3m</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Average acknowledgment time
+                <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                  Response Time
                 </p>
+                <p className="text-2xl font-bold mt-2 group-hover:text-primary transition-colors duration-300">
+                  2.3m
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">Average acknowledgment time</p>
               </div>
-              <div className="p-2 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl 
+              <div
+                className="p-2 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl 
                                shadow-sm group-hover:shadow-xl group-hover:scale-110 
-                               transition-all duration-300">
+                               transition-all duration-300"
+              >
                 <Clock className="h-5 w-5 text-primary" />
               </div>
             </div>
@@ -325,12 +341,15 @@ export const AlertDashboard: React.FC<AlertDashboardProps> = ({ className }) => 
               <Input
                 placeholder="Search alerts..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={e => setSearchTerm(e.target.value)}
                 className="max-w-sm"
               />
             </div>
             <div className="flex items-center space-x-2">
-              <Select value={severityFilter} onValueChange={(value) => setSeverityFilter(value as AlertSeverity | 'all')}>
+              <Select
+                value={severityFilter}
+                onValueChange={value => setSeverityFilter(value as AlertSeverity | 'all')}
+              >
                 <SelectTrigger className="w-32">
                   <SelectValue placeholder="Severity" />
                 </SelectTrigger>
@@ -343,7 +362,10 @@ export const AlertDashboard: React.FC<AlertDashboardProps> = ({ className }) => 
                 </SelectContent>
               </Select>
 
-              <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value as AlertType | 'all')}>
+              <Select
+                value={typeFilter}
+                onValueChange={value => setTypeFilter(value as AlertType | 'all')}
+              >
                 <SelectTrigger className="w-40">
                   <SelectValue placeholder="Type" />
                 </SelectTrigger>
@@ -364,34 +386,40 @@ export const AlertDashboard: React.FC<AlertDashboardProps> = ({ className }) => 
 
       {/* Premium Alert Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4 bg-gradient-to-r from-muted/50 to-muted/30 
-                             border border-border/30 rounded-xl p-1">
-          <TabsTrigger 
+        <TabsList
+          className="grid w-full grid-cols-4 bg-gradient-to-r from-muted/50 to-muted/30 
+                             border border-border/30 rounded-xl p-1"
+        >
+          <TabsTrigger
             value="active"
             className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 
                        data-[state=active]:to-primary/5 data-[state=active]:text-primary 
-                       data-[state=active]:shadow-sm rounded-lg transition-all duration-300">
+                       data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
+          >
             Active ({statistics?.byStatus[AlertStatus.ACTIVE] || 0})
           </TabsTrigger>
-          <TabsTrigger 
+          <TabsTrigger
             value="acknowledged"
             className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 
                        data-[state=active]:to-primary/5 data-[state=active]:text-primary 
-                       data-[state=active]:shadow-sm rounded-lg transition-all duration-300">
+                       data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
+          >
             Acknowledged ({statistics?.byStatus[AlertStatus.ACKNOWLEDGED] || 0})
           </TabsTrigger>
-          <TabsTrigger 
+          <TabsTrigger
             value="resolved"
             className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 
                        data-[state=active]:to-primary/5 data-[state=active]:text-primary 
-                       data-[state=active]:shadow-sm rounded-lg transition-all duration-300">
+                       data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
+          >
             Resolved ({statistics?.byStatus[AlertStatus.RESOLVED] || 0})
           </TabsTrigger>
-          <TabsTrigger 
+          <TabsTrigger
             value="snoozed"
             className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 
                        data-[state=active]:to-primary/5 data-[state=active]:text-primary 
-                       data-[state=active]:shadow-sm rounded-lg transition-all duration-300">
+                       data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
+          >
             Snoozed ({statistics?.byStatus[AlertStatus.SNOOZED] || 0})
           </TabsTrigger>
         </TabsList>
@@ -401,9 +429,7 @@ export const AlertDashboard: React.FC<AlertDashboardProps> = ({ className }) => 
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span>Alerts</span>
-                <Badge variant="secondary">
-                  {filteredAlerts.length} alerts
-                </Badge>
+                <Badge variant="secondary">{filteredAlerts.length} alerts</Badge>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
@@ -413,32 +439,29 @@ export const AlertDashboard: React.FC<AlertDashboardProps> = ({ className }) => 
                     <CheckCircle className="h-12 w-12 text-green-500 mb-3" />
                     <p className="text-lg font-medium">No alerts found</p>
                     <p className="text-sm text-muted-foreground">
-                      {activeTab === 'active' 
+                      {activeTab === 'active'
                         ? 'No active alerts - system is running smoothly'
-                        : `No ${activeTab} alerts to display`
-                      }
+                        : `No ${activeTab} alerts to display`}
                     </p>
                   </div>
                 ) : (
                   <div className="divide-y">
-                    {filteredAlerts.map((alert) => (
+                    {filteredAlerts.map(alert => (
                       <div key={alert.id} className="p-4 hover:bg-muted/50 transition-colors">
                         <div className="flex items-start justify-between">
                           <div className="flex items-start space-x-3 flex-1">
-                            <div className="mt-0.5">
-                              {getAlertIcon(alert.severity)}
-                            </div>
+                            <div className="mt-0.5">{getAlertIcon(alert.severity)}</div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center space-x-2 mb-2">
                                 <Badge
                                   variant="outline"
-                                  className={cn("text-xs", getSeverityColor(alert.severity))}
+                                  className={cn('text-xs', getSeverityColor(alert.severity))}
                                 >
                                   {alert.severity.toUpperCase()}
                                 </Badge>
                                 <Badge
                                   variant="outline"
-                                  className={cn("text-xs", getStatusColor(alert.status))}
+                                  className={cn('text-xs', getStatusColor(alert.status))}
                                 >
                                   {alert.status.toUpperCase()}
                                 </Badge>
@@ -459,22 +482,25 @@ export const AlertDashboard: React.FC<AlertDashboardProps> = ({ className }) => 
                               </p>
                               <div className="flex items-center justify-between text-xs text-muted-foreground">
                                 <span>
-                                  Created {formatDistanceToNow(alert.createdAt, { addSuffix: true })}
+                                  Created{' '}
+                                  {formatDistanceToNow(alert.createdAt, { addSuffix: true })}
                                 </span>
                                 {alert.acknowledgedAt && (
                                   <span>
-                                    Acknowledged {formatDistanceToNow(alert.acknowledgedAt, { addSuffix: true })}
+                                    Acknowledged{' '}
+                                    {formatDistanceToNow(alert.acknowledgedAt, { addSuffix: true })}
                                   </span>
                                 )}
                                 {alert.resolvedAt && (
                                   <span>
-                                    Resolved {formatDistanceToNow(alert.resolvedAt, { addSuffix: true })}
+                                    Resolved{' '}
+                                    {formatDistanceToNow(alert.resolvedAt, { addSuffix: true })}
                                   </span>
                                 )}
                               </div>
                             </div>
                           </div>
-                          
+
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild nativeButton>
                               <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -482,17 +508,25 @@ export const AlertDashboard: React.FC<AlertDashboardProps> = ({ className }) => 
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => logger.debug('View details', 'alerts', { alertId: alert.id })}>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  logger.debug('View details', 'alerts', { alertId: alert.id })
+                                }
+                              >
                                 <Eye className="mr-2 h-4 w-4" />
                                 View Details
                               </DropdownMenuItem>
                               {alert.status === AlertStatus.ACTIVE && (
                                 <>
-                                  <DropdownMenuItem onClick={() => handleAlertAction(alert.id, 'acknowledge')}>
+                                  <DropdownMenuItem
+                                    onClick={() => handleAlertAction(alert.id, 'acknowledge')}
+                                  >
                                     <Check className="mr-2 h-4 w-4" />
                                     Acknowledge
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleAlertAction(alert.id, 'snooze')}>
+                                  <DropdownMenuItem
+                                    onClick={() => handleAlertAction(alert.id, 'snooze')}
+                                  >
                                     <Clock className="mr-2 h-4 w-4" />
                                     Snooze 30m
                                   </DropdownMenuItem>
@@ -501,7 +535,7 @@ export const AlertDashboard: React.FC<AlertDashboardProps> = ({ className }) => 
                               {alert.status !== AlertStatus.RESOLVED && (
                                 <>
                                   <DropdownMenuSeparator />
-                                  <DropdownMenuItem 
+                                  <DropdownMenuItem
                                     onClick={() => handleAlertAction(alert.id, 'resolve')}
                                     className="text-green-600"
                                   >
@@ -534,9 +568,7 @@ export const AlertDashboard: React.FC<AlertDashboardProps> = ({ className }) => 
           >
             Previous
           </Button>
-          <span className="text-sm text-muted-foreground">
-            Page {currentPage + 1}
-          </span>
+          <span className="text-sm text-muted-foreground">Page {currentPage + 1}</span>
           <Button
             variant="outline"
             size="sm"

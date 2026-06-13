@@ -22,7 +22,7 @@ const BADGE_CLASS: Record<BadgeTier, string> = {
   warning: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
   info: 'bg-blue-500/15 text-blue-700 dark:text-blue-400',
   neutral: 'bg-muted text-muted-foreground',
-  destructive: 'bg-red-500/15 text-red-700 dark:text-red-400',
+  destructive: 'bg-red-500/15 text-destructive ',
 };
 
 /** Tailwind background+text classes for a badge/pill of the given tier. */

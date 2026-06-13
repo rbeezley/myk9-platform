@@ -198,7 +198,7 @@ export const getRoleDisplayInfo = (role: UserRole) => {
     },
     admin: {
       label: 'Administrator',
-      color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+      color: 'bg-destructive/10 text-destructive ',
       description: 'Full system access',
     },
     steward: {

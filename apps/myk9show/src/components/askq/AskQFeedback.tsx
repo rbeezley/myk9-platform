@@ -56,7 +56,7 @@ export function AskQFeedback({ queryLogId }: AskQFeedbackProps) {
             aria-label="Not helpful"
             className={`p-1.5 rounded-md transition-colors ${
               submitted === -1
-                ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                ? 'bg-destructive/10 text-destructive '
                 : 'bg-muted hover:bg-muted/80 text-muted-foreground'
             } disabled:opacity-60`}
           >

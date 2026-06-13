@@ -49,8 +49,7 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   },
   cancelled: {
     label: 'Cancelled',
-    className:
-      'bg-red-100 border border-red-300 text-red-800 dark:bg-red-950 dark:border-red-900 dark:text-red-400',
+    className: 'bg-destructive/10 border border-destructive/30 text-destructive ',
   },
 };
 
@@ -81,7 +80,9 @@ export function ShowStatusPill({ showId, status, clubId }: ShowStatusPillProps) 
         // (lost in the #615 merge once already) or a genuinely clubless show
         // — and the payout cron cannot pay out a show with no club, so its
         // entry fees would collect with nowhere to go.
-        toast.error('Assign a club to this show before publishing — entry fees are paid out to the club.');
+        toast.error(
+          'Assign a club to this show before publishing — entry fees are paid out to the club.'
+        );
         return;
       }
       if (clubAccountQuery.isLoading) {

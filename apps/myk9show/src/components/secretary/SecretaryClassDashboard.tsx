@@ -546,7 +546,7 @@ export function SecretaryClassDashboard({
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-red-600 font-medium">Not Qualified:</span>
-                      <div className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium dark:bg-red-900 dark:text-red-200">
+                      <div className="px-3 py-1 bg-destructive/10 text-destructive rounded-full text-sm font-medium ">
                         {stats.nqCount}
                       </div>
                     </div>

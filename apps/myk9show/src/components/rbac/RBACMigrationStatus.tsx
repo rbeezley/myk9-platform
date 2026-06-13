@@ -77,9 +77,9 @@ export const RBACMigrationStatus: React.FC<RBACMigrationStatusProps> = ({
       case 'error':
         return {
           icon: AlertTriangle,
-          color: 'text-red-600 dark:text-red-400',
-          bgColor: 'bg-red-50 dark:bg-red-950/30',
-          borderColor: 'border-red-200 dark:border-red-800',
+          color: 'text-destructive ',
+          bgColor: 'bg-destructive/10 ',
+          borderColor: 'border-destructive/30 ',
           title: 'Migration Error',
           description: 'There was an issue migrating your permissions. Using legacy system.',
           progress: 25,
@@ -146,7 +146,7 @@ export const RBACMigrationStatus: React.FC<RBACMigrationStatusProps> = ({
 
             {/* Error details */}
             {rbacError && migrationStatus === 'error' && (
-              <div className="mt-2 p-2 bg-red-100 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded text-xs">
+              <div className="mt-2 p-2 bg-destructive/10 border border-destructive/30 rounded text-xs">
                 <strong>Error:</strong> {rbacError}
               </div>
             )}

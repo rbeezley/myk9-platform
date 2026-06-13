@@ -95,7 +95,7 @@ export function CartSummary({
             className={cn(
               'flex items-center gap-2 p-3 rounded-lg',
               showUrgentWarning
-                ? 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/50 dark:text-red-400 dark:border-red-900'
+                ? 'bg-destructive/10 text-destructive border border-destructive/30 '
                 : 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-900'
             )}
           >

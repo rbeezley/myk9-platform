@@ -255,7 +255,7 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
               return (
                 <li
                   key={v.id}
-                  className={`text-sm ${isOverdue ? 'text-red-600 dark:text-red-400' : 'text-yellow-700 dark:text-yellow-400'}`}
+                  className={`text-sm ${isOverdue ? 'text-destructive ' : 'text-yellow-700 dark:text-yellow-400'}`}
                 >
                   {v.vaccine_name} — {isOverdue ? 'overdue since' : 'due'}{' '}
                   {exp.toLocaleDateString()}

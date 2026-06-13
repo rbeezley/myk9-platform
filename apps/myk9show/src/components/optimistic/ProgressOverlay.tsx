@@ -53,8 +53,8 @@ export const ProgressOverlay: React.FC<ProgressOverlayProps> = ({
       pending: 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400',
       retrying: 'bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400',
       confirmed: 'bg-teal-100 text-teal-700 dark:bg-teal-900/20 dark:text-teal-400',
-      failed: 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400',
-      rolled_back: 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400',
+      failed: 'bg-destructive/10 text-destructive ',
+      rolled_back: 'bg-destructive/10 text-destructive ',
       rolling_back: 'bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400',
     };
 

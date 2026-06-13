@@ -107,7 +107,7 @@ function ResultCallout({ entry }: { entry: MyClassEntry }) {
         'rounded-xl border-l-4 p-5',
         qualified
           ? 'border-l-green-500 border border-green-200 bg-green-50/60 dark:border-green-800 dark:bg-green-950/20'
-          : 'border-l-red-500 border border-red-200 bg-red-50/60 dark:border-red-800 dark:bg-red-950/20'
+          : 'border-l-destructive border border-destructive/30 bg-destructive/10 '
       )}
     >
       <div className="flex flex-wrap items-center gap-3 mb-3">
@@ -138,9 +138,7 @@ function ResultCallout({ entry }: { entry: MyClassEntry }) {
               <span className="font-mono">{result.time}</span>
             </Stat>
           )}
-          {qualified && result.faults !== undefined && (
-            <Stat label="Faults">{result.faults}</Stat>
-          )}
+          {qualified && result.faults !== undefined && <Stat label="Faults">{result.faults}</Stat>}
           {qualified && result.placement && (
             <Stat label="Placement">
               <PlacementPill placement={result.placement} size="md" />

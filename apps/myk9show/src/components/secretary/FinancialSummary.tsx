@@ -260,14 +260,12 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
                 ${summary.pendingAmount.toFixed(2)}
               </p>
             </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-red-50 dark:bg-red-950">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-destructive/10 ">
               <div>
-                <p className="text-sm font-medium text-red-800 dark:text-red-200">Refunded</p>
-                <p className="text-lg font-bold text-red-900 dark:text-red-100">
-                  {summary.refundedCount}
-                </p>
+                <p className="text-sm font-medium text-destructive ">Refunded</p>
+                <p className="text-lg font-bold text-destructive ">{summary.refundedCount}</p>
               </div>
-              <p className="text-sm font-semibold text-red-700 dark:text-red-300">
+              <p className="text-sm font-semibold text-destructive ">
                 ${summary.refundedAmount.toFixed(2)}
               </p>
             </div>

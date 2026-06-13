@@ -27,10 +27,7 @@ function getStatusBadge(status: string) {
       );
     case 'cancelled':
       return (
-        <Badge
-          variant="secondary"
-          className="text-xs bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
-        >
+        <Badge variant="secondary" className="text-xs bg-destructive/10 text-destructive ">
           Cancelled
         </Badge>
       );

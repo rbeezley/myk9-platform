@@ -99,13 +99,10 @@ export function ResultEntryNavigation({
     };
   }, [entries]);
 
-  const updateCheckInStatus = useCallback(
-    async (entryId: string, status: CheckInStatus) => {
-      logger.debug(`Updating check-in status for entry ${entryId} to ${status}`, 'scoring', {});
-      await updateReplicatedCheckInStatus(entryId, status);
-    },
-    []
-  );
+  const updateCheckInStatus = useCallback(async (entryId: string, status: CheckInStatus) => {
+    logger.debug(`Updating check-in status for entry ${entryId} to ${status}`, 'scoring', {});
+    await updateReplicatedCheckInStatus(entryId, status);
+  }, []);
 
   const handleCheckInStatusUpdate = async (status: CheckInStatus) => {
     if (!selectedEntryForCheckIn) return;
@@ -374,7 +371,7 @@ export function ResultEntryNavigation({
                             );
                           case 'pulled':
                             return (
-                              <div className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 rounded-md border border-red-200 dark:border-red-700">
+                              <div className="px-2 py-1 text-xs font-medium bg-destructive/10 text-destructive rounded-md border border-destructive/30 ">
                                 Pulled
                               </div>
                             );

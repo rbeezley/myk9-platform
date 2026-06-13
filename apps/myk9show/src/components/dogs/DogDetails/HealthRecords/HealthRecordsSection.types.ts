@@ -215,7 +215,7 @@ export async function importHealthRecords(
 export const ofaStatusColors: Record<string, string> = {
   normal: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-300',
   carrier: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300',
-  affected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+  affected: 'bg-destructive/10 text-destructive ',
   pending: 'bg-muted text-muted-foreground',
 };
 
@@ -223,6 +223,6 @@ export const ofaStatusColors: Record<string, string> = {
 export const geneticStatusColors: Record<string, string> = {
   clear: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-300',
   carrier: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300',
-  affected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+  affected: 'bg-destructive/10 text-destructive ',
   at_risk: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
 };

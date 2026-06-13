@@ -34,7 +34,7 @@ export const AlertToast: React.FC<AlertToastProps> = ({
   onAcknowledge,
   onResolve,
   autoHideDuration = 0, // 0 means no auto-hide
-  className
+  className,
 }) => {
   const [isVisible, setIsVisible] = useState(true);
   const [isExiting, setIsExiting] = useState(false);
@@ -88,7 +88,7 @@ export const AlertToast: React.FC<AlertToastProps> = ({
   const getSeverityStyles = (): string => {
     switch (alert.severity) {
       case AlertSeverity.CRITICAL:
-        return 'border-l-red-500 bg-red-50 dark:bg-red-950';
+        return 'border-l-red-500 bg-destructive/10 ';
       case AlertSeverity.HIGH:
         return 'border-l-orange-500 bg-orange-50 dark:bg-orange-950';
       case AlertSeverity.MEDIUM:
@@ -130,10 +130,8 @@ export const AlertToast: React.FC<AlertToastProps> = ({
     >
       <CardContent className="p-4">
         <div className="flex items-start space-x-3">
-          <div className="flex-shrink-0 mt-0.5">
-            {getAlertIcon()}
-          </div>
-          
+          <div className="flex-shrink-0 mt-0.5">{getAlertIcon()}</div>
+
           <div className="flex-1 min-w-0">
             <div className="flex items-center space-x-2 mb-2">
               <Badge variant="outline" className="text-xs">
@@ -148,21 +146,15 @@ export const AlertToast: React.FC<AlertToastProps> = ({
                 </Badge>
               )}
             </div>
-            
-            <h4 className="font-medium text-sm text-foreground mb-1">
-              {alert.title}
-            </h4>
-            
-            <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-              {alert.message}
-            </p>
-            
+
+            <h4 className="font-medium text-sm text-foreground mb-1">{alert.title}</h4>
+
+            <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{alert.message}</p>
+
             <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
-              <span>
-                {formatDistanceToNow(alert.createdAt, { addSuffix: true })}
-              </span>
+              <span>{formatDistanceToNow(alert.createdAt, { addSuffix: true })}</span>
             </div>
-            
+
             <div className="flex items-center space-x-2">
               {onAcknowledge && (
                 <Button
@@ -175,7 +167,7 @@ export const AlertToast: React.FC<AlertToastProps> = ({
                   Acknowledge
                 </Button>
               )}
-              
+
               {onResolve && (
                 <Button
                   variant="outline"
@@ -187,7 +179,7 @@ export const AlertToast: React.FC<AlertToastProps> = ({
                   Resolve
                 </Button>
               )}
-              
+
               <Button
                 variant="ghost"
                 size="sm"
@@ -211,10 +203,10 @@ export const AlertToastContainer: React.FC<AlertToastContainerProps> = ({
   onResolve,
   maxToasts = 5,
   position = 'top-right',
-  className
+  className,
 }) => {
   const displayedAlerts = alerts.slice(0, maxToasts);
-  
+
   const getPositionStyles = (): string => {
     switch (position) {
       case 'top-left':
@@ -233,13 +225,7 @@ export const AlertToastContainer: React.FC<AlertToastContainerProps> = ({
   if (displayedAlerts.length === 0) return null;
 
   return (
-    <div
-      className={cn(
-        'fixed z-50 flex flex-col space-y-2',
-        getPositionStyles(),
-        className
-      )}
-    >
+    <div className={cn('fixed z-50 flex flex-col space-y-2', getPositionStyles(), className)}>
       {displayedAlerts.map((alert, index) => (
         <AlertToast
           key={alert.id}
@@ -248,9 +234,13 @@ export const AlertToastContainer: React.FC<AlertToastContainerProps> = ({
           onAcknowledge={onAcknowledge ? () => onAcknowledge(alert.id) : undefined}
           onResolve={onResolve ? () => onResolve(alert.id) : undefined}
           autoHideDuration={
-            alert.severity === AlertSeverity.CRITICAL ? 0 : 
-            alert.severity === AlertSeverity.HIGH ? 10000 :
-            alert.severity === AlertSeverity.MEDIUM ? 8000 : 6000
+            alert.severity === AlertSeverity.CRITICAL
+              ? 0
+              : alert.severity === AlertSeverity.HIGH
+                ? 10000
+                : alert.severity === AlertSeverity.MEDIUM
+                  ? 8000
+                  : 6000
           }
           className={cn(
             'animate-in slide-in-from-right duration-300',
@@ -258,7 +248,7 @@ export const AlertToastContainer: React.FC<AlertToastContainerProps> = ({
           )}
         />
       ))}
-      
+
       {alerts.length > maxToasts && (
         <div className="text-center">
           <Badge variant="secondary" className="text-xs">

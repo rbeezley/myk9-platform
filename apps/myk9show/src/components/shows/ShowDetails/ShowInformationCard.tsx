@@ -70,7 +70,7 @@ const ShowInformationCard: React.FC<ShowInformationCardProps> = ({
                   </Button>
                   <Button
                     variant="ghost"
-                    className="flex items-center justify-start h-9 px-3 gap-2 hover:bg-red-100 dark:hover:bg-red-900 text-red-600 cursor-pointer"
+                    className="flex items-center justify-start h-9 px-3 gap-2 hover:bg-destructive/10 text-red-600 cursor-pointer"
                     onClick={setShowDeleteDialog}
                   >
                     <Trash2 className="w-4 h-4 text-red-600" />

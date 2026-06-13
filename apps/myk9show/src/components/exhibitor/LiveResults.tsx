@@ -104,8 +104,8 @@ const LiveResults: React.FC<LiveResultsProps> = ({
       case 2:
         return {
           place: 2,
-          color: 'text-red-600 dark:text-red-400',
-          bgColor: 'bg-red-100 dark:bg-red-900/30',
+          color: 'text-destructive ',
+          bgColor: 'bg-destructive/10 ',
           icon: <Medal className="w-5 h-5" />,
         };
       case 3:
@@ -342,7 +342,7 @@ const LiveResults: React.FC<LiveResultsProps> = ({
                           <span className="font-medium">Q</span>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-1 text-red-600 dark:text-red-400 mb-1">
+                        <div className="flex items-center gap-1 text-destructive mb-1">
                           <XCircle className="w-4 h-4" />
                           <span className="font-medium">NQ</span>
                         </div>

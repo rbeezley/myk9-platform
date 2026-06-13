@@ -473,7 +473,7 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
                     className={cn(
                       'border-b last:border-b-0 p-4 hover:bg-muted/50 transition-colors',
                       requiresAction(entry.checkInStatus) && 'bg-orange-50 dark:bg-orange-950/20',
-                      entry.checkInStatus === 'conflict' && 'bg-red-50 dark:bg-red-950/20'
+                      entry.checkInStatus === 'conflict' && 'bg-destructive/10 '
                     )}
                   >
                     <div className="flex items-center justify-between">

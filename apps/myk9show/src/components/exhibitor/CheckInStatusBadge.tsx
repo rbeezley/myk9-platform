@@ -29,7 +29,7 @@ const STATUS_COLORS: Record<CheckInStatus, { bg: string; text: string; border: s
   },
   pulled: {
     bg: 'bg-red-500/15',
-    text: 'text-red-600 dark:text-red-400',
+    text: 'text-destructive ',
     border: 'border-red-500/30',
   },
   'at-gate': {

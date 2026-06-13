@@ -14,7 +14,7 @@ export function getStatusColor(status: string): string {
       return 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200';
     case 'Not Qualified':
     case 'Eliminated':
-      return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      return 'bg-destructive/10 text-destructive ';
     case 'Withdrawn':
       return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
     case 'Absent':

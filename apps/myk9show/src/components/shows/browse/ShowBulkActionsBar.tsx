@@ -94,10 +94,9 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
       if (failedCount > 0) {
         // Partial failure: refresh + clear selection so the succeeded subset
         // reflects immediately and a retry can't re-hit already-updated shows.
-        notifications.error(
-          `Failed to update ${failedCount} of ${selectedShows.length} shows.`,
-          { description: 'The other shows were updated. Re-select the failed shows to retry.' }
-        );
+        notifications.error(`Failed to update ${failedCount} of ${selectedShows.length} shows.`, {
+          description: 'The other shows were updated. Re-select the failed shows to retry.',
+        });
         closeDialog();
         onBulkComplete();
         return;
@@ -178,10 +177,9 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
       if (failedCount > 0) {
         // Partial failure: refresh + clear selection so already-deleted shows
         // drop out of the list and a retry can't re-delete them.
-        notifications.error(
-          `Failed to delete ${failedCount} of ${selectedShows.length} shows.`,
-          { description: 'The other shows were deleted. Re-select the failed shows to retry.' }
-        );
+        notifications.error(`Failed to delete ${failedCount} of ${selectedShows.length} shows.`, {
+          description: 'The other shows were deleted. Re-select the failed shows to retry.',
+        });
         closeDialog();
         onBulkComplete();
         return;
@@ -285,7 +283,7 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
                 onClick={() => setCurrentDialog('delete')}
                 className="h-10 px-4 rounded-xl border-red-200/50 bg-red-50/50 text-red-600 font-semibold
                            hover:bg-red-100/50 hover:text-red-700 transition-all duration-300
-                           dark:border-red-900/50 dark:bg-red-950/20 dark:hover:bg-red-950/30"
+                             "
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete

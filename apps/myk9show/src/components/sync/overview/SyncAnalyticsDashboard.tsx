@@ -394,7 +394,7 @@ export const SyncAnalyticsDashboard: React.FC<SyncAnalyticsDashboardProps> = ({ 
             <CardContent>
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="p-4 bg-red-50 dark:bg-red-950/20 rounded-lg">
+                  <div className="p-4 bg-destructive/10 rounded-lg">
                     <div className="flex items-center gap-2">
                       <XCircle className="h-5 w-5 text-red-500" />
                       <span className="font-medium">Active Conflicts</span>

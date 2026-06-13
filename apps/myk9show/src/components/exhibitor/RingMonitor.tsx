@@ -116,8 +116,8 @@ const RingMonitor: React.FC<RingMonitorProps> = ({ userEntry, ringStatus, onRefr
       {/* Now in Ring */}
       <div className="bg-card dark:bg-warm-900 rounded-lg shadow-sm mb-4">
         <div className="border-b border-gray-200 dark:border-warm-600 px-6 py-3">
-          <div className="flex items-center gap-2 text-red-600 dark:text-red-400 font-medium">
-            <div className="w-2 h-2 bg-red-600 dark:bg-red-400 rounded-full animate-pulse" />
+          <div className="flex items-center gap-2 text-destructive font-medium">
+            <div className="w-2 h-2 bg-destructive rounded-full animate-pulse" />
             NOW IN RING
           </div>
         </div>
@@ -204,12 +204,12 @@ const RingMonitor: React.FC<RingMonitorProps> = ({ userEntry, ringStatus, onRefr
 
       {/* User Status Alert */}
       {isUserNext && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 mb-4">
+        <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-6 mb-4">
           <div className="flex items-center gap-3 mb-3">
-            <Bell className="w-6 h-6 text-red-600 dark:text-red-400 animate-bounce" />
-            <div className="text-xl font-bold text-red-800 dark:text-red-200">YOU'RE NEXT!</div>
+            <Bell className="w-6 h-6 text-destructive animate-bounce" />
+            <div className="text-xl font-bold text-destructive ">YOU'RE NEXT!</div>
           </div>
-          <div className="text-red-700 dark:text-red-300">
+          <div className="text-destructive ">
             {ringLabel
               ? `Please proceed to ${ringLabel} immediately`
               : 'Please proceed immediately'}

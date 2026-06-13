@@ -40,6 +40,13 @@ export {
   type ReplicatedEntry,
 } from './ReplicatedEntriesTable';
 
+// Armbands
+export {
+  ReplicatedArmbandsTable,
+  replicatedArmbandsTable,
+  type ReplicatedArmband,
+} from './ReplicatedArmbandsTable';
+
 // Dogs
 export {
   ReplicatedDogsTable,

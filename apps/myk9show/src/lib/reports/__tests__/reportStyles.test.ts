@@ -1,13 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { REPORT_STYLES } from '../reportStyles';
 
-// Regression: the scoresheet entry-row internals and the result-label grid
-// shipped as markup whose CSS classes were never authored — in neither myK9Q
-// nor myK9Show. The renderer inlines ONLY REPORT_STYLES (no Tailwind, no
-// per-template styles), so the scoring boxes, hand-fill lines, and labels
-// rendered unstyled/invisible in the preview. Guard that every class those two
-// templates emit has a matching rule here, so a future markup edit that adds a
-// class without CSS fails in CI instead of silently shipping unstyled.
+// Regression: the scoresheet entry-row internals shipped as markup whose CSS
+// classes were never authored — in neither myK9Q nor myK9Show. The renderer
+// inlines ONLY REPORT_STYLES (no Tailwind, no per-template styles), so the
+// scoring boxes and hand-fill lines rendered unstyled/invisible in the preview.
+// Guard that every class the scoresheet template emits has a matching rule here,
+// so a future markup edit that adds a class without CSS fails in CI instead of
+// silently shipping unstyled. (Result Labels render via the dedicated label
+// engine — buildLabelStylesheet — not REPORT_STYLES, so they are not guarded here.)
 
 // Emitted by ScoresheetReport.tsx (entry-row internals).
 const SCORESHEET_CLASSES = [
@@ -39,30 +40,14 @@ const SCORESHEET_CLASSES = [
   'area-label',
 ];
 
-// Emitted by ResultLabels.tsx.
-const RESULT_LABEL_CLASSES = [
-  'result-labels-grid',
-  'result-label',
-  'result-label-armband',
-  'result-label-callname',
-  'result-label-handler',
-  'result-label-show',
-  'result-label-trial-class',
-  'result-label-results',
-];
-
 /** True when the stylesheet has a selector for exactly `.cls` (followed by a
- *  selector boundary), so `.result-label` is not satisfied by `.result-label-show`. */
+ *  selector boundary), so `.entry-time` is not satisfied by `.entry-time-foo`. */
 function defines(cls: string): boolean {
   return new RegExp(`\\.${cls}[\\s,{:.]`).test(REPORT_STYLES);
 }
 
-describe('REPORT_STYLES defines every class the scoresheet + result-label templates emit', () => {
+describe('REPORT_STYLES defines every class the scoresheet template emits', () => {
   it.each(SCORESHEET_CLASSES)('defines .%s (scoresheet)', cls => {
-    expect(defines(cls)).toBe(true);
-  });
-
-  it.each(RESULT_LABEL_CLASSES)('defines .%s (result labels)', cls => {
     expect(defines(cls)).toBe(true);
   });
 

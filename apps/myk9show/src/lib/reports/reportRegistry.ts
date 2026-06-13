@@ -17,7 +17,6 @@ import { BreedEntryCounts } from '@/components/reports/BreedEntryCounts';
 import { JudgeEntryCounts } from '@/components/reports/JudgeEntryCounts';
 import { WaitlistReport } from '@/components/reports/WaitlistReport';
 import { StewardReport } from '@/components/reports/StewardReport';
-import { ResultLabels } from '@/components/reports/ResultLabels';
 import { AKCJudgeReport } from '@/components/reports/AKCJudgeReport';
 import { TrialSecretaryCertification } from '@/components/reports/TrialSecretaryCertification';
 import { JudgeSupplyChecklistReport } from '@/components/reports/JudgeSupplyChecklistReport';
@@ -265,7 +264,7 @@ export const reportRegistry: ReportDefinition[] = [
       { value: 'armband', label: 'Armband #' },
     ],
     defaultSort: 'placement',
-    component: ResultLabels,
+    component: PlaceholderReport, // Rendered directly by ReportsPage, not via ReportPreview
     enabled: true,
   },
   {

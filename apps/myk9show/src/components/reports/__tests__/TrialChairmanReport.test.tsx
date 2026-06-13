@@ -51,4 +51,11 @@ describe('TrialChairmanReport', () => {
     render(<TrialChairmanReport {...baseProps} />);
     expect(screen.getByText(/Trial Chair/i)).toBeInTheDocument();
   });
+
+  it('prints the full AKC Event Operations ZIP+4 (matches the sibling secretary report)', () => {
+    // Regression: this form had a truncated ZIP '27617' while TrialSecretaryReport
+    // uses '27617-3390'. Two official AKC forms must not disagree on the address.
+    render(<TrialChairmanReport {...baseProps} />);
+    expect(screen.getByText(/Raleigh, NC 27617-3390/)).toBeInTheDocument();
+  });
 });

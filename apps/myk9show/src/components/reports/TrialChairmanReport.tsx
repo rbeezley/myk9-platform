@@ -13,7 +13,7 @@ export const TrialChairmanReport: React.FC<ReportProps> = ({ showName, clubName,
         <h1 className="report-title">AKC Scent Work Trial Chair&apos;s Report</h1>
         <p style={{ fontSize: '9px', marginTop: '4px' }}>
           This form is to be completed by the club chair once all trials are complete. Submit to AKC
-          Event Operations, 8051 Arco Corporate Dr, Suite 100, Raleigh, NC 27617.
+          Event Operations, 8051 Arco Corporate Dr, Suite 100, Raleigh, NC 27617-3390.
         </p>
       </div>
 

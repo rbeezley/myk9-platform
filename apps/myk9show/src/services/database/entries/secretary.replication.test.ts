@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   getAllDogs: vi.fn(),
   getAllClasses: vi.fn(),
   getArmbandsByShow: vi.fn(),
+  loggerWarn: vi.fn(),
 }));
 
 vi.mock('../supabaseClient', () => ({
@@ -46,6 +47,12 @@ vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
 vi.mock('@/services/replication/ReplicatedArmbandsTable', () => ({
   replicatedArmbandsTable: {
     getByShow: mocks.getArmbandsByShow,
+  },
+}));
+
+vi.mock('@/services/LoggingService', () => ({
+  logger: {
+    warn: mocks.loggerWarn,
   },
 }));
 
@@ -111,6 +118,18 @@ function mockMetadataLookups() {
 
     return mockLegacyEntryUpdate();
   });
+}
+
+function mockPostgrestEntriesRead(data: unknown[]) {
+  const query = {
+    select: vi.fn(() => query),
+    eq: vi.fn(() => query),
+    is: vi.fn(() => query),
+    order: vi.fn(() => Promise.resolve({ data, error: null })),
+  };
+
+  mocks.supabaseFrom.mockReturnValue(query);
+  return query;
 }
 
 describe('secretary entry status replication', () => {
@@ -430,6 +449,40 @@ describe('secretary entry read replication', () => {
       call_name: 'Scout',
       breed: 'Beagle',
       owner: null,
+    });
+  });
+
+  it('warns when falling back to PostgREST after a replicated read failure', async () => {
+    const replicationError = new Error('replicated entries unavailable');
+    mocks.getEntriesByShow.mockRejectedValueOnce(replicationError);
+    mockPostgrestEntriesRead([
+      {
+        id: 'entry-from-postgrest',
+        show_id: 'show-1',
+        dog_id: 'dog-1',
+        class_id: 'class-1',
+      },
+    ]);
+
+    const result = await getEntriesForShow('show-1');
+
+    expect(mocks.loggerWarn).toHaveBeenCalledWith(
+      'Secretary entries replication read failed; falling back to PostGREST',
+      'database',
+      { showId: 'show-1', operation: 'get_entries_for_show' },
+      replicationError
+    );
+    expect(mocks.supabaseFrom).toHaveBeenCalledWith('entries');
+    expect(result).toEqual({
+      data: [
+        {
+          id: 'entry-from-postgrest',
+          show_id: 'show-1',
+          dog_id: 'dog-1',
+          class_id: 'class-1',
+        },
+      ],
+      error: null,
     });
   });
 });

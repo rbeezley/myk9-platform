@@ -87,7 +87,6 @@ describe('reportRegistry', () => {
       'financial-report',
       'waitlist-report',
       'steward-report',
-      'result-labels',
       'akc-judge-report',
       'trial-secretary-certification',
     ];
@@ -103,7 +102,11 @@ describe('reportRegistry', () => {
     it('all phase 2 extended reports have non-placeholder components', () => {
       for (const id of PHASE_2_EXTENDED_IDS) {
         const report = getReportById(id)!;
-        const result = report.component({ showName: 'Test', entries: [], sortOrder: '' } satisfies ReportProps);
+        const result = report.component({
+          showName: 'Test',
+          entries: [],
+          sortOrder: '',
+        } satisfies ReportProps);
         expect(result, `${id} component should not return null`).not.toBeNull();
       }
     });
@@ -111,6 +114,27 @@ describe('reportRegistry', () => {
     it('financial-report has category financial', () => {
       const report = getReportById('financial-report');
       expect(report?.category).toBe('financial');
+    });
+
+    it('the label reports are enabled but render directly from ReportsPage (placeholder component)', () => {
+      // armband-labels and result-labels are not rendered via ReportPreview —
+      // ReportsPage renders their interactive components directly. Their registry
+      // `component` is therefore the null PlaceholderReport by design, so they are
+      // intentionally excluded from the non-placeholder assertion above.
+      for (const id of ['armband-labels', 'result-labels']) {
+        const report = getReportById(id);
+        expect(report, `${id} should be registered`).toBeDefined();
+        expect(report!.enabled, `${id} should be enabled`).toBe(true);
+        const result = report!.component({
+          showName: 'Test',
+          entries: [],
+          sortOrder: '',
+        } satisfies ReportProps);
+        expect(
+          result,
+          `${id} renders directly, so its registry component is a placeholder`
+        ).toBeNull();
+      }
     });
   });
 

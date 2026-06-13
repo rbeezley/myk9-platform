@@ -10,6 +10,7 @@ import { ReportControlsBar } from './ReportControlsBar';
 import { ReportPreview } from './ReportPreview';
 import { printIframe } from './reportPreviewUtils';
 import { ArmbandLabelsReport } from '@/components/reports/labels/ArmbandLabelsReport';
+import { ResultLabelsReport } from '@/components/reports/labels/ResultLabelsReport';
 import { buildTrialReportProps } from './reportDataMapping';
 import { downloadPdfBytes } from '@/features/organization-forms/downloadPdf';
 import {
@@ -249,6 +250,20 @@ export default function ReportsPage() {
         {reportType === 'armband-labels' ? (
           <div className="w-full">
             <ArmbandLabelsReport showId={showId} iframeRef={iframeRef} />
+            <iframe ref={iframeRef} title="Label Print" style={{ display: 'none' }} />
+          </div>
+        ) : reportType === 'result-labels' ? (
+          <div className="w-full">
+            <ResultLabelsReport
+              show={show}
+              trials={trials as Parameters<typeof ResultLabelsReport>[0]['trials']}
+              classes={classes as Parameters<typeof ResultLabelsReport>[0]['classes']}
+              entries={entries as Parameters<typeof ResultLabelsReport>[0]['entries']}
+              trialId={trialId}
+              classId={classId}
+              sortOrder={sortOrder}
+              iframeRef={iframeRef}
+            />
             <iframe ref={iframeRef} title="Label Print" style={{ display: 'none' }} />
           </div>
         ) : (

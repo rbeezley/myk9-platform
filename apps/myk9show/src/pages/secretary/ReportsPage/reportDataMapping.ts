@@ -12,6 +12,53 @@ export function mapReportEntries(
   return dbEntries.map(e => mapReportEntry(e, trial, classData));
 }
 
+/**
+ * Filter entries to the selected (trial, class) scope and enrich each with its
+ * OWN trial + class, mirroring how ReportPreview pairs entries via buildPages.
+ *
+ * useReportData returns ALL show entries whenever `classId === 'all'`, so a
+ * naive map with a single fallback trial/class would print cross-trial entries
+ * under the wrong trial (and lose per-entry class text for All Trials). This
+ * resolves each entry's real class/trial instead.
+ *
+ * - `classId !== 'all'`: entries are already class-scoped by useReportData, so
+ *   enrich them all with the selected class (no class_id dependency).
+ * - `classId === 'all', trialId !== 'all'`: keep only entries whose class
+ *   belongs to the selected trial, enriching each with its own class/trial.
+ * - both 'all': keep everything, enriching each with its own class/trial.
+ */
+export function mapScopedReportEntries(
+  dbEntries: DbEntry[],
+  trials: DbTrial[],
+  classes: DbClass[],
+  trialId: string,
+  classId: string
+): ReportEntry[] {
+  const classById = new Map(classes.map(c => [c.id, c] as const));
+  const trialById = new Map(trials.map(t => [t.id, t] as const));
+
+  const enrichByEntryClass = (e: DbEntry): ReportEntry => {
+    const cls = e.class_id != null ? classById.get(e.class_id) : undefined;
+    const trial = cls?.trial_id != null ? trialById.get(cls.trial_id) : undefined;
+    return mapReportEntry(e, trial, cls);
+  };
+
+  if (classId !== 'all') {
+    const cls = classById.get(classId);
+    const trial = cls?.trial_id != null ? trialById.get(cls.trial_id) : undefined;
+    return dbEntries.map(e => mapReportEntry(e, trial, cls));
+  }
+
+  if (trialId !== 'all') {
+    const trialClassIds = new Set(classes.filter(c => c.trial_id === trialId).map(c => c.id));
+    return dbEntries
+      .filter(e => e.class_id != null && trialClassIds.has(e.class_id))
+      .map(enrichByEntryClass);
+  }
+
+  return dbEntries.map(enrichByEntryClass);
+}
+
 function mapReportEntry(e: DbEntry, trial?: DbTrial, classData?: DbClass): ReportEntry {
   const dog = (e as Record<string, unknown>).dog as Record<string, unknown> | null;
   const owner = dog?.owner as Record<string, unknown> | null;

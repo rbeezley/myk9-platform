@@ -213,7 +213,7 @@ export async function importHealthRecords(
 
 /** Status badge colors for OFA screenings */
 export const ofaStatusColors: Record<string, string> = {
-  normal: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-300',
+  normal: 'bg-success/10 text-success ',
   carrier: 'bg-warning/10 text-warning ',
   affected: 'bg-destructive/10 text-destructive ',
   pending: 'bg-muted text-muted-foreground',
@@ -221,7 +221,7 @@ export const ofaStatusColors: Record<string, string> = {
 
 /** Status badge colors for genetic marker statuses */
 export const geneticStatusColors: Record<string, string> = {
-  clear: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-300',
+  clear: 'bg-success/10 text-success ',
   carrier: 'bg-warning/10 text-warning ',
   affected: 'bg-destructive/10 text-destructive ',
   at_risk: 'bg-warning/10 text-warning ',

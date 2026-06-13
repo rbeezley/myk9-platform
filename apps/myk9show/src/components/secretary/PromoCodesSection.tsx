@@ -43,9 +43,7 @@ const getStatusBadge = (promoCode: PromoCode) => {
 
   if (isExpired) return <Badge variant="secondary">Expired</Badge>;
   if (isExhausted) return <Badge variant="secondary">Exhausted</Badge>;
-  return (
-    <Badge className="bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200">Active</Badge>
-  );
+  return <Badge className="bg-success/10 text-success ">Active</Badge>;
 };
 
 const getScopeBadge = (promoCode: PromoCode) => {

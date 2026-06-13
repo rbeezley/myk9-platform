@@ -185,7 +185,7 @@ export function getEntryStatusClasses(status: string | null): string {
   switch (status?.toLowerCase()) {
     case 'confirmed':
     case 'accepted':
-      return 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900 dark:text-teal-200';
+      return 'bg-success/10 text-success border-success/30';
     case 'pending':
     case 'submitted':
       return 'bg-warning/10 text-warning border-amber-200 ';

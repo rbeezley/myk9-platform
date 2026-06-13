@@ -52,7 +52,7 @@ export const ProgressOverlay: React.FC<ProgressOverlayProps> = ({
     const variants = {
       pending: 'bg-info/10 text-info ',
       retrying: 'bg-warning/10 text-warning ',
-      confirmed: 'bg-teal-100 text-teal-700 dark:bg-teal-900/20 dark:text-teal-400',
+      confirmed: 'bg-success/10 text-success ',
       failed: 'bg-destructive/10 text-destructive ',
       rolled_back: 'bg-destructive/10 text-destructive ',
       rolling_back: 'bg-warning/10 text-warning ',

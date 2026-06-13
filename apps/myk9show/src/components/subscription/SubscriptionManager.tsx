@@ -195,11 +195,7 @@ export function SubscriptionManager() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'active': {
-        return (
-          <Badge className="bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200">
-            Active
-          </Badge>
-        );
+        return <Badge className="bg-success/10 text-success ">Active</Badge>;
       }
       case 'past_due': {
         return <Badge variant="destructive">Past Due</Badge>;

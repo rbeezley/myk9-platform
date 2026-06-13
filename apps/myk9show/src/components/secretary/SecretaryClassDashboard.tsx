@@ -539,8 +539,8 @@ export function SecretaryClassDashboard({
 
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-teal-600 font-medium">Qualified:</span>
-                      <div className="px-3 py-1 bg-teal-100 text-teal-800 rounded-full text-sm font-medium dark:bg-teal-900 dark:text-teal-200">
+                      <span className="text-success font-medium">Qualified:</span>
+                      <div className="px-3 py-1 bg-success/10 text-success rounded-full text-sm font-medium ">
                         {stats.qualifiedCount}
                       </div>
                     </div>

@@ -229,7 +229,7 @@ export function getColumnValueClassName(column: TableColumn, value: unknown): st
 function getStatusClassName(status: string): string {
   switch (status?.toLowerCase()) {
     case 'qualified':
-      return 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200';
+      return 'bg-success/10 text-success ';
     case 'not qualified':
     case 'nq':
       return 'bg-destructive/10 text-destructive ';

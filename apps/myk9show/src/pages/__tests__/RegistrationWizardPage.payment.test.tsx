@@ -157,7 +157,7 @@ vi.mock('@/components/shows/RegistrationWorkflow/WorkflowStepContent', () => ({
   },
 }));
 
-vi.mock('@/components/shows/wizard/components/VerticalProgressIndicator', () => ({
+vi.mock('@/components/shows/wizard/components/HorizontalProgressIndicator', () => ({
   default: () => <div data-testid="progress" />,
 }));
 
@@ -200,8 +200,12 @@ describe('RegistrationWizardPage — Stripe payment handoff', () => {
       initialRoute: '/shows/show-1/register',
     });
 
-    await waitFor(() => expect(screen.getByTestId('step-content')).toHaveTextContent('class-selection'));
-    await waitFor(() => expect(createRegistrationMock).toHaveBeenCalledWith('show-1', 'user-1', 'owner-1'));
+    await waitFor(() =>
+      expect(screen.getByTestId('step-content')).toHaveTextContent('class-selection')
+    );
+    await waitFor(() =>
+      expect(createRegistrationMock).toHaveBeenCalledWith('show-1', 'user-1', 'owner-1')
+    );
     await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());
     await user.click(screen.getByRole('button', { name: 'Next' }));
 
@@ -218,7 +222,9 @@ describe('RegistrationWizardPage — Stripe payment handoff', () => {
       initialRoute: '/shows/show-1/register',
     });
 
-    await waitFor(() => expect(screen.getByTestId('step-content')).toHaveTextContent('class-selection'));
+    await waitFor(() =>
+      expect(screen.getByTestId('step-content')).toHaveTextContent('class-selection')
+    );
     await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());
     await user.click(screen.getByRole('button', { name: 'Next' }));
 

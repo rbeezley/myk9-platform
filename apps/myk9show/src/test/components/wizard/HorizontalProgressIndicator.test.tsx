@@ -79,3 +79,32 @@ describe('HorizontalProgressIndicator', () => {
     expect(button.className).toContain('w-full');
   });
 });
+
+describe('HorizontalProgressIndicator — many steps (mobile compaction)', () => {
+  const SIX_STEPS = [
+    { id: 0, label: 'Exhibitor' },
+    { id: 1, label: 'Dogs' },
+    { id: 2, label: 'Classes' },
+    { id: 3, label: 'Handler' },
+    { id: 4, label: 'Payment' },
+    { id: 5, label: 'Confirm' },
+  ];
+
+  it('keeps the current label visible but hides the rest on mobile when >4 steps', () => {
+    render(
+      <HorizontalProgressIndicator steps={SIX_STEPS} currentStep={2} completedSteps={[0, 1]} />
+    );
+    // Current step's label is always shown.
+    expect(screen.getByText('Classes').className).not.toContain('hidden');
+    // A non-current label is hidden on mobile, revealed at sm:.
+    const other = screen.getByText('Payment');
+    expect(other.className).toContain('hidden');
+    expect(other.className).toContain('sm:block');
+  });
+
+  it('keeps every label visible when there are 4 or fewer steps', () => {
+    render(<HorizontalProgressIndicator steps={STEPS} currentStep={1} completedSteps={[0]} />);
+    // No mobile-hide class on a non-current label at <=4 steps.
+    expect(screen.getByText('Show Details').className).not.toContain('hidden');
+  });
+});

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -7,7 +7,12 @@ import {
   collectCodeQualityMetrics,
   compareMetricsToBaselines,
   renderComparison,
+  runCli,
 } from './code-quality-ratchet';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('compareMetricsToBaselines', () => {
   it('flags metrics that exceed their recorded baseline', () => {
@@ -65,6 +70,41 @@ describe('renderComparison', () => {
       })
     ).toContain('Run pnpm qa:code-quality-ratchet:update');
   });
+
+  it('prints evidence locations for failing ratchets', () => {
+    const comparison = compareMetricsToBaselines(
+      {
+        oversizedSourceFiles: 0,
+        anyCasts: 1,
+        todoMarkers: 0,
+        directSupabaseCoreBypasses: 0,
+      },
+      {
+        oversizedSourceFiles: 0,
+        anyCasts: 0,
+        todoMarkers: 0,
+        directSupabaseCoreBypasses: 0,
+      }
+    );
+
+    expect(
+      renderComparison({
+        comparison,
+        metrics: {
+          oversizedSourceFiles: 0,
+          anyCasts: 1,
+          todoMarkers: 0,
+          directSupabaseCoreBypasses: 0,
+        },
+        evidence: {
+          oversizedSourceFiles: [],
+          anyCasts: ['apps/myk9show/src/example.ts:7'],
+          todoMarkers: [],
+          directSupabaseCoreBypasses: [],
+        },
+      })
+    ).toContain('apps/myk9show/src/example.ts:7');
+  });
 });
 
 describe('collectCodeQualityMetrics', () => {
@@ -108,10 +148,87 @@ describe('collectCodeQualityMetrics', () => {
       rmSync(rootDir, { recursive: true, force: true });
     }
   });
+
+  it('counts direct Supabase reads inside configured core-flow directories', () => {
+    const rootDir = mkdtempSync(join(tmpdir(), 'code-quality-ratchet-core-flow-'));
+
+    try {
+      writeFixture(
+        rootDir,
+        'apps/myk9show/src/core-flow/nested/readModel.ts',
+        "await supabase.from('entries').select('*');\n"
+      );
+
+      expect(
+        collectCodeQualityMetrics(rootDir, {
+          sourceRoots: ['apps'],
+          oversizedLineThreshold: 500,
+          generatedFileSuffixes: [],
+          coreFlowPaths: ['apps/myk9show/src/core-flow'],
+        }).evidence.directSupabaseCoreBypasses
+      ).toEqual(['apps/myk9show/src/core-flow/nested/readModel.ts:1']);
+    } finally {
+      rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('runCli', () => {
+  it('returns 0 when collected metrics are within baseline', () => {
+    const rootDir = mkdtempSync(join(tmpdir(), 'code-quality-ratchet-cli-pass-'));
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    try {
+      writeBaseline(rootDir, {
+        oversizedSourceFiles: 0,
+        anyCasts: 0,
+        todoMarkers: 0,
+        directSupabaseCoreBypasses: 0,
+      });
+
+      expect(runCli(['--baseline=baseline.json'], rootDir)).toBe(0);
+      expect(log).toHaveBeenCalledWith(expect.stringContaining('Code-quality ratchet metrics'));
+    } finally {
+      rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  it('returns 1 when collected metrics exceed baseline', () => {
+    const rootDir = mkdtempSync(join(tmpdir(), 'code-quality-ratchet-cli-fail-'));
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    try {
+      writeBaseline(rootDir, {
+        oversizedSourceFiles: 0,
+        anyCasts: 0,
+        todoMarkers: 0,
+        directSupabaseCoreBypasses: 0,
+      });
+      writeFixture(
+        rootDir,
+        'apps/myk9show/src/example.ts',
+        'export const unsafe = payload as any;\n'
+      );
+
+      expect(runCli(['--baseline=baseline.json'], rootDir)).toBe(1);
+      expect(log).toHaveBeenCalledWith(
+        expect.stringContaining('apps/myk9show/src/example.ts:1')
+      );
+    } finally {
+      rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
 });
 
 function writeFixture(rootDir: string, path: string, source: string) {
   const filePath = join(rootDir, path);
   mkdirSync(dirname(filePath), { recursive: true });
   writeFileSync(filePath, source);
+}
+
+function writeBaseline(rootDir: string, metrics: Record<string, number>) {
+  writeFileSync(
+    join(rootDir, 'baseline.json'),
+    `${JSON.stringify({ version: 1, updatedAt: '2026-06-13T00:00:00.000Z', metrics })}\n`
+  );
 }

@@ -171,14 +171,11 @@ export default function ResultsSubmissionPage() {
   return (
     <div className="container mx-auto py-6 space-y-8" data-testid="results-submission-page">
       {/* Page header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Results Submission</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Generate and submit electronic results to sanctioning organizations.
-          </p>
-        </div>
-
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Submit Results</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Generate and submit electronic results to sanctioning organizations.
+        </p>
       </div>
 
       {/* Controls */}
@@ -259,12 +256,16 @@ export default function ResultsSubmissionPage() {
 
       {/* Send feedback */}
       {sendSuccess && (
-        <p className="text-sm text-green-600" data-testid="send-success">
+        <p
+          className="text-sm text-green-600 dark:text-green-400"
+          role="status"
+          data-testid="send-success"
+        >
           Results sent successfully. A copy was CC&apos;d to your email.
         </p>
       )}
       {sendError && (
-        <p className="text-sm text-destructive" data-testid="send-error">
+        <p className="text-sm text-destructive" role="alert" data-testid="send-error">
           {sendError}
         </p>
       )}
@@ -272,7 +273,8 @@ export default function ResultsSubmissionPage() {
       {/* Pre-flight warning */}
       {missingAKCCount > 0 && (
         <div
-          className="rounded-md border border-yellow-400 bg-yellow-50 px-4 py-3 text-sm text-yellow-800"
+          className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-700/50 dark:bg-amber-900/20 dark:text-amber-200"
+          role="alert"
           data-testid="preflight-warning"
         >
           {missingAKCCount} {missingAKCCount === 1 ? 'entry is' : 'entries are'} missing AKC
@@ -283,9 +285,12 @@ export default function ResultsSubmissionPage() {
 
       {/* XML preview */}
       <div className="space-y-2">
-        <h2 className="text-sm font-medium">XML Preview</h2>
+        <h2 id="xml-preview-label" className="text-sm font-medium">
+          XML Preview
+        </h2>
         <Textarea
           readOnly
+          aria-labelledby="xml-preview-label"
           value={isAKCLoading ? 'Fetching show data...' : xmlPreview}
           placeholder="Select a show and organization to preview the XML."
           className="font-mono text-xs min-h-[220px] resize-y"

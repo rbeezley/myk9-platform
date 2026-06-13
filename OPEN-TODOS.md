@@ -24,7 +24,7 @@ Plan: [`docs/plan-code-quality-audit.md`](docs/plan-code-quality-audit.md). Curr
 - [x] ~~**Wave A — pure deletions**~~ — Removed Phase-2-confirmed dead code in branch `codex/code-quality-wave-a-dead-code`; `send-notification` intentionally remains pending deployed usage/log/config verification.
 - [x] ~~**Wave B — consolidations** (duplication clusters, type-file unification)~~ — Type-file unification merged in PR [#653](https://github.com/rbeezley/myk9-platform/pull/653); P1 launch-gate coverage/fix merged in PR [#654](https://github.com/rbeezley/myk9-platform/pull/654); Magazine/Gazette email parity merged in PR [#656](https://github.com/rbeezley/myk9-platform/pull/656); read-shape parity implemented in PR [#658](https://github.com/rbeezley/myk9-platform/pull/658).
 - [x] ~~**Wave C — extractions** (multi-concern oversized files only)~~ — Replication-core slices 1-5 extracted mutation ordering, queue capacity, localStorage backup, retry-state, OCC empty-update, conflict row-state, provider status/result, and replicated table row-state/stale-row helpers with direct tests; scoring slice 1 extracted offline scoring service helpers with direct tests; Show Map slice extracted render cells and pure action helpers with focused tests.
-- [ ] **Wave D — replication-bypass reroutes + targeted test additions**
+- [ ] **Wave D — replication-bypass reroutes + targeted test additions** — Secretary status and bulk status writes are implemented in the first slice; remaining slices: secretary entry read adapter, armband read/write reroutes, day-of scratch/move-up reads, secretary check-in report adapter, and exhibitor show-day data adapter.
 - [ ] **Phase 5 — codify as repeatable skill + set CI ratchet baselines** (after all waves land)
 
 ---

@@ -122,15 +122,14 @@ export interface BulkStatusChangeParams {
  * Orchestrates a bulk entry-status change:
  *   1. Persist via bulkUpdateStatus
  *   2. On success — optimistic update in local state
- *   3. If status is ACCEPTED — reload entries to pick up trigger-assigned armbands
  *   On DB error — set error message; do not touch local state.
  */
 export async function executeBulkStatusChange(
   params: BulkStatusChangeParams,
   adapters: BulkStatusChangeAdapters
 ): Promise<void> {
-  const { entryIds, status, selectedShowId } = params;
-  const { bulkUpdateStatus, reloadEntries, patchEntries, setError } = adapters;
+  const { entryIds, status } = params;
+  const { bulkUpdateStatus, patchEntries, setError } = adapters;
   if (entryIds.length === 0) return;
 
   const { error: dbError } = await bulkUpdateStatus(entryIds, mapStatusToDb(status));
@@ -144,11 +143,6 @@ export async function executeBulkStatusChange(
       entryIds.includes(e.id) ? { ...e, entryStatus: status, lastUpdated: new Date() } : e
     )
   );
-
-  // Full reload picks up trigger-assigned armbands for all dogs in the group
-  if (status === EntryStatus.ACCEPTED && selectedShowId) {
-    await reloadEntries(selectedShowId);
-  }
 }
 
 // ─── executeRemoveEntry ───────────────────────────────────────────────────

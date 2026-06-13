@@ -1,11 +1,11 @@
 /**
- * Regression: updateEntryStatus and bulkUpdateEntryStatus must pass the
- * caller-supplied EntryStatus through to Supabase verbatim, on the
- * `entry_status` column. Compile-time typing prevents invalid enum values
- * from reaching these functions; these tests lock the runtime wiring.
+ * Regression: secretary status transitions must pass the caller-supplied
+ * EntryStatus through to the replicated entry mutation payload. Compile-time
+ * typing prevents invalid enum values from reaching these functions; these
+ * tests lock the runtime wiring.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   acceptEntry,
   bulkUpdateEntryStatus,
@@ -15,170 +15,169 @@ import {
   waitlistEntry,
 } from '../../entries';
 
-const mockFrom = vi.fn();
+const mocks = vi.hoisted(() => ({
+  auditLog: vi.fn(),
+  createDatabaseError: vi.fn((err: unknown) =>
+    err instanceof Error ? err : new Error(String(err))
+  ),
+  logQuery: vi.fn(),
+  supabaseFrom: vi.fn(),
+  updateSecretaryLifecycleStatus: vi.fn(),
+  getEntryById: vi.fn(),
+}));
 
 vi.mock('../../supabaseClient', () => ({
   supabase: {
-    from: (...args: unknown[]) => mockFrom(...args),
+    from: mocks.supabaseFrom,
   },
-  logQuery: vi.fn(),
-  createDatabaseError: (err: unknown) => (err instanceof Error ? err : new Error(String(err))),
+  logQuery: mocks.logQuery,
+  createDatabaseError: mocks.createDatabaseError,
 }));
 
-function chainMock(overrides: Record<string, unknown> = {}) {
-  const chain: Record<string, unknown> = {
-    select: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    in: vi.fn().mockReturnThis(),
-    update: vi.fn().mockReturnThis(),
-    single: vi.fn().mockReturnThis(),
-    ...overrides,
-  };
-  for (const [key, val] of Object.entries(chain)) {
-    if (typeof val === 'function' && !(key in overrides)) {
-      (chain[key] as ReturnType<typeof vi.fn>).mockReturnValue(chain);
-    }
-  }
-  return chain;
-}
+vi.mock('@/services/AuditService', () => ({
+  auditService: {
+    log: mocks.auditLog,
+  },
+}));
+
+vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
+  replicatedEntriesTable: {
+    updateSecretaryLifecycleStatus: mocks.updateSecretaryLifecycleStatus,
+    getEntryById: mocks.getEntryById,
+  },
+}));
 
 describe('secretaryEntryQueries — entry_status updates', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.auditLog.mockResolvedValue(undefined);
+    mocks.updateSecretaryLifecycleStatus.mockResolvedValue('mutation-1');
+    mocks.getEntryById.mockImplementation((entryId: string) =>
+      Promise.resolve({ id: entryId, showId: 'show-1', classId: 'class-1' })
+    );
   });
 
   describe('updateEntryStatus', () => {
-    it('writes entry_status = "confirmed" on the matching entry row', async () => {
-      const chain = chainMock({
-        single: vi.fn().mockResolvedValue({ data: { id: 'e1' }, error: null }),
-      });
-      mockFrom.mockReturnValue(chain);
-
+    it('queues entry_status = "confirmed" on the replicated entry row', async () => {
       await updateEntryStatus('entry-1', 'confirmed');
 
-      expect(mockFrom).toHaveBeenCalledWith('entries');
-      expect(chain.update).toHaveBeenCalledWith(
-        expect.objectContaining({ entry_status: 'confirmed' })
+      expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenCalledWith(
+        'entry-1',
+        {
+          entryStatus: 'confirmed',
+          entry_status: 'confirmed',
+          status: 'confirmed',
+        },
+        undefined
       );
-      expect(chain.eq).toHaveBeenCalledWith('id', 'entry-1');
+      expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('entries');
     });
 
-    it('writes entry_status = "withdrawn" when caller passes withdrawn', async () => {
-      const chain = chainMock({
-        single: vi.fn().mockResolvedValue({ data: { id: 'e1' }, error: null }),
-      });
-      mockFrom.mockReturnValue(chain);
-
+    it('queues entry_status = "withdrawn" when caller passes withdrawn', async () => {
       await updateEntryStatus('entry-1', 'withdrawn');
 
-      expect(chain.update).toHaveBeenCalledWith(
-        expect.objectContaining({ entry_status: 'withdrawn' })
+      expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenCalledWith(
+        'entry-1',
+        expect.objectContaining({ entry_status: 'withdrawn' }),
+        undefined
       );
     });
 
-    it('sets updated_at on every write', async () => {
-      const chain = chainMock({
-        single: vi.fn().mockResolvedValue({ data: { id: 'e1' }, error: null }),
-      });
-      mockFrom.mockReturnValue(chain);
+    it('returns row-like invalidation fields from the replicated snapshot', async () => {
+      const result = await updateEntryStatus('entry-1', 'submitted');
 
-      await updateEntryStatus('entry-1', 'submitted');
-
-      expect(chain.update).toHaveBeenCalledWith(
-        expect.objectContaining({ updated_at: expect.any(String) })
+      expect(result.data).toEqual(
+        expect.objectContaining({
+          id: 'entry-1',
+          show_id: 'show-1',
+          class_id: 'class-1',
+          mutationId: 'mutation-1',
+        })
       );
     });
   });
 
   describe('bulkUpdateEntryStatus', () => {
-    it('applies entry_status across multiple ids via .in("id", ids)', async () => {
-      const chain = chainMock({
-        select: vi.fn().mockResolvedValue({ data: [{ id: 'e1' }, { id: 'e2' }], error: null }),
-      });
-      mockFrom.mockReturnValue(chain);
-
+    it('applies entry_status across multiple ids through replicated mutations', async () => {
       await bulkUpdateEntryStatus(['e1', 'e2', 'e3'], 'confirmed');
 
-      expect(mockFrom).toHaveBeenCalledWith('entries');
-      expect(chain.update).toHaveBeenCalledWith(
-        expect.objectContaining({ entry_status: 'confirmed' })
-      );
-      expect(chain.in).toHaveBeenCalledWith('id', ['e1', 'e2', 'e3']);
+      expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenCalledTimes(3);
+      expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenNthCalledWith(1, 'e1', {
+        entryStatus: 'confirmed',
+        entry_status: 'confirmed',
+        status: 'confirmed',
+      });
+      expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenNthCalledWith(2, 'e2', {
+        entryStatus: 'confirmed',
+        entry_status: 'confirmed',
+        status: 'confirmed',
+      });
+      expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenNthCalledWith(3, 'e3', {
+        entryStatus: 'confirmed',
+        entry_status: 'confirmed',
+        status: 'confirmed',
+      });
+      expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('entries');
     });
 
     it('marks bulk-scratched entries pulled for ringside propagation', async () => {
-      const chain = chainMock({
-        select: vi.fn().mockResolvedValue({ data: [{ id: 'e1' }], error: null }),
-      });
-      mockFrom.mockReturnValue(chain);
-
       await bulkUpdateEntryStatus(['e1'], 'scratched');
 
-      expect(chain.update).toHaveBeenCalledWith(
-        expect.objectContaining({ entry_status: 'scratched', check_in_status: 'pulled' })
-      );
-      expect(chain.in).toHaveBeenCalledWith('id', ['e1']);
+      expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenCalledWith('e1', {
+        entryStatus: 'scratched',
+        entry_status: 'scratched',
+        status: 'scratched',
+        checkInStatus: 'pulled',
+        check_in_status: 'pulled',
+      });
     });
   });
 
   describe('named Entry transitions', () => {
     it('acceptEntry writes the secretary-facing confirmed status', async () => {
-      const chain = chainMock({
-        single: vi.fn().mockResolvedValue({ data: { id: 'e1' }, error: null }),
-      });
-      mockFrom.mockReturnValue(chain);
-
       await acceptEntry('entry-1');
 
-      expect(chain.update).toHaveBeenCalledWith(
-        expect.objectContaining({ entry_status: 'confirmed' })
+      expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenCalledWith(
+        'entry-1',
+        expect.objectContaining({ entry_status: 'confirmed' }),
+        undefined
       );
-      expect(chain.eq).toHaveBeenCalledWith('id', 'entry-1');
     });
 
     it('rejectEntry writes withdrawn and preserves the reason', async () => {
-      const chain = chainMock({
-        single: vi.fn().mockResolvedValue({ data: { id: 'e1' }, error: null }),
-      });
-      mockFrom.mockReturnValue(chain);
-
       await rejectEntry('entry-1', 'Class limit reached');
 
-      expect(chain.update).toHaveBeenCalledWith(
+      expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenCalledWith(
+        'entry-1',
         expect.objectContaining({
           entry_status: 'withdrawn',
           withdrawal_reason: 'Class limit reached',
-        })
+        }),
+        undefined
       );
     });
 
     it('scratchEntry writes scratched and preserves the reason', async () => {
-      const chain = chainMock({
-        single: vi.fn().mockResolvedValue({ data: { id: 'e1' }, error: null }),
-      });
-      mockFrom.mockReturnValue(chain);
-
       await scratchEntry('entry-1', 'Dog is absent');
 
-      expect(chain.update).toHaveBeenCalledWith(
+      expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenCalledWith(
+        'entry-1',
         expect.objectContaining({
           entry_status: 'scratched',
           check_in_status: 'pulled',
           withdrawal_reason: 'Dog is absent',
-        })
+        }),
+        undefined
       );
     });
 
     it('waitlistEntry keeps current pending-entry behavior behind a named transition', async () => {
-      const chain = chainMock({
-        single: vi.fn().mockResolvedValue({ data: { id: 'e1' }, error: null }),
-      });
-      mockFrom.mockReturnValue(chain);
-
       await waitlistEntry('entry-1');
 
-      expect(chain.update).toHaveBeenCalledWith(
-        expect.objectContaining({ entry_status: 'confirmed' })
+      expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenCalledWith(
+        'entry-1',
+        expect.objectContaining({ entry_status: 'confirmed' }),
+        undefined
       );
     });
   });

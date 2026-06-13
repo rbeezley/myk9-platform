@@ -99,7 +99,9 @@ describe('executeStatusChange', () => {
     const result = armbandUpdater([entry, sibling, other]);
     expect(result.find((e: EntryManagementEntry) => e.id === 'entry-1')?.armbandNumber).toBe('007');
     expect(result.find((e: EntryManagementEntry) => e.id === 'entry-2')?.armbandNumber).toBe('007');
-    expect(result.find((e: EntryManagementEntry) => e.id === 'entry-3')?.armbandNumber).toBeUndefined();
+    expect(
+      result.find((e: EntryManagementEntry) => e.id === 'entry-3')?.armbandNumber
+    ).toBeUndefined();
   });
 });
 
@@ -118,13 +120,13 @@ describe('executeBulkStatusChange', () => {
     setError = vi.fn();
   });
 
-  it('calls reloadEntries when status is ACCEPTED', async () => {
+  it('does not reload immediately for ACCEPTED because replicated mutations upload later', async () => {
     await executeBulkStatusChange(
       { entryIds: ['e1', 'e2'], status: EntryStatus.ACCEPTED, selectedShowId: 'show-1' },
       { bulkUpdateStatus, reloadEntries, patchEntries, setError }
     );
 
-    expect(reloadEntries).toHaveBeenCalledWith('show-1');
+    expect(reloadEntries).not.toHaveBeenCalled();
   });
 
   it('does NOT call reloadEntries when status is not ACCEPTED', async () => {

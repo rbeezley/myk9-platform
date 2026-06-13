@@ -26,28 +26,37 @@ function makeEntry(overrides: Partial<EntryManagementEntry> = {}): EntryManageme
 }
 
 describe('changeSecretaryEntryStatus', () => {
-  it('maps accepted entries to the DB status and returns trigger armband patch data', async () => {
+  it('maps accepted entries to the DB status and returns known armband patch data', async () => {
     const setEntryLifecycleStatus = vi.fn().mockResolvedValue({ data: {}, error: null });
-    const getEntryArmbandById = vi.fn().mockResolvedValue({
-      armband: '140',
-      dogId: 'dog-1',
-      showId: 'show-1',
-    });
     const auditLog = vi.fn().mockResolvedValue(undefined);
 
     const result = await changeSecretaryEntryStatus(
       {
-        entry: makeEntry(),
+        entry: makeEntry({
+          armbandNumber: '140',
+          classes: [{ id: 'class-1', name: 'Novice', number: '1', fee: 25, status: 'entered' }],
+        }),
         newStatus: EntryStatus.ACCEPTED,
         secretaryId: 'secretary-1',
       },
-      { setEntryLifecycleStatus, getEntryArmbandById, auditLog }
+      { setEntryLifecycleStatus, auditLog }
     );
 
     expect(setEntryLifecycleStatus).toHaveBeenCalledWith({
       entryId: 'entry-1',
       status: 'confirmed',
       reason: undefined,
+      sourceEntry: {
+        id: 'entry-1',
+        showId: 'show-1',
+        classId: 'class-1',
+        dogId: 'dog-1',
+        handler: 'Example Handler',
+        armband: '140',
+        registrationId: 'registration-1',
+        entryStatus: 'submitted',
+        paymentStatus: PaymentStatus.PENDING,
+      },
     });
     expect(auditLog).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -56,7 +65,6 @@ describe('changeSecretaryEntryStatus', () => {
         changes: { entryStatus: { from: EntryStatus.PENDING, to: EntryStatus.ACCEPTED } },
       })
     );
-    expect(getEntryArmbandById).toHaveBeenCalledWith('entry-1');
     expect(result).toEqual({
       armbandPatch: {
         armband: '140',
@@ -66,9 +74,23 @@ describe('changeSecretaryEntryStatus', () => {
     });
   });
 
+  it('does not race the server trigger for accepted entries with no known armband', async () => {
+    const setEntryLifecycleStatus = vi.fn().mockResolvedValue({ data: {}, error: null });
+    const auditLog = vi.fn().mockResolvedValue(undefined);
+
+    const result = await changeSecretaryEntryStatus(
+      {
+        entry: makeEntry(),
+        newStatus: EntryStatus.ACCEPTED,
+      },
+      { setEntryLifecycleStatus, auditLog }
+    );
+
+    expect(result).toEqual({});
+  });
+
   it('persists withdrawal reasons and skips armband lookup for non-accepted statuses', async () => {
     const setEntryLifecycleStatus = vi.fn().mockResolvedValue({ data: {}, error: null });
-    const getEntryArmbandById = vi.fn();
     const auditLog = vi.fn().mockResolvedValue(undefined);
 
     const result = await changeSecretaryEntryStatus(
@@ -78,27 +100,30 @@ describe('changeSecretaryEntryStatus', () => {
         secretaryId: 'secretary-1',
         withdrawalReason: 'Handler conflict',
       },
-      { setEntryLifecycleStatus, getEntryArmbandById, auditLog }
+      { setEntryLifecycleStatus, auditLog }
     );
 
     expect(setEntryLifecycleStatus).toHaveBeenCalledWith({
       entryId: 'entry-1',
       status: 'withdrawn',
       reason: 'Handler conflict',
+      sourceEntry: expect.objectContaining({
+        id: 'entry-1',
+        showId: 'show-1',
+        dogId: 'dog-1',
+      }),
     });
     expect(auditLog).toHaveBeenCalledWith(
       expect.objectContaining({
         metadata: expect.objectContaining({ withdrawalReason: 'Handler conflict' }),
       })
     );
-    expect(getEntryArmbandById).not.toHaveBeenCalled();
     expect(result).toEqual({});
   });
 
   it('throws when the DB update fails so callers can rollback optimistic state', async () => {
     const error = new Error('update failed');
     const setEntryLifecycleStatus = vi.fn().mockResolvedValue({ data: null, error });
-    const getEntryArmbandById = vi.fn();
     const auditLog = vi.fn();
 
     await expect(
@@ -107,11 +132,10 @@ describe('changeSecretaryEntryStatus', () => {
           entry: makeEntry(),
           newStatus: EntryStatus.ACCEPTED,
         },
-        { setEntryLifecycleStatus, getEntryArmbandById, auditLog }
+        { setEntryLifecycleStatus, auditLog }
       )
     ).rejects.toThrow('update failed');
 
     expect(auditLog).not.toHaveBeenCalled();
-    expect(getEntryArmbandById).not.toHaveBeenCalled();
   });
 });

@@ -46,7 +46,8 @@ Source: [`docs/audits/2026-06-proactive-qa/db-advisors.md`](docs/audits/2026-06-
 
 - [ ] **[DB drift] Security advisor remediation triage** — Supabase advisors found 8 `security_definer_view` ERRORs, 166 anon/auth executable SECURITY DEFINER function grants, 9 always-true write-capable RLS policies, 2 broad public bucket listing policies, and `show_passcodes` with RLS enabled/no policies. Route through `/security-audit`; do not batch-fix blindly.
 - [ ] **[DB drift] Fix `entries.entry_status` CHECK regression** — `pnpm qa:db-drift:enum` found app code writing `scratch-requested` while the latest parsed `entries_entry_status_check` from migration 174 allows only `scratch_requested` / `move_up_requested` for request states. Use migration-auditor flow; read-only drift phase did not push a migration.
-- [ ] **[DB drift] Reconcile deployed-vs-repo edge functions** — `pnpm qa:db-drift:functions` found deployed-only Stripe/cron functions (`stripe-*`, `cron-*`) and repo-only `send-results`. Confirm whether this branch is behind payment work before deleting or deploying anything.
+- [x] ~~**[DB drift] Reconcile deployed-vs-repo edge functions**~~ — Resolved 2026-06-13: `pnpm qa:db-drift:functions` now scans both `supabase/functions/` and `apps/myk9show/supabase/functions/`, so the deployed Stripe/cron functions are correctly matched to repo source. Remaining repo-only functions are narrowed to `send-results` (actively invoked by Results Submission; deploy only after confirmation) and `receive-logs` (no current app invocation; keep undeployed unless remote frontend logging is intentionally restored).
+- [ ] **[DB drift] Decide repo-only edge functions** — Confirm whether to deploy `send-results --no-verify-jwt` for secretary results submission, and separately decide whether dormant `receive-logs` should be deleted or re-enabled/deployed as part of an observability plan.
 
 ---
 

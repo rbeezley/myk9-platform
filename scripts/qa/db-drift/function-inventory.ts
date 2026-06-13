@@ -3,6 +3,8 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+const DEFAULT_FUNCTION_DIRS = ['supabase/functions', 'apps/myk9show/supabase/functions'];
+
 export type FunctionInventoryDiff = {
   deployedOnly: string[];
   repoOnly: string[];
@@ -69,13 +71,16 @@ export function diffFunctionInventory({
   };
 }
 
-export function listRepoFunctions(functionsDir: string): string[] {
-  if (!existsSync(functionsDir)) return [];
+export function listRepoFunctions(functionsDir: string | string[]): string[] {
+  const dirs = Array.isArray(functionsDir) ? functionsDir : [functionsDir];
 
   return sortedUnique(
-    readdirSync(functionsDir, { withFileTypes: true })
-      .filter(entry => entry.isDirectory() && !entry.name.startsWith('_'))
-      .map(entry => entry.name)
+    dirs.flatMap(dir => {
+      if (!existsSync(dir)) return [];
+      return readdirSync(dir, { withFileTypes: true })
+        .filter(entry => entry.isDirectory() && !entry.name.startsWith('_'))
+        .map(entry => entry.name);
+    })
   );
 }
 
@@ -132,7 +137,7 @@ function readDeployedFunctions(): string[] {
 
 function runCli(): void {
   const deployed = readDeployedFunctions();
-  const repo = listRepoFunctions(join(process.cwd(), 'supabase/functions'));
+  const repo = listRepoFunctions(DEFAULT_FUNCTION_DIRS.map(dir => join(process.cwd(), dir)));
   const diff = diffFunctionInventory({ deployed, repo });
 
   process.stdout.write(renderFunctionInventoryMarkdown(diff));

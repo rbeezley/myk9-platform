@@ -63,4 +63,15 @@ describe('listRepoFunctions', () => {
 
     expect(listRepoFunctions(functionsDir)).toEqual(['send-email']);
   });
+
+  it('scans multiple function roots and dedupes duplicate function names', () => {
+    const rootFunctionsDir = fileURLToPath(new URL('./fixtures/functions', import.meta.url));
+    const appFunctionsDir = fileURLToPath(new URL('./fixtures/app-functions', import.meta.url));
+
+    expect(listRepoFunctions([rootFunctionsDir, appFunctionsDir])).toEqual([
+      'cron-process-payouts',
+      'send-email',
+      'stripe-checkout',
+    ]);
+  });
 });

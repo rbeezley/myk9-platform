@@ -70,18 +70,25 @@ export function VenueMap({ location, venueName }: VenueMapProps) {
 
   if (!hasApiKey || iframeError) {
     return (
-      <Card className="p-4 space-y-3" data-testid="venue-map-fallback">
-        <div className="flex items-start gap-2">
-          <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-          <div>
-            {venueName && <div className="font-semibold text-foreground text-sm">{venueName}</div>}
-            <div className="text-sm text-muted-foreground">{location}</div>
-          </div>
+      <Card data-testid="venue-map-fallback">
+        <div className="p-4 border-b border-border/30">
+          <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Venue</h3>
         </div>
-        <MapLinks directionsUrl={directionsUrl} viewOnMapsUrl={viewOnMapsUrl} />
-        <p className="text-xs text-muted-foreground">
-          {hasApiKey ? 'Map unavailable' : 'Interactive map not configured'}
-        </p>
+        <div className="p-4 space-y-3">
+          <div className="flex items-start gap-2">
+            <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+            <div>
+              {venueName && (
+                <div className="font-semibold text-foreground text-sm">{venueName}</div>
+              )}
+              <div className="text-sm text-muted-foreground">{location}</div>
+            </div>
+          </div>
+          <MapLinks directionsUrl={directionsUrl} viewOnMapsUrl={viewOnMapsUrl} />
+          <p className="text-xs text-muted-foreground">
+            {hasApiKey ? 'Map unavailable' : 'Interactive map not configured'}
+          </p>
+        </div>
       </Card>
     );
   }
@@ -90,6 +97,9 @@ export function VenueMap({ location, venueName }: VenueMapProps) {
 
   return (
     <Card className="overflow-hidden">
+      <div className="p-4 border-b border-border/30">
+        <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Venue</h3>
+      </div>
       {iframeReady ? (
         <iframe
           src={mapSrc}

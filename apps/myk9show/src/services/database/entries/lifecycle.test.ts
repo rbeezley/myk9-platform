@@ -73,13 +73,18 @@ describe('Entry lifecycle transitions', () => {
       reason: 'Handler conflict',
     });
 
-    expect(updateEntryStatus).toHaveBeenCalledWith('entry-1', 'withdrawn', 'Handler conflict');
+    expect(updateEntryStatus).toHaveBeenCalledWith(
+      'entry-1',
+      'withdrawn',
+      'Handler conflict',
+      undefined
+    );
   });
 
   it('accepts an Entry by writing confirmed and logs the transition', async () => {
     await acceptEntry('entry-1');
 
-    expect(updateEntryStatus).toHaveBeenCalledWith('entry-1', 'confirmed', undefined);
+    expect(updateEntryStatus).toHaveBeenCalledWith('entry-1', 'confirmed', undefined, undefined);
     expect(auditLog).toHaveBeenCalledWith(
       expect.objectContaining({
         entityType: 'entry',
@@ -93,10 +98,18 @@ describe('Entry lifecycle transitions', () => {
   it('rejects an Entry using the existing withdrawn transition behavior', async () => {
     await rejectEntry('entry-1', 'Class limit reached');
 
-    expect(updateEntryStatus).toHaveBeenCalledWith('entry-1', 'withdrawn', 'Class limit reached');
+    expect(updateEntryStatus).toHaveBeenCalledWith(
+      'entry-1',
+      'withdrawn',
+      'Class limit reached',
+      undefined
+    );
     expect(auditLog).toHaveBeenCalledWith(
       expect.objectContaining({
-        metadata: expect.objectContaining({ action: 'reject_entry', reason: 'Class limit reached' }),
+        metadata: expect.objectContaining({
+          action: 'reject_entry',
+          reason: 'Class limit reached',
+        }),
       })
     );
   });
@@ -104,7 +117,12 @@ describe('Entry lifecycle transitions', () => {
   it('scratches an Entry and preserves the reason', async () => {
     await scratchEntry('entry-1', 'Dog is absent');
 
-    expect(updateEntryStatus).toHaveBeenCalledWith('entry-1', 'scratched', 'Dog is absent');
+    expect(updateEntryStatus).toHaveBeenCalledWith(
+      'entry-1',
+      'scratched',
+      'Dog is absent',
+      undefined
+    );
     expect(auditLog).toHaveBeenCalledWith(
       expect.objectContaining({
         metadata: expect.objectContaining({ action: 'scratch_entry', reason: 'Dog is absent' }),
@@ -115,7 +133,7 @@ describe('Entry lifecycle transitions', () => {
   it('keeps current wait-list decision behavior behind a named transition', async () => {
     await waitlistEntry('entry-1');
 
-    expect(updateEntryStatus).toHaveBeenCalledWith('entry-1', 'confirmed', undefined);
+    expect(updateEntryStatus).toHaveBeenCalledWith('entry-1', 'confirmed', undefined, undefined);
     expect(auditLog).toHaveBeenCalledWith(
       expect.objectContaining({
         metadata: expect.objectContaining({ action: 'waitlist_entry' }),
@@ -126,7 +144,7 @@ describe('Entry lifecycle transitions', () => {
   it('routes transition actions through the same explicit status seam', async () => {
     await transitionEntryLifecycle({ entryId: 'entry-1', action: 'scratch', reason: 'Absent' });
 
-    expect(updateEntryStatus).toHaveBeenCalledWith('entry-1', 'scratched', 'Absent');
+    expect(updateEntryStatus).toHaveBeenCalledWith('entry-1', 'scratched', 'Absent', undefined);
   });
 
   describe('scratch-request workflow', () => {
@@ -213,7 +231,10 @@ describe('Entry lifecycle transitions', () => {
       expect(auditLog).toHaveBeenCalledWith(
         expect.objectContaining({
           changes: { entryStatus: { from: 'scratch-requested', to: 'confirmed' } },
-          metadata: expect.objectContaining({ action: 'deny_scratch_request', reason: 'Late notice' }),
+          metadata: expect.objectContaining({
+            action: 'deny_scratch_request',
+            reason: 'Late notice',
+          }),
         })
       );
     });

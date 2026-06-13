@@ -17,13 +17,13 @@
  */
 import type { EntryStatus } from '@/types/entry-lifecycle';
 import { auditService } from '@/services/AuditService';
-import { getEntryArmbandById } from '@/services/database/armbands';
 import { AuditAction } from '@/types/audit-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { EntryStatus as SecretaryEntryStatus } from '@/types/show-registration-types';
 import { mapStatusToDb } from '@/utils/entryManagementUtils';
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { updateEntryStatus } from './secretary';
+import type { SecretaryStatusEntrySeed } from './secretary';
 
 export type EntryLifecycleAction = 'accept' | 'reject' | 'scratch' | 'waitlist';
 
@@ -37,6 +37,7 @@ export interface SetEntryLifecycleStatusParams {
   entryId: string;
   status: EntryStatus;
   reason?: string | undefined;
+  sourceEntry?: SecretaryStatusEntrySeed | undefined;
 }
 
 export interface EntryLifecycleArmbandPatch {
@@ -58,7 +59,6 @@ export interface ChangeSecretaryEntryStatusResult {
 
 export interface SecretaryEntryStatusDependencies {
   setEntryLifecycleStatus: typeof setEntryLifecycleStatus;
-  getEntryArmbandById: typeof getEntryArmbandById;
   auditLog: typeof auditService.log;
 }
 
@@ -73,7 +73,7 @@ const ENTRY_LIFECYCLE_STATUS: Record<EntryLifecycleAction, EntryStatus> = {
 };
 
 export async function setEntryLifecycleStatus(params: SetEntryLifecycleStatusParams) {
-  return updateEntryStatus(params.entryId, params.status, params.reason);
+  return updateEntryStatus(params.entryId, params.status, params.reason, params.sourceEntry);
 }
 
 export async function transitionEntryLifecycle(params: EntryLifecycleTransitionParams) {
@@ -624,9 +624,26 @@ export const restoreEntryStatus = async (params: RestoreEntryStatusParams) => {
 
 const defaultSecretaryDependencies: SecretaryEntryStatusDependencies = {
   setEntryLifecycleStatus,
-  getEntryArmbandById,
   auditLog: input => auditService.log(input),
 };
+
+function buildSecretaryStatusSeed(entry: EntryManagementEntry): SecretaryStatusEntrySeed {
+  const seed: SecretaryStatusEntrySeed = {
+    id: entry.id,
+    showId: entry.showId,
+    dogId: entry.dogId,
+    handler: entry.handlerName,
+    registrationId: entry.registrationId,
+    entryStatus: mapStatusToDb(entry.entryStatus),
+    paymentStatus: entry.paymentStatus,
+  };
+
+  const classId = entry.classes[0]?.id;
+  if (classId) seed.classId = classId;
+  if (entry.armbandNumber) seed.armband = entry.armbandNumber;
+
+  return seed;
+}
 
 export async function changeSecretaryEntryStatus(
   params: ChangeSecretaryEntryStatusParams,
@@ -638,6 +655,7 @@ export async function changeSecretaryEntryStatus(
     entryId: entry.id,
     status: mapStatusToDb(newStatus),
     reason: withdrawalReason,
+    sourceEntry: buildSecretaryStatusSeed(entry),
   });
   if (error) throw error;
 
@@ -658,16 +676,15 @@ export async function changeSecretaryEntryStatus(
     return {};
   }
 
-  const triggerArmband = await dependencies.getEntryArmbandById(entry.id);
-  if (!triggerArmband?.armband || !triggerArmband.dogId || !triggerArmband.showId) {
+  if (!entry.armbandNumber || !entry.dogId || !entry.showId) {
     return {};
   }
 
   return {
     armbandPatch: {
-      armband: triggerArmband.armband,
-      dogId: triggerArmband.dogId,
-      showId: triggerArmband.showId,
+      armband: entry.armbandNumber,
+      dogId: entry.dogId,
+      showId: entry.showId,
     },
   };
 }

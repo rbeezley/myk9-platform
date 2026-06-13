@@ -6,6 +6,10 @@
  */
 
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
+import {
+  replicatedEntriesTable,
+  type ReplicatedEntry,
+} from '@/services/replication/ReplicatedEntriesTable';
 import type { EntryStatus } from '@/types/entry-lifecycle';
 import type { CheckInStatus } from '@myk9/core';
 import type { TablesUpdate } from '@/types/supabase';
@@ -81,6 +85,20 @@ export interface PendingEntry {
   entry_status: string | null;
   /** Raw check_in_status — consumed by getEntryAttention() for unified classification. */
   check_in_status: string | null;
+}
+
+export interface SecretaryStatusEntrySeed {
+  id?: string;
+  showId?: string;
+  classId?: string;
+  dogId?: string;
+  handler?: string;
+  handlerId?: string;
+  armband?: string;
+  registrationId?: string;
+  trialId?: string;
+  entryStatus?: string;
+  paymentStatus?: string;
 }
 
 function toPendingEntry(row: Record<string, unknown>): PendingEntry {
@@ -259,47 +277,62 @@ export const getEntryCountsByStatus = async (showId: string) => {
 /**
  * Update entry status (accept, reject, waitlist, withdraw, scratch)
  */
-function buildEntryStatusUpdate(status: EntryStatus): TablesUpdate<'entries'> {
-  const updateData: TablesUpdate<'entries'> = {
+function buildReplicatedEntryStatusUpdate(
+  status: EntryStatus,
+  withdrawalReason?: string
+): Partial<ReplicatedEntry> {
+  const updateData: Partial<ReplicatedEntry> = {
+    entryStatus: status,
     entry_status: status,
-    updated_at: new Date().toISOString(),
+    status,
   };
 
   if (status === 'scratched') {
+    updateData.checkInStatus = 'pulled';
     updateData.check_in_status = 'pulled';
+  }
+
+  if (withdrawalReason !== undefined) {
+    updateData.withdrawalReason = withdrawalReason;
+    updateData.withdrawal_reason = withdrawalReason;
   }
 
   return updateData;
 }
 
+function toEntryMutationResult(
+  entryId: string,
+  mutationId: string | null,
+  entry: ReplicatedEntry | null
+) {
+  return {
+    id: entryId,
+    show_id: entry?.showId ?? null,
+    class_id: entry?.classId ?? null,
+    mutationId,
+  };
+}
+
 export const updateEntryStatus = async (
   entryId: string,
   status: EntryStatus,
-  withdrawalReason?: string
+  withdrawalReason?: string,
+  sourceEntry?: SecretaryStatusEntrySeed
 ) => {
   const startTime = Date.now();
 
   try {
-    const updateData = buildEntryStatusUpdate(status);
-    if (withdrawalReason !== undefined) {
-      updateData.withdrawal_reason = withdrawalReason;
-    }
-
-    const { data, error } = await supabase
-      .from('entries')
-      .update(updateData)
-      .eq('id', entryId)
-      .select()
-      .single();
+    const mutationId = await replicatedEntriesTable.updateSecretaryLifecycleStatus(
+      entryId,
+      buildReplicatedEntryStatusUpdate(status, withdrawalReason),
+      sourceEntry
+    );
+    const entry = await replicatedEntriesTable.getEntryById(entryId);
 
     const duration = Date.now() - startTime;
-    logQuery('entries', 'update_entry_status', duration, error?.message);
+    logQuery('entries', 'update_entry_status', duration);
 
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'update_entry_status');
-    }
-
-    return { data, error: null };
+    return { data: toEntryMutationResult(entryId, mutationId, entry), error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'entries', 'update_entry_status');
@@ -315,20 +348,22 @@ export const bulkUpdateEntryStatus = async (entryIds: string[], status: EntrySta
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase
-      .from('entries')
-      .update(buildEntryStatusUpdate(status))
-      .in('id', entryIds)
-      .select();
+    const updateData = buildReplicatedEntryStatusUpdate(status);
+    const data = await Promise.all(
+      entryIds.map(async entryId => {
+        const mutationId = await replicatedEntriesTable.updateSecretaryLifecycleStatus(
+          entryId,
+          updateData
+        );
+        const entry = await replicatedEntriesTable.getEntryById(entryId);
+        return toEntryMutationResult(entryId, mutationId, entry);
+      })
+    );
 
     const duration = Date.now() - startTime;
-    logQuery('entries', 'bulk_update_status', duration, error?.message);
+    logQuery('entries', 'bulk_update_status', duration);
 
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'bulk_update_status');
-    }
-
-    return { data: data || [], error: null };
+    return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'entries', 'bulk_update_status');

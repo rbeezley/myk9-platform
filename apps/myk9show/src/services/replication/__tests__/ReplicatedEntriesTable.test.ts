@@ -334,6 +334,71 @@ describe('ReplicatedEntriesTable', () => {
       expect(result?._syncStatus).toBe('pending');
     });
 
+    it('should seed missing secretary rows and queue only lifecycle status fields', async () => {
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>,
+            dependencies?: string[]
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+
+      await table.updateSecretaryLifecycleStatus(
+        'entry-1',
+        {
+          entryStatus: 'scratched',
+          entry_status: 'scratched',
+          status: 'scratched',
+          checkInStatus: 'pulled',
+          check_in_status: 'pulled',
+          withdrawalReason: 'Dog absent',
+          withdrawal_reason: 'Dog absent',
+        },
+        {
+          showId: 'show-1',
+          classId: 'class-1',
+          dogId: 'dog-1',
+          armband: '101',
+          paymentStatus: 'paid',
+        }
+      );
+
+      const payload = queueMutation.mock.calls[0]?.[2];
+      expect(queueMutation).toHaveBeenCalledWith(
+        'UPDATE',
+        'entry-1',
+        expect.objectContaining({
+          id: 'entry-1',
+          entry_status: 'scratched',
+          check_in_status: 'pulled',
+          withdrawal_reason: 'Dog absent',
+          updated_at: expect.any(String),
+        })
+      );
+      expect(payload).not.toHaveProperty('show_id');
+      expect(payload).not.toHaveProperty('class_id');
+      expect(payload).not.toHaveProperty('dog_id');
+      expect(payload).not.toHaveProperty('payment_status');
+
+      const result = await table.get('entry-1');
+      expect(result).toEqual(
+        expect.objectContaining({
+          id: 'entry-1',
+          showId: 'show-1',
+          classId: 'class-1',
+          dogId: 'dog-1',
+          entryStatus: 'scratched',
+          checkInStatus: 'pulled',
+          withdrawalReason: 'Dog absent',
+          _syncStatus: 'pending',
+        })
+      );
+    });
+
     it('should throw error when updating status of non-existent entry', async () => {
       await expect(table.updateEntryStatus('nonexistent', 'checked-in')).rejects.toThrow(
         'Entry nonexistent not found'

@@ -373,9 +373,14 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       },
     };
 
-    const result = await syncReplicatedTable(this, adapter, { value: licenseKey }, {
-      incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
-    });
+    const result = await syncReplicatedTable(
+      this,
+      adapter,
+      { value: licenseKey },
+      {
+        incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
+      }
+    );
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {
       logger.error(`[${this.getTableName()}] Sync failed:`, result.error);
@@ -507,6 +512,49 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     const mutationId = await this.queueMutation('UPDATE', entryId, this.toSupabaseRow(updated));
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated entry ${entryId}`);
+    return mutationId;
+  }
+
+  /**
+   * Update only the secretary lifecycle status fields.
+   *
+   * Entry Management still has a PostgREST read path during Wave D, so the row
+   * may not be hydrated in IndexedDB yet. This method can seed the local cache
+   * from the already-loaded secretary row while queueing a narrow UPDATE payload
+   * so missing seed fields are not uploaded as NULL.
+   */
+  async updateSecretaryLifecycleStatus(
+    entryId: string,
+    updates: Partial<ReplicatedEntry>,
+    seed: Partial<ReplicatedEntry> = {}
+  ): Promise<string | null> {
+    const entry = (await this.get(entryId)) ?? ({ id: entryId, ...seed } as ReplicatedEntry);
+    const updated: ReplicatedEntry = {
+      ...entry,
+      ...updates,
+      _lastModified: new Date(),
+      _syncStatus: 'pending',
+    };
+
+    await this.set(entryId, updated, true);
+
+    const payload: Record<string, unknown> = {
+      id: entryId,
+      entry_status: updates.entry_status ?? updates.entryStatus ?? updates.status,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (updates.check_in_status !== undefined || updates.checkInStatus !== undefined) {
+      payload.check_in_status = updates.check_in_status ?? updates.checkInStatus;
+    }
+
+    if (updates.withdrawal_reason !== undefined || updates.withdrawalReason !== undefined) {
+      payload.withdrawal_reason = updates.withdrawal_reason ?? updates.withdrawalReason;
+    }
+
+    const mutationId = await this.queueMutation('UPDATE', entryId, payload);
+    this._lastMutationId = mutationId;
+    logger.log(`[${this.getTableName()}] Updated entry ${entryId} secretary lifecycle status`);
     return mutationId;
   }
 

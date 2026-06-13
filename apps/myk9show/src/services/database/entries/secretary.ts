@@ -16,6 +16,7 @@ import type { CheckInStatus } from '@myk9/core';
 import type { TablesUpdate } from '@/types/supabase';
 import type { PendingEntry, SecretaryStatusEntrySeed } from './secretaryTypes';
 import { postgrestGetSecretaryEntriesForShow } from './secretaryPostgrest';
+import { logger } from '@/services/LoggingService';
 
 export type { PendingEntry, SecretaryEntry, SecretaryStatusEntrySeed } from './secretaryTypes';
 
@@ -72,7 +73,15 @@ export const getEntriesForShow = async (showId: string) => {
     const result = await getReplicatedSecretaryEntriesForShow(showId);
     logQuery('entries', 'get_entries_for_show', Date.now() - startTime);
     return result;
-  } catch {
+  } catch (error) {
+    const replicationError = error instanceof Error ? error : new Error(String(error));
+    logger.warn(
+      'Secretary entries replication read failed; falling back to PostGREST',
+      'database',
+      { showId, operation: 'get_entries_for_show' },
+      replicationError
+    );
+
     try {
       return await postgrestGetSecretaryEntriesForShow(
         showId,

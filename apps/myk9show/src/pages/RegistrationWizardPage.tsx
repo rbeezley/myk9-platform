@@ -1,7 +1,7 @@
 /**
  * Registration Wizard Page
  *
- * Full-page wizard for show registration with vertical step indicator.
+ * Full-page wizard for show registration with a horizontal step indicator.
  * Replaces the old dialog-based RegistrationWorkflow.
  */
 
@@ -33,7 +33,7 @@ import { DraftManager } from '@/components/shows/RegistrationWorkflow/DraftManag
 import { useDraftPersistence, type SavedDraft } from '@/hooks/useDraftPersistence';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { RegistrationProvider } from '@/context/RegistrationContext';
-import VerticalProgressIndicator from '@/components/shows/wizard/components/VerticalProgressIndicator';
+import HorizontalProgressIndicator from '@/components/shows/wizard/components/HorizontalProgressIndicator';
 import WizardNavigation from '@/components/shows/wizard/components/WizardNavigation';
 import { WorkflowStepContent } from '@/components/shows/RegistrationWorkflow/WorkflowStepContent';
 import type {
@@ -129,7 +129,7 @@ function RegistrationWizardContent() {
     }
   }, [currentWorkflowMode]);
 
-  // Build steps for VerticalProgressIndicator
+  // Build steps for HorizontalProgressIndicator
   const steps = useMemo(() => {
     return currentWorkflowConfig.steps.map((stepId, index) => ({
       ...ALL_STEP_DEFINITIONS[stepId],
@@ -588,8 +588,8 @@ function RegistrationWizardContent() {
         <div
           className={`border-b bg-card/95 backdrop-blur-xl sticky ${isInsideSidebar ? 'top-0' : 'top-16'} z-40`}
         >
-          <div className="container mx-auto px-6 py-4 max-w-7xl">
-            <div className="flex items-center gap-4">
+          <div className="container mx-auto px-4 py-4 max-w-7xl sm:px-6">
+            <div className="flex items-center gap-3 sm:gap-4">
               <Button
                 variant="ghost"
                 size="default"
@@ -613,138 +613,133 @@ function RegistrationWizardContent() {
         <div
           className={`container mx-auto px-4 sm:px-6 ${isInsideSidebar ? 'pt-6' : 'pt-20 sm:pt-24'} pb-8 max-w-7xl`}
         >
-          <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-4 sm:gap-6">
-            {/* Sidebar - Progress Indicator */}
-            <div className="lg:col-span-1">
-              <div className={`sticky ${isInsideSidebar ? 'top-14' : 'top-28 lg:top-32'}`}>
-                <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-4 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg">
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  <div className="relative">
-                    <h2 className="text-base font-semibold mb-1 text-foreground group-hover:text-primary transition-colors duration-300">
-                      {sidebarTitle}
-                    </h2>
-                    {currentShow && (
-                      <p className="text-xs text-muted-foreground mb-4 truncate">
-                        {currentShow.name}
-                      </p>
-                    )}
-                    <VerticalProgressIndicator
-                      steps={steps}
-                      currentStep={currentStep}
-                      completedSteps={completedSteps}
-                      onStepClick={(step: number) => {
-                        if (isStepCompleted(step) || step <= Math.max(-1, ...completedSteps) + 1) {
-                          if (currentStepId === 'payment') {
-                            setAgreedToEntryAgreement(false);
-                          }
-                          setCurrentStep(step);
-                        }
-                      }}
-                    />
-                  </div>
+          {/* Title */}
+          <div className="mb-1">
+            <h2 className="text-base font-semibold text-foreground">{sidebarTitle}</h2>
+            {currentShow && (
+              <p className="text-xs text-muted-foreground truncate">{currentShow.name}</p>
+            )}
+          </div>
+
+          {/* Horizontal step indicator — sticky under the wizard header so the
+              steps stay visible while the form scrolls. The offset adapts to
+              context (embedded sidebar vs full page), reusing the offsets the
+              old vertical sidebar used. Direct child of the tall container so it
+              sticks for the whole scroll, not just while the title is on screen. */}
+          <div
+            className={`sticky ${isInsideSidebar ? 'top-14' : 'top-28 lg:top-32'} z-30 mb-4 mt-3 rounded-2xl border border-border bg-card/95 px-3 py-4 shadow-sm backdrop-blur-xl sm:mb-6 sm:px-6`}
+          >
+            <HorizontalProgressIndicator
+              steps={steps}
+              currentStep={currentStep}
+              completedSteps={completedSteps}
+              onStepClick={(step: number) => {
+                if (isStepCompleted(step) || step <= Math.max(-1, ...completedSteps) + 1) {
+                  if (currentStepId === 'payment') {
+                    setAgreedToEntryAgreement(false);
+                  }
+                  setCurrentStep(step);
+                }
+              }}
+            />
+          </div>
+
+          {/* Main Content */}
+          <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl min-h-[600px] flex flex-col transition-all duration-300 hover:shadow-lg">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+            <div className="relative flex-1 p-4 sm:p-8">
+              {/* Draft controls */}
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="font-medium">
+                    Step {currentStep + 1} of {steps.length}:
+                  </span>
+                  <span>{steps[currentStep]?.label}</span>
                 </div>
+                <DraftManager
+                  saveDraft={draftSave}
+                  loadDraft={draftLoad}
+                  deleteDraft={draftDelete}
+                  availableDrafts={availableDrafts}
+                  clearAllDrafts={clearAllDrafts}
+                  hasUnsavedChanges={!!hasUnsavedChanges}
+                  onDraftLoaded={handleDraftLoaded}
+                  onDraftSaved={() => notifications.success('Draft saved')}
+                />
               </div>
+
+              <div className="border-t border-border mb-6" />
+
+              {/* Multi-owner / orphan-owner cart guard */}
+              {currentStepId === 'dog-selection' &&
+                registrationData.selectedDogs.length > 0 &&
+                !ownerResolution.ok && (
+                  <div
+                    role="alert"
+                    className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+                  >
+                    {ownerResolution.owners.length >= 2
+                      ? "This wizard processes one exhibitor's entries at a time. The selected dogs belong to multiple owners. Please remove all but one owner's dogs before continuing."
+                      : 'One or more selected dogs has no owner on file. An enrollment must be filed under an exhibitor — please add an owner to the dog (or remove it from the cart) before continuing.'}
+                  </div>
+                )}
+
+              {/* Step content */}
+              <WorkflowStepContent
+                currentStepId={currentStepId}
+                currentWorkflowConfig={currentWorkflowConfig}
+                registrationData={registrationData}
+                optimisticState={optimisticState}
+                showId={showId}
+                registrationId={registrationId}
+                registrationNumber={registrationNumber}
+                currentRegistrationTotalFees={liveTotalFees}
+                armbandAssignments={armbandAssignments}
+                onDogSelectionChange={handleDogSelectionChange}
+                onClassSelectionChange={handleClassSelectionChange}
+                onHandlerAssignmentChange={handleHandlerAssignmentChange}
+                onPaymentMethodChange={(method: PaymentMethod) =>
+                  setRegistrationData(prev => ({
+                    ...prev,
+                    paymentMethod: method,
+                  }))
+                }
+                onPaymentDetailsChange={(details: PaymentDetails) => {
+                  paymentDetailsRef.current = details;
+                }}
+                onPaymentStatusChange={(regId: string, status: PaymentStatus) => {
+                  storeUpdatePaymentStatus(regId, status);
+                }}
+                onEntryStatusChange={(regId: string, status: EntryStatus, reason?: string) => {
+                  storeUpdateEntryStatus(regId, status, reason);
+                }}
+                setPaymentStatus={setPaymentStatus}
+                setEntryStatus={setEntryStatus}
+                dogsLoading={dogsLoading}
+                agreedToEntryAgreement={agreedToEntryAgreement}
+                onAgreementChange={setAgreedToEntryAgreement}
+              />
             </div>
 
-            {/* Main Content */}
-            <div className="lg:col-span-1">
-              <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl min-h-[600px] flex flex-col transition-all duration-300 hover:shadow-lg">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-                <div className="relative flex-1 p-6 sm:p-8">
-                  {/* Draft controls */}
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span className="font-medium">
-                        Step {currentStep + 1} of {steps.length}:
-                      </span>
-                      <span>{steps[currentStep]?.label}</span>
-                    </div>
-                    <DraftManager
-                      saveDraft={draftSave}
-                      loadDraft={draftLoad}
-                      deleteDraft={draftDelete}
-                      availableDrafts={availableDrafts}
-                      clearAllDrafts={clearAllDrafts}
-                      hasUnsavedChanges={!!hasUnsavedChanges}
-                      onDraftLoaded={handleDraftLoaded}
-                      onDraftSaved={() => notifications.success('Draft saved')}
-                    />
-                  </div>
-
-                  <div className="border-t border-border mb-6" />
-
-                  {/* Multi-owner / orphan-owner cart guard */}
-                  {currentStepId === 'dog-selection' &&
-                    registrationData.selectedDogs.length > 0 &&
-                    !ownerResolution.ok && (
-                      <div
-                        role="alert"
-                        className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-                      >
-                        {ownerResolution.owners.length >= 2
-                          ? "This wizard processes one exhibitor's entries at a time. The selected dogs belong to multiple owners. Please remove all but one owner's dogs before continuing."
-                          : 'One or more selected dogs has no owner on file. An enrollment must be filed under an exhibitor — please add an owner to the dog (or remove it from the cart) before continuing.'}
-                      </div>
-                    )}
-
-                  {/* Step content */}
-                  <WorkflowStepContent
-                    currentStepId={currentStepId}
-                    currentWorkflowConfig={currentWorkflowConfig}
-                    registrationData={registrationData}
-                    optimisticState={optimisticState}
-                    showId={showId}
-                    registrationId={registrationId}
-                    registrationNumber={registrationNumber}
-                    currentRegistrationTotalFees={liveTotalFees}
-                    armbandAssignments={armbandAssignments}
-                    onDogSelectionChange={handleDogSelectionChange}
-                    onClassSelectionChange={handleClassSelectionChange}
-                    onHandlerAssignmentChange={handleHandlerAssignmentChange}
-                    onPaymentMethodChange={(method: PaymentMethod) =>
-                      setRegistrationData(prev => ({
-                        ...prev,
-                        paymentMethod: method,
-                      }))
-                    }
-                    onPaymentDetailsChange={(details: PaymentDetails) => {
-                      paymentDetailsRef.current = details;
-                    }}
-                    onPaymentStatusChange={(regId: string, status: PaymentStatus) => {
-                      storeUpdatePaymentStatus(regId, status);
-                    }}
-                    onEntryStatusChange={(regId: string, status: EntryStatus, reason?: string) => {
-                      storeUpdateEntryStatus(regId, status, reason);
-                    }}
-                    setPaymentStatus={setPaymentStatus}
-                    setEntryStatus={setEntryStatus}
-                    dogsLoading={dogsLoading}
-                    agreedToEntryAgreement={agreedToEntryAgreement}
-                    onAgreementChange={setAgreedToEntryAgreement}
-                  />
-                </div>
-
-                {/* Navigation */}
-                <div className="relative px-6 sm:px-8 pb-6 sm:pb-8">
-                  {proceedBlocked && !isSubmitting && (
-                    <p role="status" className="mb-3 text-sm text-muted-foreground">
-                      {proceedBlocked}
-                    </p>
-                  )}
-                  <WizardNavigation
-                    currentStep={currentStep}
-                    totalSteps={steps.length}
-                    canGoBack={true}
-                    canGoNext={canProceed()}
-                    onBack={handleBack}
-                    onNext={handleNext}
-                    nextLabel={isLastStep ? 'Complete Registration' : 'Next'}
-                    backLabel={currentStep === 0 ? 'Cancel' : 'Back'}
-                    isLoading={isSubmitting}
-                  />
-                </div>
-              </div>
+            {/* Navigation */}
+            <div className="relative px-4 sm:px-8 pb-6 sm:pb-8">
+              {proceedBlocked && !isSubmitting && (
+                <p role="status" className="mb-3 text-sm text-muted-foreground">
+                  {proceedBlocked}
+                </p>
+              )}
+              <WizardNavigation
+                currentStep={currentStep}
+                totalSteps={steps.length}
+                canGoBack={true}
+                canGoNext={canProceed()}
+                onBack={handleBack}
+                onNext={handleNext}
+                nextLabel={isLastStep ? 'Complete Registration' : 'Next'}
+                backLabel={currentStep === 0 ? 'Cancel' : 'Back'}
+                isLoading={isSubmitting}
+              />
             </div>
           </div>
         </div>

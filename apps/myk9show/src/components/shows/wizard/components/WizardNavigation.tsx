@@ -37,7 +37,7 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
   return (
     <div
       className={cn(
-        'flex justify-between items-center pt-8 border-t border-border mt-8',
+        'flex flex-wrap items-center justify-between gap-3 pt-8 border-t border-border mt-8',
         className
       )}
     >
@@ -46,14 +46,14 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
         variant="outline"
         onClick={onBack}
         disabled={!canGoBack || isLoading}
-        className="gap-2 px-6 py-3 hover:-translate-y-0.5 transition-all duration-200"
+        className="gap-2 px-4 py-3 sm:px-6 hover:-translate-y-0.5 transition-all duration-200"
       >
         <ArrowLeft className="h-4 w-4" />
         {currentStep === 0 ? 'Cancel' : backLabel || defaultBackLabel}
       </Button>
 
       {/* Center - Save Draft and Step indicator */}
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-3 sm:gap-6">
         {onSaveDraft && (
           <Button
             variant="ghost"
@@ -79,7 +79,7 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
         <Button
           onClick={onNext}
           disabled={!canGoNext || isLoading}
-          className="relative gap-2 px-6 py-3"
+          className="relative gap-2 px-4 py-3 sm:px-6"
         >
           {isLoading ? (
             <>

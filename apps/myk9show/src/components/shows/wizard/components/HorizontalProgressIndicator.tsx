@@ -17,12 +17,15 @@ interface HorizontalProgressIndicatorProps {
 }
 
 /**
- * Horizontal step indicator for the Show Creation wizard.
+ * Horizontal step indicator for the Show Creation and Registration wizards.
  *
- * Sibling to VerticalProgressIndicator (still used by the Registration wizard).
  * Renders steps left-to-right across a thin top bar so the form below gets the
  * full content width — a one-axis layout that doesn't compete with the app
  * shell's left rail for horizontal space.
+ *
+ * Mobile: with more than 4 steps (the registration wizard's secretary/mail-in
+ * flows run up to 6), only the CURRENT step keeps its label on phones so the
+ * circles don't crowd; the rest reappear at sm:. Descriptions are always sm:+.
  */
 export const HorizontalProgressIndicator: React.FC<HorizontalProgressIndicatorProps> = ({
   steps,
@@ -31,6 +34,9 @@ export const HorizontalProgressIndicator: React.FC<HorizontalProgressIndicatorPr
   onStepClick,
   className,
 }) => {
+  // Many steps can't fit labeled columns on a 375px phone — collapse labels to
+  // the active step only on mobile when the count is high.
+  const manySteps = steps.length > 4;
   const isStepCompleted = (stepId: number) => completedSteps.includes(stepId);
   const isStepCurrent = (stepId: number) => currentStep === stepId;
   const isStepClickable = (stepId: number) => {
@@ -113,6 +119,9 @@ export const HorizontalProgressIndicator: React.FC<HorizontalProgressIndicatorPr
                   <span
                     className={cn(
                       'block text-xs font-medium transition-colors duration-200 sm:text-sm',
+                      // Many steps on a phone: keep only the active label, reveal
+                      // the rest at sm: so circles stay legible at 375px.
+                      manySteps && !isCurrent && 'hidden sm:block',
                       isCurrent && 'text-primary',
                       isCompleted && 'text-foreground',
                       !isCompleted && !isCurrent && 'text-muted-foreground'

@@ -101,7 +101,7 @@ vi.mock('@/components/shows/RegistrationWorkflow/WorkflowStepContent', () => ({
   WorkflowStepContent: () => <div data-testid="step-content" />,
 }));
 
-vi.mock('@/components/shows/wizard/components/VerticalProgressIndicator', () => ({
+vi.mock('@/components/shows/wizard/components/HorizontalProgressIndicator', () => ({
   default: () => <div data-testid="progress" />,
 }));
 

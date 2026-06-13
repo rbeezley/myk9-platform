@@ -78,31 +78,25 @@ Parser note: this is a heuristic drift detector, not a full TypeScript or SQL AS
 
 ## Edge Function Inventory
 
-The new `pnpm qa:db-drift:functions` script compares `supabase functions list` against `supabase/functions/`.
+The new `pnpm qa:db-drift:functions` script compares `supabase functions list` against both deployable function roots: `supabase/functions/` and `apps/myk9show/supabase/functions/`.
 
-- Matched: 19
-- Deployed only: 8
-- Repo only: 1
+- Matched: 27
+- Deployed only: 0
+- Repo only: 2
 
 Deployed only:
 
-- `cron-process-payouts`
-- `cron-waitlist-expiration`
-- `stripe-checkout`
-- `stripe-connect-onboard`
-- `stripe-customer-portal`
-- `stripe-refund-entry`
-- `stripe-upgrade-subscription`
-- `stripe-webhook`
+- None
 
 Repo only:
 
+- `receive-logs`
 - `send-results`
 
-Route: reconcile against current Stripe/payment branches before taking action. The Stripe/cron functions may be legitimate deployed work not present on this branch; `send-results` may be dormant repo code or an undeployed function.
+Reconciliation note (2026-06-13): the original deployed-only Stripe/cron list was a false positive caused by scanning only the root function directory; those functions live under `apps/myk9show/supabase/functions/` and are deployed. The remaining repo-only functions need separate product decisions: `send-results` is invoked by the Results Submission page and likely needs a confirmed deploy before that email path can work, while `receive-logs` has no current app invocation and should stay undeployed unless frontend remote logging is re-enabled deliberately.
 
 ## Testing
 
 - RED confirmed: missing parser modules failed the new tests before implementation.
 - GREEN confirmed: `pnpm qa:db-drift:test` passes with 9 tests.
-- Function inventory regression covers the current Supabase pipe-table output and ignores `_shared` helper directories.
+- Function inventory regression covers the current Supabase pipe-table output, scans both function roots, dedupes duplicated function names, and ignores `_shared` helper directories.

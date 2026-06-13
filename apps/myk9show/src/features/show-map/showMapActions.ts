@@ -17,9 +17,22 @@ import {
 } from 'lucide-react';
 import type { ComponentType, SVGProps } from 'react';
 import { isShowMapActionEnabled } from './showMapActionExecution';
+import {
+  canMarkClassComplete,
+  canMarkClassStarted,
+  canMarkEntryCheckedIn,
+  canMessageEntryHandler,
+  getEntrySourceId,
+  getNodeSourceId,
+  getParentSourceId,
+  getRootShowId,
+  isClassReadyToScore,
+  isSyntheticDisplayActionNode,
+  sourceIdFromNodeId,
+} from './showMapActionHelpers';
 import { isNodeScheduledAfter } from './showMapTimeScope';
 import { SHOW_MAP_WRAP_UP_STATUS } from './showMapTypes';
-import type { ShowMapNode, ShowMapNodeType, ShowMapTree } from './showMapTypes';
+import type { ShowMapNode, ShowMapTree } from './showMapTypes';
 
 export const SHOW_MAP_RECOMMENDED_ACTION_LIMIT = 2;
 
@@ -85,69 +98,6 @@ function descendantsOf(tree: ShowMapTree, nodeId: string): ShowMapNode[] {
 function scopedNodes(scope: ShowMapActionScope, tree: ShowMapTree): ShowMapNode[] {
   if (scope === 'root') return [tree.root, ...descendantsOf(tree, tree.root.id)];
   return [scope, ...descendantsOf(tree, scope.id)];
-}
-
-const SYNTHETIC_DISPLAY_ACTION_NODE_TYPES = new Set<ShowMapNodeType>([
-  'all-exhibitors',
-  'dog',
-  'more',
-]);
-
-function isSyntheticDisplayActionNode(node: ShowMapNode): boolean {
-  return SYNTHETIC_DISPLAY_ACTION_NODE_TYPES.has(node.type);
-}
-
-function isClassReadyToScore(node: ShowMapNode): boolean {
-  return node.type === 'class' && node.status?.kind === 'active' && Boolean(node.scoreHref);
-}
-
-function canMarkClassStarted(node: ShowMapNode): boolean {
-  return node.type === 'class' && node.status?.kind === 'neutral';
-}
-
-function canMarkClassComplete(node: ShowMapNode): boolean {
-  if (node.type !== 'class' || node.status?.kind !== 'active') return false;
-  // No progress data means an empty class; let the secretary close it out.
-  if (!node.progress) return true;
-  return node.progress.completed >= node.progress.total;
-}
-
-function canMarkEntryCheckedIn(node: ShowMapNode): boolean {
-  if (node.type !== 'entry') return false;
-  if (node.status?.kind === 'complete' || node.status?.kind === 'muted') return false;
-  return !['checked-in', 'completed', 'pulled'].includes(node.checkInStatus?.value ?? '');
-}
-
-function canMessageEntryHandler(node: ShowMapNode): boolean {
-  return node.type === 'entry' && Boolean(node.entryDisplay?.handlerId);
-}
-
-function sourceIdFromNodeId(nodeId: string | undefined, expectedType: string): string | undefined {
-  const prefix = `${expectedType}:`;
-  if (!nodeId?.startsWith(prefix)) return undefined;
-  const sourceId = nodeId.slice(prefix.length);
-  return sourceId.length > 0 ? sourceId : undefined;
-}
-
-function getNodeSourceId(node: ShowMapNode, expectedType: string): string | undefined {
-  return sourceIdFromNodeId(node.id, expectedType);
-}
-
-function getEntrySourceId(node: ShowMapNode): string | undefined {
-  return getNodeSourceId(node, 'entry') ?? getNodeSourceId(node, 'dog-entry');
-}
-
-function getParentSourceId(
-  node: ShowMapNode,
-  tree: ShowMapTree,
-  expectedType: string
-): string | undefined {
-  const parent = node.parentId ? tree.nodesById[node.parentId] : undefined;
-  return parent ? getNodeSourceId(parent, expectedType) : undefined;
-}
-
-function getRootShowId(tree: ShowMapTree): string | undefined {
-  return getNodeSourceId(tree.root, 'show');
 }
 
 function withHref(action: Omit<ShowMapAction, 'href'>, href: string | undefined): ShowMapAction {
@@ -652,10 +602,7 @@ function addNodeAndAncestors(
   }
 }
 
-function getMirroredDogEntryNodeId(
-  tree: ShowMapTree,
-  actionNodeId: string
-): string | undefined {
+function getMirroredDogEntryNodeId(tree: ShowMapTree, actionNodeId: string): string | undefined {
   const entryId = sourceIdFromNodeId(actionNodeId, 'entry');
   if (!entryId) return undefined;
   const dogEntryNodeId = `dog-entry:${entryId}`;
@@ -696,7 +643,10 @@ function getDirectAttentionNodeIdsBySource(
   return nodeIdsBySource;
 }
 
-function collectAttentionNodeIdsForSource(tree: ShowMapTree, directNodeIds: Set<string>): Set<string> {
+function collectAttentionNodeIdsForSource(
+  tree: ShowMapTree,
+  directNodeIds: Set<string>
+): Set<string> {
   const nodeIds = new Set<string>();
   for (const directId of directNodeIds) {
     addNodeAndAncestors(tree, directId, nodeId => nodeIds.add(nodeId));

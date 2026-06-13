@@ -143,7 +143,7 @@ export async function submitShowRegistration({
   let armbandFailures: ArmbandAssignmentFailure[] = [];
 
   if (entryInputs.length > 0 && enrollment.dbRegistrationId) {
-    await resolvedDeps.submitShowEntries({
+    const rpcResult = await resolvedDeps.submitShowEntries({
       showId,
       registrationId: enrollment.dbRegistrationId,
       entries: entryInputs.map(entry => ({
@@ -165,6 +165,7 @@ export async function submitShowRegistration({
         await assignArmbandsForEntries({
           showId,
           dogIds: entryInputs.map(entry => entry.dogId),
+          submittedEntries: rpcResult.entries,
           deps: resolvedDeps,
         }));
       if (!isStillActive(isActive)) return { aborted: true };
@@ -214,21 +215,31 @@ async function ensureEnrollment({
 async function assignArmbandsForEntries({
   showId,
   dogIds,
+  submittedEntries,
   deps,
 }: {
   showId: string;
   dogIds: string[];
+  submittedEntries: Array<{ entryId: string; dogId: string }>;
   deps: SubmitShowRegistrationDeps;
 }): Promise<{ assignments: ArmbandAssignment[]; failures: ArmbandAssignmentFailure[] }> {
   const uniqueDogIds = [...new Set(dogIds)];
   const failures: ArmbandAssignmentFailure[] = [];
+  const entryIdsByDog = new Map<string, string[]>();
+  submittedEntries.forEach(({ entryId, dogId }) => {
+    const entryIds = entryIdsByDog.get(dogId) ?? [];
+    entryIds.push(entryId);
+    entryIdsByDog.set(dogId, entryIds);
+  });
 
   // Entries are already submitted, so an armband failure must not throw and
   // unwind the submission — but it must not vanish either. Collect failures
   // per dog so the caller can tell the user which dogs need manual armbands.
   const claimResults = await Promise.allSettled(
     uniqueDogIds.map(async dogId => {
-      const { armband, error } = await deps.claimNextArmband(showId, dogId);
+      const { armband, error } = await deps.claimNextArmband(showId, dogId, {
+        entryIds: entryIdsByDog.get(dogId) ?? [],
+      });
       if (armband) return { dogId, armband };
       if (error) throw error;
       return null;

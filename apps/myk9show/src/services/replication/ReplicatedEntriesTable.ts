@@ -367,7 +367,8 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   async updateArmbandForDogInShow(
     showId: string,
     dogId: string,
-    armband: string
+    armband: string,
+    entryIds: string[] = []
   ): Promise<{ updated: number; mutationIds: string[] }> {
     const entries = (await this.getEntriesByShow(showId)).filter(
       entry =>
@@ -375,33 +376,43 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
         !entry.deletedAt &&
         !entry.deleted_at
     );
+    const targets = new Map<string, ReplicatedEntry | null>();
+    entries.forEach(entry => targets.set(entry.id, entry));
+    entryIds.forEach(entryId => {
+      if (entryId && !targets.has(entryId)) {
+        targets.set(entryId, null);
+      }
+    });
 
     const mutationIds: string[] = [];
-    for (const entry of entries) {
-      const updated: ReplicatedEntry = {
-        ...entry,
-        armband,
-        armbandNumber: armband,
-        _lastModified: new Date(),
-        _syncStatus: 'pending',
-      };
+    for (const [entryId, entry] of targets) {
+      if (entry) {
+        const updated: ReplicatedEntry = {
+          ...entry,
+          armband,
+          armbandNumber: armband,
+          _lastModified: new Date(),
+          _syncStatus: 'pending',
+        };
 
-      await this.set(entry.id, updated, true);
-      const mutationId = await this.queueMutation('UPDATE', entry.id, {
-        id: entry.id,
+        await this.set(entryId, updated, true);
+      }
+
+      const mutationId = await this.queueMutation('UPDATE', entryId, {
+        id: entryId,
         armband,
         updated_at: new Date().toISOString(),
       });
       if (mutationId) {
         mutationIds.push(mutationId);
+        this._lastMutationId = mutationId;
       }
-      this._lastMutationId = mutationId;
     }
 
     logger.log(
-      `[${this.getTableName()}] Updated ${entries.length} entries for dog ${dogId} to armband ${armband}`
+      `[${this.getTableName()}] Updated ${targets.size} entries for dog ${dogId} to armband ${armband}`
     );
-    return { updated: entries.length, mutationIds };
+    return { updated: targets.size, mutationIds };
   }
 
   /**

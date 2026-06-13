@@ -514,6 +514,70 @@ describe('ReplicatedEntriesTable', () => {
       expect((await table.get('entry-4'))?.armband).toBeUndefined();
     });
 
+    it('should queue armband updates for submitted entry IDs missing from the local cache', async () => {
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>,
+            dependencies?: string[]
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+
+      const result = await table.updateArmbandForDogInShow('show-1', 'dog-1', '205', [
+        'entry-from-rpc',
+      ]);
+
+      expect(result.updated).toBe(1);
+      expect(queueMutation).toHaveBeenCalledWith(
+        'UPDATE',
+        'entry-from-rpc',
+        expect.objectContaining({
+          id: 'entry-from-rpc',
+          armband: '205',
+          updated_at: expect.any(String),
+        })
+      );
+      expect(await table.get('entry-from-rpc')).toBeNull();
+    });
+
+    it('should preserve lastMutationId when a later armband queue operation returns null', async () => {
+      vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>,
+            dependencies?: string[]
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      )
+        .mockResolvedValueOnce('mutation-1')
+        .mockResolvedValueOnce(null);
+
+      await table.set('entry-1', {
+        id: 'entry-1',
+        showId: 'show-1',
+        dogId: 'dog-1',
+        classId: 'class-1',
+      });
+      await table.set('entry-2', {
+        id: 'entry-2',
+        showId: 'show-1',
+        dogId: 'dog-1',
+        classId: 'class-2',
+      });
+
+      const result = await table.updateArmbandForDogInShow('show-1', 'dog-1', '205');
+
+      expect(result.mutationIds).toEqual(['mutation-1']);
+      expect(table.lastMutationId).toBe('mutation-1');
+    });
+
     it('should throw error when updating status of non-existent entry', async () => {
       await expect(table.updateEntryStatus('nonexistent', 'checked-in')).rejects.toThrow(
         'Entry nonexistent not found'

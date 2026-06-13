@@ -163,7 +163,8 @@ export const getArmbandCountForShow = async (showId: string) => {
  */
 export const claimNextArmband = async (
   showId: string,
-  dogId: string
+  dogId: string,
+  options: { entryIds?: string[] } = {}
 ): Promise<{ armband: string | null; error: unknown }> => {
   try {
     const { data, error } = await supabase.rpc(
@@ -181,7 +182,12 @@ export const claimNextArmband = async (
           dogId,
           armbandNumber: armband,
         });
-        await replicatedEntriesTable.updateArmbandForDogInShow(showId, dogId, armband);
+        await replicatedEntriesTable.updateArmbandForDogInShow(
+          showId,
+          dogId,
+          armband,
+          options.entryIds
+        );
       } catch (updateError) {
         return {
           armband: null,

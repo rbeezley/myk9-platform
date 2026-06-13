@@ -71,6 +71,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
 import {
   claimNextArmband,
   autoAssignArmbands,
+  getEntryArmbandById,
   getArmbandCountForShow,
   getNextArmbandForShow,
   lookupDogByArmband,
@@ -312,7 +313,7 @@ describe('armbandQueries (replication)', () => {
         mutationIds: ['entry-mutation-1', 'entry-mutation-2'],
       });
 
-      const result = await claimNextArmband('show-1', 'dog-1');
+      const result = await claimNextArmband('show-1', 'dog-1', { entryIds: ['entry-1'] });
 
       expect(result).toEqual({ armband: '104', error: null });
       expect(mockSupabase.rpc).toHaveBeenCalledWith('assign_armband', {
@@ -327,7 +328,8 @@ describe('armbandQueries (replication)', () => {
       expect(mockEntriesTable.updateArmbandForDogInShow).toHaveBeenCalledWith(
         'show-1',
         'dog-1',
-        '104'
+        '104',
+        ['entry-1']
       );
       expect(mockSupabase.from).not.toHaveBeenCalledWith('entries');
     });
@@ -355,6 +357,25 @@ describe('armbandQueries (replication)', () => {
       expect(result.armband).toBeNull();
       expect(result.error).toEqual({ message: 'armband update failed' });
       expect(mockEntriesTable.updateArmbandForDogInShow).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getEntryArmbandById', () => {
+    it('falls back to the replicated armband row when the entry armband is not denormalized yet', async () => {
+      mockEntriesTable.getEntryById.mockResolvedValue(
+        makeEntry({ id: 'entry-1', showId: 'show-1', dogId: 'dog-1', armband: null })
+      );
+      mockArmbandsTable.getByShow.mockResolvedValue([
+        makeArmband({ id: 'armband-1', showId: 'show-1', dogId: 'dog-1', armbandNumber: '212' }),
+      ]);
+
+      await expect(getEntryArmbandById('entry-1')).resolves.toEqual({
+        armband: '212',
+        dogId: 'dog-1',
+        showId: 'show-1',
+      });
+
+      expect(mockArmbandsTable.getByShow).toHaveBeenCalledWith('show-1');
     });
   });
 

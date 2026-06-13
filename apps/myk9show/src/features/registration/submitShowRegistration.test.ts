@@ -97,6 +97,9 @@ describe('submitShowRegistration', () => {
 
     const result = await submitShowRegistration(params);
 
+    expect(params.deps.claimNextArmband).toHaveBeenCalledWith('show-1', 'dog-1', {
+      entryIds: ['entry-1'],
+    });
     expect(result).toEqual({
       aborted: false,
       registrationNumber: 'MK9-000002',

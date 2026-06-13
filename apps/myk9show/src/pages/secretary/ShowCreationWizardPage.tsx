@@ -23,7 +23,7 @@ import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useUserStore } from '@/store/userStore';
 import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
 import { getShowOfficials } from '@/hooks/queries/useShowOfficials';
-import VerticalProgressIndicator from '@/components/shows/wizard/components/VerticalProgressIndicator';
+import HorizontalProgressIndicator from '@/components/shows/wizard/components/HorizontalProgressIndicator';
 import WizardNavigation from '@/components/shows/wizard/components/WizardNavigation';
 import ShowDetailsStep from '@/components/shows/wizard/steps/ShowDetailsStep';
 import TrialConfigurationStep from '@/components/shows/wizard/steps/TrialConfigurationStep';
@@ -526,117 +526,114 @@ const ShowCreationWizardPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="container mx-auto px-4 sm:px-6 pt-6 pb-8 max-w-7xl">
-          <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-4 sm:gap-6">
-            {/* Sidebar - Progress Indicator */}
-            <div className="lg:col-span-1">
-              <div className="sticky top-16">
-                <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-4 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg">
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  <div className="relative">
-                    <h2 className="text-base font-semibold mb-4 text-foreground group-hover:text-primary transition-colors duration-300">
-                      {editMode
-                        ? `${
-                            editMode.mode === 'add-trials'
-                              ? 'Add Trials'
-                              : editMode.mode === 'add-classes'
-                                ? 'Add Classes'
-                                : 'Edit Show'
-                          }`
-                        : 'Create New Show'}
-                    </h2>
-                    <VerticalProgressIndicator
-                      steps={WIZARD_STEPS}
-                      currentStep={currentStep}
-                      completedSteps={completedSteps}
-                      onStepClick={goToStep}
-                    />
+        <div className="container mx-auto px-4 sm:px-6 pt-6 pb-8 max-w-6xl">
+          {/* Title */}
+          <h2 className="text-base font-semibold mb-4 text-foreground">
+            {editMode
+              ? `${
+                  editMode.mode === 'add-trials'
+                    ? 'Add Trials'
+                    : editMode.mode === 'add-classes'
+                      ? 'Add Classes'
+                      : 'Edit Show'
+                }`
+              : 'Create New Show'}
+          </h2>
+
+          {/* Horizontal step indicator — sticky under the page header so the
+              steps stay visible while the form scrolls. Kept a direct child of
+              the tall container (not nested in a short title wrapper) so it
+              sticks for the whole scroll, not just while the title is on screen. */}
+          <div className="sticky top-16 z-30 mb-4 sm:mb-6 rounded-2xl border border-border bg-card/95 px-4 py-5 shadow-sm backdrop-blur-xl sm:px-6">
+            <HorizontalProgressIndicator
+              steps={WIZARD_STEPS}
+              currentStep={currentStep}
+              completedSteps={completedSteps}
+              onStepClick={goToStep}
+            />
+          </div>
+
+          {/* Main Content */}
+          <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl min-h-[700px] flex flex-col transition-all duration-300 hover:shadow-lg">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+            {/* Collapsible Validation Banner — only shown after user clicks Next */}
+            {hasAttemptedNext && validationMessages.length > 0 && (
+              <div className="relative border-b border-amber-200/50 dark:border-amber-700/50 rounded-t-2xl overflow-hidden">
+                <button
+                  onClick={() => setValidationExpanded(!validationExpanded)}
+                  aria-expanded={validationExpanded}
+                  aria-controls="wizard-validation-details"
+                  className="w-full px-6 sm:px-8 py-3 bg-gradient-to-r from-amber-50/80 to-amber-100/80 dark:from-amber-900/30 dark:to-amber-800/30 backdrop-blur-sm flex items-center justify-between hover:from-amber-100/80 hover:to-amber-150/80 dark:hover:from-amber-900/40 dark:hover:to-amber-800/40 transition-colors duration-200"
+                >
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                    <span className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                      {validationMessages.length} required field
+                      {validationMessages.length !== 1 ? 's' : ''} need
+                      {validationMessages.length === 1 ? 's' : ''} attention
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-amber-600 dark:text-amber-400">
+                      {validationExpanded ? 'Hide' : 'Show'} details
+                    </span>
+                    {validationExpanded ? (
+                      <ChevronUp className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    )}
+                  </div>
+                </button>
+
+                <div
+                  id="wizard-validation-details"
+                  className={`overflow-hidden transition-all duration-300 ease-out ${
+                    validationExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+                  }`}
+                >
+                  <div className="px-6 sm:px-8 py-4 bg-gradient-to-r from-amber-50/60 to-amber-100/60 dark:from-amber-900/20 dark:to-amber-800/20">
+                    <ul className="text-sm text-amber-700 dark:text-amber-300 space-y-1.5">
+                      {validationMessages.map((message, index) => (
+                        <li key={index} className="flex items-start gap-2">
+                          <span className="block w-1.5 h-1.5 bg-amber-500 dark:bg-amber-400 rounded-full mt-1.5 flex-shrink-0" />
+                          <span>{message}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Main Content */}
-            <div className="lg:col-span-1">
-              <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl min-h-[700px] flex flex-col transition-all duration-300 hover:shadow-lg">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-                {/* Collapsible Validation Banner — only shown after user clicks Next */}
-                {hasAttemptedNext && validationMessages.length > 0 && (
-                  <div className="relative border-b border-amber-200/50 dark:border-amber-700/50 rounded-t-2xl overflow-hidden">
-                    <button
-                      onClick={() => setValidationExpanded(!validationExpanded)}
-                      className="w-full px-6 sm:px-8 py-3 bg-gradient-to-r from-amber-50/80 to-amber-100/80 dark:from-amber-900/30 dark:to-amber-800/30 backdrop-blur-sm flex items-center justify-between hover:from-amber-100/80 hover:to-amber-150/80 dark:hover:from-amber-900/40 dark:hover:to-amber-800/40 transition-colors duration-200"
-                    >
-                      <div className="flex items-center gap-3">
-                        <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-                        <span className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                          {validationMessages.length} required field
-                          {validationMessages.length !== 1 ? 's' : ''} need
-                          {validationMessages.length === 1 ? 's' : ''} attention
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-amber-600 dark:text-amber-400">
-                          {validationExpanded ? 'Hide' : 'Show'} details
-                        </span>
-                        {validationExpanded ? (
-                          <ChevronUp className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                        )}
-                      </div>
-                    </button>
-
-                    <div
-                      className={`overflow-hidden transition-all duration-300 ease-out ${
-                        validationExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-                      }`}
-                    >
-                      <div className="px-6 sm:px-8 py-4 bg-gradient-to-r from-amber-50/60 to-amber-100/60 dark:from-amber-900/20 dark:to-amber-800/20">
-                        <ul className="text-sm text-amber-700 dark:text-amber-300 space-y-1.5">
-                          {validationMessages.map((message, index) => (
-                            <li key={index} className="flex items-start gap-2">
-                              <span className="block w-1.5 h-1.5 bg-amber-500 dark:bg-amber-400 rounded-full mt-1.5 flex-shrink-0" />
-                              <span>{message}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Step Content with Transition */}
-                <div className="relative flex-1 overflow-auto">
-                  <div
-                    ref={stepContentRef}
-                    key={currentStep}
-                    className="p-6 sm:p-8 animate-in fade-in slide-in-from-right-4 duration-300"
-                    role="region"
-                    aria-label={`Step ${currentStep + 1}: ${WIZARD_STEPS[currentStep]?.label}`}
-                  >
-                    {renderStepContent()}
-                  </div>
-                </div>
-
-                {/* Navigation - Fixed at bottom, hidden on Review step */}
-                {currentStep < WIZARD_STEPS.length - 1 && (
-                  <div className="relative border-t bg-gradient-to-r from-muted/10 to-muted/5 backdrop-blur-sm p-4 sm:p-6 rounded-b-2xl">
-                    <WizardNavigation
-                      currentStep={currentStep}
-                      totalSteps={WIZARD_STEPS.length}
-                      canGoBack={canGoBack}
-                      canGoNext={canGoNext}
-                      onBack={handleBack}
-                      onNext={handleNext}
-                      onSaveDraft={isDirty ? handleSaveProgress : undefined}
-                      isLoading={isLoading}
-                    />
-                  </div>
-                )}
+            {/* Step Content with Transition */}
+            <div className="relative flex-1 overflow-auto">
+              <div
+                ref={stepContentRef}
+                key={currentStep}
+                className="p-6 sm:p-8 animate-in fade-in slide-in-from-right-4 duration-300"
+                role="region"
+                aria-label={`Step ${currentStep + 1}: ${WIZARD_STEPS[currentStep]?.label}`}
+              >
+                {renderStepContent()}
               </div>
             </div>
+
+            {/* Navigation - Fixed at bottom, hidden on Review step */}
+            {currentStep < WIZARD_STEPS.length - 1 && (
+              <div className="relative border-t bg-gradient-to-r from-muted/10 to-muted/5 backdrop-blur-sm p-4 sm:p-6 rounded-b-2xl">
+                <WizardNavigation
+                  currentStep={currentStep}
+                  totalSteps={WIZARD_STEPS.length}
+                  canGoBack={canGoBack}
+                  canGoNext={canGoNext}
+                  onBack={handleBack}
+                  onNext={handleNext}
+                  onSaveDraft={isDirty ? handleSaveProgress : undefined}
+                  isLoading={isLoading}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>

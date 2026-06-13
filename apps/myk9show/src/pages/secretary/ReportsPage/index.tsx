@@ -254,18 +254,18 @@ export default function ReportsPage() {
         ) : (
           <div className="w-fit mx-auto">
             <ReportPreview
-            reportType={reportType}
-            show={show}
-            trials={trials as Parameters<typeof ReportPreview>[0]['trials']}
-            classes={classes as Parameters<typeof ReportPreview>[0]['classes']}
-            entries={entries as Parameters<typeof ReportPreview>[0]['entries']}
-            trialId={trialId}
-            classId={classId}
-            dogId={dogId}
-            sortOrder={sortOrder}
-            isLoading={isLoading}
-            isError={isError}
-            iframeRef={iframeRef}
+              reportType={reportType}
+              show={show}
+              trials={trials as Parameters<typeof ReportPreview>[0]['trials']}
+              classes={classes as Parameters<typeof ReportPreview>[0]['classes']}
+              entries={entries as Parameters<typeof ReportPreview>[0]['entries']}
+              trialId={trialId}
+              classId={classId}
+              dogId={dogId}
+              sortOrder={sortOrder}
+              isLoading={isLoading}
+              isError={isError}
+              iframeRef={iframeRef}
             />
           </div>
         )}

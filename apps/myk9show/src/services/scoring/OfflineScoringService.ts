@@ -1,10 +1,10 @@
 /**
  * Offline Scoring Service
- * 
+ *
  * Core service for managing competition scoring in offline environments.
  * Provides real-time score entry, validation, and placement calculations
  * with full offline support and sync queue management.
- * 
+ *
  * Key Features:
  * - Complete offline scoring capability
  * - Real-time placement calculations
@@ -21,12 +21,11 @@ import type {
   BaseScore,
   ScoringFormat,
   ScoringSession,
-  ScoringEvent,
   ScoringEventType,
   ValidationResult,
   MultiJudgeScore,
   ConflictResolution,
-  PlacementCalculation
+  PlacementCalculation,
 } from '@/types/scoring-types';
 import { DEFAULT_SCORING_CONFIGS } from '@/types/scoring-types';
 import type { SyncQueueItem } from '@/services/sync/types';
@@ -42,8 +41,24 @@ import {
   serializeMultiJudgeScore,
   deserializeMultiJudgeScore,
   serializeSession,
-  deserializeSession
+  deserializeSession,
 } from './offline-scoring-serialization';
+import {
+  buildDeletionSyncQueueItem,
+  buildConflictResolution,
+  buildScoreSyncQueueItem,
+  buildScoringEvent,
+  buildSessionSyncQueueItem,
+  detectQualificationConflict,
+  findScoreById,
+  findScoreForEntry,
+  getClassScoresFromCache,
+  getOfflineScoreKey,
+  getOfflineScoringStatistics,
+  getPendingScoresFromCache,
+  getSyncQueueStatus,
+  retainSyncQueueItems,
+} from './offline-scoring-service-helpers';
 
 export type { OfflineScoringServiceConfig } from './offline-scoring-types';
 
@@ -53,21 +68,21 @@ export type { OfflineScoringServiceConfig } from './offline-scoring-types';
 export class OfflineScoringService extends EventEmitter {
   private config: OfflineScoringServiceConfig;
   private storage!: StateStorage;
-  
+
   // Active scoring sessions
   private activeSessions = new Map<string, ScoringSession>();
-  
+
   // Score storage (in-memory cache + persistent storage)
   private scoreCache = new Map<string, BaseScore>();
   private multiJudgeScores = new Map<string, MultiJudgeScore>();
-  
+
   // Sync queue for offline operations
   private syncQueue: SyncQueueItem[] = [];
   private autoSaveTimer?: NodeJS.Timeout;
-  
+
   // Placement cache for real-time updates
   private placementCache = new Map<string, PlacementCalculation>();
-  
+
   constructor(config: Partial<OfflineScoringServiceConfig> = {}) {
     super();
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -93,34 +108,37 @@ export class OfflineScoringService extends EventEmitter {
   private async loadPersistedData(): Promise<void> {
     try {
       // Load scores from storage
-      const storedScores = await this.storage.getItem('offline_scores') || '{}';
+      const storedScores = (await this.storage.getItem('offline_scores')) || '{}';
       const scores = JSON.parse(storedScores);
-      
+
       Object.entries(scores).forEach(([id, score]) => {
         this.scoreCache.set(id, deserializeScore(score));
       });
 
       // Load multi-judge scores
-      const storedMultiScores = await this.storage.getItem('multi_judge_scores') || '{}';
+      const storedMultiScores = (await this.storage.getItem('multi_judge_scores')) || '{}';
       const multiScores = JSON.parse(storedMultiScores);
-      
+
       Object.entries(multiScores).forEach(([id, score]) => {
         this.multiJudgeScores.set(id, deserializeMultiJudgeScore(score));
       });
 
       // Load sync queue
-      const storedQueue = await this.storage.getItem('scoring_sync_queue') || '[]';
+      const storedQueue = (await this.storage.getItem('scoring_sync_queue')) || '[]';
       this.syncQueue = JSON.parse(storedQueue);
 
       // Load active sessions
-      const storedSessions = await this.storage.getItem('scoring_sessions') || '{}';
+      const storedSessions = (await this.storage.getItem('scoring_sessions')) || '{}';
       const sessions = JSON.parse(storedSessions);
-      
+
       Object.entries(sessions).forEach(([id, session]) => {
         this.activeSessions.set(id, deserializeSession(session));
       });
 
-      logger.debug('Loaded persisted scoring data', 'scoring', { scoresCount: this.scoreCache.size, queuedItems: this.syncQueue.length });
+      logger.debug('Loaded persisted scoring data', 'scoring', {
+        scoresCount: this.scoreCache.size,
+        queuedItems: this.syncQueue.length,
+      });
     } catch (error) {
       logger.error('Failed to load persisted scoring data', 'scoring', {}, error as Error);
     }
@@ -150,7 +168,7 @@ export class OfflineScoringService extends EventEmitter {
     totalEntries: number
   ): Promise<ScoringSession> {
     const sessionId = generateId();
-    
+
     const session: ScoringSession = {
       id: sessionId,
       classId,
@@ -161,17 +179,17 @@ export class OfflineScoringService extends EventEmitter {
       totalEntries,
       completedEntries: [],
       isOffline: !navigator.onLine,
-      pendingSync: []
+      pendingSync: [],
     };
 
     this.activeSessions.set(sessionId, session);
     await this.persistSessions();
-    
+
     this.emitEvent('session_started', {
       sessionId,
       classId,
       judgeId,
-      format
+      format,
     });
 
     return session;
@@ -190,7 +208,7 @@ export class OfflineScoringService extends EventEmitter {
     session.endTime = new Date();
 
     await this.persistSessions();
-    
+
     // Queue session completion for sync
     if (this.config.enableRealTimeSync) {
       await this.queueSessionForSync(session);
@@ -199,7 +217,7 @@ export class OfflineScoringService extends EventEmitter {
     this.emitEvent('session_completed', {
       sessionId,
       duration: session.endTime.getTime() - session.startTime.getTime(),
-      completedEntries: session.completedEntries
+      completedEntries: session.completedEntries,
     });
   }
 
@@ -208,9 +226,11 @@ export class OfflineScoringService extends EventEmitter {
    */
   getActiveSession(classId: string, judgeId: string): ScoringSession | null {
     for (const session of this.activeSessions.values()) {
-      if (session.classId === classId && 
-          session.judgeId === judgeId && 
-          session.status === 'active') {
+      if (
+        session.classId === classId &&
+        session.judgeId === judgeId &&
+        session.status === 'active'
+      ) {
         return session;
       }
     }
@@ -265,22 +285,26 @@ export class OfflineScoringService extends EventEmitter {
         entryId: score.entryId,
         classId: score.classId,
         judgeId: score.judgeId,
-        score
+        score,
       });
 
       return { isValid: true, errors: [], warnings: [] };
-
     } catch (error) {
-      logger.error('Failed to submit score', 'scoring', { entryId: score.entryId, classId: score.classId }, error as Error);
+      logger.error(
+        'Failed to submit score',
+        'scoring',
+        { entryId: score.entryId, classId: score.classId },
+        error as Error
+      );
       this.emitEvent('score_error', {
         entryId: score.entryId,
-        error: (error as Error).message
+        error: (error as Error).message,
       });
-      
+
       return {
         isValid: false,
         errors: [{ field: 'general', message: (error as Error).message, code: 'SUBMISSION_ERROR' }],
-        warnings: []
+        warnings: [],
       };
     }
   }
@@ -294,7 +318,7 @@ export class OfflineScoringService extends EventEmitter {
       return {
         isValid: false,
         errors: [{ field: 'general', message: 'Score not found', code: 'NOT_FOUND' }],
-        warnings: []
+        warnings: [],
       };
     }
 
@@ -303,7 +327,7 @@ export class OfflineScoringService extends EventEmitter {
       ...updates,
       version: existingScore.version + 1,
       lastModified: new Date(),
-      syncStatus: 'pending' as const
+      syncStatus: 'pending' as const,
     };
 
     return await this.submitScore(updatedScore);
@@ -318,29 +342,14 @@ export class OfflineScoringService extends EventEmitter {
       return this.scoreCache.get(scoreKey) || null;
     }
 
-    // Find any score for this entry in this class
-    for (const score of this.scoreCache.values()) {
-      if (score.entryId === entryId && score.classId === classId) {
-        return score;
-      }
-    }
-
-    return null;
+    return findScoreForEntry(this.scoreCache.values(), entryId, classId);
   }
 
   /**
    * Get all scores for a class
    */
   getClassScores(classId: string): BaseScore[] {
-    const scores: BaseScore[] = [];
-    
-    for (const score of this.scoreCache.values()) {
-      if (score.classId === classId) {
-        scores.push(score);
-      }
-    }
-
-    return scores.sort((a, b) => a.recordedAt.getTime() - b.recordedAt.getTime());
+    return getClassScoresFromCache(this.scoreCache.values(), classId);
   }
 
   /**
@@ -348,13 +357,13 @@ export class OfflineScoringService extends EventEmitter {
    */
   async deleteScore(entryId: string, classId: string, judgeId: string): Promise<void> {
     const scoreKey = this.getScoreKey(entryId, classId, judgeId);
-    
+
     if (this.scoreCache.has(scoreKey)) {
       this.scoreCache.delete(scoreKey);
-      
+
       // Queue deletion for sync
       await this.queueDeletionForSync(entryId, classId, judgeId);
-      
+
       // Update placements
       if (this.config.enablePlacementUpdates) {
         const scores = this.getClassScores(classId);
@@ -368,7 +377,7 @@ export class OfflineScoringService extends EventEmitter {
       this.emitEvent('score_deleted', {
         entryId,
         classId,
-        judgeId
+        judgeId,
       });
     }
   }
@@ -382,9 +391,9 @@ export class OfflineScoringService extends EventEmitter {
     existingScore: BaseScore
   ): Promise<ValidationResult> {
     const entryKey = `${newScore.entryId}-${newScore.classId}`;
-    
+
     let multiScore = this.multiJudgeScores.get(entryKey);
-    
+
     if (!multiScore) {
       // Create new multi-judge score entry
       multiScore = {
@@ -394,9 +403,9 @@ export class OfflineScoringService extends EventEmitter {
         judgeScores: new Map(),
         hasConflicts: false,
         lastUpdated: new Date(),
-        syncStatus: 'pending'
+        syncStatus: 'pending',
       };
-      
+
       // Add existing score
       multiScore.judgeScores.set(existingScore.judgeId, existingScore);
     }
@@ -414,60 +423,23 @@ export class OfflineScoringService extends EventEmitter {
     }
 
     this.multiJudgeScores.set(entryKey, multiScore);
-    
+
     this.emitEvent('multi_judge_score_updated', {
       entryId: newScore.entryId,
       classId: newScore.classId,
       judgeCount: multiScore.judgeScores.size,
-      hasConflicts: multiScore.hasConflicts
+      hasConflicts: multiScore.hasConflicts,
     });
 
     return { isValid: true, errors: [], warnings: [] };
   }
 
   private detectConflicts(multiScore: MultiJudgeScore): boolean {
-    const scores = Array.from(multiScore.judgeScores.values());
-    if (scores.length < 2) return false;
-
-    // Check for qualification conflicts
-    const qualifications = scores.map(s => s.qualification);
-    const uniqueQualifications = new Set(qualifications);
-    
-    return uniqueQualifications.size > 1;
+    return detectQualificationConflict(Array.from(multiScore.judgeScores.values()));
   }
 
   private async resolveConflicts(): Promise<ConflictResolution> {
-    const resolution: ConflictResolution = {
-      strategy: this.config.conflictResolutionStrategy,
-      resolvedBy: 'system', // Will be updated if manual resolution
-      resolvedAt: new Date(),
-      resolutionNotes: 'Automatic conflict resolution applied'
-    };
-
-
-    switch (this.config.conflictResolutionStrategy) {
-      case 'average':
-        // Not applicable for qualification-based conflicts
-        resolution.resolutionNotes = 'Manual resolution required for qualification conflicts';
-        break;
-        
-      case 'judge_hierarchy':
-        // Use score from judge with highest authority (implementation specific)
-        resolution.resolutionNotes = 'Head judge score takes precedence';
-        break;
-        
-      case 'head_judge_final':
-        // Mark for head judge review
-        resolution.resolutionNotes = 'Marked for head judge final decision';
-        break;
-        
-      default:
-        // Manual override required
-        resolution.resolutionNotes = 'Manual override required';
-        break;
-    }
-
-    return resolution;
+    return buildConflictResolution(this.config.conflictResolutionStrategy, new Date());
   }
 
   // ========================================================================
@@ -478,7 +450,7 @@ export class OfflineScoringService extends EventEmitter {
     const result: ValidationResult = {
       isValid: true,
       errors: [],
-      warnings: []
+      warnings: [],
     };
 
     // Get format-specific configuration
@@ -487,7 +459,7 @@ export class OfflineScoringService extends EventEmitter {
       result.errors.push({
         field: 'format',
         message: `Unsupported scoring format: ${score.format}`,
-        code: 'INVALID_FORMAT'
+        code: 'INVALID_FORMAT',
       });
       result.isValid = false;
       return result;
@@ -498,7 +470,7 @@ export class OfflineScoringService extends EventEmitter {
       result.errors.push({
         field: 'general',
         message: 'Missing required identifiers',
-        code: 'MISSING_IDS'
+        code: 'MISSING_IDS',
       });
       result.isValid = false;
     }
@@ -507,7 +479,7 @@ export class OfflineScoringService extends EventEmitter {
       result.errors.push({
         field: 'qualification',
         message: 'Qualification status is required',
-        code: 'MISSING_QUALIFICATION'
+        code: 'MISSING_QUALIFICATION',
       });
       result.isValid = false;
     }
@@ -525,15 +497,14 @@ export class OfflineScoringService extends EventEmitter {
   private async updateClassPlacements(classId: string, format: ScoringFormat): Promise<void> {
     try {
       const classScores = this.getClassScores(classId);
-      
+
       // This would integrate with PlacementCalculatorService
       // For now, we'll emit an event for external calculation
       this.emitEvent('placement_update_needed', {
         classId,
         format,
-        scoreCount: classScores.length
+        scoreCount: classScores.length,
       });
-
     } catch (error) {
       logger.error('Failed to update class placements', 'scoring', { classId }, error as Error);
     }
@@ -544,18 +515,12 @@ export class OfflineScoringService extends EventEmitter {
   // ========================================================================
 
   private async queueScoreForSync(score: BaseScore): Promise<void> {
-    const syncItem: SyncQueueItem = {
+    const syncItem = buildScoreSyncQueueItem({
       id: generateId(),
-      entityType: 'entry',
-      entityId: this.getScoreKey(score.entryId, score.classId, score.judgeId),
-      operation: 'update',
+      scoreKey: this.getScoreKey(score.entryId, score.classId, score.judgeId),
       data: serializeScore(score),
-      priority: 'medium',
       timestamp: new Date(),
-      attempts: 0,
-      retryCount: 0,
-      status: 'pending'
-    };
+    });
 
     this.syncQueue.push(syncItem);
     await this.persistSyncQueue();
@@ -565,42 +530,38 @@ export class OfflineScoringService extends EventEmitter {
       try {
         await (syncService as { processQueue: () => Promise<void> }).processQueue();
       } catch (error) {
-        logger.debug('Immediate sync failed, queued for later', 'scoring', { errorMessage: (error as Error).message });
+        logger.debug('Immediate sync failed, queued for later', 'scoring', {
+          errorMessage: (error as Error).message,
+        });
       }
     }
   }
 
-  private async queueDeletionForSync(entryId: string, classId: string, judgeId: string): Promise<void> {
-    const syncItem: SyncQueueItem = {
+  private async queueDeletionForSync(
+    entryId: string,
+    classId: string,
+    judgeId: string
+  ): Promise<void> {
+    const syncItem = buildDeletionSyncQueueItem({
       id: generateId(),
-      entityType: 'entry',
-      entityId: this.getScoreKey(entryId, classId, judgeId),
-      operation: 'delete',
-      data: { entryId, classId, judgeId },
-      priority: 'medium',
+      scoreKey: this.getScoreKey(entryId, classId, judgeId),
+      entryId,
+      classId,
+      judgeId,
       timestamp: new Date(),
-      attempts: 0,
-      retryCount: 0,
-      status: 'pending'
-    };
+    });
 
     this.syncQueue.push(syncItem);
     await this.persistSyncQueue();
   }
 
   private async queueSessionForSync(session: ScoringSession): Promise<void> {
-    const syncItem: SyncQueueItem = {
+    const syncItem = buildSessionSyncQueueItem({
       id: generateId(),
-      entityType: 'entry',
-      entityId: session.id,
-      operation: 'update',
+      sessionId: session.id,
       data: serializeSession(session),
-      priority: 'medium',
       timestamp: new Date(),
-      attempts: 0,
-      retryCount: 0,
-      status: 'pending'
-    };
+    });
 
     this.syncQueue.push(syncItem);
     await this.persistSyncQueue();
@@ -614,10 +575,7 @@ export class OfflineScoringService extends EventEmitter {
     try {
       // Persist scores
       const scores = Object.fromEntries(
-        Array.from(this.scoreCache.entries()).map(([key, score]) => [
-          key,
-          serializeScore(score)
-        ])
+        Array.from(this.scoreCache.entries()).map(([key, score]) => [key, serializeScore(score)])
       );
       await this.storage.setItem('offline_scores', JSON.stringify(scores));
 
@@ -625,14 +583,13 @@ export class OfflineScoringService extends EventEmitter {
       const multiScores = Object.fromEntries(
         Array.from(this.multiJudgeScores.entries()).map(([key, score]) => [
           key,
-          serializeMultiJudgeScore(score)
+          serializeMultiJudgeScore(score),
         ])
       );
       await this.storage.setItem('multi_judge_scores', JSON.stringify(multiScores));
 
       await this.persistSyncQueue();
       await this.persistSessions();
-
     } catch (error) {
       logger.error('Failed to persist scoring data', 'scoring', {}, error as Error);
     }
@@ -646,7 +603,7 @@ export class OfflineScoringService extends EventEmitter {
     const sessions = Object.fromEntries(
       Array.from(this.activeSessions.entries()).map(([key, session]) => [
         key,
-        serializeSession(session)
+        serializeSession(session),
       ])
     );
     await this.storage.setItem('scoring_sessions', JSON.stringify(sessions));
@@ -657,7 +614,7 @@ export class OfflineScoringService extends EventEmitter {
   // ========================================================================
 
   private getScoreKey(entryId: string, classId: string, judgeId: string): string {
-    return `${entryId}-${classId}-${judgeId}`;
+    return getOfflineScoreKey(entryId, classId, judgeId);
   }
 
   private async updateSessionProgress(score: BaseScore): Promise<void> {
@@ -670,14 +627,7 @@ export class OfflineScoringService extends EventEmitter {
   }
 
   private emitEvent(type: ScoringEventType, data: Record<string, unknown>): void {
-    const event: ScoringEvent = {
-      type,
-      entryId: (data as Record<string, string>).entryId || '',
-      classId: (data as Record<string, string>).classId || '',
-      judgeId: (data as Record<string, string>).judgeId || '',
-      timestamp: new Date(),
-      data
-    };
+    const event = buildScoringEvent(type, data, new Date());
 
     this.emit(type, event);
     this.emit('scoring_event', event);
@@ -699,7 +649,7 @@ export class OfflineScoringService extends EventEmitter {
     this.emitEvent('score_cached', {
       entryId: score.entryId,
       classId: score.classId,
-      judgeId: score.judgeId
+      judgeId: score.judgeId,
     });
   }
 
@@ -708,12 +658,7 @@ export class OfflineScoringService extends EventEmitter {
    * Searches through the cache to find a score matching the given ID.
    */
   getScoreById(scoreId: string): BaseScore | null {
-    for (const score of this.scoreCache.values()) {
-      if (score.id === scoreId) {
-        return score;
-      }
-    }
-    return null;
+    return findScoreById(this.scoreCache.values(), scoreId);
   }
 
   /**
@@ -729,7 +674,7 @@ export class OfflineScoringService extends EventEmitter {
         this.emitEvent('score_removed', {
           entryId: score.entryId,
           classId: score.classId,
-          judgeId: score.judgeId
+          judgeId: score.judgeId,
         });
         return true;
       }
@@ -753,7 +698,7 @@ export class OfflineScoringService extends EventEmitter {
           ...score,
           ...serverData,
           syncStatus: 'synced',
-          lastModified: new Date()
+          lastModified: new Date(),
         };
 
         // Update in cache (same key, since composite key doesn't change)
@@ -765,7 +710,7 @@ export class OfflineScoringService extends EventEmitter {
           classId: updatedScore.classId,
           judgeId: updatedScore.judgeId,
           localId,
-          serverId: serverData.id
+          serverId: serverData.id,
         });
         return true;
       }
@@ -777,23 +722,14 @@ export class OfflineScoringService extends EventEmitter {
    * Get all pending (unsynced) scores from the cache.
    */
   getPendingScores(): BaseScore[] {
-    const pending: BaseScore[] = [];
-    for (const score of this.scoreCache.values()) {
-      if (score.syncStatus === 'pending') {
-        pending.push(score);
-      }
-    }
-    return pending;
+    return getPendingScoresFromCache(this.scoreCache.values());
   }
 
   /**
    * Get sync queue status
    */
   getSyncQueueStatus(): { pending: number; failed: number; lastSync?: Date } {
-    const pending = this.syncQueue.filter(item => (item.attempts || 0) < (item.attempts || 3)).length;
-    const failed = this.syncQueue.filter(item => (item.attempts || 0) >= (item.attempts || 3)).length;
-    
-    return { pending, failed };
+    return getSyncQueueStatus(this.syncQueue);
   }
 
   /**
@@ -814,9 +750,9 @@ export class OfflineScoringService extends EventEmitter {
     this.syncQueue.length = 0;
     this.activeSessions.clear();
     this.placementCache.clear();
-    
+
     await this.persistData();
-    
+
     this.emit('cache_cleared', {});
   }
 
@@ -829,12 +765,11 @@ export class OfflineScoringService extends EventEmitter {
     pendingSyncItems: number;
     totalScoresSubmitted: number;
   } {
-    return {
+    return getOfflineScoringStatistics({
       cachedScores: this.scoreCache.size,
-      activeSessions: Array.from(this.activeSessions.values()).filter(s => s.status === 'active').length,
+      sessions: this.activeSessions.values(),
       pendingSyncItems: this.syncQueue.length,
-      totalScoresSubmitted: this.scoreCache.size
-    };
+    });
   }
 
   /**
@@ -843,7 +778,7 @@ export class OfflineScoringService extends EventEmitter {
   async cleanup(): Promise<void> {
     // Remove completed sessions older than 24 hours
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    
+
     for (const [id, session] of this.activeSessions.entries()) {
       if (session.status === 'completed' && session.endTime && session.endTime < cutoff) {
         this.activeSessions.delete(id);
@@ -851,10 +786,7 @@ export class OfflineScoringService extends EventEmitter {
     }
 
     // Cleanup sync queue of successfully processed items
-    this.syncQueue = this.syncQueue.filter(item => 
-      (item.attempts || 0) < (item.attempts || 3) || 
-      new Date((item as { timestamp: string | number | Date }).timestamp) > cutoff
-    );
+    this.syncQueue = retainSyncQueueItems(this.syncQueue, cutoff);
 
     await this.persistData();
   }

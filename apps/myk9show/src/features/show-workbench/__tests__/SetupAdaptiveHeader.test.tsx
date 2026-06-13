@@ -36,14 +36,14 @@ describe('SetupAdaptiveHeader', () => {
         signals={[
           {
             id: 'exhibitor-materials-unpublished',
-            label: 'Exhibitor materials unpublished',
+            label: 'Premium list not posted yet',
             href: '#setup-publish',
           },
         ]}
       />
     );
     expect(
-      screen.getByRole('link', { name: 'Exhibitor materials unpublished' })
+      screen.getByRole('link', { name: 'Premium list not posted yet' })
     ).toHaveAttribute('href', '#setup-publish');
   });
 

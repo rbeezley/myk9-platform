@@ -42,7 +42,7 @@ export function SetupAdaptiveHeader({ signals }: SetupAdaptiveHeaderProps) {
             </h3>
             <p className="mt-0.5 text-xs text-muted-foreground">
               {ready
-                ? "Show details, trials, classes, judges, and exhibitor materials are in place."
+                ? 'Show details, trials, classes, judges, and the premium list are in place.'
                 : `${signals.length} ${signals.length === 1 ? 'item' : 'items'} left — tap one to fix it.`}
             </p>
           </div>
@@ -63,8 +63,10 @@ const CHIP_CLASS =
   'inline-flex min-h-[44px] items-center rounded-full border bg-card px-4 py-2 text-sm font-medium hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
 function SetupSignalChip({ signal }: { signal: SetupReadinessSignal }) {
-  // Hash hrefs target an anchor on this page; a plain <a> keeps native
-  // jump-to-fragment behavior without a router round-trip.
+  // Hash hrefs target an anchor rendered by the parent route
+  // (ShowDetailsPage hosts this page via <Outlet>, so the target is in the
+  // same document); a plain <a> keeps native jump-to-fragment behavior
+  // without a router round-trip.
   if (signal.href.startsWith('#')) {
     return (
       <a href={signal.href} className={CHIP_CLASS} data-signal-id={signal.id}>

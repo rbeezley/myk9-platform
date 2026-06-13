@@ -79,6 +79,38 @@ Copy this block for each new finding.
 
 ## Open Findings
 
+### QA-CONSOLE-ERROR-019
+
+- **Status:** open
+- **Severity:** high
+- **Role:** all authenticated roles
+- **Surface:** `apps/myk9show/src/services/rbac/PermissionChecker.ts` and `apps/myk9show/src/context/AuthContext.tsx` RBAC load path.
+- **Suite category:** nightly
+- **Pattern:** console-error
+- **Detected by:** Playwright route-health
+- **Evidence:** 2026-06-13 isolated Nightly from `origin/main` `2b134b0e` failed the active `route-health-by-role.spec.ts` checks for every authenticated role group while public routes passed. Exhibitor, secretary, judge, club-admin, and admin all authenticated, rendered far enough to run route-health, then failed browser-health budgets with repeated console errors: `[ERROR] [rbac] Failed to get user permissions: Error: Failed to get user permissions: TypeError: Failed to fetch at PermissionChecker.getUserPermissions` and `[ERROR] [app] Failed to load RBAC data`. Representative evidence paths: `apps/myk9show/test-results/route-health-by-role-Route-26df1-hibitor-routes-render-clean-chromium/error-context.md`, `apps/myk9show/test-results/route-health-by-role-Route-4ffda-cretary-routes-render-clean-chromium/error-context.md`, `apps/myk9show/test-results/route-health-by-role-Route-a87b6-e-judge-routes-render-clean-chromium/error-context.md`, `apps/myk9show/test-results/route-health-by-role-Route-29abe-b-admin-routes-render-clean-chromium/error-context.md`, and `apps/myk9show/test-results/route-health-by-role-Route-b0cad-n-admin-routes-render-clean-chromium/error-context.md`.
+- **User impact:** Authenticated pages may render with incomplete or stale role/permission state while the console reports failed RBAC loading. That weakens confidence in role-specific gating and can mask real page failures.
+- **Intent check:** Harms the secretary/admin "calm control" expectation and the judge/exhibitor expectation that authenticated pages are quiet and trustworthy.
+- **Fix owner:** RBAC permission fetch path and authenticated route-health harness. First investigation should distinguish transient network reach failure from a deterministic RBAC endpoint/query issue.
+- **Proof required:** Re-run standalone `route-health-by-role.spec.ts` and the exact Phase 2 active Nightly Playwright command from `docs/qa/e2e-suite-map.md` on an isolated port. Required proof target: public plus all five authenticated role groups pass with zero `Failed to get user permissions` / `Failed to load RBAC data` console errors.
+- **Notes:** This resembles closed `QA-CONSOLE-ERROR-011` in symptom shape (`TypeError: Failed to fetch` on authenticated routes), but the failing subsystem is RBAC permissions rather than replicated classes. Do not suppress this in route-health; confirm whether Supabase/network reachability, auth token state, or RBAC query behavior is the cause.
+
+### QA-TEST-FLAKE-020
+
+- **Status:** open
+- **Severity:** high
+- **Role:** secretary, exhibitor, judge
+- **Surface:** active Nightly Playwright command from `docs/qa/e2e-suite-map.md`.
+- **Suite category:** nightly
+- **Pattern:** test-flake
+- **Detected by:** Playwright
+- **Evidence:** 2026-06-13 isolated Phase 2 Nightly failed `38 passed, 11 failed, 1 did not run` and exceeded the global 30-minute budget (`35.2m`, `--retries=0`). Failures include two `page.goto`/`networkidle` timeouts over 15 minutes (`basic/registrationSmoke.spec.ts:28` navigating to `/shows/show-123/register`, `registration/secretaryNewUsers.spec.ts:118` navigating to `/secretary/register/4584f257-19b5-4016-aae6-5e7827b769cb`), two strict-locator failures caused by duplicate visible text (`cross-role-workflows.spec.ts:57` `Judging Assignments`, `uat/secretary/critical-path.spec.ts:93` `Total Entries`), route-health authenticated-group failures tracked separately as `QA-CONSOLE-ERROR-019`, `secretary-entry-walk.spec.ts:22` failing its zero-console-error assertion on the RBAC fetch errors, and `uat/secretary/disposable-entry.spec.ts:48` timing out waiting for `Search entries...`. Representative evidence paths: `apps/myk9show/test-results/basic-registrationSmoke-Re-3e740-tration-page-without-errors-chromium/error-context.md`, `apps/myk9show/test-results/registration-secretaryNewU-cecad--without-auth-user-creation-chromium/error-context.md`, `apps/myk9show/test-results/cross-role-workflows-Cross-cd7fa-t-myK9Show-scoring-controls-chromium/error-context.md`, `apps/myk9show/test-results/uat-secretary-critical-pat-8b113-armband-and-export-controls-chromium/error-context.md`, `apps/myk9show/test-results/secretary-entry-walk-Secre-d71c9-elect-→-pick-class-→-submit-chromium/error-context.md`, and `apps/myk9show/test-results/uat-secretary-disposable-e-b1800-check-in-a-disposable-entry-chromium/error-context.md`.
+- **User impact:** Nightly cannot currently prove the trusted secretary/registration baseline within the defined unattended budget. Some failures are stale or ambiguous test assertions, so the suite is mixing product signal with harness noise.
+- **Intent check:** Harms QA trust for the secretary "That was easy" workflow because the scheduled proof cannot separate real workflow risk from stale assertions and long waits.
+- **Fix owner:** active Nightly Playwright specs and page-object waits.
+- **Proof required:** Repair or demote the failing specs, then rerun the exact Phase 2 active Nightly Playwright command with `--retries=0` on an isolated port and confirm it completes under 30 minutes. Also rerun standalone Phase 3 route-health after `QA-CONSOLE-ERROR-019` is resolved.
+- **Notes:** Low-risk locator fixes likely exist for the duplicate `Judging Assignments` and `Total Entries` assertions, but this Nightly did not auto-fix them because the run had already exceeded the global budget and the broader authenticated RBAC failure needs separate diagnosis.
+
 ### QA-NETWORK-ERROR-018
 
 - **Status:** open

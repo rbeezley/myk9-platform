@@ -18,6 +18,17 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-06-13
+
+- **Playwright command:** fail. Phase 1 Vitest passed (`18/18`). Phase 2 active Playwright failed with `38 passed, 11 failed, 1 did not run (35.2m, --retries=0)`. The run exceeded the global 30-minute Nightly budget, so app checks stopped after Phase 2.
+- **Route sweep:** fail/partial. The committed `route-health-by-role.spec.ts` ran inside Phase 2. Public passed; exhibitor, secretary, judge, club-admin, and admin all authenticated but failed browser-health budgets on RBAC permission-load console errors. Standalone Phase 3 was skipped because the global budget had already been exceeded.
+- **Active specs:** Vitest `18/18`; active Playwright `38/50`.
+- **Failures:** Opened `QA-CONSOLE-ERROR-019` for authenticated route-health RBAC failures: repeated `[ERROR] [rbac] Failed to get user permissions: Error: Failed to get user permissions: TypeError: Failed to fetch` and `[ERROR] [app] Failed to load RBAC data` in all five authenticated role groups. Opened `QA-TEST-FLAKE-020` for the broader active-suite instability: two long navigation/networkidle timeouts (`basic/registrationSmoke.spec.ts`, `registration/secretaryNewUsers.spec.ts`), duplicate-text strict-locator failures (`cross-role-workflows.spec.ts` `Judging Assignments`, `uat/secretary/critical-path.spec.ts` `Total Entries`), `secretary-entry-walk.spec.ts` failing its zero-console-error assertion on the RBAC errors, and `uat/secretary/disposable-entry.spec.ts` timing out waiting for `Search entries...`.
+- **Fixes made:** docs only (`docs/qa/findings.md`, `docs/qa/nightly-history.md`). No product/test code change: the run exceeded the global budget, and the failure set mixes RBAC/network reachability, stale assertions, and long waits that need focused repair rather than suppression.
+- **Demotions/promotions:** none.
+- **Findings:** opened `QA-CONSOLE-ERROR-019` and `QA-TEST-FLAKE-020`. `QA-NETWORK-ERROR-018` was not closed; its `people.is_early_adopter` `42703` symptom was not the dominant failure in this run, but the Phase 2/3 proof target did not pass.
+- **Notes:** Ran from isolated detached worktree `.worktrees/nightly-qa-2026-06-13-020857` on `origin/main` `2b134b0e1573621acec829c2569a8f899e1f2db7`, using `PLAYWRIGHT_PORT=6014`, `PLAYWRIGHT_BASE_URL=http://127.0.0.1:6014`, and `PLAYWRIGHT_HMR_PORT=26014`. Public route-health passed, confirming the app/dev server was reachable. Next repair should start with focused RBAC route-health diagnosis, then fix the duplicate-text locators and long `networkidle`/navigation waits before rerunning the exact Phase 2 command and standalone Phase 3.
+
 ### 2026-06-11
 
 - **Playwright command:** fail. Phase 1 Vitest passed (`18/18`). Phase 2 Wave 1 failed with `32 passed, 16 failed, 2 did not run (4.2m, --retries=0)`. No individual runner hung over 60s without useful output.

@@ -84,6 +84,7 @@ const REPLICATED_TABLES = [
 ] as const;
 
 const REPLICATED_TABLE_NAMES = REPLICATED_TABLES.map(({ name }) => name);
+const REPLICATED_TABLE_NAME_SET: ReadonlySet<string> = new Set(REPLICATED_TABLE_NAMES);
 
 // Adapt myK9Show's LoggingService to the @myk9/replication Logger interface
 const replicationLogger = {
@@ -462,7 +463,10 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       for (const table of tables) {
         queryClient.invalidateQueries({ queryKey: [table] });
       }
-      if (shouldRequestPostUploadSync(tables, REPLICATED_TABLE_NAMES, syncInFlightRef.current)) {
+      if (syncInFlightRef.current && tables.some(table => REPLICATED_TABLE_NAME_SET.has(table))) {
+        logger.debug('Post-upload sync skipped: sync in flight', 'replication', { tables });
+      }
+      if (shouldRequestPostUploadSync(tables, REPLICATED_TABLE_NAME_SET, syncInFlightRef.current)) {
         triggerSyncRef.current?.();
       }
     };

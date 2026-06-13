@@ -47,18 +47,23 @@ describe('replicationSyncStatus helpers', () => {
     ]);
   });
 
-  it('requests a follow-up download sync after replicated table uploads', () => {
-    expect(shouldRequestPostUploadSync(['entries'], ['shows', 'entries', 'armbands'], false)).toBe(
-      true
-    );
-    expect(
-      shouldRequestPostUploadSync(['entry_carts'], ['shows', 'entries', 'armbands'], false)
-    ).toBe(false);
+  it('requests a follow-up download sync when an uploaded table is replicated', () => {
+    const replicatedTables = new Set(['shows', 'entries', 'armbands']);
+
+    expect(shouldRequestPostUploadSync(['entries'], replicatedTables, false)).toBe(true);
+  });
+
+  it('does not request a follow-up download sync for non-replicated table uploads', () => {
+    const replicatedTables = new Set(['shows', 'entries', 'armbands']);
+
+    expect(shouldRequestPostUploadSync(['entry_carts'], replicatedTables, false)).toBe(false);
   });
 
   it('does not request a nested download sync while a full sync is already running', () => {
-    expect(shouldRequestPostUploadSync(['entries'], ['shows', 'entries', 'armbands'], true)).toBe(
-      false
-    );
+    const replicatedTables = new Set(['shows', 'entries', 'armbands']);
+
+    expect(
+      shouldRequestPostUploadSync(['entries'], replicatedTables, true)
+    ).toBe(false);
   });
 });

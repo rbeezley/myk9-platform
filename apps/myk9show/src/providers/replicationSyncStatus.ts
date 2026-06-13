@@ -56,11 +56,10 @@ export function getPostSyncInvalidationKeys(tableNames: readonly string[]): stri
 
 export function shouldRequestPostUploadSync(
   uploadedTables: readonly string[],
-  replicatedTableNames: readonly string[],
+  replicatedTableNames: ReadonlySet<string>,
   isSyncing: boolean
 ): boolean {
   if (isSyncing) return false;
 
-  const replicated = new Set(replicatedTableNames);
-  return uploadedTables.some(table => replicated.has(table));
+  return uploadedTables.some(table => replicatedTableNames.has(table));
 }

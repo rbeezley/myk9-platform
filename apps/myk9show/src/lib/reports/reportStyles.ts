@@ -235,6 +235,10 @@ body {
   gap: 8px;
   padding: 8px 0;
   border-bottom: 1px solid #eee;
+  /* A dog's row (now tall: reason checklists + time boxes) must never split
+     across a page break — half a scoring row on each page is unusable. */
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 .scoresheet-entry-info {
@@ -712,5 +716,184 @@ body {
   padding: 8px;
   border-top: 2px solid #000;
   margin-top: 16px;
+}
+
+/* ─── Scoresheet entry-row internals ──────────────────────────────────────
+   The four-column .scoresheet-entry-row grid (info | results | reasons | time)
+   was shipped without styles for its inner structure, so the scoring boxes and
+   fill-in lines rendered as bare/invisible text. These rules give each cell a
+   usable hand-fill layout. */
+
+.entry-info {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.entry-armband {
+  font-size: 18px;
+  font-weight: bold;
+  min-width: 32px;
+  line-height: 1.1;
+}
+
+.entry-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.entry-callname {
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.entry-reg,
+.entry-breed,
+.entry-handler {
+  font-size: 9px;
+  color: #555;
+}
+
+.entry-results {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.results-row {
+  display: flex;
+  gap: 14px;
+}
+
+.result-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.scoring-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.field-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  font-size: 9px;
+}
+
+.field-label {
+  white-space: nowrap;
+  color: #555;
+}
+
+/* The hand-fill line a judge writes on — must be a visible underline, not the
+   previously-invisible empty span. */
+.field-line {
+  flex: 1;
+  border-bottom: 1px solid #999;
+  min-height: 11px;
+  min-width: 24px;
+}
+
+.entry-reasons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reasons-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.reasons-label {
+  font-size: 9px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: #555;
+}
+
+.reasons-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.reason-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9px;
+}
+
+/* Time column: single-area lays MM/SS/TT boxes in a row; multi-area stacks one
+   labeled row per area plus a Total row. */
+.entry-time {
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+  justify-content: center;
+}
+
+.entry-time.multi-area {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.time-box {
+  border: 1px solid #000;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.time-box-sm {
+  border: 1px solid #000;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.time-label {
+  font-size: 7px;
+  color: #999;
+  line-height: 1;
+  padding-bottom: 1px;
+}
+
+.time-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.time-row-total {
+  border-top: 1px solid #000;
+  padding-top: 2px;
+  margin-top: 2px;
+  font-weight: bold;
+}
+
+.area-label {
+  font-size: 9px;
+  font-weight: bold;
+  min-width: 30px;
 }
 `.trim();

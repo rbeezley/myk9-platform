@@ -25,6 +25,8 @@ import { autoAssignArmbands, getNextArmbandForShow } from '../../armbands';
 const replicationMocks = vi.hoisted(() => ({
   getArmbandsByShow: vi.fn(),
   getEntriesByShow: vi.fn(),
+  getClassById: vi.fn(),
+  getDogById: vi.fn(),
   upsertAssignedArmband: vi.fn(),
   updateArmbandForDogInShow: vi.fn(),
 }));
@@ -50,6 +52,18 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: {
     getEntriesByShow: replicationMocks.getEntriesByShow,
     updateArmbandForDogInShow: replicationMocks.updateArmbandForDogInShow,
+  },
+}));
+
+vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
+  replicatedClassesTable: {
+    getClassById: replicationMocks.getClassById,
+  },
+}));
+
+vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
+  replicatedDogsTable: {
+    getDogById: replicationMocks.getDogById,
   },
 }));
 
@@ -82,6 +96,17 @@ describe('entry_status enum values used by query layer', () => {
     vi.clearAllMocks();
     replicationMocks.getArmbandsByShow.mockResolvedValue([]);
     replicationMocks.getEntriesByShow.mockResolvedValue([]);
+    replicationMocks.getClassById.mockResolvedValue({
+      id: 'class-1',
+      name: 'Novice',
+      classNumber: '101',
+      trialId: 'trial-1',
+    });
+    replicationMocks.getDogById.mockResolvedValue({
+      id: 'dog-1',
+      name: 'Rocket Dog',
+      callName: 'Rocket',
+    });
     replicationMocks.upsertAssignedArmband.mockResolvedValue('armband-mutation');
     replicationMocks.updateArmbandForDogInShow.mockResolvedValue({
       updated: 1,
@@ -90,24 +115,43 @@ describe('entry_status enum values used by query layer', () => {
   });
 
   describe('moveUpQueries', () => {
-    it('getMoveUpEligibleEntries filters by ["confirmed", "checked-in"]', async () => {
-      const chain = chainMock({
-        order: vi.fn().mockResolvedValue({ data: [], error: null }),
-      });
-      mockFrom.mockReturnValue(chain);
+    it('getMoveUpEligibleEntries filters replicated rows by canonical statuses', async () => {
+      replicationMocks.getEntriesByShow.mockResolvedValue([
+        {
+          id: 'canonical-confirmed',
+          showId: 'show-1',
+          classId: 'class-1',
+          dogId: 'dog-1',
+          entryStatus: 'confirmed',
+        },
+        {
+          id: 'canonical-checked-in',
+          showId: 'show-1',
+          classId: 'class-1',
+          dogId: 'dog-1',
+          entry_status: 'checked-in',
+        },
+        {
+          id: 'legacy-accepted',
+          showId: 'show-1',
+          classId: 'class-1',
+          dogId: 'dog-1',
+          entryStatus: 'accepted',
+        },
+        {
+          id: 'loose-status',
+          showId: 'show-1',
+          classId: 'class-1',
+          dogId: 'dog-1',
+          status: 'confirmed',
+        },
+      ]);
 
-      await getMoveUpEligibleEntries('show-1');
+      const { data } = await getMoveUpEligibleEntries('show-1');
 
-      expect(chain.in).toHaveBeenCalledWith('entry_status', ['confirmed', 'checked-in']);
-      // Regression guard: never the legacy values
-      expect(chain.in).not.toHaveBeenCalledWith(
-        'entry_status',
-        expect.arrayContaining(['accepted'])
-      );
-      expect(chain.in).not.toHaveBeenCalledWith(
-        'entry_status',
-        expect.arrayContaining(['checked_in'])
-      );
+      expect(replicationMocks.getEntriesByShow).toHaveBeenCalledWith('show-1');
+      expect(mockFrom).not.toHaveBeenCalledWith('entries');
+      expect(data.map(entry => entry.id)).toEqual(['canonical-checked-in', 'canonical-confirmed']);
     });
 
     it('denyMoveUpRequest reverts status to "confirmed" and matches "move-up-requested"', async () => {
@@ -126,15 +170,39 @@ describe('entry_status enum values used by query layer', () => {
   });
 
   describe('scratchQueries', () => {
-    it('getScratchableEntries filters by ["confirmed", "checked-in"]', async () => {
-      const chain = chainMock({
-        order: vi.fn().mockResolvedValue({ data: [], error: null }),
-      });
-      mockFrom.mockReturnValue(chain);
+    it('getScratchableEntries filters replicated rows by canonical statuses', async () => {
+      replicationMocks.getEntriesByShow.mockResolvedValue([
+        {
+          id: 'canonical-confirmed',
+          showId: 'show-1',
+          classId: 'class-1',
+          dogId: 'dog-1',
+          entryStatus: 'confirmed',
+          runOrder: 2,
+        },
+        {
+          id: 'canonical-checked-in',
+          showId: 'show-1',
+          classId: 'class-1',
+          dogId: 'dog-1',
+          entry_status: 'checked-in',
+          runOrder: 1,
+        },
+        {
+          id: 'legacy-accepted',
+          showId: 'show-1',
+          classId: 'class-1',
+          dogId: 'dog-1',
+          entryStatus: 'accepted',
+          runOrder: 3,
+        },
+      ]);
 
-      await getScratchableEntries('show-1');
+      const { data } = await getScratchableEntries('show-1');
 
-      expect(chain.in).toHaveBeenCalledWith('entry_status', ['confirmed', 'checked-in']);
+      expect(replicationMocks.getEntriesByShow).toHaveBeenCalledWith('show-1');
+      expect(mockFrom).not.toHaveBeenCalledWith('entries');
+      expect(data.map(entry => entry.id)).toEqual(['canonical-checked-in', 'canonical-confirmed']);
     });
 
     it('scratchEntry writes entry_status = "scratched" and check_in_status = "pulled"', async () => {

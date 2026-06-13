@@ -88,6 +88,9 @@ describe('IncidentLogCard', () => {
       <IncidentLogCard showId="show-1" entries={entries} judges={judges} />
     );
 
+    // Entry / judge / description live behind the optional "Add details" disclosure.
+    await user.click(screen.getByRole('button', { name: /add details/i }));
+
     await user.click(await screen.findByRole('combobox', { name: 'Entry / dog' }));
     await user.click(
       await screen.findByRole('option', { name: /#12 Rocket \(Jamie Walker\)/ })
@@ -202,5 +205,64 @@ describe('IncidentLogCard', () => {
       expect(mockToastError).toHaveBeenCalledWith('Hang on — still loading your account');
     });
     expect(consoleErrorSpy).not.toHaveBeenCalled();
+  });
+
+  it('keeps the optional details collapsed by default', () => {
+    render(<IncidentLogCard showId="show-1" entries={entries} judges={judges} />);
+
+    // Disclosure is closed: trigger reads "Add details" and is not expanded.
+    expect(screen.getByRole('button', { name: /add details/i })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
+
+    // Summary leads and is always available.
+    expect(screen.getByRole('textbox', { name: /short summary/i })).toBeInTheDocument();
+
+    // Optional fields are not perceivable while collapsed. *ByRole filters
+    // hidden/unmounted subtrees, so this holds whether Base UI hides or unmounts.
+    expect(screen.queryByRole('combobox', { name: 'Entry / dog' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Judge' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'What happened' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Action taken' })).not.toBeInTheDocument();
+  });
+
+  it('reveals the detail fields when "Add details" is clicked', async () => {
+    const { user } = render(
+      <IncidentLogCard showId="show-1" entries={entries} judges={judges} />
+    );
+
+    await user.click(screen.getByRole('button', { name: /add details/i }));
+
+    expect(await screen.findByRole('textbox', { name: 'What happened' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /hide details/i })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+  });
+
+  it('saves with only a summary, sending empty/null for the untouched optional fields', async () => {
+    const { user } = render(
+      <IncidentLogCard showId="show-1" entries={entries} judges={judges} />
+    );
+
+    await user.type(screen.getByLabelText('Short summary'), 'Dog excused for disqualification');
+    await user.click(screen.getByRole('button', { name: 'Save incident' }));
+
+    await waitFor(() => {
+      expect(mockCreateShowIncident).toHaveBeenCalledWith(
+        expect.objectContaining({
+          summary: 'Dog excused for disqualification',
+          description: '',
+          actionTaken: '',
+          entry: null,
+          judge: null,
+          incidentType: 'dq',
+          severity: 'reportable',
+          showId: 'show-1',
+          createdBy: 'auth-user-1',
+        })
+      );
+    });
   });
 });

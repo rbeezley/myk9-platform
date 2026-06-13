@@ -713,4 +713,241 @@ body {
   border-top: 2px solid #000;
   margin-top: 16px;
 }
+
+/* ─── Scoresheet entry-row internals ──────────────────────────────────────
+   The four-column .scoresheet-entry-row grid (info | results | reasons | time)
+   was shipped without styles for its inner structure, so the scoring boxes and
+   fill-in lines rendered as bare/invisible text. These rules give each cell a
+   usable hand-fill layout. */
+
+.entry-info {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.entry-armband {
+  font-size: 18px;
+  font-weight: bold;
+  min-width: 32px;
+  line-height: 1.1;
+}
+
+.entry-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.entry-callname {
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.entry-reg,
+.entry-breed,
+.entry-handler {
+  font-size: 9px;
+  color: #555;
+}
+
+.entry-results {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.results-row {
+  display: flex;
+  gap: 14px;
+}
+
+.result-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.scoring-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.field-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  font-size: 9px;
+}
+
+.field-label {
+  white-space: nowrap;
+  color: #555;
+}
+
+/* The hand-fill line a judge writes on — must be a visible underline, not the
+   previously-invisible empty span. */
+.field-line {
+  flex: 1;
+  border-bottom: 1px solid #999;
+  min-height: 11px;
+  min-width: 24px;
+}
+
+.entry-reasons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reasons-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.reasons-label {
+  font-size: 9px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: #555;
+}
+
+.reasons-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.reason-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9px;
+}
+
+/* Time column: single-area lays MM/SS/TT boxes in a row; multi-area stacks one
+   labeled row per area plus a Total row. */
+.entry-time {
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+  justify-content: center;
+}
+
+.entry-time.multi-area {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.time-box {
+  border: 1px solid #000;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.time-box-sm {
+  border: 1px solid #000;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.time-label {
+  font-size: 7px;
+  color: #999;
+  line-height: 1;
+  padding-bottom: 1px;
+}
+
+.time-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.time-row-total {
+  border-top: 1px solid #000;
+  padding-top: 2px;
+  margin-top: 2px;
+  font-weight: bold;
+}
+
+.area-label {
+  font-size: 9px;
+  font-weight: bold;
+  min-width: 30px;
+}
+
+/* ─── Result Labels ───────────────────────────────────────────────────────
+   The .result-labels-grid and .result-label* classes were referenced with no
+   styles, so labels stacked as unstyled divs. Lay them out as a printable grid
+   of bordered, cut-apart label cards. */
+
+.result-labels-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.result-label {
+  border: 1px solid #000;
+  border-radius: 4px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.result-label-armband {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.result-label-callname {
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.result-label-handler {
+  font-size: 11px;
+}
+
+.result-label-show {
+  font-size: 9px;
+  color: #555;
+  margin-top: 2px;
+}
+
+.result-label-trial-class {
+  font-size: 9px;
+  color: #555;
+}
+
+.result-label-results {
+  display: flex;
+  gap: 10px;
+  font-size: 10px;
+  font-weight: bold;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid #ccc;
+}
 `.trim();

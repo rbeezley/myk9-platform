@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
-import { supabase } from '@/services/database/supabaseClient';
 import { shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
+import { fetchReplicatedCheckInEntries } from './useCheckInReportReplication';
 
 // Types
 export interface CheckInEntryRow {
@@ -126,55 +126,12 @@ export function groupEntriesByExhibitor(rows: CheckInEntryRow[]): ExhibitorCheck
     .sort((a, b) => a.armbandNumber - b.armbandNumber);
 }
 
-// Query Function
-async function fetchCheckInEntries(showId: string): Promise<CheckInEntryRow[]> {
-  const { data, error } = await supabase
-    .from('entries')
-    .select(
-      `id, dog_id, check_in_status, class_id,
-      dog:dogs!inner(id, call_name, breed_name),
-      handler:people!entries_handler_id_fkey(id, first_name, last_name),
-      armband:armbands!inner(armband_number),
-      class:classes!inner(id, element, level, section, trial:trials!inner(id, trial_date:date, trial_number, show_id))`
-    )
-    .eq('class.trial.show_id', showId)
-    .is('deleted_at', null);
-  if (error) throw error;
-
-  const rows = (data ?? []) as unknown as Record<string, unknown>[];
-  return rows.map(row => {
-    const dog = row.dog as Record<string, unknown> | null;
-    const handler = row.handler as Record<string, unknown> | null;
-    const armband = row.armband as Record<string, unknown> | null;
-    const cls = row.class as Record<string, unknown> | null;
-    const trial = cls?.trial as Record<string, unknown> | null;
-    return {
-      id: row.id as string,
-      dog_id: (dog?.id as string) ?? '',
-      handler_id: (handler?.id as string) ?? '',
-      check_in_status: (row.check_in_status as string) ?? 'no-status',
-      armband_number: (armband?.armband_number as number) ?? null,
-      handler_first_name: (handler?.first_name as string) ?? null,
-      handler_last_name: (handler?.last_name as string) ?? null,
-      dog_call_name: (dog?.call_name as string) ?? null,
-      dog_breed_name: (dog?.breed_name as string) ?? null,
-      class_id: (cls?.id as string) ?? '',
-      element: (cls?.element as string) ?? null,
-      level: (cls?.level as string) ?? null,
-      section: (cls?.section as string) ?? null,
-      trial_id: (trial?.id as string) ?? '',
-      trial_date: (trial?.trial_date as string) ?? '',
-      trial_number: (trial?.trial_number as number) ?? 1,
-    };
-  });
-}
-
 // Hook
 export function useCheckInReport(showId: string | undefined) {
   return useQuery({
     queryKey: queryKeys.checkInReport(showId ?? ''),
     queryFn: async () => {
-      const rows = await fetchCheckInEntries(showId!);
+      const rows = await fetchReplicatedCheckInEntries(showId!);
       return groupEntriesByExhibitor(rows);
     },
     enabled: !!showId,

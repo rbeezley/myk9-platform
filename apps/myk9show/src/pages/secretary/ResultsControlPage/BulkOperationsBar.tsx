@@ -98,8 +98,8 @@ export function BulkOperationsBar({
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background p-3 shadow-lg">
-      <div className="container mx-auto flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+      <div className="container mx-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="text-sm font-medium">
             {count} class{count === 1 ? '' : 'es'} selected
           </span>
@@ -110,7 +110,7 @@ export function BulkOperationsBar({
             Clear
           </Button>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Select onValueChange={v => handleBulkPreset(v as VisibilityPreset)} disabled={isPending}>
             <SelectTrigger className="w-36">
               <SelectValue placeholder="Apply Preset" />

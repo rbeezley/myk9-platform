@@ -34,10 +34,7 @@ export default function ResultsControlPage() {
   const { trials } = useTrialStore();
   const { classes } = useClassStore();
 
-  const showTrials = useMemo(
-    () => trials.filter(t => t.showId === showId),
-    [trials, showId]
-  );
+  const showTrials = useMemo(() => trials.filter(t => t.showId === showId), [trials, showId]);
   const showTrialIds = useMemo(() => new Set(showTrials.map(t => t.id)), [showTrials]);
   const showClasses = useMemo(
     () => classes.filter(c => showTrialIds.has(c.trialId)),
@@ -130,18 +127,23 @@ export default function ResultsControlPage() {
 
   return (
     <div className="container mx-auto py-6 space-y-8 pb-24">
-      <h1 className="text-3xl font-bold">Results Control</h1>
+      <h1 className="text-3xl font-bold tracking-tight">Results Control</h1>
 
       {/* Query error state */}
       {isError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Failed to load results settings</AlertTitle>
-          <AlertDescription className="flex items-center justify-between gap-4">
+          <AlertDescription className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <span>
               There was a problem fetching show data. Check your connection and try again.
             </span>
-            <Button variant="outline" size="sm" onClick={retryAll}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={retryAll}
+              className="self-start sm:self-auto shrink-0"
+            >
               Retry
             </Button>
           </AlertDescription>
@@ -165,11 +167,7 @@ export default function ResultsControlPage() {
           ) : (
             <div className="space-y-6">
               <PresetSelector showId={showId} settings={settings} />
-              <TrialOverrides
-                showId={showId}
-                trials={showTrials}
-                trialOverrides={trialOverrides}
-              />
+              <TrialOverrides showId={showId} trials={showTrials} trialOverrides={trialOverrides} />
               <ClassOverrides
                 showId={showId}
                 trials={showTrials}

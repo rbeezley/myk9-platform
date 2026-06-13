@@ -28,9 +28,9 @@ export interface ShowRegistrationSubmissionResult {
   dbRegistrationId?: string | undefined;
   armbandAssignments: ArmbandAssignment[];
   /**
-   * Dogs whose armband claim or entry update failed. The entries themselves
-   * are already submitted at this point, so callers must surface these to the
-   * user — a silently missing armband means no ring number on show day.
+   * Dogs whose armband claim or replicated armband sync failed. The entries
+   * themselves are already submitted at this point, so callers must surface
+   * these to the user — a silently missing armband means no ring number on show day.
    */
   armbandFailures: ArmbandAssignmentFailure[];
 }
@@ -53,11 +53,6 @@ interface SubmitShowRegistrationDeps {
   createShowRegistration: typeof createShowRegistration;
   submitShowEntries: typeof submitShowEntries;
   claimNextArmband: typeof claimNextArmband;
-  updateEntryRegistration: (
-    entryId: string,
-    updates: { armband?: string | undefined },
-    userId: string
-  ) => Promise<unknown>;
   createSubmissionId: () => string;
 }
 
@@ -83,14 +78,14 @@ export interface SubmitShowRegistrationParams {
   isActive?: (() => boolean) | undefined;
   deps: Pick<
     SubmitShowRegistrationDeps,
-    'submitRegistration' | 'confirmRegistration' | 'updateEntryRegistration'
+    'submitRegistration' | 'confirmRegistration'
   > &
     Partial<SubmitShowRegistrationDeps>;
 }
 
 const DEFAULT_DEPS: Omit<
   SubmitShowRegistrationDeps,
-  'submitRegistration' | 'confirmRegistration' | 'updateEntryRegistration'
+  'submitRegistration' | 'confirmRegistration'
 > = {
   createShowRegistration,
   submitShowEntries,
@@ -104,7 +99,6 @@ function isStillActive(isActive: (() => boolean) | undefined): boolean {
 
 export async function submitShowRegistration({
   showId,
-  userId,
   registrationId,
   ownerResolution,
   paymentMethod,
@@ -149,7 +143,7 @@ export async function submitShowRegistration({
   let armbandFailures: ArmbandAssignmentFailure[] = [];
 
   if (entryInputs.length > 0 && enrollment.dbRegistrationId) {
-    const rpcResult = await resolvedDeps.submitShowEntries({
+    await resolvedDeps.submitShowEntries({
       showId,
       registrationId: enrollment.dbRegistrationId,
       entries: entryInputs.map(entry => ({
@@ -170,9 +164,7 @@ export async function submitShowRegistration({
       ({ assignments: armbandAssignments, failures: armbandFailures } =
         await assignArmbandsForEntries({
           showId,
-          userId,
           dogIds: entryInputs.map(entry => entry.dogId),
-          submittedEntries: rpcResult.entries,
           deps: resolvedDeps,
         }));
       if (!isStillActive(isActive)) return { aborted: true };
@@ -221,15 +213,11 @@ async function ensureEnrollment({
 
 async function assignArmbandsForEntries({
   showId,
-  userId,
   dogIds,
-  submittedEntries,
   deps,
 }: {
   showId: string;
-  userId: string;
   dogIds: string[];
-  submittedEntries: Array<{ entryId: string; dogId: string }>;
   deps: SubmitShowRegistrationDeps;
 }): Promise<{ assignments: ArmbandAssignment[]; failures: ArmbandAssignmentFailure[] }> {
   const uniqueDogIds = [...new Set(dogIds)];
@@ -240,8 +228,10 @@ async function assignArmbandsForEntries({
   // per dog so the caller can tell the user which dogs need manual armbands.
   const claimResults = await Promise.allSettled(
     uniqueDogIds.map(async dogId => {
-      const { armband } = await deps.claimNextArmband(showId, dogId);
-      return armband ? { dogId, armband } : null;
+      const { armband, error } = await deps.claimNextArmband(showId, dogId);
+      if (armband) return { dogId, armband };
+      if (error) throw error;
+      return null;
     })
   );
   const armbandAssignments: ArmbandAssignment[] = [];
@@ -254,34 +244,7 @@ async function assignArmbandsForEntries({
     }
   });
 
-  if (armbandAssignments.length === 0) return { assignments: [], failures };
-
-  const armbandByDog = new Map(armbandAssignments.map(result => [result.dogId, result.armband]));
-  const updateTargets = submittedEntries.filter(({ dogId }) => armbandByDog.has(dogId));
-  const updateResults = await Promise.allSettled(
-    updateTargets.map(({ entryId, dogId }) =>
-      deps.updateEntryRegistration(entryId, { armband: armbandByDog.get(dogId) }, userId)
-    )
-  );
-
-  const failedDogIds = new Set<string>();
-  updateResults.forEach((result, index) => {
-    if (result.status === 'rejected') {
-      const { dogId } = updateTargets[index]!;
-      if (!failedDogIds.has(dogId)) {
-        failedDogIds.add(dogId);
-        failures.push({ dogId, error: toErrorMessage(result.reason) });
-      }
-    }
-  });
-
-  // Drop assignments that didn't fully persist — reporting an armband the DB
-  // doesn't have is worse than reporting none. For a dog with multiple
-  // entries, the claimed number may already be written on its other entries;
-  // that partial state is deliberate — the secretary reconciles it during the
-  // manual reassignment this failure report triggers.
-  const assignments = armbandAssignments.filter(({ dogId }) => !failedDogIds.has(dogId));
-  return { assignments, failures };
+  return { assignments: armbandAssignments, failures };
 }
 
 function toErrorMessage(reason: unknown): string {

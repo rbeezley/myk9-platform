@@ -104,6 +104,19 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
     return `armband-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   }
 
+  private shouldRefreshBeforeInsert(): boolean {
+    return typeof globalThis.navigator !== 'undefined' && globalThis.navigator.onLine !== false;
+  }
+
+  private async refreshBeforeInsert(showId: string): Promise<ReplicatedArmband[]> {
+    const result = await this.sync();
+    if (!result.success) {
+      throw new Error(result.error ?? `Unable to refresh armbands for show ${showId}`);
+    }
+
+    return this.getByShow(showId);
+  }
+
   /**
    * Sync armbands from Supabase.
    * Full sync — armbands table has no updated_at column.
@@ -180,7 +193,7 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
   }
 
   async upsertAssignedArmband(input: AssignedArmbandInput): Promise<string | null> {
-    const showArmbands = await this.getByShow(input.showId);
+    let showArmbands = await this.getByShow(input.showId);
     const duplicateNumber = showArmbands.find(
       a => a.armbandNumber === input.armbandNumber && a.dogId !== input.dogId
     );
@@ -190,7 +203,20 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
       );
     }
 
-    const existing = showArmbands.find(a => a.dogId === input.dogId);
+    let existing = showArmbands.find(a => a.dogId === input.dogId);
+    if (!existing && this.shouldRefreshBeforeInsert()) {
+      showArmbands = await this.refreshBeforeInsert(input.showId);
+      const refreshedDuplicateNumber = showArmbands.find(
+        a => a.armbandNumber === input.armbandNumber && a.dogId !== input.dogId
+      );
+      if (refreshedDuplicateNumber) {
+        throw new Error(
+          `Armband ${input.armbandNumber} is already assigned to another dog in this show.`
+        );
+      }
+      existing = showArmbands.find(a => a.dogId === input.dogId);
+    }
+
     const assignedAt = new Date().toISOString();
     const id = existing?.id ?? this.createLocalId();
     const updated: ReplicatedArmband = {

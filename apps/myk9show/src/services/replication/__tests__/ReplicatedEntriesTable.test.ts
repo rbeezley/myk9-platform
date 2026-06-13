@@ -507,7 +507,9 @@ describe('ReplicatedEntriesTable', () => {
       );
 
       expect((await table.get('entry-1'))?.armband).toBe('205');
+      expect((await table.get('entry-1'))?.armbandNumber).toBe('205');
       expect((await table.get('entry-2'))?.armband).toBe('205');
+      expect((await table.get('entry-2'))?.armbandNumber).toBe('205');
       expect((await table.get('entry-3'))?.armband).toBeUndefined();
       expect((await table.get('entry-4'))?.armband).toBeUndefined();
     });

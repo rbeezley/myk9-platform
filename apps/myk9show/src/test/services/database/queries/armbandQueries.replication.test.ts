@@ -268,11 +268,45 @@ describe('armbandQueries (replication)', () => {
       expect(mockSupabase.from).not.toHaveBeenCalledWith('entries');
       expect(mockSupabase.from).not.toHaveBeenCalledWith('armbands');
     });
+
+    it('does not overwrite dogs already assigned in the replicated armband table', async () => {
+      mockEntriesTable.getEntriesByShow.mockResolvedValue([
+        makeEntry({ id: 'entry-1', dogId: 'dog-1', entryStatus: 'accepted', armband: null }),
+        makeEntry({ id: 'entry-2', dogId: 'dog-2', entryStatus: 'confirmed', armband: null }),
+      ]);
+      mockArmbandsTable.getByShow.mockResolvedValue([
+        makeArmband({ id: 'a1', dogId: 'dog-1', armbandNumber: '212', isAvailable: false }),
+      ]);
+      mockArmbandsTable.upsertAssignedArmband.mockResolvedValue('armband-mutation');
+      mockEntriesTable.updateArmbandForDogInShow.mockResolvedValue({
+        updated: 1,
+        mutationIds: ['entry-mutation'],
+      });
+
+      const result = await autoAssignArmbands('show-1', 200);
+
+      expect(result).toEqual({
+        data: { assigned: 1, skipped: 0, startedAt: 213 },
+        error: null,
+      });
+      expect(mockArmbandsTable.upsertAssignedArmband).toHaveBeenCalledTimes(1);
+      expect(mockArmbandsTable.upsertAssignedArmband).toHaveBeenCalledWith({
+        showId: 'show-1',
+        dogId: 'dog-2',
+        armbandNumber: '213',
+      });
+      expect(mockEntriesTable.updateArmbandForDogInShow).toHaveBeenCalledWith(
+        'show-1',
+        'dog-2',
+        '213'
+      );
+    });
   });
 
   describe('claimNextArmband', () => {
     it('syncs the assigned armband back to all entries for the dog in the show', async () => {
       mockSupabase.rpc.mockResolvedValue({ data: 104, error: null });
+      mockArmbandsTable.upsertAssignedArmband.mockResolvedValue('armband-mutation-1');
       mockEntriesTable.updateArmbandForDogInShow.mockResolvedValue({
         updated: 2,
         mutationIds: ['entry-mutation-1', 'entry-mutation-2'],
@@ -284,6 +318,11 @@ describe('armbandQueries (replication)', () => {
       expect(mockSupabase.rpc).toHaveBeenCalledWith('assign_armband', {
         p_show_id: 'show-1',
         p_dog_id: 'dog-1',
+      });
+      expect(mockArmbandsTable.upsertAssignedArmband).toHaveBeenCalledWith({
+        showId: 'show-1',
+        dogId: 'dog-1',
+        armbandNumber: '104',
       });
       expect(mockEntriesTable.updateArmbandForDogInShow).toHaveBeenCalledWith(
         'show-1',
@@ -303,6 +342,19 @@ describe('armbandQueries (replication)', () => {
 
       expect(result.armband).toBeNull();
       expect(result.error).toEqual({ message: 'update failed' });
+    });
+
+    it('returns an error when the replicated armband sync fails', async () => {
+      mockSupabase.rpc.mockResolvedValue({ data: 104, error: null });
+
+      const updateError = new Error('armband update failed');
+      mockArmbandsTable.upsertAssignedArmband.mockRejectedValue(updateError);
+
+      const result = await claimNextArmband('show-1', 'dog-1');
+
+      expect(result.armband).toBeNull();
+      expect(result.error).toEqual({ message: 'armband update failed' });
+      expect(mockEntriesTable.updateArmbandForDogInShow).not.toHaveBeenCalled();
     });
   });
 

@@ -1,6 +1,9 @@
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { computeArmbandAssignments, resolveStartNumber } from '@/utils/armbandUtils';
-import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmbandsTable';
+import {
+  replicatedArmbandsTable,
+  type ReplicatedArmband,
+} from '@/services/replication/ReplicatedArmbandsTable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 
 /**
@@ -9,16 +12,18 @@ import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntries
  * not entries.
  * Text ordering is broken for multi-digit numbers, so we fetch all and sort in JS.
  */
-async function fetchMaxArmbandForShow(showId: string): Promise<string | null> {
-  const data = await replicatedArmbandsTable.getByShow(showId);
-
-  if (!data || data.length === 0) return null;
+function getMaxArmbandNumber(data: ReplicatedArmband[]): string | null {
+  if (data.length === 0) return null;
 
   const nums = data
     .map(r => parseInt(r.armbandNumber, 10))
     .filter(n => !isNaN(n));
 
   return nums.length === 0 ? null : String(Math.max(...nums));
+}
+
+async function fetchMaxArmbandForShow(showId: string): Promise<string | null> {
+  return getMaxArmbandNumber(await replicatedArmbandsTable.getByShow(showId));
 }
 
 async function fetchStartingArmbandForShow(showId: string): Promise<number> {
@@ -77,12 +82,22 @@ export const autoAssignArmbands = async (showId: string, startNumber?: number) =
 
   try {
     const configuredStartNumber = startNumber ?? (await fetchStartingArmbandForShow(showId));
-    const showEntries = await replicatedEntriesTable.getEntriesByShow(showId);
+    const [showEntries, assignedArmbands] = await Promise.all([
+      replicatedEntriesTable.getEntriesByShow(showId),
+      replicatedArmbandsTable.getByShow(showId),
+    ]);
+    const assignedDogIds = new Set(
+      assignedArmbands
+        .filter(armband => !armband.isAvailable && armband.dogId)
+        .map(armband => armband.dogId as string)
+    );
     const unassigned = showEntries.filter(
       entry =>
         !entry.deletedAt &&
         !entry.deleted_at &&
         !entry.armband &&
+        entry.dogId &&
+        !assignedDogIds.has(entry.dogId) &&
         (entry.entryStatus === 'accepted' ||
           entry.entry_status === 'accepted' ||
           entry.entryStatus === 'confirmed' ||
@@ -95,7 +110,7 @@ export const autoAssignArmbands = async (showId: string, startNumber?: number) =
       return { data: { assigned: 0, startedAt: configuredStartNumber }, error: null };
     }
 
-    const maxArmband = await fetchMaxArmbandForShow(showId);
+    const maxArmband = getMaxArmbandNumber(assignedArmbands);
     const nextNumber = resolveStartNumber(maxArmband, configuredStartNumber);
     const assignments = computeArmbandAssignments(dogIds, nextNumber);
 

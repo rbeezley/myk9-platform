@@ -25,7 +25,6 @@ import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStore } from '@/store/showStore';
-import { useEntryStore } from '@/store/entryStore';
 import { useCartStore } from '@/store/cartStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { calculateTotalFees } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
@@ -101,7 +100,6 @@ function RegistrationWizardContent() {
   const { dogs, isLoading: dogsLoading } = useDogStoreCompat();
   const { shows = [] } = useShowStore();
   const { classes = [] } = useClassStoreCompat();
-  const { updateRegistration } = useEntryStore();
   const loadCart = useCartStore(state => state.loadCart);
   const clearCart = useCartStore(state => state.clearCart);
   const createCart = useCartStore(state => state.createCart);
@@ -444,7 +442,6 @@ function RegistrationWizardContent() {
           deps: {
             submitRegistration,
             confirmRegistration,
-            updateEntryRegistration: updateRegistration,
           },
         });
         if (submissionResult.aborted) return;

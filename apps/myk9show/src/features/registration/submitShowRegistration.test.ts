@@ -44,7 +44,6 @@ function makeParams(
         submissionId: 'submission-1',
       }),
       claimNextArmband: vi.fn().mockResolvedValue({ armband: '101' }),
-      updateEntryRegistration: vi.fn().mockResolvedValue(undefined),
       createSubmissionId: () => 'submission-1',
     },
     ...overrides,
@@ -84,7 +83,6 @@ describe('submitShowRegistration', () => {
     // Entries still submit; only the armband claim is skipped.
     expect(params.deps.submitShowEntries).toHaveBeenCalledTimes(1);
     expect(params.deps.claimNextArmband).not.toHaveBeenCalled();
-    expect(params.deps.updateEntryRegistration).not.toHaveBeenCalled();
     expect(result).toEqual({
       aborted: false,
       registrationNumber: 'MK9-000002',
@@ -94,13 +92,8 @@ describe('submitShowRegistration', () => {
     });
   });
 
-  it('reports armband entry-update failures instead of swallowing them', async () => {
-    // Regression: armband write errors were silently .catch(() => {})'d —
-    // the UI claimed success while the entry had no ring number in the DB.
+  it('does not duplicate claim-next armband patches through generic entry updates', async () => {
     const params = makeParams();
-    vi.mocked(params.deps.updateEntryRegistration).mockRejectedValue(
-      new Error('RLS policy blocked UPDATE')
-    );
 
     const result = await submitShowRegistration(params);
 
@@ -108,9 +101,26 @@ describe('submitShowRegistration', () => {
       aborted: false,
       registrationNumber: 'MK9-000002',
       dbRegistrationId: 'db-reg-2',
-      // The armband did not persist, so it must not be reported as assigned.
+      armbandAssignments: [{ dogId: 'dog-1', armband: '101' }],
+      armbandFailures: [],
+    });
+  });
+
+  it('reports claim-next armband sync errors instead of swallowing them', async () => {
+    const params = makeParams();
+    vi.mocked(params.deps.claimNextArmband!).mockResolvedValue({
+      armband: null,
+      error: new Error('replicated entry patch failed'),
+    });
+
+    const result = await submitShowRegistration(params);
+
+    expect(result).toEqual({
+      aborted: false,
+      registrationNumber: 'MK9-000002',
+      dbRegistrationId: 'db-reg-2',
       armbandAssignments: [],
-      armbandFailures: [{ dogId: 'dog-1', error: 'RLS policy blocked UPDATE' }],
+      armbandFailures: [{ dogId: 'dog-1', error: 'replicated entry patch failed' }],
     });
   });
 
@@ -120,7 +130,6 @@ describe('submitShowRegistration', () => {
 
     const result = await submitShowRegistration(params);
 
-    expect(params.deps.updateEntryRegistration).not.toHaveBeenCalled();
     expect(result).toEqual({
       aborted: false,
       registrationNumber: 'MK9-000002',

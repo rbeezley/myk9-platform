@@ -27,6 +27,7 @@ describe('ReplicatedArmbandsTable', () => {
 
   afterEach(async () => {
     const { databaseManager } = await import('@myk9/replication');
+    vi.unstubAllGlobals();
     await databaseManager.reset();
   });
 
@@ -115,5 +116,48 @@ describe('ReplicatedArmbandsTable', () => {
       })
     ).rejects.toThrow('Armband 205 is already assigned to another dog in this show.');
     expect(queueMutation).not.toHaveBeenCalled();
+  });
+
+  it('refreshes online before inserting when the show dog armband row is missing locally', async () => {
+    vi.stubGlobal('navigator', { onLine: true });
+    const queueMutation = vi.spyOn(
+      table as unknown as {
+        queueMutation: (
+          operation: string,
+          rowId: string,
+          payload: Record<string, unknown>,
+          dependencies?: string[]
+        ) => Promise<string | null>;
+      },
+      'queueMutation'
+    );
+    const sync = vi.spyOn(table, 'sync').mockImplementation(async () => {
+      await table.set('server-armband-1', {
+        id: 'server-armband-1',
+        showId: 'show-1',
+        dogId: 'dog-1',
+        armbandNumber: '101',
+        isAvailable: false,
+      });
+      return { success: true, synced: 1, errors: [] };
+    });
+
+    await table.upsertAssignedArmband({
+      showId: 'show-1',
+      dogId: 'dog-1',
+      armbandNumber: '205',
+    });
+
+    expect(sync).toHaveBeenCalled();
+    expect(queueMutation).toHaveBeenCalledWith(
+      'UPDATE',
+      'server-armband-1',
+      expect.objectContaining({
+        id: 'server-armband-1',
+        show_id: 'show-1',
+        dog_id: 'dog-1',
+        armband_number: '205',
+      })
+    );
   });
 });

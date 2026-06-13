@@ -381,6 +381,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       const updated: ReplicatedEntry = {
         ...entry,
         armband,
+        armbandNumber: armband,
         _lastModified: new Date(),
         _syncStatus: 'pending',
       };

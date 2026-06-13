@@ -406,4 +406,30 @@ describe('secretary entry read replication', () => {
       'entry-later-created',
     ]);
   });
+
+  it('uses entry-level dog display fields when dog replication is stale', async () => {
+    mocks.getEntriesByShow.mockResolvedValue([
+      {
+        id: 'entry-with-denormalized-dog',
+        showId: 'show-1',
+        dogId: 'dog-missing',
+        dogCallName: 'Scout',
+        dogBreed: 'Beagle',
+        submittedAt: '2026-06-01T10:00:00.000Z',
+      },
+    ]);
+    mocks.getAllDogs.mockResolvedValue([]);
+    mocks.getAllClasses.mockResolvedValue([]);
+    mocks.getArmbandsByShow.mockResolvedValue([]);
+
+    const result = await getEntriesForShow('show-1');
+
+    expect(result.data[0]?.dog).toEqual({
+      id: 'dog-missing',
+      name: 'Scout',
+      call_name: 'Scout',
+      breed: 'Beagle',
+      owner: null,
+    });
+  });
 });

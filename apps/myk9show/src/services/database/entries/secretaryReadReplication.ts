@@ -46,6 +46,8 @@ interface SecretaryEntryRelations {
   enrollmentsMap: ReadonlyMap<string, SecretaryEnrollment>;
 }
 
+type SecretaryDog = Pick<ReplicatedDog, 'id' | 'name' | 'callName' | 'breed' | 'ownerId'>;
+
 function isNotDeleted(row: {
   deletedAt?: string | null | undefined;
   deleted_at?: string | null | undefined;
@@ -73,6 +75,19 @@ function replicatedField(entry: ReplicatedEntry, camel: string, snake: string): 
 function replicatedClassNumber(cls: ReplicatedClass): string | null {
   const record = cls as unknown as Record<string, unknown>;
   return stringFrom(record.classNumber ?? record.class_number);
+}
+
+function fallbackDogFromEntry(entry: ReplicatedEntry, dogId: string): SecretaryDog | null {
+  const callName = entry.dogCallName ?? entry.dog_call_name ?? null;
+  const breed = entry.dogBreed ?? entry.dog_breed ?? null;
+  if (!callName && !breed) return null;
+
+  return {
+    id: dogId,
+    name: callName ?? 'Unknown Dog',
+    ...(callName ? { callName } : {}),
+    breed: breed ?? 'Unknown',
+  };
 }
 
 async function loadSecretaryPeopleMap(
@@ -134,7 +149,7 @@ function toSecretaryEntry(
   const dogId = entry.dogId ?? null;
   const classId = entry.classId ?? null;
   const handlerId = entry.handlerId ?? null;
-  const dog = dogId ? (dogsMap.get(dogId) ?? null) : null;
+  const dog = dogId ? (dogsMap.get(dogId) ?? fallbackDogFromEntry(entry, dogId)) : null;
   const cls = classId ? (classesMap.get(classId) ?? null) : null;
   const ownerId = dog?.ownerId ?? null;
   const owner = ownerId ? (peopleMap.get(ownerId) ?? null) : null;

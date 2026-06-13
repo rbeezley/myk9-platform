@@ -19,17 +19,11 @@ interface SetupAdaptiveHeaderProps {
 export function SetupAdaptiveHeader({ signals }: SetupAdaptiveHeaderProps) {
   const ready = signals.length === 0;
   return (
-    <section
-      className="rounded-md border bg-muted/15 px-4 py-3"
-      aria-label="Setup readiness"
-    >
+    <section className="rounded-md border bg-muted/15 px-4 py-3" aria-label="Setup readiness">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
           {ready ? (
-            <CheckCircle2
-              className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400"
-              aria-hidden="true"
-            />
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success " aria-hidden="true" />
           ) : (
             <ClipboardCheck
               className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground"

@@ -434,7 +434,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                           <div className="text-xs text-muted-foreground">Classes</div>
                         </div>
                         <div>
-                          <div className="text-lg font-semibold text-green-600 dark:text-green-400">
+                          <div className="text-lg font-semibold text-success ">
                             {
                               trial.classes.filter(cls => cls.judgeId && judgeDetails[cls.judgeId])
                                 .length
@@ -461,14 +461,14 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
             {/* Consolidated Status Messages */}
             <div className="space-y-2">
               {/* Success Status */}
-              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/50 rounded-lg p-3">
+              <div className="bg-success/10 border border-success/30 rounded-lg p-3">
                 <div className="flex items-start gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                  <CheckCircle className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />
                   <div className="flex-1">
-                    <div className="font-medium text-green-800 dark:text-green-200 text-sm">
+                    <div className="font-medium text-success text-sm">
                       Show Configuration Complete
                     </div>
-                    <p className="text-xs text-green-700 dark:text-green-300 mt-0.5">
+                    <p className="text-xs text-success mt-0.5">
                       "{show.name}" ready with {trials.length} trials and {totalClasses} classes
                     </p>
                   </div>

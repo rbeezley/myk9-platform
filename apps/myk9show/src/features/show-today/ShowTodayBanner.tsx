@@ -6,11 +6,11 @@ import { useShowTodayBanner } from './useShowTodayBanner';
 import { formatClassTime, type ShowTodayBannerItem } from './showTodayBanner.helpers';
 
 const bannerClassName =
-  'overflow-hidden rounded-lg border border-l-4 border-emerald-500/20 border-l-emerald-500 bg-emerald-500/8 text-left shadow-sm ring-1 ring-emerald-500/10 dark:bg-emerald-500/10';
-const bannerLabelClassName = 'text-emerald-700 dark:text-emerald-300';
-const bannerTitleClassName = 'text-emerald-950 dark:text-emerald-50';
+  'overflow-hidden rounded-lg border border-l-4 border-emerald-500/20 border-l-emerald-500 bg-success/100/8 text-left shadow-sm ring-1 ring-emerald-500/10 ';
+const bannerLabelClassName = 'text-success ';
+const bannerTitleClassName = 'text-success ';
 const iconClassName =
-  'flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/12 text-emerald-700 ring-1 ring-emerald-500/20 dark:text-emerald-300';
+  'flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/12 text-success ring-1 ring-emerald-500/20 ';
 
 function pluralize(count: number, singular: string, plural = `${singular}s`) {
   return count === 1 ? singular : plural;

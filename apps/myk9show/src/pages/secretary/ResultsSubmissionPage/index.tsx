@@ -256,11 +256,7 @@ export default function ResultsSubmissionPage() {
 
       {/* Send feedback */}
       {sendSuccess && (
-        <p
-          className="text-sm text-green-600 dark:text-green-400"
-          role="status"
-          data-testid="send-success"
-        >
+        <p className="text-sm text-success " role="status" data-testid="send-success">
           Results sent successfully. A copy was CC&apos;d to your email.
         </p>
       )}

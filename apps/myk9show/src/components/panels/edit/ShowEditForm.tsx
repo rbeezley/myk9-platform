@@ -278,7 +278,7 @@ export const ShowEditForm: React.FC = () => {
                               </div>
 
                               {isAssigned && (
-                                <div className="text-sm text-green-600 dark:text-green-400 mt-2 font-medium">
+                                <div className="text-sm text-success mt-2 font-medium">
                                   Assigned to show
                                 </div>
                               )}

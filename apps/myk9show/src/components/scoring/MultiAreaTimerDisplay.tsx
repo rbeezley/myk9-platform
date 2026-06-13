@@ -88,7 +88,7 @@ export function MultiAreaTimerDisplay({
 
     switch (status) {
       case 'completed':
-        return cn(baseClasses, 'border-green-200 bg-green-50 dark:bg-green-950');
+        return cn(baseClasses, 'border-green-200 bg-success/10 ');
       case 'failed':
         return cn(baseClasses, 'border-red-200 bg-destructive/10 ');
       case 'ready':

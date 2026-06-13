@@ -16,8 +16,7 @@ function formatSex(sex: string | undefined): string | null {
 const STATUS_BADGES: Record<string, { label: string; className: string }> = {
   active: {
     label: 'Active',
-    className:
-      'text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+    className: 'text-xs bg-success/10 text-success ',
   },
   retired: {
     label: 'Retired',

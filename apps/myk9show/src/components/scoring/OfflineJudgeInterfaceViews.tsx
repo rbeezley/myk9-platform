@@ -311,7 +311,7 @@ export function EntryListView({
             className={cn(
               'cursor-pointer transition-all duration-200 hover:shadow-md',
               entry.isCurrent && 'ring-2 ring-primary',
-              entry.isCompleted && 'bg-green-50 dark:bg-green-950'
+              entry.isCompleted && 'bg-success/10 '
             )}
             onClick={() => onSelectEntry(entry.id)}
           >

@@ -203,8 +203,8 @@ export default function CheckoutSuccessPage() {
       <div className="max-w-2xl mx-auto px-4 py-16">
         <Card>
           <CardHeader className="text-center pb-2">
-            <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
+            <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="h-8 w-8 text-success " />
             </div>
             <CardTitle className="text-2xl">Entry Submitted Successfully!</CardTitle>
             <p className="text-muted-foreground mt-2">
@@ -215,12 +215,12 @@ export default function CheckoutSuccessPage() {
           <CardContent className="space-y-6">
             {/* Confirmation Number */}
             {orderDetails?.confirmationNumber && (
-              <div className="rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-4 text-center">
+              <div className="rounded-lg bg-success/10 border border-success/30 p-4 text-center">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
                   Confirmation Number
                 </p>
                 {/* break-all: pi_… fallback ids are 27 chars and must wrap on mobile */}
-                <p className="text-xl font-mono font-bold break-all text-green-700 dark:text-green-400">
+                <p className="text-xl font-mono font-bold break-all text-success ">
                   {orderDetails.confirmationNumber}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">

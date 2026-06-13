@@ -197,8 +197,8 @@ const LiveResults: React.FC<LiveResultsProps> = ({
             </h2>
             <div className="flex items-center gap-2 mt-1">
               {isLive && (
-                <span className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
-                  <div className="w-2 h-2 bg-green-600 dark:bg-green-400 rounded-full animate-pulse" />
+                <span className="flex items-center gap-1 text-sm text-success ">
+                  <div className="w-2 h-2 bg-success rounded-full animate-pulse" />
                   Live
                 </span>
               )}
@@ -243,7 +243,7 @@ const LiveResults: React.FC<LiveResultsProps> = ({
             className={cn(
               'flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
               filterQualified
-                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                ? 'bg-success/10 text-success '
                 : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
             )}
           >
@@ -332,7 +332,7 @@ const LiveResults: React.FC<LiveResultsProps> = ({
                   {result && (
                     <div className="text-right">
                       {result.qualified !== false ? (
-                        <div className="flex items-center gap-1 text-green-600 dark:text-green-400 mb-1">
+                        <div className="flex items-center gap-1 text-success mb-1">
                           <CheckCircle className="w-4 h-4" />
                           <span className="font-medium">Q</span>
                         </div>

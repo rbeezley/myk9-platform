@@ -44,7 +44,7 @@ export function AskQFeedback({ queryLogId }: AskQFeedbackProps) {
             aria-label="Helpful"
             className={`p-1.5 rounded-md transition-colors ${
               submitted === 1
-                ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                ? 'bg-success/10 text-success '
                 : 'bg-muted hover:bg-muted/80 text-muted-foreground'
             } disabled:opacity-60`}
           >

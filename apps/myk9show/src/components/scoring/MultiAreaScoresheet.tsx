@@ -247,7 +247,7 @@ export function MultiAreaScoresheet({
           className={cn(
             'border-2 transition-colors',
             areaStatus === 'completed'
-              ? 'border-green-500 bg-green-50 dark:bg-green-950'
+              ? 'border-green-500 bg-success/10 '
               : areaStatus === 'failed'
                 ? 'border-red-500 bg-destructive/10 '
                 : areaStatus === 'active'

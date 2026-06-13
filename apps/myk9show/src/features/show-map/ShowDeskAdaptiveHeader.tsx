@@ -19,8 +19,7 @@ const STATUS_LABEL: Record<ShowDeskShowStatus, string> = {
 
 const STATUS_TONE: Record<ShowDeskShowStatus, string> = {
   setup: 'bg-muted text-muted-foreground',
-  'show-in-progress':
-    'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200',
+  'show-in-progress': 'bg-success/10 text-success ',
   'wrap-up': 'bg-warning/10 text-warning ',
   closed: 'bg-slate-200 text-slate-900 dark:bg-slate-800 dark:text-slate-200',
 };

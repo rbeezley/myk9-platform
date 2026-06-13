@@ -32,8 +32,8 @@ const ELEMENT_ICONS: Record<string, ElementIconConfig> = {
   },
   Exterior: {
     icon: Leaf,
-    bg: 'bg-green-100 dark:bg-green-900/40',
-    fg: 'text-green-700 dark:text-green-300',
+    bg: 'bg-success/10 ',
+    fg: 'text-success ',
   },
   Buried: {
     icon: Layers,

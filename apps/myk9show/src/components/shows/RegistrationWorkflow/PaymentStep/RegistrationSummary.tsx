@@ -41,10 +41,7 @@ export const RegistrationSummary: React.FC<RegistrationSummaryProps> = ({ feeCal
             </div>
 
             {feeCalculation.discounts.map((discount, index) => (
-              <div
-                key={index}
-                className="flex justify-between gap-2 text-sm text-green-600 dark:text-green-400"
-              >
+              <div key={index} className="flex justify-between gap-2 text-sm text-success ">
                 <span className="flex min-w-0 items-center gap-1">
                   <Tag className="h-3 w-3 shrink-0" />
                   <span className="break-words">{discount.description}</span>

@@ -230,9 +230,9 @@ export function AwardsProcessor({
         transition={{ duration: 0.5 }}
       >
         {/* Success Header */}
-        <Card className="border-green-200 bg-green-50 dark:bg-green-950">
+        <Card className="border-green-200 bg-success/10 ">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-green-800 dark:text-green-200">
+            <CardTitle className="flex items-center gap-2 text-success ">
               <CheckCircle2 className="h-6 w-6" />
               Awards Processing Complete
             </CardTitle>

@@ -112,7 +112,7 @@ const TitleProgressCard: React.FC<TitleProgressCardProps> = ({ dogId }) => {
               {earnedAbbreviations.map(abbr => (
                 <span
                   key={abbr}
-                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-500/10 text-success "
                 >
                   {abbr}
                 </span>

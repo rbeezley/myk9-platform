@@ -96,13 +96,13 @@ const getIconColor = (color: string) => {
     case 'amber':
       return 'text-warning bg-warning/10 ';
     case 'emerald':
-      return 'text-emerald-500 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30';
+      return 'text-success bg-success/10 ';
     case 'cyan':
       return 'text-cyan-500 dark:text-cyan-400 bg-cyan-100 dark:bg-cyan-900/30';
     case 'teal':
       return 'text-teal-500 dark:text-teal-400 bg-teal-100 dark:bg-teal-900/30';
     case 'green':
-      return 'text-green-500 dark:text-green-400 bg-green-100 dark:bg-green-900/30';
+      return 'text-success bg-success/10 ';
     default:
       return 'text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800';
   }

@@ -158,17 +158,14 @@ export function CascadingDeleteDialog({
               )}
 
               {preview.classesToDelete.length > 0 && (
-                <div className="bg-green-50 dark:bg-green-950/20 rounded-xl px-3 py-1">
-                  <div className="flex items-center gap-2 font-medium text-sm text-green-700 dark:text-green-300 leading-none m-0">
+                <div className="bg-success/10 rounded-xl px-3 py-1">
+                  <div className="flex items-center gap-2 font-medium text-sm text-success leading-none m-0">
                     <Trophy className="h-4 w-4" />
                     Classes ({preview.classesToDelete.length})
                   </div>
                   <div className="ml-6">
                     {sortClasses(preview.classesToDelete).map(cls => (
-                      <div
-                        key={cls.id}
-                        className="text-xs text-green-600 dark:text-green-400 leading-none m-0"
-                      >
+                      <div key={cls.id} className="text-xs text-success leading-none m-0">
                         • {cls.trialName} - {cls.name}
                       </div>
                     ))}

@@ -209,7 +209,7 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                   <Button
                     variant="outline"
                     onClick={() => handleEntryStatusChange(EntryStatus.ACCEPTED)}
-                    className="justify-start text-green-700 border-green-200 hover:bg-green-50 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-950/40"
+                    className="justify-start text-success border-success/30 hover:bg-success/10 "
                   >
                     <Check className="h-4 w-4 mr-2" />
                     Accept Entry
@@ -358,11 +358,11 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                     <div className="text-2xl font-bold text-foreground">{selectedDogs.length}</div>
                     <div className="text-xs text-muted-foreground">Total Entries</div>
                   </div>
-                  <div className="text-center p-3 bg-green-50 dark:bg-green-950/30 rounded-lg">
-                    <div className="text-2xl font-bold text-green-700 dark:text-green-400">
+                  <div className="text-center p-3 bg-success/10 rounded-lg">
+                    <div className="text-2xl font-bold text-success ">
                       ${feeCalculation.total.toFixed(0)}
                     </div>
-                    <div className="text-xs text-green-600 dark:text-green-500">Total Fees</div>
+                    <div className="text-xs text-success ">Total Fees</div>
                   </div>
                   <div className="text-center p-3 bg-info/10 rounded-lg">
                     <div className="text-2xl font-bold text-info ">

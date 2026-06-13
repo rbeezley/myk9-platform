@@ -18,10 +18,7 @@ function getStatusBadge(status: string) {
   switch (status) {
     case 'completed':
       return (
-        <Badge
-          variant="secondary"
-          className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
-        >
+        <Badge variant="secondary" className="text-xs bg-success/10 text-success ">
           Completed
         </Badge>
       );

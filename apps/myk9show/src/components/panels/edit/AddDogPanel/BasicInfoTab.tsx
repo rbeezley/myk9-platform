@@ -222,7 +222,10 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                   <SelectValue placeholder="Choose dog owner">{selectedOwnerDisplay}</SelectValue>
                 )}
               </SelectTrigger>
-              <SelectContent position="popper" className="bg-popover/95 backdrop-blur-xl border border-border/30 rounded-xl shadow-2xl max-h-60">
+              <SelectContent
+                position="popper"
+                className="bg-popover/95 backdrop-blur-xl border border-border/30 rounded-xl shadow-2xl max-h-60"
+              >
                 {people.map(person => (
                   <SelectItem
                     key={person.id}
@@ -269,7 +272,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                   This dog will be registered to your account
                 </div>
               </div>
-              <div className="px-2 py-1 bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-xs font-medium rounded-lg">
+              <div className="px-2 py-1 bg-success/10 text-success text-xs font-medium rounded-lg">
                 You
               </div>
             </div>

@@ -5,15 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { 
-  Trophy, 
-  Timer, 
-  CheckCircle, 
-  Save,
-  Send,
-  Eye,
-  Users
-} from 'lucide-react';
+import { Trophy, Timer, CheckCircle, Save, Send, Eye, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Competitor {
@@ -58,15 +50,25 @@ interface JudgeScoringInterfaceProps {
 const defaultCriteria: ScoringCriteria[] = [
   { id: 'gait', name: 'Gait', maxPoints: 25, description: 'Movement and coordination' },
   { id: 'structure', name: 'Structure', maxPoints: 25, description: 'Physical conformation' },
-  { id: 'presentation', name: 'Presentation', maxPoints: 25, description: 'Ring presence and handling' },
-  { id: 'overall', name: 'Overall Impression', maxPoints: 25, description: 'General quality and breed type' }
+  {
+    id: 'presentation',
+    name: 'Presentation',
+    maxPoints: 25,
+    description: 'Ring presence and handling',
+  },
+  {
+    id: 'overall',
+    name: 'Overall Impression',
+    maxPoints: 25,
+    description: 'General quality and breed type',
+  },
 ];
 
-export function JudgeScoringInterface({ 
-  competitors, 
+export function JudgeScoringInterface({
+  competitors,
   scoringCriteria = defaultCriteria,
   onSaveScores,
-  onSubmitResults 
+  onSubmitResults,
 }: JudgeScoringInterfaceProps) {
   const [currentCompetitorIndex, setCurrentCompetitorIndex] = useState(0);
   const [competitorScores, setCompetitorScores] = useState<CompetitorScore[]>([]);
@@ -76,19 +78,23 @@ export function JudgeScoringInterface({
 
   const currentCompetitor = competitors[currentCompetitorIndex];
   const currentScore = competitorScores.find(cs => cs.competitorId === currentCompetitor?.id);
-  const totalPossiblePoints = scoringCriteria.reduce((sum, criteria) => sum + criteria.maxPoints, 0);
+  const totalPossiblePoints = scoringCriteria.reduce(
+    (sum, criteria) => sum + criteria.maxPoints,
+    0
+  );
 
   // Initialize competitor scores lazily
-  const createInitialScores = (): CompetitorScore[] => competitors.map(competitor => ({
-    competitorId: competitor.id,
-    scores: scoringCriteria.map(criteria => ({
-      criteriaId: criteria.id,
-      points: 0,
-      notes: ''
-    })),
-    totalPoints: 0,
-    status: 'pending'
-  }));
+  const createInitialScores = (): CompetitorScore[] =>
+    competitors.map(competitor => ({
+      competitorId: competitor.id,
+      scores: scoringCriteria.map(criteria => ({
+        criteriaId: criteria.id,
+        points: 0,
+        notes: '',
+      })),
+      totalPoints: 0,
+      status: 'pending',
+    }));
 
   // Track competitors/criteria changes to reinitialize scores
   const competitorIds = competitors.map(c => c.id).join(',');
@@ -122,34 +128,38 @@ export function JudgeScoringInterface({
   }, [isTimerRunning]);
 
   const updateScore = (criteriaId: string, points: number) => {
-    setCompetitorScores(prev => prev.map(cs => {
-      if (cs.competitorId === currentCompetitor.id) {
-        const updatedScores = cs.scores.map(score => 
-          score.criteriaId === criteriaId ? { ...score, points } : score
-        );
-        const totalPoints = updatedScores.reduce((sum, score) => sum + score.points, 0);
-        return {
-          ...cs,
-          scores: updatedScores,
-          totalPoints,
-          status: 'scoring' as const
-        };
-      }
-      return cs;
-    }));
+    setCompetitorScores(prev =>
+      prev.map(cs => {
+        if (cs.competitorId === currentCompetitor.id) {
+          const updatedScores = cs.scores.map(score =>
+            score.criteriaId === criteriaId ? { ...score, points } : score
+          );
+          const totalPoints = updatedScores.reduce((sum, score) => sum + score.points, 0);
+          return {
+            ...cs,
+            scores: updatedScores,
+            totalPoints,
+            status: 'scoring' as const,
+          };
+        }
+        return cs;
+      })
+    );
   };
 
   const completeCurrentCompetitor = () => {
-    setCompetitorScores(prev => prev.map(cs => {
-      if (cs.competitorId === currentCompetitor.id) {
-        return {
-          ...cs,
-          status: 'completed' as const,
-          timeCompleted: new Date()
-        };
-      }
-      return cs;
-    }));
+    setCompetitorScores(prev =>
+      prev.map(cs => {
+        if (cs.competitorId === currentCompetitor.id) {
+          return {
+            ...cs,
+            status: 'completed' as const,
+            timeCompleted: new Date(),
+          };
+        }
+        return cs;
+      })
+    );
 
     if (currentCompetitorIndex < competitors.length - 1) {
       setCurrentCompetitorIndex(prev => prev + 1);
@@ -173,10 +183,10 @@ export function JudgeScoringInterface({
     const sortedScores = [...competitorScores]
       .filter(cs => cs.status === 'completed')
       .sort((a, b) => b.totalPoints - a.totalPoints);
-    
+
     return sortedScores.map((score, index) => ({
       ...score,
-      placement: index + 1
+      placement: index + 1,
     }));
   };
 
@@ -192,7 +202,7 @@ export function JudgeScoringInterface({
               <span className="font-mono text-sm">{formatTime(elapsedTime)}</span>
               <Button
                 size="sm"
-                variant={isTimerRunning ? "destructive" : "default"}
+                variant={isTimerRunning ? 'destructive' : 'default'}
                 onClick={() => setIsTimerRunning(!isTimerRunning)}
               >
                 {isTimerRunning ? 'Stop' : 'Start'}
@@ -202,7 +212,8 @@ export function JudgeScoringInterface({
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             <span className="text-sm text-muted-foreground">
-              {competitors.length} competitors • {competitorScores.filter(cs => cs.status === 'completed').length} completed
+              {competitors.length} competitors •{' '}
+              {competitorScores.filter(cs => cs.status === 'completed').length} completed
             </span>
           </div>
         </CardHeader>
@@ -217,11 +228,11 @@ export function JudgeScoringInterface({
               return (
                 <Button
                   key={competitor.id}
-                  variant={index === currentCompetitorIndex ? "default" : "outline"}
+                  variant={index === currentCompetitorIndex ? 'default' : 'outline'}
                   size="sm"
                   className={cn(
-                    "relative flex flex-col items-center gap-1 h-auto py-2",
-                    status === 'completed' && "border-green-500 bg-green-50 dark:bg-green-950"
+                    'relative flex flex-col items-center gap-1 h-auto py-2',
+                    status === 'completed' && 'border-green-500 bg-success/10 '
                   )}
                   onClick={() => setCurrentCompetitorIndex(index)}
                 >
@@ -260,10 +271,15 @@ export function JudgeScoringInterface({
                     {currentCompetitor.breed} • Owner: {currentCompetitor.ownerName}
                   </p>
                 </div>
-                <Badge variant={
-                  currentScore?.status === 'completed' ? 'default' :
-                  currentScore?.status === 'scoring' ? 'secondary' : 'outline'
-                }>
+                <Badge
+                  variant={
+                    currentScore?.status === 'completed'
+                      ? 'default'
+                      : currentScore?.status === 'scoring'
+                        ? 'secondary'
+                        : 'outline'
+                  }
+                >
                   {currentScore?.status || 'pending'}
                 </Badge>
               </div>
@@ -283,14 +299,14 @@ export function JudgeScoringInterface({
                         {score?.points || 0}/{criteria.maxPoints}
                       </span>
                     </div>
-                    
+
                     {/* Point Selection Buttons */}
                     <div className="grid grid-cols-5 sm:grid-cols-10 gap-1">
                       {Array.from({ length: criteria.maxPoints + 1 }, (_, i) => (
                         <Button
                           key={i}
                           size="sm"
-                          variant={score?.points === i ? "default" : "outline"}
+                          variant={score?.points === i ? 'default' : 'outline'}
                           className="h-8 w-full text-xs"
                           onClick={() => updateScore(criteria.id, i)}
                         >
@@ -322,16 +338,10 @@ export function JudgeScoringInterface({
                   <CheckCircle className="h-4 w-4 mr-2" />
                   Complete & Next
                 </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => onSaveScores(competitorScores)}
-                >
+                <Button variant="outline" onClick={() => onSaveScores(competitorScores)}>
                   <Save className="h-4 w-4" />
                 </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowSummary(true)}
-                >
+                <Button variant="outline" onClick={() => setShowSummary(true)}>
                   <Eye className="h-4 w-4" />
                 </Button>
               </div>
@@ -349,20 +359,28 @@ export function JudgeScoringInterface({
               Class Results
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             {calculatePlacements().map((result, index) => {
               const competitor = competitors.find(c => c.id === result.competitorId);
               return (
-                <div key={result.competitorId} className="flex items-center justify-between p-3 border rounded-lg">
+                <div
+                  key={result.competitorId}
+                  className="flex items-center justify-between p-3 border rounded-lg"
+                >
                   <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold",
-                      index === 0 ? "bg-yellow-500 text-white" :
-                      index === 1 ? "bg-gray-400 text-white" :
-                      index === 2 ? "bg-amber-600 text-white" :
-                      "bg-muted text-muted-foreground"
-                    )}>
+                    <div
+                      className={cn(
+                        'w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold',
+                        index === 0
+                          ? 'bg-yellow-500 text-white'
+                          : index === 1
+                            ? 'bg-gray-400 text-white'
+                            : index === 2
+                              ? 'bg-amber-600 text-white'
+                              : 'bg-muted text-muted-foreground'
+                      )}
+                    >
                       {result.placement}
                     </div>
                     <div>
@@ -377,19 +395,13 @@ export function JudgeScoringInterface({
                 </div>
               );
             })}
-            
+
             <div className="flex gap-2 pt-4">
-              <Button
-                onClick={() => onSubmitResults(calculatePlacements())}
-                className="flex-1"
-              >
+              <Button onClick={() => onSubmitResults(calculatePlacements())} className="flex-1">
                 <Send className="h-4 w-4 mr-2" />
                 Submit Results
               </Button>
-              <Button
-                variant="outline"
-                onClick={() => setShowSummary(false)}
-              >
+              <Button variant="outline" onClick={() => setShowSummary(false)}>
                 Continue Judging
               </Button>
             </div>

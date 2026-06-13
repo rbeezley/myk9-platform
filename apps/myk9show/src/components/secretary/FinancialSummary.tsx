@@ -238,14 +238,12 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="flex items-center justify-between p-3 rounded-lg bg-green-50 dark:bg-green-950">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-success/10 ">
               <div>
-                <p className="text-sm font-medium text-green-800 dark:text-green-200">Paid</p>
-                <p className="text-lg font-bold text-green-900 dark:text-green-100">
-                  {summary.paidCount}
-                </p>
+                <p className="text-sm font-medium text-success ">Paid</p>
+                <p className="text-lg font-bold text-success ">{summary.paidCount}</p>
               </div>
-              <p className="text-sm font-semibold text-green-700 dark:text-green-300">
+              <p className="text-sm font-semibold text-success ">
                 ${summary.paidAmount.toFixed(2)}
               </p>
             </div>

@@ -32,7 +32,7 @@ export function LevelRow({ level, onClick }: LevelRowProps) {
           {level.entryCount} {level.entryCount === 1 ? 'entry' : 'entries'}
         </span>
         {level.status === CLASS_STATUS.COMPLETED && (
-          <span className="text-[10px] text-green-700 dark:text-green-400">✓</span>
+          <span className="text-[10px] text-success ">✓</span>
         )}
         {isInProgress && <span className="text-[10px] text-warning ">●</span>}
       </div>

@@ -106,7 +106,7 @@ function ResultCallout({ entry }: { entry: MyClassEntry }) {
       className={cn(
         'rounded-xl border-l-4 p-5',
         qualified
-          ? 'border-l-green-500 border border-green-200 bg-green-50/60 dark:border-green-800 dark:bg-green-950/20'
+          ? 'border-l-success border border-success/30 bg-success/10 '
           : 'border-l-destructive border border-destructive/30 bg-destructive/10 '
       )}
     >

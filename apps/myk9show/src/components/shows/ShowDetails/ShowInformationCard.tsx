@@ -42,7 +42,7 @@ const ShowInformationCard: React.FC<ShowInformationCardProps> = ({
         <div className="flex justify-between items-start mb-6">
           <div className="flex items-center gap-3">
             <h2 className="text-2xl font-bold text-muted-foreground">{showData.name}</h2>
-            <Badge className="px-3 py-1 rounded-full text-sm bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40">
+            <Badge className="px-3 py-1 rounded-full text-sm bg-success/10 text-success border border-success/30 hover:bg-success/10 ">
               {showData.status}
             </Badge>
           </div>

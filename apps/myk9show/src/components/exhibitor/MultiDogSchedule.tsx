@@ -102,7 +102,7 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({ entries }) => {
   const getStatusColor = (status: CheckInStatus) => {
     switch (status) {
       case 'checked-in':
-        return 'text-green-600 dark:text-green-400';
+        return 'text-success ';
       case 'pulled':
         return 'text-destructive ';
       case 'completed':

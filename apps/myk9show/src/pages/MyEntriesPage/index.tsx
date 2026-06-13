@@ -542,10 +542,7 @@ const WaitListSection: React.FC<WaitListSectionProps> = ({
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {entry.status === 'offered' && (
-                    <Badge
-                      variant="outline"
-                      className="border-green-500/50 text-green-700 dark:text-green-400 text-xs"
-                    >
+                    <Badge variant="outline" className="border-green-500/50 text-success text-xs">
                       Spot Offered
                     </Badge>
                   )}

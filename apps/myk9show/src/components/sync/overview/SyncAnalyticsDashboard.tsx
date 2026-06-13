@@ -402,7 +402,7 @@ export const SyncAnalyticsDashboard: React.FC<SyncAnalyticsDashboardProps> = ({ 
                     <p className="text-2xl font-bold text-red-600 mt-2">{conflicts.length}</p>
                   </div>
 
-                  <div className="p-4 bg-green-50 dark:bg-green-950/20 rounded-lg">
+                  <div className="p-4 bg-success/10 rounded-lg">
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="h-5 w-5 text-green-500" />
                       <span className="font-medium">Resolved</span>

@@ -98,7 +98,7 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
                   <Badge
                     className={`font-medium px-3 py-1 ${
                       qual.is_active
-                        ? 'bg-gradient-to-r from-green-500/20 to-green-500/10 text-green-700 dark:text-green-300 border-green-500/30'
+                        ? 'bg-gradient-to-r from-green-500/20 to-green-500/10 text-success border-green-500/30'
                         : qual.suspension_date
                           ? 'bg-gradient-to-r from-red-500/20 to-red-500/10 text-destructive border-red-500/30'
                           : 'bg-gradient-to-r from-gray-500/20 to-gray-500/10 text-gray-700 dark:text-gray-300 border-gray-500/30'

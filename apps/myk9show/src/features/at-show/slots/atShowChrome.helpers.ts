@@ -18,7 +18,7 @@
 export type BadgeTier = 'success' | 'warning' | 'info' | 'neutral' | 'destructive';
 
 const BADGE_CLASS: Record<BadgeTier, string> = {
-  success: 'bg-green-500/15 text-green-700 dark:text-green-400',
+  success: 'bg-green-500/15 text-success ',
   warning: 'bg-amber-500/15 text-warning ',
   info: 'bg-blue-500/15 text-info ',
   neutral: 'bg-muted text-muted-foreground',

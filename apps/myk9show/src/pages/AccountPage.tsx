@@ -258,8 +258,8 @@ export default function AccountPage() {
         <h1 className="text-2xl font-bold mb-8">Account</h1>
 
         {flash?.kind === 'success' && (
-          <Alert className="mb-4 border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
-            <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+          <Alert className="mb-4 border-success/30 bg-success/10 text-success ">
+            <CheckCircle2 className="h-4 w-4 text-success " />
             <AlertDescription>{flash.msg}</AlertDescription>
           </Alert>
         )}

@@ -192,7 +192,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         title: 'Address',
         icon: MapPin,
         iconGradient: 'from-green-500/10 to-emerald-500/5',
-        iconColor: 'text-green-600 dark:text-green-400',
+        iconColor: 'text-success ',
         fields: [
           { label: 'Street', value: formData.address || null },
           { label: 'City', value: formData.city || null },

@@ -307,7 +307,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   const isRecorded = isRegistrationRecorded(entryStatus, paymentStatus);
   const HeroIcon = isRecorded ? CheckCircle : Clock4;
   const heroIconClassName = isRecorded
-    ? 'h-16 w-16 text-green-600 dark:text-green-400 mx-auto mb-4'
+    ? 'h-16 w-16 text-success mx-auto mb-4'
     : 'h-16 w-16 text-muted-foreground mx-auto mb-4';
 
   return (
@@ -474,10 +474,8 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
                         </h6>
                         {handler ? (
                           <div className="text-sm bg-green-500/10 rounded p-2">
-                            <div className="font-medium text-green-600 dark:text-green-400">
-                              {handler.handlerName}
-                            </div>
-                            <div className="text-green-600/70 dark:text-green-400/70 text-xs">
+                            <div className="font-medium text-success ">{handler.handlerName}</div>
+                            <div className="text-success text-xs">
                               {handler.isOwner ? 'Owner handling' : 'Professional handler'}
                             </div>
                           </div>
@@ -518,11 +516,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
               <span>Payment Status:</span>
               <Badge
                 variant={isPaidStatus(paymentStatus) ? 'default' : 'secondary'}
-                className={
-                  isPaidStatus(paymentStatus)
-                    ? 'text-green-600 border-green-600 dark:text-green-400 dark:border-green-400'
-                    : ''
-                }
+                className={isPaidStatus(paymentStatus) ? 'text-success border-success/30 ' : ''}
               >
                 {paymentStatus}
               </Badge>

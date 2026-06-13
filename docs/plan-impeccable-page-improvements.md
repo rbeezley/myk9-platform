@@ -368,3 +368,85 @@ them explicitly:
 
 One page = one worktree = one PR. Do not batch pages; findings tables stay
 reviewable and reverts stay cheap.
+
+---
+
+## [ADDED] Autonomous sweep mode (unattended, e.g. overnight)
+
+The interactive run pauses twice for the dispatcher — the **scope decision**
+(Phase 2 step 13) and **IA/INTENT surfacing**. Sweep mode runs the whole queue
+unattended by collapsing those two pauses into pre-authorized safe defaults.
+The dispatcher reviews the output in the morning; the run never waits.
+
+This mode is **opt-in** — only run it when the dispatcher explicitly asks for an
+unattended sweep. It does not change the per-page pipeline; it changes the
+checkpoints and the cross-page sequencing.
+
+### Pre-authorized defaults (these replace the human checkpoints)
+
+1. **Scope = mechanical only.** Run exactly the buckets the Setup run did:
+   `clarify / layout / typeset / colorize / adapt / harden / distill / optimize`
+   where triggered, plus `polish`. **Never** execute an IA or `// INTENT:`
+   change — log each as a `spawn_task` chip and move on. "Surface to the
+   dispatcher" becomes "log a chip and skip."
+2. **Page resolution is strict.** Run only pages from the "Suggested page queue"
+   (known routes). If a page can't be resolved or is ambiguous, **park it**
+   (skip + log) — never guess, never block the sweep waiting for an answer.
+3. **Do not merge by default.** Open each page's PR and leave it for morning
+   review (the Vercel preview is the dispatcher's visual gate). See merge policy.
+
+### Sequencing — the collision rule (non-negotiable)
+
+The queue pages **share** components and tokens (`StatusDot`, `index.css` theme
+tokens, `buttonVariants`, the adaptive-header family). Running them in parallel
+off `main` produces mutually-conflicting PRs — not hypothetical: it happened on
+the first run (#676 vs. #678 collided on one shared file). So:
+
+- **Run pages strictly sequentially**, one at a time. Never fan out.
+- **Stack each page's branch on the previous page's branch**, not on fresh
+  `main`. Page 2 branches from page 1's tip, page 3 from page 2's, so shared-file
+  edits accumulate cleanly instead of conflicting. The result is a chain of
+  per-page PRs the dispatcher merges bottom-up.
+- Rebuild any shared package (`pnpm --filter @myk9/<pkg> build`) once per page
+  before that page's tests, per Phase 5.
+
+### Merge policy (the one real choice — state it before starting)
+
+- **Review mode (default).** Open the stacked PRs; do not merge. The dispatcher
+  merges bottom-up in the morning. Caveat: rejecting a mid-stack PR means the
+  ones above it need a rebase — note this in the final report.
+- **Hands-off mode (`--merge`).** Auto-merge each page's PR after its CI passes,
+  before starting the next page (which then branches off fresh `main`, not a
+  stack). Collision-free, no morning rebase puzzle, but the mechanical fixes
+  merge unreviewed. Only valid because this mode is mechanical-only + fully
+  tested; never combine `--merge` with any IA work.
+
+### Robustness — park, don't halt
+
+A sweep must survive a bad page without losing the rest of the night:
+
+- If a page's tests hang >30s, CI fails, typecheck/lint breaks, or the page
+  won't resolve → **park that page** (abandon its branch, log why) and continue
+  to the next. One bad page never halts the sweep.
+- Respect the per-page iteration cap (two evaluate rounds). A page that won't
+  converge is parked with its partial findings, not retried indefinitely.
+- Cap total work at the queue length.
+
+### Morning report (the single artifact the dispatcher wakes up to)
+
+One summary covering every queue page: PR link (or "parked + reason" or
+"IA-only — N chips, no PR"), audit scores before→after, findings fixed vs.
+deferred, and the IA task-chips created. This is the hand-back.
+
+### Environment caveats
+
+- **Model:** run on Opus or Fable. The evaluator-pin keeps the *bar* honest on
+  any model, but unattended fix *craft* still tracks the runner — and there's no
+  human to catch a weak pass mid-run.
+- **Host:** a local overnight `/loop` is a safer host than a headless cloud
+  agent — the impeccable skill, the browser, and the `show_widget` visual tool
+  may be absent in headless/cron runs (interactively-authenticated MCP servers
+  don't always load there). Confirm those tools are reachable before relying on
+  the annotated-visual and live-evaluate steps.
+- The sweep is a **multi-agent orchestration** — launching it requires the
+  dispatcher's explicit opt-in, the same as any Workflow.

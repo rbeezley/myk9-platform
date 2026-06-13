@@ -293,14 +293,38 @@ Score against these states. The same logic transfers to the other dimensions:
     fix findings → merge → `/cleanup`. Add `/codex:review` when the page's
     behavior (not just styling) changed — Codex catches what Claude reviewers
     miss, proven on #418/#444.
-26. PR body: before/after screenshots (both modes), the findings table with
-    each item's disposition (fixed / dropped+reason / deferred-to-user).
+26. PR body: the annotated before/after visual (step 28), the findings table
+    with each item's disposition (fixed / dropped+reason / deferred-to-user),
+    and a link to the Vercel preview for the real rendered branch.
 27. **[ADDED] Report back to the dispatcher** (the final chat message, not just
     the PR). Include: the page, the PR link, audit scores **before → after**
     per dimension, count of findings fixed vs. deferred, any item that needs a
     human decision (IA changes, INTENT-touching changes, a page that didn't
     converge in the iteration cap), and the cross-surface ripple result. This
     is what lets the dispatcher decide the next page without reading the diff.
+28. **[ADDED] Annotated before/after visual.** Produce a side-by-side
+    before/after of the changed UI for the dispatcher and the PR. Two methods —
+    pick by the nature of the change:
+    - **Faithful reconstruction (default for subtle visual fixes).** Rebuild
+      the changed components' before and after states with the `show_widget`
+      visualization tool, using the ACTUAL values from the diff — real hex
+      colors, real px sizes, measured contrast ratios — annotated with what
+      changed and the metric (e.g. "1.9:1 → 5.0:1", "24px → 44px"). Render the
+      mode where the defect lives (usually light) and say so. Use this when the
+      delta is a shade/contrast shift (near-invisible at thumbnail size), or it
+      only appears under specific data/states (e.g. a schedule level must be
+      in-progress/completed for its status color to show), or the run is in a
+      worktree where the Preview MCP serves main, not the branch.
+    - **Real browser screenshots.** Drive a dev server on the branch with
+      browser automation, both modes, when the change is a self-evident layout
+      or structure shift that reproduces without special seed data. The Vercel
+      PR preview already renders the real branch — link it rather than restaging
+      data when that suffices.
+    Faithfulness rule: every value in a reconstruction must come from the diff
+    or a computed measurement — never approximate, beautify, or invent, and
+    label it a reconstruction. Cover only the fixed findings, one comparison
+    block each with its metric. The reconstruction supplements the Vercel
+    preview; it does not replace it.
 
 ---
 

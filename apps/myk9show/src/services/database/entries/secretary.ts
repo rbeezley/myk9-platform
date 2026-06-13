@@ -10,96 +10,14 @@ import {
   replicatedEntriesTable,
   type ReplicatedEntry,
 } from '@/services/replication/ReplicatedEntriesTable';
+import { getReplicatedSecretaryEntriesForShow } from './secretaryReadReplication';
 import type { EntryStatus } from '@/types/entry-lifecycle';
 import type { CheckInStatus } from '@myk9/core';
 import type { TablesUpdate } from '@/types/supabase';
+import type { PendingEntry, SecretaryStatusEntrySeed } from './secretaryTypes';
+import { postgrestGetSecretaryEntriesForShow } from './secretaryPostgrest';
 
-export interface SecretaryEntry {
-  id: string;
-  dog_id: string | null;
-  class_id: string | null;
-  trial_id: string | null;
-  show_id: string | null;
-  handler: string | null;
-  handler_id: string | null;
-  payment_status: string | null;
-  entry_status: string | null;
-  entry_fee: number | null;
-  submitted_at: string | null;
-  created_at: string | null;
-  updated_at: string | null;
-  armband: string | null;
-  special_requests: string | null;
-  jump_height: string | null;
-  run_order: number | null;
-  is_in_ring: boolean | null;
-  check_in_status: string | null;
-  withdrawal_reason: string | null;
-  payment_method: string | null;
-  refund_amount: number | null;
-  refunded_at: string | null;
-  stripe_payment_intent_id: string | null;
-  registration_id: string | null;
-  registration: {
-    id: string;
-    confirmation_number: string;
-    payment_status: string | null;
-    payment_reference: string | null;
-    total_amount: number | null;
-    paid_amount: number | null;
-    refund_amount: number | null;
-    refund_notes: string | null;
-    refunded_at: string | null;
-  } | null;
-  /** Joined person for handler_id — online entries set the FK, not the legacy text. */
-  handler_person: { id: string; first_name: string | null; last_name: string | null } | null;
-  dog: {
-    id: string;
-    name: string;
-    call_name: string | null;
-    breed: string | null;
-    owner: {
-      id: string;
-      first_name: string | null;
-      last_name: string | null;
-      email: string | null;
-    } | null;
-  } | null;
-  class: {
-    id: string;
-    name: string;
-    class_number: string | null;
-    max_entries: number | null;
-  } | null;
-}
-
-export interface PendingEntry {
-  id: string;
-  showId: string;
-  showName: string;
-  className: string;
-  handlerName: string;
-  dogName: string;
-  submittedAt: string;
-  /** Raw entry_status — consumed by getEntryAttention() for unified classification. */
-  entry_status: string | null;
-  /** Raw check_in_status — consumed by getEntryAttention() for unified classification. */
-  check_in_status: string | null;
-}
-
-export interface SecretaryStatusEntrySeed {
-  id?: string;
-  showId?: string;
-  classId?: string;
-  dogId?: string;
-  handler?: string;
-  handlerId?: string;
-  armband?: string;
-  registrationId?: string;
-  trialId?: string;
-  entryStatus?: string;
-  paymentStatus?: string;
-}
+export type { PendingEntry, SecretaryEntry, SecretaryStatusEntrySeed } from './secretaryTypes';
 
 function toPendingEntry(row: Record<string, unknown>): PendingEntry {
   const person = row.people as { first_name: string; last_name: string } | null;
@@ -151,88 +69,22 @@ export const getEntriesForShow = async (showId: string) => {
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase
-      .from('entries')
-      .select(
-        `
-        id,
-        dog_id,
-        class_id,
-        trial_id,
-        show_id,
-        handler,
-        handler_id,
-        payment_status,
-        entry_status,
-        entry_fee,
-        submitted_at,
-        created_at,
-        updated_at,
-        armband,
-        special_requests,
-        jump_height,
-        run_order,
-        is_in_ring,
-        check_in_status,
-        withdrawal_reason,
-        payment_method,
-        refund_amount,
-        refunded_at,
-        stripe_payment_intent_id,
-        registration_id,
-        handler_person:handler_id (
-          id,
-          first_name,
-          last_name
-        ),
-        registration:registration_id (
-          id,
-          confirmation_number,
-          payment_status,
-          payment_reference,
-          total_amount,
-          paid_amount,
-          refund_amount,
-          refund_notes,
-          refunded_at
-        ),
-        dog:dog_id (
-          id,
-          name,
-          call_name,
-          breed,
-          owner:owner_id (
-            id,
-            first_name,
-            last_name,
-            email
-          )
-        ),
-        class:class_id (
-          id,
-          name,
-          class_number,
-          max_entries
-        )
-      `
-      )
-      .eq('show_id', showId)
-      .is('deleted_at', null)
-      .order('created_at', { ascending: true });
-
-    const duration = Date.now() - startTime;
-    logQuery('entries', 'get_entries_for_show', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'get_entries_for_show');
+    const result = await getReplicatedSecretaryEntriesForShow(showId);
+    logQuery('entries', 'get_entries_for_show', Date.now() - startTime);
+    return result;
+  } catch {
+    try {
+      return await postgrestGetSecretaryEntriesForShow(
+        showId,
+        startTime,
+        'get_entries_for_show_fallback'
+      );
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const dbError = createDatabaseError(error, 'entries', 'get_entries_for_show');
+      logQuery('entries', 'get_entries_for_show', duration, dbError.message);
+      return { data: [], error: dbError };
     }
-
-    return { data: data || [], error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'get_entries_for_show');
-    logQuery('entries', 'get_entries_for_show', duration, dbError.message);
-    return { data: [], error: dbError };
   }
 };
 

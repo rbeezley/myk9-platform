@@ -90,6 +90,48 @@ describe('ReplicatedEntriesTable', () => {
       expect(entry.deletedAt).toBe(deletedAt);
       expect(entry.deleted_at).toBe(deletedAt);
     });
+
+    it('maps created_at for read adapters that preserve PostGREST ordering', () => {
+      const createdAt = '2026-06-01T09:00:00.000Z';
+      const submittedAt = '2026-06-01T10:00:00.000Z';
+
+      const entry = rowToEntry({
+        id: 'entry-created',
+        class_id: 'class-1',
+        show_id: 'show-1',
+        dog_id: 'dog-1',
+        created_at: createdAt,
+        submitted_at: submittedAt,
+        updated_at: '2026-06-01T11:00:00.000Z',
+      } as Parameters<typeof rowToEntry>[0]);
+
+      expect(entry.createdAt).toBe(createdAt);
+      expect(entry.created_at).toBe(createdAt);
+      expect(entry.submittedAt).toBe(submittedAt);
+    });
+
+    it('maps secretary display metadata used by replicated read adapters', () => {
+      const entry = rowToEntry({
+        id: 'entry-secretary-metadata',
+        class_id: 'class-1',
+        show_id: 'show-1',
+        dog_id: 'dog-1',
+        is_in_ring: true,
+        refund_amount: 12.5,
+        refunded_at: '2026-06-01T12:00:00.000Z',
+        stripe_payment_intent_id: 'pi_secretary_123',
+        updated_at: '2026-06-01T12:01:00.000Z',
+      } as Parameters<typeof rowToEntry>[0]);
+
+      expect(entry.isInRing).toBe(true);
+      expect(entry.is_in_ring).toBe(true);
+      expect(entry.refundAmount).toBe(12.5);
+      expect(entry.refund_amount).toBe(12.5);
+      expect(entry.refundedAt).toBe('2026-06-01T12:00:00.000Z');
+      expect(entry.refunded_at).toBe('2026-06-01T12:00:00.000Z');
+      expect(entry.stripePaymentIntentId).toBe('pi_secretary_123');
+      expect(entry.stripe_payment_intent_id).toBe('pi_secretary_123');
+    });
   });
 
   describe('Entry CRUD Operations', () => {

@@ -1,15 +1,17 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/services/database/supabaseClient';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { logger } from '@/services/LoggingService';
 import { getSecretaryShows, getShowById } from '@/services/database/shows';
-import { getEntriesForShow, SecretaryEntry } from '@/services/database/entries';
+import { getEntriesForShow } from '@/services/database/entries';
 import type { CheckInStatus } from '@myk9/core';
 import type {
   EntryManagementEntry,
   EntryManagementShow,
   EntryStats,
 } from '@/types/entry-management-types';
+import type { SecretaryEntry } from '@/services/database/entries';
 import {
   mapEntryStatus,
   mapPaymentStatus,
@@ -94,6 +96,7 @@ interface EntryManagementShowRow {
  */
 export function useEntryManagementData(initialShowId?: string): UseEntryManagementDataReturn {
   const { user, hasRole } = useAuthContext();
+  const { status: syncStatus, triggerSync } = useReplicationSync();
 
   // Show selection — resolve from URL param, localStorage, or empty.
   // Defer applying until shows load so the Select can resolve the display name.
@@ -109,6 +112,8 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
   const [error, setError] = useState<string | null>(null);
   // Load-specific errors (only set by `loadEntries`; never by actions).
   const [loadError, setLoadError] = useState<string | null>(null);
+  const requestedEmptyReplicaSyncFor = useRef<string | null>(null);
+  const reloadedAfterSyncKey = useRef<string | null>(null);
 
   const loadShows = useCallback(async () => {
     setIsLoadingShows(true);
@@ -143,10 +148,12 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
       // `as unknown` bridge: entries.refund_amount/refunded_at (migration
       // 20260609220000) aren't in the generated Database types yet — drop the
       // bridge after the next `supabase gen types` run.
-      const transformedEntries: EntryManagementEntry[] = ((data || []) as unknown as SecretaryEntry[]).map(
+      const transformedEntries: EntryManagementEntry[] = (
+        (data || []) as unknown as SecretaryEntry[]
+      ).map(
         (entry): EntryManagementEntry => ({
           id: entry.id,
-          registrationId: entry.registration?.id ?? '',
+          registrationId: entry.registration?.id ?? entry.registration_id ?? '',
           entryNumber: entry.armband || entry.id.slice(0, 8).toUpperCase(),
           showId: entry.show_id || '',
           dogId: entry.dog_id || '',
@@ -294,6 +301,33 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
       setEntries([]);
     }
   }, [selectedShowId, loadEntries]);
+
+  const entriesSyncStatus = syncStatus.tablesStatus.entries;
+  const entriesSyncAt = syncStatus.lastSyncAt?.getTime() ?? null;
+
+  useEffect(() => {
+    if (!selectedShowId || isLoading || loadError || entries.length > 0) {
+      if (!selectedShowId || entries.length > 0) {
+        requestedEmptyReplicaSyncFor.current = null;
+      }
+      return;
+    }
+
+    if (entriesSyncStatus === 'idle' && requestedEmptyReplicaSyncFor.current !== selectedShowId) {
+      requestedEmptyReplicaSyncFor.current = selectedShowId;
+      void triggerSync();
+    }
+  }, [entries.length, entriesSyncStatus, isLoading, loadError, selectedShowId, triggerSync]);
+
+  useEffect(() => {
+    if (!selectedShowId || !entriesSyncAt || entriesSyncStatus !== 'success') return;
+
+    const syncKey = `${selectedShowId}:${entriesSyncAt}`;
+    if (reloadedAfterSyncKey.current === syncKey) return;
+
+    reloadedAfterSyncKey.current = syncKey;
+    void loadEntries(selectedShowId);
+  }, [entriesSyncAt, entriesSyncStatus, loadEntries, selectedShowId]);
 
   // Single-pass computation for stats and tab counts
   const { stats, tabCounts } = useMemo(() => {

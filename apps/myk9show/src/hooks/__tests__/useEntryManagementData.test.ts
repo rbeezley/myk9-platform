@@ -7,6 +7,14 @@ const mocks = vi.hoisted(() => ({
   getShowById: vi.fn(),
   getEntriesForShow: vi.fn(),
   useAuthContext: vi.fn(),
+  triggerSync: vi.fn(),
+  syncTable: vi.fn(),
+  syncStatus: {
+    isSyncing: false,
+    lastSyncAt: null as Date | null,
+    error: null as string | null,
+    tablesStatus: { entries: 'success' as 'idle' | 'syncing' | 'success' | 'error' },
+  },
   supabase: {
     from: vi.fn(() => ({
       select: vi.fn().mockReturnThis(),
@@ -31,6 +39,14 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: mocks.useAuthContext,
 }));
 
+vi.mock('@/hooks/useReplicationSync', () => ({
+  useReplicationSync: () => ({
+    status: mocks.syncStatus,
+    triggerSync: mocks.triggerSync,
+    syncTable: mocks.syncTable,
+  }),
+}));
+
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: mocks.supabase,
 }));
@@ -45,9 +61,18 @@ function makeShow(id = 'show-1') {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.removeItem('myk9show:entryMgmt:lastShowId');
   mocks.useAuthContext.mockReturnValue({ user: { id: 'sec-1' }, hasRole: vi.fn() });
   mocks.getSecretaryShows.mockResolvedValue({ data: [makeShow()], error: null });
   mocks.getEntriesForShow.mockResolvedValue({ data: [], error: null });
+  mocks.triggerSync.mockResolvedValue(undefined);
+  mocks.syncTable.mockResolvedValue(undefined);
+  mocks.syncStatus = {
+    isSyncing: false,
+    lastSyncAt: null,
+    error: null,
+    tablesStatus: { entries: 'success' },
+  };
   // Default: getShowById returns the show — ensures initialShowId tests are stable
   // regardless of which async path (shows.some vs fetch) wins the race.
   mocks.getShowById.mockResolvedValue({ data: makeShow(), error: null });
@@ -71,6 +96,61 @@ describe('useEntryManagementData', () => {
     expect(mocks.getEntriesForShow).toHaveBeenCalledWith('show-1');
   });
 
+  it('requests replication sync when the selected show loads from an empty idle entries replica', async () => {
+    mocks.syncStatus = {
+      isSyncing: false,
+      lastSyncAt: null,
+      error: null,
+      tablesStatus: { entries: 'idle' },
+    };
+
+    const { result } = renderHook(() => useEntryManagementData());
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+
+    act(() => result.current.setSelectedShowId('show-1'));
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => expect(mocks.triggerSync).toHaveBeenCalledTimes(1));
+  });
+
+  it('reloads entries after replication sync completes', async () => {
+    mocks.getEntriesForShow.mockResolvedValueOnce({ data: [], error: null }).mockResolvedValueOnce({
+      data: [
+        {
+          id: 'entry-after-sync',
+          show_id: 'show-1',
+          dog: null,
+          class: null,
+          registration: null,
+        },
+      ],
+      error: null,
+    });
+    mocks.syncStatus = {
+      isSyncing: false,
+      lastSyncAt: null,
+      error: null,
+      tablesStatus: { entries: 'syncing' },
+    };
+
+    const { result, rerender } = renderHook(() => useEntryManagementData());
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+
+    act(() => result.current.setSelectedShowId('show-1'));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    mocks.syncStatus = {
+      isSyncing: false,
+      lastSyncAt: new Date('2026-06-13T03:00:00.000Z'),
+      error: null,
+      tablesStatus: { entries: 'success' },
+    };
+    rerender();
+
+    await waitFor(() => expect(result.current.entries[0]?.id).toBe('entry-after-sync'));
+    expect(mocks.getEntriesForShow).toHaveBeenCalledTimes(2);
+  });
+
   it('applies initialShowId from URL param once shows are loaded', async () => {
     const { result } = renderHook(() => useEntryManagementData('show-1'));
     await waitFor(() => expect(result.current.selectedShowId).toBe('show-1'));
@@ -91,9 +171,7 @@ describe('useEntryManagementData', () => {
     mocks.getSecretaryShows.mockResolvedValue({ data: [], error: null });
 
     let resolveFetch!: (v: unknown) => void;
-    mocks.getShowById.mockImplementation(
-      () => new Promise(res => (resolveFetch = res))
-    );
+    mocks.getShowById.mockImplementation(() => new Promise(res => (resolveFetch = res)));
 
     const { result, unmount } = renderHook(() => useEntryManagementData('show-deeplink'));
     // Give the effect time to fire and start the fetch
@@ -191,6 +269,29 @@ describe('useEntryManagementData', () => {
 
     expect(result.current.entries[0]?.paidAmount).toBe(30);
     expect(result.current.entries[1]?.paidAmount).toBe(0);
+  });
+
+  it('preserves registration id when offline metadata enrichment is unavailable', async () => {
+    mocks.getEntriesForShow.mockResolvedValue({
+      data: [
+        {
+          id: 'e1',
+          show_id: 'show-1',
+          registration_id: 'reg-offline-1',
+          dog: null,
+          class: null,
+          registration: null,
+        },
+      ],
+      error: null,
+    });
+
+    const { result } = renderHook(() => useEntryManagementData());
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+    act(() => result.current.setSelectedShowId('show-1'));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.entries[0]?.registrationId).toBe('reg-offline-1');
   });
 
   it('clears entries when selectedShowId is reset to empty', async () => {

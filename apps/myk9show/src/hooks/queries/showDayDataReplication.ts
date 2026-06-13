@@ -35,6 +35,10 @@ function getEntryClassId(entry: ReplicatedEntry) {
   return entry.classId ?? entry.class_id ?? null;
 }
 
+function getEntryHandlerId(entry: ReplicatedEntry) {
+  return entry.handlerId ?? (entry as { handler_id?: string | null }).handler_id ?? null;
+}
+
 function getEntryTrialId(entry: ReplicatedEntry) {
   return entry.trialId ?? entry.trial_id ?? null;
 }
@@ -57,6 +61,14 @@ function getEntryIsInRing(entry: ReplicatedEntry) {
 
 function getEntryScoringCompletedAt(entry: ReplicatedEntry) {
   return entry.scoringCompletedAt ?? entry.scoring_completed_at ?? null;
+}
+
+function getEntryRunOrder(entry: ReplicatedEntry) {
+  return entry.runOrder ?? (entry as { run_order?: number | null }).run_order ?? null;
+}
+
+function ringProgressSortTimestamp(value: string | null) {
+  return value ?? '\uFFFF';
 }
 
 function getClassTrialId(cls: ReplicatedClass) {
@@ -199,7 +211,7 @@ function toDetailRow(context: ReplicatedShowDayContext): ShowDayDetailRow {
     id: entry.id,
     check_in_status: getEntryCheckInStatus(entry),
     armband: entry.armband ?? null,
-    run_order: entry.runOrder ?? null,
+    run_order: getEntryRunOrder(entry),
     is_scored: getEntryIsScored(entry),
     result_status: getEntryResultStatus(entry),
     is_in_ring: getEntryIsInRing(entry),
@@ -244,7 +256,7 @@ function toProgressRow(context: ReplicatedShowDayContext): RingProgressRow | nul
     is_in_ring: isInRing,
     is_scored: isScored,
     scoring_completed_at: getEntryScoringCompletedAt(entry),
-    run_order: entry.runOrder ?? null,
+    run_order: getEntryRunOrder(entry),
     dog: {
       call_name: entry.dogCallName ?? entry.dog_call_name ?? dog?.callName ?? dog?.name ?? '',
     },
@@ -256,7 +268,7 @@ export async function fetchReplicatedShowDayCheck(
   today: string
 ): Promise<ShowDayCheckRow[]> {
   const entries = (await replicatedEntriesTable.getAll()).filter(
-    entry => isNotDeleted(entry) && entry.handlerId === userId
+    entry => isNotDeleted(entry) && getEntryHandlerId(entry) === userId
   );
   const contexts = await buildContexts(entries);
   return contexts.filter(context => context.trial.date === today).map(toCheckRow);
@@ -267,7 +279,7 @@ export async function fetchReplicatedShowDayDetails(
   today: string
 ): Promise<ShowDayDetailRow[]> {
   const entries = (await replicatedEntriesTable.getAll()).filter(
-    entry => isNotDeleted(entry) && entry.handlerId === userId
+    entry => isNotDeleted(entry) && getEntryHandlerId(entry) === userId
   );
   const contexts = await buildContexts(entries);
   return contexts
@@ -295,7 +307,9 @@ export async function fetchReplicatedRingProgress(
     .filter((row): row is RingProgressRow => row !== null)
     .sort(
       (a, b) =>
-        (a.scoring_completed_at ?? '').localeCompare(b.scoring_completed_at ?? '') ||
+        ringProgressSortTimestamp(a.scoring_completed_at).localeCompare(
+          ringProgressSortTimestamp(b.scoring_completed_at)
+        ) ||
         (a.run_order ?? Number.MAX_SAFE_INTEGER) - (b.run_order ?? Number.MAX_SAFE_INTEGER)
     );
 }

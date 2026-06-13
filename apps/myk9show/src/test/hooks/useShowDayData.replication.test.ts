@@ -227,4 +227,99 @@ describe('show-day data replication adapter', () => {
       },
     ]);
   });
+
+  it('supports snake_case entry fields and sorts uncompleted ring rows last', async () => {
+    replicationMocks.getAllEntries.mockResolvedValue([
+      {
+        id: 'snake-user-entry',
+        handler_id: 'user-1',
+        showId: 'show-1',
+        trial_id: 'trial-1',
+        class_id: 'class-1',
+        dogId: 'dog-1',
+        check_in_status: 'checked-in',
+        armband: '161',
+        run_order: 7,
+        is_scored: false,
+        is_in_ring: false,
+      },
+      {
+        id: 'scored-entry',
+        handler_id: 'other-user',
+        showId: 'show-1',
+        trial_id: 'trial-1',
+        class_id: 'class-1',
+        dogId: 'dog-2',
+        run_order: 2,
+        is_scored: true,
+        is_in_ring: false,
+        scoring_completed_at: '2026-03-09T10:05:00Z',
+      },
+      {
+        id: 'in-ring-entry',
+        handler_id: 'other-user',
+        showId: 'show-1',
+        trial_id: 'trial-1',
+        class_id: 'class-1',
+        dogId: 'dog-3',
+        run_order: 3,
+        is_scored: false,
+        is_in_ring: true,
+        scoring_completed_at: null,
+      },
+    ]);
+    replicationMocks.getDogById.mockImplementation((dogId: string) =>
+      Promise.resolve({
+        id: dogId,
+        name: `${dogId} Registered`,
+        callName: dogId === 'dog-1' ? 'Storm' : dogId === 'dog-2' ? 'Ace' : 'Beacon',
+        breed: 'Mixed',
+      })
+    );
+    replicationMocks.getClassById.mockResolvedValue({
+      id: 'class-1',
+      trialId: 'trial-1',
+      name: 'Container Novice A',
+      element: 'Container',
+      level: 'Novice',
+      classStatus: 'in-progress',
+      totalEntriesCount: 12,
+      scoredCount: 3,
+    });
+    replicationMocks.getTrialById.mockResolvedValue({
+      id: 'trial-1',
+      showId: 'show-1',
+      date: '2026-03-09',
+      trialNumber: '1',
+    });
+    replicationMocks.getShowById.mockResolvedValue({
+      id: 'show-1',
+      name: 'AKC Scent Work Trial',
+      location: 'Denver, CO',
+      status: 'in_progress',
+      startDate: '2026-03-09',
+      endDate: '2026-03-09',
+      clubId: 'club-1',
+    });
+    replicationMocks.getClubById.mockResolvedValue({ id: 'club-1', name: 'Mile High Club' });
+
+    const {
+      fetchReplicatedRingProgress,
+      fetchReplicatedShowDayCheck,
+      fetchReplicatedShowDayDetails,
+    } = await import('@/hooks/queries/showDayDataReplication');
+
+    const checkRows = await fetchReplicatedShowDayCheck('user-1', '2026-03-09');
+    const detailRows = await fetchReplicatedShowDayDetails('user-1', '2026-03-09');
+    const progressRows = await fetchReplicatedRingProgress(['class-1']);
+
+    expect(checkRows.map(row => row.id)).toEqual(['snake-user-entry']);
+    expect(detailRows[0]).toMatchObject({
+      id: 'snake-user-entry',
+      check_in_status: 'checked-in',
+      run_order: 7,
+    });
+    expect(progressRows.map(row => row.dog.call_name)).toEqual(['Ace', 'Beacon']);
+    expect(progressRows.map(row => row.run_order)).toEqual([2, 3]);
+  });
 });

@@ -203,7 +203,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
             )}
 
             {entry.notes && (
-              <Badge variant="outline" className="text-blue-600">
+              <Badge variant="outline" className="text-blue-700 dark:text-blue-400">
                 <MessageSquare className="h-3 w-3 mr-1" />
                 Notes
               </Badge>
@@ -227,7 +227,10 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                   <div className="flex flex-col gap-0.5">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <button className="inline-flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity">
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
+                        >
                           {getEntryStatusBadge(entry.entryStatus)}
                           <ChevronDown className="h-3 w-3 text-muted-foreground" />
                         </button>
@@ -297,7 +300,10 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                 {/* Check-in status — clickable dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="inline-flex items-center gap-1 cursor-pointer border border-border/40 rounded px-1.5 py-0.5 hover:border-border transition-colors">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 cursor-pointer border border-border/40 rounded px-1.5 py-0.5 hover:border-border transition-colors"
+                    >
                       <CheckInStatusIndicator
                         status={cls.checkInStatus || 'no-status'}
                         size="sm"

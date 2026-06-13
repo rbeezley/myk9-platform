@@ -621,52 +621,54 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
 
           {/* Dense secretary data table — scroll horizontally on small screens
               instead of crushing the six columns. The min-width keeps the grid
-              template legible; the outer container scrolls. */}
-          <div className="overflow-x-auto">
-            <div className="min-w-[640px]">
-              {/* Table header */}
-              <div
-                style={DOG_TABLE_GRID}
-                className="grid items-center gap-x-3 px-3 py-2 bg-muted/50 text-xs font-medium text-muted-foreground uppercase tracking-wide border-b border-border select-none"
-              >
-                <Checkbox
-                  checked={allEligibleSelected}
-                  onCheckedChange={handleSelectAllToggle}
-                  className="shrink-0"
-                />
-                <SortableHeader
-                  column="callName"
-                  label="Call Name"
-                  sortColumn={sortColumn}
-                  sortDirection={sortDirection}
-                  onSort={handleSort}
-                />
-                <SortableHeader
-                  column="breed"
-                  label="Breed"
-                  sortColumn={sortColumn}
-                  sortDirection={sortDirection}
-                  onSort={handleSort}
-                />
-                <SortableHeader
-                  column="owner"
-                  label="Owner"
-                  sortColumn={sortColumn}
-                  sortDirection={sortDirection}
-                  onSort={handleSort}
-                />
-                <span>Org</span>
-                <SortableHeader
-                  column="regNumber"
-                  label="Reg #"
-                  sortColumn={sortColumn}
-                  sortDirection={sortDirection}
-                  onSort={handleSort}
-                />
-              </div>
+              template legible; the outer container scrolls. Only the populated
+              table gets the min-width wrapper — the empty/searching state stays
+              full-width so phones don't get a phantom horizontal scrollbar. */}
+          {visibleDogs.length > 0 ? (
+            <div className="overflow-x-auto">
+              <div className="min-w-[640px]">
+                {/* Table header */}
+                <div
+                  style={DOG_TABLE_GRID}
+                  className="grid items-center gap-x-3 px-3 py-2 bg-muted/50 text-xs font-medium text-muted-foreground uppercase tracking-wide border-b border-border select-none"
+                >
+                  <Checkbox
+                    checked={allEligibleSelected}
+                    onCheckedChange={handleSelectAllToggle}
+                    className="shrink-0"
+                  />
+                  <SortableHeader
+                    column="callName"
+                    label="Call Name"
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
+                    onSort={handleSort}
+                  />
+                  <SortableHeader
+                    column="breed"
+                    label="Breed"
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
+                    onSort={handleSort}
+                  />
+                  <SortableHeader
+                    column="owner"
+                    label="Owner"
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
+                    onSort={handleSort}
+                  />
+                  <span>Org</span>
+                  <SortableHeader
+                    column="regNumber"
+                    label="Reg #"
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
+                    onSort={handleSort}
+                  />
+                </div>
 
-              {/* Dog list */}
-              {visibleDogs.length > 0 ? (
+                {/* Dog list */}
                 <List
                   height={Math.min(visibleDogs.length * 44, 440)}
                   width="100%"
@@ -681,23 +683,23 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
                 >
                   {DogRow}
                 </List>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              {isServerSearching ? (
+                <p className="text-muted-foreground">Searching…</p>
               ) : (
-                <div className="text-center py-8">
-                  {isServerSearching ? (
-                    <p className="text-muted-foreground">Searching…</p>
-                  ) : (
-                    <p className="text-muted-foreground">
-                      {getEmptyStateMessage(
-                        searchQuery,
-                        activeQuickFilter,
-                        workflowConfig.features.advancedSearch
-                      )}
-                    </p>
+                <p className="text-muted-foreground">
+                  {getEmptyStateMessage(
+                    searchQuery,
+                    activeQuickFilter,
+                    workflowConfig.features.advancedSearch
                   )}
-                </div>
+                </p>
               )}
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 

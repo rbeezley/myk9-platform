@@ -51,6 +51,7 @@ const TEST_FILE_PATTERN = /\.(test|spec)\.[tj]sx?$/;
 const TODO_MARKER_PATTERN = /\b(?:TODO|FIXME|HACK)\b/g;
 const ANY_CAST_PATTERN = /\bas\s+any\b/g;
 const SUPABASE_FROM_PATTERN = /\bsupabase\s*\.\s*from\s*\(/g;
+const EVIDENCE_PRINT_LIMIT = 25;
 
 export const DEFAULT_CONFIG: CodeQualityRatchetConfig = {
   sourceRoots: ['apps', 'packages'],
@@ -148,9 +149,11 @@ export function compareMetricsToBaselines(
 export function renderComparison({
   comparison,
   metrics,
+  evidence,
 }: {
   comparison: CodeQualityRatchetComparison;
   metrics: CodeQualityMetrics;
+  evidence?: CodeQualityMetricEvidence;
 }) {
   const lines = ['Code-quality ratchet metrics:', ''];
 
@@ -162,6 +165,17 @@ export function renderComparison({
     lines.push('', 'Regressions:');
     for (const violation of comparison.violations) {
       lines.push(`- ${violation.metric}: ${violation.actual} exceeds ${violation.baseline}`);
+      const locations = evidence?.[violation.metric] ?? [];
+      if (locations.length > 0) {
+        lines.push('  Evidence:');
+        for (const location of locations.slice(0, EVIDENCE_PRINT_LIMIT)) {
+          lines.push(`  - ${location}`);
+        }
+        const remainingCount = locations.length - EVIDENCE_PRINT_LIMIT;
+        if (remainingCount > 0) {
+          lines.push(`  - ...and ${remainingCount} more`);
+        }
+      }
     }
   }
 
@@ -214,7 +228,7 @@ export function runCli(args: string[] = process.argv.slice(2), rootDir = resolve
 
   const baseline = readBaseline(join(rootDir, baselinePath));
   const comparison = compareMetricsToBaselines(result.metrics, baseline.metrics);
-  console.log(renderComparison({ comparison, metrics: result.metrics }));
+  console.log(renderComparison({ comparison, metrics: result.metrics, evidence: result.evidence }));
 
   if (comparison.violations.length > 0) {
     return 1;

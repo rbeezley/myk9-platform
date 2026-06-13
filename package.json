@@ -16,7 +16,7 @@
     "qa:db-drift:enum": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/db-drift/enum-check-drift.ts",
     "qa:db-drift:functions": "SUPABASE_PROJECT_REF=sojmvhhwsjxmfistvzbe node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/db-drift/function-inventory.ts",
     "qa:db-drift:test": "vitest run scripts/qa/db-drift/*.test.ts",
-    "qa:code-quality-ratchet": "pnpm --dir apps/myk9show exec tsx ../../scripts/qa/code-quality-ratchet.ts --root=../..",
+    "qa:code-quality-ratchet": "tsx scripts/qa/code-quality-ratchet.ts",
     "qa:code-quality-ratchet:update": "pnpm qa:code-quality-ratchet -- --update-baseline",
     "qa:code-quality-ratchet:test": "vitest run scripts/qa/code-quality-ratchet.test.ts",
     "qa:rls-smoke": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/rls-smoke/rls-recursion-smoke.ts",
@@ -28,6 +28,7 @@
   },
   "devDependencies": {
     "prettier": "^3.8.3",
+    "tsx": "^4.22.4",
     "turbo": "^2.9.16",
     "vitest": "^4.1.8"
   },

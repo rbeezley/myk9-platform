@@ -8,9 +8,8 @@ import { VenueMap } from '@/components/shows/overview/VenueMap';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
-import { getShowStyle } from '@/features/registries';
+import { PhaseShell } from '@/features/show-workbench/PhaseShell';
 import { SetupAdaptiveHeader } from '@/features/show-workbench/SetupAdaptiveHeader';
-import { SetupPublishSection } from '@/features/show-workbench/SetupPublishSection';
 import { computeSetupReadinessSignals } from '@/features/show-workbench/setupReadinessSignals';
 import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
@@ -18,17 +17,6 @@ import { CLASS_STATUS } from '@myk9/core';
 import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import type { ShowWorkbenchClassSummary } from '@/features/show-workbench/showWorkbenchTypes';
-
-function PhaseShell({ title, kicker }: { title: string; kicker: string }) {
-  return (
-    <section className="space-y-3 pt-6" aria-label={title}>
-      <div>
-        <p className="text-sm font-medium text-muted-foreground">{kicker}</p>
-        <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
-      </div>
-    </section>
-  );
-}
 
 export function ShowWorkbenchSetupPage() {
   const params = useParams<{ showId?: string; id?: string }>();
@@ -106,9 +94,11 @@ export function ShowWorkbenchSetupPage() {
     <>
       <PhaseShell title="Setup" kicker="Before the show" />
       <div className="space-y-6">
+        {/* The publish cards render once at the show level (above the
+            section tabs in ShowDetailsPage); the exhibitor-materials chip
+            deep-links up to them via #setup-publish. */}
         <SetupAdaptiveHeader signals={setupSignals} />
-        <SetupPublishSection showId={currentShow.id} showStyle={getShowStyle(currentShow)} />
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr,340px]">
+        <div className="setup-detail-grid">
           <div className="space-y-6">
             <ScheduleSummary showId={currentShow.id} />
             <VenueMap location={currentShow.location} />

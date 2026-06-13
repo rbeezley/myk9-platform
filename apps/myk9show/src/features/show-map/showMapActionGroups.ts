@@ -13,6 +13,9 @@ export interface ShowMapActionGroup {
   items: ShowMapActionGroupItem[];
 }
 
+// Names the thing an action belongs to, so identical actions ("Print
+// Check-In Sheet") never render as indistinguishable rows. Entry actions
+// resolve to their class; class and trial actions resolve to themselves.
 function classLabelForEntryAction(
   action: ShowMapAction,
   tree: ShowMapTree
@@ -20,6 +23,10 @@ function classLabelForEntryAction(
   const node = tree.nodesById[action.nodeId];
   if (!node) return undefined;
   if (node.type === 'dog-entry') return node.dogEntryDisplay?.classLabel;
+  if (node.type === 'class') {
+    return node.subtitle ? `${node.label} — ${node.subtitle}` : node.label;
+  }
+  if (node.type === 'trial') return node.label;
   if (node.type !== 'entry' || !node.parentId) return undefined;
   const parent = tree.nodesById[node.parentId];
   return parent?.label;

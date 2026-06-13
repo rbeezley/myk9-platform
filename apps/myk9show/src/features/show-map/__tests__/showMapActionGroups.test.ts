@@ -260,6 +260,64 @@ describe('groupActionsByEntity', () => {
     expect(groups.every(g => g.count === 1)).toBe(true);
   });
 
+  it('gives class-node actions the class name as disambiguator', () => {
+    const tree = makeBravoTree();
+    const checkInA = fakeAction({
+      id: 'print-check-in-sheet',
+      nodeId: 'class:class-a',
+      label: 'Print Check-In Sheet',
+      icon: ClipboardList,
+    });
+    const checkInB = fakeAction({
+      id: 'print-check-in-sheet',
+      nodeId: 'class:class-b',
+      label: 'Print Check-In Sheet',
+      icon: ClipboardList,
+    });
+    const groups = groupActionsByEntity([checkInA, checkInB], tree);
+    expect(groups.map(g => g.items[0]?.disambiguator)).toEqual([
+      'Container Novice',
+      'Interior Novice',
+    ]);
+  });
+
+  it('gives trial-node actions the trial name as disambiguator', () => {
+    const tree = makeBravoTree();
+    const trialAction = fakeAction({
+      id: 'print-trial-reports',
+      nodeId: 'trial:trial-1',
+      label: 'Print Trial Reports',
+      icon: ClipboardList,
+    });
+    const groups = groupActionsByEntity([trialAction], tree);
+    expect(groups[0]?.items[0]?.disambiguator).toBe(tree.nodesById['trial:trial-1']?.label);
+  });
+
+  it('appends the section subtitle to a class disambiguator when present', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [
+        {
+          id: 'class-secB',
+          trialId: 'trial-1',
+          name: 'Interior Novice',
+          section: 'B',
+          status: 'Not Started',
+        },
+      ],
+      entries: [],
+    });
+    const action = fakeAction({
+      id: 'print-check-in-sheet',
+      nodeId: 'class:class-secB',
+      label: 'Print Check-In Sheet',
+      icon: ClipboardList,
+    });
+    const groups = groupActionsByEntity([action], tree);
+    expect(groups[0]?.items[0]?.disambiguator).toBe('Interior Novice — Section B');
+  });
+
   it('does not collapse entry actions whose nodes lack a dogId', () => {
     // Bypass the normal tree builder so we can produce an entry node without dogId.
     const tree: ShowMapTree = {

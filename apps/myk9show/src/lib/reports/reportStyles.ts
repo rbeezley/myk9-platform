@@ -235,6 +235,10 @@ body {
   gap: 8px;
   padding: 8px 0;
   border-bottom: 1px solid #eee;
+  /* A dog's row (now tall: reason checklists + time boxes) must never split
+     across a page break — half a scoring row on each page is unusable. */
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 .scoresheet-entry-info {

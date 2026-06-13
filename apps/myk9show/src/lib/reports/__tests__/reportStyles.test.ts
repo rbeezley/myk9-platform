@@ -32,6 +32,7 @@ const SCORESHEET_CLASSES = [
   'reasons-list',
   'reason-item',
   'entry-time',
+  'multi-area',
   'time-box',
   'time-box-sm',
   'time-label',

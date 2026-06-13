@@ -271,7 +271,7 @@ export function ShowAccessCodesCard({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 gap-1.5 text-xs"
+                  className="gap-1.5 text-xs"
                   onClick={() => copyToClipboard(exhibitorUrl)}
                 >
                   <Link className="h-3 w-3" />
@@ -280,7 +280,7 @@ export function ShowAccessCodesCard({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 gap-1.5 text-xs"
+                  className="gap-1.5 text-xs"
                   onClick={() => printSlip(codes.exhibitor)}
                 >
                   <Printer className="h-3 w-3" />

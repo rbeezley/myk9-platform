@@ -236,7 +236,10 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
               ) : (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="inline-flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
+                  >
                     {getPaymentStatusBadge(group.paymentStatus)}
                     <ChevronDown className="h-3 w-3 text-muted-foreground" />
                   </button>
@@ -291,13 +294,13 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
               {paidDollars > 0 &&
                 !isPartiallyPaid &&
                 group.paymentStatus === PaymentStatus.PENDING && (
-                  <span className="text-xs text-amber-600 font-medium">
+                  <span className="text-xs text-amber-700 dark:text-amber-400 font-medium">
                     ${paidDollars.toFixed(2)} on account
                   </span>
                 )}
 
               {group.refundAmount != null && (
-                <span className="text-xs text-blue-600 font-medium">
+                <span className="text-xs text-blue-700 dark:text-blue-400 font-medium">
                   ${group.refundAmount.toFixed(2)} refunded
                   {group.refundedAt && (
                     <span className="text-muted-foreground font-normal ml-1">

@@ -53,3 +53,13 @@ export function getPostSyncInvalidationKeys(tableNames: readonly string[]): stri
   // The judge dashboard reads a denormalized judge_assignments + classes query.
   return [...tableNames.map(name => [name]), ['judges', 'assignments']];
 }
+
+export function shouldRequestPostUploadSync(
+  uploadedTables: readonly string[],
+  replicatedTableNames: ReadonlySet<string>,
+  isSyncing: boolean
+): boolean {
+  if (isSyncing) return false;
+
+  return uploadedTables.some(table => replicatedTableNames.has(table));
+}

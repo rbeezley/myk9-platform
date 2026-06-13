@@ -1,8 +1,13 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, FileText, RotateCcw, Save } from 'lucide-react';
+import { AlertTriangle, ChevronDown, FileText, RotateCcw, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -36,7 +41,7 @@ const NO_SELECTION_VALUE = 'none';
 
 const SEVERITY_TEXT_CLASS: Record<ShowIncidentSeverity, string> = {
   note: 'text-muted-foreground',
-  reportable: 'font-medium text-amber-700',
+  reportable: 'font-medium text-amber-800 dark:text-amber-300',
   urgent: 'font-semibold text-destructive',
 };
 
@@ -61,6 +66,7 @@ export function IncidentLogCard({ entries, judges, showId }: IncidentLogCardProp
   const [summary, setSummary] = useState('');
   const [description, setDescription] = useState('');
   const [actionTaken, setActionTaken] = useState('');
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const { user, userWithRoles } = useAuthContext();
   const author = getAnnouncementAuthor(user, userWithRoles, 'Secretary');
   const queryClient = useQueryClient();
@@ -114,6 +120,7 @@ export function IncidentLogCard({ entries, judges, showId }: IncidentLogCardProp
     setSummary('');
     setDescription('');
     setActionTaken('');
+    setDetailsOpen(false);
   }
 
   return (
@@ -144,77 +151,14 @@ export function IncidentLogCard({ entries, judges, showId }: IncidentLogCardProp
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="space-y-2">
-          <Label id="incident-type-label">Type</Label>
-          <Select
-            value={incidentType}
-            onValueChange={value => setIncidentType(value as ShowIncidentType)}
-          >
-            <SelectTrigger aria-labelledby="incident-type-label">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SHOW_INCIDENT_TYPES.map(type => (
-                <SelectItem key={type.id} value={type.id}>
-                  {type.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label id="incident-severity-label">Severity</Label>
-          <Select
-            value={severity}
-            onValueChange={value => setSeverity(value as ShowIncidentSeverity)}
-          >
-            <SelectTrigger aria-labelledby="incident-severity-label">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SHOW_INCIDENT_SEVERITIES.map(item => (
-                <SelectItem key={item.id} value={item.id}>
-                  {item.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label id="incident-entry-label">Entry / dog</Label>
-          <Select value={selectedEntryId} onValueChange={setSelectedEntryId}>
-            <SelectTrigger aria-labelledby="incident-entry-label">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NO_SELECTION_VALUE}>No entry selected</SelectItem>
-              {entries.map(entry => (
-                <SelectItem key={entry.id} value={entry.id}>
-                  {entry.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label id="incident-judge-label">Judge</Label>
-          <Select value={selectedJudgeId} onValueChange={setSelectedJudgeId}>
-            <SelectTrigger aria-labelledby="incident-judge-label">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NO_SELECTION_VALUE}>No judge selected</SelectItem>
-              {judges.map(judge => (
-                <SelectItem key={judge.id} value={judge.id}>
-                  {judge.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
+      {/*
+        INTENT: Lead with Summary + Save so logging a bite or scratch is a calm
+        one-tap operation, not a multi-field form (Secretary "Show day chaos" ->
+        "I can handle this", docs/INTENT.md). The save gate keys off summary alone
+        (see canSave), so every other field is genuinely optional and lives behind
+        the collapsed "Add details" disclosure. Do not surface these fields by
+        default — that re-creates the multi-step form this intentionally replaced.
+      */}
       <div className="mt-4 space-y-2">
         <Label htmlFor="incident-summary">Short summary</Label>
         <Input
@@ -224,30 +168,112 @@ export function IncidentLogCard({ entries, judges, showId }: IncidentLogCardProp
           placeholder="Dog excused for disqualification"
           maxLength={200}
         />
+        <p className="text-xs text-muted-foreground">
+          Just a summary is enough to log it. Add details if you have a moment.
+        </p>
       </div>
 
-      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="incident-description">What happened</Label>
-          <Textarea
-            id="incident-description"
-            value={description}
-            onChange={event => setDescription(event.target.value)}
-            rows={3}
-            maxLength={5000}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="incident-action">Action taken</Label>
-          <Textarea
-            id="incident-action"
-            value={actionTaken}
-            onChange={event => setActionTaken(event.target.value)}
-            rows={3}
-            maxLength={5000}
-          />
-        </div>
-      </div>
+      <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen} className="mt-3">
+        <CollapsibleTrigger className="w-auto justify-start gap-2 py-1 text-sm font-normal text-muted-foreground hover:text-foreground hover:no-underline">
+          <ChevronDown className="h-4 w-4 transition-transform" aria-hidden="true" />
+          {detailsOpen ? 'Hide details' : 'Add details'}
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-2">
+              <Label id="incident-type-label">Type</Label>
+              <Select
+                value={incidentType}
+                onValueChange={value => setIncidentType(value as ShowIncidentType)}
+              >
+                <SelectTrigger aria-labelledby="incident-type-label">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SHOW_INCIDENT_TYPES.map(type => (
+                    <SelectItem key={type.id} value={type.id}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label id="incident-severity-label">Severity</Label>
+              <Select
+                value={severity}
+                onValueChange={value => setSeverity(value as ShowIncidentSeverity)}
+              >
+                <SelectTrigger aria-labelledby="incident-severity-label">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SHOW_INCIDENT_SEVERITIES.map(item => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label id="incident-entry-label">Entry / dog</Label>
+              <Select value={selectedEntryId} onValueChange={setSelectedEntryId}>
+                <SelectTrigger aria-labelledby="incident-entry-label">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_SELECTION_VALUE}>No entry selected</SelectItem>
+                  {entries.map(entry => (
+                    <SelectItem key={entry.id} value={entry.id}>
+                      {entry.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label id="incident-judge-label">Judge</Label>
+              <Select value={selectedJudgeId} onValueChange={setSelectedJudgeId}>
+                <SelectTrigger aria-labelledby="incident-judge-label">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_SELECTION_VALUE}>No judge selected</SelectItem>
+                  {judges.map(judge => (
+                    <SelectItem key={judge.id} value={judge.id}>
+                      {judge.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="incident-description">What happened</Label>
+              <Textarea
+                id="incident-description"
+                value={description}
+                onChange={event => setDescription(event.target.value)}
+                rows={3}
+                maxLength={5000}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="incident-action">Action taken</Label>
+              <Textarea
+                id="incident-action"
+                value={actionTaken}
+                onChange={event => setActionTaken(event.target.value)}
+                rows={3}
+                maxLength={5000}
+              />
+            </div>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       <div className="mt-4 border-t pt-4">
         <div className="flex items-center gap-2">
@@ -256,6 +282,10 @@ export function IncidentLogCard({ entries, judges, showId }: IncidentLogCardProp
         </div>
         {incidentsQuery.isLoading ? (
           <p className="mt-2 text-sm text-muted-foreground">Loading incident log...</p>
+        ) : incidentsQuery.isError ? (
+          <p className="mt-2 text-sm text-destructive">
+            Could not load the incident log. Refresh to try again.
+          </p>
         ) : incidents.length === 0 ? (
           <p className="mt-2 text-sm text-muted-foreground">No incidents logged for this show.</p>
         ) : (

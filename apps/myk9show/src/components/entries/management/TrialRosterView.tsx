@@ -68,7 +68,7 @@ const columns: ColumnDef<RosterEntry, unknown>[] = [
     header: 'Scoring',
     cell: ({ row }) =>
       row.original.isScored ? (
-        <Badge className="bg-green-600 text-white hover:bg-green-600">Scored</Badge>
+        <Badge className="bg-green-700 text-white hover:bg-green-700">Scored</Badge>
       ) : (
         <Badge variant="secondary">Pending</Badge>
       ),

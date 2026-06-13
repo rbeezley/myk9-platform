@@ -27,6 +27,10 @@ import {
   showIncidentCloseoutQueryKey,
 } from '@/services/database/show-incidents';
 import { summarizeShowIncidents } from '@/features/show-workbench/showIncidents';
+import { useJudgeHospitalityReminderCount } from '@/features/show-workbench/useJudgeHospitalityReminderCount';
+import { useSecretaryTasks } from '@/hooks/queries/useSecretaryTasks';
+import type { SecretaryTask } from '@/pages/secretary/SecretaryDashboardPage/types';
+import { computeShowDeskActionable } from '@/features/show-map/showDeskActionable';
 import type { ShowDeskToolSection } from '@/features/show-map/ShowDeskToolsSheet';
 import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
@@ -155,6 +159,13 @@ export function ShowWorkbenchShowDeskPage() {
     [currentShow?.assignedJudges, showClasses, showJudgeRoster]
   );
 
+  // Stable id/name list shared by the hospitality card content and the
+  // reminder-count hook so the trigger badge and the card never disagree.
+  const hospitalityJudges = useMemo(
+    () => effectiveJudges.map(judge => ({ id: judge.judgeId, name: judge.judgeName })),
+    [effectiveJudges]
+  );
+
   const incidentEntryOptions = useMemo(() => {
     const classById = new Map(showClasses.map(cls => [cls.id, cls]));
     return showEntries
@@ -170,16 +181,43 @@ export function ShowWorkbenchShowDeskPage() {
     queryFn: () => listShowIncidentCloseout(showId ?? ''),
     enabled: Boolean(showId),
   });
+  const incidentSummary = useMemo(
+    () => summarizeShowIncidents(closeoutIncidents),
+    [closeoutIncidents]
+  );
   const incidentAttentionLabel = useMemo(() => {
-    const summary = summarizeShowIncidents(closeoutIncidents);
-    if (summary.urgentCount > 0) {
-      return `${summary.urgentCount} urgent`;
+    if (incidentSummary.urgentCount > 0) {
+      return `${incidentSummary.urgentCount} urgent`;
     }
-    if (summary.reportableCount > 0) {
-      return `${summary.reportableCount} reportable`;
+    if (incidentSummary.reportableCount > 0) {
+      return `${incidentSummary.reportableCount} reportable`;
     }
     return undefined;
-  }, [closeoutIncidents]);
+  }, [incidentSummary]);
+
+  // Aggregate every attention-worthy tool into one ambient signal for the
+  // closed Tools trigger badge. Without this, hospitality reminders and open
+  // tasks were invisible until the secretary opened the wrench. Tasks share the
+  // React Query cache with TasksNotesCard; hospitality reads the same
+  // localStorage the card writes (kept live via useJudgeHospitalityReminderCount).
+  const hospitalityReminderCount = useJudgeHospitalityReminderCount(
+    showId ?? '',
+    hospitalityJudges
+  );
+  const { data: showTasks = [] } = useSecretaryTasks(showId);
+  const tasksOpenCount = useMemo(
+    () => showTasks.filter((task: SecretaryTask) => task.status === 'todo').length,
+    [showTasks]
+  );
+  const actionable = useMemo(
+    () =>
+      computeShowDeskActionable({
+        incidentReportableCount: incidentSummary.reportableCount,
+        hospitalityReminderCount,
+        tasksOpenCount,
+      }),
+    [hospitalityReminderCount, incidentSummary.reportableCount, tasksOpenCount]
+  );
 
   const showDeskTools = useMemo<ShowDeskToolSection[]>(() => {
     if (!currentShow) return [];
@@ -196,15 +234,7 @@ export function ShowWorkbenchShowDeskPage() {
         id: 'judge-hospitality',
         title: 'Judge hospitality',
         summary: 'Track judge meals, breaks, and show-day notes',
-        content: (
-          <JudgeHospitalityCard
-            showId={currentShow.id}
-            judges={effectiveJudges.map(judge => ({
-              id: judge.judgeId,
-              name: judge.judgeName,
-            }))}
-          />
-        ),
+        content: <JudgeHospitalityCard showId={currentShow.id} judges={hospitalityJudges} />,
       },
       {
         id: 'incident-log',
@@ -263,7 +293,14 @@ export function ShowWorkbenchShowDeskPage() {
         content: <TasksNotesCard showId={currentShow.id} clubId={currentShow.clubId} />,
       },
     ];
-  }, [currentShow, effectiveJudges, incidentAttentionLabel, incidentEntryOptions, showClasses]);
+  }, [
+    currentShow,
+    effectiveJudges,
+    hospitalityJudges,
+    incidentAttentionLabel,
+    incidentEntryOptions,
+    showClasses,
+  ]);
 
   if (isLoading || !currentShow) {
     return <LoadingSkeleton variant="cards" count={2} />;
@@ -278,6 +315,8 @@ export function ShowWorkbenchShowDeskPage() {
         entries={showEntries}
         canManageShow
         tools={showDeskTools}
+        actionableCount={actionable.count}
+        actionableTone={actionable.tone}
         closeoutContent={
           <>
             <ShowDayReconciliation entries={showEntries} />

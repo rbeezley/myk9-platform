@@ -120,6 +120,7 @@ export function TasksNotesCard({ showId, clubId }: TasksNotesCardProps) {
         <div className="mt-3 flex items-center justify-between rounded border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs">
           <span className="text-destructive">Couldn't load tasks for this show.</span>
           <button
+            type="button"
             onClick={() => refetch()}
             className="font-medium text-destructive underline hover:opacity-80"
           >
@@ -156,6 +157,7 @@ export function TasksNotesCard({ showId, clubId }: TasksNotesCardProps) {
 
       {hasCompleted && (
         <button
+          type="button"
           onClick={() => setShowCompleted(v => !v)}
           className="mt-3 text-xs text-muted-foreground hover:text-foreground"
         >

@@ -49,6 +49,7 @@ import {
   classifyTableSyncResults,
   createTablesStatus,
   getPostSyncInvalidationKeys,
+  shouldRequestPostUploadSync,
   type TableSyncStatus,
 } from './replicationSyncStatus';
 
@@ -83,6 +84,7 @@ const REPLICATED_TABLES = [
 ] as const;
 
 const REPLICATED_TABLE_NAMES = REPLICATED_TABLES.map(({ name }) => name);
+const REPLICATED_TABLE_NAME_SET: ReadonlySet<string> = new Set(REPLICATED_TABLE_NAMES);
 
 // Adapt myK9Show's LoggingService to the @myk9/replication Logger interface
 const replicationLogger = {
@@ -135,6 +137,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   const wasOffline = useRef(false);
   const hasInitialSynced = useRef(false);
   const triggerSyncRef = useRef<(() => Promise<void>) | undefined>(undefined);
+  const syncInFlightRef = useRef(false);
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const prevIsAuthenticated = useRef(false);
@@ -232,6 +235,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     }
 
     logger.info('Starting full sync', 'replication');
+    syncInFlightRef.current = true;
     setStatus(prev => ({ ...prev, isSyncing: true, error: null }));
 
     try {
@@ -315,6 +319,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         isSyncing: false,
         lastSyncAt: new Date(),
       }));
+      syncInFlightRef.current = false;
 
       for (const queryKey of getPostSyncInvalidationKeys(REPLICATED_TABLE_NAMES)) {
         queryClient.invalidateQueries({ queryKey });
@@ -329,6 +334,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         isSyncing: false,
         error: errorMessage,
       }));
+      syncInFlightRef.current = false;
     }
   }, [isAuthenticated, isOnline, status.isSyncing, licenseKey, queryClient]);
 
@@ -456,6 +462,12 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       logger.info('Auto-upload complete, invalidating queries', 'replication', { tables });
       for (const table of tables) {
         queryClient.invalidateQueries({ queryKey: [table] });
+      }
+      if (syncInFlightRef.current && tables.some(table => REPLICATED_TABLE_NAME_SET.has(table))) {
+        logger.debug('Post-upload sync skipped: sync in flight', 'replication', { tables });
+      }
+      if (shouldRequestPostUploadSync(tables, REPLICATED_TABLE_NAME_SET, syncInFlightRef.current)) {
+        triggerSyncRef.current?.();
       }
     };
     window.addEventListener('replication:upload-complete', handleUploadComplete);

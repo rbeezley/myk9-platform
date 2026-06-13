@@ -22,9 +22,9 @@ const STATUS_LABEL: Record<ShowDeskShowStatus, string> = {
 
 const STATUS_TONE: Record<ShowDeskShowStatus, string> = {
   setup: 'bg-muted text-muted-foreground',
-  'show-in-progress': 'bg-emerald-100 text-emerald-900',
-  'wrap-up': 'bg-amber-100 text-amber-900',
-  closed: 'bg-slate-200 text-slate-900',
+  'show-in-progress': 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200',
+  'wrap-up': 'bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200',
+  closed: 'bg-slate-200 text-slate-900 dark:bg-slate-800 dark:text-slate-200',
 };
 
 export interface ShowDeskAdaptiveHeaderProps {

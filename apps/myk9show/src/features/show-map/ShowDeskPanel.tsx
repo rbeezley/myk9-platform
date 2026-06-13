@@ -15,6 +15,7 @@ import { PhaseShell } from '@/features/show-workbench/PhaseShell';
 import { ShowDeskAdaptiveHeader } from './ShowDeskAdaptiveHeader';
 import { ShowDeskCloseoutSection } from './ShowDeskCloseoutSection';
 import { ShowDeskToolsSheet, type ShowDeskToolSection } from './ShowDeskToolsSheet';
+import type { ShowDeskActionableTone } from './showDeskActionable';
 import { ShowMapReorderBanner } from './ShowMapReorderBanner';
 import { ShowMapEntryReviewSheet } from './ShowMapEntryReviewSheet';
 import { ShowMapMoveUpDialog, type ShowMapMoveUpTarget } from './ShowMapMoveUpDialog';
@@ -40,6 +41,11 @@ interface ShowDeskPanelProps extends BuildShowMapTreeInput {
   // judges, incident options, broadcast classes, or other tool-specific
   // data dependencies. When omitted, the Tools sheet is not rendered.
   tools?: readonly ShowDeskToolSection[];
+  // Aggregated attention count + tone for the Tools trigger badge, computed at
+  // the page level (incidents + hospitality + tasks). The panel only forwards
+  // it — it owns none of those data sources.
+  actionableCount?: number;
+  actionableTone?: ShowDeskActionableTone;
   // Composed at the page level — the closeout section renders only when
   // at least one class is wrap-up-eligible (see ShowDeskCloseoutSection).
   closeoutContent?: ReactNode;
@@ -74,6 +80,8 @@ export default function ShowDeskPanel({
   canManageShow,
   scopeNow,
   tools,
+  actionableCount,
+  actionableTone,
   closeoutContent,
 }: ShowDeskPanelProps) {
   const state = useShowMapWorkbenchState({
@@ -240,7 +248,12 @@ export default function ShowDeskPanel({
         kicker="During the show"
         actions={
           tools && tools.length > 0 ? (
-            <ShowDeskToolsSheet showId={show.id} tools={tools} />
+            <ShowDeskToolsSheet
+              showId={show.id}
+              tools={tools}
+              {...(actionableCount !== undefined && { actionableCount })}
+              {...(actionableTone !== undefined && { actionableTone })}
+            />
           ) : undefined
         }
       />

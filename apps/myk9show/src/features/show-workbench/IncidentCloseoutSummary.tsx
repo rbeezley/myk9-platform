@@ -52,7 +52,7 @@ export function IncidentCloseoutSummary({ showId }: IncidentCloseoutSummaryProps
         <p className="mt-3 text-sm text-muted-foreground">Checking the incident log...</p>
       ) : incidentsQuery.isError ? (
         <p className="mt-3 text-sm text-destructive">
-          Could not load the incident closeout. Try the Today incident log before filing reports.
+          Could not load the incident closeout. Open the incident log in Tools before filing reports.
         </p>
       ) : (
         <>

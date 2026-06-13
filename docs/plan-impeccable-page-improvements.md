@@ -23,6 +23,25 @@ Quality bar: <MVP | flagship>   (most secretary pages: flagship)
 Login:       secretary@myk9t.com / TestPass4567!  (dev server: pnpm dev:show)
 ```
 
+**[ADDED] Minimum input is the page name; the agent derives the rest.** Only
+`Page` is required from the dispatcher. If Route / Entry file / Role / Quality
+bar are blank, the agent resolves them in Phase 0 before any other work:
+
+- **Route + Entry file** — grep the router (`apps/myk9show/src/**/*outes*.tsx`,
+  `App.tsx`) for the page name or an obvious slug; confirm the lazy-import path
+  resolves to a real file. If the page name is ambiguous or matches 0/many
+  routes, **stop and ask the dispatcher** — do not guess.
+- **Role** — infer from the route prefix (`/at-show` → ringside roles,
+  `/club-admin` → club admin, secretary workbench → secretary) and confirm
+  against the page's RBAC guard. Cross-check the "Suggested page queue" table
+  at the bottom of this doc, which lists canonical route + role for the known
+  pages.
+- **Quality bar** — default to `flagship` for any secretary/exhibitor-facing
+  page; `MVP` only if the dispatcher said so.
+
+If the page name doesn't appear in the router at all, it is not a valid target
+— report that and stop, rather than inventing a page.
+
 ---
 
 ## Which skills, and why
@@ -66,7 +85,7 @@ consolidation phase) they split four ways:
 | Command | Why not |
 |---|---|
 | `craft`, `shape` | Build new features. We are consolidating, not adding surface area. |
-| `teach`, `document` | PRODUCT.md and DESIGN.md already exist (DESIGN.md regenerated in PR #659). Do not rewrite them mid-sweep. |
+| `teach`, `document` | PRODUCT.md and DESIGN.md already exist (DESIGN.md regenerated in PR #659). Do not rewrite them mid-sweep. **[ADDED] One exception:** the skill's own setup *forces* `teach` if PRODUCT.md is missing, empty, or placeholder (`[TODO]` markers, <200 chars). If the preflight context load reports that, the gate wins — run `teach` once, then resume. Do not bypass the skill's gate to honor this ban. |
 | `extract` | Design-system extraction is repo-wide work, its own task — not per-page. |
 | `bolder`, `overdrive` | Wrong register. These amplify; product pages for working secretaries need clarity, not spectacle. |
 | `quieter` | Only if a critique explicitly scores a page as overstimulating; none have. |
@@ -99,6 +118,16 @@ consolidation phase) they split four ways:
 6. State the preflight line before any file edit:
    `IMPECCABLE_PREFLIGHT: context=pass product=pass command_reference=pass shape=not_required image_gate=skipped:evaluate-only mutation=open`
 
+> **[ADDED] Check for overlapping in-flight work** (do this in Phase 0, before
+> any edit). Run `git worktree list` and `gh pr list --state open`. If another
+> active branch/worktree/PR touches a **shared or global** file this page
+> depends on — `index.css` and its theme tokens, `buttonVariants`, any
+> component this page imports that other pages also import — coordinate or
+> wait. Two sessions editing the same global token set collide silently (the
+> prototypical case: a theme-token fix session and a page run both editing
+> light/dark `--accent`). List the shared files this page pulls in, and confirm
+> none are mid-flight elsewhere before Phase 3.
+
 ### Phase 1 — Evaluate (read-only, no edits)
 
 7. `$impeccable critique <page>` — spawn the two assessments as **separate
@@ -124,6 +153,28 @@ consolidation phase) they split four ways:
 13. Anything touching role feelings, `// INTENT:` behavior, or page IA beyond
     cosmetics: stop and surface to the user before proceeding.
 
+### [ADDED] Definition of done — the exit condition
+
+"All these improvements" is unbounded; this is the bound. A page is **done**
+when ALL of these hold — not when the agent runs out of ideas:
+
+- Every **blocking** and **high-severity** finding from the merged table is
+  fixed, or explicitly dropped with a one-line reason in the table.
+- No `audit` dimension (a11y, performance, responsive, theming, edge states)
+  scores below **3/4**. A dimension under 3 must be raised to at least 3 or the
+  shortfall justified in the PR body. Aim for 3; don't gold-plate to 4.
+- No item on the project watchlist matches anywhere in the page's tree.
+- `polish` has run and all interaction states are accounted for.
+- The full testing phase (Phase 5) is green.
+
+**Iteration cap.** Re-run `critique`/`audit` at most **twice** after fixes (one
+fix round, one confirm round). If the confirm round still surfaces *new*
+blocking findings, stop and report to the dispatcher rather than looping a
+third time — a page that won't converge in two rounds is a sign of a deeper
+structural issue that needs a human decision, not more passes. Low-severity
+findings that survive the cap are listed in the PR body as "known, deferred,"
+not chased indefinitely.
+
 ### Phase 3 — Fix passes
 
 14. Run only the triggered commands, one at a time, in this order:
@@ -139,7 +190,11 @@ consolidation phase) they split four ways:
       etc.) — never raw Tailwind palette colors for stateful UI.
     - Keep files under 500 lines; extract siblings as needed.
 16. Commit after each green pass (worktrees have been swept mid-session
-    before; checkpoints are cheap).
+    before; checkpoints are cheap). **[ADDED]** If a pass goes wrong — typecheck
+    red, a worse design, a regression — `git restore`/`git checkout` that pass's
+    uncommitted edits back to the last green commit before retrying or moving
+    on. Never carry a half-applied pass into the next one; commit-after-green
+    only protects you if a failed pass is reset, not left dirty.
 
 ### Phase 4 — Polish (always)
 
@@ -161,15 +216,29 @@ consolidation phase) they split four ways:
 22. `cd apps/myk9show && pnpm test` — full suite. If a runner hangs >30s,
     stop and report; don't loop.
 23. Visual verification, light AND dark, three breakpoints. Screenshot proof.
+24. **[ADDED] Cross-surface ripple check.** If any edit touched a **global or
+    shared** file (`index.css` / theme tokens, `buttonVariants`, a component
+    imported by other pages), the blast radius is larger than this page. Grep
+    for the other importers (`grep -rl <component>` / the token name) and
+    smoke-check at least the highest-traffic consumer in both modes. A token or
+    shared-component fix that makes this page right can make three others wrong;
+    the watchlist exists because exactly this has shipped before. If nothing
+    global was touched, state that and skip.
 
 ### Phase 6 — Ship
 
-24. The standard 8-step workflow: `/simplify` → `/commit` → PR → `/review` →
+25. The standard 8-step workflow: `/simplify` → `/commit` → PR → `/review` →
     fix findings → merge → `/cleanup`. Add `/codex:review` when the page's
     behavior (not just styling) changed — Codex catches what Claude reviewers
     miss, proven on #418/#444.
-25. PR body: before/after screenshots (both modes), the findings table with
+26. PR body: before/after screenshots (both modes), the findings table with
     each item's disposition (fixed / dropped+reason / deferred-to-user).
+27. **[ADDED] Report back to the dispatcher** (the final chat message, not just
+    the PR). Include: the page, the PR link, audit scores **before → after**
+    per dimension, count of findings fixed vs. deferred, any item that needs a
+    human decision (IA changes, INTENT-touching changes, a page that didn't
+    converge in the iteration cap), and the cross-surface ripple result. This
+    is what lets the dispatcher decide the next page without reading the diff.
 
 ---
 

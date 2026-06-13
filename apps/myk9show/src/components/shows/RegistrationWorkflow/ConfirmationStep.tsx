@@ -518,7 +518,11 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
               <span>Payment Status:</span>
               <Badge
                 variant={isPaidStatus(paymentStatus) ? 'default' : 'secondary'}
-                className={isPaidStatus(paymentStatus) ? 'text-green-600 border-green-600' : ''}
+                className={
+                  isPaidStatus(paymentStatus)
+                    ? 'text-green-600 border-green-600 dark:text-green-400 dark:border-green-400'
+                    : ''
+                }
               >
                 {paymentStatus}
               </Badge>
@@ -596,12 +600,12 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
               )}
             <li>Check-in at the show secretary&apos;s table upon arrival</li>
             {entryStatus === EntryStatus.WAITLIST && (
-              <li className="text-orange-600 font-medium">
+              <li className="text-orange-600 dark:text-orange-400 font-medium">
                 You are currently on the waitlist - check for updates before the show
               </li>
             )}
             {entryStatus === EntryStatus.MISSING_INFO && (
-              <li className="text-red-600 font-medium">
+              <li className="text-destructive font-medium">
                 Missing information required - please contact the show secretary
               </li>
             )}
@@ -620,12 +624,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
           <Download className="h-4 w-4 mr-2" />
           Download Receipt
         </Button>
-        <Button
-          variant="outline"
-          className="flex-1"
-          onClick={handleSendEmail}
-          disabled={isSending}
-        >
+        <Button variant="outline" className="flex-1" onClick={handleSendEmail} disabled={isSending}>
           {isSending ? (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
           ) : (

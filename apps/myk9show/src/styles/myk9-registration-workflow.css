@@ -344,7 +344,10 @@
 @media (max-width: 480px) {
   .myk9-level-chip {
     min-width: 70px;
-    padding: 4px 8px;
+    /* Keep a comfortable tap height on phones — exhibitors select classes
+       one-handed at a show. Width can shrink, height should not. */
+    min-height: 44px;
+    padding: 6px 10px;
     font-size: 12px;
   }
 

@@ -20,9 +20,12 @@ export const RegistrationSummary: React.FC<RegistrationSummaryProps> = ({ feeCal
               <div className="font-medium text-sm">{item.dogName}</div>
               <div className="ml-4 space-y-1">
                 {item.classes.map((cls, idx) => (
-                  <div key={idx} className="flex justify-between text-sm text-gray-600">
-                    <span>{cls.className}</span>
-                    <span>${cls.fee.toFixed(2)}</span>
+                  <div
+                    key={idx}
+                    className="flex justify-between gap-2 text-sm text-muted-foreground"
+                  >
+                    <span className="min-w-0 break-words">{cls.className}</span>
+                    <span className="shrink-0">${cls.fee.toFixed(2)}</span>
                   </div>
                 ))}
               </div>
@@ -38,12 +41,15 @@ export const RegistrationSummary: React.FC<RegistrationSummaryProps> = ({ feeCal
             </div>
 
             {feeCalculation.discounts.map((discount, index) => (
-              <div key={index} className="flex justify-between text-sm text-green-600">
-                <span className="flex items-center gap-1">
-                  <Tag className="h-3 w-3" />
-                  {discount.description}
+              <div
+                key={index}
+                className="flex justify-between gap-2 text-sm text-green-600 dark:text-green-400"
+              >
+                <span className="flex min-w-0 items-center gap-1">
+                  <Tag className="h-3 w-3 shrink-0" />
+                  <span className="break-words">{discount.description}</span>
                 </span>
-                <span>-${discount.amount.toFixed(2)}</span>
+                <span className="shrink-0">-${discount.amount.toFixed(2)}</span>
               </div>
             ))}
 

@@ -28,7 +28,7 @@ export const PaymentSummaryCard: React.FC<PaymentSummaryCardProps> = ({
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          <div className="flex justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <span>Selected Payment Method:</span>
             <Badge variant="outline">
               {paymentMethod ? getPaymentMethodLabel(paymentMethod) : 'Not selected'}

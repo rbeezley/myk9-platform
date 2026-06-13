@@ -80,8 +80,8 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
   if (eligibleDogs.length === 0) {
     return (
       <div className="text-center py-8">
-        <p className="text-gray-500">No eligible dogs found.</p>
-        <p className="text-sm text-gray-400 mt-2">
+        <p className="text-muted-foreground">No eligible dogs found.</p>
+        <p className="text-sm text-muted-foreground/80 mt-2">
           Make sure your dogs are active and have up-to-date information.
         </p>
       </div>
@@ -92,12 +92,12 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
     <div className="space-y-4">
       <div className="mb-4">
         <h3 className="text-lg font-semibold">Select Dogs to Register</h3>
-        <p className="text-sm text-gray-600 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           Choose which dogs you want to enter in this show. You can select multiple dogs.
         </p>
       </div>
 
-      <ScrollArea className="h-[400px] pr-4">
+      <ScrollArea className="h-[55vh] pr-4 sm:h-[400px]">
         <div className="space-y-3">
           {eligibleDogs.map(dog => {
             const { eligible, issues, warnings } = getDogEligibilityStatus(dog);
@@ -131,7 +131,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                             {dog.registrations?.[0]?.registeredName &&
                               ` "${dog.registrations[0].registeredName}"`}
                           </Label>
-                          <p className="text-sm text-gray-600 mt-1">
+                          <p className="text-sm text-muted-foreground mt-1">
                             {dog.breed || 'No breed specified'} • {dog.gender || 'Unknown'} • Born{' '}
                             {formatDateMMDDYYYY(dog.dateOfBirth)}
                           </p>
@@ -158,7 +158,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                       {!eligible && issues.length > 0 && (
                         <div className="mt-2">
                           {issues.map((issue, idx) => (
-                            <p key={idx} className="text-xs text-red-600">
+                            <p key={idx} className="text-xs text-destructive">
                               • {issue}
                             </p>
                           ))}
@@ -168,7 +168,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                       {eligible && warnings.length > 0 && (
                         <div className="mt-2">
                           {warnings.map((warning, idx) => (
-                            <p key={idx} className="text-xs text-amber-600">
+                            <p key={idx} className="text-xs text-amber-600 dark:text-amber-400">
                               • {warning}
                             </p>
                           ))}

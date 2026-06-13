@@ -60,7 +60,9 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
     <div className="space-y-4">
       <div className="mb-4">
         <h3 className="text-lg font-semibold">Payment Information</h3>
-        <p className="text-sm text-gray-600 mt-1">Review your fees and select a payment method.</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          Review your fees and select a payment method.
+        </p>
       </div>
 
       {/* Fee Summary */}

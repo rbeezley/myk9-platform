@@ -100,15 +100,15 @@ export const InlineHandlerSection: React.FC<InlineHandlerSectionProps> = ({
             {entries.map(entry => (
               <div
                 key={entry.key}
-                className="flex items-center justify-between py-2 px-3 rounded-md bg-muted/30"
+                className="flex flex-col items-start gap-2 py-2 px-3 rounded-md bg-muted/30 sm:flex-row sm:items-center sm:justify-between"
               >
-                <div className="flex items-center gap-2 min-w-0 flex-1">
+                <div className="flex w-full items-center gap-2 min-w-0 flex-1 sm:w-auto">
                   <span className="text-sm truncate">
                     {entry.dogName} — {entry.className}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0 ml-3">
+                <div className="flex items-center gap-2 shrink-0 sm:ml-3">
                   {entry.hasHandler && entry.handler ? (
                     <div className="flex items-center gap-1.5">
                       <span className="text-sm">{entry.handler.handlerName}</span>
@@ -124,7 +124,7 @@ export const InlineHandlerSection: React.FC<InlineHandlerSectionProps> = ({
                     variant="ghost"
                     size="sm"
                     onClick={() => setEditingTarget({ entryKey: entry.key, dogId: entry.dogId })}
-                    className="h-7 px-2"
+                    className="h-8 px-2.5"
                   >
                     <Edit2 className="h-3 w-3 mr-1" />
                     Change

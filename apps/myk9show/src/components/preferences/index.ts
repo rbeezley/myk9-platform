@@ -11,4 +11,3 @@ export { DataSettings } from './DataSettings';
 export { PrivacySettings } from './PrivacySettings';
 export { DeviceManager } from './DeviceManager';
 export { SyncStatusIndicator, DeviceSyncStatus, SyncStatusLoader } from './SyncStatusIndicator';
-export { PreferencesDemo } from './PreferencesDemo';

@@ -15,6 +15,11 @@
       theme === 'dark' ||
       (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
+    // Keep this trio (theme-light/theme-dark + dark + colorScheme) in lockstep
+    // with src/context/themeClasses.ts applyThemeClasses() — the canonical
+    // applier for the running app. This file duplicates the logic only because
+    // it's a pre-React, CSP-safe blocking script that can't import the TS
+    // module. If the trio changes there, change it here too.
     document.documentElement.classList.add(isDark ? 'theme-dark' : 'theme-light');
     if (isDark) document.documentElement.classList.add('dark');
     document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';

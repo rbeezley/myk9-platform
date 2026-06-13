@@ -16,7 +16,7 @@ export function LevelRow({ level, onClick }: LevelRowProps) {
       onClick={onClick}
       className={cn(
         'flex min-h-[44px] w-full items-center justify-between rounded px-2 py-1 text-left transition-colors hover:bg-accent',
-        isInProgress && 'bg-warning/100/10 '
+        isInProgress && 'bg-warning/10 '
       )}
     >
       <span

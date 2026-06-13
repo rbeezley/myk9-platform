@@ -6,7 +6,7 @@ import { useShowTodayBanner } from './useShowTodayBanner';
 import { formatClassTime, type ShowTodayBannerItem } from './showTodayBanner.helpers';
 
 const bannerClassName =
-  'overflow-hidden rounded-lg border border-l-4 border-emerald-500/20 border-l-emerald-500 bg-success/100/8 text-left shadow-sm ring-1 ring-emerald-500/10 ';
+  'overflow-hidden rounded-lg border border-l-4 border-emerald-500/20 border-l-emerald-500 bg-success/10 text-left shadow-sm ring-1 ring-emerald-500/10 ';
 const bannerLabelClassName = 'text-success ';
 const bannerTitleClassName = 'text-success ';
 const iconClassName =

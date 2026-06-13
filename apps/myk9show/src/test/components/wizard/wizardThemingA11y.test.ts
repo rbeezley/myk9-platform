@@ -28,12 +28,12 @@ const validationBanner = read(
 );
 
 describe('Show creation wizard — dark-mode theming guards', () => {
-  it('ReviewStep error card and stats carry dark variants', () => {
-    expect(reviewStep).toContain('dark:border-red-800/50');
-    expect(reviewStep).toContain('dark:bg-red-900/20');
-    expect(reviewStep).toContain('dark:text-red-400');
-    expect(reviewStep).toContain('dark:text-blue-400');
-    expect(reviewStep).toContain('dark:text-green-400');
+  it('ReviewStep error card and stats use semantic tokens (no hand-paired dark: variants)', () => {
+    expect(reviewStep).toContain('border-destructive/30');
+    expect(reviewStep).toContain('bg-destructive/10');
+    expect(reviewStep).toContain('text-destructive');
+    expect(reviewStep).toContain('text-info');
+    expect(reviewStep).toContain('text-success');
     expect(reviewStep).toContain('dark:text-purple-400');
   });
 
@@ -47,9 +47,9 @@ describe('Show creation wizard — dark-mode theming guards', () => {
     expect(showDetailsStep).toContain('text-sm text-destructive mt-1');
   });
 
-  it('ClassSelectionStep empty state carries dark amber variants', () => {
-    expect(classSelectionStep).toContain('dark:text-amber-400');
-    expect(classSelectionStep).toContain('dark:bg-amber-400/10');
+  it('ClassSelectionStep empty state uses semantic warning tokens', () => {
+    expect(classSelectionStep).toContain('text-warning');
+    expect(classSelectionStep).toContain('bg-warning/10');
   });
 });
 

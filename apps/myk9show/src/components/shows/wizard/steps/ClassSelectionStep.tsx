@@ -346,7 +346,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
           {trials.length === 0 ? (
             <div className="relative rounded-2xl border-2 border-dashed border-warning/30 bg-gradient-to-br from-amber-500/5 dark:from-amber-400/5 to-transparent p-12 text-center overflow-hidden">
               <div className="relative">
-                <div className="mx-auto w-16 h-16 rounded-2xl bg-warning/100/10 flex items-center justify-center mb-5 shadow-sm">
+                <div className="mx-auto w-16 h-16 rounded-2xl bg-warning/10 flex items-center justify-center mb-5 shadow-sm">
                   <ArrowLeft className="h-8 w-8 text-warning " />
                 </div>
                 <h4 className="text-xl font-semibold text-foreground mb-2">No Trials Configured</h4>

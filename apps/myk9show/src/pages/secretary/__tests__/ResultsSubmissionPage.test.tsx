@@ -235,10 +235,9 @@ describe('ResultsSubmissionPage', () => {
     await waitFor(() => expect(screen.getByTestId('preflight-warning')).toBeInTheDocument());
     const warning = screen.getByTestId('preflight-warning');
     expect(warning.textContent).toContain('1');
-    // Theme-aware: the warning must carry dark-mode variants so it isn't a pale
-    // box on a dark surface, and be announced as an alert.
-    expect(warning.className).toContain('dark:bg-amber-900/20');
-    expect(warning.className).toContain('dark:text-amber-200');
+    // Theme-aware via semantic token: uses warning token that adapts in dark mode.
+    expect(warning.className).toContain('bg-warning/10');
+    expect(warning.className).toContain('text-warning');
     expect(warning).toHaveAttribute('role', 'alert');
   });
 

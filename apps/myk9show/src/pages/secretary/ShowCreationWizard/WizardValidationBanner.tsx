@@ -58,7 +58,7 @@ export const WizardValidationBanner: React.FC<WizardValidationBannerProps> = ({
         <ul className="text-sm text-warning space-y-1.5">
           {messages.map((message, index) => (
             <li key={index} className="flex items-start gap-2">
-              <span className="block w-1.5 h-1.5 bg-warning/100 rounded-full mt-1.5 flex-shrink-0" />
+              <span className="block w-1.5 h-1.5 bg-warning rounded-full mt-1.5 flex-shrink-0" />
               <span>{message}</span>
             </li>
           ))}

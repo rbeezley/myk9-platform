@@ -21,8 +21,8 @@ describe('secretary surfaces — dark-mode + grid-stacking guards', () => {
   it('SecretaryPaymentManagement drops raw gray and dark-adapts status colors + grids', () => {
     expect(secretaryPayment).not.toContain('text-gray-600');
     expect(secretaryPayment).not.toContain('bg-gray-50');
-    expect(secretaryPayment).toContain('dark:text-green-400');
-    expect(secretaryPayment).toContain('dark:bg-blue-950/30');
+    expect(secretaryPayment).toContain('text-success');
+    expect(secretaryPayment).toContain('bg-info/10');
     // tabs and action grids stack on mobile
     expect(secretaryPayment).toContain('grid-cols-2 sm:grid-cols-4');
     expect(secretaryPayment).toContain('grid-cols-1 gap-3 sm:grid-cols-2');
@@ -43,10 +43,10 @@ describe('secretary surfaces — a11y + responsive guards', () => {
   it('the dense dog table scrolls horizontally instead of crushing columns', () => {
     expect(enhancedDog).toContain('overflow-x-auto');
     expect(enhancedDog).toContain('min-w-[640px]');
-    expect(enhancedDog).toContain('dark:text-yellow-400');
+    expect(enhancedDog).toContain('text-warning');
   });
 
   it('the search "Clear All" control dark-adapts', () => {
-    expect(dogSearch).toContain('dark:text-red-400');
+    expect(dogSearch).toContain('text-destructive');
   });
 });

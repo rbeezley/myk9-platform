@@ -18,7 +18,7 @@ export function getStatusColor(status: string): string {
     case 'Withdrawn':
       return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
     case 'Absent':
-      return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200';
+      return 'bg-warning/10 text-warning ';
     default:
       return 'bg-info/10 text-info ';
   }

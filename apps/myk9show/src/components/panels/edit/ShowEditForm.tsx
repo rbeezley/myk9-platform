@@ -296,7 +296,7 @@ export const ShowEditForm: React.FC = () => {
                     )}
                   </div>
                 ) : (
-                  <div className="text-sm text-muted-foreground bg-amber-50 dark:bg-amber-950/30 p-4 rounded-xl">
+                  <div className="text-sm text-muted-foreground bg-warning/10 p-4 rounded-xl">
                     <p className="mb-2">No qualified judges found for {data.organization} shows.</p>
                     <p className="text-xs">
                       You can assign judges later or add judge qualifications to people in the Users

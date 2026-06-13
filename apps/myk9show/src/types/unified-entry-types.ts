@@ -204,7 +204,7 @@ export function getEntryStatusColor(status: UnifiedEntryData['status']): string 
     case 'Eliminated':
       return 'bg-destructive/10 text-destructive ';
     case 'Absent':
-      return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200';
+      return 'bg-warning/10 text-warning ';
     case 'Withdrawn':
     case 'Excused':
       return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';

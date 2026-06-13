@@ -27,8 +27,8 @@ const ELEMENT_ICONS: Record<string, ElementIconConfig> = {
   },
   Interior: {
     icon: Home,
-    bg: 'bg-amber-100 dark:bg-amber-900/40',
-    fg: 'text-amber-700 dark:text-amber-300',
+    bg: 'bg-warning/10 ',
+    fg: 'text-warning ',
   },
   Exterior: {
     icon: Leaf,

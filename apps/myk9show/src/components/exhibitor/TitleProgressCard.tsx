@@ -52,7 +52,7 @@ const DogTitleRow: React.FC<DogTitleRowProps> = ({ dogId, dogName }) => {
 
       <div className="flex items-center gap-1.5 flex-shrink-0">
         {earnedAbbreviations.length > 0 ? (
-          <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+          <span className="text-xs text-warning font-medium">
             {earnedAbbreviations.join(' · ')}
           </span>
         ) : (

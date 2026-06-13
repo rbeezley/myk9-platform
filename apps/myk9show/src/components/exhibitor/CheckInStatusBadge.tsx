@@ -24,7 +24,7 @@ const STATUS_COLORS: Record<CheckInStatus, { bg: string; text: string; border: s
   },
   conflict: {
     bg: 'bg-amber-500/15',
-    text: 'text-amber-600 dark:text-amber-400',
+    text: 'text-warning ',
     border: 'border-amber-500/30',
   },
   pulled: {

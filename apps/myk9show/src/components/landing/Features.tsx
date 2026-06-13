@@ -94,7 +94,7 @@ const getIconColor = (color: string) => {
     case 'rose':
       return 'text-rose-500 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/30';
     case 'amber':
-      return 'text-amber-500 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30';
+      return 'text-warning bg-warning/10 ';
     case 'emerald':
       return 'text-emerald-500 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30';
     case 'cyan':

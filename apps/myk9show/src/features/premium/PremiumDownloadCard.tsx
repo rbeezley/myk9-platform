@@ -86,7 +86,7 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
         <div className="flex items-center gap-2">
           <h3 className="font-semibold text-sm">Premium List</h3>
           {stale && (
-            <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+            <span className="inline-flex items-center gap-1 text-xs text-warning ">
               <AlertTriangle className="h-3 w-3" />
               Show data has changed since publish
             </span>

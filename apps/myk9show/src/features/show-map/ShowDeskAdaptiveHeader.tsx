@@ -8,10 +8,7 @@ import type { ShowMapAction } from './showMapActions';
 import type { ShowMapActionGroup } from './showMapActionGroups';
 import type { ShowMapRunningNowItem } from './showMapRunningNow';
 import type { ShowDeskShowStatus } from './showDeskStatus';
-import type {
-  ShowDeskPendingSignal,
-  ShowDeskPendingSignalId,
-} from './showDeskPendingSignals';
+import type { ShowDeskPendingSignal, ShowDeskPendingSignalId } from './showDeskPendingSignals';
 
 const STATUS_LABEL: Record<ShowDeskShowStatus, string> = {
   setup: 'Setup',
@@ -22,8 +19,9 @@ const STATUS_LABEL: Record<ShowDeskShowStatus, string> = {
 
 const STATUS_TONE: Record<ShowDeskShowStatus, string> = {
   setup: 'bg-muted text-muted-foreground',
-  'show-in-progress': 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200',
-  'wrap-up': 'bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200',
+  'show-in-progress':
+    'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200',
+  'wrap-up': 'bg-warning/10 text-warning ',
   closed: 'bg-slate-200 text-slate-900 dark:bg-slate-800 dark:text-slate-200',
 };
 
@@ -221,12 +219,7 @@ function SingleItemRow({
         </div>
         <div className="text-xs text-muted-foreground">{action.why}</div>
       </div>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={() => onStart(action)}
-      >
+      <Button type="button" variant="outline" size="sm" onClick={() => onStart(action)}>
         <action.icon className="h-4 w-4" />
         Open
       </Button>
@@ -291,12 +284,7 @@ function MultiItemRow({
           <span className="text-xs text-muted-foreground">
             Bulk approve every pending entry for this dog.
           </span>
-          <Button
-            type="button"
-            variant="default"
-            size="sm"
-            onClick={() => onBulkApprove?.(group)}
-          >
+          <Button type="button" variant="default" size="sm" onClick={() => onBulkApprove?.(group)}>
             <CheckCheck className="h-4 w-4" />
             Approve all {group.count}
           </Button>

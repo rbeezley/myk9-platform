@@ -25,8 +25,7 @@ interface ShowStatusPillProps {
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   draft: {
     label: 'Draft',
-    className:
-      'bg-amber-100 border border-amber-300 text-amber-800 dark:bg-amber-950 dark:border-amber-800 dark:text-amber-400',
+    className: 'bg-warning/10 border border-warning/30 text-warning ',
   },
   published: {
     label: 'Published',

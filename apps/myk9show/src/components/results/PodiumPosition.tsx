@@ -16,7 +16,7 @@ const PLACEMENT_CONFIG: Record<
     label: '1st',
     badge: 'bg-amber-400 text-amber-950 shadow-amber-400/30',
     platform: 'h-20 bg-gradient-to-t from-amber-500 to-amber-400',
-    text: 'text-amber-600 dark:text-amber-400',
+    text: 'text-warning ',
   },
   2: {
     label: '2nd',

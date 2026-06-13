@@ -210,12 +210,12 @@ const RingMonitor: React.FC<RingMonitorProps> = ({ userEntry, ringStatus, onRefr
       )}
 
       {isUserOnDeck && !isUserNext && (
-        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-6 mb-4">
+        <div className="bg-warning/10 border border-warning/30 rounded-lg p-6 mb-4">
           <div className="flex items-center gap-3 mb-3">
-            <AlertCircle className="w-6 h-6 text-amber-600 dark:text-amber-400" />
-            <div className="text-xl font-bold text-amber-800 dark:text-amber-200">GET READY!</div>
+            <AlertCircle className="w-6 h-6 text-warning " />
+            <div className="text-xl font-bold text-warning ">GET READY!</div>
           </div>
-          <div className="text-amber-700 dark:text-amber-300">
+          <div className="text-warning ">
             {ringLabel
               ? `You're on deck. Head to ${ringLabel} now.`
               : "You're on deck. Head over now."}

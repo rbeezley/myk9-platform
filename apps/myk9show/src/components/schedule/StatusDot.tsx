@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 const STATUS_DOT_COLORS: Record<ClassStatusValue, string> = {
   [CLASS_STATUS.SCHEDULED]: 'bg-slate-500 dark:bg-slate-400',
   [CLASS_STATUS.UPCOMING]: 'bg-slate-500 dark:bg-slate-400',
-  [CLASS_STATUS.IN_PROGRESS]: 'bg-amber-600 dark:bg-amber-400',
+  [CLASS_STATUS.IN_PROGRESS]: 'bg-warning ',
   [CLASS_STATUS.COMPLETED]: 'bg-green-600 dark:bg-green-400',
   [CLASS_STATUS.CANCELLED]: 'bg-slate-500 dark:bg-slate-400',
 };

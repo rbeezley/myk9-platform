@@ -87,9 +87,9 @@ export const RBACMigrationStatus: React.FC<RBACMigrationStatusProps> = ({
       default:
         return {
           icon: Info,
-          color: 'text-amber-600 dark:text-amber-400',
-          bgColor: 'bg-amber-50 dark:bg-amber-950/30',
-          borderColor: 'border-amber-200 dark:border-amber-800',
+          color: 'text-warning ',
+          bgColor: 'bg-warning/10 ',
+          borderColor: 'border-warning/30 ',
           title: 'Using Legacy RBAC System',
           description: 'Your account will be migrated to the new system automatically.',
           progress: 10,

@@ -98,7 +98,7 @@ export function AskQPanel() {
         )}
 
         {askq.status === 'rate-limited' && (
-          <div className="bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 text-sm rounded-lg px-3.5 py-2.5">
+          <div className="bg-warning/10 text-warning text-sm rounded-lg px-3.5 py-2.5">
             <p>Daily limit reached. Resets at midnight.</p>
             {!isPremium && (
               <a href="/subscription" className="mt-1 text-xs underline block">

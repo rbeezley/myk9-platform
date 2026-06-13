@@ -3,11 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, ChevronDown, FileText, RotateCcw, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -41,7 +37,7 @@ const NO_SELECTION_VALUE = 'none';
 
 const SEVERITY_TEXT_CLASS: Record<ShowIncidentSeverity, string> = {
   note: 'text-muted-foreground',
-  reportable: 'font-medium text-amber-800 dark:text-amber-300',
+  reportable: 'font-medium text-warning ',
   urgent: 'font-semibold text-destructive',
 };
 

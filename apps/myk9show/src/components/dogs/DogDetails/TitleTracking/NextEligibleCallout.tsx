@@ -21,7 +21,7 @@ const NextEligibleCallout: React.FC<NextEligibleCalloutProps> = ({ progress }) =
       : `Complete remaining element titles to earn ${progress.abbreviation}!`;
 
   return (
-    <div className="flex items-center gap-2 mt-2 px-3 py-2 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 text-sm font-medium">
+    <div className="flex items-center gap-2 mt-2 px-3 py-2 rounded-lg bg-amber-500/10 text-warning text-sm font-medium">
       <Sparkles className="w-4 h-4 shrink-0" />
       {message}
     </div>

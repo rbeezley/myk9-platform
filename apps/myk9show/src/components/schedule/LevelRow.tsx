@@ -16,13 +16,13 @@ export function LevelRow({ level, onClick }: LevelRowProps) {
       onClick={onClick}
       className={cn(
         'flex min-h-[44px] w-full items-center justify-between rounded px-2 py-1 text-left transition-colors hover:bg-accent',
-        isInProgress && 'bg-amber-500/10 dark:bg-amber-400/10'
+        isInProgress && 'bg-warning/100/10 '
       )}
     >
       <span
         className={cn(
           'text-xs',
-          isInProgress ? 'font-medium text-amber-700 dark:text-amber-400' : 'text-muted-foreground'
+          isInProgress ? 'font-medium text-warning ' : 'text-muted-foreground'
         )}
       >
         {level.level}
@@ -34,7 +34,7 @@ export function LevelRow({ level, onClick }: LevelRowProps) {
         {level.status === CLASS_STATUS.COMPLETED && (
           <span className="text-[10px] text-green-700 dark:text-green-400">✓</span>
         )}
-        {isInProgress && <span className="text-[10px] text-amber-700 dark:text-amber-400">●</span>}
+        {isInProgress && <span className="text-[10px] text-warning ">●</span>}
       </div>
     </button>
   );

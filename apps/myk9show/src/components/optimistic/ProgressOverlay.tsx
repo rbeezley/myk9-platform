@@ -55,7 +55,7 @@ export const ProgressOverlay: React.FC<ProgressOverlayProps> = ({
       confirmed: 'bg-teal-100 text-teal-700 dark:bg-teal-900/20 dark:text-teal-400',
       failed: 'bg-destructive/10 text-destructive ',
       rolled_back: 'bg-destructive/10 text-destructive ',
-      rolling_back: 'bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400',
+      rolling_back: 'bg-warning/10 text-warning ',
     };
 
     return (

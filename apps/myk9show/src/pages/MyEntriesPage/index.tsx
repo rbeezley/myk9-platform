@@ -506,9 +506,9 @@ const WaitListSection: React.FC<WaitListSectionProps> = ({
   isWithdrawing,
 }) => (
   <div className="container mx-auto px-6 pb-4 max-w-7xl">
-    <Card className="border border-amber-200/50 bg-amber-50/30 dark:bg-amber-950/10 dark:border-amber-800/30">
+    <Card className="border border-warning/30 bg-warning/10 ">
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base font-semibold text-amber-800 dark:text-amber-300">
+        <CardTitle className="flex items-center gap-2 text-base font-semibold text-warning ">
           <Users className="h-4 w-4" />
           My Wait List Positions
         </CardTitle>
@@ -530,7 +530,7 @@ const WaitListSection: React.FC<WaitListSectionProps> = ({
                 className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-background/60 px-4 py-3"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-sm font-semibold">
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-warning/10 text-warning text-sm font-semibold">
                     #{entry.position}
                   </div>
                   <div className="min-w-0">

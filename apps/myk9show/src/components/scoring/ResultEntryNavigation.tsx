@@ -359,7 +359,7 @@ export function ResultEntryNavigation({
                             );
                           case 'conflict':
                             return (
-                              <div className="px-2 py-1 text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 rounded-md border border-amber-200 dark:border-amber-700">
+                              <div className="px-2 py-1 text-xs font-medium bg-warning/10 text-warning rounded-md border border-warning/30 ">
                                 Conflict
                               </div>
                             );

@@ -188,7 +188,7 @@ export function getEntryStatusClasses(status: string | null): string {
       return 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900 dark:text-teal-200';
     case 'pending':
     case 'submitted':
-      return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900 dark:text-amber-200';
+      return 'bg-warning/10 text-warning border-amber-200 ';
     case 'cancelled':
     case 'withdrawn':
       return 'bg-destructive/10 text-destructive border-red-200 ';

@@ -324,16 +324,16 @@ export const TemplateEditorPage: React.FC = () => {
 
       {/* Template Warning/Info */}
       {editWarning && !isNew && (
-        <Card className="mb-6 border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800">
+        <Card className="mb-6 border-warning/30 bg-warning/10 ">
           <CardContent className="pt-4">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-2">
-                <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5" />
+                <AlertTriangle className="h-5 w-5 text-warning mt-0.5" />
                 <div>
-                  <h3 className="font-semibold text-amber-800 dark:text-amber-200 mb-2">
+                  <h3 className="font-semibold text-warning mb-2">
                     {template.type === 'official' ? 'Official Template' : 'Template Notice'}
                   </h3>
-                  <p className="text-amber-700 dark:text-amber-300 text-sm">{editWarning}</p>
+                  <p className="text-warning text-sm">{editWarning}</p>
                 </div>
               </div>
 

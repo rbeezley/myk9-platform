@@ -11,15 +11,12 @@ interface ScoringDaySummaryProps {
   showId?: string | null;
 }
 
-export const ScoringDaySummary: React.FC<ScoringDaySummaryProps> = ({
-  classes,
-  showId,
-}) => {
+export const ScoringDaySummary: React.FC<ScoringDaySummaryProps> = ({ classes, showId }) => {
   const navigate = useNavigate();
-  const completedCount = classes.filter((c) => c.status === 'completed').length;
+  const completedCount = classes.filter(c => c.status === 'completed').length;
 
   return (
-    <Card className="border-amber-200 dark:border-amber-800 mb-4">
+    <Card className="border-warning/30 mb-4">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base">
@@ -40,7 +37,7 @@ export const ScoringDaySummary: React.FC<ScoringDaySummaryProps> = ({
       </CardHeader>
       <CardContent>
         <div className="space-y-1.5">
-          {classes.map((cls) => {
+          {classes.map(cls => {
             const isComplete = cls.status === 'completed';
             const isInProgress = cls.status === 'in-progress';
             return (

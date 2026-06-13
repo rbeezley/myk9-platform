@@ -29,7 +29,7 @@ const roleLabels: Record<RoleRequest['requestedRole'], string> = {
 
 function StatusBadge({ status }: { status: RoleRequestStatus }) {
   const styles: Record<RoleRequestStatus, string> = {
-    pending: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
+    pending: 'border-amber-500/30 bg-amber-500/10 text-warning ',
     approved: 'border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300',
     denied: 'border-red-500/30 bg-red-500/10 text-destructive ',
   };
@@ -236,7 +236,7 @@ export default function RoleRequestsPage() {
                     </div>
                   )}
                   {request.status === 'pending' && (
-                    <div className="inline-flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300">
+                    <div className="inline-flex items-center gap-2 text-sm text-warning ">
                       <Clock className="h-4 w-4" />
                       Needs review
                     </div>

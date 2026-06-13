@@ -33,7 +33,7 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-gradient-to-br from-amber-500/10 to-amber-500/5 rounded-xl">
-              <Award className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <Award className="h-5 w-5 text-warning " />
             </div>
             <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
               Judge Qualifications
@@ -84,7 +84,7 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
                   <div className="flex items-center gap-3">
                     <Badge
                       className="bg-gradient-to-r from-amber-500/20 to-amber-500/10
-                                    text-amber-700 dark:text-amber-300 border-amber-500/30
+                                    text-warning border-amber-500/30
                                     font-medium px-3 py-1"
                     >
                       {qual.organization}

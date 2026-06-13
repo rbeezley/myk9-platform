@@ -8,8 +8,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Edit,
   DollarSign,
   Clock,
@@ -19,7 +25,7 @@ import {
   Info,
   RotateCcw,
   Eye,
-  EyeOff
+  EyeOff,
 } from 'lucide-react';
 
 interface FieldOverrideFormProps {
@@ -39,52 +45,58 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
   onOverrideChange,
   onResetField,
   onResetAll,
-  showAdvanced = false
+  showAdvanced = false,
 }) => {
   const [showAllFields, setShowAllFields] = useState(showAdvanced);
 
   const fields = template.fieldSpecifications || [];
-  
+
   // Group fields by category
   const fieldGroups: Record<string, FieldSpecification[]> = {
-    basic: fields.filter(f => 
+    basic: fields.filter(f =>
       ['organization', 'showType', 'element', 'level', 'section', 'className'].includes(f.fieldName)
     ),
-    financial: fields.filter(f => 
-      f.fieldName.toLowerCase().includes('fee') || 
-      f.fieldName.toLowerCase().includes('cost') ||
-      f.fieldName.toLowerCase().includes('entry') ||
-      f.fieldName === 'maxEntries'
+    financial: fields.filter(
+      f =>
+        f.fieldName.toLowerCase().includes('fee') ||
+        f.fieldName.toLowerCase().includes('cost') ||
+        f.fieldName.toLowerCase().includes('entry') ||
+        f.fieldName === 'maxEntries'
     ),
-    timing: fields.filter(f => 
-      f.fieldName.toLowerCase().includes('time') ||
-      f.fieldName.toLowerCase().includes('duration') ||
-      f.fieldName === 'estimatedJudgingTime'
+    timing: fields.filter(
+      f =>
+        f.fieldName.toLowerCase().includes('time') ||
+        f.fieldName.toLowerCase().includes('duration') ||
+        f.fieldName === 'estimatedJudgingTime'
     ),
-    personnel: fields.filter(f => 
-      f.fieldName.toLowerCase().includes('judge') ||
-      f.fieldName.toLowerCase().includes('steward') ||
-      f.fieldName.toLowerCase().includes('personnel')
+    personnel: fields.filter(
+      f =>
+        f.fieldName.toLowerCase().includes('judge') ||
+        f.fieldName.toLowerCase().includes('steward') ||
+        f.fieldName.toLowerCase().includes('personnel')
     ),
-    rules: fields.filter(f => 
-      f.fieldName.toLowerCase().includes('hide') ||
-      f.fieldName.toLowerCase().includes('search') ||
-      f.fieldName.toLowerCase().includes('distraction') ||
-      f.fieldName.toLowerCase().includes('area')
+    rules: fields.filter(
+      f =>
+        f.fieldName.toLowerCase().includes('hide') ||
+        f.fieldName.toLowerCase().includes('search') ||
+        f.fieldName.toLowerCase().includes('distraction') ||
+        f.fieldName.toLowerCase().includes('area')
     ),
-    other: fields.filter((f: FieldSpecification) => 
-      !['basic', 'financial', 'timing', 'personnel', 'rules'].some((group: string) => 
-        fieldGroups[group]?.includes(f)
-      )
-    )
+    other: fields.filter(
+      (f: FieldSpecification) =>
+        !['basic', 'financial', 'timing', 'personnel', 'rules'].some((group: string) =>
+          fieldGroups[group]?.includes(f)
+        )
+    ),
   };
 
   // Filter editable fields
   const getEditableFields = (groupFields: FieldSpecification[]) => {
-    return groupFields.filter(field => 
-      field.editable && 
-      (showAllFields || field.fieldSource !== 'rule-based') &&
-      field.fieldName !== 'id'
+    return groupFields.filter(
+      field =>
+        field.editable &&
+        (showAllFields || field.fieldSource !== 'rule-based') &&
+        field.fieldName !== 'id'
     );
   };
 
@@ -95,10 +107,11 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
 
   // Get current value for a field (override or default)
   const getCurrentValue = (field: FieldSpecification): string | number | boolean => {
-    const value = fieldOverrides[field.fieldName] !== undefined 
-      ? fieldOverrides[field.fieldName]
-      : getDefaultValue(field);
-    
+    const value =
+      fieldOverrides[field.fieldName] !== undefined
+        ? fieldOverrides[field.fieldName]
+        : getDefaultValue(field);
+
     // Ensure we return a properly typed value
     if (field.dataType === 'number') {
       return typeof value === 'number' ? value : Number(value) || 0;
@@ -117,12 +130,14 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
   // Check if field should be shown based on conditional rules
   const shouldShowField = (field: FieldSpecification) => {
     if (!field.showWhen) return true;
-    
+
     const conditions = Array.isArray(field.showWhen) ? field.showWhen : [field.showWhen];
-    
+
     return conditions.some(condition => {
-      const dependentValue = getCurrentValue(fields.find(f => f.fieldName === condition.dependsOn)!);
-      
+      const dependentValue = getCurrentValue(
+        fields.find(f => f.fieldName === condition.dependsOn)!
+      );
+
       switch (condition.condition) {
         case 'equals':
           return dependentValue === condition.value;
@@ -131,7 +146,9 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
         case 'in':
           return Array.isArray(condition.value) && condition.value.includes(String(dependentValue));
         case 'notIn':
-          return Array.isArray(condition.value) && !condition.value.includes(String(dependentValue));
+          return (
+            Array.isArray(condition.value) && !condition.value.includes(String(dependentValue))
+          );
         default:
           return true;
       }
@@ -146,9 +163,9 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
     const baseInputProps = {
       value: String(currentValue ?? ''),
       onChange: (value: unknown) => onOverrideChange(field.fieldName, value),
-      disabled: !field.editable || field.fieldSource === 'rule-based'
+      disabled: !field.editable || field.fieldSource === 'rule-based',
     };
-    
+
     const stringValue = String(currentValue ?? '');
 
     let input;
@@ -156,9 +173,9 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
     switch (field.dataType) {
       case 'select':
         input = (
-          <Select 
-            value={stringValue} 
-            onValueChange={(value) => onOverrideChange(field.fieldName, value)}
+          <Select
+            value={stringValue}
+            onValueChange={value => onOverrideChange(field.fieldName, value)}
             disabled={baseInputProps.disabled}
           >
             <SelectTrigger>
@@ -179,40 +196,38 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
           </Select>
         );
         break;
-        
+
       case 'boolean':
         input = (
           <div className="flex items-center space-x-2">
             <Checkbox
               checked={currentValue === true}
-              onCheckedChange={(checked) => onOverrideChange(field.fieldName, checked)}
+              onCheckedChange={checked => onOverrideChange(field.fieldName, checked)}
               disabled={baseInputProps.disabled}
             />
-            <Label className="text-sm">
-              {field.description || `Enable ${field.displayName}`}
-            </Label>
+            <Label className="text-sm">{field.description || `Enable ${field.displayName}`}</Label>
           </div>
         );
         break;
-        
+
       case 'text':
         input = (
           <Textarea
             value={stringValue}
-            onChange={(e) => onOverrideChange(field.fieldName, e.target.value)}
+            onChange={e => onOverrideChange(field.fieldName, e.target.value)}
             placeholder={field.description || `Enter ${field.displayName.toLowerCase()}`}
             disabled={baseInputProps.disabled}
             rows={3}
           />
         );
         break;
-        
+
       case 'number':
         input = (
           <Input
             type="number"
             value={stringValue}
-            onChange={(e) => onOverrideChange(field.fieldName, parseFloat(e.target.value) || 0)}
+            onChange={e => onOverrideChange(field.fieldName, parseFloat(e.target.value) || 0)}
             placeholder={field.description || `Enter ${field.displayName.toLowerCase()}`}
             disabled={baseInputProps.disabled}
             min={field.allowedRange?.min}
@@ -220,13 +235,13 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
           />
         );
         break;
-        
+
       default:
         input = (
           <Input
             type="text"
             value={stringValue}
-            onChange={(e) => onOverrideChange(field.fieldName, e.target.value)}
+            onChange={e => onOverrideChange(field.fieldName, e.target.value)}
             placeholder={field.description || `Enter ${field.displayName.toLowerCase()}`}
             disabled={baseInputProps.disabled}
           />
@@ -239,7 +254,10 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
           <Label className="text-sm font-medium flex items-center gap-2">
             {field.displayName}
             {field.required && <span className="text-destructive">*</span>}
-            <Badge variant={field.fieldSource === 'rule-based' ? 'default' : 'secondary'} className="text-xs">
+            <Badge
+              variant={field.fieldSource === 'rule-based' ? 'default' : 'secondary'}
+              className="text-xs"
+            >
               {field.fieldSource}
             </Badge>
             {isOverridden && (
@@ -260,17 +278,15 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
             </Button>
           )}
         </div>
-        
+
         {input}
-        
+
         {field.description && (
-          <div className="text-xs text-muted-foreground">
-            {field.description}
-          </div>
+          <div className="text-xs text-muted-foreground">{field.description}</div>
         )}
-        
+
         {field.fieldSource === 'rule-based' && (
-          <div className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+          <div className="text-xs text-warning flex items-center gap-1">
             <AlertTriangle className="h-3 w-3" />
             This field is set by template rules and cannot be modified
           </div>
@@ -281,11 +297,16 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
 
   const getTabIcon = (tabName: string) => {
     switch (tabName) {
-      case 'financial': return <DollarSign className="h-4 w-4" />;
-      case 'timing': return <Clock className="h-4 w-4" />;
-      case 'personnel': return <Users className="h-4 w-4" />;
-      case 'rules': return <Settings className="h-4 w-4" />;
-      default: return <Edit className="h-4 w-4" />;
+      case 'financial':
+        return <DollarSign className="h-4 w-4" />;
+      case 'timing':
+        return <Clock className="h-4 w-4" />;
+      case 'personnel':
+        return <Users className="h-4 w-4" />;
+      case 'rules':
+        return <Settings className="h-4 w-4" />;
+      default:
+        return <Edit className="h-4 w-4" />;
     }
   };
 
@@ -317,7 +338,8 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
         <CardContent>
           <div className="flex items-center justify-between">
             <p className="text-muted-foreground">
-              Override default template values for the selected classes. Changes will apply to all {selectedClasses.length} selected classes.
+              Override default template values for the selected classes. Changes will apply to all{' '}
+              {selectedClasses.length} selected classes.
             </p>
             <div className="flex items-center gap-2">
               <Label className="text-sm">Show all fields:</Label>
@@ -337,7 +359,7 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
       {/* Field Override Tabs */}
       <Card>
         <CardContent className="pt-6">
-          <Tabs value={"basic"} onValueChange={() => {}}>
+          <Tabs value={'basic'} onValueChange={() => {}}>
             <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="basic" className="flex items-center gap-1">
                 {getTabIcon('basic')}
@@ -364,9 +386,7 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
             {/* Basic Fields */}
             <TabsContent value="basic" className="space-y-4 mt-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {getEditableFields(fieldGroups.basic)
-                  .filter(shouldShowField)
-                  .map(renderFieldInput)}
+                {getEditableFields(fieldGroups.basic).filter(shouldShowField).map(renderFieldInput)}
               </div>
             </TabsContent>
 
@@ -418,9 +438,7 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
             {/* Rules Fields */}
             <TabsContent value="rules" className="space-y-4 mt-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {getEditableFields(fieldGroups.rules)
-                  .filter(shouldShowField)
-                  .map(renderFieldInput)}
+                {getEditableFields(fieldGroups.rules).filter(shouldShowField).map(renderFieldInput)}
               </div>
               {getEditableFields(fieldGroups.rules).length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
@@ -444,12 +462,13 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
               {Object.entries(fieldOverrides).map(([fieldName, value]) => {
                 const field = fields.find(f => f.fieldName === fieldName);
                 return field ? (
-                  <div key={fieldName} className="flex justify-between items-center p-2 bg-muted rounded">
+                  <div
+                    key={fieldName}
+                    className="flex justify-between items-center p-2 bg-muted rounded"
+                  >
                     <span className="font-medium text-sm">{field.displayName}</span>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">
-                        {String(value)}
-                      </span>
+                      <span className="text-sm text-muted-foreground">{String(value)}</span>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -475,9 +494,16 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
             <div className="space-y-2 text-sm">
               <h4 className="font-medium text-foreground">Field Override Guidelines</h4>
               <ul className="space-y-1 text-muted-foreground">
-                <li>• <strong>Rule-based fields</strong> are automatically calculated and cannot be changed</li>
-                <li>• <strong>Judge-set fields</strong> can be overridden but will need judge approval</li>
-                <li>• <strong>Admin-set fields</strong> can be freely modified by show secretaries</li>
+                <li>
+                  • <strong>Rule-based fields</strong> are automatically calculated and cannot be
+                  changed
+                </li>
+                <li>
+                  • <strong>Judge-set fields</strong> can be overridden but will need judge approval
+                </li>
+                <li>
+                  • <strong>Admin-set fields</strong> can be freely modified by show secretaries
+                </li>
                 <li>• Changes apply to all {selectedClasses.length} selected classes</li>
                 <li>• You can reset individual fields or all overrides at any time</li>
               </ul>

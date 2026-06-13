@@ -305,7 +305,7 @@ export function NotificationSettings() {
               {/* Enhanced voice nudge */}
               {showNudge && instructions && (
                 <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
-                  <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">
+                  <p className="text-sm font-semibold text-warning ">
                     Want better-sounding voices?
                   </p>
                   <p className="text-xs text-muted-foreground">
@@ -313,7 +313,7 @@ export function NotificationSettings() {
                     natural than the default.
                   </p>
                   <div className="rounded-md bg-background/80 p-3">
-                    <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wide mb-2">
+                    <p className="text-xs font-semibold text-warning uppercase tracking-wide mb-2">
                       {instructions.platform}
                     </p>
                     <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">

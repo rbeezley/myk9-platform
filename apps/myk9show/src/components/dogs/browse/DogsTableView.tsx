@@ -13,10 +13,7 @@ function getStatusBadge(status: DogStatus | undefined) {
   switch (status) {
     case 'retired':
       return (
-        <Badge
-          variant="secondary"
-          className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
-        >
+        <Badge variant="secondary" className="text-xs bg-warning/10 text-warning ">
           Retired
         </Badge>
       );

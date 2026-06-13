@@ -289,7 +289,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
               {paidDollars > 0 &&
                 !isPartiallyPaid &&
                 group.paymentStatus === PaymentStatus.PENDING && (
-                  <span className="text-xs text-amber-700 dark:text-amber-400 font-medium">
+                  <span className="text-xs text-warning font-medium">
                     ${paidDollars.toFixed(2)} on account
                   </span>
                 )}

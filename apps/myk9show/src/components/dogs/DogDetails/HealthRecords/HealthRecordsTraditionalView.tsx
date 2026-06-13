@@ -131,7 +131,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
             return (
               <div
                 key={vacc.id}
-                className={`p-4 border rounded-lg ${isOverdue ? 'border-red-300 bg-destructive/10 ' : isExpiringSoon ? 'border-amber-300 bg-amber-50 dark:bg-amber-950/10' : ''}`}
+                className={`p-4 border rounded-lg ${isOverdue ? 'border-red-300 bg-destructive/10 ' : isExpiringSoon ? 'border-amber-300 bg-warning/10 ' : ''}`}
               >
                 <div className="flex justify-between items-start">
                   <div>

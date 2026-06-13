@@ -100,9 +100,7 @@ export function ShowAccessCodesCard({
       )('regenerate_show_passcodes', { p_show_id: showId });
 
       if (error || !data || data.length === 0) {
-        notifications.error(
-          error?.message ?? 'Could not generate new codes. Please try again.'
-        );
+        notifications.error(error?.message ?? 'Could not generate new codes. Please try again.');
         return;
       }
 
@@ -178,7 +176,7 @@ export function ShowAccessCodesCard({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+          <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning ">
             <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
             <p>
               Anyone holding the previous codes will lose access after you regenerate. Make sure

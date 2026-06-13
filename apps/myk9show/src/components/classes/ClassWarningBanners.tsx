@@ -41,7 +41,7 @@ export function ClassWarningBanners({
 
       {/* Stale Data Banner */}
       {staleStatus.shouldShowWarning && !isOfflineScoring && (
-        <div className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+        <div className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium rounded bg-warning/10 text-warning ">
           <AlertTriangle className="h-2.5 w-2.5 flex-shrink-0" />
           <span className="truncate">
             May be outdated ({formatStaleTime(staleStatus.minutesSinceLastResult!)})

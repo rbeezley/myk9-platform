@@ -179,8 +179,8 @@ export default function CheckoutSuccessPage() {
         <div className="max-w-2xl mx-auto px-4 py-16">
           <Card>
             <CardContent className="py-16 text-center">
-              <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mx-auto mb-4">
-                <AlertCircle className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+              <div className="w-16 h-16 rounded-full bg-warning/10 flex items-center justify-center mx-auto mb-4">
+                <AlertCircle className="h-8 w-8 text-warning " />
               </div>
               <h2 className="text-xl font-semibold mb-2">Verification Pending</h2>
               <p className="text-muted-foreground mb-6 max-w-md mx-auto">{error}</p>

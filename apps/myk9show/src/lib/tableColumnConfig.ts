@@ -234,7 +234,7 @@ function getStatusClassName(status: string): string {
     case 'nq':
       return 'bg-destructive/10 text-destructive ';
     case 'absent':
-      return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200';
+      return 'bg-warning/10 text-warning ';
     case 'withdrawn':
     case 'excused':
       return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';

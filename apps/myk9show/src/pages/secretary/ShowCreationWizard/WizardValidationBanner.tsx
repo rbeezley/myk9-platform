@@ -23,7 +23,7 @@ export const WizardValidationBanner: React.FC<WizardValidationBannerProps> = ({
   expanded,
   onToggle,
 }) => (
-  <div className="relative border-b border-amber-200/50 dark:border-amber-700/50 rounded-t-2xl overflow-hidden">
+  <div className="relative border-b border-warning/30 rounded-t-2xl overflow-hidden">
     <button
       onClick={onToggle}
       aria-expanded={expanded}
@@ -31,21 +31,19 @@ export const WizardValidationBanner: React.FC<WizardValidationBannerProps> = ({
       className="w-full px-6 sm:px-8 py-3 bg-gradient-to-r from-amber-50/80 to-amber-100/80 dark:from-amber-900/30 dark:to-amber-800/30 backdrop-blur-sm flex items-center justify-between hover:from-amber-100/80 hover:to-amber-150/80 dark:hover:from-amber-900/40 dark:hover:to-amber-800/40 transition-colors duration-200"
     >
       <div className="flex items-center gap-3">
-        <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-        <span className="text-sm font-medium text-amber-800 dark:text-amber-200">
+        <AlertTriangle className="h-4 w-4 text-warning flex-shrink-0" />
+        <span className="text-sm font-medium text-warning ">
           {messages.length} required field
           {messages.length !== 1 ? 's' : ''} need
           {messages.length === 1 ? 's' : ''} attention
         </span>
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-xs text-amber-600 dark:text-amber-400">
-          {expanded ? 'Hide' : 'Show'} details
-        </span>
+        <span className="text-xs text-warning ">{expanded ? 'Hide' : 'Show'} details</span>
         {expanded ? (
-          <ChevronUp className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          <ChevronUp className="h-4 w-4 text-warning " />
         ) : (
-          <ChevronDown className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          <ChevronDown className="h-4 w-4 text-warning " />
         )}
       </div>
     </button>
@@ -57,10 +55,10 @@ export const WizardValidationBanner: React.FC<WizardValidationBannerProps> = ({
       }`}
     >
       <div className="px-6 sm:px-8 py-4 bg-gradient-to-r from-amber-50/60 to-amber-100/60 dark:from-amber-900/20 dark:to-amber-800/20">
-        <ul className="text-sm text-amber-700 dark:text-amber-300 space-y-1.5">
+        <ul className="text-sm text-warning space-y-1.5">
           {messages.map((message, index) => (
             <li key={index} className="flex items-start gap-2">
-              <span className="block w-1.5 h-1.5 bg-amber-500 dark:bg-amber-400 rounded-full mt-1.5 flex-shrink-0" />
+              <span className="block w-1.5 h-1.5 bg-warning/100 rounded-full mt-1.5 flex-shrink-0" />
               <span>{message}</span>
             </li>
           ))}

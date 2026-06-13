@@ -17,6 +17,7 @@
 
     document.documentElement.classList.add(isDark ? 'theme-dark' : 'theme-light');
     if (isDark) document.documentElement.classList.add('dark');
+    document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
 
     var accentMigration = {
       green: 'grove',

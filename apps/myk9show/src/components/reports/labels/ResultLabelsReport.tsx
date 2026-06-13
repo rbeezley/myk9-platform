@@ -4,7 +4,7 @@ import { LABEL_TEMPLATES, getAllTemplates, getLabelTemplate } from '@/lib/labels
 import { buildLabelPages } from '@/lib/labels/labelLayout';
 import { buildLabelStylesheet } from '@/lib/labels/labelStyles';
 import { prepareResultLabelItems } from '@/lib/labels/resultLabelData';
-import { mapReportEntries } from '@/pages/secretary/ReportsPage/reportDataMapping';
+import { mapScopedReportEntries } from '@/pages/secretary/ReportsPage/reportDataMapping';
 import type { DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
 import { ResultLabelCell } from './ResultLabelCell';
@@ -43,30 +43,21 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
     getLabelTemplate(DEFAULT_RESULT_TEMPLATE_ID) ??
     getAllTemplates()[0];
 
-  const selectedTrial = useMemo(
-    () => (trialId !== 'all' ? (trials ?? []).find(t => t.id === trialId) : undefined),
-    [trials, trialId]
-  );
-  const selectedClass = useMemo(
-    () => (classId !== 'all' ? (classes ?? []).find(c => c.id === classId) : undefined),
-    [classes, classId]
-  );
-
   const items = useMemo(() => {
-    const mapped = mapReportEntries(entries ?? [], selectedTrial, selectedClass);
-    return prepareResultLabelItems(mapped, sortOrder, {
+    // Scope + enrich each entry with its OWN trial/class (handles the
+    // classId === 'all' case where useReportData returns all show entries).
+    const enriched = mapScopedReportEntries(
+      entries ?? [],
+      trials ?? [],
+      classes ?? [],
+      trialId,
+      classId
+    );
+    return prepareResultLabelItems(enriched, sortOrder, {
       showName: show?.name ?? '',
       ...(show?.clubName ? { clubName: show.clubName } : {}),
-      ...(selectedTrial ? { trialNumber: String(selectedTrial.trial_number ?? '') } : {}),
-      ...(selectedClass
-        ? {
-            classElement: selectedClass.element ?? '',
-            classLevel: selectedClass.level ?? '',
-            classSection: selectedClass.section ?? '',
-          }
-        : {}),
     });
-  }, [entries, selectedTrial, selectedClass, sortOrder, show]);
+  }, [entries, trials, classes, trialId, classId, sortOrder, show]);
 
   const pages = useMemo(() => buildLabelPages(template, items, skip), [template, items, skip]);
 
@@ -75,7 +66,16 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
   // stylesheet only supplies the fixed-dimension grid + @page geometry.
   useEffect(() => {
     const iframe = iframeRef?.current;
-    if (!iframe || pages.length === 0) return;
+    if (!iframe) return;
+
+    // Clear any previously-written labels first; switching from a populated
+    // class to an empty one must not leave a stale sheet that Print would emit.
+    if (pages.length === 0) {
+      iframe.contentDocument?.open();
+      iframe.contentDocument?.write('<!DOCTYPE html><html><head></head><body></body></html>');
+      iframe.contentDocument?.close();
+      return;
+    }
 
     const sheetsHtml = pages
       .map(page => {

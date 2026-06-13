@@ -139,17 +139,17 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
         <div className="max-w-6xl mx-auto space-y-6">
           {/* Validation Errors */}
           {errors.length > 0 && (
-            <Card className="border-red-200 bg-red-50">
+            <Card className="border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-900/20">
               <CardContent className="pt-4">
                 <div className="flex gap-3">
-                  <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                  <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
                   <div>
-                    <h4 className="font-medium text-red-900 mb-2">
+                    <h4 className="font-medium text-red-900 dark:text-red-200 mb-2">
                       Please address the following issues:
                     </h4>
                     <ul className="space-y-1">
                       {errors.map((error, index) => (
-                        <li key={index} className="text-sm text-red-700">
+                        <li key={index} className="text-sm text-red-700 dark:text-red-300">
                           • {error}
                         </li>
                       ))}
@@ -384,7 +384,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                     {/* Classes Grid */}
                     {trial.classes.length > 0 ? (
                       <div className="space-y-3">
-                        <h5 className="font-medium text-sm text-gray-700">
+                        <h5 className="font-medium text-sm text-foreground">
                           Classes & Judge Assignments
                         </h5>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -417,7 +417,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                       </div>
                     ) : (
                       <div className="text-center py-6 bg-card rounded-lg border">
-                        <Trophy className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                        <Trophy className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
                         <p className="text-sm text-muted-foreground">
                           No classes configured for this trial
                         </p>
@@ -428,13 +428,13 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                     <div className="mt-4 pt-3 border-t border-border">
                       <div className="grid grid-cols-3 gap-4 text-center">
                         <div>
-                          <div className="text-lg font-semibold text-blue-600">
+                          <div className="text-lg font-semibold text-blue-600 dark:text-blue-400">
                             {trial.classes.length}
                           </div>
                           <div className="text-xs text-muted-foreground">Classes</div>
                         </div>
                         <div>
-                          <div className="text-lg font-semibold text-green-600">
+                          <div className="text-lg font-semibold text-green-600 dark:text-green-400">
                             {
                               trial.classes.filter(cls => cls.judgeId && judgeDetails[cls.judgeId])
                                 .length
@@ -443,7 +443,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                           <div className="text-xs text-muted-foreground">Assigned</div>
                         </div>
                         <div title="Estimated at ~15 min per class">
-                          <div className="text-lg font-semibold text-purple-600">
+                          <div className="text-lg font-semibold text-purple-600 dark:text-purple-400">
                             ~{trial.classes.length * 15}
                           </div>
                           <div className="text-xs text-muted-foreground">Est. Minutes</div>

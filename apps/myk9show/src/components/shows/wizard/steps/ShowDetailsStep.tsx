@@ -275,7 +275,9 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                   endDefaultTime="5:00 PM"
                 />
                 {!dateRangeValid && (
-                  <p className="text-sm text-red-500 mt-1">Start date must be before end date</p>
+                  <p className="text-sm text-destructive mt-1">
+                    Start date must be before end date
+                  </p>
                 )}
               </div>
 
@@ -300,7 +302,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                   endDefaultTime="11:59 PM"
                 />
                 {!entryDatesValid && (
-                  <p className="text-sm text-red-500 mt-1">
+                  <p className="text-sm text-destructive mt-1">
                     Entry open date must be before close date
                   </p>
                 )}

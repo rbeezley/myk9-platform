@@ -566,6 +566,8 @@ const ShowCreationWizardPage: React.FC = () => {
                   <div className="relative border-b border-amber-200/50 dark:border-amber-700/50 rounded-t-2xl overflow-hidden">
                     <button
                       onClick={() => setValidationExpanded(!validationExpanded)}
+                      aria-expanded={validationExpanded}
+                      aria-controls="wizard-validation-details"
                       className="w-full px-6 sm:px-8 py-3 bg-gradient-to-r from-amber-50/80 to-amber-100/80 dark:from-amber-900/30 dark:to-amber-800/30 backdrop-blur-sm flex items-center justify-between hover:from-amber-100/80 hover:to-amber-150/80 dark:hover:from-amber-900/40 dark:hover:to-amber-800/40 transition-colors duration-200"
                     >
                       <div className="flex items-center gap-3">
@@ -589,6 +591,7 @@ const ShowCreationWizardPage: React.FC = () => {
                     </button>
 
                     <div
+                      id="wizard-validation-details"
                       className={`overflow-hidden transition-all duration-300 ease-out ${
                         validationExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
                       }`}

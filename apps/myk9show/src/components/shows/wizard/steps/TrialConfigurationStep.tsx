@@ -207,7 +207,9 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                       variant="ghost"
                       size="sm"
                       onClick={() => removeTrial(trial.id)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      aria-label={`Remove Trial ${index + 1}`}
+                      title="Remove trial"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

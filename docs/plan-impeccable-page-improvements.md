@@ -93,6 +93,51 @@ consolidation phase) they split four ways:
 
 ---
 
+## [ADDED] Model robustness — separate the grader from the worker
+
+This playbook is run by a model, and two of its steps are pure judgment: the
+`critique`/`audit` **scores** and the `fix`/`polish` **craft**. The scaffolding
+(preflight, bucketing, watchlist greps, testing, ship) is deterministic and
+runs the same on any model. The judgment steps are not — a more lenient scorer
+enforces a lower bar, and the gate ("no dimension below 3/4") is only as strict
+as the model that assigns the 3.
+
+The failure mode is **self-evaluation coupling**: if the same model both does
+the work and scores it, it cannot hold itself above its own ceiling, and it
+stops believing it met the bar. Sub-agents do not fix this — by default they
+inherit the runner's model, so an "independent" review shares the runner's
+capability. Isolation catches blind spots, not ceiling gaps.
+
+**Pin the evaluator.** Run the scoring steps on a fixed strong model regardless
+of who runs the fixes:
+
+- `critique` and `audit` (Phase 1), and the **confirm re-score** after fixes
+  (the iteration cap), MUST run on **Opus or Fable** — pass `model: 'opus'`
+  (or `'fable'`) to the Agent/Workflow sub-agent that performs them, even when
+  a smaller model runs the fix passes. This holds the *bar* constant while only
+  the *craft* varies with the runner.
+- The fix/polish passes MAY run on the dispatched runner's model. A smaller
+  runner produces less-refined output but is still held to the pinned grader's
+  standard, so it does not stop early.
+- If the only model available is the runner's own, say so in the Phase 6
+  report — the bar is then capped at that model's perception, and the
+  dispatcher should weigh the result accordingly.
+
+**Do not rely on taste where a number exists.** Prefer measurable gates over
+self-scored 0–4 wherever the check can be computed — they are model-invariant:
+
+- **Contrast** — compute the ratio (WCAG AA = 4.5:1 body, 3:1 large/UI text and
+  non-text). Do not eyeball it.
+- **Touch targets** — measure rendered px against the 44px floor.
+- **Type scale** — compute the ratio between steps (≥1.25); don't judge it.
+- **Watchlist** — literal greps (already model-invariant).
+
+A self-scored 0–4 is the fallback for the genuinely subjective (hierarchy,
+emotional resonance, AI-slop verdict) — never a substitute for a check you
+could have measured.
+
+---
+
 ## The pipeline
 
 ### Phase 0 — Preflight (gates, non-optional)
@@ -132,8 +177,10 @@ consolidation phase) they split four ways:
 
 7. `$impeccable critique <page>` — spawn the two assessments as **separate
    sub-agents** (the isolation is what makes scores honest). Each in its own
-   browser tab if browser automation is available.
-8. `$impeccable audit <page>`.
+   browser tab if browser automation is available. **[ADDED] Run these scoring
+   sub-agents on the pinned evaluator model (Opus/Fable — see "Model
+   robustness"), even if a smaller model runs the rest of this playbook.**
+8. `$impeccable audit <page>` — same pinned-evaluator rule as step 7.
 9. Both passes must cover: **light mode AND dark mode**, and three widths
    (375 / 768 / 1280). Caveat: the Preview MCP serves the MAIN repo's code,
    not the worktree — for worktree verification start a vite server on a
@@ -168,12 +215,27 @@ when ALL of these hold — not when the agent runs out of ideas:
 - The full testing phase (Phase 5) is green.
 
 **Iteration cap.** Re-run `critique`/`audit` at most **twice** after fixes (one
-fix round, one confirm round). If the confirm round still surfaces *new*
-blocking findings, stop and report to the dispatcher rather than looping a
-third time — a page that won't converge in two rounds is a sign of a deeper
-structural issue that needs a human decision, not more passes. Low-severity
-findings that survive the cap are listed in the PR body as "known, deferred,"
-not chased indefinitely.
+fix round, one confirm round; the confirm re-score runs on the pinned evaluator
+model). If the confirm round still surfaces *new* blocking findings, stop and
+report to the dispatcher rather than looping a third time — a page that won't
+converge in two rounds is a sign of a deeper structural issue that needs a
+human decision, not more passes. Low-severity findings that survive the cap are
+listed in the PR body as "known, deferred," not chased indefinitely.
+
+**[ADDED] Score calibration anchors.** So "3/4" means the same thing on any
+model, anchor each score to a concrete state rather than an internal sense of
+"good." Using the **theming** dimension as the worked example:
+
+- **0–1** — broken: theme toggle does nothing, or large areas unreadable.
+- **2** — a visible defect a user would notice: a chip near-black in light mode
+  (the #666 bug), an unreadable hover state, body contrast under 4.5:1.
+- **3** — no defects; tokens used correctly; both modes correct; contrast
+  passes AA. Correct and accessible, not necessarily elegant. **This is the bar.**
+- **4** — everything in 3, plus deliberate craft: color carries meaning,
+  hierarchy reinforced by it, nothing arbitrary. Craft, not required.
+
+Score against these states. The same logic transfers to the other dimensions:
+2 = a defect a user hits, 3 = correct + accessible, 4 = correct + crafted.
 
 ### Phase 3 — Fix passes
 

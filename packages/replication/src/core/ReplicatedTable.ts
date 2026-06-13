@@ -41,6 +41,12 @@ import {
   clearConflictSnapshot,
   getConflictSnapshots,
 } from './ReplicatedTableConflict';
+import {
+  buildReplicatedRowForSet,
+  buildSyncedReplicatedRow,
+  collectFreshLocalIds,
+  selectStaleCleanRows,
+} from './ReplicatedTableRowState';
 import { isConflictSurfacingEnabled } from '../conflictConfig';
 
 // Re-export REPLICATION_STORES for backward compatibility
@@ -299,47 +305,15 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       return;
     }
 
-    const normalizedData = { ...data, id: normalizedId } as T;
-    const shouldCaptureBase = isDirty && existingRow && !existingRow.isDirty;
-    const baseData = isDirty
-      ? existingRow?.isDirty
-        ? existingRow.baseData
-        : shouldCaptureBase
-          ? existingRow.data
-          : undefined
-      : undefined;
-    const baseVersion = isDirty
-      ? existingRow?.isDirty
-        ? existingRow.baseVersion
-        : shouldCaptureBase
-          ? existingRow.version
-          : undefined
-      : undefined;
-    const shouldPreserveConflict = isDirty && existingRow?.syncStatus === 'conflict';
-    const conflict = shouldPreserveConflict ? existingRow.conflict : undefined;
-    // Dirty writes: preserve existing serverVersion (the precondition captured when
-    // the mutation was queued). Clean writes from server: use the incoming server
-    // version if provided, else fall back to whatever was already stored.
-    const serverVersion = isDirty
-      ? existingRow?.serverVersion
-      : (incomingServerVersion ?? existingRow?.serverVersion);
-
-    const row: ReplicatedRow<T> = {
+    const row = buildReplicatedRowForSet({
       tableName: this.tableName,
       id: normalizedId,
-      data: normalizedData,
-      version: existingRow ? existingRow.version + 1 : 1,
-      lastSyncedAt: Date.now(),
-      lastAccessedAt: Date.now(),
-      accessCount: existingRow?.accessCount || 0,
-      lastModifiedAt: Date.now(),
+      data,
       isDirty,
-      syncStatus: isDirty ? (shouldPreserveConflict ? 'conflict' : 'pending') : 'synced',
-      ...(baseData !== undefined && { baseData }),
-      ...(baseVersion !== undefined && { baseVersion }),
-      ...(serverVersion !== undefined && { serverVersion }),
-      conflict,
-    };
+      existingRow,
+      incomingServerVersion,
+      now: Date.now(),
+    });
 
     await tx.store.put(row);
     await tx.done;
@@ -459,20 +433,10 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       return;
     }
 
-    await tx.store.put({
-      ...existingRow,
-      isDirty: false,
-      syncStatus: 'synced',
-      lastSyncedAt: Date.now(),
-      baseData: undefined,
-      baseVersion: undefined,
-      conflict: undefined,
-    });
+    await tx.store.put(buildSyncedReplicatedRow(existingRow, Date.now()));
     await tx.done;
 
-    this.logger.log(
-      `[${this.tableName}] Marked row ${normalizedId} as synced (was dirty)`
-    );
+    this.logger.log(`[${this.tableName}] Marked row ${normalizedId} as synced (was dirty)`);
 
     this.notifyListeners();
   }
@@ -745,7 +709,11 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     return this.batchManager.batchSet(items, serverVersions);
   }
 
-  async batchSetChunked(items: T[], chunkSize?: number, serverVersions?: Map<string, number>): Promise<void> {
+  async batchSetChunked(
+    items: T[],
+    chunkSize?: number,
+    serverVersions?: Map<string, number>
+  ): Promise<void> {
     return this.batchManager.batchSetChunked(items, chunkSize, serverVersions);
   }
 
@@ -825,13 +793,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     const index = tx.store.index('tableName');
     const rows = (await index.getAll(this.tableName)) as ReplicatedRow<T>[];
 
-    const ids = new Set<string>();
-    for (const row of rows) {
-      if (this.cacheManager.isExpired(row)) continue;
-      ids.add(row.id);
-    }
-
-    return ids;
+    return collectFreshLocalIds(rows, row => this.cacheManager.isExpired(row));
   }
 
   async removeStaleEntries(serverIds: Set<string>): Promise<number> {
@@ -842,17 +804,14 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
     let removedCount = 0;
 
-    for (const row of rows) {
-      if (row.isDirty) {
-        this.logger.log(`[${this.tableName}] Preserving dirty row ${row.id}`);
-        continue;
-      }
+    for (const row of rows.filter(row => row.isDirty)) {
+      this.logger.log(`[${this.tableName}] Preserving dirty row ${row.id}`);
+    }
 
-      if (!serverIds.has(row.id)) {
-        await tx.store.delete([row.tableName, row.id]);
-        removedCount++;
-        this.logger.log(`[${this.tableName}] Removed stale entry: ${row.id}`);
-      }
+    for (const row of selectStaleCleanRows(rows, serverIds)) {
+      await tx.store.delete([row.tableName, row.id]);
+      removedCount++;
+      this.logger.log(`[${this.tableName}] Removed stale entry: ${row.id}`);
     }
 
     await tx.done;

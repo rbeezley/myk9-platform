@@ -36,7 +36,7 @@ const NO_SELECTION_VALUE = 'none';
 
 const SEVERITY_TEXT_CLASS: Record<ShowIncidentSeverity, string> = {
   note: 'text-muted-foreground',
-  reportable: 'font-medium text-amber-700',
+  reportable: 'font-medium text-amber-800 dark:text-amber-300',
   urgent: 'font-semibold text-destructive',
 };
 
@@ -256,6 +256,10 @@ export function IncidentLogCard({ entries, judges, showId }: IncidentLogCardProp
         </div>
         {incidentsQuery.isLoading ? (
           <p className="mt-2 text-sm text-muted-foreground">Loading incident log...</p>
+        ) : incidentsQuery.isError ? (
+          <p className="mt-2 text-sm text-destructive">
+            Could not load the incident log. Refresh to try again.
+          </p>
         ) : incidents.length === 0 ? (
           <p className="mt-2 text-sm text-muted-foreground">No incidents logged for this show.</p>
         ) : (

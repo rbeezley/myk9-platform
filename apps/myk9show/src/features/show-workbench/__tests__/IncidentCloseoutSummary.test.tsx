@@ -85,7 +85,7 @@ describe('IncidentCloseoutSummary', () => {
 
     expect(await screen.findByText('Could not check incidents')).toBeInTheDocument();
     expect(
-      screen.getByText('Could not load the incident closeout. Try the Today incident log before filing reports.')
+      screen.getByText('Could not load the incident closeout. Open the incident log in Tools before filing reports.')
     ).toBeInTheDocument();
     expect(screen.queryByText('No reportable incident follow-up is waiting in this show.')).not.toBeInTheDocument();
   });

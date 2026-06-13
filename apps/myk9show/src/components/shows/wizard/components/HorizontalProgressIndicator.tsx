@@ -64,7 +64,11 @@ export const HorizontalProgressIndicator: React.FC<HorizontalProgressIndicatorPr
                 </div>
               )}
 
-              {/* Step circle */}
+              {/* The whole step (circle + label + description) is one tall,
+                  full-width button so the touch target clears the 44px
+                  guardrail — the 28px circle alone did not, and the label sat
+                  outside any hit area. The circle is now a visual <span>; a
+                  <button> may not legally contain <div>/<p>. */}
               <button
                 type="button"
                 onClick={() => isClickable && onStepClick?.(step.id)}
@@ -72,54 +76,62 @@ export const HorizontalProgressIndicator: React.FC<HorizontalProgressIndicatorPr
                 aria-current={isCurrent ? 'step' : undefined}
                 aria-label={`${step.label}${isCompleted ? ' (completed)' : isCurrent ? ' (current)' : ''}`}
                 className={cn(
-                  'relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300',
-                  isCompleted && 'bg-primary border-primary text-primary-foreground shadow-md',
-                  isCurrent &&
-                    !isCompleted &&
-                    'bg-primary/10 border-primary text-primary shadow-sm ring-4 ring-primary/20',
-                  !isCompleted && !isCurrent && 'bg-muted/50 border-border text-muted-foreground',
-                  isClickable && 'cursor-pointer hover:scale-110 hover:shadow-lg',
-                  !isClickable && 'cursor-default'
+                  'group/step relative z-10 flex min-h-[44px] w-full flex-col items-center gap-2 rounded-lg px-1 pb-1',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                  isClickable ? 'cursor-pointer' : 'cursor-default'
                 )}
               >
-                {isCompleted ? (
-                  <Check className="h-4 w-4" strokeWidth={3} />
-                ) : (
-                  <span className="text-xs font-semibold">{index + 1}</span>
-                )}
-
-                {/* Glow for current step */}
-                {isCurrent && !isCompleted && (
-                  <span
-                    className="absolute inset-0 rounded-full bg-primary/20 animate-pulse"
-                    style={{ animationDuration: '2s' }}
-                  />
-                )}
-              </button>
-
-              {/* Label + description (description hidden on the narrowest screens) */}
-              <div className="mt-2 px-1 text-center">
-                <div
+                {/* Step circle (visual only) */}
+                <span
                   className={cn(
-                    'text-xs font-medium transition-colors duration-200 sm:text-sm',
-                    isCurrent && 'text-primary',
-                    isCompleted && 'text-foreground',
-                    !isCompleted && !isCurrent && 'text-muted-foreground'
+                    'relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300',
+                    isCompleted && 'bg-primary border-primary text-primary-foreground shadow-md',
+                    isCurrent &&
+                      !isCompleted &&
+                      'bg-primary/10 border-primary text-primary shadow-sm ring-4 ring-primary/20',
+                    !isCompleted && !isCurrent && 'bg-muted/50 border-border text-muted-foreground',
+                    isClickable && 'group-hover/step:scale-110 group-hover/step:shadow-lg'
                   )}
                 >
-                  {step.label}
-                </div>
-                {step.description && (
-                  <p
+                  {isCompleted ? (
+                    <Check className="h-4 w-4" strokeWidth={3} />
+                  ) : (
+                    <span className="text-xs font-semibold">{index + 1}</span>
+                  )}
+
+                  {/* Glow for current step */}
+                  {isCurrent && !isCompleted && (
+                    <span
+                      className="absolute inset-0 rounded-full bg-primary/20 animate-pulse"
+                      style={{ animationDuration: '2s' }}
+                    />
+                  )}
+                </span>
+
+                {/* Label + description (description hidden on the narrowest screens) */}
+                <span className="px-1 text-center">
+                  <span
                     className={cn(
-                      'mt-0.5 hidden text-xs transition-colors duration-200 sm:block',
-                      isCurrent ? 'text-primary/70' : 'text-muted-foreground'
+                      'block text-xs font-medium transition-colors duration-200 sm:text-sm',
+                      isCurrent && 'text-primary',
+                      isCompleted && 'text-foreground',
+                      !isCompleted && !isCurrent && 'text-muted-foreground'
                     )}
                   >
-                    {step.description}
-                  </p>
-                )}
-              </div>
+                    {step.label}
+                  </span>
+                  {step.description && (
+                    <span
+                      className={cn(
+                        'mt-0.5 hidden text-xs transition-colors duration-200 sm:block',
+                        isCurrent ? 'text-primary/70' : 'text-muted-foreground'
+                      )}
+                    >
+                      {step.description}
+                    </span>
+                  )}
+                </span>
+              </button>
             </li>
           );
         })}

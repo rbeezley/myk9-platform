@@ -60,4 +60,22 @@ describe('HorizontalProgressIndicator', () => {
     expect(screen.getByRole('button', { name: 'Classes' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Review' })).toBeDisabled();
   });
+
+  it('makes the whole step (including the label) the hit target', async () => {
+    const user = userEvent.setup();
+    const { onStepClick } = renderIndicator({ currentStep: 1, completedSteps: [0] });
+    // Click the visible label text, not the circle — the label must live inside
+    // the button so the touch area isn't just the 28px circle.
+    const label = screen.getByText('Show Details');
+    expect(label.closest('button')).not.toBeNull();
+    await user.click(label);
+    expect(onStepClick).toHaveBeenCalledWith(0);
+  });
+
+  it('gives each step a >=44px-tall, full-width hit area (touch-target guardrail)', () => {
+    renderIndicator({ currentStep: 1, completedSteps: [0] });
+    const button = screen.getByRole('button', { name: 'Trials (current)' });
+    expect(button.className).toContain('min-h-[44px]');
+    expect(button.className).toContain('w-full');
+  });
 });

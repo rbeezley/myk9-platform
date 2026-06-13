@@ -552,7 +552,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
           )}
 
           {/* Actions bar + count */}
-          <div className="flex items-center justify-between px-4 py-2 border-b border-border">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 border-b border-border">
             <div className="flex flex-wrap gap-2">
               {canBulkOperations && visibleDogs.length > 0 && (
                 <DropdownMenu>
@@ -607,7 +607,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
             <div className="text-sm text-muted-foreground">
               {visibleDogs.length} dog{visibleDogs.length !== 1 ? 's' : ''}
               {serverHitLimit && (
-                <span className="ml-2 text-xs text-yellow-600">
+                <span className="ml-2 text-xs text-yellow-600 dark:text-yellow-400">
                   (showing top {SEARCH_ALL_DOGS_LIMIT} — refine your search for more)
                 </span>
               )}
@@ -619,78 +619,85 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
             </div>
           </div>
 
-          {/* Table header */}
-          <div
-            style={DOG_TABLE_GRID}
-            className="grid items-center gap-x-3 px-3 py-2 bg-muted/50 text-xs font-medium text-muted-foreground uppercase tracking-wide border-b border-border select-none"
-          >
-            <Checkbox
-              checked={allEligibleSelected}
-              onCheckedChange={handleSelectAllToggle}
-              className="shrink-0"
-            />
-            <SortableHeader
-              column="callName"
-              label="Call Name"
-              sortColumn={sortColumn}
-              sortDirection={sortDirection}
-              onSort={handleSort}
-            />
-            <SortableHeader
-              column="breed"
-              label="Breed"
-              sortColumn={sortColumn}
-              sortDirection={sortDirection}
-              onSort={handleSort}
-            />
-            <SortableHeader
-              column="owner"
-              label="Owner"
-              sortColumn={sortColumn}
-              sortDirection={sortDirection}
-              onSort={handleSort}
-            />
-            <span>Org</span>
-            <SortableHeader
-              column="regNumber"
-              label="Reg #"
-              sortColumn={sortColumn}
-              sortDirection={sortDirection}
-              onSort={handleSort}
-            />
-          </div>
+          {/* Dense secretary data table — scroll horizontally on small screens
+              instead of crushing the six columns. The min-width keeps the grid
+              template legible; the outer container scrolls. */}
+          <div className="overflow-x-auto">
+            <div className="min-w-[640px]">
+              {/* Table header */}
+              <div
+                style={DOG_TABLE_GRID}
+                className="grid items-center gap-x-3 px-3 py-2 bg-muted/50 text-xs font-medium text-muted-foreground uppercase tracking-wide border-b border-border select-none"
+              >
+                <Checkbox
+                  checked={allEligibleSelected}
+                  onCheckedChange={handleSelectAllToggle}
+                  className="shrink-0"
+                />
+                <SortableHeader
+                  column="callName"
+                  label="Call Name"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                />
+                <SortableHeader
+                  column="breed"
+                  label="Breed"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                />
+                <SortableHeader
+                  column="owner"
+                  label="Owner"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                />
+                <span>Org</span>
+                <SortableHeader
+                  column="regNumber"
+                  label="Reg #"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                />
+              </div>
 
-          {/* Dog list */}
-          {visibleDogs.length > 0 ? (
-            <List
-              height={Math.min(visibleDogs.length * 44, 440)}
-              width="100%"
-              itemCount={visibleDogs.length}
-              itemSize={44}
-              itemData={{
-                dogs: visibleDogs,
-                selectedDogs,
-                onToggle: handleDogToggle,
-                getDogEligibilityStatus,
-              }}
-            >
-              {DogRow}
-            </List>
-          ) : (
-            <div className="text-center py-8">
-              {isServerSearching ? (
-                <p className="text-muted-foreground">Searching…</p>
+              {/* Dog list */}
+              {visibleDogs.length > 0 ? (
+                <List
+                  height={Math.min(visibleDogs.length * 44, 440)}
+                  width="100%"
+                  itemCount={visibleDogs.length}
+                  itemSize={44}
+                  itemData={{
+                    dogs: visibleDogs,
+                    selectedDogs,
+                    onToggle: handleDogToggle,
+                    getDogEligibilityStatus,
+                  }}
+                >
+                  {DogRow}
+                </List>
               ) : (
-                <p className="text-muted-foreground">
-                  {getEmptyStateMessage(
-                    searchQuery,
-                    activeQuickFilter,
-                    workflowConfig.features.advancedSearch
+                <div className="text-center py-8">
+                  {isServerSearching ? (
+                    <p className="text-muted-foreground">Searching…</p>
+                  ) : (
+                    <p className="text-muted-foreground">
+                      {getEmptyStateMessage(
+                        searchQuery,
+                        activeQuickFilter,
+                        workflowConfig.features.advancedSearch
+                      )}
+                    </p>
                   )}
-                </p>
+                </div>
               )}
             </div>
-          )}
+          </div>
         </CardContent>
       </Card>
 

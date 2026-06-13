@@ -277,6 +277,7 @@ const HandlerDogCard: React.FC<HandlerDogCardProps> = ({
                   size="sm"
                   onClick={() => onResetToOwner(dogId)}
                   title="Reset to owner"
+                  aria-label="Reset to owner"
                   className="shrink-0"
                 >
                   <RotateCcw className="h-4 w-4" />

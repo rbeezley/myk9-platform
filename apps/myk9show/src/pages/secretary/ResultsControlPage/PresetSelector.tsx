@@ -99,8 +99,18 @@ export function PresetSelector({ showId, settings }: PresetSelectorProps) {
           return (
             <Card
               key={preset}
-              className={`cursor-pointer transition-all ${isActive ? 'ring-2 ring-primary' : 'hover:border-primary/50'}`}
+              role="button"
+              tabIndex={0}
+              aria-pressed={isActive}
+              aria-label={`Apply "${info.title}" preset`}
+              className={`cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${isActive ? 'ring-2 ring-primary' : 'hover:border-primary/50'}`}
               onClick={() => applyPreset(preset)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  applyPreset(preset);
+                }
+              }}
             >
               <CardHeader className="pb-2">
                 <div className="flex items-center gap-2">
@@ -143,6 +153,7 @@ export function PresetSelector({ showId, settings }: PresetSelectorProps) {
                   <TimingSelect
                     value={customTimings[field]}
                     timings={timings}
+                    ariaLabel={`${label} visibility timing`}
                     onChange={v => setCustomTimings(prev => ({ ...prev, [field]: v }))}
                   />
                 </div>

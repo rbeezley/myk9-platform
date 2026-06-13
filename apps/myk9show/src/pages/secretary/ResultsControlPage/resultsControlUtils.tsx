@@ -29,12 +29,20 @@ interface TimingSelectProps {
   timings: VisibilityTiming[];
   onChange: (value: VisibilityTiming) => void;
   disabled?: boolean;
+  /** Accessible name for the trigger — the visible field label is a separate element. */
+  ariaLabel?: string;
 }
 
-export function TimingSelect({ value, timings, onChange, disabled = false }: TimingSelectProps) {
+export function TimingSelect({
+  value,
+  timings,
+  onChange,
+  disabled = false,
+  ariaLabel,
+}: TimingSelectProps) {
   return (
     <Select value={value} onValueChange={v => onChange(v as VisibilityTiming)} disabled={disabled}>
-      <SelectTrigger className="w-40">
+      <SelectTrigger className="w-40" aria-label={ariaLabel}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

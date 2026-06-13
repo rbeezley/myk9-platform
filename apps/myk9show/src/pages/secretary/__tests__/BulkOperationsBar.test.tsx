@@ -70,4 +70,13 @@ describe('BulkOperationsBar', () => {
     await user.click(screen.getByRole('button', { name: /clear/i }));
     expect(clearSelection).toHaveBeenCalled();
   });
+
+  it('lets its control clusters wrap so the sticky bar fits narrow viewports', () => {
+    renderBar(2);
+    const leftCluster = screen.getByText(/2 classes selected/i).closest('div')!;
+    // Both the left cluster and the outer flex container must allow wrapping,
+    // otherwise the count + select-all + 4 action buttons overflow on mobile.
+    expect(leftCluster.className).toContain('flex-wrap');
+    expect(leftCluster.parentElement?.className).toContain('flex-wrap');
+  });
 });

@@ -76,4 +76,32 @@ describe('PresetSelector', () => {
     expect(screen.getByText('Placement')).toBeInTheDocument();
     expect(screen.getByText('Qualification')).toBeInTheDocument();
   });
+
+  it('exposes preset cards as keyboard-operable buttons', () => {
+    renderPresetSelector();
+    const card = screen.getByRole('button', { name: 'Apply "After Class" preset' });
+    expect(card).toHaveAttribute('tabindex', '0');
+    // "standard" (After Class) is the active preset for defaultSettings
+    expect(card).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('applies a preset when activated via the keyboard (Enter)', async () => {
+    const user = userEvent.setup();
+    renderPresetSelector();
+    const card = screen.getByRole('button', { name: 'Apply "Immediately" preset' });
+    card.focus();
+    await user.keyboard('{Enter}');
+    expect(mockMutate).toHaveBeenCalledWith(
+      expect.objectContaining({ showId: 'show-1', preset: 'open' }),
+      expect.any(Object)
+    );
+  });
+
+  it('gives each advanced timing select an accessible name', async () => {
+    const user = userEvent.setup();
+    renderPresetSelector();
+    await user.click(screen.getByRole('button', { name: /advanced/i }));
+    expect(screen.getByLabelText('Placement visibility timing')).toBeInTheDocument();
+    expect(screen.getByLabelText('Qualification visibility timing')).toBeInTheDocument();
+  });
 });

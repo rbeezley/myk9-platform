@@ -85,4 +85,20 @@ describe('semantic status token foundation', () => {
       expect(css).toContain('--warning-orange:');
     });
   });
+
+  describe('theme-preferences.css — high-contrast overrides use RGB triplets', () => {
+    const prefs = read('src/styles/theme-preferences.css');
+
+    it('.high-contrast --destructive is an RGB triplet', () => {
+      expect(prefs).toContain('--destructive: 220 38 38');
+      expect(prefs).not.toContain('--destructive: #dc2626');
+    });
+    it('.dark.high-contrast --destructive is an RGB triplet', () => {
+      expect(prefs).toContain('--destructive: 239 68 68');
+      expect(prefs).not.toContain('--destructive: #ef4444');
+    });
+    it('.dark.high-contrast --destructive-foreground is black as RGB triplet', () => {
+      expect(prefs).toContain('--destructive-foreground: 0 0 0');
+    });
+  });
 });

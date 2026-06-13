@@ -176,8 +176,8 @@ h6 {
   --muted-foreground: #000000;
   --accent: #f1f5f9;
   --accent-foreground: #000000;
-  --destructive: #dc2626;
-  --destructive-foreground: #ffffff;
+  --destructive: 220 38 38;
+  --destructive-foreground: 255 255 255;
 }
 
 .dark.high-contrast {
@@ -192,8 +192,8 @@ h6 {
   --muted-foreground: #ffffff;
   --accent: #1e293b;
   --accent-foreground: #ffffff;
-  --destructive: #ef4444;
-  --destructive-foreground: #000000;
+  --destructive: 239 68 68;
+  --destructive-foreground: 0 0 0;
 }
 
 /* Responsive font scaling */

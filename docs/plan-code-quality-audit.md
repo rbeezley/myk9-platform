@@ -1,6 +1,6 @@
 # Plan: Proactive Code-Quality Audit
 
-**Created:** 2026-06-10 · **Status:** Phase 1 inventory executed; Phase 2 verification pending
+**Created:** 2026-06-10 · **Status:** Complete through Phase 5; repeatable skill and CI ratchets added after Waves A-D
 **Goal:** A repeatable, repo-wide static-quality sweep that finds maintainability debt the diff-scoped skills (`/code-review`, `/simplify`, `/harden`) never see, verifies findings to kill false positives, and fixes them in severity order. Pre-launch (no real users) is the cheapest moment: fixes can be deletions and refactors with no backwards-compat shims.
 
 ## Validation Profile
@@ -175,7 +175,9 @@ Output: each finding marked `confirmed` / `refuted` / `needs-human` with one-lin
 
 After one full execution, distill what worked into `.claude/skills/code-quality-audit/SKILL.md` modeled on `security-audit` (two modes: full sweep / targeted dimension). Bake in: the generated-file exclusions, the INTENT guardrail, the false-positive verification step, and the baseline-delta table so each run measures drift since the last. Re-run cadence: before each launch milestone.
 
-**CI ratchets [ADDED 2026-06-12]:** alongside the skill, turn the mechanical baseline metrics into CI regression gates so the fixed counts cannot regrow between audits. A small script (in `scripts/`, run from the existing Quality Checks job) fails the build if a metric exceeds its recorded baseline and auto-lowers the baseline when a PR improves it: files >500 lines (excluding the generated-file list), `as any` count, TODO/FIXME/HACK count, and — once 1b adds a `knip` config — unused exports. Add an ESLint restriction (custom rule or `no-restricted-syntax`) against direct `supabase.from(...)` in the core-flow paths Wave D reroutes, with the documented `withReplicationFallback` exclusions, so new replication bypasses fail at PR time instead of waiting for the next audit. Set the ratchet baselines *after* the fix waves land — they encode the post-audit state, not the pre-audit one. Judgment-heavy dimensions (duplication, intent, oversized-file concern-counting) stay with the periodic skill run; ratchets only take the mechanical counts.
+**CI ratchets [ADDED 2026-06-12]:** alongside the skill, turn the mechanical baseline metrics into CI regression gates so the fixed counts cannot regrow between audits. A small script (in `scripts/`, run from the existing Quality Checks job) fails the build if a metric exceeds its recorded baseline and provides an intentional update command when a PR improves it: files >500 lines (excluding the generated-file list), `as any` count, TODO/FIXME/HACK count, and direct `supabase.from(...)` calls in the protected core-flow files Wave D rerouted. Set the ratchet baselines *after* the fix waves land — they encode the post-audit state, not the pre-audit one. Judgment-heavy dimensions (duplication, intent, oversized-file concern-counting) stay with the periodic skill run; ratchets only take the mechanical counts.
+
+**Implemented 2026-06-13:** `code-quality-audit` now exists under `.claude/skills/`. `scripts/qa/code-quality-ratchet.ts` records the post-Wave-D baselines for oversized source files, `as any`, TODO/FIXME/HACK markers, and protected replication-path `supabase.from(...)` calls. The command is wired into the CI Quality Checks job as `pnpm qa:code-quality-ratchet`; intentional improvements can lower the baseline with `pnpm qa:code-quality-ratchet:update`.
 
 ---
 

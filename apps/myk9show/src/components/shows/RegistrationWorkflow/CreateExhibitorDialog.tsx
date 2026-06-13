@@ -278,7 +278,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
           </TabsList>
 
           <TabsContent value="create" className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField label="First Name" fieldId="firstName" required error={firstNameError}>
                 <Input
                   id="firstName"
@@ -300,7 +300,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
               </FormField>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField label="Email Address" fieldId="email" required error={emailError}>
                 <Input
                   id="email"
@@ -332,7 +332,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
               />
             </FormField>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <FormField label="City" fieldId="city">
                 <Input
                   id="city"
@@ -381,14 +381,14 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
 
           <TabsContent value="duplicates" className="space-y-4">
             {duplicates.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-muted-foreground">
                 <CheckCircle className="h-12 w-12 mx-auto mb-2 text-green-500" />
                 <p>No potential duplicates found.</p>
                 <p className="text-sm">You can proceed with creating the new exhibitor.</p>
               </div>
             ) : (
               <div className="space-y-3">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-muted-foreground">
                   Found {duplicates.length} potential duplicate(s). Review these carefully:
                 </p>
 
@@ -405,7 +405,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
                           </Badge>
                         </div>
 
-                        <div className="space-y-1 text-sm text-gray-600">
+                        <div className="space-y-1 text-sm text-muted-foreground">
                           <p>Email: {candidate.person.email}</p>
                           <p>Phone: {candidate.person.phone}</p>
                           {candidate.person.streetAddress && (
@@ -417,7 +417,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
                         </div>
 
                         <div className="mt-2">
-                          <p className="text-xs text-gray-500 mb-1">Match reasons:</p>
+                          <p className="text-xs text-muted-foreground mb-1">Match reasons:</p>
                           <div className="flex flex-wrap gap-1">
                             {candidate.matchReasons.map((reason, reasonIdx) => (
                               <Badge key={reasonIdx} variant="outline" className="text-xs">
@@ -443,7 +443,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
                 <Separator />
 
                 <div className="text-center">
-                  <p className="text-sm text-gray-600 mb-2">
+                  <p className="text-sm text-muted-foreground mb-2">
                     None of these match? Continue creating a new exhibitor.
                   </p>
                   <Button variant="outline" onClick={() => setActiveTab('create')}>

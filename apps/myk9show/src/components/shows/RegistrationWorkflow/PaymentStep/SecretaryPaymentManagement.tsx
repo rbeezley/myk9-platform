@@ -96,7 +96,7 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
               <TabsTrigger value="payment">
                 <CreditCard className="h-4 w-4" />
                 Payment
@@ -118,12 +118,12 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
             {/* Payment Tab */}
             <TabsContent value="payment" className="space-y-4">
               <div className="space-y-4">
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-muted-foreground">
                   Use these options to handle payments received outside the online system.
                 </div>
 
                 {/* Current Payment Status */}
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
                   <span className="text-sm font-medium">Current Status:</span>
                   <Badge className={getPaymentStatusBadgeColor(paymentStatus)}>
                     {paymentStatus}
@@ -131,7 +131,7 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                 </div>
 
                 {/* Quick Payment Actions */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <Button
                     variant="outline"
                     onClick={() =>
@@ -156,7 +156,7 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
 
                 {/* Payment Details Form */}
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
                       <Label htmlFor="payment-date">Payment Date</Label>
                       <Input
@@ -194,22 +194,22 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
             {/* Entry Status Tab */}
             <TabsContent value="entry-status" className="space-y-4">
               <div className="space-y-4">
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-muted-foreground">
                   Manage entry acceptance status and provide feedback to exhibitors.
                 </div>
 
                 {/* Current Entry Status */}
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
                   <span className="text-sm font-medium">Current Status:</span>
                   <Badge className={getEntryStatusBadgeColor(entryStatus)}>{entryStatus}</Badge>
                 </div>
 
                 {/* Entry Status Actions */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <Button
                     variant="outline"
                     onClick={() => handleEntryStatusChange(EntryStatus.ACCEPTED)}
-                    className="justify-start text-green-700 border-green-200 hover:bg-green-50"
+                    className="justify-start text-green-700 border-green-200 hover:bg-green-50 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-950/40"
                   >
                     <Check className="h-4 w-4 mr-2" />
                     Accept Entry
@@ -217,7 +217,7 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                   <Button
                     variant="outline"
                     onClick={() => handleEntryStatusChange(EntryStatus.WAITLIST)}
-                    className="justify-start text-yellow-700 border-yellow-200 hover:bg-yellow-50"
+                    className="justify-start text-yellow-700 border-yellow-200 hover:bg-yellow-50 dark:text-yellow-400 dark:border-yellow-800 dark:hover:bg-yellow-950/40"
                   >
                     <Calendar className="h-4 w-4 mr-2" />
                     Add to Waitlist
@@ -225,7 +225,7 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                   <Button
                     variant="outline"
                     onClick={() => handleEntryStatusChange(EntryStatus.MISSING_INFO)}
-                    className="justify-start text-orange-700 border-orange-200 hover:bg-orange-50"
+                    className="justify-start text-orange-700 border-orange-200 hover:bg-orange-50 dark:text-orange-400 dark:border-orange-800 dark:hover:bg-orange-950/40"
                   >
                     <AlertTriangle className="h-4 w-4 mr-2" />
                     Request More Info
@@ -233,7 +233,7 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                   <Button
                     variant="outline"
                     onClick={() => handleEntryStatusChange(EntryStatus.REJECTED)}
-                    className="justify-start text-red-700 border-red-200 hover:bg-red-50"
+                    className="justify-start text-red-700 border-red-200 hover:bg-red-50 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-950/40"
                   >
                     <AlertTriangle className="h-4 w-4 mr-2" />
                     Reject Entry
@@ -277,7 +277,7 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
 
             {/* Fee Override Tab */}
             <TabsContent value="fees" className="space-y-4">
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-muted-foreground">
                 Override total fees for special circumstances.
               </div>
               <div className="flex items-center space-x-2">
@@ -309,7 +309,7 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
             {/* Reconciliation Tab */}
             <TabsContent value="reconciliation" className="space-y-4">
               <div className="space-y-4">
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-muted-foreground">
                   Bulk payment operations and reconciliation tools.
                 </div>
 
@@ -324,9 +324,11 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                 </div>
 
                 {bulkPaymentMode && (
-                  <div className="space-y-3 p-4 border border-blue-200 rounded-lg bg-blue-50">
-                    <div className="text-sm font-medium text-blue-900">Bulk Payment Actions</div>
-                    <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-3 p-4 border border-blue-200 rounded-lg bg-blue-50 dark:border-blue-800/50 dark:bg-blue-950/30">
+                    <div className="text-sm font-medium text-blue-900 dark:text-blue-200">
+                      Bulk Payment Actions
+                    </div>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                       <Button
                         size="sm"
                         variant="outline"
@@ -353,22 +355,22 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                 )}
 
                 {/* Quick Stats */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center p-3 bg-gray-50 rounded-lg">
-                    <div className="text-2xl font-bold text-gray-900">{selectedDogs.length}</div>
-                    <div className="text-xs text-gray-600">Total Entries</div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  <div className="text-center p-3 bg-muted rounded-lg">
+                    <div className="text-2xl font-bold text-foreground">{selectedDogs.length}</div>
+                    <div className="text-xs text-muted-foreground">Total Entries</div>
                   </div>
-                  <div className="text-center p-3 bg-green-50 rounded-lg">
-                    <div className="text-2xl font-bold text-green-700">
+                  <div className="text-center p-3 bg-green-50 dark:bg-green-950/30 rounded-lg">
+                    <div className="text-2xl font-bold text-green-700 dark:text-green-400">
                       ${feeCalculation.total.toFixed(0)}
                     </div>
-                    <div className="text-xs text-green-600">Total Fees</div>
+                    <div className="text-xs text-green-600 dark:text-green-500">Total Fees</div>
                   </div>
-                  <div className="text-center p-3 bg-blue-50 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-700">
+                  <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">
                       {paymentStatus === PaymentStatus.PENDING ? '0' : '1'}
                     </div>
-                    <div className="text-xs text-blue-600">Paid Entries</div>
+                    <div className="text-xs text-blue-600 dark:text-blue-500">Paid Entries</div>
                   </div>
                 </div>
               </div>

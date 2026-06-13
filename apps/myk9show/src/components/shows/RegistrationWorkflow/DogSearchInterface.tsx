@@ -427,7 +427,7 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
                   variant="ghost"
                   size="sm"
                   onClick={clearAllFilters}
-                  className="text-red-600 hover:text-red-700"
+                  className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
                 >
                   Clear All
                 </Button>

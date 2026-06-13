@@ -25,19 +25,23 @@ interface ShowStatusPillProps {
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   draft: {
     label: 'Draft',
-    className: 'bg-amber-950 border border-amber-800 text-amber-400',
+    className:
+      'bg-amber-100 border border-amber-300 text-amber-800 dark:bg-amber-950 dark:border-amber-800 dark:text-amber-400',
   },
   published: {
     label: 'Published',
-    className: 'bg-green-950 border border-green-800 text-green-400',
+    className:
+      'bg-green-100 border border-green-300 text-green-800 dark:bg-green-950 dark:border-green-800 dark:text-green-400',
   },
   upcoming: {
     label: 'Upcoming',
-    className: 'bg-blue-950 border border-blue-800 text-blue-400',
+    className:
+      'bg-blue-100 border border-blue-300 text-blue-800 dark:bg-blue-950 dark:border-blue-800 dark:text-blue-400',
   },
   in_progress: {
     label: 'In Progress',
-    className: 'bg-orange-950 border border-orange-800 text-orange-400',
+    className:
+      'bg-orange-100 border border-orange-300 text-orange-800 dark:bg-orange-950 dark:border-orange-800 dark:text-orange-400',
   },
   completed: {
     label: 'Completed',
@@ -45,7 +49,8 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   },
   cancelled: {
     label: 'Cancelled',
-    className: 'bg-red-950 border border-red-900 text-red-400',
+    className:
+      'bg-red-100 border border-red-300 text-red-800 dark:bg-red-950 dark:border-red-900 dark:text-red-400',
   },
 };
 

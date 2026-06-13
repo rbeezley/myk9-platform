@@ -52,6 +52,9 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Code-quality ratchets
+        run: pnpm qa:code-quality-ratchet
+
   # Packages run through turbo so the remote cache provides affected-only
   # behaviour: a PR touching only myK9Show turns these into cache hits.
   # Runs in parallel with quality and test-show — no needs: quality.

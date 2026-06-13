@@ -109,7 +109,20 @@ Use **`R G B` space-separated triplets** for ALL four roles (so `/alpha` works e
 }
 ```
 
-**Migration note:** `--success-green` / `--warning-orange` are still referenced by their Tailwind names. Either (a) keep them as deprecated aliases pointing at the new vars for one release, or (b) grep for `success-green`/`warning-orange` usage first and convert in the same PR. Check: `grep -rn "success-green\|warning-orange" apps/myk9show/src`.
+**[EXPANDED] Back-compat — KEEP the old names as aliases, do NOT remove them in this PR.** `--success-green` / `--warning-orange` are still referenced by their Tailwind color names (`text-success-green`, `bg-warning-orange`). If you delete them in the foundation PR, every consumer's class **silently stops generating** — Tailwind emits nothing, there is no build error, the element just renders with no/wrong color. So:
+
+1. In `tailwind.config.js`, keep `'success-green'` / `'warning-orange'` entries but **repoint them at the new vars** so old and new names render identically:
+   ```js
+   'success-green': 'rgb(var(--success) / <alpha-value>)',   // deprecated alias — remove after migration
+   'warning-orange': 'rgb(var(--warning) / <alpha-value>)',  // deprecated alias — remove after migration
+   ```
+2. Inventory the consumers up front so the migration PR knows its true surface:
+   ```bash
+   grep -rn "success-green\|warning-orange" apps/myk9show/src
+   ```
+3. The aliases are deleted in the **migration** PR (the second one), only after the last consumer is converted — never in the foundation PR.
+
+**[ADDED] Where the new vars live.** `index.css` has **two `:root` blocks** (L226 and L384). Put all four status tokens + foregrounds in the **first** `:root` (L226, where `--success-green`/`--warning-orange` already sit) so the status palette stays in one place, and the dark values in the existing `.dark` block (starts L462). Don't scatter them across both `:root` blocks. (Consolidating the two `:root` blocks themselves is out of scope — see "Out of scope".)
 
 ### 2. Wire Tailwind (`tailwind.config.js`)
 
@@ -128,16 +141,32 @@ Add a "Semantic status colors" section: the four roles, their light/dark values,
 
 ### 4. Tests
 
-- **Source-text guard** (repo `fs.readFileSync` convention — see existing `registrationSecretaryMobile.test.ts`): pin that `tailwind.config.js` contains the four semantic keys and that `index.css` defines each var in both `:root` and `.dark`.
+- **Source-text guard** (repo `fs.readFileSync` convention — see existing `registrationSecretaryMobile.test.ts`): pin that `tailwind.config.js` contains the four semantic keys AND the two deprecated aliases (so they aren't removed prematurely), and that `index.css` defines each `--success/--warning/--info/--destructive` var in both `:root` and `.dark`.
 - **Smoke render** a small component using `bg-success/10 text-success` to confirm the utility generates (Tailwind silently drops unknown classes).
+
+**[EXPANDED] Contrast verification (don't skip — these are color choices).** The suggested shades are starting points; confirm each meets **WCAG AA (≥4.5:1 for body text, ≥3:1 for large/UI)** before locking them:
+
+- For **solid fills**: `*-foreground` on `bg-*` (e.g. white on `--success` green-600). Check the light value on light surface and the dark value on dark surface.
+- For **tinted backgrounds** (the common status-chip pattern `text-success` on `bg-success/10`): the *DEFAULT* color sits on a 10%-tint of itself over the page background — verify the text shade is legible there, not just on white. This is the case most likely to fail and is the one the hand-paired classes were implicitly tuning per-element.
+- Method: any contrast checker (e.g. the browser devtools color picker shows the ratio, or WebAIM contrast checker). Record the four ratios in the PR description so the reviewer can spot a sub-AA pair.
 
 ### Acceptance criteria (foundation PR)
 
 - [ ] `text-success` / `bg-success/10` / `text-success-foreground` (and warning/info/destructive) all generate and render correctly in BOTH light and dark.
 - [ ] `--destructive` is now a triplet; existing `text-destructive`/`bg-destructive` still render identically.
+- [ ] **Deprecated aliases `success-green`/`warning-orange` still resolve** (repointed at the new vars) — no consumer breaks. Removed only in the migration PR.
+- [ ] Four contrast ratios recorded in the PR description, all ≥ AA for their use.
 - [ ] DESIGN.md documents the scale + the no-hand-pairing rule.
 - [ ] `pnpm typecheck` + `pnpm lint` clean; guard tests green.
 - [ ] No visual regression on a spot-check of 2–3 already-swept pages (registration wizard, secretary payment).
+
+### [ADDED] Rollback / recovery
+
+The foundation PR is **purely additive** (new vars + new Tailwind keys + repointed aliases), so revert is clean:
+
+- **Revert path:** `git revert <sha>` of the foundation commit removes the new tokens and restores the original alias definitions. Because no consumer was changed in this PR (migration is separate), nothing references the new `text-success` etc. yet — revert can't strand a consumer.
+- **Half-applied safety:** the only mutation that touches an *existing* value is the `--destructive` hex→triplet conversion. If that one change is wrong, it's isolated to two lines (L411/L483) — revert those independently; the new tokens don't depend on it.
+- **Why aliases make this safe:** keeping `success-green`/`warning-orange` live means the foundation PR has zero behavioral coupling to the rest of the app, which is exactly what makes both the merge and any revert low-risk.
 
 ---
 
@@ -165,7 +194,9 @@ grep -rlE 'dark:(text|bg|border)-(green|red|amber|orange|yellow|blue|emerald|tea
 
 **Watch out for genuinely-brand uses** — teal is the DESIGN.md accent (#14b8a6), not always "success." Some emerald/teal is decorative, not status. Don't blindly map teal→success; read each.
 
-**Guardrail (optional, cheap, high-value):** add an ESLint rule (or a CI grep gate) that flags any NEW `dark:text-{green|red|amber|...}-N` and tells the author to use the semantic utility. Without it, the pattern regrows. Consider landing this with the migration so the count can't climb back.
+**[EXPANDED] This migration CHANGES how some elements look — it is not a pure rename.** The foundation collapses **multiple source families into one token**: green+emerald+teal → `success`, and amber+yellow+orange → `warning`. So an element currently using `text-orange-600` or `text-yellow-600` will *shift* to the single `--warning` amber when migrated. That's intended consolidation, but it's a **visible change** the reviewer must expect and eyeball — not a no-op. Migrate **one color family at a time** (e.g. all `red`→`destructive` in one commit, all `amber`→`warning` in the next) so each diff is reviewable and a bad mapping is easy to bisect. Per-family source-text guard tests pin the result. Re-run the full suite after each family (prettier may reflow the classNames the guards grep for — see prior impeccable PRs).
+
+**[EXPANDED] Guardrail — recommended, land it WITH the migration (not optional).** Without a gate the pattern regrows the moment the next page is built. Add an ESLint rule (or a CI grep gate) that flags any NEW `dark:(text|bg|border)-(green|red|amber|orange|yellow|blue|emerald|teal)-N` and points the author at the semantic utility. Land it in the **final** migration commit (after the count is driven to ~0) so it doesn't fail CI on the not-yet-migrated files. Allowlist any genuine brand-teal/decorative uses you deliberately kept. This is the only thing that makes the 491→0 work *stay* at 0.
 
 ---
 
@@ -187,4 +218,4 @@ grep -rlE 'dark:(text|bg|border)-(green|red|amber|orange|yellow|blue|emerald|tea
 - Work in a worktree, not the primary checkout.
 - `main` is PR-protected — branch + PR everything (docs-only gets a local commit but push is rejected on main).
 - Use `pnpm typecheck` (not raw `tsc`); rebuild any edited package before app tests.
-- Pre-launch, no real users — no backward-compat shims needed for the alias removal.
+- Pre-launch, no real users — no *external* backward-compat needed. (The `success-green`/`warning-orange` aliases are NOT external compat; they're intra-repo correctness so the foundation PR doesn't break the app's own still-unmigrated consumers. Keep them until the migration PR removes the last one.)

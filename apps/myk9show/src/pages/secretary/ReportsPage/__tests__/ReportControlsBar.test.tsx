@@ -288,6 +288,83 @@ describe('ReportControlsBar', () => {
     });
   });
 
+  // Regression: the collapsed Select TRIGGER (not just the open option list) must
+  // show the human label. Base UI's SelectValue echoes the raw `value` when it
+  // cannot resolve the selected item to a label, so the trial/class triggers
+  // printed the UUID once a specific trial/class was selected (the 2026-06-09 fix
+  // only corrected the open option list). ReportControlsBar now feeds SelectValue
+  // an explicit computed label so the UUID never reaches the trigger.
+  describe('Collapsed trigger shows the selected name, never the UUID', () => {
+    const trialUuid = '874be7e4-b187-4c11-9a3b-0000000000aa';
+    const classUuid = '10e39f5f-ef3d-4673-b62c-0000000000bb';
+    const triggerTrials = [
+      { id: trialUuid, name: 'Friday Trial 1', trial_number: 1, date: '2026-04-12' },
+    ];
+    const triggerClasses = [
+      {
+        id: classUuid,
+        name: 'Container Novice A',
+        element: 'Container',
+        level: 'Novice',
+        section: 'A',
+        trial_id: trialUuid,
+      },
+    ];
+
+    it('shows the selected trial name in the trial trigger', () => {
+      render(
+        <ReportControlsBar
+          {...defaultProps}
+          reportType="result-catalog"
+          trials={triggerTrials}
+          classes={triggerClasses}
+          trialId={trialUuid}
+        />
+      );
+      const trigger = screen.getByRole('combobox', { name: /select trial/i });
+      expect(trigger.textContent ?? '').toMatch(/Friday Trial 1/);
+      expect(trigger.textContent ?? '').not.toMatch(UUID_RE);
+    });
+
+    it('shows the selected class name in the class trigger', () => {
+      render(
+        <ReportControlsBar
+          {...defaultProps}
+          reportType="result-catalog"
+          trials={triggerTrials}
+          classes={triggerClasses}
+          trialId={trialUuid}
+          classId={classUuid}
+        />
+      );
+      const trigger = screen.getByRole('combobox', { name: /select class/i });
+      expect(trigger.textContent ?? '').toMatch(/Container Novice A/);
+      expect(trigger.textContent ?? '').not.toMatch(UUID_RE);
+    });
+
+    it('resolves the class label even when the class is filtered out of the option list', () => {
+      // classId points to a class whose trial_id !== the selected trial, so it is
+      // filtered OUT of the rendered options — the exact case where Base UI would
+      // otherwise echo the UUID. The label still resolves from the full class list.
+      render(
+        <ReportControlsBar
+          {...defaultProps}
+          reportType="result-catalog"
+          trials={[
+            ...triggerTrials,
+            { id: 'trial-other', name: 'Saturday Trial PM', trial_number: 2, date: '2026-04-13' },
+          ]}
+          classes={triggerClasses}
+          trialId="trial-other"
+          classId={classUuid}
+        />
+      );
+      const trigger = screen.getByRole('combobox', { name: /select class/i });
+      expect(trigger.textContent ?? '').not.toMatch(UUID_RE);
+      expect(trigger.textContent ?? '').toMatch(/Container Novice A/);
+    });
+  });
+
   describe('Registry coverage — every enabled report is reachable from the dropdown', () => {
     // Regression guard: the dropdown previously rendered only Operational and
     // Organization groups, silently hiding the Financial Report and the four

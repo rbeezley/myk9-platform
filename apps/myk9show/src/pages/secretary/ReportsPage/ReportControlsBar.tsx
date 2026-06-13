@@ -39,6 +39,16 @@ function formatClassOptionLabel(cls: {
   return formatClassLabel(cls.element, cls.level, cls.name, cls.section) || 'Class';
 }
 
+function formatDogOptionLabel(dog: {
+  callName: string;
+  registeredName: string | null;
+  armband: number | null;
+}): string {
+  const registered = dog.registeredName ? ` (${dog.registeredName})` : '';
+  const armband = dog.armband != null ? ` — #${dog.armband}` : '';
+  return `${dog.callName}${registered}${armband}`;
+}
+
 interface OfficialPdfAction {
   disabled: boolean;
   isLoading: boolean;
@@ -121,6 +131,36 @@ export function ReportControlsBar({
 
   const filteredClasses = trialId === 'all' ? classes : classes.filter(c => c.trial_id === trialId);
 
+  // Base UI's SelectValue resolves the trigger label only from a currently-rendered
+  // option; when the selected value has no matching mounted item (deep-link before
+  // data loads, or a classId whose class is filtered out of the active trial) it
+  // echoes the raw UUID `value`. The 2026-06-09 fix only corrected the open option
+  // list — the collapsed trigger still printed UUIDs. Feed SelectValue an explicit
+  // label resolved against the FULL list so a human name always shows. (Matches the
+  // SimpleClassSelector / MessageShowComposer convention of passing explicit
+  // SelectValue children.)
+  const selectedTrialLabel =
+    trialId === 'all'
+      ? 'All Trials'
+      : (() => {
+          const trial = trials.find(t => t.id === trialId);
+          return trial ? formatTrialOptionLabel(trial) : 'All Trials';
+        })();
+  const selectedClassLabel =
+    classId === 'all'
+      ? 'All Classes'
+      : (() => {
+          const cls = classes.find(c => c.id === classId);
+          return cls ? formatClassOptionLabel(cls) : 'All Classes';
+        })();
+  const selectedDogLabel =
+    dogId === 'all'
+      ? 'All Dogs'
+      : (() => {
+          const dog = dogs.find(d => d.id === dogId);
+          return dog ? formatDogOptionLabel(dog) : 'All Dogs';
+        })();
+
   return (
     <div className="flex items-end gap-3 flex-wrap border-b px-4 py-3">
       {/* Report Type */}
@@ -152,7 +192,7 @@ export function ReportControlsBar({
           <label className="text-xs font-medium text-muted-foreground">Trial</label>
           <Select value={trialId} onValueChange={onTrialChange}>
             <SelectTrigger className="w-[160px]" aria-label="Select trial">
-              <SelectValue placeholder="All Trials" />
+              <SelectValue placeholder="All Trials">{selectedTrialLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Trials</SelectItem>
@@ -172,7 +212,7 @@ export function ReportControlsBar({
           <label className="text-xs font-medium text-muted-foreground">Class</label>
           <Select value={classId} onValueChange={onClassChange} disabled={trialId === 'all'}>
             <SelectTrigger className="w-[200px]" aria-label="Select class">
-              <SelectValue placeholder="All Classes" />
+              <SelectValue placeholder="All Classes">{selectedClassLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Classes</SelectItem>
@@ -192,15 +232,13 @@ export function ReportControlsBar({
           <label className="text-xs font-medium text-muted-foreground">Dog</label>
           <Select value={dogId} onValueChange={onDogChange}>
             <SelectTrigger className="w-[240px]" aria-label="Select dog">
-              <SelectValue placeholder="All Dogs" />
+              <SelectValue placeholder="All Dogs">{selectedDogLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Dogs</SelectItem>
               {dogs.map(dog => (
                 <SelectItem key={dog.id} value={dog.id}>
-                  {dog.callName}
-                  {dog.registeredName ? ` (${dog.registeredName})` : ''}
-                  {dog.armband != null ? ` — #${dog.armband}` : ''}
+                  {formatDogOptionLabel(dog)}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -45,7 +45,7 @@ function splitHandlerName(handlerName: string | undefined) {
 }
 
 function buildArmbandMaps(armbands: ReplicatedArmband[]) {
-  const assignedArmbands = armbands.filter(a => a.isAvailable !== true);
+  const assignedArmbands = armbands.filter(a => a.isAvailable === false);
   return {
     byEntryId: new Map(assignedArmbands.flatMap(a => (a.entryId ? [[a.entryId, a]] : []))),
     byDogId: new Map(assignedArmbands.flatMap(a => (a.dogId ? [[a.dogId, a]] : []))),

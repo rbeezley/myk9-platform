@@ -11,6 +11,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { PhaseShell } from '@/features/show-workbench/PhaseShell';
 import { ShowDeskAdaptiveHeader } from './ShowDeskAdaptiveHeader';
 import { ShowDeskCloseoutSection } from './ShowDeskCloseoutSection';
 import { ShowDeskToolsSheet, type ShowDeskToolSection } from './ShowDeskToolsSheet';
@@ -233,12 +234,16 @@ export default function ShowDeskPanel({
   );
 
   return (
-    <div className="space-y-4 pt-6">
-      {tools && tools.length > 0 && (
-        <div className="flex justify-end">
-          <ShowDeskToolsSheet showId={show.id} tools={tools} />
-        </div>
-      )}
+    <div className="space-y-4">
+      <PhaseShell
+        title="Show Desk"
+        kicker="During the show"
+        actions={
+          tools && tools.length > 0 ? (
+            <ShowDeskToolsSheet showId={show.id} tools={tools} />
+          ) : undefined
+        }
+      />
       <ShowDeskAdaptiveHeader
         showStatus={desk.status}
         statusSummary={desk.summary}

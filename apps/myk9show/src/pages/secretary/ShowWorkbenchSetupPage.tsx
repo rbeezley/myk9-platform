@@ -8,6 +8,7 @@ import { VenueMap } from '@/components/shows/overview/VenueMap';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
+import { PhaseShell } from '@/features/show-workbench/PhaseShell';
 import { SetupAdaptiveHeader } from '@/features/show-workbench/SetupAdaptiveHeader';
 import { computeSetupReadinessSignals } from '@/features/show-workbench/setupReadinessSignals';
 import { useTrialStore } from '@/store/trialStore';
@@ -16,17 +17,6 @@ import { CLASS_STATUS } from '@myk9/core';
 import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import type { ShowWorkbenchClassSummary } from '@/features/show-workbench/showWorkbenchTypes';
-
-function PhaseShell({ title, kicker }: { title: string; kicker: string }) {
-  return (
-    <section className="space-y-3 pt-6" aria-label={title}>
-      <div>
-        <p className="text-sm font-medium text-muted-foreground">{kicker}</p>
-        <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
-      </div>
-    </section>
-  );
-}
 
 export function ShowWorkbenchSetupPage() {
   const params = useParams<{ showId?: string; id?: string }>();

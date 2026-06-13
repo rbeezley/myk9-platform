@@ -72,8 +72,14 @@ export function ShowDeskAdaptiveHeader({
   const visibleGroups = upNextGroups.slice(0, MAX_UP_NEXT);
   const showManageEntriesLink = Boolean(onOpenEntryManagement) && reviewQueueCount > 0;
 
+  // INTENT: This is the page's one elevated zone — the "now" cluster
+  // (status, signals, next action, up next, running now) sits on a card
+  // surface so the eye lands here first; everything below stays flat.
   return (
-    <header className="mb-4 flex flex-col gap-3" aria-label="Show Desk header">
+    <header
+      className="flex flex-col gap-3 rounded-lg border bg-card p-4 shadow-[var(--shadow-card)]"
+      aria-label="Show Desk header"
+    >
       <StatusPill status={showStatus} summary={statusSummary} />
 
       {(pendingSignals.length > 0 || showManageEntriesLink) && (

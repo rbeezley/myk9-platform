@@ -441,6 +441,143 @@ describe('ReplicatedEntriesTable', () => {
       );
     });
 
+    it('should update armbands for every active entry for the dog in the show with narrow payloads', async () => {
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>,
+            dependencies?: string[]
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+
+      await table.set('entry-1', {
+        id: 'entry-1',
+        showId: 'show-1',
+        dogId: 'dog-1',
+        classId: 'class-1',
+        handler: 'Jane Handler',
+      });
+      await table.set('entry-2', {
+        id: 'entry-2',
+        showId: 'show-1',
+        dogId: 'dog-1',
+        classId: 'class-2',
+      });
+      await table.set('entry-3', {
+        id: 'entry-3',
+        showId: 'show-1',
+        dogId: 'dog-2',
+        classId: 'class-1',
+      });
+      await table.set('entry-4', {
+        id: 'entry-4',
+        showId: 'show-1',
+        dogId: 'dog-1',
+        deletedAt: '2026-06-01T00:00:00.000Z',
+      });
+
+      const result = await table.updateArmbandForDogInShow('show-1', 'dog-1', '205');
+
+      expect(result.updated).toBe(2);
+      expect(queueMutation).toHaveBeenCalledTimes(2);
+      expect(queueMutation).toHaveBeenNthCalledWith(
+        1,
+        'UPDATE',
+        'entry-1',
+        expect.objectContaining({
+          id: 'entry-1',
+          armband: '205',
+          updated_at: expect.any(String),
+        })
+      );
+      expect(queueMutation.mock.calls[0]?.[2]).not.toHaveProperty('handler');
+      expect(queueMutation).toHaveBeenNthCalledWith(
+        2,
+        'UPDATE',
+        'entry-2',
+        expect.objectContaining({
+          id: 'entry-2',
+          armband: '205',
+          updated_at: expect.any(String),
+        })
+      );
+
+      expect((await table.get('entry-1'))?.armband).toBe('205');
+      expect((await table.get('entry-1'))?.armbandNumber).toBe('205');
+      expect((await table.get('entry-2'))?.armband).toBe('205');
+      expect((await table.get('entry-2'))?.armbandNumber).toBe('205');
+      expect((await table.get('entry-3'))?.armband).toBeUndefined();
+      expect((await table.get('entry-4'))?.armband).toBeUndefined();
+    });
+
+    it('should queue armband updates for submitted entry IDs missing from the local cache', async () => {
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>,
+            dependencies?: string[]
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+
+      const result = await table.updateArmbandForDogInShow('show-1', 'dog-1', '205', [
+        'entry-from-rpc',
+      ]);
+
+      expect(result.updated).toBe(1);
+      expect(queueMutation).toHaveBeenCalledWith(
+        'UPDATE',
+        'entry-from-rpc',
+        expect.objectContaining({
+          id: 'entry-from-rpc',
+          armband: '205',
+          updated_at: expect.any(String),
+        })
+      );
+      expect(await table.get('entry-from-rpc')).toBeNull();
+    });
+
+    it('should preserve lastMutationId when a later armband queue operation returns null', async () => {
+      vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>,
+            dependencies?: string[]
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      )
+        .mockResolvedValueOnce('mutation-1')
+        .mockResolvedValueOnce(null);
+
+      await table.set('entry-1', {
+        id: 'entry-1',
+        showId: 'show-1',
+        dogId: 'dog-1',
+        classId: 'class-1',
+      });
+      await table.set('entry-2', {
+        id: 'entry-2',
+        showId: 'show-1',
+        dogId: 'dog-1',
+        classId: 'class-2',
+      });
+
+      const result = await table.updateArmbandForDogInShow('show-1', 'dog-1', '205');
+
+      expect(result.mutationIds).toEqual(['mutation-1']);
+      expect(table.lastMutationId).toBe('mutation-1');
+    });
+
     it('should throw error when updating status of non-existent entry', async () => {
       await expect(table.updateEntryStatus('nonexistent', 'checked-in')).rejects.toThrow(
         'Entry nonexistent not found'

@@ -364,6 +364,57 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     return mutationId;
   }
 
+  async updateArmbandForDogInShow(
+    showId: string,
+    dogId: string,
+    armband: string,
+    entryIds: string[] = []
+  ): Promise<{ updated: number; mutationIds: string[] }> {
+    const entries = (await this.getEntriesByShow(showId)).filter(
+      entry =>
+        entry.dogId === dogId &&
+        !entry.deletedAt &&
+        !entry.deleted_at
+    );
+    const targets = new Map<string, ReplicatedEntry | null>();
+    entries.forEach(entry => targets.set(entry.id, entry));
+    entryIds.forEach(entryId => {
+      if (entryId && !targets.has(entryId)) {
+        targets.set(entryId, null);
+      }
+    });
+
+    const mutationIds: string[] = [];
+    for (const [entryId, entry] of targets) {
+      if (entry) {
+        const updated: ReplicatedEntry = {
+          ...entry,
+          armband,
+          armbandNumber: armband,
+          _lastModified: new Date(),
+          _syncStatus: 'pending',
+        };
+
+        await this.set(entryId, updated, true);
+      }
+
+      const mutationId = await this.queueMutation('UPDATE', entryId, {
+        id: entryId,
+        armband,
+        updated_at: new Date().toISOString(),
+      });
+      if (mutationId) {
+        mutationIds.push(mutationId);
+        this._lastMutationId = mutationId;
+      }
+    }
+
+    logger.log(
+      `[${this.getTableName()}] Updated ${targets.size} entries for dog ${dogId} to armband ${armband}`
+    );
+    return { updated: targets.size, mutationIds };
+  }
+
   /**
    * Create a new entry locally (queued for sync)
    * @param entry - Entry data (must include id)

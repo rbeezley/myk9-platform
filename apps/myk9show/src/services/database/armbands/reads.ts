@@ -1,9 +1,10 @@
 // Armband-related database queries
 //
 // SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
-// Mutation functions (claimNextArmband) stay on PostgREST (RPC call — DO NOT CHANGE).
+// claimNextArmband still uses the server allocator RPC, then patches entries
+// through the replication layer so show-day entry state remains offline-first.
 
-import { supabase, createDatabaseError , type DatabaseError } from '../supabaseClient';
+import { supabase, createDatabaseError, type DatabaseError } from '../supabaseClient';
 import { withReplicationFallback } from '../_shared/replication-fallback';
 import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmbandsTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
@@ -162,7 +163,8 @@ export const getArmbandCountForShow = async (showId: string) => {
  */
 export const claimNextArmband = async (
   showId: string,
-  dogId: string
+  dogId: string,
+  options: { entryIds?: string[] } = {}
 ): Promise<{ armband: string | null; error: unknown }> => {
   try {
     const { data, error } = await supabase.rpc(
@@ -174,17 +176,22 @@ export const claimNextArmband = async (
     );
     if (!error && data != null) {
       const armband = String(data);
-      const { error: updateError } = await supabase
-        .from('entries')
-        .update({ armband, updated_at: new Date().toISOString() })
-        .eq('show_id', showId)
-        .eq('dog_id', dogId)
-        .is('deleted_at', null);
-
-      if (updateError) {
+      try {
+        await replicatedArmbandsTable.upsertAssignedArmband({
+          showId,
+          dogId,
+          armbandNumber: armband,
+        });
+        await replicatedEntriesTable.updateArmbandForDogInShow(
+          showId,
+          dogId,
+          armband,
+          options.entryIds
+        );
+      } catch (updateError) {
         return {
           armband: null,
-          error: createDatabaseError(updateError, 'entries', 'sync_assigned_armband'),
+          error: createDatabaseError(updateError, 'armbands', 'sync_assigned_armband'),
         };
       }
 

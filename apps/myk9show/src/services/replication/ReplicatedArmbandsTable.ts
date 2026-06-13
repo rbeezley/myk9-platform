@@ -57,6 +57,12 @@ export interface ReplicatedArmband {
   _localOnly?: boolean | undefined;
 }
 
+export interface AssignedArmbandInput {
+  showId: string;
+  dogId: string;
+  armbandNumber: string;
+}
+
 /**
  * Convert database row to app Armband type
  */
@@ -77,6 +83,38 @@ function rowToArmband(row: ArmbandRow): ReplicatedArmband {
 export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> {
   constructor() {
     super('armbands', undefined, { logger });
+  }
+
+  private toSupabaseRow(armband: ReplicatedArmband): Record<string, unknown> {
+    return {
+      id: armband.id,
+      show_id: armband.showId,
+      dog_id: armband.dogId ?? null,
+      armband_number: armband.armbandNumber,
+      assigned_at: armband.assignedAt ?? null,
+      is_available: armband.isAvailable ?? false,
+    };
+  }
+
+  private createLocalId(): string {
+    if (typeof globalThis.crypto?.randomUUID === 'function') {
+      return globalThis.crypto.randomUUID();
+    }
+
+    return `armband-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+
+  private shouldRefreshBeforeInsert(): boolean {
+    return typeof globalThis.navigator !== 'undefined' && globalThis.navigator.onLine !== false;
+  }
+
+  private async refreshBeforeInsert(showId: string): Promise<ReplicatedArmband[]> {
+    const result = await this.sync();
+    if (!result.success) {
+      throw new Error(result.error ?? `Unable to refresh armbands for show ${showId}`);
+    }
+
+    return this.getByShow(showId);
   }
 
   /**
@@ -152,6 +190,50 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
   ): Promise<ReplicatedArmband | null> {
     const showArmbands = await this.getByShow(showId);
     return showArmbands.find(a => a.armbandNumber === armbandNumber) ?? null;
+  }
+
+  async upsertAssignedArmband(input: AssignedArmbandInput): Promise<string | null> {
+    let showArmbands = await this.getByShow(input.showId);
+    const duplicateNumber = showArmbands.find(
+      a => a.armbandNumber === input.armbandNumber && a.dogId !== input.dogId
+    );
+    if (duplicateNumber) {
+      throw new Error(
+        `Armband ${input.armbandNumber} is already assigned to another dog in this show.`
+      );
+    }
+
+    let existing = showArmbands.find(a => a.dogId === input.dogId);
+    if (!existing && this.shouldRefreshBeforeInsert()) {
+      showArmbands = await this.refreshBeforeInsert(input.showId);
+      const refreshedDuplicateNumber = showArmbands.find(
+        a => a.armbandNumber === input.armbandNumber && a.dogId !== input.dogId
+      );
+      if (refreshedDuplicateNumber) {
+        throw new Error(
+          `Armband ${input.armbandNumber} is already assigned to another dog in this show.`
+        );
+      }
+      existing = showArmbands.find(a => a.dogId === input.dogId);
+    }
+
+    const assignedAt = new Date().toISOString();
+    const id = existing?.id ?? this.createLocalId();
+    const updated: ReplicatedArmband = {
+      ...existing,
+      id,
+      showId: input.showId,
+      dogId: input.dogId,
+      armbandNumber: input.armbandNumber,
+      assignedAt,
+      isAvailable: false,
+      _lastModified: new Date(),
+      _syncStatus: 'pending',
+      ...(existing ? {} : { _localOnly: true }),
+    };
+
+    await this.set(id, updated, true);
+    return this.queueMutation(existing ? 'UPDATE' : 'INSERT', id, this.toSupabaseRow(updated));
   }
 }
 

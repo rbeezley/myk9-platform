@@ -56,6 +56,21 @@ vi.mock('@/services/database/supabaseClient', () => ({
   },
 }));
 
+const showDayDataMocks = vi.hoisted(() => ({
+  fetchReplicatedShowDayCheck: vi.fn(),
+  fetchReplicatedShowDayDetails: vi.fn(),
+  fetchReplicatedRingProgress: vi.fn(),
+}));
+
+vi.mock('@/hooks/queries/showDayDataReplication', () => ({
+  fetchReplicatedShowDayCheck: (...args: unknown[]) =>
+    showDayDataMocks.fetchReplicatedShowDayCheck(...args),
+  fetchReplicatedShowDayDetails: (...args: unknown[]) =>
+    showDayDataMocks.fetchReplicatedShowDayDetails(...args),
+  fetchReplicatedRingProgress: (...args: unknown[]) =>
+    showDayDataMocks.fetchReplicatedRingProgress(...args),
+}));
+
 const mockUserWithRoles = {
   databaseUserId: 'user-123',
   roles: [],
@@ -404,11 +419,13 @@ describe('useShowDayData hook', () => {
     vi.clearAllMocks();
     mockSupabaseChain.data = null;
     mockSupabaseChain.error = null;
+    showDayDataMocks.fetchReplicatedShowDayCheck.mockResolvedValue([]);
+    showDayDataMocks.fetchReplicatedShowDayDetails.mockResolvedValue([]);
+    showDayDataMocks.fetchReplicatedRingProgress.mockResolvedValue([]);
   });
 
   it('returns isShowDay: false when no entries today', async () => {
-    mockSupabaseChain.data = [];
-    mockSupabaseChain.error = null;
+    showDayDataMocks.fetchReplicatedShowDayCheck.mockResolvedValue([]);
 
     const { useShowDayData } = await import('@/hooks/queries/useShowDayData');
     const { result } = renderHook(() => useShowDayData(), { wrapper: createWrapper() });
@@ -424,7 +441,6 @@ describe('useShowDayData hook', () => {
   });
 
   it('returns isShowDay: true with correct data when entries exist', async () => {
-    // The check query returns data, triggering isShowDay
     const checkData = [makeCheckRow()];
     const detailData = [
       makeDetailRow(),
@@ -443,31 +459,9 @@ describe('useShowDayData hook', () => {
         },
       }),
     ];
-
-    // The mock chain is shared across all queries. Return different data
-    // based on call order (check → details → progress)
-    let callCount = 0;
-    mockFrom.mockImplementation(() => {
-      callCount++;
-      const currentData = callCount === 1 ? checkData : callCount === 2 ? detailData : [];
-      const chain = {
-        data: currentData,
-        error: null,
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        in: vi.fn().mockReturnThis(),
-        or: vi.fn().mockReturnThis(),
-        order: vi.fn().mockReturnThis(),
-        then: undefined as unknown,
-      };
-      Object.defineProperty(chain, 'then', {
-        get() {
-          return (resolve: (v: unknown) => void) =>
-            resolve({ data: chain.data, error: chain.error });
-        },
-      });
-      return chain;
-    });
+    showDayDataMocks.fetchReplicatedShowDayCheck.mockResolvedValue(checkData);
+    showDayDataMocks.fetchReplicatedShowDayDetails.mockResolvedValue(detailData);
+    showDayDataMocks.fetchReplicatedRingProgress.mockResolvedValue([]);
 
     const { useShowDayData } = await import('@/hooks/queries/useShowDayData');
     const { result } = renderHook(() => useShowDayData(), { wrapper: createWrapper() });
@@ -486,26 +480,7 @@ describe('useShowDayData hook', () => {
   });
 
   it('returns isLoading: true during initial fetch', async () => {
-    // Make the query hang
-    mockFrom.mockImplementation(() => {
-      const chain = {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        in: vi.fn().mockReturnThis(),
-        or: vi.fn().mockReturnThis(),
-        order: vi.fn().mockReturnThis(),
-        then: undefined as unknown,
-      };
-      Object.defineProperty(chain, 'then', {
-        get() {
-          return (resolve: (v: unknown) => void) => {
-            // Never resolve — simulates loading
-            void resolve;
-          };
-        },
-      });
-      return chain;
-    });
+    showDayDataMocks.fetchReplicatedShowDayCheck.mockReturnValue(new Promise(() => undefined));
 
     const { useShowDayData } = await import('@/hooks/queries/useShowDayData');
     const { result } = renderHook(() => useShowDayData(), { wrapper: createWrapper() });
@@ -514,28 +489,7 @@ describe('useShowDayData hook', () => {
   });
 
   it('sets error when query fails', async () => {
-    mockSupabaseChain.data = null;
-    mockSupabaseChain.error = new Error('Network failure');
-
-    // Override the chain to throw
-    mockFrom.mockImplementation(() => {
-      const chain = {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        in: vi.fn().mockReturnThis(),
-        or: vi.fn().mockReturnThis(),
-        order: vi.fn().mockReturnThis(),
-        then: undefined as unknown,
-      };
-      Object.defineProperty(chain, 'then', {
-        get() {
-          return (_resolve: (v: unknown) => void, reject: (e: unknown) => void) => {
-            reject(new Error('Network failure'));
-          };
-        },
-      });
-      return chain;
-    });
+    showDayDataMocks.fetchReplicatedShowDayCheck.mockRejectedValue(new Error('Network failure'));
 
     const { useShowDayData } = await import('@/hooks/queries/useShowDayData');
     const { result } = renderHook(() => useShowDayData(), { wrapper: createWrapper() });

@@ -45,12 +45,18 @@ import { replicatedWaitlistEntriesTable } from '@/services/replication/Replicate
 import { isAbortSyncError } from '@/services/replication/syncErrorUtils';
 import type { SyncFailedEventDetail } from './replicationSyncFormatters';
 import { formatSyncFailureToast, formatDownloadFailureToast } from './replicationSyncFormatters';
+import {
+  classifyTableSyncResults,
+  createTablesStatus,
+  getPostSyncInvalidationKeys,
+  type TableSyncStatus,
+} from './replicationSyncStatus';
 
 interface SyncStatus {
   isSyncing: boolean;
   lastSyncAt: Date | null;
   error: string | null;
-  tablesStatus: Record<string, 'idle' | 'syncing' | 'success' | 'error'>;
+  tablesStatus: Record<string, TableSyncStatus>;
 }
 
 interface ReplicationSyncProviderProps {
@@ -75,6 +81,8 @@ const REPLICATED_TABLES = [
   { name: 'armbands', table: replicatedArmbandsTable },
   { name: 'waitlist_entries', table: replicatedWaitlistEntriesTable },
 ] as const;
+
+const REPLICATED_TABLE_NAMES = REPLICATED_TABLES.map(({ name }) => name);
 
 // Adapt myK9Show's LoggingService to the @myk9/replication Logger interface
 const replicationLogger = {
@@ -149,7 +157,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     isSyncing: false,
     lastSyncAt: null,
     error: null,
-    tablesStatus: Object.fromEntries(REPLICATED_TABLES.map(({ name }) => [name, 'idle'])),
+    tablesStatus: createTablesStatus(REPLICATED_TABLE_NAMES, 'idle'),
   });
 
   /**
@@ -245,7 +253,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       // Phase 2: parallel download — one failure must not block others.
       setStatus(prev => ({
         ...prev,
-        tablesStatus: Object.fromEntries(REPLICATED_TABLES.map(({ name }) => [name, 'syncing'])),
+        tablesStatus: createTablesStatus(REPLICATED_TABLE_NAMES, 'syncing'),
       }));
 
       const syncResults = await Promise.all(
@@ -270,24 +278,23 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         })
       );
 
-      const downloadFailures: Array<{ name: string; error: string }> = [];
-      const tableStatusUpdates: Record<string, SyncStatus['tablesStatus'][string]> = {};
+      const {
+        tableStatusUpdates,
+        downloadFailures,
+        recoveredTables,
+        abortedTables,
+      } = classifyTableSyncResults(syncResults, isAbortSyncError);
 
-      for (const { name, ok, error, recoveredFromEmptyReplica } of syncResults) {
-        if (ok) {
-          tableStatusUpdates[name] = 'success';
-          if (recoveredFromEmptyReplica) {
-            warnRecoveredFromEmptyReplica(name);
-          }
-        } else if (isAbortSyncError(error)) {
+      for (const name of recoveredTables) {
+        warnRecoveredFromEmptyReplica(name);
+      }
+
+      for (const { name, error } of abortedTables) {
           logger.debug('Table sync aborted', 'replication', { name, error });
-          tableStatusUpdates[name] = 'idle';
-        } else {
-          const errorMsg = error || 'Unknown error';
-          logger.warn('Table sync failed', 'replication', { name, error: errorMsg });
-          downloadFailures.push({ name, error: errorMsg });
-          tableStatusUpdates[name] = 'error';
-        }
+      }
+
+      for (const { name, error } of downloadFailures) {
+        logger.warn('Table sync failed', 'replication', { name, error });
       }
 
       setStatus(prev => ({
@@ -309,17 +316,9 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         lastSyncAt: new Date(),
       }));
 
-      // Invalidate React Query caches so components refetch fresh data.
-      // Uses REPLICATED_TABLES to stay in sync automatically.
-      for (const { name } of REPLICATED_TABLES) {
-        queryClient.invalidateQueries({ queryKey: [name] });
+      for (const queryKey of getPostSyncInvalidationKeys(REPLICATED_TABLE_NAMES)) {
+        queryClient.invalidateQueries({ queryKey });
       }
-
-      // The judge dashboard query reads a denormalized join of judge_assignments
-      // + classes under ['judges','assignments',...]; no table-name prefix above
-      // matches it, so invalidate it explicitly or it would stay stale until
-      // remount after a background sync.
-      queryClient.invalidateQueries({ queryKey: ['judges', 'assignments'] });
 
       logger.info('Full sync complete', 'replication');
     } catch (error) {

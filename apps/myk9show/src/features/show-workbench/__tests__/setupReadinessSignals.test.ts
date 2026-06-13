@@ -80,6 +80,7 @@ describe('computeSetupReadinessSignals', () => {
     expect(signals).toContainEqual({
       id: 'show-details-missing',
       label: 'Show details incomplete',
+      href: '/shows/show-1?edit=true',
     });
   });
 
@@ -90,7 +91,11 @@ describe('computeSetupReadinessSignals', () => {
       classes: [cls()],
       judges: ['j1'],
     });
-    expect(signals).toContainEqual({ id: 'no-trials', label: 'No trials yet' });
+    expect(signals).toContainEqual({
+      id: 'no-trials',
+      label: 'No trials yet',
+      href: '/shows/show-1?tab=trials',
+    });
   });
 
   it('emits no-classes when classes.length === 0', () => {
@@ -100,7 +105,22 @@ describe('computeSetupReadinessSignals', () => {
       classes: [],
       judges: ['j1'],
     });
-    expect(signals).toContainEqual({ id: 'no-classes', label: 'No classes built' });
+    expect(signals).toContainEqual({
+      id: 'no-classes',
+      label: 'No classes built',
+      href: '/trials/t1/classes',
+    });
+  });
+
+  it('points class work at the Trials tab when no trial exists yet', () => {
+    const signals = computeSetupReadinessSignals({
+      show: show(),
+      trials: [],
+      classes: [],
+      judges: [],
+    });
+    expect(signals.find(s => s.id === 'no-classes')?.href).toBe('/shows/show-1?tab=trials');
+    expect(signals.find(s => s.id === 'judges-missing')?.href).toBe('/shows/show-1?tab=trials');
   });
 
   it('emits judges-missing when no roster and a class has no judgeName', () => {
@@ -110,7 +130,11 @@ describe('computeSetupReadinessSignals', () => {
       classes: [cls({ judgeName: '' })],
       judges: [],
     });
-    expect(signals).toContainEqual({ id: 'judges-missing', label: 'Judges not assigned' });
+    expect(signals).toContainEqual({
+      id: 'judges-missing',
+      label: 'Judges not assigned',
+      href: '/trials/t1/classes',
+    });
   });
 
   it('treats classes-each-have-judge as satisfying judges-missing', () => {
@@ -137,6 +161,7 @@ describe('computeSetupReadinessSignals', () => {
     expect(signals).toContainEqual({
       id: 'exhibitor-materials-unpublished',
       label: 'Exhibitor materials unpublished',
+      href: '#setup-publish',
     });
   });
 

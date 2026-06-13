@@ -12,7 +12,12 @@ export type SetupReadinessSignalId =
 export interface SetupReadinessSignal {
   id: SetupReadinessSignalId;
   label: string;
+  /** Where the secretary fixes this — a route, or an in-page anchor ("#..."). */
+  href: string;
 }
+
+/** In-page anchor for the publish section on the Setup tab. */
+export const SETUP_PUBLISH_ANCHOR = 'setup-publish';
 
 export interface SetupReadinessInput {
   show: Show;
@@ -49,26 +54,45 @@ function exhibitorMaterialsPublished(show: Show): boolean {
 // only emit a signal when it's NOT yet satisfied. Once the secretary
 // finishes the setup step, the chip disappears instead of staying as a
 // permanent "green check" item the eye has to filter past every visit.
+// Every signal carries an href: a chip that names a problem without
+// taking the secretary to the fix is the "wondering what to do next"
+// anti-reference from PRODUCT.md.
 export function computeSetupReadinessSignals(
   input: SetupReadinessInput
 ): SetupReadinessSignal[] {
   const signals: SetupReadinessSignal[] = [];
+  const showId = input.show.id;
+  const firstTrialId = input.trials[0]?.id;
+  // Classes and judges are managed per trial; until a trial exists, the
+  // Trials tab is the right starting point for both.
+  const classWorkHref = firstTrialId
+    ? `/trials/${firstTrialId}/classes`
+    : `/shows/${showId}?tab=trials`;
   if (!showDetailsComplete(input.show)) {
-    signals.push({ id: 'show-details-missing', label: 'Show details incomplete' });
+    signals.push({
+      id: 'show-details-missing',
+      label: 'Show details incomplete',
+      href: `/shows/${showId}?edit=true`,
+    });
   }
   if (input.trials.length === 0) {
-    signals.push({ id: 'no-trials', label: 'No trials yet' });
+    signals.push({
+      id: 'no-trials',
+      label: 'No trials yet',
+      href: `/shows/${showId}?tab=trials`,
+    });
   }
   if (input.classes.length === 0) {
-    signals.push({ id: 'no-classes', label: 'No classes built' });
+    signals.push({ id: 'no-classes', label: 'No classes built', href: classWorkHref });
   }
   if (!judgesAssigned(input)) {
-    signals.push({ id: 'judges-missing', label: 'Judges not assigned' });
+    signals.push({ id: 'judges-missing', label: 'Judges not assigned', href: classWorkHref });
   }
   if (!exhibitorMaterialsPublished(input.show)) {
     signals.push({
       id: 'exhibitor-materials-unpublished',
       label: 'Exhibitor materials unpublished',
+      href: `#${SETUP_PUBLISH_ANCHOR}`,
     });
   }
   return signals;

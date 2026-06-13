@@ -78,6 +78,7 @@ import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvi
 import { ShowPresenceStack } from '@/features/show-presence/ShowPresenceStack';
 import { LiveUpdateIndicator } from '@/features/show-live-sync/LiveUpdateIndicator';
 import { SHOW_MANAGEMENT_SECTIONS } from '@/routes/showManagementSections';
+import { SETUP_PUBLISH_ANCHOR } from '@/features/show-workbench/setupReadinessSignals';
 
 const ShowMapTab = React.lazy(() => import('@/features/show-map/ShowMapTab'));
 
@@ -603,6 +604,23 @@ const ShowDetailsPage: React.FC = () => {
           }
         />
 
+        {/* INTENT: The publish row renders once, above the section tabs —
+            it is show-level state the secretary needs on every tab. The
+            Setup tab's readiness chip deep-links here via #setup-publish;
+            the target: ring makes the jump visibly land somewhere. */}
+        {canManageShow && (
+          <div
+            id={SETUP_PUBLISH_ANCHOR}
+            className="mt-4 grid scroll-mt-20 grid-cols-1 gap-3 rounded-md sm:grid-cols-2 target:ring-2 target:ring-ring target:ring-offset-4 target:ring-offset-background"
+          >
+            <PremiumDownloadCard showId={actualCurrentShow.id} showStaleBadge={canManageShow} />
+            <LandingPageCard
+              showId={actualCurrentShow.id}
+              showStyle={getShowStyle(actualCurrentShow)}
+            />
+          </div>
+        )}
+
         {canManageShow && actualCurrentShow?.id && (
           <nav
             className="border-b border-border bg-background"
@@ -631,16 +649,6 @@ const ShowDetailsPage: React.FC = () => {
               })}
             </div>
           </nav>
-        )}
-
-        {canManageShow && (
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <PremiumDownloadCard showId={actualCurrentShow.id} showStaleBadge={canManageShow} />
-            <LandingPageCard
-              showId={actualCurrentShow.id}
-              showStyle={getShowStyle(actualCurrentShow)}
-            />
-          </div>
         )}
 
         {isManagementSection ? (

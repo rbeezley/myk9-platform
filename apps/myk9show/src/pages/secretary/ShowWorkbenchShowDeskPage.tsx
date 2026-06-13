@@ -21,6 +21,12 @@ import { WorkbenchLateEntryAction } from '@/features/show-workbench/WorkbenchLat
 import { ShowDayReconciliation } from '@/features/show-workbench/ShowDayReconciliation';
 import { IncidentCloseoutSummary } from '@/features/show-workbench/IncidentCloseoutSummary';
 import { useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
+import { useQuery } from '@tanstack/react-query';
+import {
+  listShowIncidentCloseout,
+  showIncidentCloseoutQueryKey,
+} from '@/services/database/show-incidents';
+import { summarizeShowIncidents } from '@/features/show-workbench/showIncidents';
 import type { ShowDeskToolSection } from '@/features/show-map/ShowDeskToolsSheet';
 import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
@@ -156,6 +162,25 @@ export function ShowWorkbenchShowDeskPage() {
       .filter((entry): entry is IncidentEntryOption => entry !== null);
   }, [showClasses, showEntries]);
 
+  // INTENT: Urgent or reportable incidents surface themselves on the tools
+  // sheet (attentionLabel auto-opens the section) instead of waiting silently
+  // behind the wrench icon while the secretary handles a crisis.
+  const { data: closeoutIncidents = [] } = useQuery({
+    queryKey: showIncidentCloseoutQueryKey(showId ?? ''),
+    queryFn: () => listShowIncidentCloseout(showId ?? ''),
+    enabled: Boolean(showId),
+  });
+  const incidentAttentionLabel = useMemo(() => {
+    const summary = summarizeShowIncidents(closeoutIncidents);
+    if (summary.urgentCount > 0) {
+      return `${summary.urgentCount} urgent`;
+    }
+    if (summary.reportableCount > 0) {
+      return `${summary.reportableCount} reportable`;
+    }
+    return undefined;
+  }, [closeoutIncidents]);
+
   const showDeskTools = useMemo<ShowDeskToolSection[]>(() => {
     if (!currentShow) return [];
 
@@ -185,6 +210,9 @@ export function ShowWorkbenchShowDeskPage() {
         id: 'incident-log',
         title: 'Incident log',
         summary: 'Record incidents while details are fresh',
+        ...(incidentAttentionLabel !== undefined && {
+          attentionLabel: incidentAttentionLabel,
+        }),
         content: (
           <IncidentLogCard
             showId={currentShow.id}
@@ -235,7 +263,7 @@ export function ShowWorkbenchShowDeskPage() {
         content: <TasksNotesCard showId={currentShow.id} clubId={currentShow.clubId} />,
       },
     ];
-  }, [currentShow, effectiveJudges, incidentEntryOptions, showClasses]);
+  }, [currentShow, effectiveJudges, incidentAttentionLabel, incidentEntryOptions, showClasses]);
 
   if (isLoading || !currentShow) {
     return <LoadingSkeleton variant="cards" count={2} />;

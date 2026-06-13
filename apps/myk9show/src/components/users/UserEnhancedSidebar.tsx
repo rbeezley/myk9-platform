@@ -125,7 +125,7 @@ const PeopleEnhancedSidebar: React.FC<PeopleEnhancedSidebarProps> = ({
             ? highlightMatches(`${person.firstName} ${person.lastName}`, nameMatches.indices).map(
                 (segment, index) =>
                   segment.isHighlighted ? (
-                    <span key={index} className="bg-blue-200 dark:bg-blue-800 px-1 rounded">
+                    <span key={index} className="bg-info/10 px-1 rounded">
                       {segment.text}
                     </span>
                   ) : (
@@ -139,7 +139,7 @@ const PeopleEnhancedSidebar: React.FC<PeopleEnhancedSidebarProps> = ({
             ? highlightMatches(person.email || 'No email', emailMatches.indices).map(
                 (segment, index) =>
                   segment.isHighlighted ? (
-                    <span key={index} className="bg-blue-200 dark:bg-blue-800 px-1 rounded">
+                    <span key={index} className="bg-info/10 px-1 rounded">
                       {segment.text}
                     </span>
                   ) : (
@@ -177,7 +177,7 @@ const PeopleEnhancedSidebar: React.FC<PeopleEnhancedSidebarProps> = ({
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-semibold truncate mr-2">People</h3>
             {searchResults.length !== people.length && (
-              <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full">
+              <span className="text-xs bg-info/10 text-info px-2 py-1 rounded-full">
                 {searchResults.length}
               </span>
             )}

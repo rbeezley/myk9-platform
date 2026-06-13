@@ -251,7 +251,7 @@ export function MultiAreaScoresheet({
               : areaStatus === 'failed'
                 ? 'border-red-500 bg-destructive/10 '
                 : areaStatus === 'active'
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
+                  ? 'border-blue-500 bg-info/10 '
                   : 'border-gray-300'
           )}
         >

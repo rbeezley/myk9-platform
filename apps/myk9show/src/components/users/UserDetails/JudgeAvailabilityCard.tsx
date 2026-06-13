@@ -69,7 +69,7 @@ const JudgeAvailabilityCard: React.FC<JudgeAvailabilityCardProps> = ({ personId 
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-gradient-to-br from-blue-500/10 to-blue-500/5 rounded-xl">
-              <CalendarDays className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <CalendarDays className="h-5 w-5 text-info " />
             </div>
             <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
               Judge Availability

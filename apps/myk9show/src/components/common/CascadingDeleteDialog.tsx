@@ -135,8 +135,8 @@ export function CascadingDeleteDialog({
 
             <div className="space-y-2">
               {preview.trialsToDelete.length > 0 && (
-                <div className="bg-blue-50 dark:bg-blue-950/20 rounded-xl px-3 py-1">
-                  <div className="flex items-center gap-2 font-medium text-sm text-blue-700 dark:text-blue-300 leading-none m-0">
+                <div className="bg-info/10 rounded-xl px-3 py-1">
+                  <div className="flex items-center gap-2 font-medium text-sm text-info leading-none m-0">
                     <Calendar className="h-4 w-4" />
                     Trials ({preview.trialsToDelete.length})
                   </div>
@@ -149,10 +149,7 @@ export function CascadingDeleteDialog({
                         return a.date.localeCompare(b.date);
                       })
                       .map(trial => (
-                        <div
-                          key={trial.id}
-                          className="text-xs text-blue-600 dark:text-blue-400 leading-none m-0"
-                        >
+                        <div key={trial.id} className="text-xs text-info leading-none m-0">
                           • {trial.name} - {format(parseISO(trial.date), 'MM/dd/yyyy')}
                         </div>
                       ))}

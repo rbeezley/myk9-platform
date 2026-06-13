@@ -212,7 +212,7 @@ export const EntriesStatisticsPanel: React.FC<EntriesStatisticsPanelProps> = ({
             'p-4 rounded-lg border-l-4',
             statistics.invalidChanges > 0
               ? 'bg-destructive/10 border-l-red-500 '
-              : 'bg-blue-50 border-l-blue-500 dark:bg-blue-950/20'
+              : 'bg-info/10 border-l-blue-500 '
           )}
         >
           <div className="flex items-center space-x-2">

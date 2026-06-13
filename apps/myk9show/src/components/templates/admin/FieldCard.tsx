@@ -16,9 +16,7 @@ export const FieldCard: React.FC<FieldCardProps> = ({
     <div
       key={field.id}
       className={`relative p-4 rounded-lg border transition-all cursor-pointer ${
-        isConfigured
-          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-          : 'border-gray-200 hover:border-gray-300'
+        isConfigured ? 'border-blue-500 bg-info/10 ' : 'border-gray-200 hover:border-gray-300'
       }`}
       onClick={() => onToggle(field)}
     >

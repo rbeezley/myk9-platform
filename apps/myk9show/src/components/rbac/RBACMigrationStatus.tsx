@@ -67,9 +67,9 @@ export const RBACMigrationStatus: React.FC<RBACMigrationStatusProps> = ({
       case 'in_progress':
         return {
           icon: Loader2,
-          color: 'text-blue-600 dark:text-blue-400',
-          bgColor: 'bg-blue-50 dark:bg-blue-950/30',
-          borderColor: 'border-blue-200 dark:border-blue-800',
+          color: 'text-info ',
+          bgColor: 'bg-info/10 ',
+          borderColor: 'border-info/30 ',
           title: 'Migrating to New RBAC System',
           description: 'Please wait while we update your permissions...',
           progress: 50,

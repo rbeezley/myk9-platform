@@ -89,7 +89,7 @@ const ShowMainCard: React.FC<ShowMainCardProps> = ({
           </div>
           <a
             href={`mailto:${showData.clubEmail || 'contact@nationalkennelclub.com'}`}
-            className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 mt-1 flex items-center gap-1 break-all"
+            className="text-xs text-info mt-1 flex items-center gap-1 break-all"
           >
             <i className="fas fa-envelope text-xs flex-shrink-0"></i>
             {showData.clubEmail || 'contact@nationalkennelclub.com'}
@@ -108,7 +108,7 @@ const ShowMainCard: React.FC<ShowMainCardProps> = ({
           </div>
           <a
             href="mailto:thomas.green@nationalkennelclub.com"
-            className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 mt-1 break-all"
+            className="text-xs text-info flex items-center gap-1 mt-1 break-all"
           >
             <i className="fas fa-envelope text-xs flex-shrink-0"></i>
             thomas.green@nationalkennelclub.com
@@ -121,7 +121,7 @@ const ShowMainCard: React.FC<ShowMainCardProps> = ({
           </div>
           <a
             href="mailto:jennifer.white@nationalkennelclub.com"
-            className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 mt-1 break-all"
+            className="text-xs text-info flex items-center gap-1 mt-1 break-all"
           >
             <i className="fas fa-envelope text-xs flex-shrink-0"></i>
             jennifer.white@nationalkennelclub.com
@@ -134,7 +134,7 @@ const ShowMainCard: React.FC<ShowMainCardProps> = ({
           </div>
           <a
             href="mailto:david.miller@nationalkennelclub.com"
-            className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 mt-1 break-all"
+            className="text-xs text-info flex items-center gap-1 mt-1 break-all"
           >
             <i className="fas fa-envelope text-xs flex-shrink-0"></i>
             david.miller@nationalkennelclub.com

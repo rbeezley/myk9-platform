@@ -83,7 +83,7 @@ export function MultiAreaTimerDisplay({
     const baseClasses = 'transition-all duration-200';
 
     if (isCurrentArea && status === 'active') {
-      return cn(baseClasses, 'border-2 border-blue-500 bg-blue-50 dark:bg-blue-950');
+      return cn(baseClasses, 'border-2 border-blue-500 bg-info/10 ');
     }
 
     switch (status) {

@@ -380,12 +380,12 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({ entries }) => {
       )}
 
       {/* Quick Actions */}
-      <div className="mt-6 bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
-        <div className="text-sm text-blue-800 dark:text-blue-200 mb-2">
+      <div className="mt-6 bg-info/10 rounded-lg p-4">
+        <div className="text-sm text-info mb-2">
           💡 Pro Tip: Tap any class to check in or view details
         </div>
         {stats.conflicts > 0 && (
-          <div className="text-sm text-blue-700 dark:text-blue-300">
+          <div className="text-sm text-info ">
             You have scheduling conflicts. Consider having a friend handle one of your dogs.
           </div>
         )}

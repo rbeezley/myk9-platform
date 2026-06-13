@@ -50,7 +50,7 @@ export const ProgressOverlay: React.FC<ProgressOverlayProps> = ({
 
   const getStatusBadge = (status: string) => {
     const variants = {
-      pending: 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400',
+      pending: 'bg-info/10 text-info ',
       retrying: 'bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400',
       confirmed: 'bg-teal-100 text-teal-700 dark:bg-teal-900/20 dark:text-teal-400',
       failed: 'bg-destructive/10 text-destructive ',

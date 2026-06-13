@@ -193,7 +193,7 @@ export function getEntryStatusClasses(status: string | null): string {
     case 'withdrawn':
       return 'bg-destructive/10 text-destructive border-red-200 ';
     case 'waitlisted':
-      return 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900 dark:text-blue-200';
+      return 'bg-info/10 text-info border-blue-200 ';
     default:
       return 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-200';
   }

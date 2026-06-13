@@ -343,7 +343,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                 {trials.map((trial, trialIndex) => (
                   <div
                     key={trial.id}
-                    className="border rounded-lg p-5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 dark:border-blue-800"
+                    className="border rounded-lg p-5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 "
                   >
                     {/* Trial Header */}
                     <div className="flex items-center justify-between mb-4">
@@ -428,7 +428,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                     <div className="mt-4 pt-3 border-t border-border">
                       <div className="grid grid-cols-3 gap-4 text-center">
                         <div>
-                          <div className="text-lg font-semibold text-blue-600 dark:text-blue-400">
+                          <div className="text-lg font-semibold text-info ">
                             {trial.classes.length}
                           </div>
                           <div className="text-xs text-muted-foreground">Classes</div>

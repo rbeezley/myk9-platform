@@ -353,7 +353,7 @@ export function ResultEntryNavigation({
                         switch (status) {
                           case 'checked-in':
                             return (
-                              <div className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded-md border border-blue-200 dark:border-blue-700">
+                              <div className="px-2 py-1 text-xs font-medium bg-info/10 text-info rounded-md border border-info/30 ">
                                 Checked In
                               </div>
                             );

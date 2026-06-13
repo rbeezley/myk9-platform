@@ -86,7 +86,7 @@ const features = [
 const getIconColor = (color: string) => {
   switch (color) {
     case 'blue':
-      return 'text-blue-500 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30';
+      return 'text-info bg-info/10 ';
     case 'indigo':
       return 'text-indigo-500 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/30';
     case 'purple':

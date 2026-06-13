@@ -289,7 +289,7 @@ export const ShowEditForm: React.FC = () => {
                     })}
 
                     {data.assignedJudges.length > 0 && (
-                      <div className="text-sm text-muted-foreground bg-blue-50 dark:bg-blue-950/30 p-4 rounded-xl">
+                      <div className="text-sm text-muted-foreground bg-info/10 p-4 rounded-xl">
                         <strong>{data.assignedJudges.length} judge(s) assigned.</strong> These
                         judges will be available for class assignments when creating trials.
                       </div>

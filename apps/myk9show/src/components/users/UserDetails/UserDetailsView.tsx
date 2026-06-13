@@ -168,7 +168,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         title: 'Contact Information',
         icon: Mail,
         iconGradient: 'from-blue-500/10 to-indigo-500/5',
-        iconColor: 'text-blue-600 dark:text-blue-400',
+        iconColor: 'text-info ',
         fields: [
           { label: 'First Name', value: firstName },
           { label: 'Last Name', value: lastName },

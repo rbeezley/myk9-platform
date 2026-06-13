@@ -210,6 +210,6 @@ export function getEntryStatusColor(status: UnifiedEntryData['status']): string 
       return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
     case 'Pending':
     default:
-      return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+      return 'bg-info/10 text-info ';
   }
 }

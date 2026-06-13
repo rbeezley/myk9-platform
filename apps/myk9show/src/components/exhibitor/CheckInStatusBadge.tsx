@@ -39,12 +39,12 @@ const STATUS_COLORS: Record<CheckInStatus, { bg: string; text: string; border: s
   },
   'come-to-gate': {
     bg: 'bg-blue-500/15',
-    text: 'text-blue-600 dark:text-blue-400',
+    text: 'text-info ',
     border: 'border-blue-500/30',
   },
   'in-ring': {
     bg: 'bg-blue-600/15',
-    text: 'text-blue-700 dark:text-blue-400',
+    text: 'text-info ',
     border: 'border-blue-600/30',
   },
   completed: {

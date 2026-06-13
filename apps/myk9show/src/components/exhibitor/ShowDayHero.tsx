@@ -117,7 +117,7 @@ export const ShowDayHero = forwardRef<HTMLDivElement, ShowDayHeroProps>(function
               <span className="text-xs font-bold uppercase tracking-wider">Done</span>
             </div>
           ) : isPreview ? (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-full">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-500/10 text-info rounded-full">
               <CalendarCheck className="h-3.5 w-3.5" />
               <span className="text-xs font-bold uppercase tracking-wider">Today</span>
             </div>

@@ -180,7 +180,7 @@ export const AlertDashboard: React.FC<AlertDashboardProps> = ({ className }) => 
       case AlertSeverity.MEDIUM:
         return 'bg-yellow-500/10 text-yellow-700 border-yellow-200 dark:text-yellow-400';
       default:
-        return 'bg-blue-500/10 text-blue-700 border-blue-200 dark:text-blue-400';
+        return 'bg-blue-500/10 text-info border-blue-200 ';
     }
   };
 

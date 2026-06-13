@@ -188,7 +188,7 @@ export const getRoleDisplayInfo = (role: UserRole) => {
   const roleInfo = {
     secretary: {
       label: 'Secretary',
-      color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+      color: 'bg-info/10 text-info ',
       description: 'Full access to entries and results management',
     },
     judge: {

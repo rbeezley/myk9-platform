@@ -413,7 +413,7 @@ export const SyncAnalyticsDashboard: React.FC<SyncAnalyticsDashboardProps> = ({ 
                     </p>
                   </div>
 
-                  <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                  <div className="p-4 bg-info/10 rounded-lg">
                     <div className="flex items-center gap-2">
                       <Clock className="h-5 w-5 text-blue-500" />
                       <span className="font-medium">Avg Resolution Time</span>

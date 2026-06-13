@@ -207,10 +207,7 @@ const LiveResults: React.FC<LiveResultsProps> = ({
               </span>
             </div>
           </div>
-          <button
-            onClick={onRefresh}
-            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
-          >
+          <button onClick={onRefresh} className="text-info ">
             <RefreshCw className="w-5 h-5" />
           </button>
         </div>
@@ -257,13 +254,13 @@ const LiveResults: React.FC<LiveResultsProps> = ({
 
       {/* Title Progress for User */}
       {titleProgress.qualified > 0 && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+        <div className="bg-info/10 border border-info/30 rounded-lg p-4 mb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <TrendingUp className="w-5 h-5 text-info " />
               <div>
-                <div className="font-medium text-blue-800 dark:text-blue-200">Title Progress</div>
-                <div className="text-sm text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                <div className="font-medium text-info ">Title Progress</div>
+                <div className="text-sm text-info flex items-center gap-1">
                   {titleProgress.needsMore > 0 ? (
                     `${titleProgress.needsMore} more leg${titleProgress.needsMore === 1 ? '' : 's'} needed`
                   ) : (
@@ -275,9 +272,7 @@ const LiveResults: React.FC<LiveResultsProps> = ({
                 </div>
               </div>
             </div>
-            <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">
-              {titleProgress.qualified}/3
-            </div>
+            <div className="text-2xl font-bold text-info ">{titleProgress.qualified}/3</div>
           </div>
         </div>
       )}
@@ -319,7 +314,7 @@ const LiveResults: React.FC<LiveResultsProps> = ({
                           #{entry.armband}
                         </span>
                         {isUser && (
-                          <span className="px-2 py-0.5 bg-blue-600 dark:bg-blue-500 text-white text-xs font-medium rounded">
+                          <span className="px-2 py-0.5 bg-info text-white text-xs font-medium rounded">
                             YOUR DOG
                           </span>
                         )}
@@ -391,7 +386,7 @@ const LiveResults: React.FC<LiveResultsProps> = ({
         <div className="mt-6 space-y-3">
           <button
             onClick={handleEmailResults}
-            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-info text-white rounded-lg hover:bg-info transition-colors"
           >
             <Mail className="w-5 h-5" />
             Email Results

@@ -94,7 +94,7 @@ export const AlertToast: React.FC<AlertToastProps> = ({
       case AlertSeverity.MEDIUM:
         return 'border-l-yellow-500 bg-yellow-50 dark:bg-yellow-950';
       default:
-        return 'border-l-blue-500 bg-blue-50 dark:bg-blue-950';
+        return 'border-l-blue-500 bg-info/10 ';
     }
   };
 

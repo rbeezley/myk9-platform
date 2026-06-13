@@ -72,10 +72,7 @@ const RingMonitor: React.FC<RingMonitorProps> = ({ userEntry, ringStatus, onRefr
           <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
             {ringLabel ? `${ringStatus.className} - ${ringLabel}` : ringStatus.className}
           </h2>
-          <button
-            onClick={onRefresh}
-            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
-          >
+          <button onClick={onRefresh} className="text-info ">
             <Timer className="w-5 h-5" />
           </button>
         </div>
@@ -158,23 +155,18 @@ const RingMonitor: React.FC<RingMonitorProps> = ({ userEntry, ringStatus, onRefr
             ringStatus.onDeck.slice(0, 3).map((entry, index) => {
               const isUser = entry.armband === userEntry.armband;
               return (
-                <div
-                  key={entry.armband}
-                  className={`p-4 ${isUser ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
-                >
+                <div key={entry.armband} className={`p-4 ${isUser ? 'bg-info/10 ' : ''}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div
                         className={`text-2xl font-bold ${
-                          isUser
-                            ? 'text-blue-600 dark:text-blue-400'
-                            : 'text-gray-700 dark:text-gray-300'
+                          isUser ? 'text-info ' : 'text-gray-700 dark:text-gray-300'
                         }`}
                       >
                         #{entry.armband}
                       </div>
                       {isUser && (
-                        <div className="px-2 py-1 bg-blue-600 dark:bg-blue-500 text-white text-xs font-medium rounded">
+                        <div className="px-2 py-1 bg-info text-white text-xs font-medium rounded">
                           YOU
                         </div>
                       )}

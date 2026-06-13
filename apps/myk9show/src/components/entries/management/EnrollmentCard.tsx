@@ -11,14 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  ChevronDown,
-  ChevronUp,
-  Receipt,
-  MoreHorizontal,
-  Mail,
-  Loader2,
-} from 'lucide-react';
+import { ChevronDown, ChevronUp, Receipt, MoreHorizontal, Mail, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/utils/format';
 import { EntryListCard } from './EntryListCard';
@@ -234,54 +227,56 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
               {!group.enrollmentId ? (
                 getPaymentStatusBadge(group.paymentStatus)
               ) : (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
-                  >
-                    {getPaymentStatusBadge(group.paymentStatus)}
-                    <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onClick={() => handlePayment(PaymentStatus.PAID_BY_CASH, null, totalDollars)}
-                  >
-                    Paid in Full — Cash
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setCheckDialog({ open: true, checkNumber: '' })}>
-                    Paid in Full — Check…
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handlePayment(PaymentStatus.PAID_ONLINE)}>
-                    Paid in Full — Online
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() =>
-                      setPartialDialog({
-                        open: true,
-                        amountPaid: '',
-                        method: 'cash',
-                        checkNumber: '',
-                      })
-                    }
-                  >
-                    Partial Payment…
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => openRefundDialog(false)}>
-                    Refunded…
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => openRefundDialog(true)}>
-                    Partial Refund…
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => handlePayment(PaymentStatus.PENDING, null, 0)}>
-                    Payment Due
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
+                    >
+                      {getPaymentStatusBadge(group.paymentStatus)}
+                      <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() => handlePayment(PaymentStatus.PAID_BY_CASH, null, totalDollars)}
+                    >
+                      Paid in Full — Cash
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setCheckDialog({ open: true, checkNumber: '' })}
+                    >
+                      Paid in Full — Check…
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handlePayment(PaymentStatus.PAID_ONLINE)}>
+                      Paid in Full — Online
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() =>
+                        setPartialDialog({
+                          open: true,
+                          amountPaid: '',
+                          method: 'cash',
+                          checkNumber: '',
+                        })
+                      }
+                    >
+                      Partial Payment…
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => openRefundDialog(false)}>
+                      Refunded…
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => openRefundDialog(true)}>
+                      Partial Refund…
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => handlePayment(PaymentStatus.PENDING, null, 0)}>
+                      Payment Due
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
 
               <span className="text-sm font-medium">${totalDollars.toFixed(2)}</span>
@@ -300,7 +295,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                 )}
 
               {group.refundAmount != null && (
-                <span className="text-xs text-blue-700 dark:text-blue-400 font-medium">
+                <span className="text-xs text-info font-medium">
                   ${group.refundAmount.toFixed(2)} refunded
                   {group.refundedAt && (
                     <span className="text-muted-foreground font-normal ml-1">

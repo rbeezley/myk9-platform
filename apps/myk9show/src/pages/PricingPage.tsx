@@ -147,50 +147,45 @@ export default function PricingPage() {
                   const period = isPaidTier && annualActive ? '/year' : tier.period;
                   const priceId = isPaidTier && annualActive ? annualPriceId! : tier.priceId;
                   return (
-                  <div
-                    key={tier.name}
-                    className="relative bg-card rounded-2xl shadow-lg border border-primary"
-                  >
-                    <div className="absolute -top-4 left-0 right-0 flex justify-center">
-                      <span className="bg-primary text-primary-foreground px-4 py-1 rounded-full text-sm font-medium">
-                        {tier.label}
-                      </span>
-                    </div>
-
-                    <div className="p-8">
-                      <h3 className="text-2xl font-bold text-foreground mb-2">{tier.name}</h3>
-                      <div className="flex items-baseline mb-2">
-                        <span className="text-4xl font-bold text-foreground">{price}</span>
-                        {period && (
-                          <span className="ml-1 text-muted-foreground">{period}</span>
-                        )}
+                    <div
+                      key={tier.name}
+                      className="relative bg-card rounded-2xl shadow-lg border border-primary"
+                    >
+                      <div className="absolute -top-4 left-0 right-0 flex justify-center">
+                        <span className="bg-primary text-primary-foreground px-4 py-1 rounded-full text-sm font-medium">
+                          {tier.label}
+                        </span>
                       </div>
-                      <p className="text-muted-foreground mb-6">{tier.description}</p>
 
-                      <button
-                        onClick={() => handleSubscribe(priceId)}
-                        className={`w-full py-3 px-6 rounded-xl font-medium transition-colors ${
-                          tier.buttonVariant === 'solid'
-                            ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
-                            : 'bg-accent text-accent-foreground hover:bg-accent/80'
-                        }`}
-                      >
-                        {tier.buttonText}
-                      </button>
+                      <div className="p-8">
+                        <h3 className="text-2xl font-bold text-foreground mb-2">{tier.name}</h3>
+                        <div className="flex items-baseline mb-2">
+                          <span className="text-4xl font-bold text-foreground">{price}</span>
+                          {period && <span className="ml-1 text-muted-foreground">{period}</span>}
+                        </div>
+                        <p className="text-muted-foreground mb-6">{tier.description}</p>
 
-                      <ul className="mt-8 space-y-4">
-                        {tier.features.map(feature => (
-                          <li key={feature} className="flex items-start text-muted-foreground">
-                            <Check
-                              size={20}
-                              className="mr-2 flex-shrink-0 text-blue-500 dark:text-blue-400"
-                            />
-                            <span>{feature}</span>
-                          </li>
-                        ))}
-                      </ul>
+                        <button
+                          onClick={() => handleSubscribe(priceId)}
+                          className={`w-full py-3 px-6 rounded-xl font-medium transition-colors ${
+                            tier.buttonVariant === 'solid'
+                              ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                              : 'bg-accent text-accent-foreground hover:bg-accent/80'
+                          }`}
+                        >
+                          {tier.buttonText}
+                        </button>
+
+                        <ul className="mt-8 space-y-4">
+                          {tier.features.map(feature => (
+                            <li key={feature} className="flex items-start text-muted-foreground">
+                              <Check size={20} className="mr-2 flex-shrink-0 text-info " />
+                              <span>{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     </div>
-                  </div>
                   );
                 })}
               </div>

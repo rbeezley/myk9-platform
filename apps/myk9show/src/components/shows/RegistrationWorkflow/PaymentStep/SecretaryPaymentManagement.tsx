@@ -324,10 +324,8 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                 </div>
 
                 {bulkPaymentMode && (
-                  <div className="space-y-3 p-4 border border-blue-200 rounded-lg bg-blue-50 dark:border-blue-800/50 dark:bg-blue-950/30">
-                    <div className="text-sm font-medium text-blue-900 dark:text-blue-200">
-                      Bulk Payment Actions
-                    </div>
+                  <div className="space-y-3 p-4 border border-info/30 rounded-lg bg-info/10 ">
+                    <div className="text-sm font-medium text-info ">Bulk Payment Actions</div>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                       <Button
                         size="sm"
@@ -366,11 +364,11 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                     </div>
                     <div className="text-xs text-green-600 dark:text-green-500">Total Fees</div>
                   </div>
-                  <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">
+                  <div className="text-center p-3 bg-info/10 rounded-lg">
+                    <div className="text-2xl font-bold text-info ">
                       {paymentStatus === PaymentStatus.PENDING ? '0' : '1'}
                     </div>
-                    <div className="text-xs text-blue-600 dark:text-blue-500">Paid Entries</div>
+                    <div className="text-xs text-info ">Paid Entries</div>
                   </div>
                 </div>
               </div>

@@ -35,8 +35,7 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   },
   upcoming: {
     label: 'Upcoming',
-    className:
-      'bg-blue-100 border border-blue-300 text-blue-800 dark:bg-blue-950 dark:border-blue-800 dark:text-blue-400',
+    className: 'bg-info/10 border border-info/30 text-info ',
   },
   in_progress: {
     label: 'In Progress',

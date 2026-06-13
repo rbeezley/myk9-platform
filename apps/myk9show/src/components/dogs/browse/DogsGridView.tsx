@@ -56,7 +56,7 @@ export const DogsGridView: React.FC<DogsGridViewProps> = ({ dogs }) => {
                 {sexLabel && (
                   <Badge
                     variant="secondary"
-                    className={`text-xs ${dog.sex === 'male' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300'}`}
+                    className={`text-xs ${dog.sex === 'male' ? 'bg-info/10 text-info ' : 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300'}`}
                   >
                     {sexLabel}
                   </Badge>

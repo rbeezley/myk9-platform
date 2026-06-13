@@ -47,8 +47,8 @@ const ELEMENT_ICONS: Record<string, ElementIconConfig> = {
   },
   'Handler Discrimination': {
     icon: UserCheck,
-    bg: 'bg-blue-100 dark:bg-blue-900/40',
-    fg: 'text-blue-700 dark:text-blue-300',
+    bg: 'bg-info/10 ',
+    fg: 'text-info ',
   },
 };
 

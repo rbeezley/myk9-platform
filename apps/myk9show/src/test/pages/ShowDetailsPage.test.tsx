@@ -227,6 +227,10 @@ function renderPage(showId = 'show-1', subPath = '', query = '') {
               path="show-desk"
               element={<div data-testid="canonical-child">Show Desk child</div>}
             />
+            <Route
+              path="setup"
+              element={<div data-testid="canonical-setup-child">Setup child</div>}
+            />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -536,6 +540,33 @@ describe('ShowDetailsPage', () => {
       'aria-current',
       'page'
     );
+  });
+
+  // Regression: the Setup readiness chip "Exhibitor info not published yet" is a
+  // hash link to #setup-publish. That anchor lives in ShowDetailsPage (the
+  // parent route that hosts the Setup page via <Outlet>), NOT in the Setup
+  // page itself. This locks the half of the invariant that the chip-source
+  // tests (setupReadinessSignals.test / SetupAdaptiveHeader.test) can't see:
+  // the target element is in the DOM while /shows/:id/setup is active, so the
+  // chip resolves instead of scrolling to nothing. If the Setup route is ever
+  // un-nested from ShowDetailsPage, this fails — which is the point.
+  it('renders the #setup-publish anchor target on the Setup route so its chip resolves', () => {
+    // isSecretary=true makes canManageShow true, which is the gate the anchor
+    // renders under — so this also implicitly asserts that auth gate. If a
+    // refactor moves the anchor behind a different gate, expect this to fail.
+    mockAuthContext.isSecretary = true;
+    // mockShow (beforeEach) has no publishedPremiumUrl/At/experienceIsPublished,
+    // so the unpublished chip is what a secretary sees here.
+
+    renderPage('show-1', '/setup');
+
+    expect(screen.getByTestId('canonical-setup-child')).toBeInTheDocument();
+    const anchorTarget = document.getElementById('setup-publish');
+    expect(anchorTarget).toBeInTheDocument();
+    // The chip emits href="#setup-publish" (see SetupAdaptiveHeader.test);
+    // a matching element holding the Premium List card means the fragment
+    // jump lands on the fix, not on an empty div.
+    expect(anchorTarget).toHaveTextContent('Premium List');
   });
 
   it('renders canonical child sections instead of styled landing for direct management URLs', () => {

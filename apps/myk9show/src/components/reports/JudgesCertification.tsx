@@ -1,6 +1,6 @@
 import React from 'react';
 import type { ReportProps } from '@/lib/reports/types';
-import { isQualified } from '@/lib/reports/reportUtils';
+import { formatReportDate, isQualified } from '@/lib/reports/reportUtils';
 
 export const JudgesCertification: React.FC<ReportProps> = ({
   showName,
@@ -32,7 +32,7 @@ export const JudgesCertification: React.FC<ReportProps> = ({
         {(clubName ?? showName) && <p className="report-subtitle">{clubName ?? showName}</p>}
         {trial && (
           <p className="report-subtitle">
-            {trial.date} · Trial {trial.trialNumber}
+            {formatReportDate(trial.date)} · Trial {trial.trialNumber}
           </p>
         )}
       </div>

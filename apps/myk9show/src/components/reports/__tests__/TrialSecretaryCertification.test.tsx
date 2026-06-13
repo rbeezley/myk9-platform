@@ -9,11 +9,86 @@ const baseProps: ReportProps = {
   sortOrder: '',
   trial: { date: '2026-04-12', trialNumber: '1', judgeName: 'Dr. Smith' },
   entries: [
-    { id: 'e1', armband: 101, runOrder: 1, callName: 'Buddy', breed: 'Lab', handler: 'Jane', registrationNumber: null, checkInStatus: 'present', section: null, isScored: true, resultText: 'Q', searchTimeSeconds: 90, totalFaults: 0, finalPlacement: 1 },
-    { id: 'e2', armband: 102, runOrder: 2, callName: 'Rex', breed: 'Beagle', handler: 'Bob', registrationNumber: null, checkInStatus: 'present', section: null, isScored: true, resultText: 'NQ', searchTimeSeconds: 130, totalFaults: 5, finalPlacement: 9999 },
-    { id: 'e3', armband: 103, runOrder: 3, callName: 'Max', breed: 'GSD', handler: 'Carlos', registrationNumber: null, checkInStatus: 'present', section: null, isScored: true, resultText: 'Q', searchTimeSeconds: 85, totalFaults: 0, finalPlacement: 2 },
-    { id: 'e4', armband: 104, runOrder: 4, callName: 'Daisy', breed: 'Poodle', handler: 'Ana', registrationNumber: null, checkInStatus: 'withdrawn', section: null, isScored: false, resultText: null, searchTimeSeconds: null, totalFaults: null, finalPlacement: null },
-    { id: 'e5', armband: 105, runOrder: 5, callName: 'Pepper', breed: 'Spaniel', handler: 'Tom', registrationNumber: null, checkInStatus: 'present', section: null, isScored: true, resultText: 'Q', searchTimeSeconds: 75, totalFaults: 0, finalPlacement: 3 },
+    {
+      id: 'e1',
+      armband: 101,
+      runOrder: 1,
+      callName: 'Buddy',
+      breed: 'Lab',
+      handler: 'Jane',
+      registrationNumber: null,
+      checkInStatus: 'present',
+      section: null,
+      isScored: true,
+      resultText: 'Q',
+      searchTimeSeconds: 90,
+      totalFaults: 0,
+      finalPlacement: 1,
+    },
+    {
+      id: 'e2',
+      armband: 102,
+      runOrder: 2,
+      callName: 'Rex',
+      breed: 'Beagle',
+      handler: 'Bob',
+      registrationNumber: null,
+      checkInStatus: 'present',
+      section: null,
+      isScored: true,
+      resultText: 'NQ',
+      searchTimeSeconds: 130,
+      totalFaults: 5,
+      finalPlacement: 9999,
+    },
+    {
+      id: 'e3',
+      armband: 103,
+      runOrder: 3,
+      callName: 'Max',
+      breed: 'GSD',
+      handler: 'Carlos',
+      registrationNumber: null,
+      checkInStatus: 'present',
+      section: null,
+      isScored: true,
+      resultText: 'Q',
+      searchTimeSeconds: 85,
+      totalFaults: 0,
+      finalPlacement: 2,
+    },
+    {
+      id: 'e4',
+      armband: 104,
+      runOrder: 4,
+      callName: 'Daisy',
+      breed: 'Poodle',
+      handler: 'Ana',
+      registrationNumber: null,
+      checkInStatus: 'withdrawn',
+      section: null,
+      isScored: false,
+      resultText: null,
+      searchTimeSeconds: null,
+      totalFaults: null,
+      finalPlacement: null,
+    },
+    {
+      id: 'e5',
+      armband: 105,
+      runOrder: 5,
+      callName: 'Pepper',
+      breed: 'Spaniel',
+      handler: 'Tom',
+      registrationNumber: null,
+      checkInStatus: 'present',
+      section: null,
+      isScored: true,
+      resultText: 'Q',
+      searchTimeSeconds: 75,
+      totalFaults: 0,
+      finalPlacement: 3,
+    },
   ],
 };
 
@@ -64,5 +139,24 @@ describe('TrialSecretaryCertification', () => {
   it('renders trial date', () => {
     render(<TrialSecretaryCertification {...baseProps} />);
     expect(screen.getByText(/4\/12\/2026/)).toBeInTheDocument();
+  });
+
+  it('counts lowercase "q" and "qualified" as qualifying, not only exact "Q"', () => {
+    // Regression: the count used `resultText === 'Q'` (exact), which silently
+    // returned 0 qualifying on a signed certification whenever resultText was
+    // lowercase 'q' or 'qualified'. It now defers to the canonical countQualified
+    // (case-insensitive 'q' | 'qualified').
+    render(
+      <TrialSecretaryCertification
+        {...baseProps}
+        entries={[
+          { ...baseProps.entries[0], id: 'q1', resultText: 'q' },
+          { ...baseProps.entries[0], id: 'q2', resultText: 'qualified' },
+          { ...baseProps.entries[0], id: 'nq1', resultText: 'NQ' },
+        ]}
+      />
+    );
+    const row = getStatRow(/Total Qualifying/i);
+    expect(within(row).getByText('2')).toBeInTheDocument();
   });
 });

@@ -71,7 +71,7 @@ export const TrialSecretaryReport: React.FC<ReportProps> = ({
         </p>
         <div className="form-checkbox-row">
           <span className="form-checkbox">☐ Yes</span>
-          <span className="form-checkbox">☑ No</span>
+          <span className="form-checkbox">☐ No</span>
         </div>
         <div className="form-blank-line" />
       </div>
@@ -82,7 +82,7 @@ export const TrialSecretaryReport: React.FC<ReportProps> = ({
         </p>
         <div className="form-checkbox-row">
           <span className="form-checkbox">☐ Yes</span>
-          <span className="form-checkbox">☑ No</span>
+          <span className="form-checkbox">☐ No</span>
         </div>
         <div className="form-blank-line" />
       </div>

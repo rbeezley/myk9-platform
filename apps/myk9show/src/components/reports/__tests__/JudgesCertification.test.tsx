@@ -87,7 +87,9 @@ describe('JudgesCertification', () => {
     expect(
       rows.some(r => r.textContent?.includes('Container') && r.textContent?.includes('1'))
     ).toBe(true);
-    expect(rows.some(r => r.textContent?.includes('Buried') && r.textContent?.includes('1'))).toBe(true);
+    expect(rows.some(r => r.textContent?.includes('Buried') && r.textContent?.includes('1'))).toBe(
+      true
+    );
   });
 
   it('shows correct total qualifying count', () => {
@@ -99,5 +101,14 @@ describe('JudgesCertification', () => {
   it('renders signature line', () => {
     render(<JudgesCertification {...baseProps} />);
     expect(screen.getByText(/Judge.?s Signature/i)).toBeInTheDocument();
+  });
+
+  it('formats the trial date instead of printing the raw ISO value', () => {
+    // Regression: line 35 rendered {trial.date} raw, so a date-only ISO string
+    // ('2026-04-12') reached the DOM unformatted while every sibling report shows
+    // '4/12/2026'. Must go through formatReportDate.
+    render(<JudgesCertification {...baseProps} />);
+    expect(screen.getByText(/4\/12\/2026/)).toBeInTheDocument();
+    expect(screen.queryByText(/2026-04-12/)).not.toBeInTheDocument();
   });
 });

@@ -64,6 +64,17 @@ describe('TrialSecretaryReport', () => {
 
   it('shows fee calculation', () => {
     render(<TrialSecretaryReport {...baseProps} />);
-    expect(screen.getByText(/\$3\.50 per entry × 12 entries = \$42\.00 Total Service Charge/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/\$3\.50 per entry × 12 entries = \$42\.00 Total Service Charge/)
+    ).toBeInTheDocument();
+  });
+
+  it('leaves the compliance Yes/No boxes blank instead of pre-checking No', () => {
+    // Regression: the "No" box was hardcoded as ☑ (checked) on a blank form the
+    // secretary signs, asserting an answer not derived from data. Both compliance
+    // questions must render unchecked (☐) so the human marks the real answer.
+    render(<TrialSecretaryReport {...baseProps} />);
+    expect(screen.queryByText(/☑/)).not.toBeInTheDocument();
+    expect(screen.getAllByText('☐ No').length).toBeGreaterThanOrEqual(2);
   });
 });

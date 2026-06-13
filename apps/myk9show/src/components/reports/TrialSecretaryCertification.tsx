@@ -1,6 +1,6 @@
 import React from 'react';
 import type { ReportProps } from '@/lib/reports/types';
-import { formatReportDate } from '@/lib/reports/reportUtils';
+import { countQualified, formatReportDate } from '@/lib/reports/reportUtils';
 
 export const TrialSecretaryCertification: React.FC<ReportProps> = ({
   showName,
@@ -11,9 +11,9 @@ export const TrialSecretaryCertification: React.FC<ReportProps> = ({
   const trialDate = trial?.date ? formatReportDate(trial.date) : '___________';
 
   const totalEntries = entries.length;
-  const totalRuns = entries.filter((e) => e.checkInStatus === 'present').length;
-  const totalWithdrawals = entries.filter((e) => e.checkInStatus === 'withdrawn').length;
-  const totalQualifying = entries.filter((e) => e.resultText === 'Q').length;
+  const totalRuns = entries.filter(e => e.checkInStatus === 'present').length;
+  const totalWithdrawals = entries.filter(e => e.checkInStatus === 'withdrawn').length;
+  const totalQualifying = countQualified(entries);
 
   return (
     <div className="report-page">
@@ -50,25 +50,37 @@ export const TrialSecretaryCertification: React.FC<ReportProps> = ({
         <table className="form-table">
           <tbody>
             <tr>
-              <td className="form-value" style={{ width: '80px', fontWeight: 'bold', fontSize: '16px' }}>
+              <td
+                className="form-value"
+                style={{ width: '80px', fontWeight: 'bold', fontSize: '16px' }}
+              >
                 <span>{totalEntries}</span>
               </td>
               <td className="form-label">Total Entries in the trial</td>
             </tr>
             <tr>
-              <td className="form-value" style={{ width: '80px', fontWeight: 'bold', fontSize: '16px' }}>
+              <td
+                className="form-value"
+                style={{ width: '80px', fontWeight: 'bold', fontSize: '16px' }}
+              >
                 <span>{totalRuns}</span>
               </td>
               <td className="form-label">Total Runs (starters/participants) in the trial</td>
             </tr>
             <tr>
-              <td className="form-value" style={{ width: '80px', fontWeight: 'bold', fontSize: '16px' }}>
+              <td
+                className="form-value"
+                style={{ width: '80px', fontWeight: 'bold', fontSize: '16px' }}
+              >
                 <span>{totalWithdrawals}</span>
               </td>
               <td className="form-label">Total Withdrawals from the trial</td>
             </tr>
             <tr>
-              <td className="form-value" style={{ width: '80px', fontWeight: 'bold', fontSize: '16px' }}>
+              <td
+                className="form-value"
+                style={{ width: '80px', fontWeight: 'bold', fontSize: '16px' }}
+              >
                 <span>{totalQualifying}</span>
               </td>
               <td className="form-label">Total Qualifying scores</td>

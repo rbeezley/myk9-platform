@@ -247,9 +247,9 @@ export const TemplateForm: React.FC<TemplateFormProps> = ({
       )}
 
       {readOnly && (
-        <Card className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/20">
+        <Card className="border-warning/30 bg-warning/10 ">
           <CardContent className="pt-4">
-            <p className="text-amber-800 dark:text-amber-200 text-sm">
+            <p className="text-warning text-sm">
               <Shield className="inline w-4 h-4 mr-1" />
               This is an official template and cannot be modified. You can duplicate it to create a
               custom version.

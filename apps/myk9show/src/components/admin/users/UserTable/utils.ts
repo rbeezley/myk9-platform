@@ -62,16 +62,10 @@ export const getDeletedStatusConfig = (): StatusConfig => ({
 });
 
 /** Highlight search term within text, returning React nodes */
-export const highlightSearchTerm = (
-  text: string,
-  searchTerm: string
-): React.ReactNode => {
+export const highlightSearchTerm = (text: string, searchTerm: string): React.ReactNode => {
   if (!searchTerm.trim()) return text;
 
-  const regex = new RegExp(
-    `(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`,
-    'gi'
-  );
+  const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
   const parts = text.split(regex);
 
   return parts.map((part, index) =>
@@ -80,8 +74,7 @@ export const highlightSearchTerm = (
           'mark',
           {
             key: index,
-            className:
-              'bg-yellow-200/60 dark:bg-yellow-500/20 text-inherit rounded-sm px-0.5',
+            className: 'bg-warning/10 text-inherit rounded-sm px-0.5',
           },
           part
         )

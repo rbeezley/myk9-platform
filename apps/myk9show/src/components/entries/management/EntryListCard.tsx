@@ -157,7 +157,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="inline-flex items-center gap-1">
-                    <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                    <Badge className="bg-info/10 text-info ">
                       <Gift className="h-3 w-3 mr-1" />
                       Comped
                     </Badge>
@@ -203,7 +203,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
             )}
 
             {entry.notes && (
-              <Badge variant="outline" className="text-blue-700 dark:text-blue-400">
+              <Badge variant="outline" className="text-info ">
                 <MessageSquare className="h-3 w-3 mr-1" />
                 Notes
               </Badge>

@@ -185,15 +185,15 @@ export function getEntryStatusClasses(status: string | null): string {
   switch (status?.toLowerCase()) {
     case 'confirmed':
     case 'accepted':
-      return 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900 dark:text-teal-200';
+      return 'bg-success/10 text-success border-success/30';
     case 'pending':
     case 'submitted':
-      return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900 dark:text-amber-200';
+      return 'bg-warning/10 text-warning border-amber-200 ';
     case 'cancelled':
     case 'withdrawn':
-      return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900 dark:text-red-200';
+      return 'bg-destructive/10 text-destructive border-red-200 ';
     case 'waitlisted':
-      return 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900 dark:text-blue-200';
+      return 'bg-info/10 text-info border-blue-200 ';
     default:
       return 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-200';
   }

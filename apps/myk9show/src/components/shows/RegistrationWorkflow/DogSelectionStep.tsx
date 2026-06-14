@@ -168,7 +168,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                       {eligible && warnings.length > 0 && (
                         <div className="mt-2">
                           {warnings.map((warning, idx) => (
-                            <p key={idx} className="text-xs text-amber-600 dark:text-amber-400">
+                            <p key={idx} className="text-xs text-warning ">
                               • {warning}
                             </p>
                           ))}

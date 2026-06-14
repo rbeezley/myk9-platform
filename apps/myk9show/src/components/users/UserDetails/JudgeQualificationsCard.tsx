@@ -33,7 +33,7 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-gradient-to-br from-amber-500/10 to-amber-500/5 rounded-xl">
-              <Award className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <Award className="h-5 w-5 text-warning " />
             </div>
             <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
               Judge Qualifications
@@ -84,7 +84,7 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
                   <div className="flex items-center gap-3">
                     <Badge
                       className="bg-gradient-to-r from-amber-500/20 to-amber-500/10
-                                    text-amber-700 dark:text-amber-300 border-amber-500/30
+                                    text-warning border-amber-500/30
                                     font-medium px-3 py-1"
                     >
                       {qual.organization}
@@ -98,9 +98,9 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
                   <Badge
                     className={`font-medium px-3 py-1 ${
                       qual.is_active
-                        ? 'bg-gradient-to-r from-green-500/20 to-green-500/10 text-green-700 dark:text-green-300 border-green-500/30'
+                        ? 'bg-gradient-to-r from-green-500/20 to-green-500/10 text-success border-green-500/30'
                         : qual.suspension_date
-                          ? 'bg-gradient-to-r from-red-500/20 to-red-500/10 text-red-700 dark:text-red-300 border-red-500/30'
+                          ? 'bg-gradient-to-r from-red-500/20 to-red-500/10 text-destructive border-red-500/30'
                           : 'bg-gradient-to-r from-gray-500/20 to-gray-500/10 text-gray-700 dark:text-gray-300 border-gray-500/30'
                     }`}
                   >

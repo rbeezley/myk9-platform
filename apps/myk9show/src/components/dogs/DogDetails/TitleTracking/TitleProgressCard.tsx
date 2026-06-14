@@ -104,7 +104,7 @@ const TitleProgressCard: React.FC<TitleProgressCardProps> = ({ progress }) => {
                   className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
                     leg.source === 'platform'
                       ? 'bg-primary/15 text-primary'
-                      : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                      : 'bg-amber-500/15 text-warning '
                   }`}
                 >
                   {leg.source === 'platform' ? 'Platform' : 'Manual'}

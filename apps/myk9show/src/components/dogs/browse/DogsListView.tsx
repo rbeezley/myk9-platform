@@ -57,24 +57,18 @@ export const DogsListView: React.FC<DogsListViewProps> = ({ dogs }) => {
                     {sexLabel && (
                       <Badge
                         variant="secondary"
-                        className={`text-xs ${dog.sex === 'male' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300'}`}
+                        className={`text-xs ${dog.sex === 'male' ? 'bg-info/10 text-info ' : 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300'}`}
                       >
                         {sexLabel}
                       </Badge>
                     )}
                     {(!dog.status || dog.status === 'active') && (
-                      <Badge
-                        variant="secondary"
-                        className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
-                      >
+                      <Badge variant="secondary" className="text-xs bg-success/10 text-success ">
                         Active
                       </Badge>
                     )}
                     {dog.status === 'retired' && (
-                      <Badge
-                        variant="secondary"
-                        className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
-                      >
+                      <Badge variant="secondary" className="text-xs bg-warning/10 text-warning ">
                         Retired
                       </Badge>
                     )}

@@ -1,6 +1,6 @@
 /**
  * Enhanced Analytics Dashboard
- * 
+ *
  * Comprehensive analytics dashboard that integrates performance graphs, user activity monitoring,
  * real-time metrics, and advanced visualization capabilities for complete system monitoring.
  */
@@ -25,7 +25,7 @@ import {
   Download,
   RefreshCw,
   Maximize2,
-  X
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PerformanceGraphs } from './PerformanceGraphs';
@@ -67,8 +67,8 @@ const DEFAULT_CONFIG: DashboardConfig = {
   alertThresholds: {
     healthScore: 80,
     successRate: 90,
-    responseTime: 5000
-  }
+    responseTime: 5000,
+  },
 };
 
 export function EnhancedAnalyticsDashboard({ className }: EnhancedAnalyticsDashboardProps) {
@@ -92,7 +92,7 @@ export function EnhancedAnalyticsDashboard({ className }: EnhancedAnalyticsDashb
       const [metricsData, alertsData, healthData] = await Promise.all([
         analyticsService.getMetrics(startTime, endTime),
         analyticsService.getActiveAlerts(),
-        analyticsService.getHealthChecks()
+        analyticsService.getHealthChecks(),
       ]);
 
       setMetrics(metricsData);
@@ -104,12 +104,17 @@ export function EnhancedAnalyticsDashboard({ className }: EnhancedAnalyticsDashb
         syncHealthScore: metricsData.syncHealthScore,
         activeUsers: Math.floor(Math.random() * 50) + 10,
         currentSyncs: Math.floor(Math.random() * 10),
-        errorRate: metricsData.failedSyncs / Math.max(metricsData.totalSyncs, 1) * 100,
+        errorRate: (metricsData.failedSyncs / Math.max(metricsData.totalSyncs, 1)) * 100,
         responseTime: metricsData.averageSyncTime * 1000,
-        networkStatus: metricsData.syncHealthScore > 90 ? 'excellent' : 
-                     metricsData.syncHealthScore > 70 ? 'good' : 
-                     metricsData.syncHealthScore > 50 ? 'fair' : 'poor',
-        lastUpdated: new Date()
+        networkStatus:
+          metricsData.syncHealthScore > 90
+            ? 'excellent'
+            : metricsData.syncHealthScore > 70
+              ? 'good'
+              : metricsData.syncHealthScore > 50
+                ? 'fair'
+                : 'poor',
+        lastUpdated: new Date(),
       });
 
       setLoading(false);
@@ -167,7 +172,7 @@ export function EnhancedAnalyticsDashboard({ className }: EnhancedAnalyticsDashb
       healthChecks,
       realTimeMetrics,
       exportedAt: new Date().toISOString(),
-      config
+      config,
     };
 
     const blob = new Blob([JSON.stringify(dashboardData, null, 2)], { type: 'application/json' });
@@ -186,17 +191,20 @@ export function EnhancedAnalyticsDashboard({ className }: EnhancedAnalyticsDashb
 
   if (loading) {
     return (
-      <div className={cn("space-y-6", className)}>
+      <div className={cn('space-y-6', className)}>
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" data-testid="loading-spinner"></div>
+          <div
+            className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"
+            data-testid="loading-spinner"
+          ></div>
         </div>
       </div>
     );
   }
 
   return (
-    <motion.div 
-      className={cn("space-y-6", className)}
+    <motion.div
+      className={cn('space-y-6', className)}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
@@ -214,10 +222,16 @@ export function EnhancedAnalyticsDashboard({ className }: EnhancedAnalyticsDashb
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <Badge 
-            variant={systemStatus === 'excellent' ? 'default' : 
-                    systemStatus === 'good' ? 'secondary' : 
-                    systemStatus === 'fair' ? 'outline' : 'destructive'}
+          <Badge
+            variant={
+              systemStatus === 'excellent'
+                ? 'default'
+                : systemStatus === 'good'
+                  ? 'secondary'
+                  : systemStatus === 'fair'
+                    ? 'outline'
+                    : 'destructive'
+            }
             className="capitalize"
           >
             {systemStatus === 'excellent' && <CheckCircle className="h-3 w-3 mr-1" />}
@@ -228,7 +242,9 @@ export function EnhancedAnalyticsDashboard({ className }: EnhancedAnalyticsDashb
           <div className="flex items-center gap-2">
             <Switch
               checked={config.autoRefreshEnabled}
-              onCheckedChange={(enabled) => setConfig(prev => ({ ...prev, autoRefreshEnabled: enabled }))}
+              onCheckedChange={enabled =>
+                setConfig(prev => ({ ...prev, autoRefreshEnabled: enabled }))
+              }
             />
             <span className="text-sm text-muted-foreground">Auto-refresh</span>
           </div>
@@ -251,7 +267,9 @@ export function EnhancedAnalyticsDashboard({ className }: EnhancedAnalyticsDashb
           <CardContent className="p-4">
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
               <div className="text-center">
-                <p className="text-2xl font-bold text-primary">{realTimeMetrics.syncHealthScore}%</p>
+                <p className="text-2xl font-bold text-primary">
+                  {realTimeMetrics.syncHealthScore}%
+                </p>
                 <p className="text-xs text-muted-foreground">Health Score</p>
               </div>
               <div className="text-center">
@@ -263,15 +281,21 @@ export function EnhancedAnalyticsDashboard({ className }: EnhancedAnalyticsDashb
                 <p className="text-xs text-muted-foreground">Current Syncs</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-bold text-orange-600">{realTimeMetrics.errorRate.toFixed(1)}%</p>
+                <p className="text-2xl font-bold text-orange-600">
+                  {realTimeMetrics.errorRate.toFixed(1)}%
+                </p>
                 <p className="text-xs text-muted-foreground">Error Rate</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-bold text-purple-600">{realTimeMetrics.responseTime.toFixed(0)}ms</p>
+                <p className="text-2xl font-bold text-purple-600">
+                  {realTimeMetrics.responseTime.toFixed(0)}ms
+                </p>
                 <p className="text-xs text-muted-foreground">Response Time</p>
               </div>
               <div className="text-center">
-                <Badge variant={realTimeMetrics.networkStatus === 'excellent' ? 'default' : 'secondary'}>
+                <Badge
+                  variant={realTimeMetrics.networkStatus === 'excellent' ? 'default' : 'secondary'}
+                >
                   {realTimeMetrics.networkStatus}
                 </Badge>
                 <p className="text-xs text-muted-foreground">Network</p>
@@ -298,15 +322,23 @@ export function EnhancedAnalyticsDashboard({ className }: EnhancedAnalyticsDashb
           <CardContent>
             <div className="space-y-2 max-h-32 overflow-y-auto">
               {alerts.slice(0, 5).map(alert => (
-                <div key={alert.id} className="flex items-center justify-between p-2 bg-red-50 dark:bg-red-900/20 rounded">
+                <div
+                  key={alert.id}
+                  className="flex items-center justify-between p-2 bg-destructive/10 rounded"
+                >
                   <div>
                     <p className="text-sm font-medium">{alert.title}</p>
                     <p className="text-xs text-muted-foreground">{alert.description}</p>
                   </div>
-                  <Badge variant={
-                    alert.severity === 'critical' ? 'destructive' :
-                    alert.severity === 'high' ? 'outline' : 'secondary'
-                  }>
+                  <Badge
+                    variant={
+                      alert.severity === 'critical'
+                        ? 'destructive'
+                        : alert.severity === 'high'
+                          ? 'outline'
+                          : 'secondary'
+                    }
+                  >
                     {alert.severity}
                   </Badge>
                 </div>
@@ -346,16 +378,25 @@ export function EnhancedAnalyticsDashboard({ className }: EnhancedAnalyticsDashb
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {healthChecks.map(health => (
-                    <div key={health.service} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div
+                      key={health.service}
+                      className="flex items-center justify-between p-3 border rounded-lg"
+                    >
                       <div>
                         <p className="font-medium">{health.service}</p>
                         <p className="text-sm text-muted-foreground">{health.responseTime}ms</p>
                       </div>
                       <div className="text-right">
                         <Badge variant={health.status === 'healthy' ? 'default' : 'destructive'}>
-                          {health.status === 'healthy' ? <CheckCircle className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
+                          {health.status === 'healthy' ? (
+                            <CheckCircle className="h-3 w-3" />
+                          ) : (
+                            <AlertTriangle className="h-3 w-3" />
+                          )}
                         </Badge>
-                        <p className="text-xs text-muted-foreground">{health.uptime.toFixed(1)}% uptime</p>
+                        <p className="text-xs text-muted-foreground">
+                          {health.uptime.toFixed(1)}% uptime
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -374,11 +415,14 @@ export function EnhancedAnalyticsDashboard({ className }: EnhancedAnalyticsDashb
                       <p className="text-sm text-muted-foreground">Success Rate</p>
                       <p className="text-2xl font-bold">{metrics.successRate.toFixed(1)}%</p>
                       <div className="flex items-center gap-1 text-xs">
-                        {metrics.successRate > 95 ? 
-                          <TrendingUp className="h-3 w-3 text-green-600" /> :
+                        {metrics.successRate > 95 ? (
+                          <TrendingUp className="h-3 w-3 text-green-600" />
+                        ) : (
                           <TrendingDown className="h-3 w-3 text-red-600" />
-                        }
-                        <span className={metrics.successRate > 95 ? 'text-green-600' : 'text-red-600'}>
+                        )}
+                        <span
+                          className={metrics.successRate > 95 ? 'text-green-600' : 'text-red-600'}
+                        >
                           {metrics.successRate > 95 ? 'Excellent' : 'Needs attention'}
                         </span>
                       </div>
@@ -394,7 +438,9 @@ export function EnhancedAnalyticsDashboard({ className }: EnhancedAnalyticsDashb
                     <div>
                       <p className="text-sm text-muted-foreground">Avg Sync Time</p>
                       <p className="text-2xl font-bold">{metrics.averageSyncTime.toFixed(2)}s</p>
-                      <p className="text-xs text-muted-foreground">{metrics.totalSyncs} total syncs</p>
+                      <p className="text-xs text-muted-foreground">
+                        {metrics.totalSyncs} total syncs
+                      </p>
                     </div>
                     <Clock className="h-8 w-8 text-blue-600" />
                   </div>
@@ -407,7 +453,9 @@ export function EnhancedAnalyticsDashboard({ className }: EnhancedAnalyticsDashb
                     <div>
                       <p className="text-sm text-muted-foreground">Conflict Rate</p>
                       <p className="text-2xl font-bold">{metrics.conflictRate.toFixed(1)}%</p>
-                      <p className="text-xs text-muted-foreground">{metrics.totalConflicts} conflicts</p>
+                      <p className="text-xs text-muted-foreground">
+                        {metrics.totalConflicts} conflicts
+                      </p>
                     </div>
                     <AlertTriangle className="h-8 w-8 text-orange-600" />
                   </div>
@@ -419,8 +467,12 @@ export function EnhancedAnalyticsDashboard({ className }: EnhancedAnalyticsDashb
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">Bandwidth</p>
-                      <p className="text-2xl font-bold">{(metrics.bandwidthUsed / 1024 / 1024).toFixed(1)}MB</p>
-                      <p className="text-xs text-muted-foreground">{(metrics.compressionRatio * 100).toFixed(0)}% compressed</p>
+                      <p className="text-2xl font-bold">
+                        {(metrics.bandwidthUsed / 1024 / 1024).toFixed(1)}MB
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {(metrics.compressionRatio * 100).toFixed(0)}% compressed
+                      </p>
                     </div>
                     <Zap className="h-8 w-8 text-purple-600" />
                   </div>
@@ -431,15 +483,11 @@ export function EnhancedAnalyticsDashboard({ className }: EnhancedAnalyticsDashb
         </TabsContent>
 
         <TabsContent value="performance">
-          {isWidgetEnabled('performance') && (
-            <PerformanceGraphs />
-          )}
+          {isWidgetEnabled('performance') && <PerformanceGraphs />}
         </TabsContent>
 
         <TabsContent value="users">
-          {isWidgetEnabled('users') && (
-            <UserActivityMonitor />
-          )}
+          {isWidgetEnabled('users') && <UserActivityMonitor />}
         </TabsContent>
       </Tabs>
 

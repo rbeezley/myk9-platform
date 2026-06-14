@@ -72,10 +72,7 @@ const RingMonitor: React.FC<RingMonitorProps> = ({ userEntry, ringStatus, onRefr
           <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
             {ringLabel ? `${ringStatus.className} - ${ringLabel}` : ringStatus.className}
           </h2>
-          <button
-            onClick={onRefresh}
-            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
-          >
+          <button onClick={onRefresh} className="text-info ">
             <Timer className="w-5 h-5" />
           </button>
         </div>
@@ -86,26 +83,24 @@ const RingMonitor: React.FC<RingMonitorProps> = ({ userEntry, ringStatus, onRefr
 
       {/* Ring Status */}
       {ringStatus.isPaused && (
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
+        <div className="bg-warning/10 border border-warning/30 rounded-lg p-4 mb-4">
           <div className="flex items-center gap-3">
-            <Coffee className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+            <Coffee className="w-5 h-5 text-warning " />
             <div>
-              <div className="font-medium text-yellow-800 dark:text-yellow-200">Ring Paused</div>
-              <div className="text-sm text-yellow-600 dark:text-yellow-400">
-                {ringStatus.pauseReason || 'Judge break'}
-              </div>
+              <div className="font-medium text-warning ">Ring Paused</div>
+              <div className="text-sm text-warning ">{ringStatus.pauseReason || 'Judge break'}</div>
             </div>
           </div>
         </div>
       )}
 
       {ringStatus.delayMinutes && ringStatus.delayMinutes > 0 && (
-        <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4 mb-4">
+        <div className="bg-warning/10 border border-warning/30 rounded-lg p-4 mb-4">
           <div className="flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+            <AlertCircle className="w-5 h-5 text-warning " />
             <div>
-              <div className="font-medium text-orange-800 dark:text-orange-200">Ring Delayed</div>
-              <div className="text-sm text-orange-600 dark:text-orange-400">
+              <div className="font-medium text-warning ">Ring Delayed</div>
+              <div className="text-sm text-warning ">
                 Running approximately {ringStatus.delayMinutes} minutes behind schedule
               </div>
             </div>
@@ -116,8 +111,8 @@ const RingMonitor: React.FC<RingMonitorProps> = ({ userEntry, ringStatus, onRefr
       {/* Now in Ring */}
       <div className="bg-card dark:bg-warm-900 rounded-lg shadow-sm mb-4">
         <div className="border-b border-gray-200 dark:border-warm-600 px-6 py-3">
-          <div className="flex items-center gap-2 text-red-600 dark:text-red-400 font-medium">
-            <div className="w-2 h-2 bg-red-600 dark:bg-red-400 rounded-full animate-pulse" />
+          <div className="flex items-center gap-2 text-destructive font-medium">
+            <div className="w-2 h-2 bg-destructive rounded-full animate-pulse" />
             NOW IN RING
           </div>
         </div>
@@ -158,23 +153,18 @@ const RingMonitor: React.FC<RingMonitorProps> = ({ userEntry, ringStatus, onRefr
             ringStatus.onDeck.slice(0, 3).map((entry, index) => {
               const isUser = entry.armband === userEntry.armband;
               return (
-                <div
-                  key={entry.armband}
-                  className={`p-4 ${isUser ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
-                >
+                <div key={entry.armband} className={`p-4 ${isUser ? 'bg-info/10 ' : ''}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div
                         className={`text-2xl font-bold ${
-                          isUser
-                            ? 'text-blue-600 dark:text-blue-400'
-                            : 'text-gray-700 dark:text-gray-300'
+                          isUser ? 'text-info ' : 'text-gray-700 dark:text-gray-300'
                         }`}
                       >
                         #{entry.armband}
                       </div>
                       {isUser && (
-                        <div className="px-2 py-1 bg-blue-600 dark:bg-blue-500 text-white text-xs font-medium rounded">
+                        <div className="px-2 py-1 bg-info/10 text-info text-xs font-medium rounded">
                           YOU
                         </div>
                       )}
@@ -204,12 +194,12 @@ const RingMonitor: React.FC<RingMonitorProps> = ({ userEntry, ringStatus, onRefr
 
       {/* User Status Alert */}
       {isUserNext && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 mb-4">
+        <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-6 mb-4">
           <div className="flex items-center gap-3 mb-3">
-            <Bell className="w-6 h-6 text-red-600 dark:text-red-400 animate-bounce" />
-            <div className="text-xl font-bold text-red-800 dark:text-red-200">YOU'RE NEXT!</div>
+            <Bell className="w-6 h-6 text-destructive animate-bounce" />
+            <div className="text-xl font-bold text-destructive ">YOU'RE NEXT!</div>
           </div>
-          <div className="text-red-700 dark:text-red-300">
+          <div className="text-destructive ">
             {ringLabel
               ? `Please proceed to ${ringLabel} immediately`
               : 'Please proceed immediately'}
@@ -218,12 +208,12 @@ const RingMonitor: React.FC<RingMonitorProps> = ({ userEntry, ringStatus, onRefr
       )}
 
       {isUserOnDeck && !isUserNext && (
-        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-6 mb-4">
+        <div className="bg-warning/10 border border-warning/30 rounded-lg p-6 mb-4">
           <div className="flex items-center gap-3 mb-3">
-            <AlertCircle className="w-6 h-6 text-amber-600 dark:text-amber-400" />
-            <div className="text-xl font-bold text-amber-800 dark:text-amber-200">GET READY!</div>
+            <AlertCircle className="w-6 h-6 text-warning " />
+            <div className="text-xl font-bold text-warning ">GET READY!</div>
           </div>
-          <div className="text-amber-700 dark:text-amber-300">
+          <div className="text-warning ">
             {ringLabel
               ? `You're on deck. Head to ${ringLabel} now.`
               : "You're on deck. Head over now."}

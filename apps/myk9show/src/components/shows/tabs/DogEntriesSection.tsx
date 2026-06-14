@@ -27,18 +27,18 @@ const ELEMENT_ICONS: Record<string, ElementIconConfig> = {
   },
   Interior: {
     icon: Home,
-    bg: 'bg-amber-100 dark:bg-amber-900/40',
-    fg: 'text-amber-700 dark:text-amber-300',
+    bg: 'bg-warning/10 ',
+    fg: 'text-warning ',
   },
   Exterior: {
     icon: Leaf,
-    bg: 'bg-green-100 dark:bg-green-900/40',
-    fg: 'text-green-700 dark:text-green-300',
+    bg: 'bg-success/10 ',
+    fg: 'text-success ',
   },
   Buried: {
     icon: Layers,
-    bg: 'bg-orange-100 dark:bg-orange-900/40',
-    fg: 'text-orange-700 dark:text-orange-300',
+    bg: 'bg-warning/10 ',
+    fg: 'text-warning ',
   },
   Detective: {
     icon: Search,
@@ -47,8 +47,8 @@ const ELEMENT_ICONS: Record<string, ElementIconConfig> = {
   },
   'Handler Discrimination': {
     icon: UserCheck,
-    bg: 'bg-blue-100 dark:bg-blue-900/40',
-    fg: 'text-blue-700 dark:text-blue-300',
+    bg: 'bg-info/10 ',
+    fg: 'text-info ',
   },
 };
 

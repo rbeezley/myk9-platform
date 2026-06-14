@@ -209,7 +209,7 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                   <Button
                     variant="outline"
                     onClick={() => handleEntryStatusChange(EntryStatus.ACCEPTED)}
-                    className="justify-start text-green-700 border-green-200 hover:bg-green-50 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-950/40"
+                    className="justify-start text-success border-success/30 hover:bg-success/10 "
                   >
                     <Check className="h-4 w-4 mr-2" />
                     Accept Entry
@@ -217,7 +217,7 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                   <Button
                     variant="outline"
                     onClick={() => handleEntryStatusChange(EntryStatus.WAITLIST)}
-                    className="justify-start text-yellow-700 border-yellow-200 hover:bg-yellow-50 dark:text-yellow-400 dark:border-yellow-800 dark:hover:bg-yellow-950/40"
+                    className="justify-start text-warning border-warning/30 hover:bg-warning/10 "
                   >
                     <Calendar className="h-4 w-4 mr-2" />
                     Add to Waitlist
@@ -225,7 +225,7 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                   <Button
                     variant="outline"
                     onClick={() => handleEntryStatusChange(EntryStatus.MISSING_INFO)}
-                    className="justify-start text-orange-700 border-orange-200 hover:bg-orange-50 dark:text-orange-400 dark:border-orange-800 dark:hover:bg-orange-950/40"
+                    className="justify-start text-warning border-warning/30 hover:bg-warning/10 "
                   >
                     <AlertTriangle className="h-4 w-4 mr-2" />
                     Request More Info
@@ -233,7 +233,7 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                   <Button
                     variant="outline"
                     onClick={() => handleEntryStatusChange(EntryStatus.REJECTED)}
-                    className="justify-start text-red-700 border-red-200 hover:bg-red-50 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-950/40"
+                    className="justify-start text-destructive border-destructive/30 hover:bg-destructive/10 "
                   >
                     <AlertTriangle className="h-4 w-4 mr-2" />
                     Reject Entry
@@ -324,10 +324,8 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                 </div>
 
                 {bulkPaymentMode && (
-                  <div className="space-y-3 p-4 border border-blue-200 rounded-lg bg-blue-50 dark:border-blue-800/50 dark:bg-blue-950/30">
-                    <div className="text-sm font-medium text-blue-900 dark:text-blue-200">
-                      Bulk Payment Actions
-                    </div>
+                  <div className="space-y-3 p-4 border border-info/30 rounded-lg bg-info/10 ">
+                    <div className="text-sm font-medium text-info ">Bulk Payment Actions</div>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                       <Button
                         size="sm"
@@ -360,17 +358,17 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                     <div className="text-2xl font-bold text-foreground">{selectedDogs.length}</div>
                     <div className="text-xs text-muted-foreground">Total Entries</div>
                   </div>
-                  <div className="text-center p-3 bg-green-50 dark:bg-green-950/30 rounded-lg">
-                    <div className="text-2xl font-bold text-green-700 dark:text-green-400">
+                  <div className="text-center p-3 bg-success/10 rounded-lg">
+                    <div className="text-2xl font-bold text-success ">
                       ${feeCalculation.total.toFixed(0)}
                     </div>
-                    <div className="text-xs text-green-600 dark:text-green-500">Total Fees</div>
+                    <div className="text-xs text-success ">Total Fees</div>
                   </div>
-                  <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">
+                  <div className="text-center p-3 bg-info/10 rounded-lg">
+                    <div className="text-2xl font-bold text-info ">
                       {paymentStatus === PaymentStatus.PENDING ? '0' : '1'}
                     </div>
-                    <div className="text-xs text-blue-600 dark:text-blue-500">Paid Entries</div>
+                    <div className="text-xs text-info ">Paid Entries</div>
                   </div>
                 </div>
               </div>

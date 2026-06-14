@@ -475,8 +475,8 @@ export function ShowCompletionWorkflow({
               </li>
             </ul>
 
-            <div className="bg-amber-50 dark:bg-amber-950 p-3 rounded-lg">
-              <p className="text-sm text-amber-800 dark:text-amber-200">
+            <div className="bg-warning/10 p-3 rounded-lg">
+              <p className="text-sm text-warning ">
                 <strong>Warning:</strong> Once completed, show results cannot be modified. Ensure
                 all scores and awards are correct before proceeding.
               </p>

@@ -247,11 +247,11 @@ export function MultiAreaScoresheet({
           className={cn(
             'border-2 transition-colors',
             areaStatus === 'completed'
-              ? 'border-green-500 bg-green-50 dark:bg-green-950'
+              ? 'border-green-500 bg-success/10 '
               : areaStatus === 'failed'
-                ? 'border-red-500 bg-red-50 dark:bg-red-950'
+                ? 'border-red-500 bg-destructive/10 '
                 : areaStatus === 'active'
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
+                  ? 'border-blue-500 bg-info/10 '
                   : 'border-gray-300'
           )}
         >

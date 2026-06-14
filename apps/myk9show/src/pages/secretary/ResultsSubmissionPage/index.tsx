@@ -256,11 +256,7 @@ export default function ResultsSubmissionPage() {
 
       {/* Send feedback */}
       {sendSuccess && (
-        <p
-          className="text-sm text-green-600 dark:text-green-400"
-          role="status"
-          data-testid="send-success"
-        >
+        <p className="text-sm text-success " role="status" data-testid="send-success">
           Results sent successfully. A copy was CC&apos;d to your email.
         </p>
       )}
@@ -273,7 +269,7 @@ export default function ResultsSubmissionPage() {
       {/* Pre-flight warning */}
       {missingAKCCount > 0 && (
         <div
-          className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-700/50 dark:bg-amber-900/20 dark:text-amber-200"
+          className="rounded-md border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning "
           role="alert"
           data-testid="preflight-warning"
         >

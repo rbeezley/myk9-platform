@@ -14,9 +14,7 @@ export function VolunteerChip({ name, hasConflict = false, onRemove }: Volunteer
       data-testid="volunteer-chip"
       className={cn(
         'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium',
-        hasConflict
-          ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
-          : 'bg-muted text-muted-foreground'
+        hasConflict ? 'bg-warning/10 text-warning ' : 'bg-muted text-muted-foreground'
       )}
     >
       {hasConflict && (

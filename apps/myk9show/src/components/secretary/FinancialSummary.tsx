@@ -238,49 +238,39 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="flex items-center justify-between p-3 rounded-lg bg-green-50 dark:bg-green-950">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-success/10 ">
               <div>
-                <p className="text-sm font-medium text-green-800 dark:text-green-200">Paid</p>
-                <p className="text-lg font-bold text-green-900 dark:text-green-100">
-                  {summary.paidCount}
-                </p>
+                <p className="text-sm font-medium text-success ">Paid</p>
+                <p className="text-lg font-bold text-success ">{summary.paidCount}</p>
               </div>
-              <p className="text-sm font-semibold text-green-700 dark:text-green-300">
+              <p className="text-sm font-semibold text-success ">
                 ${summary.paidAmount.toFixed(2)}
               </p>
             </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-yellow-50 dark:bg-yellow-950">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-warning/10 ">
               <div>
-                <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">Pending</p>
-                <p className="text-lg font-bold text-yellow-900 dark:text-yellow-100">
-                  {summary.pendingCount}
-                </p>
+                <p className="text-sm font-medium text-warning ">Pending</p>
+                <p className="text-lg font-bold text-warning ">{summary.pendingCount}</p>
               </div>
-              <p className="text-sm font-semibold text-yellow-700 dark:text-yellow-300">
+              <p className="text-sm font-semibold text-warning ">
                 ${summary.pendingAmount.toFixed(2)}
               </p>
             </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-red-50 dark:bg-red-950">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-destructive/10 ">
               <div>
-                <p className="text-sm font-medium text-red-800 dark:text-red-200">Refunded</p>
-                <p className="text-lg font-bold text-red-900 dark:text-red-100">
-                  {summary.refundedCount}
-                </p>
+                <p className="text-sm font-medium text-destructive ">Refunded</p>
+                <p className="text-lg font-bold text-destructive ">{summary.refundedCount}</p>
               </div>
-              <p className="text-sm font-semibold text-red-700 dark:text-red-300">
+              <p className="text-sm font-semibold text-destructive ">
                 ${summary.refundedAmount.toFixed(2)}
               </p>
             </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-blue-50 dark:bg-blue-950">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-info/10 ">
               <div>
-                <p className="text-sm font-medium text-blue-800 dark:text-blue-200">Comped</p>
-                <p className="text-lg font-bold text-blue-900 dark:text-blue-100">
-                  {summary.compedCount}
-                </p>
+                <p className="text-sm font-medium text-info ">Comped</p>
+                <p className="text-lg font-bold text-info ">{summary.compedCount}</p>
               </div>
-              <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">
-                ${summary.totalComped.toFixed(2)}
-              </p>
+              <p className="text-sm font-semibold text-info ">${summary.totalComped.toFixed(2)}</p>
             </div>
           </div>
         </CardContent>

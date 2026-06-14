@@ -18,19 +18,13 @@ function getStatusBadge(status: string) {
   switch (status) {
     case 'completed':
       return (
-        <Badge
-          variant="secondary"
-          className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
-        >
+        <Badge variant="secondary" className="text-xs bg-success/10 text-success ">
           Completed
         </Badge>
       );
     case 'cancelled':
       return (
-        <Badge
-          variant="secondary"
-          className="text-xs bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
-        >
+        <Badge variant="secondary" className="text-xs bg-destructive/10 text-destructive ">
           Cancelled
         </Badge>
       );
@@ -45,10 +39,7 @@ function getStatusBadge(status: string) {
       );
     default:
       return (
-        <Badge
-          variant="secondary"
-          className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
-        >
+        <Badge variant="secondary" className="text-xs bg-info/10 text-info ">
           {status ? status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ') : 'Active'}
         </Badge>
       );

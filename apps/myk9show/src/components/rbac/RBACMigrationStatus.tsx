@@ -67,9 +67,9 @@ export const RBACMigrationStatus: React.FC<RBACMigrationStatusProps> = ({
       case 'in_progress':
         return {
           icon: Loader2,
-          color: 'text-blue-600 dark:text-blue-400',
-          bgColor: 'bg-blue-50 dark:bg-blue-950/30',
-          borderColor: 'border-blue-200 dark:border-blue-800',
+          color: 'text-info ',
+          bgColor: 'bg-info/10 ',
+          borderColor: 'border-info/30 ',
           title: 'Migrating to New RBAC System',
           description: 'Please wait while we update your permissions...',
           progress: 50,
@@ -77,9 +77,9 @@ export const RBACMigrationStatus: React.FC<RBACMigrationStatusProps> = ({
       case 'error':
         return {
           icon: AlertTriangle,
-          color: 'text-red-600 dark:text-red-400',
-          bgColor: 'bg-red-50 dark:bg-red-950/30',
-          borderColor: 'border-red-200 dark:border-red-800',
+          color: 'text-destructive ',
+          bgColor: 'bg-destructive/10 ',
+          borderColor: 'border-destructive/30 ',
           title: 'Migration Error',
           description: 'There was an issue migrating your permissions. Using legacy system.',
           progress: 25,
@@ -87,9 +87,9 @@ export const RBACMigrationStatus: React.FC<RBACMigrationStatusProps> = ({
       default:
         return {
           icon: Info,
-          color: 'text-amber-600 dark:text-amber-400',
-          bgColor: 'bg-amber-50 dark:bg-amber-950/30',
-          borderColor: 'border-amber-200 dark:border-amber-800',
+          color: 'text-warning ',
+          bgColor: 'bg-warning/10 ',
+          borderColor: 'border-warning/30 ',
           title: 'Using Legacy RBAC System',
           description: 'Your account will be migrated to the new system automatically.',
           progress: 10,
@@ -146,7 +146,7 @@ export const RBACMigrationStatus: React.FC<RBACMigrationStatusProps> = ({
 
             {/* Error details */}
             {rbacError && migrationStatus === 'error' && (
-              <div className="mt-2 p-2 bg-red-100 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded text-xs">
+              <div className="mt-2 p-2 bg-destructive/10 border border-destructive/30 rounded text-xs">
                 <strong>Error:</strong> {rbacError}
               </div>
             )}

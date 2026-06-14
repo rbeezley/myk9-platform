@@ -442,7 +442,7 @@ const AppHeader: React.FC = () => {
                       onClick={() => {
                         signOut();
                       }}
-                      className="text-red-600 dark:text-red-400"
+                      className="text-destructive "
                     >
                       <LogOut className="h-4 w-4 mr-2" />
                       Sign Out

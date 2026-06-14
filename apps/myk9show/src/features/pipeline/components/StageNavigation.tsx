@@ -33,7 +33,7 @@ export const StageNavigation: React.FC<StageNavigationProps> = ({
             className={cn(
               'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap',
               isViewing && 'ring-2 ring-primary ring-offset-1',
-              isCompleted && 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
+              isCompleted && 'bg-success/10 text-success ',
               isCurrent && !isViewing && 'bg-primary/10 text-primary',
               isFuture && 'bg-muted text-muted-foreground opacity-50 cursor-not-allowed',
               !isViewing &&

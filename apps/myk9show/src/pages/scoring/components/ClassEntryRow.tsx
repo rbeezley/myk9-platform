@@ -71,9 +71,7 @@ export function ClassEntryRow({
       data-active={isActive}
       className={cn(
         'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors',
-        isActive
-          ? 'bg-blue-50 border border-blue-300 dark:bg-blue-950 dark:border-blue-700'
-          : 'hover:bg-accent'
+        isActive ? 'bg-info/10 border border-info/30 ' : 'hover:bg-accent'
       )}
     >
       <ArmbandBadge armband={entry.armband} />

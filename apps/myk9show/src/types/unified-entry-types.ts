@@ -199,17 +199,17 @@ function formatMsToTime(ms: number): string {
 export function getEntryStatusColor(status: UnifiedEntryData['status']): string {
   switch (status) {
     case 'Qualified':
-      return 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200';
+      return 'bg-success/10 text-success ';
     case 'Not Qualified':
     case 'Eliminated':
-      return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      return 'bg-destructive/10 text-destructive ';
     case 'Absent':
-      return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200';
+      return 'bg-warning/10 text-warning ';
     case 'Withdrawn':
     case 'Excused':
       return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
     case 'Pending':
     default:
-      return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+      return 'bg-info/10 text-info ';
   }
 }

@@ -20,17 +20,16 @@ describe('LevelRow', () => {
     expect(screen.getByRole('button').className).toContain('min-h-[44px]');
   });
 
-  // Completion is signalled by a ✓ glyph (a non-color cue) in a dark-aware,
-  // contrast-safe green.
-  it('marks completed levels with an accessible, dark-aware check', () => {
+  // Completion is signalled by a ✓ glyph (a non-color cue) using the semantic
+  // success token, which adapts automatically in dark mode.
+  it('marks completed levels with an accessible semantic-success check', () => {
     render(<LevelRow level={level(CLASS_STATUS.COMPLETED)} />);
     const check = screen.getByText('✓');
-    expect(check.className).toContain('text-green-700');
-    expect(check.className).toContain('dark:text-green-400');
+    expect(check.className).toContain('text-success');
   });
 
-  it('marks in-progress levels with a contrast-safe amber label', () => {
+  it('marks in-progress levels with a semantic warning label', () => {
     render(<LevelRow level={level(CLASS_STATUS.IN_PROGRESS)} />);
-    expect(screen.getByText('Novice').className).toContain('text-amber-700');
+    expect(screen.getByText('Novice').className).toContain('text-warning');
   });
 });

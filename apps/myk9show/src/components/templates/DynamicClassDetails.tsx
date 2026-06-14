@@ -1,19 +1,16 @@
 import React from 'react';
 import { ClassTemplate } from '@/types/template.types';
-import { 
-  TemplateFieldConfiguration, 
-  FieldDefinition, 
-  ClassFieldValues,
-  FieldDataType
-} from '@/types/field-definition-types';
 import {
-  getConfiguredFieldsWithDefinitions,
-  groupFieldsByCategory
-} from '@/lib/fieldUtils';
+  TemplateFieldConfiguration,
+  FieldDefinition,
+  ClassFieldValues,
+  FieldDataType,
+} from '@/types/field-definition-types';
+import { getConfiguredFieldsWithDefinitions, groupFieldsByCategory } from '@/lib/fieldUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
+import {
   Calendar,
   Clock,
   DollarSign,
@@ -21,7 +18,7 @@ import {
   Settings,
   AlertCircle,
   CheckCircle,
-  EyeOff
+  EyeOff,
 } from 'lucide-react';
 
 interface DynamicClassDetailsProps {
@@ -35,36 +32,39 @@ export const DynamicClassDetails: React.FC<DynamicClassDetailsProps> = ({
   template,
   values,
   showEmptyFields = false,
-  className = ''
+  className = '',
 }) => {
   // Get configured fields with definitions
   const configuredFields = getConfiguredFieldsWithDefinitions(template);
   const visibleFields = configuredFields.filter(field => field.visible);
-  
+
   // Filter fields based on whether to show empty values
-  const fieldsToShow = showEmptyFields 
-    ? visibleFields 
+  const fieldsToShow = showEmptyFields
+    ? visibleFields
     : visibleFields.filter(field => {
         const value = values[field.fieldName];
         return value !== undefined && value !== null && value !== '';
       });
-  
+
   // Format field value for display
-  const formatFieldValue = (field: FieldDefinition & TemplateFieldConfiguration, value: unknown): string => {
+  const formatFieldValue = (
+    field: FieldDefinition & TemplateFieldConfiguration,
+    value: unknown
+  ): string => {
     if (value === undefined || value === null || value === '') {
       return showEmptyFields ? '—' : '';
     }
-    
+
     switch (field.dataType) {
       case FieldDataType.BOOLEAN: {
         return value ? 'Yes' : 'No';
       }
-        
+
       case FieldDataType.CURRENCY: {
         const numValue = Number(value);
         return isNaN(numValue) ? String(value) : `$${numValue.toFixed(2)}`;
       }
-        
+
       case FieldDataType.DATE: {
         try {
           const date = new Date(value as string | number | Date);
@@ -73,11 +73,11 @@ export const DynamicClassDetails: React.FC<DynamicClassDetailsProps> = ({
           return String(value);
         }
       }
-        
+
       case FieldDataType.TIME: {
         return String(value);
       }
-        
+
       case FieldDataType.DATETIME: {
         try {
           const date = new Date(value as string | number | Date);
@@ -86,19 +86,19 @@ export const DynamicClassDetails: React.FC<DynamicClassDetailsProps> = ({
           return String(value);
         }
       }
-        
+
       case FieldDataType.MULTI_SELECT: {
         if (Array.isArray(value)) {
           return value.join(', ');
         }
         return String(value);
       }
-        
+
       case FieldDataType.NUMBER: {
         const unit = field.unit ? ` ${field.unit}` : '';
         return `${value}${unit}`;
       }
-        
+
       case FieldDataType.DURATION: {
         // Format duration from seconds or MM:SS string
         if (typeof value === 'number') {
@@ -108,20 +108,22 @@ export const DynamicClassDetails: React.FC<DynamicClassDetailsProps> = ({
         }
         return String(value);
       }
-        
+
       default: {
         return String(value);
       }
     }
   };
-  
+
   // Get field icon based on category
   const getFieldIcon = (field: FieldDefinition & TemplateFieldConfiguration) => {
     switch (field.category) {
       case 'scheduling': {
-        return field.fieldName.includes('time') ? 
-          <Clock className="h-4 w-4" /> : 
-          <Calendar className="h-4 w-4" />;
+        return field.fieldName.includes('time') ? (
+          <Clock className="h-4 w-4" />
+        ) : (
+          <Calendar className="h-4 w-4" />
+        );
       }
       case 'financial': {
         return <DollarSign className="h-4 w-4" />;
@@ -137,24 +139,22 @@ export const DynamicClassDetails: React.FC<DynamicClassDetailsProps> = ({
       }
     }
   };
-  
+
   // Render field display
   const renderField = (field: FieldDefinition & TemplateFieldConfiguration) => {
     const value = values[field.fieldName];
     const formattedValue = formatFieldValue(field, value);
     const icon = getFieldIcon(field);
-    
+
     if (!showEmptyFields && !formattedValue) {
       return null;
     }
-    
+
     return (
       <div key={field.fieldName} className="space-y-1">
         <div className="flex items-center gap-2">
           {icon}
-          <span className="text-sm font-medium text-muted-foreground">
-            {field.displayName}
-          </span>
+          <span className="text-sm font-medium text-muted-foreground">{field.displayName}</span>
           {field.required && (
             <Badge variant="destructive" className="text-xs h-4">
               Required
@@ -166,9 +166,11 @@ export const DynamicClassDetails: React.FC<DynamicClassDetailsProps> = ({
             </Badge>
           )}
         </div>
-        
+
         <div className="flex items-center gap-2">
-          <span className={`text-sm ${formattedValue === '—' ? 'text-muted-foreground italic' : ''}`}>
+          <span
+            className={`text-sm ${formattedValue === '—' ? 'text-muted-foreground italic' : ''}`}
+          >
             {formattedValue || '—'}
           </span>
           {field.unit && formattedValue !== '—' && (
@@ -177,42 +179,39 @@ export const DynamicClassDetails: React.FC<DynamicClassDetailsProps> = ({
             </Badge>
           )}
         </div>
-        
-        {field.description && (
-          <p className="text-xs text-muted-foreground">{field.description}</p>
-        )}
+
+        {field.description && <p className="text-xs text-muted-foreground">{field.description}</p>}
       </div>
     );
   };
-  
+
   // Group fields by category
   const groupedFields = groupFieldsByCategory(fieldsToShow);
-  
+
   // Show message if no fields configured
   if (fieldsToShow.length === 0 && !showEmptyFields) {
     return (
       <Alert>
         <EyeOff className="h-4 w-4" />
         <AlertDescription>
-          No field values to display. {configuredFields.length > 0 
-            ? 'All configured fields are empty.' 
+          No field values to display.{' '}
+          {configuredFields.length > 0
+            ? 'All configured fields are empty.'
             : 'No fields have been configured for this template.'}
         </AlertDescription>
       </Alert>
     );
   }
-  
+
   if (configuredFields.length === 0) {
     return (
       <Alert>
         <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
-          No fields have been configured for this template.
-        </AlertDescription>
+        <AlertDescription>No fields have been configured for this template.</AlertDescription>
       </Alert>
     );
   }
-  
+
   return (
     <div className={`space-y-6 ${className}`}>
       {/* Details Header */}
@@ -223,7 +222,7 @@ export const DynamicClassDetails: React.FC<DynamicClassDetailsProps> = ({
             {template.templateName} - {template.trialType}
           </p>
         </div>
-        
+
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-xs">
             {fieldsToShow.length} of {configuredFields.length} fields
@@ -235,27 +234,19 @@ export const DynamicClassDetails: React.FC<DynamicClassDetailsProps> = ({
           )}
         </div>
       </div>
-      
+
       {/* Class Summary Card */}
       {values.className && (
-        <Card className="border-blue-200 bg-blue-50 dark:bg-blue-900/20">
+        <Card className="border-blue-200 bg-info/10 ">
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 mb-2">
               <CheckCircle className="h-5 w-5 text-blue-600" />
-              <h4 className="font-semibold text-blue-900 dark:text-blue-100">
-                {String(values.className)}
-              </h4>
+              <h4 className="font-semibold text-info ">{String(values.className)}</h4>
             </div>
             <div className="flex flex-wrap gap-2">
-              {values.element && (
-                <Badge variant="outline">{String(values.element)}</Badge>
-              )}
-              {values.level && (
-                <Badge variant="outline">{String(values.level)}</Badge>
-              )}
-              {values.section && (
-                <Badge variant="outline">Section {String(values.section)}</Badge>
-              )}
+              {values.element && <Badge variant="outline">{String(values.element)}</Badge>}
+              {values.level && <Badge variant="outline">{String(values.level)}</Badge>}
+              {values.section && <Badge variant="outline">Section {String(values.section)}</Badge>}
               {values.division && values.division !== 'Regular' && (
                 <Badge variant="outline">{String(values.division)}</Badge>
               )}
@@ -263,7 +254,7 @@ export const DynamicClassDetails: React.FC<DynamicClassDetailsProps> = ({
           </CardContent>
         </Card>
       )}
-      
+
       {/* Field Details by Category */}
       <div className="space-y-6">
         {Object.entries(groupedFields).map(([categoryName, categoryFields]) => {
@@ -271,7 +262,7 @@ export const DynamicClassDetails: React.FC<DynamicClassDetailsProps> = ({
           if (!showEmptyFields && categoryFields.length === 0) {
             return null;
           }
-          
+
           return (
             <Card key={categoryName}>
               <CardHeader>
@@ -289,7 +280,7 @@ export const DynamicClassDetails: React.FC<DynamicClassDetailsProps> = ({
                     .map(field => renderField(field))
                     .filter(Boolean)}
                 </div>
-                
+
                 {!showEmptyFields && categoryFields.length === 0 && (
                   <div className="text-center py-4 text-muted-foreground text-sm">
                     No values in this category
@@ -300,12 +291,13 @@ export const DynamicClassDetails: React.FC<DynamicClassDetailsProps> = ({
           );
         })}
       </div>
-      
+
       {/* Show Empty Fields Toggle Hint */}
       {!showEmptyFields && fieldsToShow.length < configuredFields.length && (
         <div className="text-center py-4">
           <p className="text-sm text-muted-foreground">
-            {configuredFields.length - fieldsToShow.length} empty field{configuredFields.length - fieldsToShow.length !== 1 ? 's' : ''} hidden.
+            {configuredFields.length - fieldsToShow.length} empty field
+            {configuredFields.length - fieldsToShow.length !== 1 ? 's' : ''} hidden.
           </p>
         </div>
       )}

@@ -10,13 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { auditService } from '@/services/AuditService';
 import { UserRole } from '@/types/auth-types';
 import { AuditAction } from '@/types/audit-types';
-import {
-  Users,
-  AlertCircle,
-  Download,
-  Loader2,
-  Plus,
-} from 'lucide-react';
+import { Users, AlertCircle, Download, Loader2, Plus } from 'lucide-react';
 
 import { useEntryManagementData } from '@/hooks/useEntryManagementData';
 import { useEntryManagementFilters } from '@/hooks/useEntryManagementFilters';
@@ -206,7 +200,7 @@ const EntryManagementPage: React.FC = () => {
       <div className="container mx-auto p-6">
         <Card>
           <CardContent className="p-8 text-center">
-            <AlertCircle className="h-12 w-12 text-amber-600 dark:text-amber-500 mx-auto mb-4" />
+            <AlertCircle className="h-12 w-12 text-warning mx-auto mb-4" />
             <h2 className="text-xl font-semibold mb-2">Access Restricted</h2>
             <p className="text-muted-foreground">
               This page is only accessible to users with secretary permissions.
@@ -309,10 +303,7 @@ const EntryManagementPage: React.FC = () => {
                 <Alert variant="destructive" className="text-left mb-4 max-w-md mx-auto">
                   <AlertDescription>{loadError}</AlertDescription>
                 </Alert>
-                <Button
-                  onClick={() => loadEntries(selectedShowId)}
-                  disabled={isLoading}
-                >
+                <Button onClick={() => loadEntries(selectedShowId)} disabled={isLoading}>
                   Retry
                 </Button>
               </CardContent>
@@ -428,7 +419,6 @@ const EntryManagementPage: React.FC = () => {
                   onBack={() => setClassFilter(null)}
                 />
               )}
-
             </div>
           )}
         </TabsContent>
@@ -447,12 +437,18 @@ const EntryManagementPage: React.FC = () => {
         isProcessing={isProcessing}
       />
 
-
       {/* Comp Entry Dialog */}
       <CompEntryDialog
         open={compDialog.open}
         onOpenChange={open => {
-          if (!open) setCompDialog({ open: false, entryId: '', entryNumber: '', dogName: '', className: '' });
+          if (!open)
+            setCompDialog({
+              open: false,
+              entryId: '',
+              entryNumber: '',
+              dogName: '',
+              className: '',
+            });
         }}
         entryNumber={compDialog.entryNumber}
         dogName={compDialog.dogName}

@@ -28,7 +28,7 @@ describe('registration steps — dark-mode theming guards', () => {
     expect(dogStep).not.toContain('text-gray-');
     expect(dogStep).toContain('text-muted-foreground');
     expect(dogStep).toContain('text-destructive'); // eligibility issues
-    expect(dogStep).toContain('dark:text-amber-400'); // warnings
+    expect(dogStep).toContain('text-warning'); // warnings
   });
 
   it('ClassSelectionStep status colors carry dark variants and use bg-muted', () => {
@@ -38,12 +38,12 @@ describe('registration steps — dark-mode theming guards', () => {
 
   it('RegistrationSummary drops raw gray and dark-adapts the discount color', () => {
     expect(summary).not.toContain('text-gray-600');
-    expect(summary).toContain('dark:text-green-400');
+    expect(summary).toContain('text-success');
   });
 
   it('ConfirmationStep status list/badge colors carry dark variants', () => {
-    expect(confirmation).toContain('dark:text-green-400');
-    expect(confirmation).toContain('dark:text-orange-400');
+    expect(confirmation).toContain('text-success');
+    expect(confirmation).toContain('text-warning');
     expect(confirmation).toContain('text-destructive'); // missing-info
   });
 });

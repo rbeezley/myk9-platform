@@ -1,6 +1,6 @@
 /**
  * Results Grid Component
- * 
+ *
  * Interactive grid for viewing and editing Scent Work results with:
  * - Inline editing capabilities
  * - Sort and filter options
@@ -25,12 +25,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from '@/components/ui/table';
 import {
   DropdownMenu,
@@ -47,12 +47,12 @@ import {
 } from '@/components/ui/dialog';
 
 // Types
-import type { 
-  ScentWorkEntry, 
-  ScentWorkResult, 
+import type {
+  ScentWorkEntry,
+  ScentWorkResult,
   MultiAreaScentWorkResult,
   ScentWorkClassConfig,
-  QualificationStatus 
+  QualificationStatus,
 } from '@/types/scent-work-types';
 import { msToDisplay } from '@/lib/timeUtils';
 
@@ -60,7 +60,10 @@ export interface ResultsGridProps {
   entries: ScentWorkEntry[];
   results: Map<string, ScentWorkResult | MultiAreaScentWorkResult>;
   classConfig: ScentWorkClassConfig;
-  onResultUpdate: (entryId: string, result: ScentWorkResult | MultiAreaScentWorkResult) => Promise<void>;
+  onResultUpdate: (
+    entryId: string,
+    result: ScentWorkResult | MultiAreaScentWorkResult
+  ) => Promise<void>;
   onResultDelete: (entryId: string) => Promise<void>;
   className?: string;
 }
@@ -82,18 +85,24 @@ export function ResultsGrid({
   classConfig,
   onResultUpdate,
   onResultDelete,
-  className
+  className,
 }: ResultsGridProps) {
   const [sortField, setSortField] = useState<SortField>('armband');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [filters, setFilters] = useState<FilterState>({
     search: '',
-    qualification: 'all'
+    qualification: 'all',
   });
-  const [selectedResult, setSelectedResult] = useState<ScentWorkResult | MultiAreaScentWorkResult | null>(null);
+  const [selectedResult, setSelectedResult] = useState<
+    ScentWorkResult | MultiAreaScentWorkResult | null
+  >(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
-  const [editValues, setEditValues] = useState<{ qualification: QualificationStatus; faults: number; judgeNotes: string }>({
+  const [editValues, setEditValues] = useState<{
+    qualification: QualificationStatus;
+    faults: number;
+    judgeNotes: string;
+  }>({
     qualification: 'Qualified',
     faults: 0,
     judgeNotes: '',
@@ -108,7 +117,7 @@ export function ResultsGrid({
       return {
         entry,
         result,
-        hasResult: !!result
+        hasResult: !!result,
       };
     });
   }, [entries, results]);
@@ -120,18 +129,17 @@ export function ResultsGrid({
     // Apply search filter
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
-      filtered = filtered.filter(item =>
-        item.entry.displayInfo.dogName.toLowerCase().includes(searchLower) ||
-        item.entry.displayInfo.handlerName.toLowerCase().includes(searchLower) ||
-        item.entry.displayInfo.armband.includes(filters.search)
+      filtered = filtered.filter(
+        item =>
+          item.entry.displayInfo.dogName.toLowerCase().includes(searchLower) ||
+          item.entry.displayInfo.handlerName.toLowerCase().includes(searchLower) ||
+          item.entry.displayInfo.armband.includes(filters.search)
       );
     }
 
     // Apply qualification filter
     if (filters.qualification !== 'all') {
-      filtered = filtered.filter(item =>
-        item.result?.qualification === filters.qualification
-      );
+      filtered = filtered.filter(item => item.result?.qualification === filters.qualification);
     }
 
     // Sort data
@@ -149,10 +157,18 @@ export function ResultsGrid({
           bValue = b.entry.displayInfo.dogName.toLowerCase();
           break;
         case 'searchTime':
-          aValue = (a.result && 'totalSearchTime' in a.result ? a.result.totalSearchTime : 
-                   a.result && 'searchTime' in a.result ? a.result.searchTime : 999999);
-          bValue = (b.result && 'totalSearchTime' in b.result ? b.result.totalSearchTime : 
-                   b.result && 'searchTime' in b.result ? b.result.searchTime : 999999);
+          aValue =
+            a.result && 'totalSearchTime' in a.result
+              ? a.result.totalSearchTime
+              : a.result && 'searchTime' in a.result
+                ? a.result.searchTime
+                : 999999;
+          bValue =
+            b.result && 'totalSearchTime' in b.result
+              ? b.result.totalSearchTime
+              : b.result && 'searchTime' in b.result
+                ? b.result.searchTime
+                : 999999;
           break;
         case 'placement':
           aValue = a.result?.placementCalculated || 999;
@@ -175,25 +191,31 @@ export function ResultsGrid({
   }, [gridData, filters, sortField, sortDirection]);
 
   // Handle sorting
-  const handleSort = useCallback((field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  }, [sortField]);
+  const handleSort = useCallback(
+    (field: SortField) => {
+      if (sortField === field) {
+        setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+      } else {
+        setSortField(field);
+        setSortDirection('asc');
+      }
+    },
+    [sortField]
+  );
 
   // Handle result deletion
-  const handleDelete = useCallback(async (entryId: string) => {
-    if (window.confirm('Are you sure you want to delete this result?')) {
-      try {
-        await onResultDelete(entryId);
-      } catch (error) {
-        logger.error('Failed to delete result:', 'secretary', {}, error as Error);
+  const handleDelete = useCallback(
+    async (entryId: string) => {
+      if (window.confirm('Are you sure you want to delete this result?')) {
+        try {
+          await onResultDelete(entryId);
+        } catch (error) {
+          logger.error('Failed to delete result:', 'secretary', {}, error as Error);
+        }
       }
-    }
-  }, [onResultDelete]);
+    },
+    [onResultDelete]
+  );
 
   // Handle viewing result details
   const handleViewDetails = useCallback((result: ScentWorkResult | MultiAreaScentWorkResult) => {
@@ -202,39 +224,48 @@ export function ResultsGrid({
   }, []);
 
   // Start inline editing for a result
-  const handleStartEdit = useCallback((entryId: string, result: ScentWorkResult | MultiAreaScentWorkResult | undefined) => {
-    setEditingEntryId(entryId);
-    if (result) {
-      setEditValues({
-        qualification: result.qualification,
-        faults: 'totalFaults' in result ? result.totalFaults : result.faults,
-        judgeNotes: result.judgeNotes || '',
-      });
-    } else {
-      setEditValues({ qualification: 'Qualified', faults: 0, judgeNotes: '' });
-    }
-  }, []);
+  const handleStartEdit = useCallback(
+    (entryId: string, result: ScentWorkResult | MultiAreaScentWorkResult | undefined) => {
+      setEditingEntryId(entryId);
+      if (result) {
+        setEditValues({
+          qualification: result.qualification,
+          faults: 'totalFaults' in result ? result.totalFaults : result.faults,
+          judgeNotes: result.judgeNotes || '',
+        });
+      } else {
+        setEditValues({ qualification: 'Qualified', faults: 0, judgeNotes: '' });
+      }
+    },
+    []
+  );
 
   // Save inline edit
-  const handleSaveEdit = useCallback(async (entryId: string, existingResult: ScentWorkResult | MultiAreaScentWorkResult | undefined) => {
-    if (!existingResult) return;
+  const handleSaveEdit = useCallback(
+    async (
+      entryId: string,
+      existingResult: ScentWorkResult | MultiAreaScentWorkResult | undefined
+    ) => {
+      if (!existingResult) return;
 
-    const updated = {
-      ...existingResult,
-      qualification: editValues.qualification,
-      judgeNotes: editValues.judgeNotes || undefined,
-      ...('totalFaults' in existingResult
-        ? { totalFaults: editValues.faults }
-        : { faults: editValues.faults }),
-    };
+      const updated = {
+        ...existingResult,
+        qualification: editValues.qualification,
+        judgeNotes: editValues.judgeNotes || undefined,
+        ...('totalFaults' in existingResult
+          ? { totalFaults: editValues.faults }
+          : { faults: editValues.faults }),
+      };
 
-    try {
-      await onResultUpdate(entryId, updated);
-      setEditingEntryId(null);
-    } catch (error) {
-      logger.error('Failed to update result:', 'secretary', {}, error as Error);
-    }
-  }, [editValues, onResultUpdate]);
+      try {
+        await onResultUpdate(entryId, updated);
+        setEditingEntryId(null);
+      } catch (error) {
+        logger.error('Failed to update result:', 'secretary', {}, error as Error);
+      }
+    },
+    [editValues, onResultUpdate]
+  );
 
   // Cancel inline edit
   const handleCancelEdit = useCallback(() => {
@@ -244,7 +275,11 @@ export function ResultsGrid({
   // Render sort icon
   const renderSortIcon = (field: SortField) => {
     if (sortField !== field) return null;
-    return sortDirection === 'asc' ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />;
+    return sortDirection === 'asc' ? (
+      <SortAsc className="h-4 w-4" />
+    ) : (
+      <SortDesc className="h-4 w-4" />
+    );
   };
 
   // Render qualification badge
@@ -252,19 +287,15 @@ export function ResultsGrid({
     if (!qualification) return <Badge variant="outline">No Result</Badge>;
 
     const variants = {
-      'Qualified': 'default',
+      Qualified: 'default',
       'Not Qualified': 'destructive',
-      'Absent': 'secondary',
-      'Excused': 'outline',
-      'Withdrawn': 'outline',
-      'Eliminated': 'destructive'
+      Absent: 'secondary',
+      Excused: 'outline',
+      Withdrawn: 'outline',
+      Eliminated: 'destructive',
     } as const;
 
-    return (
-      <Badge variant={variants[qualification]}>
-        {qualification}
-      </Badge>
-    );
+    return <Badge variant={variants[qualification]}>{qualification}</Badge>;
   };
 
   // Render placement badge
@@ -275,14 +306,20 @@ export function ResultsGrid({
       1: 'bg-yellow-500 text-white',
       2: 'bg-gray-400 text-white',
       3: 'bg-amber-600 text-white',
-      4: 'bg-blue-500 text-white'
+      4: 'bg-blue-500 text-white',
     };
 
     const bgClass = colors[placement as keyof typeof colors] || 'bg-gray-300 text-gray-700';
 
     return (
       <Badge className={cn('text-xs', bgClass)}>
-        {placement === 1 ? '1st' : placement === 2 ? '2nd' : placement === 3 ? '3rd' : `${placement}th`}
+        {placement === 1
+          ? '1st'
+          : placement === 2
+            ? '2nd'
+            : placement === 3
+              ? '3rd'
+              : `${placement}th`}
       </Badge>
     );
   };
@@ -297,7 +334,7 @@ export function ResultsGrid({
             <Input
               placeholder="Search by dog, handler, or armband..."
               value={filters.search}
-              onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+              onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
               className="pl-10 w-64"
             />
           </div>
@@ -310,16 +347,24 @@ export function ResultsGrid({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => setFilters(prev => ({ ...prev, qualification: 'all' }))}>
+              <DropdownMenuItem
+                onClick={() => setFilters(prev => ({ ...prev, qualification: 'all' }))}
+              >
                 All Results
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setFilters(prev => ({ ...prev, qualification: 'Qualified' }))}>
+              <DropdownMenuItem
+                onClick={() => setFilters(prev => ({ ...prev, qualification: 'Qualified' }))}
+              >
                 Qualified
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setFilters(prev => ({ ...prev, qualification: 'Not Qualified' }))}>
+              <DropdownMenuItem
+                onClick={() => setFilters(prev => ({ ...prev, qualification: 'Not Qualified' }))}
+              >
                 Not Qualified
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setFilters(prev => ({ ...prev, qualification: 'Absent' }))}>
+              <DropdownMenuItem
+                onClick={() => setFilters(prev => ({ ...prev, qualification: 'Absent' }))}
+              >
                 Absent
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -354,11 +399,11 @@ export function ResultsGrid({
                   {renderSortIcon('dogName')}
                 </div>
               </TableHead>
-              {isMultiArea && classConfig.areaLimits && classConfig.areaLimits.map((_, idx) => (
-                <TableHead key={`area-${idx}`}>
-                  Area {idx + 1}
-                </TableHead>
-              ))}
+              {isMultiArea &&
+                classConfig.areaLimits &&
+                classConfig.areaLimits.map((_, idx) => (
+                  <TableHead key={`area-${idx}`}>Area {idx + 1}</TableHead>
+                ))}
               <TableHead
                 className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
                 onClick={() => handleSort('searchTime')}
@@ -395,14 +440,15 @@ export function ResultsGrid({
               const isEditing = editingEntryId === entry.id;
 
               return (
-                <TableRow key={entry.id} className={cn(
-                  'hover:bg-gray-50 dark:hover:bg-gray-800',
-                  !hasResult && 'opacity-60',
-                  isEditing && 'bg-blue-50 dark:bg-blue-900/20'
-                )}>
-                  <TableCell className="font-medium">
-                    #{entry.displayInfo.armband}
-                  </TableCell>
+                <TableRow
+                  key={entry.id}
+                  className={cn(
+                    'hover:bg-gray-50 dark:hover:bg-gray-800',
+                    !hasResult && 'opacity-60',
+                    isEditing && 'bg-info/10 '
+                  )}
+                >
+                  <TableCell className="font-medium">#{entry.displayInfo.armband}</TableCell>
                   <TableCell>
                     <div>
                       <div className="font-medium">{entry.displayInfo.dogName}</div>
@@ -414,27 +460,28 @@ export function ResultsGrid({
                       </div>
                     </div>
                   </TableCell>
-                  {isMultiArea && classConfig.areaLimits && classConfig.areaLimits.map((_, idx) => {
-                    const areaResult = result && 'areaResults' in result
-                      ? result.areaResults.find(a => a.areaNumber === idx + 1)
-                      : undefined;
-                    return (
-                      <TableCell key={`area-${idx}`}>
-                        {areaResult ? (
-                          <div>
-                            <span className="font-mono text-sm">
-                              {msToDisplay(areaResult.searchTime, 'hundredths')}
-                            </span>
-                            <div className="text-xs text-gray-500">
-                              F: {areaResult.faults}
+                  {isMultiArea &&
+                    classConfig.areaLimits &&
+                    classConfig.areaLimits.map((_, idx) => {
+                      const areaResult =
+                        result && 'areaResults' in result
+                          ? result.areaResults.find(a => a.areaNumber === idx + 1)
+                          : undefined;
+                      return (
+                        <TableCell key={`area-${idx}`}>
+                          {areaResult ? (
+                            <div>
+                              <span className="font-mono text-sm">
+                                {msToDisplay(areaResult.searchTime, 'hundredths')}
+                              </span>
+                              <div className="text-xs text-gray-500">F: {areaResult.faults}</div>
                             </div>
-                          </div>
-                        ) : (
-                          <span className="text-gray-400">--</span>
-                        )}
-                      </TableCell>
-                    );
-                  })}
+                          ) : (
+                            <span className="text-gray-400">--</span>
+                          )}
+                        </TableCell>
+                      );
+                    })}
                   <TableCell>
                     {result ? (
                       <span className="font-mono">
@@ -451,7 +498,12 @@ export function ResultsGrid({
                     {isEditing ? (
                       <Select
                         value={editValues.qualification}
-                        onValueChange={(val) => setEditValues(prev => ({ ...prev, qualification: val as QualificationStatus }))}
+                        onValueChange={val =>
+                          setEditValues(prev => ({
+                            ...prev,
+                            qualification: val as QualificationStatus,
+                          }))
+                        }
                       >
                         <SelectTrigger className="w-36 h-8">
                           <SelectValue />
@@ -469,20 +521,27 @@ export function ResultsGrid({
                       renderQualificationBadge(result?.qualification)
                     )}
                   </TableCell>
-                  <TableCell>
-                    {renderPlacementBadge(result?.placementCalculated)}
-                  </TableCell>
+                  <TableCell>{renderPlacementBadge(result?.placementCalculated)}</TableCell>
                   <TableCell>
                     {isEditing ? (
                       <Input
                         type="number"
                         min={0}
                         value={editValues.faults}
-                        onChange={(e) => setEditValues(prev => ({ ...prev, faults: parseInt(e.target.value) || 0 }))}
+                        onChange={e =>
+                          setEditValues(prev => ({
+                            ...prev,
+                            faults: parseInt(e.target.value) || 0,
+                          }))
+                        }
                         className="w-16 h-8"
                       />
                     ) : result ? (
-                      'totalFaults' in result ? result.totalFaults : result.faults
+                      'totalFaults' in result ? (
+                        result.totalFaults
+                      ) : (
+                        result.faults
+                      )
                     ) : (
                       '--'
                     )}
@@ -550,7 +609,10 @@ export function ResultsGrid({
 
             {filteredAndSortedData.length === 0 && (
               <TableRow>
-                <TableCell colSpan={isMultiArea ? 7 + (classConfig.areaLimits?.length || 0) : 7} className="text-center py-8 text-gray-500">
+                <TableCell
+                  colSpan={isMultiArea ? 7 + (classConfig.areaLimits?.length || 0) : 7}
+                  className="text-center py-8 text-gray-500"
+                >
                   No results found matching your filters
                 </TableCell>
               </TableRow>
@@ -564,11 +626,9 @@ export function ResultsGrid({
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Result Details</DialogTitle>
-            <DialogDescription>
-              Complete result information for this entry
-            </DialogDescription>
+            <DialogDescription>Complete result information for this entry</DialogDescription>
           </DialogHeader>
-          
+
           {selectedResult && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">

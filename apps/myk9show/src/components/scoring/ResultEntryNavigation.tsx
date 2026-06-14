@@ -99,13 +99,10 @@ export function ResultEntryNavigation({
     };
   }, [entries]);
 
-  const updateCheckInStatus = useCallback(
-    async (entryId: string, status: CheckInStatus) => {
-      logger.debug(`Updating check-in status for entry ${entryId} to ${status}`, 'scoring', {});
-      await updateReplicatedCheckInStatus(entryId, status);
-    },
-    []
-  );
+  const updateCheckInStatus = useCallback(async (entryId: string, status: CheckInStatus) => {
+    logger.debug(`Updating check-in status for entry ${entryId} to ${status}`, 'scoring', {});
+    await updateReplicatedCheckInStatus(entryId, status);
+  }, []);
 
   const handleCheckInStatusUpdate = async (status: CheckInStatus) => {
     if (!selectedEntryForCheckIn) return;
@@ -356,13 +353,13 @@ export function ResultEntryNavigation({
                         switch (status) {
                           case 'checked-in':
                             return (
-                              <div className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded-md border border-blue-200 dark:border-blue-700">
+                              <div className="px-2 py-1 text-xs font-medium bg-info/10 text-info rounded-md border border-info/30 ">
                                 Checked In
                               </div>
                             );
                           case 'conflict':
                             return (
-                              <div className="px-2 py-1 text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 rounded-md border border-amber-200 dark:border-amber-700">
+                              <div className="px-2 py-1 text-xs font-medium bg-warning/10 text-warning rounded-md border border-warning/30 ">
                                 Conflict
                               </div>
                             );
@@ -374,7 +371,7 @@ export function ResultEntryNavigation({
                             );
                           case 'pulled':
                             return (
-                              <div className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 rounded-md border border-red-200 dark:border-red-700">
+                              <div className="px-2 py-1 text-xs font-medium bg-destructive/10 text-destructive rounded-md border border-destructive/30 ">
                                 Pulled
                               </div>
                             );

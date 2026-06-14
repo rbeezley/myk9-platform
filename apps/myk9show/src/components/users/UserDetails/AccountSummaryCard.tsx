@@ -60,7 +60,7 @@ const AccountSummaryCard: React.FC<AccountSummaryCardProps> = ({ person, dogCoun
             </span>
             <Badge
               className="bg-gradient-to-r from-green-500/20 to-green-500/10
-                            text-green-700 dark:text-green-300 border border-green-500/30 font-medium"
+                            text-success border border-green-500/30 font-medium"
             >
               Active
             </Badge>

@@ -548,16 +548,14 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
 
       {/* Duplicate Warning with Use Existing Option */}
       {duplicateWarning && existingPerson && (
-        <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 p-4">
+        <div className="rounded-lg bg-warning/10 border border-warning/30 p-4">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+            <AlertTriangle className="h-5 w-5 text-warning mt-0.5 flex-shrink-0" />
             <div className="flex-1">
-              <h4 className="font-medium text-amber-800 dark:text-amber-200 text-sm">
-                Person Already Exists
-              </h4>
-              <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">{duplicateWarning}</p>
+              <h4 className="font-medium text-warning text-sm">Person Already Exists</h4>
+              <p className="text-sm text-warning mt-1">{duplicateWarning}</p>
               {existingPerson.roles && existingPerson.roles.length > 0 && (
-                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                <p className="text-xs text-warning mt-1">
                   Current roles: {existingPerson.roles.join(', ')}
                 </p>
               )}
@@ -579,11 +577,11 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
                     </>
                   )}
                 </Button>
-                <p className="text-xs text-amber-600 dark:text-amber-400 self-center">
+                <p className="text-xs text-warning self-center">
                   This will add the "{formData.role}" role to their profile
                 </p>
               </div>
-              <p className="text-xs text-amber-500 dark:text-amber-500 mt-2 italic">
+              <p className="text-xs text-warning mt-2 italic">
                 Or continue filling the form to create a new person anyway.
               </p>
             </div>

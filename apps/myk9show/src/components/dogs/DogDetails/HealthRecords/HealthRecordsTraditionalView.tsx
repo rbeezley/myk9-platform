@@ -131,7 +131,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
             return (
               <div
                 key={vacc.id}
-                className={`p-4 border rounded-lg ${isOverdue ? 'border-red-300 bg-red-50 dark:bg-red-950/10' : isExpiringSoon ? 'border-amber-300 bg-amber-50 dark:bg-amber-950/10' : ''}`}
+                className={`p-4 border rounded-lg ${isOverdue ? 'border-red-300 bg-destructive/10 ' : isExpiringSoon ? 'border-amber-300 bg-warning/10 ' : ''}`}
               >
                 <div className="flex justify-between items-start">
                   <div>
@@ -192,7 +192,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                   {med.notes && <p className="text-sm text-muted-foreground">{med.notes}</p>}
                 </div>
                 {med.is_active && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-300">
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-success/10 text-success ">
                     Active
                   </span>
                 )}
@@ -238,9 +238,9 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                   <span
                     className={`text-xs px-2 py-0.5 rounded-full ${
                       allergy.severity === 'life_threatening'
-                        ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
+                        ? 'bg-destructive/10 text-destructive '
                         : allergy.severity === 'severe'
-                          ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300'
+                          ? 'bg-warning/10 text-warning '
                           : 'bg-muted text-muted-foreground'
                     }`}
                   >

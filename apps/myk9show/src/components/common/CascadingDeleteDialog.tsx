@@ -122,12 +122,12 @@ export function CascadingDeleteDialog({
           </div>
         ) : (
           <>
-            <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/30 rounded-xl px-3 py-1">
-              <div className="flex items-center gap-2 text-red-600 dark:text-red-400 font-medium leading-none m-0">
+            <div className="bg-destructive/10 border border-destructive/30 rounded-xl px-3 py-1">
+              <div className="flex items-center gap-2 text-destructive font-medium leading-none m-0">
                 <AlertTriangle className="h-4 w-4" />
                 Warning: This will permanently delete all related data
               </div>
-              <div className="text-sm text-red-700 dark:text-red-300 leading-tight m-0">
+              <div className="text-sm text-destructive leading-tight m-0">
                 Deleting this {entityType} will also permanently delete {preview.totalToDelete}{' '}
                 related records. This action cannot be undone.
               </div>
@@ -135,8 +135,8 @@ export function CascadingDeleteDialog({
 
             <div className="space-y-2">
               {preview.trialsToDelete.length > 0 && (
-                <div className="bg-blue-50 dark:bg-blue-950/20 rounded-xl px-3 py-1">
-                  <div className="flex items-center gap-2 font-medium text-sm text-blue-700 dark:text-blue-300 leading-none m-0">
+                <div className="bg-info/10 rounded-xl px-3 py-1">
+                  <div className="flex items-center gap-2 font-medium text-sm text-info leading-none m-0">
                     <Calendar className="h-4 w-4" />
                     Trials ({preview.trialsToDelete.length})
                   </div>
@@ -149,10 +149,7 @@ export function CascadingDeleteDialog({
                         return a.date.localeCompare(b.date);
                       })
                       .map(trial => (
-                        <div
-                          key={trial.id}
-                          className="text-xs text-blue-600 dark:text-blue-400 leading-none m-0"
-                        >
+                        <div key={trial.id} className="text-xs text-info leading-none m-0">
                           • {trial.name} - {format(parseISO(trial.date), 'MM/dd/yyyy')}
                         </div>
                       ))}
@@ -161,17 +158,14 @@ export function CascadingDeleteDialog({
               )}
 
               {preview.classesToDelete.length > 0 && (
-                <div className="bg-green-50 dark:bg-green-950/20 rounded-xl px-3 py-1">
-                  <div className="flex items-center gap-2 font-medium text-sm text-green-700 dark:text-green-300 leading-none m-0">
+                <div className="bg-success/10 rounded-xl px-3 py-1">
+                  <div className="flex items-center gap-2 font-medium text-sm text-success leading-none m-0">
                     <Trophy className="h-4 w-4" />
                     Classes ({preview.classesToDelete.length})
                   </div>
                   <div className="ml-6">
                     {sortClasses(preview.classesToDelete).map(cls => (
-                      <div
-                        key={cls.id}
-                        className="text-xs text-green-600 dark:text-green-400 leading-none m-0"
-                      >
+                      <div key={cls.id} className="text-xs text-success leading-none m-0">
                         • {cls.trialName} - {cls.name}
                       </div>
                     ))}

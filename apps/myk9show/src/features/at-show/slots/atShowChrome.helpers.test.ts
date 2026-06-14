@@ -24,9 +24,9 @@ describe('badgeClass', () => {
     expect(badgeClass('neutral')).toContain('text-muted-foreground');
   });
 
-  it('includes a dark-mode variant for coloured tiers', () => {
-    expect(badgeClass('success')).toContain('dark:');
-    expect(badgeClass('destructive')).toContain('dark:');
+  it('uses semantic tokens for coloured tiers (dark mode handled automatically)', () => {
+    expect(badgeClass('success')).toContain('text-success');
+    expect(badgeClass('destructive')).toContain('text-destructive');
   });
 });
 

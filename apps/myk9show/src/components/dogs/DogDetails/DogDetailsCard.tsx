@@ -3,13 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
 import { Badge } from '../../ui/badge';
 import DogActionsMenu from './DogActionsMenu';
 import type { Dog, Owner } from '@/types/dog-types';
-import {
-  User,
-  Ruler,
-  Weight,
-  Cake,
-  PawPrint
-} from 'lucide-react';
+import { User, Ruler, Weight, Cake, PawPrint } from 'lucide-react';
 
 interface DogDetailsCardProps {
   dog: Dog;
@@ -63,12 +57,22 @@ const DogDetailsCard: React.FC<DogDetailsCardProps> = ({
             ) : (
               <User className="w-5 h-5 text-gray-500 dark:text-gray-400" />
             )}
-            <span>Owner: {owner ? (
-              <button
-                onClick={e => { e.stopPropagation(); window.location.href = `/people/${owner.id}`; }}
-                className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 hover:underline focus:outline-none"
-              >{owner.name}</button>
-            ) : 'Unknown'}</span>
+            <span>
+              Owner:{' '}
+              {owner ? (
+                <button
+                  onClick={e => {
+                    e.stopPropagation();
+                    window.location.href = `/people/${owner.id}`;
+                  }}
+                  className="text-info hover:underline focus:outline-none"
+                >
+                  {owner.name}
+                </button>
+              ) : (
+                'Unknown'
+              )}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <Ruler className="w-5 h-5 text-gray-500 dark:text-gray-400" />
@@ -79,22 +83,32 @@ const DogDetailsCard: React.FC<DogDetailsCardProps> = ({
             <span>Weight: {dog.weight} lbs</span>
           </div>
           <div className="flex items-center gap-2">
-            <User className={`w-5 h-5 ${dog.gender === 'Male' ? 'text-blue-500' : 'text-pink-500'}`} />
+            <User
+              className={`w-5 h-5 ${dog.gender === 'Male' ? 'text-blue-500' : 'text-pink-500'}`}
+            />
             <span>{dog.gender}</span>
           </div>
           <div className="flex items-center gap-2">
             <Cake className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-            <span>Age: {calculateAge(dog?.dateOfBirth || "")}</span>
+            <span>Age: {calculateAge(dog?.dateOfBirth || '')}</span>
           </div>
         </div>
         <div className="mt-4">
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Registrations:</p>
           <div className="flex flex-wrap gap-2">
-            {dog.registrations && dog.registrations.length > 0 ? dog.registrations.map((reg: { id: string; organization: string }) => (
-              <Badge key={reg.id} variant="outline" className={getOrganizationBadgeColor(reg.organization)}>
-                {reg.organization}
-              </Badge>
-            )) : <span className="text-gray-400">None</span>}
+            {dog.registrations && dog.registrations.length > 0 ? (
+              dog.registrations.map((reg: { id: string; organization: string }) => (
+                <Badge
+                  key={reg.id}
+                  variant="outline"
+                  className={getOrganizationBadgeColor(reg.organization)}
+                >
+                  {reg.organization}
+                </Badge>
+              ))
+            ) : (
+              <span className="text-gray-400">None</span>
+            )}
           </div>
         </div>
       </CardContent>

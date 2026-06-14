@@ -70,9 +70,7 @@ function SourceItem({ type, item }: { type: string; item: Record<string, unknown
             {item.result_status ? (
               <span
                 className={
-                  item.result_status === 'Q'
-                    ? 'text-green-600 dark:text-green-400 font-medium'
-                    : 'text-muted-foreground'
+                  item.result_status === 'Q' ? 'text-success font-medium' : 'text-muted-foreground'
                 }
               >
                 {String(item.result_status)}

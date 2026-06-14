@@ -3,25 +3,31 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { 
-  Play, 
-  Pause, 
-  RotateCcw, 
-  Settings, 
+import {
+  Play,
+  Pause,
+  RotateCcw,
+  Settings,
   Zap,
   Shield,
   Clock,
   Database,
-  AlertTriangle
+  AlertTriangle,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useSyncStore } from '@/store/syncStore';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
-import { 
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -39,13 +45,13 @@ interface GlobalSyncControlsProps {
 
 export const GlobalSyncControls: React.FC<GlobalSyncControlsProps> = ({ className }) => {
   const { user } = useAuth();
-  const { 
-    syncSettings, 
-    updateSyncSettings, 
-    pauseAllSync, 
-    resumeAllSync, 
+  const {
+    syncSettings,
+    updateSyncSettings,
+    pauseAllSync,
+    resumeAllSync,
     forceFullSync,
-    operations
+    operations,
   } = useSyncStore();
 
   const [isUpdating, setIsUpdating] = useState(false);
@@ -85,7 +91,7 @@ export const GlobalSyncControls: React.FC<GlobalSyncControlsProps> = ({ classNam
   const activeSyncCount = operations.filter(op => op.status === 'syncing').length;
 
   return (
-    <div className={cn("space-y-6", className)}>
+    <div className={cn('space-y-6', className)}>
       {/* Master Controls */}
       <Card className="border-0 shadow-lg">
         <CardHeader>
@@ -106,10 +112,7 @@ export const GlobalSyncControls: React.FC<GlobalSyncControlsProps> = ({ classNam
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <Badge 
-                variant={syncSettings.enabled ? 'default' : 'secondary'}
-                className="px-3"
-              >
+              <Badge variant={syncSettings.enabled ? 'default' : 'secondary'} className="px-3">
                 {syncSettings.enabled ? 'Active' : 'Paused'}
               </Badge>
               {hasControlAccess && (
@@ -129,9 +132,7 @@ export const GlobalSyncControls: React.FC<GlobalSyncControlsProps> = ({ classNam
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <Label className="text-base font-medium">Sync Frequency</Label>
-              <p className="text-sm text-muted-foreground">
-                How often to check for updates
-              </p>
+              <p className="text-sm text-muted-foreground">How often to check for updates</p>
             </div>
             {hasControlAccess ? (
               <Select
@@ -160,9 +161,7 @@ export const GlobalSyncControls: React.FC<GlobalSyncControlsProps> = ({ classNam
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <Label className="text-base font-medium">Active Operations</Label>
-              <p className="text-sm text-muted-foreground">
-                Currently syncing data
-              </p>
+              <p className="text-sm text-muted-foreground">Currently syncing data</p>
             </div>
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="px-3">
@@ -191,12 +190,9 @@ export const GlobalSyncControls: React.FC<GlobalSyncControlsProps> = ({ classNam
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Pause/Resume */}
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                 <Button
-                  variant={syncSettings.enabled ? "destructive" : "default"}
+                  variant={syncSettings.enabled ? 'destructive' : 'default'}
                   className="w-full h-auto p-4 flex-col gap-2"
                   onClick={() => handleToggleSync(!syncSettings.enabled)}
                   disabled={isUpdating}
@@ -218,10 +214,7 @@ export const GlobalSyncControls: React.FC<GlobalSyncControlsProps> = ({ classNam
               </motion.div>
 
               {/* Force Sync */}
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
@@ -232,9 +225,7 @@ export const GlobalSyncControls: React.FC<GlobalSyncControlsProps> = ({ classNam
                       <RotateCcw className="h-5 w-5" />
                       <div className="text-center">
                         <div className="font-medium">Force Full Sync</div>
-                        <div className="text-xs opacity-80">
-                          Sync all data immediately
-                        </div>
+                        <div className="text-xs opacity-80">Sync all data immediately</div>
                       </div>
                     </Button>
                   </AlertDialogTrigger>
@@ -245,16 +236,14 @@ export const GlobalSyncControls: React.FC<GlobalSyncControlsProps> = ({ classNam
                         Force Full Sync
                       </AlertDialogTitle>
                       <AlertDialogDescription>
-                        This will trigger a complete sync of all data across all systems. 
-                        This may take several minutes and could impact performance. 
-                        Are you sure you want to proceed?
+                        This will trigger a complete sync of all data across all systems. This may
+                        take several minutes and could impact performance. Are you sure you want to
+                        proceed?
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleForceSync}>
-                        Force Sync
-                      </AlertDialogAction>
+                      <AlertDialogAction onClick={handleForceSync}>Force Sync</AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
@@ -307,9 +296,9 @@ export const GlobalSyncControls: React.FC<GlobalSyncControlsProps> = ({ classNam
 
       {/* Access Notice */}
       {!hasControlAccess && (
-        <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20">
+        <Card className="border-warning/30 bg-warning/10 ">
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
+            <div className="flex items-center gap-2 text-warning ">
               <AlertTriangle className="h-4 w-4" />
               <span className="text-sm font-medium">
                 Limited access: Contact an administrator to modify sync settings

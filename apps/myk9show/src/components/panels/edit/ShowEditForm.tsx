@@ -278,7 +278,7 @@ export const ShowEditForm: React.FC = () => {
                               </div>
 
                               {isAssigned && (
-                                <div className="text-sm text-green-600 dark:text-green-400 mt-2 font-medium">
+                                <div className="text-sm text-success mt-2 font-medium">
                                   Assigned to show
                                 </div>
                               )}
@@ -289,14 +289,14 @@ export const ShowEditForm: React.FC = () => {
                     })}
 
                     {data.assignedJudges.length > 0 && (
-                      <div className="text-sm text-muted-foreground bg-blue-50 dark:bg-blue-950/30 p-4 rounded-xl">
+                      <div className="text-sm text-muted-foreground bg-info/10 p-4 rounded-xl">
                         <strong>{data.assignedJudges.length} judge(s) assigned.</strong> These
                         judges will be available for class assignments when creating trials.
                       </div>
                     )}
                   </div>
                 ) : (
-                  <div className="text-sm text-muted-foreground bg-amber-50 dark:bg-amber-950/30 p-4 rounded-xl">
+                  <div className="text-sm text-muted-foreground bg-warning/10 p-4 rounded-xl">
                     <p className="mb-2">No qualified judges found for {data.organization} shows.</p>
                     <p className="text-xs">
                       You can assign judges later or add judge qualifications to people in the Users

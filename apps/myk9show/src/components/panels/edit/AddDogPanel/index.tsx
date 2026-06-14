@@ -191,11 +191,9 @@ const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
       <div className="space-y-8">
         {/* Error Display */}
         {saveError && (
-          <Alert className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
-            <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
-            <AlertDescription className="text-red-800 dark:text-red-300">
-              {saveError}
-            </AlertDescription>
+          <Alert className="border-destructive/30 bg-destructive/10 ">
+            <AlertCircle className="h-4 w-4 text-destructive " />
+            <AlertDescription className="text-destructive ">{saveError}</AlertDescription>
           </Alert>
         )}
 

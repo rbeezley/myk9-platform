@@ -139,17 +139,17 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
         <div className="max-w-6xl mx-auto space-y-6">
           {/* Validation Errors */}
           {errors.length > 0 && (
-            <Card className="border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-900/20">
+            <Card className="border-destructive/30 bg-destructive/10 ">
               <CardContent className="pt-4">
                 <div className="flex gap-3">
-                  <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                  <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
                   <div>
-                    <h4 className="font-medium text-red-900 dark:text-red-200 mb-2">
+                    <h4 className="font-medium text-destructive mb-2">
                       Please address the following issues:
                     </h4>
                     <ul className="space-y-1">
                       {errors.map((error, index) => (
-                        <li key={index} className="text-sm text-red-700 dark:text-red-300">
+                        <li key={index} className="text-sm text-destructive ">
                           • {error}
                         </li>
                       ))}
@@ -343,7 +343,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                 {trials.map((trial, trialIndex) => (
                   <div
                     key={trial.id}
-                    className="border rounded-lg p-5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 dark:border-blue-800"
+                    className="border rounded-lg p-5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 "
                   >
                     {/* Trial Header */}
                     <div className="flex items-center justify-between mb-4">
@@ -428,13 +428,13 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                     <div className="mt-4 pt-3 border-t border-border">
                       <div className="grid grid-cols-3 gap-4 text-center">
                         <div>
-                          <div className="text-lg font-semibold text-blue-600 dark:text-blue-400">
+                          <div className="text-lg font-semibold text-info ">
                             {trial.classes.length}
                           </div>
                           <div className="text-xs text-muted-foreground">Classes</div>
                         </div>
                         <div>
-                          <div className="text-lg font-semibold text-green-600 dark:text-green-400">
+                          <div className="text-lg font-semibold text-success ">
                             {
                               trial.classes.filter(cls => cls.judgeId && judgeDetails[cls.judgeId])
                                 .length
@@ -461,14 +461,14 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
             {/* Consolidated Status Messages */}
             <div className="space-y-2">
               {/* Success Status */}
-              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/50 rounded-lg p-3">
+              <div className="bg-success/10 border border-success/30 rounded-lg p-3">
                 <div className="flex items-start gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                  <CheckCircle className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />
                   <div className="flex-1">
-                    <div className="font-medium text-green-800 dark:text-green-200 text-sm">
+                    <div className="font-medium text-success text-sm">
                       Show Configuration Complete
                     </div>
-                    <p className="text-xs text-green-700 dark:text-green-300 mt-0.5">
+                    <p className="text-xs text-success mt-0.5">
                       "{show.name}" ready with {trials.length} trials and {totalClasses} classes
                     </p>
                   </div>
@@ -477,14 +477,14 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
 
               {/* Warning if judges not fully assigned */}
               {totalJudges > 0 && classesWithJudges < totalClasses && (
-                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/50 rounded-lg p-3">
+                <div className="bg-warning/10 border border-warning/30 rounded-lg p-3">
                   <div className="flex items-start gap-2">
-                    <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+                    <AlertTriangle className="h-4 w-4 text-warning mt-0.5 flex-shrink-0" />
                     <div className="flex-1">
-                      <div className="font-medium text-yellow-800 dark:text-yellow-200 text-sm">
+                      <div className="font-medium text-warning text-sm">
                         Incomplete Judge Assignments
                       </div>
-                      <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-0.5">
+                      <p className="text-xs text-warning mt-0.5">
                         {totalClasses - classesWithJudges} of {totalClasses} classes need judges
                       </p>
                     </div>

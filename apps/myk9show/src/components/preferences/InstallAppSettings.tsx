@@ -19,8 +19,8 @@ export function InstallAppSettings() {
 
       {/* Status */}
       {isInstalled ? (
-        <Alert className="border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
-          <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+        <Alert className="border-success/30 bg-success/10 text-success ">
+          <CheckCircle2 className="h-4 w-4 text-success " />
           <AlertDescription>
             <span className="font-medium">App Installed</span> — Running as standalone app
           </AlertDescription>

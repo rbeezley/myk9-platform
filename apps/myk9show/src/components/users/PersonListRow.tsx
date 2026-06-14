@@ -41,8 +41,7 @@ const PersonListRow: React.FC<PersonListRowProps> = ({
         <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground mb-1">
           {person.email && (
             <span>
-              Email:{' '}
-              <span className="text-blue-700 dark:text-blue-300 font-medium">{person.email}</span>
+              Email: <span className="text-info font-medium">{person.email}</span>
             </span>
           )}
           {person.phone && (

@@ -55,7 +55,7 @@ const DogListRow: React.FC<DogListRowProps> = ({
         <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground mb-1">
           <span>
             Owner:{' '}
-            <span className="text-blue-700 dark:text-blue-300 font-medium">
+            <span className="text-info font-medium">
               {owner ? `${owner.firstName} ${owner.lastName}` : 'N/A'}
             </span>
           </span>

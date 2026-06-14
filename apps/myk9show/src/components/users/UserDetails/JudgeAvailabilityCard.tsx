@@ -12,11 +12,9 @@ interface JudgeAvailabilityCardProps {
 }
 
 const statusColors: Record<string, string> = {
-  available:
-    'bg-gradient-to-r from-green-500/20 to-green-500/10 text-green-700 dark:text-green-300 border-green-500/30',
-  busy: 'bg-gradient-to-r from-yellow-500/20 to-yellow-500/10 text-yellow-700 dark:text-yellow-300 border-yellow-500/30',
-  unavailable:
-    'bg-gradient-to-r from-red-500/20 to-red-500/10 text-red-700 dark:text-red-300 border-red-500/30',
+  available: 'bg-gradient-to-r from-green-500/20 to-green-500/10 text-success border-green-500/30',
+  busy: 'bg-gradient-to-r from-yellow-500/20 to-yellow-500/10 text-warning border-yellow-500/30',
+  unavailable: 'bg-gradient-to-r from-red-500/20 to-red-500/10 text-destructive border-red-500/30',
 };
 
 const JudgeAvailabilityCard: React.FC<JudgeAvailabilityCardProps> = ({ personId }) => {
@@ -70,7 +68,7 @@ const JudgeAvailabilityCard: React.FC<JudgeAvailabilityCardProps> = ({ personId 
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-gradient-to-br from-blue-500/10 to-blue-500/5 rounded-xl">
-              <CalendarDays className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <CalendarDays className="h-5 w-5 text-info " />
             </div>
             <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
               Judge Availability

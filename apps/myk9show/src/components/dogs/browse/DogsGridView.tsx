@@ -16,12 +16,11 @@ function formatSex(sex: string | undefined): string | null {
 const STATUS_BADGES: Record<string, { label: string; className: string }> = {
   active: {
     label: 'Active',
-    className:
-      'text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+    className: 'text-xs bg-success/10 text-success ',
   },
   retired: {
     label: 'Retired',
-    className: 'text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+    className: 'text-xs bg-warning/10 text-warning ',
   },
   deceased: {
     label: 'Deceased',
@@ -56,7 +55,7 @@ export const DogsGridView: React.FC<DogsGridViewProps> = ({ dogs }) => {
                 {sexLabel && (
                   <Badge
                     variant="secondary"
-                    className={`text-xs ${dog.sex === 'male' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300'}`}
+                    className={`text-xs ${dog.sex === 'male' ? 'bg-info/10 text-info ' : 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300'}`}
                   >
                     {sexLabel}
                   </Badge>

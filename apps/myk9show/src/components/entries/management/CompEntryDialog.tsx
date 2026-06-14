@@ -50,12 +50,18 @@ export const CompEntryDialog: React.FC<CompEntryDialogProps> = ({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Gift className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <Gift className="h-5 w-5 text-info " />
             Comp Entry
           </DialogTitle>
           <DialogDescription>
-            Mark <strong>{dogName}</strong>{className ? <> — <strong>{className}</strong></> : null} as comped.
-            This waives all fees.
+            Mark <strong>{dogName}</strong>
+            {className ? (
+              <>
+                {' '}
+                — <strong>{className}</strong>
+              </>
+            ) : null}{' '}
+            as comped. This waives all fees.
           </DialogDescription>
         </DialogHeader>
 
@@ -65,7 +71,7 @@ export const CompEntryDialog: React.FC<CompEntryDialogProps> = ({
               id="comp-reason"
               placeholder="e.g., Judge entry, Worker comp, Club guest..."
               value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              onChange={e => setReason(e.target.value)}
               rows={3}
             />
           </FormField>

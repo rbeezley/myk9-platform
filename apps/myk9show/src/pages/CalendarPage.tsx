@@ -103,16 +103,14 @@ export default function CalendarPage() {
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4"
+            className="bg-info/10 border border-info/30 rounded-lg p-4"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Trophy className="h-5 w-5 text-blue-600" />
                 <div>
-                  <h3 className="font-medium text-blue-900 dark:text-blue-100">
-                    Ready to Register?
-                  </h3>
-                  <p className="text-sm text-blue-700 dark:text-blue-200">
+                  <h3 className="font-medium text-info ">Ready to Register?</h3>
+                  <p className="text-sm text-info ">
                     Click on any show in the calendar below to view details and register your dogs.
                   </p>
                 </div>
@@ -121,7 +119,7 @@ export default function CalendarPage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowRegistrationHint(false)}
-                className="text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-800"
+                className="text-blue-600 hover:bg-info/10 "
               >
                 ✕
               </Button>

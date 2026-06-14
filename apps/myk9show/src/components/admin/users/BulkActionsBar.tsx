@@ -204,7 +204,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
                 onClick={() => setCurrentDialog('delete')}
                 className="h-10 px-4 rounded-xl border-red-200/50 bg-red-50/50 text-red-600 font-[590]
                            hover:bg-red-100/50 hover:text-red-700 transition-all duration-300
-                           dark:border-red-900/50 dark:bg-red-950/20 dark:hover:bg-red-950/30"
+                             "
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete

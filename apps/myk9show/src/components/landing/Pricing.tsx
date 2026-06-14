@@ -120,10 +120,7 @@ export default function Pricing() {
                 <ul className="mt-8 space-y-4">
                   {tier.features.map(feature => (
                     <li key={feature} className="flex items-start text-muted-foreground">
-                      <Check
-                        size={20}
-                        className="mr-2 flex-shrink-0 text-blue-500 dark:text-blue-400"
-                      />
+                      <Check size={20} className="mr-2 flex-shrink-0 text-info " />
                       <span>{feature}</span>
                     </li>
                   ))}

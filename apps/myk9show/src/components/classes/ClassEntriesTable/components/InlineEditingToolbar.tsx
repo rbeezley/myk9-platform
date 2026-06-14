@@ -32,7 +32,7 @@ export const InlineEditingToolbar: React.FC<InlineEditingToolbarProps> = ({
   changesSummary,
   userRole,
   onToggleInlineEditing,
-  onToggleAutoSave
+  onToggleAutoSave,
 }) => {
   return (
     <div className="flex justify-between items-center">
@@ -61,7 +61,7 @@ export const InlineEditingToolbar: React.FC<InlineEditingToolbarProps> = ({
                     onClick={onToggleAutoSave}
                     className={cn(
                       'myk9-action-button',
-                      autoSaveEnabled && 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300'
+                      autoSaveEnabled && 'bg-success/10 text-success '
                     )}
                   >
                     <Save className="h-4 w-4 mr-1" />
@@ -80,14 +80,10 @@ export const InlineEditingToolbar: React.FC<InlineEditingToolbarProps> = ({
               <span>Editing Mode</span>
             </Badge>
             {changesSummary.valid > 0 && (
-              <span className="text-green-600">
-                {changesSummary.valid} valid
-              </span>
+              <span className="text-green-600">{changesSummary.valid} valid</span>
             )}
             {changesSummary.invalid > 0 && (
-              <span className="text-red-600">
-                {changesSummary.invalid} invalid
-              </span>
+              <span className="text-red-600">{changesSummary.invalid} invalid</span>
             )}
           </div>
         )}

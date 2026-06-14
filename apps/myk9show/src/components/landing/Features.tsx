@@ -86,7 +86,7 @@ const features = [
 const getIconColor = (color: string) => {
   switch (color) {
     case 'blue':
-      return 'text-blue-500 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30';
+      return 'text-info bg-info/10 ';
     case 'indigo':
       return 'text-indigo-500 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/30';
     case 'purple':
@@ -94,15 +94,15 @@ const getIconColor = (color: string) => {
     case 'rose':
       return 'text-rose-500 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/30';
     case 'amber':
-      return 'text-amber-500 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30';
+      return 'text-warning bg-warning/10 ';
     case 'emerald':
-      return 'text-emerald-500 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30';
+      return 'text-success bg-success/10 ';
     case 'cyan':
       return 'text-cyan-500 dark:text-cyan-400 bg-cyan-100 dark:bg-cyan-900/30';
     case 'teal':
       return 'text-teal-500 dark:text-teal-400 bg-teal-100 dark:bg-teal-900/30';
     case 'green':
-      return 'text-green-500 dark:text-green-400 bg-green-100 dark:bg-green-900/30';
+      return 'text-success bg-success/10 ';
     default:
       return 'text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800';
   }

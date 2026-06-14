@@ -82,7 +82,7 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
         <div className="relative space-y-6">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-gradient-to-br from-amber-500/10 to-amber-500/5 rounded-xl">
-              <PawPrint className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <PawPrint className="h-5 w-5 text-warning " />
             </div>
             <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
               Dogs

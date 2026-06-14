@@ -31,6 +31,23 @@ export default tseslint.config(
       ],
       // Prevent use of 'any' type (Sprint 25: Type Safety)
       '@typescript-eslint/no-explicit-any': 'error',
+      // Ban hand-paired dark: status color classes — use semantic tokens instead.
+      // Allowed exception: teal (brand accent color, not a status semantic).
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "Literal[value=/dark:(text|bg|border)-(red|blue|amber|orange|yellow|green|emerald)-\\d+/]",
+          message:
+            'Hand-paired dark: status classes are banned. Use semantic tokens: text-destructive / text-info / text-warning / text-success (and bg-*/10, border-*/30 variants).',
+        },
+        {
+          selector:
+            "TemplateElement[value.raw=/dark:(text|bg|border)-(red|blue|amber|orange|yellow|green|emerald)-\\d+/]",
+          message:
+            'Hand-paired dark: status classes are banned. Use semantic tokens: text-destructive / text-info / text-warning / text-success (and bg-*/10, border-*/30 variants).',
+        },
+      ],
     },
   }
 );

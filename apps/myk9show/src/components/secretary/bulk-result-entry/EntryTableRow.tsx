@@ -28,19 +28,17 @@ export function EntryTableRow({
   index,
   validationError,
   onFieldChange,
-  onKeyDown
+  onKeyDown,
 }: EntryTableRowProps) {
   return (
     <TableRow
       key={item.entryId}
       className={cn(
         'hover:bg-gray-50 dark:hover:bg-gray-800',
-        item.hasChanges && !item.isValid && 'bg-red-50 dark:bg-red-950/20'
+        item.hasChanges && !item.isValid && 'bg-destructive/10 '
       )}
     >
-      <TableCell className="font-medium">
-        #{item.armband}
-      </TableCell>
+      <TableCell className="font-medium">#{item.armband}</TableCell>
       <TableCell>
         <div>
           <div className="font-medium">{item.dogName}</div>
@@ -50,8 +48,8 @@ export function EntryTableRow({
       <TableCell>
         <SimpleTimeFields
           value={item.searchTime}
-          onChange={(value) => onFieldChange(index, 'searchTime', value)}
-          onKeyDown={(e) => onKeyDown(e, index, 'searchTime')}
+          onChange={value => onFieldChange(index, 'searchTime', value)}
+          onKeyDown={e => onKeyDown(e, index, 'searchTime')}
           data-index={index}
           data-field="searchTime"
         />
@@ -59,7 +57,7 @@ export function EntryTableRow({
       <TableCell>
         <Select
           value={item.qualification}
-          onValueChange={(value) => onFieldChange(index, 'qualification', value)}
+          onValueChange={value => onFieldChange(index, 'qualification', value)}
           data-index={index}
           data-field="qualification"
         >
@@ -79,8 +77,8 @@ export function EntryTableRow({
         <Input
           type="number"
           value={item.faults}
-          onChange={(e) => onFieldChange(index, 'faults', e.target.value)}
-          onKeyDown={(e) => onKeyDown(e, index, 'faults')}
+          onChange={e => onFieldChange(index, 'faults', e.target.value)}
+          onKeyDown={e => onKeyDown(e, index, 'faults')}
           min="0"
           max="99"
           className="w-16"
@@ -91,8 +89,8 @@ export function EntryTableRow({
       <TableCell>
         <Input
           value={item.notes}
-          onChange={(e) => onFieldChange(index, 'notes', e.target.value)}
-          onKeyDown={(e) => onKeyDown(e, index, 'notes')}
+          onChange={e => onFieldChange(index, 'notes', e.target.value)}
+          onKeyDown={e => onKeyDown(e, index, 'notes')}
           placeholder="Optional notes"
           className="w-40"
           data-index={index}
@@ -115,11 +113,7 @@ export function EntryTableRow({
         ) : (
           <Badge variant="outline">Empty</Badge>
         )}
-        {validationError && (
-          <div className="text-xs text-red-600 mt-1">
-            {validationError}
-          </div>
-        )}
+        {validationError && <div className="text-xs text-red-600 mt-1">{validationError}</div>}
       </TableCell>
     </TableRow>
   );

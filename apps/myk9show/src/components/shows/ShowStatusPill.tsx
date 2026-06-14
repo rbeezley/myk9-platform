@@ -25,23 +25,19 @@ interface ShowStatusPillProps {
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   draft: {
     label: 'Draft',
-    className:
-      'bg-amber-100 border border-amber-300 text-amber-800 dark:bg-amber-950 dark:border-amber-800 dark:text-amber-400',
+    className: 'bg-warning/10 border border-warning/30 text-warning ',
   },
   published: {
     label: 'Published',
-    className:
-      'bg-green-100 border border-green-300 text-green-800 dark:bg-green-950 dark:border-green-800 dark:text-green-400',
+    className: 'bg-success/10 border border-success/30 text-success ',
   },
   upcoming: {
     label: 'Upcoming',
-    className:
-      'bg-blue-100 border border-blue-300 text-blue-800 dark:bg-blue-950 dark:border-blue-800 dark:text-blue-400',
+    className: 'bg-info/10 border border-info/30 text-info ',
   },
   in_progress: {
     label: 'In Progress',
-    className:
-      'bg-orange-100 border border-orange-300 text-orange-800 dark:bg-orange-950 dark:border-orange-800 dark:text-orange-400',
+    className: 'bg-warning/10 border border-warning/30 text-warning ',
   },
   completed: {
     label: 'Completed',
@@ -49,8 +45,7 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   },
   cancelled: {
     label: 'Cancelled',
-    className:
-      'bg-red-100 border border-red-300 text-red-800 dark:bg-red-950 dark:border-red-900 dark:text-red-400',
+    className: 'bg-destructive/10 border border-destructive/30 text-destructive ',
   },
 };
 
@@ -81,7 +76,9 @@ export function ShowStatusPill({ showId, status, clubId }: ShowStatusPillProps) 
         // (lost in the #615 merge once already) or a genuinely clubless show
         // — and the payout cron cannot pay out a show with no club, so its
         // entry fees would collect with nowhere to go.
-        toast.error('Assign a club to this show before publishing — entry fees are paid out to the club.');
+        toast.error(
+          'Assign a club to this show before publishing — entry fees are paid out to the club.'
+        );
         return;
       }
       if (clubAccountQuery.isLoading) {

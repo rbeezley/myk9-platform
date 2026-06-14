@@ -168,7 +168,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         title: 'Contact Information',
         icon: Mail,
         iconGradient: 'from-blue-500/10 to-indigo-500/5',
-        iconColor: 'text-blue-600 dark:text-blue-400',
+        iconColor: 'text-info ',
         fields: [
           { label: 'First Name', value: firstName },
           { label: 'Last Name', value: lastName },
@@ -192,7 +192,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         title: 'Address',
         icon: MapPin,
         iconGradient: 'from-green-500/10 to-emerald-500/5',
-        iconColor: 'text-green-600 dark:text-green-400',
+        iconColor: 'text-success ',
         fields: [
           { label: 'Street', value: formData.address || null },
           { label: 'City', value: formData.city || null },

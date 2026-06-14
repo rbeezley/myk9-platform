@@ -1,6 +1,6 @@
 # Plan: UX Journey Audit — Exhibitor & Secretary
 
-**Created:** 2026-06-12 · **Status:** Draft — not started
+**Created:** 2026-06-12 · **Status:** Phase 3 complete
 **Goal:** Audit the two highest-stakes role experiences as *end-to-end journeys*, not pages. The April 2026 sprint audited 11 pages in isolation (Tier 1 exhibitor + Tier 2 secretary, `docs/ux-audits/phase-1-summary.md` / `phase-2-summary.md`); since then the surfaces changed underneath it — myK9Q was absorbed into `/at-show`, the workbench collapse landed, and the secretary show-day consolidation plan reshaped day-of flows. This audit scores the *current* app against INTENT.md's role feelings: Exhibitor "This respects my time", Secretary "That was easy".
 
 **Methodology:** the `/UX-Audit` skill's 6-pass rubric (mental model, IA, affordances, cognitive load, state coverage, flow integrity) is mandatory per project rules — but applied per journey *segment*, with cross-segment flow integrity as the connecting thread. `/IA-Review` is the escalation path if a journey reveals structural fragmentation as the root cause.
@@ -57,7 +57,7 @@ Walk the full journey in a real browser (playwright-cli) with a test exhibitor a
 
 Output: `01-exhibitor-journey.md` with severity-rated findings tables per the UX-Audit skill format.
 
-## Phase 3 — Secretary journey audit
+## Phase 3 — Secretary journey audit — complete 2026-06-14
 
 Same structure with a secretary account:
 

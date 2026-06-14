@@ -76,7 +76,7 @@ The shared packages follow a strict directed acyclic graph (DAG) to prevent circ
 
 All packages use `tsup` for building and produce ESM-only output. The `workspace:*` protocol in pnpm keeps inter-package versions in sync. React is declared as a peer dependency across all packages to avoid version duplication.
 
-See [docs/adr/006-package-boundaries.md](adr/006-package-boundaries.md) for full rationale on these boundaries.
+See [docs/adr/006-package-boundaries.md](../adr/006-package-boundaries.md) for full rationale on these boundaries.
 
 ---
 
@@ -116,7 +116,7 @@ myK9Q is designed to work without a network connection. All reads hit local Inde
 - **Conflict strategy** is last-write-wins with a field-authority option for cases where different roles own different fields
 - **Sync status** is derived from the offline queue and exposed via `useSyncStatus` so the UI can indicate pending changes
 
-See [docs/adr/004-offline-first-indexeddb.md](adr/004-offline-first-indexeddb.md) for the full offline-first design.
+See [docs/adr/004-offline-first-indexeddb.md](../adr/004-offline-first-indexeddb.md) for the full offline-first design.
 
 ---
 
@@ -339,12 +339,12 @@ Each sport has its own scoring configuration defined in `@myk9/scoring` and a co
 
 All architectural decisions are documented as Architecture Decision Records:
 
-1. [ADR-001: Monorepo with pnpm + Turborepo](adr/001-monorepo-pnpm-turborepo.md)
-2. [ADR-002: Base UI over Radix for UI components](adr/002-base-ui-over-radix.md)
-3. [ADR-003: Zustand for state management](adr/003-zustand-state-management.md)
-4. [ADR-004: Offline-first with IndexedDB](adr/004-offline-first-indexeddb.md)
-5. [ADR-005: Dual UI strategy (Tailwind vs Semantic)](adr/005-dual-ui-strategy.md)
-6. [ADR-006: Package boundaries and dependency graph](adr/006-package-boundaries.md)
-7. [ADR-007: Supabase as backend](adr/007-supabase-backend.md)
+1. [ADR-001: Monorepo with pnpm + Turborepo](../adr/001-monorepo-pnpm-turborepo.md)
+2. [ADR-002: Base UI over Radix for UI components](../adr/002-base-ui-over-radix.md)
+3. [ADR-003: Zustand for state management](../adr/003-zustand-state-management.md)
+4. [ADR-004: Offline-first with IndexedDB](../adr/004-offline-first-indexeddb.md)
+5. [ADR-005: Dual UI strategy (Tailwind vs Semantic)](../adr/005-dual-ui-strategy.md)
+6. [ADR-006: Package boundaries and dependency graph](../adr/006-package-boundaries.md)
+7. [ADR-007: Supabase as backend](../adr/007-supabase-backend.md)
 
-All ADRs are located in [docs/adr/](adr/).
+All ADRs are located in [docs/adr/](../adr/).

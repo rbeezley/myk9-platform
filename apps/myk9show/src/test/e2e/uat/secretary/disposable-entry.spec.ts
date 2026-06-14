@@ -50,12 +50,12 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
   }, testInfo) => {
     const seed = seedByTest.get(testInfo.testId)!;
 
-    await page.goto(`/secretary/entries/${seed.showId}`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`/shows/${seed.showId}/entry-management`, { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible({
       timeout: 15000,
     });
 
-    await page.getByRole('textbox', { name: 'Search entries...' }).fill(seed.dogName);
+    await page.getByRole('textbox', { name: 'Search entries' }).fill(seed.dogName);
     await expect(page.getByText(seed.dogName).first()).toBeVisible({ timeout: 10000 });
     await expect(page.getByText(seed.className).first()).toBeVisible();
 
@@ -71,7 +71,9 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
       .getByRole('button', { name: /Pending/ })
       .first()
       .click();
-    await page.getByRole('menuitem', { name: 'Accepted', exact: true }).click();
+    const acceptedItem = page.getByRole('menuitem', { name: 'Accepted', exact: true });
+    await expect(acceptedItem).toBeVisible({ timeout: 10000 });
+    await acceptedItem.click({ force: true });
     await expect(page.getByRole('button', { name: /Accepted/ }).first()).toBeVisible({
       timeout: 10000,
     });
@@ -80,7 +82,9 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
       .getByRole('button', { name: /Not Checked In|No Status/ })
       .first()
       .click();
-    await page.getByRole('menuitem', { name: 'Checked-in' }).click();
+    const checkedInItem = page.getByRole('menuitem', { name: 'Checked-in' });
+    await expect(checkedInItem).toBeVisible({ timeout: 10000 });
+    await checkedInItem.click({ force: true });
     await expect(page.getByRole('button', { name: /Checked-in|Checked In/ }).first()).toBeVisible({
       timeout: 10000,
     });

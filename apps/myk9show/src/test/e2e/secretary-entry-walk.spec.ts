@@ -127,7 +127,9 @@ test.describe('Secretary Entry Walk', () => {
 
     // ── Step 2: Classes ────────────────────────────────────────────────────
     await nextBtn.click();
-    await page.waitForSelector('text=Select Classes', { timeout: 8000 });
+    await expect(page.getByRole('heading', { name: 'Select Classes' })).toBeVisible({
+      timeout: 8000,
+    });
 
     const interiorCard = page.locator('.myk9-element-card').filter({ hasText: 'Interior' }).first();
     await expect(interiorCard).toBeVisible({ timeout: 10000 });

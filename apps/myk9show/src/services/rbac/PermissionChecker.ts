@@ -60,6 +60,14 @@ interface UntypedRpcClient {
   rpc(fn: string, args: Record<string, unknown>): PromiseLike<PostgrestSingleResponse<unknown>>;
 }
 
+export function isTransientBrowserFetchError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return (
+    error.name === 'AbortError' ||
+    /AbortError|signal is aborted|Failed to fetch/i.test(error.message)
+  );
+}
+
 /**
  * Helper to call RPC functions that are not in generated Supabase types.
  * Uses a narrow UntypedRpcClient cast instead of `as any` to preserve
@@ -227,7 +235,9 @@ export class PermissionChecker {
         effectivePermissions: typedEffective.map(ep => ep.permission_code || ep.permission_name),
       };
     } catch (error) {
-      logger.error('Failed to get user permissions:', 'rbac', {}, error as Error);
+      if (!isTransientBrowserFetchError(error)) {
+        logger.error('Failed to get user permissions:', 'rbac', {}, error as Error);
+      }
       throw error;
     }
   }

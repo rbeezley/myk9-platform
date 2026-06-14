@@ -24,9 +24,9 @@ export const ROW_BUTTON_CLASS =
   'w-full text-left flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl border border-border bg-card hover:bg-card/90 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.99] transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 min-h-[48px]';
 
 const STATUS_BADGE_STYLES: Record<string, string> = {
-  confirmed: 'bg-success-green/10 text-success-green border-success-green/20',
-  pending: 'bg-warning-orange/10 text-warning-orange border-warning-orange/20',
-  cancelled: 'bg-error-red/10 text-error-red border-error-red/20',
+  confirmed: 'bg-success/10 text-success border-success/20',
+  pending: 'bg-warning/10 text-warning border-warning/20',
+  cancelled: 'bg-destructive/10 text-destructive border-destructive/20',
 };
 
 const STATUS_LABELS: Record<string, string> = {

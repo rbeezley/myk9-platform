@@ -58,7 +58,7 @@ function UpcomingCard({ show }: Pick<ShowPhaseCardProps, 'show'>) {
 
   return (
     <div
-      className={`flex items-center gap-4 rounded-xl border bg-card px-5 py-4 ${deadlineUrgent ? 'border-warning-orange/50' : 'border-border'}`}
+      className={`flex items-center gap-4 rounded-xl border bg-card px-5 py-4 ${deadlineUrgent ? 'border-warning/50' : 'border-border'}`}
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -77,7 +77,7 @@ function UpcomingCard({ show }: Pick<ShowPhaseCardProps, 'show'>) {
             daysUntilClose !== null &&
             daysUntilClose <= 14 &&
             daysUntilClose >= 0 && (
-              <span className="text-xs text-warning-orange">
+              <span className="text-xs text-warning">
                 Entries close in {daysUntilClose} {daysUntilClose === 1 ? 'day' : 'days'}
               </span>
             )}

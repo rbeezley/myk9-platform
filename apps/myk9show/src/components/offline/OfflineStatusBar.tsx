@@ -118,7 +118,7 @@ export const OfflineStatusBar: React.FC<OfflineStatusBarProps> = ({
           {/* Pending Changes Counter */}
           {pendingChanges > 0 && (
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <div className="w-2 h-2 bg-warning-orange rounded-full animate-pulse" />
+              <div className="w-2 h-2 bg-warning rounded-full animate-pulse" />
               {pendingChanges} pending changes
             </div>
           )}

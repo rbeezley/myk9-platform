@@ -469,7 +469,7 @@ const ClubMembersPage: React.FC = () => {
                           <td className="px-4 py-3 text-right">
                             <button
                               onClick={() => removeOfficerMutation.mutate(officer.id)}
-                              className="p-1.5 rounded-lg text-muted-foreground hover:text-error-red hover:bg-error-red/10 transition-colors"
+                              className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                               title="Remove from position"
                             >
                               <Trash2 className="h-4 w-4" />

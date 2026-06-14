@@ -285,13 +285,13 @@ export function LiveScoreUpdates({
   const getQualificationStyling = (qualification: QualificationStatus) => {
     switch (qualification) {
       case 'Qualified':
-        return 'bg-success-green/10 text-success-green border-success-green/20';
+        return 'bg-success/10 text-success border-success/20';
       case 'Not Qualified':
-        return 'bg-error-red/10 text-error-red border-error-red/20';
+        return 'bg-destructive/10 text-destructive border-destructive/20';
       case 'Excused':
         return 'bg-muted text-muted-foreground border-border';
       case 'Eliminated':
-        return 'bg-error-red/10 text-error-red border-error-red/20';
+        return 'bg-destructive/10 text-destructive border-destructive/20';
       case 'Absent':
         return 'bg-muted text-muted-foreground border-border';
       default:
@@ -303,9 +303,9 @@ export function LiveScoreUpdates({
   const getPlacementChangeIcon = (change?: 'up' | 'down' | 'same') => {
     switch (change) {
       case 'up':
-        return <ArrowUp className="h-3 w-3 text-success-green" />;
+        return <ArrowUp className="h-3 w-3 text-success" />;
       case 'down':
-        return <ArrowDown className="h-3 w-3 text-error-red" />;
+        return <ArrowDown className="h-3 w-3 text-destructive" />;
       case 'same':
         return <Minus className="h-3 w-3 text-muted-foreground" />;
       default:
@@ -348,9 +348,9 @@ export function LiveScoreUpdates({
             {/* Connection status */}
             <div className="flex items-center gap-1">
               {syncStatus.isOnline ? (
-                <Wifi className="h-4 w-4 text-success-green" />
+                <Wifi className="h-4 w-4 text-success" />
               ) : (
-                <WifiOff className="h-4 w-4 text-error-red" />
+                <WifiOff className="h-4 w-4 text-destructive" />
               )}
               <span className="text-xs text-muted-foreground">
                 {syncStatus.isOnline ? 'Online' : 'Offline'}
@@ -470,16 +470,16 @@ export function LiveScoreUpdates({
                       {/* Sync status */}
                       <div className="flex items-center">
                         {entry.score.syncStatus === 'synced' && (
-                          <CheckCircle2 className="h-3 w-3 text-success-green" />
+                          <CheckCircle2 className="h-3 w-3 text-success" />
                         )}
                         {entry.score.syncStatus === 'pending' && (
-                          <Clock className="h-3 w-3 text-warning-orange" />
+                          <Clock className="h-3 w-3 text-warning" />
                         )}
                         {entry.score.syncStatus === 'conflict' && (
-                          <AlertCircle className="h-3 w-3 text-error-red" />
+                          <AlertCircle className="h-3 w-3 text-destructive" />
                         )}
                         {entry.score.syncStatus === 'error' && (
-                          <AlertCircle className="h-3 w-3 text-error-red" />
+                          <AlertCircle className="h-3 w-3 text-destructive" />
                         )}
                       </div>
                     </div>

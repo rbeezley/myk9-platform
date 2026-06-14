@@ -283,7 +283,7 @@ export function ReportControlsBar({
       {officialPdfAction?.missingFieldLabels?.length ? (
         <Alert
           role="status"
-          className="basis-full border-warning-orange/30 bg-warning-orange/10 [&>svg]:text-warning-orange"
+          className="basis-full border-warning/30 bg-warning/10 [&>svg]:text-warning"
         >
           <AlertTriangle className="h-4 w-4" aria-hidden="true" />
           <AlertTitle>Official PDF needs a quick review</AlertTitle>

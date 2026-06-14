@@ -76,10 +76,10 @@ export function OverviewTab({ performanceData, budgetViolations }: OverviewTabPr
                          opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         <div className="relative p-6">
           <div className="flex items-center gap-3 mb-6 group-hover:text-primary transition-colors duration-300">
-            <div className="p-2 bg-gradient-to-br from-warning-orange/20 to-warning-orange/10 rounded-xl
+            <div className="p-2 bg-gradient-to-br from-warning/20 to-warning/10 rounded-xl
                              shadow-sm group-hover:shadow-xl group-hover:scale-110
                              transition-all duration-300">
-              <AlertTriangle className="h-5 w-5 text-warning-orange" />
+              <AlertTriangle className="h-5 w-5 text-warning" />
             </div>
             <h3 className="text-xl font-semibold">Recent Performance Alerts</h3>
           </div>
@@ -89,8 +89,8 @@ export function OverviewTab({ performanceData, budgetViolations }: OverviewTabPr
               <div key={index} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                 <div className="flex items-center gap-3">
                   <AlertTriangle className={`h-4 w-4 ${
-                    violation.severity === 'error' ? 'text-error-red' :
-                    violation.severity === 'warning' ? 'text-warning-orange' : 'text-primary'
+                    violation.severity === 'error' ? 'text-destructive' :
+                    violation.severity === 'warning' ? 'text-warning' : 'text-primary'
                   }`} />
                   <div>
                     <p className="font-medium">{violation.ruleName}</p>
@@ -106,8 +106,8 @@ export function OverviewTab({ performanceData, budgetViolations }: OverviewTabPr
             ))}
             {budgetViolations.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
-                <div className="w-16 h-16 bg-gradient-to-br from-success-green/10 to-success-green/5 rounded-full mx-auto mb-4 flex items-center justify-center">
-                  <CheckCircle className="h-8 w-8 text-success-green" />
+                <div className="w-16 h-16 bg-gradient-to-br from-success/10 to-success/5 rounded-full mx-auto mb-4 flex items-center justify-center">
+                  <CheckCircle className="h-8 w-8 text-success" />
                 </div>
                 <p>No performance violations detected</p>
               </div>

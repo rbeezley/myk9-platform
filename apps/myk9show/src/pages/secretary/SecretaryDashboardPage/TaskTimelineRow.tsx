@@ -20,9 +20,9 @@ interface TaskTimelineRowProps {
 }
 
 const urgencyPillClass: Record<UrgencyBucket, string> = {
-  overdue: 'bg-error-red/80 text-white',
-  today: 'bg-error-red/60 text-white',
-  'this-week': 'bg-warning-orange/70 text-white',
+  overdue: 'bg-destructive/80 text-white',
+  today: 'bg-destructive/60 text-white',
+  'this-week': 'bg-warning/70 text-white',
   future: 'bg-primary/70 text-primary-foreground',
 };
 

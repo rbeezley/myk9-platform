@@ -122,7 +122,7 @@ export const ShowDayHero = forwardRef<HTMLDivElement, ShowDayHeroProps>(function
               <span className="text-xs font-bold uppercase tracking-wider">Today</span>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-success-green/10 text-success-green rounded-full">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-success/10 text-success rounded-full">
               <Activity className="h-3.5 w-3.5" />
               <span className="text-xs font-bold uppercase tracking-wider">Live</span>
             </div>
@@ -133,7 +133,7 @@ export const ShowDayHero = forwardRef<HTMLDivElement, ShowDayHeroProps>(function
         </div>
         {staleLabel && (
           <span
-            className="flex items-center gap-1 text-xs text-warning-orange"
+            className="flex items-center gap-1 text-xs text-warning"
             role="status"
             aria-label={`Data may be outdated, last updated ${staleLabel}`}
           >
@@ -198,7 +198,7 @@ export const ShowDayHero = forwardRef<HTMLDivElement, ShowDayHeroProps>(function
           <p className="mt-2 text-muted-foreground">
             {data.stats.total} class{data.stats.total !== 1 ? 'es' : ''} completed
             {data.stats.qualified > 0 && (
-              <span className="text-success-green font-semibold">
+              <span className="text-success font-semibold">
                 {' '}
                 &mdash; {data.stats.qualified} Q{data.stats.qualified !== 1 ? 's' : ''}
               </span>
@@ -274,7 +274,7 @@ export const ShowDayHero = forwardRef<HTMLDivElement, ShowDayHeroProps>(function
           {data.stats.completed} of {data.stats.total} classes done
         </span>
         {data.stats.qualified > 0 && (
-          <span className="text-success-green font-medium">&bull; {data.stats.qualified} Q</span>
+          <span className="text-success font-medium">&bull; {data.stats.qualified} Q</span>
         )}
       </div>
     </div>

@@ -68,21 +68,27 @@ describe('semantic status token foundation', () => {
     });
   });
 
-  describe('tailwind.config.js — deprecated aliases still present', () => {
-    it('keeps success-green alias pointing at --success', () => {
-      expect(tailwind).toContain("'success-green': 'rgb(var(--success) / <alpha-value>)'");
+  describe('tailwind.config.js — deprecated aliases removed (Phase 3 complete)', () => {
+    it('no longer contains success-green alias', () => {
+      expect(tailwind).not.toContain("'success-green'");
     });
-    it('keeps warning-orange alias pointing at --warning', () => {
-      expect(tailwind).toContain("'warning-orange': 'rgb(var(--warning) / <alpha-value>)'");
+    it('no longer contains warning-orange alias', () => {
+      expect(tailwind).not.toContain("'warning-orange'");
+    });
+    it('no longer contains error-red alias', () => {
+      expect(tailwind).not.toContain("'error-red'");
     });
   });
 
-  describe('index.css — deprecated CSS vars retained during migration', () => {
-    it('still defines --success-green (deprecated alias)', () => {
-      expect(css).toContain('--success-green:');
+  describe('index.css — deprecated CSS vars removed (Phase 3 complete)', () => {
+    it('no longer defines --success-green', () => {
+      expect(css).not.toContain('--success-green');
     });
-    it('still defines --warning-orange (deprecated alias)', () => {
-      expect(css).toContain('--warning-orange:');
+    it('no longer defines --warning-orange', () => {
+      expect(css).not.toContain('--warning-orange');
+    });
+    it('no longer defines --error-red', () => {
+      expect(css).not.toContain('--error-red');
     });
   });
 

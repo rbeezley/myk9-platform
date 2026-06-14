@@ -324,9 +324,9 @@ export function PlacementRecalculationAlert({
     switch (alert.priority) {
       case 'high':
         return {
-          cardClass: 'border-warning-orange/50 bg-warning-orange/5',
-          iconColor: 'text-warning-orange',
-          badgeClass: 'bg-warning-orange/10 text-warning-orange border-warning-orange/20'
+          cardClass: 'border-warning/50 bg-warning/5',
+          iconColor: 'text-warning',
+          badgeClass: 'bg-warning/10 text-warning border-warning/20'
         };
       case 'medium':
         return {
@@ -347,15 +347,15 @@ export function PlacementRecalculationAlert({
   const getChangeIcon = (changeType: PlacementChange['changeType']) => {
     switch (changeType) {
       case 'moved_up':
-        return <ArrowUp className="h-3 w-3 text-success-green" />;
+        return <ArrowUp className="h-3 w-3 text-success" />;
       case 'moved_down':
-        return <ArrowDown className="h-3 w-3 text-error-red" />;
+        return <ArrowDown className="h-3 w-3 text-destructive" />;
       case 'new_entry':
         return <TrendingUp className="h-3 w-3 text-primary" />;
       case 'lost':
-        return <TrendingDown className="h-3 w-3 text-error-red" />;
+        return <TrendingDown className="h-3 w-3 text-destructive" />;
       case 'gained':
-        return <Trophy className="h-3 w-3 text-success-green" />;
+        return <Trophy className="h-3 w-3 text-success" />;
       default:
         return <RotateCcw className="h-3 w-3 text-muted-foreground" />;
     }

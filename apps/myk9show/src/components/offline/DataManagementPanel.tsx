@@ -231,12 +231,12 @@ export const DataManagementPanel: React.FC<DataManagementPanelProps> = ({
                 </Button>
 
                 {backupResult && (
-                  <Alert className={backupResult.success ? 'border-success-green' : 'border-error-red'}>
+                  <Alert className={backupResult.success ? 'border-success' : 'border-destructive'}>
                     <div className="flex items-center gap-2">
                       {backupResult.success ? (
-                        <CheckCircle className="h-4 w-4 text-success-green" />
+                        <CheckCircle className="h-4 w-4 text-success" />
                       ) : (
-                        <AlertTriangle className="h-4 w-4 text-error-red" />
+                        <AlertTriangle className="h-4 w-4 text-destructive" />
                       )}
                     </div>
                     <AlertDescription>
@@ -291,12 +291,12 @@ export const DataManagementPanel: React.FC<DataManagementPanelProps> = ({
                 )}
 
                 {restoreResult && (
-                  <Alert className={restoreResult.success ? 'border-success-green' : 'border-error-red'}>
+                  <Alert className={restoreResult.success ? 'border-success' : 'border-destructive'}>
                     <div className="flex items-center gap-2">
                       {restoreResult.success ? (
-                        <CheckCircle className="h-4 w-4 text-success-green" />
+                        <CheckCircle className="h-4 w-4 text-success" />
                       ) : (
-                        <AlertTriangle className="h-4 w-4 text-error-red" />
+                        <AlertTriangle className="h-4 w-4 text-destructive" />
                       )}
                     </div>
                     <AlertDescription>
@@ -462,8 +462,8 @@ export const DataManagementPanel: React.FC<DataManagementPanelProps> = ({
               </Button>
 
               {lastCleanup && (
-                <Alert className="border-success-green">
-                  <CheckCircle className="h-4 w-4 text-success-green" />
+                <Alert className="border-success">
+                  <CheckCircle className="h-4 w-4 text-success" />
                   <AlertDescription>
                     <div>
                       <div className="font-medium">Cleanup completed!</div>

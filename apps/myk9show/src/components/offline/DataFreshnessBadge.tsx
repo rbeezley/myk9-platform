@@ -43,7 +43,7 @@ export const DataFreshnessBadge: React.FC<DataFreshnessBadgeProps> = ({
           icon: CheckCircle,
           label: 'Fresh',
           variant: 'default' as const,
-          className: 'bg-success-green/10 text-success-green border-success-green/20',
+          className: 'bg-success/10 text-success border-success/20',
           tooltip: 'Data is up to date'
         };
       case 'stale':
@@ -51,7 +51,7 @@ export const DataFreshnessBadge: React.FC<DataFreshnessBadgeProps> = ({
           icon: Clock,
           label: 'Stale',
           variant: 'secondary' as const,
-          className: 'bg-warning-orange/10 text-warning-orange border-warning-orange/20',
+          className: 'bg-warning/10 text-warning border-warning/20',
           tooltip: 'Data may be outdated'
         };
       case 'outdated':
@@ -59,7 +59,7 @@ export const DataFreshnessBadge: React.FC<DataFreshnessBadgeProps> = ({
           icon: AlertTriangle,
           label: 'Outdated',
           variant: 'destructive' as const,
-          className: 'bg-error-red/10 text-error-red border-error-red/20',
+          className: 'bg-destructive/10 text-destructive border-destructive/20',
           tooltip: 'Data is significantly outdated'
         };
       case 'offline':

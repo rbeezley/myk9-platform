@@ -131,13 +131,13 @@ export function getEntryStatusBadgeStyle(status: EntryStatus): {
   switch (status) {
     case 'accepting':
       return {
-        className: 'bg-success-green/10 text-success-green border-success-green/20 border',
+        className: 'bg-success/10 text-success border-success/20 border',
         variant: 'default',
       };
     case 'closing_soon':
       return {
         className:
-          'bg-warning-orange/10 text-warning-orange border-warning-orange/20 border animate-pulse',
+          'bg-warning/10 text-warning border-warning/20 border animate-pulse',
         variant: 'default',
       };
     case 'closed':

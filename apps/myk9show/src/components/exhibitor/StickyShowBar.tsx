@@ -66,7 +66,7 @@ export function StickyShowBar({ nextUp, heroRef, onTap, className }: StickyShowB
       )}
       aria-label={`Next up: ${classLabel}, estimated ${nextUp.estimatedTimeMinutes ?? '?'} minutes. Tap to scroll to details.`}
     >
-      <Activity className="h-3.5 w-3.5 text-success-green flex-shrink-0" />
+      <Activity className="h-3.5 w-3.5 text-success flex-shrink-0" />
       <span className="font-semibold text-sm truncate">{classLabel}</span>
       {nextUp.estimatedTimeMinutes != null && (
         <span className="text-sm text-muted-foreground whitespace-nowrap ml-auto">

@@ -124,7 +124,7 @@ export function SyncManagementPanel({
               {isOnline ? (
                 <Badge
                   variant="outline"
-                  className="bg-success-green/10 text-success-green border-success-green/20"
+                  className="bg-success/10 text-success border-success/20"
                 >
                   <Wifi className="h-3 w-3 mr-1" />
                   Online
@@ -149,21 +149,21 @@ export function SyncManagementPanel({
               <div className="text-2xl font-bold">{stats.total}</div>
               <div className="text-xs text-muted-foreground">Total</div>
             </div>
-            <div className="bg-success-green/10 rounded-lg p-3 text-center">
-              <div className="text-2xl font-bold text-success-green">{stats.synced}</div>
-              <div className="text-xs text-success-green">Synced</div>
+            <div className="bg-success/10 rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-success">{stats.synced}</div>
+              <div className="text-xs text-success">Synced</div>
             </div>
-            <div className="bg-warning-orange/10 rounded-lg p-3 text-center">
-              <div className="text-2xl font-bold text-warning-orange">{stats.pending}</div>
-              <div className="text-xs text-warning-orange">Pending</div>
+            <div className="bg-warning/10 rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-warning">{stats.pending}</div>
+              <div className="text-xs text-warning">Pending</div>
             </div>
-            <div className="bg-error-red/10 rounded-lg p-3 text-center">
-              <div className="text-2xl font-bold text-error-red">{stats.errors}</div>
-              <div className="text-xs text-error-red">Errors</div>
+            <div className="bg-destructive/10 rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-destructive">{stats.errors}</div>
+              <div className="text-xs text-destructive">Errors</div>
             </div>
-            <div className="bg-warning-orange/10 rounded-lg p-3 text-center">
-              <div className="text-2xl font-bold text-warning-orange">{stats.conflicts}</div>
-              <div className="text-xs text-warning-orange">Conflicts</div>
+            <div className="bg-warning/10 rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-warning">{stats.conflicts}</div>
+              <div className="text-xs text-warning">Conflicts</div>
             </div>
           </div>
 
@@ -173,7 +173,7 @@ export function SyncManagementPanel({
               {pendingChanges > 0 && (
                 <Badge
                   variant="outline"
-                  className="bg-warning-orange/10 text-warning-orange border-warning-orange/20"
+                  className="bg-warning/10 text-warning border-warning/20"
                 >
                   <Clock className="h-3 w-3 mr-1" />
                   {pendingChanges} pending changes
@@ -225,7 +225,7 @@ export function SyncManagementPanel({
                       <div>
                         <div className="font-medium text-sm">{entity.name}</div>
                         {entity.errorMessage && (
-                          <div className="text-xs text-error-red">{entity.errorMessage}</div>
+                          <div className="text-xs text-destructive">{entity.errorMessage}</div>
                         )}
                       </div>
                     </div>
@@ -243,7 +243,7 @@ export function SyncManagementPanel({
                           variant="outline"
                           size="sm"
                           onClick={() => handleResolveConflict(entity)}
-                          className="border-warning-orange/20 text-warning-orange hover:bg-warning-orange/5"
+                          className="border-warning/20 text-warning hover:bg-warning/5"
                         >
                           <AlertTriangle className="h-3 w-3 mr-1" />
                           Resolve

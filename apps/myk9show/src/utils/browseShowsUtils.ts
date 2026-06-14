@@ -17,7 +17,7 @@ export function getStatusBadge(status: string): React.ReactNode {
   switch (status) {
     case 'Upcoming':
       return React.createElement(Badge, {
-        className: 'bg-success-green/10 text-success-green border-success-green/20 border'
+        className: 'bg-success/10 text-success border-success/20 border'
       }, 'Upcoming');
     case 'Completed':
       return React.createElement(Badge, {
@@ -35,10 +35,10 @@ export function getStatusBadge(status: string): React.ReactNode {
  */
 const TYPE_BADGE_COLORS: Record<string, string> = {
   'Agility': 'bg-primary/10 text-primary border-primary/20',
-  'Scent Work': 'bg-success-green/10 text-success-green border-success-green/20',
+  'Scent Work': 'bg-success/10 text-success border-success/20',
   'Rally': 'bg-[#5856D6]/10 text-[#5856D6] border-[#5856D6]/20',
-  'Obedience': 'bg-warning-orange/10 text-warning-orange border-warning-orange/20',
-  'Nosework': 'bg-success-green/10 text-success-green border-success-green/20'
+  'Obedience': 'bg-warning/10 text-warning border-warning/20',
+  'Nosework': 'bg-success/10 text-success border-success/20'
 };
 
 /**

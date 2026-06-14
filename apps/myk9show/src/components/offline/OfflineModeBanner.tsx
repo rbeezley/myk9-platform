@@ -35,14 +35,14 @@ export const OfflineModeBanner: React.FC<OfflineModeBannerProps> = ({
   return (
     <Alert className={`border-l-4 ${
       isOnline 
-        ? 'border-l-warning-orange bg-warning-orange/5' 
-        : 'border-l-error-red bg-error-red/5'
+        ? 'border-l-warning bg-warning/5' 
+        : 'border-l-destructive bg-destructive/5'
     }`}>
       <div className="flex items-center gap-2">
         {isOnline ? (
-          <Wifi className="h-4 w-4 text-warning-orange" />
+          <Wifi className="h-4 w-4 text-warning" />
         ) : (
-          <WifiOff className="h-4 w-4 text-error-red" />
+          <WifiOff className="h-4 w-4 text-destructive" />
         )}
         <AlertTriangle className="h-4 w-4" />
       </div>

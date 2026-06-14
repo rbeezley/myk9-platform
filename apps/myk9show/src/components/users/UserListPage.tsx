@@ -78,8 +78,8 @@ const UserListPage: React.FC = () => {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center text-center">
-          <div className="mx-auto w-24 h-24 bg-gradient-to-br from-error-red/20 to-error-red/10 rounded-full flex items-center justify-center mb-6">
-            <Plus className="h-12 w-12 text-error-red rotate-45" />
+          <div className="mx-auto w-24 h-24 bg-gradient-to-br from-destructive/20 to-destructive/10 rounded-full flex items-center justify-center mb-6">
+            <Plus className="h-12 w-12 text-destructive rotate-45" />
           </div>
           <h3 className="text-lg font-semibold text-foreground mb-2">Unable to Load People</h3>
           <p className="text-muted-foreground mb-6 max-w-sm">

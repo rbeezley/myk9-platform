@@ -45,7 +45,7 @@ describe('EntryStatusBadge', () => {
     } as EntryStatusInfo);
 
     mockGetEntryStatusBadgeStyle.mockReturnValue({
-      className: 'bg-success-green/10 text-success-green',
+      className: 'bg-success/10 text-success',
       variant: 'default',
     });
   });
@@ -77,14 +77,14 @@ describe('EntryStatusBadge', () => {
 
     it('should apply badge style classes', () => {
       mockGetEntryStatusBadgeStyle.mockReturnValue({
-        className: 'bg-warning-orange/10 text-warning-orange animate-pulse',
+        className: 'bg-warning/10 text-warning animate-pulse',
         variant: 'default',
       });
 
       render(<EntryStatusBadge show={createMockShow()} />);
 
       const badge = screen.getByText('Accepting Entries').closest('div, span');
-      expect(badge).toHaveClass('bg-warning-orange/10');
+      expect(badge).toHaveClass('bg-warning/10');
       expect(badge).toHaveClass('animate-pulse');
     });
 
@@ -168,7 +168,7 @@ describe('EntryStatusBadge', () => {
       } as EntryStatusInfo);
 
       mockGetEntryStatusBadgeStyle.mockReturnValue({
-        className: 'bg-success-green/10 text-success-green',
+        className: 'bg-success/10 text-success',
         variant: 'default',
       });
 
@@ -187,7 +187,7 @@ describe('EntryStatusBadge', () => {
       } as EntryStatusInfo);
 
       mockGetEntryStatusBadgeStyle.mockReturnValue({
-        className: 'bg-warning-orange/10 text-warning-orange animate-pulse',
+        className: 'bg-warning/10 text-warning animate-pulse',
         variant: 'default',
       });
 

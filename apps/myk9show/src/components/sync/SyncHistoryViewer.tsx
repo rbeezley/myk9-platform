@@ -155,13 +155,13 @@ export function SyncHistoryViewer({
   const getStatusIcon = (status: SyncLogEntry['status']) => {
     switch (status) {
       case 'synced':
-        return <CheckCircle className="h-4 w-4 text-success-green" />;
+        return <CheckCircle className="h-4 w-4 text-success" />;
       case 'pending':
-        return <RefreshCw className="h-4 w-4 text-warning-orange animate-spin" />;
+        return <RefreshCw className="h-4 w-4 text-warning animate-spin" />;
       case 'error':
-        return <XCircle className="h-4 w-4 text-error-red" />;
+        return <XCircle className="h-4 w-4 text-destructive" />;
       case 'conflict':
-        return <AlertCircle className="h-4 w-4 text-warning-orange" />;
+        return <AlertCircle className="h-4 w-4 text-warning" />;
       default:
         return <Clock className="h-4 w-4 text-muted-foreground" />;
     }
@@ -169,10 +169,10 @@ export function SyncHistoryViewer({
 
   const getStatusBadge = (status: SyncLogEntry['status']) => {
     const variants = {
-      synced: 'bg-success-green/10 text-success-green border-success-green/20',
-      pending: 'bg-warning-orange/10 text-warning-orange border-warning-orange/20',
-      error: 'bg-error-red/10 text-error-red border-error-red/20',
-      conflict: 'bg-warning-orange/10 text-warning-orange border-warning-orange/20'
+      synced: 'bg-success/10 text-success border-success/20',
+      pending: 'bg-warning/10 text-warning border-warning/20',
+      error: 'bg-destructive/10 text-destructive border-destructive/20',
+      conflict: 'bg-warning/10 text-warning border-warning/20'
     };
 
     return (
@@ -269,7 +269,7 @@ export function SyncHistoryViewer({
                   variant="outline"
                   size="sm"
                   onClick={onClearHistory}
-                  className="border-error-red/20 text-error-red hover:bg-error-red/5"
+                  className="border-destructive/20 text-destructive hover:bg-destructive/5"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Clear
@@ -285,21 +285,21 @@ export function SyncHistoryViewer({
             <div className="text-2xl font-bold">{stats.total}</div>
             <div className="text-xs text-muted-foreground">Total</div>
           </div>
-          <div className="bg-success-green/10 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-success-green">{stats.synced}</div>
-            <div className="text-xs text-success-green">Synced</div>
+          <div className="bg-success/10 rounded-lg p-3 text-center">
+            <div className="text-2xl font-bold text-success">{stats.synced}</div>
+            <div className="text-xs text-success">Synced</div>
           </div>
-          <div className="bg-warning-orange/10 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-warning-orange">{stats.pending}</div>
-            <div className="text-xs text-warning-orange">Pending</div>
+          <div className="bg-warning/10 rounded-lg p-3 text-center">
+            <div className="text-2xl font-bold text-warning">{stats.pending}</div>
+            <div className="text-xs text-warning">Pending</div>
           </div>
-          <div className="bg-error-red/10 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-error-red">{stats.errors}</div>
-            <div className="text-xs text-error-red">Errors</div>
+          <div className="bg-destructive/10 rounded-lg p-3 text-center">
+            <div className="text-2xl font-bold text-destructive">{stats.errors}</div>
+            <div className="text-xs text-destructive">Errors</div>
           </div>
-          <div className="bg-warning-orange/10 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-warning-orange">{stats.conflicts}</div>
-            <div className="text-xs text-warning-orange">Conflicts</div>
+          <div className="bg-warning/10 rounded-lg p-3 text-center">
+            <div className="text-2xl font-bold text-warning">{stats.conflicts}</div>
+            <div className="text-xs text-warning">Conflicts</div>
           </div>
         </div>
 
@@ -393,9 +393,9 @@ export function SyncHistoryViewer({
                   </div>
 
                   {entry.errorMessage && (
-                    <div className="mt-3 p-3 bg-error-red/5 border border-error-red/20 rounded-md">
-                      <div className="text-sm text-error-red font-medium">Error:</div>
-                      <div className="text-sm text-error-red/80">{entry.errorMessage}</div>
+                    <div className="mt-3 p-3 bg-destructive/5 border border-destructive/20 rounded-md">
+                      <div className="text-sm text-destructive font-medium">Error:</div>
+                      <div className="text-sm text-destructive/80">{entry.errorMessage}</div>
                     </div>
                   )}
 

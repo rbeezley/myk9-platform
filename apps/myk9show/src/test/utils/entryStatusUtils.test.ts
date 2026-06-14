@@ -254,14 +254,14 @@ describe('entryStatusUtils', () => {
     it('should return success styling for accepting status', () => {
       const result = getEntryStatusBadgeStyle('accepting');
 
-      expect(result.className).toContain('success-green');
+      expect(result.className).toContain('success');
       expect(result.variant).toBe('default');
     });
 
     it('should return warning styling with animation for closing_soon', () => {
       const result = getEntryStatusBadgeStyle('closing_soon');
 
-      expect(result.className).toContain('warning-orange');
+      expect(result.className).toContain('warning');
       expect(result.className).toContain('animate-pulse');
       expect(result.variant).toBe('default');
     });

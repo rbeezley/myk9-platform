@@ -29,9 +29,9 @@ function borderColor(task: SecretaryTask): string {
   if (task.status === 'done') return 'border-l-border';
   if (!task.dueDate) return 'border-l-border';
   const date = new Date(task.dueDate);
-  if (isPast(date) || isToday(date)) return 'border-l-error-red';
+  if (isPast(date) || isToday(date)) return 'border-l-destructive';
   const sevenDays = new Date(Date.now() + 7 * 86400000);
-  if (date <= sevenDays) return 'border-l-warning-orange';
+  if (date <= sevenDays) return 'border-l-warning';
   return 'border-l-border';
 }
 

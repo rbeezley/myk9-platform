@@ -42,11 +42,11 @@ export interface JudgeActivity {
 export const getStatusColor = (status: 'good' | 'warning' | 'error'): string => {
   switch (status) {
     case 'good':
-      return 'text-success-green';
+      return 'text-success';
     case 'warning':
-      return 'text-warning-orange';
+      return 'text-warning';
     case 'error':
-      return 'text-error-red';
+      return 'text-destructive';
   }
 };
 

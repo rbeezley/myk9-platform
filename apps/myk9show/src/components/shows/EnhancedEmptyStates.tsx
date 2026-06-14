@@ -170,10 +170,10 @@ export const EnhancedEmptyState: React.FC<EmptyStateProps> = ({
     <Card className="bg-card/95 backdrop-blur-sm border-border/50 shadow-sm">
       <CardContent className="p-12 text-center">
         <div
-          className={`${hasActiveFilters ? 'bg-warning-orange/10' : 'bg-muted/50'} rounded-full p-6 mb-6 inline-block`}
+          className={`${hasActiveFilters ? 'bg-warning/10' : 'bg-muted/50'} rounded-full p-6 mb-6 inline-block`}
         >
           <IconComponent
-            className={`h-12 w-12 ${hasActiveFilters ? 'text-warning-orange' : 'text-muted-foreground'}`}
+            className={`h-12 w-12 ${hasActiveFilters ? 'text-warning' : 'text-muted-foreground'}`}
           />
         </div>
 
@@ -246,11 +246,11 @@ export const EnhancedEmptyState: React.FC<EmptyStateProps> = ({
         )}
 
         {tab === 'managing' && user?.roles?.includes(UserRole.SECRETARY) && (
-          <div className="mt-8 p-4 bg-success-green/5 rounded-lg border border-success-green/10">
+          <div className="mt-8 p-4 bg-success/5 rounded-lg border border-success/10">
             <div className="flex items-start gap-3">
-              <Trophy className="h-5 w-5 text-success-green mt-0.5 flex-shrink-0" />
+              <Trophy className="h-5 w-5 text-success mt-0.5 flex-shrink-0" />
               <div className="text-left">
-                <h4 className="font-medium text-success-green mb-1">Show Secretary Tools</h4>
+                <h4 className="font-medium text-success mb-1">Show Secretary Tools</h4>
                 <p className="text-sm text-muted-foreground">
                   As a secretary, you can create shows, manage entries, and coordinate with judges
                   and exhibitors.
@@ -261,11 +261,11 @@ export const EnhancedEmptyState: React.FC<EmptyStateProps> = ({
         )}
 
         {hasActiveFilters && (
-          <div className="mt-8 p-4 bg-warning-orange/5 rounded-lg border border-warning-orange/10">
+          <div className="mt-8 p-4 bg-warning/5 rounded-lg border border-warning/10">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-warning-orange mt-0.5 flex-shrink-0" />
+              <AlertTriangle className="h-5 w-5 text-warning mt-0.5 flex-shrink-0" />
               <div className="text-left">
-                <h4 className="font-medium text-warning-orange mb-1">Active Filters</h4>
+                <h4 className="font-medium text-warning mb-1">Active Filters</h4>
                 <p className="text-sm text-muted-foreground">
                   Your current search filters may be too restrictive. Try broadening your criteria
                   to see more results.

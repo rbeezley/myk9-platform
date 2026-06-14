@@ -146,7 +146,7 @@ const TitleProgressCard: React.FC<TitleProgressCardProps> = ({ progress }) => {
               className="flex items-center gap-2 text-xs py-1 px-2 rounded bg-muted/50"
             >
               {progress.earnedElementTitles.includes(abbr) ? (
-                <span className="text-success-green font-bold">&#10003;</span>
+                <span className="text-success font-bold">&#10003;</span>
               ) : (
                 <span className="text-muted-foreground">&#9675;</span>
               )}

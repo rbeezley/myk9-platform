@@ -58,7 +58,7 @@ const getStatusBadge = (status: JudgeClass['status']) => {
   switch (status) {
     case 'completed':
       return (
-        <Badge className="bg-success-green/10 text-success-green border-success-green/20 border">
+        <Badge className="bg-success/10 text-success border-success/20 border">
           Completed
         </Badge>
       );
@@ -291,12 +291,12 @@ const JudgeDashboard: React.FC = () => {
             </CardContent>
           </GlassCard>
 
-          <GlassCard overlayGradient="from-warning-orange/5">
+          <GlassCard overlayGradient="from-warning/5">
             <CardHeader className="pb-4">
               <CardTitle className="text-sm font-semibold flex items-center justify-between text-muted-foreground">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-gradient-to-br from-warning-orange/20 to-warning-orange/10 rounded-xl shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
-                    <Clock className="h-5 w-5 text-warning-orange" />
+                  <div className="p-3 bg-gradient-to-br from-warning/20 to-warning/10 rounded-xl shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
+                    <Clock className="h-5 w-5 text-warning" />
                   </div>
                   Next Class
                 </div>
@@ -312,12 +312,12 @@ const JudgeDashboard: React.FC = () => {
             </CardContent>
           </GlassCard>
 
-          <GlassCard overlayGradient="from-success-green/5">
+          <GlassCard overlayGradient="from-success/5">
             <CardHeader className="pb-4">
               <CardTitle className="text-sm font-semibold flex items-center justify-between text-muted-foreground">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-gradient-to-br from-success-green/20 to-success-green/10 rounded-xl shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
-                    <CheckCircle2 className="h-5 w-5 text-success-green" />
+                  <div className="p-3 bg-gradient-to-br from-success/20 to-success/10 rounded-xl shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
+                    <CheckCircle2 className="h-5 w-5 text-success" />
                   </div>
                   Completion Rate
                 </div>
@@ -329,10 +329,10 @@ const JudgeDashboard: React.FC = () => {
               </div>
               <div className="flex items-center gap-1">
                 {completionRate !== null && (
-                  <div className="h-2 w-2 bg-success-green rounded-full animate-pulse" />
+                  <div className="h-2 w-2 bg-success rounded-full animate-pulse" />
                 )}
                 <span
-                  className={`text-sm font-medium ${completionRate !== null ? 'text-success-green' : 'text-muted-foreground'}`}
+                  className={`text-sm font-medium ${completionRate !== null ? 'text-success' : 'text-muted-foreground'}`}
                 >
                   {completionRate !== null ? 'On schedule' : 'No data yet'}
                 </span>
@@ -353,7 +353,7 @@ const JudgeDashboard: React.FC = () => {
             <CardContent>
               {isError ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <AlertCircle className="h-12 w-12 text-warning-orange mb-4" />
+                  <AlertCircle className="h-12 w-12 text-warning mb-4" />
                   <h3 className="text-lg font-semibold text-foreground mb-2">
                     We couldn&apos;t load your assignments
                   </h3>
@@ -432,7 +432,7 @@ const JudgeDashboard: React.FC = () => {
 
                     {buckets.completed.length === 0 && (
                       <TabEmptyState
-                        icon={<CheckCircle2 className="h-12 w-12 text-success-green" />}
+                        icon={<CheckCircle2 className="h-12 w-12 text-success" />}
                         title="No Completed Classes"
                         body="Completed judging assignments will appear here."
                       />

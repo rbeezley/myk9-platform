@@ -84,10 +84,10 @@ export const EntryStatusStepper: React.FC<EntryStatusStepperProps> = ({
                 <div
                   className={cn(
                     'w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium transition-all duration-300',
-                    completed && 'bg-success-green text-white',
+                    completed && 'bg-success text-white',
                     active && !hasError && 'bg-primary text-primary-foreground ring-2 ring-primary/30',
-                    active && hasError && 'bg-error-red text-white ring-2 ring-error-red/30',
-                    active && isWaitlist && 'bg-warning-orange text-white ring-2 ring-warning-orange/30',
+                    active && hasError && 'bg-destructive text-white ring-2 ring-destructive/30',
+                    active && isWaitlist && 'bg-warning text-white ring-2 ring-warning/30',
                     !completed && !active && 'bg-muted text-muted-foreground'
                   )}
                 >
@@ -100,10 +100,10 @@ export const EntryStatusStepper: React.FC<EntryStatusStepperProps> = ({
                 <span
                   className={cn(
                     'mt-1.5 text-[10px] font-medium text-center leading-tight',
-                    completed && 'text-success-green',
+                    completed && 'text-success',
                     active && !hasError && 'text-primary',
-                    active && hasError && 'text-error-red',
-                    active && isWaitlist && 'text-warning-orange',
+                    active && hasError && 'text-destructive',
+                    active && isWaitlist && 'text-warning',
                     !completed && !active && 'text-muted-foreground'
                   )}
                 >
@@ -117,7 +117,7 @@ export const EntryStatusStepper: React.FC<EntryStatusStepperProps> = ({
                 <div
                   className={cn(
                     'flex-1 h-0.5 mx-1.5 transition-all duration-300',
-                    completed ? 'bg-success-green' : 'bg-muted'
+                    completed ? 'bg-success' : 'bg-muted'
                   )}
                 />
               )}

@@ -32,6 +32,8 @@ Thumbs.db
 
 # Testing
 coverage/
+.stryker-tmp/
+reports/mutation/
 playwright-report/
 playwright-report-visual/
 .playwright-cli/

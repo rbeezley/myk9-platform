@@ -33,7 +33,7 @@ Plan: [`docs/plan-code-quality-audit.md`](docs/plan-code-quality-audit.md). Curr
 
 Plan: [`docs/plan-dynamic-qa-infrastructure.md`](docs/plan-dynamic-qa-infrastructure.md). Starts after the code-quality audit fix waves are done. Phases 1/3/4/5 can run in parallel worktrees; Phase 2 (mutation testing) requires audit Wave D tests first; Phase 6 (bundle budget) requires Wave A.
 
-- [ ] **Phase 2 — mutation testing on fee/scoring/placement math** _(after audit Wave D)_
+- [x] ~~**Phase 2 — mutation testing on fee/scoring/placement math**~~ — Complete 2026-06-14 in branch `codex/dynamic-qa-mutation-testing`: Stryker/Vitest target scripts added, reports ignored, cart fee math 87.50%, placement math 85.67%, ScoreValidator baseline 68.81%, replication-conflict baseline 77.24%. Fee/placement gate met; ScoreValidator/replication survivors documented in the plan.
 - [ ] **Phase 4 — error observability** (error-boundary coverage audit, Sentry wiring — confirm vendor before creating external project)
 - [ ] **Phase 5 — flaky-test quarantine + suite health**
 - [ ] **Phase 6 — bundle budget + a11y smoke + dependency cadence** _(Phase 6 bundle budget after audit Wave A)_

@@ -89,6 +89,30 @@ describe('ShowCardHorizontal', () => {
     expect(screen.getByText('Accepting Entries')).toBeInTheDocument();
   });
 
+  it('does not advertise entry when an accepting show has trials but no classes', () => {
+    renderCard(
+      <ShowCardHorizontal
+        show={createMockShow({
+          entryOpenDate: '2026-01-01',
+          entryCloseDate: '2027-12-31',
+          trials: [
+            {
+              id: 't1',
+              name: 'Saturday Trial',
+              date: '2026-04-15',
+              trialNumber: '1',
+              status: 'upcoming',
+              classes: [],
+            },
+          ],
+        })}
+      />
+    );
+
+    expect(screen.getByText('Classes Not Ready')).toBeInTheDocument();
+    expect(screen.queryByText('Accepting Entries')).not.toBeInTheDocument();
+  });
+
   it('renders a personalized submitted badge for logged-in users with open entries', () => {
     renderCard(
       <ShowCardHorizontal

@@ -322,7 +322,9 @@ describe('ClassSelectionStep — wait list badge (integration)', () => {
     expect(await screen.findByText('Novice A')).toBeInTheDocument();
     expect(screen.queryByText('Full — Join Wait List')).not.toBeInTheDocument();
   });
+});
 
+describe('ClassSelectionStep — empty class inventory', () => {
   it('renders availability-backed classes when trialStore has trials but no class groups yet', async () => {
     setupDefaultMocks({ judgeDayFull: false, waitlistCount: 0 });
     mockUseTrialStore.mockImplementation((selector: (s: unknown) => unknown) => {

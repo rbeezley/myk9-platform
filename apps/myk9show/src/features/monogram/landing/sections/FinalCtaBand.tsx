@@ -13,6 +13,7 @@ interface FinalCtaBandProps {
   entryWizardUrl: string;
   entryCloseDate: string | null;
   timezone: string;
+  canEnterOnline?: boolean;
 }
 
 /**
@@ -29,6 +30,7 @@ export function FinalCtaBand({
   entryWizardUrl,
   entryCloseDate,
   timezone,
+  canEnterOnline = true,
 }: FinalCtaBandProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLElement>();
   const closesLabel = entryCloseDate ? formatDateInTimezone(entryCloseDate, timezone, 'long') : null;
@@ -93,31 +95,61 @@ export function FinalCtaBand({
             fontWeight: 400,
           }}
         >
-          Enter your dog{' '}
-          <span style={{ fontStyle: 'italic', color: monogramColors.leaf }}>in confidence</span>.
+          {canEnterOnline ? (
+            <>
+              Enter your dog{' '}
+              <span style={{ fontStyle: 'italic', color: monogramColors.leaf }}>
+                in confidence
+              </span>
+              .
+            </>
+          ) : (
+            <>
+              Entries open when{' '}
+              <span style={{ fontStyle: 'italic', color: monogramColors.leaf }}>
+                classes are assigned
+              </span>
+              .
+            </>
+          )}
         </h2>
-        <a
-          href={entryWizardUrl}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 14,
-            padding: '18px 44px',
-            background: monogramColors.paper,
-            color: monogramColors.ink,
-            fontFamily: MONOGRAM_DISPLAY_FAMILY,
-            fontStyle: 'italic',
-            fontSize: 18,
-            letterSpacing: '0.02em',
-            textDecoration: 'none',
-            transition: 'all 280ms ease',
-          }}
-        >
-          Enter this show
-          <span aria-hidden style={{ fontFamily: MONOGRAM_MONOGRAM_FAMILY, fontSize: 22 }}>
-            →
-          </span>
-        </a>
+        {canEnterOnline ? (
+          <a
+            href={entryWizardUrl}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 14,
+              padding: '18px 44px',
+              background: monogramColors.paper,
+              color: monogramColors.ink,
+              fontFamily: MONOGRAM_DISPLAY_FAMILY,
+              fontStyle: 'italic',
+              fontSize: 18,
+              letterSpacing: '0.02em',
+              textDecoration: 'none',
+              transition: 'all 280ms ease',
+            }}
+          >
+            Enter this show
+            <span aria-hidden style={{ fontFamily: MONOGRAM_MONOGRAM_FAMILY, fontSize: 22 }}>
+              →
+            </span>
+          </a>
+        ) : (
+          <p
+            style={{
+              color: monogramColors.soft,
+              fontFamily: MONOGRAM_BODY_FAMILY,
+              fontSize: 15,
+              lineHeight: 1.6,
+              margin: '0 auto',
+              maxWidth: 520,
+            }}
+          >
+            The secretary still needs to assign classes before online entry is available.
+          </p>
+        )}
       </div>
     </section>
   );

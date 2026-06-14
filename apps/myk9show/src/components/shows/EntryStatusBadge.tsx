@@ -23,6 +23,7 @@ const statusIcons: Record<EntryStatus, React.ReactNode> = {
   closed: <XCircle className="h-3 w-3" />,
   submitted: <CheckCircle2 className="h-3 w-3" />,
   not_yet_open: <CalendarClock className="h-3 w-3" />,
+  setup_incomplete: <CalendarClock className="h-3 w-3" />,
 };
 
 export function EntryStatusBadge({

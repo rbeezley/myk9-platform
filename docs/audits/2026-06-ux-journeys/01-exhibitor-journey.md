@@ -23,7 +23,7 @@
 | Signed-in hub | `/exhibitor/entries` | `page-2026-06-13T20-55-52-437Z.yml` | Strong recovery: My Shows, Enter a Show, Find Shows, Show Today banner. |
 | Find eligible show | `/shows` | `page-2026-06-13T20-53-48-613Z.yml` | Good status contrast: Entries Closed vs Accepting Entries. |
 | Show details | `/shows/5d8bfe56-a48d-48dd-ae75-7f90c2e02c4f` | `page-2026-06-13T20-53-57-561Z.yml` | Clear CTA and facts; class/dog-fit detail is absent before registration. |
-| Registration | `/shows/5d8bfe56-a48d-48dd-ae75-7f90c2e02c4f/register` | `artifacts/phase2-registration-empty-classes.png`, `page-2026-06-13T20-54-14-941Z.yml`; fixed-state evidence `artifacts/phase2-registration-no-classes-alert.png` | Confirmed data issue plus fixed blank-state bug: read-only query returned zero classes for Monogram, so the show is enterable despite having 4 trials and no classes. The wizard now shows the existing "No classes available yet" alert instead of blank space. |
+| Registration | `/shows/5d8bfe56-a48d-48dd-ae75-7f90c2e02c4f/register` | `artifacts/phase2-registration-empty-classes.png`, `page-2026-06-13T20-54-14-941Z.yml`; fixed-state evidence `artifacts/phase2-registration-no-classes-alert.png` | Confirmed data issue plus fixed blank-state bug: read-only query returned zero classes for Monogram despite 4 trials. The wizard now shows the existing "No classes available yet" alert instead of blank space, and Browse/Show Details no longer advertise the show as enterable when class inventory is known empty. |
 | My Shows money state | `/exhibitor/entries` | `page-2026-06-13T20-55-52-437Z.yml` | Payment Due and Current Fees are visible, but no pay/retry CTA appears in the visible entry card. |
 | At-show class list | `/at-show/3b91e282-6e45-4a89-9446-f6ebeb0bf62c` | `page-2026-06-13T20-54-51-775Z.yml` | Class list is compact and tappable; many `No Status 0 / 0` rows compete with the in-progress row. |
 | At-show class detail | `/at-show/.../class/...` | `artifacts/phase2-at-show-phone-class.png`, `page-2026-06-13T20-55-06-904Z.yml` | Strong: "You're next" and checked-in state are glanceable. Risk: badge says Offline while the browser is online. |
@@ -68,7 +68,7 @@
 | Issue | Location | Problem | Recommendation |
 | --- | --- | --- | --- |
 | Cold-start discovery hidden | Public landing | A new exhibitor's stated task is "enter a show," but Browse Shows is not a first-screen action | Add or expose a link into existing `/shows`; do not create a second browse surface. |
-| Dog-fit detail deferred too late | Show Details | The user must enter registration to discover Monogram has no classes | Surface existing class/trial summaries on Show Details before the CTA or deep-link to the existing Classes tab where available. Disable/replace entry CTAs when no classes are assigned. |
+| Dog-fit detail deferred too late | Show Details | The user needs class/level detail before committing to registration | Surface existing class/trial summaries on Show Details before the CTA or deep-link to the existing Classes tab where available. Entry CTAs are now replaced when no classes are assigned. |
 | Payment path not actionable | My Shows | Payment Due and Current Fees are visible, but no visible pay/retry/receipt action appears on the entry card | Link Payment Due / Current Fees into the existing payment or receipt surface. |
 | Staff tools leak into exhibitor IA | `/at-show` class actions | Report/score artifacts are operational documents, not primary exhibitor needs | Filter the menu by role or move staff/report actions behind staff-only surfaces. |
 | Result discovery depends on show page tab | My Shows → View Show → Results | No direct "View Results" action appears for the completed/history card | Link completed entries with released results directly to the existing Results tab or class result route. |
@@ -173,7 +173,7 @@
 
 | State | Implemented? | Quality | Issue |
 | --- | --- | --- | --- |
-| Empty | Yes | Improved after fix | Shows "No classes available yet" when trials exist but no classes are assigned. Remaining issue: entry CTA should avoid routing exhibitors into this state. |
+| Empty | Yes | Improved after fix | Shows "No classes available yet" when trials exist but no classes are assigned. Browse/Show Details now avoid routing exhibitors into this state when class inventory is known empty. |
 | Loading | Yes | Basic | Loading text appears. |
 | Success | No | Broken in this seeded accepting-show path | Cannot select a class. |
 | Partial | Yes | Poor | Save Draft exists, but opening the page already writes carts. |
@@ -209,7 +209,7 @@
 | Partial | Yes | Poor | Completed/history entry still says Upcoming and Pending Review. |
 | Error | Unknown | Not tested | Not forced. |
 
-**Dead ends found:** Registration class selection remains a data-driven dead end for Monogram: the show has no classes, so Next stays disabled. The blank-panel bug is fixed; the remaining problem is that Browse/Show Details present this show as enterable.
+**Dead ends found:** Registration class selection remains a data-driven dead end for Monogram: the show has no classes, so Next stays disabled. The blank-panel bug is fixed, and Browse/Show Details now replace entry CTAs when known class inventory is empty.
 
 **Missing error handling:** Registration does not explain blank class data. Payment due does not show a visible recovery/pay path in the entry card. Results do not distinguish unreleased, unscored, or no-result states beyond the generic empty state.
 
@@ -258,7 +258,7 @@
 | Can discover entry path from public landing | Partial; sign-in visible, browse hidden. |
 | Can find an accepting show after sign-in | Pass. |
 | Can understand if show fits dog | Partial; class/level details are not available before registration on the tested accepting show landing. |
-| Can enter dog in classes | Fail; Monogram has no classes assigned. The blank panel is fixed, but the show is still incorrectly enterable. |
+| Can enter dog in classes | Fail; Monogram has no classes assigned. The blank panel is fixed, and entry CTAs are now gated when class inventory is known empty. |
 | Can understand payment state | Partial; due amount visible, action missing. |
 | Can reach show-day status | Pass after using My Shows / direct at-show route. |
 | Can view results | Partial; results tab exists, but fixture has no results and status language is contradictory. |
@@ -309,7 +309,7 @@ Measured manually from Playwright timestamps and click counts. Times include pag
 
 | Finding | Pass | Impact | Effort |
 | --- | --- | --- | --- |
-| Accepting show `Monogram` has no classes assigned, so exhibitors cannot enter despite visible entry CTAs | 1, 3, 5, 6 | Exhibitor cannot complete golden-path step 3; blocks launch until show setup data or entry CTA gating is fixed | Medium |
+| Accepting show `Monogram` has no classes assigned, so exhibitors cannot enter | 1, 3, 5, 6 | Exhibitor cannot complete golden-path step 3; blocks launch until show setup data is fixed | Medium |
 
 ### High Priority / P2
 
@@ -335,7 +335,7 @@ Measured manually from Playwright timestamps and click counts. Times include pag
 - Link landing page to existing `/shows` for "Find shows" / "Enter a show" rather than adding a new discovery surface.
 - Hide or role-filter exhibitor at-show menu items that generate check-in sheets or scoresheets.
 - Change the at-show connectivity label to "Saved on this device" / "Offline-ready" if it means capability, or fix it if it means current connectivity.
-- Keep the explicit no-classes state in registration, and prevent Browse/Show Details from advertising entry when a show has no classes.
+- Keep the explicit no-classes state in registration and the Browse/Show Details CTA gate when a show has no classes.
 
 ### Recommendations
 

@@ -181,7 +181,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
         const entry = {
           classId: cls.id,
           level,
-          section: cls.section,
+          section: cls.section || '',
           displayLabel: displayLabel ?? '',
         };
         const existing = elementMap.get(element);

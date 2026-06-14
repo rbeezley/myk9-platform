@@ -50,15 +50,43 @@ Source: [`docs/audits/2026-06-proactive-qa/db-advisors.md`](docs/audits/2026-06-
 
 ---
 
+## Active-Docs Triage — net-new backlog — 2026-06-14
+
+Source: [`docs/plan-active-docs-triage-2026-06-14.md`](docs/plan-active-docs-triage-2026-06-14.md). Items below were genuinely untracked elsewhere. Plan-backed features link to their plan instead of duplicating sub-tasks.
+
+- [ ] **PR 3 — delete legacy show-day surfaces** — remove `DayOfOperationsPage`/`RunOrderPage`/`DayOfEntryDialog`, strip stale `routeRegistry`/`navigationStore`/`pageDirectory` metadata, keep redirect regression tests. Plan: [`docs/plan-secretary-show-day-ux-consolidation.md`](docs/plan-secretary-show-day-ux-consolidation.md) (PR 3 / Task 5).
+- [ ] **QA-NETWORK-ERROR-018** — `useExhibitorProfile` queries `people.is_early_adopter`; linked nightly DB lacks migration 185 → 400 flood + false onboarding redirect. Apply mig 185 to the linked DB or add a code fallback. Source: [`docs/qa/findings.md`](docs/qa/findings.md).
+- [ ] **Architecture Phase 6** — flatten `judges/reads.ts` to named functions per ADR-008 (remove `judge*Queries` objects). Plan: [`docs/plan-architecture-deepening.md`](docs/plan-architecture-deepening.md).
+- [ ] **Data-access drift** — migrate `pages/TVDisplay/useTVData.ts` + `useTVResults.ts` off direct Supabase (decide online-only boundary); write the online-only-exceptions ADR. Plan: [`docs/plan-data-access-module-drift.md`](docs/plan-data-access-module-drift.md).
+- [ ] **Dependabot remainder** — add `tar`/`flatted`/`picomatch`/`markdown-it` overrides (or consciously drop) + a fresh alert rescan to confirm closure. Plan: [`docs/plan-dependabot-remediation.md`](docs/plan-dependabot-remediation.md).
+- [ ] **Result Reveal + Share Card** (feature, post-MVP) — entirely unbuilt. Plan: [`docs/plan-result-reveal-share-card.md`](docs/plan-result-reveal-share-card.md).
+- [ ] **Multi-registry config layer** (post-MVP) — UKC/ASCA/CKC registry configs + resolve 4 open questions (UKC PDF/routing already shipped via Phase E). Plan: [`docs/design_handoff_heritage/Multi-Registry Scoping.md`](docs/design_handoff_heritage/Multi-Registry%20Scoping.md).
+- [ ] **User documentation & support library** (pre-launch, large) — 23-task plan; single parent item here, do not duplicate sub-tasks. Plan: [`docs/plans/2026-06-12-user-documentation-support-plan.md`](docs/plans/2026-06-12-user-documentation-support-plan.md).
+
+Lower priority / post-launch (parked): judge-to-show matching + availability blackout-dates UI; early-access personal-club auto-create / cohort throttling / admin waitlist UI; re-run `/harden` for wizard medium/low findings.
+
+---
+
 ## UX Journey Audit — Exhibitor & Secretary — 2026-06-12
 
 Plan: [`docs/plan-ux-journey-audit.md`](docs/plan-ux-journey-audit.md). Journey-scoped follow-on to the April 2026 page-scoped sprint (`docs/ux-audits/`, Phases 3–5 never ran; surfaces changed since — `/at-show` absorbed show-day, workbench collapsed). Main audit phases wait for code-audit **Waves A–C** (don't audit pages about to be consolidated); Phase 1 recon can start now.
 
 - [x] ~~**Phase 1 — recon**~~ — Completed in `docs/audits/2026-06-ux-journeys/00-recon.md`: prior April findings dispositioned, current exhibitor/secretary journey maps recorded, and light route checks captured for high-change surfaces.
-- [ ] **Phase 2 — exhibitor journey** — cold-start walk, 6-pass rubric per segment, phone-at-ringside pass for `/at-show`, money-path state sweep, time-to-task baselines _(after Waves A–C)_
+- [x] ~~**Phase 2 — exhibitor journey**~~ — Walk completed in `docs/audits/2026-06-ux-journeys/01-exhibitor-journey.md` (cold-start, 6-pass rubric, phone-at-ringside, money-path sweep). Findings extracted below (2026-06-14 triage).
+  - [ ] **[UX P1] Monogram accepting show has no classes assigned → exhibitor cannot enter** — golden-path blocker; confirm seed vs real before fixing.
+  - [ ] **[UX P2] Payment Due / Current Fees has no pay/retry/receipt action from My Shows** — money path dead-ends with no CTA.
+  - [ ] **[UX P2] Completed/history entry still shows Pending Review + Payment Due + Upcoming** — past entries render with live-state badges.
+  - [ ] **[UX P2] At-show actions menu leaks staff/report artifacts to exhibitors** — restrict the `/at-show` actions menu by role.
+  - [ ] **[UX P2] Show Details lacks class/dog-fit detail before registration** — exhibitor can't see which classes fit their dog pre-entry.
+  - [ ] **[UX P2] Landing page hides Browse Shows from cold-start exhibitors** — surface Browse Shows for logged-out/cold-start.
+  - [ ] **[UX P2] At-show Offline badge shows while online** — offline indicator false-positives during online render.
 - [x] ~~**Phase 3 — secretary journey**~~ — Completed in PR [#716](https://github.com/rbeezley/myk9-platform/pull/716): cold-start setup, Show Desk pressure, Entry Management, reports, Results Control, Submit Results, and evidence screenshots captured in `docs/audits/2026-06-ux-journeys/02-secretary-journey.md`.
-  - [ ] **[UX P1] Fix secretary sidebar "My Shows" wrong-role route** — In the Phase 3 walk, secretary sidebar "My Shows" linked to `/exhibitor/entries`. Route to the secretary dashboard/workbench context or remove the duplicate item.
-  - [ ] **[UX P1] Verify dashboard attention count source vs Entry Management filters** — Monogram dashboard attention said "1 entry pending review" but the target `entryTab=pending` page showed 0 entries. Confirm whether this is stale seed data or a query/count mismatch before fixing.
+  - [x] ~~**[UX P1] Fix secretary sidebar "My Shows" wrong-role route**~~ — Resolved in PR [#721](https://github.com/rbeezley/myk9-platform/pull/721): renamed the multi-role "As Exhibitor" item "My Shows" → "My Entries" so secretary+exhibitor users distinguish managed shows from their entries.
+  - [x] ~~**[UX P1] Verify dashboard attention count source vs Entry Management filters**~~ — Resolved in PR [#721](https://github.com/rbeezley/myk9-platform/pull/721): `getEntriesForShow` now falls back to PostgREST on a cold replication store (attention strip counted ≥1 via direct query while entry management hit an empty store). Test added.
+  - [ ] **[UX P1] Legacy `phase=show-desk` redirects to Setup not Show Desk** — secretary-journey walk; route the legacy param to Show Desk.
+  - [ ] **[UX High] Submit Results leaves "Send to AKC" enabled beside a missing-registration warning** — gate the action on the warning being cleared.
+  - [ ] **[UX Med] Reports closed-select values show internal ids** — surface human labels, not ids.
+  - [ ] **[UX Low] Pulled / Pull Requests / scratches naming divergence** — unify the vocabulary across surfaces.
   - [ ] **[UX P2] Re-run day-of announcement baseline from Message Center** — Announcements are consolidated into the global Message Center, not a Show Desk/workbench CTA. Measure the time-to-task from that canonical entry point.
   - [ ] **[UX P2] Seed a pending move-up request for the next seam/Dynamic QA walk** — Phase 3 only observed the empty Move-Ups state; the decision workflow still needs a seeded pending request.
 - [ ] **Phase 4 — cross-role seams** — Read-only baseline captured in `docs/audits/2026-06-ux-journeys/03-cross-role-seams.md`; true latency/state-agreement walks still need approved shared Supabase seed mutations or local Dynamic QA fixtures.
@@ -79,6 +107,18 @@ Source: PR [#642](https://github.com/rbeezley/myk9-platform/pull/642), PR [#647]
 - [x] ~~**[P1] Wire Judge Check-In dashboard to real ring assignments**~~ — Fixed in PR #654: `/judge/check-in` now reads the offline-first judge assignment hook, preserves loading/error states, carries checked-in counts through replicated class/assignment data, and has focused coverage for loading, error, populated, and true-empty states.
 
 - [x] ~~**[P2] Wave A code-quality cleanup: delete Phase-2-confirmed dead code**~~ — Removed `apps/myk9show/src/lib/lazyLoading.ts`, `usePaginatedQueries.ts`, `useOptimizedSearch.ts`, their direct dead-hook tests, `apps/myk9show/src/services/entryService.ts`, unreachable demo/test pages, `components/forms/OptimisticForm.tsx`, unused sync panels, and `apps/myk9show/src/config/performance-budget.ts`. Kept `supabase/functions/send-notification` out of this wave until deployed Supabase usage/log/config checks are done.
+
+**Needs-human tail** (from `docs/audits/2026-06-code-quality/` SUMMARY/08/09 — extracted 2026-06-14 so it isn't orphaned when that folder archives):
+
+- [ ] **Verify deployed `supabase/functions/send-notification`** usage/logs, then delete or keep.
+- [ ] **Decide fate of completed kill-switch flags** (`showPresence`, `showLiveSync`, `showEditAwareness`, `showConflictSurfacing`) — remove pre-launch or keep as operational kill switches.
+- [ ] **Missing operator env vars in `apps/myk9show/.env.example`** (Stripe price IDs, premium-styles flag, public URL, unified-ringside flag, presence overrides) — classify operator vs test-only; check Vercel envs.
+- [ ] **Type `AuditService` rows** via canonical generated types once `audit_entry` is confirmed in the live DB (remove `any`).
+- [ ] **Decide `packages/ringside` class-status hook contract** — inject `RingsideReplication` or deprecate.
+- [ ] **Split Pull Management local pull state from online refund/accounting metadata** (decision).
+- [ ] **Nationals/Regular discriminator** hardcoded in passcode/placement paths — migration-backed fix (route via `migration-auditor`).
+- [ ] **Non-atomic dog creation + child registration** — backlog a `create_dog_with_children` RPC.
+- [ ] **P3 config hygiene** — `VITE_CDN_URL` vs `VITE_CDN_BASE_URL` name drift; monitoring env drift; remove unread `.env.example` vars; remove/retarget stale `phase8:*` + `test:load:full` scripts; delete dead early-adopter dog-tool flags; fix stale conflict-surfacing comment.
 
 ---
 

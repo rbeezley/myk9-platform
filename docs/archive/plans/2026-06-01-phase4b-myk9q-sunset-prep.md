@@ -1,5 +1,7 @@
 # Phase 4B — myK9Q Sunset Prep
 
+> **Status:** Complete — shipped; archived 2026-06-14 (see plan-active-docs-triage-2026-06-14).
+
 ## Goal
 
 Prepare the standalone `apps/myk9q` Vercel deployment for sunset without flipping it live by default.

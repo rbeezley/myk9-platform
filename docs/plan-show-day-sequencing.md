@@ -189,7 +189,7 @@ These don't fit a phase; pick up at any time when convenient:
 This sequencing doc complements, does not replace:
 
 - [`OPEN-TODOS.md`](../OPEN-TODOS.md) — granular item tracker (still source of truth for _what's outstanding_)
-- [`docs/plan-show-map-node-attrs-and-attention.md`](plan-show-map-node-attrs-and-attention.md) — Phase 1+2 implementation plan (foundation)
+- [`docs/plan-show-map-node-attrs-and-attention.md`](archive/plan-show-map-node-attrs-and-attention.md) — Phase 1+2 implementation plan (foundation)
 - [`docs/plan-overview-tab-redistribution.md`](archive/plan-overview-tab-redistribution.md) — Phase B's panel mapping (executes during Phase B)
 
 Phase A closeout created `docs/plan-phase-b-ia-consolidation.md` with implementation specifics, the same way Phase 1+2 had their own plan doc.

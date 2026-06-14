@@ -1,5 +1,7 @@
 # Placement Server-Side Plan
 
+> **Status:** Complete — shipped; archived 2026-06-14 (see plan-active-docs-triage-2026-06-14).
+
 ## Problem
 
 myK9Q scoring currently writes optimistically to the replicated entries cache, then also calls `submitScore()` for the online server write. `submitScore()` owns class completion checks and final placement recalculation, so the happy path can double-write the same entry and the retry path remains tied to client-side side effects.

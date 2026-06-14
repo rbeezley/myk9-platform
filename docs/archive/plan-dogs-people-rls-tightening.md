@@ -1,6 +1,6 @@
 # Plan: Tighten `dogs_select` / `people_select` RLS + dogs-replica tombstone cleanup
 
-**Status:** implementing
+> **Status:** Complete — shipped; archived 2026-06-14 (see plan-active-docs-triage-2026-06-14).
 **Owner:** Richard (owns the pre-launch RLS-simplification decision — direction confirmed 2026-06-11)
 **Scope:** security follow-up surfaced during the replication watermark work. Closes a
 cross-tenant read hole and an offline right-to-erasure gap.

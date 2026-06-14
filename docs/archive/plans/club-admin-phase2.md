@@ -1,5 +1,7 @@
 # Club Admin Phase 2 — Club Management MVP
 
+> **Status:** Complete — shipped; archived 2026-06-14 (see plan-active-docs-triage-2026-06-14).
+
 ## Goal
 
 Establish club management as a product vertical. Club admins manage membership (organizational roles like president, full member, etc.) and see their club's shows via a filtered browse page. Data model designed for future expansion (dues, terms, elections).

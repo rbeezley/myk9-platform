@@ -1,5 +1,7 @@
 # Open Todos Remediation Master Plan
 
+> **Status:** Complete — shipped; archived 2026-06-14 (see plan-active-docs-triage-2026-06-14).
+
 Created: 2026-05-11
 
 Purpose: turn the open todo backlog into a sequence of autonomous, testable repair batches after the QA-walk worktree is merged.

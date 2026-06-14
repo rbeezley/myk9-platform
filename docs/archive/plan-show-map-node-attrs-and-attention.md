@@ -1,7 +1,7 @@
 # Plan — Show-Map Node Attributes + Unified Attention
 
 **Date:** 2026-05-16
-**Status:** Awaiting product decision on attention semantics (see Phase 2 §1)
+> **Status:** Complete — shipped; archived 2026-06-14 (see plan-active-docs-triage-2026-06-14).
 **Scope:** First concrete PR(s) coming out of the 2026-05-16 show-day workflow brainstorm.
 
 **[ADDED] Cross-reference to OPEN-TODOS:** This plan executes the following items from the 2026-05-16 brainstorm section in `OPEN-TODOS.md`:

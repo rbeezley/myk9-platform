@@ -2,7 +2,7 @@
 
 **Purpose:** Persist judge availability data to the database so it can power judge-to-show matching.
 
-**Status:** Plan only — implement when ready to build judge-to-show matching.
+> **Status:** Complete — shipped; archived 2026-06-14 (see plan-active-docs-triage-2026-06-14).
 
 ---
 

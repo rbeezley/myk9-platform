@@ -1,5 +1,7 @@
 # Phase 2 — Live-update nudge (`useShowLiveSync`)
 
+> **Status:** Complete — shipped; archived 2026-06-14 (see plan-active-docs-triage-2026-06-14).
+
 **Date:** 2026-06-07 · **Status:** Ready to build
 **Companion to:** [`plan-show-presence.md`](./plan-show-presence.md) §6 Phase 2,
 [`plan-show-presence-phase2-scoping.md`](./archive/plan-show-presence-phase2-scoping.md)

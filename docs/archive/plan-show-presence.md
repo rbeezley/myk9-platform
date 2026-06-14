@@ -1,6 +1,6 @@
 # Plan: Show-Day Presence & Live Awareness
 
-**Status:** Draft for review — verified via /verify-plan 2026-06-07 (gaps patched; see `[ADDED]`/§12)
+> **Status:** Complete — shipped; archived 2026-06-14 (see plan-active-docs-triage-2026-06-14).
 **Created:** 2026-06-07
 **Author:** Claude (with R. Beezley)
 **Related history:** PR #576 deleted the never-wired `services/collaboration/*` cluster. This plan rebuilds the *valuable* parts on the architecture the app already has, instead of the parallel engine that was removed. See `docs/DEFERRED-WORK.md` §9.

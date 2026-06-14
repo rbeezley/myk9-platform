@@ -1,5 +1,7 @@
 # Offline Reliability Show-Day Remediation Plan
 
+> **Status:** Complete — shipped; archived 2026-06-14 (see plan-active-docs-triage-2026-06-14).
+
 ## Goal
 
 Make the first secretary/show-day offline reliability slice releasable for fall 2026 launch readiness without expanding product surface area.

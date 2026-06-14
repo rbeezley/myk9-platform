@@ -1,5 +1,7 @@
 # Show Presence Phase 4 Conflict Surfacing Implementation Plan
 
+> **Status:** Complete — shipped; archived 2026-06-14 (see plan-active-docs-triage-2026-06-14).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task by task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Detect same-field offline-first write collisions at the shared replication chokepoint and surface them for calm human resolution instead of silently resolving last-write-wins.

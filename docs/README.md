@@ -24,7 +24,8 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
    those while the styles ship.
 
 > Last full reconciliation: 2026-06-14 (see [`archive/plan-docs-cleanup-2026-06-14.md`](archive/plan-docs-cleanup-2026-06-14.md)).
-> Reduced docs/ from 563 markdown files to 119 living docs (118 indexed below + this index); 448 retired to `archive/`.
+> Reduced docs/ from 563 markdown files to 93 living docs (92 indexed below + this index); 477 retired to `archive/`.
+> Second-pass triage 2026-06-14 archived 27 shipped/superseded plans (see [`plan-active-docs-triage-2026-06-14.md`](plan-active-docs-triage-2026-06-14.md)).
 
 ---
 
@@ -43,26 +44,12 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-active-docs-triage-2026-06-14.md](plan-active-docs-triage-2026-06-14.md) | Active | Active-Docs Triage — 2026-06-14 |
 | [plan-architecture-deepening.md](plan-architecture-deepening.md) | Active | Architecture Deepening Plan |
 | [plan-class-status-auto-derivation.md](plan-class-status-auto-derivation.md) | Active | Plan — Class Status Auto-Derivation (Stub) |
-| [plan-code-quality-audit.md](plan-code-quality-audit.md) | Active | Plan: Proactive Code-Quality Audit |
-| [plan-dashboard-refocus.md](plan-dashboard-refocus.md) | Active | Plan — Secretary Dashboard Refocus |
 | [plan-data-access-module-drift.md](plan-data-access-module-drift.md) | Active | Data Access Module Drift Plan |
 | [plan-dependabot-remediation.md](plan-dependabot-remediation.md) | Active | Plan — Dependabot Remediation (post auto-fix wave) |
-| [plan-dogs-people-rls-tightening.md](plan-dogs-people-rls-tightening.md) | Active | Plan: Tighten `dogs_select` / `people_select` RLS + dogs-replica tombstone cleanup |
 | [plan-dynamic-qa-infrastructure.md](plan-dynamic-qa-infrastructure.md) | Active | Plan: Dynamic QA Infrastructure (follow-on to the Code-Quality Audit) |
-| [plan-early-access.md](plan-early-access.md) | Active | Early-Access Wizard Surface |
-| [plan-offline-reliability-showday.md](plan-offline-reliability-showday.md) | Active | Offline Reliability Show-Day Remediation Plan |
-| [plan-phase-d-hospitality-tracking.md](plan-phase-d-hospitality-tracking.md) | Active | Plan — Phase D Hospitality Tracking |
-| [plan-phase-d-incident-logging.md](plan-phase-d-incident-logging.md) | Active | Plan — Phase D Incident Logging |
-| [plan-placement-server-side.md](plan-placement-server-side.md) | Active | Placement Server-Side Plan |
-| [plan-replication-incremental-watermark-fix.md](plan-replication-incremental-watermark-fix.md) | Active | Plan — Fix incremental-sync watermark dropping freshly-created rows |
 | [plan-result-reveal-share-card.md](plan-result-reveal-share-card.md) | Active | Plan: Result Reveal + Share Card |
 | [plan-secretary-show-day-ux-consolidation.md](plan-secretary-show-day-ux-consolidation.md) | Active | Secretary Show-Day UX Consolidation Implementation Plan |
-| [plan-semantic-status-token-foundation.md](plan-semantic-status-token-foundation.md) | Active | Handoff: Semantic Status-Token Foundation |
 | [plan-show-day-sequencing.md](plan-show-day-sequencing.md) | Active | Plan — Show-Day Workflow Sequencing |
-| [plan-show-map-node-attrs-and-attention.md](plan-show-map-node-attrs-and-attention.md) | Active | Plan — Show-Map Node Attributes + Unified Attention |
-| [plan-show-presence-phase-4-conflict-surfacing.md](plan-show-presence-phase-4-conflict-surfacing.md) | Active | Show Presence Phase 4 Conflict Surfacing Implementation Plan |
-| [plan-show-presence-phase2.md](plan-show-presence-phase2.md) | Active | Phase 2 — Live-update nudge (`useShowLiveSync`) |
-| [plan-show-presence.md](plan-show-presence.md) | Active | Plan: Show-Day Presence & Live Awareness |
 | [plan-ux-journey-audit.md](plan-ux-journey-audit.md) | Active | Plan: UX Journey Audit — Exhibitor & Secretary |
 | [playbook-impeccable-page-improvements.md](playbook-impeccable-page-improvements.md) | Reference | Impeccable Page-Improvement Playbook |
 
@@ -70,25 +57,13 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 
 | Doc | Status | Title |
 |---|---|---|
-| [plans/2026-04-21-show-creation-wizard-harden-followups.md](plans/2026-04-21-show-creation-wizard-harden-followups.md) | Active | Show Creation Wizard — Harden Follow-ups |
-| [plans/2026-04-23-myk9show-redesign-fall-2026.md](plans/2026-04-23-myk9show-redesign-fall-2026.md) | Active | myK9Show Redesign — Fall 2026 |
-| [plans/2026-05-09-entry-data-access-deepening-plan.md](plans/2026-05-09-entry-data-access-deepening-plan.md) | Active | Entry Data Access Deepening Plan |
-| [plans/2026-05-09-show-data-access-deepening-plan.md](plans/2026-05-09-show-data-access-deepening-plan.md) | Active | Show Data Access Deepening Plan |
-| [plans/2026-05-10-retire-legacy-query-seam-plan.md](plans/2026-05-10-retire-legacy-query-seam-plan.md) | Active | Retire Legacy Query Seam Plan |
-| [plans/2026-05-11-open-todos-remediation-master-plan.md](plans/2026-05-11-open-todos-remediation-master-plan.md) | Active | Open Todos Remediation Master Plan |
-| [plans/2026-05-13-code-quality-path-to-8-plan.md](plans/2026-05-13-code-quality-path-to-8-plan.md) | Active | Code Quality: Path from 7.0 → 8.0+ |
 | [plans/2026-05-17-unify-myk9show-myk9q.md](plans/2026-05-17-unify-myk9show-myk9q.md) | Reference | myK9Show + myK9Q Unification — Design Plan |
-| [plans/2026-06-01-phase4b-myk9q-sunset-prep.md](plans/2026-06-01-phase4b-myk9q-sunset-prep.md) | Active | Phase 4B — myK9Q Sunset Prep |
 | [plans/2026-06-12-user-documentation-support-plan.md](plans/2026-06-12-user-documentation-support-plan.md) | Active | User Documentation and Support Materials Implementation Plan |
-| [plans/availability-persistence-plan.md](plans/availability-persistence-plan.md) | Active | Availability Persistence Plan |
-| [plans/club-admin-phase2.md](plans/club-admin-phase2.md) | Active | Club Admin Phase 2 — Club Management MVP |
 | [plans/crm-ux-improvements.md](plans/crm-ux-improvements.md) | Active | CRM-Inspired UX Improvements Plan |
 | [plans/design_handoff_premiums/README.md](plans/design_handoff_premiums/README.md) | Reference | Handoff: Premium List Designs (myK9Show) |
 | [plans/exhibitor-dashboard-redesign.md](plans/exhibitor-dashboard-redesign.md) | Active | Exhibitor Dashboard: Progressive Disclosure + Live Show Status |
-| [plans/plan-linear-ux-patterns.md](plans/plan-linear-ux-patterns.md) | Active | Linear-Inspired UX Patterns Plan |
 | [plans/qa/2026-05-12-nightly-e2e-repair-batches.md](plans/qa/2026-05-12-nightly-e2e-repair-batches.md) | Active | Nightly E2E Repair Batches |
 | [plans/qa/2026-05-12-proactive-quality-system-plan.md](plans/qa/2026-05-12-proactive-quality-system-plan.md) | Reference | Proactive Quality System Plan |
-| [plans/role-dashboards-plan.md](plans/role-dashboards-plan.md) | Active | Role-Based Dashboards Plan |
 | [plans/strategy/2026-04-11-north-star-fall-2026.md](plans/strategy/2026-04-11-north-star-fall-2026.md) | Reference | Plan: Stabilize myK9 Platform Toward a Solid Fall 2026 Launch |
 
 ### adr/ — architecture decision records
@@ -130,6 +105,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [audits/2026-06-ux-journeys/01-exhibitor-journey.md](audits/2026-06-ux-journeys/01-exhibitor-journey.md) | Active | UX Audit: Exhibitor Journey |
 | [audits/2026-06-ux-journeys/02-secretary-journey.md](audits/2026-06-ux-journeys/02-secretary-journey.md) | Active | UX Audit: Secretary Journey |
 | [audits/2026-06-ux-journeys/03-cross-role-seams.md](audits/2026-06-ux-journeys/03-cross-role-seams.md) | Active | UX Audit: Cross-Role Seams |
+| [audits/2026-06-ux-journeys/SUMMARY.md](audits/2026-06-ux-journeys/SUMMARY.md) | Active | UX Journey Audit Summary |
 | [audits/REVIEW.md](audits/REVIEW.md) | Reference | Code Review Guidelines |
 
 ### qa/ — quality system
@@ -178,7 +154,6 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 
 | Doc | Status | Title |
 |---|---|---|
-| [handoffs/2026-05-31-unify-real-device-push-tap.md](handoffs/2026-05-31-unify-real-device-push-tap.md) | Active | Session Handoff — 2026-05-31 |
 
 ### roles/ — role definitions
 

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { AlertCircle, Home, RefreshCw } from 'lucide-react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -51,6 +51,7 @@ const SURFACE_COPY: Record<
 
 export function RoleSurfaceErrorBoundary({ surface, children }: RoleSurfaceErrorBoundaryProps) {
   const copy = SURFACE_COPY[surface];
+  const navigate = useNavigate();
 
   return (
     <ErrorBoundary
@@ -81,7 +82,7 @@ export function RoleSurfaceErrorBoundary({ surface, children }: RoleSurfaceError
                 type="button"
                 variant="outline"
                 onClick={() => {
-                  window.location.assign(copy.homePath);
+                  void navigate(copy.homePath);
                 }}
               >
                 <Home className="mr-2 h-4 w-4" aria-hidden="true" />

@@ -373,7 +373,9 @@ function App() {
                                   <Route element={<RoleSurfaceErrorBoundary surface="secretary" />}>
                                     {SecretaryRoutes()}
                                   </Route>
-                                  {ClubAdminRoutes()}
+                                  <Route element={<RoleSurfaceErrorBoundary surface="admin" />}>
+                                    {ClubAdminRoutes()}
+                                  </Route>
                                   <Route element={<RoleSurfaceErrorBoundary surface="exhibitor" />}>
                                     {PublicRoutes()}
                                   </Route>

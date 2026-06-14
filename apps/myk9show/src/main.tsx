@@ -59,11 +59,6 @@ createRoot(document.getElementById('root')!, {
       componentStack: errorInfo.componentStack ?? null,
     });
   },
-  onCaughtError: (error, errorInfo) => {
-    sentryReactErrorHandler(error, {
-      componentStack: errorInfo.componentStack ?? null,
-    });
-  },
   onRecoverableError: (error, errorInfo) => {
     sentryReactErrorHandler(error, {
       componentStack: errorInfo.componentStack ?? null,

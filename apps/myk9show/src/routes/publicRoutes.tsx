@@ -104,6 +104,8 @@ function ShowManagementSectionRoute({ children }: { children: ReactNode }) {
       requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}
       fallback={<Navigate to={canonicalShowPath} replace />}
     >
+      {/* Show-management URLs live in the public show route tree, but once authorized
+      this surface is secretary work and should report with secretary context. */}
       <RoleSurfaceErrorBoundary surface="secretary">{children}</RoleSurfaceErrorBoundary>
     </ProtectedRoute>
   );

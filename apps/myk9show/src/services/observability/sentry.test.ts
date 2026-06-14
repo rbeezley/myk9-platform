@@ -1,9 +1,38 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ErrorEvent as SentryErrorEvent } from '@sentry/react';
 
-import { buildSentryInitOptions, scrubSentryEvent } from './sentry';
+const sentryMocks = vi.hoisted(() => ({
+  captureException: vi.fn(),
+  init: vi.fn(),
+  setContext: vi.fn(),
+  setTag: vi.fn(),
+  withScope: vi.fn(),
+}));
+
+vi.mock('@sentry/react', () => ({
+  captureException: sentryMocks.captureException,
+  init: sentryMocks.init,
+  withScope: sentryMocks.withScope,
+}));
+
+import {
+  buildSentryInitOptions,
+  captureErrorBoundaryException,
+  initializeSentry,
+  scrubSentryEvent,
+} from './sentry';
 
 describe('Sentry observability helpers', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sentryMocks.withScope.mockImplementation(callback =>
+      callback({
+        setContext: sentryMocks.setContext,
+        setTag: sentryMocks.setTag,
+      })
+    );
+  });
+
   it('scrubs user, request, breadcrumb, and domain-specific PII before sending', () => {
     const event: SentryErrorEvent = {
       message: 'Handler Jane Example hit dog AKC DN123456 with jane@example.com at 555-867-5309',
@@ -80,5 +109,31 @@ describe('Sentry observability helpers', () => {
       replaysOnErrorSampleRate: 0,
     });
     expect(options.beforeSend).toBe(scrubSentryEvent);
+  });
+
+  it('stays dormant when no DSN is configured', () => {
+    expect(initializeSentry()).toBe(false);
+    expect(sentryMocks.init).not.toHaveBeenCalled();
+  });
+
+  it('captures error boundary exceptions with boundary context', () => {
+    const error = new Error('boom');
+
+    captureErrorBoundaryException(
+      error,
+      { componentStack: 'Component stack' },
+      { context: 'ringside surface', level: 'section', errorId: 'error-1' }
+    );
+
+    expect(sentryMocks.withScope).toHaveBeenCalledTimes(1);
+    expect(sentryMocks.setContext).toHaveBeenCalledWith('react', {
+      componentStack: 'Component stack',
+      boundaryContext: 'ringside surface',
+      boundaryLevel: 'section',
+      errorId: 'error-1',
+    });
+    expect(sentryMocks.setTag).toHaveBeenCalledWith('boundary_context', 'ringside surface');
+    expect(sentryMocks.setTag).toHaveBeenCalledWith('boundary_level', 'section');
+    expect(sentryMocks.captureException).toHaveBeenCalledWith(error);
   });
 });

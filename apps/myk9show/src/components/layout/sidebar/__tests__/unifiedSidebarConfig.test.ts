@@ -231,17 +231,17 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
   });
 
   // ── As Exhibitor (multi-role exhibitor) ──────────────────────────────────
-  it('as exhibitor section has exactly one item — My Shows — for secretary+exhibitor', () => {
+  it('as exhibitor section has exactly one item — My Entries — for secretary+exhibitor', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY, UserRole.EXHIBITOR]);
     const group = config.groups.find(g => g.title === 'As Exhibitor');
     expect(group).toBeDefined();
-    expect(group?.items.map(i => i.title)).toEqual(['My Shows']);
+    expect(group?.items.map(i => i.title)).toEqual(['My Entries']);
   });
 
-  it('as exhibitor My Shows href is /exhibitor/entries', () => {
+  it('as exhibitor My Entries href is /exhibitor/entries', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY, UserRole.EXHIBITOR]);
     const group = config.groups.find(g => g.title === 'As Exhibitor');
-    const item = group?.items.find(i => i.title === 'My Shows');
+    const item = group?.items.find(i => i.title === 'My Entries');
     expect(item?.href).toBe('/exhibitor/entries');
   });
 

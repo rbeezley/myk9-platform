@@ -452,6 +452,27 @@ describe('secretary entry read replication', () => {
     });
   });
 
+  it('falls back to PostgREST when replication store is cold (returns empty)', async () => {
+    // Cold store — entries not yet synced for this show (secretary never entered at-show context)
+    mocks.getEntriesByShow.mockResolvedValue([]);
+    mocks.getAllDogs.mockResolvedValue([]);
+    mocks.getAllClasses.mockResolvedValue([]);
+    mocks.getArmbandsByShow.mockResolvedValue([]);
+    mockPostgrestEntriesRead([{ id: 'entry-from-postgrest', show_id: 'show-1' }]);
+
+    const result = await getEntriesForShow('show-1');
+
+    expect(mocks.loggerWarn).toHaveBeenCalledWith(
+      'Secretary entries replication cold; falling back to PostGREST',
+      'database',
+      { showId: 'show-1', operation: 'get_entries_for_show' }
+    );
+    expect(mocks.supabaseFrom).toHaveBeenCalledWith('entries');
+    expect(result.error).toBeNull();
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0]).toMatchObject({ id: 'entry-from-postgrest' });
+  });
+
   it('warns when falling back to PostgREST after a replicated read failure', async () => {
     const replicationError = new Error('replicated entries unavailable');
     mocks.getEntriesByShow.mockRejectedValueOnce(replicationError);

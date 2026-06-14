@@ -185,7 +185,7 @@ export function buildUnifiedSidebarConfig(
         title: 'As Exhibitor',
         items: [
           {
-            title: 'My Shows',
+            title: 'My Entries',
             href: '/exhibitor/entries',
             icon: FileText,
             description: 'Your entries, dogs, and upcoming shows',

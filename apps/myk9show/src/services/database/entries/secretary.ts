@@ -71,8 +71,18 @@ export const getEntriesForShow = async (showId: string) => {
 
   try {
     const result = await getReplicatedSecretaryEntriesForShow(showId);
-    logQuery('entries', 'get_entries_for_show', Date.now() - startTime);
-    return result;
+    if (result.data.length > 0) {
+      logQuery('entries', 'get_entries_for_show', Date.now() - startTime);
+      return result;
+    }
+    // Replication returned empty — cold store (entries only sync inside at-show
+    // context). Fall through to PostgREST so the entry management page agrees
+    // with the dashboard attention strip, which reads PostgREST directly.
+    logger.warn(
+      'Secretary entries replication cold; falling back to PostGREST',
+      'database',
+      { showId, operation: 'get_entries_for_show' }
+    );
   } catch (error) {
     const replicationError = error instanceof Error ? error : new Error(String(error));
     logger.warn(
@@ -81,19 +91,19 @@ export const getEntriesForShow = async (showId: string) => {
       { showId, operation: 'get_entries_for_show' },
       replicationError
     );
+  }
 
-    try {
-      return await postgrestGetSecretaryEntriesForShow(
-        showId,
-        startTime,
-        'get_entries_for_show_fallback'
-      );
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      const dbError = createDatabaseError(error, 'entries', 'get_entries_for_show');
-      logQuery('entries', 'get_entries_for_show', duration, dbError.message);
-      return { data: [], error: dbError };
-    }
+  try {
+    return await postgrestGetSecretaryEntriesForShow(
+      showId,
+      startTime,
+      'get_entries_for_show_fallback'
+    );
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'entries', 'get_entries_for_show');
+    logQuery('entries', 'get_entries_for_show', duration, dbError.message);
+    return { data: [], error: dbError };
   }
 };
 

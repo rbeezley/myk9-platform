@@ -1,6 +1,6 @@
 # Plan: Dynamic QA Infrastructure (follow-on to the Code-Quality Audit)
 
-**Created:** 2026-06-12 · **Status:** Draft — Phase 1 offline/replication chaos tests complete 2026-06-13; Phase 3 database-side drift checks complete 2026-06-12; other phases not started
+**Created:** 2026-06-12 · **Status:** Draft — Phase 1 offline/replication chaos tests complete 2026-06-13; Phase 2 mutation baselines complete 2026-06-14; Phase 3 database-side drift checks complete 2026-06-12; other phases not started
 **Goal:** Build the QA infrastructure the code-quality audit cannot: dynamic tests for offline/replication behavior, mutation testing of money-path math, database-side drift checks, error observability, and flaky-test quarantine. Where the audit _finds and removes_ existing static debt, this plan _builds new guards_ so quality holds after launch.
 
 **Relationship to [`docs/plan-code-quality-audit.md`](plan-code-quality-audit.md):** that plan owns static debt removal (Waves A–D) and the CI ratchets (its Phase 5 amendment, 2026-06-12). This plan owns everything dynamic. Phases here marked **[after audit]** must wait for the named audit wave; the rest can start independently in their own worktrees.
@@ -79,6 +79,31 @@ Coverage proves code ran; mutation score proves assertions bite. Scope Stryker (
 Deliverables: `stryker.config.json` scoped by file glob, a `pnpm` script (`test:mutation`), and a recorded baseline mutation score per module in this doc. Not wired into CI (too slow) — run before each launch milestone alongside the code-quality audit re-run.
 
 **Testing:** run Stryker once per module; triage surviving mutants — each survivor is either a missing assertion (fix the test) or equivalent-mutant noise (record it). Target ≥80% mutation score on fee/placement math before calling the phase done.
+
+**Status 2026-06-14:** Complete in branch `codex/dynamic-qa-mutation-testing`.
+Added Stryker 9.6.1 with the Vitest runner, root mutation scripts, a target-aware
+`stryker.config.mjs`, and `vitest.mutation.config.ts` so each module runs only its
+focused test file(s). Reports write to ignored `reports/mutation/<target>/`; Stryker
+sandboxes write to ignored `.stryker-tmp/`. Mutation runs are intentionally manual,
+not part of CI yet, and `thresholds.break` stays unset while ScoreValidator and
+replication-conflict baselines are below 80%; cart and placement can get a hard gate
+once the baseline proves stable across a few milestone runs.
+
+| Target                       | Mutated files                                                                                                                                                                      | Tests                                        | Mutation score | Notes                                                                                                                                                                                                                                                                                                                       |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- | -------------: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cart fee math                | `apps/myk9show/src/store/cartStore.helpers.ts`                                                                                                                                     | `cartStore.helpers.test.ts`                  |         87.50% | Money calculations killed 7/8 mutants. The lone survivor is the display-label string export, not fee arithmetic.                                                                                                                                                                                                            |
+| Placement math               | `apps/myk9show/src/services/scoring/PlacementCalculatorService.helpers.ts`                                                                                                         | `PlacementCalculatorService.helpers.test.ts` |         85.67% | Meets the ≥80% fee/placement gate after adding extraction, format-specific entry creation, weighted sorting, tie-group, and serialization assertions.                                                                                                                                                                       |
+| Score validation             | `apps/myk9show/src/services/scoring/ScoreValidatorService.ts`                                                                                                                      | `ScoreValidatorService.test.ts`              |         68.81% | Baseline target, not the fee/placement gate. Raised from 28.44% by covering unsupported formats, custom rules, dependency variants, timing warnings, missing qualified score data, and batch-key behavior. Remaining survivors are mostly catch-path/logging/message-detail mutants plus broad service branch combinations. |
+| Replication conflict helpers | `packages/replication/src/conflict/ConflictResolver.ts`, `packages/replication/src/conflict/detectDirtyRowConflict.ts`, `packages/replication/src/core/ReplicatedTableConflict.ts` | conflict helper tests                        |         77.24% | `ReplicatedTableConflict.ts` is 100%; remaining survivors are mainly conflict log/event details, LWW metadata, and static ignored-field mutants in `detectDirtyRowConflict.ts`.                                                                                                                                             |
+
+Verification run:
+
+- `pnpm --dir apps/myk9show exec vitest run src/services/scoring/ScoreValidatorService.test.ts src/services/scoring/PlacementCalculatorService.helpers.test.ts src/store/cartStore.helpers.test.ts`
+- `pnpm --filter @myk9/replication test -- ConflictResolver.test.ts detectDirtyRowConflict.test.ts ReplicatedTableConflict.test.ts`
+- `pnpm test:mutation:cart`
+- `pnpm test:mutation:score-validator`
+- `pnpm test:mutation:placement`
+- `pnpm test:mutation:replication-conflict`
 
 ## Phase 3 — Database-side drift checks
 

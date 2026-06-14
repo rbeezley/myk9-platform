@@ -444,7 +444,7 @@ See [ONLINE-ENTRY-SYSTEM.md](../../archive/architecture/ONLINE-ENTRY-SYSTEM.md) 
 |---------|------|
 | Monorepo config | [pnpm-workspace.yaml](../pnpm-workspace.yaml) |
 | App entry (myK9Show) | [apps/myk9show/src/main.tsx](../apps/myk9show/src/main.tsx) |
-| App entry (myK9Q) | [apps/myk9q/src/main.tsx](../apps/myk9q/src/main.tsx) |
+| Ringside scoring (`/at-show`) | [packages/ringside/src/](../packages/ringside/src/) (route wired in [apps/myk9show/src/routes/routeRegistry.ts](../apps/myk9show/src/routes/routeRegistry.ts)) — the former `apps/myk9q` app has been removed |
 | Replication logic | [packages/replication/src/](../packages/replication/src/) |
 | Scoring stores | [packages/scoring/src/stores/](../packages/scoring/src/stores/) |
 | Design tokens | [apps/myk9show/src/index.css](../apps/myk9show/src/index.css) |

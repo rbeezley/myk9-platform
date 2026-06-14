@@ -278,7 +278,7 @@ interface ValidateRequest {
 }
 ```
 
-Passcode format: first character is a role prefix (`a` = admin, `j` = judge, `s` = steward, `e` = exhibitor), followed by 4 characters derived from the show's license key.
+Passcode format: first character is a role prefix (`a` = admin, `j` = judge, `s` = steward, `e` = exhibitor) followed by 4 characters. Codes are no longer derived from the show's license key (that derivation path was removed). Instead the function calls the `validate_passcode(p_code)` Postgres RPC, which looks up the passcode's HMAC-SHA256 hash (with a Vault-stored pepper) in `public.show_passcodes` and returns `{ show_id, role }` on a match. Per-show, per-role codes are hashed at rest in `show_passcodes` (backfilled for existing shows), so the plaintext passcode is never stored.
 
 **Success Response** (`200`):
 

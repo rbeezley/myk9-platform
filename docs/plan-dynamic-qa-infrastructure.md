@@ -1,7 +1,7 @@
 # Plan: Dynamic QA Infrastructure (follow-on to the Code-Quality Audit)
 
-**Created:** 2026-06-12 · **Status:** Draft — Phase 3 database-side drift checks complete 2026-06-12; other phases not started
-**Goal:** Build the QA infrastructure the code-quality audit cannot: dynamic tests for offline/replication behavior, mutation testing of money-path math, database-side drift checks, error observability, and flaky-test quarantine. Where the audit *finds and removes* existing static debt, this plan *builds new guards* so quality holds after launch.
+**Created:** 2026-06-12 · **Status:** Draft — Phase 1 offline/replication chaos tests complete 2026-06-13; Phase 3 database-side drift checks complete 2026-06-12; other phases not started
+**Goal:** Build the QA infrastructure the code-quality audit cannot: dynamic tests for offline/replication behavior, mutation testing of money-path math, database-side drift checks, error observability, and flaky-test quarantine. Where the audit _finds and removes_ existing static debt, this plan _builds new guards_ so quality holds after launch.
 
 **Relationship to [`docs/plan-code-quality-audit.md`](plan-code-quality-audit.md):** that plan owns static debt removal (Waves A–D) and the CI ratchets (its Phase 5 amendment, 2026-06-12). This plan owns everything dynamic. Phases here marked **[after audit]** must wait for the named audit wave; the rest can start independently in their own worktrees.
 
@@ -13,25 +13,25 @@
 
 ## Verified starting state (2026-06-12)
 
-| Fact | Evidence |
-| --- | --- |
-| No Sentry, axe-core, Stryker, or size-limit dependency anywhere | grep of all `package.json` files |
-| CI = Quality Checks → Test packages + Test myK9Show (3 shards) in `.github/workflows/ci.yml` | job list |
-| `resolveConflict` already has unit tests | `packages/replication/src/core/ReplicatedTable.test.ts` and siblings |
-| App-level `ErrorBoundary` exists | `apps/myk9show/src/App.tsx`, `components/common/ErrorBoundary.tsx` |
-| Nightly proactive-QA already runs (isolated worktree + unique port) | project memory `project_nightly_qa_isolation` |
-| Root `pnpm.overrides` pins `@supabase/supabase-js` to exact `2.93.3`, making caret bumps inert | root `package.json` (feedback memory, PR #403 review) |
+| Fact                                                                                           | Evidence                                                             |
+| ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| No Sentry, axe-core, Stryker, or size-limit dependency anywhere                                | grep of all `package.json` files                                     |
+| CI = Quality Checks → Test packages + Test myK9Show (3 shards) in `.github/workflows/ci.yml`   | job list                                                             |
+| `resolveConflict` already has unit tests                                                       | `packages/replication/src/core/ReplicatedTable.test.ts` and siblings |
+| App-level `ErrorBoundary` exists                                                               | `apps/myk9show/src/App.tsx`, `components/common/ErrorBoundary.tsx`   |
+| Nightly proactive-QA already runs (isolated worktree + unique port)                            | project memory `project_nightly_qa_isolation`                        |
+| Root `pnpm.overrides` pins `@supabase/supabase-js` to exact `2.93.3`, making caret bumps inert | root `package.json` (feedback memory, PR #403 review)                |
 
 ## Sequencing at a glance
 
-| Phase | Depends on audit? | Can run parallel to audit execution? |
-| --- | --- | --- |
+| Phase                              | Depends on audit?                                                          | Can run parallel to audit execution?                          |
+| ---------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------- |
 | 1. Offline/replication chaos tests | No, but coordinate with Wave D (replication reroutes touch the same files) | Yes — separate worktree, land after Wave D if conflicts arise |
-| 2. Mutation testing | **[after audit]** Wave D tests must exist first | No |
-| 3. Database-side drift checks | No | Yes (read-only against shared systems) |
-| 4. Error observability | No | Yes |
-| 5. Flaky-test quarantine | No (pairs with deferred `fileParallelism` spike) | Yes |
-| 6. Budgets & cadence | Bundle budget waits for Wave A (deletes `performance-budget.ts`) | Partially |
+| 2. Mutation testing                | **[after audit]** Wave D tests must exist first                            | No                                                            |
+| 3. Database-side drift checks      | No                                                                         | Yes (read-only against shared systems)                        |
+| 4. Error observability             | No                                                                         | Yes                                                           |
+| 5. Flaky-test quarantine           | No (pairs with deferred `fileParallelism` spike)                           | Yes                                                           |
+| 6. Budgets & cadence               | Bundle budget waits for Wave A (deletes `performance-budget.ts`)           | Partially                                                     |
 
 ---
 
@@ -44,6 +44,19 @@
 
 ## Phase 1 — Offline/replication chaos tests
 
+**Status 2026-06-13:** Complete in branch `codex/phase-1-replication-chaos-tests`.
+Added `packages/replication/src/replication-chaos.test.ts` with table-shaped
+same-field dirty-row conflict guards for entries, classes, and scores, plus
+enrichment-field preservation assertions. Added
+`packages/replication/src/MutationManager.replay.test.ts` with serialized
+mutation queue replay/idempotency coverage. Added
+`apps/myk9show/src/test/e2e/show/atShowOfflineScoring.spec.ts`, a write-safe
+Chromium feature-audit spec that opens the real `/at-show` scoresheet, scores
+offline, verifies IndexedDB dirty/pending state, reconnects, and intercepts the
+entry PATCH upload so staging is not mutated. Bite-check: temporarily disabling
+same-field conflict surfacing made all three new chaos cases fail on
+`expect(events).toHaveLength(1)`, then the change was reverted.
+
 The product promise is show-day reliability with no signal; nothing in the current suite exercises it end-to-end. Three layers, smallest first:
 
 1. **Conflict-injection unit tests** (extend existing `ReplicatedTable` tests): two writers mutate the same entry concurrently; assert `resolveConflict` preserves enrichment-only fields (the PR #450 bug class — see feedback memory `feedback_denormalize_at_sync`). Table-driven over the conflict-prone tables: entries, classes, scores.
@@ -52,7 +65,7 @@ The product promise is show-day reliability with no signal; nothing in the curre
 
 Coordination note: audit Wave D reroutes replication bypasses in the same area. If Wave D is in flight, land this phase after it; the chaos tests then double as Wave D's regression net.
 
-**Testing:** the phase *is* tests. Exit criteria: all three layers green locally and in CI, and at least one test demonstrably fails when the guard it protects is broken (mutate `resolveConflict` locally to prove the conflict tests bite, then revert).
+**Testing:** the phase _is_ tests. Exit criteria: all three layers green locally and in CI, and at least one test demonstrably fails when the guard it protects is broken (mutate `resolveConflict` locally to prove the conflict tests bite, then revert).
 
 ## Phase 2 — Mutation testing on money-path math **[after audit Wave D]**
 

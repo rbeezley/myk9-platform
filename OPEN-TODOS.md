@@ -33,7 +33,6 @@ Plan: [`docs/plan-code-quality-audit.md`](docs/plan-code-quality-audit.md). Curr
 
 Plan: [`docs/plan-dynamic-qa-infrastructure.md`](docs/plan-dynamic-qa-infrastructure.md). Starts after the code-quality audit fix waves are done. Phases 1/3/4/5 can run in parallel worktrees; Phase 2 (mutation testing) requires audit Wave D tests first; Phase 6 (bundle budget) requires Wave A.
 
-- [ ] **Phase 1 — offline/replication chaos tests** (conflict-injection unit tests, sync-queue replay idempotency, Playwright offline round-trip)
 - [ ] **Phase 2 — mutation testing on fee/scoring/placement math** _(after audit Wave D)_
 - [ ] **Phase 4 — error observability** (error-boundary coverage audit, Sentry wiring — confirm vendor before creating external project)
 - [ ] **Phase 5 — flaky-test quarantine + suite health**

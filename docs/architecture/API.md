@@ -539,52 +539,43 @@ Receives and processes Stripe webhook events. Called by Stripe's servers, not by
 
 ---
 
-### receive-logs
+### send-results
 
-Receives frontend log entries from the LoggingService RemoteTransport and stores them in the `frontend_logs` table.
+Emails an electronic results file (e.g. AKC Scent Work XML) to the registry submission address, with the submitting secretary CC'd. The destination address is resolved server-side from an `organization:sportType` map so the client cannot redirect the email.
 
-| Detail     | Value                                                    |
-| ---------- | -------------------------------------------------------- |
-| **Source** | `apps/myk9show/supabase/functions/receive-logs/index.ts` |
-| **Method** | `POST`                                                   |
-| **Auth**   | None (accepts any request from allowed origins)          |
+| Detail     | Value                                                  |
+| ---------- | ------------------------------------------------------ |
+| **Source** | `supabase/functions/send-results/index.ts`            |
+| **Method** | `POST`                                                 |
+| **Auth**   | Supabase JWT (validated internally; origins restricted to myK9Show) |
 
 **Request Body:**
 
 ```typescript
-interface LogPayload {
-  entries: Array<{
-    timestamp: string;
-    level: number;
-    message: string;
-    category: string;
-    userId?: string;
-    sessionId?: string;
-    metadata?: Record<string, unknown>;
-    stack?: string;
-    fingerprint?: string;
-  }>;
-  source: string; // e.g. 'frontend'
-  userAgent: string;
-  url: string; // Page URL where logs were generated
+interface SendResultsPayload {
+  xml: string;
+  filename: string;
+  organization: string; // e.g. 'AKC'
+  sportType: string; // e.g. 'scent_work'
+  secretaryEmail: string; // CC'd on the submission
 }
 ```
-
-**Limits:** Maximum 200 entries per request (excess entries are silently dropped). Field length limits: `message` 2000 chars, `category` 100 chars, `stack` 5000 chars, `source` 50 chars, `userAgent` 500 chars, `url` 2000 chars.
 
 **Success Response** (`200`):
 
 ```json
-{ "received": 15 }
+{ "success": true }
 ```
 
 **Error Responses:**
 
-| Status | Condition                                      |
-| ------ | ---------------------------------------------- |
-| `400`  | Missing or empty `entries` array; invalid JSON |
-| `405`  | Non-POST request                               |
-| `500`  | Database insert error                          |
+| Status | Condition                                                          |
+| ------ | ----------------------------------------------------------------- |
+| `400`  | Missing required field, or no submission email mapped for `organization:sportType` |
+| `502`  | Resend API rejected the send                                       |
+| `503`  | `RESEND_API_KEY` not configured                                    |
+
+**Environment Variables Required:** `RESEND_API_KEY`
 
 ---
 

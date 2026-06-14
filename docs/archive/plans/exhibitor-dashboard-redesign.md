@@ -1,7 +1,7 @@
 # Exhibitor Dashboard: Progressive Disclosure + Live Show Status
 
 **Date:** 2026-03-09
-**Status:** Phase 3 Complete
+> **Status:** Complete — all phases incl. Phase 4 shipped (verified 2026-06-14 triage); archived.
 **INTENT alignment:** Exhibitor — _"This respects my time"_
 
 ---

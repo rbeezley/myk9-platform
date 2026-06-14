@@ -24,8 +24,8 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
    those while the styles ship.
 
 > Last full reconciliation: 2026-06-14 (see [`archive/plan-docs-cleanup-2026-06-14.md`](archive/plan-docs-cleanup-2026-06-14.md)).
-> Reduced docs/ from 563 markdown files to 93 living docs (92 indexed below + this index); 477 retired to `archive/`.
-> Second-pass triage 2026-06-14 archived 27 shipped/superseded plans (see [`plan-active-docs-triage-2026-06-14.md`](plan-active-docs-triage-2026-06-14.md)).
+> Reduced docs/ from 563 markdown files to 90 living docs (89 indexed below + this index); 480 retired to `archive/`.
+> Second-pass triage 2026-06-14 archived 30 shipped/superseded plans (see [`plan-active-docs-triage-2026-06-14.md`](plan-active-docs-triage-2026-06-14.md)).
 
 ---
 
@@ -45,7 +45,6 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-architecture-deepening.md](plan-architecture-deepening.md) | Active | Architecture Deepening Plan |
 | [plan-class-status-auto-derivation.md](plan-class-status-auto-derivation.md) | Active | Plan — Class Status Auto-Derivation (Stub) |
 | [plan-data-access-module-drift.md](plan-data-access-module-drift.md) | Active | Data Access Module Drift Plan |
-| [plan-dependabot-remediation.md](plan-dependabot-remediation.md) | Active | Plan — Dependabot Remediation (post auto-fix wave) |
 | [plan-dynamic-qa-infrastructure.md](plan-dynamic-qa-infrastructure.md) | Active | Plan: Dynamic QA Infrastructure (follow-on to the Code-Quality Audit) |
 | [plan-result-reveal-share-card.md](plan-result-reveal-share-card.md) | Active | Plan: Result Reveal + Share Card |
 | [plan-secretary-show-day-ux-consolidation.md](plan-secretary-show-day-ux-consolidation.md) | Active | Secretary Show-Day UX Consolidation Implementation Plan |
@@ -59,9 +58,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 |---|---|---|
 | [plans/2026-05-17-unify-myk9show-myk9q.md](plans/2026-05-17-unify-myk9show-myk9q.md) | Reference | myK9Show + myK9Q Unification — Design Plan |
 | [plans/2026-06-12-user-documentation-support-plan.md](plans/2026-06-12-user-documentation-support-plan.md) | Active | User Documentation and Support Materials Implementation Plan |
-| [plans/crm-ux-improvements.md](plans/crm-ux-improvements.md) | Active | CRM-Inspired UX Improvements Plan |
 | [plans/design_handoff_premiums/README.md](plans/design_handoff_premiums/README.md) | Reference | Handoff: Premium List Designs (myK9Show) |
-| [plans/exhibitor-dashboard-redesign.md](plans/exhibitor-dashboard-redesign.md) | Active | Exhibitor Dashboard: Progressive Disclosure + Live Show Status |
 | [plans/qa/2026-05-12-nightly-e2e-repair-batches.md](plans/qa/2026-05-12-nightly-e2e-repair-batches.md) | Active | Nightly E2E Repair Batches |
 | [plans/qa/2026-05-12-proactive-quality-system-plan.md](plans/qa/2026-05-12-proactive-quality-system-plan.md) | Reference | Proactive Quality System Plan |
 | [plans/strategy/2026-04-11-north-star-fall-2026.md](plans/strategy/2026-04-11-north-star-fall-2026.md) | Reference | Plan: Stabilize myK9 Platform Toward a Solid Fall 2026 Launch |

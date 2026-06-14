@@ -1,5 +1,7 @@
 # CRM-Inspired UX Improvements Plan
 
+> **Status:** Complete — items shipped or superseded by FilterBar/Message Center (verified 2026-06-14 triage); archived.
+
 Implementation plan for patterns identified in [crm-ux-inspiration.md](../design/specs/crm-ux-inspiration.md).
 Organized into 4 phases: Quick Wins, Record Pages, Interactive Data, and Intelligence Layer.
 

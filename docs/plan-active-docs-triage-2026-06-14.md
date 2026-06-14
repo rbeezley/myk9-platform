@@ -2,6 +2,11 @@
 
 > **Status:** Active
 
+> **Update 2026-06-14:** Executed — 27 docs archived + OPEN-TODOS reconciled. The 3 "unconfirmed"
+> keeps (crm-ux-improvements, exhibitor-dashboard-redesign, dependabot-remediation) were then
+> verified **ARCHIVE-SHIPPED** and archived too. Net: **30 of 51** active docs archived; **21 remain
+> live**. Remaining follow-up: myK9Q reference-doc drift (§4b, separate task).
+
 Second-pass audit of the 51 docs the [docs cleanup](archive/plan-docs-cleanup-2026-06-14.md)
 left marked **Active**, plus a light accuracy pass over the 66 **Reference** docs. The first pass
 asked *"did this ship?"* per-doc; this pass cross-references each plan against the **code, merged

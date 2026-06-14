@@ -68,7 +68,8 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
     entry.entryStatus === EntryStatus.PENDING || entry.entryStatus === EntryStatus.ACCEPTED;
 
   const canShowReceipt = entry.confirmationNumber && isPaid;
-  const canFinishPayment = entry.paymentStatus === PaymentStatus.PENDING && entry.totalFee > 0;
+  const canFinishPayment =
+    canEdit && entry.paymentStatus === PaymentStatus.PENDING && entry.totalFee > 0;
 
   // Build a "Get directions" link from the full venue address (venue, city,
   // state) while the card still displays the shorter "city, state" label.

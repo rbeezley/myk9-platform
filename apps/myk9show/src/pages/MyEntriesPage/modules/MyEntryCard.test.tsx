@@ -112,6 +112,18 @@ describe('MyEntryCard payment recovery', () => {
 
     expect(screen.queryByRole('link', { name: /Finish Payment/i })).not.toBeInTheDocument();
   });
+
+  it('does not show Finish Payment for terminal pending-payment entries', () => {
+    renderCard(
+      makeEntry({
+        entryStatus: EntryStatus.REJECTED,
+        paymentStatus: PaymentStatus.PENDING,
+        totalFee: 85,
+      })
+    );
+
+    expect(screen.queryByRole('link', { name: /Finish Payment/i })).not.toBeInTheDocument();
+  });
 });
 
 describe('groupEntriesByShowAndDog', () => {

@@ -64,6 +64,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-show-presence-phase2.md](plan-show-presence-phase2.md) | Active | Phase 2 — Live-update nudge (`useShowLiveSync`) |
 | [plan-show-presence.md](plan-show-presence.md) | Active | Plan: Show-Day Presence & Live Awareness |
 | [plan-ux-journey-audit.md](plan-ux-journey-audit.md) | Active | Plan: UX Journey Audit — Exhibitor & Secretary |
+| [plan-wave1-exhibitor-entry-payment-trust.md](plan-wave1-exhibitor-entry-payment-trust.md) | Active | Wave 1 Exhibitor Entry And Payment Trust Implementation Plan |
 | [playbook-impeccable-page-improvements.md](playbook-impeccable-page-improvements.md) | Reference | Impeccable Page-Improvement Playbook |
 
 ### plans/ — feature & phase plans

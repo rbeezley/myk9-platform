@@ -1,5 +1,7 @@
 # Wave 1 Exhibitor Entry And Payment Trust Implementation Plan
 
+> **Status:** Active
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Restore the exhibitor enter/pay golden path by preventing unusable entry routes, exposing class-fit detail before registration, and giving unpaid entries an obvious path back to the existing cart payment flow.

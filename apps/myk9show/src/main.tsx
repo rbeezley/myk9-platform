@@ -1,5 +1,7 @@
+import './services/observability/sentry';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import * as Sentry from '@sentry/react';
 import App from './App.tsx';
 import './index.css';
 // Ringside page styles — required by the @myk9/ringside EntryList mount at
@@ -34,7 +36,7 @@ if (import.meta.env.DEV && 'serviceWorker' in navigator) {
   setupPwa({
     onPrompt: () => {
       toast('A new version of myK9Show is available', {
-        description: "Reload to get the latest features and fixes.",
+        description: 'Reload to get the latest features and fixes.',
         duration: Infinity,
         action: {
           label: 'Update',
@@ -49,7 +51,20 @@ if (import.meta.env.DEV && 'serviceWorker' in navigator) {
 
 logger.debug('Starting myK9Show...', 'app', {});
 
-createRoot(document.getElementById('root')!).render(
+const sentryReactErrorHandler = Sentry.reactErrorHandler();
+
+createRoot(document.getElementById('root')!, {
+  onUncaughtError: (error, errorInfo) => {
+    sentryReactErrorHandler(error, {
+      componentStack: errorInfo.componentStack ?? null,
+    });
+  },
+  onRecoverableError: (error, errorInfo) => {
+    sentryReactErrorHandler(error, {
+      componentStack: errorInfo.componentStack ?? null,
+    });
+  },
+}).render(
   <StrictMode>
     <BrowserRouter>
       <QueryProvider>

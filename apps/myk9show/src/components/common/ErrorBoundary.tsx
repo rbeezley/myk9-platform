@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ErrorClassificationService } from '@/services/error/ErrorClassificationService';
 import type { ErrorDetails } from '@/services/error/GlobalErrorHandler';
 import { logger } from '@/services/LoggingService';
+import { captureErrorBoundaryException } from '@/services/observability/sentry';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -94,6 +95,11 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     };
 
     logger.error('Error Boundary Caught Error:', 'components', {}, new Error(errorReport.message));
+    captureErrorBoundaryException(error, errorInfo, {
+      context: errorReport.context,
+      level: errorReport.level,
+      errorId: errorReport.errorId,
+    });
 
     // Store in localStorage for debugging
     try {

@@ -41,6 +41,7 @@ import { WizardSurfaceGate } from './components/WizardSurfaceGate';
 // Components
 import AppHeader from './components/layout/AppHeader';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import { RoleSurfaceErrorBoundary } from './components/common/RoleSurfaceErrorBoundary';
 import { PageTransition } from './components/common/PageTransition';
 import { NetworkStatusProvider } from './components/common/NetworkStatusProvider';
 
@@ -363,11 +364,21 @@ function App() {
 
                                 {/* All other routes — inside unified sidebar layout */}
                                 <Route element={<UnifiedAppLayout />}>
-                                  {AdminRoutes()}
-                                  {JudgeSidebarRoutes()}
-                                  {SecretaryRoutes()}
-                                  {ClubAdminRoutes()}
-                                  {PublicRoutes()}
+                                  <Route element={<RoleSurfaceErrorBoundary surface="admin" />}>
+                                    {AdminRoutes()}
+                                  </Route>
+                                  <Route element={<RoleSurfaceErrorBoundary surface="judge" />}>
+                                    {JudgeSidebarRoutes()}
+                                  </Route>
+                                  <Route element={<RoleSurfaceErrorBoundary surface="secretary" />}>
+                                    {SecretaryRoutes()}
+                                  </Route>
+                                  <Route element={<RoleSurfaceErrorBoundary surface="admin" />}>
+                                    {ClubAdminRoutes()}
+                                  </Route>
+                                  <Route element={<RoleSurfaceErrorBoundary surface="exhibitor" />}>
+                                    {PublicRoutes()}
+                                  </Route>
                                 </Route>
 
                                 {/* 404 catch-all */}

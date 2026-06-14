@@ -3,8 +3,13 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import { saveTemplatesPlugin } from './vite-plugins/saveTemplatesPlugin.js';
 import { visualizer } from 'rollup-plugin-visualizer';
+import { sentryVitePlugin } from '@sentry/vite-plugin';
 import { VitePWA } from 'vite-plugin-pwa';
 // import { terser } from '@rollup/plugin-terser'; // Not needed with current config
+
+const shouldUploadSentrySourceMaps = Boolean(
+  process.env.SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG && process.env.SENTRY_PROJECT
+);
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -77,6 +82,19 @@ export default defineConfig({
       brotliSize: true,
       template: 'treemap', // Options: treemap, sunburst, network
     }) as PluginOption,
+    ...(shouldUploadSentrySourceMaps
+      ? [
+          sentryVitePlugin({
+            org: process.env.SENTRY_ORG,
+            project: process.env.SENTRY_PROJECT,
+            authToken: process.env.SENTRY_AUTH_TOKEN,
+            telemetry: false,
+            sourcemaps: {
+              filesToDeleteAfterUpload: ['./dist/**/*.map'],
+            },
+          }) as PluginOption,
+        ]
+      : []),
   ],
   optimizeDeps: {
     include: [
@@ -153,7 +171,7 @@ export default defineConfig({
         entryFileNames: 'assets/scripts/[name]-[hash].js',
       },
     },
-    sourcemap: process.env.NODE_ENV !== 'production',
+    sourcemap: shouldUploadSentrySourceMaps ? 'hidden' : process.env.NODE_ENV !== 'production',
     minify: 'terser',
     terserOptions: {
       compress: {

@@ -1,5 +1,11 @@
 # Online Entry System Architecture
 
+> **Status:** Archived (2026-06-14) — design/architecture document for work that has since shipped.
+> The online entry system described below (entry carts, per-entry platform fees, Stripe Checkout +
+> Connect, waitlist, Resend email confirmations, premium exhibitor subscriptions) is now live in
+> myK9Show. Kept for historical design rationale; for the current implementation see the code under
+> `apps/myk9show/src/features/` and the edge functions in [API.md](../../architecture/API.md).
+
 ## Overview
 
 This document outlines the architecture for transforming myK9Show from a license-based desktop replacement into a platform with online entries, per-entry fees, and premium exhibitor subscriptions.

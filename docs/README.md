@@ -24,8 +24,9 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
    those while the styles ship.
 
 > Last full reconciliation: 2026-06-14 (see [`archive/plan-docs-cleanup-2026-06-14.md`](archive/plan-docs-cleanup-2026-06-14.md)).
-> Reduced docs/ from 563 markdown files to 90 living docs (89 indexed below + this index); 480 retired to `archive/`.
+> Reduced docs/ from 563 markdown files to 86 living docs (85 indexed below + this index); 484 retired to `archive/`.
 > Second-pass triage 2026-06-14 archived 30 shipped/superseded plans (see [`plan-active-docs-triage-2026-06-14.md`](plan-active-docs-triage-2026-06-14.md)).
+> (2026-06-14 follow-up: archived 4 more myK9Q-era reference docs — `SCHEMA-ANALYSIS`, `DATABASE-AUDIT`, `ONLINE-ENTRY-SYSTEM`, and the `2026-05-17-unify-myk9show-myk9q` plan — after the myK9Q app was removed.)
 
 ---
 
@@ -56,7 +57,6 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 
 | Doc | Status | Title |
 |---|---|---|
-| [plans/2026-05-17-unify-myk9show-myk9q.md](plans/2026-05-17-unify-myk9show-myk9q.md) | Reference | myK9Show + myK9Q Unification — Design Plan |
 | [plans/2026-06-12-user-documentation-support-plan.md](plans/2026-06-12-user-documentation-support-plan.md) | Active | User Documentation and Support Materials Implementation Plan |
 | [plans/design_handoff_premiums/README.md](plans/design_handoff_premiums/README.md) | Reference | Handoff: Premium List Designs (myK9Show) |
 | [plans/qa/2026-05-12-nightly-e2e-repair-batches.md](plans/qa/2026-05-12-nightly-e2e-repair-batches.md) | Active | Nightly E2E Repair Batches |
@@ -83,10 +83,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 |---|---|---|
 | [architecture/API.md](architecture/API.md) | Reference | API Reference -- Supabase Edge Functions |
 | [architecture/ARCHITECTURE.md](architecture/ARCHITECTURE.md) | Reference | Architecture |
-| [architecture/DATABASE-AUDIT.md](architecture/DATABASE-AUDIT.md) | Reference | Database Audit Report |
-| [architecture/ONLINE-ENTRY-SYSTEM.md](architecture/ONLINE-ENTRY-SYSTEM.md) | Reference | Online Entry System Architecture |
 | [architecture/PUSH-NOTIFICATIONS.md](architecture/PUSH-NOTIFICATIONS.md) | Reference | Push Notifications — Operations Guide |
-| [architecture/SCHEMA-ANALYSIS.md](architecture/SCHEMA-ANALYSIS.md) | Reference | Schema Analysis for Database Consolidation |
 | [architecture/VERCEL-SETUP.md](architecture/VERCEL-SETUP.md) | Reference | Vercel Deployment Setup |
 
 ### audits/ — active audits

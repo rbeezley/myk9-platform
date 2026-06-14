@@ -3,6 +3,14 @@
 ## Status
 Accepted
 
+> **Update (2026-06-14):** The boundary rules and DAG below still hold, but the package set has grown
+> from the original **6** to **12** under `@myk9/*`. The original six (`core`, `supabase`,
+> `replication`, `ui`, `scoring`, `scoring-ui`) have been joined by `email`, `notifications`,
+> `pwa-update`, `ringside` (the `/at-show` ringside UI, after `apps/myk9q` was removed and ringside
+> moved into myK9Show), `secretary`, and `test-utils`. Each new package follows the same leaf-respecting
+> dependency direction (packages never depend on apps). The "6 packages" figures in the body below
+> describe the original decision and are kept for historical context.
+
 ## Date
 2026-01-02
 
@@ -62,7 +70,7 @@ We organized shared code into **6 packages** under the `@myk9/*` namespace, with
 4. `@myk9/ui` is standalone -- no workspace dependencies (only external: Base UI, Tailwind utilities)
 5. `@myk9/scoring` is standalone -- depends only on Zustand (no workspace deps)
 6. `@myk9/scoring-ui` depends on `@myk9/core` and `@myk9/ui` for shared hooks
-7. Apps (`@myk9/show`, `@myk9/q`) can depend on any package but packages never depend on apps
+7. Apps (`@myk9/show`) can depend on any package but packages never depend on apps
 
 ## Consequences
 

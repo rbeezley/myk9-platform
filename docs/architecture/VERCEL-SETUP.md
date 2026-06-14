@@ -5,9 +5,8 @@
 | App | Vercel Project | Root Directory | Staging URL |
 |-----|---------------|----------------|-------------|
 | myK9Show | `myk9-platform-myk9show` | `apps/myk9show` | myk9-platform-myk9show.vercel.app |
-| myK9Q (monorepo) | `myk9-platform-myk9q` | `apps/myk9q` | myk9-platform-myk9q.vercel.app |
 
-Both projects deploy from `rbeezley/myk9-platform`. Pushes to `main` trigger production deployments. PRs get preview deployments.
+myK9Show deploys from `rbeezley/myk9-platform`. Pushes to `main` trigger production deployments. PRs get preview deployments. (Ringside scoring lives inside myK9Show at `/at-show`; the former standalone `apps/myk9q` app — and its `myk9-platform-myk9q` Vercel project — have been removed.)
 
 **Note:** The standalone `my-k9-q-react` Vercel project (legacy separate repo) remains untouched and serves production at myk9q.com.
 
@@ -26,18 +25,11 @@ Both projects deploy from `rbeezley/myk9-platform`. Pushes to `main` trigger pro
 |----------|-------|
 | `VITE_APP_ENVIRONMENT` | `staging` |
 
-### myK9Q (monorepo) additional
-
-| Variable | Value |
-|----------|-------|
-| `VITE_ENVIRONMENT` | `staging` |
-
 ## Build Configuration
 
-Both apps use Turborepo build commands configured in their respective `vercel.json` files:
+myK9Show uses a Turborepo build command configured in its `vercel.json`:
 
 - **myK9Show:** `cd ../.. && npx turbo build --filter=@myk9/show`
-- **myK9Q:** `cd ../.. && npx turbo build --filter=@myk9/q`
 
 Framework preset: Vite. Output directory: `dist`.
 

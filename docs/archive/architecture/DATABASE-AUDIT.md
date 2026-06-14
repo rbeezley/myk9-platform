@@ -4,6 +4,11 @@
 **Date:** January 2026
 **Project:** myk9-platform
 
+> **Status:** Archived (2026-06-14) — point-in-time audit. This report was run against an early
+> schema (~migration 006; the project now has ~278 migrations) and the RLS performance findings
+> below have since been remediated. Kept for history; not a current statement of database health.
+> For the latest checks see `docs/audits/2026-06-proactive-qa/db-advisors.md` and the migrations.
+
 ---
 
 ## Summary

@@ -1,7 +1,9 @@
 # ADR-005: Dual UI Strategy -- Tailwind/shadcn for myK9Show, Semantic CSS for myK9Q
 
 ## Status
-Accepted
+**Superseded (2026-06-14).** This ADR's premise — preserving myK9Q's mature semantic-CSS stack as a separate app — no longer holds. The standalone `apps/myk9q` app has been removed and ringside scoring now lives inside myK9Show at `/at-show`, rebuilt **Tailwind-native** (the `@myk9/ringside` package; `ringside.css` was deleted). There is now a single styling paradigm across the platform: Tailwind CSS + shadcn/ui (Base UI) via `@myk9/ui`. The "dual UI" decision below is retained for historical context only.
+
+(Originally: Accepted, 2026-01-02.)
 
 ## Date
 2026-01-02

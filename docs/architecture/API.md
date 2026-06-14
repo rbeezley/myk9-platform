@@ -9,7 +9,7 @@ All backend API endpoints in the myK9 Platform are Supabase Edge Functions runni
 1. [Overview](#1-overview)
 2. [Common Patterns](#2-common-patterns)
 3. [Stripe Functions (myK9Show)](#3-stripe-functions-myk9show)
-4. [myK9Q Functions](#4-myk9q-functions)
+4. [Ringside & Notification Functions](#4-ringside--notification-functions)
 5. [Utility Functions (myK9Show)](#5-utility-functions-myk9show)
 6. [Adding a New Edge Function](#6-adding-a-new-edge-function)
 
@@ -20,9 +20,32 @@ All backend API endpoints in the myK9 Platform are Supabase Edge Functions runni
 - **Runtime:** Deno (via Supabase Edge Functions)
 - **Deployment:** All functions are deployed with `--no-verify-jwt` because each function handles authentication internally.
 - **Invocation:** Functions are called from the frontend using `supabase.functions.invoke()`, which automatically attaches the user's JWT as a Bearer token in the `Authorization` header.
-- **Location:** Functions live in app-level directories:
-  - `apps/myk9show/supabase/functions/<name>/index.ts` -- myK9Show functions
-  - `apps/myk9q/supabase/functions/<name>/index.ts` -- myK9Q functions
+- **Location:** Functions live in two directories:
+  - `supabase/functions/<name>/index.ts` -- platform-wide functions, including ringside (`/at-show`) auth/AI and all notification/email senders.
+  - `apps/myk9show/supabase/functions/<name>/index.ts` -- app-scoped functions: Stripe billing and cron jobs.
+
+  There is no longer a separate myK9Q app. Ringside scoring now lives at `/at-show` inside myK9Show, and its supporting functions (e.g. `validate-passcode`, `ask-myk9q`) live in the platform-wide `supabase/functions/` directory.
+
+### Complete Function Inventory
+
+Only the key functions are documented in full below. The complete current inventory, grouped by purpose:
+
+**`supabase/functions/` (platform-wide)**
+
+| Group              | Functions                                                                                                                                                                                                          |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ringside / AI      | `validate-passcode` (ringside passcode auth for `/at-show`), `ask-myk9q` (ringside AI assistant), `ask-myk9show` (show-app AI assistant)                                                                            |
+| Email senders      | `send-email`, `send-auth-email`, `send-confirmation-email`, `send-registration-email`, `send-targeted-message`, `send-notification`, `send-results`, `send-waitlist-invite`, `resend-webhook`                       |
+| Push notifications | `send-push-notification`, `push-trigger-announcement`, `push-trigger-chat-message`, `push-trigger-class-status`, `push-trigger-scoring`                                                                             |
+| Premium / admin    | `generate-premium`, `admin-delete-user`, `admin-generate-reset-link`                                                                                                                                               |
+
+**`apps/myk9show/supabase/functions/` (app-scoped)**
+
+| Group               | Functions                                                                                                                                              |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stripe / payments   | `stripe-checkout`, `stripe-customer-portal`, `stripe-upgrade-subscription`, `stripe-webhook`, `stripe-connect-onboard`, `stripe-refund-entry`, `cron-process-payouts` |
+| Waitlist            | `cron-waitlist-expiration`                                                                                                                             |
+| Email               | `send-email` (app-scoped sender; a same-named platform-wide sender also exists)                                                                       |
 
 ---
 
@@ -235,11 +258,11 @@ The function validates `newPlanId` against a hardcoded allowlist of valid price 
 
 ---
 
-## 4. myK9Q Functions
+## 4. Ringside & Notification Functions
 
 ### validate-passcode
 
-Server-side passcode validation with IP-based rate limiting for the myK9Q passcode authentication system.
+Server-side passcode validation with IP-based rate limiting. This is the ringside passcode authentication endpoint used by the `/at-show` experience inside myK9Show (there is no longer a separate myK9Q app).
 
 | Detail     | Value                                                      |
 | ---------- | ---------------------------------------------------------- |
@@ -255,7 +278,7 @@ interface ValidateRequest {
 }
 ```
 
-Passcode format: first character is a role prefix (`a` = admin, `j` = judge, `s` = steward, `e` = exhibitor), followed by 4 characters derived from the show's license key.
+Passcode format: first character is a role prefix (`a` = admin, `j` = judge, `s` = steward, `e` = exhibitor) followed by 4 characters. Codes are no longer derived from the show's license key (that derivation path was removed). Instead the function calls the `validate_passcode(p_code)` Postgres RPC, which looks up the passcode's HMAC-SHA256 hash (with a Vault-stored pepper) in `public.show_passcodes` and returns `{ show_id, role }` on a match. Per-show, per-role codes are hashed at rest in `show_passcodes` (backfilled for existing shows), so the plaintext passcode is never stored.
 
 **Success Response** (`200`):
 
@@ -291,11 +314,11 @@ Passcode format: first character is a role prefix (`a` = admin, `j` = judge, `s`
 
 ### ask-myk9q
 
-AI-powered chatbot that answers questions about show data and competition rules using Claude with tool-use.
+AI-powered ringside chatbot that answers questions about show data and competition rules using Claude with tool-use. Serves the `/at-show` ringside experience inside myK9Show. Its sibling, `ask-myk9show` (`supabase/functions/ask-myk9show/index.ts`), is the equivalent AI assistant for the main show app.
 
 | Detail     | Value                                                     |
 | ---------- | --------------------------------------------------------- |
-| **Source** | `apps/myk9q/supabase/functions/ask-myk9q/index.ts`        |
+| **Source** | `supabase/functions/ask-myk9q/index.ts`                   |
 | **Method** | `POST`                                                    |
 | **Auth**   | None (public, but requires `licenseKey` for data scoping) |
 
@@ -336,77 +359,13 @@ interface ChatResponse {
 
 ---
 
-### search-rules-v2
-
-Full-text search over competition rules with AI-powered query analysis and answer extraction.
-
-| Detail     | Value                                                    |
-| ---------- | -------------------------------------------------------- |
-| **Source** | `apps/myk9q/supabase/functions/search-rules-v2/index.ts` |
-| **Method** | `POST`                                                   |
-| **Auth**   | None (public)                                            |
-
-**Request Body:**
-
-```typescript
-interface SearchRequest {
-  query: string; // Natural language search query
-  limit?: number; // Max results (default: 5)
-  level?: string; // Filter: 'Novice', 'Advanced', 'Excellent', 'Master'
-  element?: string; // Filter: 'Container', 'Interior', 'Exterior', 'Buried'
-  organizationCode?: string; // e.g. 'AKC'
-  sportCode?: string; // e.g. 'scent-work'
-}
-```
-
-**Success Response** (`200`):
-
-```typescript
-{
-  query: string;
-  analysis: {
-    searchTerms: string;
-    filters: { level?: string; element?: string };
-    intent: string;
-  };
-  answer: string;              // AI-extracted concise answer
-  results: Rule[];             // Matching rule objects
-  count: number;               // Number of results
-}
-```
-
-Where `Rule` is:
-
-```typescript
-interface Rule {
-  id: string;
-  section: string;
-  title: string;
-  content: string;
-  categories: { level?: string; element?: string };
-  keywords: string[];
-  measurements: Record<string, unknown>;
-}
-```
-
-**Error Responses:**
-
-| Status | Condition                                                            |
-| ------ | -------------------------------------------------------------------- |
-| `400`  | Missing or empty `query`                                             |
-| `500`  | `ANTHROPIC_API_KEY` not configured; Claude API error; database error |
-
-**How it works:** Uses Claude Haiku to analyze the natural language query into search terms and filters, performs PostgreSQL full-text search (`websearch` config) on the `rules` table filtered by active rulebook, then uses Claude Haiku again to extract a concise answer from the matched rules.
-
----
-
 ### send-push-notification
 
 Sends Web Push notifications to subscribed devices. Only accepts requests from database triggers (not direct API calls).
 
 | Detail     | Value                                                                          |
 | ---------- | ------------------------------------------------------------------------------ |
-| **Source** | `apps/myk9q/supabase/functions/send-push-notification/index.ts`                |
+| **Source** | `supabase/functions/send-push-notification/index.ts`                           |
 | **Method** | `POST`                                                                         |
 | **Auth**   | `x-trigger-secret` header must match the `TRIGGER_SECRET` environment variable |
 
@@ -453,40 +412,6 @@ If no active subscriptions exist:
 **Side Effects:** Automatically deactivates subscriptions that return `410 Gone` or `404` from the push service (expired/unsubscribed browsers). Filters recipients by their `notification_preferences` (announcements, up_soon, favorite armbands).
 
 **Environment Variables Required:** `TRIGGER_SECRET`, `VITE_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`
-
----
-
-### clear-rate-limits
-
-Clears recent rate limit entries from the `login_attempts` table. Intended exclusively for E2E testing.
-
-| Detail     | Value                                                      |
-| ---------- | ---------------------------------------------------------- |
-| **Source** | `apps/myk9q/supabase/functions/clear-rate-limits/index.ts` |
-| **Method** | `POST`                                                     |
-| **Auth**   | `x-e2e-test` header must equal `myK9Q-e2e-test-2024`       |
-
-**Request Body:** None required (empty body is fine).
-
-**Success Response** (`200`):
-
-```json
-{
-  "success": true,
-  "message": "Cleared 3 rate limit entries",
-  "deleted_count": 3
-}
-```
-
-**Error Responses:**
-
-| Status | Condition                              |
-| ------ | -------------------------------------- |
-| `403`  | Missing or invalid `x-e2e-test` header |
-| `405`  | Non-POST request                       |
-| `500`  | Database error                         |
-
-**Scope:** Only deletes entries from the last 2 hours to avoid touching historical audit data.
 
 ---
 
@@ -821,7 +746,7 @@ Custom secrets used across functions:
 | `STRIPE_WEBHOOK_SECRET` | stripe-webhook                                                                       | Stripe webhook signing secret                     |
 | `RESEND_API_KEY`        | send-email                                                                           | Resend email service API key                      |
 | `CRON_SECRET`           | cron-waitlist-expiration                                                             | Shared secret for cron authentication             |
-| `ANTHROPIC_API_KEY`     | ask-myk9q, search-rules-v2                                                           | Anthropic API key for Claude                      |
+| `ANTHROPIC_API_KEY`     | ask-myk9q, ask-myk9show                                                              | Anthropic API key for Claude                      |
 | `TRIGGER_SECRET`        | send-push-notification                                                               | Shared secret for database trigger authentication |
 | `VITE_VAPID_PUBLIC_KEY` | send-push-notification                                                               | Web Push VAPID public key                         |
 | `VAPID_PRIVATE_KEY`     | send-push-notification                                                               | Web Push VAPID private key                        |

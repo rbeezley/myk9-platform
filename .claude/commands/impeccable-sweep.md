@@ -10,7 +10,7 @@ the secretary page queue, unattended. This is the overnight variant: no human
 checkpoints, one PR per page, reviewed in the morning.
 
 This command is the **dispatcher**. The rules live in
-`docs/plan-impeccable-page-improvements.md` → "Autonomous sweep mode (unattended)".
+`docs/playbook-impeccable-page-improvements.md` → "Autonomous sweep mode (unattended)".
 Read that section first and follow it exactly.
 
 ## Inputs (`$ARGUMENTS`)

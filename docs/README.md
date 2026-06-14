@@ -23,8 +23,8 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
    cited as source-of-truth in `apps/myk9show/src/features/*/tokens.ts` — do not archive
    those while the styles ship.
 
-> Last full reconciliation: 2026-06-14 (see [`plan-docs-cleanup-2026-06-14.md`](plan-docs-cleanup-2026-06-14.md)).
-> Reduced docs/ from 563 markdown files to 119 living docs (118 indexed below + this index); 447 retired to `archive/`.
+> Last full reconciliation: 2026-06-14 (see [`archive/plan-docs-cleanup-2026-06-14.md`](archive/plan-docs-cleanup-2026-06-14.md)).
+> Reduced docs/ from 563 markdown files to 118 living docs (117 indexed below + this index); 448 retired to `archive/`.
 
 ---
 
@@ -46,7 +46,6 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-dashboard-refocus.md](plan-dashboard-refocus.md) | Active | Plan — Secretary Dashboard Refocus |
 | [plan-data-access-module-drift.md](plan-data-access-module-drift.md) | Active | Data Access Module Drift Plan |
 | [plan-dependabot-remediation.md](plan-dependabot-remediation.md) | Active | Plan — Dependabot Remediation (post auto-fix wave) |
-| [plan-docs-cleanup-2026-06-14.md](plan-docs-cleanup-2026-06-14.md) | Active | Docs Cleanup Remediation Plan — 2026-06-14 |
 | [plan-dogs-people-rls-tightening.md](plan-dogs-people-rls-tightening.md) | Active | Plan: Tighten `dogs_select` / `people_select` RLS + dogs-replica tombstone cleanup |
 | [plan-dynamic-qa-infrastructure.md](plan-dynamic-qa-infrastructure.md) | Active | Plan: Dynamic QA Infrastructure (follow-on to the Code-Quality Audit) |
 | [plan-early-access.md](plan-early-access.md) | Active | Early-Access Wizard Surface |

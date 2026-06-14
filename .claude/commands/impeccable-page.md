@@ -8,12 +8,12 @@ argument-hint: <page-name> (only the page name is required, e.g. "Secretary Dash
 Run the impeccable page-improvement playbook on the page named in `$ARGUMENTS`.
 
 This command is only the **dispatcher**. The pipeline itself lives in
-`docs/plan-impeccable-page-improvements.md` — read it first and follow it
+`docs/playbook-impeccable-page-improvements.md` — read it first and follow it
 exactly; do not improvise or duplicate the phases here.
 
 ## Steps
 
-1. **Read the playbook:** `docs/plan-impeccable-page-improvements.md`. It is the
+1. **Read the playbook:** `docs/playbook-impeccable-page-improvements.md`. It is the
    source of truth for every phase, the skill-selection buckets, the watchlist,
    the Definition of Done, and the ship artifacts.
 

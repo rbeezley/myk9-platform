@@ -1,6 +1,6 @@
 # Impeccable Page-Improvement Playbook
 
-A repeatable, hand-off-able plan for improving any myK9Show page with the
+A repeatable, hand-off-able playbook for improving any myK9Show page with the
 `impeccable` skill. Give an agent this document plus a **page name** and it
 runs the full pipeline: evaluate → triage → fix → polish → test → ship.
 

@@ -1,7 +1,7 @@
 # Role: Judge (stub — deferred for fall 2026)
 
 ## Scope decision
-Judge is **not a primary role** for the fall 2026 launch. Judges mostly operate inside myK9Q (the day-of scoring app) rather than myK9Show. A full Judge experience in myK9Show is deferred post-fall.
+Judge is **not a primary role** for the fall 2026 launch. Judges mostly operate inside the ringside `/at-show` scoring experience within myK9Show (the former standalone myK9Q app has been folded in here) rather than the main show-management surfaces. A full Judge experience in myK9Show is deferred post-fall.
 
 ## What exists for fall
 Only what the Secretary and Exhibitor journeys require:

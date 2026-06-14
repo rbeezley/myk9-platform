@@ -1,8 +1,8 @@
 # Architecture
 
-This document describes the system-level architecture of the myK9 Platform monorepo. It covers how the two applications relate to each other, how shared packages are structured, how data flows through the system, and where to extend things when adding new features.
+This document describes the system-level architecture of the myK9 Platform monorepo. It covers how the single myK9Show application is structured, how shared packages are organized, how data flows through the system, and where to extend things when adding new features. Ringside scoring lives inside myK9Show at the `/at-show` route rather than in a separate app.
 
-Read this before working on cross-app features, shared packages, data flow changes, or anything that touches the boundary between applications and infrastructure.
+Read this before working on shared packages, data flow changes, or anything that touches the boundary between the application and infrastructure.
 
 ---
 
@@ -10,19 +10,19 @@ Read this before working on cross-app features, shared packages, data flow chang
 
 ```
 +-------------------------------------------------------------+
-|                         Browsers                             |
+|                         Browser                              |
 |                                                              |
-|  +------------------------+    +---------------------------+ |
-|  |       myK9Show         |    |          myK9Q            | |
-|  |  React + Tailwind CSS  |    |  React + Semantic CSS     | |
-|  |  Show Management       |    |  Ringside Scoring         | |
-|  +-----------+------------+    +-------------+-------------+ |
-+--------------|---------------------------------|-------------+
-               |                                 |
-               v                                 v
+|  +-------------------------------------------------------+   |
+|  |                     myK9Show                          |   |
+|  |                React + Tailwind CSS                    |   |
+|  |  Show Management  |  Ringside Scoring (/at-show)       |   |
+|  +-----------------------------+-------------------------+   |
++--------------------------------|----------------------------+
+                                 |
+                                 v
 +--------------------------------------------------------------+
-|               Shared Packages (@myk9/*)                      |
-|  core | supabase | replication | ui | scoring | scoring-ui   |
+|              12 Shared Packages (@myk9/*)                     |
+|  core | supabase | replication | ui | scoring | ringside ... |
 +-----------------------------+--------------------------------+
                               |
                               v
@@ -32,7 +32,7 @@ Read this before working on cross-app features, shared packages, data flow chang
 +--------------------------------------------------------------+
 ```
 
-The platform is split into two applications that serve different user roles at dog sport competitions. **myK9Show** is the full show-management application used by show secretaries and club administrators to configure events, manage entries, and handle exhibitor registrations. **myK9Q** is a lightweight scoring application designed for ringside use by judges and stewards, built with offline-first principles so it works reliably in venues with poor connectivity. Both apps share a common backend (Supabase) and a set of workspace packages that encapsulate shared logic, types, and components.
+The platform is a single application that serves every role at dog sport competitions. **myK9Show** (React + Tailwind CSS) is the full show-management application used by show secretaries and club administrators to configure events, manage entries, and handle exhibitor registrations. The same app also hosts the **ringside scoring** experience at the `/at-show` route, where judges and stewards score classes using an offline-first flow built for venues with poor connectivity. The ringside surface is Tailwind-native (packaged as `@myk9/ringside`); the old semantic-CSS scoring stack has been removed. The app sits on a single backend (Supabase) and a set of workspace packages that encapsulate shared logic, types, and components.
 
 ---
 
@@ -72,6 +72,11 @@ The shared packages follow a strict directed acyclic graph (DAG) to prevent circ
 | `@myk9/ui`          | Accessible UI components built on Base UI + Tailwind     | `Button`, `Dialog`, `Select`, tailwind preset, `cn()` utility                    |
 | `@myk9/scoring`     | Scoring domain stores and types (pure logic, no UI)      | `useScoringStore`, `useTimerStore`, score types, scoring configs                 |
 | `@myk9/scoring-ui`  | Shared behavioral hooks for scoring UIs                  | `useStopwatch`, `useEntryListFilters`, scoresheet components                     |
+| `@myk9/ringside`    | The `/at-show` ringside scoring UI and feature package   | Ringside screens, gates, and show-day scoring flows                              |
+| `@myk9/secretary`   | Secretary show-management feature package                | Show setup, entry management, and secretary workflow surfaces                    |
+| `@myk9/email`       | Email templates and sending helpers                      | Transactional email templates and send utilities                                |
+| `@myk9/notifications` | Push and notification helpers                          | Notification dispatch and subscription helpers                                   |
+| `@myk9/pwa-update`  | Service-worker update prompt (prompt mode)               | PWA update detection and user-prompt component                                   |
 | `@myk9/test-utils`  | Testing utilities and mock factories                     | Test helpers, mock data builders                                                 |
 
 All packages use `tsup` for building and produce ESM-only output. The `workspace:*` protocol in pnpm keeps inter-package versions in sync. React is declared as a peer dependency across all packages to avoid version duplication.
@@ -102,14 +107,14 @@ myK9Show uses **React Query** for all server state. Query hooks are located in `
 
 Zustand stores in myK9Show are used exclusively for client-side UI state (modals, filters, selections, wizard steps). They do not hold server data.
 
-### myK9Q (offline-first)
+### Ringside / `/at-show` (offline-first)
 
 ```
 Component --> Zustand store --> ReplicatedTable --> IndexedDB (instant)
                                                 --> Supabase (background sync)
 ```
 
-myK9Q is designed to work without a network connection. All reads hit local IndexedDB first, providing instant response times regardless of connectivity.
+The ringside and show-day flows at `/at-show` are designed to work without a network connection. All reads hit local IndexedDB first, providing instant response times regardless of connectivity.
 
 - **Writes** follow an optimistic pattern: update the Zustand store immediately, queue the mutation in `ReplicatedTable`, and sync to Supabase when a connection is available
 - **ReplicatedTable** handles TTL-based caching, background sync, and conflict resolution
@@ -129,17 +134,17 @@ See [docs/adr/004-offline-first-indexeddb.md](../adr/004-offline-first-indexeddb
 | **Zustand**           | Client/UI state shared across components | Modals, filters, selections, domain stores |
 | **React Query**       | Server state, async data fetching        | Lists, detail views, search results        |
 | **React Context**     | Cross-cutting concerns (rarely changes)  | Auth/RBAC, theme, app-wide config          |
-| **@myk9/replication** | Persistent data that must work offline   | Show data, class entries, scores (myK9Q)   |
+| **@myk9/replication** | Persistent data that must work offline   | Show data, class entries, scores (ringside `/at-show`) |
 | **Local useState**    | Ephemeral, component-scoped state        | Form inputs, timers, dialog open/close     |
 
 ### Zustand Conventions
 
-- **Location:** `src/store/` in myK9Show, `src/stores/` in myK9Q
+- **Location:** `src/store/` in myK9Show (canonical)
 - **Naming:** `use<Domain>Store` (e.g., `useShowStore`, `useScoringStore`, `useTrialStore`)
 - **Actions:** Return `Promise` for operations that touch the database
 - **Optimistic updates:** Update Zustand state immediately, let the replication layer sync in the background
-- **myK9Q stores** use `devtools` + `persist` middleware (Zustand handles persistence to localStorage)
-- **myK9Show stores** are plain Zustand (persistence is handled by React Query cache and the server)
+- **Ringside / offline stores** use `devtools` + `persist` middleware so state survives across show-day reloads (Zustand persists to localStorage)
+- **Most myK9Show stores** are plain Zustand (persistence is handled by React Query cache and the server)
 - **Shared stores** in `@myk9/scoring` expose a factory function and a default instance:
   ```typescript
   export function createScoringStore(enableDevtools = false) {
@@ -150,10 +155,10 @@ See [docs/adr/004-offline-first-indexeddb.md](../adr/004-offline-first-indexeddb
 
 ### Anti-Patterns
 
-- **Do not** bypass `@myk9/replication` with direct Supabase calls in myK9Q -- this breaks offline support
+- **Do not** bypass `@myk9/replication` with direct Supabase calls in ringside/`/at-show` -- this breaks offline support
 - **Do not** use `useState` for server data that should be cached -- use React Query instead
 - **Do not** add new Context providers for domain data -- use Zustand stores
-- **Do not** duplicate stores across apps -- extract shared stores to a `@myk9/*` package
+- **Do not** duplicate stores between the app and packages -- extract shared stores to a `@myk9/*` package
 
 ---
 
@@ -172,21 +177,21 @@ myK9Show uses **Supabase Auth** with email/password signup and JWT-based session
   - `hasPermission(permission, scope?)` for granular permission checks
 - Sessions are automatically refreshed by the Supabase client
 
-### myK9Q -- Passcode
+### Ringside Passcode (`/at-show`)
 
-myK9Q uses a lightweight passcode-based authentication system designed for quick ringside login.
+The ringside experience inside myK9Show uses a lightweight passcode-based login designed for quick access at the ring. This is not a separate app's auth -- it powers the `/at-show` ringside flow within myK9Show.
 
 - **Passcode format:** `[role letter][4 hex digits]` (e.g., `aa260`, `jf472`)
 - **Role mapping:** `a` = admin, `j` = judge, `s` = steward, `e` = exhibitor
 - **Authentication flow:** The `validate-passcode` Edge Function verifies the passcode and returns a session
 - **Offline recovery:** On login, the app checks `offlineQueueStore` for pending scores before clearing any cached data
-- **Data scoping:** A `license_key` field on myK9Q tables provides per-show isolation, enforced via Supabase RLS policies
+- **Data scoping:** A `license_key` field on the ringside/show-day tables provides per-show isolation, enforced via Supabase RLS policies
 
 ---
 
 ## Database Architecture
 
-Both applications share a single **Supabase project** (`myk9-platform`, ref: `sojmvhhwsjxmfistvzbe`).
+myK9Show runs on a single **Supabase project** (`myk9-platform`, ref: `sojmvhhwsjxmfistvzbe`).
 
 ### Data Hierarchy
 
@@ -202,35 +207,21 @@ Show
 
 ### Multi-Tenancy
 
-myK9Q tables use a `license_key` field for per-show data isolation. This ensures that scoring data from one show cannot leak into another. The license key is set at login time and enforced by RLS policies on every query.
+The ringside/show-day tables use a `license_key` field for per-show data isolation. This ensures that scoring data from one show cannot leak into another. The license key is set at login time and enforced by RLS policies on every query.
 
 ### Row-Level Security
 
 RLS is enforced on all tables. Policies cover:
 
 - Authenticated user access scoped by role
-- License-key-based isolation for myK9Q data
+- License-key-based isolation for ringside/show-day data
 - Show secretary access to their own shows
 - Exhibitor access limited to their own entries and dogs
 - Admin full-access policies
 
 ### Migrations
 
-There are 25 migrations that build up the schema incrementally:
-
-| Range   | Coverage                                                                    |
-| ------- | --------------------------------------------------------------------------- |
-| 001-003 | Core entities, shows/events, entries/scoring                                |
-| 004     | myK9Q-specific tables (nationals, announcements, rules)                     |
-| 005     | myK9Show-specific tables (health, templates, RBAC, Stripe)                  |
-| 006     | Initial RLS policies                                                        |
-| 007-008 | Soft delete columns                                                         |
-| 009     | Online entry system                                                         |
-| 010-014 | Schema additions (class numbers, exhibitor profiles, images, registrations) |
-| 015-023 | RLS performance fixes, RBAC functions, indexes, policy tightening           |
-| 024-025 | Show secretary flag, frontend logging                                       |
-
-See [docs/SCHEMA-ANALYSIS.md](SCHEMA-ANALYSIS.md) for table-level detail and column definitions.
+The schema is built up incrementally by roughly 278 timestamp-named migrations (e.g. `20260614100000_...sql`) in `supabase/migrations/`. The schema is best read directly from the live migrations rather than a static per-range table. The project ref is `sojmvhhwsjxmfistvzbe`.
 
 ---
 
@@ -240,50 +231,34 @@ See [docs/SCHEMA-ANALYSIS.md](SCHEMA-ANALYSIS.md) for table-level detail and col
 GitHub (main branch)
   |
   |---> Vercel: myK9Show --> myk9-platform-myk9show.vercel.app
-  |---> Vercel: myK9Q    --> myk9-platform-myk9q.vercel.app
   |
   +---> CI: typecheck --> lint --> test (parallel) --> build
         (Turborepo remote caching via TURBO_TOKEN)
 
 Supabase Cloud (myk9-platform)
-  |-- PostgreSQL + RLS (25 migrations)
-  |-- Auth (OAuth for myK9Show, Passcode for myK9Q)
-  |-- Edge Functions (12 total)
+  |-- PostgreSQL + RLS (~278 migrations)
+  |-- Auth (Supabase email/password + RBAC; ringside passcode for /at-show)
+  |-- Edge Functions (~28; see API.md)
   |-- Realtime subscriptions
   +-- Storage (images bucket)
 ```
 
 ### Vercel
 
-Both applications auto-deploy from the `main` branch. Each app has its own Vercel project with a root directory configuration pointing to its respective `apps/` subdirectory. Turborepo remote caching (via `TURBO_TOKEN`) speeds up CI builds by reusing previous build artifacts.
+myK9Show auto-deploys from the `main` branch to `myk9-platform-myk9show.vercel.app`. The Vercel project's root directory points at the `apps/myk9show/` subdirectory. Turborepo remote caching (via `TURBO_TOKEN`) speeds up CI builds by reusing previous build artifacts.
 
 ### Edge Functions
 
-There are 12 Edge Functions split across the two apps:
+There are roughly 28 Edge Functions split across two locations:
 
-**myK9Q (5 functions):**
+- `supabase/functions/` -- platform, ringside, and notification functions (e.g. `validate-passcode`, rules assistant/search, push notifications)
+- `apps/myk9show/supabase/functions/` -- Stripe billing and cron functions (checkout, customer portal, webhook, scheduled cleanup)
 
-- `validate-passcode` -- Passcode authentication
-- `ask-myk9q` -- AI-powered rules assistant
-- `search-rules-v2` -- Rules search
-- `send-push-notification` -- Push notifications
-- `clear-rate-limits` -- Rate limit cleanup
-
-**myK9Show (7 functions):**
-
-- `stripe-checkout` -- Create Stripe checkout sessions
-- `stripe-customer-portal` -- Billing portal access
-- `stripe-upgrade-subscription` -- Plan changes with proration
-- `stripe-webhook` -- Handle Stripe webhook events
-- `send-email` -- Transactional emails
-- `cron-waitlist-expiration` -- Scheduled waitlist cleanup
-- `send-results` -- Email electronic results file to the registry submission address
-
-Edge Functions are deployed separately via the Supabase CLI with `--no-verify-jwt` (each function handles its own authentication internally).
+See [API.md](API.md) for the complete, up-to-date function inventory. Edge Functions are deployed via the Supabase CLI with `--no-verify-jwt` (each function handles its own authentication internally).
 
 ### Legacy Production
 
-The legacy production site at `myk9q.com` runs from a separate repository and remains untouched. The staging deployments above are the monorepo versions.
+The legacy production site at `myk9q.com` runs from a separate repository and remains untouched. The staging deployment above is the monorepo version.
 
 ---
 
@@ -315,7 +290,7 @@ Each sport has its own scoring configuration defined in `@myk9/scoring` and a co
 
 ### Adding a new Edge Function
 
-1. Create the function directory under `apps/<app>/supabase/functions/<name>/`
+1. Create the function directory under `supabase/functions/<name>/` (platform, ringside, notifications) or `apps/myk9show/supabase/functions/<name>/` (Stripe billing, cron)
 2. Add an `index.ts` with the handler (follow existing functions for CORS, auth, and error handling patterns)
 3. Deploy with `supabase functions deploy <name> --no-verify-jwt`
 
@@ -328,10 +303,10 @@ Each sport has its own scoring configuration defined in `@myk9/scoring` and a co
 
 ### Adding a new Zustand store
 
-1. Create the store file in `src/store/` (myK9Show) or `src/stores/` (myK9Q)
+1. Create the store file in `src/store/` (myK9Show)
 2. Follow the `use<Domain>Store` naming convention
-3. For myK9Q: include `devtools` and `persist` middleware
-4. If the store will be used by both apps, extract it to a shared `@myk9/*` package instead
+3. For ringside/offline stores: include `devtools` and `persist` middleware so state survives show-day reloads
+4. If the store will be shared with a feature package, extract it to a shared `@myk9/*` package instead
 
 ---
 

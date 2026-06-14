@@ -25,7 +25,7 @@ This is tracked in `OPEN-TODOS.md` as:
 
 > Phase 3 acceptance: real-device push tap verification
 
-It is also called out in `docs/plans/2026-05-17-unify-myk9show-myk9q.md` under Phase 3b and Rollout.
+It is also called out in `docs/archive/plans/2026-05-17-unify-myk9show-myk9q.md` (archived) under Phase 3b and Rollout.
 
 ## Next step
 

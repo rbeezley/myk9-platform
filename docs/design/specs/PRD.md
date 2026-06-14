@@ -5,6 +5,16 @@
 **Source:** Monorepo codebase analysis + architecture documents
 **Confidence:** High (existing), Medium (planned)
 
+> ⚠️ **The two-app vision below is historical (as of 2026-06-14).** This PRD describes a monorepo
+> with **two applications** (myK9Show + a separate myK9Q ringside app) and **six** shared packages.
+> That structure no longer exists: the standalone `apps/myk9q` app has been **removed** and ringside
+> scoring now lives inside myK9Show at **`/at-show`** (Tailwind-native, via the `@myk9/ringside`
+> package). There are now **12** shared packages, and most of the "Planned" online-entry, payment,
+> and waitlist features below have since **shipped** (Stripe Checkout/Connect, entry carts, waitlist,
+> Resend email). Read every "myK9Q app" / "two apps" / "Planned" reference as a point-in-time snapshot,
+> not the current architecture. See [ARCHITECTURE.md](../../architecture/ARCHITECTURE.md) and
+> [API.md](../../architecture/API.md) for the current state.
+
 ---
 
 ## 1. Problem Statement
@@ -161,7 +171,7 @@
 | F20 | Ownership-based RLS (replaces license_key) | ONLINE-ENTRY-SYSTEM.md | Planned |
 | F21 | Exhibitors see published shows across all clubs | Planned RLS | Planned |
 
-> **Transition Note:** The platform is shifting from license-based isolation (`license_key`) to ownership-based isolation. Existing `license_key` columns remain for myK9Q compatibility, but new features use natural data hierarchy (Club → Show → Trial → Class → Entry). See [ONLINE-ENTRY-SYSTEM.md](../../architecture/ONLINE-ENTRY-SYSTEM.md).
+> **Transition Note:** The platform is shifting from license-based isolation (`license_key`) to ownership-based isolation. Existing `license_key` columns remain for myK9Q compatibility, but new features use natural data hierarchy (Club → Show → Trial → Class → Entry). See [ONLINE-ENTRY-SYSTEM.md](../../archive/architecture/ONLINE-ENTRY-SYSTEM.md) (archived).
 
 ### 5.5 Online Entry System (Planned)
 
@@ -422,7 +432,7 @@ Platform owns data → Clubs use platform → Per-entry fee → No license neede
 | **Phase 4** | Premium Features | Subscriptions, title tracking, analytics |
 | **Phase 5** | Operations | Stripe Connect, revenue dashboard, admin tools |
 
-See [ONLINE-ENTRY-SYSTEM.md](../../architecture/ONLINE-ENTRY-SYSTEM.md) for detailed architecture and implementation plan.
+See [ONLINE-ENTRY-SYSTEM.md](../../archive/architecture/ONLINE-ENTRY-SYSTEM.md) (archived) for the original detailed architecture and implementation plan.
 
 ---
 

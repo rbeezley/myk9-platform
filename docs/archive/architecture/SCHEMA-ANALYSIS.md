@@ -1,5 +1,10 @@
 # Schema Analysis for Database Consolidation
 
+> **Status:** Superseded / archived (2026-06-14). This was a pre-merge "Phase 5.2" analysis of the
+> myK9Q schema produced to plan the database consolidation. That consolidation has shipped and the
+> standalone myK9Q app has been removed, so this snapshot no longer describes the live schema —
+> read the migrations under `supabase/migrations/` for current table/column detail. Kept for history.
+
 > Analysis for Phase 5.2 of the migration plan
 
 ## New Supabase Project

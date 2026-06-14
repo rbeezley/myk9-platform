@@ -4,6 +4,14 @@
 **Date:** 2026-01-13
 **Scope:** myK9Show (show management) + myK9Q (ringside scoring)
 
+> ⚠️ **The two-app framing below is historical (as of 2026-06-14).** This spec treats myK9Q as a
+> **separate ringside app** with its own mental model, screens, and "Cross-App" seams. That app no
+> longer exists: ringside scoring is now part of myK9Show at **`/at-show`** (Tailwind-native). Read
+> all "myK9Q" / "Cross-App" / "both apps" sections as describing the ringside surface *inside*
+> myK9Show, not a distinct application. The ringside UX intent (speed, offline confidence, tablet
+> optimization) still holds — only the app boundary is gone. See
+> [ARCHITECTURE.md](../../architecture/ARCHITECTURE.md) for the current structure.
+
 ---
 
 ## Pass 1: Mental Model

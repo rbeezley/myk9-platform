@@ -1,6 +1,7 @@
 # myK9Show + myK9Q Unification — Design Plan
 
-> **Status:** Active (consolidated 2026-05-25)
+> **Status:** Complete (2026-06-14) — the unification shipped: the standalone `apps/myk9q` app was removed and ringside scoring now lives inside myK9Show at `/at-show`. Archived for historical reference.
+> **Status (historical):** Active (consolidated 2026-05-25)
 > **Risk profile:** High — touches auth, DB schema, push notifications, routing, offline/ringside data path, and ends with deleting an app
 > **Validation profile:** Full — every phase requires unit + integration + Playwright + manual UAT before advancing; security review required on Phase 1 (smart input + rate limiting) and Phase 3a/3b (RPC + edge function authz); migration review required on Phase 0, Phase 1, Phase 3a/3b schema changes; pilot show + one clean show required before Phase 4 sunset
 > **Supersedes:** `2026-05-25-unify-addendum-smart-input.md` (merged into Locked Decision #2 and Phase 1)

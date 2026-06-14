@@ -24,7 +24,8 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
    those while the styles ship.
 
 > Last full reconciliation: 2026-06-14 (see [`archive/plan-docs-cleanup-2026-06-14.md`](archive/plan-docs-cleanup-2026-06-14.md)).
-> Reduced docs/ from 563 markdown files to 119 living docs (118 indexed below + this index); 448 retired to `archive/`.
+> Reduced docs/ from 563 markdown files to 115 living docs (114 indexed below + this index); 452 retired to `archive/`.
+> (2026-06-14 follow-up: archived 4 myK9Q-era reference docs — `SCHEMA-ANALYSIS`, `DATABASE-AUDIT`, `ONLINE-ENTRY-SYSTEM`, and the `2026-05-17-unify-myk9show-myk9q` plan — after the myK9Q app was removed.)
 
 ---
 
@@ -77,7 +78,6 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plans/2026-05-10-retire-legacy-query-seam-plan.md](plans/2026-05-10-retire-legacy-query-seam-plan.md) | Active | Retire Legacy Query Seam Plan |
 | [plans/2026-05-11-open-todos-remediation-master-plan.md](plans/2026-05-11-open-todos-remediation-master-plan.md) | Active | Open Todos Remediation Master Plan |
 | [plans/2026-05-13-code-quality-path-to-8-plan.md](plans/2026-05-13-code-quality-path-to-8-plan.md) | Active | Code Quality: Path from 7.0 → 8.0+ |
-| [plans/2026-05-17-unify-myk9show-myk9q.md](plans/2026-05-17-unify-myk9show-myk9q.md) | Reference | myK9Show + myK9Q Unification — Design Plan |
 | [plans/2026-06-01-phase4b-myk9q-sunset-prep.md](plans/2026-06-01-phase4b-myk9q-sunset-prep.md) | Active | Phase 4B — myK9Q Sunset Prep |
 | [plans/2026-06-12-user-documentation-support-plan.md](plans/2026-06-12-user-documentation-support-plan.md) | Active | User Documentation and Support Materials Implementation Plan |
 | [plans/availability-persistence-plan.md](plans/availability-persistence-plan.md) | Active | Availability Persistence Plan |
@@ -111,10 +111,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 |---|---|---|
 | [architecture/API.md](architecture/API.md) | Reference | API Reference -- Supabase Edge Functions |
 | [architecture/ARCHITECTURE.md](architecture/ARCHITECTURE.md) | Reference | Architecture |
-| [architecture/DATABASE-AUDIT.md](architecture/DATABASE-AUDIT.md) | Reference | Database Audit Report |
-| [architecture/ONLINE-ENTRY-SYSTEM.md](architecture/ONLINE-ENTRY-SYSTEM.md) | Reference | Online Entry System Architecture |
 | [architecture/PUSH-NOTIFICATIONS.md](architecture/PUSH-NOTIFICATIONS.md) | Reference | Push Notifications — Operations Guide |
-| [architecture/SCHEMA-ANALYSIS.md](architecture/SCHEMA-ANALYSIS.md) | Reference | Schema Analysis for Database Consolidation |
 | [architecture/VERCEL-SETUP.md](architecture/VERCEL-SETUP.md) | Reference | Vercel Deployment Setup |
 
 ### audits/ — active audits

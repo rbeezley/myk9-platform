@@ -1,5 +1,7 @@
 # Docs Cleanup Remediation Plan — 2026-06-14
 
+> **Status:** Active
+
 ## Problem
 
 `docs/` holds 563 markdown files (41 MB) with **no index and no status convention**. A plan

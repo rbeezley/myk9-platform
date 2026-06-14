@@ -46,6 +46,14 @@ bash scripts/bootstrap-worktree.sh   # installs deps, copies .env, builds packag
 
 When creating implementation or remediation plans, always save them to a markdown file (e.g., `PLAN.md` or `docs/plan-<topic>.md`) rather than only outputting to chat. Follow existing plans when they exist — do not start from scratch. **Every plan must include a testing phase** — unit tests for new components, hooks, and utilities. Do not consider a phase complete until its tests are written and passing.
 
+**Every plan is born tagged.** Directly under the plan's `# Title`, add a status line:
+
+```markdown
+> **Status:** Active
+```
+
+Use `Active` while work is in progress or not yet started, `Complete` once the work has shipped, `Abandoned` if superseded or dropped. Then register the plan with one row in [`docs/README.md`](docs/README.md) (the living docs index). When a plan's work merges, flip its status to `Complete` and `git mv` the file into `docs/archive/` (mirror its path), then remove its row from the index. This convention is what keeps `docs/` from re-accumulating undated, indistinguishable plans — see [`docs/README.md`](docs/README.md) for the full "how docs are organized" rules. A plan without a status line is incomplete.
+
 ## Commands
 
 ```bash

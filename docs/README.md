@@ -24,7 +24,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
    those while the styles ship.
 
 > Last full reconciliation: 2026-06-14 (see [`archive/plan-docs-cleanup-2026-06-14.md`](archive/plan-docs-cleanup-2026-06-14.md)).
-> Reduced docs/ from 563 markdown files to 118 living docs (117 indexed below + this index); 448 retired to `archive/`.
+> Reduced docs/ from 563 markdown files to 119 living docs (118 indexed below + this index); 448 retired to `archive/`.
 
 ---
 
@@ -40,6 +40,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [codex-review-playbook.md](codex-review-playbook.md) | Reference | Codex review playbook |
 | [feature-audit-2026.md](feature-audit-2026.md) | Reference | Feature Audit — Fall 2026 |
 | [navigation-ia.md](navigation-ia.md) | Reference | Navigation & IA Sketch — Fall 2026 |
+| [plan-active-docs-triage-2026-06-14.md](plan-active-docs-triage-2026-06-14.md) | Active | Active-Docs Triage — 2026-06-14 |
 | [plan-architecture-deepening.md](plan-architecture-deepening.md) | Active | Architecture Deepening Plan |
 | [plan-class-status-auto-derivation.md](plan-class-status-auto-derivation.md) | Active | Plan — Class Status Auto-Derivation (Stub) |
 | [plan-code-quality-audit.md](plan-code-quality-audit.md) | Active | Plan: Proactive Code-Quality Audit |

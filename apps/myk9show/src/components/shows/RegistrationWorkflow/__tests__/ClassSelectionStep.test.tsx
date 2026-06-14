@@ -137,6 +137,7 @@ const {
   mockUseTrialStore,
   mockUseCartStore,
   mockUseCartItems,
+  mockUseClassStoreCompat,
   mockUseAuthContext,
   mockUseExhibitorProfile,
   mockUseExistingEntries,
@@ -147,6 +148,7 @@ const {
   mockUseTrialStore: vi.fn(),
   mockUseCartStore: vi.fn(),
   mockUseCartItems: vi.fn(),
+  mockUseClassStoreCompat: vi.fn(),
   mockUseAuthContext: vi.fn(),
   mockUseExhibitorProfile: vi.fn(),
   mockUseExistingEntries: vi.fn(),
@@ -160,6 +162,7 @@ vi.mock('@/store/cartStore', () => ({
   useCartStore: mockUseCartStore,
   useCartItems: mockUseCartItems,
 }));
+vi.mock('@/hooks/useClassStoreCompat', () => ({ useClassStoreCompat: mockUseClassStoreCompat }));
 vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: mockUseAuthContext }));
 vi.mock('@/hooks/useExhibitorProfile', () => ({ useExhibitorProfile: mockUseExhibitorProfile }));
 vi.mock('@/hooks/useExistingEntries', () => ({ useExistingEntries: mockUseExistingEntries }));
@@ -226,6 +229,19 @@ function setupDefaultMocks(overrides: { judgeDayFull?: boolean; waitlistCount?: 
       removeItem: vi.fn().mockResolvedValue(true),
     };
     return selector(state);
+  });
+  mockUseClassStoreCompat.mockReturnValue({
+    classes: [
+      {
+        id: CLASS_ID,
+        trialId: TRIAL_ID,
+        className: 'Container Novice',
+        element: 'Container',
+        level: 'Novice',
+        section: undefined,
+        entryFee: 15,
+      },
+    ],
   });
   mockUseAuthContext.mockReturnValue({ isSecretary: false, isAdmin: false, user: null });
   mockUseExhibitorProfile.mockReturnValue({ profile: null });
@@ -305,5 +321,106 @@ describe('ClassSelectionStep — wait list badge (integration)', () => {
     // Wait for the class chip to appear
     expect(await screen.findByText('Novice A')).toBeInTheDocument();
     expect(screen.queryByText('Full — Join Wait List')).not.toBeInTheDocument();
+  });
+
+  it('renders availability-backed classes when trialStore has trials but no class groups yet', async () => {
+    setupDefaultMocks({ judgeDayFull: false, waitlistCount: 0 });
+    mockUseTrialStore.mockImplementation((selector: (s: unknown) => unknown) => {
+      const state = {
+        trials: [
+          {
+            id: TRIAL_ID,
+            showId: SHOW_ID,
+            name: 'Trial 1',
+            trialType: 'Nosework',
+            order: '1',
+            trialDate: '2026-05-01',
+          },
+        ],
+        trialClasses: {},
+      };
+      return selector(state);
+    });
+    mockUseClassStoreCompat.mockReturnValue({ classes: [] });
+    mockUseClassAvailability.mockReturnValue({
+      classes: [
+        {
+          classId: CLASS_ID,
+          className: 'Container Novice',
+          element: 'Container',
+          level: 'Novice',
+          section: undefined,
+          trialId: TRIAL_ID,
+          trialName: 'Trial 1',
+          trialDate: '2026-05-01',
+          entryLimit: 0,
+          currentEntries: 0,
+          spotsAvailable: 10,
+          waitlistCount: 0,
+          isFull: false,
+          hasWaitlist: false,
+          judgeId: null,
+          judgeDayFull: false,
+          judgeDayAvailable: 10,
+        },
+      ],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+      totalSpotsAvailable: 10,
+      fullClasses: 0,
+    });
+
+    render(
+      <ClassSelectionStep
+        selectedDogs={[DOG_ID]}
+        classSelections={[]}
+        onSelectionChange={vi.fn()}
+        showId={SHOW_ID}
+      />
+    );
+
+    expect(await screen.findByText('Container')).toBeInTheDocument();
+    expect(screen.getByText('Novice')).toBeInTheDocument();
+  });
+
+  it('shows a no-classes alert instead of a blank panel when every source is empty', async () => {
+    setupDefaultMocks({ judgeDayFull: false, waitlistCount: 0 });
+    mockUseTrialStore.mockImplementation((selector: (s: unknown) => unknown) => {
+      const state = {
+        trials: [
+          {
+            id: TRIAL_ID,
+            showId: SHOW_ID,
+            name: 'Trial 1',
+            trialType: 'Nosework',
+            order: '1',
+            trialDate: '2026-05-01',
+          },
+        ],
+        trialClasses: {},
+      };
+      return selector(state);
+    });
+    mockUseClassStoreCompat.mockReturnValue({ classes: [] });
+    mockUseClassAvailability.mockReturnValue({
+      classes: [],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+      totalSpotsAvailable: 0,
+      fullClasses: 0,
+    });
+
+    render(
+      <ClassSelectionStep
+        selectedDogs={[DOG_ID]}
+        classSelections={[]}
+        onSelectionChange={vi.fn()}
+        showId={SHOW_ID}
+      />
+    );
+
+    expect(await screen.findByText(/No classes available yet/i)).toBeInTheDocument();
   });
 });

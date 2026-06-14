@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
+import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useExistingEntries } from '@/hooks/useExistingEntries';
 import { compareLevels } from '@/utils/schedule-summary';
 import { useCartStore, useCartItems } from '@/store/cartStore';
@@ -16,7 +17,6 @@ import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { toast } from 'sonner';
 import { InlineHandlerSection } from './InlineHandlerSection';
 import type { ClassSelectionStepProps, ElementGroup } from './ClassSelectionStep.types';
-import type { SyncableTrialClass } from '@/store/trial-store-types';
 import {
   getDogById,
   isClassSelected,
@@ -42,6 +42,14 @@ import '@/styles/myk9-registration-workflow.css';
 
 export type { ClassSelectionStepProps } from './ClassSelectionStep.types';
 
+type RegistrationClassSource = {
+  id: string;
+  element?: string | undefined;
+  level?: string | undefined;
+  section?: string | undefined;
+  className?: string | undefined;
+};
+
 export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   selectedDogs,
   classSelections,
@@ -54,6 +62,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const { shows = [] } = useShowStore();
   const trials = useTrialStore(s => s.trials);
   const trialClasses = useTrialStore(s => s.trialClasses);
+  const { classes: queryClasses = [] } = useClassStoreCompat();
   const { isSecretary, isAdmin } = useAuthContext();
   const { profile: exhibitorProfile } = useExhibitorProfile();
   const { status: syncStatus } = useReplicationSync();
@@ -127,33 +136,59 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     const defaultFee = getClassFee(show, { entryFee: undefined });
 
     for (const trial of showTrials) {
-      const classes: SyncableTrialClass[] = trialClasses[trial.id] || [];
+      const replicatedClasses: RegistrationClassSource[] = trialClasses[trial.id] || [];
+      const queryBackedClasses: RegistrationClassSource[] = queryClasses
+        .filter(cls => cls.trialId === trial.id)
+        .map(cls => ({
+          id: cls.id,
+          element: cls.element,
+          level: cls.level,
+          section: cls.section,
+          className: cls.className,
+        }));
+      const availabilityBackedClasses: RegistrationClassSource[] = availabilityClasses
+        .filter(cls => cls.trialId === trial.id)
+        .map(cls => ({
+          id: cls.classId,
+          element: cls.element ?? undefined,
+          level: cls.level,
+          section: cls.section ?? undefined,
+          className: cls.className,
+        }));
+      const classes =
+        replicatedClasses.length > 0
+          ? replicatedClasses
+          : queryBackedClasses.length > 0
+            ? queryBackedClasses
+            : availabilityBackedClasses;
       const elementMap = new Map<
         string,
         { classId: string; level: string; section: string; displayLabel: string }[]
       >();
 
       const sorted = classes.slice().sort((a, b) => {
-        const elemCmp = a.element.localeCompare(b.element);
+        const elemCmp = (a.element || '').localeCompare(b.element || '');
         if (elemCmp !== 0) return elemCmp;
-        const levelCmp = compareLevels(a.level, b.level);
+        const levelCmp = compareLevels(a.level || '', b.level || '');
         if (levelCmp !== 0) return levelCmp;
         return (a.section || '').localeCompare(b.section || '');
       });
 
       for (const cls of sorted) {
-        const displayLabel = buildDisplayLabel(cls.level, cls.section);
+        const level = cls.level || cls.className || 'Class';
+        const element = cls.element || cls.className || 'Class';
+        const displayLabel = buildDisplayLabel(level, cls.section);
         const entry = {
           classId: cls.id,
-          level: cls.level,
+          level,
           section: cls.section,
           displayLabel: displayLabel ?? '',
         };
-        const existing = elementMap.get(cls.element);
+        const existing = elementMap.get(element);
         if (existing) {
           existing.push(entry);
         } else {
-          elementMap.set(cls.element, [entry]);
+          elementMap.set(element, [entry]);
         }
       }
 
@@ -176,7 +211,11 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     }
 
     return result;
-  }, [showTrials, trialClasses, show]);
+  }, [showTrials, trialClasses, queryClasses, availabilityClasses, show]);
+  const hasClassGroups = useMemo(
+    () => Array.from(classesByTrialElement.values()).some(groups => groups.length > 0),
+    [classesByTrialElement]
+  );
 
   // Initialize cart on mount — uses exhibitor_profiles.id (not auth user id)
   const exhibitorId = exhibitorProfile?.id;
@@ -338,7 +377,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                     </div>
                   ) : showTrials.length === 0 ? (
                     <NoTrialsAlert isOrganizer={isSecretary || isAdmin} />
-                  ) : classesByTrialElement.size === 0 ? (
+                  ) : !hasClassGroups ? (
                     <NoClassesAlert trialCount={showTrials.length} />
                   ) : (
                     <div className="space-y-2">

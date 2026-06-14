@@ -12,7 +12,9 @@ import { IN_RING_STATUSES } from '@/types/entry-lifecycle';
 export interface ClassAvailability {
   classId: string;
   className: string;
+  element: string | null;
   level: string;
+  section: string | null;
   trialId: string;
   trialName: string;
   trialDate: string;
@@ -35,7 +37,9 @@ interface UseClassAvailabilityOptions {
 interface ClassWithTrialRow {
   id: string;
   name: string;
+  element: string | null;
   level: string | null;
+  section: string | null;
   max_entries: number | null;
   trial_id: string;
   trials: {
@@ -95,7 +99,9 @@ export function useClassAvailability(
           `
           id,
           name,
+          element,
           level,
+          section,
           max_entries,
           trial_id,
           trials!inner (
@@ -230,7 +236,9 @@ export function useClassAvailability(
         return {
           classId: cls.id,
           className: cls.name,
+          element: cls.element,
           level: cls.level ?? 'Open',
+          section: cls.section,
           trialId: trial.id,
           trialName: trial.name,
           trialDate: trial.date,

@@ -2,7 +2,7 @@
 
 **Project:** myK9 Platform Monorepo
 **Date:** 2026-05-13
-**Status:** Proposed
+> **Status:** Complete (superseded by plan-code-quality-audit) — archived 2026-06-14.
 **Owner:** Richard Beezley
 **Companion docs:** `docs/plans/DEBT_ACTION_PLAN.md` (broader 2026-02-03 register), `TO-DOs.md`, `OPEN-TODOS.md`, `docs/qa/e2e-suite-map.md`
 

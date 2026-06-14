@@ -1,6 +1,6 @@
 # Handoff: Semantic Status-Token Foundation
 
-**Status:** Not started — ready to pick up in a fresh conversation.
+> **Status:** Complete — shipped; archived 2026-06-14 (see plan-active-docs-triage-2026-06-14).
 **Estimated size:** ~half a day for the foundation PR; the 119-file migration is a separate, mechanical follow-up.
 **Prereq for:** a clean `/impeccable extract` of status-color utilities (do NOT extract before this lands).
 **Owner context:** myK9Show app only (`apps/myk9show`). The impeccable sweep kept hand-pairing `dark:` status colors by hand across the whole app; this work replaces that pattern with real semantic utilities.

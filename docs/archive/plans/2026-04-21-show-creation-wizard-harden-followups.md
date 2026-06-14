@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-21
 **Scope:** Post-merge harden review of PR #67 (`fix(shows): atomic show creation via create_show_with_children RPC`)
-**Status:** 3 HIGH findings recorded. Medium/low findings lost to context compaction — **re-run `/harden` to recover the full list before treating this as complete.**
+> **Status:** Complete — shipped; archived 2026-06-14 (see plan-active-docs-triage-2026-06-14).
 
 ---
 

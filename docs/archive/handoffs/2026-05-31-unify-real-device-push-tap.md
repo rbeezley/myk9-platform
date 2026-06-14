@@ -1,5 +1,7 @@
 # Session Handoff — 2026-05-31
 
+> **Status:** Complete — shipped; archived 2026-06-14 (see plan-active-docs-triage-2026-06-14).
+
 Platform unification next step: Phase 3 real-device push-tap verification.
 
 ## Current state

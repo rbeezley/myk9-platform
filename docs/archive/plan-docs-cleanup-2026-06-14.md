@@ -1,6 +1,6 @@
 # Docs Cleanup Remediation Plan — 2026-06-14
 
-> **Status:** Active
+> **Status:** Complete — shipped in PR #729 (merged 2026-06-14).
 
 ## Problem
 
@@ -38,7 +38,8 @@ Every doc resolves to one of:
 - [x] **Phase 3 — Disposition.** `git mv`'d 217 docs + 3 orphaned asset trees into `docs/archive/`.
 - [x] **Phase 4 — Index.** Built `docs/README.md` (living index, status column, anti-rot convention)
       and `docs/archive/README.md`.
-- [ ] **Phase 5 — Commit.** Docs-only change; awaiting owner go-ahead (direct-to-main vs PR).
+- [x] **Phase 5 — Commit.** Shipped via PR #729 (4 commits: archive, convention wiring,
+      review-finding fixes, broken-link cleanup); squash-merged to `main` 2026-06-14.
 
 ## Result
 

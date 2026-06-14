@@ -1,7 +1,7 @@
 # Plan — Phase D Hospitality Tracking
 
 **Date:** 2026-05-19
-**Status:** Current slice.
+> **Status:** Complete — shipped; archived 2026-06-14 (see plan-active-docs-triage-2026-06-14).
 **Parent plan:** [`docs/plan-show-day-sequencing.md`](plan-show-day-sequencing.md)
 
 ## Goal

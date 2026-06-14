@@ -1,5 +1,7 @@
 # Linear-Inspired UX Patterns Plan
 
+> **Status:** Complete — shipped; archived 2026-06-14 (see plan-active-docs-triage-2026-06-14).
+
 **Date:** 2026-03-06
 **Scope:** myK9Show only (myK9Q has its own UX paradigm — at-the-show, offline-first)
 **Guiding principle:** Adopt Linear's polish without losing myK9's domain personality. Every pattern must serve INTENT.md — "the software disappears so the dogs can shine."

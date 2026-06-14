@@ -1,7 +1,7 @@
 # Plan — Secretary Dashboard Refocus
 
 **Date:** 2026-05-22 (stub) → 2026-05-24 (full plan)
-**Status:** **Active.** Audit complete; phased plan below. PO answers captured in [Decision log](#decision-log).
+> **Status:** Complete — shipped; archived 2026-06-14 (see plan-active-docs-triage-2026-06-14).
 **Companion plan:** [`plan-show-map-workbench-collapse.md`](archive/plan-show-map-workbench-collapse.md) (Option B, shipped). The "Relationship to Secretary Dashboard" section of Option B documents the division of labor this plan completes.
 
 ## Validation Profile

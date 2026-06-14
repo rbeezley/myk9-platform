@@ -1,5 +1,7 @@
 # Entry Data Access Deepening Plan
 
+> **Status:** Complete — shipped; archived 2026-06-14 (see plan-active-docs-triage-2026-06-14).
+
 ## Goal
 
 Make `apps/myk9show/src/services/database/entries/` the single Entry data-access

@@ -2,7 +2,7 @@
 
 **Purpose:** Give each role a sidebar-driven "command center" dashboard modeled after the Secretary Mission Control pattern.
 
-**Status:** Plan only.
+> **Status:** Complete (superseded by UnifiedAppLayout) — archived 2026-06-14.
 
 **Related plans:** [judge-analytics-plan.md](../archive/plans/judge-analytics-plan.md), [availability-persistence-plan.md](availability-persistence-plan.md)
 

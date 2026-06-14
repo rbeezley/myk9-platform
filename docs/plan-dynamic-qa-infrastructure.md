@@ -3,7 +3,7 @@
 **Created:** 2026-06-12 · **Status:** Draft — Phase 1 offline/replication chaos tests complete 2026-06-13; Phase 2 mutation baselines complete 2026-06-14; Phase 3 database-side drift checks complete 2026-06-12; Phase 4 code complete 2026-06-14 with external Sentry project/manual delivery verification still pending confirmation; other phases not started
 **Goal:** Build the QA infrastructure the code-quality audit cannot: dynamic tests for offline/replication behavior, mutation testing of money-path math, database-side drift checks, error observability, and flaky-test quarantine. Where the audit _finds and removes_ existing static debt, this plan _builds new guards_ so quality holds after launch.
 
-**Relationship to [`docs/plan-code-quality-audit.md`](plan-code-quality-audit.md):** that plan owns static debt removal (Waves A–D) and the CI ratchets (its Phase 5 amendment, 2026-06-12). This plan owns everything dynamic. Phases here marked **[after audit]** must wait for the named audit wave; the rest can start independently in their own worktrees.
+**Relationship to [`docs/plan-code-quality-audit.md`](archive/plan-code-quality-audit.md):** that plan owns static debt removal (Waves A–D) and the CI ratchets (its Phase 5 amendment, 2026-06-12). This plan owns everything dynamic. Phases here marked **[after audit]** must wait for the named audit wave; the rest can start independently in their own worktrees.
 
 ## Validation Profile
 

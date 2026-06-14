@@ -1,5 +1,7 @@
 # myK9Show Redesign — Fall 2026
 
+> **Status:** Complete — shipped; archived 2026-06-14 (see plan-active-docs-triage-2026-06-14).
+
 Picked up the 15-screen redesign package dropped into
 `docs/designs/myK9show-redesign/myK9Show/`. This plan tracks what was
 landed in the kickoff session and what remains.

@@ -1,6 +1,6 @@
 # Plan — Fix incremental-sync watermark dropping freshly-created rows
 
-**Status:** Proposed
+> **Status:** Complete — shipped; archived 2026-06-14 (see plan-active-docs-triage-2026-06-14).
 **Author:** Investigation triggered 2026-06-10 by a real report (tester "Sherry Thompson" created dogs Ditto + Minnie; rows confirmed present on the server but absent from her app)
 **Scope:** `packages/replication` sync engine + the nine app-level replicated table adapters
 **Risk:** High — core offline-first path shared by every replicated table. Requires `/codex:review`.

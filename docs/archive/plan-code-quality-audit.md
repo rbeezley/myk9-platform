@@ -1,5 +1,7 @@
 # Plan: Proactive Code-Quality Audit
 
+> **Status:** Complete — shipped; archived 2026-06-14 (see plan-active-docs-triage-2026-06-14).
+
 **Created:** 2026-06-10 · **Status:** Complete through Phase 5; repeatable skill and CI ratchets added after Waves A-D
 **Goal:** A repeatable, repo-wide static-quality sweep that finds maintainability debt the diff-scoped skills (`/code-review`, `/simplify`, `/harden`) never see, verifies findings to kill false positives, and fixes them in severity order. Pre-launch (no real users) is the cheapest moment: fixes can be deletions and refactors with no backwards-compat shims.
 

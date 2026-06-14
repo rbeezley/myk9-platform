@@ -1,5 +1,7 @@
 # Early-Access Wizard Surface
 
+> **Status:** Complete — shipped; archived 2026-06-14 (see plan-active-docs-triage-2026-06-14).
+
 ## Context
 
 myK9Show is months away from full release, but the show-setup slice — creation wizard, premium/heritage landing page, mail-in entry blank, confirmation email — is already polished. We're shipping that slice now to waitlist signups so:

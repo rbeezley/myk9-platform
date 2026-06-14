@@ -53,7 +53,7 @@ export function getEntryStatusBadge(status: EntryStatus): React.ReactNode {
     case EntryStatus.CANCELLED:
       return (
         <Badge className="bg-muted text-muted-foreground border-border border">
-          Cancelled
+          Withdrawn
         </Badge>
       );
     default:
@@ -85,10 +85,15 @@ export function getPaymentStatusBadge(status: PaymentStatus): React.ReactNode {
         </Badge>
       );
     case PaymentStatus.REFUNDED:
-    case PaymentStatus.PARTIAL_REFUND:
       return (
         <Badge className="bg-primary/10 text-primary border-primary/20 border">
           Refunded
+        </Badge>
+      );
+    case PaymentStatus.PARTIAL_REFUND:
+      return (
+        <Badge className="bg-primary/10 text-primary border-primary/20 border">
+          Partial Refund
         </Badge>
       );
     default:
@@ -135,6 +140,27 @@ export function getContextualStatusMessage(
 ): { message: string; className?: string } {
   const showDate = new Date(entry.showDate);
   const daysUntilShow = differenceInDays(showDate, new Date());
+
+  if (entry.entryStatus === EntryStatus.CANCELLED || entry.entryStatus === EntryStatus.SCRATCHED) {
+    if (entry.paymentStatus === PaymentStatus.REFUNDED) {
+      return {
+        message: 'Withdrawn - refunded',
+        className: 'text-muted-foreground',
+      };
+    }
+
+    if (entry.paymentStatus === PaymentStatus.PARTIAL_REFUND) {
+      return {
+        message: 'Withdrawn - partial refund issued',
+        className: 'text-muted-foreground',
+      };
+    }
+
+    return {
+      message: entry.entryStatus === EntryStatus.SCRATCHED ? 'Scratched' : 'Withdrawn',
+      className: 'text-muted-foreground',
+    };
+  }
 
   // Show is today or tomorrow - highlight check-in
   if (isToday(showDate)) {

@@ -20,6 +20,7 @@ import {
   Download,
   User,
   CreditCard,
+  MessageSquare,
 } from 'lucide-react';
 import { formatDistanceToNow, format, isToday, isTomorrow, differenceInDays } from 'date-fns';
 import { ResultBadge } from '@/components/common/ResultBadge';
@@ -57,6 +58,7 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
   onEditClick,
   onReceiptClick,
 }) => {
+  const [currentTime] = React.useState(() => Date.now());
   const statusMessage = getContextualStatusMessage(
     entry,
     formatDistanceToNow,
@@ -73,12 +75,17 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
 
   const isFullyComplete = entry.entryStatus === EntryStatus.ACCEPTED && isPaid;
 
-  const canEdit =
+  const isPastEntryDeadline = entry.entryCloseDate
+    ? entry.entryCloseDate.getTime() < currentTime
+    : false;
+  const hasEditableStatus =
     entry.entryStatus === EntryStatus.PENDING || entry.entryStatus === EntryStatus.ACCEPTED;
+  const canEdit = hasEditableStatus && !isPastEntryDeadline;
+  const canRequestPostDeadlineHelp = hasEditableStatus && isPastEntryDeadline;
 
   const canShowReceipt = entry.confirmationNumber && isPaid;
   const canFinishPayment =
-    canEdit && entry.paymentStatus === PaymentStatus.PENDING && entry.totalFee > 0;
+    hasEditableStatus && entry.paymentStatus === PaymentStatus.PENDING && entry.totalFee > 0;
 
   // Build a "Get directions" link from the full venue address (venue, city,
   // state) while the card still displays the shorter "city, state" label.
@@ -277,6 +284,19 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
             >
               <Edit className="h-5 w-5 mr-1.5" />
               Edit Entry
+            </Button>
+          )}
+
+          {canRequestPostDeadlineHelp && (
+            <Button
+              variant="outline"
+              asChild
+              className="min-h-[44px] hover:bg-muted/50 transition-all duration-200"
+            >
+              <Link to={`/messages/${entry.showId}`}>
+                <MessageSquare className="h-5 w-5 mr-1.5" />
+                Message the show team
+              </Link>
             </Button>
           )}
 

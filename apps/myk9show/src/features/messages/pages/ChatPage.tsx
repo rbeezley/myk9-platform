@@ -5,7 +5,7 @@ import { useMessageStore } from '@/store/messageStore';
 import { useMessageMutations } from '@/hooks/mutations/useMessageMutations';
 import { MessageBubble } from '@/features/messages/components/MessageBubble';
 import { MessageInput } from '@/features/messages/components/MessageInput';
-import { EmptyState } from '@/components/common/EmptyState';
+import { Button } from '@/components/ui/button';
 import { MessageSquare } from 'lucide-react';
 
 export default function ChatPage() {
@@ -26,6 +26,8 @@ export default function ChatPage() {
 
   const thread = threads.find(t => t.show_id === showId && t.participant_id === user?.id);
   const messages = thread ? messagesByThread[thread.id] || [] : [];
+  const [isStartingThread, setIsStartingThread] = useState(false);
+  const [startThreadError, setStartThreadError] = useState('');
 
   // Cold-load hydration: a push-notification tap can deep-link here before the
   // app-level message subscription has fetched this show's threads (it only
@@ -61,6 +63,7 @@ export default function ChatPage() {
 
   const handleSend = async (body: string) => {
     if (!showId || !user?.id) return;
+    setStartThreadError('');
     let threadId = thread?.id;
     if (!threadId) {
       const newThread = await getOrCreateThread(showId, user.id);
@@ -68,6 +71,25 @@ export default function ChatPage() {
       threadId = newThread.id;
     }
     await sendMessage(threadId, showId, body);
+  };
+
+  const handleStartMessage = async () => {
+    if (!showId || !user?.id || isStartingThread) return;
+    setIsStartingThread(true);
+    setStartThreadError('');
+
+    try {
+      const newThread = await getOrCreateThread(showId, user.id);
+      if (!newThread) {
+        setStartThreadError("We couldn't start that message. Try again.");
+        return;
+      }
+      await fetchMessages(newThread.id);
+    } catch {
+      setStartThreadError("We couldn't start that message. Try again.");
+    } finally {
+      setIsStartingThread(false);
+    }
   };
 
   // Show loading while the store is fetching OR while a cold-load deep-link is
@@ -88,24 +110,41 @@ export default function ChatPage() {
         <p className="text-sm text-muted-foreground">Chat with the trial secretary</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {messages.length === 0 ? (
-          <EmptyState
-            icon={MessageSquare}
-            title="Start a conversation"
-            description="Send a message to the trial secretary"
-            size="sm"
-            className="h-full py-0 justify-center"
-          />
-        ) : (
+      {!thread ? (
+        <section className="mx-auto flex max-w-2xl flex-1 flex-col items-center justify-center px-4 py-16 text-center">
+          <MessageSquare className="mb-4 h-10 w-10 text-muted-foreground" aria-hidden="true" />
+          <h1 className="text-xl font-semibold">Message the show team</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Ask a question about this show and the secretary will see it in the existing Message
+            Center.
+          </p>
+          {startThreadError ? (
+            <p className="mt-4 text-sm text-destructive" role="alert">
+              {startThreadError}
+            </p>
+          ) : null}
+          <Button className="mt-6" onClick={handleStartMessage} disabled={isStartingThread}>
+            {isStartingThread ? 'Starting...' : 'Start message'}
+          </Button>
+        </section>
+      ) : (
+        <>
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {messages.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                No messages yet. Send the first note below.
+              </p>
+            ) : (
           messages.map(msg => (
             <MessageBubble key={msg.id} message={msg} isOwnMessage={msg.sender_id === user?.id} />
           ))
-        )}
-        <div ref={messagesEndRef} />
-      </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
 
-      <MessageInput onSend={handleSend} disabled={isSending} />
+          <MessageInput onSend={handleSend} disabled={isSending} />
+        </>
+      )}
     </div>
   );
 }

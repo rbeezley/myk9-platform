@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
   AlertTriangle,
@@ -165,6 +165,7 @@ function EmptyPanelState({
 
 export function MessageCenterPanel() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const isCenterOpen = useNotificationStore(s => s.isCenterOpen);
   const closeCenter = useNotificationStore(s => s.closeCenter);
   const recentAlerts = useNotificationStore(s => s.recentAlerts);
@@ -219,6 +220,8 @@ export function MessageCenterPanel() {
           };
         })
       : shows.map(show => ({ id: show.id, name: show.name }));
+  const urlShowId = searchParams.get('showId') ?? '';
+  const validUrlShowId = staffShows.some(show => show.id === urlShowId) ? urlShowId : '';
   const selectedComposeShowId =
     composeShowId || (staffShows.length === 1 ? staffShows[0].id : '');
   const {
@@ -257,7 +260,7 @@ export function MessageCenterPanel() {
   }
 
   function handleOpenCompose() {
-    setComposeShowId(staffShows.length === 1 ? staffShows[0].id : '');
+    setComposeShowId(validUrlShowId || (staffShows.length === 1 ? staffShows[0].id : ''));
     setIsComposeOpen(true);
   }
 

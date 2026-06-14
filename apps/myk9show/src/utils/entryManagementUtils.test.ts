@@ -83,6 +83,11 @@ describe('mapPaymentStatus', () => {
     expect(mapPaymentStatus('pending')).toBe(PaymentStatus.PENDING);
   });
 
+  it("maps 'refunded' and 'partial_refund' to refund statuses", () => {
+    expect(mapPaymentStatus('refunded')).toBe(PaymentStatus.REFUNDED);
+    expect(mapPaymentStatus('partial_refund')).toBe(PaymentStatus.PARTIAL_REFUND);
+  });
+
   it('maps unknown to PENDING (safe default)', () => {
     expect(mapPaymentStatus(null)).toBe(PaymentStatus.PENDING);
   });

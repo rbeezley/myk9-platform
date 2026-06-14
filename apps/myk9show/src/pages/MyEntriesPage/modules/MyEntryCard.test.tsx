@@ -136,6 +136,24 @@ describe('MyEntryCard payment recovery', () => {
   });
 });
 
+describe('MyEntryCard post-deadline recovery', () => {
+  it('links post-deadline blocked edits to the existing message route', () => {
+    renderCard(
+      makeEntry({
+        showId: 'show-1',
+        entryStatus: EntryStatus.ACCEPTED,
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+        entryCloseDate: new Date('2026-01-01T00:00:00Z'),
+      })
+    );
+
+    expect(screen.getByRole('link', { name: /Message the show team/i })).toHaveAttribute(
+      'href',
+      '/messages/show-1'
+    );
+  });
+});
+
 describe('groupEntriesByShowAndDog', () => {
   it('returns a single entry unchanged when there is only one class', () => {
     const entry = makeEntry({ classes: [makeClass()] });

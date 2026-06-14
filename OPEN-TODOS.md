@@ -66,7 +66,7 @@ Plan: [`docs/plan-ux-journey-audit.md`](docs/plan-ux-journey-audit.md). Journey-
   - [ ] **[UX P1] Align withdrawn/refunded entry state across roles** — Headline shows secretary-side Withdrawn + `$30.00 refunded` + reason, while exhibitor Show Details still presents the entry as Upcoming.
   - [ ] **[UX P1] Fix exhibitor `/messages/:showId` blank content** — The entry-question seam needs the same clear empty/start state quality as secretary Communication History.
   - [ ] **[UX P2] Preselect show in Message Center compose from show-filtered context** — `/secretary/messages?showId=...` opens compose with "Select a show" instead of inheriting the active show.
-  - [ ] **[UX P2] Seed Phase 4 seam fixtures** — Need offered waitlist, scratch request, move-up request, message thread, withdrawal/refund, and result-release fixtures to complete latency/state-agreement scoring without touching shared staging data.
+  - [ ] **[UX P2] Seed Phase 4 seam fixtures** — Need offered waitlist, scratch request, move-up request, message thread, withdrawal/refund, and result-release fixtures to complete latency/state-agreement scoring without touching shared staging data. Plan: [`docs/superpowers/plans/2026-06-13-phase4-seam-fixtures.md`](docs/superpowers/plans/2026-06-13-phase4-seam-fixtures.md).
 - [ ] **Phase 5 — synthesis + human gate** — severity-ordered SUMMARY.md, duplication question per proposed UI, user approves remediation list
 - [ ] **Phase 6 — remediation waves + baseline re-measure** — tests per wave; success metric is the time-to-task delta
 

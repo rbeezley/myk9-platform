@@ -14,6 +14,7 @@ import { Route, Navigate, useParams } from 'react-router-dom';
 import { BarChart3, Calendar, ClipboardList } from 'lucide-react';
 import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
+import { RoleSurfaceErrorBoundary } from '@/components/common/RoleSurfaceErrorBoundary';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
 import { ClassDetailsRedirect } from './ClassDetailsRedirect';
 import { LegacyCheckInRedirect, LegacyShowDayRedirect } from './LegacyExhibitorRedirects';
@@ -23,10 +24,7 @@ import { UserRole } from '@/types/auth-types';
 import BrowseDogsPage from '@/pages/BrowseDogsPage';
 import DogDetailPage from '@/pages/DogDetailPage';
 import ShowDetailsPrototype from '@/pages/ShowDetailsPrototype';
-import {
-  SHOW_MANAGEMENT_SECTIONS,
-  type ShowManagementSectionPath,
-} from './showManagementSections';
+import { SHOW_MANAGEMENT_SECTIONS, type ShowManagementSectionPath } from './showManagementSections';
 
 function featurePage(enabled: boolean, page: ReactNode, coming: ComingSoonPageProps): ReactNode {
   return enabled ? (
@@ -106,7 +104,7 @@ function ShowManagementSectionRoute({ children }: { children: ReactNode }) {
       requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}
       fallback={<Navigate to={canonicalShowPath} replace />}
     >
-      {children}
+      <RoleSurfaceErrorBoundary surface="secretary">{children}</RoleSurfaceErrorBoundary>
     </ProtectedRoute>
   );
 }

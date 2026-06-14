@@ -1,6 +1,6 @@
 # Plan: Dynamic QA Infrastructure (follow-on to the Code-Quality Audit)
 
-**Created:** 2026-06-12 · **Status:** Draft — Phase 1 offline/replication chaos tests complete 2026-06-13; Phase 2 mutation baselines complete 2026-06-14; Phase 3 database-side drift checks complete 2026-06-12; other phases not started
+**Created:** 2026-06-12 · **Status:** Draft — Phase 1 offline/replication chaos tests complete 2026-06-13; Phase 2 mutation baselines complete 2026-06-14; Phase 3 database-side drift checks complete 2026-06-12; Phase 4 code complete 2026-06-14 with external Sentry project/manual delivery verification still pending confirmation; other phases not started
 **Goal:** Build the QA infrastructure the code-quality audit cannot: dynamic tests for offline/replication behavior, mutation testing of money-path math, database-side drift checks, error observability, and flaky-test quarantine. Where the audit _finds and removes_ existing static debt, this plan _builds new guards_ so quality holds after launch.
 
 **Relationship to [`docs/plan-code-quality-audit.md`](plan-code-quality-audit.md):** that plan owns static debt removal (Waves A–D) and the CI ratchets (its Phase 5 amendment, 2026-06-12). This plan owns everything dynamic. Phases here marked **[after audit]** must wait for the named audit wave; the rest can start independently in their own worktrees.
@@ -125,6 +125,35 @@ Pre-launch is the last cheap moment. Two parts:
 2. **Crash reporting:** wire Sentry (or chosen equivalent — confirm vendor with user before creating the external project; that's a shared-system step per Phase 0). Source maps via the Vercel integration; scrub PII (handler names, dog registration numbers) in `beforeSend`. Sample rate conservative; this is pre-launch signal, not analytics.
 
 **Testing:** unit tests for each new boundary (throw in a child, assert fallback renders and reset works); a `beforeSend` scrubber unit test with fixture events containing PII shapes; manual verification that a thrown error in dev reaches the Sentry project.
+
+**Status 2026-06-14:** Code complete in branch
+`codex/dynamic-qa-error-observability`. Added Sentry SDK initialization for
+myK9Show behind `VITE_SENTRY_DSN`, with conservative runtime options
+(`sendDefaultPii: false`, 5% default traces sample, no replay capture) and a
+`beforeSend` scrubber covering handler names, dog registration numbers, emails,
+phones, auth/cookie headers, request query/hash data, and user PII. React root
+error handlers and the existing app `ErrorBoundary` now report exceptions to
+Sentry when configured.
+
+Added per-surface role boundaries for `/at-show`, secretary surfaces, judge
+views, exhibitor/public registration surfaces, and admin routes. The fallback
+copy follows `docs/INTENT.md`: calm, non-technical, and reassuring about saved
+show-day/entry/scoring work rather than exposing stack traces. Source-map upload
+is wired through `@sentry/vite-plugin` only when `SENTRY_AUTH_TOKEN`,
+`SENTRY_ORG`, and `SENTRY_PROJECT` are present; production maps are hidden and
+deleted after upload.
+
+External project creation, DSN/env configuration, and manual verification that a
+thrown dev error reaches the real Sentry project were not performed because
+Phase 0 classifies Sentry project creation as a shared-system mutation requiring
+separate confirmation.
+
+Verification run:
+
+- `pnpm --dir apps/myk9show exec vitest run src/services/observability/sentry.test.ts src/components/common/RoleSurfaceErrorBoundary.test.tsx`
+- `pnpm --dir apps/myk9show typecheck`
+- `pnpm --dir apps/myk9show lint` (passes with one unrelated existing fast-refresh warning in `RefundEntryDialog.tsx`)
+- `pnpm --dir apps/myk9show build:no-budget` (passes with existing Rollup/CSS/chunk warnings)
 
 ## Phase 5 — Flaky-test quarantine and suite health
 

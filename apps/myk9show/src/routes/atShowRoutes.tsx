@@ -21,6 +21,7 @@ import { Route, useParams } from 'react-router-dom';
 import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
 import { PageTransition } from '@/components/common/PageTransition';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
+import { RoleSurfaceErrorBoundary } from '@/components/common/RoleSurfaceErrorBoundary';
 import { createEnhancedLazy, RouteLazyPresets } from '@/utils/enhancedLazyLoading';
 import { UnifiedRingsideGate } from '@/features/at-show/UnifiedRingsideGate';
 import { AtShowAccessGate } from '@/features/at-show/AtShowAccessGate';
@@ -63,15 +64,17 @@ function AtShowPresenceBoundary({ children }: { children: ReactNode }) {
 function atShowElement(page: ReactNode): ReactNode {
   return (
     <AtShowAccessGate>
-      <RingsideSessionHeartbeat>
-        <SuspenseWrapper>
-          <UnifiedRingsideGate>
-            <AtShowPresenceBoundary>
-              <PageTransition>{page}</PageTransition>
-            </AtShowPresenceBoundary>
-          </UnifiedRingsideGate>
-        </SuspenseWrapper>
-      </RingsideSessionHeartbeat>
+      <RoleSurfaceErrorBoundary surface="ringside">
+        <RingsideSessionHeartbeat>
+          <SuspenseWrapper>
+            <UnifiedRingsideGate>
+              <AtShowPresenceBoundary>
+                <PageTransition>{page}</PageTransition>
+              </AtShowPresenceBoundary>
+            </UnifiedRingsideGate>
+          </SuspenseWrapper>
+        </RingsideSessionHeartbeat>
+      </RoleSurfaceErrorBoundary>
     </AtShowAccessGate>
   );
 }

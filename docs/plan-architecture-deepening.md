@@ -132,7 +132,7 @@ seam is shared and survives the myK9Q removal.
 inlined loop today and the same bug reappears in 7 siblings — the signal that the
 loop belongs behind one seam. `ReplicatedEntriesTable` already proves the
 migration; this phase finishes it for myK9Show. Continues the in-flight
-[`plan-replication-sync-workflow.md`](plan-replication-sync-workflow.md).
+[`plan-replication-sync-workflow.md`](archive/plan-replication-sync-workflow.md).
 
 ### Files
 **myK9Show adapters to migrate (8):**

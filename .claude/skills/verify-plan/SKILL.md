@@ -88,6 +88,17 @@ If coverage < 100%, produce patched plan immediately:
 
 Do not ask permission to patch. Do not rewrite from scratch.
 
+### Step 6: Plan Hygiene (myK9 convention)
+
+Before the plan is considered verified, confirm it is **born tagged** per CLAUDE.md's Planning rule. These are cheap, mechanical checks — auto-patch any that fail:
+
+- **Status line present.** Directly under the `# Title` there must be `> **Status:** Active` (or `Complete` / `Abandoned`). Missing → add it (`Active` for a new plan).
+- **Saved to a file.** The plan lives at `docs/plan-<topic>.md` (or `docs/plans/...`), not only in chat.
+- **Indexed.** There is a row for this plan in [`docs/README.md`](docs/README.md). If absent, add one (tagged 🟡 Active) so the plan is discoverable and won't rot into the unlabeled pile.
+- **Testing phase present.** (Already required by CLAUDE.md — re-confirm here.)
+
+A plan that fails any of these is not verified until patched.
+
 ## Output Format
 
 ```markdown

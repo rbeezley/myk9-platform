@@ -4,7 +4,7 @@
 
 **Status:** Plan only.
 
-**Related plans:** [judge-analytics-plan.md](judge-analytics-plan.md), [availability-persistence-plan.md](availability-persistence-plan.md)
+**Related plans:** [judge-analytics-plan.md](../archive/plans/judge-analytics-plan.md), [availability-persistence-plan.md](availability-persistence-plan.md)
 
 ---
 

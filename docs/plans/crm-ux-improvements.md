@@ -1,6 +1,6 @@
 # CRM-Inspired UX Improvements Plan
 
-Implementation plan for patterns identified in [crm-ux-inspiration.md](../crm-ux-inspiration.md).
+Implementation plan for patterns identified in [crm-ux-inspiration.md](../design/specs/crm-ux-inspiration.md).
 Organized into 4 phases: Quick Wins, Record Pages, Interactive Data, and Intelligence Layer.
 
 ---

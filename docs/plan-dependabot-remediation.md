@@ -1,7 +1,7 @@
 # Plan — Dependabot Remediation (post auto-fix wave)
 
 **Date:** 2026-05-22
-**Status:** Draft. Companion to [`dependabot-diagnostic-2026-05-22.md`](dependabot-diagnostic-2026-05-22.md).
+**Status:** Draft. Companion to [`dependabot-diagnostic-2026-05-22.md`](archive/dependabot-diagnostic-2026-05-22.md).
 **Author note:** the Phase 2 auto-fix PR in this same session cleared the in-range fixes (jspdf, turbo, lodash). This plan covers the rest — every item that needs a deliberate human decision because it requires a major bump, a transitive override, or a "no fix available" acknowledgement.
 
 ## What this plan is and isn't

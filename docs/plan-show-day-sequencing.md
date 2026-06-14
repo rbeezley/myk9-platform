@@ -56,7 +56,7 @@ Focused Show Map tests now exercise the shared action registry, row menu, dialog
 
 ## Phase B — IA consolidation
 
-**Status:** Complete as of 2026-05-17. Implementation specifics live in [`docs/plan-phase-b-ia-consolidation.md`](plan-phase-b-ia-consolidation.md).
+**Status:** Complete as of 2026-05-17. Implementation specifics live in [`docs/plan-phase-b-ia-consolidation.md`](archive/plan-phase-b-ia-consolidation.md).
 
 **Entry trigger:** Met. Specifically: the row-action workstream is complete enough that migrating those surfaces into a new IA does not require simultaneous mid-flight changes to the actions themselves.
 
@@ -64,7 +64,7 @@ Focused Show Map tests now exercise the shared action registry, row menu, dialog
 
 - Build the `/secretary/shows/:id` workbench with **Setup / Today / Wrap-up** tabs.
 - `/secretary` becomes a show picker that auto-routes when exactly one active show exists.
-- Redistribute the 8 Overview-tab panels per the [`docs/plan-overview-tab-redistribution.md`](docs/plan-overview-tab-redistribution.md) plan from #210.
+- Redistribute the 8 Overview-tab panels per the [`docs/plan-overview-tab-redistribution.md`](archive/plan-overview-tab-redistribution.md) plan from #210.
 - 301-redirects per the deprecation mechanics already specified in `OPEN-TODOS.md`: `/secretary/day-of` → Today tab, `/secretary/run-order` → Setup tab, `/secretary/volunteer-scheduling` → Setup tab.
 - Fold `PipelineDashboard` after its consumers migrate.
 - The Today tab gets the flat priority queue rendering above the show-map tree (using the same `getRankedActions('root', state)` function).
@@ -89,7 +89,7 @@ Focused Show Map tests now exercise the shared action registry, row menu, dialog
 
 ## Phase C — Tree extensions + guided UX (inside the new IA)
 
-**Status:** Complete as of 2026-05-18. Implementation specifics live in [`docs/plan-phase-c-tree-guided-ux.md`](plan-phase-c-tree-guided-ux.md).
+**Status:** Complete as of 2026-05-18. Implementation specifics live in [`docs/plan-phase-c-tree-guided-ux.md`](archive/plan-phase-c-tree-guided-ux.md).
 
 **Entry trigger:** Phase B exit criterion met. The workbench exists and is the default secretary entry point.
 
@@ -155,7 +155,7 @@ Focused Show Map tests now exercise the shared action registry, row menu, dialog
 
 ## Phase E — Compliance / AKC + UKC PDF form-fill (parallel track)
 
-**Status:** Complete for current AKC Scent Work / UKC Nosework scope. Implementation plan lives in [`docs/plan-phase-e-pdf-form-fill.md`](plan-phase-e-pdf-form-fill.md).
+**Status:** Complete for current AKC Scent Work / UKC Nosework scope. Implementation plan lives in [`docs/plan-phase-e-pdf-form-fill.md`](archive/plan-phase-e-pdf-form-fill.md).
 
 **Entry trigger:** User has sourced the official AKC and UKC submission PDF templates.
 
@@ -190,6 +190,6 @@ This sequencing doc complements, does not replace:
 
 - [`OPEN-TODOS.md`](../OPEN-TODOS.md) — granular item tracker (still source of truth for _what's outstanding_)
 - [`docs/plan-show-map-node-attrs-and-attention.md`](plan-show-map-node-attrs-and-attention.md) — Phase 1+2 implementation plan (foundation)
-- [`docs/plan-overview-tab-redistribution.md`](plan-overview-tab-redistribution.md) — Phase B's panel mapping (executes during Phase B)
+- [`docs/plan-overview-tab-redistribution.md`](archive/plan-overview-tab-redistribution.md) — Phase B's panel mapping (executes during Phase B)
 
 Phase A closeout created `docs/plan-phase-b-ia-consolidation.md` with implementation specifics, the same way Phase 1+2 had their own plan doc.

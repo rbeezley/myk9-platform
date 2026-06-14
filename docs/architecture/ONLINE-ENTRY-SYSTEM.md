@@ -815,6 +815,5 @@ Syncs Stripe data to your Supabase database:
 
 ## Related Documents
 
-- [MIGRATION-PLAN.md](./MIGRATION-PLAN.md) - Monorepo migration status
 - [SCHEMA-ANALYSIS.md](./SCHEMA-ANALYSIS.md) - Database schema documentation
-- [TO-DOS.md](../TO-DOS.md) - Current task list
+- [TO-DOS.md](../../TO-DOS.md) - Current task list

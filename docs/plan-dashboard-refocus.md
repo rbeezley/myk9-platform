@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-22 (stub) → 2026-05-24 (full plan)
 **Status:** **Active.** Audit complete; phased plan below. PO answers captured in [Decision log](#decision-log).
-**Companion plan:** [`plan-show-map-workbench-collapse.md`](plan-show-map-workbench-collapse.md) (Option B, shipped). The "Relationship to Secretary Dashboard" section of Option B documents the division of labor this plan completes.
+**Companion plan:** [`plan-show-map-workbench-collapse.md`](archive/plan-show-map-workbench-collapse.md) (Option B, shipped). The "Relationship to Secretary Dashboard" section of Option B documents the division of labor this plan completes.
 
 ## Validation Profile
 
@@ -69,7 +69,7 @@ Each phase is one PR. Order: dead code first (warm up), lowest-risk duplicate ne
 
 ### D2 — Strip per-show task scoping from `TasksTab` + build inline manager in `TasksNotesCard`
 
-**[EXPANDED 2026-05-24 — structural finding]:** During D2 implementation, discovered that `TasksNotesCard.tsx:11-14` was only a *count-card* with a link back to the dashboard's per-show filter — there is NO per-show task management UI in the Show Desk Tools sheet today. The plan's repeated premise "per-show tasks live in the Show Desk Tools sheet" describes an intended B6.5 feature that was never built (only the entry-point card landed). If D2 just removed the dashboard's per-show capability, per-show tasks would become orphaned data. Same shape as the [Audit Route Liveness](../../../../.claude/projects/-Users-richardbeezley-AI-Projects-myk9-platform/memory/feedback_audit_route_liveness.md) trap.
+**[EXPANDED 2026-05-24 — structural finding]:** During D2 implementation, discovered that `TasksNotesCard.tsx:11-14` was only a *count-card* with a link back to the dashboard's per-show filter — there is NO per-show task management UI in the Show Desk Tools sheet today. The plan's repeated premise "per-show tasks live in the Show Desk Tools sheet" describes an intended B6.5 feature that was never built (only the entry-point card landed). If D2 just removed the dashboard's per-show capability, per-show tasks would become orphaned data. Same shape as the `audit-route-liveness` trap (Claude memory).
 
 **Resolution (Option A, user-confirmed 2026-05-24):** D2 now bundles the missing prerequisite. Expand `TasksNotesCard` from a count-card into a full inline task manager. After that, the dashboard's per-show capability can be safely removed.
 
@@ -226,7 +226,7 @@ Each phase is one PR. Order: dead code first (warm up), lowest-risk duplicate ne
 | Date | Decision | Source |
 |---|---|---|
 | 2026-05-22 | Stub created during Option B planning session. Dashboard refocus identified as logical follow-up. Full plan deferred until post-Option-B data was available. | Stub plan, original session |
-| 2026-05-24 | Pre-launch status (per [project_prelaunch_no_users](../.claude/projects/.../memory/project_prelaunch_no_users.md)) means the "observation period" gate never trips. Audit data + PO answers substitute. Full plan drafted now. | This session |
+| 2026-05-24 | Pre-launch status (per `project-prelaunch-no-users`, Claude memory) means the "observation period" gate never trips. Audit data + PO answers substitute. Full plan drafted now. | This session |
 | 2026-05-24 | Three duplicate surfaces identified (Tasks, Messages, dead EntriesTab) plus one demotion target (AttentionNeededStrip). Scope confirmed: all three + demotion. | This session (user confirmed) |
 | 2026-05-24 | Dedicated `/secretary/messages` page gets a show-filter dropdown before dashboard MessagesTab is removed, so secretaries don't lose per-show scoping. | This session (user confirmed) |
 | 2026-05-24 | No route change. Dashboard stays at `/secretary/dashboard`. | This session (user confirmed) |

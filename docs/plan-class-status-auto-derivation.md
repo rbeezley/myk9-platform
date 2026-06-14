@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-22
 **Status:** **Stub.** Not yet drafted in detail. Pre-work required (PO interview on edge-case rules) before full plan can be written.
-**Companion plan:** [`plan-show-map-workbench-collapse.md`](plan-show-map-workbench-collapse.md) (Option B). Phase B2b includes a future-proofing note for this work.
+**Companion plan:** [`plan-show-map-workbench-collapse.md`](archive/plan-show-map-workbench-collapse.md) (Option B). Phase B2b includes a future-proofing note for this work.
 
 ## The idea
 

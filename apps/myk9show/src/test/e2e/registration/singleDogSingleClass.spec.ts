@@ -178,6 +178,7 @@ async function searchAndSelectDog(page: Page) {
   await expect(dogCheckbox).toBeVisible({ timeout: 10000 });
   await dogCheckbox.click({ force: true });
   await expect(page.getByText(/1(?: dog)? selected/).first()).toBeVisible({ timeout: 5000 });
+  await expect(page.getByRole('button', { name: /^Next/ })).toBeEnabled({ timeout: 10000 });
 }
 
 async function selectFirstInteriorClass(page: Page) {

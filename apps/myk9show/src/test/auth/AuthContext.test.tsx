@@ -212,6 +212,40 @@ describe('AuthContext', () => {
       expect(screen.getByTestId('user-email')).toHaveTextContent('No user');
       expect(screen.getByTestId('user-with-roles')).toHaveTextContent('No roles');
     });
+
+    it('should retry transient RBAC fetch failures before surfacing an error', async () => {
+      mockRbacService.getUserPermissions
+        .mockRejectedValueOnce(
+          new Error('Failed to get user permissions: TypeError: Failed to fetch')
+        )
+        .mockResolvedValueOnce({
+          roles: [],
+          permissions: [],
+          effectivePermissions: ['show:view'],
+        });
+
+      const TestComponent = () => {
+        const auth = useAuthContext();
+        return (
+          <div>
+            <span data-testid="rbac-loading">{auth.rbacLoading.toString()}</span>
+            <span data-testid="rbac-error">{auth.rbacError ?? 'none'}</span>
+            <span data-testid="db-permissions">{auth.dbPermissions.join(',')}</span>
+          </div>
+        );
+      };
+
+      renderWithAuthProvider(<TestComponent />);
+
+      await waitFor(() => {
+        expect(mockRbacService.getUserPermissions).toHaveBeenCalledTimes(2);
+      });
+      await waitFor(() => {
+        expect(screen.getByTestId('rbac-loading')).toHaveTextContent('false');
+        expect(screen.getByTestId('rbac-error')).toHaveTextContent('none');
+        expect(screen.getByTestId('db-permissions')).toHaveTextContent('show:view');
+      });
+    });
   });
 
   describe('RBAC Methods', () => {

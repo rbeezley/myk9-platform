@@ -29,6 +29,7 @@ import {
 } from '../types/auth-types';
 import { ProtectedRouteProps, ConvenienceRouteProps } from './authUtils';
 import { rbacService } from '@/services/rbac/RBACService';
+import { isTransientBrowserFetchError } from '@/services/rbac/PermissionChecker';
 import { PermissionWithRole } from '@/types/rbac-types';
 import { ensureError } from '@myk9/core';
 import { notifications } from '@/lib/notifications';
@@ -145,10 +146,7 @@ function mapRbacRoles(roles: UserRoleWithDetails[]): UserRoleWithDetails[] {
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
-export function buildActiveRoleScopes(
-  roles: UserRoleWithDetails[],
-  userId: string
-): RoleScope[] {
+export function buildActiveRoleScopes(roles: UserRoleWithDetails[], userId: string): RoleScope[] {
   return roles
     .filter(ur => ur.is_active && ur.scope_type && ur.scope_id)
     .map(ur => ({
@@ -304,7 +302,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       } catch (error) {
         if (stale) return;
-        if (isAbortError(error) && attempt < 3) {
+        if ((isAbortError(error) || isTransientBrowserFetchError(error)) && attempt < 3) {
           await delay(250 * (attempt + 1));
           if (!stale) await loadRbacData(attempt + 1);
           return;

@@ -30,10 +30,10 @@ describe('DateCircle', () => {
     expect(dateBox?.className).toContain('border-primary');
   });
 
-  it('applies warning-orange border for closing_soon status', () => {
+  it('applies warning border for closing_soon status', () => {
     const { container } = render(<DateCircle startDate="2026-05-09" status="closing_soon" />);
     const dateBox = container.querySelector('[data-testid="date-box"]');
-    expect(dateBox?.className).toContain('border-warning-orange');
+    expect(dateBox?.className).toContain('border-warning');
   });
 
   it('applies primary border for in_progress status', () => {

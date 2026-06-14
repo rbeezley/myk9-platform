@@ -57,7 +57,7 @@ export function ClassTimelineCard({
         aria-label={isCompleted ? 'Completed' : 'Pending'}
       >
         {isCompleted ? (
-          <CheckCircle className="h-5 w-5 text-success-green" />
+          <CheckCircle className="h-5 w-5 text-success" />
         ) : (
           <div className="h-5 w-5 rounded-full border-2 border-muted-foreground/30" />
         )}

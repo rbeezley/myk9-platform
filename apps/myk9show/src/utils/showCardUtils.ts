@@ -55,9 +55,9 @@ export const STATUS_STYLES: Record<
     badgeBg: 'bg-primary/10',
   },
   closing_soon: {
-    border: 'border-warning-orange',
-    monthText: 'text-warning-orange',
-    badgeBg: 'bg-warning-orange/10',
+    border: 'border-warning',
+    monthText: 'text-warning',
+    badgeBg: 'bg-warning/10',
   },
   in_progress: {
     border: 'border-primary',

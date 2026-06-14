@@ -41,9 +41,9 @@ export const SyncProgressIndicator: React.FC<SyncProgressIndicatorProps> = ({
       case 'processing':
         return <RefreshCw className="h-3 w-3 animate-spin" />;
       case 'complete':
-        return <CheckCircle className="h-3 w-3 text-success-green" />;
+        return <CheckCircle className="h-3 w-3 text-success" />;
       case 'error':
-        return <AlertCircle className="h-3 w-3 text-error-red" />;
+        return <AlertCircle className="h-3 w-3 text-destructive" />;
       default:
         return <RefreshCw className="h-3 w-3" />;
     }
@@ -52,9 +52,9 @@ export const SyncProgressIndicator: React.FC<SyncProgressIndicatorProps> = ({
   const getStageColor = () => {
     switch (syncStatus.stage) {
       case 'complete':
-        return 'text-success-green';
+        return 'text-success';
       case 'error':
-        return 'text-error-red';
+        return 'text-destructive';
       default:
         return 'text-primary';
     }
@@ -119,10 +119,10 @@ export const SyncProgressIndicator: React.FC<SyncProgressIndicatorProps> = ({
         )}
 
         {syncStatus.errors && syncStatus.errors.length > 0 && (
-          <div className="mt-2 p-2 bg-error-red/10 border border-error-red/20 rounded text-xs">
-            <div className="font-medium text-error-red mb-1">Errors:</div>
+          <div className="mt-2 p-2 bg-destructive/10 border border-destructive/20 rounded text-xs">
+            <div className="font-medium text-destructive mb-1">Errors:</div>
             {syncStatus.errors.map((error, index) => (
-              <div key={index} className="text-error-red">• {error}</div>
+              <div key={index} className="text-destructive">• {error}</div>
             ))}
           </div>
         )}

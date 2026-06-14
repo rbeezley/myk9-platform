@@ -23,7 +23,7 @@ export function StatsCards({ performanceData, recentViolationCount }: StatsCards
         <div className="relative flex items-start justify-between">
           <div>
             <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Performance Score</p>
-            <p className="text-2xl font-bold mt-2 group-hover:text-primary transition-colors duration-300 text-success-green">Good</p>
+            <p className="text-2xl font-bold mt-2 group-hover:text-primary transition-colors duration-300 text-success">Good</p>
           </div>
           <div className="p-2 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl
                            shadow-sm group-hover:shadow-xl group-hover:scale-110
@@ -45,10 +45,10 @@ export function StatsCards({ performanceData, recentViolationCount }: StatsCards
               {recentViolationCount}
             </p>
           </div>
-          <div className="p-2 bg-gradient-to-br from-warning-orange/20 to-warning-orange/10 rounded-xl
+          <div className="p-2 bg-gradient-to-br from-warning/20 to-warning/10 rounded-xl
                            shadow-sm group-hover:shadow-xl group-hover:scale-110
                            transition-all duration-300">
-            <AlertTriangle className="h-5 w-5 text-warning-orange" />
+            <AlertTriangle className="h-5 w-5 text-warning" />
           </div>
         </div>
       </div>
@@ -82,13 +82,13 @@ export function StatsCards({ performanceData, recentViolationCount }: StatsCards
           <div>
             <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Monitoring Status</p>
             <div className="text-2xl font-bold mt-2 group-hover:text-primary transition-colors duration-300">
-              <Badge className="bg-success-green/10 text-success-green border-success-green/20">Active</Badge>
+              <Badge className="bg-success/10 text-success border-success/20">Active</Badge>
             </div>
           </div>
-          <div className="p-2 bg-gradient-to-br from-success-green/20 to-success-green/10 rounded-xl
+          <div className="p-2 bg-gradient-to-br from-success/20 to-success/10 rounded-xl
                            shadow-sm group-hover:shadow-xl group-hover:scale-110
                            transition-all duration-300">
-            <Activity className="h-5 w-5 text-success-green" />
+            <Activity className="h-5 w-5 text-success" />
           </div>
         </div>
       </div>

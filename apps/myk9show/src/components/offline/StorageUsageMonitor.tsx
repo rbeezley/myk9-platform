@@ -126,15 +126,15 @@ export const StorageUsageMonitor: React.FC<StorageUsageMonitorProps> = ({
 
   const getStatusColor = () => {
     if (!storageInfo) return 'text-muted-foreground';
-    if (storageInfo.percentage >= criticalThreshold) return 'text-error-red';
-    if (storageInfo.percentage >= warningThreshold) return 'text-warning-orange';
-    return 'text-success-green';
+    if (storageInfo.percentage >= criticalThreshold) return 'text-destructive';
+    if (storageInfo.percentage >= warningThreshold) return 'text-warning';
+    return 'text-success';
   };
 
   const getProgressColor = () => {
     if (!storageInfo) return '';
-    if (storageInfo.percentage >= criticalThreshold) return 'bg-error-red';
-    if (storageInfo.percentage >= warningThreshold) return 'bg-warning-orange';
+    if (storageInfo.percentage >= criticalThreshold) return 'bg-destructive';
+    if (storageInfo.percentage >= warningThreshold) return 'bg-warning';
     return '';
   };
 
@@ -182,7 +182,7 @@ export const StorageUsageMonitor: React.FC<StorageUsageMonitorProps> = ({
             <div className={`flex items-center gap-2 ${className}`}>
               <HardDrive className={`h-4 w-4 ${getStatusColor()}`} />
               {shouldShowWarning() && (
-                <AlertTriangle className="h-3 w-3 text-warning-orange" />
+                <AlertTriangle className="h-3 w-3 text-warning" />
               )}
               <Badge variant="outline" className={getStatusColor()}>
                 {storageInfo.percentage.toFixed(0)}%
@@ -212,7 +212,7 @@ export const StorageUsageMonitor: React.FC<StorageUsageMonitorProps> = ({
           <HardDrive className={`h-4 w-4 ${getStatusColor()}`} />
           Storage Usage
           {shouldShowWarning() && (
-            <AlertTriangle className="h-4 w-4 text-warning-orange" />
+            <AlertTriangle className="h-4 w-4 text-warning" />
           )}
         </CardTitle>
         <CardDescription>
@@ -235,10 +235,10 @@ export const StorageUsageMonitor: React.FC<StorageUsageMonitorProps> = ({
         </div>
 
         {shouldShowWarning() && (
-          <div className="flex items-start gap-2 p-3 bg-warning-orange/10 border border-warning-orange/20 rounded-lg">
-            <AlertTriangle className="h-4 w-4 text-warning-orange mt-0.5" />
+          <div className="flex items-start gap-2 p-3 bg-warning/10 border border-warning/20 rounded-lg">
+            <AlertTriangle className="h-4 w-4 text-warning mt-0.5" />
             <div className="text-sm">
-              <div className="font-medium text-warning-orange">Storage Warning</div>
+              <div className="font-medium text-warning">Storage Warning</div>
               <div className="text-muted-foreground mt-1">
                 {storageInfo.percentage >= criticalThreshold
                   ? 'Storage is critically low. Consider cleaning up data.'

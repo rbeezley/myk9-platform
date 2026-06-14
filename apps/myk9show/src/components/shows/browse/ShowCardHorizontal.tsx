@@ -39,7 +39,7 @@ export const ShowCardHorizontal: React.FC<ShowCardHorizontalProps> = ({
         'group relative overflow-hidden rounded-xl bg-card shadow-card cursor-pointer',
         'transition-all duration-200 ease-out',
         'hover:shadow-card-hover',
-        entryStatus.status === 'closing_soon' && 'ring-2 ring-warning-orange',
+        entryStatus.status === 'closing_soon' && 'ring-2 ring-warning',
         isSelected && 'ring-2 ring-primary/50'
       )}
     >

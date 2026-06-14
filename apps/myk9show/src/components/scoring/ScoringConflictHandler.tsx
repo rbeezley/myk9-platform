@@ -285,9 +285,9 @@ export function ScoringConflictHandler({
   const getSeverityStyling = (severity: 'high' | 'medium' | 'low') => {
     switch (severity) {
       case 'high':
-        return 'bg-error-red/10 text-error-red border-error-red/20';
+        return 'bg-destructive/10 text-destructive border-destructive/20';
       case 'medium':
-        return 'bg-warning-orange/10 text-warning-orange border-warning-orange/20';
+        return 'bg-warning/10 text-warning border-warning/20';
       case 'low':
         return 'bg-muted text-muted-foreground border-border';
     }
@@ -297,9 +297,9 @@ export function ScoringConflictHandler({
   const getQualificationStyling = (qualification: QualificationStatus) => {
     switch (qualification) {
       case 'Qualified':
-        return 'bg-success-green/10 text-success-green border-success-green/20';
+        return 'bg-success/10 text-success border-success/20';
       case 'Not Qualified':
-        return 'bg-error-red/10 text-error-red border-error-red/20';
+        return 'bg-destructive/10 text-destructive border-destructive/20';
       default:
         return 'bg-muted text-muted-foreground border-border';
     }
@@ -334,7 +334,7 @@ export function ScoringConflictHandler({
     return (
       <Card className={cn("bg-card/95 backdrop-blur-sm border-border/50", className)}>
         <CardContent className="p-6 text-center">
-          <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-success-green" />
+          <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-success" />
           <h3 className="text-lg font-semibold mb-2">No Conflicts</h3>
           <p className="text-sm text-muted-foreground">
             All judge scores are in agreement
@@ -351,7 +351,7 @@ export function ScoringConflictHandler({
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <AlertTriangle className="h-5 w-5 text-warning-orange" />
+              <AlertTriangle className="h-5 w-5 text-warning" />
               <CardTitle className="text-lg">Scoring Conflicts</CardTitle>
             </div>
             <Badge variant="destructive" className="text-xs">
@@ -461,8 +461,8 @@ export function ScoringConflictHandler({
                     </div>
 
                     {/* Conflict details */}
-                    <Alert className="mt-3 bg-warning-orange/5 border-warning-orange/20">
-                      <Info className="h-4 w-4 text-warning-orange" />
+                    <Alert className="mt-3 bg-warning/5 border-warning/20">
+                      <Info className="h-4 w-4 text-warning" />
                       <AlertDescription className="text-xs">
                         <strong>Conflict:</strong> Judges disagree on qualification status. 
                         Resolution required before final placements.

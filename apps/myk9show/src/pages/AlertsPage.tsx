@@ -94,7 +94,7 @@ const AlertsPage: React.FC = () => {
                                transition-all duration-500 hover:shadow-xl hover:-translate-y-2"
               >
                 <div
-                  className="absolute inset-0 bg-gradient-to-br from-error-red/5 to-transparent 
+                  className="absolute inset-0 bg-gradient-to-br from-destructive/5 to-transparent 
                                  opacity-0 group-hover:opacity-100 transition-opacity duration-500"
                 />
                 <div className="relative flex items-start justify-between">
@@ -102,16 +102,16 @@ const AlertsPage: React.FC = () => {
                     <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
                       Active
                     </p>
-                    <p className="text-2xl font-bold mt-2 text-error-red group-hover:scale-105 transition-transform duration-300">
+                    <p className="text-2xl font-bold mt-2 text-destructive group-hover:scale-105 transition-transform duration-300">
                       {statistics.byStatus[AlertStatus.ACTIVE] || 0}
                     </p>
                   </div>
                   <div
-                    className="p-2 bg-gradient-to-br from-error-red/20 to-error-red/10 rounded-xl 
+                    className="p-2 bg-gradient-to-br from-destructive/20 to-destructive/10 rounded-xl 
                                    shadow-sm group-hover:shadow-xl group-hover:scale-110 
                                    transition-all duration-300"
                   >
-                    <Activity className="h-5 w-5 text-error-red" />
+                    <Activity className="h-5 w-5 text-destructive" />
                   </div>
                 </div>
               </div>

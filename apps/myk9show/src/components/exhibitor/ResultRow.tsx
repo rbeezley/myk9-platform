@@ -51,7 +51,7 @@ export function ResultRow({ result, onView }: { result: ResultRowData; onView: (
             </span>
           )}
           {result.totalFaults != null && result.totalFaults > 0 && (
-            <span className="flex items-center gap-1 text-warning-orange">
+            <span className="flex items-center gap-1 text-warning">
               <AlertTriangle className="h-3.5 w-3.5" />
               {result.totalFaults} fault{result.totalFaults !== 1 ? 's' : ''}
             </span>

@@ -14,8 +14,8 @@ const STATUS_LABELS: Record<ResultStatus, string> = {
 
 /** Map from abbreviated result_text to color class */
 const RESULT_COLORS: Record<string, string> = {
-  Q: 'bg-success-green/15 text-success-green border-success-green/30',
-  NQ: 'bg-error-red/15 text-error-red border-error-red/30',
+  Q: 'bg-success/15 text-success border-success/30',
+  NQ: 'bg-destructive/15 text-destructive border-destructive/30',
 };
 
 const DEFAULT_COLOR = 'bg-muted text-muted-foreground border-border';

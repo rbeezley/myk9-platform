@@ -63,7 +63,7 @@ function getAvailabilityBadge(classData: ClassAvailabilityData) {
   }
 
   return (
-    <Badge className="bg-success-green/10 text-success-green border-success-green/20 border">
+    <Badge className="bg-success/10 text-success border-success/20 border">
       <CheckCircle2 className="h-3 w-3 mr-1" />
       {classData.spotsAvailable} spots available
     </Badge>
@@ -219,7 +219,7 @@ export function ClassAvailability({
             <span>{classes.length} classes</span>
           </div>
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-success-green" />
+            <CheckCircle2 className="h-4 w-4 text-success" />
             <span>{totalSpotsAvailable} spots available</span>
           </div>
           {fullClasses > 0 && (

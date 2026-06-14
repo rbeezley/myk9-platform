@@ -215,7 +215,7 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
                   </span>
                 )}
                 {cls.isScored && cls.totalFaults != null && cls.totalFaults > 0 && (
-                  <span className="text-xs text-warning-orange">{cls.totalFaults}F</span>
+                  <span className="text-xs text-warning">{cls.totalFaults}F</span>
                 )}
               </div>
             </div>

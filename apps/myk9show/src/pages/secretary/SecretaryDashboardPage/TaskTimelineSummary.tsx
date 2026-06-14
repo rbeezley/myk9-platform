@@ -11,14 +11,14 @@ export function TaskTimelineSummary({ summary }: TaskTimelineSummaryProps) {
   return (
     <div className="mb-3 flex flex-wrap gap-3 text-xs">
       {overdue > 0 && (
-        <span className="flex items-center gap-1 font-medium text-error-red">
-          <span className="inline-block h-2 w-2 rounded-full bg-error-red" />
+        <span className="flex items-center gap-1 font-medium text-destructive">
+          <span className="inline-block h-2 w-2 rounded-full bg-destructive" />
           {overdue} overdue
         </span>
       )}
       {dueThisWeek > 0 && (
-        <span className="flex items-center gap-1 font-medium text-warning-orange">
-          <span className="inline-block h-2 w-2 rounded-full bg-warning-orange" />
+        <span className="flex items-center gap-1 font-medium text-warning">
+          <span className="inline-block h-2 w-2 rounded-full bg-warning" />
           {dueThisWeek} due this week
         </span>
       )}

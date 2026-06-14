@@ -231,10 +231,6 @@
     --warning-foreground: 255 255 255;
     --info: 37 99 235;                 /* blue-600 */
     --info-foreground: 255 255 255;
-    /* Deprecated aliases — remove after migration to text-success/warning/info */
-    --success-green: 52 199 89;
-    --warning-orange: 255 149 0;
-    --error-red: 255 59 48;
   }
 
   /* Semantic status tokens registered in tailwind.config.js as success/warning/info/destructive */

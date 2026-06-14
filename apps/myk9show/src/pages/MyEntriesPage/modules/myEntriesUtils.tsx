@@ -28,25 +28,25 @@ export function getEntryStatusBadge(status: EntryStatus): React.ReactNode {
   switch (status) {
     case EntryStatus.ACCEPTED:
       return (
-        <Badge className="bg-success-green/10 text-success-green border-success-green/20 border">
+        <Badge className="bg-success/10 text-success border-success/20 border">
           Accepted
         </Badge>
       );
     case EntryStatus.PENDING:
       return (
-        <Badge className="bg-warning-orange/10 text-warning-orange border-warning-orange/20 border">
+        <Badge className="bg-warning/10 text-warning border-warning/20 border">
           Pending Review
         </Badge>
       );
     case EntryStatus.WAITLIST:
       return (
-        <Badge className="bg-warning-orange/10 text-warning-orange border-warning-orange/20 border">
+        <Badge className="bg-warning/10 text-warning border-warning/20 border">
           Waitlist
         </Badge>
       );
     case EntryStatus.REJECTED:
       return (
-        <Badge className="bg-error-red/10 text-error-red border-error-red/20 border">
+        <Badge className="bg-destructive/10 text-destructive border-destructive/20 border">
           Rejected
         </Badge>
       );
@@ -74,13 +74,13 @@ export function getPaymentStatusBadge(status: PaymentStatus): React.ReactNode {
     case PaymentStatus.PAID_BY_CHECK:
     case PaymentStatus.PAID_BY_CASH:
       return (
-        <Badge className="bg-success-green/10 text-success-green border-success-green/20 border">
+        <Badge className="bg-success/10 text-success border-success/20 border">
           Paid
         </Badge>
       );
     case PaymentStatus.PENDING:
       return (
-        <Badge className="bg-warning-orange/10 text-warning-orange border-warning-orange/20 border">
+        <Badge className="bg-warning/10 text-warning border-warning/20 border">
           Payment Due
         </Badge>
       );
@@ -153,14 +153,14 @@ export function getContextualStatusMessage(
   if (entry.entryStatus === EntryStatus.ACCEPTED && entry.paymentStatus === PaymentStatus.PENDING) {
     return {
       message: `Payment pending since ${format(entry.submittedAt, 'MMM d')}`,
-      className: 'text-warning-orange',
+      className: 'text-warning',
     };
   }
 
   if (entry.entryStatus === EntryStatus.ACCEPTED) {
     return {
       message: `Accepted ${formatDistanceToNow(entry.lastUpdated, { addSuffix: true })}`,
-      className: 'text-success-green',
+      className: 'text-success',
     };
   }
 

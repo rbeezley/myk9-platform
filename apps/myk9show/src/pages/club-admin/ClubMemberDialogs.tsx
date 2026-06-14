@@ -35,9 +35,9 @@ export const TYPE_BADGE_CLASSES: Record<MembershipType, string> = {
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const STATUS_BADGE_CLASSES: Record<MembershipStatus, string> = {
-  active: 'bg-success-green/10 text-success-green border-success-green/20',
-  lapsed: 'bg-warning-orange/10 text-warning-orange border-warning-orange/20',
-  suspended: 'bg-error-red/10 text-error-red border-error-red/20',
+  active: 'bg-success/10 text-success border-success/20',
+  lapsed: 'bg-warning/10 text-warning border-warning/20',
+  suspended: 'bg-destructive/10 text-destructive border-destructive/20',
   resigned: 'bg-muted text-muted-foreground border-border',
 };
 
@@ -143,8 +143,8 @@ export const MemberActionMenu: React.FC<ActionMenuProps> = ({
               }}
               className={`w-full text-left px-3 py-1.5 text-sm transition-colors flex items-center gap-2 ${
                 hasShowAccess
-                  ? 'text-warning-orange hover:bg-warning-orange/10'
-                  : 'text-success-green hover:bg-success-green/10'
+                  ? 'text-warning hover:bg-warning/10'
+                  : 'text-success hover:bg-success/10'
               }`}
             >
               <KeyRound className="h-3.5 w-3.5" />
@@ -158,7 +158,7 @@ export const MemberActionMenu: React.FC<ActionMenuProps> = ({
                 onRemove(member.id);
                 setOpen(false);
               }}
-              className="w-full text-left px-3 py-2 text-sm text-error-red hover:bg-error-red/10 transition-colors flex items-center gap-2"
+              className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-2"
             >
               <Trash2 className="h-3.5 w-3.5" />
               Remove Member

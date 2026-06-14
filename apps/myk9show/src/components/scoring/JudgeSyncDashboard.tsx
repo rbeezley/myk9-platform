@@ -221,11 +221,11 @@ function JudgeSyncDashboard({
   const getStatusColor = (status: 'good' | 'warning' | 'error') => {
     switch (status) {
       case 'good':
-        return 'text-success-green';
+        return 'text-success';
       case 'warning':
-        return 'text-warning-orange';
+        return 'text-warning';
       case 'error':
-        return 'text-error-red';
+        return 'text-destructive';
     }
   };
 
@@ -275,9 +275,9 @@ function JudgeSyncDashboard({
             {/* Connection status */}
             <div className="flex items-center gap-3 p-3 rounded-lg bg-background/50 border border-border/30">
               {connectionStatus.isOnline ? (
-                <Wifi className="h-4 w-4 text-success-green" />
+                <Wifi className="h-4 w-4 text-success" />
               ) : (
-                <WifiOff className="h-4 w-4 text-error-red" />
+                <WifiOff className="h-4 w-4 text-destructive" />
               )}
               <div>
                 <div className="text-sm font-medium">
@@ -292,9 +292,9 @@ function JudgeSyncDashboard({
             {/* Sync health */}
             <div className="flex items-center gap-3 p-3 rounded-lg bg-background/50 border border-border/30">
               <div className={cn("w-2 h-2 rounded-full", {
-                'bg-success-green': getSyncHealthStatus() === 'good',
-                'bg-warning-orange': getSyncHealthStatus() === 'warning',
-                'bg-error-red': getSyncHealthStatus() === 'error'
+                'bg-success': getSyncHealthStatus() === 'good',
+                'bg-warning': getSyncHealthStatus() === 'warning',
+                'bg-destructive': getSyncHealthStatus() === 'error'
               })} />
               <div>
                 <div className="text-sm font-medium">
@@ -387,21 +387,21 @@ function JudgeSyncDashboard({
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-3 w-3 text-success-green" />
+                        <CheckCircle2 className="h-3 w-3 text-success" />
                         <span>Synced</span>
                       </div>
                       <span>{syncMetrics.syncedScores}</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-2">
-                        <Clock className="h-3 w-3 text-warning-orange" />
+                        <Clock className="h-3 w-3 text-warning" />
                         <span>Pending</span>
                       </div>
                       <span>{syncMetrics.pendingScores}</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-2">
-                        <AlertCircle className="h-3 w-3 text-error-red" />
+                        <AlertCircle className="h-3 w-3 text-destructive" />
                         <span>Failed</span>
                       </div>
                       <span>{syncMetrics.failedScores}</span>
@@ -473,13 +473,13 @@ function JudgeSyncDashboard({
               {/* Integrity overview */}
               <div className="grid grid-cols-3 gap-4">
                 <div className="text-center p-3 rounded bg-background/50 border border-border/30">
-                  <div className="text-2xl font-bold text-success-green">
+                  <div className="text-2xl font-bold text-success">
                     {dataIntegrity.passedChecks}
                   </div>
                   <div className="text-xs text-muted-foreground">Passed</div>
                 </div>
                 <div className="text-center p-3 rounded bg-background/50 border border-border/30">
-                  <div className="text-2xl font-bold text-error-red">
+                  <div className="text-2xl font-bold text-destructive">
                     {dataIntegrity.failedChecks}
                   </div>
                   <div className="text-xs text-muted-foreground">Failed</div>
@@ -498,8 +498,8 @@ function JudgeSyncDashboard({
                   <h4 className="text-sm font-medium">Issues Found</h4>
                   <div className="space-y-1">
                     {dataIntegrity.issues.map((issue, index) => (
-                      <Alert key={index} className="bg-error-red/5 border-error-red/20">
-                        <AlertCircle className="h-4 w-4 text-error-red" />
+                      <Alert key={index} className="bg-destructive/5 border-destructive/20">
+                        <AlertCircle className="h-4 w-4 text-destructive" />
                         <AlertDescription className="text-sm">
                           {issue}
                         </AlertDescription>
@@ -510,8 +510,8 @@ function JudgeSyncDashboard({
               )}
 
               {dataIntegrity.issues.length === 0 && (
-                <Alert className="bg-success-green/5 border-success-green/20">
-                  <CheckCircle2 className="h-4 w-4 text-success-green" />
+                <Alert className="bg-success/5 border-success/20">
+                  <CheckCircle2 className="h-4 w-4 text-success" />
                   <AlertDescription className="text-sm">
                     All data integrity checks passed. Your scoring data is consistent and complete.
                   </AlertDescription>
@@ -645,7 +645,7 @@ function JudgeSyncDashboard({
                         <span>Scoring Service</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <div className="w-2 h-2 rounded-full bg-success-green" />
+                        <div className="w-2 h-2 rounded-full bg-success" />
                         <span className="text-xs">Running</span>
                       </div>
                     </div>
@@ -655,7 +655,7 @@ function JudgeSyncDashboard({
                         <span>Local Storage</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <div className="w-2 h-2 rounded-full bg-success-green" />
+                        <div className="w-2 h-2 rounded-full bg-success" />
                         <span className="text-xs">Available</span>
                       </div>
                     </div>

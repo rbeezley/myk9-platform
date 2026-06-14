@@ -128,36 +128,36 @@ export const ConnectionQualityMeter: React.FC<ConnectionQualityMeterProps> = ({
       case 'excellent':
         return {
           icon: SignalHigh,
-          color: 'text-success-green',
-          bgColor: 'bg-success-green/10',
-          borderColor: 'border-success-green/20',
+          color: 'text-success',
+          bgColor: 'bg-success/10',
+          borderColor: 'border-success/20',
           label: 'Excellent',
           description: 'Fast and stable connection'
         };
       case 'good':
         return {
           icon: SignalMedium,
-          color: 'text-success-green',
-          bgColor: 'bg-success-green/10',
-          borderColor: 'border-success-green/20',
+          color: 'text-success',
+          bgColor: 'bg-success/10',
+          borderColor: 'border-success/20',
           label: 'Good',
           description: 'Reliable connection'
         };
       case 'fair':
         return {
           icon: SignalLow,
-          color: 'text-warning-orange',
-          bgColor: 'bg-warning-orange/10',
-          borderColor: 'border-warning-orange/20',
+          color: 'text-warning',
+          bgColor: 'bg-warning/10',
+          borderColor: 'border-warning/20',
           label: 'Fair',
           description: 'Slower connection'
         };
       case 'poor':
         return {
           icon: Signal,
-          color: 'text-error-red',
-          bgColor: 'bg-error-red/10',
-          borderColor: 'border-error-red/20',
+          color: 'text-destructive',
+          bgColor: 'bg-destructive/10',
+          borderColor: 'border-destructive/20',
           label: 'Poor',
           description: 'Unstable connection'
         };

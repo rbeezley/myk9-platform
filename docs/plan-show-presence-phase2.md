@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-07 · **Status:** Ready to build
 **Companion to:** [`plan-show-presence.md`](./plan-show-presence.md) §6 Phase 2,
-[`plan-show-presence-phase2-scoping.md`](./plan-show-presence-phase2-scoping.md)
+[`plan-show-presence-phase2-scoping.md`](./archive/plan-show-presence-phase2-scoping.md)
 
 Phase 1 (presence) is merged and validated live (#579, #585). Phase 2 makes the
 in-show data surfaces refresh **live** instead of waiting up to 60s for the

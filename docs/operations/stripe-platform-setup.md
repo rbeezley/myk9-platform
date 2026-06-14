@@ -1,6 +1,6 @@
 # Stripe Platform Setup — Operator Runbook (Richard)
 
-> Companion to [the Connect implementation plan](../plans/2026-06-09-stripe-connect-implementation.md)
+> Companion to [the Connect implementation plan](../archive/plans/2026-06-09-stripe-connect-implementation.md)
 > (Phase 0 and Task 6.3 are your manual steps; this is the click-by-click version).
 
 ## How the integration is shaped

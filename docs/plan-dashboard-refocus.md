@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-22 (stub) → 2026-05-24 (full plan)
 **Status:** **Active.** Audit complete; phased plan below. PO answers captured in [Decision log](#decision-log).
-**Companion plan:** [`plan-show-map-workbench-collapse.md`](plan-show-map-workbench-collapse.md) (Option B, shipped). The "Relationship to Secretary Dashboard" section of Option B documents the division of labor this plan completes.
+**Companion plan:** [`plan-show-map-workbench-collapse.md`](archive/plan-show-map-workbench-collapse.md) (Option B, shipped). The "Relationship to Secretary Dashboard" section of Option B documents the division of labor this plan completes.
 
 ## Validation Profile
 

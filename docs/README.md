@@ -24,7 +24,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
    those while the styles ship.
 
 > Last full reconciliation: 2026-06-14 (see [`plan-docs-cleanup-2026-06-14.md`](plan-docs-cleanup-2026-06-14.md)).
-> Reduced docs/ from 563 markdown files to 118 living docs; 446 retired to `archive/`.
+> Reduced docs/ from 563 markdown files to 119 living docs (118 indexed below + this index); 447 retired to `archive/`.
 
 ---
 
@@ -232,4 +232,3 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | Doc | Status | Title |
 |---|---|---|
 | [designs/claude-inspiration.md](designs/claude-inspiration.md) | Reference | Design System Inspired by Claude (Anthropic) |
-

@@ -173,7 +173,7 @@ When Auto Mode is active, the "execute immediately" guidance does NOT extend to 
 
 Adding rows to a shared DB is not "destructive" but is still shared-system mutation. One up-front confirmation covers a sequence of related pushes in the same session; re-confirm when switching to a new system or operation type.
 
-**Exception — docs-only changes may go direct to `main`.** When a commit touches *only* documentation files, skip the PR ceremony: commit on `main` (or fast-forward a feature commit into `main`) and push directly. No confirmation needed beyond the user's request to commit/push. **In scope:**
+**Exception — docs-only changes may go direct to `main`.** When a commit touches *only* documentation files, skip the PR ceremony: commit on `main` (or fast-forward a feature commit into `main`) and push directly. No confirmation needed beyond the user's request to commit/push. As of 2026-06-14 the `main` rulesets grant the admin role (the owner token) `bypass_mode: always`, so this direct push genuinely succeeds — the PR and required-checks gates are bypassed for that identity. The bypass is actor-based, not path-scoped, so the docs-only restriction below is enforced by convention, not by GitHub. **In scope:**
 
 - `docs/**/*.md` (including `docs/plans/`, `docs/superpowers/`, `docs/ux-audits/`, etc.)
 - `apps/*/docs/**/*.md`

@@ -100,6 +100,20 @@ describe('MyEntryCard stepper visibility', () => {
   });
 });
 
+describe('MyEntryCard payment recovery', () => {
+  it('shows a Finish Payment action for pending paid-fee entries', () => {
+    renderCard(makeEntry({ paymentStatus: PaymentStatus.PENDING, totalFee: 85 }));
+
+    expect(screen.getByRole('link', { name: /Finish Payment/i })).toHaveAttribute('href', '/cart');
+  });
+
+  it('does not show Finish Payment for paid entries', () => {
+    renderCard(makeEntry({ paymentStatus: PaymentStatus.PAID_ONLINE, totalFee: 85 }));
+
+    expect(screen.queryByRole('link', { name: /Finish Payment/i })).not.toBeInTheDocument();
+  });
+});
+
 describe('groupEntriesByShowAndDog', () => {
   it('returns a single entry unchanged when there is only one class', () => {
     const entry = makeEntry({ classes: [makeClass()] });

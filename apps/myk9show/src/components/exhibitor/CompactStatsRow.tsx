@@ -44,6 +44,7 @@ export function CompactStatsRow({
 }: CompactStatsRowProps) {
   const currentEntries = acceptedEntries + pendingEntries;
   const feeDetail = amountDue > 0 ? `Amount due $${amountDue.toLocaleString()}` : 'Paid in full';
+  const currentFeesHref = amountDue > 0 ? '/cart' : '/exhibitor/entries';
   const stats: StatItem[] = [
     {
       icon: <FileText className="h-5 w-5" />,
@@ -76,7 +77,7 @@ export function CompactStatsRow({
       displayValue: `$${currentFees.toLocaleString()}`,
       detail: feeDetail,
       ...(amountDue > 0 ? { detailClassName: 'text-amber-500' } : {}),
-      href: '/exhibitor/entries',
+      href: currentFeesHref,
       iconColor: amountDue > 0 ? 'text-amber-500' : 'text-emerald-500',
       iconChipClassName:
         amountDue > 0
@@ -98,7 +99,7 @@ export function CompactStatsRow({
             'transition-all duration-300',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2'
           )}
-          aria-label={`${stat.value} ${stat.label}. View details.`}
+          aria-label={`${stat.value} ${stat.label}.${stat.detail ? ` ${stat.detail}.` : ''} View details.`}
         >
           <span className="flex items-start gap-4">
             <span

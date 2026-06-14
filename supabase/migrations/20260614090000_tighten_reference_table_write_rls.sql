@@ -1,9 +1,9 @@
 -- Tighten write RLS on reference/lookup tables left open since migration 006
 --
 -- Migration 006 created "FOR ALL TO authenticated USING (true)" policies on
--- five reference tables.  Unlike the financial, RBAC, and Stripe tables (which
--- were tightened in migrations 023, 069, 079, 080), these five were never
--- superseded.  They allow any authenticated user to INSERT/UPDATE/DELETE
+-- reference tables.  class_templates was later dropped (migration 032).
+-- The remaining four were never superseded: achievements, show_templates,
+-- template_fields, judge_certifications.  They allow any authenticated user to INSERT/UPDATE/DELETE
 -- reference data — the highest-risk case being judge_certifications, where a
 -- rogue user could fabricate judge credentials.
 --
@@ -40,21 +40,6 @@ CREATE POLICY "show_templates_update" ON public.show_templates
   USING ((SELECT is_site_admin()));
 
 CREATE POLICY "show_templates_delete" ON public.show_templates
-  FOR DELETE TO authenticated
-  USING ((SELECT is_site_admin()));
-
--- ─── class_templates ────────────────────────────────────────────────────────
-DROP POLICY IF EXISTS "class_templates_all" ON public.class_templates;
-
-CREATE POLICY "class_templates_insert" ON public.class_templates
-  FOR INSERT TO authenticated
-  WITH CHECK ((SELECT is_site_admin()));
-
-CREATE POLICY "class_templates_update" ON public.class_templates
-  FOR UPDATE TO authenticated
-  USING ((SELECT is_site_admin()));
-
-CREATE POLICY "class_templates_delete" ON public.class_templates
   FOR DELETE TO authenticated
   USING ((SELECT is_site_admin()));
 

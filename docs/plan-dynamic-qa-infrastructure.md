@@ -1,6 +1,6 @@
 # Plan: Dynamic QA Infrastructure (follow-on to the Code-Quality Audit)
 
-**Created:** 2026-06-12 · **Status:** Draft — Phase 1 offline/replication chaos tests complete 2026-06-13; Phase 2 mutation baselines complete 2026-06-14; Phase 3 database-side drift checks complete 2026-06-12; Phase 4 code complete 2026-06-14 with external Sentry project/manual delivery verification still pending confirmation; other phases not started
+**Created:** 2026-06-12 · **Status:** Draft — Phase 1 offline/replication chaos tests complete 2026-06-13; Phase 2 mutation baselines complete 2026-06-14; Phase 3 database-side drift checks complete 2026-06-12; Phase 4 code complete 2026-06-14 with external Sentry project/manual delivery verification still pending confirmation; Phase 5 measurement complete 2026-06-14 (6 consecutive default-order full-suite runs green; 2 intra-file order-dependence flakes fixed; cross-file test-isolation debt tracked in OPEN-TODOS); Phases 6–7 not started
 **Goal:** Build the QA infrastructure the code-quality audit cannot: dynamic tests for offline/replication behavior, mutation testing of money-path math, database-side drift checks, error observability, and flaky-test quarantine. Where the audit _finds and removes_ existing static debt, this plan _builds new guards_ so quality holds after launch.
 
 **Relationship to [`docs/plan-code-quality-audit.md`](archive/plan-code-quality-audit.md):** that plan owns static debt removal (Waves A–D) and the CI ratchets (its Phase 5 amendment, 2026-06-12). This plan owns everything dynamic. Phases here marked **[after audit]** must wait for the named audit wave; the rest can start independently in their own worktrees.
@@ -164,6 +164,28 @@ CLAUDE.md already documents hanging/timeout problems; CI's bottleneck is the 9-m
 3. Profile slowest test files (`vitest --reporter=verbose` timings); feed results into the deferred `fileParallelism` spike from `project_test_suite_performance`.
 
 **Testing:** the deliverable is measurement + fixes. Exit criteria: 3 consecutive full-suite runs with zero non-quarantined failures, and a recorded timing baseline in this doc.
+
+### Status 2026-06-14 — measurement complete, intra-file flakes fixed
+
+Run in worktree `festive-ellis-2aa50e`. Exit criteria **met**: 6 consecutive full-suite runs in vitest's default order passed with **zero failures** (925 files / 9035 tests / 9 intentionally skipped).
+
+**Flake detection result — no active (timing) flakes.** 5 identical default-order repeats were all green. The suite has **no random/timing-based flakiness**. A 6th run with `--sequence.shuffle` exposed **8 files of latent test-isolation debt** (state leaking between tests). These do **not** fail in CI because CI runs vitest's deterministic default order — they are latent fragility, not active flakes, so the right disposition is *fix where cheap + track the rest*, not `.skip` quarantine (nothing fails in normal runs to quarantine).
+
+Two distinct sub-classes, separated by re-running the 8 files alone with shuffle:
+
+- **Intra-file order-dependence (2 files) — FIXED this phase:**
+  - `src/components/reports/__tests__/AKCScentWorkEntryForm.test.tsx` — no `beforeEach`; persistent `vi.fn()` data-hook mock kept the `dogs: []` override from the empty-state test, breaking later render tests when shuffled before them. Fix: reset the mock to a default dataset in `beforeEach`.
+  - `src/test/stores/phase5-support-systems.test.ts` — `beforeEach` cleared lists but not Zustand `config` (mutated via `updateConfig`) or bookmarks; also surfaced a genuine test bug where `should provide smart suggestions` only passed by borrowing a sibling test's generated `suggestions` (it never called `generateSuggestions`). Fix: snapshot-and-restore each store's initial state in `beforeEach`, and make the smart-suggestions test self-contained.
+  - Both verified green across the default order + 9 shuffle seeds (42/1/7/99/123/2026/555/31337/88).
+- **Cross-file pollution (6 files) — TRACKED, not fixed:** pass alone, fail only when some earlier file in a shuffled full run leaves global state behind. Hunting each polluter across ~900 files is out of proportion to this phase (CI is green). Filed as an OPEN-TODOS owner-task ("Dynamic QA — test-isolation hardening sweep") with the repro command and the candidate suspects in `src/test/setup.ts` (module-level `localStorageStore` is never cleared in `beforeEach`; Zustand `persist` writes there). Affected files observed: `ReplicationSyncProvider.authGuard`, `ShowAccessCodesCard`, `phase3-integration`, `phase4-template-system`, `armbandQueries.replication`, `DogDetailsTabs`.
+
+**Recommendation:** do **not** enable `--sequence.shuffle` in CI until the cross-file pollution is resolved — it would convert latent debt into red builds. Revisit after the isolation sweep.
+
+### Timing baseline (2026-06-14)
+
+Full myK9Show unit suite, `forks` pool, 10-core macOS, jsdom. Wall-clock **~126–210s** in default order on an unloaded machine (one outlier 304s run coincided with a concurrent agent's load). The suite is **environment-bound, not test-bound**: cumulative `environment` (jsdom init, ~408–960s across forks) dwarfs `tests` (~210–435s), so per-file jsdom setup — not test logic — is the dominant cost. This is the signal for the deferred `fileParallelism` spike (`project_test_suite_performance`): the win is amortizing jsdom init across fewer, fatter workers.
+
+Slowest files (run 1, ms): `ShowMapTab` 6802 · `MessageShowComposer` 5146 · `RunOrderDialog.section` 4736 · `ShowMapStructureTable` 3879 · `IncidentLogCard` 3724 · `ClassResultsTable/search-filter` 3491 · `SignUpPage` 3379 · `phase3-5-payment-components` 3315 · `useShowLiveSync` 3279 · `DayOfEntryDialog` 2867.
 
 ## Phase 6 — Budgets and cadence
 

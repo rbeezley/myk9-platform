@@ -4,9 +4,11 @@ import { signInAsSecretary } from '../uat/shared/auth';
 /**
  * Suite category: feature-audit.
  *
- * Offline round-trip guard for the at-show live scoresheet. The spec uses the
- * stable seeded Heritage show/class/entry, then intercepts entry PATCH uploads
- * so reconnect verification never mutates the shared Supabase project.
+ * Offline round-trip guard for the at-show live scoresheet. The spec reuses a
+ * stable Heritage fixture from shared staging seed data instead of creating live
+ * rows, then intercepts entry PATCH uploads so reconnect verification never
+ * mutates the shared Supabase project. If the fixture is rebuilt, update the
+ * show/class/entry IDs together.
  */
 
 const SHOW_ID = '3b91e282-6e45-4a89-9446-f6ebeb0bf62c';
@@ -14,18 +16,21 @@ const CLASS_ID = 'ff0b5419-3e12-4bf5-96e4-40e8e297989f';
 const ENTRY_ID = '206c4806-e757-4f00-a2eb-250c6ba468bb';
 const SCORE_PATH = `/at-show/${SHOW_ID}/class/${CLASS_ID}/score/${ENTRY_ID}`;
 const CLASS_PATH = `/at-show/${SHOW_ID}/class/${CLASS_ID}`;
+// Mirrors @myk9/replication constants: DB_NAME in packages/replication/src/constants.ts
+// and REPLICATION_STORES in packages/replication/src/core/DatabaseManager.ts.
 const REPLICATION_DB_NAME = 'myK9_Replication';
 const REPLICATED_TABLES_STORE = 'replicated_tables';
 const PENDING_MUTATIONS_STORE = 'pending_mutations';
 
 type PatchPayload = Record<string, unknown>;
+type EntryPatchPayload = PatchPayload & { id: string };
 
 test.describe('At-show offline scoring', () => {
   test('scores offline, queues the entry update, and flushes it after reconnect', async ({
     page,
     context,
   }) => {
-    const entryPatches: PatchPayload[] = [];
+    const entryPatches: EntryPatchPayload[] = [];
     await interceptEntryUploads(page, entryPatches);
 
     await signInAsSecretary(page, SCORE_PATH);
@@ -68,7 +73,7 @@ test.describe('At-show offline scoring', () => {
   });
 });
 
-async function interceptEntryUploads(page: Page, entryPatches: PatchPayload[]) {
+async function interceptEntryUploads(page: Page, entryPatches: EntryPatchPayload[]) {
   await page.route('**/rest/v1/entries?*', async (route: Route) => {
     const request = route.request();
     if (request.method() !== 'PATCH') {
@@ -76,14 +81,27 @@ async function interceptEntryUploads(page: Page, entryPatches: PatchPayload[]) {
       return;
     }
 
-    const patch = (request.postDataJSON() ?? {}) as PatchPayload;
+    const patch = request.postDataJSON() as unknown;
+    if (!isEntryPatchPayload(patch)) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: `Unexpected entries PATCH payload for ${ENTRY_ID}` }),
+      });
+      return;
+    }
+
     entryPatches.push(patch);
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify([{ id: patch.id ?? ENTRY_ID, version: 100 + entryPatches.length }]),
+      body: JSON.stringify([{ id: patch.id, version: 100 + entryPatches.length }]),
     });
   });
+}
+
+function isEntryPatchPayload(value: unknown): value is EntryPatchPayload {
+  return typeof value === 'object' && value !== null && (value as { id?: unknown }).id === ENTRY_ID;
 }
 
 async function readEntryReplica(page: Page) {

@@ -17,6 +17,9 @@ class ChaosTable extends ReplicatedTable<ChaosRow> {
     };
   }
 
+  // The resolver intentionally picks remote data. With conflict surfacing
+  // enabled, same-field dirty collisions must be held before this can overwrite
+  // local edits.
   protected resolveConflict(_local: ChaosRow, remote: ChaosRow): ChaosRow {
     return remote;
   }

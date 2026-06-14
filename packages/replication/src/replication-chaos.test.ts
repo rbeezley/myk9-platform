@@ -5,6 +5,14 @@ import type { SyncOptions, SyncResult } from './types';
 
 type ChaosRow = Record<string, unknown> & { id: string };
 type RemoteChaosRow = Record<string, unknown> & { id: string | number; version?: number };
+type ChaosCase = {
+  tableName: string;
+  dirtyField: string;
+  clean: ChaosRow;
+  local: ChaosRow;
+  remote: RemoteChaosRow;
+  enrichmentField: string;
+};
 
 class ChaosTable extends ReplicatedTable<ChaosRow> {
   async sync(_licenseKey: string, _options?: Partial<SyncOptions>): Promise<SyncResult> {
@@ -35,6 +43,81 @@ function adapterFor(
   };
 }
 
+const chaosCases: ChaosCase[] = [
+  {
+    tableName: 'entries',
+    dirtyField: 'check_in_status',
+    clean: {
+      id: 'entry-1',
+      check_in_status: 'no-status',
+      dog_call_name: 'Ziva',
+      handler_name: 'Jane Handler',
+    },
+    local: {
+      id: 'entry-1',
+      check_in_status: 'in-ring',
+      dog_call_name: 'Ziva',
+      handler_name: 'Jane Handler',
+    },
+    remote: {
+      id: 'entry-1',
+      check_in_status: 'absent',
+      dog_call_name: 'Ziva',
+      handler_name: 'Jane Handler',
+      version: 9,
+    },
+    enrichmentField: 'dog_call_name',
+  },
+  {
+    tableName: 'classes',
+    dirtyField: 'status',
+    clean: {
+      id: 'class-1',
+      status: 'upcoming',
+      trial_name: 'Saturday Trial 1',
+      judge_name: 'Judge Avery',
+    },
+    local: {
+      id: 'class-1',
+      status: 'in_progress',
+      trial_name: 'Saturday Trial 1',
+      judge_name: 'Judge Avery',
+    },
+    remote: {
+      id: 'class-1',
+      status: 'completed',
+      trial_name: 'Saturday Trial 1',
+      judge_name: 'Judge Avery',
+      version: 12,
+    },
+    enrichmentField: 'judge_name',
+  },
+  {
+    tableName: 'scores',
+    dirtyField: 'result_status',
+    clean: {
+      id: 'score-1',
+      result_status: 'pending',
+      dog_call_name: 'Rex',
+      class_name: 'Interior Advanced',
+    },
+    local: {
+      id: 'score-1',
+      result_status: 'qualified',
+      dog_call_name: 'Rex',
+      class_name: 'Interior Advanced',
+    },
+    remote: {
+      id: 'score-1',
+      result_status: 'non_qualifying',
+      dog_call_name: 'Rex',
+      class_name: 'Interior Advanced',
+      version: 4,
+    },
+    enrichmentField: 'class_name',
+  },
+];
+
 describe('replication chaos guards', () => {
   let table: ChaosTable;
 
@@ -49,80 +132,7 @@ describe('replication chaos guards', () => {
     await databaseManager.reset();
   });
 
-  it.each([
-    {
-      tableName: 'entries',
-      dirtyField: 'check_in_status',
-      clean: {
-        id: 'entry-1',
-        check_in_status: 'no-status',
-        dog_call_name: 'Ziva',
-        handler_name: 'Jane Handler',
-      },
-      local: {
-        id: 'entry-1',
-        check_in_status: 'in-ring',
-        dog_call_name: 'Ziva',
-        handler_name: 'Jane Handler',
-      },
-      remote: {
-        id: 'entry-1',
-        check_in_status: 'absent',
-        dog_call_name: 'Ziva',
-        handler_name: 'Jane Handler',
-        version: 9,
-      },
-      enrichmentField: 'dog_call_name',
-    },
-    {
-      tableName: 'classes',
-      dirtyField: 'status',
-      clean: {
-        id: 'class-1',
-        status: 'upcoming',
-        trial_name: 'Saturday Trial 1',
-        judge_name: 'Judge Avery',
-      },
-      local: {
-        id: 'class-1',
-        status: 'in_progress',
-        trial_name: 'Saturday Trial 1',
-        judge_name: 'Judge Avery',
-      },
-      remote: {
-        id: 'class-1',
-        status: 'completed',
-        trial_name: 'Saturday Trial 1',
-        judge_name: 'Judge Avery',
-        version: 12,
-      },
-      enrichmentField: 'judge_name',
-    },
-    {
-      tableName: 'scores',
-      dirtyField: 'result_status',
-      clean: {
-        id: 'score-1',
-        result_status: 'pending',
-        dog_call_name: 'Rex',
-        class_name: 'Interior Advanced',
-      },
-      local: {
-        id: 'score-1',
-        result_status: 'qualified',
-        dog_call_name: 'Rex',
-        class_name: 'Interior Advanced',
-      },
-      remote: {
-        id: 'score-1',
-        result_status: 'non_qualifying',
-        dog_call_name: 'Rex',
-        class_name: 'Interior Advanced',
-        version: 4,
-      },
-      enrichmentField: 'class_name',
-    },
-  ])(
+  it.each(chaosCases)(
     'surfaces same-field dirty-row conflicts for $tableName without dropping enrichment fields',
     async ({ dirtyField, clean, local, remote, enrichmentField }) => {
       const events: CustomEvent[] = [];

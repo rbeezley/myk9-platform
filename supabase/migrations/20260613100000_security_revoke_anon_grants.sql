@@ -12,8 +12,8 @@
 -- auth.uid(), so calls return empty but still expose role-schema structure to
 -- unauthenticated probing.  All callers are authenticated app hooks.
 --
-REVOKE EXECUTE ON FUNCTION public.get_user_permissions(UUID)
-  FROM anon;
+-- get_user_permissions(UUID) was dropped by migration 017 (superseded by 3-arg version)
+-- so no revoke needed for the single-arg overload.
 
 REVOKE EXECUTE ON FUNCTION public.get_user_permissions(UUID, TEXT, UUID)
   FROM anon;

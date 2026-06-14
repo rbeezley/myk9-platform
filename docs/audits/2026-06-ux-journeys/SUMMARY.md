@@ -64,6 +64,8 @@ Green is not available from this synthesis. Green requires remediation, fixture-
 | 4 | Secretary closeout and routing polish | UX-P1-05, UX-P1-06, UX-P2-07, UX-P2-08, UX-P2-09 | Preserve "That was easy" in routing, reports, and final submission. | Browser checks for routing/reports/submit gating; focused tests for navigation and submit guard behavior. |
 | 5 | Fixture-backed seam completion | UX-P2-11 plus unverified mutation seams | Prove waitlist, scratch, message, withdrawal/refund, and result-publish latency/state agreement without guessing. | Local Dynamic QA fixtures or approved shared seed mutations; no Green score until evidence exists. |
 
+**Wave 1 implementation note:** In progress on branch `codex/wave1-exhibitor-entry-payment-trust`. Do not rescore Exhibitor to Yellow or Green until focused tests and the browser re-walk pass.
+
 ## Duplication And Consolidation Notes
 
 | Proposed remedy | Does it duplicate an existing page? | Decision |
@@ -82,7 +84,7 @@ Green is not available from this synthesis. Green requires remediation, fixture-
 
 Before remediation begins, confirm:
 
-- [ ] Wave 1 is approved as the first remediation wave.
+- [x] Wave 1 is approved as the first remediation wave.
 - [ ] Wave 2 is approved once entry/payment trust is unblocked.
 - [ ] Wave 3 can run after or beside Wave 2 if a separate worktree is available.
 - [ ] Wave 4 can run independently because it is secretary closeout/routing polish.

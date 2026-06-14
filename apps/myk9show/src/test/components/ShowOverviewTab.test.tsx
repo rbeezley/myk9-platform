@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { ShowOverviewTab } from '@/components/shows/tabs/ShowOverviewTab';
 import type { Show } from '@/types/show-types';
@@ -88,6 +89,43 @@ describe('ShowOverviewTab', () => {
   it('renders ShareEvent', () => {
     render(<ShowOverviewTab show={fullShow} />);
     expect(screen.getByTestId('share-event')).toBeInTheDocument();
+  });
+
+  it('summarizes offered classes and links to the Classes tab', async () => {
+    const user = userEvent.setup();
+    const onViewClasses = vi.fn();
+
+    render(
+      <ShowOverviewTab
+        show={fullShow}
+        classes={[
+          {
+            id: 'class-1',
+            name: 'Novice Standard A',
+            level: 'Novice',
+            element: 'Standard',
+            trialName: 'Saturday Trial',
+          },
+          {
+            id: 'class-2',
+            name: 'Open Jumpers',
+            level: 'Open',
+            element: 'Jumpers',
+            trialName: 'Saturday Trial',
+          },
+        ]}
+        onViewClasses={onViewClasses}
+      />
+    );
+
+    expect(screen.getByRole('heading', { name: /Classes offered/i })).toBeInTheDocument();
+    expect(screen.getByText(/2\s+classes/)).toBeInTheDocument();
+    expect(screen.getByText('Jumpers')).toBeInTheDocument();
+    expect(screen.getByText('Standard')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /View all classes/i }));
+
+    expect(onViewClasses).toHaveBeenCalledTimes(1);
   });
 
   it('has two-column layout on desktop', () => {

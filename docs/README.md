@@ -51,6 +51,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-secretary-show-day-ux-consolidation.md](plan-secretary-show-day-ux-consolidation.md) | Active | Secretary Show-Day UX Consolidation Implementation Plan |
 | [plan-show-day-sequencing.md](plan-show-day-sequencing.md) | Active | Plan — Show-Day Workflow Sequencing |
 | [plan-ux-journey-audit.md](plan-ux-journey-audit.md) | Active | Plan: UX Journey Audit — Exhibitor & Secretary |
+| [plan-wave1-exhibitor-entry-payment-trust.md](plan-wave1-exhibitor-entry-payment-trust.md) | Active | Wave 1 Exhibitor Entry And Payment Trust Implementation Plan |
 | [playbook-impeccable-page-improvements.md](playbook-impeccable-page-improvements.md) | Reference | Impeccable Page-Improvement Playbook |
 
 ### plans/ — feature & phase plans

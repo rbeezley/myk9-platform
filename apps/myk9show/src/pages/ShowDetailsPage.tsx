@@ -671,6 +671,8 @@ const ShowDetailsPage: React.FC = () => {
                 show={actualCurrentShow}
                 canManageShow={canManageShow}
                 judges={effectiveJudges}
+                classes={showClasses}
+                onViewClasses={() => setTab('classes')}
               />
             </TabsContent>
 

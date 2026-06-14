@@ -138,6 +138,35 @@ describe('CompactStatsRow', () => {
     expect(onNavigate).toHaveBeenCalledWith('/exhibitor/entries?tab=completed');
   });
 
+  it('opens the cart from Current Fees when an amount is due', async () => {
+    const onNavigate = vi.fn();
+    render(
+      <CompactStatsRow
+        {...defaultProps}
+        currentFees={125}
+        amountDue={125}
+        onNavigate={onNavigate}
+      />
+    );
+
+    const feesCard = screen.getByLabelText(/Current Fees.*Amount due/i);
+    await userEvent.click(feesCard);
+
+    expect(onNavigate).toHaveBeenCalledWith('/cart');
+  });
+
+  it('keeps Current Fees on My Shows when no payment is due', async () => {
+    const onNavigate = vi.fn();
+    render(
+      <CompactStatsRow {...defaultProps} currentFees={125} amountDue={0} onNavigate={onNavigate} />
+    );
+
+    const feesCard = screen.getByLabelText(/Current Fees.*Paid in full/i);
+    await userEvent.click(feesCard);
+
+    expect(onNavigate).toHaveBeenCalledWith('/exhibitor/entries');
+  });
+
   it('applies custom className', () => {
     const { container } = render(<CompactStatsRow {...defaultProps} className="mt-4" />);
     expect(container.firstChild).toHaveClass('mt-4');

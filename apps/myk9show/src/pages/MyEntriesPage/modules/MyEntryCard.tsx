@@ -11,7 +11,16 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { CheckInStatusIndicator } from '@/components/common/CheckInStatusIndicator';
 import { EntryStatusStepper } from '@/components/entries/EntryStatusStepper';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
-import { Calendar, CalendarDays, MapPin, Eye, Edit, Download, User } from 'lucide-react';
+import {
+  Calendar,
+  CalendarDays,
+  MapPin,
+  Eye,
+  Edit,
+  Download,
+  User,
+  CreditCard,
+} from 'lucide-react';
 import { formatDistanceToNow, format, isToday, isTomorrow, differenceInDays } from 'date-fns';
 import { ResultBadge } from '@/components/common/ResultBadge';
 import { buildVenueMapsUrls, formatVenueAddress } from '@/utils/venueMaps';
@@ -59,6 +68,8 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
     entry.entryStatus === EntryStatus.PENDING || entry.entryStatus === EntryStatus.ACCEPTED;
 
   const canShowReceipt = entry.confirmationNumber && isPaid;
+  const canFinishPayment =
+    canEdit && entry.paymentStatus === PaymentStatus.PENDING && entry.totalFee > 0;
 
   // Build a "Get directions" link from the full venue address (venue, city,
   // state) while the card still displays the shorter "city, state" label.
@@ -239,6 +250,15 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
               View Show
             </Link>
           </Button>
+
+          {canFinishPayment && (
+            <Button asChild className="min-h-[44px] transition-all duration-200">
+              <Link to="/cart">
+                <CreditCard className="h-5 w-5 mr-1.5" />
+                Finish Payment
+              </Link>
+            </Button>
+          )}
 
           {canEdit && (
             <Button

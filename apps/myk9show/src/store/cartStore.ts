@@ -30,7 +30,7 @@ import {
   EXPIRATION_WARNING_MINUTES,
   calculateCartTotals,
 } from './cartStore.helpers';
-import { loadCartItemsByCartId, recoverCartItemsFromPendingEntries } from './cartStore.recovery';
+import { loadCartItemsByCartId } from './cartStore.recovery';
 
 // Re-export types so existing imports continue to work
 export type {
@@ -136,6 +136,8 @@ export const useCartStore = create<CartState>()(
         // /cart be visited directly (deep link, refresh, new tab). Recovery
         // deliberately excludes submitted/abandoned carts; those are terminal.
         loadActiveCart: async (exhibitorId: string) => {
+          set({ isLoading: true, error: null });
+
           const { data, error } = await supabase
             .from('entry_carts')
             .select('id, show_id, status, expires_at')
@@ -215,14 +217,6 @@ export const useCartStore = create<CartState>()(
             );
             set({ cart: null, isLoading: false });
             return null;
-          }
-
-          if (items.length === 0) {
-            items = await recoverCartItemsFromPendingEntries({
-              cartId: cartData.id,
-              showId: cartData.show_id,
-              exhibitorId,
-            });
           }
 
           const { subtotal, platformFee, total } = calculateCartTotals(items);

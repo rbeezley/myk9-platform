@@ -251,9 +251,8 @@ describe('cartStore payment recovery', () => {
     expect(queryCalls.some(call => call.updatePayload)).toBe(false);
   });
 
-  it('rebuilds empty recovered carts from persisted pending entries', async () => {
+  it('keeps empty recovered cart shells empty instead of sweeping pending entries into checkout', async () => {
     queryCalls.length = 0;
-    let itemLoadCount = 0;
     mockFrom.mockImplementation(
       (table: string) =>
         new MockQueryBuilder(table, call => {
@@ -282,32 +281,7 @@ describe('cartStore payment recovery', () => {
           }
 
           if (call.table === 'entry_cart_items') {
-            itemLoadCount += 1;
-            return { data: itemLoadCount === 1 ? [] : [hydratedItem], error: null };
-          }
-
-          if (call.table === 'exhibitor_profiles') {
-            return { data: { person_id: 'person-1' }, error: null };
-          }
-
-          if (call.table === 'dogs') {
-            return { data: [{ id: 'dog-1' }], error: null };
-          }
-
-          if (call.table === 'entries') {
-            return {
-              data: [
-                {
-                  class_id: 'class-1',
-                  dog_id: 'dog-1',
-                  handler_id: 'person-1',
-                  entry_fee: 25,
-                  jump_height: '16',
-                  special_requests: null,
-                },
-              ],
-              error: null,
-            };
+            return { data: [], error: null };
           }
 
           return { data: null, error: null };
@@ -316,43 +290,11 @@ describe('cartStore payment recovery', () => {
 
     const cart = await useCartStore.getState().loadActiveCart('exhibitor-1');
 
-    expect(cart?.items).toHaveLength(1);
-    expect(cart?.subtotal_cents).toBe(2500);
-    expect(cart?.platform_fee_cents).toBe(175);
-    expect(cart?.total_cents).toBe(2675);
-
-    const upsertCall = queryCalls.find(call => call.upsertPayload);
-    expect(upsertCall?.upsertPayload).toEqual([
-      {
-        cart_id: 'cart-expired',
-        class_id: 'class-1',
-        dog_id: 'dog-1',
-        handler_id: 'person-1',
-        entry_fee_cents: 2500,
-        jump_height: '16',
-        special_requests: null,
-      },
-    ]);
-    expect(upsertCall?.upsertOptions).toEqual({
-      onConflict: 'cart_id,dog_id,class_id',
-      ignoreDuplicates: true,
-    });
-
-    const totalsUpdate = queryCalls.find(call => call.updatePayload?.subtotal_cents === 2500);
-    expect(totalsUpdate?.updatePayload).toMatchObject({
-      subtotal_cents: 2500,
-      platform_fee_cents: 175,
-      total_cents: 2675,
-      stripe_checkout_session_id: null,
-    });
-
-    const entriesCall = queryCalls.find(call => call.table === 'entries');
-    expect(entriesCall?.eqs).toEqual([
-      { column: 'show_id', value: 'show-1' },
-      { column: 'payment_status', value: 'pending' },
-    ]);
-    expect(entriesCall?.ins).toEqual([{ column: 'entry_status', values: ['pending', 'accepted'] }]);
-    expect(entriesCall?.ises).toEqual([{ column: 'deleted_at', value: null }]);
-    expect(entriesCall?.ors).toEqual(['handler_id.eq.person-1,dog_id.in.(dog-1)']);
+    expect(cart?.items).toEqual([]);
+    expect(cart?.subtotal_cents).toBe(0);
+    expect(cart?.platform_fee_cents).toBe(0);
+    expect(cart?.total_cents).toBe(0);
+    expect(queryCalls.some(call => call.table === 'entries')).toBe(false);
+    expect(queryCalls.some(call => call.upsertPayload)).toBe(false);
   });
 });

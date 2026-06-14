@@ -21,6 +21,8 @@ const stripe = new Stripe(stripeSecret, {
   },
 });
 
+const RECOVERED_CART_EXPIRATION_MINUTES = 30;
+
 // CORS configuration - restrict to known app domains
 const ALLOWED_ORIGINS = [
   'https://myk9show.com',
@@ -322,7 +324,9 @@ async function handleEntryCheckout(
   // expired cart may be reopened here after ownership is proven; fee and entry
   // gates below still fail closed before Stripe sees it.
   if (cart.status === 'expired' || new Date(cart.expires_at) < new Date()) {
-    const recoveredExpiresAt = new Date(Date.now() + 31 * 60 * 1000).toISOString();
+    const recoveredExpiresAt = new Date(
+      Date.now() + RECOVERED_CART_EXPIRATION_MINUTES * 60 * 1000
+    ).toISOString();
     const { data: recovered, error: recoverError } = await supabase
       .from('entry_carts')
       .update({

@@ -30,7 +30,7 @@ import {
   EXPIRATION_WARNING_MINUTES,
   calculateCartTotals,
 } from './cartStore.helpers';
-import { loadCartItemsByCartId } from './cartStore.recovery';
+import { loadCartItemsByCartId, recoverCartItemsFromEntryIds } from './cartStore.recovery';
 
 // Re-export types so existing imports continue to work
 export type {
@@ -135,14 +135,20 @@ export const useCartStore = create<CartState>()(
         // Load the most recent recoverable cart regardless of show — lets
         // /cart be visited directly (deep link, refresh, new tab). Recovery
         // deliberately excludes submitted/abandoned carts; those are terminal.
-        loadActiveCart: async (exhibitorId: string) => {
+        loadActiveCart: async (exhibitorId: string, options = {}) => {
           set({ isLoading: true, error: null });
 
-          const { data, error } = await supabase
+          let cartLookupQuery = supabase
             .from('entry_carts')
             .select('id, show_id, status, expires_at')
             .eq('exhibitor_id', exhibitorId)
-            .in('status', ['active', 'expired'])
+            .in('status', ['active', 'expired']);
+
+          if (options.showId) {
+            cartLookupQuery = cartLookupQuery.eq('show_id', options.showId);
+          }
+
+          const { data, error } = await cartLookupQuery
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle();
@@ -217,6 +223,15 @@ export const useCartStore = create<CartState>()(
             );
             set({ cart: null, isLoading: false });
             return null;
+          }
+
+          if (items.length === 0 && options.recoveryEntryIds?.length) {
+            items = await recoverCartItemsFromEntryIds({
+              cartId: cartData.id,
+              showId: cartData.show_id,
+              exhibitorId,
+              entryIds: options.recoveryEntryIds,
+            });
           }
 
           const { subtotal, platformFee, total } = calculateCartTotals(items);

@@ -28,6 +28,7 @@ interface CompactStatsRowProps {
   pastShows: number;
   currentFees: number;
   amountDue: number;
+  currentFeesHref?: string;
   onNavigate: (path: string) => void;
   className?: string | undefined;
 }
@@ -39,12 +40,13 @@ export function CompactStatsRow({
   pastShows,
   currentFees,
   amountDue,
+  currentFeesHref,
   onNavigate,
   className,
 }: CompactStatsRowProps) {
   const currentEntries = acceptedEntries + pendingEntries;
   const feeDetail = amountDue > 0 ? `Amount due $${amountDue.toLocaleString()}` : 'Paid in full';
-  const currentFeesHref = amountDue > 0 ? '/cart' : '/exhibitor/entries';
+  const feeHref = amountDue > 0 ? (currentFeesHref ?? '/cart') : '/exhibitor/entries';
   const stats: StatItem[] = [
     {
       icon: <FileText className="h-5 w-5" />,
@@ -77,7 +79,7 @@ export function CompactStatsRow({
       displayValue: `$${currentFees.toLocaleString()}`,
       detail: feeDetail,
       ...(amountDue > 0 ? { detailClassName: 'text-amber-500' } : {}),
-      href: currentFeesHref,
+      href: feeHref,
       iconColor: amountDue > 0 ? 'text-amber-500' : 'text-emerald-500',
       iconChipClassName:
         amountDue > 0

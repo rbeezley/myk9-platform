@@ -102,9 +102,19 @@ describe('MyEntryCard stepper visibility', () => {
 
 describe('MyEntryCard payment recovery', () => {
   it('shows a Finish Payment action for pending paid-fee entries', () => {
-    renderCard(makeEntry({ paymentStatus: PaymentStatus.PENDING, totalFee: 85 }));
+    renderCard(
+      makeEntry({
+        showId: 'show-1',
+        paymentStatus: PaymentStatus.PENDING,
+        totalFee: 85,
+        classes: [makeClass({ id: 'entry-1' }), makeClass({ id: 'entry-2' })],
+      })
+    );
 
-    expect(screen.getByRole('link', { name: /Finish Payment/i })).toHaveAttribute('href', '/cart');
+    expect(screen.getByRole('link', { name: /Finish Payment/i })).toHaveAttribute(
+      'href',
+      '/cart?showId=show-1&entryIds=entry-1%2Centry-2'
+    );
   });
 
   it('does not show Finish Payment for paid entries', () => {

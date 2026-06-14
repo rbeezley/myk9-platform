@@ -297,4 +297,120 @@ describe('cartStore payment recovery', () => {
     expect(queryCalls.some(call => call.table === 'entries')).toBe(false);
     expect(queryCalls.some(call => call.upsertPayload)).toBe(false);
   });
+
+  it('rebuilds an empty cart only from explicit pending entry ids', async () => {
+    queryCalls.length = 0;
+    let itemLoadCount = 0;
+    mockFrom.mockImplementation(
+      (table: string) =>
+        new MockQueryBuilder(table, call => {
+          if (call.table === 'entry_carts' && call.select === 'id, show_id, status, expires_at') {
+            return { data: expiredCartLookup, error: null };
+          }
+
+          if (call.table === 'entry_carts' && call.updatePayload) {
+            return { data: null, error: null };
+          }
+
+          if (call.table === 'entry_carts') {
+            return {
+              data: {
+                ...hydratedCart,
+                subtotal_cents: 0,
+                platform_fee_cents: 0,
+                total_cents: 0,
+              },
+              error: null,
+            };
+          }
+
+          if (call.table === 'entry_cart_items' && call.upsertPayload) {
+            return { data: null, error: null };
+          }
+
+          if (call.table === 'entry_cart_items') {
+            itemLoadCount += 1;
+            return { data: itemLoadCount === 1 ? [] : [hydratedItem], error: null };
+          }
+
+          if (call.table === 'exhibitor_profiles') {
+            return { data: { person_id: 'person-1' }, error: null };
+          }
+
+          if (call.table === 'dogs') {
+            return { data: [{ id: 'dog-1' }], error: null };
+          }
+
+          if (call.table === 'entries') {
+            return {
+              data: [
+                {
+                  class_id: 'class-1',
+                  dog_id: 'dog-1',
+                  handler_id: 'person-1',
+                  entry_fee: 25,
+                  jump_height: '16',
+                  special_requests: null,
+                },
+              ],
+              error: null,
+            };
+          }
+
+          return { data: null, error: null };
+        })
+    );
+
+    const cart = await useCartStore.getState().loadActiveCart('exhibitor-1', {
+      showId: 'show-1',
+      recoveryEntryIds: ['entry-1'],
+    });
+
+    expect(cart?.items).toHaveLength(1);
+    expect(cart?.subtotal_cents).toBe(2500);
+    expect(cart?.platform_fee_cents).toBe(175);
+    expect(cart?.total_cents).toBe(2675);
+
+    const lookupCall = queryCalls[0];
+    expect(lookupCall?.eqs).toEqual([
+      { column: 'exhibitor_id', value: 'exhibitor-1' },
+      { column: 'show_id', value: 'show-1' },
+    ]);
+
+    const entriesCall = queryCalls.find(call => call.table === 'entries');
+    expect(entriesCall?.eqs).toEqual([
+      { column: 'show_id', value: 'show-1' },
+      { column: 'payment_status', value: 'pending' },
+    ]);
+    expect(entriesCall?.ins).toEqual([
+      { column: 'id', values: ['entry-1'] },
+      {
+        column: 'entry_status',
+        values: ['pending', 'submitted', 'pending-payment', 'accepted', 'confirmed'],
+      },
+      { column: 'dog_id', values: ['dog-1'] },
+    ]);
+    expect(entriesCall?.ises).toEqual([{ column: 'deleted_at', value: null }]);
+    expect(entriesCall?.ors).toEqual([]);
+
+    const dogCall = queryCalls.find(call => call.table === 'dogs');
+    expect(dogCall?.ors).toEqual(['owner_id.eq.person-1,co_owner_id.eq.person-1']);
+
+    const upsertCall = queryCalls.find(call => call.upsertPayload);
+    expect(upsertCall?.upsertPayload).toEqual([
+      {
+        cart_id: 'cart-expired',
+        class_id: 'class-1',
+        dog_id: 'dog-1',
+        handler_id: 'person-1',
+        entry_fee_cents: 2500,
+        jump_height: '16',
+        special_requests: null,
+      },
+    ]);
+    expect(upsertCall?.upsertOptions).toEqual({
+      onConflict: 'cart_id,dog_id,class_id',
+      ignoreDuplicates: true,
+    });
+  });
 });

@@ -277,7 +277,7 @@ There are 12 Edge Functions split across the two apps:
 - `stripe-webhook` -- Handle Stripe webhook events
 - `send-email` -- Transactional emails
 - `cron-waitlist-expiration` -- Scheduled waitlist cleanup
-- `receive-logs` -- Frontend log ingestion
+- `send-results` -- Email electronic results file to the registry submission address
 
 Edge Functions are deployed separately via the Supabase CLI with `--no-verify-jwt` (each function handles its own authentication internally).
 

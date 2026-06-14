@@ -93,18 +93,18 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
   test('entry management exposes review, waitlist, armband, and export controls', async ({
     page,
   }) => {
-    await signInAsSecretary(page, `/secretary/entries/${SHOW_ID}`);
+    await signInAsSecretary(page, `/shows/${SHOW_ID}/entry-management`);
 
     await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible({
       timeout: 15000,
     });
     await expect(page.getByRole('button', { name: 'New Entry' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Export CSV' })).toBeVisible();
-    await expect(page.getByText('Total Entries', { exact: true })).toBeVisible();
+    await expect(page.getByText('Total Entries', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('Need review', { exact: true })).toBeVisible();
     await expect(page.getByText('Confirmed entries', { exact: true })).toBeVisible();
 
-    await expect(page.getByRole('textbox', { name: 'Search entries...' })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Search entries' })).toBeVisible();
     await expect(page.getByRole('tab', { name: /^All \(\d+\)$/ })).toBeVisible({
       timeout: 10000,
     });

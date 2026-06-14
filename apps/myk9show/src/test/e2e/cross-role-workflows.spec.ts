@@ -64,7 +64,9 @@ test.describe('Cross-role workflow smoke', () => {
       timeout: 15000,
     });
     await expect(page.getByText("Today's Classes")).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Judging Assignments' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'No Classes Today' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Judging Assignments', exact: true })
+    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'No Judging Assignments Yet' })).toBeVisible();
   });
 });

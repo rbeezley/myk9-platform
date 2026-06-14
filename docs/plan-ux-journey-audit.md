@@ -57,7 +57,7 @@ Walk the full journey in a real browser (playwright-cli) with a test exhibitor a
 
 Output: `01-exhibitor-journey.md` with severity-rated findings tables per the UX-Audit skill format.
 
-## Phase 3 — Secretary journey audit — complete 2026-06-14
+## Phase 3 — Secretary journey audit — complete 2026-06-13
 
 Same structure with a secretary account:
 

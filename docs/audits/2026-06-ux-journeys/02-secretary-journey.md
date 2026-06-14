@@ -1,6 +1,6 @@
 # UX Audit: Secretary Journey
 
-**Date:** 2026-06-14
+**Date:** 2026-06-13
 **Auditor:** Codex
 **Scope:** Phase 3 secretary journey audit from `docs/plan-ux-journey-audit.md`
 **Intent target:** Trial Secretary — "That was easy"
@@ -12,6 +12,7 @@
 
 | Evidence | Artifact |
 | --- | --- |
+| Initial secretary dashboard | `artifacts/phase3-secretary-dashboard.png` |
 | Secretary dashboard and attention list | `artifacts/phase3-dashboard-attention.png` |
 | Create show wizard start | `artifacts/phase3-show-create-start.png` |
 | Show setup workbench | `artifacts/phase3-show-setup.png` |
@@ -63,7 +64,7 @@ Worst-hour scenario: entries arriving, scratches, judge question.
 | Print class check-in sheet | Expand trial, class actions, Print Check-In Sheet | 2-3 | 1-2 taps | Slight friction |
 | Check in an entry | Entry Management, row check-in dropdown, choose state | 2 after row is visible | 1-2 taps | Pass |
 | Scratch/pull a dog day-of | Entry Management, row status dropdown, choose Pulled or Withdrawn | 2 after row is visible; 4+ from Show Desk | 1-2 taps from pressure surface | Needs work |
-| Move-up | Entry Management, Move-Ups tab; empty state only in fixture | Not measurable with no pending request | Clear recovery | Inconclusive |
+| Move-up | Entry Management, Move-Ups tab; empty state only in fixture | Not measurable with no pending request | Clear recovery | Inconclusive; needs seeded pending move-up in Phase 4 or Dynamic QA |
 | Judge question about class status | Show Desk map has class status and score/open actions | 1-3 | Calm orientation | Pass |
 
 ### State Coverage Sweep
@@ -74,7 +75,7 @@ Worst-hour scenario: entries arriving, scratches, judge question.
 | Bulk operations | Row action menu includes Accept All, Waitlist All, Reject All, Missing Info, Check In All | Partial | No observed partial-failure or retry state in fixture |
 | Waitlist | Entry Management has Waitlist tab and counts | Partial | No waitlist edge state observed |
 | Pull/scratch | Pull Management has pending/processed tabs and empty state | Good | Naming differs: visible tab says Pulled, URL says `entryTab=scratches`, copy says Pull Requests |
-| Move-ups | Empty move-up state is calm | Good | No seeded pending request to verify decision workflow |
+| Move-ups | Empty move-up state is calm | Good | No seeded pending request to verify decision workflow; track a seeded move-up request in Phase 4 or Dynamic QA |
 | Incomplete closeout | Submit Results warns about 5 missing AKC registration numbers | Partial | Send to AKC remains enabled; raw `akcDogRegnum`/XML copy increases stress |
 | Error/offline | Not intentionally induced in this audit slice | Not scored | Needs Dynamic QA follow-up |
 
@@ -91,7 +92,7 @@ Read-only walk; no mutating actions were submitted.
 | Move-up | Not fully measurable | Dedicated tab exists, but no pending requests |
 | Print check-in sheet | 2-3 clicks from Show Desk class menu; 1 click from Reports after report is selected | Report path has broad inventory |
 | Print armband labels | Selector includes Armband Labels; closed selector uses raw id labels | Needs label polish |
-| Send day-of announcement | Not found in walked secretary surfaces | Potential missing or hidden flow |
+| Send day-of announcement | No direct Show Desk/workbench CTA found | Code/docs indicate show-wide messages are consolidated into the global Message Center; re-run this baseline from Message Center |
 | Produce sanctioning-body report | 1 route to Submit Results, then warning review/download/send | Raw XML and enabled send action make this cognitively heavy |
 
 ## Pass 1: Mental Model Alignment
@@ -109,9 +110,20 @@ Read-only walk; no mutating actions were submitted.
 | Reports selected values | Human labels remain visible | Closed selects show `check-in-sheet`, `run-order` | Medium |
 | Submit Results alert | Missing required data blocks risky submission | `Send to AKC` remains enabled beside warning | High |
 | Pulled tab | Scratch/pull workflow language is consistent | Tab says Pulled, URL says scratches, copy says Pull Requests | Low |
-| Sidebar "My Shows" for secretary | Secretary show management | Links to exhibitor `/exhibitor/entries` | Medium |
+| Sidebar "My Shows" for secretary | Secretary show management | Links to exhibitor `/exhibitor/entries` | High |
 
 **Jargon found:** `AKC:scent_work`, `akcDogRegnum`, `check-in-sheet`, `run-order`, XML preview, `entryTab=scratches`.
+
+**Suggested user-facing labels:**
+
+| Current term | User-facing label |
+| --- | --- |
+| `AKC:scent_work` | AKC Scent Work |
+| `akcDogRegnum` | AKC Registration Number |
+| `check-in-sheet` | Check-in Sheet |
+| `run-order` | Run Order |
+| XML Preview | Electronic Submission Preview |
+| `entryTab=scratches` | Pulled Entries |
 
 ## Pass 2: Information Architecture
 
@@ -129,12 +141,13 @@ Read-only walk; no mutating actions were submitted.
 | --- | --- | --- | --- |
 | Pressure actions split across Show Desk and Entry Management | Show Desk / Entry Management | Scratch/pull is not visible where the secretary starts the worst-hour flow | Deep-link from Show Desk class/entry signals into the exact filtered Entry Management row or add a link, not a duplicate table |
 | Stale attention target | Dashboard to Monogram Entry Management | Cross-show triage loses trust when a problem link lands on 0 entries | Recompute attention counts from the same filtered source used by Entry Management |
+| Role-boundary navigation | Secretary sidebar | "My Shows" sends a secretary to the exhibitor show hub | Point the secretary sidebar to the secretary dashboard or remove the duplicate item |
 | Submit flow exposes implementation object | Submit Results | Secretary sees raw XML as primary preview | Show a checklist/summary first; keep XML behind download/details |
 | Reports controls use id values when closed | Reports | The inventory is good, but the selected state reads like developer data | Keep selected labels human-readable |
 
 **Visibility problems:**
 
-- Hidden but should be visible: day-of announcement path, scratch/pull shortcut from Show Desk, submission-blocking readiness checklist.
+- Hidden but should be visible: Message Center path for a day-of announcement, scratch/pull shortcut from Show Desk, submission-blocking readiness checklist.
 - Prominent but should be secondary: raw XML preview, technical submission identifiers.
 
 ## Pass 3: Affordance Clarity
@@ -177,7 +190,7 @@ Read-only walk; no mutating actions were submitted.
 
 - Reports should show human defaults, not raw internal ids.
 - Submit Results should default to a blocked/review state when required registry fields are missing.
-- Day-of announcement should be visible from Show Desk or show workbench if it exists.
+- Day-of announcement should have an obvious Message Center entry point from the secretary workbench, or the time-to-task baseline should explicitly start from the top-bar Message Center.
 
 **Unnecessary complexity:**
 
@@ -263,6 +276,7 @@ Read-only walk; no mutating actions were submitted.
 | 8 | Release results | Presets and inheritance are clear | None |
 | 9 | Submit results | Warning exists but final actions remain enabled next to raw XML | High |
 | 10 | Follow legacy show-desk URL | Lands on Setup instead of Show Desk | High |
+| 11 | Use secretary sidebar My Shows | Lands on exhibitor `/exhibitor/entries` | High |
 
 **Abandonment risks:**
 
@@ -293,6 +307,7 @@ No P0/Critical finding observed in this read-only slice.
 | Legacy `phase=show-desk` redirects to Setup | 1, 6 | Secretary can land on the wrong surface during show-day work | Low |
 | Dashboard attention item can disagree with target Entry Management state | 1, 5, 6 | Cross-show triage loses trust | Medium |
 | Submit Results leaves send action enabled beside missing-registration warning | 1, 4, 5, 6 | Risky closeout and stressful official submission | Medium |
+| Secretary sidebar "My Shows" routes to exhibitor flow | 1, 2, 6 | Secretary can land on the wrong role surface | Low |
 
 ### Medium Priority
 
@@ -301,14 +316,13 @@ No P0/Critical finding observed in this read-only slice.
 | Scratch/pull is not first-class from Show Desk | 2, 3, 6 | Worst-hour changes take route knowledge | Medium |
 | Create wizard hides later setup path behind disabled steps | 4, 6 | Cold-start secretary cannot see the road to open entries | Medium |
 | Reports closed select values show internal ids | 1, 3, 4 | Print workflow feels less polished/trustworthy | Low |
-| Day-of announcement path not found | 2, 4 | One Phase 3 baseline task is hidden or absent | Unknown |
+| Day-of announcement baseline was not completed from Message Center | 2, 4 | The feature exists through consolidated messaging, but the walked workbench surfaces did not expose it | Low |
 
 ### Low Priority
 
 | Finding | Pass | Impact | Effort |
 | --- | --- | --- | --- |
 | Pulled/scratches/pull requests naming diverges | 1, 3 | Minor mental-model wobble | Low |
-| Sidebar "My Shows" links to exhibitor route for secretary | 1, 2 | Role boundary confusion | Low |
 
 ### Quick Wins
 
@@ -325,9 +339,16 @@ Does any recommendation duplicate an existing page? The scratch/pull recommendat
 
 Some symptoms may be bad seed data, especially Monogram's dashboard attention count and pending-entry target. That should not be dismissed as "only data": the UX requirement is that secretary attention links stay trustworthy even when show data is incomplete or inconsistent.
 
+This audit did not prove the root cause of the Monogram mismatch. The recommendation is intentionally source-of-truth alignment between dashboard attention counts and Entry Management filters, not a presumed query fix.
+
+### Follow-Up Tracking
+
+`OPEN-TODOS.md` now carries the review follow-ups that should not be lost before Phase 5 synthesis: the secretary sidebar route bug, the dashboard attention count-source verification, the Message Center day-of announcement baseline, and a seeded move-up request walk.
+
 ### Recommendations
 
 1. Fix the two routing/trust issues first: legacy Show Desk redirect and dashboard attention count-source mismatch.
 2. Harden Submit Results into a checklist-first closeout flow that blocks or explicitly gates risky submission.
 3. Add consolidation-safe Show Desk shortcuts into filtered Entry Management for scratch/pull/conflict work.
-4. Polish report labels and setup wizard preview after the high-priority trust work lands.
+4. Re-run the day-of announcement and move-up baselines with the right seeded states.
+5. Polish report labels and setup wizard preview after the high-priority trust work lands.

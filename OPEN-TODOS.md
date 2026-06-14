@@ -56,7 +56,11 @@ Plan: [`docs/plan-ux-journey-audit.md`](docs/plan-ux-journey-audit.md). Journey-
 
 - [x] ~~**Phase 1 — recon**~~ — Completed in `docs/audits/2026-06-ux-journeys/00-recon.md`: prior April findings dispositioned, current exhibitor/secretary journey maps recorded, and light route checks captured for high-change surfaces.
 - [ ] **Phase 2 — exhibitor journey** — cold-start walk, 6-pass rubric per segment, phone-at-ringside pass for `/at-show`, money-path state sweep, time-to-task baselines _(after Waves A–C)_
-- [ ] **Phase 3 — secretary journey** — cold-start walk, show-day pressure pass, bulk-op failure states, time-to-task baselines _(after Waves A–C)_
+- [x] ~~**Phase 3 — secretary journey**~~ — Completed in PR [#716](https://github.com/rbeezley/myk9-platform/pull/716): cold-start setup, Show Desk pressure, Entry Management, reports, Results Control, Submit Results, and evidence screenshots captured in `docs/audits/2026-06-ux-journeys/02-secretary-journey.md`.
+  - [ ] **[UX P1] Fix secretary sidebar "My Shows" wrong-role route** — In the Phase 3 walk, secretary sidebar "My Shows" linked to `/exhibitor/entries`. Route to the secretary dashboard/workbench context or remove the duplicate item.
+  - [ ] **[UX P1] Verify dashboard attention count source vs Entry Management filters** — Monogram dashboard attention said "1 entry pending review" but the target `entryTab=pending` page showed 0 entries. Confirm whether this is stale seed data or a query/count mismatch before fixing.
+  - [ ] **[UX P2] Re-run day-of announcement baseline from Message Center** — Announcements are consolidated into the global Message Center, not a Show Desk/workbench CTA. Measure the time-to-task from that canonical entry point.
+  - [ ] **[UX P2] Seed a pending move-up request for the next seam/Dynamic QA walk** — Phase 3 only observed the empty Move-Ups state; the decision workflow still needs a seeded pending request.
 - [ ] **Phase 4 — cross-role seams** — scratch request, waitlist offer, entry question, refund, results publish; two-context walks
 - [ ] **Phase 5 — synthesis + human gate** — severity-ordered SUMMARY.md, duplication question per proposed UI, user approves remediation list
 - [ ] **Phase 6 — remediation waves + baseline re-measure** — tests per wave; success metric is the time-to-task delta

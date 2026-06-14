@@ -1,6 +1,6 @@
 # Plan: UX Journey Audit — Exhibitor & Secretary
 
-**Created:** 2026-06-12 · **Status:** Phase 3 complete
+**Created:** 2026-06-12 · **Status:** Phase 4 in progress
 **Goal:** Audit the two highest-stakes role experiences as *end-to-end journeys*, not pages. The April 2026 sprint audited 11 pages in isolation (Tier 1 exhibitor + Tier 2 secretary, `docs/ux-audits/phase-1-summary.md` / `phase-2-summary.md`); since then the surfaces changed underneath it — myK9Q was absorbed into `/at-show`, the workbench collapse landed, and the secretary show-day consolidation plan reshaped day-of flows. This audit scores the *current* app against INTENT.md's role feelings: Exhibitor "This respects my time", Secretary "That was easy".
 
 **Methodology:** the `/UX-Audit` skill's 6-pass rubric (mental model, IA, affordances, cognitive load, state coverage, flow integrity) is mandatory per project rules — but applied per journey *segment*, with cross-segment flow integrity as the connecting thread. `/IA-Review` is the escalation path if a journey reveals structural fragmentation as the root cause.
@@ -68,7 +68,9 @@ Same structure with a secretary account:
 
 Output: `02-secretary-journey.md`.
 
-## Phase 4 — Cross-role seams
+## Phase 4 — Cross-role seams — in progress 2026-06-13
+
+Read-only baseline captured in `03-cross-role-seams.md`. Full seam completion still needs explicit approval for shared Supabase seed mutations or a local-only Dynamic QA fixture, because scratch requests, waitlist offers, messages, refunds, and results publishing mutate shared data.
 
 Audit each exhibitor↔secretary intersection as one continuous flow, both sides observed in the same session (two browser contexts):
 

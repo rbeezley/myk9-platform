@@ -61,7 +61,12 @@ Plan: [`docs/plan-ux-journey-audit.md`](docs/plan-ux-journey-audit.md). Journey-
   - [ ] **[UX P1] Verify dashboard attention count source vs Entry Management filters** — Monogram dashboard attention said "1 entry pending review" but the target `entryTab=pending` page showed 0 entries. Confirm whether this is stale seed data or a query/count mismatch before fixing.
   - [ ] **[UX P2] Re-run day-of announcement baseline from Message Center** — Announcements are consolidated into the global Message Center, not a Show Desk/workbench CTA. Measure the time-to-task from that canonical entry point.
   - [ ] **[UX P2] Seed a pending move-up request for the next seam/Dynamic QA walk** — Phase 3 only observed the empty Move-Ups state; the decision workflow still needs a seeded pending request.
-- [ ] **Phase 4 — cross-role seams** — scratch request, waitlist offer, entry question, refund, results publish; two-context walks
+- [ ] **Phase 4 — cross-role seams** — Read-only baseline captured in `docs/audits/2026-06-ux-journeys/03-cross-role-seams.md`; true latency/state-agreement walks still need approved shared Supabase seed mutations or local Dynamic QA fixtures.
+  - [ ] **[UX P1] Add exhibitor post-deadline pull/scratch recovery path** — `Edit Entry` currently dead-ends at "Entry deadline has passed"; link into the existing Message Center or Pull Management/Entry Management lane instead of adding a duplicate surface.
+  - [ ] **[UX P1] Align withdrawn/refunded entry state across roles** — Headline shows secretary-side Withdrawn + `$30.00 refunded` + reason, while exhibitor Show Details still presents the entry as Upcoming.
+  - [ ] **[UX P1] Fix exhibitor `/messages/:showId` blank content** — The entry-question seam needs the same clear empty/start state quality as secretary Communication History.
+  - [ ] **[UX P2] Preselect show in Message Center compose from show-filtered context** — `/secretary/messages?showId=...` opens compose with "Select a show" instead of inheriting the active show.
+  - [ ] **[UX P2] Seed Phase 4 seam fixtures** — Need offered waitlist, scratch request, move-up request, message thread, withdrawal/refund, and result-release fixtures to complete latency/state-agreement scoring without touching shared staging data. Plan: [`docs/superpowers/plans/2026-06-13-phase4-seam-fixtures.md`](docs/superpowers/plans/2026-06-13-phase4-seam-fixtures.md).
 - [ ] **Phase 5 — synthesis + human gate** — severity-ordered SUMMARY.md, duplication question per proposed UI, user approves remediation list
 - [ ] **Phase 6 — remediation waves + baseline re-measure** — tests per wave; success metric is the time-to-task delta
 

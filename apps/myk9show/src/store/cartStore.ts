@@ -30,6 +30,7 @@ import {
   EXPIRATION_WARNING_MINUTES,
   calculateCartTotals,
 } from './cartStore.helpers';
+import { loadCartItemsByCartId, recoverCartItemsFromPendingEntries } from './cartStore.recovery';
 
 // Re-export types so existing imports continue to work
 export type {
@@ -131,17 +132,15 @@ export const useCartStore = create<CartState>()(
           }
         },
 
-        // Load the most recent active cart regardless of show — lets /cart be
-        // visited directly (deep link, refresh, new tab). Without this the
-        // page renders only whatever happens to be in tab memory
-        // (2026-06-10 walkthrough finding).
+        // Load the most recent recoverable cart regardless of show — lets
+        // /cart be visited directly (deep link, refresh, new tab). Recovery
+        // deliberately excludes submitted/abandoned carts; those are terminal.
         loadActiveCart: async (exhibitorId: string) => {
           const { data, error } = await supabase
             .from('entry_carts')
-            .select('show_id')
+            .select('id, show_id, status, expires_at')
             .eq('exhibitor_id', exhibitorId)
-            .eq('status', 'active')
-            .gt('expires_at', new Date().toISOString())
+            .in('status', ['active', 'expired'])
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle();
@@ -155,7 +154,97 @@ export const useCartStore = create<CartState>()(
             set({ cart: null, isLoading: false });
             return null;
           }
-          return get().loadCart(data.show_id, exhibitorId);
+
+          let recoveredExpiresAt = data.expires_at;
+          let recoveredSessionId: string | null | undefined;
+          const expiresAtMs = data.expires_at ? new Date(data.expires_at).getTime() : null;
+          const needsRecovery =
+            data.status === 'expired' || (expiresAtMs !== null && expiresAtMs <= Date.now());
+
+          if (needsRecovery) {
+            recoveredExpiresAt = new Date(
+              Date.now() + CART_EXPIRATION_MINUTES * 60 * 1000
+            ).toISOString();
+            recoveredSessionId = null;
+
+            const { error: recoverError } = await supabase
+              .from('entry_carts')
+              .update({
+                expires_at: recoveredExpiresAt,
+                stripe_checkout_session_id: null,
+              })
+              .eq('id', data.id)
+              .in('status', ['active', 'expired']);
+
+            if (recoverError) {
+              logger.error('Error recovering cart', 'cartStore', { exhibitorId }, recoverError);
+              set({ cart: null, isLoading: false });
+              return null;
+            }
+          }
+
+          const { data: cartData, error: cartError } = await supabase
+            .from('entry_carts')
+            .select(`*, show:shows(id, name, start_date, entry_close_date)`)
+            .eq('id', data.id)
+            .eq('exhibitor_id', exhibitorId)
+            .in('status', ['active', 'expired'])
+            .limit(1)
+            .maybeSingle();
+
+          if (cartError) {
+            logger.error('Error loading recovered cart', 'cartStore', { exhibitorId }, cartError);
+            set({ cart: null, isLoading: false });
+            return null;
+          }
+
+          if (!cartData) {
+            set({ cart: null, isLoading: false });
+            return null;
+          }
+
+          let items: CartItemWithDetails[];
+          try {
+            items = await loadCartItemsByCartId(cartData.id);
+          } catch (error) {
+            logger.error(
+              'Error loading recovered cart items',
+              'cartStore',
+              { cartId: cartData.id },
+              ensureError(error)
+            );
+            set({ cart: null, isLoading: false });
+            return null;
+          }
+
+          if (items.length === 0) {
+            items = await recoverCartItemsFromPendingEntries({
+              cartId: cartData.id,
+              showId: cartData.show_id,
+              exhibitorId,
+            });
+          }
+
+          const { subtotal, platformFee, total } = calculateCartTotals(items);
+          const cartWithDetails: CartWithDetails = {
+            ...cartData,
+            expires_at: recoveredExpiresAt,
+            stripe_checkout_session_id: recoveredSessionId ?? cartData.stripe_checkout_session_id,
+            subtotal_cents: subtotal,
+            platform_fee_cents: platformFee,
+            total_cents: total,
+            items,
+            show: cartData.show as CartWithDetails['show'],
+          };
+
+          set({
+            cart: cartWithDetails,
+            isLoading: false,
+            lastSyncedAt: new Date().toISOString(),
+            expirationWarning: false,
+          });
+
+          return cartWithDetails;
         },
 
         // Create a new cart
@@ -410,9 +499,7 @@ export const useCartStore = create<CartState>()(
             // values the user changed after checkout started. Fee changes also
             // require a totals refresh.
             const totals =
-              updates.entryFeeCents !== undefined
-                ? calculateCartTotals(updatedItems)
-                : null;
+              updates.entryFeeCents !== undefined ? calculateCartTotals(updatedItems) : null;
 
             const { error: cartUpdateError } = await supabase
               .from('entry_carts')

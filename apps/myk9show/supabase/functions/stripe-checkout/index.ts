@@ -304,7 +304,7 @@ async function handleEntryCheckout(
     `
     )
     .eq('id', cart_id)
-    .eq('status', 'active')
+    .in('status', ['active', 'expired'])
     .single();
 
   if (cartError || !cart) {
@@ -317,10 +317,33 @@ async function handleEntryCheckout(
     return corsResponse({ error: 'Unauthorized access to cart' }, 403);
   }
 
-  // Check cart hasn't expired
-  if (new Date(cart.expires_at) < new Date()) {
-    await supabase.from('entry_carts').update({ status: 'expired' }).eq('id', cart_id);
-    return corsResponse({ error: 'Cart has expired. Please create a new cart.' }, 410);
+  // My Shows can send exhibitors back to /cart after the cart timer has
+  // elapsed. Submitted/abandoned carts stay terminal, but an unpaid active or
+  // expired cart may be reopened here after ownership is proven; fee and entry
+  // gates below still fail closed before Stripe sees it.
+  if (cart.status === 'expired' || new Date(cart.expires_at) < new Date()) {
+    const recoveredExpiresAt = new Date(Date.now() + 31 * 60 * 1000).toISOString();
+    const { data: recovered, error: recoverError } = await supabase
+      .from('entry_carts')
+      .update({
+        status: 'active',
+        expires_at: recoveredExpiresAt,
+        stripe_checkout_session_id: null,
+      })
+      .eq('id', cart_id)
+      .in('status', ['active', 'expired'])
+      .select('id, updated_at')
+      .maybeSingle();
+
+    if (recoverError || !recovered) {
+      console.error(`Could not recover cart ${cart_id}:`, recoverError);
+      return corsResponse({ error: 'Could not recover this cart. Please try again.' }, 409);
+    }
+
+    cart.status = 'active';
+    cart.expires_at = recoveredExpiresAt;
+    cart.stripe_checkout_session_id = null;
+    cart.updated_at = recovered.updated_at;
   }
 
   const platformFeePercent = resolvePlatformFeePercent(Deno.env.get('PLATFORM_FEE_PERCENT'));
@@ -341,7 +364,10 @@ async function handleEntryCheckout(
     .eq('id', cart.show_id)
     .single();
   if (showFeesError || !showFees) {
-    console.error(`Show fee lookup failed for cart ${cart_id} (show ${cart.show_id}):`, showFeesError);
+    console.error(
+      `Show fee lookup failed for cart ${cart_id} (show ${cart.show_id}):`,
+      showFeesError
+    );
     return corsResponse({ error: 'Could not verify entry fees. Please try again.' }, 500);
   }
 
@@ -349,23 +375,14 @@ async function handleEntryCheckout(
   // call to stripe-checkout bypasses the UI. Fail closed on each condition.
   const entryStatuses = ['published', 'accepting_entries'];
   if (!entryStatuses.includes(showFees.status)) {
-    return corsResponse(
-      { error: 'Online entries are not currently open for this show.' },
-      403
-    );
+    return corsResponse({ error: 'Online entries are not currently open for this show.' }, 403);
   }
   const nowMs = Date.now();
   if (showFees.entry_open_date && nowMs < new Date(showFees.entry_open_date).getTime()) {
-    return corsResponse(
-      { error: 'Online entry has not opened yet for this show.' },
-      403
-    );
+    return corsResponse({ error: 'Online entry has not opened yet for this show.' }, 403);
   }
   if (showFees.entry_close_date && nowMs > new Date(showFees.entry_close_date).getTime()) {
-    return corsResponse(
-      { error: 'Online entry has closed for this show.' },
-      403
-    );
+    return corsResponse({ error: 'Online entry has closed for this show.' }, 403);
   }
   {
     const connectPayoutsEnabled = showFees.club_id
@@ -386,7 +403,11 @@ async function handleEntryCheckout(
 
   const nowIso = new Date().toISOString();
   const itemsWithAuthoritativeFee = (
-    cart.items as { id: string; entry_fee_cents: number; class?: { entry_fee?: number | string | null } }[]
+    cart.items as {
+      id: string;
+      entry_fee_cents: number;
+      class?: { entry_fee?: number | string | null };
+    }[]
   ).map(item => ({
     item,
     authoritativeCents: authoritativeEntryFeeCents({
@@ -433,7 +454,9 @@ async function handleEntryCheckout(
       }
     }
     return corsResponse(
-      { error: 'Entry fees were updated to current show pricing — review your cart and try again.' },
+      {
+        error: 'Entry fees were updated to current show pricing — review your cart and try again.',
+      },
       409
     );
   }
@@ -634,7 +657,9 @@ async function handleSubscriptionCheckout(
   });
   if (existingActive.data.length > 0) {
     return corsResponse(
-      { error: 'You already have an active subscription. Visit your account settings to manage it.' },
+      {
+        error: 'You already have an active subscription. Visit your account settings to manage it.',
+      },
       400
     );
   }

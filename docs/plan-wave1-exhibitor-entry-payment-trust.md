@@ -705,3 +705,44 @@ git commit -m "fix: tighten exhibitor entry payment path"
 ```
 
 Expected: commit succeeds from the worktree branch.
+
+## Task 9: Follow-Up Payment Recovery Reliability
+
+**Purpose:** Close the review-discovered gap where My Shows links to `/cart`, but `/cart` can render empty after the cart expiry window even though the unpaid entry path still needs recovery.
+
+**Duplication question:** Does this duplicate an existing page? No. The recovery stays in the existing cart and checkout flow. Do not add a new payment page, sheet, or retry dialog.
+
+- [x] **Step 1: Add a regression for active carts whose `expires_at` is stale**
+
+Create or update cart-store coverage so `loadActiveCart(exhibitorId)` finds the latest `active` cart even when `expires_at` is in the past, extends the expiry, and hydrates its items instead of returning `null`.
+
+- [x] **Step 2: Recover unpaid expired carts at checkout**
+
+Update the `stripe-checkout` entry-payment path so an owner-verified cart with `status='expired'` can be reopened by the service role before creating a fresh Stripe session. Keep submitted and abandoned carts terminal.
+
+- [x] **Step 3: Run focused tests**
+
+Run:
+
+```bash
+cd apps/myk9show && npx vitest run src/store/cartStore.test.ts
+```
+
+Expected: PASS.
+
+- [x] **Step 4: Run broader validation**
+
+Run:
+
+```bash
+pnpm --filter @myk9/show typecheck
+git diff --check
+```
+
+Expected: PASS with no whitespace errors.
+
+- [ ] **Step 5: Browser re-walk the money-path recovery**
+
+Use the local app to re-check My Shows → Finish Payment and Current Fees → `/cart`. The cart should show the recovered entries instead of the empty-cart state.
+
+Note: the live re-walk writes to the linked Supabase project because recovery extends the cart and may rebuild missing cart items. Get explicit shared-DB approval before running this against staging data.

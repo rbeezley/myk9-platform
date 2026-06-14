@@ -243,7 +243,11 @@ function toSecretaryEntry(
 }
 
 export async function getReplicatedSecretaryEntriesForShow(showId: string) {
-  const entries = (await replicatedEntriesTable.getEntriesByShow(showId)).filter(isNotDeleted);
+  const allEntries = await replicatedEntriesTable.getEntriesByShow(showId);
+  // isColdStore: store has zero rows for this show — never synced. A warm
+  // store with all entries deleted/filtered is NOT cold (allEntries.length > 0).
+  const isColdStore = allEntries.length === 0;
+  const entries = allEntries.filter(isNotDeleted);
   const [dogs, classes, armbands] = await Promise.all([
     replicatedDogsTable.getAllDogs(),
     replicatedClassesTable.getAll(),
@@ -279,5 +283,5 @@ export async function getReplicatedSecretaryEntriesForShow(showId: string) {
       (a.created_at ?? a.submitted_at ?? a.id).localeCompare(b.created_at ?? b.submitted_at ?? b.id)
     );
 
-  return { data, error: null };
+  return { data, error: null, isColdStore };
 }

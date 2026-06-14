@@ -473,6 +473,24 @@ describe('secretary entry read replication', () => {
     expect(result.data[0]).toMatchObject({ id: 'entry-from-postgrest' });
   });
 
+  it('trusts replication when store is warm but all entries are deleted (does not hit PostgREST)', async () => {
+    // Warm store — entries were synced, but all are soft-deleted. This is NOT a
+    // cold store: getEntriesByShow returns rows, isColdStore = false.
+    mocks.getEntriesByShow.mockResolvedValue([
+      { id: 'entry-deleted', showId: 'show-1', deletedAt: '2026-06-01T12:00:00.000Z' },
+    ]);
+    mocks.getAllDogs.mockResolvedValue([]);
+    mocks.getAllClasses.mockResolvedValue([]);
+    mocks.getArmbandsByShow.mockResolvedValue([]);
+
+    const result = await getEntriesForShow('show-1');
+
+    expect(mocks.loggerWarn).not.toHaveBeenCalled();
+    expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('entries');
+    expect(result.error).toBeNull();
+    expect(result.data).toHaveLength(0);
+  });
+
   it('warns when falling back to PostgREST after a replicated read failure', async () => {
     const replicationError = new Error('replicated entries unavailable');
     mocks.getEntriesByShow.mockRejectedValueOnce(replicationError);

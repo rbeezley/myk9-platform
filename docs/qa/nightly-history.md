@@ -18,6 +18,17 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-06-14
+
+- **Playwright command:** fail. Phase 1 Vitest passed (`18/18`). Phase 2 active Playwright failed with `38 passed, 11 failed, 1 did not run (50.2m, --retries=0)`. The run exceeded the 30-minute global Nightly budget; standalone Phase 3 was skipped after Phase 2 finished red.
+- **Route sweep:** fail/partial. The committed `route-health-by-role.spec.ts` ran inside Phase 2. Public passed; exhibitor, secretary, judge, club-admin, and admin all authenticated but failed browser-health budgets on the same RBAC permission-load console errors as 2026-06-13. No role group was skipped, but the standalone Phase 3 rerun was skipped after the budget breach.
+- **Active specs:** Vitest `18/18`; active Playwright `38/50`.
+- **Failures:** Refreshed `QA-CONSOLE-ERROR-019` after the RBAC `Failed to get user permissions` / `Failed to load RBAC data` console-error pattern reproduced in all authenticated route-health groups. Refreshed `QA-TEST-FLAKE-020` after the active-suite instability repeated and got slower. Repeated stale/ambiguous assertions: `cross-role-workflows.spec.ts:57` duplicate `Judging Assignments`, `uat/secretary/critical-path.spec.ts:93` duplicate `Total Entries`, `uat/secretary/disposable-entry.spec.ts:48` missing `Search entries...`. Additional failing surfaces: `browse-shows-to-details.spec.ts:4` context teardown exceeded timeout, `registration/singleDogSingleClass.spec.ts:194` `Next` stayed disabled after dog selection, and `secretary-entry-walk.spec.ts:22` timed out on ambiguous `text=Select Classes`.
+- **Fixes made:** docs only (`docs/qa/findings.md`, `docs/qa/nightly-history.md`). No product/test code change: the recurring RBAC failure and active-suite instability need focused repair work, and the run was already over budget.
+- **Demotions/promotions:** none, but `QA-TEST-FLAKE-020` is now a demotion/repair candidate under the flake-budget policy because the same active-suite cluster failed on two consecutive isolated scheduled runs.
+- **Findings:** refreshed `QA-CONSOLE-ERROR-019` and `QA-TEST-FLAKE-020`. Did not close `QA-NETWORK-ERROR-018`; the current failure signature is RBAC fetch failure rather than `people.is_early_adopter` `42703`, but the required Phase 2/3 proof still did not pass.
+- **Notes:** Ran from isolated detached worktree `.worktrees/nightly-qa-2026-06-14-020419` on `origin/main` `7b7879169e8283d2a5d2a030632691f6c2ecdaa5`, using `PLAYWRIGHT_PORT=6505`, `PLAYWRIGHT_BASE_URL=http://127.0.0.1:6505`, and `PLAYWRIGHT_HMR_PORT=26505`. Worktree bootstrap/build was unusually slow (`15m56s`) before app checks. Next work should be a focused repair branch, not another broad Nightly replay: first diagnose RBAC `PermissionChecker.getUserPermissions` fetch failures, then fix/demote the duplicate-text locator specs and long/ambiguous registration waits.
+
 ### 2026-06-13
 
 - **Playwright command:** fail. Phase 1 Vitest passed (`18/18`). Phase 2 active Playwright failed with `38 passed, 11 failed, 1 did not run (35.2m, --retries=0)`. The run exceeded the global 30-minute Nightly budget, so app checks stopped after Phase 2.

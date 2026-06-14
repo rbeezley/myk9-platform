@@ -334,6 +334,7 @@ describe('PlacementCalculatorService helpers', () => {
     const first = placementEntry('first', 100, 1, { placement: 1 });
     const tiedA = placementEntry('tied-a', 95, 1, { placement: 2, isTied: true });
     const tiedB = placementEntry('tied-b', 95, 1, { placement: 2, isTied: true });
+    // Simulates a resolver expanding a two-way tie into three ranked positions.
     const resolvedC = placementEntry('resolved-c', 95, 2, { placement: 2, isTied: true });
     const fourth = placementEntry('fourth', 90, 1, { placement: 4 });
     const entries = [first, tiedA, tiedB, fourth];

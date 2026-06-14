@@ -412,7 +412,7 @@ describe('ScoreValidatorService', () => {
         qualification: 'Not Qualified',
         searchTime: 0,
         qualificationReason: 'Missed hide',
-      } as Partial<BaseScore> & { qualificationReason: string })
+      })
     );
 
     expect(result.warnings).not.toContainEqual(

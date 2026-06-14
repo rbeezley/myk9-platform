@@ -84,7 +84,10 @@ Deliverables: `stryker.config.json` scoped by file glob, a `pnpm` script (`test:
 Added Stryker 9.6.1 with the Vitest runner, root mutation scripts, a target-aware
 `stryker.config.mjs`, and `vitest.mutation.config.ts` so each module runs only its
 focused test file(s). Reports write to ignored `reports/mutation/<target>/`; Stryker
-sandboxes write to ignored `.stryker-tmp/`.
+sandboxes write to ignored `.stryker-tmp/`. Mutation runs are intentionally manual,
+not part of CI yet, and `thresholds.break` stays unset while ScoreValidator and
+replication-conflict baselines are below 80%; cart and placement can get a hard gate
+once the baseline proves stable across a few milestone runs.
 
 | Target                       | Mutated files                                                                                                                                                                      | Tests                                        | Mutation score | Notes                                                                                                                                                                                                                                                                                                                       |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- | -------------: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

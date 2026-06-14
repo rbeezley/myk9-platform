@@ -14,3 +14,5 @@ for (const target of targets) {
     process.exit(result.status ?? 1);
   }
 }
+
+console.log('\nAll mutation targets passed.');

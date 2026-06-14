@@ -17,6 +17,7 @@ interface HeroBlockProps {
   venueCity: string | null;
   timezone: string;
   entryWizardUrl: string;
+  canEnterOnline?: boolean;
 }
 
 const SMALLCAPS_MUTE: React.CSSProperties = {
@@ -65,6 +66,7 @@ export function HeroBlock({
   venueCity,
   timezone,
   entryWizardUrl,
+  canEnterOnline = true,
 }: HeroBlockProps) {
   const countdown = useCountdown(entryCloseDate, timezone);
   const dateRangeLabel = formatDateRange(trialStartDate, trialEndDate, timezone);
@@ -220,32 +222,48 @@ export function HeroBlock({
           </p>
         )}
 
-        <a
-          href={entryWizardUrl}
-          className="mg-hero__cta"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 14,
-            padding: '18px 36px',
-            background: monogramColors.ink,
-            color: monogramColors.paper,
-            fontFamily: MONOGRAM_DISPLAY_FAMILY,
-            fontStyle: 'italic',
-            fontSize: 18,
-            letterSpacing: '0.02em',
-            textDecoration: 'none',
-            transition: 'all 280ms ease',
-          }}
-        >
-          Enter your dog
-          <span
-            aria-hidden
-            style={{ fontFamily: MONOGRAM_MONOGRAM_FAMILY, fontSize: 22 }}
+        {canEnterOnline ? (
+          <a
+            href={entryWizardUrl}
+            className="mg-hero__cta"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 14,
+              padding: '18px 36px',
+              background: monogramColors.ink,
+              color: monogramColors.paper,
+              fontFamily: MONOGRAM_DISPLAY_FAMILY,
+              fontStyle: 'italic',
+              fontSize: 18,
+              letterSpacing: '0.02em',
+              textDecoration: 'none',
+              transition: 'all 280ms ease',
+            }}
           >
-            →
-          </span>
-        </a>
+            Enter your dog
+            <span aria-hidden style={{ fontFamily: MONOGRAM_MONOGRAM_FAMILY, fontSize: 22 }}>
+              →
+            </span>
+          </a>
+        ) : (
+          <p
+            className="mg-hero__cta"
+            style={{
+              display: 'inline-flex',
+              maxWidth: 520,
+              padding: '16px 28px',
+              border: `1px solid ${monogramColors.bronze}`,
+              color: monogramColors.quill,
+              fontFamily: MONOGRAM_BODY_FAMILY,
+              fontSize: 15,
+              lineHeight: 1.5,
+              margin: 0,
+            }}
+          >
+            Entries are not available yet because no classes are assigned yet.
+          </p>
+        )}
       </div>
     </header>
   );

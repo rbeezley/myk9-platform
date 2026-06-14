@@ -91,6 +91,7 @@ const ENTRY_STATUS_HERO_VARIANT: Record<
   closed: 'destructive',
   submitted: 'default',
   not_yet_open: 'default',
+  setup_incomplete: 'default',
 };
 
 function isActiveEntryForMineFilter(entry: Record<string, unknown>): boolean {
@@ -346,6 +347,9 @@ const ShowDetailsPage: React.FC = () => {
     return stats;
   }, [associatedTrials, trialClasses, showEntries]);
 
+  const hasEntryClassInventory =
+    associatedTrials.length > 0 ? showClasses.length > 0 : null;
+
   // Redirect if no show ID
   useEffect(() => {
     if (!id) {
@@ -489,12 +493,15 @@ const ShowDetailsPage: React.FC = () => {
           show={publicLandingShow}
           trial={associatedTrials[0] ?? null}
           allTrials={associatedTrials}
+          hasEntryClassInventory={hasEntryClassInventory}
         />
       );
     }
   }
 
-  const entryStatus = getEntryStatus(actualCurrentShow, hasUserEntries);
+  const entryStatus = getEntryStatus(actualCurrentShow, hasUserEntries, {
+    hasEntryClassInventory,
+  });
 
   return (
     <ShowPresenceProvider showId={id}>

@@ -10,7 +10,8 @@ export type EntryStatus =
   | 'accepting' // Currently accepting entries
   | 'closing_soon' // Closing within 7 days
   | 'closed' // After entry close date
-  | 'submitted'; // User has submitted entries
+  | 'submitted' // User has submitted entries
+  | 'setup_incomplete'; // Show has no configured classes to enter
 
 export interface EntryStatusInfo {
   status: EntryStatus;
@@ -21,10 +22,25 @@ export interface EntryStatusInfo {
   canEnter: boolean;
 }
 
+interface EntryStatusOptions {
+  hasEntryClassInventory?: boolean | null;
+}
+
+export function hasKnownEntryClassInventory(show: Show): boolean | null {
+  if (!show.trials || show.trials.length === 0) return null;
+  const trialsWithClassLists = show.trials.filter(trial => Array.isArray(trial.classes));
+  if (trialsWithClassLists.length === 0) return null;
+  return trialsWithClassLists.some(trial => (trial.classes?.length ?? 0) > 0);
+}
+
 /**
  * Get entry status for a show
  */
-export function getEntryStatus(show: Show, userHasEntries: boolean = false): EntryStatusInfo {
+export function getEntryStatus(
+  show: Show,
+  userHasEntries: boolean = false,
+  options: EntryStatusOptions = {}
+): EntryStatusInfo {
   const now = new Date();
   const openDate = toLocalDate(show.entryOpenDate);
   const closeDate = toLocalDate(show.entryCloseDate);
@@ -64,6 +80,17 @@ export function getEntryStatus(show: Show, userHasEntries: boolean = false): Ent
       label: 'Entry Submitted',
       description: 'You have entries for this show',
       canEnter: true, // Can still add more entries while open
+    };
+  }
+
+  const hasEntryClassInventory =
+    options.hasEntryClassInventory ?? hasKnownEntryClassInventory(show);
+  if (hasEntryClassInventory === false) {
+    return {
+      status: 'setup_incomplete',
+      label: 'Classes Not Ready',
+      description: 'This show has no classes assigned yet, so entries are not available.',
+      canEnter: false,
     };
   }
 
@@ -124,6 +151,7 @@ export function getEntryStatusBadgeStyle(status: EntryStatus): {
         variant: 'default',
       };
     case 'not_yet_open':
+    case 'setup_incomplete':
       return {
         className: 'bg-muted/30 text-muted-foreground border-muted/10 border',
         variant: 'outline',

@@ -212,6 +212,42 @@ describe('entryStatusUtils', () => {
         expect(result.daysUntilClose).toBe(8);
       });
     });
+
+    it('blocks entry when an otherwise accepting show has trials but no classes', () => {
+      const now = new Date(2024, 0, 10, 12);
+      vi.setSystemTime(now);
+
+      const show = createMockShow({
+        entryOpenDate: '2024-01-01',
+        entryCloseDate: '2024-02-01',
+        trials: [
+          { id: 'trial-1', name: 'Trial 1', date: '2024-02-15', trialNumber: '1', status: 'upcoming', classes: [] },
+        ],
+      });
+      const result = getEntryStatus(show, false);
+
+      expect(result.status).toBe('setup_incomplete');
+      expect(result.label).toBe('Classes Not Ready');
+      expect(result.description).toMatch(/no classes/i);
+      expect(result.canEnter).toBe(false);
+    });
+
+    it('keeps submitted entry access even when class inventory is empty', () => {
+      const now = new Date(2024, 0, 10, 12);
+      vi.setSystemTime(now);
+
+      const show = createMockShow({
+        entryOpenDate: '2024-01-01',
+        entryCloseDate: '2024-02-01',
+        trials: [
+          { id: 'trial-1', name: 'Trial 1', date: '2024-02-15', trialNumber: '1', status: 'upcoming', classes: [] },
+        ],
+      });
+      const result = getEntryStatus(show, true);
+
+      expect(result.status).toBe('submitted');
+      expect(result.canEnter).toBe(true);
+    });
   });
 
   describe('getEntryStatusBadgeStyle', () => {
@@ -246,6 +282,13 @@ describe('entryStatusUtils', () => {
 
     it('should return outline styling for not_yet_open status', () => {
       const result = getEntryStatusBadgeStyle('not_yet_open');
+
+      expect(result.className).toContain('muted');
+      expect(result.variant).toBe('outline');
+    });
+
+    it('should return muted outline styling for setup_incomplete status', () => {
+      const result = getEntryStatusBadgeStyle('setup_incomplete');
 
       expect(result.className).toContain('muted');
       expect(result.variant).toBe('outline');

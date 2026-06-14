@@ -195,14 +195,17 @@ vi.mock('@/components/common/DetailHero', () => ({
     headerActions,
     primaryAction,
     secondaryActions,
+    closedMessage,
   }: {
     name: string;
     headerActions?: React.ReactNode;
     primaryAction?: { label: string; onClick: () => void };
     secondaryActions?: React.ReactNode;
+    closedMessage?: string;
   }) => (
     <div data-testid="detail-hero">
       {name}
+      {closedMessage && <div>{closedMessage}</div>}
       <div data-testid="hero-header-actions">{headerActions}</div>
       {primaryAction && <button data-testid="hero-action">{primaryAction.label}</button>}
       <div data-testid="hero-secondary-actions">{secondaryActions}</div>
@@ -421,6 +424,25 @@ describe('ShowDetailsPage', () => {
     mockUserEntries = [];
     renderPage();
     expect(screen.getByRole('button', { name: 'Enter This Show' })).toBeInTheDocument();
+  });
+
+  it('hides the enter action when loaded trials have no classes', () => {
+    mockUserEntries = [];
+    mockTrials = [
+      {
+        id: 'trial-1',
+        showId: 'show-1',
+        trialDate: '2026-03-22',
+        trialNumber: '1',
+        name: 'Trial 1',
+      },
+    ];
+    mockTrialClasses = { 'trial-1': [] };
+
+    renderPage();
+
+    expect(screen.queryByRole('button', { name: 'Enter This Show' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('detail-hero')).toHaveTextContent(/no classes assigned/i);
   });
 
   it('shows "Manage Entry" button when user has entries and entries are open', () => {

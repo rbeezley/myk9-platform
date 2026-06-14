@@ -19,6 +19,7 @@ interface MonogramLandingPageProps {
   show: Show | null | undefined;
   trial: Trial | null | undefined;
   allTrials: Trial[];
+  hasEntryClassInventory?: boolean | null;
 }
 
 /**
@@ -31,12 +32,18 @@ interface MonogramLandingPageProps {
  *
  * The `data-monogram` attribute scopes all `.mg-*` rules from monogram.css.
  */
-export function MonogramLandingPage({ show, trial, allTrials }: MonogramLandingPageProps) {
+export function MonogramLandingPage({
+  show,
+  trial,
+  allTrials,
+  hasEntryClassInventory,
+}: MonogramLandingPageProps) {
   useEffect(() => {
     ensureMonogramFontsLoaded();
   }, []);
 
   const data = useMonogramLandingData(show, trial, allTrials);
+  const canEnterOnline = hasEntryClassInventory !== false;
 
   return (
     <div
@@ -61,6 +68,7 @@ export function MonogramLandingPage({ show, trial, allTrials }: MonogramLandingP
         clubName={data.clubName}
         monogramLetters={data.monogramLetters}
         entryWizardUrl={data.entryWizardUrl}
+        canEnterOnline={canEnterOnline}
       />
 
       <main>
@@ -76,6 +84,7 @@ export function MonogramLandingPage({ show, trial, allTrials }: MonogramLandingP
           venueCity={data.venueCity}
           timezone={data.timezone}
           entryWizardUrl={data.entryWizardUrl}
+          canEnterOnline={canEnterOnline}
         />
 
         <WelcomeSection
@@ -115,6 +124,7 @@ export function MonogramLandingPage({ show, trial, allTrials }: MonogramLandingP
           entryWizardUrl={data.entryWizardUrl}
           entryCloseDate={data.entryCloseDate}
           timezone={data.timezone}
+          canEnterOnline={canEnterOnline}
         />
       </main>
 

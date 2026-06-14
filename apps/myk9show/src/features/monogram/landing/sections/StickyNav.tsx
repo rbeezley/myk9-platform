@@ -6,6 +6,7 @@ interface StickyNavProps {
   clubName: string;
   monogramLetters: string;
   entryWizardUrl: string;
+  canEnterOnline?: boolean;
 }
 
 /**
@@ -17,7 +18,12 @@ interface StickyNavProps {
  * landing has a continuous flow rather than chapter jumps. If we later add
  * deep links to section folios, refactor to the Heritage StickyNav pattern.
  */
-export function StickyNav({ clubName, monogramLetters, entryWizardUrl }: StickyNavProps) {
+export function StickyNav({
+  clubName,
+  monogramLetters,
+  entryWizardUrl,
+  canEnterOnline = true,
+}: StickyNavProps) {
   return (
     <nav
       className="mg-nav"
@@ -54,23 +60,40 @@ export function StickyNav({ clubName, monogramLetters, entryWizardUrl }: StickyN
           {clubName || 'Kennel Club'}
         </span>
       </div>
-      <a
-        href={entryWizardUrl}
-        className="mg-nav__cta"
-        style={{
-          padding: '10px 22px',
-          border: `1px solid ${monogramColors.ink}`,
-          fontSize: 13,
-          fontWeight: 500,
-          letterSpacing: '0.18em',
-          textTransform: 'uppercase',
-          color: monogramColors.ink,
-          textDecoration: 'none',
-          transition: 'all 240ms ease',
-        }}
-      >
-        Enter this show
-      </a>
+      {canEnterOnline ? (
+        <a
+          href={entryWizardUrl}
+          className="mg-nav__cta"
+          style={{
+            padding: '10px 22px',
+            border: `1px solid ${monogramColors.ink}`,
+            fontSize: 13,
+            fontWeight: 500,
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+            color: monogramColors.ink,
+            textDecoration: 'none',
+            transition: 'all 240ms ease',
+          }}
+        >
+          Enter this show
+        </a>
+      ) : (
+        <span
+          className="mg-nav__cta"
+          style={{
+            padding: '10px 22px',
+            border: `1px solid ${monogramColors.mute}`,
+            fontSize: 13,
+            fontWeight: 500,
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+            color: monogramColors.mute,
+          }}
+        >
+          Classes pending
+        </span>
+      )}
     </nav>
   );
 }

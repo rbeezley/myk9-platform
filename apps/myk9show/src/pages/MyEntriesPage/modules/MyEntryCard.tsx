@@ -39,6 +39,15 @@ interface MyEntryCardProps {
   onReceiptClick: (entry: MyEntry) => void;
 }
 
+function buildEntryPaymentHref(entry: MyEntry): string {
+  // EntryClass.id is the underlying entries-row id in useMyEntriesData.
+  const entryIds = entry.classes.map(cls => cls.id).filter(Boolean);
+  const params = new URLSearchParams();
+  params.set('showId', entry.showId);
+  params.set('entryIds', entryIds.length > 0 ? entryIds.join(',') : entry.id);
+  return `/cart?${params.toString()}`;
+}
+
 /**
  * Card component displaying a single entry's details
  */
@@ -253,7 +262,7 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
 
           {canFinishPayment && (
             <Button asChild className="min-h-[44px] transition-all duration-200">
-              <Link to="/cart">
+              <Link to={buildEntryPaymentHref(entry)}>
                 <CreditCard className="h-5 w-5 mr-1.5" />
                 Finish Payment
               </Link>

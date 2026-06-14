@@ -741,8 +741,10 @@ git diff --check
 
 Expected: PASS with no whitespace errors.
 
-- [ ] **Step 5: Browser re-walk the money-path recovery**
+- [x] **Step 5: Browser re-walk the money-path recovery**
 
 Use the local app to re-check My Shows → Finish Payment and Current Fees → `/cart`. The cart should show the recovered entries instead of the empty-cart state.
 
 Note: the live re-walk writes to the linked Supabase project because recovery extends the cart and may rebuild missing cart items. Get explicit shared-DB approval before running this against staging data.
+
+2026-06-14 evidence: after explicit shared-DB approval, the browser re-walk found that bare `/cart` still rendered empty when `entry_cart_items` had been lost. The fix now deep-links unpaid My Shows actions to `/cart?showId=<showId>&entryIds=<entryIds>` and rebuilds only those exact owner-verified pending entries. Current Fees and Finish Payment both recovered entry `800e7aa1-f57c-40cf-9b03-c238efb360b8` for show `3b91e282-6e45-4a89-9446-f6ebeb0bf62c`; the cart rendered `Dog 1`, `1 Entry`, and total `$32.10`. Recovery inserted the expected staging `entry_cart_items` row for cart `86722292-d636-413b-a357-c88990b8f408`.

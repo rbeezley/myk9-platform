@@ -155,6 +155,24 @@ describe('CompactStatsRow', () => {
     expect(onNavigate).toHaveBeenCalledWith('/cart');
   });
 
+  it('uses the provided exact payment recovery URL for Current Fees', async () => {
+    const onNavigate = vi.fn();
+    render(
+      <CompactStatsRow
+        {...defaultProps}
+        currentFees={125}
+        amountDue={125}
+        currentFeesHref="/cart?showId=show-1&entryIds=entry-1%2Centry-2"
+        onNavigate={onNavigate}
+      />
+    );
+
+    const feesCard = screen.getByLabelText(/Current Fees.*Amount due/i);
+    await userEvent.click(feesCard);
+
+    expect(onNavigate).toHaveBeenCalledWith('/cart?showId=show-1&entryIds=entry-1%2Centry-2');
+  });
+
   it('keeps Current Fees on My Shows when no payment is due', async () => {
     const onNavigate = vi.fn();
     render(

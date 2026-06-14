@@ -117,6 +117,26 @@ const MyEntriesPage: React.FC = () => {
     }, {});
   }, [entries]);
 
+  const currentFeesHref = useMemo(() => {
+    const now = new Date();
+    const unpaidCurrentEntries = entries.filter(
+      entry => !isPastShowEntry(entry, now) && entry.paymentStatus === PaymentStatus.PENDING
+    );
+    const showIds = Array.from(new Set(unpaidCurrentEntries.map(entry => entry.showId)));
+
+    if (unpaidCurrentEntries.length === 0 || showIds.length !== 1 || !showIds[0]) {
+      return '/exhibitor/entries?tab=pending';
+    }
+
+    const entryIds = unpaidCurrentEntries.flatMap(entry =>
+      entry.classes.length > 0 ? entry.classes.map(cls => cls.id) : [entry.id]
+    );
+    const params = new URLSearchParams();
+    params.set('showId', showIds[0]);
+    params.set('entryIds', entryIds.join(','));
+    return `/cart?${params.toString()}`;
+  }, [entries]);
+
   // Dialog states
   const [checkInDialog, setCheckInDialog] = useState<CheckInDialogState>({
     open: false,
@@ -247,6 +267,7 @@ const MyEntriesPage: React.FC = () => {
             pastShows={entryStats.pastShows}
             currentFees={entryStats.currentFees}
             amountDue={entryStats.currentAmountDue}
+            currentFeesHref={currentFeesHref}
             onNavigate={navigate}
           />
 

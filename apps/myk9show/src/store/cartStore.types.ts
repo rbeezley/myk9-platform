@@ -101,7 +101,10 @@ export interface CartState {
   loadCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;
   /** Hydrate the most recent active cart regardless of show — for direct
    * visits to /cart (refresh, new tab). The store is in-memory only. */
-  loadActiveCart: (exhibitorId: string) => Promise<CartWithDetails | null>;
+  loadActiveCart: (
+    exhibitorId: string,
+    options?: { showId?: string; recoveryEntryIds?: string[] }
+  ) => Promise<CartWithDetails | null>;
   createCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;
   addItem: (item: NewCartItem) => Promise<boolean>;
   removeItem: (itemId: string) => Promise<boolean>;

@@ -5,8 +5,8 @@
  * modify entries, and proceed to checkout.
  */
 
-import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { ShoppingCart, ArrowLeft, Trash2, AlertCircle, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -29,6 +29,7 @@ import { createEntryCheckoutSession } from '@/lib/stripe';
 
 export default function CartPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuthContext();
   const { profile } = useExhibitorProfile();
   const cart = useCartStore(state => state.cart);
@@ -43,6 +44,16 @@ export default function CartPage() {
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const recoveryShowId = searchParams.get('showId') ?? undefined;
+  const recoveryEntryIdsParam = searchParams.get('entryIds') ?? '';
+  const recoveryEntryIds = useMemo(
+    () =>
+      recoveryEntryIdsParam
+        .split(',')
+        .map(id => id.trim())
+        .filter(Boolean),
+    [recoveryEntryIdsParam]
+  );
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -56,9 +67,18 @@ export default function CartPage() {
   // unless the same tab just populated it (2026-06-10 walkthrough finding).
   useEffect(() => {
     if (profile?.id) {
-      loadActiveCart(profile.id);
+      const cartLoadOptions: {
+        showId?: string;
+        recoveryEntryIds?: string[];
+      } = { recoveryEntryIds };
+
+      if (recoveryShowId) {
+        cartLoadOptions.showId = recoveryShowId;
+      }
+
+      loadActiveCart(profile.id, cartLoadOptions);
     }
-  }, [profile?.id, loadActiveCart]);
+  }, [profile?.id, loadActiveCart, recoveryShowId, recoveryEntryIds]);
 
   const handleRemoveItem = async (itemId: string) => {
     setRemovingItemId(itemId);

@@ -164,7 +164,7 @@ const RingMonitor: React.FC<RingMonitorProps> = ({ userEntry, ringStatus, onRefr
                         #{entry.armband}
                       </div>
                       {isUser && (
-                        <div className="px-2 py-1 bg-info text-white text-xs font-medium rounded">
+                        <div className="px-2 py-1 bg-info/10 text-info text-xs font-medium rounded">
                           YOU
                         </div>
                       )}

@@ -314,7 +314,7 @@ const LiveResults: React.FC<LiveResultsProps> = ({
                           #{entry.armband}
                         </span>
                         {isUser && (
-                          <span className="px-2 py-0.5 bg-info text-white text-xs font-medium rounded">
+                          <span className="px-2 py-0.5 bg-info/10 text-info text-xs font-medium rounded">
                             YOUR DOG
                           </span>
                         )}
@@ -386,7 +386,7 @@ const LiveResults: React.FC<LiveResultsProps> = ({
         <div className="mt-6 space-y-3">
           <button
             onClick={handleEmailResults}
-            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-info text-white rounded-lg hover:bg-info transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-info/10 text-info rounded-lg hover:bg-info/20 transition-colors"
           >
             <Mail className="w-5 h-5" />
             Email Results

@@ -159,14 +159,17 @@ Update plan/tracking documents (`OPEN-TODOS.md`, sprint docs, debt register) aft
 
 ## Small Maintenance Changes
 
-For docs-only, `OPEN-TODOS.md`, skill, and agent prompt edits:
+**Docs-only tracking edits go direct to `main` by default.** For `OPEN-TODOS.md`, `TO-DOS.md`, and other files in the `CLAUDE.md` docs-only-direct-to-`main` scope (`docs/**/*.md`, top-level tracking/reference docs, package/function READMEs):
 
-- Prefer one standing maintenance worktree/branch instead of one branch per tiny change.
-- Default branch name: `codex/maintenance-notes`.
+- Commit and `git push origin main` directly — no branch, no PR, no per-session approval needed. As of 2026-06-14 the `main` rulesets grant the admin role (the owner token) `bypass_mode: always`, so the push succeeds; the PR + required-checks gates are bypassed for that identity. The restriction is convention, not enforcement, so stay strictly inside the docs-only scope.
+- From the primary checkout while linked worktrees exist, prefix with `MYK9_ALLOW_PRIMARY_COMMIT=1 git commit ...` (the local pre-commit guard is separate from the ruleset and still applies).
+- Validate with `git diff --check` plus targeted `rg` checks. Do not run app tests/typecheck for Markdown-only changes.
+
+For skill, agent-prompt (`.claude/**`), or any other **out-of-docs-scope** small edits — these still require a PR:
+
+- Prefer one standing maintenance worktree/branch instead of one branch per tiny change. Default branch name: `codex/maintenance-notes`.
 - Batch related small edits into one commit/PR when practical.
-- Validate Markdown/prompt-only changes with `git diff --check` plus targeted `rg` checks.
 - Do not run app tests/typecheck unless TypeScript, app code, migrations, or executable scripts changed.
-- Direct-to-`main` is allowed only when the user explicitly says "direct-to-main approved" for that session.
 
 ## Debugging seed-data / config bugs
 

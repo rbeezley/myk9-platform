@@ -386,7 +386,7 @@ describe('cartStore payment recovery', () => {
       { column: 'id', values: ['entry-1'] },
       {
         column: 'entry_status',
-        values: ['pending', 'submitted', 'pending-payment', 'accepted', 'confirmed'],
+        values: ['pending', 'submitted', 'pending-payment', 'confirmed'],
       },
       { column: 'dog_id', values: ['dog-1'] },
     ]);

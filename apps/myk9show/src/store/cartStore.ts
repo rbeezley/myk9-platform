@@ -225,6 +225,8 @@ export const useCartStore = create<CartState>()(
             return null;
           }
 
+          // Exact-entry recovery only rebuilds into an existing empty cart shell;
+          // it does not recreate missing cart rows or backfill partially emptied carts.
           if (items.length === 0 && options.recoveryEntryIds?.length) {
             items = await recoverCartItemsFromEntryIds({
               cartId: cartData.id,

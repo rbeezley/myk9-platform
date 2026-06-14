@@ -80,7 +80,8 @@ export const recoverCartItemsFromEntryIds = async ({
     .in('id', explicitEntryIds)
     .eq('show_id', showId)
     .eq('payment_status', 'pending')
-    .in('entry_status', ['pending', 'submitted', 'pending-payment', 'accepted', 'confirmed'])
+    // Keep this aligned with entries_entry_status_check; UI "accepted" maps to DB "confirmed".
+    .in('entry_status', ['pending', 'submitted', 'pending-payment', 'confirmed'])
     .is('deleted_at', null)
     .in('dog_id', dogIds);
 

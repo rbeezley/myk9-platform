@@ -40,6 +40,7 @@ interface MyEntryCardProps {
 }
 
 function buildEntryPaymentHref(entry: MyEntry): string {
+  // EntryClass.id is the underlying entries-row id in useMyEntriesData.
   const entryIds = entry.classes.map(cls => cls.id).filter(Boolean);
   const params = new URLSearchParams();
   params.set('showId', entry.showId);

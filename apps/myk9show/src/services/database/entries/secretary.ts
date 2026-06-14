@@ -72,14 +72,11 @@ export const getEntriesForShow = async (showId: string) => {
   try {
     const result = await getReplicatedSecretaryEntriesForShow(showId);
     if (!result.isColdStore) {
-      // Store has rows for this show (including deleted) — it was synced.
-      // Trust the replication result even if all entries filtered out.
       logQuery('entries', 'get_entries_for_show', Date.now() - startTime);
       return { data: result.data, error: null };
     }
-    // Store has zero raw rows — never synced for this show (cold store).
-    // Entries only sync inside the at-show context, so fall through to
-    // PostgREST so entry management agrees with the dashboard attention strip.
+    // Cold store: zero raw rows for this show (never synced in at-show context).
+    // Fall through to PostgREST so entry management agrees with the attention strip.
     logger.warn(
       'Secretary entries replication cold; falling back to PostGREST',
       'database',

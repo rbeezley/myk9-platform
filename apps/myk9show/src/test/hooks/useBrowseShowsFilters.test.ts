@@ -3,19 +3,31 @@ import { describe, it, expect } from 'vitest';
 import { useBrowseShowsFilters } from '@/hooks/useBrowseShowsFilters';
 import type { Show } from '@/types/show-types';
 
+// ISO date-only string built from local calendar components — mirrors how DB values arrive
+// and avoids the UTC-midnight-vs-local-midnight ambiguity that caused the original bug.
+function localISODate(offsetDays = 0): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Relative dates so the default fixture stays "upcoming" forever — a hardcoded
+// future date (e.g. 2026-10-01) silently turns "past" once the wall clock passes
+// it, which would drop the default show from the upcoming-filtered results that
+// the non-date tests (discipline, etc.) rely on.
 function makeShow(overrides: Partial<Show> = {}): Show {
   return {
     id: 'show-1',
     name: 'Test Show',
     organization: 'AKC',
-    startDate: '2026-10-01',
-    endDate: '2026-10-02',
+    startDate: localISODate(60),
+    endDate: localISODate(61),
     location: 'Test City, CA',
     status: 'Upcoming',
     events: ['Scent Work'],
     source: 'myK9Show',
-    entryOpenDate: '2026-08-01',
-    entryCloseDate: '2026-09-15',
+    entryOpenDate: localISODate(30),
+    entryCloseDate: localISODate(55),
     preEntryFee: '25',
     clubId: 'club-1',
     clubName: 'Test Club',
@@ -33,14 +45,6 @@ function makeShow(overrides: Partial<Show> = {}): Show {
 
 function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
-}
-
-// ISO date-only string built from local calendar components — mirrors how DB values arrive
-// and avoids the UTC-midnight-vs-local-midnight ambiguity that caused the original bug.
-function localISODate(offsetDays = 0): string {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDays);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 // Far-future anchor show — gives applyFilters a stable "I've run" signal when

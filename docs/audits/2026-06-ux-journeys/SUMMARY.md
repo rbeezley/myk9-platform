@@ -64,7 +64,11 @@ Green is not available from this synthesis. Green requires remediation, fixture-
 | 4 | Secretary closeout and routing polish | UX-P1-05, UX-P1-06, UX-P2-07, UX-P2-08, UX-P2-09 | Preserve "That was easy" in routing, reports, and final submission. | Browser checks for routing/reports/submit gating; focused tests for navigation and submit guard behavior. |
 | 5 | Fixture-backed seam completion | UX-P2-11 plus unverified mutation seams | Prove waitlist, scratch, message, withdrawal/refund, and result-publish latency/state agreement without guessing. | Local Dynamic QA fixtures or approved shared seed mutations; no Green score until evidence exists. |
 
-**Wave 1 implementation note:** In progress on branch `codex/wave1-exhibitor-entry-payment-trust`. Do not rescore Exhibitor to Yellow or Green until focused tests and the browser re-walk pass.
+**Wave 1 implementation note:** Shipped in PRs #732, #733, and #734. Do not rescore Exhibitor to Yellow or Green until the post-remediation golden-path re-walk records class selection, payment handoff, confirmation, and payment recovery evidence in this summary.
+
+**Wave 2 implementation note:** Implemented locally on branch `codex/wave2-cross-role-seams` pending focused verification and browser seam re-walk. Plan: [`docs/plan-wave2-cross-role-seam-recovery.md`](../../plan-wave2-cross-role-seam-recovery.md). Scope stayed on existing message, status, My Entries, and Show Map message-dialog surfaces only; fixture-backed mutation proof remains Wave 5 unless shared Supabase seed mutations are explicitly approved.
+
+**Wave 2 local verification note:** Focused unit/component tests passed 2026-06-14. Local browser re-walk confirmed exhibitor `/messages/:showId` is nonblank, the empty message route shows `Message the show team` and `Start message`, post-deadline My Entries cards link to `/messages/:showId`, and Message Center compose inherits a valid `showId` from `/secretary/messages?showId=...`. Withdrawn/refunded browser agreement remains fixture-limited in browser because the available local secretary shows had no matching withdrawn/refunded row. Show Map entry-row messaging is covered for rows with handler contact context; no-handler fallback remains a Wave 5 fixture/product decision so the row action does not offer a compose path that cannot send.
 
 ## Duplication And Consolidation Notes
 
@@ -75,7 +79,7 @@ Green is not available from this synthesis. Green requires remediation, fixture-
 | Payment recovery | Potentially | Link into existing payment/receipt flow; do not create a second payment workflow. |
 | Pull/scratch recovery | Yes if rebuilt | Link into existing Message Center or Pull Management lane; do not duplicate Entry Management. |
 | Exhibitor messages | No | Repair existing `/messages/:showId` empty/start state. |
-| Secretary contact from Show Map | Yes if rebuilt | Deep-link into existing Message Center with context. |
+| Secretary contact from Show Map | Yes if rebuilt | Reuse the existing Show Map message dialog or Message Center context; no duplicate composer. |
 | Waitlist verification | No | Add fixture evidence only; do not add UI for the sake of testing. |
 | Results explanation | No | Tighten existing Results tab copy/state. |
 | Secretary reports and submit results | No | Tighten existing pages; no new closeout flow. |
@@ -85,9 +89,9 @@ Green is not available from this synthesis. Green requires remediation, fixture-
 Before remediation begins, confirm:
 
 - [x] Wave 1 is approved as the first remediation wave.
-- [ ] Wave 2 is approved once entry/payment trust is unblocked.
+- [x] Wave 2 is approved once entry/payment trust is unblocked.
 - [ ] Wave 3 can run after or beside Wave 2 if a separate worktree is available.
 - [ ] Wave 4 can run independently because it is secretary closeout/routing polish.
 - [ ] Wave 5 should use local Dynamic QA fixtures unless the user explicitly approves shared Supabase seed mutations.
 
-Recommended next action: approve Wave 1, then create a focused implementation plan for exhibitor entry and payment trust.
+Recommended next action: complete Wave 2 focused verification and browser seam re-walk, then decide whether Wave 3 or Wave 4 should run next.

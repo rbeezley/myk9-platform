@@ -94,7 +94,9 @@ Green is not available from this synthesis. Green requires remediation, fixture-
 
 ## Human Gate
 
-**APPROVED 2026-06-15.** The remediation list (23 findings, duplication answers, Waves 1–5) is ratified as the consolidation contract: every remedy is a link / tighten / repair / fixture-only — no new surfaces. Wave 3 is unlocked. Pre-approval check: `UX-P1-01` was confirmed a **test-data gap** (show "Monogram" has 4 trials / 0 classes), not a code bug — the dead-end UX is already gated in code; the residual is seeding classes into that show. Exhibitor status is therefore closer to Yellow than the headline Red once that show has classes.
+**APPROVED 2026-06-15.** The remediation list (23 findings, duplication answers, Waves 1–5) is ratified as the consolidation contract: every remedy is a link / tighten / repair / fixture-only — no new surfaces. Wave 3 is unlocked. Pre-approval check: `UX-P1-01` was confirmed a **test-data gap** (audit saw show "Monogram" with 4 trials / 0 classes), not a code bug — the dead-end UX is already gated in code.
+
+**`UX-P1-01` data gap RESOLVED (verified 2026-06-15).** A direct DB check shows show `5d8bfe56-a48d-48dd-ae75-7f90c2e02c4f` now has **32 valid AKC Scent Work classes** (4 trials × 8: Container/Interior × Novice A→Master, $30, `upcoming`). The exhibitor enter→pay path is data-unblocked; no write was made (inserting would have duplicated classes). The Exhibitor golden-path Red→Yellow flip now waits only on the Phase 6 re-walk through class selection → payment handoff → confirmation.
 
 Before remediation begins, confirm:
 

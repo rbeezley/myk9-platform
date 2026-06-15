@@ -136,6 +136,25 @@ describe('MyEntryCard payment recovery', () => {
   });
 });
 
+describe('MyEntryCard history status clarity', () => {
+  it('uses past-show labels for unresolved history cards instead of active workflow labels', () => {
+    renderCard(
+      makeEntry({
+        showDate: new Date('2020-05-01T00:00:00'),
+        showEndDate: new Date('2020-05-02T00:00:00'),
+        entryStatus: EntryStatus.PENDING,
+        paymentStatus: PaymentStatus.PENDING,
+        totalFee: 85,
+      })
+    );
+
+    expect(screen.getByText('Review incomplete')).toBeInTheDocument();
+    expect(screen.getByText('Payment unresolved')).toBeInTheDocument();
+    expect(screen.queryByText('Pending Review')).not.toBeInTheDocument();
+    expect(screen.queryByText('Payment Due')).not.toBeInTheDocument();
+  });
+});
+
 describe('MyEntryCard post-deadline recovery', () => {
   it('links post-deadline blocked edits to the existing message route', () => {
     renderCard(

@@ -54,6 +54,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-ux-journey-audit.md](plan-ux-journey-audit.md) | Active | Plan: UX Journey Audit — Exhibitor & Secretary |
 | [plan-wave1-exhibitor-entry-payment-trust.md](plan-wave1-exhibitor-entry-payment-trust.md) | Active | Wave 1 Exhibitor Entry And Payment Trust Implementation Plan |
 | [plan-wave3a-at-show-phone-polish.md](plan-wave3a-at-show-phone-polish.md) | Active | Wave 3A At-Show Phone Polish Plan |
+| [plan-wave3b-results-my-shows-clarity.md](plan-wave3b-results-my-shows-clarity.md) | Active | Wave 3B Results and My Shows Clarity Plan |
 | [playbook-impeccable-page-improvements.md](playbook-impeccable-page-improvements.md) | Reference | Impeccable Page-Improvement Playbook |
 
 ### plans/ — feature & phase plans

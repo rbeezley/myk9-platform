@@ -80,7 +80,7 @@ Plan: [`docs/plan-ux-journey-audit.md`](docs/plan-ux-journey-audit.md). Journey-
 - [x] ~~**Phase 2 — exhibitor journey**~~ — Walk completed in `docs/audits/2026-06-ux-journeys/01-exhibitor-journey.md` (cold-start, 6-pass rubric, phone-at-ringside, money-path sweep). Findings extracted below (2026-06-14 triage).
   - [ ] **[UX P1] Monogram accepting show has no classes assigned → exhibitor cannot enter** — golden-path blocker; confirm seed vs real before fixing.
   - [ ] **[UX P2] Payment Due / Current Fees has no pay/retry/receipt action from My Shows** — money path dead-ends with no CTA.
-  - [ ] **[UX P2] Completed/history entry still shows Pending Review + Payment Due + Upcoming** — past entries render with live-state badges.
+  - [x] ~~**[UX P2] Completed/history entry still shows Pending Review + Payment Due + Upcoming**~~ — Implemented locally in branch `codex/wave3b-results-my-shows-clarity`: past unresolved My Entries cards now use historical labels, and past classes without posted results read `Awaiting results` instead of `Upcoming`.
   - [x] ~~**[UX P2] At-show actions menu leaks staff/report artifacts to exhibitors**~~ — Implemented locally in branch `codex/wave3a-at-show-phone-polish`: exhibitor entry-list action menus now hide staff print/report items while preserving refresh and staff-role menus.
   - [ ] **[UX P2] Show Details lacks class/dog-fit detail before registration** — exhibitor can't see which classes fit their dog pre-entry.
   - [ ] **[UX P2] Landing page hides Browse Shows from cold-start exhibitors** — surface Browse Shows for logged-out/cold-start.

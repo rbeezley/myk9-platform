@@ -3,6 +3,7 @@ import { ChevronRight, CheckCircle2, Clock, Hash, MapPin, XCircle } from 'lucide
 import { Chip } from '@/components/base/Chip';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
 import type { EnrichedShowEntry } from '@/hooks/useShowEntriesForUser';
+import { getPendingResultLabel } from './entryResultDisplay';
 
 interface WhereToBeProps {
   entries: EnrichedShowEntry[];
@@ -97,15 +98,20 @@ function TimelineRow({ entry, showId }: TimelineRowProps) {
 }
 
 function ResultChip({ entry }: { entry: EnrichedShowEntry }) {
-  if (!entry.hasResult || !entry.result) {
+  const pendingLabel = getPendingResultLabel(entry);
+
+  if (pendingLabel) {
     return (
       <Chip color="stone" size="sm">
-        Upcoming
+        {pendingLabel}
       </Chip>
     );
   }
 
-  const { qualified, time } = entry.result;
+  const result = entry.result;
+  if (!result) return null;
+
+  const { qualified, time } = result;
   if (qualified) {
     return (
       <Chip color="green" size="sm" leadingIcon={<CheckCircle2 className="h-3 w-3" />}>

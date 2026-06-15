@@ -77,7 +77,7 @@ export interface CleanSweepDog {
   qualifiedCount: number;
 }
 
-function isScored(entry: StatsEntry): boolean {
+export function isScored(entry: StatsEntry): boolean {
   return entry.resultText !== 'pending';
 }
 

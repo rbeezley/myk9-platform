@@ -32,6 +32,7 @@ import {
   getStatusIcon,
   getContextualStatusMessage,
 } from './myEntriesUtils';
+import { isPastShowEntry } from './myEntriesStats.helpers';
 
 interface MyEntryCardProps {
   entry: MyEntry;
@@ -67,6 +68,7 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
     isTomorrow,
     differenceInDays
   );
+  const isPastShow = isPastShowEntry(entry, new Date(currentTime));
 
   const isPaid =
     entry.paymentStatus === PaymentStatus.PAID_ONLINE ||
@@ -124,8 +126,8 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
           </div>
         </div>
         <div className="myk9-entries-badges">
-          {getEntryStatusBadge(entry.entryStatus)}
-          {getPaymentStatusBadge(entry.paymentStatus)}
+          {getEntryStatusBadge(entry.entryStatus, { isPastShow })}
+          {getPaymentStatusBadge(entry.paymentStatus, { isPastShow })}
         </div>
       </div>
 

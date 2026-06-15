@@ -16,6 +16,7 @@ import { Chip } from '@/components/base/Chip';
 import { PlacementPill } from '@/components/base/PlacementPill';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
 import type { DogEntriesGroup, EnrichedShowEntry } from '@/hooks/useShowEntriesForUser';
+import { getPendingResultLabel } from './entryResultDisplay';
 
 type ElementIconConfig = { icon: React.ElementType; bg: string; fg: string };
 
@@ -138,15 +139,20 @@ function EntryRow({ entry, showId }: EntryRowProps) {
 }
 
 function EntryResultBadge({ entry }: { entry: EnrichedShowEntry }) {
-  if (!entry.hasResult || !entry.result) {
+  const pendingLabel = getPendingResultLabel(entry);
+
+  if (pendingLabel) {
     return (
       <Chip color="stone" size="sm">
-        Upcoming
+        {pendingLabel}
       </Chip>
     );
   }
 
-  const { qualified, time, placement } = entry.result;
+  const result = entry.result;
+  if (!result) return null;
+
+  const { qualified, time, placement } = result;
 
   return (
     <div className="flex items-center gap-1.5 shrink-0">

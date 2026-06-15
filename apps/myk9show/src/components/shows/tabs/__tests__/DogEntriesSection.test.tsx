@@ -36,4 +36,26 @@ describe('DogEntriesSection', () => {
     expect(screen.queryByText('Armband 42')).not.toBeInTheDocument();
     expect(screen.getByText('42')).toBeInTheDocument();
   });
+
+  it('labels past entries without results as awaiting results, not upcoming', () => {
+    render(
+      <DogEntriesSection
+        group={{
+          ...group,
+          entries: [
+            {
+              ...group.entries[0],
+              trialDate: '2020-05-09',
+              dayLabel: 'Saturday, May 9',
+              hasResult: false,
+            },
+          ],
+        }}
+        showId="show-1"
+      />
+    );
+
+    expect(screen.getByText('Awaiting results')).toBeInTheDocument();
+    expect(screen.queryByText('Upcoming')).not.toBeInTheDocument();
+  });
 });

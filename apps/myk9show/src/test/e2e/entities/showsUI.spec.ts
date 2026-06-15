@@ -155,52 +155,8 @@ test.describe('Shows UI — Detail (secretary)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Run Order — regression guard for the classCreationStore → Supabase fix
+// Run Order — legacy /secretary/run-order page deleted in PR #754.
+// The route now redirects into the workbench; redirect behavior is covered
+// deterministically by src/test/routes/secretaryShowPhaseRedirects.test.tsx,
+// so the former picker/Run Order Management e2e guards were removed here.
 // ---------------------------------------------------------------------------
-
-test.describe('Shows UI — Run Order (secretary)', () => {
-  test.beforeEach(async ({ page }) => {
-    await signInAsSecretary(page);
-  });
-
-  test('Run Order with no trial in URL shows the trial picker', async ({ page }) => {
-    await page.goto('/secretary/run-order');
-    // INTENT: Page used to render "Run Order Management — No trial selected"
-    // (a dead end) when reached via the sidebar. With the picker, the
-    // secretary can pick a show + trial and continue.
-    await expect(page.getByRole('heading', { name: 'Select a trial', level: 3 })).toBeVisible();
-    await expect(page.getByText('Show', { exact: true })).toBeVisible();
-    await expect(page.getByText('Trial', { exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Continue' })).toBeDisabled();
-  });
-
-  test('picker → continue navigates to ?trialId=… and loads classes from DB', async ({ page }) => {
-    await page.goto('/secretary/run-order');
-
-    // Show picker.
-    await page.getByRole('combobox').first().click();
-    await page.getByRole('option').first().click();
-
-    // Trial picker (now enabled).
-    const trialCombobox = page.getByRole('combobox').nth(1);
-    await expect(trialCombobox).toBeEnabled();
-    await trialCombobox.click();
-    await page.getByRole('option').first().click();
-
-    await Promise.all([
-      page.waitForURL(/\/secretary\/run-order\?trialId=[a-f0-9-]{36}/),
-      page.getByRole('button', { name: 'Continue' }).click(),
-    ]);
-
-    // INTENT (regression guard): with a trialId in the URL, classes load
-    // from Supabase via useTrialClassesWithQuery. The previous
-    // classCreationStore-backed implementation rendered "0 classes" for any
-    // trial not created in the same browser session.
-    await expect(
-      page.getByRole('heading', { name: 'Run Order Management', level: 1 })
-    ).toBeVisible();
-    await expect(page.getByText(/^[1-9]\d* classes$/).first()).toBeVisible({
-      timeout: 10000,
-    });
-  });
-});

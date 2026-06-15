@@ -147,6 +147,27 @@ describe('EntryListHeader', () => {
     expect(screen.getByTestId('offline')).not.toBeNull();
   });
 
+  it('hides staff print actions when the actions menu disables print options', () => {
+    renderHeader({
+      actionsMenu: {
+        ...defaultProps.actionsMenu,
+        showPrintOptions: false,
+        printOptions: [
+          { label: 'Check-In Sheet', onClick: vi.fn(), icon: 'checkin' },
+          { label: 'Results Sheet', onClick: vi.fn(), icon: 'results' },
+          { label: 'Scoresheet', onClick: vi.fn(), icon: 'scoresheet' },
+        ],
+      },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /actions menu/i }));
+
+    expect(screen.getByText('Refresh')).not.toBeNull();
+    expect(screen.queryByText('Check-In Sheet')).toBeNull();
+    expect(screen.queryByText('Results Sheet')).toBeNull();
+    expect(screen.queryByText('Scoresheet')).toBeNull();
+  });
+
   describe('popover timeLimitSeconds is always number | undefined', () => {
     // `judgeName` makes `hasExtraInfo` true so the info trigger renders and
     // the popover can be opened.

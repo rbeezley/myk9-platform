@@ -26,6 +26,30 @@ import { cn } from '@/lib/utils';
 import { useAtShowClassList } from './useAtShowClassList';
 import { loadCollapsedTrialIds, saveCollapsedTrialIds } from './atShowClassListState';
 
+const LIVE_CLASS_STATUSES = new Set<ClassEntry['class_status']>([
+  'briefing',
+  'start_time',
+  'in_progress',
+  'offline-scoring',
+]);
+
+function classScanPriority(entry: ClassEntry): number {
+  if (entry.is_favorite) return 0;
+  if (LIVE_CLASS_STATUSES.has(entry.class_status)) return 1;
+  if (entry.entry_count > 0) return 2;
+  return 3;
+}
+
+function sortClassesForAtShowScan(classes: ClassEntry[]): ClassEntry[] {
+  return [...classes].sort((a, b) => {
+    const priorityDelta = classScanPriority(a) - classScanPriority(b);
+    if (priorityDelta !== 0) return priorityDelta;
+    const orderDelta = a.class_order - b.class_order;
+    if (orderDelta !== 0) return orderDelta;
+    return a.class_name.localeCompare(b.class_name);
+  });
+}
+
 export const AtShowClassListPage: React.FC = () => {
   const { showId } = useParams<{ showId: string }>();
   const navigate = useNavigate();
@@ -37,7 +61,7 @@ export const AtShowClassListPage: React.FC = () => {
     () =>
       groups.map(g => ({
         trial: g.trial,
-        classes: groupSectionedClasses(g.classes, organization),
+        classes: sortClassesForAtShowScan(groupSectionedClasses(g.classes, organization)),
       })),
     [groups, organization]
   );

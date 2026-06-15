@@ -35,18 +35,27 @@ const NOVICE_A = {
   level: 'Novice',
   section: 'A',
   classStatus: 'in_progress',
-  classOrder: 1,
+  classOrder: 2,
   judgeName: 'Judge J',
 };
-const NOVICE_B = { ...NOVICE_A, id: 'class-b', section: 'B', classOrder: 2 };
+const NOVICE_B = { ...NOVICE_A, id: 'class-b', section: 'B', classOrder: 3 };
 const INTERIOR_EXC = {
   id: 'class-c',
   element: 'Interior',
   level: 'Excellent',
   section: '-',
   classStatus: 'setup',
-  classOrder: 3,
+  classOrder: 1,
   judgeName: 'Judge K',
+};
+const BURIED_ADV = {
+  id: 'class-e',
+  element: 'Buried',
+  level: 'Advanced',
+  section: '-',
+  classStatus: 'setup',
+  classOrder: 4,
+  judgeName: 'Judge M',
 };
 const EXTERIOR_MASTER = {
   id: 'class-d',
@@ -60,7 +69,7 @@ const EXTERIOR_MASTER = {
 
 // Distinct classes per trial so collapse assertions target one section only.
 const CLASSES_BY_TRIAL: Record<string, unknown[]> = {
-  'trial-1': [NOVICE_A, NOVICE_B, INTERIOR_EXC],
+  'trial-1': [NOVICE_A, NOVICE_B, INTERIOR_EXC, BURIED_ADV],
   'trial-2': [EXTERIOR_MASTER],
 };
 
@@ -113,6 +122,23 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
     renderPage();
     fireEvent.click(await screen.findByText(/Interior Excellent/));
     expect(await screen.findByText('SINGLE PAGE')).toBeInTheDocument();
+  });
+
+  it('surfaces favorite and live classes before empty setup classes on phones', async () => {
+    window.localStorage.setItem('favorites_show-1_trial-1', JSON.stringify(['class-e']));
+
+    renderPage();
+
+    const liveClass = await screen.findByText(/Container Novice/);
+    const favoriteClass = screen.getByText(/Buried Advanced/);
+    const emptySetupClass = screen.getByText(/Interior Excellent/);
+
+    expect(liveClass.compareDocumentPosition(emptySetupClass)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
+    );
+    expect(favoriteClass.compareDocumentPosition(emptySetupClass)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
+    );
   });
 
   it('defaults every trial open and collapses one section without touching others', async () => {

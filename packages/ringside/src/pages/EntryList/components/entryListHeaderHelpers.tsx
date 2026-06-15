@@ -44,6 +44,7 @@ export interface ActionsMenuConfig {
   showRunOrder?: boolean;
   showRecalculatePlacements?: boolean;
   showClassSettings?: boolean;
+  showPrintOptions?: boolean;
   isRecalculatingPlacements?: boolean;
   onRunOrderClick?: () => void;
   onRecalculatePlacements?: () => void;
@@ -117,6 +118,12 @@ export const ActionsDropdownMenu: React.FC<ActionsDropdownMenuProps> = ({
     onClose();
     option.onClick();
   };
+  const visiblePrintOptions =
+    actionsMenu.showPrintOptions === false ? [] : actionsMenu.printOptions;
+  const hasSecondaryActions =
+    (actionsMenu.showRunOrder && actionsMenu.onRunOrderClick) ||
+    (actionsMenu.showRecalculatePlacements && actionsMenu.onRecalculatePlacements) ||
+    (actionsMenu.showClassSettings && actionsMenu.onClassSettingsClick);
 
   return (
     <div className="relative" data-actions-menu>
@@ -143,8 +150,7 @@ export const ActionsDropdownMenu: React.FC<ActionsDropdownMenuProps> = ({
             Refresh
           </button>
 
-          {/* Divider after primary action */}
-          <div className="my-1 h-px bg-border" />
+          {hasSecondaryActions && <div className="my-1 h-px bg-border" />}
 
           {/* Secondary actions */}
           {actionsMenu.showRunOrder && actionsMenu.onRunOrderClick && (
@@ -176,11 +182,10 @@ export const ActionsDropdownMenu: React.FC<ActionsDropdownMenuProps> = ({
             </button>
           )}
 
-          {/* Divider before print options */}
-          <div className="my-1 h-px bg-border" />
+          {visiblePrintOptions.length > 0 && <div className="my-1 h-px bg-border" />}
 
           {/* Print options */}
-          {actionsMenu.printOptions.map((option, index) => (
+          {visiblePrintOptions.map((option, index) => (
             <button
               key={index}
               onClick={() => handlePrintOption(option)}

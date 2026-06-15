@@ -54,7 +54,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
   const navigate = useNavigate();
   const { entries, classInfo } = data;
   const { isRefreshing, fetchError, refresh } = dataStatus;
-  const { showContext, hasPermission } = context;
+  const { showContext, hasPermission, role } = context;
   const {
     localEntries,
     activeStatusPopup,
@@ -222,6 +222,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
           showRunOrder: hasPermission('canChangeRunOrder'),
           showRecalculatePlacements: hasPermission('canManageClasses'),
           showClassSettings: hasPermission('canManageClasses'),
+          showPrintOptions: Boolean(role && role !== 'exhibitor'),
           isRecalculatingPlacements,
           onRunOrderClick: () => setRunOrderDialogOpen(true),
           onRecalculatePlacements: handlers.handleRecalculatePlacements,

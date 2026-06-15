@@ -51,7 +51,7 @@ export const CompactOfflineIndicator: React.FC<CompactOfflineIndicatorProps> = (
     )}
   >
     <CloudOff size={13} className="shrink-0" />
-    Offline
+    Offline ready
   </span>
 );
 

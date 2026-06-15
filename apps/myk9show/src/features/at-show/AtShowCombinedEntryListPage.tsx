@@ -80,7 +80,9 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
       showDate: show?.startDate ?? '',
       licenseKey: showId,
       org: show?.organization ?? '',
-      competition_type: '',
+      // Drives ringside Nationals detection (isNationalsCompetition matches
+      // the substring 'national'); map from the show's is_nationals flag.
+      competition_type: show?.isNationals ? 'Nationals' : 'Regular',
     };
   }, [showId, show]);
   const contextValue = useMemo(

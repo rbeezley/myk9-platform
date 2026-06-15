@@ -1,0 +1,68 @@
+name: Dependency Audit
+
+# Monthly dependency-cadence check (Dynamic QA — Phase 6b).
+# - Fails (red) only on a HIGH/CRITICAL security advisory, so a clean month
+#   stays green and moderate/low transitive noise does not spam the dashboard.
+# - Publishes the full `pnpm audit` and `pnpm outdated` output to the run's
+#   job summary for manual review. No repo writes, no auto-filed issues.
+# Run it on demand any time from the Actions tab (workflow_dispatch).
+
+on:
+  schedule:
+    - cron: '0 9 1 * *' # 09:00 UTC on the 1st of each month
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-audit
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: Monthly dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Outdated dependencies (report only)
+        if: always()
+        run: |
+          {
+            echo "## Outdated dependencies"
+            echo ''
+            echo '```'
+            # `pnpm outdated` exits non-zero when anything is outdated — that is
+            # informational here, so never let it fail the job.
+            pnpm outdated -r || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Security audit (fail on high/critical)
+        run: |
+          set +e
+          OUTPUT="$(pnpm audit --audit-level=high 2>&1)"
+          CODE=$?
+          {
+            echo "## Security audit"
+            echo ''
+            echo "Gate: fails on **high** or **critical** advisories. Exit code: $CODE"
+            echo ''
+            echo '```'
+            echo "$OUTPUT"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $CODE

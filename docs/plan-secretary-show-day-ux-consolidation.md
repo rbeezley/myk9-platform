@@ -1,6 +1,6 @@
 # Secretary Show-Day UX Consolidation Implementation Plan
 
-**Status:** Draft plan created 2026-06-05; verified and expanded 2026-06-05. PR 1 implemented 2026-06-05. PR 2 opened as PR #548 on 2026-06-05.
+**Status:** Complete. PR 1 implemented 2026-06-05. PR 2 merged as PR #548 (2026-06-06). PR 3 (legacy surface deletion) opened as PR #754 (2026-06-15) — archive this file on merge.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -558,7 +558,7 @@ git diff --check
 - Modify: `apps/myk9show/src/features/admin-help/data/pageDirectory.ts`
 - Delete/update tests that only assert legacy pages render
 
-- [ ] **Step 1: Prove no active imports remain**
+- [x] **Step 1: Prove no active imports remain**
 
 Run:
 
@@ -568,7 +568,7 @@ rg -n "DayOfOperationsPage|DayOfEntryDialog|RunOrderPage|/secretary/day-of|/secr
 
 Expected before deletion: only redirects, stale registries/help metadata, tests, and files targeted by this task remain. If an active non-legacy import remains, stop and either move that behavior into Show Desk or remove the import in a separate step.
 
-- [ ] **Step 2: Keep route regression tests concrete**
+- [x] **Step 2: Keep route regression tests concrete**
 
 Use the existing route-level test file `apps/myk9show/src/test/routes/secretaryShowPhaseRedirects.test.tsx`. Keep these concrete expectations rather than introducing a new redirect helper:
 
@@ -591,7 +591,7 @@ expect(await screen.findByTestId('show-workbench')).toHaveTextContent(
 
 These tests already exist today; PR 3 should preserve or update them as the route modules are simplified.
 
-- [ ] **Step 3: Delete or quarantine dead page modules**
+- [x] **Step 3: Delete or quarantine dead page modules**
 
 Delete the legacy page modules only when Step 1 proves no active imports remain. If route lazy imports require a component target, replace the legacy import with the existing redirect component rather than retaining the old page.
 
@@ -602,11 +602,11 @@ Delete or rewrite tests that directly mount removed pages, including:
 
 Do not keep tests whose only purpose is proving deleted duplicate UI still renders.
 
-- [ ] **Step 4: Remove stale metadata**
+- [x] **Step 4: Remove stale metadata** (already clean — only stale `scratch.ts` comments updated)
 
 Remove stale references from `routeRegistry.ts`, `navigationStore.ts`, and `pageDirectory.ts`. If admin help needs an entry, point it at `/secretary/shows/:showId?phase=show-desk` or `/secretary/shows/:showId?phase=setup` instead of the deleted route.
 
-- [ ] **Step 5: Run cleanup verification**
+- [x] **Step 5: Run cleanup verification**
 
 Run:
 
@@ -618,20 +618,20 @@ Expected after deletion: only intentional redirect tests or redirect route defin
 
 ### PR 3 Final Verification
 
-- [ ] Run focused route/admin-help tests touched by the cleanup.
-- [ ] Run app typecheck:
+- [x] Run focused route/admin-help tests touched by the cleanup. (37 tests pass)
+- [x] Run app typecheck:
 
 ```bash
 pnpm --filter @myk9/show typecheck
 ```
 
-- [ ] Run lint:
+- [x] Run lint:
 
 ```bash
 pnpm --filter @myk9/show lint
 ```
 
-- [ ] Update this plan's PR 3 status and any relevant tracking document after merge.
+- [x] Update this plan's PR 3 status and any relevant tracking document after merge. (OPEN-TODOS #7 flipped; status line updated; archive on merge)
 
 ---
 

@@ -413,15 +413,19 @@ any `// INTENT:` comments per `docs/INTENT.md`.
 
 ## Phase 6 — Normalize `judges/reads.ts` to flat named functions (ADR-008)
 
+> **Status:** Complete — PR [#744](https://github.com/rbeezley/myk9-platform/pull/744), merged 2026-06-15.
+
 ### Goal
 Bring the largest remaining Shape-Y holdout into line with
 [ADR-008](adr/008-entity-module-export-shape.md).
 
 ### Friction
 [`judges/reads.ts`](../apps/myk9show/src/services/database/judges/reads.ts) (728L)
-exposes 5 nested query objects (`judgeQualificationQueries.create()`, …). ADR-008
-mandates flat named functions and lists `judges/` as pending. This is recorded
-convention, not a new proposal — included for completeness and sequencing.
+exposed 5 nested query objects (`judgeQualificationQueries.create()`, …). ADR-008
+mandates flat named functions; it formerly listed `judges/` as pending. This was
+recorded convention, not a new proposal — included for completeness and
+sequencing. **Resolved by PR #744:** the objects are now flat entity-prefixed
+functions and ADR-008's migration record lists `judges/` as migrated.
 
 ### Files
 - `apps/myk9show/src/services/database/judges/reads.ts` + `judges/index.ts`

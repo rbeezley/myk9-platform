@@ -47,6 +47,15 @@ export function LandingHeader({ onJoinWaitlistClick }: LandingHeaderProps) {
           <a href="#offline">Ringside</a>
           <a href="#trust">Who we are</a>
         </nav>
+        {/* INTENT: cold-start exhibitors arrive wanting to enter a show, not
+            join a waitlist. Surface the existing public /shows browse route so
+            discovery isn't gated behind sign-in. Rendered as a persistent
+            header button (NOT inside .l-hdr-nav, which is display:none below
+            640px) so it stays reachable for phone users. Links existing
+            route — no new surface (UX-P2-05). */}
+        <Link to="/shows" className="l-btn l-btn-ghost">
+          Browse shows
+        </Link>
         <Link to="/sign-in" className="l-btn l-btn-ghost">
           Sign in
         </Link>

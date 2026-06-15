@@ -582,6 +582,20 @@ const ShowDetailsPage: React.FC = () => {
           secondaryActions={
             !canManageShow ? (
               <div className="flex flex-wrap items-center justify-end gap-3">
+                {/* INTENT: let an exhibitor confirm their dog fits the offered
+                    classes/levels BEFORE committing to registration. Deep-links
+                    the existing Classes tab — no new eligibility surface
+                    (UX-P2-04). */}
+                {showClasses.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="min-h-[44px] sm:min-h-8"
+                    onClick={() => setTab('classes')}
+                  >
+                    See classes
+                  </Button>
+                )}
                 {entryStatus.canEnter ? (
                   <button
                     className="min-h-[44px] sm:h-9 px-5 text-sm font-medium rounded-md inline-flex items-center gap-2 transition-colors bg-[#c96442] hover:bg-[#b45a3a] text-[#faf9f5] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3898ec] focus-visible:ring-offset-2"

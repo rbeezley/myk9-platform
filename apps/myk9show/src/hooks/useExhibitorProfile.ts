@@ -38,6 +38,39 @@ export interface CreateExhibitorProfileData {
   phone?: string;
 }
 
+// Postgres "undefined_column" — raised when a selected column is absent from
+// the schema (e.g. a DB that has not yet applied the early_adopter_until
+// migration). PostgREST surfaces this as an HTTP 400 with this code.
+const PG_UNDEFINED_COLUMN = '42703';
+
+// Person columns that always exist. early_adopter_until is appended only when
+// the optional founding-member migration is present (see selectProfile below).
+const BASE_PERSON_COLUMNS = 'id, first_name, last_name, email, phone, profile_image';
+
+// Build the nested exhibitor_profiles select. When includeEarlyAdopter is
+// false we omit the optional early_adopter_until column so a DB missing that
+// migration does not 400.
+function buildProfileSelect(includeEarlyAdopter: boolean): string {
+  const personColumns = includeEarlyAdopter
+    ? `${BASE_PERSON_COLUMNS},\n            early_adopter_until`
+    : BASE_PERSON_COLUMNS;
+
+  return `
+          *,
+          person:people!person_id(
+            ${personColumns}
+          )
+        `;
+}
+
+function isUndefinedColumnError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  if (error.code === PG_UNDEFINED_COLUMN) return true;
+  // Defensive: some transport layers drop the structured code; fall back to
+  // matching the column name in the message.
+  return /early_adopter_until/.test(error.message ?? '');
+}
+
 // Helper to map database result to ExhibitorProfile type
 function mapToExhibitorProfile(data: Record<string, unknown>): ExhibitorProfile {
   const personData =
@@ -82,24 +115,30 @@ export function useExhibitorProfile() {
     queryFn: async (): Promise<ExhibitorProfile | null> => {
       if (!user?.id) return null;
 
-      const { data, error } = await supabase
-        .from('exhibitor_profiles')
-        .select(
-          `
-          *,
-          person:people!person_id(
-            id,
-            first_name,
-            last_name,
-            email,
-            phone,
-            profile_image,
-            early_adopter_until
-          )
-        `
-        )
-        .eq('auth_user_id', user.id)
-        .maybeSingle();
+      const runSelect = (includeEarlyAdopter: boolean) =>
+        supabase
+          .from('exhibitor_profiles')
+          .select(buildProfileSelect(includeEarlyAdopter))
+          .eq('auth_user_id', user.id)
+          .maybeSingle();
+
+      let { data, error } = await runSelect(true);
+
+      // Fail safe when the founding-member migration (early_adopter_until) is
+      // absent: a missing column returns Postgres 42703 / HTTP 400. Instead of
+      // throwing — which would null out `profile`, false-trigger the onboarding
+      // redirect, and re-fire on every retry (a 400 flood) — retry once without
+      // the optional column. The profile then loads with early_adopter_until
+      // undefined, which useSubscriptionGate already treats as "not an early
+      // adopter" (the safe default).
+      if (isUndefinedColumnError(error)) {
+        logger.warn(
+          'exhibitor profile early_adopter_until column missing; retrying without it',
+          'useExhibitorProfile',
+          { code: error?.code, message: error?.message }
+        );
+        ({ data, error } = await runSelect(false));
+      }
 
       if (error) {
         logger.error('Error fetching exhibitor profile', 'useExhibitorProfile', {
@@ -112,7 +151,9 @@ export function useExhibitorProfile() {
 
       if (!data) return null;
 
-      return mapToExhibitorProfile(data as Record<string, unknown>);
+      // The dynamic select string defeats supabase-js column inference (it
+      // widens `data` to a parse-error union), so route through `unknown`.
+      return mapToExhibitorProfile(data as unknown as Record<string, unknown>);
     },
     enabled: !!user?.id,
     staleTime: 5 * 60 * 1000,

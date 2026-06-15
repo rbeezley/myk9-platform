@@ -17,17 +17,20 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ user: currentUser }),
 }));
 
-// Mock Supabase
+// Mock Supabase. select() captures its argument so tests can branch on whether
+// the optional early_adopter_until column was requested (the fallback path).
 const mockSupabaseQuery = vi.fn();
 const mockSupabaseInsert = vi.fn();
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
     from: (table: string) => ({
-      select: () => ({
+      select: (selectArg?: string) => ({
         eq: (column: string, value: string) => ({
-          maybeSingle: () => mockSupabaseQuery(table, 'maybeSingle', { column, value }),
-          single: () => mockSupabaseQuery(table, 'single', { column, value }),
+          maybeSingle: () =>
+            mockSupabaseQuery(table, 'maybeSingle', { column, value, select: selectArg }),
+          single: () =>
+            mockSupabaseQuery(table, 'single', { column, value, select: selectArg }),
         }),
       }),
       insert: (data: Record<string, unknown>) => ({
@@ -143,6 +146,126 @@ describe('useExhibitorProfile', () => {
       });
 
       expect(result.current.error).toBeTruthy();
+    });
+  });
+
+  // QA-NETWORK-ERROR-018: a DB without the early_adopter_until migration
+  // returns Postgres 42703 / HTTP 400 for the nested person select. The hook
+  // must fail safe — retry without the column, load the profile, and NOT throw
+  // (which would false-trigger the onboarding redirect via needsOnboarding).
+  describe('early_adopter_until column resilience', () => {
+    function makeProfile(earlyAdopterUntil: string | null) {
+      return {
+        id: 'profile-123',
+        person_id: 'person-456',
+        auth_user_id: 'user-123',
+        subscription_tier: 'free',
+        person: {
+          id: 'person-456',
+          first_name: 'John',
+          last_name: 'Doe',
+          email: 'john@example.com',
+          phone: null,
+          ...(earlyAdopterUntil !== undefined ? { early_adopter_until: earlyAdopterUntil } : {}),
+        },
+      };
+    }
+
+    it('(a) loads early_adopter_until when the column is present and set', async () => {
+      const until = '2027-01-01T00:00:00Z';
+      mockSupabaseQuery.mockResolvedValue({ data: makeProfile(until), error: null });
+
+      const { result } = renderHook(() => useExhibitorProfile(), {
+        wrapper: createWrapper(),
+      });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.profile?.person?.early_adopter_until).toBe(until);
+      expect(result.current.error).toBeNull();
+      expect(result.current.needsOnboarding).toBe(false);
+      // Single query — no fallback needed when the column exists.
+      expect(mockSupabaseQuery).toHaveBeenCalledTimes(1);
+      expect(mockSupabaseQuery.mock.calls[0][2].select).toContain('early_adopter_until');
+    });
+
+    it('(b) loads with early_adopter_until null when the column is present but unset', async () => {
+      mockSupabaseQuery.mockResolvedValue({ data: makeProfile(null), error: null });
+
+      const { result } = renderHook(() => useExhibitorProfile(), {
+        wrapper: createWrapper(),
+      });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.profile?.person?.early_adopter_until).toBeNull();
+      expect(result.current.error).toBeNull();
+      expect(result.current.needsOnboarding).toBe(false);
+    });
+
+    it('(c) retries without the column on 42703, loads profile, no error, no redirect', async () => {
+      // First call (with early_adopter_until) returns the missing-column error;
+      // fallback call (without it) succeeds.
+      mockSupabaseQuery.mockImplementation(
+        (_table: string, _method: string, args: { select?: string }) => {
+          if (args.select?.includes('early_adopter_until')) {
+            return Promise.resolve({
+              data: null,
+              error: {
+                code: '42703',
+                message: 'column people_1.early_adopter_until does not exist',
+                details: null,
+              },
+            });
+          }
+          return Promise.resolve({ data: makeProfile(undefined), error: null });
+        }
+      );
+
+      const { result } = renderHook(() => useExhibitorProfile(), {
+        wrapper: createWrapper(),
+      });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      // Profile loaded via the fallback select — no thrown error.
+      expect(result.current.error).toBeNull();
+      expect(result.current.profile?.id).toBe('profile-123');
+      expect(result.current.hasProfile).toBe(true);
+      // Safe default: no early_adopter_until → not an early adopter.
+      expect(result.current.profile?.person?.early_adopter_until).toBeUndefined();
+      // The bug: an erroring profile fetch would false-trigger onboarding.
+      expect(result.current.needsOnboarding).toBe(false);
+
+      // Exactly two queries: the failing primary + the fallback. No flood.
+      expect(mockSupabaseQuery).toHaveBeenCalledTimes(2);
+      expect(mockSupabaseQuery.mock.calls[0][2].select).toContain('early_adopter_until');
+      expect(mockSupabaseQuery.mock.calls[1][2].select).not.toContain('early_adopter_until');
+    });
+
+    it('(c2) still surfaces non-column errors (does not swallow real failures)', async () => {
+      mockSupabaseQuery.mockResolvedValue({
+        data: null,
+        error: { code: '08006', message: 'connection failure', details: null },
+      });
+
+      const { result } = renderHook(() => useExhibitorProfile(), {
+        wrapper: createWrapper(),
+      });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.error).toBeTruthy();
+      // Only one attempt — a non-column error is not retried.
+      expect(mockSupabaseQuery).toHaveBeenCalledTimes(1);
     });
   });
 

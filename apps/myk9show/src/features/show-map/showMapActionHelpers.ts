@@ -32,7 +32,7 @@ export function canMarkEntryCheckedIn(node: ShowMapNode): boolean {
 }
 
 export function canMessageEntryHandler(node: ShowMapNode): boolean {
-  return node.type === 'entry';
+  return node.type === 'entry' && Boolean(node.entryDisplay?.handlerId);
 }
 
 export function sourceIdFromNodeId(

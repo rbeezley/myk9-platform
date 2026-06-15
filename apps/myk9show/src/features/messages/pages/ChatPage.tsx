@@ -26,7 +26,7 @@ export default function ChatPage() {
 
   const thread = threads.find(t => t.show_id === showId && t.participant_id === user?.id);
   const messages = thread ? messagesByThread[thread.id] || [] : [];
-  const [isStartingThread, setIsStartingThread] = useState(false);
+  const [isComposingFirstMessage, setIsComposingFirstMessage] = useState(false);
   const [startThreadError, setStartThreadError] = useState('');
 
   // Cold-load hydration: a push-notification tap can deep-link here before the
@@ -64,32 +64,28 @@ export default function ChatPage() {
   const handleSend = async (body: string) => {
     if (!showId || !user?.id) return;
     setStartThreadError('');
+
     let threadId = thread?.id;
     if (!threadId) {
-      const newThread = await getOrCreateThread(showId, user.id);
-      if (!newThread) return;
-      threadId = newThread.id;
-    }
-    await sendMessage(threadId, showId, body);
-  };
-
-  const handleStartMessage = async () => {
-    if (!showId || !user?.id || isStartingThread) return;
-    setIsStartingThread(true);
-    setStartThreadError('');
-
-    try {
-      const newThread = await getOrCreateThread(showId, user.id);
-      if (!newThread) {
+      try {
+        const newThread = await getOrCreateThread(showId, user.id);
+        if (!newThread) {
+          setStartThreadError("We couldn't start that message. Try again.");
+          return;
+        }
+        threadId = newThread.id;
+      } catch {
         setStartThreadError("We couldn't start that message. Try again.");
         return;
       }
-      await fetchMessages(newThread.id);
-    } catch {
-      setStartThreadError("We couldn't start that message. Try again.");
-    } finally {
-      setIsStartingThread(false);
     }
+
+    await sendMessage(threadId, showId, body);
+  };
+
+  const handleStartMessage = () => {
+    setStartThreadError('');
+    setIsComposingFirstMessage(true);
   };
 
   // Show loading while the store is fetching OR while a cold-load deep-link is
@@ -123,9 +119,15 @@ export default function ChatPage() {
               {startThreadError}
             </p>
           ) : null}
-          <Button className="mt-6" onClick={handleStartMessage} disabled={isStartingThread}>
-            {isStartingThread ? 'Starting...' : 'Start message'}
-          </Button>
+          {isComposingFirstMessage ? (
+            <div className="mt-6 w-full max-w-xl text-left">
+              <MessageInput onSend={handleSend} disabled={isSending} />
+            </div>
+          ) : (
+            <Button className="mt-6" onClick={handleStartMessage}>
+              Start message
+            </Button>
+          )}
         </section>
       ) : (
         <>
@@ -135,9 +137,13 @@ export default function ChatPage() {
                 No messages yet. Send the first note below.
               </p>
             ) : (
-          messages.map(msg => (
-            <MessageBubble key={msg.id} message={msg} isOwnMessage={msg.sender_id === user?.id} />
-          ))
+              messages.map(msg => (
+                <MessageBubble
+                  key={msg.id}
+                  message={msg}
+                  isOwnMessage={msg.sender_id === user?.id}
+                />
+              ))
             )}
             <div ref={messagesEndRef} />
           </div>

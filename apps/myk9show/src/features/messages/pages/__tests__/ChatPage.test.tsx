@@ -143,16 +143,29 @@ describe('ChatPage', () => {
     expect(screen.getByRole('button', { name: /Start message/i })).toBeEnabled();
   });
 
-  it('keeps the message route nonblank when starting a thread fails', async () => {
+  it('starts composing without creating an empty thread', async () => {
+    mockStoreState.threads = [];
+    mockStoreState.messagesByThread = {};
+    const { user } = render(<ChatPage />);
+
+    await user.click(await screen.findByRole('button', { name: /Start message/i }));
+
+    expect(mockStoreState.getOrCreateThread).not.toHaveBeenCalled();
+    expect(screen.getByPlaceholderText(/message/i)).toBeInTheDocument();
+  });
+
+  it('keeps the message route nonblank when the first message cannot start a thread', async () => {
     mockStoreState.threads = [];
     mockStoreState.messagesByThread = {};
     mockStoreState.getOrCreateThread = vi.fn().mockResolvedValue(null);
     const { user } = render(<ChatPage />);
 
     await user.click(await screen.findByRole('button', { name: /Start message/i }));
+    await user.type(screen.getByPlaceholderText(/message/i), 'Can you help?');
+    await user.click(screen.getByRole('button', { name: /send/i }));
 
     expect(await screen.findByText(/We couldn't start that message/i)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /Message the show team/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Start message/i })).toBeEnabled();
+    expect(screen.getByPlaceholderText(/message/i)).toBeInTheDocument();
   });
 });

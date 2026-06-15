@@ -197,6 +197,7 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 
 | Spec                                                                   | Feature                                                                                         |
 | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `apps/myk9show/src/test/e2e/a11y-smoke.spec.ts`                        | Public landing-page accessibility smoke.                                                        |
 | `apps/myk9show/src/test/e2e/browse-clubs-page.spec.ts`                 | Public club browse/detail.                                                                      |
 | `apps/myk9show/src/test/e2e/classes-page-ui.spec.ts`                   | Classes page UI.                                                                                |
 | `apps/myk9show/src/test/e2e/entities/classCRUD.spec.ts`                | Class CRUD.                                                                                     |

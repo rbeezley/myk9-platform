@@ -1,5 +1,5 @@
 import { renderHook } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { usePosterLandingData } from '../usePosterLandingData';
@@ -7,6 +7,18 @@ import { usePosterLandingData } from '../usePosterLandingData';
 vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
   useEntriesByShowQuery: vi.fn(() => ({ data: [] })),
 }));
+
+// The `reads entryCount` test below installs a persistent mockReturnValue of
+// 47 entries via setEntries(). That value survives to later tests in this file,
+// so under --sequence.shuffle it leaks into the "empty shells" test (entryCount
+// expected 0, got 47). Re-establish the empty-data default before every test so
+// this file is self-contained and order-independent.
+beforeEach(async () => {
+  const mod = await import('@/hooks/queries/useEntriesDatabase');
+  (mod.useEntriesByShowQuery as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+    data: [],
+  });
+});
 
 // Helper to import the mocked module and re-stub its behavior per test.
 async function setEntries(count: number) {

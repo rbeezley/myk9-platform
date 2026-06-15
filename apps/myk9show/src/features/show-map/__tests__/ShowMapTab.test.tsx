@@ -617,9 +617,9 @@ describe('ShowMapTab', () => {
     await user.click(screen.getByRole('button', { name: /expand trial 1/i }));
     await user.click(screen.getByRole('button', { name: /expand interior novice a/i }));
     await user.click(screen.getByRole('button', { name: /actions for .*bella/i }));
-    await user.click(await screen.findByRole('menuitem', { name: /scratch \/ no-show/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /pull \/ no-show/i }));
 
-    expect(screen.getByRole('dialog', { name: /mark scratch \/ no-show/i })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /mark pulled \/ no-show/i })).toBeInTheDocument();
     expect(screen.getByText(/refunds are not automatic/i)).toBeInTheDocument();
 
     await user.type(screen.getByLabelText(/reason/i), 'Dog absent');

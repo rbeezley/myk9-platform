@@ -155,7 +155,7 @@ async function assertClassRowActionsStayScoped(page: Page) {
   await expect(page.getByRole('menuitem', { name: /Open Class/i })).toBeVisible();
   await expect(page.getByRole('menuitem', { name: /Mark checked in/i })).toHaveCount(0);
   await expect(page.getByRole('menuitem', { name: /Move up/i })).toHaveCount(0);
-  await expect(page.getByRole('menuitem', { name: /Scratch \/ no-show/i })).toHaveCount(0);
+  await expect(page.getByRole('menuitem', { name: /Pull \/ no-show/i })).toHaveCount(0);
   await page.keyboard.press('Escape');
 }
 
@@ -168,8 +168,8 @@ async function assertEntryRowActionDialogs(page: Page) {
   await page.getByRole('button', { name: 'Cancel' }).click();
 
   await page.getByRole('button', { name: 'Actions for Ziva' }).click();
-  await page.getByRole('menuitem', { name: /Scratch \/ no-show/i }).click();
-  await expect(page.getByRole('dialog', { name: /Mark scratch \/ no-show/i })).toBeVisible();
+  await page.getByRole('menuitem', { name: /Pull \/ no-show/i }).click();
+  await expect(page.getByRole('dialog', { name: /Mark pulled \/ no-show/i })).toBeVisible();
   await expect(page.getByText(/Refunds are not automatic/i)).toBeVisible();
   await page.getByRole('button', { name: 'Cancel' }).click();
 }

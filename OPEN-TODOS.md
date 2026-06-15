@@ -124,7 +124,7 @@ Source: PR [#642](https://github.com/rbeezley/myk9-platform/pull/642), PR [#647]
 - [ ] **Split Pull Management local pull state from online refund/accounting metadata** (decision).
 - [ ] **Nationals/Regular discriminator** hardcoded in passcode/placement paths — migration-backed fix (route via `migration-auditor`).
 - [ ] **Non-atomic dog creation + child registration** — backlog a `create_dog_with_children` RPC.
-- [ ] **P3 config hygiene** — `VITE_CDN_URL` vs `VITE_CDN_BASE_URL` name drift; monitoring env drift; remove unread `.env.example` vars; remove/retarget stale `phase8:*` + `test:load:full` scripts; delete dead early-adopter dog-tool flags; fix stale conflict-surfacing comment.
+- [~] **P3 config hygiene** — clear-cut cleanups done in `chore/p3-config-hygiene`: CDN name drift reconciled to `VITE_CDN_BASE_URL`; monitoring section of `.env.example` reconciled to actually-read vars; unread `VITE_ENABLE_DEV_TOOLS`/`VITE_ENABLE_DEBUG_LOGS` removed; broken `phase8:*` scripts + dead runner `.js` files removed; `test:load:full` retargeted to platform-neutral spawn; dead early-adopter dog-tool flags deleted; stale conflict-surfacing comment fixed. **Deferred (needs human/Vercel):** removing `VITE_APP_ENVIRONMENT` (documented in VERCEL-SETUP.md, may be set in Vercel); removing completed kill-switch flags (`showPresence`/`showLiveSync`/`showEditAwareness`/`showConflictSurfacing` — product call); adding missing operator vars to `.env.example` (separate P2 item).
 
 ---
 

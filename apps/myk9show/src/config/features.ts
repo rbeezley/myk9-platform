@@ -13,12 +13,6 @@
  * flagged features.
  */
 export const features = {
-  // Dog tools — live for early adopters
-  titleTracking: true,
-  trainingJournal: true,
-  healthRecords: true,
-  pedigree: true,
-
   // Dog Details tabs — hidden until show management is ready
   competitionsTab: true,
   statisticsTab: true,
@@ -27,7 +21,6 @@ export const features = {
   showRegistration: true,
   myEntries: true,
   calendar: false,
-  showDay: false,
   analytics: false,
   showMap: true,
 

@@ -150,13 +150,13 @@ export const useImageOptimization = (src: string, options: {
 
   const generateOptimizedUrl = useCallback((originalSrc: string) => {
     // If using a CDN service like Cloudinary or ImageKit
-    if (import.meta.env.VITE_CDN_URL) {
+    if (import.meta.env.VITE_CDN_BASE_URL) {
       const params = new URLSearchParams();
       params.set('q', quality.toString());
       if (format !== 'auto') params.set('f', format);
       if (sizes.length > 0) params.set('w', sizes[0]);
 
-      return `${import.meta.env.VITE_CDN_URL}/${originalSrc}?${params.toString()}`;
+      return `${import.meta.env.VITE_CDN_BASE_URL}/${originalSrc}?${params.toString()}`;
     }
 
     return originalSrc;

@@ -24,13 +24,22 @@ vi.mock('@/lib/notifications', () => ({
 }));
 
 beforeEach(() => {
-  vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
   vi.spyOn(window, 'open').mockReturnValue({
     document: { write: vi.fn(), close: vi.fn() },
     focus: vi.fn(),
     print: vi.fn(),
   } as unknown as Window);
 });
+
+// userEvent.setup() (invoked inside render) installs its OWN navigator.clipboard
+// stub the first time it runs in a worker, replacing whatever object existed
+// before. Spying on clipboard in a top-level beforeEach therefore spies the
+// pre-userEvent object and the spy is lost when this test happens to run first
+// under --sequence.shuffle ("writeText is not a spy"). Spy AFTER render so we
+// always wrap the live clipboard userEvent is actually driving.
+function spyClipboard() {
+  return vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
+}
 
 // Helper — point the shared mockSupabase.rpc at a deterministic
 // response for the regenerate_show_passcodes call. The setup file
@@ -82,9 +91,10 @@ describe('ShowAccessCodesCard', () => {
         }}
       />
     );
+    const writeText = spyClipboard();
     const copyButtons = screen.getAllByRole('button', { name: /copy/i });
     await user.click(copyButtons[0]);
-    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith('aq8m2'));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('aq8m2'));
   });
 
   it('copies exhibitor login link to clipboard', async () => {
@@ -99,11 +109,10 @@ describe('ShowAccessCodesCard', () => {
         }}
       />
     );
+    const writeText = spyClipboard();
     await user.click(screen.getByRole('button', { name: /copy link/i }));
     await waitFor(() =>
-      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
-        'https://myk9show.com/at-show?code=eh2p9'
-      )
+      expect(writeText).toHaveBeenCalledWith('https://myk9show.com/at-show?code=eh2p9')
     );
   });
 

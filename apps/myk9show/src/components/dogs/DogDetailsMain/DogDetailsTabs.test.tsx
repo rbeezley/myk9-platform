@@ -157,8 +157,11 @@ describe('DogDetailsTabs', () => {
     it('does not show BlurGate overlay on Title Progress tab', async () => {
       const { user } = render(<DogDetailsTabs dog={mockDog} />);
       await user.click(screen.getByRole('tab', { name: /title progress/i }));
+      // The section is lazy()-loaded. When this test runs first under shuffle
+      // its import() hasn't resolved yet, so await it via findByText rather
+      // than a synchronous getByText that races the Suspense boundary.
+      expect(await screen.findByText('title progress section')).toBeInTheDocument();
       expect(screen.queryByText('Premium Feature')).not.toBeInTheDocument();
-      expect(screen.getByText('title progress section')).toBeInTheDocument();
     });
   });
 });

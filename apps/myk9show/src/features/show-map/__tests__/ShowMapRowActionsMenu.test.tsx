@@ -204,6 +204,72 @@ describe('ShowMapRowActionsMenu', () => {
     expect(screen.queryByRole('menuitem', { name: /scratch \/ no-show/i })).not.toBeInTheDocument();
   });
 
+  it('keeps the message action hidden until handler contact context is available', async () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [classes[1]!],
+      entries: [
+        {
+          id: 'entry-needs-message',
+          class_id: 'class-future',
+          dog: { id: 'dog-1', call_name: 'Scout' },
+          handler: 'Alex Handler',
+          check_in_status: 'no-status',
+        },
+      ],
+    });
+    const entryNode = tree.nodesById['entry:entry-needs-message'];
+    if (!entryNode) throw new Error('Expected entry node');
+    const onAction = vi.fn();
+
+    const { user } = render(
+      <ShowMapRowActionsMenu node={entryNode} tree={tree} onAction={onAction} />
+    );
+
+    await user.click(screen.getByRole('button', { name: /actions for scout/i }));
+
+    await screen.findByRole('menu');
+    expect(screen.queryByRole('menuitem', { name: /message handler/i })).not.toBeInTheDocument();
+    expect(onAction).not.toHaveBeenCalled();
+  });
+
+  it('shows a message action for entry rows with handler contact context', async () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [classes[1]!],
+      entries: [
+        {
+          id: 'entry-needs-message',
+          class_id: 'class-future',
+          dog: { id: 'dog-1', call_name: 'Scout' },
+          handler: 'Alex Handler',
+          handler_id: 'handler-1',
+          check_in_status: 'no-status',
+        },
+      ],
+    });
+    const entryNode = tree.nodesById['entry:entry-needs-message'];
+    if (!entryNode) throw new Error('Expected entry node');
+    const onAction = vi.fn();
+
+    const { user } = render(
+      <ShowMapRowActionsMenu node={entryNode} tree={tree} onAction={onAction} />
+    );
+
+    await user.click(screen.getByRole('button', { name: /actions for scout/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /message handler/i }));
+
+    expect(onAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'message-handler',
+        nodeId: 'entry:entry-needs-message',
+      }),
+      expect.objectContaining({ kind: 'dialog', dialog: 'message-handler' })
+    );
+  });
+
   it('uses the supplied clock for root menu recommendations', async () => {
     const futureTrial = {
       ...trial,

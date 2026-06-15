@@ -107,8 +107,8 @@ function makePayload(id: string): NotificationPayload {
   };
 }
 
-function renderPanel() {
-  return render(<MessageCenterPanel />);
+function renderPanel(route = '/') {
+  return render(<MessageCenterPanel />, { initialRoute: route });
 }
 
 beforeEach(async () => {
@@ -214,6 +214,46 @@ describe('MessageCenterPanel', () => {
 
     expect(screen.getByRole('dialog', { name: /compose show message/i })).toBeInTheDocument();
     expect(screen.getByRole('combobox')).toBeInTheDocument();
+  });
+
+  it('preselects the show from the current URL when opening compose', async () => {
+    authContext = {
+      user: { id: 'secretary-1', email: 'secretary@test.com' },
+      userWithRoles: { id: 'secretary-1', roles: ['secretary'], scopes: [], user_metadata: {} },
+      isSecretary: true,
+      isAdmin: false,
+      hasRole: () => false,
+    };
+    const { useAnnouncementStore } = await import('@/store/announcementStore');
+    (useAnnouncementStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+      currentShowIds: ['show-1', 'show-2'],
+    });
+
+    renderPanel('/secretary/messages?showId=show-1');
+    fireEvent.click(screen.getByRole('button', { name: /compose/i }));
+
+    expect(screen.getByTestId('message-show-composer')).toHaveTextContent('Composer for show-1');
+    expect(screen.queryByText(/Select a show to continue/i)).not.toBeInTheDocument();
+  });
+
+  it('ignores an invalid URL show when opening compose', async () => {
+    authContext = {
+      user: { id: 'secretary-1', email: 'secretary@test.com' },
+      userWithRoles: { id: 'secretary-1', roles: ['secretary'], scopes: [], user_metadata: {} },
+      isSecretary: true,
+      isAdmin: false,
+      hasRole: () => false,
+    };
+    const { useAnnouncementStore } = await import('@/store/announcementStore');
+    (useAnnouncementStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+      currentShowIds: ['show-1', 'show-2'],
+    });
+
+    renderPanel('/secretary/messages?showId=unknown');
+    fireEvent.click(screen.getByRole('button', { name: /compose/i }));
+
+    expect(screen.getByText(/Select a show to continue/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Composer for unknown/i)).not.toBeInTheDocument();
   });
 
   it('does not load compose class options until staff opens compose', async () => {

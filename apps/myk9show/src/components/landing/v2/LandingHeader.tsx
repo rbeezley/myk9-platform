@@ -46,6 +46,11 @@ export function LandingHeader({ onJoinWaitlistClick }: LandingHeaderProps) {
           <a href="#features">Features</a>
           <a href="#offline">Ringside</a>
           <a href="#trust">Who we are</a>
+          {/* INTENT: cold-start exhibitors arrive wanting to enter a show, not
+              join a waitlist. Surface the existing public /shows browse route so
+              discovery isn't gated behind sign-in. Links existing route — no new
+              surface (UX-P2-05). */}
+          <Link to="/shows">Browse shows</Link>
         </nav>
         <Link to="/sign-in" className="l-btn l-btn-ghost">
           Sign in

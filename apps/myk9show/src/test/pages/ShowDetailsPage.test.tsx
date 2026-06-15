@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -443,6 +443,33 @@ describe('ShowDetailsPage', () => {
 
     expect(screen.queryByRole('button', { name: 'Enter This Show' })).not.toBeInTheDocument();
     expect(screen.getByTestId('detail-hero')).toHaveTextContent(/no classes assigned/i);
+  });
+
+  it('surfaces a "See classes" deep-link in the hero when the show has classes (UX-P2-04)', () => {
+    mockUserEntries = [];
+    mockTrials = [
+      { id: 'trial-1', showId: 'show-1', trialDate: '2026-03-22', trialNumber: '1', name: 'Trial 1' },
+    ];
+    mockTrialClasses = { 'trial-1': [{ id: 'class-1', element: 'Container', level: 'Novice' }] };
+
+    renderPage();
+
+    const secondary = screen.getByTestId('hero-secondary-actions');
+    expect(within(secondary).getByRole('button', { name: /see classes/i })).toBeInTheDocument();
+    // Still alongside the primary enter action — the deep-link is additive.
+    expect(within(secondary).getByRole('button', { name: 'Enter This Show' })).toBeInTheDocument();
+  });
+
+  it('omits the "See classes" link when the show has no classes assigned', () => {
+    mockUserEntries = [];
+    mockTrials = [
+      { id: 'trial-1', showId: 'show-1', trialDate: '2026-03-22', trialNumber: '1', name: 'Trial 1' },
+    ];
+    mockTrialClasses = { 'trial-1': [] };
+
+    renderPage();
+
+    expect(screen.queryByRole('button', { name: /see classes/i })).not.toBeInTheDocument();
   });
 
   it('shows "Manage Entry" button when user has entries and entries are open', () => {

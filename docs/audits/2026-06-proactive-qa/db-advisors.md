@@ -64,6 +64,14 @@ Route: security-audit follow-up. Do not batch-fix blindly; confirm each view's i
 - 47 unindexed foreign keys and 90 multiple-permissive-policy findings are performance-shaped cleanup.
 - `public.show_passcodes` has RLS enabled with no policies. This may be intentional if all access is via SECURITY DEFINER RPCs, but it needs explicit confirmation.
 
+### Follow-up Verification — 2026-06-15
+
+Current linked advisor run: 502 findings, 0 ERROR / 359 WARN / 143 INFO. The prior `security_definer_view` ERRORs remain resolved.
+
+The remaining app-owned always-true RLS warnings narrowed to 5 policies. `platform_waitlist` is intentionally public insert-only, but a new migration (`20260615151818_tighten_legacy_advisor_rls.sql`) removes its duplicate legacy policy and replaces `anon_can_insert_waitlist` with a row-shape check instead of `WITH CHECK (true)`. The same migration closes the empty legacy `announcements` / `announcement_reads` tables to site-admin read only and removes public inserts from the unused `entry_status_history` audit table.
+
+Read-only evidence gathered before writing the migration: linked DB row counts were `announcements=0`, `announcement_reads=0`, `entry_status_history=0`, and `platform_waitlist=8`. Current app code writes announcements through `show_announcements` / `show_announcement_reads`, not the legacy tables.
+
 ## Enum/CHECK Drift
 
 The new `pnpm qa:db-drift:enum` script found one app-write value outside the latest parsed migration CHECK constraint:

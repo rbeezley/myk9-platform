@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import { AKCScentWorkEntryForm } from '../AKCScentWorkEntryForm';
 import type { ReportProps } from '@/lib/reports/types';
@@ -10,8 +10,14 @@ import type {
 } from '@/lib/reports/entryFormTypes';
 
 // vi.hoisted runs before vi.mock hoisting, so these are available in the factory
-const { mockDogs, mockSecretary, mockTrials, mockClasses, mockUseEntryFormData } = vi.hoisted(
-  () => {
+const {
+  mockDogs,
+  mockSecretary,
+  mockTrials,
+  mockClasses,
+  mockUseEntryFormData,
+  mockDefaultReturn,
+} = vi.hoisted(() => {
     const dogs: EntryFormDog[] = [
       {
         dogId: 'dog-1',
@@ -85,14 +91,15 @@ const { mockDogs, mockSecretary, mockTrials, mockClasses, mockUseEntryFormData }
     ];
 
     // Create the mock fn here so it's available in the factory
-    const mockFn = vi.fn().mockReturnValue({
+    const defaultReturn = {
       dogs,
       secretary,
       trials,
       classes,
       isLoading: false,
       isError: false,
-    });
+    };
+    const mockFn = vi.fn().mockReturnValue(defaultReturn);
 
     return {
       mockDogs: dogs,
@@ -100,6 +107,7 @@ const { mockDogs, mockSecretary, mockTrials, mockClasses, mockUseEntryFormData }
       mockTrials: trials,
       mockClasses: classes,
       mockUseEntryFormData: mockFn,
+      mockDefaultReturn: defaultReturn,
     };
   }
 );
@@ -119,6 +127,14 @@ const baseProps: ReportProps = {
 };
 
 describe('AKCScentWorkEntryForm', () => {
+  // Several tests below override the data hook via mockReturnValue (empty dogs,
+  // null registration, custom handler). vitest does not reset mocks between
+  // tests by default, so without this the overrides leak into later tests when
+  // the run order is shuffled. Restore the default dataset before each test.
+  beforeEach(() => {
+    mockUseEntryFormData.mockReturnValue(mockDefaultReturn);
+  });
+
   it('renders the form title', () => {
     render(<AKCScentWorkEntryForm {...baseProps} />);
     expect(screen.getByText('OFFICIAL ENTRY FORM')).toBeInTheDocument();

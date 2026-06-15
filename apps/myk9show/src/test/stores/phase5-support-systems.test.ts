@@ -11,15 +11,23 @@ import { useSearchHistoryStore } from '@/store/searchHistoryStore';
 // import type { SearchQuery, SearchResult } from '@/store/searchAnalyticsStore';
 // import type { SearchHistoryItem, SearchBookmark } from '@/store/searchHistoryStore';
 
+// Snapshot each store's pristine initial state at module load so beforeEach can
+// fully restore it. The per-domain clear*() helpers below reset lists but NOT
+// config (mutated via updateConfig) or bookmarks, so under shuffled test order
+// those leak between cases. Restoring the whole state object (replace=true)
+// resets everything regardless of which helper is incomplete.
+const INITIAL_DRAFT_STATE = useDraftStore.getState();
+const INITIAL_ANALYTICS_STATE = useSearchAnalyticsStore.getState();
+const INITIAL_HISTORY_STATE = useSearchHistoryStore.getState();
+
 describe('Phase 5 Support Systems Tests', () => {
   beforeEach(() => {
     localStorage.clear();
-    // Clear all store states
-    useDraftStore.getState().clearAllDrafts();
-    useSearchAnalyticsStore.getState().clearAnalytics();
-    useSearchHistoryStore.getState().clearHistory();
-    // Reset session tracking
-    useSearchAnalyticsStore.setState({ currentSessionId: null });
+    // Full reset to initial state (config, bookmarks, history, queries,
+    // results, sessions) so test order cannot leak mutated state.
+    useDraftStore.setState(INITIAL_DRAFT_STATE, true);
+    useSearchAnalyticsStore.setState(INITIAL_ANALYTICS_STATE, true);
+    useSearchHistoryStore.setState(INITIAL_HISTORY_STATE, true);
   });
 
   describe('Draft Store Configuration', () => {
@@ -415,6 +423,11 @@ describe('Phase 5 Support Systems Tests', () => {
       // Add search history
       store.addToHistory('golden retriever', 'dogs', 'user-smart');
       store.addToHistory('golden retriever puppy', 'dogs', 'user-smart');
+
+      // Completions are sourced from the generated `suggestions` array, not raw
+      // history — generate them here so the test is self-contained rather than
+      // relying on a sibling test having populated suggestions first.
+      store.generateSuggestions('user-smart', 'dogs');
 
       // Create a bookmark
       store.createBookmark('Golden Search', 'golden retriever champion', 'dogs', {}, 'user-smart');

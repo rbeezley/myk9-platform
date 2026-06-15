@@ -362,6 +362,8 @@ describe('ReplicatedShowsTable', () => {
         {
           id: 'show-3',
           name: 'Future Show 1',
+          // Relative future dates so the calendar can never turn this "future"
+          // show "active" (a hardcoded 2026-06-15 went stale on 2026-06-15 UTC).
           organization: 'Rally',
           startDate: dateFromNow(30),
           endDate: dateFromNow(31),
@@ -372,8 +374,8 @@ describe('ReplicatedShowsTable', () => {
           id: 'show-4',
           name: 'Future Show 2',
           organization: 'Obedience',
-          startDate: '2026-08-15',
-          endDate: '2026-08-16',
+          startDate: dateFromNow(60),
+          endDate: dateFromNow(61),
           status: 'active',
           clubId: 'club-456',
         },

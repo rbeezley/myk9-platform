@@ -72,6 +72,8 @@ Green is not available from this synthesis. Green requires remediation, fixture-
 
 **Wave 3A implementation note:** Implemented locally on branch `codex/wave3a-at-show-phone-polish`. Plan: [`docs/plan-wave3a-at-show-phone-polish.md`](../../plan-wave3a-at-show-phone-polish.md). Scope covers at-show phone polish only: exhibitor action menus hide staff print/report items, the persistent capability pill reads `Offline ready`, and the class picker biases favorite/live classes before empty setup classes. Focused tests and typecheck/lint are green; 380px browser smoke loaded without runtime errors but stopped at auth because no local browser session/passcode was available.
 
+**Wave 3B implementation note:** Implemented locally on branch `codex/wave3b-results-my-shows-clarity`. Plan: [`docs/plan-wave3b-results-my-shows-clarity.md`](../../plan-wave3b-results-my-shows-clarity.md). Scope covers Results/My Shows clarity only: past unresolved My Entries cards use historical labels, past classes without posted results read `Awaiting results` instead of `Upcoming`, and the Results tab explains whether scoring has not posted yet or scored runs are still being reviewed/released. Focused tests, typecheck, and diff whitespace check are green; lint exits 0 with the existing `RefundEntryDialog` fast-refresh warning.
+
 **Wave 4 implementation note:** In progress on branch `codex/wave4-secretary-closeout`. Local focused tests cover legacy `phase=show-desk` routing into canonical Show Desk and AKC submit gating when preflight registration numbers are missing. `UX-P2-07`, `UX-P2-08`, and the observed closed-select part of `UX-P2-09` were already fixed in prior PRs and now need only tracking cleanup.
 
 ## Duplication And Consolidation Notes
@@ -98,4 +100,4 @@ Before remediation begins, confirm:
 - [x] Wave 4 can run independently because it is secretary closeout/routing polish.
 - [ ] Wave 5 should use local Dynamic QA fixtures unless the user explicitly approves shared Supabase seed mutations.
 
-Recommended next action: ship Wave 3A, then continue Wave 3B for Results/My Shows clarity (`UX-P2-02`, `UX-P2-12`, `UX-P3-02`). Wave 5 should remain fixture-only until shared seed mutations are explicitly approved.
+Recommended next action: ship Wave 3B, then continue Wave 5 fixture-backed seam completion unless a higher-priority open P1/P2 is selected. Wave 5 should remain fixture-only until shared seed mutations are explicitly approved.

@@ -21,10 +21,17 @@ export function normalizeCheckInStatus(raw: unknown): CheckInStatus | undefined 
   return raw as CheckInStatus;
 }
 
+interface StatusBadgeOptions {
+  isPastShow?: boolean;
+}
+
 /**
  * Returns a styled badge for entry status
  */
-export function getEntryStatusBadge(status: EntryStatus): React.ReactNode {
+export function getEntryStatusBadge(
+  status: EntryStatus,
+  options: StatusBadgeOptions = {}
+): React.ReactNode {
   switch (status) {
     case EntryStatus.ACCEPTED:
       return (
@@ -35,7 +42,7 @@ export function getEntryStatusBadge(status: EntryStatus): React.ReactNode {
     case EntryStatus.PENDING:
       return (
         <Badge className="bg-warning/10 text-warning border-warning/20 border">
-          Pending Review
+          {options.isPastShow ? 'Review incomplete' : 'Pending Review'}
         </Badge>
       );
     case EntryStatus.WAITLIST:
@@ -68,7 +75,10 @@ export function getEntryStatusBadge(status: EntryStatus): React.ReactNode {
 /**
  * Returns a styled badge for payment status
  */
-export function getPaymentStatusBadge(status: PaymentStatus): React.ReactNode {
+export function getPaymentStatusBadge(
+  status: PaymentStatus,
+  options: StatusBadgeOptions = {}
+): React.ReactNode {
   switch (status) {
     case PaymentStatus.PAID_ONLINE:
     case PaymentStatus.PAID_BY_CHECK:
@@ -81,7 +91,7 @@ export function getPaymentStatusBadge(status: PaymentStatus): React.ReactNode {
     case PaymentStatus.PENDING:
       return (
         <Badge className="bg-warning/10 text-warning border-warning/20 border">
-          Payment Due
+          {options.isPastShow ? 'Payment unresolved' : 'Payment Due'}
         </Badge>
       );
     case PaymentStatus.REFUNDED:

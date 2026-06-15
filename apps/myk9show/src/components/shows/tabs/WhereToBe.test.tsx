@@ -65,9 +65,38 @@ describe('WhereToBe', () => {
     expect(screen.getByText('Monday, May 11')).toBeInTheDocument();
   });
 
-  it('shows "Upcoming" chip when no result', () => {
-    render(<WhereToBe entries={[makeEntry({ hasResult: false })]} showId={SHOW_ID} />);
+  it('shows "Upcoming" chip when a future class has no result', () => {
+    render(
+      <WhereToBe
+        entries={[
+          makeEntry({
+            hasResult: false,
+            trialDate: '2099-05-10',
+            dayLabel: 'Sunday, May 10',
+          }),
+        ]}
+        showId={SHOW_ID}
+      />
+    );
     expect(screen.getByText('Upcoming')).toBeInTheDocument();
+  });
+
+  it('shows a pending-results chip when a past class has no result', () => {
+    render(
+      <WhereToBe
+        entries={[
+          makeEntry({
+            hasResult: false,
+            trialDate: '2020-05-10',
+            dayLabel: 'Sunday, May 10',
+          }),
+        ]}
+        showId={SHOW_ID}
+      />
+    );
+
+    expect(screen.getByText('Awaiting results')).toBeInTheDocument();
+    expect(screen.queryByText('Upcoming')).not.toBeInTheDocument();
   });
 
   it('shows Q chip with time when entry is qualified', () => {

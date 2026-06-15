@@ -37,6 +37,7 @@ import { useShowStats } from '@/hooks/queries/useShowStats';
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
 import { ShowStatsSubTab } from '@/components/analytics/ShowStatsSubTab';
 import { JudgeStatsSubTab } from '@/components/analytics/JudgeStatsSubTab';
+import type { StatsEntry } from '@/components/analytics/analytics-utils';
 
 interface VisibilityGatedPodiumCardProps {
   cls: ClassResult;
@@ -81,11 +82,40 @@ function VisibilityGatedPodiumCard({ cls, showId }: VisibilityGatedPodiumCardPro
   return <PodiumCard classTitle={cls.className} placements={cls.placements} />;
 }
 
-interface PodiumContentProps {
-  showId: string;
+interface ResultsEmptyStateCopy {
+  title: string;
+  description: string;
 }
 
-function PodiumContent({ showId }: PodiumContentProps) {
+function getResultsEmptyStateCopy(showEntries: StatsEntry[] = []): ResultsEmptyStateCopy {
+  if (showEntries.length === 0) {
+    return {
+      title: 'No results yet',
+      description: 'Results will appear here once classes are scored and released.',
+    };
+  }
+
+  const hasScoredEntries = showEntries.some(entry => entry.resultText !== 'pending');
+
+  if (!hasScoredEntries) {
+    return {
+      title: 'Scoring has not posted yet',
+      description: 'This show has entries, but no scored runs are available yet.',
+    };
+  }
+
+  return {
+    title: 'Results are being reviewed',
+    description: 'Placements will appear here after the secretary releases them.',
+  };
+}
+
+interface PodiumContentProps {
+  showId: string;
+  showEntries?: StatsEntry[];
+}
+
+function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
   const { data: results = [], isLoading, error, refetch } = useShowResults(showId);
   const [filters, setFilters] = useState<ResultsFilters>({ element: null, level: null });
   const [pendingExpanded, setPendingExpanded] = useState(false);
@@ -119,11 +149,13 @@ function PodiumContent({ showId }: PodiumContentProps) {
   }
 
   if (results.length === 0) {
+    const emptyState = getResultsEmptyStateCopy(showEntries);
+
     return (
       <EmptyState
         icon={Trophy}
-        title="No results yet"
-        description="Results will appear here as classes complete scoring."
+        title={emptyState.title}
+        description={emptyState.description}
       />
     );
   }
@@ -252,7 +284,7 @@ export function ShowResultsTab({ showId }: ShowResultsTabProps) {
   return (
     <PrimaryTabs tabs={subTabDefs} value={activeSubTab} onValueChange={setActiveSubTab}>
       <PrimaryTabsContent value="podium">
-        <PodiumContent showId={showId} />
+        <PodiumContent showId={showId} showEntries={showEntries ?? []} />
       </PrimaryTabsContent>
 
       {hasScoredEntries && (

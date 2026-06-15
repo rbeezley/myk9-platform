@@ -1608,13 +1608,21 @@ describe('ReplicatedShowsTable', () => {
     });
 
     it('should handle filtering shows by multiple criteria', async () => {
+      // Dates must be relative to the real clock: getUpcomingShows() filters on
+      // startDate >= Date.now(), so hardcoded future dates would silently turn
+      // past and break the "upcomingShows.length > 0" assertion below. Mirrors
+      // the dateFromNow() pattern from the Show Queries beforeEach (PR #736).
+      const dayMs = 86400000;
+      const dateFromNow = (offsetDays: number) =>
+        new Date(Date.now() + offsetDays * dayMs).toISOString().split('T')[0];
+
       const shows: ReplicatedShow[] = [
         {
           id: 'show-1',
           name: 'Show 1',
           organization: 'Obedience',
-          startDate: '2024-06-15',
-          endDate: '2024-06-16',
+          startDate: dateFromNow(-90),
+          endDate: dateFromNow(-89),
           status: 'active',
           clubId: 'club-123',
         },
@@ -1622,8 +1630,8 @@ describe('ReplicatedShowsTable', () => {
           id: 'show-2',
           name: 'Show 2',
           organization: 'Agility',
-          startDate: '2026-07-15',
-          endDate: '2026-07-16',
+          startDate: dateFromNow(30),
+          endDate: dateFromNow(31),
           status: 'draft',
           clubId: 'club-123',
         },
@@ -1631,8 +1639,8 @@ describe('ReplicatedShowsTable', () => {
           id: 'show-3',
           name: 'Show 3',
           organization: 'Rally',
-          startDate: '2026-08-15',
-          endDate: '2026-08-16',
+          startDate: dateFromNow(60),
+          endDate: dateFromNow(61),
           status: 'active',
           clubId: 'club-456',
         },

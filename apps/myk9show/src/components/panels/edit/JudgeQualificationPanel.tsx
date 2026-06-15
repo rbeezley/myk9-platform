@@ -33,7 +33,10 @@ import { cn } from '@/lib/utils';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { getErrorMessage, toYYYYMMDD } from '@myk9/core';
-import { judgeQualificationQueries } from '@/services/database/judges';
+import {
+  createJudgeQualification,
+  deleteJudgeQualificationsByPersonId,
+} from '@/services/database/judges';
 import type { CreateJudgeQualificationData } from '@/types/judge-management';
 
 interface JudgeQualificationPanelProps {
@@ -236,10 +239,10 @@ export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = (
       setIsLoading(true);
 
       // Replace all qualifications in a single bulk delete + parallel create
-      await judgeQualificationQueries.deleteByPersonId(userId);
+      await deleteJudgeQualificationsByPersonId(userId);
       await Promise.all(
         qualifications.map(qual =>
-          judgeQualificationQueries.create(mapUiToDbQualification(qual, userId))
+          createJudgeQualification(mapUiToDbQualification(qual, userId))
         )
       );
 

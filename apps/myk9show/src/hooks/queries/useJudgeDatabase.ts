@@ -7,7 +7,16 @@
 
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { judgeQualificationQueries } from '@/services/database/judges';
+import {
+  createJudgeQualification,
+  deleteJudgeQualification,
+  getJudgeQualificationById,
+  getJudgeQualificationsByJudgeId,
+  getJudgeQualificationSummary,
+  reinstateJudgeQualification,
+  suspendJudgeQualification,
+  updateJudgeQualification,
+} from '@/services/database/judges';
 import {
   JudgeQualification,
   CreateJudgeQualificationData,
@@ -39,7 +48,7 @@ export const judgeQueryKeys = {
 export const useJudgeQualifications = (judgeId: string, filters?: JudgeQualificationFilters) => {
   const query = useQuery({
     queryKey: judgeQueryKeys.qualificationsByJudge(judgeId, filters),
-    queryFn: () => judgeQualificationQueries.getByJudgeId(judgeId, filters),
+    queryFn: () => getJudgeQualificationsByJudgeId(judgeId, filters),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 30 * 60 * 1000, // 30 minutes
     enabled: !!judgeId,
@@ -54,7 +63,7 @@ export const useJudgeQualifications = (judgeId: string, filters?: JudgeQualifica
 export const useJudgeQualification = (id: string) => {
   return useQuery({
     queryKey: judgeQueryKeys.qualification(id),
-    queryFn: () => judgeQualificationQueries.getById(id),
+    queryFn: () => getJudgeQualificationById(id),
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     enabled: !!id,
@@ -67,7 +76,7 @@ export const useJudgeQualification = (id: string) => {
 export const useJudgeQualificationSummary = (judgeId: string) => {
   return useQuery({
     queryKey: judgeQueryKeys.qualificationSummary(judgeId),
-    queryFn: () => judgeQualificationQueries.getSummary(judgeId),
+    queryFn: () => getJudgeQualificationSummary(judgeId),
     staleTime: 10 * 60 * 1000, // 10 minutes
     gcTime: 60 * 60 * 1000, // 1 hour
     enabled: !!judgeId,
@@ -87,7 +96,7 @@ export const useCreateJudgeQualification = () => {
       if (!validation.isValid) {
         throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
       }
-      return judgeQualificationQueries.create(data);
+      return createJudgeQualification(data);
     },
     onSuccess: newQualification => {
       // Invalidate relevant queries
@@ -118,7 +127,7 @@ export const useUpdateJudgeQualification = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: UpdateJudgeQualificationData) => judgeQualificationQueries.update(data),
+    mutationFn: (data: UpdateJudgeQualificationData) => updateJudgeQualification(data),
     onMutate: async data => {
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: judgeQueryKeys.qualification(data.id) });
@@ -174,7 +183,7 @@ export const useDeleteJudgeQualification = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => judgeQualificationQueries.delete(id),
+    mutationFn: (id: string) => deleteJudgeQualification(id),
     onSuccess: (_, id) => {
       // Remove from cache
       queryClient.removeQueries({ queryKey: judgeQueryKeys.qualification(id) });
@@ -200,7 +209,7 @@ export const useSuspendJudgeQualification = () => {
 
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>
-      judgeQualificationQueries.suspend(id, reason),
+      suspendJudgeQualification(id, reason),
     onSuccess: updatedQualification => {
       // Update cache
       queryClient.setQueryData(
@@ -223,7 +232,7 @@ export const useReinstateJudgeQualification = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => judgeQualificationQueries.reinstate(id),
+    mutationFn: (id: string) => reinstateJudgeQualification(id),
     onSuccess: updatedQualification => {
       // Update cache
       queryClient.setQueryData(
@@ -249,7 +258,7 @@ export const useBatchSuspendQualifications = () => {
   return useMutation({
     mutationFn: async (operations: Array<{ id: string; reason: string }>) => {
       const results = await Promise.allSettled(
-        operations.map(op => judgeQualificationQueries.suspend(op.id, op.reason))
+        operations.map(op => suspendJudgeQualification(op.id, op.reason))
       );
       return results;
     },
@@ -270,7 +279,7 @@ export const useJudgeQualificationCacheUtils = () => {
   const prefetchQualifications = async (judgeId: string) => {
     await queryClient.prefetchQuery({
       queryKey: judgeQueryKeys.qualificationsByJudge(judgeId),
-      queryFn: () => judgeQualificationQueries.getByJudgeId(judgeId),
+      queryFn: () => getJudgeQualificationsByJudgeId(judgeId),
       staleTime: 5 * 60 * 1000,
     });
   };

@@ -72,10 +72,9 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
 
     const loadAvailability = async () => {
       try {
-        const { judgeAvailabilityQueries } =
-          await import('@/services/database/judges');
+        const { getJudgeAvailabilityByPersonId } = await import('@/services/database/judges');
         const { mapDbAvailabilityToUI } = await import('@/services/mappers/userMappers');
-        const dbData = await judgeAvailabilityQueries.getByPersonId(userId);
+        const dbData = await getJudgeAvailabilityByPersonId(userId);
         if (!cancelled && dbData) {
           setAvailability(mapDbAvailabilityToUI(dbData));
         }
@@ -101,10 +100,10 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
 
   const handleAvailabilitySave = useCallback(async () => {
     try {
-      const { judgeAvailabilityQueries } = await import('@/services/database/judges');
+      const { upsertJudgeAvailability } = await import('@/services/database/judges');
       const { mapUIAvailabilityToDb } = await import('@/services/mappers/userMappers');
 
-      await judgeAvailabilityQueries.upsert(mapUIAvailabilityToDb(userId, availability));
+      await upsertJudgeAvailability(mapUIAvailabilityToDb(userId, availability));
 
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(userId) });

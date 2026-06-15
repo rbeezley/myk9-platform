@@ -157,16 +157,16 @@ export const useUserStore = create<UserStore>()(
           if (userData.judgeInfo) {
             try {
               const {
-                judgeQualificationQueries,
-                judgeCertificationQueries,
-                judgeAvailabilityQueries,
+                createJudgeQualification,
+                createJudgeCertification,
+                upsertJudgeAvailability,
               } = await import('@/services/database/judges');
               const { mapUIAvailabilityToDb } = await import('@/services/mappers/userMappers');
 
               // Insert qualifications
               for (const qual of userData.judgeInfo.qualifications || []) {
                 try {
-                  await judgeQualificationQueries.create({
+                  await createJudgeQualification({
                     person_id: newPersonId,
                     organization: qual.organization,
                     qualification_level: qual.level || 'Regular',
@@ -189,7 +189,7 @@ export const useUserStore = create<UserStore>()(
               // Insert certifications
               for (const cert of userData.judgeInfo.certifications || []) {
                 try {
-                  await judgeCertificationQueries.create({
+                  await createJudgeCertification({
                     person_id: newPersonId,
                     organization: cert.issuingBody || '',
                     sport: cert.name || '',
@@ -213,7 +213,7 @@ export const useUserStore = create<UserStore>()(
               // Upsert availability
               if (userData.judgeInfo.availability) {
                 try {
-                  await judgeAvailabilityQueries.upsert(
+                  await upsertJudgeAvailability(
                     mapUIAvailabilityToDb(newPersonId, userData.judgeInfo.availability)
                   );
                 } catch (availError) {

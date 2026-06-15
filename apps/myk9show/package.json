@@ -13,7 +13,7 @@
     "build:analyze": "cross-env ANALYZE_BUNDLE=true npm run build:no-budget",
     "build:stats": "npm run build:no-budget && npm run analyze:stats",
     "analyze:stats": "node scripts/analyze-bundle.js",
-    "analyze:size": "npm run build && node scripts/check-bundle-size.js",
+    "analyze:size": "npm run build && node scripts/check-bundle-budget.js",
     "analyze:complexity": "node scripts/complexity-analysis.js",
     "lint": "eslint . --cache --cache-location node_modules/.cache/eslint/",
     "lint:changed": "node scripts/lint-changed.js",
@@ -34,6 +34,7 @@
     "test:e2e:clean": "playwright test",
     "test:e2e:gui": "playwright test src/test/e2e/entities/",
     "test:e2e:workflows": "playwright test src/test/e2e/registration/ src/test/e2e/entities/",
+    "test:a11y": "playwright test --config=playwright.ci.config.ts src/test/e2e/a11y-smoke.spec.ts",
     "test:performance": "vitest run --config vitest.config.ts src/test/performance/",
     "test:load": "node -e \"console.log('Use: npm run test:load:playwright, npm run test:load:database, or npm run test:load:full')\"",
     "test:load:playwright": "playwright test src/test/load/playwright-load-tests.spec.ts",
@@ -71,7 +72,7 @@
     "quality:dashboard": "node scripts/quality-dashboard.js",
     "security:audit": "npm audit && npm run audit:dependencies",
     "performance:check": "npm run test:performance && npm run analyze:size",
-    "budget:check": "node scripts/check-performance-budgets.js",
+    "budget:check": "node scripts/check-bundle-budget.js",
     "maintenance:update-deps": "npm update && npm audit fix",
     "maintenance:clean": "rm -rf node_modules dist coverage .vitest && npm install",
     "audit:dependencies": "node scripts/dependency-audit.js",
@@ -142,6 +143,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.3",
     "@eslint/js": "^9.39.4",
     "@faker-js/faker": "^10.4.0",
     "@playwright/test": "^1.60.0",

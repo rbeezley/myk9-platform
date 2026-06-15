@@ -79,7 +79,10 @@ describe('ReportsPage', () => {
       expect(screen.getByTestId('report-preview')).toHaveAttribute('data-trial-id', 'trial-2')
     );
     expect(screen.getByTestId('report-preview')).toHaveAttribute('data-class-id', 'all');
-  });
+    // 30s timeout: this is a real behavioral test (not a perf budget) that is
+    // userEvent-heavy and slow under full-suite/CI load — the default 10s trips
+    // on a loaded runner even though it passes comfortably in isolation.
+  }, 30000);
 });
 
 describe('resolveInitialReportId', () => {

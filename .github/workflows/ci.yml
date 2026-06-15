@@ -119,7 +119,7 @@ jobs:
 
       - name: Test myK9Show (shard ${{ matrix.shard }}/3)
         working-directory: apps/myk9show
-        run: pnpm exec vitest run --reporter=default --exclude '**/integration/**' --exclude '**/debug-*.test.*' --shard=${{ matrix.shard }}/3
+        run: pnpm exec vitest run --reporter=default --exclude '**/integration/**' --exclude '**/debug-*.test.*' --sequence.shuffle --shard=${{ matrix.shard }}/3
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 
@@ -170,7 +170,7 @@ jobs:
 
       - name: Test myK9Show (with coverage)
         working-directory: apps/myk9show
-        run: pnpm exec vitest run --reporter=default --exclude '**/integration/**' --exclude '**/debug-*.test.*' --coverage
+        run: pnpm exec vitest run --reporter=default --exclude '**/integration/**' --exclude '**/debug-*.test.*' --sequence.shuffle --coverage
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 

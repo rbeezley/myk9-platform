@@ -1,6 +1,6 @@
 # Plan: Dynamic QA Infrastructure (follow-on to the Code-Quality Audit)
 
-**Created:** 2026-06-12 · **Status:** Draft — Phase 1 offline/replication chaos tests complete 2026-06-13; Phase 2 mutation baselines complete 2026-06-14; Phase 3 database-side drift checks complete 2026-06-12; Phase 4 code complete 2026-06-14 with external Sentry project/manual delivery verification still pending confirmation; Phase 5 measurement complete 2026-06-14 (6 consecutive default-order full-suite runs green; 2 intra-file order-dependence flakes fixed; cross-file test-isolation debt tracked in OPEN-TODOS); Phases 6–7 not started
+**Created:** 2026-06-12 · **Status:** Draft — Phase 1 offline/replication chaos tests complete 2026-06-13; Phase 2 mutation baselines complete 2026-06-14; Phase 3 database-side drift checks complete 2026-06-12; Phase 4 DONE 2026-06-15 (Sentry live in production — DSN active, PII scrubber verified, source maps uploading); Phase 5 measurement complete 2026-06-14 (6 consecutive default-order full-suite runs green; 2 intra-file order-dependence flakes fixed; cross-file test-isolation debt tracked in OPEN-TODOS); Phases 6–7 not started
 **Goal:** Build the QA infrastructure the code-quality audit cannot: dynamic tests for offline/replication behavior, mutation testing of money-path math, database-side drift checks, error observability, and flaky-test quarantine. Where the audit _finds and removes_ existing static debt, this plan _builds new guards_ so quality holds after launch.
 
 **Relationship to [`docs/plan-code-quality-audit.md`](archive/plan-code-quality-audit.md):** that plan owns static debt removal (Waves A–D) and the CI ratchets (its Phase 5 amendment, 2026-06-12). This plan owns everything dynamic. Phases here marked **[after audit]** must wait for the named audit wave; the rest can start independently in their own worktrees.
@@ -143,10 +143,24 @@ is wired through `@sentry/vite-plugin` only when `SENTRY_AUTH_TOKEN`,
 `SENTRY_ORG`, and `SENTRY_PROJECT` are present; production maps are hidden and
 deleted after upload.
 
-External project creation, DSN/env configuration, and manual verification that a
-thrown dev error reaches the real Sentry project were not performed because
-Phase 0 classifies Sentry project creation as a shared-system mutation requiring
-separate confirmation.
+**Status 2026-06-15 — DONE, live in production and verified.** The external setup
+(a shared-system step) was completed with the user.
+
+- **Sentry org/project created** (`rykris-software` / `javascript-react`). `VITE_SENTRY_DSN`
+  set in Vercel Production and redeployed — the DSN is confirmed baked into the live
+  myK9Show bundle (`ingest.us.sentry.io/4511105906769920`).
+- **End-to-end verified.** Local run proved init (`__SENTRY__` v10.57.0), transmission
+  (`POST → 200` to the project), and the `beforeSend` scrubber on the running code —
+  zero leaks across email, phone, registration number, handler name, auth token, and IP;
+  `user` reduced to `id`; URL query/hash stripped. The two test events landed in the
+  Sentry Issues feed with PII shown as `[Filtered]` (dashboard-side confirmation).
+- **Source maps active.** `SENTRY_AUTH_TOKEN` / `SENTRY_ORG` / `SENTRY_PROJECT` set in
+  Vercel; the source-map build injects `_sentryDebugIds` (maps uploaded, matched by debug
+  ID), and the public `.map` files 404 (deleted after upload — original source not exposed).
+  Production stack traces are now un-minified.
+
+No code changes were needed for activation — the wiring shipped in PR #723 was complete;
+this was purely external config + verification.
 
 Verification run:
 

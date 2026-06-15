@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { showSchemas } from '@/lib/validation';
-import { formDataToShowSaveData, showToFormData, publishGateError } from '../ShowEditPanel.helpers';
+import {
+  formDataToShow,
+  formDataToShowSaveData,
+  showToFormData,
+  publishGateError,
+} from '../ShowEditPanel.helpers';
 import type { ShowEditFormData } from '../ShowEditPanel.types';
 
 const generatedPremium: GeneratedPremium = {
@@ -71,6 +76,22 @@ describe('ShowEditPanel helpers', () => {
     });
 
     expect(result.publishExperience).toBe(false);
+  });
+
+  it('round-trips the isNationals flag through form mapping', () => {
+    expect(
+      showToFormData({
+        id: 'show-1',
+        name: 'Nationals Show',
+        organization: 'AKC',
+        clubId: 'club-1',
+        startDate: '2026-05-22',
+        endDate: '2026-05-23',
+        isNationals: true,
+      }).isNationals
+    ).toBe(true);
+
+    expect(formDataToShow({ ...baseFormData, isNationals: true }).isNationals).toBe(true);
   });
 
   it('preserves publish-only fields for the save side effect payload', () => {

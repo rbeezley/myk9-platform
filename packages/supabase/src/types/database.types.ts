@@ -5961,6 +5961,7 @@ export type Database = {
           experience_published_content: Json
           experience_published_style: string | null
           id: string
+          is_nationals: boolean
           license_key: string | null
           location: string | null
           logo_url: string | null
@@ -6019,6 +6020,7 @@ export type Database = {
           experience_published_content?: Json
           experience_published_style?: string | null
           id?: string
+          is_nationals?: boolean
           license_key?: string | null
           location?: string | null
           logo_url?: string | null
@@ -6077,6 +6079,7 @@ export type Database = {
           experience_published_content?: Json
           experience_published_style?: string | null
           id?: string
+          is_nationals?: boolean
           license_key?: string | null
           location?: string | null
           logo_url?: string | null
@@ -8732,6 +8735,7 @@ export type Database = {
           entry_count: number
         }[]
       }
+      get_my_handled_dog_ids: { Args: never; Returns: string[] }
       get_my_person_id: { Args: never; Returns: string }
       get_user_permissions: {
         Args: {

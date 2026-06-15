@@ -99,6 +99,7 @@ export interface Show {
   maxEntriesPerDog?: number | undefined;
   maxTotalEntries?: number | undefined;
   allowNonOwnerHandlers?: boolean | undefined;
+  isNationals?: boolean | undefined;
   // Optional message included in registration confirmation emails
   confirmationMessage?: string | undefined;
   // Starting armband number for auto-assignment (default 100)
@@ -160,6 +161,7 @@ export interface ShowInput {
   startingArmbandNumber?: number | undefined;
   acceptCheckPayments?: boolean | undefined;
   acceptCashPayments?: boolean | undefined;
+  isNationals?: boolean | undefined;
   // Experience style — drives all 4 touchpoints (migration 195)
   style?: string | null;
   experienceIsPublished?: boolean;

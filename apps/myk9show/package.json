@@ -40,7 +40,7 @@
     "test:load:playwright": "playwright test src/test/load/playwright-load-tests.spec.ts",
     "test:load:database": "vitest run src/test/load/DatabaseLoadTests.ts",
     "test:load:framework": "vitest run src/test/load/LoadTestFramework.ts",
-    "test:load:full": "node -e \"require('child_process').spawn(process.platform === 'win32' ? 'scripts/run-load-tests.bat' : 'bash', process.platform === 'win32' ? [] : ['scripts/run-load-tests.sh'], {stdio: 'inherit'})\"",
+    "test:load:full": "node scripts/run-load-tests-full.mjs",
     "test:load:quick": "playwright test src/test/load/playwright-load-tests.spec.ts --grep \"should handle normal\"",
     "test:cross-browser": "node scripts/cross-browser-test-runner.js",
     "test:cross-browser:functionality": "playwright test src/test/e2e/cross-browser/functionality.spec.ts",

@@ -162,7 +162,12 @@ function setupShowStartingArmband(startingArmbandNumber: number) {
 
 describe('armbandQueries (replication)', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    // resetAllMocks (not clearAllMocks) so each test starts with the mock
+    // implementations stripped. clearAllMocks only wipes call history, leaving
+    // a prior test's mockRejectedValue/mockResolvedValue in place — under
+    // --sequence.shuffle a leaked rejection (e.g. upsertAssignedArmband from
+    // the "replicated armband sync fails" case) surfaces in the wrong test.
+    vi.resetAllMocks();
   });
 
   describe('setEntryArmband', () => {

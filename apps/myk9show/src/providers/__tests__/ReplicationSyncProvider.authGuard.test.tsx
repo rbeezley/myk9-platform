@@ -155,6 +155,17 @@ describe('ReplicationSyncProvider — auth guard', () => {
   it('fires sync once when the session becomes available', async () => {
     renderProvider();
 
+    // Flush the cold-load "initial sync" effect's setTimeout(0) FIRST, while
+    // still unauthenticated — triggerSync early-returns on no session, so this
+    // path no-ops. Draining it now removes a second sync source that otherwise
+    // races the session-trigger below and makes the call count order-dependent
+    // (1 vs 2) under --sequence.shuffle.
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    // Now deliver the session: the "session became available" effect fires the
+    // single sync this test asserts on.
     await act(async () => {
       authState.callback?.('INITIAL_SESSION', fakeSession());
     });

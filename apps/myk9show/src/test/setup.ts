@@ -3,6 +3,7 @@ import { afterEach, beforeAll, beforeEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import { testCleanup } from './config/testOptimization';
 import { mockSupabase, resetMockSupabase } from './mocks/supabase';
+import { resetAllStores } from './mocks/zustandReset';
 import 'fake-indexeddb/auto';
 import FDBFactory from 'fake-indexeddb/lib/FDBFactory';
 import FDBDatabase from 'fake-indexeddb/lib/FDBDatabase';
@@ -50,6 +51,12 @@ vi.mock('@/lib/supabase', () => ({
   supabase: mockSupabase,
   default: mockSupabase,
 }));
+
+// Zustand stores are module-level singletons whose in-memory state survives
+// between tests. Route every store through the test mock so resetAllStores()
+// (called in the beforeEach below) can snap each one back to its initial state,
+// making the suite order-independent under --sequence.shuffle.
+vi.mock('zustand', () => import('./mocks/zustand'));
 
 // canvas-confetti schedules requestAnimationFrame callbacks that keep firing
 // after the triggering test finishes; in jsdom getContext('2d') returns null,
@@ -111,11 +118,24 @@ beforeEach(() => {
   if (db && db._databases) {
     db._databases.clear();
   }
+  // Clear the module-level localStorage backing store. Zustand `persist`
+  // middleware writes here, and without this reset a persisted store from
+  // one test file (e.g. settings/cart/draft stores) leaks into the next
+  // under shuffled suite order — rehydrating stale state and flipping
+  // render gates in unrelated tests. Clearing the backing object (rather
+  // than calling localStorage.clear()) also wipes the spy-call history so
+  // assertions on setItem/removeItem don't see prior tests' calls.
+  Object.keys(localStorageStore).forEach(key => delete localStorageStore[key]);
+  // Snap every Zustand store back to its initial state so a store populated by
+  // a prior test can't leak rows/flags into the next under shuffled order.
+  resetAllStores();
   // Reset Supabase mock to defaults
   resetMockSupabase();
 });
 
-// Mock localStorage with proper storage behavior
+// Mock localStorage with proper storage behavior. The beforeEach above closes
+// over this backing store; that closure body runs per-test (long after module
+// init), so referencing this const before its textual declaration is safe.
 const localStorageStore: Record<string, string> = {};
 const localStorageMock = {
   getItem: vi.fn((key: string) => localStorageStore[key] || null),

@@ -57,6 +57,7 @@ interface ShowRow {
   name: string;
   start_date: string;
   organization: string | null;
+  is_nationals: boolean | null;
 }
 
 // Get client IP from request headers
@@ -182,7 +183,7 @@ serve(async req => {
       // RPC and this query (effectively unreachable but cheap).
       const { data: showRow, error: showErr } = await supabaseClient
         .from('shows')
-        .select('id, name, start_date, organization')
+        .select('id, name, start_date, organization, is_nationals')
         .eq('id', row.show_id)
         .is('deleted_at', null)
         .maybeSingle();
@@ -248,17 +249,11 @@ serve(async req => {
       showDate: matchedShow.start_date,
       licenseKey: matchedShow.id,
       org: matchedShow.organization || '',
-      // TODO(phase-1): wire the real Nationals/Regular source before the
-      // smart-input edge function starts invoking this path in production.
-      // Downstream consumers (apps/myk9q/src/contexts/AuthContext.tsx,
-      // apps/myk9q/src/utils/sortableEntryCardUtils.ts) interpret
-      // `competition_type` as Nationals-vs-Regular routing context. The
-      // original `matchedShow.type` column was renamed to `organization`
-      // (now surfaced as `org` above), so there's no longer a direct
-      // column to map from — the right source is likely a per-trial or
-      // per-show flag added separately. Defaulting to 'Regular' preserves
-      // the original code's fallback semantics — track in Phase 1 follow-up.
-      competition_type: 'Regular',
+      // Nationals-vs-Regular routing context. Ringside consumers
+      // (packages/ringside isNationalsCompetition) match the substring
+      // 'national', so emit 'Nationals' / 'Regular' from shows.is_nationals
+      // (added by migration 20260615160000 for placement finalization).
+      competition_type: matchedShow.is_nationals ? 'Nationals' : 'Regular',
     };
 
     return new Response(

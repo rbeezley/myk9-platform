@@ -76,8 +76,9 @@ export const AtShowEntryListPage: React.FC = () => {
   });
 
   // Full RingsideShowContext for the provider value. licenseKey === showId in
-  // myK9Show (replication sync filters on show_id). Fields myK9Show can't
-  // source yet (clubName, competition_type) default empty for the spike.
+  // myK9Show (replication sync filters on show_id). clubName not sourced yet.
+  // competition_type drives ringside Nationals detection (isNationalsCompetition
+  // matches the substring 'national'), so map it from the show's is_nationals.
   const ringsideShowContext = useMemo<RingsideShowContext | null>(() => {
     if (!showId) return null;
     return {
@@ -87,7 +88,7 @@ export const AtShowEntryListPage: React.FC = () => {
       showDate: show?.startDate ?? '',
       licenseKey: showId,
       org: show?.organization ?? '',
-      competition_type: '',
+      competition_type: show?.isNationals ? 'Nationals' : 'Regular',
     };
   }, [showId, show]);
 

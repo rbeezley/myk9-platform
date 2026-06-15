@@ -12,16 +12,16 @@ or joined table lookups.
 Direct Supabase reads still appear in route/page/hook/component code. Initial
 scan found these high-value clusters:
 
-| Cluster | Representative files | Disposition |
-| --- | --- | --- |
-| Class route context | `routes/ClassDetailsRedirect.tsx` | Done: migrated to `services/database/classes`. |
-| Schedule timeline reads | `hooks/queries/useScheduleTimeline.ts`, `hooks/queries/useTrialTimeline.ts` | Done: migrated to `services/database/trials`. |
-| TV display reads | `pages/TVDisplay/useTVData.ts`, `pages/TVDisplay/useTVResults.ts` | Migrate next; core Class/Entry/Show read path. |
-| Show-day and check-in reads | `hooks/queries/useShowDayData.ts`, `hooks/queries/useClassCheckInData.ts`, `pages/secretary/CheckInReportPage.tsx` | Migrate one workflow at a time; core Entry/Class read path. |
-| Entry form and eligibility reads | `hooks/queries/useEntryFormData.ts`, `hooks/useEntryEligibility.ts`, `hooks/useClassAvailability.ts` | Migrate after show-day reads; mixed replicated and online-only side tables. |
-| Auth/profile/role reads | `hooks/useAuth.ts`, `hooks/useExhibitorProfile.ts`, `hooks/queries/useUserRoles.ts`, admin user dialogs | Keep online/auth-adjacent unless a core offline workflow depends on them. |
-| Reporting/export reads | `view_entry_with_results`, AKC submission data, secretary reports, armband labels | Follow-up review; reporting/export may remain online-only by design. |
-| Admin/config reads | show visibility settings, volunteers, secretary tasks, billing, notification subscriptions | Follow-up review; likely admin/online exceptions. |
+| Cluster                          | Representative files                                                                                               | Disposition                                                                                                                       |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| Class route context              | `routes/ClassDetailsRedirect.tsx`                                                                                  | Done: migrated to `services/database/classes`.                                                                                    |
+| Schedule timeline reads          | `hooks/queries/useScheduleTimeline.ts`, `hooks/queries/useTrialTimeline.ts`                                        | Done: migrated to `services/database/trials`.                                                                                     |
+| TV display reads                 | `pages/TVDisplay/useTVData.ts`, `pages/TVDisplay/useTVResults.ts`                                                  | Done: migrated to `services/database/tv-display`; remains an ADR-009 online-only exception because `/tv/:showId` is public before auth/sync. |
+| Show-day and check-in reads      | `hooks/queries/useShowDayData.ts`, `hooks/queries/useClassCheckInData.ts`, `pages/secretary/CheckInReportPage.tsx` | Migrate one workflow at a time; core Entry/Class read path.                                                                       |
+| Entry form and eligibility reads | `hooks/queries/useEntryFormData.ts`, `hooks/useEntryEligibility.ts`, `hooks/useClassAvailability.ts`               | Migrate after show-day reads; mixed replicated and online-only side tables.                                                       |
+| Auth/profile/role reads          | `hooks/useAuth.ts`, `hooks/useExhibitorProfile.ts`, `hooks/queries/useUserRoles.ts`, admin user dialogs            | Keep online/auth-adjacent unless a core offline workflow depends on them.                                                         |
+| Reporting/export reads           | `view_entry_with_results`, AKC submission data, secretary reports, armband labels                                  | Follow-up review; reporting/export may remain online-only by design.                                                              |
+| Admin/config reads               | show visibility settings, volunteers, secretary tasks, billing, notification subscriptions                         | Follow-up review; likely admin/online exceptions.                                                                                 |
 
 ## Phases
 
@@ -34,13 +34,15 @@ scan found these high-value clusters:
    offline-critical reads:
    - done: class route context
    - done: schedule timeline
-   - TV display class/entry reads
-   - show-day entry reads
-   - class availability
-   - check-in class/entry reads
-5. Record intentional exceptions in `CONTEXT.md` or an ADR if they are
-   load-bearing enough that future architecture reviews should not re-suggest
-   them.
+
+- done: TV display class/entry reads centralized behind an online-only database
+  module
+- show-day entry reads
+- class availability
+- check-in class/entry reads
+
+5. Done for the TV-display slice: intentional online-only exceptions are
+   recorded in [`docs/adr/009-online-only-data-access-exceptions.md`](docs/adr/009-online-only-data-access-exceptions.md).
 
 ## Testing Phase
 

@@ -1,13 +1,10 @@
 import { parseLocalDateString } from '@/utils/dateLocal';
+import { startOfLocalDay } from '@/pages/MyEntriesPage/modules/myEntriesStats.helpers';
 
 interface PendingResultEntry {
   hasResult: boolean;
   result?: unknown;
   trialDate: string;
-}
-
-function startOfLocalDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
 function parseTrialDate(value: string): Date | undefined {
@@ -27,5 +24,6 @@ export function isPastTrialDate(trialDate: string, now = new Date()): boolean {
 
 export function getPendingResultLabel(entry: PendingResultEntry, now = new Date()): string | null {
   if (entry.hasResult && entry.result) return null;
+  // Result rows are class-specific, so use trialDate here instead of whole-show end dates.
   return isPastTrialDate(entry.trialDate, now) ? 'Awaiting results' : 'Upcoming';
 }

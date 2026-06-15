@@ -37,7 +37,7 @@ import { useShowStats } from '@/hooks/queries/useShowStats';
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
 import { ShowStatsSubTab } from '@/components/analytics/ShowStatsSubTab';
 import { JudgeStatsSubTab } from '@/components/analytics/JudgeStatsSubTab';
-import type { StatsEntry } from '@/components/analytics/analytics-utils';
+import { isScored, type StatsEntry } from '@/components/analytics/analytics-utils';
 
 interface VisibilityGatedPodiumCardProps {
   cls: ClassResult;
@@ -95,7 +95,7 @@ function getResultsEmptyStateCopy(showEntries: StatsEntry[] = []): ResultsEmptyS
     };
   }
 
-  const hasScoredEntries = showEntries.some(entry => entry.resultText !== 'pending');
+  const hasScoredEntries = showEntries.some(isScored);
 
   if (!hasScoredEntries) {
     return {
@@ -267,7 +267,7 @@ export function ShowResultsTab({ showId }: ShowResultsTabProps) {
   const { data: showEntries } = useShowStats(showId);
   const { data: judges } = useShowJudges(showId);
 
-  const hasScoredEntries = (showEntries || []).some(e => e.resultText !== 'pending');
+  const hasScoredEntries = (showEntries || []).some(isScored);
   const hasJudges = (judges || []).length > 0;
 
   const subTabDefs: PrimaryTabDef[] = useMemo(

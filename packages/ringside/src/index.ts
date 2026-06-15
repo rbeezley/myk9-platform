@@ -121,14 +121,8 @@ export {
   type UseFavoriteClassesReturn,
 } from './pages/ClassList';
 
-// Class-status + realtime hooks (PR E1d — already-DI'd; no RingsideProvider needed)
-export {
-  useClassStatus,
-  useClassRealtime,
-  type StatusDependencies,
-  type StatusOperationResult,
-  type UseClassStatusReturn,
-} from './pages/ClassList';
+// Realtime class hook (PR E1d — already-DI'd; no RingsideProvider needed)
+export { useClassRealtime } from './pages/ClassList';
 
 // ── Pages: EntryList (PR E2a + E2b) ──────────────────────────────────────
 // E2a moved pure helpers + state hooks. E2b moved `useEntryListData` (the

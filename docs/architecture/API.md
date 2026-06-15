@@ -35,7 +35,7 @@ Only the key functions are documented in full below. The complete current invent
 | Group              | Functions                                                                                                                                                                                                          |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Ringside / AI      | `validate-passcode` (ringside passcode auth for `/at-show`), `ask-myk9q` (ringside AI assistant), `ask-myk9show` (show-app AI assistant)                                                                            |
-| Email senders      | `send-email`, `send-auth-email`, `send-confirmation-email`, `send-registration-email`, `send-targeted-message`, `send-notification`, `send-results`, `send-waitlist-invite`, `resend-webhook`                       |
+| Email senders      | `send-email`, `send-auth-email`, `send-confirmation-email`, `send-registration-email`, `send-targeted-message`, `send-results`, `send-waitlist-invite`, `resend-webhook`                       |
 | Push notifications | `send-push-notification`, `push-trigger-announcement`, `push-trigger-chat-message`, `push-trigger-class-status`, `push-trigger-scoring`                                                                             |
 | Premium / admin    | `generate-premium`, `admin-delete-user`, `admin-generate-reset-link`                                                                                                                                               |
 

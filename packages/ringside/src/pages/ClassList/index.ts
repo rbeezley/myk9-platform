@@ -59,11 +59,5 @@ export {
   type UseFavoriteClassesReturn,
 } from './hooks/useFavoriteClasses';
 
-// Class-status + realtime hooks (PR E1d — already-DI'd; no RingsideProvider needed)
-export {
-  useClassStatus,
-  type StatusDependencies,
-  type StatusOperationResult,
-  type UseClassStatusReturn,
-} from './hooks/useClassStatus';
+// Realtime class hook (PR E1d — already-DI'd; no RingsideProvider needed)
 export { useClassRealtime } from './hooks/useClassRealtime';

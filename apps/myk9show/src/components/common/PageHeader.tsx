@@ -24,7 +24,11 @@ export function PageHeader({ breadcrumbs, title, actions, className }: PageHeade
           aria-label="Breadcrumb"
           className="flex items-center gap-1.5 text-sm text-muted-foreground"
         >
-          <Link to="/" className="hover:text-foreground transition-colors p-1">
+          <Link
+            to="/"
+            aria-label="Home"
+            className="hover:text-foreground transition-colors p-1"
+          >
             <Home className="h-4 w-4" />
           </Link>
           {breadcrumbs.map((item, i) => (

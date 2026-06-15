@@ -13,9 +13,17 @@
   --terracotta-50: var(--terra-50);
   --terracotta-100: var(--terra-100);
   --terracotta-400: var(--terra-400);
-  --terracotta-500: var(--terra-500);
-  --terracotta-600: var(--terra-600);
+  /* WCAG AA contrast fix (scoped to this LIGHT-ONLY marketing surface):
+     the production --terra-500 (#c96442) / --terra-600 (#b05338) and
+     --stone-500 (#8c8376) fail AA when used as text on the cream/white
+     landing backgrounds (3.2–3.9:1 vs ≥4.5:1). These overrides darken them
+     to AA-passing equivalents of the same hue, scoped under .landing-v2 so
+     the global palette (and dark mode, which reuses --stone-500 for muted
+     text) is untouched. Removing the global tokens would break dark mode. */
+  --terracotta-500: #a8472d; /* was var(--terra-500) #c96442 — failed AA on cream */
+  --terracotta-600: #9c4127; /* was var(--terra-600) #b05338 — failed AA on cream */
   --terracotta-700: var(--terra-700);
+  --stone-500: #6b6358; /* was #8c8376 — failed AA on every light landing surface */
 
   /* Teal — used for exhibitor accents and offline pill */
   --teal-50: #f0fdfa;

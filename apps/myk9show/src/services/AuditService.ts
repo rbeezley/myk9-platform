@@ -12,14 +12,11 @@ import {
   ImpersonationContext,
 } from '@/types/audit-types';
 import { logger } from '@/services/LoggingService';
-import { supabase } from '@/services/database/supabaseClient';
 
 export interface AuditServiceConfig {
   enableLocalStorage?: boolean;
   maxLocalEntries?: number;
   enableConsoleLogging?: boolean;
-  enableRemoteLogging?: boolean;
-  apiEndpoint?: string;
 }
 
 export class AuditService {
@@ -36,8 +33,6 @@ export class AuditService {
       enableLocalStorage: true,
       maxLocalEntries: 1000,
       enableConsoleLogging: true,
-      enableRemoteLogging: true, // Enable database logging
-      apiEndpoint: '/api/audit', // Supabase endpoint
       ...config,
     };
 
@@ -89,15 +84,6 @@ export class AuditService {
       });
     }
 
-    // Remote logging (when implemented)
-    if (this.config.enableRemoteLogging && this.config.apiEndpoint) {
-      try {
-        await this.sendToRemote(entry);
-      } catch (error) {
-        logger.error('Failed to send audit entry to remote', 'audit', {}, error as Error);
-      }
-    }
-
     // Notify admin in real-time for critical actions
     if (this.isCriticalAction(entry.action)) {
       await this.notifyAdmins(entry);
@@ -105,23 +91,9 @@ export class AuditService {
   }
 
   /**
-   * Search audit trail with filters - now queries database first, fallback to localStorage
+   * Search audit trail with filters — queries the client-side localStorage store.
    */
   async searchAuditTrail(filters: AuditSearchFilters): Promise<AuditSearchResult> {
-    if (this.config.enableRemoteLogging) {
-      try {
-        return await this.searchRemoteAuditTrail(filters);
-      } catch (error) {
-        logger.warn(
-          'Failed to search remote audit trail, falling back to localStorage',
-          'audit',
-          {},
-          error as Error
-        );
-      }
-    }
-
-    // Fallback to localStorage
     let entries = [...this.localAuditEntries];
 
     // Apply filters
@@ -161,83 +133,6 @@ export class AuditService {
     return {
       entries: entries.slice(startIndex, endIndex),
       totalCount: entries.length,
-      page,
-      pageSize,
-    };
-  }
-
-  /**
-   * Search audit trail in database
-   */
-  private async searchRemoteAuditTrail(filters: AuditSearchFilters): Promise<AuditSearchResult> {
-    // `audit_entry` table not yet in generated Supabase types — cast to bypass.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let query: any = (supabase as any)
-      .from('audit_entry')
-      .select('*', { count: 'exact' })
-      .order('created_at', { ascending: false });
-
-    // Apply filters
-    if (filters.startDate) {
-      query = query.gte('created_at', filters.startDate.toISOString());
-    }
-
-    if (filters.endDate) {
-      query = query.lte('created_at', filters.endDate.toISOString());
-    }
-
-    if (filters.userId) {
-      query = query.eq('user_id', filters.userId);
-    }
-
-    if (filters.action) {
-      query = query.eq('action', filters.action);
-    }
-
-    if (filters.entityType) {
-      query = query.eq('entity_type', filters.entityType);
-    }
-
-    if (filters.entityId) {
-      query = query.eq('entity_id', filters.entityId);
-    }
-
-    // Pagination
-    const page = filters.page || 1;
-    const pageSize = filters.pageSize || 50;
-    const startIndex = (page - 1) * pageSize;
-
-    const { data, error, count } = await query.range(startIndex, startIndex + pageSize - 1);
-
-    if (error) {
-      throw new Error(`Failed to search audit trail: ${error.message}`);
-    }
-
-    // Transform database results to AuditEntry format
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const entries: AuditEntry[] = ((data as any[]) || []).map((row: any) => ({
-      id: row.id,
-      timestamp: new Date(row.created_at),
-      userId: row.user_id,
-      userRole: row.metadata?.userRole || 'unknown',
-      sessionId: row.metadata?.sessionId || '',
-      action: row.action,
-      entityType: row.entity_type,
-      entityId: row.entity_id,
-      changes: {
-        before: row.old_values,
-        after: row.new_values,
-      },
-      ipAddress: row.metadata?.ipAddress || '',
-      userAgent: row.metadata?.userAgent || '',
-      requestId: row.metadata?.requestId || '',
-      impersonatingUserId: row.metadata?.impersonatingUserId,
-      metadata: row.metadata || {},
-    }));
-
-    return {
-      entries,
-      totalCount: count || 0,
       page,
       pageSize,
     };
@@ -520,36 +415,6 @@ export class AuditService {
     }
   }
 
-  private async sendToRemote(entry: AuditEntry): Promise<void> {
-    if (!this.config.apiEndpoint) return;
-
-    // Transform AuditEntry to database format
-    const auditData = {
-      action: entry.action,
-      entity_type: entry.entityType,
-      entity_id: entry.entityId,
-      old_values: entry.changes?.before || null,
-      new_values: entry.changes?.after || null,
-      user_id: entry.userId,
-      metadata: {
-        ...entry.metadata,
-        sessionId: entry.sessionId,
-        ipAddress: entry.ipAddress,
-        userAgent: entry.userAgent,
-        requestId: entry.requestId,
-        impersonatingUserId: entry.impersonatingUserId,
-      },
-    };
-
-    // `audit_entry` table not yet in generated Supabase types — cast to bypass.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any).from('audit_entry').insert(auditData);
-
-    if (error) {
-      throw new Error(`Failed to send audit entry to database: ${error.message}`);
-    }
-  }
-
   private async notifyAdmins(entry: AuditEntry): Promise<void> {
     // This would integrate with the NotificationService
     // For now, just log critical actions
@@ -601,7 +466,6 @@ export const auditService = new AuditService({
   enableLocalStorage: true,
   maxLocalEntries: 1000,
   enableConsoleLogging: process.env.NODE_ENV === 'development',
-  enableRemoteLogging: false,
 });
 
 // Decorator for automatic audit logging

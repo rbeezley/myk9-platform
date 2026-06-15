@@ -28,7 +28,8 @@ export interface UseClassDialogsReturn {
   setActivePopup: (classId: string | null) => void;
   setPopupPosition: (position: PopupPosition | null) => void;
 
-  // Status Dialog State (Note: managed by useClassStatus, included here for completeness)
+  // Status Dialog State (open/close only; the status-change mutation runs
+  // through the host's injected RingsideReplication)
   statusDialogOpen: boolean;
   selectedClassForStatus: ClassEntry | null;
   setStatusDialogOpen: (open: boolean) => void;
@@ -68,7 +69,7 @@ export interface UseClassDialogsReturn {
  *
  * Provides state and methods for:
  * - **Popup Menu**: Positioning and visibility for class action menu
- * - **Status Dialog**: Change class status (managed separately by useClassStatus)
+ * - **Status Dialog**: open/close state for the change-class-status dialog
  * - **Requirements Dialog**: View/edit class requirements
  * - **Max Time Dialog**: Set maximum time for class
  * - **Settings Dialog**: Configure class-specific settings
@@ -119,7 +120,7 @@ export function useClassDialogs(): UseClassDialogsReturn {
   const [activePopup, setActivePopup] = useState<string | null>(null);
   const [popupPosition, setPopupPosition] = useState<PopupPosition | null>(null);
 
-  // Status Dialog State (Note: typically managed by useClassStatus)
+  // Status Dialog State (open/close only; status mutation via host replication)
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [selectedClassForStatus, setSelectedClassForStatus] = useState<ClassEntry | null>(null);
 

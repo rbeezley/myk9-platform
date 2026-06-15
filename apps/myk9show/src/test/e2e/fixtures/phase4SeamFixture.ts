@@ -61,7 +61,9 @@ export type CheckInStatus = 'not-checked-in' | 'checked-in' | 'pulled';
 
 export type PaymentStatus = 'pending' | 'paid' | 'refunded' | 'partial-refund';
 
-export type WaitlistStatus = 'waitlisted' | 'offered' | 'accepted' | 'expired';
+// Matches src/types/waitlist-types.ts. A pending row is 'waiting' (NOT
+// 'waitlisted'); acceptance DELETEs the row rather than setting 'accepted'.
+export type WaitlistStatus = 'waiting' | 'offered' | 'accepted' | 'declined' | 'expired';
 
 export interface FixtureUser {
   id: string; // auth user id
@@ -361,7 +363,7 @@ function seedState(): Phase4SeamState {
         exhibitor_id: PHASE4_IDS.personA,
         handler_id: PHASE4_IDS.personA,
         exhibitor_user_id: PHASE4_IDS.exhibitorA,
-        status: 'waitlisted',
+        status: 'waiting',
         offered_at: null,
         offer_expires_at: null,
         accepted_entry_id: null,

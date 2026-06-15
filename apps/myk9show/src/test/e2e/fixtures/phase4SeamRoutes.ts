@@ -326,7 +326,8 @@ function handleEntriesWrite(
       final_placement: null,
       updated_at: clock(options).toISOString(),
     };
-    return { response: fulfilled(201, [state.entries[id]]), seam: 'waitlist' };
+    // acceptWaitlistOffer inserts with `.select().single()` -> 201 single object.
+    return { response: singleOrArray(req, state.entries[id], 201), seam: 'waitlist' };
   }
 
   // PATCH (scratch request / approve)
@@ -340,11 +341,13 @@ function handleEntriesWrite(
   }
   const entry = state.entries[id];
 
-  // Secretary approve is guarded by entry_status=eq.scratch-requested in the URL.
+  // Secretary approve is guarded by entry_status=eq.scratch-requested in the URL
+  // and reads back with `.single()`. A guard miss returns zero rows, which under
+  // `.single()` is a PGRST116 error (data:null) — approveScratchRequest THROWS
+  // on it, so the race-loser sees an error, not a silent success.
   const guard = extractEqFilter(req.url, 'entry_status');
   if (guard && entry.entry_status !== guard) {
-    // PostgREST returns zero rows when the guard does not match.
-    return { response: fulfilled(200, []), seam: 'scratch' };
+    return { response: noRow(req), seam: 'scratch' };
   }
 
   if (body.entry_status === 'scratch-requested') {
@@ -378,24 +381,31 @@ function handleWaitlistWrite(
 ): { response: SeamResponse } {
   const id = extractEqFilter(req.url, 'id');
   if (!id || !state.waitlistEntries[id]) {
-    return { response: error(500, `Unexpected waitlist PATCH target: ${id}`) };
+    return { response: error(500, `Unexpected waitlist target: ${id}`) };
   }
+
+  // Acceptance: acceptWaitlistOffer DELETEs the waitlist row after inserting the
+  // confirmed entry (it does NOT PATCH status='accepted'). PostgREST delete
+  // without a returning clause -> 204 No Content.
+  if (req.method.toUpperCase() === 'DELETE') {
+    delete state.waitlistEntries[id];
+    return { response: { action: 'fulfill', status: 204, body: '', contentType: JSON_CT } };
+  }
+
   const body = asObject(req.postData);
   if (!body || typeof body.status !== 'string') {
     return { response: error(500, 'Malformed waitlist PATCH payload') };
   }
   const row = state.waitlistEntries[id];
+  // offerWaitlistSpot is the only fixture PATCH: 'waiting' -> 'offered'.
   if (body.status === 'offered') {
     row.status = 'offered';
-    row.offered_at = typeof body.offered_at === 'string' ? body.offered_at : clock(options).toISOString();
+    row.offered_at =
+      typeof body.offered_at === 'string' ? body.offered_at : clock(options).toISOString();
     row.offer_expires_at =
       typeof body.offer_expires_at === 'string' ? body.offer_expires_at : null;
-  } else if (body.status === 'accepted') {
-    row.status = 'accepted';
-    row.accepted_entry_id =
-      typeof body.accepted_entry_id === 'string' ? body.accepted_entry_id : row.accepted_entry_id;
-  } else if (body.status === 'expired') {
-    row.status = 'expired';
+  } else if (body.status === 'declined' || body.status === 'expired') {
+    row.status = body.status;
   } else {
     return { response: error(500, `Unsupported waitlist status: ${body.status}`) };
   }
@@ -572,6 +582,8 @@ function handleFixtureRead(
 ): { response: SeamResponse; seam: SeamName } | null {
   switch (table) {
     case 'show_message_threads': {
+      // getOrCreateThread reads with `.single()`: no row -> PGRST116/data:null so
+      // the app proceeds to INSERT. singleOrArray maps an empty list to that.
       const showId = extractEqFilter(req.url, 'show_id');
       const participant = extractEqFilter(req.url, 'participant_id');
       const rows = Object.values(state.threads).filter(
@@ -579,7 +591,7 @@ function handleFixtureRead(
           (!showId || t.show_id === showId) &&
           (!participant || t.participant_id === participant)
       );
-      return { response: singleOrArray(req, rows.length === 1 ? rows[0] : rows), seam: 'message' };
+      return { response: singleOrArray(req, rows), seam: 'message' };
     }
     case 'show_messages': {
       const threadId = extractEqFilter(req.url, 'thread_id');
@@ -599,12 +611,20 @@ function handleFixtureRead(
       return { response: fulfilled(200, rows), seam: 'results' };
     }
     case 'waitlist_entries': {
+      // Serves both the class roster (array) and acceptWaitlistOffer's guarded
+      // `.eq('id').eq('status','offered').single()` fetch (single object / 406).
+      const id = extractEqFilter(req.url, 'id');
       const showId = extractEqFilter(req.url, 'show_id');
       const classId = extractEqFilter(req.url, 'class_id');
+      const status = extractEqFilter(req.url, 'status');
       const rows = Object.values(state.waitlistEntries).filter(
-        w => (!showId || w.show_id === showId) && (!classId || w.class_id === classId)
+        w =>
+          (!id || w.id === id) &&
+          (!showId || w.show_id === showId) &&
+          (!classId || w.class_id === classId) &&
+          (!status || w.status === status)
       );
-      return { response: fulfilled(200, rows), seam: 'waitlist' };
+      return { response: singleOrArray(req, rows), seam: 'waitlist' };
     }
     default:
       // entries/enrollments/classes reads are replication-backed in the app;
@@ -684,8 +704,35 @@ function applyKnownEntryFields(
   }
 }
 
-function singleOrArray(req: SeamRequest, row: unknown): SeamResponse {
-  return fulfilled(200, wantsSingleObject(req) ? row : Array.isArray(row) ? row : [row]);
+/**
+ * PostgREST `.single()` semantics: a request with the object accept header that
+ * matches 0 (or >1) rows returns HTTP 406 with a PGRST116 error, which
+ * supabase-js surfaces as `{ data: null, error }`. App code that branches on a
+ * falsy `data` (getOrCreateThread) or throws on the error (approveScratchRequest)
+ * depends on this exact shape — returning `200 []` would be truthy and break it.
+ */
+function pgrstNoRow(): SeamResponse {
+  return fulfilled(406, {
+    code: 'PGRST116',
+    details: 'The result contains 0 rows',
+    hint: null,
+    message: 'JSON object requested, multiple (or no) rows returned',
+  });
+}
+
+/** No-row result honoring `.single()` (406) vs a plain list read (`200 []`). */
+function noRow(req: SeamRequest): SeamResponse {
+  return wantsSingleObject(req) ? pgrstNoRow() : fulfilled(200, []);
+}
+
+function singleOrArray(req: SeamRequest, row: unknown, status = 200): SeamResponse {
+  if (wantsSingleObject(req)) {
+    if (Array.isArray(row)) {
+      return row.length === 1 ? fulfilled(status, row[0]) : pgrstNoRow();
+    }
+    return row == null ? pgrstNoRow() : fulfilled(status, row);
+  }
+  return fulfilled(status, Array.isArray(row) ? row : [row]);
 }
 
 // --- Playwright wiring ----------------------------------------------------

@@ -29,6 +29,9 @@ import {
 
 const REST = 'https://x.supabase.co/rest/v1';
 const FN = 'https://x.supabase.co/functions/v1';
+// supabase-js `.single()` sets this accept header; the harness must then honor
+// `.single()` semantics (single object, or PGRST116/406 + data:null on no row).
+const OBJ = { accept: 'application/vnd.pgrst.object+json' };
 
 // Deterministic clock for stable timestamps/elapsed values.
 let tick = 0;
@@ -74,21 +77,24 @@ describe('Seam 1: scratch / pull request', () => {
     const audit: AuditEntry[] = [];
     const id = PHASE4_IDS.entryScratch;
 
-    // Exhibitor requests scratch.
+    // Exhibitor requests scratch (requestScratch uses `.single()`).
     const reqResp = run(state, audit, {
       method: 'PATCH',
       url: `${REST}/entries?id=eq.${id}`,
       postData: { entry_status: 'scratch-requested', special_requests: 'Dog injured' },
+      headers: OBJ,
     });
     expect(reqResp.status).toBe(200);
+    expect((reqResp.body as { id: string }).id).toBe(id); // single object, not array
     expect(state.entries[id].entry_status).toBe('scratch-requested');
     expect(state.entries[id].special_requests).toBe('Dog injured');
 
-    // Secretary approves (guarded by entry_status=eq.scratch-requested).
+    // Secretary approves (guarded by entry_status=eq.scratch-requested, `.single()`).
     const apprResp = run(state, audit, {
       method: 'PATCH',
       url: `${REST}/entries?id=eq.${id}&entry_status=eq.scratch-requested`,
       postData: { entry_status: 'scratched', check_in_status: 'pulled' },
+      headers: OBJ,
     });
     expect(apprResp.status).toBe(200);
     expect(state.entries[id].entry_status).toBe('scratched');
@@ -98,7 +104,7 @@ describe('Seam 1: scratch / pull request', () => {
     assertNoUnhandledAppDataMutations(audit);
   });
 
-  it('approve is a no-op (zero rows) when the guard no longer matches', () => {
+  it('approve on a guard miss returns PGRST116/406 (data:null), state unchanged', () => {
     const state = createPhase4SeamState();
     const audit: AuditEntry[] = [];
     const id = PHASE4_IDS.entryScratch; // still 'confirmed', not 'scratch-requested'
@@ -106,9 +112,12 @@ describe('Seam 1: scratch / pull request', () => {
       method: 'PATCH',
       url: `${REST}/entries?id=eq.${id}&entry_status=eq.scratch-requested`,
       postData: { entry_status: 'scratched', check_in_status: 'pulled' },
+      headers: OBJ, // approveScratchRequest reads back with `.single()`
     });
-    expect(resp.status).toBe(200);
-    expect(resp.body).toEqual([]); // PostgREST returns no rows
+    // `.single()` + zero rows -> 406 PGRST116, which approveScratchRequest THROWS
+    // on (race loser sees an error, not a silent success).
+    expect(resp.status).toBe(406);
+    expect((resp.body as { code: string }).code).toBe('PGRST116');
     expect(state.entries[id].entry_status).toBe('confirmed'); // unchanged
   });
 
@@ -125,12 +134,13 @@ describe('Seam 1: scratch / pull request', () => {
 });
 
 describe('Seam 2: waitlist offer / acceptance', () => {
-  it('secretary offers -> exhibitor accepts -> waitlist accepted + new confirmed entry', () => {
+  it('secretary offers -> acceptWaitlistOffer fetch+insert+DELETE -> entry created, row removed', () => {
     const state = createPhase4SeamState();
     const audit: AuditEntry[] = [];
     const wId = PHASE4_IDS.waitlist;
+    expect(state.waitlistEntries[wId].status).toBe('waiting'); // seed matches the app enum
 
-    // Secretary offers the spot.
+    // Secretary offers the spot (offerWaitlistSpot uses `.single()`).
     run(state, audit, {
       method: 'PATCH',
       url: `${REST}/waitlist_entries?id=eq.${wId}`,
@@ -139,11 +149,20 @@ describe('Seam 2: waitlist offer / acceptance', () => {
         offered_at: '2026-06-10T10:00:00.000Z',
         offer_expires_at: '2026-06-11T10:00:00.000Z',
       },
+      headers: OBJ,
     });
     expect(state.waitlistEntries[wId].status).toBe('offered');
-    expect(state.waitlistEntries[wId].offer_expires_at).toBe('2026-06-11T10:00:00.000Z');
 
-    // Exhibitor accepts: app inserts a confirmed entry...
+    // acceptWaitlistOffer step 1: guarded fetch of the offered row (`.single()`).
+    const fetchResp = run(state, audit, {
+      method: 'GET',
+      url: `${REST}/waitlist_entries?id=eq.${wId}&status=eq.offered`,
+      postData: null,
+      headers: OBJ,
+    });
+    expect((fetchResp.body as { id: string }).id).toBe(wId); // single object, not array
+
+    // step 2: insert the confirmed entry (`.insert().select().single()`).
     const insertResp = run(state, audit, {
       method: 'POST',
       url: `${REST}/entries`,
@@ -156,6 +175,7 @@ describe('Seam 2: waitlist offer / acceptance', () => {
         payment_status: 'pending',
         entry_fee: 30,
       },
+      headers: OBJ,
     });
     expect(insertResp.status).toBe(201);
     const created = Object.values(state.entries).find(
@@ -163,14 +183,14 @@ describe('Seam 2: waitlist offer / acceptance', () => {
     );
     expect(created?.entry_status).toBe('confirmed');
 
-    // ...then flips the waitlist row to accepted.
-    run(state, audit, {
-      method: 'PATCH',
+    // step 3: DELETE the waitlist row (NOT a PATCH to status='accepted').
+    const delResp = run(state, audit, {
+      method: 'DELETE',
       url: `${REST}/waitlist_entries?id=eq.${wId}`,
-      postData: { status: 'accepted', accepted_entry_id: created?.id },
+      postData: null,
     });
-    expect(state.waitlistEntries[wId].status).toBe('accepted');
-    expect(state.waitlistEntries[wId].accepted_entry_id).toBe(created?.id);
+    expect(delResp.status).toBe(204);
+    expect(state.waitlistEntries[wId]).toBeUndefined();
 
     assertNoSharedWrites(audit);
     assertNoUnhandledAppDataMutations(audit);
@@ -186,6 +206,20 @@ describe('Seam 2: waitlist offer / acceptance', () => {
     });
     expect(Array.isArray(resp.body)).toBe(true);
     expect((resp.body as unknown[]).length).toBe(1);
+  });
+
+  it('guarded offered fetch returns PGRST116 when the row is not offered', () => {
+    const state = createPhase4SeamState();
+    const audit: AuditEntry[] = [];
+    // Row is still 'waiting', so the .eq(status,offered).single() fetch finds none.
+    const resp = run(state, audit, {
+      method: 'GET',
+      url: `${REST}/waitlist_entries?id=eq.${PHASE4_IDS.waitlist}&status=eq.offered`,
+      postData: null,
+      headers: OBJ,
+    });
+    expect(resp.status).toBe(406);
+    expect((resp.body as { code: string }).code).toBe('PGRST116');
   });
 });
 
@@ -259,6 +293,35 @@ describe('Seam 3: entry question (messaging)', () => {
 
     assertNoSharedWrites(audit);
     assertNoUnhandledAppDataMutations(audit);
+  });
+
+  it('getOrCreateThread `.single()` read: 406/data:null before creation, object after', () => {
+    const state = createPhase4SeamState();
+    const audit: AuditEntry[] = [];
+    const threadQuery = `${REST}/show_message_threads?show_id=eq.${PHASE4_IDS.show}&participant_id=eq.${PHASE4_IDS.exhibitorA}`;
+
+    // No thread yet: a `.single()` read MUST be a no-row (406) so the app's
+    // falsy-`data` branch proceeds to INSERT. A `200 []` here would be truthy
+    // and make getOrCreateThread build a thread with id: undefined.
+    const before = run(state, audit, { method: 'GET', url: threadQuery, postData: null, headers: OBJ });
+    expect(before.status).toBe(406);
+    expect((before.body as { code: string }).code).toBe('PGRST116');
+
+    // App inserts the thread.
+    run(state, audit, {
+      method: 'POST',
+      url: `${REST}/show_message_threads`,
+      postData: { show_id: PHASE4_IDS.show, participant_id: PHASE4_IDS.exhibitorA },
+      headers: OBJ,
+    });
+
+    // Now the `.single()` read returns the single object (reuse branch).
+    const after = run(state, audit, { method: 'GET', url: threadQuery, postData: null, headers: OBJ });
+    expect(after.status).toBe(200);
+    expect((after.body as { participant_id: string }).participant_id).toBe(PHASE4_IDS.exhibitorA);
+    expect(Array.isArray(after.body)).toBe(false);
+
+    assertNoSharedWrites(audit);
   });
 });
 

@@ -308,11 +308,19 @@ the read-only baseline above, which could not submit any mutating action.
 
 | Seam | Proven transition (write-safe) | Real-browser latency |
 | --- | --- | --- |
-| Scratch / pull | exhibitor `scratch-requested` → secretary guard-approve → `scratched` + `pulled`; stale-guard = zero rows | Pending live walk |
-| Waitlist | secretary `offered` → exhibitor entry insert (`confirmed`) → waitlist `accepted` | Pending live walk |
-| Entry question | thread get-or-create (idempotent) → message send → secretary read → reply → exhibitor read | Pending live walk |
+| Scratch / pull | exhibitor `scratch-requested` → secretary guard-approve (`.single()`) → `scratched` + `pulled`; stale-guard = PGRST116/`data:null` (approve throws) | Pending live walk |
+| Waitlist | seed `waiting` → secretary `offered` → `acceptWaitlistOffer` guarded offered fetch (`.single()`) → entry insert (`confirmed`) → waitlist row **DELETEd** | Pending live walk |
+| Entry question | thread `.single()` read = 406/`data:null` before create → INSERT → reuse on next `.single()`; message send → secretary read → reply → exhibitor read | Pending live walk |
 | Refund / withdrawal | `stripe-refund-entry` → entry `refunded`/`withdrawn` + enrollment refund metadata; partial-refund clamps to fee | Pending live walk |
 | Results release | class `results_released_at` set → `view_entry_with_results` flips hidden → visible | Pending live walk |
+
+> **Fidelity fixes (2026-06-15, post-review).** The harness now honors PostgREST
+> `.single()` semantics — a no-row match returns HTTP 406 / `PGRST116`
+> (`data:null`), not `200 []` — so the gated live walk reflects real app
+> behavior for `getOrCreateThread` (falsy-`data` → insert), `approveScratchRequest`
+> (throws on guard miss), and the waitlist offered-fetch. Waitlist acceptance is
+> modeled as the real **fetch-offered → insert-entry → DELETE-row** sequence
+> (not a `status='accepted'` PATCH), and the seed status is the app's `waiting`.
 
 **Blocked endpoint (documented per fixtures-plan guardrail #37):** the harness
 blocks every seam **write** locally, but the app reads `entries` / `classes`

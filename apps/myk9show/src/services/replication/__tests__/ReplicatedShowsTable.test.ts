@@ -358,9 +358,11 @@ describe('ReplicatedShowsTable', () => {
         {
           id: 'show-3',
           name: 'Future Show 1',
+          // Relative future dates so the calendar can never turn this "future"
+          // show "active" (a hardcoded 2026-06-15 went stale on 2026-06-15 UTC).
           organization: 'Rally',
-          startDate: '2026-06-15',
-          endDate: '2026-06-16',
+          startDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0], // +30 days
+          endDate: new Date(Date.now() + 31 * 86400000).toISOString().split('T')[0], // +31 days
           status: 'draft',
           clubId: 'club-123',
         },
@@ -368,8 +370,8 @@ describe('ReplicatedShowsTable', () => {
           id: 'show-4',
           name: 'Future Show 2',
           organization: 'Obedience',
-          startDate: '2026-08-15',
-          endDate: '2026-08-16',
+          startDate: new Date(Date.now() + 60 * 86400000).toISOString().split('T')[0], // +60 days
+          endDate: new Date(Date.now() + 61 * 86400000).toISOString().split('T')[0], // +61 days
           status: 'active',
           clubId: 'club-456',
         },

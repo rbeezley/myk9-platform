@@ -181,6 +181,8 @@ Two distinct sub-classes, separated by re-running the 8 files alone with shuffle
 
 **Recommendation:** do **not** enable `--sequence.shuffle` in CI until the cross-file pollution is resolved — it would convert latent debt into red builds. Revisit after the isolation sweep.
 
+**Date time-bomb flake (found in CI, fixed).** Opening this PR's CI run (00:00 UTC 2026-06-15) went red on `ReplicatedShowsTable.test.ts > getActiveShows > should exclude future shows` — a fixture hardcoded a "future" show at `2026-06-15`, which the calendar reached and turned "active." Unrelated to this PR's diff (it was red on `main` too) but it surfaced on this branch, so it is fixed here: `show-3`/`show-4` now use `Date.now()`-relative future dates like the sibling "current" fixture already did. A broader sweep for other hardcoded near-future fixture dates is tracked in OPEN-TODOS — this is a distinct flake class (time-dependent, not isolation) and a good candidate for a CI-time check or a frozen clock (`vi.setSystemTime`) in date-sensitive suites.
+
 ### Timing baseline (2026-06-14)
 
 Full myK9Show unit suite, `forks` pool, 10-core macOS, jsdom. Wall-clock **~126–210s** in default order on an unloaded machine (one outlier 304s run coincided with a concurrent agent's load). The suite is **environment-bound, not test-bound**: cumulative `environment` (jsdom init, ~408–960s across forks) dwarfs `tests` (~210–435s), so per-file jsdom setup — not test logic — is the dominant cost. This is the signal for the deferred `fileParallelism` spike (`project_test_suite_performance`): the win is amortizing jsdom init across fewer, fatter workers.

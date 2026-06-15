@@ -1,7 +1,7 @@
 # UX Journey Audit Summary
 
-**Date:** 2026-06-14
-**Status:** Human gate pending
+**Date:** 2026-06-14 (gate approved 2026-06-15)
+**Status:** Human gate APPROVED — remediation list ratified, Wave 3 unlocked
 **Scope:** Launch-gate synthesis for exhibitor, secretary, and cross-role journey audits
 **Intent targets:** Exhibitor - "This respects my time"; Trial Secretary - "That was easy"
 
@@ -76,6 +76,8 @@ Green is not available from this synthesis. Green requires remediation, fixture-
 
 **Wave 4 implementation note:** In progress on branch `codex/wave4-secretary-closeout`. Local focused tests cover legacy `phase=show-desk` routing into canonical Show Desk and AKC submit gating when preflight registration numbers are missing. `UX-P2-07`, `UX-P2-08`, and the observed closed-select part of `UX-P2-09` were already fixed in prior PRs and now need only tracking cleanup.
 
+**Wave 5 fixture-harness note (2026-06-15):** The write-safe Phase 4 seam fixture harness is built and verified — `phase4SeamFixture.ts`, `phase4SeamRoutes.ts`, an 18-case vitest suite (all green), and a gated two-context live spec. The seam **state transitions and cross-role state agreement are now proven deterministically** for all five seams (scratch, waitlist, message, refund, results release) with a hard guarantee that no write reaches shared Supabase (`assertNoSharedWrites` / `assertNoUnhandledAppDataMutations`). This resolves the logic half of `UX-P2-11` and the "mutation seams unverified" caveat in `03-cross-role-seams.md`. **Still open:** real-browser latency ("does role B see it without refresh") and `phase4-dynamic-*` screenshots, because the app reads entries/classes from the replication layer (IndexedDB), so the live walk needs either (A) IndexedDB replication seeding or (B) a local Supabase seed (documented in `03-cross-role-seams.md`). That read-strategy choice is the open human-gate decision below.
+
 ## Duplication And Consolidation Notes
 
 | Proposed remedy | Does it duplicate an existing page? | Decision |
@@ -92,12 +94,18 @@ Green is not available from this synthesis. Green requires remediation, fixture-
 
 ## Human Gate
 
+**APPROVED 2026-06-15.** The remediation list (23 findings, duplication answers, Waves 1–5) is ratified as the consolidation contract: every remedy is a link / tighten / repair / fixture-only — no new surfaces. Wave 3 is unlocked. Pre-approval check: `UX-P1-01` was confirmed a **test-data gap** (audit saw show "Monogram" with 4 trials / 0 classes), not a code bug — the dead-end UX is already gated in code.
+
+**`UX-P1-01` data gap RESOLVED (verified 2026-06-15).** A direct DB check shows show `5d8bfe56-a48d-48dd-ae75-7f90c2e02c4f` now has **32 valid AKC Scent Work classes** (4 trials × 8: Container/Interior × Novice A→Master, $30, `upcoming`). The exhibitor enter→pay path is data-unblocked; no write was made (inserting would have duplicated classes). The Exhibitor golden-path Red→Yellow flip now waits only on the Phase 6 re-walk through class selection → payment handoff → confirmation.
+
 Before remediation begins, confirm:
 
 - [x] Wave 1 is approved as the first remediation wave.
 - [x] Wave 2 is approved once entry/payment trust is unblocked.
 - [x] Wave 3 can run after or beside Wave 2 if a separate worktree is available.
 - [x] Wave 4 can run independently because it is secretary closeout/routing polish.
-- [ ] Wave 5 should use local Dynamic QA fixtures unless the user explicitly approves shared Supabase seed mutations.
+- [x] Wave 5 fixture harness landed write-safe (state transitions proven via unit tests, zero shared-Supabase writes).
+- [x] **Wave 5 live-walk read strategy — DEFERRED (user, 2026-06-15).** Harness shipped as-is; the unit-test-proven seam transitions + write-safety are accepted as sufficient evidence for now. Real-browser latency + `phase4-dynamic-*` screenshots are deferred until a read strategy (A IndexedDB seeding / B local Supabase) is picked. The live spec self-skips meanwhile (`PHASE4_SEAM_FIXTURE_READY` unset).
+- [ ] **Open gate decision — unlock Wave 3 (consolidation remediation):** the severity-ordered findings, duplication answers, and remediation waves above are ready for approval. Approving them unlocks Wave 3 work.
 
-Recommended next action: ship Wave 3B, then continue Wave 5 fixture-backed seam completion unless a higher-priority open P1/P2 is selected. Wave 5 should remain fixture-only until shared seed mutations are explicitly approved.
+Recommended next action: approve the remediation list (unlocks Wave 3) and pick the Wave 5 live-walk read strategy (A or B). The harness is ready to run the moment a strategy is chosen (`PHASE4_SEAM_FIXTURE_READY=1`); until then the live spec self-skips and never touches shared data.

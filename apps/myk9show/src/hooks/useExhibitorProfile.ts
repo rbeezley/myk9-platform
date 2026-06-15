@@ -26,8 +26,13 @@ export interface ExhibitorProfile {
     email: string;
     phone: string | null;
     profile_image: string | null;
-    /** Founding-member premium grant end; null = never granted. */
-    early_adopter_until: string | null;
+    /**
+     * Founding-member premium grant end. `null` = never granted;
+     * `undefined` = the column was omitted from the read (DB missing the
+     * founding-member migration — see the column-absent fallback below).
+     * Consumers must treat both as "not an early adopter".
+     */
+    early_adopter_until?: string | null;
   };
 }
 

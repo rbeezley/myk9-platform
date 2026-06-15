@@ -72,7 +72,12 @@ export function ViewPicker({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-1.5">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            aria-label={activeView ? `Saved views: ${activeView.name}` : 'Saved views'}
+          >
             <Bookmark className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">{activeView ? activeView.name : 'Saved Views'}</span>
             <ChevronDown className="h-3 w-3 opacity-60" />

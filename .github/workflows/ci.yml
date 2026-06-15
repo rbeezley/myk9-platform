@@ -203,6 +203,63 @@ jobs:
       - name: Bundle budget (myK9Show)
         run: pnpm --filter @myk9/show budget:check
 
+  # Focused accessibility smoke — runs ONLY the axe-core a11y spec against a
+  # built preview, not the full (still-disabled) e2e suite. Enforces the
+  # color-contrast + serious/critical gate the spec defines. GHA minutes are
+  # free post-public-repo, so this is safe to run per-PR. Authenticated role
+  # landings inside the spec self-skip when test-user creds are absent, so this
+  # job gates the public-page contrast surface without needing those secrets.
+  #
+  # To make this a *required* check, add "A11y smoke" to the main branch ruleset
+  # (GitHub settings — not editable from the repo).
+  a11y:
+    name: A11y smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: build
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # a11y spec runs against `npm run preview` (serves dist/), which does not
+      # build — so produce dist here before Playwright starts the web server.
+      - name: Build app + packages
+        run: pnpm build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Install Playwright browser
+        run: pnpm --filter @myk9/show exec playwright install --with-deps chromium
+
+      - name: Run a11y smoke
+        working-directory: apps/myk9show
+        run: pnpm test:a11y
+        env:
+          CI: 'true'
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Upload a11y report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: myk9show-a11y-report
+          path: apps/myk9show/playwright-report-ci/
+          retention-days: 7
+
   # E2E jobs temporarily disabled to conserve GitHub Actions minutes (1,805/2,000 used).
   # Resets April 1, 2026. Re-enable after reset.
   # See: https://github.com/rbeezley/myk9-platform/settings/billing

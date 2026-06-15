@@ -406,7 +406,12 @@ select:hover {
     --card-secondary-foreground: #141413;
     /* Warm neutrals */
     --muted: #f0eee6;
-    --muted-foreground: #8c8376; /* was #87867f — v2 stone-500 */
+    /* WCAG AA contrast fix: #8c8376 failed AA on every light surface
+       (3.2–3.7:1 vs ≥4.5:1 required). #6b6358 clears AA on all light
+       backgrounds (4.7–5.9:1) while staying a warm stone tone. Dark-mode
+       muted-foreground (stone-500) is unchanged — it already passes AA on
+       dark surfaces, so the light/dark values now diverge intentionally. */
+    --muted-foreground: #6b6358; /* was #8c8376 (v2 stone-500); failed WCAG AA */
     /* Primary overridden by accent color classes below */
     --secondary: #e8e6dc;
     --secondary-foreground: #4d4c48;
@@ -478,7 +483,7 @@ select:hover {
     --card-secondary: var(--ink-900);
     --card-secondary-foreground: var(--ivory-50);
     --muted: #1e1c19;
-    --muted-foreground: var(--stone-500); /* v2 stone-500 — matches light mode */
+    --muted-foreground: var(--stone-500); /* stone-500 #8c8376 — passes WCAG AA on dark surfaces (≥4.5:1); light mode now uses a darker value, see :root */
     /* Primary overridden by accent color classes below */
     --secondary: #1e1c19;
     --secondary-foreground: var(--ivory-50);
@@ -645,20 +650,28 @@ select:hover {
 /* Clay — warm terracotta (default) */
 html[data-accent='clay'],
 html:not([data-accent]) {
-  --primary: #c96442;
-  --primary-hover: #b05338;
+  /* WCAG AA contrast fix (LIGHT MODE ONLY): the prior clay primary #c96442
+     failed AA both as link text on cream/white (3.6–3.9:1) and as white text
+     on the primary button (3.9:1, vs ≥4.5:1 required). #a8472d is the same
+     terracotta hue, darkened just enough to clear AA on every light surface
+     (5.1:1 on cream, 5.8:1 white-on-button). The DARK-mode clay primary
+     (#d97757, in the .dark/.theme-dark block below) is unchanged — it reads
+     on the warm-black surfaces. NOTE: this shifts the default brand accent
+     app-wide in light mode; flagged for design review. */
+  --primary: #a8472d;
+  --primary-hover: #9c4127;
   --primary-foreground: #ffffff;
   --primary-tint: #fdf5ef;
   --primary-tint-ink: #7c4a2e;
   --accent: #fdf5ef;
   --accent-foreground: #7c4a2e;
-  --accent-glow: rgba(201, 100, 66, 0.3);
+  --accent-glow: rgba(168, 71, 45, 0.3);
   --ring: #f2c8a8;
   --accent-50: #fdf5ef;
   --accent-100: #f9e5d5;
   --accent-200: #f2c8a8;
-  --accent-500: #c96442;
-  --accent-600: #b05338;
+  --accent-500: #a8472d;
+  --accent-600: #9c4127;
   --accent-700: #7c4a2e;
 }
 

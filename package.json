@@ -34,9 +34,9 @@
   "devDependencies": {
     "@stryker-mutator/core": "9.6.1",
     "@stryker-mutator/vitest-runner": "9.6.1",
-    "prettier": "^3.8.3",
+    "prettier": "^3.8.4",
     "tsx": "^4.22.4",
-    "turbo": "^2.9.16",
+    "turbo": "^2.9.18",
     "vitest": "^4.1.8"
   },
   "packageManager": "pnpm@9.15.9",

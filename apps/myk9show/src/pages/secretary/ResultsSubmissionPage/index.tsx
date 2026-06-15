@@ -105,6 +105,7 @@ export default function ResultsSubmissionPage() {
 
   // Pre-flight: count entries missing AKC reg numbers
   const missingAKCCount = akcData ? akcData.entries.filter(e => !e.registrationNumber).length : 0;
+  const hasBlockingAKCPreflightIssue = isAKCScentWork && missingAKCCount > 0;
 
   const filename = show ? buildFilename(show.name) : 'results.xml';
 
@@ -119,6 +120,11 @@ export default function ResultsSubmissionPage() {
 
   const handleSend = async () => {
     if (!xmlPreview || !activeFormatter || !showId || !akcData) return;
+    if (hasBlockingAKCPreflightIssue) {
+      setSendError('Add AKC registration numbers before sending results.');
+      setShowConfirm(false);
+      return;
+    }
 
     setSendError(null);
     setSendSuccess(false);
@@ -206,7 +212,7 @@ export default function ResultsSubmissionPage() {
             <>
               <Button
                 onClick={() => setShowConfirm(true)}
-                disabled={!xmlPreview || isSending}
+                disabled={!xmlPreview || isSending || hasBlockingAKCPreflightIssue}
                 data-testid="send-btn"
               >
                 {isSending ? 'Sending...' : `Send to ${activeFormatter.organization}`}

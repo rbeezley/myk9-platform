@@ -157,6 +157,13 @@ describe('canonical show route redirects', () => {
     expect(await screen.findByTestId('location')).toHaveTextContent('/shows/show-1/setup');
   });
 
+  it('redirects the legacy show-desk phase query to canonical Show Desk', async () => {
+    renderRedirect('/secretary/shows/show-1?phase=show-desk&from=email');
+    expect(await screen.findByTestId('location')).toHaveTextContent(
+      '/shows/show-1/show-desk?from=email'
+    );
+  });
+
   it('redirects a legacy secretary show subroute to the matching canonical subroute', async () => {
     renderRedirect('/secretary/shows/show-1/show-desk', 'show-desk');
     expect(await screen.findByTestId('location')).toHaveTextContent('/shows/show-1/show-desk');

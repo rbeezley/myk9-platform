@@ -335,6 +335,10 @@ describe('ReplicatedShowsTable', () => {
 
   describe('Show Queries and Filtering', () => {
     beforeEach(async () => {
+      const dayMs = 86400000;
+      const dateFromNow = (offsetDays: number) =>
+        new Date(Date.now() + offsetDays * dayMs).toISOString().split('T')[0];
+
       // Setup test data with various dates and statuses
       const shows: ReplicatedShow[] = [
         {
@@ -350,8 +354,8 @@ describe('ReplicatedShowsTable', () => {
           id: 'show-2',
           name: 'Current Show',
           organization: 'Agility',
-          startDate: new Date(Date.now() - 86400000).toISOString().split('T')[0], // Yesterday
-          endDate: new Date(Date.now() + 86400000).toISOString().split('T')[0], // Tomorrow
+          startDate: dateFromNow(-1), // Yesterday
+          endDate: dateFromNow(1), // Tomorrow
           status: 'active',
           clubId: 'club-123',
         },
@@ -359,8 +363,8 @@ describe('ReplicatedShowsTable', () => {
           id: 'show-3',
           name: 'Future Show 1',
           organization: 'Rally',
-          startDate: '2026-06-15',
-          endDate: '2026-06-16',
+          startDate: dateFromNow(30),
+          endDate: dateFromNow(31),
           status: 'draft',
           clubId: 'club-123',
         },

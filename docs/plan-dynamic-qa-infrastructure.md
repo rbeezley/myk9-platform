@@ -198,6 +198,16 @@ Slowest files (run 1, ms): `ShowMapTab` 6802 · `MessageShowComposer` 5146 · `R
 
 **Testing:** size-limit config verified by intentionally inflating a chunk locally (gate must fail, then revert); axe assertions are tests; drift-run script gets a smoke test against the repo.
 
+### Status 2026-06-15 — Phase 6a complete (bundle budget + a11y smoke); 6b pending
+
+Split into **6a (code/config gates — this PR)** and **6b (scheduled jobs — items 3 & 4, shared-system, pending user go-ahead)**.
+
+**Bundle-size budget — DONE, enforced in CI.** Inventory first (consolidate-don't-duplicate): two pre-existing budget scripts (`check-bundle-size.js`, `check-performance-budgets.js`) were both *dead* — their CLI guard `import.meta.url === ` + "`file://${process.argv[1]}`" + ` silently no-ops because the repo path contains a space (`AI Projects/`), and their `[a-f0-9]+` hash regexes never matched Vite's mixed-case hashes. Replaced both with one `scripts/check-bundle-budget.js` that parses `dist/index.html` to size the real initial-load payload (entry + modulepreloaded vendors + linked CSS) plus a per-chunk ceiling — immune to both bugs. Wired into the CI `build` job (`pnpm --filter @myk9/show budget:check`), reusing the existing build output. Budgets (RAW KB, baseline 2026-06-15, ratchet down only): **initialJs 3300** (current 3120), **initialCss 360** (current 329), **maxChunk 1550** (current 1476). Verified: 9 unit tests on the pure `evaluateBudgets`/`collectBundleStats`, plus an end-to-end check that the real build trips a deliberately tiny budget. (Aside: `vendor-charts` ~176 KB is eagerly modulepreloaded — a future code-split win.)
+
+**Accessibility smoke — DONE (rides e2e), one real finding tracked.** `@axe-core/playwright` scan of the 5 top public landing pages (`/`, `/shows`, `/sign-in`, `/sign-up`, `/pricing-page`) in `src/test/e2e/a11y-smoke.spec.ts` (script `test:a11y`). Gates on serious/critical only. The baseline scan found exactly one serious rule — **`color-contrast`, 39–83 nodes per page** — a pre-existing design-system/theme-token issue, not something a QA phase fixes. Following the ratchet philosophy (baseline known debt, gate regressions), `color-contrast` is excluded from the gate and tracked as an OPEN-TODOS remediation task; every *other* serious/critical rule must stay at zero (verified: 5/5 pass). **CI execution note:** the e2e suite is currently disabled in CI, so a11y runs locally / whenever e2e runs. Re-enabling e2e (or adding a focused a11y CI job — now cheap since the repo is public and GHA minutes are free) is folded into the 6b CI decision rather than made unilaterally here. Authenticated role-landing a11y (secretary/judge/admin/at-show) needs a storageState fixture — deferred follow-up.
+
+**6b — NOT started (pending go-ahead):** dependency cadence (monthly `pnpm audit`/`outdated` + reviewing the `@supabase/supabase-js` override pin) and the weekly scheduled drift run. Both are scheduled-job / `.github/**` changes (shared-system) requiring explicit confirmation per Phase 0.
+
 ## Phase 7 — Final regression and codification
 
 1. Full `pnpm typecheck`, `pnpm lint`, package + app test suites green.

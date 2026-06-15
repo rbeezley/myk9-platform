@@ -56,16 +56,16 @@ baseline_sha="$(git rev-parse origin/main)"
 git worktree add --detach "$worktree" origin/main
 
 env_file="$worktree/.qa-nightly.env"
-cat > "$env_file" <<ENV
-QA_NIGHTLY_DATE=$run_date
-QA_NIGHTLY_BASELINE_SHA=$baseline_sha
-QA_NIGHTLY_WORKTREE=$worktree
-QA_NIGHTLY_REPORT_BRANCH=codex/nightly-qa-$run_date
-PLAYWRIGHT_PORT=$port
-PLAYWRIGHT_BASE_URL=http://127.0.0.1:$port
-PLAYWRIGHT_HMR_PORT=$((port + 20000))
-QA_NIGHTLY_GLOBAL_TIMEOUT_SECONDS=1800
-ENV
+{
+  printf 'QA_NIGHTLY_DATE=%q\n' "$run_date"
+  printf 'QA_NIGHTLY_BASELINE_SHA=%q\n' "$baseline_sha"
+  printf 'QA_NIGHTLY_WORKTREE=%q\n' "$worktree"
+  printf 'QA_NIGHTLY_REPORT_BRANCH=%q\n' "codex/nightly-qa-$run_date"
+  printf 'PLAYWRIGHT_PORT=%q\n' "$port"
+  printf 'PLAYWRIGHT_BASE_URL=%q\n' "http://127.0.0.1:$port"
+  printf 'PLAYWRIGHT_HMR_PORT=%q\n' "$((port + 20000))"
+  printf 'QA_NIGHTLY_GLOBAL_TIMEOUT_SECONDS=%q\n' "1800"
+} > "$env_file"
 
 cat <<SUMMARY
 Prepared isolated Nightly QA worktree.

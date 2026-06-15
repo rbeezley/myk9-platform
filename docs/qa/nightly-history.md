@@ -18,6 +18,17 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-06-15
+
+- **Playwright command:** skipped. Phase 1 Vitest passed (`18/18`), but the run exceeded the 30-minute global Nightly wall-clock budget before Phase 2 began, so the active Playwright command was not run.
+- **Route sweep:** skipped because the global Nightly budget was already exhausted before Phase 3.
+- **Active specs:** Vitest `18/18`; active Playwright skipped.
+- **Failures:** no app failure proven. Process issues found: the isolated worktree bootstrap took `16m 1.6s`, and the generated `.qa-nightly.env` could not be safely sourced from this repo path because unquoted `QA_NIGHTLY_WORKTREE` values break on `AI Projects`.
+- **Fixes made:** `scripts/qa/run-nightly-isolated.sh` now writes shell-escaped `.qa-nightly.env` values; `docs/qa/e2e-suite-map.md` catalogs `a11y-smoke.spec.ts` after the drift check found it missing; `docs/qa/nightly-history.md` records the budget-aborted run.
+- **Demotions/promotions:** none. `a11y-smoke.spec.ts` was classified as `feature-audit`, not promoted to Nightly.
+- **Findings:** none opened or closed. `QA-NETWORK-ERROR-018` remains open because Phase 2 and Phase 3 did not run on 2026-06-15.
+- **Notes:** Ran from isolated detached worktree `.worktrees/nightly-qa-2026-06-15-023645` on `origin/main` `d1d99b2ab93704de1e7ab0866ba3909af38d1e5e`, using `PLAYWRIGHT_PORT=5735`, `PLAYWRIGHT_BASE_URL=http://127.0.0.1:5735`, and `PLAYWRIGHT_HMR_PORT=25735`. This was a process/budget abort, not a product regression signal. Next run should verify the escaped env file from a fresh isolated worktree and then continue to the exact Phase 2 and Phase 3 commands if still under budget.
+
 ### 2026-06-14
 
 - **Playwright command:** fail. Phase 1 Vitest passed (`18/18`). Phase 2 active Playwright failed with `38 passed, 11 failed, 1 did not run (50.2m, --retries=0)`. The run exceeded the 30-minute global Nightly budget; standalone Phase 3 was skipped after Phase 2 finished red.

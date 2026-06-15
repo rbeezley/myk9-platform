@@ -33,7 +33,7 @@ import { buildAssignedJudges } from '@/utils/buildAssignedJudges';
  * Convert ReplicatedShow (database schema) to Show (app schema)
  * Local-only fields are initialized to defaults
  */
-function replicatedToShow(replicated: ReplicatedShow): Show {
+export function replicatedToShow(replicated: ReplicatedShow): Show {
   return {
     id: replicated.id,
     name: replicated.name,
@@ -60,6 +60,10 @@ function replicatedToShow(replicated: ReplicatedShow): Show {
     stats: [], // Local-only: calculated
     acceptCheckPayments: replicated.acceptCheckPayments,
     acceptCashPayments: replicated.acceptCashPayments,
+    // Preserve the Nationals placement flag across sync/reload. Dropping it here
+    // would surface as undefined → showToFormData defaults false → an unrelated
+    // edit silently overwrites the show back to Regular placement.
+    isNationals: replicated.isNationals ?? false,
     style: replicated.style ?? null,
     experienceIsPublished: replicated.experienceIsPublished ?? false,
     experiencePublishedAt: replicated.experiencePublishedAt ?? null,

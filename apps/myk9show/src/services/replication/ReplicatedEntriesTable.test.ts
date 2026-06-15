@@ -46,4 +46,16 @@ describe('rowToEntry — embedded dog mapping', () => {
     expect(entry.armband).toBe(100);
     expect(entry.handler).toBe('Test Secretary');
   });
+
+  it('maps total_score into replicated score aliases', () => {
+    const entry = rowToEntry({
+      ...baseRow,
+      total_score: 87.5,
+    } as never);
+
+    expect(entry.totalScore).toBe(87.5);
+    expect(entry.totalPoints).toBe(87.5);
+    expect(entry.total_score).toBe(87.5);
+    expect(entry.total_points).toBe(87.5);
+  });
 });

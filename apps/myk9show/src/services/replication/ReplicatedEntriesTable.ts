@@ -92,7 +92,8 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       result_status: entry.resultStatus ?? entry.result_status ?? null,
       disqualification_reason: entry.disqualification_reason ?? null,
       search_time_seconds: entry.searchTimeSeconds ?? entry.search_time_seconds ?? null,
-      total_score: entry.totalPoints ?? entry.total_points ?? null,
+      total_score:
+        entry.totalScore ?? entry.total_score ?? entry.totalPoints ?? entry.total_points ?? null,
       total_faults: entry.totalFaults ?? entry.total_faults ?? null,
       judge_notes: entry.judgeNotes ?? entry.judge_notes ?? null,
       scoring_completed_at: entry.scoringCompletedAt ?? entry.scoring_completed_at ?? null,
@@ -371,10 +372,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     entryIds: string[] = []
   ): Promise<{ updated: number; mutationIds: string[] }> {
     const entries = (await this.getEntriesByShow(showId)).filter(
-      entry =>
-        entry.dogId === dogId &&
-        !entry.deletedAt &&
-        !entry.deleted_at
+      entry => entry.dogId === dogId && !entry.deletedAt && !entry.deleted_at
     );
     const targets = new Map<string, ReplicatedEntry | null>();
     entries.forEach(entry => targets.set(entry.id, entry));

@@ -59,6 +59,7 @@ export interface ReplicatedEntry {
   resultStatus?: string | undefined;
   resultText?: string | undefined;
   searchTimeSeconds?: number | undefined;
+  totalScore?: number | undefined;
   totalPoints?: number | undefined;
   finalPlacement?: string | null | undefined;
   dogCallName?: string | undefined;
@@ -76,6 +77,7 @@ export interface ReplicatedEntry {
   result_status?: string | undefined;
   result_text?: string | undefined;
   search_time_seconds?: number | undefined;
+  total_score?: number | undefined;
   total_points?: number | undefined;
   final_placement?: string | undefined;
   dog_call_name?: string | undefined;
@@ -172,7 +174,11 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     resultStatus: (dbRow.result_status as string | undefined) ?? undefined,
     resultText: (dbRow.result_text as string | undefined) ?? undefined,
     searchTimeSeconds: (dbRow.search_time_seconds as number | undefined) ?? undefined,
-    totalPoints: (dbRow.total_points as number | undefined) ?? undefined,
+    totalScore: (dbRow.total_score as number | undefined) ?? undefined,
+    totalPoints:
+      (dbRow.total_score as number | undefined) ??
+      (dbRow.total_points as number | undefined) ??
+      undefined,
     finalPlacement: dbRow.final_placement != null ? String(dbRow.final_placement) : undefined,
     dogCallName: dog?.call_name ?? (dbRow.dog_call_name as string | undefined) ?? undefined,
     dogBreed: dog?.breed ?? (dbRow.dog_breed as string | undefined) ?? undefined,
@@ -184,7 +190,11 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     result_status: (dbRow.result_status as string | undefined) ?? undefined,
     result_text: (dbRow.result_text as string | undefined) ?? undefined,
     search_time_seconds: (dbRow.search_time_seconds as number | undefined) ?? undefined,
-    total_points: (dbRow.total_points as number | undefined) ?? undefined,
+    total_score: (dbRow.total_score as number | undefined) ?? undefined,
+    total_points:
+      (dbRow.total_score as number | undefined) ??
+      (dbRow.total_points as number | undefined) ??
+      undefined,
     final_placement: dbRow.final_placement != null ? String(dbRow.final_placement) : undefined,
     dog_call_name: dog?.call_name ?? (dbRow.dog_call_name as string | undefined) ?? undefined,
     dog_breed: dog?.breed ?? (dbRow.dog_breed as string | undefined) ?? undefined,

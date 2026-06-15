@@ -9,8 +9,15 @@ import { signIn } from './uat/shared/auth';
  * Runs axe-core against:
  *   1. the top public landing pages — the surfaces every cold-start visitor
  *      hits before authenticating; and
- *   2. the authenticated role landings (secretary workbench, judge, admin,
- *      and the /at-show ringside gate) — the first screen each role sees.
+ *   2. the authenticated role landings (secretary workbench, judge, admin) —
+ *      the first screen each role sees.
+ *
+ * NOT covered: /at-show ringside. The base `/at-show` route (no `:showId`)
+ * renders SmartSignInPage — the passcode/sign-in classifier — not a ringside
+ * surface. The real ringside is `/at-show/:showId` behind a seeded show +
+ * passcode/grant, so auditing `/at-show` would falsely claim show-day coverage.
+ * Add it once a seeded show fixture exists (OPEN-TODOS: "Seed Phase 4 seam
+ * fixtures").
  *
  * Gates on serious/critical violations only; moderate/minor are logged for
  * triage (file as OPEN-TODOS) rather than failing the build, per the phase plan.
@@ -45,8 +52,6 @@ const AUTHED_PAGES = [
   { name: 'Secretary Dashboard', path: '/secretary/dashboard', user: TEST_USERS.SECRETARY },
   { name: 'Judge Dashboard', path: '/judge/dashboard', user: TEST_USERS.JUDGE },
   { name: 'Admin Dashboard', path: '/admin/dashboard', user: TEST_USERS.SITE_ADMIN },
-  // /at-show is the unified ringside gate; a signed-in secretary lands here.
-  { name: 'At-Show', path: '/at-show', user: TEST_USERS.SECRETARY },
 ] as const;
 
 const BLOCKING_IMPACTS = ['serious', 'critical'];

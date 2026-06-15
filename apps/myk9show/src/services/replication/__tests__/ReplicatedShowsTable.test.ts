@@ -782,6 +782,17 @@ describe('ReplicatedShowsTable', () => {
     });
 
     it('should create show with full metadata', async () => {
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+
       const result = await table.createShow({
         name: 'Premium Show',
         organization: 'Rally',
@@ -797,11 +808,20 @@ describe('ReplicatedShowsTable', () => {
         maxEntriesPerDog: 5,
         maxTotalEntries: 250,
         allowsNonOwnerHandlers: false,
+        isNationals: true,
       });
 
       expect(result.maxEntriesPerDog).toBe(5);
       expect(result.maxTotalEntries).toBe(250);
       expect(result.allowsNonOwnerHandlers).toBe(false);
+      expect(result.isNationals).toBe(true);
+
+      // isNationals (camelCase) flows to is_nationals (snake_case) in the row payload
+      expect(queueMutation).toHaveBeenCalledWith(
+        'INSERT',
+        result.id,
+        expect.objectContaining({ is_nationals: true })
+      );
     });
   });
 
@@ -1220,6 +1240,7 @@ describe('ReplicatedShowsTable', () => {
         max_entries_per_dog: 3,
         max_total_entries: 150,
         allow_non_owner_handlers: true,
+        is_nationals: true,
         updated_at: '2024-01-01T10:00:00Z',
       };
 
@@ -1251,6 +1272,7 @@ describe('ReplicatedShowsTable', () => {
       expect(show?.maxEntriesPerDog).toBe(3);
       expect(show?.maxTotalEntries).toBe(150);
       expect(show?.allowsNonOwnerHandlers).toBe(true);
+      expect(show?.isNationals).toBe(true);
     });
 
     it('should handle null/undefined fields gracefully', async () => {

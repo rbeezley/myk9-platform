@@ -240,6 +240,7 @@ export const mapDatabaseToShow = (
     maxEntriesPerDog: dbShow.max_entries_per_dog || undefined,
     maxTotalEntries: dbShow.max_total_entries || undefined,
     allowNonOwnerHandlers: dbShow.allow_non_owner_handlers || true,
+    isNationals: dbShow.is_nationals ?? false,
     // TODO: Remove cast after regenerating Supabase types (run `supabase gen types`)
     confirmationMessage:
       ((dbShow as Record<string, unknown>).confirmation_message as string) || undefined,
@@ -526,6 +527,7 @@ export const mapReplicatedShowToDbRow = (
       max_entries_per_dog: 'maxEntriesPerDog',
       max_total_entries: 'maxTotalEntries',
       allow_non_owner_handlers: 'allowsNonOwnerHandlers',
+      is_nationals: 'isNationals',
       accept_check_payments: 'acceptCheckPayments',
       accept_cash_payments: 'acceptCashPayments',
       logo_url: 'logoUrl',

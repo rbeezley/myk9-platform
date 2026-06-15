@@ -33,7 +33,7 @@ import { buildAssignedJudges } from '@/utils/buildAssignedJudges';
  * Convert ReplicatedShow (database schema) to Show (app schema)
  * Local-only fields are initialized to defaults
  */
-function replicatedToShow(replicated: ReplicatedShow): Show {
+export function replicatedToShow(replicated: ReplicatedShow): Show {
   return {
     id: replicated.id,
     name: replicated.name,
@@ -60,6 +60,10 @@ function replicatedToShow(replicated: ReplicatedShow): Show {
     stats: [], // Local-only: calculated
     acceptCheckPayments: replicated.acceptCheckPayments,
     acceptCashPayments: replicated.acceptCashPayments,
+    // Preserve the Nationals placement flag across sync/reload. Dropping it here
+    // would surface as undefined → showToFormData defaults false → an unrelated
+    // edit silently overwrites the show back to Regular placement.
+    isNationals: replicated.isNationals ?? false,
     style: replicated.style ?? null,
     experienceIsPublished: replicated.experienceIsPublished ?? false,
     experiencePublishedAt: replicated.experiencePublishedAt ?? null,
@@ -153,6 +157,7 @@ export interface ShowInput {
   startingArmbandNumber?: number | undefined;
   acceptCheckPayments?: boolean | undefined;
   acceptCashPayments?: boolean | undefined;
+  isNationals?: boolean | undefined;
   style?: string | null;
   assignedJudges?: ShowJudgeAssignment[] | undefined;
   trials?:
@@ -362,6 +367,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         replicatedUpdates.coverImageUrl = updates.coverImageUrl as string;
       if ('accentColor' in updates) replicatedUpdates.accentColor = updates.accentColor as string;
       if (updates.style !== undefined) replicatedUpdates.style = updates.style ?? undefined;
+      if (updates.isNationals !== undefined) replicatedUpdates.isNationals = updates.isNationals;
 
       await replicatedShowsTable.updateShow(id, replicatedUpdates);
 
@@ -397,6 +403,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         definedUpdates.assignedJudges = updates.assignedJudges;
       if (updates.trials !== undefined) definedUpdates.trials = updates.trials;
       if (updates.style !== undefined) definedUpdates.style = updates.style;
+      if (updates.isNationals !== undefined) definedUpdates.isNationals = updates.isNationals;
 
       const updatedShow: Show = {
         ...currentShow,

@@ -53,6 +53,7 @@ export const showToFormData = (show: Partial<Show>): ShowEditFormData => {
     ...(show.allowNonOwnerHandlers !== undefined && {
       allowNonOwnerHandlers: show.allowNonOwnerHandlers,
     }),
+    isNationals: show.isNationals ?? false,
     acceptCheckPayments: show.acceptCheckPayments ?? false,
     acceptCashPayments: show.acceptCashPayments ?? false,
     clubName: show.clubName || '',
@@ -86,6 +87,7 @@ export const formDataToShow = (formData: ShowEditFormData): Partial<Show> => ({
   maxEntriesPerDog: formData.maxEntriesPerDog,
   maxTotalEntries: formData.maxTotalEntries,
   allowNonOwnerHandlers: formData.allowNonOwnerHandlers,
+  isNationals: formData.isNationals,
   acceptCheckPayments: formData.acceptCheckPayments,
   acceptCashPayments: formData.acceptCashPayments,
   style: formData.style,

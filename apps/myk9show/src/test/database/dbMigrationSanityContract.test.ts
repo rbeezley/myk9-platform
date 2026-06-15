@@ -84,4 +84,28 @@ describe('DB migration sanity contracts', () => {
     expect(fn).toContain('RAISE EXCEPTION');
     expect(fn).toContain('Person % is not managed through show %');
   });
+
+  it('hardens legacy advisor RLS warnings without closing waitlist signup', () => {
+    const { sql } = latestMigrationContaining(/Security advisor follow-up/i);
+    const waitlistPolicy = sliceBetween(
+      sql,
+      'create policy "anon_can_insert_waitlist"',
+      ');'
+    );
+
+    expect(sql).toContain('drop policy if exists "announcements_all"');
+    expect(sql).toContain('drop policy if exists "announcement_reads_insert"');
+    expect(sql).toContain('drop policy if exists "entry_status_history_select"');
+    expect(sql).toContain('drop policy if exists "entry_status_history_insert"');
+    expect(sql).toContain('drop policy if exists "Anyone can join the waitlist"');
+    expect(sql).toContain('drop policy if exists "site_admins_read_waitlist"');
+    expect(sql).toContain('grant select on table public.entry_status_history to authenticated');
+    expect(sql).not.toContain('grant select on table public.entry_status_history to anon');
+    expect(sql).toContain('revoke all on table public.platform_waitlist from anon, authenticated');
+    expect(sql).toContain('grant insert on table public.platform_waitlist to anon, authenticated');
+    expect(sql).toContain('create policy "site_admins_read_waitlist"');
+    expect(waitlistPolicy).toContain('length(btrim(email)) between 3 and 320');
+    expect(waitlistPolicy).toContain("position('@' in email) > 1");
+    expect(waitlistPolicy).not.toContain('with check (true)');
+  });
 });

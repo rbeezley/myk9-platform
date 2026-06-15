@@ -81,7 +81,8 @@ Copy this block for each new finding.
 
 ### QA-NETWORK-ERROR-018
 
-- **Status:** open
+- **Status:** resolved (code fallback; 2026-06-15)
+- **Resolution:** Fixed by the founding-member refactor and verified 2026-06-15. `useExhibitorProfile.ts` no longer selects `is_early_adopter` at all — the column was superseded by `early_adopter_until` (migration `20260609233000_early_adopter_expiry.sql`). The hook now requests `early_adopter_until` and, on Postgres `42703` / HTTP 400 (column absent on a DB behind that migration), **retries the select once without the optional column** instead of throwing — so the profile loads, `early_adopter_until` degrades to `undefined` ("not an early adopter"), and the false onboarding redirect / 400 flood cannot occur. The original `is_early_adopter` error is now impossible. Regression coverage: `apps/myk9show/src/test/hooks/useExhibitorProfile.test.ts` → `early_adopter_until column resilience` block, case **(c)** ("retries without the column on 42703, loads profile, no error, no redirect") and **(c2)** (non-column errors still surface). 4/4 pass. Note: the heavy Phase 2/3 Nightly e2e proof targets below were NOT re-run as part of this close-out; the resilient code path makes the failure unreachable regardless of linked-DB migration state, and the unit block proves the logic.
 - **Severity:** high
 - **Role:** all authenticated roles, strongest user impact for exhibitor
 - **Surface:** `apps/myk9show/src/hooks/useExhibitorProfile.ts` querying `exhibitor_profiles` with nested `person:people!person_id(..., is_early_adopter)`.

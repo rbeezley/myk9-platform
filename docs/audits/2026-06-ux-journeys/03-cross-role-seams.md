@@ -285,3 +285,48 @@ Does any recommendation duplicate an existing page? Not if scoped correctly. Scr
 - Get explicit approval for shared Supabase seed mutations, or create a local-only seeded Dynamic QA fixture.
 - Walk these flows end to end after seeding: exhibitor scratch request, waitlist offered/accepted, exhibitor question + secretary reply, withdrawal/refund state change, results release.
 - Record latency without refresh and state agreement for each seeded seam.
+
+---
+
+## Fixture Harness Update — 2026-06-15
+
+A write-safe fixture harness now models all five seams against the real app
+endpoints (verified against source), so the seam **state-transition logic and
+cross-role state agreement are proven deterministically** — a real advance over
+the read-only baseline above, which could not submit any mutating action.
+
+**Shipped (safe, no shared-Supabase risk):**
+
+| Artifact | Purpose |
+| --- | --- |
+| `apps/myk9show/src/test/e2e/fixtures/phase4SeamFixture.ts` | One complete cross-role show (secretary + two exhibitors, dogs, classes, entries, enrollment, waitlist row) with the five seed states from the plan; `createPhase4SeamState()` returns a fresh deep clone per test. |
+| `apps/myk9show/src/test/e2e/fixtures/phase4SeamRoutes.ts` | Pure request handler that fulfils every seam write in memory + `assertNoSharedWrites` / `assertNoUnhandledAppDataMutations` + the Playwright `installPhase4SeamRoutes(page, state)` wrapper. |
+| `apps/myk9show/src/test/phase4-seam/phase4SeamRoutes.test.ts` | 18 vitest cases — each seam's transition, cross-role agreement, malformed/unknown-row rejection, and the write-safety guarantees. All green. |
+| `apps/myk9show/src/test/e2e/show/phase4CrossRoleSeams.spec.ts` | Two-context live walk (latency + screenshots), ready to run; self-skips until a read strategy is wired (see below) so it never touches shared data. |
+
+**Seam transitions now proven by the harness unit tests:**
+
+| Seam | Proven transition (write-safe) | Real-browser latency |
+| --- | --- | --- |
+| Scratch / pull | exhibitor `scratch-requested` → secretary guard-approve → `scratched` + `pulled`; stale-guard = zero rows | Pending live walk |
+| Waitlist | secretary `offered` → exhibitor entry insert (`confirmed`) → waitlist `accepted` | Pending live walk |
+| Entry question | thread get-or-create (idempotent) → message send → secretary read → reply → exhibitor read | Pending live walk |
+| Refund / withdrawal | `stripe-refund-entry` → entry `refunded`/`withdrawn` + enrollment refund metadata; partial-refund clamps to fee | Pending live walk |
+| Results release | class `results_released_at` set → `view_entry_with_results` flips hidden → visible | Pending live walk |
+
+**Blocked endpoint (documented per fixtures-plan guardrail #37):** the harness
+blocks every seam **write** locally, but the app reads `entries` / `classes`
+from the **replication layer (IndexedDB)**, not PostgREST. A network interceptor
+alone therefore cannot surface the seeded `phase4-` rows in a live browser. The
+live walk needs one of:
+
+- **(A)** seed the fixture show into the IndexedDB replication stores before
+  load (couples to replication internals — store names + `{syncStatus, data}`
+  row shape, as read in `atShowOfflineScoring.spec.ts`), or
+- **(B)** a **local** Supabase instance seeded with the fixture rows, dev server
+  pointed at it (the plan's documented fallback; mutates only an ephemeral local
+  DB, never shared staging).
+
+This choice is the Phase 5 human-gate decision. Real-browser latency and the
+`phase4-dynamic-*` screenshots land after a strategy is chosen and
+`PHASE4_SEAM_FIXTURE_READY=1` is set.

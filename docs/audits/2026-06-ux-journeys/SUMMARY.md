@@ -66,9 +66,11 @@ Green is not available from this synthesis. Green requires remediation, fixture-
 
 **Wave 1 implementation note:** Shipped in PRs #732, #733, and #734. Do not rescore Exhibitor to Yellow or Green until the post-remediation golden-path re-walk records class selection, payment handoff, confirmation, and payment recovery evidence in this summary.
 
-**Wave 2 implementation note:** Implemented locally on branch `codex/wave2-cross-role-seams` pending focused verification and browser seam re-walk. Plan: [`docs/plan-wave2-cross-role-seam-recovery.md`](../../plan-wave2-cross-role-seam-recovery.md). Scope stayed on existing message, status, My Entries, and Show Map message-dialog surfaces only; fixture-backed mutation proof remains Wave 5 unless shared Supabase seed mutations are explicitly approved.
+**Wave 2 implementation note:** Merged in PR [#735](https://github.com/rbeezley/myk9-platform/pull/735). Plan: [`docs/plan-wave2-cross-role-seam-recovery.md`](../../plan-wave2-cross-role-seam-recovery.md). Scope stayed on existing message, status, My Entries, and Show Map message-dialog surfaces only; fixture-backed mutation proof remains Wave 5 unless shared Supabase seed mutations are explicitly approved.
 
 **Wave 2 local verification note:** Focused unit/component tests passed 2026-06-14. Local browser re-walk confirmed exhibitor `/messages/:showId` is nonblank, the empty message route shows `Message the show team` and `Start message`, post-deadline My Entries cards link to `/messages/:showId`, and Message Center compose inherits a valid `showId` from `/secretary/messages?showId=...`. Withdrawn/refunded browser agreement remains fixture-limited in browser because the available local secretary shows had no matching withdrawn/refunded row. Show Map entry-row messaging is covered for rows with handler contact context; no-handler fallback remains a Wave 5 fixture/product decision so the row action does not offer a compose path that cannot send.
+
+**Wave 4 implementation note:** In progress on branch `codex/wave4-secretary-closeout`. Local focused tests cover legacy `phase=show-desk` routing into canonical Show Desk and AKC submit gating when preflight registration numbers are missing. `UX-P2-07`, `UX-P2-08`, and the observed closed-select part of `UX-P2-09` were already fixed in prior PRs and now need only tracking cleanup.
 
 ## Duplication And Consolidation Notes
 
@@ -90,8 +92,8 @@ Before remediation begins, confirm:
 
 - [x] Wave 1 is approved as the first remediation wave.
 - [x] Wave 2 is approved once entry/payment trust is unblocked.
-- [ ] Wave 3 can run after or beside Wave 2 if a separate worktree is available.
-- [ ] Wave 4 can run independently because it is secretary closeout/routing polish.
+- [x] Wave 3 can run after or beside Wave 2 if a separate worktree is available.
+- [x] Wave 4 can run independently because it is secretary closeout/routing polish.
 - [ ] Wave 5 should use local Dynamic QA fixtures unless the user explicitly approves shared Supabase seed mutations.
 
-Recommended next action: complete Wave 2 focused verification and browser seam re-walk, then decide whether Wave 3 or Wave 4 should run next.
+Recommended next action: finish Wave 4 PR verification and review, then split Wave 3 into at-show phone polish and Results/My Shows clarity PRs. Wave 5 should remain fixture-only until shared seed mutations are explicitly approved.

@@ -241,6 +241,57 @@ describe('ResultsSubmissionPage', () => {
     expect(warning).toHaveAttribute('role', 'alert');
   });
 
+  it('blocks sending to AKC when entries are missing registration numbers', async () => {
+    mockAKCData.data = {
+      show: {
+        id: 'show-1',
+        name: 'Spring',
+        clubName: 'Club',
+        date: null,
+        clubLicenseNumber: null,
+        secretaryName: 'Jane',
+        secretaryEmail: 'jane@example.com',
+      },
+      trials: [],
+      entries: [
+        {
+          dogName: 'Fluffy',
+          breed: 'X',
+          registrationNumber: null,
+          handlerName: '',
+          className: 'N',
+          element: 'Container',
+          level: 'Novice',
+          section: 'A',
+          resultCode: null,
+          searchTimeSeconds: null,
+          totalFaults: null,
+          finalPlacement: null,
+          armbandNumber: 101,
+          trialId: 't1',
+          classId: 'c1',
+          dogRegisteredName: null,
+          dogGender: 'B',
+          ownerName: null,
+          ownerAddress: null,
+          timeLimitSeconds: null,
+          entryStatus: 'accepted',
+          checkInStatus: 'present',
+          resultStatus: null,
+        },
+      ],
+    } as import('@myk9/secretary').AKCSubmissionData;
+
+    renderPage();
+
+    expect(await screen.findByTestId('preflight-warning')).toBeInTheDocument();
+    expect(screen.getByTestId('send-btn')).toBeDisabled();
+    fireEvent.click(screen.getByTestId('send-btn'));
+
+    expect(screen.queryByTestId('send-confirm-dialog')).not.toBeInTheDocument();
+    expect(mockInvoke).not.toHaveBeenCalled();
+  });
+
   it('"Send to AKC" calls supabase.functions.invoke with send-results', async () => {
     mockAKCData.data = {
       show: {

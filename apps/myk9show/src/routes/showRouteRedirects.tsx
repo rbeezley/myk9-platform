@@ -13,9 +13,19 @@ export function LegacySecretaryShowRedirect({ subPath }: LegacySecretaryShowRedi
     return <Navigate to="/shows" replace />;
   }
 
-  const redirectSubPath = subPath ?? params['*'] ?? 'setup';
+  const searchParams = new URLSearchParams(search);
+  const legacyPhase = searchParams.get('phase');
+  const shouldHonorLegacyShowDeskPhase = !subPath && !params['*'] && legacyPhase === 'show-desk';
+  const redirectSubPath = shouldHonorLegacyShowDeskPhase
+    ? 'show-desk'
+    : (subPath ?? params['*'] ?? 'setup');
+  if (shouldHonorLegacyShowDeskPhase) {
+    searchParams.delete('phase');
+  }
+  const nextSearch = searchParams.toString();
   const normalizedSubPath = redirectSubPath
     ? `/${redirectSubPath.replace(/^\/+/, '')}`
     : '/setup';
-  return <Navigate to={`/shows/${showId}${normalizedSubPath}${search}`} replace />;
+  const normalizedSearch = nextSearch ? `?${nextSearch}` : '';
+  return <Navigate to={`/shows/${showId}${normalizedSubPath}${normalizedSearch}`} replace />;
 }

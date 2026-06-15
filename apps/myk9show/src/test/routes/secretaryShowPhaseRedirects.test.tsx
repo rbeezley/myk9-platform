@@ -112,6 +112,14 @@ describe('secretary show phase redirects', () => {
     );
   });
 
+  it('redirects the legacy show-desk phase query to canonical Show Desk', async () => {
+    renderSecretaryRoutes('/secretary/shows/show-1?phase=show-desk&from=email');
+
+    expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
+      '/shows/show-1/show-desk?from=email'
+    );
+  });
+
   it('redirects legacy secretary show-desk to the canonical show-desk route', async () => {
     renderSecretaryRoutes('/secretary/shows/show-1/show-desk');
 

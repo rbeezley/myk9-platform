@@ -79,6 +79,11 @@ export interface TVCompletedClass {
   placements: TVPlacement[];
 }
 
+export interface TVDisplayData {
+  show: TVShowInfo | null;
+  classes: TVClass[];
+}
+
 /** Shared mapper for dog data from Supabase rows. */
 export function mapDogInfo(
   raw: {

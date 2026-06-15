@@ -1,13 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { mockSupabase } from '@/test/mocks/supabase';
-
-const replicationMocks = vi.hoisted(() => ({
-  getShowById: vi.fn(),
-  getTrialsByShow: vi.fn(),
-  getClassesByTrial: vi.fn(),
-  getEntriesByShow: vi.fn(),
-  getAllDogs: vi.fn(),
-}));
+import { createChainableQuery, mockSupabase, resetMockSupabase } from '@/test/mocks/supabase';
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: mockSupabase,
@@ -15,133 +7,155 @@ vi.mock('@/services/database/supabaseClient', () => ({
   createDatabaseError: (error: unknown) => error,
 }));
 
-vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
-  replicatedShowsTable: {
-    getShowById: (...args: unknown[]) => replicationMocks.getShowById(...args),
-  },
-}));
-
-vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
-  replicatedTrialsTable: {
-    getTrialsByShow: (...args: unknown[]) => replicationMocks.getTrialsByShow(...args),
-  },
-}));
-
-vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
-  replicatedClassesTable: {
-    getClassesByTrial: (...args: unknown[]) => replicationMocks.getClassesByTrial(...args),
-  },
-}));
-
-vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
-  replicatedEntriesTable: {
-    getEntriesByShow: (...args: unknown[]) => replicationMocks.getEntriesByShow(...args),
-  },
-}));
-
-vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
-  replicatedDogsTable: {
-    getAllDogs: (...args: unknown[]) => replicationMocks.getAllDogs(...args),
-  },
-}));
-
 import { getTVDisplayData, getTVDisplayResults } from '.';
 
-const show = {
+const showRow = {
   id: 'show-1',
   name: 'Spring Trial 2026',
-  startDate: '2026-04-01',
-  endDate: '2026-04-02',
+  start_date: '2026-04-01',
+  end_date: '2026-04-02',
 };
 
-const trial = {
-  id: 'trial-1',
-  showId: 'show-1',
-  name: 'Trial 1',
-  date: '2026-04-01',
-  trialNumber: '1',
-};
+const activeClassRows = [
+  {
+    id: 'class-active',
+    name: 'Novice A',
+    element: 'Container',
+    level: 'Novice',
+    status: 'in_progress',
+    total_entries_count: 10,
+    scored_count: 3,
+    start_time: '09:00',
+    trials: { trial_date: '2026-04-01', trial_number: '1' },
+    judge_assignments: [{ people: { first_name: 'John', last_name: 'Smith' } }],
+  },
+];
 
-const dog = {
-  id: 'dog-1',
-  name: 'Luna Star',
-  callName: 'Luna',
-  breed: 'Labrador',
-  imageUrl: null,
-};
+const activeEntryRows = [
+  {
+    id: 'entry-next',
+    class_id: 'class-active',
+    armband: '42',
+    handler: 'J. Martinez',
+    run_order: 2,
+    is_in_ring: false,
+    is_scored: false,
+    dogs: {
+      name: 'Luna Star',
+      call_name: 'Luna',
+      breed: 'Labrador',
+      image_url: null,
+    },
+  },
+  {
+    id: 'entry-ring',
+    class_id: 'class-active',
+    armband: '41',
+    handler: 'S. Johnson',
+    run_order: 9,
+    is_in_ring: true,
+    is_scored: true,
+    dogs: {
+      name: 'Comet Dash',
+      call_name: 'Comet',
+      breed: 'Border Collie',
+      image_url: null,
+    },
+  },
+];
+
+const completedClassRows = [
+  {
+    id: 'class-done',
+    name: 'Advanced',
+    element: 'Interior',
+    level: 'Advanced',
+    total_entries_count: 20,
+    judge_assignments: [{ people: { first_name: 'Alice', last_name: 'Smith' } }],
+  },
+];
+
+const placementRows = [
+  {
+    id: 'entry-1',
+    class_id: 'class-done',
+    armband: '42',
+    handler: 'J. Martinez',
+    final_placement: 1,
+    search_time_seconds: 35.1,
+    total_score: 87.5,
+    result_status: 'qualified',
+    dogs: {
+      name: 'Luna Star',
+      call_name: 'Luna',
+      breed: 'Labrador',
+      image_url: null,
+    },
+  },
+  {
+    id: 'entry-2',
+    class_id: 'class-done',
+    armband: '18',
+    handler: 'S. Johnson',
+    final_placement: 2,
+    search_time_seconds: 38.2,
+    total_score: null,
+    result_status: 'qualified',
+    dogs: {
+      name: 'Comet Dash',
+      call_name: 'Comet',
+      breed: 'Border Collie',
+      image_url: null,
+    },
+  },
+];
+
+const qualifiedRows = [
+  { class_id: 'class-done', search_time_seconds: 35.1 },
+  { class_id: 'class-done', search_time_seconds: 38.2 },
+  { class_id: 'class-done', search_time_seconds: 40 },
+];
+
+function mockActiveDisplayQueries() {
+  mockSupabase.from.mockImplementation((table: string) => {
+    if (table === 'shows') return createChainableQuery({ data: showRow, error: null });
+    if (table === 'classes') return createChainableQuery({ data: activeClassRows, error: null });
+    if (table === 'entries') return createChainableQuery({ data: activeEntryRows, error: null });
+    return createChainableQuery();
+  });
+}
+
+function mockCompletedResultQueries() {
+  let entriesCall = 0;
+  mockSupabase.from.mockImplementation((table: string) => {
+    if (table === 'classes') return createChainableQuery({ data: completedClassRows, error: null });
+    if (table === 'entries') {
+      entriesCall += 1;
+      return createChainableQuery({
+        data: entriesCall === 1 ? placementRows : qualifiedRows,
+        error: null,
+      });
+    }
+    return createChainableQuery();
+  });
+}
 
 describe('tv-display database reads', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSupabase.from.mockClear();
-    replicationMocks.getShowById.mockResolvedValue(show);
-    replicationMocks.getTrialsByShow.mockResolvedValue([trial]);
-    replicationMocks.getAllDogs.mockResolvedValue([dog]);
+    resetMockSupabase();
   });
 
-  it('assembles active TV data from replicated show, trial, class, entry, and dog rows', async () => {
-    replicationMocks.getClassesByTrial.mockResolvedValue([
-      {
-        id: 'class-active',
-        trialId: 'trial-1',
-        name: 'Novice A',
-        element: 'Container',
-        level: 'Novice',
-        classStatus: 'in_progress',
-        totalEntriesCount: 10,
-        scoredCount: 3,
-        startTime: '09:00',
-        judgeName: 'John Smith',
-      },
-      {
-        id: 'class-complete',
-        trialId: 'trial-1',
-        name: 'Complete Class',
-        classStatus: 'completed',
-      },
-    ]);
-    replicationMocks.getEntriesByShow.mockResolvedValue([
-      {
-        id: 'entry-next',
-        showId: 'show-1',
-        classId: 'class-active',
-        dogId: 'dog-1',
-        armband: '42',
-        handler: 'J. Martinez',
-        runOrder: 2,
-        isInRing: false,
-        isScored: false,
-      },
-      {
-        id: 'entry-ring',
-        showId: 'show-1',
-        classId: 'class-active',
-        dogId: 'dog-1',
-        armband: '41',
-        handler: 'S. Johnson',
-        runOrder: 9,
-        isInRing: true,
-        isScored: true,
-      },
-      {
-        id: 'entry-scored',
-        showId: 'show-1',
-        classId: 'class-active',
-        dogId: 'dog-1',
-        armband: '40',
-        runOrder: 1,
-        isInRing: false,
-        isScored: true,
-      },
-    ]);
+  it('reads active TV data through PostgREST for the public TV route', async () => {
+    mockActiveDisplayQueries();
 
     const result = await getTVDisplayData('show-1');
 
-    expect(mockSupabase.from).not.toHaveBeenCalled();
-    expect(replicationMocks.getShowById).toHaveBeenCalledWith('show-1');
-    expect(replicationMocks.getTrialsByShow).toHaveBeenCalledWith('show-1');
-    expect(replicationMocks.getClassesByTrial).toHaveBeenCalledWith('trial-1');
-    expect(replicationMocks.getEntriesByShow).toHaveBeenCalledWith('show-1');
+    expect(mockSupabase.from.mock.calls.map(([table]) => table)).toEqual([
+      'shows',
+      'classes',
+      'entries',
+    ]);
     expect(result.show).toEqual({
       id: 'show-1',
       name: 'Spring Trial 2026',
@@ -159,63 +173,33 @@ describe('tv-display database reads', () => {
       trialNumber: 1,
     });
     expect(result.classes[0].entries.map(entry => entry.id)).toEqual(['entry-ring', 'entry-next']);
-    expect(result.classes[0].entries[0].dog?.callName).toBe('Luna');
+    expect(result.classes[0].entries[0].dog?.callName).toBe('Comet');
   });
 
-  it('assembles completed TV results from replicated finalized classes and scored entries', async () => {
-    replicationMocks.getClassesByTrial.mockResolvedValue([
-      {
-        id: 'class-done',
-        trialId: 'trial-1',
-        name: 'Advanced',
-        element: 'Interior',
-        level: 'Advanced',
-        classStatus: 'completed',
-        totalEntriesCount: 20,
-        isScoringFinalized: true,
-        judgeFirstName: 'Alice',
-        judgeLastName: 'Smith',
-      },
-    ]);
-    replicationMocks.getEntriesByShow.mockResolvedValue([
-      {
-        id: 'entry-1',
-        showId: 'show-1',
-        classId: 'class-done',
-        dogId: 'dog-1',
-        armband: '42',
-        handler: 'J. Martinez',
-        finalPlacement: '1',
-        searchTimeSeconds: 35.1,
-        totalPoints: null,
-        total_score: 87.5,
-        resultStatus: 'qualified',
-      },
-      {
-        id: 'entry-2',
-        showId: 'show-1',
-        classId: 'class-done',
-        dogId: 'dog-1',
-        armband: '18',
-        handler: 'S. Johnson',
-        finalPlacement: '2',
-        searchTimeSeconds: 38.2,
-        resultStatus: 'qualified',
-      },
-      {
-        id: 'entry-3',
-        showId: 'show-1',
-        classId: 'class-done',
-        dogId: 'dog-1',
-        finalPlacement: null,
-        searchTimeSeconds: 40,
-        resultStatus: 'qualified',
-      },
-    ]);
+  it('returns the show with an empty class list when no active classes are online', async () => {
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'shows') return createChainableQuery({ data: showRow, error: null });
+      if (table === 'classes') return createChainableQuery({ data: [], error: null });
+      return createChainableQuery();
+    });
+
+    const result = await getTVDisplayData('show-1');
+
+    expect(mockSupabase.from.mock.calls.map(([table]) => table)).toEqual(['shows', 'classes']);
+    expect(result.show?.id).toBe('show-1');
+    expect(result.classes).toEqual([]);
+  });
+
+  it('assembles completed TV results from PostgREST placement and qualified rows', async () => {
+    mockCompletedResultQueries();
 
     const result = await getTVDisplayResults('show-1');
 
-    expect(mockSupabase.from).not.toHaveBeenCalled();
+    expect(mockSupabase.from.mock.calls.map(([table]) => table)).toEqual([
+      'classes',
+      'entries',
+      'entries',
+    ]);
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({
       id: 'class-done',

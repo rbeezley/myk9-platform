@@ -6,7 +6,7 @@ import {
   toNullableNumber,
   TV_ACTIVE_STATUSES,
 } from './mappers';
-import type { TVCompletedClass, TVDisplayData, TVEntry, TVPlacement } from './types';
+import type { TVCompletedClass, TVDisplayData, TVEntry, TVPlacement } from '@/pages/TVDisplay/types';
 
 function mapPostgrestEntry(raw: Record<string, unknown>): TVEntry {
   return {

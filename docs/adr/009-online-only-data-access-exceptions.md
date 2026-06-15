@@ -42,16 +42,21 @@ Direct Supabase reads are acceptable only for explicit online-only categories:
 - Private PostgREST fallbacks inside database modules, used only after the
   replication path fails or lacks the requested row.
 
-The TV display read path is not an online-only exception. It is venue-facing
-show-day display data, so it reads through `services/database/tv-display`, which
-assembles show, trial, class, entry, and dog data from replicated tables first.
+The public TV display read path is an online-only exception. It is venue-facing
+show-day display data, but `/tv/:showId` is a public unauthenticated route and
+does not enter the authenticated `/at-show/:showId` sync scope that warms
+show/trial/class/entry/dog replicated stores. Its direct PostgREST reads must
+stay contained in `services/database/tv-display`; hooks and render components
+must not assemble those queries themselves.
 
 ## Consequences
 
 ### Positive
 
-- Show-day display and secretary/ringside workflows keep the same reliability
-  model: local data first, server fallback second.
+- Secretary/ringside workflows keep the offline-first model: local data first,
+  server fallback second.
+- Public TV display reads keep working before auth because they do not depend on
+  cold replicated stores.
 - Direct Supabase usage remains allowed where it is genuinely online-only, so
   architecture cleanup does not become a blind rewrite.
 - Future drift audits can classify findings by category instead of relitigating
@@ -62,8 +67,8 @@ assembles show, trial, class, entry, and dog data from replicated tables first.
 - Some database modules now contain workflow-level composition, not only one
   entity. This is acceptable for show-day read models but should stay narrowly
   named.
-- Private fallback queries still need tests so their shape does not silently
-  diverge from replicated reads.
+- Online-only module queries still need focused tests so their shape does not
+  silently drift from the TV display view model.
 
 ### Neutral
 

@@ -16,7 +16,7 @@ scan found these high-value clusters:
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
 | Class route context              | `routes/ClassDetailsRedirect.tsx`                                                                                  | Done: migrated to `services/database/classes`.                                                                                    |
 | Schedule timeline reads          | `hooks/queries/useScheduleTimeline.ts`, `hooks/queries/useTrialTimeline.ts`                                        | Done: migrated to `services/database/trials`.                                                                                     |
-| TV display reads                 | `pages/TVDisplay/useTVData.ts`, `pages/TVDisplay/useTVResults.ts`                                                  | Done: migrated to `services/database/tv-display` with replicated show/trial/class/entry/dog reads and private PostgREST fallback. |
+| TV display reads                 | `pages/TVDisplay/useTVData.ts`, `pages/TVDisplay/useTVResults.ts`                                                  | Done: migrated to `services/database/tv-display`; remains an ADR-009 online-only exception because `/tv/:showId` is public before auth/sync. |
 | Show-day and check-in reads      | `hooks/queries/useShowDayData.ts`, `hooks/queries/useClassCheckInData.ts`, `pages/secretary/CheckInReportPage.tsx` | Migrate one workflow at a time; core Entry/Class read path.                                                                       |
 | Entry form and eligibility reads | `hooks/queries/useEntryFormData.ts`, `hooks/useEntryEligibility.ts`, `hooks/useClassAvailability.ts`               | Migrate after show-day reads; mixed replicated and online-only side tables.                                                       |
 | Auth/profile/role reads          | `hooks/useAuth.ts`, `hooks/useExhibitorProfile.ts`, `hooks/queries/useUserRoles.ts`, admin user dialogs            | Keep online/auth-adjacent unless a core offline workflow depends on them.                                                         |
@@ -35,7 +35,8 @@ scan found these high-value clusters:
    - done: class route context
    - done: schedule timeline
 
-- done: TV display class/entry reads
+- done: TV display class/entry reads centralized behind an online-only database
+  module
 - show-day entry reads
 - class availability
 - check-in class/entry reads

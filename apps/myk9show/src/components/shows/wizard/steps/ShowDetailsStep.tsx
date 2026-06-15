@@ -34,7 +34,7 @@ import { FeeField } from './ShowDetailsStep.FeeField';
 import { OfficialPicker } from './OfficialPicker';
 import { JudgesPicker } from './JudgesPicker';
 import { createUser, updateUser } from '@/services/database/users';
-import { judgeQualificationQueries } from '@/services/database/judges';
+import { createJudgeQualification } from '@/services/database/judges';
 import { createClub } from '@/services/database/clubs';
 import type { CreateClubData } from './ShowDetailsStep.sections';
 import {
@@ -153,7 +153,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
     data: { organization: string; judgeNumber: string; email: string }
   ): Promise<void> => {
     if (!data.judgeNumber.trim()) throw new Error('Judge number is required');
-    await judgeQualificationQueries.create({
+    await createJudgeQualification({
       person_id: personId,
       organization: data.organization,
       qualification_level: 'General',
@@ -184,7 +184,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
     });
     if (result.error) throw result.error;
     const personId = result.data!.id;
-    await judgeQualificationQueries.create({
+    await createJudgeQualification({
       person_id: personId,
       organization: data.organization,
       qualification_level: 'General',

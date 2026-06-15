@@ -3,7 +3,7 @@ import { CalendarDays, MapPin, Briefcase, Clock } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { judgeAvailabilityQueries } from '@/services/database/judges';
+import { getJudgeAvailabilityByPersonId } from '@/services/database/judges';
 import { mapDbAvailabilityToUI } from '@/services/mappers/userMappers';
 import type { JudgeInfo } from '@/types/user-types';
 
@@ -27,7 +27,7 @@ const JudgeAvailabilityCard: React.FC<JudgeAvailabilityCardProps> = ({ personId 
 
     const load = async () => {
       try {
-        const data = await judgeAvailabilityQueries.getByPersonId(personId);
+        const data = await getJudgeAvailabilityByPersonId(personId);
         if (!cancelled && data) {
           setAvailability(mapDbAvailabilityToUI(data));
           setStatus(

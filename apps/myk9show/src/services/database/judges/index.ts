@@ -7,10 +7,31 @@
 
 export {
   getJudgesWithQualifications,
-  judgeQualificationQueries,
-  judgeAnalyticsQueries,
-  judgeAvailabilityQueries,
-  judgeCertificationQueries,
+  // Judge qualifications
+  createJudgeQualification,
+  getJudgeQualificationById,
+  getJudgeQualificationsByJudgeId,
+  updateJudgeQualification,
+  deleteJudgeQualification,
+  deleteJudgeQualificationsByPersonId,
+  suspendJudgeQualification,
+  reinstateJudgeQualification,
+  getJudgeQualificationSummary,
+  // Judge analytics
+  getJudgeRosterSummary,
+  getJudgeUtilizationStats,
+  getJudgeQualificationAlerts,
+  getJudgeStats,
+  getJudgeUpcomingAssignments,
+  getJudgeAssignmentTrends,
+  // Judge availability
+  upsertJudgeAvailability,
+  getJudgeAvailabilityByPersonId,
+  deleteJudgeAvailability,
+  // Judge certifications
+  createJudgeCertification,
+  getJudgeCertificationsByPersonId,
+  // Judge assignments
   reassignClassJudge,
   upsertClassJudgeAssignment,
   persistShowJudgeAssignments,

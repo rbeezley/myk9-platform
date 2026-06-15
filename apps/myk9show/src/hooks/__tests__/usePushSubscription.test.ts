@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
 // Must stub env before tests run so the hook picks up the value on first render
@@ -66,8 +66,25 @@ vi.mock('@/store/notificationStore', () => ({
 }));
 
 describe('usePushSubscription', () => {
+  // The hook reads the global `Notification.permission`. Several tests (and other
+  // test files) install a `globalThis.Notification` stub via Object.defineProperty
+  // and never remove it, so under --sequence.shuffle a leaked `{ permission: 'denied' }`
+  // makes the happy-path "subscribe and save" test return permission-denied. Snapshot
+  // the descriptor before each test and restore it after so this file is self-contained.
+  let notificationDescriptor: PropertyDescriptor | undefined;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    notificationDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'Notification');
+    delete (globalThis as { Notification?: unknown }).Notification;
+  });
+
+  afterEach(() => {
+    if (notificationDescriptor) {
+      Object.defineProperty(globalThis, 'Notification', notificationDescriptor);
+    } else {
+      delete (globalThis as { Notification?: unknown }).Notification;
+    }
   });
 
   it('should expose subscribe and unsubscribe functions', () => {

@@ -23,6 +23,17 @@ describe('useAuth', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    // Re-establish the inert default for onAuthStateChange. Several tests below
+    // override it with an implementation that synchronously fires SIGNED_IN with a
+    // user; the global resetMockSupabase() (setup.ts beforeEach) does NOT reset this
+    // method, so under --sequence.shuffle a leaked firing-callback makes the
+    // initialization/people-insert tests see a user (and call from('people')) when
+    // they expect none. vi.clearAllMocks() clears history but not the implementation,
+    // so restore it explicitly.
+    mockSupabase.auth.onAuthStateChange.mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn() } },
+    });
+
     // Setup default successful mock responses
     mockSupabase.auth.getSession.mockResolvedValue({
       data: { session: null },
@@ -140,8 +151,11 @@ describe('useAuth', () => {
       // The client-side people INSERT was removed (migration 165). The trigger
       // runs server-side with SECURITY DEFINER, so no Supabase client call
       // should touch the people or exhibitor_profiles tables during signUp.
-      const fromSpy = vi.fn().mockReturnValue(createChainableQuery());
-      mockSupabase.from = fromSpy;
+      // Mutate the existing mock rather than reassigning `mockSupabase.from`:
+      // reassigning would orphan the shared singleton's original vi.fn() for
+      // every later test file, so resetMockSupabase() could no longer restore it.
+      const fromSpy = mockSupabase.from;
+      fromSpy.mockReturnValue(createChainableQuery());
 
       const { result } = renderHook(() => useAuth());
 

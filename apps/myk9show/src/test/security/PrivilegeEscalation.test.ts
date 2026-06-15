@@ -33,7 +33,15 @@ describe('Privilege Escalation Security Tests', () => {
   const SITE_ADMIN_USER_ID = 'site-admin-999';
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    // resetAllMocks (not clearAllMocks): clearAllMocks wipes call history but
+    // LEAVES mock implementations in place, so a prior test's
+    // mockSupabase.rpc.mockImplementation(... => { data: true }) bled into the
+    // "malformed input" test (which sets no rpc mock and relies on the default
+    // undefined → false). checkPermission has no empty-userId short-circuit — it
+    // always hits the user_has_permission RPC — so the leaked impl returned
+    // data:true and the bypass assertion flipped under --sequence.shuffle.
+    // resetAllMocks clears implementations too, giving every test a clean default.
+    vi.resetAllMocks();
     rbacService = RBACService.getInstance();
     rbacService.clearAllCache();
 
@@ -44,7 +52,7 @@ describe('Privilege Escalation Security Tests', () => {
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   describe('Self-Privilege Escalation Prevention', () => {

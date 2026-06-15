@@ -127,11 +127,14 @@ describe('ConfirmationStep — email confirmation', () => {
 
   it('falls back to clipboard and surfaces an error when the send fails', async () => {
     sendMock.mockResolvedValue({ ok: false, error: 'boom' });
-    // Spy on the global jsdom clipboard mock installed by test/setup.ts.
-    // fireEvent (not userEvent) so userEvent's own clipboard stub doesn't shadow it.
-    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
 
     render(<ConfirmationStep {...baseProps} />);
+    // Spy AFTER render: render() calls userEvent.setup() which installs its own
+    // navigator.clipboard stub the first time it runs in a worker, replacing
+    // whatever object existed before. Spying earlier wraps the pre-userEvent
+    // object and the spy is lost under --sequence.shuffle (writeText never fires).
+    // fireEvent (not userEvent) so userEvent's clipboard stub doesn't shadow it.
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
     fireEvent.click(screen.getByRole('button', { name: /email confirmation/i }));
 
     await waitFor(() => expect(sendMock).toHaveBeenCalledWith('enrollment-123'));
@@ -177,9 +180,10 @@ describe('ConfirmationStep — email confirmation', () => {
   });
 
   it('copies to clipboard (no edge call) when no registration id is present', async () => {
-    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
-
     render(<ConfirmationStep {...baseProps} registrationId={undefined} />);
+    // Spy AFTER render so we wrap the live clipboard userEvent.setup() installed
+    // during render (see the send-failure test above for the full rationale).
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
     fireEvent.click(screen.getByRole('button', { name: /email confirmation/i }));
 
     await waitFor(() => expect(writeText).toHaveBeenCalled());

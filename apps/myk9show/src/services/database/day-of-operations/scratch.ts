@@ -9,7 +9,7 @@
  *
  * Status transitions (day-of pull, scratch-request approve/deny) live in
  * `entries/lifecycle.ts` — this module re-exports them so existing callers
- * (`pages/secretary/DayOfOperationsPage`, `components/entries/PullManagementTab`)
+ * (`components/entries/PullManagementTab`, `components/entries/MoveUpRequestsTab`)
  * keep their import paths.
  */
 
@@ -23,8 +23,8 @@ import { getReplicatedDayOfEntries } from './replicatedReadAdapter';
  * `withdrawal_reason`, and `special_requests`, and emits an audit log entry.
  *
  * Re-exported under the existing `scratchEntry` name so day-of callers
- * (`pages/secretary/DayOfOperationsPage/index.tsx`,
- * `pages/secretary/DayOfOperationsPage/PullDialog.tsx`) keep their imports.
+ * (`components/entries/PullManagementTab.tsx` and the Show Map / Show Desk
+ * pull surfaces) keep their imports.
  */
 export { scratchEntryDayOf as scratchEntry } from '../entries/lifecycle';
 

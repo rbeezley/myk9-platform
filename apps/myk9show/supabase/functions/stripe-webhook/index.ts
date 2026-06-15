@@ -681,7 +681,15 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     paid_at: new Date().toISOString(),
   });
 
-  if (orderError) {
+  if (orderError && orderError.code === '23505') {
+    // unique_violation on the stripe_checkout_session_id index: a prior
+    // delivery of this same Checkout Session already inserted the order row.
+    // The backstop did its job — this is a benign idempotent re-delivery, not
+    // a lost order. Log and move on without alerting.
+    console.log(
+      `stripe_orders row already exists for session ${session.id} (idempotent re-delivery)`
+    );
+  } else if (orderError) {
     // Entries exist and the exhibitor is fine, but the order row drives the
     // payment-history surfaces and reconciliation — losing it silently makes
     // the charge invisible to every dashboard.

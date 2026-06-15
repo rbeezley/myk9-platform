@@ -201,7 +201,7 @@ describe('ShowMapRowActionsMenu', () => {
     ).toBeGreaterThan(0);
     expect(screen.queryByRole('menuitem', { name: /mark checked in/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /move up/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /scratch \/ no-show/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /pull \/ no-show/i })).not.toBeInTheDocument();
   });
 
   it('keeps the message action hidden until handler contact context is available', async () => {

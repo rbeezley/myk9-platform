@@ -342,7 +342,11 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
         {
           id: 'scratch-entry',
           nodeId: node.id,
-          label: 'Scratch / no-show',
+          // UX-Low: unify on the app's dominant "Pull/Pulled" vocabulary
+          // (matches Pull Management, exhibitor "Pull from class", and the
+          // "Pulled / no-show" reconciliation heading). Internal id/dialog key
+          // stay 'scratch-entry'; only the user-facing label changes.
+          label: 'Pull / no-show',
           why: withEntryContext(node, 'Mark this entry absent for ring flow'),
           priority: 30,
           icon: Ban,

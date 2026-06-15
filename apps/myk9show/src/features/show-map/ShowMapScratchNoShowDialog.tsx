@@ -48,7 +48,7 @@ export function ShowMapScratchNoShowDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Ban className="h-5 w-5 text-destructive" />
-            Mark scratch / no-show
+            Mark pulled / no-show
           </DialogTitle>
           <DialogDescription>
             This marks the entry pulled so ringside will stop waiting for the dog.

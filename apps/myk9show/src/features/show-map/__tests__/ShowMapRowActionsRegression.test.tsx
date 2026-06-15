@@ -167,12 +167,12 @@ describe('ShowMap row actions closeout regression', () => {
 
     await expectOneOpenMenu();
     expect(
-      await screen.findByRole('menuitem', { name: /scratch \/ no-show/i })
+      await screen.findByRole('menuitem', { name: /pull \/ no-show/i })
     ).toBeInTheDocument();
     expect(onAction).not.toHaveBeenCalled();
     expect(onNavigate).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole('menuitem', { name: /scratch \/ no-show/i }));
+    await user.click(screen.getByRole('menuitem', { name: /pull \/ no-show/i }));
 
     expect(onAction).toHaveBeenCalledWith(
       expect.objectContaining({

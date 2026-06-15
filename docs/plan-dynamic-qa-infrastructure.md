@@ -1,6 +1,6 @@
 # Plan: Dynamic QA Infrastructure (follow-on to the Code-Quality Audit)
 
-**Created:** 2026-06-12 · **Status:** Draft — Phase 1 offline/replication chaos tests complete 2026-06-13; Phase 2 mutation baselines complete 2026-06-14; Phase 3 database-side drift checks complete 2026-06-12; Phase 4 DONE 2026-06-15 (Sentry live in production — DSN active, PII scrubber verified, source maps uploading); Phase 5 measurement complete 2026-06-14 (6 consecutive default-order full-suite runs green; 2 intra-file order-dependence flakes fixed; cross-file test-isolation debt tracked in OPEN-TODOS); Phases 6–7 not started
+**Created:** 2026-06-12 · **Status:** Complete (2026-06-15) — Phase 1 chaos tests; Phase 2 mutation baselines; Phase 3 DB drift checks; Phase 4 Sentry live in production (DSN active, PII scrubber verified, source maps uploading); Phase 5 suite health (no active flakes, isolation debt tracked); Phase 6a bundle-budget gate + a11y smoke (PR #738); Phase 6b monthly dependency-audit cron + supabase pin bump (PR #740); Phase 7 final regression green + launch-milestone checklist codified. Deferred follow-ups tracked in OPEN-TODOS.
 **Goal:** Build the QA infrastructure the code-quality audit cannot: dynamic tests for offline/replication behavior, mutation testing of money-path math, database-side drift checks, error observability, and flaky-test quarantine. Where the audit _finds and removes_ existing static debt, this plan _builds new guards_ so quality holds after launch.
 
 **Relationship to [`docs/plan-code-quality-audit.md`](archive/plan-code-quality-audit.md):** that plan owns static debt removal (Waves A–D) and the CI ratchets (its Phase 5 amendment, 2026-06-12). This plan owns everything dynamic. Phases here marked **[after audit]** must wait for the named audit wave; the rest can start independently in their own worktrees.
@@ -231,3 +231,11 @@ Split into **6a (code/config gates — this PR)** and **6b (scheduled jobs — i
 1. Full `pnpm typecheck`, `pnpm lint`, package + app test suites green.
 2. Update this doc's status notes per phase; move anything deferred into OPEN-TODOS with context (no silent drops).
 3. Fold the repeatable pieces (mutation run, advisors sweep, drift scripts) into the launch-milestone checklist alongside the code-quality audit's Phase 5 skill, so both run together before each milestone.
+
+### Status 2026-06-15 — DONE; plan complete
+
+1. **Final regression green** (clean worktree off `main`): `pnpm typecheck` ✅, `pnpm lint` ✅ (13/13), `pnpm test:packages` ✅ (11/11), full myK9Show app suite ✅ **927 files / 9061 tests, 0 failures**.
+2. **Status synced** — every phase note above is current; deferred work lives in OPEN-TODOS as tracked items (test-isolation hardening sweep, theme color-contrast, date-fixture sweep, ScoreValidator/replication mutation survivors). No silent drops.
+3. **Codified** — created [`launch-milestone-qa-checklist.md`](launch-milestone-qa-checklist.md) (indexed in `docs/README.md`), which folds every repeatable gate — static audit + ratchet, mutation, db-drift, rls-smoke, bundle budget, a11y smoke, dependency audit, and the Sentry observability smoke — into one before-each-milestone sweep alongside the `/code-quality-audit` skill.
+
+**All 7 phases are complete.** This plan is now a historical build record; the living operational doc going forward is the launch-milestone checklist. Archive to `docs/archive/` in the next docs reconciliation, once the tracked OPEN-TODOS follow-ups close (kept in place for now because the checklist and several active OPEN-TODOS items link here).

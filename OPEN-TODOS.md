@@ -42,7 +42,7 @@ Plan: [`docs/plan-dynamic-qa-infrastructure.md`](docs/plan-dynamic-qa-infrastruc
   - [ ] **[a11y] Fix theme color-contrast debt (39–83 nodes/page)** — the a11y smoke found `color-contrast` (serious) on every public page; it's excluded from the gate via `BASELINE_EXCLUDED_RULES` in `src/test/e2e/a11y-smoke.spec.ts`. Likely a `text-muted-foreground`/theme-token issue (see the 4-competing-theme-systems debt). Fix the tokens to meet WCAG AA, then remove the exclusion so the gate enforces contrast too.
   - [ ] **[a11y] Extend a11y smoke to authenticated role landings** — secretary workbench, judge, admin, at-show need a Playwright `storageState` fixture; the current smoke only covers public pages.
   - [ ] **[QA] Decide a11y CI execution** — e2e (and thus the a11y smoke) is disabled in CI. Either re-enable e2e (GHA minutes are now free post-public-repo) or add a focused a11y-only CI job (build + preview + `test:a11y`). Bundle this with the 6b CI-cadence decision.
-- [ ] **Phase 7 — final regression + fold into launch-milestone checklist**
+- [x] ~~**Phase 7 — final regression + fold into launch-milestone checklist**~~ — **DONE 2026-06-15.** Final regression green on a clean worktree (`typecheck` ✅, `lint` ✅ 13/13, `test:packages` ✅ 11/11, app suite ✅ 927 files / 9061 tests, 0 fail). Codified all repeatable QA gates into [`docs/launch-milestone-qa-checklist.md`](docs/launch-milestone-qa-checklist.md) (indexed). **The full Dynamic QA Infrastructure plan (Phases 1–7) is complete** — deferred follow-ups remain tracked above (test-isolation sweep, color-contrast, date-fixture sweep).
 
 ## Database Drift Follow-ups — 2026-06-12
 

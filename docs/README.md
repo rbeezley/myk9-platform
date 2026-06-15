@@ -41,12 +41,13 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [ai-ux-adaptation.md](ai-ux-adaptation.md) | Reference | myK9 Adaptation Notes — "4 AI UX Prompts" Guide |
 | [codex-review-playbook.md](codex-review-playbook.md) | Reference | Codex review playbook |
 | [feature-audit-2026.md](feature-audit-2026.md) | Reference | Feature Audit — Fall 2026 |
+| [launch-milestone-qa-checklist.md](launch-milestone-qa-checklist.md) | Reference | Launch-Milestone QA Checklist |
 | [navigation-ia.md](navigation-ia.md) | Reference | Navigation & IA Sketch — Fall 2026 |
 | [plan-active-docs-triage-2026-06-14.md](plan-active-docs-triage-2026-06-14.md) | Active | Active-Docs Triage — 2026-06-14 |
 | [plan-architecture-deepening.md](plan-architecture-deepening.md) | Active | Architecture Deepening Plan |
 | [plan-class-status-auto-derivation.md](plan-class-status-auto-derivation.md) | Active | Plan — Class Status Auto-Derivation (Stub) |
 | [plan-data-access-module-drift.md](plan-data-access-module-drift.md) | Active | Data Access Module Drift Plan |
-| [plan-dynamic-qa-infrastructure.md](plan-dynamic-qa-infrastructure.md) | Active | Plan: Dynamic QA Infrastructure (follow-on to the Code-Quality Audit) |
+| [plan-dynamic-qa-infrastructure.md](plan-dynamic-qa-infrastructure.md) | Complete | Plan: Dynamic QA Infrastructure (follow-on to the Code-Quality Audit) |
 | [plan-result-reveal-share-card.md](plan-result-reveal-share-card.md) | Active | Plan: Result Reveal + Share Card |
 | [plan-secretary-show-day-ux-consolidation.md](plan-secretary-show-day-ux-consolidation.md) | Active | Secretary Show-Day UX Consolidation Implementation Plan |
 | [plan-show-day-sequencing.md](plan-show-day-sequencing.md) | Active | Plan — Show-Day Workflow Sequencing |

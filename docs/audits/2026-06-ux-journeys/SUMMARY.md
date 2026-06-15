@@ -70,6 +70,8 @@ Green is not available from this synthesis. Green requires remediation, fixture-
 
 **Wave 2 local verification note:** Focused unit/component tests passed 2026-06-14. Local browser re-walk confirmed exhibitor `/messages/:showId` is nonblank, the empty message route shows `Message the show team` and `Start message`, post-deadline My Entries cards link to `/messages/:showId`, and Message Center compose inherits a valid `showId` from `/secretary/messages?showId=...`. Withdrawn/refunded browser agreement remains fixture-limited in browser because the available local secretary shows had no matching withdrawn/refunded row. Show Map entry-row messaging is covered for rows with handler contact context; no-handler fallback remains a Wave 5 fixture/product decision so the row action does not offer a compose path that cannot send.
 
+**Wave 3A implementation note:** Implemented locally on branch `codex/wave3a-at-show-phone-polish`. Plan: [`docs/plan-wave3a-at-show-phone-polish.md`](../../plan-wave3a-at-show-phone-polish.md). Scope covers at-show phone polish only: exhibitor action menus hide staff print/report items, the persistent capability pill reads `Offline ready`, and the class picker biases favorite/live classes before empty setup classes. Focused tests and typecheck/lint are green; 380px browser smoke loaded without runtime errors but stopped at auth because no local browser session/passcode was available.
+
 **Wave 4 implementation note:** In progress on branch `codex/wave4-secretary-closeout`. Local focused tests cover legacy `phase=show-desk` routing into canonical Show Desk and AKC submit gating when preflight registration numbers are missing. `UX-P2-07`, `UX-P2-08`, and the observed closed-select part of `UX-P2-09` were already fixed in prior PRs and now need only tracking cleanup.
 
 ## Duplication And Consolidation Notes
@@ -96,4 +98,4 @@ Before remediation begins, confirm:
 - [x] Wave 4 can run independently because it is secretary closeout/routing polish.
 - [ ] Wave 5 should use local Dynamic QA fixtures unless the user explicitly approves shared Supabase seed mutations.
 
-Recommended next action: finish Wave 4 PR verification and review, then split Wave 3 into at-show phone polish and Results/My Shows clarity PRs. Wave 5 should remain fixture-only until shared seed mutations are explicitly approved.
+Recommended next action: ship Wave 3A, then continue Wave 3B for Results/My Shows clarity (`UX-P2-02`, `UX-P2-12`, `UX-P3-02`). Wave 5 should remain fixture-only until shared seed mutations are explicitly approved.

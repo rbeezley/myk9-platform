@@ -51,7 +51,7 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
   const navigate = useNavigate();
   const { entries, classInfo } = data;
   const { isRefreshing, fetchError, refresh } = dataStatus;
-  const { showContext, hasPermission } = context;
+  const { showContext, hasPermission, role } = context;
   const { isSyncing, hasError } = actions;
   const {
     localEntries,
@@ -253,6 +253,7 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
         showSectionsBadge={true}
         actionsMenu={{
           showRunOrder: hasPermission('canChangeRunOrder'),
+          showPrintOptions: Boolean(role && role !== 'exhibitor'),
           onRunOrderClick: () => setRunOrderDialogOpen(true),
           printOptions: [
             {

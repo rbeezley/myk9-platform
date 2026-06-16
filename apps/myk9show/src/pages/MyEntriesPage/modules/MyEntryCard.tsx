@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow, format, isToday, isTomorrow, differenceInDays } from 'date-fns';
 import { ResultBadge } from '@/components/common/ResultBadge';
+import { PlacementPill } from '@/components/base/PlacementPill';
 import { buildVenueMapsUrls, formatVenueAddress } from '@/utils/venueMaps';
 import type { MyEntry, EntryClass } from './my-entries-types';
 import {
@@ -221,6 +222,14 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
                 {cls.isScored && cls.resultStatus && (
                   <ResultBadge resultStatus={cls.resultStatus} />
                 )}
+
+                {/* Placement is part of the official result — AKC Scent Work awards 1st–4th
+                    for qualifying runs at every level. Only set once the class is fully scored. */}
+                {cls.isScored &&
+                  cls.resultStatus === 'qualified' &&
+                  cls.finalPlacement != null && (
+                    <PlacementPill placement={cls.finalPlacement} size="sm" />
+                  )}
 
                 {/* Check-in Status Controls */}
                 {!cls.isScored && (

@@ -18,6 +18,17 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-06-16
+
+- **Playwright command:** fail. Phase 1 Vitest passed (`18/18`). Phase 2 active Playwright failed with `46 passed, 4 failed (49.9m, --retries=0)`, exceeding the 30-minute global Nightly budget.
+- **Route sweep:** fail/partial. The committed `route-health-by-role.spec.ts` ran inside Phase 2. Public failed on the 375px overflow assertion for `/`; exhibitor, secretary, judge, and club-admin authenticated and passed; admin authenticated but timed out navigating to `/admin/sync`. Standalone Phase 3 was skipped because the global budget was already exceeded.
+- **Active specs:** Vitest `18/18`; active Playwright `46/50`.
+- **Failures:** Opened `QA-TEST-FLAKE-021` for the active-suite timeout/budget breach: `registration/secretaryExistingUsers.spec.ts:56` timed out in `beforeEach` on `page.goto(..., waitUntil: 'networkidle')` even though the registration page had rendered; `route-health-by-role.spec.ts:255` timed out on `/admin/sync` with the admin shell stuck on `Loading...`; `simple-connectivity.spec.ts:21` timed out waiting for `[data-testid="credential-input"]` while the sign-in page showed only `Loading page...`. Opened `QA-MOBILE-LAYOUT-BREAK-022` for public route-health measuring `31px` horizontal overflow at 375px. Evidence paths: `apps/myk9show/test-results/registration-secretaryExis-e2d58-at-span-multiple-exhibitors-chromium/error-context.md`, `apps/myk9show/test-results/route-health-by-role-Route-b0cad-n-admin-routes-render-clean-chromium/error-context.md`, `apps/myk9show/test-results/simple-connectivity-Basic--44c38--with-secretary-credentials-chromium/error-context.md`, and `apps/myk9show/test-results/route-health-by-role-Route-0ffc7--public-routes-render-clean-chromium/error-context.md`.
+- **Fixes made:** docs only (`docs/qa/findings.md`, `docs/qa/nightly-history.md`, `docs/qa/e2e-suite-map.md`). No product/test fix was made because Phase 2 had already breached the global budget and the failures require focused replay rather than a broad-run patch. The suite-map drift check found `show/phase4CrossRoleSeams.spec.ts` missing, so it was classified as `feature-audit`, not promoted to Nightly.
+- **Demotions/promotions:** none.
+- **Findings:** opened `QA-TEST-FLAKE-021` and `QA-MOBILE-LAYOUT-BREAK-022`. Did not close `QA-NETWORK-ERROR-018`; no `42703` / `is_early_adopter` failure appeared in this run, but standalone Phase 3 did not run.
+- **Notes:** Ran from isolated detached worktree `.worktrees/nightly-qa-2026-06-16-020838` on `origin/main` `bdf61a709032e4ebe0b24ca6e4e8904988812963`, using `PLAYWRIGHT_PORT=6228`, `PLAYWRIGHT_BASE_URL=http://127.0.0.1:6228`, and `PLAYWRIGHT_HMR_PORT=26228`. Bootstrap was fast (`5.6s` dependency install, cached builds), so the budget breach came from the Phase 2 runner itself. Next work should focus on the three slow failing specs/files and the public 375px overflow before another broad Nightly replay.
+
 ### 2026-06-15
 
 - **Playwright command:** skipped. Phase 1 Vitest passed (`18/18`), but the run exceeded the 30-minute global Nightly wall-clock budget before Phase 2 began, so the active Playwright command was not run.

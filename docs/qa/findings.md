@@ -96,6 +96,38 @@ Copy this block for each new finding.
 - **Proof required:** After the DB schema is repaired or a deliberate code fallback is implemented, rerun Phase 1 Vitest, the exact Phase 2 active Nightly Playwright command from `docs/qa/e2e-suite-map.md`, and standalone Phase 3 route-health on an isolated port. Required proof targets: Phase 2 `50/50` and Phase 3 `6/6` role groups with zero `42703` / owned 400s.
 - **Notes:** Not auto-fixed during Nightly because applying the existing migration or changing early-adopter semantics is a shared-system/product decision. Do not hide this by suppressing 400s in tests.
 
+### QA-TEST-FLAKE-021
+
+- **Status:** open
+- **Severity:** high
+- **Role:** secretary, admin
+- **Surface:** active Nightly Playwright command from `docs/qa/e2e-suite-map.md`, strongest evidence in `registration/secretaryExistingUsers.spec.ts`, `simple-connectivity.spec.ts`, and `route-health-by-role.spec.ts`.
+- **Suite category:** nightly
+- **Pattern:** test-flake
+- **Detected by:** Playwright
+- **Evidence:** 2026-06-16 isolated Nightly from `origin/main` `bdf61a709032e4ebe0b24ca6e4e8904988812963` passed Phase 1 Vitest (`18/18`) but failed Phase 2 active Playwright with `46 passed, 4 failed (49.9m, --retries=0)`, exceeding the 30-minute global Nightly budget. Long failures: `registration/secretaryExistingUsers.spec.ts:56` timed out in `beforeEach` while `gotoRegistration()` used `page.goto(..., { waitUntil: 'networkidle' })` even though the page snapshot showed `Register for Show` already rendered; `route-health-by-role.spec.ts:255` timed out navigating to `/admin/sync` while the admin shell remained on `Loading...`; `simple-connectivity.spec.ts:21` timed out waiting for `[data-testid="credential-input"]` while `/sign-in?returnTo=/secretary/dashboard` showed only `Loading page...`. The fourth failure, public mobile overflow, is tracked separately in `QA-MOBILE-LAYOUT-BREAK-022`. Evidence paths: `apps/myk9show/test-results/registration-secretaryExis-e2d58-at-span-multiple-exhibitors-chromium/error-context.md`, `apps/myk9show/test-results/route-health-by-role-Route-b0cad-n-admin-routes-render-clean-chromium/error-context.md`, and `apps/myk9show/test-results/simple-connectivity-Basic--44c38--with-secretary-credentials-chromium/error-context.md`.
+- **User impact:** Nightly cannot prove the trusted secretary/admin baseline within the unattended time budget. The failures mix stale or overly strict waits with possible route-loading defects, so the suite signal is not actionable until the slow waits are isolated.
+- **Intent check:** Harms the secretary "That was easy" and admin "platform is healthy" confidence because the QA system cannot distinguish a real page load problem from harness waits.
+- **Fix owner:** active Playwright specs and route-health waits: `apps/myk9show/src/test/e2e/registration/secretaryExistingUsers.spec.ts`, `apps/myk9show/src/test/e2e/simple-connectivity.spec.ts`, and `apps/myk9show/src/test/e2e/route-health-by-role.spec.ts`; investigate `/admin/sync` route loading if a focused replay reproduces outside the broad suite.
+- **Proof required:** Run the three failing specs/files alone on an isolated port with `--retries=0`, repair or demote the failing waits/routes, then rerun the exact Phase 2 active Nightly Playwright command from `docs/qa/e2e-suite-map.md` under 30 minutes and standalone Phase 3 route-health.
+- **Notes:** Not auto-fixed during 2026-06-16 Nightly because the run had already breached the global budget and the failure set requires focused diagnosis. Do not suppress the failures; replace `networkidle` waits with deterministic UI or response waits only after focused proof.
+
+### QA-MOBILE-LAYOUT-BREAK-022
+
+- **Status:** open
+- **Severity:** medium
+- **Role:** public
+- **Surface:** public route-health 375px overflow check for `/`.
+- **Suite category:** nightly
+- **Pattern:** mobile-layout-break
+- **Detected by:** Playwright route-health
+- **Evidence:** 2026-06-16 isolated Nightly Phase 2 failed `route-health-by-role.spec.ts:195` with `public/landing: horizontal overflow at 375px`; expected `0`, measured `31px`. Evidence path: `apps/myk9show/test-results/route-health-by-role-Route-0ffc7--public-routes-render-clean-chromium/error-context.md`. This is a recurrence of the public 375px overflow class previously tracked as `QA-MOBILE-LAYOUT-BREAK-012`, but the current proof is new and from the committed route-health spec.
+- **User impact:** Public visitors on narrow phones can get horizontal scrolling/clipped layout on the first route in the public group, reducing trust before sign-up.
+- **Intent check:** Harms the public/exhibitor "respects my time" first impression because the site looks less polished on mobile.
+- **Fix owner:** public landing/layout surface and the route-health overflow guard.
+- **Proof required:** Focused isolated replay of `route-health-by-role.spec.ts --grep "public routes render clean"` or a narrower 375px `/` check proving `document.documentElement.scrollWidth - window.innerWidth === 0`, then the full Phase 2/Phase 3 route-health proof.
+- **Notes:** Do not weaken the route-health assertion. Fix the overflowing public layout or prove the measurement is targeting the wrong route before closing.
+
 ### QA-TEST-FLAKE-010
 
 - **Status:** fixed

@@ -2,14 +2,17 @@ import { Star, CheckCircle2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Chip } from '@/components/base/Chip';
 import { PlacementPill } from '@/components/base/PlacementPill';
+import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 import { useMyEntriesInClass, type MyClassEntry } from './useMyEntriesInClass';
 
 interface ExhibitorClassCalloutProps {
   classId: string | undefined;
+  /** Released results read directly (bypasses stale replication store). */
+  releasedRows?: RawEntryRow[];
 }
 
-export function ExhibitorClassCallout({ classId }: ExhibitorClassCalloutProps) {
-  const { myEntries, isAfterClass } = useMyEntriesInClass(classId);
+export function ExhibitorClassCallout({ classId, releasedRows }: ExhibitorClassCalloutProps) {
+  const { myEntries, isAfterClass } = useMyEntriesInClass(classId, releasedRows);
 
   if (myEntries.length === 0) return null;
 

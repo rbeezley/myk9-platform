@@ -4,6 +4,8 @@ import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { getDogDisplayName } from '@/types/dog-types';
 import { entryIsScored } from '@/utils/entryPredicates';
+import { dbSecondsToInputFormat } from '@/utils/scoringMappings';
+import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 
 export interface MyClassEntry {
   entryId: string;
@@ -27,7 +29,17 @@ export interface UseMyEntriesInClassResult {
   isAfterClass: boolean;
 }
 
-export function useMyEntriesInClass(classId: string | undefined): UseMyEntriesInClassResult {
+export function useMyEntriesInClass(
+  classId: string | undefined,
+  /**
+   * Released results read directly from `view_entry_with_results` (see
+   * `useClassReleasedResults`). When provided, scoring/result values are
+   * sourced from these rows instead of the replication store, which is cold
+   * or stale for a post-show exhibitor/guest. Run-order/position (pre-class
+   * info) still come from the replication store.
+   */
+  releasedRows?: RawEntryRow[]
+): UseMyEntriesInClassResult {
   const { userWithRoles } = useAuthContext();
   const allEntries = useEntryStore(s => s.entries);
   const { dogs } = useDogStoreCompat();
@@ -36,6 +48,8 @@ export function useMyEntriesInClass(classId: string | undefined): UseMyEntriesIn
 
   return useMemo(() => {
     if (!classId || !databaseUserId) return { myEntries: [], isAfterClass: false };
+
+    const releasedById = new Map((releasedRows ?? []).map(r => [r.id, r]));
 
     const myDogIds = new Set(dogs.filter(d => d.ownerId === databaseUserId).map(d => d.id));
     if (myDogIds.size === 0) return { myEntries: [], isAfterClass: false };
@@ -80,7 +94,33 @@ export function useMyEntriesInClass(classId: string | undefined): UseMyEntriesIn
               .reduce((sum, [, count]) => sum + count, 0)
           : 0;
 
+      // Prefer released results (direct read) over the replication store: the
+      // store is stale for a post-show exhibitor whose entries were scored
+      // at-show after their last sync.
+      const released = releasedById.get(entry.id);
       const compData = entry.competitionData;
+
+      if (released?.is_scored) {
+        const time = dbSecondsToInputFormat(released.search_time_seconds);
+        myEntries.push({
+          entryId: entry.id,
+          dogId: entry.dogId,
+          dogName: dogNameMap.get(entry.dogId) ?? 'Unknown Dog',
+          armband: entry.registrationData.armband ?? released.armband ?? '',
+          runOrder,
+          position,
+          dogsAhead,
+          hasResult: true,
+          result: {
+            qualified: released.result_status === 'qualified',
+            ...(time ? { time } : {}),
+            ...(released.final_placement != null ? { placement: released.final_placement } : {}),
+            ...(released.total_faults != null ? { faults: released.total_faults } : {}),
+          },
+        });
+        continue;
+      }
+
       const hasResult = !!compData;
 
       myEntries.push({
@@ -115,5 +155,5 @@ export function useMyEntriesInClass(classId: string | undefined): UseMyEntriesIn
     const isAfterClass = myEntries.some(e => e.hasResult);
 
     return { myEntries, isAfterClass };
-  }, [classId, databaseUserId, allEntries, dogs]);
+  }, [classId, databaseUserId, allEntries, dogs, releasedRows]);
 }

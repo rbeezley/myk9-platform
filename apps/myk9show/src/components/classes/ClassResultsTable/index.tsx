@@ -128,8 +128,13 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   // Guard: card view requires classId for scoring navigation
   const effectiveViewMode = classId ? viewMode : 'table';
 
-  // Scoring status tab filtering (Pending / Completed / All)
-  const [scoringTab, setScoringTab] = useState<ScoringStatusTab>('pending');
+  // Scoring status tab filtering (Pending / Completed / All).
+  // Read-only viewers (exhibitors/guests) on a results-released class have no
+  // pending entries to score, so default them to "All" — otherwise the default
+  // "Pending" tab renders empty and the released results look missing.
+  const [scoringTab, setScoringTab] = useState<ScoringStatusTab>(
+    !userPermissions.canEditEntries && resultsReleasedAt ? 'all' : 'pending'
+  );
   const [searchQuery, setSearchQuery] = useState('');
 
   const scoredEntryIds = useMemo(

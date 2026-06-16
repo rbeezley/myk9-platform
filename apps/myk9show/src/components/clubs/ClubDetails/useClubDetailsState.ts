@@ -2,6 +2,7 @@ import { useState, startTransition, useMemo, useCallback } from 'react';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { useNavigate } from 'react-router-dom';
 import { useClubStore } from '@/store/clubStore';
+import { useDeleteClubMutation } from '@/hooks/queries/useClubsDatabase';
 import { useShowStore } from '@/store/showStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { ClubAdminService } from '@/services/clubAdminService';
@@ -66,7 +67,12 @@ export function computeClubPermissions(args: {
 
 export function useClubDetailsState(selectedClub: Club | null) {
   const navigate = useNavigate();
-  const { updateClub, removeClub } = useClubStore();
+  const { updateClub } = useClubStore();
+  // Delete via the service mutation (real DB soft-delete + cache invalidation),
+  // NOT clubStore.removeClub — that only cleared the local cache / queued a
+  // replication DELETE that never reached the DB, so clubs "deleted" from the UI
+  // resurrected on sync and never showed up in the restore UI.
+  const deleteClubMutation = useDeleteClubMutation();
   const shows = useShowStore(s => s.shows);
 
   // Tab state — URL-synced
@@ -213,8 +219,8 @@ export function useClubDetailsState(selectedClub: Club | null) {
 
     setIsDeleting(true);
     try {
-      logger.debug('Calling removeClub', 'clubs');
-      await removeClub(selectedClub.id);
+      logger.debug('Soft-deleting club via service mutation', 'clubs');
+      await deleteClubMutation.mutateAsync(selectedClub.id);
       logger.info('Club deletion completed successfully', 'clubs', { clubId: selectedClub.id });
       setShowDeleteDialog(false);
       navigate('/clubs');
@@ -227,7 +233,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
     } finally {
       setIsDeleting(false);
     }
-  }, [selectedClub, userWithRoles, removeClub, navigate]);
+  }, [selectedClub, userWithRoles, deleteClubMutation, navigate]);
 
   const handleClubEditComplete = useCallback(
     async (formData: Partial<Club>) => {

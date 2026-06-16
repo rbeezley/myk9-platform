@@ -33,6 +33,7 @@ import {
 import { supabase } from '@/services/database/supabaseClient';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { logger } from '@/services/LoggingService';
+import { notifications } from '@/lib/notifications';
 
 import {
   getDeletedShows,
@@ -331,8 +332,19 @@ export function DeletedEntitiesTab() {
     try {
       const config = sections.find(s => s.type === restoreTarget.type);
       if (config) {
-        await config.restore(restoreTarget.id, user?.id);
+        const label = ENTITY_LABEL[restoreTarget.type];
+        // Restore services return { error } rather than throwing; surface it so a
+        // failed restore isn't silently swallowed (and a success is confirmed).
+        const result = (await config.restore(restoreTarget.id, user?.id)) as
+          | { error?: unknown }
+          | undefined;
+        if (result?.error) {
+          logger.error('Failed to restore entity', 'trash', { target: restoreTarget });
+          notifications.error(`Couldn't restore ${label}. Please try again.`);
+          return;
+        }
         logger.info('Entity restored', 'trash', { type: restoreTarget.type, id: restoreTarget.id });
+        notifications.success(`${label} restored`);
         setCounts(prev => ({
           ...prev,
           [restoreTarget.type]: Math.max(0, prev[restoreTarget.type] - 1),
@@ -342,6 +354,7 @@ export function DeletedEntitiesTab() {
       }
     } catch (_err) {
       logger.error('Failed to restore entity', 'trash', { target: restoreTarget });
+      notifications.error('Failed to restore. Please try again.');
     } finally {
       setRestoreTarget(null);
       setIsActionLoading(false);
@@ -354,11 +367,20 @@ export function DeletedEntitiesTab() {
     try {
       const config = sections.find(s => s.type === deleteTarget.type);
       if (config) {
-        await config.hardDelete(deleteTarget.id);
+        const label = ENTITY_LABEL[deleteTarget.type];
+        const result = (await config.hardDelete(deleteTarget.id)) as
+          | { error?: unknown }
+          | undefined;
+        if (result?.error) {
+          logger.error('Failed to permanently delete entity', 'trash', { target: deleteTarget });
+          notifications.error(`Couldn't permanently delete ${label}. Please try again.`);
+          return;
+        }
         logger.info('Entity permanently deleted', 'trash', {
           type: deleteTarget.type,
           id: deleteTarget.id,
         });
+        notifications.success(`${label} permanently deleted`);
         setCounts(prev => ({
           ...prev,
           [deleteTarget.type]: Math.max(0, prev[deleteTarget.type] - 1),
@@ -368,6 +390,7 @@ export function DeletedEntitiesTab() {
       }
     } catch (_err) {
       logger.error('Failed to permanently delete entity', 'trash', { target: deleteTarget });
+      notifications.error('Failed to permanently delete. Please try again.');
     } finally {
       setDeleteTarget(null);
       setIsActionLoading(false);

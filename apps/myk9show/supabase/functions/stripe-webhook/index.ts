@@ -724,6 +724,11 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
          Reconcile: remove the extra entries created by this run and verify payout
          math (payment intent <code>${paymentIntentId ?? 'unknown'}</code>).</p>`
       );
+      // Do NOT fall through to the success log + confirmation email: the order
+      // insert failed and these duplicate entries are slated for removal.
+      // Emailing the exhibitor would confirm entries that the alert says to
+      // delete, and logging "created order" would be false.
+      return;
     }
   } else if (orderError) {
     // Entries exist and the exhibitor is fine, but the order row drives the

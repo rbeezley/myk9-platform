@@ -12,7 +12,8 @@ launch gate with *evidence* before more speculative UI lands.
 ## Current state (so fresh sessions don't redo)
 - **Exhibitor golden path:** steps 1–8 re-walked; coherent. Findings A (My Entries placement)
   **merged** ([#775](https://github.com/rbeezley/myk9-platform/pull/775) + [#776](https://github.com/rbeezley/myk9-platform/pull/776)); P1-01/P1-02/P1-03 cleared. Scorecard row → **Yellow**.
-- **In flight (other sessions):** [#773](https://github.com/rbeezley/myk9-platform/pull/773) anon-RBAC trial page; "Public Results Release Gate" (finding B), mig `20260616120000` pending push.
+- **Finding B (public results) — DONE:** [#779](https://github.com/rbeezley/myk9-platform/pull/779) merged + mig `20260616120000` applied (2026-06-16). Server-side per-field visibility-cascade gate + direct `publicReads.ts` path; resolves the stale class-results read **and** closes a pre-existing anon over-broad `entries` SELECT (withheld scored columns + payment/PII on public detail routes).
+- **In flight (other sessions):** [#773](https://github.com/rbeezley/myk9-platform/pull/773) anon-RBAC trial page (management chrome on public trial page).
 - **Secretary golden path:** still **Yellow**, not yet re-walked.
 
 ---
@@ -28,8 +29,9 @@ Establishes what's actually broken before more UI changes land.
 2. **Secretary golden-path re-walk** (11 steps) — explicit launch-gate row. Folds in: announcement
    time-to-task baseline from the Message Center, and the move-up *decision* walk (not just the
    empty state).
-3. **Exhibitor remaining:** verify finding B (class-results) once it lands; walk **P1-04**
-   (refund/withdrawn state agreement across exhibitor ↔ secretary) using the seeded refunded entry.
+3. **Exhibitor remaining → just P1-04** (finding B resolved by #779). Walk **P1-04**
+   (refund/withdrawn state agreement across exhibitor ↔ secretary) using the seeded refunded entry;
+   while there, confirm the exhibitor results display renders correctly against #779's gated read.
 4. **Manual show-day walk** (full Phase A–F arc) against the seed fixtures.
 5. **UX Journey Audit Phase 6 — time-to-task re-measure**; record deltas in `SUMMARY.md`.
 6. **Scorecard close-out** — flip Secretary + Exhibitor rows with evidence links; sweep remaining
@@ -49,10 +51,12 @@ Establishes what's actually broken before more UI changes land.
 4. **Make E2E CI jobs blocking** — *only after #2 + #3* (blocking a flaky suite blocks every PR).
 5. **CI-gated Vercel deploys** — after #4.
 6. **Pre-load AKC & UKC Judge Directory.**
-7. **Replication-leak sweep** *(NEW)* — audit every public/anon route that reads
-   entries/classes/trials from the offline replication store and switch to a direct PostgREST read.
-   Recurring pattern: #753 (TV display), #768 (styled landings), finding B (class results). Finding
-   B fixes one instance; this tracks the rest.
+7. **Replication-leak sweep — now a VERIFICATION pass** (mostly subsumed). The recurring pattern
+   (#753 TV display, #768 styled landings, finding B class results) was attacked at the root by
+   **#779**, which moved the public entries/classes/results/TV reads onto a direct, server-gated
+   `publicReads.ts` path. Remaining: a short audit confirming no *other* public/anon route still
+   reads entries/classes/**trials** from the replication store (the trials read path wasn't part of
+   #779's results scope) — switch any stragglers to a direct PostgREST read. Likely small.
    - Watch-item: ~30 wall-clock perf asserts — reactive only, do not chase proactively.
 
 ## Lane 4 — Payments Go-Live  *(isolated; one owner; no casual parallel Stripe/live-mode writes)*

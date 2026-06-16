@@ -34,9 +34,8 @@ import { signIn } from './uat/shared/auth';
  *     rule until that audit lands. Tracked in OPEN-TODOS.
  */
 
-// Authenticated role landings still carry un-audited color-contrast debt.
-// Remove once authed surfaces are swept (Task 1 only cleared public pages).
-const AUTHED_EXCLUDED_RULES = ['color-contrast'];
+// Authenticated role landings: color-contrast now ENFORCED (swept 2026-06-16).
+const AUTHED_EXCLUDED_RULES: string[] = [];
 
 const PUBLIC_PAGES = [
   { name: 'Landing', path: '/' },

@@ -7,6 +7,12 @@ import { createTestQueryClient } from '@/test/utils/testUtils';
 
 vi.mock('@/services/database/entries', () => ({
   getEntriesByTrial: vi.fn(),
+  getPublicEntriesByTrial: vi.fn(),
+}));
+
+// Authenticated viewer → hook takes the full table-read path (getEntriesByTrial).
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({ user: { id: 'u1' }, loading: false }),
 }));
 
 import { getEntriesByTrial } from '@/services/database/entries';

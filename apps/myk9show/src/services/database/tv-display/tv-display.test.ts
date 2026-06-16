@@ -85,12 +85,10 @@ const placementRows = [
     search_time_seconds: 35.1,
     total_score: 87.5,
     result_status: 'qualified',
-    dogs: {
-      name: 'Luna Star',
-      call_name: 'Luna',
-      breed: 'Labrador',
-      image_url: null,
-    },
+    dog_name: 'Luna Star',
+    dog_call_name: 'Luna',
+    dog_breed: 'Labrador',
+    dog_image_url: null,
   },
   {
     id: 'entry-2',
@@ -101,12 +99,10 @@ const placementRows = [
     search_time_seconds: 38.2,
     total_score: null,
     result_status: 'qualified',
-    dogs: {
-      name: 'Comet Dash',
-      call_name: 'Comet',
-      breed: 'Border Collie',
-      image_url: null,
-    },
+    dog_name: 'Comet Dash',
+    dog_call_name: 'Comet',
+    dog_breed: 'Border Collie',
+    dog_image_url: null,
   },
 ];
 
@@ -126,13 +122,14 @@ function mockActiveDisplayQueries() {
 }
 
 function mockCompletedResultQueries() {
-  let entriesCall = 0;
+  let resultsCall = 0;
   mockSupabase.from.mockImplementation((table: string) => {
     if (table === 'classes') return createChainableQuery({ data: completedClassRows, error: null });
-    if (table === 'entries') {
-      entriesCall += 1;
+    // Results are read through the cascade-gated public view, not the raw table.
+    if (table === 'view_public_entry_results') {
+      resultsCall += 1;
       return createChainableQuery({
-        data: entriesCall === 1 ? placementRows : qualifiedRows,
+        data: resultsCall === 1 ? placementRows : qualifiedRows,
         error: null,
       });
     }
@@ -197,8 +194,8 @@ describe('tv-display database reads', () => {
 
     expect(mockSupabase.from.mock.calls.map(([table]) => table)).toEqual([
       'classes',
-      'entries',
-      'entries',
+      'view_public_entry_results',
+      'view_public_entry_results',
     ]);
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({

@@ -3,6 +3,7 @@
 // tables directly, and never from the sibling implementation files below.
 
 export * from './reads';
+export * from './publicReads';
 // updateEntryStatus excluded — conflicts with the secretary-signature version in secretary.ts.
 export {
   applyPromoCodeToEntry,

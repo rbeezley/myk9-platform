@@ -123,10 +123,14 @@ export async function getPostgrestTVDisplayResults(
   if (classError || !classData || classData.length === 0) return [];
 
   const classIds = classData.map(c => c.id);
+  // INTENT: The TV display is a public surface. Read results through
+  // view_public_entry_results so the result-visibility cascade is enforced by
+  // the database — placements/times/quals for classes whose results have not
+  // been released arrive NULL and are naturally filtered out below.
   const { data: placementData } = await supabase
-    .from('entries')
+    .from('view_public_entry_results')
     .select(
-      'id, class_id, armband, handler, final_placement, search_time_seconds, total_score, result_status, dogs(name, call_name, breed, image_url)'
+      'id, class_id, armband, handler, final_placement, search_time_seconds, total_score, result_status, dog_name, dog_call_name, dog_breed, dog_image_url'
     )
     .in('class_id', classIds)
     .gte('final_placement', 1)
@@ -134,7 +138,7 @@ export async function getPostgrestTVDisplayResults(
     .order('final_placement', { ascending: true });
 
   const { data: qualifiedData } = await supabase
-    .from('entries')
+    .from('view_public_entry_results')
     .select('class_id, search_time_seconds')
     .in('class_id', classIds)
     .eq('result_status', 'qualified');
@@ -149,14 +153,12 @@ export async function getPostgrestTVDisplayResults(
       handler: p.handler,
       searchTime: p.search_time_seconds,
       totalScore: p.total_score,
-      dog: mapJoinedDog(
-        p.dogs as {
-          name: string;
-          call_name: string | null;
-          breed: string | null;
-          image_url: string | null;
-        } | null
-      ),
+      dog: mapJoinedDog({
+        name: p.dog_name as string,
+        call_name: (p.dog_call_name as string | null) ?? null,
+        breed: (p.dog_breed as string | null) ?? null,
+        image_url: (p.dog_image_url as string | null) ?? null,
+      }),
     });
     placementsByClass.set(classId, group);
   }

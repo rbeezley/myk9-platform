@@ -3,6 +3,7 @@ import { formatDateInTimezone } from '../utils/dateFormat';
 
 interface FinalCtaSectionProps {
   entryWizardUrl: string;
+  classesHref: string | null;
   entryCloseDate: string | null;
   timezone: string;
 }
@@ -15,6 +16,7 @@ interface FinalCtaSectionProps {
  */
 export function FinalCtaSection({
   entryWizardUrl,
+  classesHref,
   entryCloseDate,
   timezone,
 }: FinalCtaSectionProps) {
@@ -87,7 +89,7 @@ export function FinalCtaSection({
           Open the entry wizard ▸
         </a>
         <SeeClassesLink
-          entryWizardUrl={entryWizardUrl}
+          href={classesHref}
           className="mt-3 block"
           style={{ color: 'var(--gz-paper)' }}
         />

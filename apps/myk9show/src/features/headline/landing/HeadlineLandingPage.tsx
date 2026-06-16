@@ -6,6 +6,7 @@ import type { HeritageLandingData } from '@/features/heritage/landing/types';
 import { formatJourneyDate } from '@/features/heritage/landing/utils/dateFormat';
 import { useCountdown } from '@/features/heritage/hooks/useCountdown';
 import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
+import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { ensureHeadlineFontsLoaded } from '../fonts';
 import { FinalCta, Footer, Officers, ScheduleAndPlan } from './HeadlineLandingLowerSections';
 import { SectionHead } from './HeadlineLandingPrimitives';
@@ -65,7 +66,7 @@ function HeadlineNav({ data }: { data: HeritageLandingData }) {
   );
 }
 
-function Hero({ data }: { data: HeritageLandingData }) {
+function Hero({ data, classesHref }: { data: HeritageLandingData; classesHref: string | null }) {
   const countdown = useCountdown(data.entryCloseDate, data.timezone);
   const totalRuns = data.entryLimit ? `${data.entryLimit} runs` : 'Limit TBD';
   const title = getHeroTitleParts(data.showName);
@@ -116,7 +117,7 @@ function Hero({ data }: { data: HeritageLandingData }) {
           <a className="hd-cta ghost" href="#particulars">
             Review details
           </a>
-          <SeeClassesLink entryWizardUrl={data.entryWizardUrl} />
+          <SeeClassesLink href={classesHref} />
           <span className="hd-cta-meta">
             Closes {shortDate(data.entryCloseDate, data.timezone)}
           </span>
@@ -319,6 +320,7 @@ export function HeadlineLandingPage({ show, trial, allTrials }: HeadlineLandingP
   }, []);
 
   const data = useHeritageLandingData(show, trial, allTrials);
+  const classesHref = publicClassesHref(show?.id, allTrials);
 
   return (
     <div data-headline className="hd-shell">
@@ -338,7 +340,7 @@ export function HeadlineLandingPage({ show, trial, allTrials }: HeadlineLandingP
 
       <HeadlineNav data={data} />
       <main>
-        <Hero data={data} />
+        <Hero data={data} classesHref={classesHref} />
         <Judges data={data} />
         <Particulars data={data} />
         <Roster data={data} />

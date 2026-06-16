@@ -3,6 +3,7 @@ import { formatDateInTimezone } from '../utils/dateFormat';
 
 interface FinalEditorialBandProps {
   entryWizardUrl: string;
+  classesHref: string | null;
   entryCloseDate: string | null;
   timezone: string;
 }
@@ -23,6 +24,7 @@ interface FinalEditorialBandProps {
  */
 export function FinalEditorialBand({
   entryWizardUrl,
+  classesHref,
   entryCloseDate,
   timezone,
 }: FinalEditorialBandProps) {
@@ -102,7 +104,7 @@ export function FinalEditorialBand({
           Open the entry wizard <span aria-hidden="true">→</span>
         </a>
         <SeeClassesLink
-          entryWizardUrl={entryWizardUrl}
+          href={classesHref}
           className="mt-3 block"
           style={{ color: 'var(--mz-paper)' }}
         />

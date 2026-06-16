@@ -2,11 +2,11 @@ import type { CSSProperties } from 'react';
 
 interface SeeClassesLinkProps {
   /**
-   * The registration wizard URL. The wizard's first step is class selection and
-   * requires no payment to view, so it doubles as a no-commitment "preview the
-   * classes" entry point.
+   * PUBLIC URL where the offered classes can be previewed (the trial details page).
+   * Must NOT be the auth-gated registration wizard — a signed-out visitor would be
+   * redirected to /sign-in. Use `publicClassesHref()` to build it.
    */
-  entryWizardUrl: string | null | undefined;
+  href: string | null | undefined;
   className?: string;
   style?: CSSProperties;
   label?: string;
@@ -17,15 +17,15 @@ interface SeeClassesLinkProps {
 // are each bespoke-themed, so this link inherits the surrounding text color (currentColor)
 // to blend into every style; callers pass `className`/`style` for per-theme tuning.
 export function SeeClassesLink({
-  entryWizardUrl,
+  href,
   className,
   style,
   label = 'See classes first',
 }: SeeClassesLinkProps) {
-  if (!entryWizardUrl) return null;
+  if (!href) return null;
   return (
     <a
-      href={entryWizardUrl}
+      href={href}
       data-testid="see-classes-link"
       className={className}
       style={{

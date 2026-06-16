@@ -17,6 +17,7 @@ interface HeroBlockProps {
   venueCity: string | null;
   timezone: string;
   entryWizardUrl: string;
+  classesHref: string | null;
 }
 
 function CountdownBlock({
@@ -95,6 +96,7 @@ export function HeroBlock({
   venueCity,
   timezone,
   entryWizardUrl,
+  classesHref,
 }: HeroBlockProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>(0.1);
   const { days, hours, minutes, closed } = useCountdown(entryCloseDate, timezone);
@@ -217,7 +219,7 @@ export function HeroBlock({
             Enter this show
           </a>
           <SeeClassesLink
-            entryWizardUrl={entryWizardUrl}
+            href={classesHref}
             className="mt-3"
             style={{ color: 'var(--hl-claret)', fontFamily: "'EB Garamond', Georgia, serif" }}
           />

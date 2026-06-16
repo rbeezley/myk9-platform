@@ -18,6 +18,7 @@ interface FlagMastheadProps {
   venueCity: string | null;
   timezone: string;
   entryWizardUrl: string;
+  classesHref: string | null;
 }
 
 /**
@@ -38,6 +39,7 @@ export function FlagMasthead({
   venueCity,
   timezone,
   entryWizardUrl,
+  classesHref,
 }: FlagMastheadProps) {
   const dateRangeLabel = formatDateRange(trialStartDate, trialEndDate, timezone);
   const closesLabel = entryCloseDate
@@ -87,7 +89,7 @@ export function FlagMasthead({
           Enter this show
         </a>
         <SeeClassesLink
-          entryWizardUrl={entryWizardUrl}
+          href={classesHref}
           style={{ color: brandColors.textOnFlag, fontFamily: BANNER_BODY_FAMILY }}
         />
       </div>

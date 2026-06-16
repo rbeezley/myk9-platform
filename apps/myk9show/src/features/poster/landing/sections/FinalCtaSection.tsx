@@ -11,6 +11,7 @@ import { formatDateInTimezone } from '../utils/dateFormat';
 
 interface FinalCtaSectionProps {
   entryWizardUrl: string;
+  classesHref: string | null;
   entryCloseDate: string | null;
   timezone: string;
 }
@@ -24,6 +25,7 @@ interface FinalCtaSectionProps {
  */
 export function FinalCtaSection({
   entryWizardUrl,
+  classesHref,
   entryCloseDate,
   timezone,
 }: FinalCtaSectionProps) {
@@ -134,7 +136,7 @@ export function FinalCtaSection({
         </a>
         <div style={{ marginTop: 14, position: 'relative', zIndex: 3 }}>
           <SeeClassesLink
-            entryWizardUrl={entryWizardUrl}
+            href={classesHref}
             style={{ color: posterColors.ink, fontFamily: POSTER_MONO_FAMILY }}
           />
         </div>

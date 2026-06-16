@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
+import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { ensureBannerFontsLoaded } from '../fonts';
 import { useBannerLandingData } from './useBannerLandingData';
 import { FlagMasthead } from './sections/FlagMasthead';
@@ -38,6 +39,7 @@ export function BannerLandingPage({ show, trial, allTrials }: BannerLandingPageP
   }, []);
 
   const data = useBannerLandingData(show, trial, allTrials);
+  const classesHref = publicClassesHref(show?.id, allTrials);
   const { brandColors } = data;
 
   return (
@@ -81,6 +83,7 @@ export function BannerLandingPage({ show, trial, allTrials }: BannerLandingPageP
         venueCity={data.venueCity}
         timezone={data.timezone}
         entryWizardUrl={data.entryWizardUrl}
+        classesHref={classesHref}
       />
 
       <StickyNav

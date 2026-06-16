@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
+import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { ensureHeritageFontsLoaded } from '../fonts';
 import { useHeritageLandingData } from './useHeritageLandingData';
 import { StickyNav } from './sections/StickyNav';
@@ -35,6 +36,10 @@ export function HeritageLandingPage({ show, trial, allTrials }: HeritageLandingP
   }, []);
 
   const data = useHeritageLandingData(show, trial, allTrials);
+  // INTENT: "See classes" must reach a PUBLIC surface. The registration wizard
+  // (entryWizardUrl) is auth-gated, so a signed-out visitor would bounce to /sign-in.
+  // The trial details page is public and lists the offered classes (UX-P2-04-EXP).
+  const classesHref = publicClassesHref(show?.id, allTrials);
 
   return (
     <div
@@ -70,6 +75,7 @@ export function HeritageLandingPage({ show, trial, allTrials }: HeritageLandingP
           venueCity={data.venueCity}
           timezone={data.timezone}
           entryWizardUrl={data.entryWizardUrl}
+          classesHref={classesHref}
         />
 
         <WelcomeSection welcomeText={data.welcomeText} trialChairName={data.trialChairName} />

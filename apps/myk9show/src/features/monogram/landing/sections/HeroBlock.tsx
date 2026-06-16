@@ -18,6 +18,7 @@ interface HeroBlockProps {
   venueCity: string | null;
   timezone: string;
   entryWizardUrl: string;
+  classesHref: string | null;
   canEnterOnline?: boolean;
 }
 
@@ -67,6 +68,7 @@ export function HeroBlock({
   venueCity,
   timezone,
   entryWizardUrl,
+  classesHref,
   canEnterOnline = true,
 }: HeroBlockProps) {
   const countdown = useCountdown(entryCloseDate, timezone);
@@ -249,7 +251,7 @@ export function HeroBlock({
               </span>
             </a>
             <SeeClassesLink
-              entryWizardUrl={entryWizardUrl}
+              href={classesHref}
               style={{ color: monogramColors.quill, fontFamily: MONOGRAM_BODY_FAMILY }}
             />
           </div>

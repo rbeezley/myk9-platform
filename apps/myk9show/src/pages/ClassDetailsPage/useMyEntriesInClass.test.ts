@@ -153,6 +153,73 @@ describe('useMyEntriesInClass', () => {
     expect(result.current.myEntries[0].result?.time).toBe('0:38.20');
   });
 
+  it('synthesizes my entries from released rows when the store is cold', () => {
+    // Replication store has NO entries for this class (post-show exhibitor /
+    // guest who never synced this show) — but dogs sync globally so ownership
+    // is known. The released row must still surface in the callout.
+    setMocks({ entries: [] });
+    const releasedRows = [
+      {
+        id: 'released-entry-1',
+        dog_id: DOG_ID,
+        is_scored: true,
+        result_status: 'qualified',
+        search_time_seconds: 38.2,
+        total_faults: 0,
+        final_placement: 1,
+        armband: '101',
+        dog: { id: DOG_ID, name: 'Magnolia', call_name: 'Maggie', breed: null, registrations: null, owner: null },
+      } as unknown as import('@/hooks/queries/useClassEntriesRaw').RawEntryRow,
+    ];
+    const { result } = renderHook(() => useMyEntriesInClass(CLASS_ID, releasedRows));
+    expect(result.current.myEntries).toHaveLength(1);
+    expect(result.current.isAfterClass).toBe(true);
+    expect(result.current.myEntries[0].entryId).toBe('released-entry-1');
+    expect(result.current.myEntries[0].dogName).toBe('Maggie');
+    expect(result.current.myEntries[0].result?.qualified).toBe(true);
+    expect(result.current.myEntries[0].result?.placement).toBe(1);
+  });
+
+  it('does not synthesize released rows for dogs the user does not own', () => {
+    setMocks({ entries: [] });
+    const releasedRows = [
+      {
+        id: 'released-entry-2',
+        dog_id: 'someone-elses-dog',
+        is_scored: true,
+        result_status: 'qualified',
+        search_time_seconds: 40,
+        total_faults: 0,
+        final_placement: 2,
+        armband: '102',
+        dog: { id: 'someone-elses-dog', name: 'Rex', call_name: 'Rex', breed: null, registrations: null, owner: null },
+      } as unknown as import('@/hooks/queries/useClassEntriesRaw').RawEntryRow,
+    ];
+    const { result } = renderHook(() => useMyEntriesInClass(CLASS_ID, releasedRows));
+    expect(result.current.myEntries).toHaveLength(0);
+  });
+
+  it('does not double-count a released row already present in the store', () => {
+    // Warm store entry + a released row for the SAME entry id → one row, overlaid.
+    setMocks({ entries: [makeEntry({ competitionData: undefined })] });
+    const releasedRows = [
+      {
+        id: 'entry-1',
+        dog_id: DOG_ID,
+        is_scored: true,
+        result_status: 'qualified',
+        search_time_seconds: 38.2,
+        total_faults: 0,
+        final_placement: 1,
+        armband: '101',
+        dog: { id: DOG_ID, name: 'Magnolia', call_name: 'Maggie', breed: null, registrations: null, owner: null },
+      } as unknown as import('@/hooks/queries/useClassEntriesRaw').RawEntryRow,
+    ];
+    const { result } = renderHook(() => useMyEntriesInClass(CLASS_ID, releasedRows));
+    expect(result.current.myEntries).toHaveLength(1);
+    expect(result.current.myEntries[0].result?.placement).toBe(1);
+  });
+
   it('marks a released NQ row as not qualified', () => {
     setMocks({ entries: [makeEntry({ competitionData: undefined })] });
     const releasedRows = [

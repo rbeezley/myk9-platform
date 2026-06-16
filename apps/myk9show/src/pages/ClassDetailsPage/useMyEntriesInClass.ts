@@ -80,10 +80,23 @@ export function useMyEntriesInClass(
       }
     }
 
+    // Build the result shape from a directly-read released row.
+    const releasedResult = (r: RawEntryRow): NonNullable<MyClassEntry['result']> => {
+      const time = dbSecondsToInputFormat(r.search_time_seconds);
+      return {
+        qualified: r.result_status === 'qualified',
+        ...(time ? { time } : {}),
+        ...(r.final_placement != null ? { placement: r.final_placement } : {}),
+        ...(r.total_faults != null ? { faults: r.total_faults } : {}),
+      };
+    };
+
     const myEntries: MyClassEntry[] = [];
+    const seenEntryIds = new Set<string>();
 
     for (const entry of classEntries) {
       if (!myDogIds.has(entry.dogId)) continue;
+      seenEntryIds.add(entry.id);
 
       const runOrder = entry.registrationData.runOrder ?? 0;
       const position = runOrder > 0 ? (positionByEntryId.get(entry.id) ?? 0) : 0;
@@ -101,7 +114,6 @@ export function useMyEntriesInClass(
       const compData = entry.competitionData;
 
       if (released?.is_scored) {
-        const time = dbSecondsToInputFormat(released.search_time_seconds);
         myEntries.push({
           entryId: entry.id,
           dogId: entry.dogId,
@@ -111,12 +123,7 @@ export function useMyEntriesInClass(
           position,
           dogsAhead,
           hasResult: true,
-          result: {
-            qualified: released.result_status === 'qualified',
-            ...(time ? { time } : {}),
-            ...(released.final_placement != null ? { placement: released.final_placement } : {}),
-            ...(released.total_faults != null ? { faults: released.total_faults } : {}),
-          },
+          result: releasedResult(released),
         });
         continue;
       }
@@ -142,6 +149,33 @@ export function useMyEntriesInClass(
               },
             }
           : {}),
+      });
+    }
+
+    // Cold-store fallback: when the replication store has no entries for this
+    // class (post-show exhibitor / guest who never synced this show), synthesize
+    // "my entries" directly from the released rows by matching dog ownership.
+    // Run-order/position are irrelevant post-release, so they default to 0.
+    for (const released of releasedRows ?? []) {
+      if (!released.is_scored) continue;
+      if (seenEntryIds.has(released.id)) continue;
+      if (!released.dog_id || !myDogIds.has(released.dog_id)) continue;
+      seenEntryIds.add(released.id);
+
+      myEntries.push({
+        entryId: released.id,
+        dogId: released.dog_id,
+        dogName:
+          dogNameMap.get(released.dog_id) ??
+          released.dog?.call_name ??
+          released.dog?.name ??
+          'Unknown Dog',
+        armband: released.armband ?? '',
+        runOrder: 0,
+        position: 0,
+        dogsAhead: 0,
+        hasResult: true,
+        result: releasedResult(released),
       });
     }
 

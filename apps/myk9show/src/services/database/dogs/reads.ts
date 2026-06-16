@@ -675,16 +675,11 @@ export const getDeletedDogs = async () => {
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase
-      .from('dogs')
-      .select(
-        `
-        *,
-        owner:people!dogs_owner_id_fkey(id, first_name, last_name, email)
-`
-      )
-      .not('deleted_at', 'is', null)
-      .order('deleted_at', { ascending: false });
+    // dogs_select RLS hides soft-deleted rows from every role, so list them via
+    // an admin-gated SECURITY DEFINER RPC (migration 20260616140000). The RPC's
+    // generated type isn't in database.types yet, hence the cast.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.rpc as any)('get_deleted_dogs');
 
     const duration = Date.now() - startTime;
     logQuery('dog', 'select_deleted', duration, error?.message);

@@ -51,6 +51,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-dynamic-qa-infrastructure.md](plan-dynamic-qa-infrastructure.md)                     | Complete  | Plan: Dynamic QA Infrastructure (follow-on to the Code-Quality Audit) |
 | [plan-launch-execution-lanes.md](plan-launch-execution-lanes.md)                           | Active    | Plan: Fall Launch — Execution Lanes (canonical to-do)                 |
 | [plan-public-results-release-gate.md](plan-public-results-release-gate.md)                  | Active    | Plan: Server-side gate for public/anon scored results                |
+| [plan-restore-ui-remediation.md](plan-restore-ui-remediation.md)                           | Active    | Plan: Fix the Deleted Entities (restore) UI                          |
 | [plan-result-reveal-share-card.md](plan-result-reveal-share-card.md)                       | Active    | Plan: Result Reveal + Share Card                                      |
 | [plan-show-day-sequencing.md](plan-show-day-sequencing.md)                                 | Active    | Plan — Show-Day Workflow Sequencing                                   |
 | [plan-ux-journey-audit.md](plan-ux-journey-audit.md)                                       | Active    | Plan: UX Journey Audit — Exhibitor & Secretary                        |

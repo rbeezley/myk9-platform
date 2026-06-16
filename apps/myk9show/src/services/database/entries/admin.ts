@@ -102,12 +102,6 @@ export const getDeletedEntries = async () => {
             name,
             date
           )
-        ),
-        deleted_by_user:deleted_by (
-          id,
-          first_name,
-          last_name,
-          email
         )
       `
       )

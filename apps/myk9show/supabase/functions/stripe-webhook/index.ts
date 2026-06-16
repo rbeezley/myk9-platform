@@ -497,12 +497,17 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     (sum, i) => sum + (authoritativeByClass.get(i.class_id) ?? 0),
     0
   );
+  // Validate the platform fee against the rate STAMPED on the session at
+  // checkout, not a live read — stripe-checkout now charges from the
+  // platform_settings row, and a site admin changing that rate between charge
+  // and webhook must not make this reject a correctly-charged session (which
+  // would leave the exhibitor paid with no entries). Fall back to the env var
+  // for sessions created before the stamp existed.
+  const stampedFeePercent = resolvePlatformFeePercent(
+    freshSession.metadata?.platform_fee_percent ?? Deno.env.get('PLATFORM_FEE_PERCENT')
+  );
   const authoritativeTotal =
-    authoritativeSubtotal +
-    calculatePlatformFeeCents(
-      authoritativeSubtotal,
-      resolvePlatformFeePercent(Deno.env.get('PLATFORM_FEE_PERCENT'))
-    );
+    authoritativeSubtotal + calculatePlatformFeeCents(authoritativeSubtotal, stampedFeePercent);
   if (authoritativeTotal !== freshTotalCents) {
     const piId = extractPaymentIntentId(session.payment_intent);
     console.error(

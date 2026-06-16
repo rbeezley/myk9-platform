@@ -14,13 +14,9 @@ import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import {
-  useCartStore,
-  useCartItems,
-  useCartTotal,
-  type CartItemWithDetails,
-} from '@/store/cartStore';
-import { PLATFORM_FEE_PERCENT_LABEL } from '@/store/cartStore.helpers';
+import { useCartStore, useCartItems, type CartItemWithDetails } from '@/store/cartStore';
+import { calculatePlatformFeeCents, formatPlatformFeeLabel } from '@/store/cartStore.helpers';
+import { usePlatformFeePercent } from '@/hooks/queries/usePlatformFeePercent';
 import { useCartExpirationTimer } from '@/hooks/useCartExpirationTimer';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 
@@ -41,10 +37,13 @@ export function CartPreviewPanel({
 }: CartPreviewPanelProps) {
   const cart = useCartStore(state => state.cart);
   const items = useCartItems();
-  const totalCents = useCartTotal();
   const removeItem = useCartStore(state => state.removeItem);
   const getTotalEntryFees = useCartStore(state => state.getTotalEntryFees);
-  const getPlatformFee = useCartStore(state => state.getPlatformFee);
+  const feePercent = usePlatformFeePercent();
+  // Recompute fee + total from the live rate (store bakes the fallback default).
+  const subtotalCents = getTotalEntryFees();
+  const platformFeeCents = calculatePlatformFeeCents(subtotalCents, feePercent);
+  const totalCents = subtotalCents + platformFeeCents;
 
   const abandonCart = useCartStore(state => state.abandonCart);
 
@@ -168,11 +167,11 @@ export function CartPreviewPanel({
         <div className="space-y-1 text-sm">
           <div className="flex justify-between text-muted-foreground">
             <span>Entry Fees</span>
-            <span>{formatCurrency(getTotalEntryFees())}</span>
+            <span>{formatCurrency(subtotalCents)}</span>
           </div>
           <div className="flex justify-between text-muted-foreground">
-            <span>Platform Fee ({PLATFORM_FEE_PERCENT_LABEL})</span>
-            <span>{formatCurrency(getPlatformFee())}</span>
+            <span>Platform Fee ({formatPlatformFeeLabel(feePercent)})</span>
+            <span>{formatCurrency(platformFeeCents)}</span>
           </div>
           <div className="flex justify-between font-semibold pt-1 border-t">
             <span>Total</span>

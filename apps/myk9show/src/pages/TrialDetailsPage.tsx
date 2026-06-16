@@ -57,7 +57,13 @@ import { useTrialStats, type EntryForStats } from '@/hooks/useTrialStats';
 import { useTrialTemplates } from '@/hooks/useTrialTemplates';
 import { useTrialEntries } from '@/hooks/queries/useTrialEntries';
 
-const TAB_IDS = ['overview', 'entries', 'promo-codes', 'financials'] as const;
+// Public tabs render for every visitor; management tabs are staff-only. The
+// split is load-bearing: useUrlTab validates `?tab=` against the *allowed* list,
+// so management tabs must be excluded for non-staff or a deep link like
+// `?tab=financials` would render the panel even with its trigger hidden.
+const PUBLIC_TAB_IDS = ['overview', 'entries'] as const;
+const MANAGEMENT_TAB_IDS = ['promo-codes', 'financials'] as const;
+const TAB_IDS = [...PUBLIC_TAB_IDS, ...MANAGEMENT_TAB_IDS] as const;
 
 const TrialDetailsPage: React.FC = () => {
   const { trialId, showId } = useParams<{ trialId: string; showId?: string }>();
@@ -78,8 +84,11 @@ const TrialDetailsPage: React.FC = () => {
   const { templates, initializeDefaultTemplates } = useTemplateStore();
   const { shows } = useShowStore();
 
-  // Tab state — URL-synced
-  const [activeTab, setActiveTab] = useUrlTab(TAB_IDS, 'overview');
+  // Tab state — URL-synced. Pass only the tabs this visitor may see so a
+  // hidden management tab in `?tab=` falls back to 'overview' instead of
+  // rendering its panel (PromoCodes/Financials) to a non-staff visitor.
+  const allowedTabIds = canManageTrial ? TAB_IDS : PUBLIC_TAB_IDS;
+  const [activeTab, setActiveTab] = useUrlTab(allowedTabIds, 'overview');
 
   // Panel state
   const [editTrialPanelOpen, setEditTrialPanelOpen] = useState(false);
@@ -195,12 +204,12 @@ const TrialDetailsPage: React.FC = () => {
       { id: 'overview', label: 'Overview', icon: LayoutDashboard },
       { id: 'entries', label: 'Entries', icon: ClipboardList, count: entryCount },
     ];
-    if (isSecretary || isAdmin) {
+    if (canManageTrial) {
       tabs.push({ id: 'promo-codes', label: 'Promo Codes', icon: Tag });
       tabs.push({ id: 'financials', label: 'Financials', icon: DollarSign });
     }
     return tabs;
-  }, [entryCount, isSecretary, isAdmin]);
+  }, [entryCount, canManageTrial]);
 
   // Breadcrumbs
   const breadcrumbs = useMemo(() => {

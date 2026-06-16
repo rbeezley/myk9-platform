@@ -101,7 +101,7 @@ Walked as `exhibitor1@myk9t.com` against staging; discovery checked logged-out.
 | PR | Scope | Verification |
 | --- | --- | --- |
 | [#767](https://github.com/rbeezley/myk9-platform/pull/767) | `NoClassesAlert` recovery path (empty class step) | 16 tests, typecheck 24/24, lint |
-| [#768](https://github.com/rbeezley/myk9-platform/pull/768) | `SeeClassesLink` → public trial page on all 8 styled landings (P2-04-EXP; review-fixed off auth-gated wizard) | 7 + 21 regression tests, typecheck 24/24, lint |
+| [#768](https://github.com/rbeezley/myk9-platform/pull/768) | `SeeClassesLink` → public trial page on all 8 styled landings (P2-04-EXP; review-fixed twice: off the auth-gated wizard, then off the guest-empty replication store via `getTrialsByShow` direct read) | 10 + 21 regression tests, typecheck 24/24, lint |
 | docs → `main` (`e1283174a`) | Plan doc, SUMMARY + scorecard Exhibitor → Yellow, OPEN-TODOS | n/a (docs) |
 
 **Launch-gate movement:** Exhibitor Red → **Yellow** (enter→pay walkable; Green pending confirmation/results leg + P2-04-EXP).

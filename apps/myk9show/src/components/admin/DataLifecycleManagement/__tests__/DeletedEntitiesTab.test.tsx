@@ -6,15 +6,24 @@ import { DeletedEntitiesTab } from '../DeletedEntitiesTab';
 /*  Mocks                                                              */
 /* ------------------------------------------------------------------ */
 
-const { mockNot, mockFrom } = vi.hoisted(() => {
+const { mockNot, mockFrom, mockRpc } = vi.hoisted(() => {
   const mockNot = vi.fn();
   const mockFrom = vi.fn().mockReturnValue({ select: () => ({ not: mockNot }) });
-  return { mockNot, mockFrom };
+  const mockRpc = vi.fn();
+  return { mockNot, mockFrom, mockRpc };
 });
 
 vi.mock('@/services/database/supabaseClient', () => ({
-  supabase: { from: mockFrom },
+  supabase: { from: mockFrom, rpc: mockRpc },
 }));
+
+// dogs/shows/classes/people counts come from admin RPCs, not direct selects.
+const RPC_TABLE: Record<string, string> = {
+  get_deleted_dogs: 'dogs',
+  get_deleted_shows: 'shows',
+  get_deleted_classes: 'classes',
+  get_deleted_people: 'people',
+};
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: vi.fn().mockReturnValue({ user: { id: 'test-user-id' } }),
@@ -99,6 +108,15 @@ function setCountsPerTable(countsMap: Record<string, number>) {
       not: () => Promise.resolve({ count: countsMap[table] ?? 0, error: null }),
     }),
   }));
+  // RPC-counted types resolve to an array whose length is the configured count.
+  mockRpc.mockImplementation((fn: string) => {
+    const table = RPC_TABLE[fn];
+    const n = table ? (countsMap[table] ?? 0) : 0;
+    return Promise.resolve({
+      data: Array.from({ length: n }, (_, i) => ({ id: `${table}-${i}` })),
+      error: null,
+    });
+  });
 }
 
 /** All counts zero */
@@ -115,6 +133,7 @@ describe('DeletedEntitiesTab', () => {
     vi.clearAllMocks();
     // Default: all counts resolve to 0
     mockNot.mockResolvedValue({ count: 0, error: null });
+    mockRpc.mockResolvedValue({ data: [], error: null });
   });
 
   it('shows loading state initially', () => {

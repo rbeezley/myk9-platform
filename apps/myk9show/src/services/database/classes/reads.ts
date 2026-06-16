@@ -561,8 +561,7 @@ export const getDeletedClasses = async () => {
 
     // classes_select RLS hides soft-deleted rows from every role; list via an
     // admin-gated SECURITY DEFINER RPC (migration 20260616140000).
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase.rpc as any)('get_deleted_classes');
+    const { data, error } = await supabase.rpc('get_deleted_classes');
 
     if (error) {
       log('getDeletedClasses', 'Error fetching deleted classes', { error });

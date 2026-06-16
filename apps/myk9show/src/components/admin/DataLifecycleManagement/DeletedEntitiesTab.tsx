@@ -76,6 +76,21 @@ const TABLE_FOR_TYPE = {
   person: 'people',
 } as const;
 
+/*
+ * dogs/shows/classes/people hide soft-deleted rows at the RLS layer, so a direct
+ * `.from(table).not('deleted_at', ...)` count returns 0 for admins (the section
+ * would never render). Count these through the same admin-gated RPC the list
+ * reads use; the others (trials/entries/clubs) count fine via a direct head query.
+ */
+const DELETED_COUNT_RPC: Partial<
+  Record<EntityType, 'get_deleted_dogs' | 'get_deleted_shows' | 'get_deleted_classes' | 'get_deleted_people'>
+> = {
+  dog: 'get_deleted_dogs',
+  show: 'get_deleted_shows',
+  class: 'get_deleted_classes',
+  person: 'get_deleted_people',
+};
+
 const ENTITY_LABEL: Record<EntityType, string> = {
   show: 'Show',
   trial: 'Trial',
@@ -204,6 +219,15 @@ export function DeletedEntitiesTab() {
       const types = Object.keys(TABLE_FOR_TYPE) as EntityType[];
       const results = await Promise.all(
         types.map(async type => {
+          const rpc = DELETED_COUNT_RPC[type];
+          if (rpc) {
+            // RLS hides these tombstones from direct selects; count via the RPC.
+            const { data, error } = await supabase.rpc(rpc);
+            if (error) {
+              logger.warn(`Failed to fetch deleted count for ${type}`, 'trash', { error });
+            }
+            return { type, count: data?.length ?? 0 };
+          }
           const { count, error } = await supabase
             .from(TABLE_FOR_TYPE[type])
             .select('id', { count: 'exact', head: true })

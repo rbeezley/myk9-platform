@@ -21,6 +21,11 @@ const AdminDashboard = createEnhancedLazy(() => import('@/pages/admin/AdminDashb
   displayName: 'AdminDashboard',
 });
 
+const PayoutLedgerPage = createEnhancedLazy(() => import('@/pages/admin/PayoutLedgerPage'), {
+  ...RouteLazyPresets.mediumPriority,
+  displayName: 'PayoutLedgerPage',
+});
+
 // Medium priority: Template management (common workflow)
 const TemplateManagementPage = createEnhancedLazy(
   () => import('@/pages/admin/TemplateManagementPage'),
@@ -162,6 +167,18 @@ export const AdminRoutes = () => (
         <SuspenseWrapper>
           <PageTransition>
             <AdminDashboard />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
+    />
+
+    {/* Payments & Payouts — platform fee + cross-club payout ledger */}
+    <Route
+      path="/admin/payouts"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <PayoutLedgerPage />
           </PageTransition>
         </SuspenseWrapper>
       )}

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { untypedFrom } from '@/services/database/_shared/untyped-from';
+import { supabase } from '@/lib/supabase';
 import { PLATFORM_FEE_PERCENT } from '@/store/cartStore.helpers';
 
 const MAX_FEE_PERCENT = 20;
@@ -11,15 +11,13 @@ const MAX_FEE_PERCENT = 20;
  *
  * stripe-checkout reads the same row server-side (authoritative for the actual
  * charge); this hook keeps the cart preview's displayed fee in agreement.
- *
- * untypedFrom: platform_settings (migration 20260615180000) is not yet in the
- * generated Database types; switch to supabase.from() after regeneration.
  */
 export function usePlatformFeePercent(): number {
   const { data } = useQuery({
     queryKey: ['platform-settings', 'fee-percent'],
     queryFn: async (): Promise<number> => {
-      const { data, error } = await untypedFrom('platform_settings')
+      const { data, error } = await supabase
+        .from('platform_settings')
         .select('platform_fee_percent')
         .eq('id', true)
         .maybeSingle();

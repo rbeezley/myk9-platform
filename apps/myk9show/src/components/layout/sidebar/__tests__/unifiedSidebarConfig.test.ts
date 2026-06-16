@@ -5,11 +5,18 @@ import { UserRole } from '@/types/auth-types';
 
 describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
   // ── Admin ────────────────────────────────────────────────────────────────
-  it('admin sidebar contains Dashboard, Users, Role Requests, Roles & Permissions, Help', () => {
+  it('admin sidebar contains Dashboard, Users, Role Requests, Roles & Permissions, Payments, Help', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN]);
     const adminGroup = config.groups.find(g => g.title === 'Admin');
     const titles = adminGroup?.items.map(i => i.title) ?? [];
-    expect(titles).toEqual(['Dashboard', 'Users', 'Role Requests', 'Roles & Permissions', 'Help']);
+    expect(titles).toEqual([
+      'Dashboard',
+      'Users',
+      'Role Requests',
+      'Roles & Permissions',
+      'Payments',
+      'Help',
+    ]);
   });
 
   it('admin sidebar omits all parked items', () => {

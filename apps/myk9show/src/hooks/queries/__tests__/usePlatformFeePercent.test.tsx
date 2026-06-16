@@ -2,13 +2,14 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 
-// Mock the untyped-from escape hatch (platform_settings isn't in generated types
-// until the migration is pushed + regenerated). maybeSingle is the resolved leaf.
+// maybeSingle is the resolved leaf of the supabase query chain.
 const maybeSingle = vi.fn();
-vi.mock('@/services/database/_shared/untyped-from', () => ({
-  untypedFrom: () => ({
-    select: () => ({ eq: () => ({ maybeSingle }) }),
-  }),
+vi.mock('@/lib/supabase', () => ({
+  supabase: {
+    from: () => ({
+      select: () => ({ eq: () => ({ maybeSingle }) }),
+    }),
+  },
 }));
 
 import { usePlatformFeePercent } from '../usePlatformFeePercent';

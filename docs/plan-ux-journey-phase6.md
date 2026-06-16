@@ -115,13 +115,20 @@ Walked steps 5–8 as `exhibitor1` against `/my-entries`.
 | 5 · Confirmation + show-day updates | Past, never-completed entries correctly show **historical** badges ("Review incomplete" / "Payment unresolved" via the `isPastShow`-aware `myEntriesUtils` badges) instead of the actionable "Pending Review" / "Payment Due"; `getContextualStatusMessage` + status stepper coherent | ✅ Coherent, no defects |
 | 6 · Where/when | Trial + date + judge surfaced on the card | ✅ Present |
 | 7 · Check-in / scratch / move-up | Check-in status ("Not Checked In" / "✓ Checked In") shown; post-deadline scratch/contact via "Message the show team" (`/messages/:showId`) | ✅ Present |
-| 8 · View results | **VERIFIED** — approved seed scored exhibitor1's Heritage entry (`is_scored`, `result_status='qualified'`, `scoring_completed_at`) + released class `91de30d7` (`results_released_at`, `is_scoring_finalized`); My Entries renders the **"Q"** result badge for the exhibitor | ✅ Verified (seeded) |
+| 8 · View results | Approved seed scored ALL 4 entries in class `91de30d7` so the scoring trigger ranked placements (exhibitor1 = **2nd place Q**, 42.5s). My Entries shows "Q 42.5s" but **omits placement** (P3); the public class results page shows **stale "Pending/0th"** to the exhibitor (reads replication store — P2, #768-class) | ⚠️ Partial — 2 findings |
 
 **Correction to my own process:** I initially suspected a status-coherence contradiction (a "Paid date + Payment unresolved" card), but that was a misread of flattened `innerText` — the "6/3/2026" was the show date, and the badges are the intended historical labels. Lesson: for status-coherence claims, read the render logic / discrete DOM nodes, not the text blob.
 
 **Minor (non-blocking) observations:** `canFinishPayment` isn't gated on past shows (defensible — accepted-but-unpaid entries still owe); the My Entries filter tabs mix a status axis (Pending/Accepted/Waitlist) with a time axis (Upcoming/Completed), so one entry can match both "Pending" and "Completed".
 
-**Result:** Exhibitor golden-path **steps 1–8 all verified walkable.** Step 8 closed via an approved staging seed (scored + released exhibitor1's Heritage Container Novice A → "Q" badge renders). P1-01/P1-02/P1-03 cleared. **Residual for full Green: `P1-04`** (refund/withdrawn entry state agreement across exhibitor/secretary surfaces) — needs a refunded entry, deferred to the cross-role seam-walk. Also clear the minor "Unknown" message-sender label on `/messages/:showId`.
+**Result:** Exhibitor steps 1–7 verified coherent; **step 8 partially working** — data seeded correctly (placements compute via the scoring trigger when the whole class is scored; exhibitor1 = 2nd place Q), but two display findings remain:
+
+- **Step-8 finding A (P3):** the My Entries `ResultBadge` shows "Q 42.5s" but omits the **placement** — placements are part of the official Scent Work result at *every* level (Novice included; an earlier note wrongly said Novice has none). `useExhibitorResults` already returns `finalPlacement`, so this is a display add.
+- **Step-8 finding B (P2):** the public class results page (`ClassDetailsPage` / `ExhibitorClassCallout`) shows **stale "Pending / 0th / Not Set"** to the exhibitor because it reads entries from the replication store (empty for a cold/guest/post-show session not in `/at-show`) rather than a direct PostgREST read of released results — the same public-route-fronted-by-replication pattern as #768/#753.
+
+P1-01/P1-02/P1-03 cleared. **Residual for full Green:** step-8 findings A+B, plus `P1-04` (refund/withdrawn state agreement; deferred seam-walk). Minor: "Unknown" message-sender label on `/messages/:showId`.
+
+**Seed for the record (approved staging writes):** entries `4cd9db44` (Q 38.2s→1st), `800e7aa1` (Q 42.5s→2nd, exhibitor1), `faff4019` (Q 55.0s→3rd), `d6c9b16e` (NQ) in class `91de30d7`; class set `results_released_at` + the trigger finalized it (status=completed, is_scoring_finalized, placements ranked by faults→time).
 
 ## Two decisions that shape the rest
 

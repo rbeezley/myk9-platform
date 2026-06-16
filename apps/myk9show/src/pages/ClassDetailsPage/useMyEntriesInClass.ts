@@ -4,6 +4,8 @@ import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { getDogDisplayName } from '@/types/dog-types';
 import { entryIsScored } from '@/utils/entryPredicates';
+import { dbSecondsToInputFormat } from '@/utils/scoringMappings';
+import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 
 export interface MyClassEntry {
   entryId: string;
@@ -27,7 +29,17 @@ export interface UseMyEntriesInClassResult {
   isAfterClass: boolean;
 }
 
-export function useMyEntriesInClass(classId: string | undefined): UseMyEntriesInClassResult {
+export function useMyEntriesInClass(
+  classId: string | undefined,
+  /**
+   * Released results read directly from `view_entry_with_results` (see
+   * `useClassReleasedResults`). When provided, scoring/result values are
+   * sourced from these rows instead of the replication store, which is cold
+   * or stale for a post-show exhibitor/guest. Run-order/position (pre-class
+   * info) still come from the replication store.
+   */
+  releasedRows?: RawEntryRow[]
+): UseMyEntriesInClassResult {
   const { userWithRoles } = useAuthContext();
   const allEntries = useEntryStore(s => s.entries);
   const { dogs } = useDogStoreCompat();
@@ -36,6 +48,8 @@ export function useMyEntriesInClass(classId: string | undefined): UseMyEntriesIn
 
   return useMemo(() => {
     if (!classId || !databaseUserId) return { myEntries: [], isAfterClass: false };
+
+    const releasedById = new Map((releasedRows ?? []).map(r => [r.id, r]));
 
     const myDogIds = new Set(dogs.filter(d => d.ownerId === databaseUserId).map(d => d.id));
     if (myDogIds.size === 0) return { myEntries: [], isAfterClass: false };
@@ -66,10 +80,23 @@ export function useMyEntriesInClass(classId: string | undefined): UseMyEntriesIn
       }
     }
 
+    // Build the result shape from a directly-read released row.
+    const releasedResult = (r: RawEntryRow): NonNullable<MyClassEntry['result']> => {
+      const time = dbSecondsToInputFormat(r.search_time_seconds);
+      return {
+        qualified: r.result_status === 'qualified',
+        ...(time ? { time } : {}),
+        ...(r.final_placement != null ? { placement: r.final_placement } : {}),
+        ...(r.total_faults != null ? { faults: r.total_faults } : {}),
+      };
+    };
+
     const myEntries: MyClassEntry[] = [];
+    const seenEntryIds = new Set<string>();
 
     for (const entry of classEntries) {
       if (!myDogIds.has(entry.dogId)) continue;
+      seenEntryIds.add(entry.id);
 
       const runOrder = entry.registrationData.runOrder ?? 0;
       const position = runOrder > 0 ? (positionByEntryId.get(entry.id) ?? 0) : 0;
@@ -80,7 +107,27 @@ export function useMyEntriesInClass(classId: string | undefined): UseMyEntriesIn
               .reduce((sum, [, count]) => sum + count, 0)
           : 0;
 
+      // Prefer released results (direct read) over the replication store: the
+      // store is stale for a post-show exhibitor whose entries were scored
+      // at-show after their last sync.
+      const released = releasedById.get(entry.id);
       const compData = entry.competitionData;
+
+      if (released?.is_scored) {
+        myEntries.push({
+          entryId: entry.id,
+          dogId: entry.dogId,
+          dogName: dogNameMap.get(entry.dogId) ?? 'Unknown Dog',
+          armband: entry.registrationData.armband ?? released.armband ?? '',
+          runOrder,
+          position,
+          dogsAhead,
+          hasResult: true,
+          result: releasedResult(released),
+        });
+        continue;
+      }
+
       const hasResult = !!compData;
 
       myEntries.push({
@@ -105,6 +152,33 @@ export function useMyEntriesInClass(classId: string | undefined): UseMyEntriesIn
       });
     }
 
+    // Cold-store fallback: when the replication store has no entries for this
+    // class (post-show exhibitor / guest who never synced this show), synthesize
+    // "my entries" directly from the released rows by matching dog ownership.
+    // Run-order/position are irrelevant post-release, so they default to 0.
+    for (const released of releasedRows ?? []) {
+      if (!released.is_scored) continue;
+      if (seenEntryIds.has(released.id)) continue;
+      if (!released.dog_id || !myDogIds.has(released.dog_id)) continue;
+      seenEntryIds.add(released.id);
+
+      myEntries.push({
+        entryId: released.id,
+        dogId: released.dog_id,
+        dogName:
+          dogNameMap.get(released.dog_id) ??
+          released.dog?.call_name ??
+          released.dog?.name ??
+          'Unknown Dog',
+        armband: released.armband ?? '',
+        runOrder: 0,
+        position: 0,
+        dogsAhead: 0,
+        hasResult: true,
+        result: releasedResult(released),
+      });
+    }
+
     myEntries.sort((a, b) => {
       if (a.runOrder === 0 && b.runOrder === 0) return 0;
       if (a.runOrder === 0) return 1;
@@ -115,5 +189,5 @@ export function useMyEntriesInClass(classId: string | undefined): UseMyEntriesIn
     const isAfterClass = myEntries.some(e => e.hasResult);
 
     return { myEntries, isAfterClass };
-  }, [classId, databaseUserId, allEntries, dogs]);
+  }, [classId, databaseUserId, allEntries, dogs, releasedRows]);
 }

@@ -220,7 +220,15 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
 
                 {/* Result badge for scored entries */}
                 {cls.isScored && cls.resultStatus && (
-                  <ResultBadge resultStatus={cls.resultStatus} />
+                  <div className="flex items-center gap-1.5">
+                    <ResultBadge resultStatus={cls.resultStatus} />
+                    {/* AKC Scent Work awards placements to every qualifying run (incl.
+                        Novice). final_placement is only set once the whole class is
+                        scored and ranked by the trigger, so guard for null. */}
+                    {cls.resultStatus === 'qualified' && cls.finalPlacement != null && (
+                      <PlacementPill placement={cls.finalPlacement} size="sm" />
+                    )}
+                  </div>
                 )}
 
                 {/* Show the finishing rank for every qualifying run. 1st–4th are the official

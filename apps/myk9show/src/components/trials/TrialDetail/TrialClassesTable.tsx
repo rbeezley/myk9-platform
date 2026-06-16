@@ -187,7 +187,11 @@ export const TrialClassesTable = ({
         </div>
         <div className="text-muted-foreground mb-6">
           <div className="mb-2 text-lg font-medium">No classes yet</div>
-          <div className="text-sm">Add classes to start managing entries and scores</div>
+          <div className="text-sm">
+            {canManage
+              ? 'Add classes to start managing entries and scores'
+              : 'Classes for this trial have not been published yet'}
+          </div>
         </div>
         <div className="flex items-center justify-center gap-3">
           {canAddClasses && (

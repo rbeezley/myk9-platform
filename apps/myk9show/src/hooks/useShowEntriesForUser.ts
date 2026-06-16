@@ -6,9 +6,10 @@ import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useShowStoreCompat } from '@/hooks/useShowStoreCompat';
 import { getDogDisplayName } from '@/types/dog-types';
-import { ScopeType, UserRole } from '@/types/auth-types';
+import { UserRole } from '@/types/auth-types';
 import { getClassName } from '@/components/classes/types/classTypes';
 import { entryIsScored } from '@/utils/entryPredicates';
+import { hasScopedClubRole, hasScopedShowRole } from '@/utils/roleScopes';
 import type { SyncableShowEntry } from '@/store/entry-store-types';
 
 export interface EnrichedShowEntry {
@@ -62,30 +63,6 @@ function formatDayLabel(isoDate: string): string {
 function compareByTime(a: EnrichedShowEntry, b: EnrichedShowEntry): number {
   if (a.trialDate !== b.trialDate) return a.trialDate.localeCompare(b.trialDate);
   return a.startTime.localeCompare(b.startTime);
-}
-
-function hasScopedClubRole(
-  userWithRoles: ReturnType<typeof useAuthContext>['userWithRoles'],
-  role: UserRole,
-  clubId: string | undefined
-): boolean {
-  if (!clubId) return false;
-  return (userWithRoles?.scopes ?? []).some(
-    scope =>
-      scope.scopeType === ScopeType.CLUB && scope.scopeId === clubId && scope.roleId === role
-  );
-}
-
-function hasScopedShowRole(
-  userWithRoles: ReturnType<typeof useAuthContext>['userWithRoles'],
-  role: UserRole,
-  showId: string | undefined
-): boolean {
-  if (!showId) return false;
-  return (userWithRoles?.scopes ?? []).some(
-    scope =>
-      scope.scopeType === ScopeType.SHOW && scope.scopeId === showId && scope.roleId === role
-  );
 }
 
 export function useShowEntriesForUser(showId: string | undefined): UseShowEntriesForUserResult {

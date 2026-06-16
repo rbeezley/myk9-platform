@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTrialStore, type TrialInput } from '@/store/trialStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { UserRole } from '@/types/auth-types';
+import { hasScopedClubRole } from '@/utils/roleScopes';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useTemplateStore } from '@/store/templateStore';
 import { useShowStore } from '@/store/showStore';
@@ -75,14 +77,29 @@ const TrialDetailsPage: React.FC = () => {
     updateTrial,
     deleteTrial: deleteTrialAsync,
   } = useTrialStore();
-  const { user, isSecretary, isAdmin, hasRole } = useAuthContext();
-  // Public route — exhibitors are now deep-linked here from styled landings.
-  // Only staff may see create/edit/manage affordances; everyone else gets a
-  // read-only view. Matches the staff set ShowDetailsPage uses to reach its
-  // management UI (secretary / admin / club_admin).
-  const canManageTrial = isSecretary || isAdmin || hasRole('club_admin');
+  const { user, isSecretary, isAdmin, hasRole, userWithRoles } = useAuthContext();
   const { templates, initializeDefaultTemplates } = useTemplateStore();
   const { shows } = useShowStore();
+
+  // Current trial + its parent show — plain store derivations, safe to read
+  // before the hooks below (they depend only on already-loaded store data) so
+  // the staff gate can scope club_admin to this trial's club.
+  const currentTrial = trials.find(trial => trial.id === selectedTrialId) as
+    | (import('@/components/trials/types/trial.types').Trial & { classes?: TrialClass[] })
+    | undefined;
+  const parentShow = currentTrial ? shows.find(show => show.id === currentTrial.showId) : undefined;
+  const showOrganization = parentShow?.organization;
+
+  // Public route — exhibitors are now deep-linked here from styled landings.
+  // Only staff may see create/edit/manage affordances; everyone else gets a
+  // read-only view. `club_admin` is inherently club-scoped, so a global
+  // hasRole() check would let a Club A admin manage Club B's trial — scope it
+  // to THIS trial's club. Secretary/admin stay global, matching ShowDetailsPage.
+  const canManageTrial =
+    isSecretary ||
+    isAdmin ||
+    (hasRole(UserRole.CLUB_ADMIN) &&
+      hasScopedClubRole(userWithRoles, UserRole.CLUB_ADMIN, parentShow?.clubId));
 
   // Tab state — URL-synced. Pass only the tabs this visitor may see so a
   // hidden management tab in `?tab=` falls back to 'overview' instead of
@@ -114,15 +131,6 @@ const TrialDetailsPage: React.FC = () => {
   useEffect(() => {
     initializeDefaultTemplates();
   }, [initializeDefaultTemplates]);
-
-  // Get current trial
-  const currentTrial = trials.find(trial => trial.id === selectedTrialId) as
-    | (import('@/components/trials/types/trial.types').Trial & { classes?: TrialClass[] })
-    | undefined;
-
-  // Get the parent show
-  const parentShow = currentTrial ? shows.find(show => show.id === currentTrial.showId) : undefined;
-  const showOrganization = parentShow?.organization;
 
   // Sibling trials for prev/next navigation
   const showTrials = currentTrial

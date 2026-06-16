@@ -81,7 +81,23 @@ describe('TrialClassesTable', () => {
       expect(screen.getByTestId('empty-state-icon')).toBeInTheDocument();
     });
 
-    it('displays helpful message text', () => {
+    it('displays the management call-to-action for staff', () => {
+      renderWithRouter(
+        <TrialClassesTable
+          classes={[]}
+          canManage
+          onEditClass={mockHandlers.onEditClass}
+          onDeleteClass={mockHandlers.onDeleteClass}
+        />
+      );
+
+      expect(screen.getByText('No classes yet')).toBeInTheDocument();
+      expect(
+        screen.getByText('Add classes to start managing entries and scores')
+      ).toBeInTheDocument();
+    });
+
+    it('displays a neutral read-only message for non-staff (no management pitch)', () => {
       renderWithRouter(
         <TrialClassesTable
           classes={[]}
@@ -92,8 +108,11 @@ describe('TrialClassesTable', () => {
 
       expect(screen.getByText('No classes yet')).toBeInTheDocument();
       expect(
-        screen.getByText('Add classes to start managing entries and scores')
+        screen.getByText('Classes for this trial have not been published yet')
       ).toBeInTheDocument();
+      expect(
+        screen.queryByText('Add classes to start managing entries and scores')
+      ).not.toBeInTheDocument();
     });
 
     it('shows Add Classes button when handler provided and user can manage', () => {

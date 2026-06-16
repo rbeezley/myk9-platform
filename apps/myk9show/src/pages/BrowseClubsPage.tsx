@@ -12,18 +12,15 @@ import { CLUB_TYPES } from '@/types/club-types';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 import type { Club } from '@/types/club-types';
-import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
+import { useViewPreference } from '@/hooks/useViewPreference';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
-import { SearchBar } from '@/components/common/SearchBar';
-import { FilterChips } from '@/components/common/FilterChips';
+import { ListControls } from '@/components/common/ListControls';
 import type { FilterDefinition as ChipFilterDefinition } from '@/components/common/FilterChips';
-import { ViewToggle } from '@/components/common/ViewToggle';
-import { ResultsCount } from '@/components/common/ResultsCount';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
 
@@ -203,33 +200,20 @@ const BrowseClubsPage: React.FC = () => {
         <>
           <PageHeader breadcrumbs={breadcrumbs} title="Clubs" actions={actionButton} />
 
-          {/* Filter toolbar */}
-          <div className="bg-card/30 border border-border/40 rounded-2xl p-4 space-y-3 backdrop-blur-sm">
-            <SearchBar
-              value={filters.search}
-              onChange={value => setFilters(prev => ({ ...prev, search: value }))}
-              placeholder="Search clubs by name, city, or state..."
-            />
-
-            <div className="flex flex-wrap items-center gap-2">
-              <FilterChips
-                filters={chipFilters}
-                values={chipFilterValues}
-                onChange={handleChipFilterChange}
-              />
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t border-border/20">
-              <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
-
-              <ResultsCount
-                showing={filteredClubs.length}
-                total={clubs.length}
-                filtered={hasActiveFilters}
-                entityName={clubs.length === 1 ? 'club' : 'clubs'}
-              />
-            </div>
-          </div>
+          <ListControls
+            search={filters.search}
+            onSearchChange={value => setFilters(prev => ({ ...prev, search: value }))}
+            searchPlaceholder="Search clubs by name, city, or state..."
+            filters={chipFilters}
+            filterValues={chipFilterValues}
+            onFilterChange={handleChipFilterChange}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            resultsShowing={filteredClubs.length}
+            resultsTotal={clubs.length}
+            filtered={hasActiveFilters}
+            entityName={clubs.length === 1 ? 'club' : 'clubs'}
+          />
 
           {/* Club Cards / Table */}
           {renderContent()}

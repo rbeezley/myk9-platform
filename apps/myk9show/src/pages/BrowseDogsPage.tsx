@@ -10,17 +10,14 @@ import { DogsGridView, DogsTableView } from '@/components/dogs/browse';
 import { BrowseDogsSkeleton } from '@/components/common/SkeletonLoaders';
 import { AddDogPanel } from '@/components/panels/edit';
 import type { Dog as DogType } from '@/types/dog-types';
-import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
+import { useViewPreference } from '@/hooks/useViewPreference';
 import { UserRole } from '@/types/auth-types';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
-import { SearchBar } from '@/components/common/SearchBar';
-import { FilterChips } from '@/components/common/FilterChips';
+import { ListControls } from '@/components/common/ListControls';
 import type { FilterDefinition as ChipFilterDefinition } from '@/components/common/FilterChips';
-import { ViewToggle } from '@/components/common/ViewToggle';
-import { ResultsCount } from '@/components/common/ResultsCount';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
 
@@ -188,37 +185,24 @@ const BrowseDogsPage: React.FC = () => {
         <>
           <PageHeader breadcrumbs={breadcrumbs} title={pageTitle} actions={actionButtons} />
 
-          {/* Filter toolbar */}
-          <div className="bg-card/30 border border-border/40 rounded-2xl p-4 space-y-3 backdrop-blur-sm">
-            <SearchBar
-              value={filters.search}
-              onChange={value => setFilters(prev => ({ ...prev, search: value }))}
-              placeholder={
-                isExhibitorOnly
-                  ? 'Search your dogs by name or breed...'
-                  : 'Search dogs by name, breed, or owner...'
-              }
-            />
-
-            <div className="flex flex-wrap items-center gap-2">
-              <FilterChips
-                filters={chipFilters}
-                values={chipFilterValues}
-                onChange={handleChipFilterChange}
-              />
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t border-border/20">
-              <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
-
-              <ResultsCount
-                showing={filteredDogs.length}
-                total={dogs.length}
-                filtered={hasActiveFilters}
-                entityName={dogs.length === 1 ? 'dog' : 'dogs'}
-              />
-            </div>
-          </div>
+          <ListControls
+            search={filters.search}
+            onSearchChange={value => setFilters(prev => ({ ...prev, search: value }))}
+            searchPlaceholder={
+              isExhibitorOnly
+                ? 'Search your dogs by name or breed...'
+                : 'Search dogs by name, breed, or owner...'
+            }
+            filters={chipFilters}
+            filterValues={chipFilterValues}
+            onFilterChange={handleChipFilterChange}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            resultsShowing={filteredDogs.length}
+            resultsTotal={dogs.length}
+            filtered={hasActiveFilters}
+            entityName={dogs.length === 1 ? 'dog' : 'dogs'}
+          />
 
           {/* Dog Cards / Table */}
           {renderContent()}

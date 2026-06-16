@@ -33,11 +33,8 @@ import { ShowPermissionValidator } from '@/utils/permissionValidation';
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
-import { SearchBar } from '@/components/common/SearchBar';
-import { FilterChips } from '@/components/common/FilterChips';
+import { ListControls } from '@/components/common/ListControls';
 import type { FilterDefinition as ChipFilterDefinition } from '@/components/common/FilterChips';
-import { ViewToggle } from '@/components/common/ViewToggle';
-import { ResultsCount } from '@/components/common/ResultsCount';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
 
@@ -48,10 +45,7 @@ import { useBrowseShowsFilters } from '@/hooks/useBrowseShowsFilters';
 import { useBrowseShowsData } from '@/hooks/useBrowseShowsData';
 import { ShowCardGrid, ShowsTableView, ShowBulkActionsBar } from '@/components/shows/browse';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
-import { ViewPicker } from '@/components/common/ViewPicker';
 import { getBrowseShowsCountUserId, getBrowseShowsTabCount } from '@/utils/browseShowsUtils';
-
-import { useSavedViews, type ViewConfig } from '@/hooks/useSavedViews';
 
 type ViewMode = 'cards' | 'table' | 'calendar';
 
@@ -101,34 +95,6 @@ const BrowseShowsPage: React.FC = () => {
   useEffect(() => {
     setFilteredShowsState(filteredShows);
   }, [filteredShows]);
-
-  // Saved views
-  const {
-    views: savedViewsList,
-    activeViewId,
-    applyView,
-    saveView,
-    updateView,
-    deleteView,
-    setDefault,
-    clearActiveView,
-  } = useSavedViews('shows');
-  const getCurrentConfig = useCallback(
-    (): ViewConfig => ({ filters: { ...filters }, viewMode, tab: selectedTab }),
-    [filters, viewMode, selectedTab]
-  );
-  const handleApplyView = useCallback(
-    (id: string) => {
-      applyView(id);
-      const view = savedViewsList.find(v => v.id === id);
-      if (view) {
-        setFilters(prev => ({ ...prev, ...view.config.filters }));
-        if (view.config.viewMode) setViewMode(view.config.viewMode as ViewMode);
-        if (view.config.tab) setSelectedTab(view.config.tab);
-      }
-    },
-    [savedViewsList, applyView, setFilters, setSelectedTab]
-  );
 
   // Build club filter options from available shows
   const clubFilterOptions = useMemo(() => {
@@ -449,46 +415,21 @@ const BrowseShowsPage: React.FC = () => {
         <>
           <PageHeader breadcrumbs={breadcrumbs} title="Shows" actions={actionButtons} />
 
-          {/* Filter toolbar */}
-          <div className="bg-card border border-border/40 rounded-2xl p-4 space-y-3">
-            <SearchBar
-              value={filters.search}
-              onChange={value => setFilters(prev => ({ ...prev, search: value }))}
-              placeholder="Search shows by name, location, or club..."
-            />
-
-            <div className="flex flex-wrap items-center gap-2">
-              <FilterChips
-                filters={chipFilters}
-                values={chipFilterValues}
-                onChange={handleChipFilterChange}
-              />
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t border-border/20">
-              <div className="flex items-center gap-3">
-                <ViewToggle modes={VIEW_MODES} active={viewMode} onChange={handleViewModeChange} />
-                <ViewPicker
-                  views={savedViewsList}
-                  activeViewId={activeViewId}
-                  getCurrentConfig={getCurrentConfig}
-                  onApply={handleApplyView}
-                  onSave={saveView}
-                  onUpdate={updateView}
-                  onDelete={deleteView}
-                  onSetDefault={setDefault}
-                  onClear={clearActiveView}
-                />
-              </div>
-
-              <ResultsCount
-                showing={allEnhancedShows.length}
-                total={allEnhancedShows.length}
-                filtered={hasActiveFilters}
-                entityName={allEnhancedShows.length === 1 ? 'show' : 'shows'}
-              />
-            </div>
-          </div>
+          <ListControls
+            search={filters.search}
+            onSearchChange={value => setFilters(prev => ({ ...prev, search: value }))}
+            searchPlaceholder="Search shows by name, location, or club..."
+            filters={chipFilters}
+            filterValues={chipFilterValues}
+            onFilterChange={handleChipFilterChange}
+            viewMode={viewMode}
+            onViewModeChange={handleViewModeChange}
+            viewModes={VIEW_MODES}
+            resultsShowing={allEnhancedShows.length}
+            resultsTotal={allEnhancedShows.length}
+            filtered={hasActiveFilters}
+            entityName={allEnhancedShows.length === 1 ? 'show' : 'shows'}
+          />
 
           {/* Bulk Actions Bar — secretary/admin only */}
           {canManageShows && (

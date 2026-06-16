@@ -4,6 +4,7 @@ interface FinalCtaSectionProps {
   entryWizardUrl: string;
   entryCloseDate: string | null;
   timezone: string;
+  canEnterOnline?: boolean;
 }
 
 /**
@@ -16,6 +17,7 @@ export function FinalCtaSection({
   entryWizardUrl,
   entryCloseDate,
   timezone,
+  canEnterOnline = true,
 }: FinalCtaSectionProps) {
   const closeLabel = entryCloseDate
     ? formatDateInTimezone(entryCloseDate, timezone, 'long')
@@ -54,7 +56,15 @@ export function FinalCtaSection({
             color: 'var(--gz-paper)',
           }}
         >
-          You are <em style={{ fontStyle: 'italic', fontWeight: 400, color: 'rgba(247,241,227,0.85)' }}>cordially invited</em> to enter.
+          {canEnterOnline ? (
+            <>
+              You are <em style={{ fontStyle: 'italic', fontWeight: 400, color: 'rgba(247,241,227,0.85)' }}>cordially invited</em> to enter.
+            </>
+          ) : (
+            <>
+              Entries open when <em style={{ fontStyle: 'italic', fontWeight: 400, color: 'rgba(247,241,227,0.85)' }}>classes are assigned</em>.
+            </>
+          )}
         </h2>
         <p
           className="mx-auto mb-8 max-w-[580px]"
@@ -67,24 +77,28 @@ export function FinalCtaSection({
             color: 'rgba(247,241,227,0.75)',
           }}
         >
-          First-received basis until the limit is hit.
+          {canEnterOnline
+            ? 'First-received basis until the limit is hit.'
+            : 'The secretary still needs to assign classes before online entry is available.'}
         </p>
-        <a
-          href={entryWizardUrl}
-          className="inline-flex items-center gap-3.5 px-9 py-4 transition-colors"
-          style={{
-            background: 'var(--gz-paper)',
-            color: 'var(--gz-ink)',
-            fontFamily: "'Playfair Display', Georgia, serif",
-            fontWeight: 700,
-            fontSize: 16,
-            letterSpacing: '0.04em',
-            textTransform: 'uppercase',
-            textDecoration: 'none',
-          }}
-        >
-          Open the entry wizard ▸
-        </a>
+        {canEnterOnline && (
+          <a
+            href={entryWizardUrl}
+            className="inline-flex items-center gap-3.5 px-9 py-4 transition-colors"
+            style={{
+              background: 'var(--gz-paper)',
+              color: 'var(--gz-ink)',
+              fontFamily: "'Playfair Display', Georgia, serif",
+              fontWeight: 700,
+              fontSize: 16,
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+              textDecoration: 'none',
+            }}
+          >
+            Open the entry wizard ▸
+          </a>
+        )}
       </div>
     </section>
   );

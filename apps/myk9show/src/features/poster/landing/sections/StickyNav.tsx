@@ -1,3 +1,5 @@
+import { POSTER_MONO_FAMILY } from '../../fonts';
+import { posterColors } from '../../tokens';
 import { PosterMonoStrip } from '../../components/PosterMonoStrip';
 import { formatDateRange } from '../utils/dateFormat';
 
@@ -11,6 +13,7 @@ interface StickyNavProps {
   entryCount: number;
   entryLimit: number | null;
   entryWizardUrl: string;
+  canEnterOnline?: boolean;
 }
 
 /**
@@ -32,6 +35,7 @@ export function StickyNav({
   entryCount,
   entryLimit,
   entryWizardUrl,
+  canEnterOnline = true,
 }: StickyNavProps) {
   const dateLabel = formatDateRange(trialStartDate, trialEndDate, timezone, true);
   const venueLabel = [venueName, venueCity].filter(Boolean).join(', ').toUpperCase();
@@ -44,6 +48,25 @@ export function StickyNav({
     ...(venueLabel ? [{ label: venueLabel }] : []),
     { label: capacityLabel },
   ];
+
+  if (!canEnterOnline) {
+    return (
+      <PosterMonoStrip items={items} className="po-sticky-nav" ariaLabel="Trial header">
+        <span
+          style={{
+            color: posterColors.mute,
+            fontFamily: POSTER_MONO_FAMILY,
+            fontWeight: 500,
+            fontSize: 11,
+            letterSpacing: '0.04em',
+            flexShrink: 0,
+          }}
+        >
+          Classes pending
+        </span>
+      </PosterMonoStrip>
+    );
+  }
 
   return (
     <PosterMonoStrip

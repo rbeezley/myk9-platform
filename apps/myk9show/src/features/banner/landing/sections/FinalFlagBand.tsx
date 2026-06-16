@@ -9,6 +9,7 @@ interface FinalFlagBandProps {
   entryWizardUrl: string;
   entryCloseDate: string | null;
   timezone: string;
+  canEnterOnline?: boolean;
   /** Prefix copy before the colored accent word. Default: "See you". */
   closingLead?: string;
   /** Colored accent word inside the final headline. Default: "ringside". */
@@ -20,6 +21,7 @@ export function FinalFlagBand({
   entryWizardUrl,
   entryCloseDate,
   timezone,
+  canEnterOnline = true,
   closingLead = 'See you',
   closingAccent = 'ringside',
 }: FinalFlagBandProps) {
@@ -60,26 +62,52 @@ export function FinalFlagBand({
             maxWidth: 900,
           }}
         >
-          {closingLead}{' '}
-          <span style={{ color: brandColors.flagBright }}>{closingAccent}.</span>
+          {canEnterOnline ? (
+            <>
+              {closingLead}{' '}
+              <span style={{ color: brandColors.flagBright }}>{closingAccent}.</span>
+            </>
+          ) : (
+            <>
+              Entries open when{' '}
+              <span style={{ color: brandColors.flagBright }}>classes are assigned.</span>
+            </>
+          )}
         </h2>
-        <a
-          href={entryWizardUrl}
-          style={{
-            display: 'inline-block',
-            padding: '18px 36px',
-            background: bannerColors.paper,
-            color: bannerColors.ink,
-            fontFamily: BANNER_DISPLAY_FAMILY,
-            fontWeight: 800,
-            fontSize: 14,
-            letterSpacing: '-0.005em',
-            textDecoration: 'none',
-            border: 'none',
-          }}
-        >
-          Enter this show
-        </a>
+        {canEnterOnline ? (
+          <a
+            href={entryWizardUrl}
+            style={{
+              display: 'inline-block',
+              padding: '18px 36px',
+              background: bannerColors.paper,
+              color: bannerColors.ink,
+              fontFamily: BANNER_DISPLAY_FAMILY,
+              fontWeight: 800,
+              fontSize: 14,
+              letterSpacing: '-0.005em',
+              textDecoration: 'none',
+              border: 'none',
+            }}
+          >
+            Enter this show
+          </a>
+        ) : (
+          <p
+            style={{
+              maxWidth: 520,
+              margin: 0,
+              fontFamily: BANNER_BODY_FAMILY,
+              fontWeight: 500,
+              fontSize: 15,
+              lineHeight: 1.6,
+              color: bannerColors.paper,
+              opacity: 0.85,
+            }}
+          >
+            The secretary still needs to assign classes before online entry is available.
+          </p>
+        )}
       </BannerFlagBar>
     </div>
   );

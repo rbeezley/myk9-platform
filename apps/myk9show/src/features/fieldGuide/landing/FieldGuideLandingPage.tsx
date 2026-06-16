@@ -20,6 +20,7 @@ interface FieldGuideLandingPageProps {
   show: Show | null | undefined;
   trial: Trial | null | undefined;
   allTrials: Trial[];
+  hasEntryClassInventory?: boolean | null;
 }
 
 /**
@@ -30,12 +31,18 @@ interface FieldGuideLandingPageProps {
  * Banner there's no `style` prop carrying a CSS-var bundle — the
  * `[data-field-guide]` scope picks up the palette from `fieldGuide.css`.
  */
-export function FieldGuideLandingPage({ show, trial, allTrials }: FieldGuideLandingPageProps) {
+export function FieldGuideLandingPage({
+  show,
+  trial,
+  allTrials,
+  hasEntryClassInventory,
+}: FieldGuideLandingPageProps) {
   useEffect(() => {
     ensureFieldGuideFontsLoaded();
   }, []);
 
   const data = useFieldGuideLandingData(show, trial, allTrials);
+  const canEnterOnline = hasEntryClassInventory !== false;
 
   return (
     <div data-field-guide className="min-h-screen">
@@ -57,6 +64,7 @@ export function FieldGuideLandingPage({ show, trial, allTrials }: FieldGuideLand
         licenseLanguage={data.licenseLanguage}
         entryWizardUrl={data.entryWizardUrl}
         entryLimit={data.entryLimit}
+        canEnterOnline={canEnterOnline}
       />
 
       <DataGridHero
@@ -111,6 +119,7 @@ export function FieldGuideLandingPage({ show, trial, allTrials }: FieldGuideLand
         entryCloseDate={data.entryCloseDate}
         timezone={data.timezone}
         entryLimit={data.entryLimit}
+        canEnterOnline={canEnterOnline}
       />
 
       <FieldGuideFooter

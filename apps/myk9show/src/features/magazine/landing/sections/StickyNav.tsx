@@ -5,6 +5,7 @@ interface StickyNavProps {
   clubName: string;
   editionLabel: string;
   entryWizardUrl: string;
+  canEnterOnline?: boolean;
 }
 
 const SECTIONS = [
@@ -26,7 +27,12 @@ const SECTIONS = [
  * - No share button on the right; the CTA is the only right-aligned element.
  *   Magazine's voice is "consider this carefully," not "share this widely."
  */
-export function StickyNav({ clubName, editionLabel, entryWizardUrl }: StickyNavProps) {
+export function StickyNav({
+  clubName,
+  editionLabel,
+  entryWizardUrl,
+  canEnterOnline = true,
+}: StickyNavProps) {
   // `null` until the observer locks on to a section. Treated as "no active
   // anchor" so the nav doesn't paint a misleading highlight on shows where
   // every observable section has been omitted (a minimal show with only a
@@ -125,17 +131,30 @@ export function StickyNav({ clubName, editionLabel, entryWizardUrl }: StickyNavP
         })}
       </div>
 
-      <a
-        href={entryWizardUrl}
-        className="border px-5 py-2 text-sm italic transition-colors hover:bg-[var(--mz-ink)] hover:text-[var(--mz-paper)]"
-        style={{
-          borderColor: 'var(--mz-ink)',
-          color: 'var(--mz-ink)',
-          fontFamily: 'var(--mz-display)',
-        }}
-      >
-        Enter the trial
-      </a>
+      {canEnterOnline ? (
+        <a
+          href={entryWizardUrl}
+          className="border px-5 py-2 text-sm italic transition-colors hover:bg-[var(--mz-ink)] hover:text-[var(--mz-paper)]"
+          style={{
+            borderColor: 'var(--mz-ink)',
+            color: 'var(--mz-ink)',
+            fontFamily: 'var(--mz-display)',
+          }}
+        >
+          Enter the trial
+        </a>
+      ) : (
+        <span
+          className="border px-5 py-2 text-sm italic"
+          style={{
+            borderColor: 'var(--mz-mute)',
+            color: 'var(--mz-mute)',
+            fontFamily: 'var(--mz-display)',
+          }}
+        >
+          Classes pending
+        </span>
+      )}
     </nav>
   );
 }

@@ -580,6 +580,10 @@ async function handleEntryCheckout(
     metadata: {
       cart_id: cart_id,
       type: 'entry',
+      // Stamp the fee rate this charge was computed with so the webhook
+      // validates against the exact rate, not a live re-read that could drift
+      // if a site admin changes platform_settings between charge and webhook.
+      platform_fee_percent: String(platformFeePercent),
     },
     payment_intent_data: {
       metadata: {

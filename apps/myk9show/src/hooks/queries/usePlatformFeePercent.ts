@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { untypedFrom } from '@/services/database/_shared/untyped-from';
-import { cacheStrategies } from '@/lib/queryClient';
 import { PLATFORM_FEE_PERCENT } from '@/store/cartStore.helpers';
 
 const MAX_FEE_PERCENT = 20;
@@ -38,7 +37,13 @@ export function usePlatformFeePercent(): number {
       }
       return parsed;
     },
-    ...cacheStrategies.static,
+    // Payment-facing: the server charges the live platform_settings rate, so the
+    // preview must not show a stale fee. Keep it short-lived and revalidate when
+    // the cart is opened / refocused, rather than caching for minutes.
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
   return data ?? PLATFORM_FEE_PERCENT;
 }

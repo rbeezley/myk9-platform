@@ -18,6 +18,7 @@ interface HeadlineLandingPageProps {
   show: Show | null | undefined;
   trial: Trial | null | undefined;
   allTrials: Trial[];
+  hasEntryClassInventory?: boolean | null;
 }
 
 function formatPercent(current: number, limit: number | null): number {
@@ -40,7 +41,13 @@ function getHeroTitleParts(showName: string | null | undefined): { base: string;
   return /\btrial\b/i.test(base) ? { base, suffix: null } : { base, suffix: 'Trial' };
 }
 
-function HeadlineNav({ data }: { data: HeritageLandingData }) {
+function HeadlineNav({
+  data,
+  canEnterOnline = true,
+}: {
+  data: HeritageLandingData;
+  canEnterOnline?: boolean;
+}) {
   return (
     <>
       <div className="hd-topbar" />
@@ -57,16 +64,28 @@ function HeadlineNav({ data }: { data: HeritageLandingData }) {
             <a href="#schedule">Schedule</a>
             <a href="#enter">Enter</a>
           </div>
-          <a className="hd-nav-cta" href={data.entryWizardUrl}>
-            Enter this show
-          </a>
+          {canEnterOnline ? (
+            <a className="hd-nav-cta" href={data.entryWizardUrl}>
+              Enter this show
+            </a>
+          ) : (
+            <span className="hd-nav-cta">Classes pending</span>
+          )}
         </div>
       </nav>
     </>
   );
 }
 
-function Hero({ data, classesHref }: { data: HeritageLandingData; classesHref: string | null }) {
+function Hero({
+  data,
+  classesHref,
+  canEnterOnline = true,
+}: {
+  data: HeritageLandingData;
+  classesHref: string | null;
+  canEnterOnline?: boolean;
+}) {
   const countdown = useCountdown(data.entryCloseDate, data.timezone);
   const totalRuns = data.entryLimit ? `${data.entryLimit} runs` : 'Limit TBD';
   const title = getHeroTitleParts(data.showName);
@@ -111,9 +130,15 @@ function Hero({ data, classesHref }: { data: HeritageLandingData; classesHref: s
 
       <div className="hd-hero-bottom">
         <div className="hd-cta-stack">
-          <a className="hd-cta" href={data.entryWizardUrl}>
-            Enter this show
-          </a>
+          {canEnterOnline ? (
+            <a className="hd-cta" href={data.entryWizardUrl}>
+              Enter this show
+            </a>
+          ) : (
+            <span className="hd-cta hd-cta-disabled">
+              Entries are not available yet because no classes are assigned yet.
+            </span>
+          )}
           <a className="hd-cta ghost" href="#particulars">
             Review details
           </a>
@@ -314,13 +339,19 @@ function Roster({ data }: { data: HeritageLandingData }) {
   );
 }
 
-export function HeadlineLandingPage({ show, trial, allTrials }: HeadlineLandingPageProps) {
+export function HeadlineLandingPage({
+  show,
+  trial,
+  allTrials,
+  hasEntryClassInventory,
+}: HeadlineLandingPageProps) {
   useEffect(() => {
     ensureHeadlineFontsLoaded();
   }, []);
 
   const data = useHeritageLandingData(show, trial, allTrials);
   const classesHref = publicClassesHref(show?.id, allTrials);
+  const canEnterOnline = hasEntryClassInventory !== false;
 
   return (
     <div data-headline className="hd-shell">
@@ -338,15 +369,15 @@ export function HeadlineLandingPage({ show, trial, allTrials }: HeadlineLandingP
       <meta property="og:description" content={data.showSubtitle} />
       <meta property="og:type" content="event" />
 
-      <HeadlineNav data={data} />
+      <HeadlineNav data={data} canEnterOnline={canEnterOnline} />
       <main>
-        <Hero data={data} classesHref={classesHref} />
+        <Hero data={data} classesHref={classesHref} canEnterOnline={canEnterOnline} />
         <Judges data={data} />
         <Particulars data={data} />
         <Roster data={data} />
         <ScheduleAndPlan data={data} />
         <Officers data={data} />
-        <FinalCta data={data} />
+        <FinalCta data={data} canEnterOnline={canEnterOnline} />
       </main>
       <Footer data={data} />
     </div>

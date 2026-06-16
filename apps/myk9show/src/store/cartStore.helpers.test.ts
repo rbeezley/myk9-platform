@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   calculateCartTotals,
+  calculatePlatformFeeCents,
+  formatPlatformFeeLabel,
   PLATFORM_FEE_PERCENT,
   PLATFORM_FEE_PERCENT_LABEL,
 } from './cartStore.helpers';
@@ -37,9 +39,32 @@ describe('calculateCartTotals', () => {
   });
 });
 
-describe('platform fee display constants', () => {
-  it('derives the display label from the configured percent', () => {
+describe('calculatePlatformFeeCents', () => {
+  it('applies an arbitrary live rate to the subtotal', () => {
+    // 4750 * 10% = 475 (the dynamic rate the cart preview reads from settings).
+    expect(calculatePlatformFeeCents(4750, 10)).toBe(475);
+  });
+
+  it('rounds with the server integer expression at the half-cent boundary', () => {
+    // 350 * 7% = 24.5 → 25 (Math.round), matching _shared/platformFee.ts.
+    expect(calculatePlatformFeeCents(350, 7)).toBe(25);
+  });
+
+  it('returns 0 for a zero/negative subtotal or a zero rate', () => {
+    expect(calculatePlatformFeeCents(0, 7)).toBe(0);
+    expect(calculatePlatformFeeCents(-100, 7)).toBe(0);
+    expect(calculatePlatformFeeCents(4750, 0)).toBe(0);
+  });
+});
+
+describe('platform fee display', () => {
+  it('formats a fee label from any percent', () => {
+    expect(formatPlatformFeeLabel(7)).toBe('7%');
+    expect(formatPlatformFeeLabel(10.5)).toBe('10.5%');
+  });
+
+  it('keeps the default-rate constant + label in sync', () => {
     expect(PLATFORM_FEE_PERCENT).toBe(7);
-    expect(PLATFORM_FEE_PERCENT_LABEL).toBe(`${PLATFORM_FEE_PERCENT}%`);
+    expect(PLATFORM_FEE_PERCENT_LABEL).toBe('7%');
   });
 });

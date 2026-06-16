@@ -21,6 +21,7 @@ interface BannerLandingPageProps {
   show: Show | null | undefined;
   trial: Trial | null | undefined;
   allTrials: Trial[];
+  hasEntryClassInventory?: boolean | null;
 }
 
 /**
@@ -33,7 +34,12 @@ interface BannerLandingPageProps {
  * through component props for sections that need it inline (FlagBar
  * background, gradient bar fill, etc).
  */
-export function BannerLandingPage({ show, trial, allTrials }: BannerLandingPageProps) {
+export function BannerLandingPage({
+  show,
+  trial,
+  allTrials,
+  hasEntryClassInventory,
+}: BannerLandingPageProps) {
   useEffect(() => {
     ensureBannerFontsLoaded();
   }, []);
@@ -41,6 +47,7 @@ export function BannerLandingPage({ show, trial, allTrials }: BannerLandingPageP
   const data = useBannerLandingData(show, trial, allTrials);
   const classesHref = publicClassesHref(show?.id, allTrials);
   const { brandColors } = data;
+  const canEnterOnline = hasEntryClassInventory !== false;
 
   return (
     <div
@@ -84,6 +91,7 @@ export function BannerLandingPage({ show, trial, allTrials }: BannerLandingPageP
         timezone={data.timezone}
         entryWizardUrl={data.entryWizardUrl}
         classesHref={classesHref}
+        canEnterOnline={canEnterOnline}
       />
 
       <StickyNav
@@ -137,6 +145,7 @@ export function BannerLandingPage({ show, trial, allTrials }: BannerLandingPageP
           entryWizardUrl={data.entryWizardUrl}
           entryCloseDate={data.entryCloseDate}
           timezone={data.timezone}
+          canEnterOnline={canEnterOnline}
         />
       </main>
 

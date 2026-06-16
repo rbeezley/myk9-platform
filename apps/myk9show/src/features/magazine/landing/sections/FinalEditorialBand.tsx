@@ -6,6 +6,7 @@ interface FinalEditorialBandProps {
   classesHref: string | null;
   entryCloseDate: string | null;
   timezone: string;
+  canEnterOnline?: boolean;
 }
 
 /**
@@ -27,6 +28,7 @@ export function FinalEditorialBand({
   classesHref,
   entryCloseDate,
   timezone,
+  canEnterOnline = true,
 }: FinalEditorialBandProps) {
   const closesLine = entryCloseDate
     ? `Closing ${formatDateInTimezone(entryCloseDate, timezone, 'long')}`
@@ -67,42 +69,69 @@ export function FinalEditorialBand({
             textWrap: 'balance',
           }}
         >
-          You are{' '}
-          <em
-            style={{ fontStyle: 'italic', color: 'var(--mz-gold-1)' }}
-          >
-            cordially invited
-          </em>{' '}
-          to enter.
+          {canEnterOnline ? (
+            <>
+              You are{' '}
+              <em style={{ fontStyle: 'italic', color: 'var(--mz-gold-1)' }}>
+                cordially invited
+              </em>{' '}
+              to enter.
+            </>
+          ) : (
+            <>
+              Entries open when{' '}
+              <em style={{ fontStyle: 'italic', color: 'var(--mz-gold-1)' }}>
+                classes are assigned
+              </em>
+              .
+            </>
+          )}
         </h2>
 
-        <p
-          className="max-w-xl italic"
-          style={{
-            color: 'rgba(246, 241, 232, 0.7)',
-            fontFamily: 'var(--mz-display)',
-            fontSize: 'clamp(17px, 2vw, 22px)',
-            lineHeight: 1.5,
-          }}
-        >
-          First-received basis until the limit is hit. Refunds (less processing) issued for
-          written withdrawals received before closing.
-        </p>
+        {canEnterOnline ? (
+          <>
+            <p
+              className="max-w-xl italic"
+              style={{
+                color: 'rgba(246, 241, 232, 0.7)',
+                fontFamily: 'var(--mz-display)',
+                fontSize: 'clamp(17px, 2vw, 22px)',
+                lineHeight: 1.5,
+              }}
+            >
+              First-received basis until the limit is hit. Refunds (less processing) issued for
+              written withdrawals received before closing.
+            </p>
 
-        <a
-          href={entryWizardUrl}
-          className="mt-4 inline-flex items-center gap-3 px-11 py-4 transition-colors"
-          style={{
-            background: 'var(--mz-paper)',
-            color: 'var(--mz-ink)',
-            fontFamily: 'var(--mz-display)',
-            fontStyle: 'italic',
-            fontWeight: 500,
-            fontSize: '18px',
-          }}
-        >
-          Open the entry wizard <span aria-hidden="true">→</span>
-        </a>
+            <a
+              href={entryWizardUrl}
+              className="mt-4 inline-flex items-center gap-3 px-11 py-4 transition-colors"
+              style={{
+                background: 'var(--mz-paper)',
+                color: 'var(--mz-ink)',
+                fontFamily: 'var(--mz-display)',
+                fontStyle: 'italic',
+                fontWeight: 500,
+                fontSize: '18px',
+              }}
+            >
+              Open the entry wizard <span aria-hidden="true">→</span>
+            </a>
+          </>
+        ) : (
+          <p
+            className="max-w-xl italic"
+            style={{
+              color: 'rgba(246, 241, 232, 0.7)',
+              fontFamily: 'var(--mz-display)',
+              fontSize: 'clamp(17px, 2vw, 22px)',
+              lineHeight: 1.5,
+            }}
+          >
+            The secretary still needs to assign classes before online entry is available.
+          </p>
+        )}
+
         <SeeClassesLink
           href={classesHref}
           className="mt-3 block"

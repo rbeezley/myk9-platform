@@ -22,6 +22,7 @@ interface PosterLandingPageProps {
   show: Show | null | undefined;
   trial: Trial | null | undefined;
   allTrials: Trial[];
+  hasEntryClassInventory?: boolean | null;
 }
 
 /**
@@ -48,13 +49,19 @@ interface PosterLandingPageProps {
  * Section №3 (Fees dark band) was inlined into Particulars to keep the
  * fee data flow simple — see ParticularsSection's red highlight chips.
  */
-export function PosterLandingPage({ show, trial, allTrials }: PosterLandingPageProps) {
+export function PosterLandingPage({
+  show,
+  trial,
+  allTrials,
+  hasEntryClassInventory,
+}: PosterLandingPageProps) {
   useEffect(() => {
     ensurePosterFontsLoaded();
   }, []);
 
   const data = usePosterLandingData(show, trial, allTrials);
   const classesHref = publicClassesHref(show?.id, allTrials);
+  const canEnterOnline = hasEntryClassInventory !== false;
 
   // Build the show abbreviation from the first letters of words, e.g.
   // "Spring Scent Work" → "SSW". Falls back to first 4 chars if too short.
@@ -102,6 +109,7 @@ export function PosterLandingPage({ show, trial, allTrials }: PosterLandingPageP
         entryCount={data.entryCount}
         entryLimit={data.entryLimit}
         entryWizardUrl={data.entryWizardUrl}
+        canEnterOnline={canEnterOnline}
       />
 
       <HeroBlock
@@ -150,6 +158,7 @@ export function PosterLandingPage({ show, trial, allTrials }: PosterLandingPageP
           classesHref={classesHref}
           entryCloseDate={data.entryCloseDate}
           timezone={data.timezone}
+          canEnterOnline={canEnterOnline}
         />
       </main>
 

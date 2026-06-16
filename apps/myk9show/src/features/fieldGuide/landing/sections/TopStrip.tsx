@@ -7,6 +7,8 @@ interface TopStripProps {
   entryWizardUrl: string;
   /** Optional roster cap to display in the strip — e.g. "360-RUN LIMIT". */
   entryLimit: number | null;
+  /** When false, the show has no classes assigned — gate the Enter CTA. */
+  canEnterOnline?: boolean;
 }
 
 const SECTION_ANCHORS = ['§01', '§02', '§03', '§04', '§05', '§06', '§07'];
@@ -16,7 +18,13 @@ const SECTION_ANCHORS = ['§01', '§02', '§03', '§04', '§05', '§06', '§07']
  * meta, anchor links, and the primary "ENTER →" CTA. Mirrors the design
  * mock's `<div class="fg-top">` block.
  */
-export function TopStrip({ showCode, licenseLanguage, entryWizardUrl, entryLimit }: TopStripProps) {
+export function TopStrip({
+  showCode,
+  licenseLanguage,
+  entryWizardUrl,
+  entryLimit,
+  canEnterOnline = true,
+}: TopStripProps) {
   return (
     <FieldGuideDarkBand
       style={{
@@ -46,17 +54,29 @@ export function TopStrip({ showCode, licenseLanguage, entryWizardUrl, entryLimit
           </a>
         ))}
       </nav>
-      <a
-        href={entryWizardUrl}
-        style={{
-          padding: '4px 12px',
-          background: fieldGuideColors.orange,
-          color: fieldGuideColors.paper,
-          textDecoration: 'none',
-        }}
-      >
-        ENTER →
-      </a>
+      {canEnterOnline ? (
+        <a
+          href={entryWizardUrl}
+          style={{
+            padding: '4px 12px',
+            background: fieldGuideColors.orange,
+            color: fieldGuideColors.paper,
+            textDecoration: 'none',
+          }}
+        >
+          ENTER →
+        </a>
+      ) : (
+        <span
+          style={{
+            padding: '4px 12px',
+            border: `1px solid ${fieldGuideColors.mute}`,
+            color: 'rgba(246,241,230,0.7)',
+          }}
+        >
+          Classes pending
+        </span>
+      )}
     </FieldGuideDarkBand>
   );
 }

@@ -6,6 +6,7 @@ import { heritageOrnaments } from '../../tokens';
 interface StickyNavProps {
   clubName: string;
   entryWizardUrl: string;
+  canEnterOnline?: boolean;
 }
 
 const SECTIONS = [
@@ -15,7 +16,7 @@ const SECTIONS = [
   { id: 'day', label: 'On the Day' },
 ] as const;
 
-export function StickyNav({ clubName, entryWizardUrl }: StickyNavProps) {
+export function StickyNav({ clubName, entryWizardUrl, canEnterOnline = true }: StickyNavProps) {
   const [activeId, setActiveId] = useState<string>('overview');
 
   // Track active section via IntersectionObserver
@@ -98,17 +99,30 @@ export function StickyNav({ clubName, entryWizardUrl }: StickyNavProps) {
           >
             share {heritageOrnaments.diamond}
           </button>
-          <a
-            href={entryWizardUrl}
-            className="border px-4 py-1.5 text-xs uppercase tracking-widest transition-colors hover:bg-[var(--hl-ink)] hover:text-[var(--hl-paper)]"
-            style={{
-              borderColor: 'var(--hl-claret)',
-              color: 'var(--hl-claret)',
-              fontFamily: "'EB Garamond', Georgia, serif",
-            }}
-          >
-            Enter this show
-          </a>
+          {canEnterOnline ? (
+            <a
+              href={entryWizardUrl}
+              className="border px-4 py-1.5 text-xs uppercase tracking-widest transition-colors hover:bg-[var(--hl-ink)] hover:text-[var(--hl-paper)]"
+              style={{
+                borderColor: 'var(--hl-claret)',
+                color: 'var(--hl-claret)',
+                fontFamily: "'EB Garamond', Georgia, serif",
+              }}
+            >
+              Enter this show
+            </a>
+          ) : (
+            <span
+              className="border px-4 py-1.5 text-xs uppercase tracking-widest"
+              style={{
+                borderColor: 'var(--hl-quill)',
+                color: 'var(--hl-quill)',
+                fontFamily: "'EB Garamond', Georgia, serif",
+              }}
+            >
+              Classes pending
+            </span>
+          )}
         </div>
       </nav>
     </>

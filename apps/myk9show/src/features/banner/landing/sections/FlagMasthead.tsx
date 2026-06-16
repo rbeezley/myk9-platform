@@ -19,6 +19,7 @@ interface FlagMastheadProps {
   timezone: string;
   entryWizardUrl: string;
   classesHref: string | null;
+  canEnterOnline?: boolean;
 }
 
 /**
@@ -40,6 +41,7 @@ export function FlagMasthead({
   timezone,
   entryWizardUrl,
   classesHref,
+  canEnterOnline = true,
 }: FlagMastheadProps) {
   const dateRangeLabel = formatDateRange(trialStartDate, trialEndDate, timezone);
   const closesLabel = entryCloseDate
@@ -71,23 +73,42 @@ export function FlagMasthead({
         >
           {clubName || 'Kennel Club'}
         </span>
-        <a
-          href={entryWizardUrl}
-          style={{
-            display: 'inline-block',
-            padding: '10px 22px',
-            border: `1.5px solid ${brandColors.textOnFlag}`,
-            fontFamily: BANNER_BODY_FAMILY,
-            fontWeight: 500,
-            fontSize: 12,
-            letterSpacing: '0.16em',
-            textTransform: 'uppercase',
-            color: brandColors.textOnFlag,
-            textDecoration: 'none',
-          }}
-        >
-          Enter this show
-        </a>
+        {canEnterOnline ? (
+          <a
+            href={entryWizardUrl}
+            style={{
+              display: 'inline-block',
+              padding: '10px 22px',
+              border: `1.5px solid ${brandColors.textOnFlag}`,
+              fontFamily: BANNER_BODY_FAMILY,
+              fontWeight: 500,
+              fontSize: 12,
+              letterSpacing: '0.16em',
+              textTransform: 'uppercase',
+              color: brandColors.textOnFlag,
+              textDecoration: 'none',
+            }}
+          >
+            Enter this show
+          </a>
+        ) : (
+          <p
+            style={{
+              maxWidth: 320,
+              margin: 0,
+              padding: '10px 22px',
+              border: `1.5px solid ${brandColors.textOnFlag}`,
+              fontFamily: BANNER_BODY_FAMILY,
+              fontWeight: 500,
+              fontSize: 12,
+              lineHeight: 1.5,
+              color: brandColors.textOnFlag,
+              opacity: 0.85,
+            }}
+          >
+            Entries are not available yet because no classes are assigned yet.
+          </p>
+        )}
         <SeeClassesLink
           href={classesHref}
           style={{ color: brandColors.textOnFlag, fontFamily: BANNER_BODY_FAMILY }}

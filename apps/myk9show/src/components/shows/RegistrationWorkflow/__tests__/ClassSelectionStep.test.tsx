@@ -386,7 +386,7 @@ describe('ClassSelectionStep — empty class inventory', () => {
     expect(screen.getByText('Novice')).toBeInTheDocument();
   });
 
-  it('shows a no-classes alert instead of a blank panel when every source is empty', async () => {
+  const setupEmptyInventory = () => {
     setupDefaultMocks({ judgeDayFull: false, waitlistCount: 0 });
     mockUseTrialStore.mockImplementation((selector: (s: unknown) => unknown) => {
       const state = {
@@ -413,7 +413,9 @@ describe('ClassSelectionStep — empty class inventory', () => {
       totalSpotsAvailable: 0,
       fullClasses: 0,
     });
+  };
 
+  const renderStep = () =>
     render(
       <ClassSelectionStep
         selectedDogs={[DOG_ID]}
@@ -423,6 +425,28 @@ describe('ClassSelectionStep — empty class inventory', () => {
       />
     );
 
+  it('shows a no-classes alert instead of a blank panel when every source is empty', async () => {
+    setupEmptyInventory();
+    renderStep();
+
     expect(await screen.findByText(/No classes available yet/i)).toBeInTheDocument();
+  });
+
+  it('gives an exhibitor a recovery path (contact the organizer) when no classes exist', async () => {
+    setupEmptyInventory();
+    // Default auth context is a non-organizer (isSecretary/isAdmin false).
+    renderStep();
+
+    expect(await screen.findByText(/Please contact the show organizer/i)).toBeInTheDocument();
+  });
+
+  it('tells an organizer where to add classes when no classes exist', async () => {
+    setupEmptyInventory();
+    mockUseAuthContext.mockReturnValue({ isSecretary: true, isAdmin: false, user: null });
+    renderStep();
+
+    expect(
+      await screen.findByText(/Add classes in the show management page/i)
+    ).toBeInTheDocument();
   });
 });

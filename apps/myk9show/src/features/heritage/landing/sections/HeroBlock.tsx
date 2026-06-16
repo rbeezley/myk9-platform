@@ -18,6 +18,7 @@ interface HeroBlockProps {
   timezone: string;
   entryWizardUrl: string;
   classesHref: string | null;
+  canEnterOnline?: boolean;
 }
 
 function CountdownBlock({
@@ -97,6 +98,7 @@ export function HeroBlock({
   timezone,
   entryWizardUrl,
   classesHref,
+  canEnterOnline = true,
 }: HeroBlockProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>(0.1);
   const { days, hours, minutes, closed } = useCountdown(entryCloseDate, timezone);
@@ -208,16 +210,29 @@ export function HeroBlock({
           )}
 
           {/* CTA */}
-          <a
-            href={entryWizardUrl}
-            className="mt-4 border px-8 py-3 text-sm uppercase tracking-widest transition-colors text-[var(--hl-claret)] hover:bg-[var(--hl-claret)] hover:text-[var(--hl-paper)]"
-            style={{
-              borderColor: 'var(--hl-claret)',
-              fontFamily: "'EB Garamond', Georgia, serif",
-            }}
-          >
-            Enter this show
-          </a>
+          {canEnterOnline ? (
+            <a
+              href={entryWizardUrl}
+              className="mt-4 border px-8 py-3 text-sm uppercase tracking-widest transition-colors text-[var(--hl-claret)] hover:bg-[var(--hl-claret)] hover:text-[var(--hl-paper)]"
+              style={{
+                borderColor: 'var(--hl-claret)',
+                fontFamily: "'EB Garamond', Georgia, serif",
+              }}
+            >
+              Enter this show
+            </a>
+          ) : (
+            <p
+              className="mt-4 max-w-md border px-8 py-3 text-sm leading-relaxed"
+              style={{
+                borderColor: 'var(--hl-quill)',
+                color: 'var(--hl-quill)',
+                fontFamily: "'EB Garamond', Georgia, serif",
+              }}
+            >
+              Entries are not available yet because no classes are assigned yet.
+            </p>
+          )}
           <SeeClassesLink
             href={classesHref}
             className="mt-3"

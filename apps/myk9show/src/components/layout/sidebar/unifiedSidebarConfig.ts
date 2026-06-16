@@ -33,6 +33,7 @@ import {
   HelpCircle,
   BarChart3,
   Landmark,
+  Wallet,
 } from 'lucide-react';
 import { UserRole } from '@/types/auth-types';
 import { isWizardSurface, isPathInWizardAllowlist } from '@/config/surface';
@@ -138,6 +139,12 @@ export function buildUnifiedSidebarConfig(
             href: '/admin/permissions',
             icon: Shield,
             description: 'Access control',
+          },
+          {
+            title: 'Payments',
+            href: '/admin/payouts',
+            icon: Wallet,
+            description: 'Platform fee + payout ledger',
           },
           {
             title: 'Help',

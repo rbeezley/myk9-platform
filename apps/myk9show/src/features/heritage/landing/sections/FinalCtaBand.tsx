@@ -3,9 +3,10 @@ import { heritageOrnaments } from '../../tokens';
 
 interface FinalCtaBandProps {
   entryWizardUrl: string;
+  canEnterOnline?: boolean;
 }
 
-export function FinalCtaBand({ entryWizardUrl }: FinalCtaBandProps) {
+export function FinalCtaBand({ entryWizardUrl, canEnterOnline = true }: FinalCtaBandProps) {
   return (
     <section
       id="enter"
@@ -33,57 +34,76 @@ export function FinalCtaBand({ entryWizardUrl }: FinalCtaBandProps) {
             fontStyle: 'italic',
           }}
         >
-          You are <em style={{ color: 'var(--hl-gold)' }}>cordially</em> invited.
+          {canEnterOnline ? (
+            <>
+              You are <em style={{ color: 'var(--hl-gold)' }}>cordially</em> invited.
+            </>
+          ) : (
+            <>
+              Entries open when <em style={{ color: 'var(--hl-gold)' }}>classes are assigned</em>.
+            </>
+          )}
         </p>
 
-        <p
-          className="text-sm leading-relaxed"
-          style={{ color: '#b8a99a', fontFamily: "'EB Garamond', Georgia, serif" }}
-        >
-          Join us for this licensed trial and test your partnership against the finest scent work
-          standards.
-        </p>
-
-        <a
-          href={entryWizardUrl}
-          className="border px-10 py-4 text-sm uppercase tracking-widest transition-colors text-[var(--hl-paper)] hover:bg-[var(--hl-paper)] hover:text-[var(--hl-ink)]"
-          style={{
-            borderColor: 'var(--hl-paper)',
-            fontFamily: "'EB Garamond', Georgia, serif",
-          }}
-        >
-          Enter this show
-        </a>
-
-        <HeritageOrnamentRule variant="gold" className="w-48" />
-
-        {/* Entry method cards */}
-        <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-3">
-          {[
-            { title: 'Online', desc: 'Via the entry portal above' },
-            { title: 'By Post', desc: 'Mail completed entry blank to the secretary' },
-            { title: 'By Email', desc: 'Scan and email your entry blank' },
-          ].map(method => (
-            <div
-              key={method.title}
-              className="border p-4 text-center"
-              style={{ borderColor: '#3a3028' }}
+        {canEnterOnline ? (
+          <>
+            <p
+              className="text-sm leading-relaxed"
+              style={{ color: '#b8a99a', fontFamily: "'EB Garamond', Georgia, serif" }}
             >
-              <p
-                className="text-xs uppercase tracking-widest"
-                style={{ color: 'var(--hl-gold)', fontFamily: "'EB Garamond', Georgia, serif" }}
-              >
-                {method.title}
-              </p>
-              <p
-                className="mt-1 text-xs"
-                style={{ color: '#8a7a6a', fontFamily: "'EB Garamond', Georgia, serif" }}
-              >
-                {method.desc}
-              </p>
+              Join us for this licensed trial and test your partnership against the finest scent work
+              standards.
+            </p>
+
+            <a
+              href={entryWizardUrl}
+              className="border px-10 py-4 text-sm uppercase tracking-widest transition-colors text-[var(--hl-paper)] hover:bg-[var(--hl-paper)] hover:text-[var(--hl-ink)]"
+              style={{
+                borderColor: 'var(--hl-paper)',
+                fontFamily: "'EB Garamond', Georgia, serif",
+              }}
+            >
+              Enter this show
+            </a>
+
+            <HeritageOrnamentRule variant="gold" className="w-48" />
+
+            {/* Entry method cards */}
+            <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-3">
+              {[
+                { title: 'Online', desc: 'Via the entry portal above' },
+                { title: 'By Post', desc: 'Mail completed entry blank to the secretary' },
+                { title: 'By Email', desc: 'Scan and email your entry blank' },
+              ].map(method => (
+                <div
+                  key={method.title}
+                  className="border p-4 text-center"
+                  style={{ borderColor: '#3a3028' }}
+                >
+                  <p
+                    className="text-xs uppercase tracking-widest"
+                    style={{ color: 'var(--hl-gold)', fontFamily: "'EB Garamond', Georgia, serif" }}
+                  >
+                    {method.title}
+                  </p>
+                  <p
+                    className="mt-1 text-xs"
+                    style={{ color: '#8a7a6a', fontFamily: "'EB Garamond', Georgia, serif" }}
+                  >
+                    {method.desc}
+                  </p>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </>
+        ) : (
+          <p
+            className="text-sm leading-relaxed"
+            style={{ color: '#b8a99a', fontFamily: "'EB Garamond', Georgia, serif" }}
+          >
+            The secretary still needs to assign classes before online entry is available.
+          </p>
+        )}
       </div>
     </section>
   );

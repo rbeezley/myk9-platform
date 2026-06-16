@@ -13,7 +13,8 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { useCartStore } from '@/store/cartStore';
-import { PLATFORM_FEE_PERCENT_LABEL } from '@/store/cartStore.helpers';
+import { calculatePlatformFeeCents, formatPlatformFeeLabel } from '@/store/cartStore.helpers';
+import { usePlatformFeePercent } from '@/hooks/queries/usePlatformFeePercent';
 import { useCartExpirationTimer } from '@/hooks/useCartExpirationTimer';
 
 interface CartSummaryProps {
@@ -32,9 +33,8 @@ export function CartSummary({
   const navigate = useNavigate();
   const cart = useCartStore(state => state.cart);
   const getTotalEntryFees = useCartStore(state => state.getTotalEntryFees);
-  const getPlatformFee = useCartStore(state => state.getPlatformFee);
-  const getTotalAmount = useCartStore(state => state.getTotalAmount);
   const getItemCount = useCartStore(state => state.getItemCount);
+  const feePercent = usePlatformFeePercent();
 
   const {
     timeRemainingFormatted,
@@ -55,8 +55,10 @@ export function CartSummary({
 
   const itemCount = getItemCount();
   const subtotal = getTotalEntryFees();
-  const platformFee = getPlatformFee();
-  const total = getTotalAmount();
+  // Recompute fee + total from the live rate (the store bakes the fallback
+  // default; the server charges the platform_settings rate this hook reads).
+  const platformFee = calculatePlatformFeeCents(subtotal, feePercent);
+  const total = subtotal + platformFee;
 
   const handleCheckout = () => {
     if (onCheckout) {
@@ -145,7 +147,7 @@ export function CartSummary({
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">
-              Platform Fee ({PLATFORM_FEE_PERCENT_LABEL})
+              Platform Fee ({formatPlatformFeeLabel(feePercent)})
             </span>
             <span>{formatCurrency(platformFee)}</span>
           </div>

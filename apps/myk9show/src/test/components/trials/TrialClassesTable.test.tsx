@@ -96,10 +96,11 @@ describe('TrialClassesTable', () => {
       ).toBeInTheDocument();
     });
 
-    it('shows Add Classes button when handler provided', () => {
+    it('shows Add Classes button when handler provided and user can manage', () => {
       renderWithRouter(
         <TrialClassesTable
           classes={[]}
+          canManage
           onAddClassesFromTemplate={mockHandlers.onAddClassesFromTemplate}
           onEditClass={mockHandlers.onEditClass}
           onDeleteClass={mockHandlers.onDeleteClass}
@@ -114,6 +115,7 @@ describe('TrialClassesTable', () => {
       renderWithRouter(
         <TrialClassesTable
           classes={[]}
+          canManage
           onAddClassesFromTemplate={mockHandlers.onAddClassesFromTemplate}
           onEditClass={mockHandlers.onEditClass}
           onDeleteClass={mockHandlers.onDeleteClass}
@@ -273,7 +275,26 @@ describe('TrialClassesTable', () => {
   });
 
   describe('Add Classes Button', () => {
-    it('shows Add Classes button in header when classes exist', () => {
+    it('shows Add Classes button in header when classes exist and user can manage', () => {
+      renderWithRouter(
+        <TrialClassesTable
+          classes={mockClasses}
+          canManage
+          onAddClassesFromTemplate={mockHandlers.onAddClassesFromTemplate}
+          onEditClass={mockHandlers.onEditClass}
+          onDeleteClass={mockHandlers.onDeleteClass}
+        />
+      );
+
+      expect(screen.getByRole('button', { name: /add classes/i })).toBeInTheDocument();
+    });
+  });
+
+  // Read-only / non-organizer view: the trial page is now a public surface
+  // (exhibitors are deep-linked here), so management chrome must be absent
+  // for anyone who is not staff (canManage defaults to false).
+  describe('Read-only view (canManage = false)', () => {
+    it('hides the Add Classes button in the header even when a handler is provided', () => {
       renderWithRouter(
         <TrialClassesTable
           classes={mockClasses}
@@ -283,7 +304,72 @@ describe('TrialClassesTable', () => {
         />
       );
 
-      expect(screen.getByRole('button', { name: /add classes/i })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /add classes/i })).not.toBeInTheDocument();
+    });
+
+    it('hides the Add Classes button in the empty state even when a handler is provided', () => {
+      renderWithRouter(
+        <TrialClassesTable
+          classes={[]}
+          onAddClassesFromTemplate={mockHandlers.onAddClassesFromTemplate}
+          onEditClass={mockHandlers.onEditClass}
+          onDeleteClass={mockHandlers.onDeleteClass}
+        />
+      );
+
+      expect(screen.queryByRole('button', { name: /add classes/i })).not.toBeInTheDocument();
+    });
+
+    it('hides the row Actions column (no Edit/Delete affordances)', () => {
+      renderWithRouter(
+        <TrialClassesTable
+          classes={mockClasses}
+          onEditClass={mockHandlers.onEditClass}
+          onDeleteClass={mockHandlers.onDeleteClass}
+        />
+      );
+
+      expect(screen.queryByRole('columnheader', { name: /actions/i })).not.toBeInTheDocument();
+    });
+
+    it('hides the "Manage the classes for this trial" subtitle', () => {
+      renderWithRouter(
+        <TrialClassesTable
+          classes={mockClasses}
+          onEditClass={mockHandlers.onEditClass}
+          onDeleteClass={mockHandlers.onDeleteClass}
+        />
+      );
+
+      expect(screen.queryByText(/manage the classes for this trial/i)).not.toBeInTheDocument();
+    });
+
+    it('still renders the class list read-only (classes remain visible)', () => {
+      renderWithRouter(
+        <TrialClassesTable
+          classes={mockClasses}
+          onEditClass={mockHandlers.onEditClass}
+          onDeleteClass={mockHandlers.onDeleteClass}
+        />
+      );
+
+      // Read-only visitors can still browse the schedule.
+      expect(screen.getByText('Container')).toBeInTheDocument();
+      expect(screen.getByText('Interior')).toBeInTheDocument();
+      expect(screen.getByText('Exterior')).toBeInTheDocument();
+    });
+
+    it('shows the Actions column when canManage is true', () => {
+      renderWithRouter(
+        <TrialClassesTable
+          classes={mockClasses}
+          canManage
+          onEditClass={mockHandlers.onEditClass}
+          onDeleteClass={mockHandlers.onDeleteClass}
+        />
+      );
+
+      expect(screen.getByRole('columnheader', { name: /actions/i })).toBeInTheDocument();
     });
   });
 });

@@ -69,7 +69,12 @@ const TrialDetailsPage: React.FC = () => {
     updateTrial,
     deleteTrial: deleteTrialAsync,
   } = useTrialStore();
-  const { user, isSecretary, isAdmin } = useAuthContext();
+  const { user, isSecretary, isAdmin, hasRole } = useAuthContext();
+  // Public route — exhibitors are now deep-linked here from styled landings.
+  // Only staff may see create/edit/manage affordances; everyone else gets a
+  // read-only view. Matches the staff set ShowDetailsPage uses to reach its
+  // management UI (secretary / admin / club_admin).
+  const canManageTrial = isSecretary || isAdmin || hasRole('club_admin');
   const { templates, initializeDefaultTemplates } = useTemplateStore();
   const { shows } = useShowStore();
 
@@ -335,34 +340,36 @@ const TrialDetailsPage: React.FC = () => {
             secondaryActions={
               <div className="flex items-center gap-2">
                 {showTrials.length > 1 && prevNextNav}
-                {(isSecretary || isAdmin) && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      navigate(
-                        `/shows/${currentTrial?.showId || showId}/entry-management?trial=${trialId}`
-                      )
-                    }
-                  >
-                    <ClipboardList className="h-4 w-4 mr-2" />
-                    Manage Entries
-                  </Button>
+                {canManageTrial && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        navigate(
+                          `/shows/${currentTrial?.showId || showId}/entry-management?trial=${trialId}`
+                        )
+                      }
+                    >
+                      <ClipboardList className="h-4 w-4 mr-2" />
+                      Manage Entries
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleEditTrial}>
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Edit
+                    </Button>
+                    <ThreeDotMenu
+                      items={[
+                        {
+                          label: 'Delete Trial',
+                          icon: <Trash2 className="h-4 w-4" />,
+                          onClick: handleDeleteTrial,
+                          className: 'text-destructive',
+                        },
+                      ]}
+                    />
+                  </>
                 )}
-                <Button variant="outline" size="sm" onClick={handleEditTrial}>
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-                <ThreeDotMenu
-                  items={[
-                    {
-                      label: 'Delete Trial',
-                      icon: <Trash2 className="h-4 w-4" />,
-                      onClick: handleDeleteTrial,
-                      className: 'text-destructive',
-                    },
-                  ]}
-                />
               </div>
             }
           />
@@ -372,6 +379,7 @@ const TrialDetailsPage: React.FC = () => {
               <TrialDetailsMain
                 trial={trialWithClasses}
                 statistics={trialStatistics}
+                canManage={canManageTrial}
                 onAddClassesFromTemplate={handleAddClassesFromTemplate}
                 onEditClass={handleEditClass}
                 onDeleteClass={handleDeleteClass}

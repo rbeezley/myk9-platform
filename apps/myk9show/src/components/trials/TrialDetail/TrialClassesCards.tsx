@@ -15,6 +15,8 @@ import { ClassWarningBanners } from '@/components/classes/ClassWarningBanners';
 interface TrialClassesCardsProps {
   classes: TrialClass[];
   trialId: string;
+  /** Staff-only gate for the per-card edit menu. Deny by default. */
+  canManage?: boolean;
   onEditClass: (classItem: TrialClass) => void;
   onDeleteClass: (classItem: TrialClass) => void;
 }
@@ -80,6 +82,7 @@ function formatStartTime(startTime: string | undefined): string | undefined {
 export function TrialClassesCards({
   classes,
   trialId,
+  canManage = false,
   onEditClass,
   onDeleteClass: _onDeleteClass,
 }: TrialClassesCardsProps) {
@@ -161,9 +164,11 @@ export function TrialClassesCards({
                   />
                 }
                 onCardClick={() => startTransition(() => navigate(`/classes/${classItem.id}`))}
-                onMenuClick={() => {
-                  onEditClass(classItem);
-                }}
+                {...(canManage && {
+                  onMenuClick: () => {
+                    onEditClass(classItem);
+                  },
+                })}
               />
             </div>
           </ClassDetailsPopover>

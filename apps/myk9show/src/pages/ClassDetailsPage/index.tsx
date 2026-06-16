@@ -30,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+import { useClassReleasedResults } from '@/hooks/queries/useClassReleasedResults';
 import { useClassDetailsData } from './useClassDetailsData';
 import { useClassDetailsDialogs } from './useClassDetailsDialogs';
 import { ClassNotFoundState, EmptyClassState, LoadingClassState } from './ClassStates';
@@ -70,6 +71,16 @@ const ClassDetailsPage: React.FC = () => {
   const [requirementsPanelOpen, setRequirementsPanelOpen] = useState(false);
   const { myEntries } = useMyEntriesInClass(classId);
   const myEntryIds = useMemo(() => new Set(myEntries.map(entry => entry.entryId)), [myEntries]);
+
+  // Exhibitor/guest results read directly from PostgREST once results are
+  // released — the replication store is cold/stale for post-show or anonymous
+  // sessions (mirrors the TV display #753 fix). Secretary/at-show scoring keeps
+  // using the live replication store below.
+  const isStaff = isSecretary || isAdmin;
+  const releasedResults = useClassReleasedResults(classId, currentClass?.results_released_at);
+  const showReleasedResults = !isStaff && releasedResults.isReleased;
+  const exhibitorClassEntries = showReleasedResults ? releasedResults.entryData : classEntries;
+  const exhibitorRawEntries = showReleasedResults ? releasedResults.rawEntries : dbRawEntries;
 
   // Handlers
   const handleConfirmDeleteClass = async () => {
@@ -282,9 +293,11 @@ const ClassDetailsPage: React.FC = () => {
           actions={headerActions}
         />
 
-        {!isSecretary && !isAdmin && <ExhibitorClassCallout classId={classId} />}
+        {!isStaff && (
+          <ExhibitorClassCallout classId={classId} releasedRows={releasedResults.rawEntries} />
+        )}
 
-        {isSecretary || isAdmin ? (
+        {isStaff ? (
           <SecretaryRunSheet
             currentClass={currentClass}
             dbRawEntries={dbRawEntries}
@@ -297,8 +310,8 @@ const ClassDetailsPage: React.FC = () => {
         ) : (
           <ClassDetailsMain
             classData={currentClass}
-            classEntries={classEntries}
-            rawEntries={dbRawEntries}
+            classEntries={exhibitorClassEntries}
+            rawEntries={exhibitorRawEntries}
             parentShow={parentShow}
             onAddEntry={() => {
               if (parentShow?.id) {

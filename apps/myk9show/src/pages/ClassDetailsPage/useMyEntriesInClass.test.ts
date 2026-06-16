@@ -128,4 +128,46 @@ describe('useMyEntriesInClass', () => {
     // My dog is at run order 2 → 2nd position (1-based)
     expect(result.current.myEntries[0].position).toBe(2);
   });
+
+  it('sources released results over a stale replication store', () => {
+    // Replication store says "no result" (cold/stale post-show exhibitor),
+    // but the directly-read released row is scored + qualified + placed.
+    setMocks({ entries: [makeEntry({ competitionData: undefined })] });
+    const releasedRows = [
+      {
+        id: 'entry-1',
+        is_scored: true,
+        result_status: 'qualified',
+        search_time_seconds: 38.2,
+        total_faults: 0,
+        final_placement: 1,
+        armband: '101',
+      } as unknown as import('@/hooks/queries/useClassEntriesRaw').RawEntryRow,
+    ];
+    const { result } = renderHook(() => useMyEntriesInClass(CLASS_ID, releasedRows));
+    expect(result.current.isAfterClass).toBe(true);
+    expect(result.current.myEntries[0].hasResult).toBe(true);
+    expect(result.current.myEntries[0].result?.qualified).toBe(true);
+    expect(result.current.myEntries[0].result?.placement).toBe(1);
+    expect(result.current.myEntries[0].result?.faults).toBe(0);
+    expect(result.current.myEntries[0].result?.time).toBe('0:38.20');
+  });
+
+  it('marks a released NQ row as not qualified', () => {
+    setMocks({ entries: [makeEntry({ competitionData: undefined })] });
+    const releasedRows = [
+      {
+        id: 'entry-1',
+        is_scored: true,
+        result_status: 'nq',
+        search_time_seconds: null,
+        total_faults: null,
+        final_placement: null,
+        armband: '101',
+      } as unknown as import('@/hooks/queries/useClassEntriesRaw').RawEntryRow,
+    ];
+    const { result } = renderHook(() => useMyEntriesInClass(CLASS_ID, releasedRows));
+    expect(result.current.myEntries[0].hasResult).toBe(true);
+    expect(result.current.myEntries[0].result?.qualified).toBe(false);
+  });
 });

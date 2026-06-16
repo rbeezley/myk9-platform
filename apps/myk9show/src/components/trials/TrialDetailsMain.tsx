@@ -12,6 +12,8 @@ import '@/styles/myk9-show-details.css';
 interface TrialDetailsMainProps {
   trial: Trial & { classes?: TrialClass[] };
   statistics: TrialStatisticsData;
+  /** Staff-only gate for create/edit/delete affordances. Deny by default. */
+  canManage?: boolean;
   onAddClassesFromTemplate?: () => void;
   onEditClass: (classItem: TrialClass) => void;
   onDeleteClass: (classItem: TrialClass) => void;
@@ -27,6 +29,7 @@ const STAT_CONFIG: Record<string, { icon: LucideIcon; color: StatColor }> = {
 const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
   trial,
   statistics,
+  canManage = false,
   onAddClassesFromTemplate,
   onEditClass,
   onDeleteClass,
@@ -124,6 +127,7 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
         <TrialClassesTable
           classes={trial.classes || []}
           trialId={trial.id}
+          canManage={canManage}
           {...(onAddClassesFromTemplate !== undefined && { onAddClassesFromTemplate })}
           onEditClass={onEditClass}
           onDeleteClass={onDeleteClass}

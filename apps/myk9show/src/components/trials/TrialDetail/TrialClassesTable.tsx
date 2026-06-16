@@ -49,6 +49,8 @@ const trialLevelSort: SortingFn<TrialClass> = (rowA, rowB) => {
 interface TrialClassesTableProps {
   classes: TrialClass[];
   trialId?: string;
+  /** Staff-only gate for create/edit/delete affordances. Deny by default. */
+  canManage?: boolean;
   onAddClassesFromTemplate?: () => void;
   onEditClass: (classItem: TrialClass) => void;
   onDeleteClass: (classItem: TrialClass) => void;
@@ -57,12 +59,16 @@ interface TrialClassesTableProps {
 export const TrialClassesTable = ({
   classes,
   trialId,
+  canManage = false,
   onAddClassesFromTemplate,
   onEditClass,
   onDeleteClass,
 }: TrialClassesTableProps) => {
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<ViewMode>('table');
+  // Only staff may add classes — gate the handler at the source so the
+  // empty-state and header buttons never render for read-only visitors.
+  const canAddClasses = canManage && onAddClassesFromTemplate !== undefined;
 
   const columns: ColumnDef<TrialClass, unknown>[] = useMemo(
     () => [
@@ -143,26 +149,31 @@ export const TrialClassesTable = ({
           </span>
         ),
       },
-      {
-        id: 'actions',
-        header: 'Actions',
-        enableSorting: false,
-        enableHiding: false,
-        cell: ({ row }) => {
-          const cls = row.original;
-          return (
-            <div className="text-right" onClick={e => e.stopPropagation()}>
-              <ClassRowActionsMenu
-                onView={() => startTransition(() => navigate(`/classes/${cls.id}`))}
-                onEdit={() => onEditClass(cls)}
-                onDelete={() => onDeleteClass(cls)}
-              />
-            </div>
-          );
-        },
-      },
+      // Edit/delete row actions are staff-only; read-only visitors never see them.
+      ...(canManage
+        ? [
+            {
+              id: 'actions',
+              header: 'Actions',
+              enableSorting: false,
+              enableHiding: false,
+              cell: ({ row }) => {
+                const cls = row.original;
+                return (
+                  <div className="text-right" onClick={e => e.stopPropagation()}>
+                    <ClassRowActionsMenu
+                      onView={() => startTransition(() => navigate(`/classes/${cls.id}`))}
+                      onEdit={() => onEditClass(cls)}
+                      onDelete={() => onDeleteClass(cls)}
+                    />
+                  </div>
+                );
+              },
+            } satisfies ColumnDef<TrialClass, unknown>,
+          ]
+        : []),
     ],
-    [onEditClass, onDeleteClass, navigate]
+    [canManage, onEditClass, onDeleteClass, navigate]
   );
 
   if (classes.length === 0) {
@@ -176,10 +187,14 @@ export const TrialClassesTable = ({
         </div>
         <div className="text-muted-foreground mb-6">
           <div className="mb-2 text-lg font-medium">No classes yet</div>
-          <div className="text-sm">Add classes to start managing entries and scores</div>
+          <div className="text-sm">
+            {canManage
+              ? 'Add classes to start managing entries and scores'
+              : 'Classes for this trial have not been published yet'}
+          </div>
         </div>
         <div className="flex items-center justify-center gap-3">
-          {onAddClassesFromTemplate && (
+          {canAddClasses && (
             <Button
               onClick={onAddClassesFromTemplate}
               className="myk9-action-button myk9-action-button-primary"
@@ -198,7 +213,9 @@ export const TrialClassesTable = ({
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold">Classes ({classes.length})</h3>
-          <p className="text-sm text-muted-foreground">Manage the classes for this trial</p>
+          {canManage && (
+            <p className="text-sm text-muted-foreground">Manage the classes for this trial</p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <ViewToggle
@@ -206,7 +223,7 @@ export const TrialClassesTable = ({
             active={viewMode}
             onChange={v => setViewMode(v as ViewMode)}
           />
-          {onAddClassesFromTemplate && (
+          {canAddClasses && (
             <Button
               onClick={onAddClassesFromTemplate}
               className="myk9-action-button myk9-action-button-primary"
@@ -222,6 +239,7 @@ export const TrialClassesTable = ({
         <TrialClassesCards
           classes={classes}
           trialId={trialId || ''}
+          canManage={canManage}
           onEditClass={onEditClass}
           onDeleteClass={onDeleteClass}
         />

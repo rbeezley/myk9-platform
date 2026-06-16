@@ -50,6 +50,20 @@ describe('useUrlTab', () => {
     expect(result.current[0]).toBe('overview');
   });
 
+  // Security-relevant: pages that hide tabs by role must pass only the
+  // visible tabs as `allowedTabs`. This mirrors TrialDetailsPage gating its
+  // staff-only Promo Codes / Financials tabs — a non-staff visitor deep-linked
+  // to a hidden management tab must NOT have that panel selected.
+  it('falls back to default when a hidden (role-gated) tab is in the URL', () => {
+    const PUBLIC_TABS = ['overview', 'entries'] as const;
+    const { result } = renderHook(() => useUrlTab(PUBLIC_TABS, 'overview'), {
+      wrapper: createWrapper('/?tab=financials'),
+    });
+
+    expect(result.current[0]).toBe('overview');
+    expect(result.current[0]).not.toBe('financials');
+  });
+
   it('does not push a history entry on initial render (uses replace: true)', () => {
     // When setting a tab, it should use replace semantics.
     // We verify this by checking that the setTab callback uses replace.

@@ -37,7 +37,7 @@ describe('ExhibitorPaymentsPage', () => {
     expect(screen.getByText('$53.00')).toBeInTheDocument();
     expect(screen.getByText('Paid')).toBeInTheDocument();
     expect(screen.getByText('pi_abc123')).toBeInTheDocument();
-    const receipt = screen.getByRole('link', { name: /view entries/i });
+    const receipt = screen.getByRole('link', { name: /my shows/i });
     expect(receipt).toHaveAttribute('href', '/exhibitor/entries');
   });
 
@@ -45,5 +45,13 @@ describe('ExhibitorPaymentsPage', () => {
     state.data = [];
     render(<ExhibitorPaymentsPage />);
     expect(screen.getByText(/No payments yet/i)).toBeInTheDocument();
+  });
+
+  it('shows an error state (not the empty state) when the query fails', () => {
+    state.data = [];
+    state.isError = true;
+    render(<ExhibitorPaymentsPage />);
+    expect(screen.getByText(/couldn.t load your payments/i)).toBeInTheDocument();
+    expect(screen.queryByText(/No payments yet/i)).not.toBeInTheDocument();
   });
 });

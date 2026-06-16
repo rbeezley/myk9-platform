@@ -60,12 +60,15 @@ function PaymentRow({ payment }: { payment: MyPayment }) {
       </TableCell>
       <TableCell>
         {payment.entryIds.length > 0 ? (
+          // My Entries has no inbound entry/show filter, so this is a plain link
+          // to that page (where the per-entry printable receipt lives), not a
+          // row-scoped filter — the label says so to avoid implying otherwise.
           <Link
             to="/exhibitor/entries"
             className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
           >
             <ReceiptIcon className="h-4 w-4" />
-            View entries
+            My Shows
           </Link>
         ) : (
           <span className="text-muted-foreground">—</span>
@@ -93,6 +96,12 @@ export default function ExhibitorPaymentsPage() {
 
       {isLoading ? (
         <Skeleton className="h-64 w-full" />
+      ) : isError ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            We couldn&apos;t load your payments. Please refresh to try again.
+          </CardContent>
+        </Card>
       ) : !payments || payments.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">

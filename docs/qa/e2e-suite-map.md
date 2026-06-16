@@ -226,6 +226,7 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 | `apps/myk9show/src/test/e2e/show-creation-wizard-detailed.spec.ts`     | Detailed show wizard.                                                                           |
 | `apps/myk9show/src/test/e2e/show-details-sidebar-navigation.spec.ts`   | Show details navigation.                                                                        |
 | `apps/myk9show/src/test/e2e/show/atShowOfflineScoring.spec.ts`         | At-show offline scoring round-trip.                                                             |
+| `apps/myk9show/src/test/e2e/show/phase4CrossRoleSeams.spec.ts`         | Phase 4 fixture-backed cross-role seam audit.                                                   |
 | `apps/myk9show/src/test/e2e/show/showConflictSurfacing.spec.ts`        | Show replication conflict surfacing.                                                            |
 | `apps/myk9show/src/test/e2e/show-live-sync.spec.ts`                    | Show live-sync live Realtime smoke (data/Realtime-dependent; run when touching show live-sync). |
 | `apps/myk9show/src/test/e2e/show-presence.spec.ts`                     | Show presence live Realtime smoke (data/Realtime-dependent; run when touching show presence).   |

@@ -223,11 +223,15 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
                   <ResultBadge resultStatus={cls.resultStatus} />
                 )}
 
-                {/* Placement is part of the official result — AKC Scent Work awards 1st–4th
-                    for qualifying runs at every level. Only set once the class is fully scored. */}
+                {/* Show the finishing rank for every qualifying run. 1st–4th are the official
+                    AKC ribbon placements (PlacementPill gives them medal colors); 5th+ are shown
+                    as a muted participation rank — nice to know where you came in. Placement is
+                    only assigned once the whole class is scored; exclude the 0 default so an
+                    un-ranked row never renders "0th". (Intentional: do NOT cap at 4th.) */}
                 {cls.isScored &&
                   cls.resultStatus === 'qualified' &&
-                  cls.finalPlacement != null && (
+                  cls.finalPlacement != null &&
+                  cls.finalPlacement >= 1 && (
                     <PlacementPill placement={cls.finalPlacement} size="sm" />
                   )}
 

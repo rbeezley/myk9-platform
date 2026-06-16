@@ -1,0 +1,22 @@
+import { render, screen } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
+import { PlacementPill } from './PlacementPill';
+
+describe('PlacementPill ordinals', () => {
+  it.each([
+    [1, '1st'],
+    [2, '2nd'],
+    [3, '3rd'],
+    [4, '4th'],
+    [5, '5th'],
+    [11, '11th'],
+    [12, '12th'],
+    [13, '13th'],
+    [21, '21st'],
+    [22, '22nd'],
+    [23, '23rd'],
+  ])('renders %i as %s', (placement, label) => {
+    render(<PlacementPill placement={placement} />);
+    expect(screen.getByText(label)).toBeInTheDocument();
+  });
+});

@@ -195,6 +195,30 @@ describe('MyEntryCard result placement', () => {
     expect(screen.getByText('NQ')).toBeInTheDocument();
     expect(screen.queryByText(/^\d+(st|nd|rd|th)$/)).not.toBeInTheDocument();
   });
+
+  it('shows the participation rank beyond 4th (intentionally not capped) for a qualifying entry', () => {
+    // Only 1st–4th get official ribbons, but exhibitors still want to see where they
+    // came in, so the rank renders for every qualifier (5th, 6th, …).
+    renderCard(
+      makeEntry({
+        classes: [makeClass({ isScored: true, resultStatus: 'qualified', finalPlacement: 5 })],
+      })
+    );
+
+    expect(screen.getByText('Q')).toBeInTheDocument();
+    expect(screen.getByText('5th')).toBeInTheDocument();
+  });
+
+  it('omits placement for the 0 default (un-ranked row) rather than rendering "0th"', () => {
+    renderCard(
+      makeEntry({
+        classes: [makeClass({ isScored: true, resultStatus: 'qualified', finalPlacement: 0 })],
+      })
+    );
+
+    expect(screen.getByText('Q')).toBeInTheDocument();
+    expect(screen.queryByText('0th')).not.toBeInTheDocument();
+  });
 });
 
 describe('MyEntryCard post-deadline recovery', () => {

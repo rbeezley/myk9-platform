@@ -25,6 +25,7 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
   userRole,
   people,
   isDeleting,
+  canRestore,
   onEditPanelClose,
   onDeleteDialogClose,
   onDelete,
@@ -141,6 +142,7 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
           dog={dog}
           isSubmitting={isDeleting ?? false}
           activeEntryCount={activeEntryCount}
+          canRestore={canRestore ?? false}
         />
       )}
 

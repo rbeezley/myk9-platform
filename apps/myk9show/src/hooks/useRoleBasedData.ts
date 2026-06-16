@@ -114,6 +114,35 @@ export function useCanAccessDog(dogId: string): boolean {
 }
 
 /**
+ * Hook to check if the current user may DELETE a specific dog.
+ *
+ * Mirrors the `soft_delete_dog` RPC permission gate (owner / co-owner / site
+ * admin) so the UI hides the action instead of letting it fail server-side.
+ * Deliberately NARROWER than useCanAccessDog: secretaries and club admins can
+ * *view* any dog but the RPC rejects their delete, so they must not see it.
+ *
+ * Co-owner is omitted: no dogs currently set co_owner_id and it is not on the
+ * Dog type. Revisit if co-ownership ships (the RPC already allows it).
+ */
+export function useCanDeleteDog(dogId: string): boolean {
+  const { userWithRoles, hasRole } = useAuthContext();
+  const { dogs } = useDogStoreCompat();
+  const allPeople = useUserStore(state => state.people);
+
+  return useMemo(() => {
+    if (!userWithRoles) return false;
+    if (hasRole(UserRole.SITE_ADMIN)) return true;
+
+    const dog = dogs.find(d => d.id === dogId);
+    if (!dog) return false;
+
+    const userPersonId =
+      userWithRoles.databaseUserId ?? getUserPersonFromAuthId(userWithRoles.id, allPeople)?.id;
+    return !!userPersonId && dog.ownerId === userPersonId;
+  }, [userWithRoles, hasRole, dogs, dogId, allPeople]);
+}
+
+/**
  * Hook to check if the current user can access a specific person
  */
 export function useCanAccessPerson(personId: string): boolean {

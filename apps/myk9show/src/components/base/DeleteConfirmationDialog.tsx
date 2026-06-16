@@ -14,6 +14,17 @@ export interface DeleteConfirmationDialogProps {
   isDeleting?: boolean | undefined;
   confirmLabel?: string | undefined;
   cancelLabel?: string | undefined;
+  /**
+   * Rendered inline right after the entity name in the primary sentence, e.g.
+   * " and 2 entries" → "You are about to delete <b>Dog 1</b> and 2 entries.".
+   * Omit for the plain "You are about to delete <b>X</b>." form.
+   */
+  impactSuffix?: React.ReactNode | undefined;
+  /**
+   * Replaces the default "This action cannot be undone." line. Use when the
+   * delete is reversible (e.g. a soft-delete that an admin can restore).
+   */
+  warningText?: React.ReactNode | undefined;
 }
 
 export function DeleteConfirmationDialog({
@@ -28,6 +39,8 @@ export function DeleteConfirmationDialog({
   isDeleting = false,
   confirmLabel = 'Delete',
   cancelLabel = 'Cancel',
+  impactSuffix,
+  warningText = 'This action cannot be undone.',
 }: DeleteConfirmationDialogProps) {
   const defaultTitle = title || `Delete ${entityType}`;
   const defaultTitleIcon = titleIcon || <Trash2 className="w-5 h-5" />;
@@ -51,11 +64,10 @@ export function DeleteConfirmationDialog({
           <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
           <div className="flex-1">
             <p className="text-sm text-muted-foreground">
-              You are about to delete <strong className="text-foreground">{entityName}</strong>.
+              You are about to delete <strong className="text-foreground">{entityName}</strong>
+              {impactSuffix}.
             </p>
-            <p className="text-sm text-muted-foreground mt-2">
-              This action cannot be undone.
-            </p>
+            <p className="text-sm text-muted-foreground mt-2">{warningText}</p>
           </div>
         </div>
       </div>

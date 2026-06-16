@@ -24,6 +24,8 @@ export interface HeroProfileCardProps {
   onPhotoDialogOpen: () => void;
   onDeleteDialogOpen: () => void;
   onStatusDialogOpen?: () => void;
+  /** When false, the Delete action is hidden (user fails the delete permission gate). */
+  canDelete?: boolean;
 }
 
 export interface DogInfoCardsProps {
@@ -59,6 +61,8 @@ export interface DogDialogsProps {
   userRole: UserRole;
   people: User[];
   isDeleting?: boolean;
+  /** Whether the current user can restore a deleted dog (drives the warning copy). */
+  canRestore?: boolean;
   onEditPanelClose: () => void;
   onDeleteDialogClose: () => void;
   onDelete?: (() => Promise<void>) | undefined;

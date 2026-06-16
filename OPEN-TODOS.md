@@ -2,6 +2,8 @@
 
 Active work items only. Resolved historical context lives in git history and dated plan docs.
 
+> **Launch sequencing lives in [`docs/plan-launch-execution-lanes.md`](docs/plan-launch-execution-lanes.md)** (canonical, lane-ordered as of 2026-06-16). Spin each *lane step* into its own conversation. This file remains the detailed item inventory.
+
 ---
 
 ## QA Program — execution order — 2026-06-12

@@ -1,4 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
+import { config as loadEnv } from 'dotenv';
+
+// Load .env.local first (gitignored), then .env — so E2E_* test creds reach the
+// test process under this config too (the authed specs read them).
+loadEnv({ path: '.env.local', override: false });
+loadEnv({ path: '.env', override: false });
 
 /**
  * CI E2E Test Configuration for myK9Show

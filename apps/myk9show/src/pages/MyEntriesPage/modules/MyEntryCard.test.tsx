@@ -155,47 +155,7 @@ describe('MyEntryCard history status clarity', () => {
   });
 });
 
-describe('MyEntryCard result placement', () => {
-  it('shows the placement (e.g. 2nd) next to the Q for a placed qualifying entry', () => {
-    renderCard(
-      makeEntry({
-        classes: [
-          makeClass({
-            isScored: true,
-            resultStatus: 'qualified',
-            finalPlacement: 2,
-            searchTimeSeconds: 42.5,
-          }),
-        ],
-      })
-    );
-
-    expect(screen.getByText('Q')).toBeInTheDocument();
-    expect(screen.getByText('2nd')).toBeInTheDocument();
-  });
-
-  it('omits placement when the qualifying entry has no placement yet (class not fully scored)', () => {
-    renderCard(
-      makeEntry({
-        classes: [makeClass({ isScored: true, resultStatus: 'qualified', finalPlacement: undefined })],
-      })
-    );
-
-    expect(screen.getByText('Q')).toBeInTheDocument();
-    expect(screen.queryByText(/^\d+(st|nd|rd|th)$/)).not.toBeInTheDocument();
-  });
-
-  it('omits placement for a non-qualifying (NQ) entry', () => {
-    renderCard(
-      makeEntry({
-        classes: [makeClass({ isScored: true, resultStatus: 'nq', finalPlacement: undefined })],
-      })
-    );
-
-    expect(screen.getByText('NQ')).toBeInTheDocument();
-    expect(screen.queryByText(/^\d+(st|nd|rd|th)$/)).not.toBeInTheDocument();
-  });
-
+describe('MyEntryCard placement — edge cases (beyond the #775 "scored result display" suite)', () => {
   it('shows the participation rank beyond 4th (intentionally not capped) for a qualifying entry', () => {
     // Only 1st–4th get official ribbons, but exhibitors still want to see where they
     // came in, so the rank renders for every qualifier (5th, 6th, …).

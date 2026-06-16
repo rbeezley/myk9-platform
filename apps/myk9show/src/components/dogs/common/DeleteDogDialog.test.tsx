@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildImpactSuffix, buildRestoreNote } from './deleteDogDialogCopy';
+import { buildImpactSuffix, buildWarningText } from './deleteDogDialogCopy';
 
 describe('DeleteDogDialog buildImpactSuffix', () => {
   it('is empty when the dog has no active entries', () => {
@@ -19,21 +19,25 @@ describe('DeleteDogDialog buildImpactSuffix', () => {
   });
 });
 
-describe('DeleteDogDialog buildRestoreNote', () => {
-  it('mentions only the dog when there are no entries', () => {
-    expect(buildRestoreNote(0)).toBe(
+describe('DeleteDogDialog buildWarningText', () => {
+  it('tells a non-admin the action cannot be undone (restore UI is admin-only)', () => {
+    expect(buildWarningText(2, false)).toBe('This action cannot be undone.');
+    expect(buildWarningText(0, false)).toBe('This action cannot be undone.');
+  });
+
+  it('gives an admin the restore note, dog-only when there are no entries', () => {
+    expect(buildWarningText(0, true)).toBe(
       'The dog can be restored by an administrator from Admin → Data Lifecycle.'
     );
   });
 
-  it('mentions the dog and its entries when entries cascade', () => {
-    expect(buildRestoreNote(3)).toBe(
+  it('gives an admin the restore note naming entries when they cascade', () => {
+    expect(buildWarningText(3, true)).toBe(
       'The dog and its entries can be restored by an administrator from Admin → Data Lifecycle.'
     );
   });
 
-  it('never claims the action cannot be undone', () => {
-    expect(buildRestoreNote(3)).not.toMatch(/cannot be undone/i);
-    expect(buildRestoreNote(0)).not.toMatch(/cannot be undone/i);
+  it('admin restore note never claims the action cannot be undone', () => {
+    expect(buildWarningText(3, true)).not.toMatch(/cannot be undone/i);
   });
 });

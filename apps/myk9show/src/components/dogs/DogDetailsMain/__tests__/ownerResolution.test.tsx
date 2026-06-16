@@ -54,8 +54,14 @@ vi.mock('@/store/entryStore', () => ({
 // Hook / dependency mocks
 // ---------------------------------------------------------------------------
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({ getUserRoles: () => ['secretary'] }),
+  useAuthContext: () => ({ getUserRoles: () => ['secretary'], hasRole: () => false }),
   getPrimaryRole: () => 'secretary',
+}));
+
+// Delete-permission logic is covered in useRoleBasedData.test.ts; mock it here so
+// this render test doesn't pull the dog data layer (useDogStoreCompat → logging).
+vi.mock('@/hooks/useRoleBasedData', () => ({
+  useCanDeleteDog: () => false,
 }));
 
 vi.mock('@/hooks/useBreadcrumb', () => ({

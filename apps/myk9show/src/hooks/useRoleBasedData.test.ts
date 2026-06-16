@@ -3,7 +3,7 @@ import { renderHook } from '@testing-library/react';
 import { UserRole } from '@/types/auth-types';
 import type { Dog } from '@/types/dog-types';
 import type { User } from '@/types/user-types';
-import { useCurrentUserPersonId, useRoleBasedDogs } from './useRoleBasedData';
+import { useCanDeleteDog, useCurrentUserPersonId, useRoleBasedDogs } from './useRoleBasedData';
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: vi.fn(),
@@ -82,5 +82,48 @@ describe('useRoleBasedData owner scope', () => {
     const { result } = renderHook(() => useCurrentUserPersonId());
 
     expect(result.current).toBe('person-1');
+  });
+});
+
+describe('useCanDeleteDog (mirrors the soft_delete_dog RPC gate)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setMocks();
+  });
+
+  // Helper: re-mock the auth context with a specific role predicate.
+  const withRole = (predicate: (role: UserRole) => boolean) => {
+    vi.mocked(useAuthContext).mockReturnValue({
+      userWithRoles: {
+        id: 'auth-user',
+        databaseUserId: 'person-1',
+        roles: [],
+        permissions: [],
+        scopes: [],
+      },
+      hasRole: predicate,
+    } as ReturnType<typeof useAuthContext>);
+  };
+
+  it('lets an owner delete their own dog', () => {
+    const { result } = renderHook(() => useCanDeleteDog('current-dog-1'));
+    expect(result.current).toBe(true);
+  });
+
+  it('does not let a non-owner exhibitor delete someone else’s dog', () => {
+    const { result } = renderHook(() => useCanDeleteDog('legacy-dog'));
+    expect(result.current).toBe(false);
+  });
+
+  it('does not let a secretary delete a dog they do not own (button must hide, not fail)', () => {
+    withRole(role => role === UserRole.SECRETARY);
+    const { result } = renderHook(() => useCanDeleteDog('legacy-dog'));
+    expect(result.current).toBe(false);
+  });
+
+  it('lets a site admin delete any dog', () => {
+    withRole(role => role === UserRole.SITE_ADMIN);
+    const { result } = renderHook(() => useCanDeleteDog('legacy-dog'));
+    expect(result.current).toBe(true);
   });
 });

@@ -20,11 +20,18 @@ export function buildImpactSuffix(activeEntryCount?: number): string {
 }
 
 /**
- * Replaces the generic "This action cannot be undone." The dog soft-delete is
- * reversible by an admin, and entries cascade-deleted with it are restorable
- * too — both from Admin → Data Lifecycle.
+ * The warning line under the primary sentence.
+ *
+ * The restore UI (`/admin/data-lifecycle`) is admin-only, so only an admin can
+ * actually undo this delete. Non-admins (e.g. an exhibitor deleting their own
+ * dog) genuinely can't reverse it themselves, so they get the honest "cannot be
+ * undone." Admins get the restore note, naming entries too when they cascade.
  */
-export function buildRestoreNote(activeEntryCount?: number): string {
+export function buildWarningText(
+  activeEntryCount: number | undefined,
+  canRestore: boolean
+): string {
+  if (!canRestore) return 'This action cannot be undone.';
   const what =
     !activeEntryCount || activeEntryCount <= 0 ? 'The dog' : 'The dog and its entries';
   return `${what} can be restored by an administrator from Admin → Data Lifecycle.`;

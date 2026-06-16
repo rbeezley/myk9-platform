@@ -4,6 +4,8 @@ import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { useUserStore } from '@/store/userStore';
 import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
+import { useCanDeleteDog } from '@/hooks/useRoleBasedData';
+import { UserRole } from '@/types/auth-types';
 import Breadcrumb from '@/components/common/Breadcrumb';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { RecordPageLayout } from '@/components/layout/record';
@@ -36,9 +38,14 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
 }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const people = useUserStore(state => state.people);
-  const { getUserRoles } = useAuthContext();
+  const { getUserRoles, hasRole } = useAuthContext();
   const userRole = getPrimaryRole(getUserRoles());
   const isSecretary = userRole === 'secretary';
+  // Mirror the soft_delete_dog RPC gate so the Delete action is hidden (not
+  // failed) when the user can't delete; restore copy only shows to admins who
+  // can reach the admin-only restore UI.
+  const canDeleteDog = useCanDeleteDog(dog.id);
+  const canRestoreDog = hasRole(UserRole.SITE_ADMIN);
   const { isPremium } = useSubscriptionGate();
 
   const [autoOpenAddRegistration, setAutoOpenAddRegistration] = useState(false);
@@ -284,6 +291,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
             onPhotoDialogOpen={() => handlePhotoDialogOpen(true)}
             onDeleteDialogOpen={() => setIsDeleteDialogOpen(true)}
             onStatusDialogOpen={() => setIsStatusDialogOpen(true)}
+            canDelete={canDeleteDog}
           />
         }
         properties={[]}
@@ -309,6 +317,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
         showCelebration={showCelebration}
         userRole={userRole}
         people={people}
+        canRestore={canRestoreDog}
         onEditPanelClose={() => setIsEditPanelOpen(false)}
         onDeleteDialogClose={() => setIsDeleteDialogOpen(false)}
         onDelete={onDelete}

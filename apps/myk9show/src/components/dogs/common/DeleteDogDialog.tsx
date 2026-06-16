@@ -1,7 +1,7 @@
 import React from 'react';
 import { DeleteConfirmationDialog } from '@/components/base';
 import type { Dog } from '@/types/dog-types';
-import { buildImpactSuffix, buildRestoreNote, deleteDogSubtitle } from './deleteDogDialogCopy';
+import { buildImpactSuffix, buildWarningText, deleteDogSubtitle } from './deleteDogDialogCopy';
 
 interface DeleteDogDialogProps {
   open: boolean;
@@ -15,6 +15,12 @@ interface DeleteDogDialogProps {
    * to entries (see migration 20260616130000). Pass undefined while loading.
    */
   activeEntryCount?: number | undefined;
+  /**
+   * Whether the current user can restore a deleted dog (admin-only restore UI).
+   * Drives the warning copy: admins get the restore note, everyone else gets
+   * "This action cannot be undone." Defaults to false (the safe, honest message).
+   */
+  canRestore?: boolean;
 }
 
 const DeleteDogDialog: React.FC<DeleteDogDialogProps> = ({
@@ -24,6 +30,7 @@ const DeleteDogDialog: React.FC<DeleteDogDialogProps> = ({
   dog,
   isSubmitting,
   activeEntryCount,
+  canRestore = false,
 }) => {
   return (
     <DeleteConfirmationDialog
@@ -34,7 +41,7 @@ const DeleteDogDialog: React.FC<DeleteDogDialogProps> = ({
       entityType="Dog"
       description={deleteDogSubtitle}
       impactSuffix={buildImpactSuffix(activeEntryCount)}
-      warningText={buildRestoreNote(activeEntryCount)}
+      warningText={buildWarningText(activeEntryCount, canRestore)}
       isDeleting={isSubmitting}
     />
   );

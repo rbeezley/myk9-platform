@@ -16,6 +16,7 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
   onPhotoDialogOpen,
   onDeleteDialogOpen,
   onStatusDialogOpen,
+  canDelete = true,
 }) => {
   const isSecretary = role === 'secretary';
 
@@ -91,7 +92,7 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
             onEdit={onEditPanelOpen}
             onEditPhoto={onPhotoDialogOpen}
             onChangeStatus={onStatusDialogOpen}
-            onDelete={onDeleteDialogOpen}
+            onDelete={canDelete ? onDeleteDialogOpen : undefined}
             editLabel="Edit Dog"
             hideEdit
           />

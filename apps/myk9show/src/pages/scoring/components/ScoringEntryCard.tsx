@@ -150,8 +150,11 @@ export const ScoringEntryCard = forwardRef<HTMLDivElement, ScoringEntryCardProps
           )}
         </div>
 
-        {/* Placement (if scored) */}
-        {entry.placement && entry.placement <= 4 && (
+        {/* Placement (if scored). Show the full finishing rank for every qualifier — this is a
+            scoring view, not the podium screen. 1st–4th get a medal-colored trophy (official
+            ribbon placements); 5th+ get a plain trophy + rank. Do NOT cap at 4th here; the
+            podium components (PodiumCard / TVPodiumCard) are where 1–4 only is correct. */}
+        {entry.placement && (
           <div className="shrink-0 flex items-center gap-1">
             <Trophy
               className={cn(

@@ -1,3 +1,4 @@
+import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { formatDateInTimezone } from '../utils/dateFormat';
 
 interface FinalEditorialBandProps {
@@ -100,6 +101,11 @@ export function FinalEditorialBand({
         >
           Open the entry wizard <span aria-hidden="true">→</span>
         </a>
+        <SeeClassesLink
+          entryWizardUrl={entryWizardUrl}
+          className="mt-3 block"
+          style={{ color: 'var(--mz-paper)' }}
+        />
       </div>
     </section>
   );

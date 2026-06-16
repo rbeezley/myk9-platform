@@ -1,3 +1,4 @@
+import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { FieldGuideDarkBand } from '../../components/FieldGuideDarkBand';
 import {
   FIELD_GUIDE_BODY_FAMILY,
@@ -145,6 +146,12 @@ export function FinalCtaSection({
           >
             SUBMIT ENTRY →
           </a>
+          <div style={{ marginTop: 10, textAlign: 'center' }}>
+            <SeeClassesLink
+              entryWizardUrl={entryWizardUrl}
+              style={{ color: fieldGuideColors.paper, fontFamily: FIELD_GUIDE_BODY_FAMILY }}
+            />
+          </div>
           <div
             style={{
               fontFamily: FIELD_GUIDE_MONO_FAMILY,

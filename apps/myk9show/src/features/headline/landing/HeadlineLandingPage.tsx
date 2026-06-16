@@ -5,6 +5,7 @@ import { useHeritageLandingData } from '@/features/heritage/landing/useHeritageL
 import type { HeritageLandingData } from '@/features/heritage/landing/types';
 import { formatJourneyDate } from '@/features/heritage/landing/utils/dateFormat';
 import { useCountdown } from '@/features/heritage/hooks/useCountdown';
+import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { ensureHeadlineFontsLoaded } from '../fonts';
 import { FinalCta, Footer, Officers, ScheduleAndPlan } from './HeadlineLandingLowerSections';
 import { SectionHead } from './HeadlineLandingPrimitives';
@@ -115,6 +116,7 @@ function Hero({ data }: { data: HeritageLandingData }) {
           <a className="hd-cta ghost" href="#particulars">
             Review details
           </a>
+          <SeeClassesLink entryWizardUrl={data.entryWizardUrl} />
           <span className="hd-cta-meta">
             Closes {shortDate(data.entryCloseDate, data.timezone)}
           </span>

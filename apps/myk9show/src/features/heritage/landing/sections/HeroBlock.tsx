@@ -1,3 +1,4 @@
+import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { useCountdown } from '../../hooks/useCountdown';
 import { HeritageOrnamentRule } from '../../components/HeritageOrnamentRule';
 import { HeritageEngravedFrame } from '../../components/HeritageEngravedFrame';
@@ -215,6 +216,11 @@ export function HeroBlock({
           >
             Enter this show
           </a>
+          <SeeClassesLink
+            entryWizardUrl={entryWizardUrl}
+            className="mt-3"
+            style={{ color: 'var(--hl-claret)', fontFamily: "'EB Garamond', Georgia, serif" }}
+          />
         </div>
       </HeritageEngravedFrame>
     </section>

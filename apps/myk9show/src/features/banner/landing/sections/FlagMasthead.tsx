@@ -1,3 +1,4 @@
+import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { BannerFlagBar } from '../../components/BannerFlagBar';
 import { BANNER_BODY_FAMILY, BANNER_DISPLAY_FAMILY } from '../../fonts';
 import { bannerSpacing } from '../../tokens';
@@ -85,6 +86,10 @@ export function FlagMasthead({
         >
           Enter this show
         </a>
+        <SeeClassesLink
+          entryWizardUrl={entryWizardUrl}
+          style={{ color: brandColors.textOnFlag, fontFamily: BANNER_BODY_FAMILY }}
+        />
       </div>
 
       <p

@@ -1,3 +1,4 @@
+import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { PosterInkBlot } from '../../components/PosterInkBlot';
 import { PosterRotatingSquare } from '../../components/PosterRotatingSquare';
 import {
@@ -131,6 +132,12 @@ export function FinalCtaSection({
         >
           OPEN ENTRY WIZARD →
         </a>
+        <div style={{ marginTop: 14, position: 'relative', zIndex: 3 }}>
+          <SeeClassesLink
+            entryWizardUrl={entryWizardUrl}
+            style={{ color: posterColors.ink, fontFamily: POSTER_MONO_FAMILY }}
+          />
+        </div>
       </div>
     </section>
   );

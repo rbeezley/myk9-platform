@@ -4,38 +4,11 @@ import { cacheStrategies } from '@/lib/queryClient';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Users, ClipboardList, Loader2 } from 'lucide-react';
-import { getEntriesByShow } from '@/services/database/entries';
+import { getEntriesByShow, getPublicEntriesByShow } from '@/services/database/entries';
 import { getEntryStatusClasses, formatDate } from '@/utils/entryManagementUtils';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
-
-/** Shape of a single entry row returned by getEntriesByShow. */
-interface ShowEntryRow {
-  id: string;
-  entry_status: string | null;
-  handler: string | null;
-  armband: string | null;
-  entry_fee: number | null;
-  payment_status: string | null;
-  created_at: string | null;
-  dog: {
-    id: string;
-    name: string | null;
-    call_name: string | null;
-    breed: string | null;
-    owner: {
-      id: string;
-      first_name: string | null;
-      last_name: string | null;
-      email: string | null;
-    } | null;
-  } | null;
-  class: {
-    id: string;
-    name: string | null;
-    class_number: number | null;
-    entry_fee: number | null;
-  } | null;
-}
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { publicRowToShowEntryRow, type ShowEntryRow } from './entriesTabMappers';
 
 interface EntriesTabProps {
   showId: string;
@@ -110,19 +83,26 @@ const entryColumns: ColumnDef<ShowEntryRow, unknown>[] = [
 ];
 
 export const EntriesTab: React.FC<EntriesTabProps> = ({ showId, onManageEntries }) => {
+  const { user, loading: authLoading } = useAuthContext();
+  const isAnon = !user;
+
   const {
     data: entries = [],
     isLoading: loading,
     isError,
     error: queryError,
   } = useQuery({
-    queryKey: ['shows', showId, 'entries'],
+    queryKey: ['shows', showId, 'entries', isAnon ? 'public' : 'auth'],
     queryFn: async () => {
+      if (isAnon) {
+        const result = await getPublicEntriesByShow(showId);
+        return result.data.map(publicRowToShowEntryRow);
+      }
       const result = await getEntriesByShow(showId);
       if (result.error) throw result.error;
       return (result.data as unknown as ShowEntryRow[]) || [];
     },
-    enabled: !!showId,
+    enabled: !!showId && !authLoading,
     ...cacheStrategies.dynamic,
   });
 

@@ -33,11 +33,13 @@ export interface ResultsFilters {
 }
 
 async function fetchShowResults(showId: string): Promise<ClassResult[]> {
-  // Fetch scored entries with placements 1–4 for this show
-  // TODO: Remove cast after regenerating Supabase types with migration 094
+  // Fetch scored entries with placements 1–4 for this show. Read through
+  // view_public_entry_results so the result-visibility cascade is enforced by
+  // the database: placements for classes whose results have not been released
+  // arrive NULL and are filtered out by the placement range below.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = (await (supabase as any)
-    .from('view_entry_with_results')
+    .from('view_public_entry_results')
     .select(
       'class_id, class_name, class_element, class_level, class_results_released_at, trial_id, handler, dog_call_name, dog_breed, armband, final_placement'
     )

@@ -1,7 +1,13 @@
 import { render, screen, waitFor } from '@/test/utils/testUtils';
 import { EntriesTab } from '../EntriesTab';
 
+// Authenticated viewer → EntriesTab takes the full table-read path (getEntriesByShow).
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({ user: { id: 'u1' }, loading: false }),
+}));
+
 vi.mock('@/services/database/entries', () => ({
+  getPublicEntriesByShow: vi.fn(),
   getEntriesByShow: vi.fn().mockResolvedValue({
     data: [
       {

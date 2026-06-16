@@ -17,6 +17,18 @@ Code complete; **migration NOT yet pushed** (shared-DB — awaiting confirmation
   to confirm the REVOKE targets the real grantor (anon vs PUBLIC).
 - Codex second opinion recommended (RLS = high-stakes).
 
+### PR #779 review fixes (2026-06-16)
+
+- **P0 typecheck:** `view_public_entry_results` wasn't in the generated Supabase
+  types → typed `.from()` failed (TS2769). Hand-added the view Row to
+  `packages/supabase/src/types/database.types.ts` (regen will overwrite it after
+  push); `publicReads.ts` casts the non-literal-`select` result via
+  `as unknown as PublicEntryRow[]`.
+- **P1 anon count reads:** `useEntriesByShowQuery` (ShowDetailsPage catalog count
+  + 7 styled-landing hooks) still hit the revoked full `entries` read. Branched it
+  by auth like the other hooks (anon → `getPublicEntriesByShow`); secretary
+  workbench consumers stay on the table path. Added `useEntriesByShowQuery.test.ts`.
+
 Security follow-up from PR #777 self-review. The `results_released_at` (and the
 broader per-field visibility cascade) release gate for public class results is
 enforced **only client-side**. Anonymous users — and exhibitors for their own

@@ -6,6 +6,7 @@ import {
   getAllEntries,
   getEntryById,
   getEntriesByShow,
+  getPublicEntriesByShow,
   getEntriesByClass,
   getEntriesByDog,
   getEntriesByStatus,
@@ -19,6 +20,7 @@ import {
 } from '@/services/database/entries';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { entryInvalidationKeys } from '@/services/database/entries/invalidation';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import type { DbEntryInsert, DbEntryUpdate } from '@/types/database-mappings';
 
 // Get all entries with related data
@@ -50,14 +52,25 @@ export const useEntryQuery = (id: string, enabled = true) => {
 
 // Get entries by show ID
 export const useEntriesByShowQuery = (showId: string, enabled = true) => {
+  // Public show + styled-landing pages render this for logged-out visitors, who
+  // no longer hold a broad SELECT on `entries`. Route anon through the
+  // cascade-gated public view (safe columns only); authenticated callers keep
+  // the full replication-backed read.
+  const { user, loading } = useAuthContext();
+  const isAnon = !user;
+
   return useQuery({
-    queryKey: queryKeys.showEntries(showId),
+    queryKey: [...queryKeys.showEntries(showId), isAnon ? 'public' : 'auth'],
     queryFn: async () => {
+      if (isAnon) {
+        const { data } = await getPublicEntriesByShow(showId);
+        return data as unknown as Awaited<ReturnType<typeof getEntriesByShow>>['data'];
+      }
       const { data, error } = await getEntriesByShow(showId);
       if (error) throw error;
       return data;
     },
-    enabled: !!showId && enabled,
+    enabled: !!showId && enabled && !loading,
     ...cacheStrategies.moderate,
   });
 };

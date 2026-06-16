@@ -63,7 +63,7 @@ export async function getPublicEntriesByClass(classId: string) {
     .order('run_order', { ascending: true, nullsFirst: false });
 
   if (error) throw createDatabaseError(error, 'view_public_entry_results', 'select_by_class');
-  return { data: (data ?? []) as PublicEntryRow[], error: null };
+  return { data: (data ?? []) as unknown as PublicEntryRow[], error: null };
 }
 
 export async function getPublicEntriesByShow(showId: string) {
@@ -74,7 +74,7 @@ export async function getPublicEntriesByShow(showId: string) {
     .order('created_at', { ascending: false });
 
   if (error) throw createDatabaseError(error, 'view_public_entry_results', 'select_by_show');
-  return { data: (data ?? []) as PublicEntryRow[], error: null };
+  return { data: (data ?? []) as unknown as PublicEntryRow[], error: null };
 }
 
 export async function getPublicEntriesByTrial(trialId: string) {
@@ -85,5 +85,5 @@ export async function getPublicEntriesByTrial(trialId: string) {
     .order('created_at', { ascending: false });
 
   if (error) throw createDatabaseError(error, 'view_public_entry_results', 'select_by_trial');
-  return { data: (data ?? []) as PublicEntryRow[], error: null };
+  return { data: (data ?? []) as unknown as PublicEntryRow[], error: null };
 }

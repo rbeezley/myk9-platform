@@ -1,3 +1,4 @@
+import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { BannerFlagBar } from '../../components/BannerFlagBar';
 import { BANNER_BODY_FAMILY, BANNER_DISPLAY_FAMILY } from '../../fonts';
 import { bannerSpacing } from '../../tokens';
@@ -17,6 +18,7 @@ interface FlagMastheadProps {
   venueCity: string | null;
   timezone: string;
   entryWizardUrl: string;
+  classesHref: string | null;
   canEnterOnline?: boolean;
 }
 
@@ -38,6 +40,7 @@ export function FlagMasthead({
   venueCity,
   timezone,
   entryWizardUrl,
+  classesHref,
   canEnterOnline = true,
 }: FlagMastheadProps) {
   const dateRangeLabel = formatDateRange(trialStartDate, trialEndDate, timezone);
@@ -106,6 +109,10 @@ export function FlagMasthead({
             Entries are not available yet because no classes are assigned yet.
           </p>
         )}
+        <SeeClassesLink
+          href={classesHref}
+          style={{ color: brandColors.textOnFlag, fontFamily: BANNER_BODY_FAMILY }}
+        />
       </div>
 
       <p

@@ -3,7 +3,9 @@ import { getShowStyle } from '@/features/registries';
 import { publishExperience } from '@/features/experience/publishExperience';
 import { STYLED_LANDING_BY_STYLE } from '@/features/_shared/styledLandingRegistry';
 import { Link, Outlet, useParams, useNavigate, useSearchParams, useMatch } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { getTrialsByShow } from '@/services/database/trials';
+import { pickLandingTrials } from './ShowDetailsPage.landingTrials';
 import {
   LayoutDashboard,
   Trophy,
@@ -240,6 +242,23 @@ const ShowDetailsPage: React.FC = () => {
             })
         : [],
     [showId_, trials]
+  );
+
+  // Public/anon fallback for trials. The trial store (associatedTrials) is fed by the
+  // replication layer, which does NOT sync for guests (ReplicationSyncProvider skips guest
+  // sync) — so a cold signed-out visitor on a public styled landing has zero replicated
+  // trials even though the public show loaded. getTrialsByShow self-falls-through to a direct
+  // PostgREST read when the show isn't in the replicated store, so it works for anon. We only
+  // enable it when the store is empty, then map the rows to the Trial[] the landing expects.
+  const { data: publicTrialsResult } = useQuery({
+    queryKey: ['public-show-trials', showId_],
+    queryFn: () => getTrialsByShow(showId_ as string),
+    enabled: !!showId_ && associatedTrials.length === 0,
+    staleTime: 60_000,
+  });
+  const landingTrials = useMemo(
+    () => pickLandingTrials(associatedTrials, publicTrialsResult?.data),
+    [associatedTrials, publicTrialsResult]
   );
 
   // Check if user has entries in this show (determines default tab)
@@ -491,8 +510,8 @@ const ShowDetailsPage: React.FC = () => {
       return (
         <StyledLanding
           show={publicLandingShow}
-          trial={associatedTrials[0] ?? null}
-          allTrials={associatedTrials}
+          trial={landingTrials[0] ?? null}
+          allTrials={landingTrials}
           hasEntryClassInventory={hasEntryClassInventory}
         />
       );

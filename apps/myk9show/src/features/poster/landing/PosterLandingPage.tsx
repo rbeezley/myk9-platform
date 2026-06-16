@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
+import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { ensurePosterFontsLoaded } from '../fonts';
 import { posterColors } from '../tokens';
 import { usePosterLandingData } from './usePosterLandingData';
@@ -59,6 +60,7 @@ export function PosterLandingPage({
   }, []);
 
   const data = usePosterLandingData(show, trial, allTrials);
+  const classesHref = publicClassesHref(show?.id, allTrials);
   const canEnterOnline = hasEntryClassInventory !== false;
 
   // Build the show abbreviation from the first letters of words, e.g.
@@ -153,6 +155,7 @@ export function PosterLandingPage({
         />
         <FinalCtaSection
           entryWizardUrl={data.entryWizardUrl}
+          classesHref={classesHref}
           entryCloseDate={data.entryCloseDate}
           timezone={data.timezone}
           canEnterOnline={canEnterOnline}

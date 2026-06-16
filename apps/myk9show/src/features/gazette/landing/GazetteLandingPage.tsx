@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
+import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { ensureGazetteFontsLoaded } from '../fonts';
 import { useGazetteLandingData } from './useGazetteLandingData';
 import { StickyNav } from './sections/StickyNav';
@@ -43,6 +44,7 @@ export function GazetteLandingPage({
   }, []);
 
   const data = useGazetteLandingData(show, trial, allTrials);
+  const classesHref = publicClassesHref(show?.id, allTrials);
   const canEnterOnline = hasEntryClassInventory !== false;
 
   const editionLabel = data.edition != null
@@ -132,6 +134,7 @@ export function GazetteLandingPage({
 
         <FinalCtaSection
           entryWizardUrl={data.entryWizardUrl}
+          classesHref={classesHref}
           entryCloseDate={data.entryCloseDate}
           timezone={data.timezone}
           canEnterOnline={canEnterOnline}

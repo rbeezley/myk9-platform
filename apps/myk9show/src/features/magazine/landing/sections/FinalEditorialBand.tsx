@@ -1,7 +1,9 @@
+import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { formatDateInTimezone } from '../utils/dateFormat';
 
 interface FinalEditorialBandProps {
   entryWizardUrl: string;
+  classesHref: string | null;
   entryCloseDate: string | null;
   timezone: string;
   canEnterOnline?: boolean;
@@ -23,6 +25,7 @@ interface FinalEditorialBandProps {
  */
 export function FinalEditorialBand({
   entryWizardUrl,
+  classesHref,
   entryCloseDate,
   timezone,
   canEnterOnline = true,
@@ -128,6 +131,12 @@ export function FinalEditorialBand({
             The secretary still needs to assign classes before online entry is available.
           </p>
         )}
+
+        <SeeClassesLink
+          href={classesHref}
+          className="mt-3 block"
+          style={{ color: 'var(--mz-paper)' }}
+        />
       </div>
     </section>
   );

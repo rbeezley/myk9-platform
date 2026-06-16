@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
+import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { ensureMonogramFontsLoaded } from '../fonts';
 import { useMonogramLandingData } from './useMonogramLandingData';
 import { StickyNav } from './sections/StickyNav';
@@ -43,6 +44,7 @@ export function MonogramLandingPage({
   }, []);
 
   const data = useMonogramLandingData(show, trial, allTrials);
+  const classesHref = publicClassesHref(show?.id, allTrials);
   const canEnterOnline = hasEntryClassInventory !== false;
 
   return (
@@ -84,6 +86,7 @@ export function MonogramLandingPage({
           venueCity={data.venueCity}
           timezone={data.timezone}
           entryWizardUrl={data.entryWizardUrl}
+          classesHref={classesHref}
           canEnterOnline={canEnterOnline}
         />
 

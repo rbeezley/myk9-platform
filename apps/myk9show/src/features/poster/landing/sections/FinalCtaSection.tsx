@@ -1,3 +1,4 @@
+import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { PosterInkBlot } from '../../components/PosterInkBlot';
 import { PosterRotatingSquare } from '../../components/PosterRotatingSquare';
 import {
@@ -10,6 +11,7 @@ import { formatDateInTimezone } from '../utils/dateFormat';
 
 interface FinalCtaSectionProps {
   entryWizardUrl: string;
+  classesHref: string | null;
   entryCloseDate: string | null;
   timezone: string;
   canEnterOnline?: boolean;
@@ -24,6 +26,7 @@ interface FinalCtaSectionProps {
  */
 export function FinalCtaSection({
   entryWizardUrl,
+  classesHref,
   entryCloseDate,
   timezone,
   canEnterOnline = true,
@@ -161,6 +164,12 @@ export function FinalCtaSection({
             The secretary still needs to assign classes before online entry is available.
           </p>
         )}
+        <div style={{ marginTop: 14, position: 'relative', zIndex: 3 }}>
+          <SeeClassesLink
+            href={classesHref}
+            style={{ color: posterColors.ink, fontFamily: POSTER_MONO_FAMILY }}
+          />
+        </div>
       </div>
     </section>
   );

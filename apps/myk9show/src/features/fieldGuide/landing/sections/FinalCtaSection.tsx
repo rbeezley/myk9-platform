@@ -1,3 +1,4 @@
+import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { FieldGuideDarkBand } from '../../components/FieldGuideDarkBand';
 import {
   FIELD_GUIDE_BODY_FAMILY,
@@ -9,6 +10,7 @@ import { formatDateInTimezone } from '../utils/dateFormat';
 
 interface FinalCtaSectionProps {
   entryWizardUrl: string;
+  classesHref: string | null;
   entryCloseDate: string | null;
   timezone: string;
   entryLimit: number | null;
@@ -24,6 +26,7 @@ interface FinalCtaSectionProps {
  */
 export function FinalCtaSection({
   entryWizardUrl,
+  classesHref,
   entryCloseDate,
   timezone,
   entryLimit,
@@ -160,6 +163,12 @@ export function FinalCtaSection({
           >
             SUBMIT ENTRY →
           </a>
+          <div style={{ marginTop: 10, textAlign: 'center' }}>
+            <SeeClassesLink
+              href={classesHref}
+              style={{ color: fieldGuideColors.paper, fontFamily: FIELD_GUIDE_BODY_FAMILY }}
+            />
+          </div>
           <div
             style={{
               fontFamily: FIELD_GUIDE_MONO_FAMILY,

@@ -1,5 +1,6 @@
 import { MonogramEmboss } from '../../components/MonogramEmboss';
 import { MonogramHeading } from '../../components/MonogramHeading';
+import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { MONOGRAM_BODY_FAMILY, MONOGRAM_DISPLAY_FAMILY, MONOGRAM_MONOGRAM_FAMILY } from '../../fonts';
 import { monogramColors, monogramSpacing } from '../../tokens';
@@ -17,6 +18,7 @@ interface HeroBlockProps {
   venueCity: string | null;
   timezone: string;
   entryWizardUrl: string;
+  classesHref: string | null;
   canEnterOnline?: boolean;
 }
 
@@ -66,6 +68,7 @@ export function HeroBlock({
   venueCity,
   timezone,
   entryWizardUrl,
+  classesHref,
   canEnterOnline = true,
 }: HeroBlockProps) {
   const countdown = useCountdown(entryCloseDate, timezone);
@@ -223,29 +226,35 @@ export function HeroBlock({
         )}
 
         {canEnterOnline ? (
-          <a
-            href={entryWizardUrl}
-            className="mg-hero__cta"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 14,
-              padding: '18px 36px',
-              background: monogramColors.ink,
-              color: monogramColors.paper,
-              fontFamily: MONOGRAM_DISPLAY_FAMILY,
-              fontStyle: 'italic',
-              fontSize: 18,
-              letterSpacing: '0.02em',
-              textDecoration: 'none',
-              transition: 'all 280ms ease',
-            }}
-          >
-            Enter your dog
-            <span aria-hidden style={{ fontFamily: MONOGRAM_MONOGRAM_FAMILY, fontSize: 22 }}>
-              →
-            </span>
-          </a>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 12 }}>
+            <a
+              href={entryWizardUrl}
+              className="mg-hero__cta"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 14,
+                padding: '18px 36px',
+                background: monogramColors.ink,
+                color: monogramColors.paper,
+                fontFamily: MONOGRAM_DISPLAY_FAMILY,
+                fontStyle: 'italic',
+                fontSize: 18,
+                letterSpacing: '0.02em',
+                textDecoration: 'none',
+                transition: 'all 280ms ease',
+              }}
+            >
+              Enter your dog
+              <span aria-hidden style={{ fontFamily: MONOGRAM_MONOGRAM_FAMILY, fontSize: 22 }}>
+                →
+              </span>
+            </a>
+            <SeeClassesLink
+              href={classesHref}
+              style={{ color: monogramColors.quill, fontFamily: MONOGRAM_BODY_FAMILY }}
+            />
+          </div>
         ) : (
           <p
             className="mg-hero__cta"

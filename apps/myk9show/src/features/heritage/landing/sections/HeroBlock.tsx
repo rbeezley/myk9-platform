@@ -1,3 +1,4 @@
+import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { useCountdown } from '../../hooks/useCountdown';
 import { HeritageOrnamentRule } from '../../components/HeritageOrnamentRule';
 import { HeritageEngravedFrame } from '../../components/HeritageEngravedFrame';
@@ -16,6 +17,7 @@ interface HeroBlockProps {
   venueCity: string | null;
   timezone: string;
   entryWizardUrl: string;
+  classesHref: string | null;
   canEnterOnline?: boolean;
 }
 
@@ -95,6 +97,7 @@ export function HeroBlock({
   venueCity,
   timezone,
   entryWizardUrl,
+  classesHref,
   canEnterOnline = true,
 }: HeroBlockProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>(0.1);
@@ -230,6 +233,11 @@ export function HeroBlock({
               Entries are not available yet because no classes are assigned yet.
             </p>
           )}
+          <SeeClassesLink
+            href={classesHref}
+            className="mt-3"
+            style={{ color: 'var(--hl-claret)', fontFamily: "'EB Garamond', Georgia, serif" }}
+          />
         </div>
       </HeritageEngravedFrame>
     </section>

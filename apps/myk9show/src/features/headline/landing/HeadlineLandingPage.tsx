@@ -5,6 +5,8 @@ import { useHeritageLandingData } from '@/features/heritage/landing/useHeritageL
 import type { HeritageLandingData } from '@/features/heritage/landing/types';
 import { formatJourneyDate } from '@/features/heritage/landing/utils/dateFormat';
 import { useCountdown } from '@/features/heritage/hooks/useCountdown';
+import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
+import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { ensureHeadlineFontsLoaded } from '../fonts';
 import { FinalCta, Footer, Officers, ScheduleAndPlan } from './HeadlineLandingLowerSections';
 import { SectionHead } from './HeadlineLandingPrimitives';
@@ -77,9 +79,11 @@ function HeadlineNav({
 
 function Hero({
   data,
+  classesHref,
   canEnterOnline = true,
 }: {
   data: HeritageLandingData;
+  classesHref: string | null;
   canEnterOnline?: boolean;
 }) {
   const countdown = useCountdown(data.entryCloseDate, data.timezone);
@@ -138,6 +142,7 @@ function Hero({
           <a className="hd-cta ghost" href="#particulars">
             Review details
           </a>
+          <SeeClassesLink href={classesHref} />
           <span className="hd-cta-meta">
             Closes {shortDate(data.entryCloseDate, data.timezone)}
           </span>
@@ -345,6 +350,7 @@ export function HeadlineLandingPage({
   }, []);
 
   const data = useHeritageLandingData(show, trial, allTrials);
+  const classesHref = publicClassesHref(show?.id, allTrials);
   const canEnterOnline = hasEntryClassInventory !== false;
 
   return (
@@ -365,7 +371,7 @@ export function HeadlineLandingPage({
 
       <HeadlineNav data={data} canEnterOnline={canEnterOnline} />
       <main>
-        <Hero data={data} canEnterOnline={canEnterOnline} />
+        <Hero data={data} classesHref={classesHref} canEnterOnline={canEnterOnline} />
         <Judges data={data} />
         <Particulars data={data} />
         <Roster data={data} />

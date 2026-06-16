@@ -1,7 +1,9 @@
+import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { formatDateInTimezone } from '../utils/dateFormat';
 
 interface FinalCtaSectionProps {
   entryWizardUrl: string;
+  classesHref: string | null;
   entryCloseDate: string | null;
   timezone: string;
   canEnterOnline?: boolean;
@@ -15,6 +17,7 @@ interface FinalCtaSectionProps {
  */
 export function FinalCtaSection({
   entryWizardUrl,
+  classesHref,
   entryCloseDate,
   timezone,
   canEnterOnline = true,
@@ -99,6 +102,11 @@ export function FinalCtaSection({
             Open the entry wizard ▸
           </a>
         )}
+        <SeeClassesLink
+          href={classesHref}
+          className="mt-3 block"
+          style={{ color: 'var(--gz-paper)' }}
+        />
       </div>
     </section>
   );

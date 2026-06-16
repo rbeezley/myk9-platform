@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
+import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { ensureMagazineFontsLoaded } from '../fonts';
 import { useMagazineLandingData } from './useMagazineLandingData';
 import { StickyNav } from './sections/StickyNav';
@@ -46,6 +47,7 @@ export function MagazineLandingPage({
   }, []);
 
   const data = useMagazineLandingData(show, trial, allTrials);
+  const classesHref = publicClassesHref(show?.id, allTrials);
   const canEnterOnline = hasEntryClassInventory !== false;
 
   const editionLabel = useMemo(() => {
@@ -157,6 +159,7 @@ export function MagazineLandingPage({
 
         <FinalEditorialBand
           entryWizardUrl={data.entryWizardUrl}
+          classesHref={classesHref}
           entryCloseDate={data.entryCloseDate}
           timezone={data.timezone}
           canEnterOnline={canEnterOnline}

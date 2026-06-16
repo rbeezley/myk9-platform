@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
+import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { ensureFieldGuideFontsLoaded } from '../fonts';
 import { useFieldGuideLandingData } from './useFieldGuideLandingData';
 import { TopStrip } from './sections/TopStrip';
@@ -42,6 +43,7 @@ export function FieldGuideLandingPage({
   }, []);
 
   const data = useFieldGuideLandingData(show, trial, allTrials);
+  const classesHref = publicClassesHref(show?.id, allTrials);
   const canEnterOnline = hasEntryClassInventory !== false;
 
   return (
@@ -116,6 +118,7 @@ export function FieldGuideLandingPage({
 
       <FinalCtaSection
         entryWizardUrl={data.entryWizardUrl}
+        classesHref={classesHref}
         entryCloseDate={data.entryCloseDate}
         timezone={data.timezone}
         entryLimit={data.entryLimit}

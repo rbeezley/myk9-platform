@@ -155,6 +155,32 @@ describe('MyEntryCard history status clarity', () => {
   });
 });
 
+describe('MyEntryCard placement — edge cases (beyond the #775 "scored result display" suite)', () => {
+  it('shows the participation rank beyond 4th (intentionally not capped) for a qualifying entry', () => {
+    // Only 1st–4th get official ribbons, but exhibitors still want to see where they
+    // came in, so the rank renders for every qualifier (5th, 6th, …).
+    renderCard(
+      makeEntry({
+        classes: [makeClass({ isScored: true, resultStatus: 'qualified', finalPlacement: 5 })],
+      })
+    );
+
+    expect(screen.getByText('Q')).toBeInTheDocument();
+    expect(screen.getByText('5th')).toBeInTheDocument();
+  });
+
+  it('omits placement for the 0 default (un-ranked row) rather than rendering "0th"', () => {
+    renderCard(
+      makeEntry({
+        classes: [makeClass({ isScored: true, resultStatus: 'qualified', finalPlacement: 0 })],
+      })
+    );
+
+    expect(screen.getByText('Q')).toBeInTheDocument();
+    expect(screen.queryByText('0th')).not.toBeInTheDocument();
+  });
+});
+
 describe('MyEntryCard post-deadline recovery', () => {
   it('links post-deadline blocked edits to the existing message route', () => {
     renderCard(
@@ -292,6 +318,63 @@ describe('groupEntriesByShowAndDog', () => {
 
     expect(result).toHaveLength(1);
     expect(result[0].armband).toBe('142');
+  });
+});
+
+describe('MyEntryCard scored result display', () => {
+  it('shows the placement pill for a placed qualifying entry alongside Q and search time', () => {
+    renderCard(
+      makeEntry({
+        classes: [
+          makeClass({
+            isScored: true,
+            resultStatus: 'qualified',
+            finalPlacement: 2,
+            searchTimeSeconds: 42.5,
+          }),
+        ],
+      })
+    );
+
+    expect(screen.getByText('Q')).toBeInTheDocument();
+    expect(screen.getByText('2nd')).toBeInTheDocument();
+    expect(screen.getByText('42.5s')).toBeInTheDocument();
+  });
+
+  it('does not show a placement pill for an NQ entry even if a placement value leaks through', () => {
+    renderCard(
+      makeEntry({
+        classes: [
+          makeClass({
+            isScored: true,
+            resultStatus: 'nq',
+            finalPlacement: 2,
+            searchTimeSeconds: 50,
+          }),
+        ],
+      })
+    );
+
+    expect(screen.getByText('NQ')).toBeInTheDocument();
+    expect(screen.queryByText('2nd')).not.toBeInTheDocument();
+  });
+
+  it('does not show a placement pill for a qualifying entry before the class is ranked (null placement)', () => {
+    renderCard(
+      makeEntry({
+        classes: [
+          makeClass({
+            isScored: true,
+            resultStatus: 'qualified',
+            finalPlacement: undefined,
+            searchTimeSeconds: 42.5,
+          }),
+        ],
+      })
+    );
+
+    expect(screen.getByText('Q')).toBeInTheDocument();
+    expect(screen.queryByText(/\d(st|nd|rd|th)$/)).not.toBeInTheDocument();
   });
 });
 

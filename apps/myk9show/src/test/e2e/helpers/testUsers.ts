@@ -22,15 +22,15 @@ export const TEST_USERS: Record<string, TestUser> = {
   },
 
   SECRETARY: {
-    email: 'secretary@myk9t.com',
-    password: 'TestPass4567!',
+    email: process.env.E2E_SECRETARY_EMAIL ?? 'secretary@myk9t.com',
+    password: process.env.E2E_SECRETARY_PASSWORD ?? 'TestPass4567!',
     role: 'secretary',
     description: 'Show secretary — confirmed reset 2026-05-14',
   },
 
   JUDGE: {
-    email: 'judge@myk9t.com',
-    password: 'TestPass4567!',
+    email: process.env.E2E_JUDGE_EMAIL ?? 'judge@myk9t.com',
+    password: process.env.E2E_JUDGE_PASSWORD ?? 'TestPass4567!',
     role: 'judge',
     description: 'Show judge — confirmed reset 2026-05-14',
   },

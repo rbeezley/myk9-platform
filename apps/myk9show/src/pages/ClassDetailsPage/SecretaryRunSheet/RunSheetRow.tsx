@@ -10,10 +10,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { PlacementPill } from '@/components/base/PlacementPill';
 import type { RunSheetEntry } from './types';
-
-const PLACEMENT_LABELS = ['1st', '2nd', '3rd', '4th'];
-const PLACEMENT_COLORS = ['#f59e0b', '#9ca3af', '#d97706', '#6366f1'];
 
 interface RunSheetRowProps {
   entry: RunSheetEntry;
@@ -104,14 +102,7 @@ export function RunSheetRow({
                   {result.timeStr}
                 </span>
               )}
-              {result.placement && (
-                <span
-                  className="text-xs font-bold font-mono px-2 py-0.5 rounded-full text-white"
-                  style={{ background: PLACEMENT_COLORS[result.placement - 1] }}
-                >
-                  {PLACEMENT_LABELS[result.placement - 1]}
-                </span>
-              )}
+              {result.placement && <PlacementPill placement={result.placement} size="sm" />}
             </>
           )}
           <Select

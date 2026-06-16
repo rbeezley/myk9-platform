@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow, format, isToday, isTomorrow, differenceInDays } from 'date-fns';
 import { ResultBadge } from '@/components/common/ResultBadge';
+import { PlacementPill } from '@/components/base/PlacementPill';
 import { buildVenueMapsUrls, formatVenueAddress } from '@/utils/venueMaps';
 import type { MyEntry, EntryClass } from './my-entries-types';
 import {
@@ -219,7 +220,20 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
 
                 {/* Result badge for scored entries */}
                 {cls.isScored && cls.resultStatus && (
-                  <ResultBadge resultStatus={cls.resultStatus} />
+                  <div className="flex items-center gap-1.5">
+                    <ResultBadge resultStatus={cls.resultStatus} />
+                    {/* Show the finishing rank for every qualifying run. 1st–4th are the official
+                        AKC ribbon placements (PlacementPill gives them medal colors); 5th+ render
+                        as a muted participation rank — nice to know where you came in (not capped
+                        at 4th). final_placement is only set once the whole class is scored and
+                        ranked by the trigger; exclude null and the 0 default so an un-ranked row
+                        never renders "0th". */}
+                    {cls.resultStatus === 'qualified' &&
+                      cls.finalPlacement != null &&
+                      cls.finalPlacement >= 1 && (
+                        <PlacementPill placement={cls.finalPlacement} size="sm" />
+                      )}
+                  </div>
                 )}
 
                 {/* Check-in Status Controls */}

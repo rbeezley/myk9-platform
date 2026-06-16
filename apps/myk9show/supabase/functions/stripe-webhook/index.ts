@@ -681,7 +681,56 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     paid_at: new Date().toISOString(),
   });
 
-  if (orderError) {
+  if (orderError && orderError.code === '23505') {
+    // unique_violation on the stripe_checkout_session_id index. We only reach
+    // this line AFTER winning the cart-claim latch and inserting a fresh entry
+    // set (entryIds) — genuine re-deliveries short-circuit earlier at the cart
+    // claim. So a conflicting order row already exists for this session, and
+    // the ONLY benign explanation is a network retry of THIS invocation's own
+    // insert (silent success, error surfaced to the client): in that case the
+    // existing row's entry_ids equal the set we just built. Any other case
+    // means a second entry set was created for one payment — duplicate entries
+    // and payout drift — which must alert, not be suppressed.
+    const { data: existingOrder } = await supabase
+      .from('stripe_orders')
+      .select('entry_ids')
+      .eq('stripe_checkout_session_id', session.id)
+      .maybeSingle();
+    const existingEntryIds = ((existingOrder?.entry_ids as string[] | null) ?? [])
+      .slice()
+      .sort();
+    const sortedEntryIds = entryIds.slice().sort();
+    const sameEntrySet =
+      existingEntryIds.length === sortedEntryIds.length &&
+      existingEntryIds.every((id, i) => id === sortedEntryIds[i]);
+
+    if (sameEntrySet) {
+      console.log(
+        `stripe_orders row already recorded for session ${session.id} with matching entries (idempotent retry)`
+      );
+    } else {
+      console.error(
+        'Duplicate stripe_orders session with mismatched entry set:',
+        orderError
+      );
+      await alertAdmin(
+        'Duplicate Stripe order — possible duplicate entries',
+        `<p>A <code>stripe_orders</code> row already exists for Checkout Session
+         <code>${session.id}</code>, but this webhook run created a different entry
+         set:</p>
+         <p>existing: <code>${existingEntryIds.join(', ') || '(none)'}</code><br/>
+         this run: <code>${sortedEntryIds.join(', ') || '(none)'}</code></p>
+         <p>This likely means duplicate entries were created for a single payment.
+         Reconcile: remove the extra entries created by this run and verify payout
+         math (payment intent <code>${paymentIntentId ?? 'unknown'}</code>).</p>`
+      );
+      // Do NOT fall through to the success log + confirmation email: the order
+      // insert failed and these duplicate entries are slated for removal.
+      // Emailing the exhibitor would confirm entries that the alert says to
+      // delete, and logging "created order" would be false.
+      return;
+    }
+  } else if (orderError) {
     // Entries exist and the exhibitor is fine, but the order row drives the
     // payment-history surfaces and reconciliation — losing it silently makes
     // the charge invisible to every dashboard.

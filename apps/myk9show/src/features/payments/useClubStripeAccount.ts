@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { untypedFrom } from '@/services/database/_shared/untyped-from';
 import { cacheStrategies } from '@/lib/queryClient';
 
 export interface ClubStripeAccount {
@@ -14,15 +13,14 @@ export interface ClubStripeAccount {
 /** Exported for save-time (imperative) gate checks — e.g. ShowEditPanel,
  * where a hook subscription can't see the form's possibly-changed clubId. */
 export async function fetchClubStripeAccount(clubId: string): Promise<ClubStripeAccount | null> {
-  // untypedFrom: club_stripe_accounts (migration 20260609120000) is not yet in
-  // the generated Database types; switch to supabase.from() after regeneration.
-  const { data, error } = await untypedFrom('club_stripe_accounts')
+  const { data, error } = await supabase
+    .from('club_stripe_accounts')
     .select('id, club_id, stripe_account_id, onboarding_complete, payouts_enabled')
     .eq('club_id', clubId)
     .maybeSingle();
 
   if (error) throw error;
-  return data as ClubStripeAccount | null;
+  return data;
 }
 
 export function useClubStripeAccount(clubId: string | undefined) {
@@ -47,15 +45,16 @@ export function useClubPayoutHistory(clubId: string | undefined) {
   return useQuery({
     queryKey: ['club-payout-history', clubId],
     queryFn: async (): Promise<ShowPayoutRow[]> => {
-      // untypedFrom: show_payouts (migration 20260609120000) not yet in
-      // generated types. RLS scopes rows to the club; the explicit filter
-      // keeps intent visible.
-      const { data, error } = await untypedFrom('show_payouts')
+      // RLS scopes rows to the club; the explicit filter keeps intent visible.
+      // Cast narrows show_payouts.status (typed `string`) to the union and the
+      // embedded show shape to ShowPayoutRow['show'].
+      const { data, error } = await supabase
+        .from('show_payouts')
         .select('id, amount_cents, status, completed_at, created_at, show:show_id!inner(name, club_id)')
         .eq('show.club_id', clubId!)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return (data ?? []) as ShowPayoutRow[];
+      return (data ?? []) as unknown as ShowPayoutRow[];
     },
     enabled: !!clubId,
     ...cacheStrategies.moderate,

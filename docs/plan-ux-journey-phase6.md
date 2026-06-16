@@ -115,13 +115,13 @@ Walked steps 5–8 as `exhibitor1` against `/my-entries`.
 | 5 · Confirmation + show-day updates | Past, never-completed entries correctly show **historical** badges ("Review incomplete" / "Payment unresolved" via the `isPastShow`-aware `myEntriesUtils` badges) instead of the actionable "Pending Review" / "Payment Due"; `getContextualStatusMessage` + status stepper coherent | ✅ Coherent, no defects |
 | 6 · Where/when | Trial + date + judge surfaced on the card | ✅ Present |
 | 7 · Check-in / scratch / move-up | Check-in status ("Not Checked In" / "✓ Checked In") shown; post-deadline scratch/contact via "Message the show team" (`/messages/:showId`) | ✅ Present |
-| 8 · View results | Surface exists in code (`ResultBadge`, `useExhibitorResults`, public `/shows/:id/trials/:trialId/classes/:classId/results`) but **no staging show has released results** — unexercisable (test-data gap, same class as P1-01) | ⏳ Blocked on data |
+| 8 · View results | **VERIFIED** — approved seed scored exhibitor1's Heritage entry (`is_scored`, `result_status='qualified'`, `scoring_completed_at`) + released class `91de30d7` (`results_released_at`, `is_scoring_finalized`); My Entries renders the **"Q"** result badge for the exhibitor | ✅ Verified (seeded) |
 
 **Correction to my own process:** I initially suspected a status-coherence contradiction (a "Paid date + Payment unresolved" card), but that was a misread of flattened `innerText` — the "6/3/2026" was the show date, and the badges are the intended historical labels. Lesson: for status-coherence claims, read the render logic / discrete DOM nodes, not the text blob.
 
 **Minor (non-blocking) observations:** `canFinishPayment` isn't gated on past shows (defensible — accepted-but-unpaid entries still owe); the My Entries filter tabs mix a status axis (Pending/Accepted/Waitlist) with a time axis (Upcoming/Completed), so one entry can match both "Pending" and "Completed".
 
-**Result:** Exhibitor steps 1–7 verified coherent across both re-walk sessions; **step 8 is the only remaining gap and it's data, not code** — release results on a completed staging show (a seed like P1-01's classes) to flip Exhibitor → Green.
+**Result:** Exhibitor golden-path **steps 1–8 all verified walkable.** Step 8 closed via an approved staging seed (scored + released exhibitor1's Heritage Container Novice A → "Q" badge renders). P1-01/P1-02/P1-03 cleared. **Residual for full Green: `P1-04`** (refund/withdrawn entry state agreement across exhibitor/secretary surfaces) — needs a refunded entry, deferred to the cross-role seam-walk. Also clear the minor "Unknown" message-sender label on `/messages/:showId`.
 
 ## Two decisions that shape the rest
 

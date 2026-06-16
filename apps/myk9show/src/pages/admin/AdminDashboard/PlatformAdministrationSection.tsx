@@ -149,7 +149,7 @@ export function PlatformAdministrationSection({ userCount }: PlatformAdministrat
           badgeVariant="secondary"
           badgeClassName="bg-emerald-500/10 text-emerald-700"
           buttonText="View Alerts"
-          buttonClassName="border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/5 hover:border-emerald-500/40"
+          buttonClassName="border-emerald-500/20 text-foreground hover:bg-emerald-500/5 hover:border-emerald-500/40"
           hoverColor="text-emerald-600"
           href="/admin/alerts"
         />

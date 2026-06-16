@@ -26,17 +26,16 @@ import { signIn } from './uat/shared/auth';
  *   - PUBLIC pages: the theme-token contrast debt was fixed (light-mode
  *     `--muted-foreground` darkened from #8c8376 to #6b6358, clearing WCAG AA
  *     on every light surface). The rule is therefore ENFORCED on public pages.
- *   - AUTHENTICATED pages: still excluded via a clearly-commented baseline.
- *     The contrast fix only addressed the public/light surfaces; authed role
- *     landings render additional components (dashboards, data tables, ringside
- *     chrome) whose contrast has not yet been audited. Excluding it here keeps
- *     the authed smoke a real regression guard for every OTHER serious/critical
- *     rule until that audit lands. Tracked in OPEN-TODOS.
+ *   - AUTHENTICATED pages: also ENFORCED (swept 2026-06-16). The authed role
+ *     landings were audited with the rule ON: secretary/judge were already AA
+ *     (the public-page token fix covered them) and the one violation (the admin
+ *     "View Alerts" button) was fixed, so AUTHED_EXCLUDED_RULES is now empty.
+ *     Do NOT re-add color-contrast to that list without re-auditing the authed
+ *     surfaces; it is a live regression guard for both public and authed pages.
  */
 
-// Authenticated role landings still carry un-audited color-contrast debt.
-// Remove once authed surfaces are swept (Task 1 only cleared public pages).
-const AUTHED_EXCLUDED_RULES = ['color-contrast'];
+// Authenticated role landings: color-contrast now ENFORCED (swept 2026-06-16).
+const AUTHED_EXCLUDED_RULES: string[] = [];
 
 const PUBLIC_PAGES = [
   { name: 'Landing', path: '/' },

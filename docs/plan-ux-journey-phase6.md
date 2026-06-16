@@ -94,14 +94,14 @@ Walked as `exhibitor1@myk9t.com` against staging; discovery checked logged-out.
 - **P1-01 (data):** the prior "already 32 classes, no write made" note was a mis-query — both anon and the authenticated secretary saw 0 classes for Monogram, and it was the only show with an open entry window. User-approved staging seed inserted 32 classes (HTTP 201; UI badge "Classes 32"); full enter→pay verified.
 - **NoClassesAlert recovery (code):** [PR #767](https://github.com/rbeezley/myk9-platform/pull/767) — entrants get "contact the organizer", organizers get "add classes in show management"; +2 tests; typecheck/lint green.
 
-**New finding P2-04-EXP** (styled-landing class fit): published-experience shows route entrants to a bespoke styled landing (8 styles, each its own `use<Style>LandingData` + themed `ParticularsSection`; no shared builder) that omits the class/level summary the "See classes" fix added to `ShowDetailsPage`. Duplication answer: no new surface — reuse `entryWizardUrl`. **Fixed in [PR #768](https://github.com/rbeezley/myk9-platform/pull/768):** shared `SeeClassesLink` next to the primary CTA on all 8 styled landings (+4 tests).
+**New finding P2-04-EXP** (styled-landing class fit): published-experience shows route entrants to a bespoke styled landing (8 styles, each its own `use<Style>LandingData` + themed `ParticularsSection`; no shared builder) that omits the class/level summary the "See classes" fix added to `ShowDetailsPage`. Duplication answer: no new surface — link to the existing public trial details page. **Fixed in [PR #768](https://github.com/rbeezley/myk9-platform/pull/768):** shared `SeeClassesLink` next to the primary CTA on all 8 styled landings, pointing at `/shows/:id/trials/:trialId` via a `publicClassesHref` helper (review catch: the registration wizard is auth-gated and would redirect signed-out visitors to `/sign-in`). +7 tests.
 
 ## PRs in flight
 
 | PR | Scope | Verification |
 | --- | --- | --- |
 | [#767](https://github.com/rbeezley/myk9-platform/pull/767) | `NoClassesAlert` recovery path (empty class step) | 16 tests, typecheck 24/24, lint |
-| [#768](https://github.com/rbeezley/myk9-platform/pull/768) | `SeeClassesLink` on all 8 styled landings (P2-04-EXP) | 4 + 21 regression tests, typecheck 24/24, lint |
+| [#768](https://github.com/rbeezley/myk9-platform/pull/768) | `SeeClassesLink` → public trial page on all 8 styled landings (P2-04-EXP; review-fixed off auth-gated wizard) | 7 + 21 regression tests, typecheck 24/24, lint |
 | docs → `main` (`e1283174a`) | Plan doc, SUMMARY + scorecard Exhibitor → Yellow, OPEN-TODOS | n/a (docs) |
 
 **Launch-gate movement:** Exhibitor Red → **Yellow** (enter→pay walkable; Green pending confirmation/results leg + P2-04-EXP).

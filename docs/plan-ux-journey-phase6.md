@@ -106,6 +106,23 @@ Walked as `exhibitor1@myk9t.com` against staging; discovery checked logged-out.
 
 **Launch-gate movement:** Exhibitor Red → **Yellow** (enter→pay walkable; Green pending confirmation/results leg + P2-04-EXP).
 
+## Confirmation/results leg re-walk (2026-06-16)
+
+Walked steps 5–8 as `exhibitor1` against `/my-entries`.
+
+| Step | Finding | Status |
+| --- | --- | --- |
+| 5 · Confirmation + show-day updates | Past, never-completed entries correctly show **historical** badges ("Review incomplete" / "Payment unresolved" via the `isPastShow`-aware `myEntriesUtils` badges) instead of the actionable "Pending Review" / "Payment Due"; `getContextualStatusMessage` + status stepper coherent | ✅ Coherent, no defects |
+| 6 · Where/when | Trial + date + judge surfaced on the card | ✅ Present |
+| 7 · Check-in / scratch / move-up | Check-in status ("Not Checked In" / "✓ Checked In") shown; post-deadline scratch/contact via "Message the show team" (`/messages/:showId`) | ✅ Present |
+| 8 · View results | Surface exists in code (`ResultBadge`, `useExhibitorResults`, public `/shows/:id/trials/:trialId/classes/:classId/results`) but **no staging show has released results** — unexercisable (test-data gap, same class as P1-01) | ⏳ Blocked on data |
+
+**Correction to my own process:** I initially suspected a status-coherence contradiction (a "Paid date + Payment unresolved" card), but that was a misread of flattened `innerText` — the "6/3/2026" was the show date, and the badges are the intended historical labels. Lesson: for status-coherence claims, read the render logic / discrete DOM nodes, not the text blob.
+
+**Minor (non-blocking) observations:** `canFinishPayment` isn't gated on past shows (defensible — accepted-but-unpaid entries still owe); the My Entries filter tabs mix a status axis (Pending/Accepted/Waitlist) with a time axis (Upcoming/Completed), so one entry can match both "Pending" and "Completed".
+
+**Result:** Exhibitor steps 1–7 verified coherent across both re-walk sessions; **step 8 is the only remaining gap and it's data, not code** — release results on a completed staging show (a seed like P1-01's classes) to flip Exhibitor → Green.
+
 ## Two decisions that shape the rest
 
 1. **Seed approach** for the move-up fixture (step 1) and any mutating walk — local fixtures vs an

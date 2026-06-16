@@ -68,6 +68,7 @@ const AccountPage = lazy(() => import('@/pages/AccountPage'));
 // Exhibitor pages
 const BrowseShowsPage = lazy(() => import('@/pages/BrowseShowsPage'));
 const MyEntriesPage = lazy(() => import('@/pages/MyEntriesPage'));
+const ExhibitorPaymentsPage = lazy(() => import('@/pages/exhibitor/ExhibitorPaymentsPage'));
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
 const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage'));
 
@@ -261,6 +262,14 @@ export const PublicRoutes = () => (
               'Your entries, dogs, and upcoming shows are ready here when you need them.',
             icon: ClipboardList,
           })}
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/exhibitor/payments"
+      element={
+        <ProtectedRoute>
+          <ExhibitorPaymentsPage />
         </ProtectedRoute>
       }
     />

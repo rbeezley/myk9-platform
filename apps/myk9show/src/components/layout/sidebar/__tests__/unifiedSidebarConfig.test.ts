@@ -154,10 +154,10 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
   });
 
   // ── Exhibitor-only ───────────────────────────────────────────────────────
-  it('exhibitor-only sidebar has exactly My Shows, My Dogs, My Stats, Find Shows', () => {
+  it('exhibitor-only sidebar has exactly My Shows, My Dogs, My Stats, My Payments, Find Shows', () => {
     const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
     const allTitles = config.groups.flatMap(g => g.items.map(i => i.title));
-    expect(allTitles).toEqual(['My Shows', 'My Dogs', 'My Stats', 'Find Shows']);
+    expect(allTitles).toEqual(['My Shows', 'My Dogs', 'My Stats', 'My Payments', 'Find Shows']);
   });
 
   it('exhibitor-only My Stats href points to /exhibitor/analytics', () => {

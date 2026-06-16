@@ -99,6 +99,12 @@ export function buildUnifiedSidebarConfig(
           icon: BarChart3,
           description: 'Lifetime performance and qualification trends',
         },
+        {
+          title: 'My Payments',
+          href: '/exhibitor/payments',
+          icon: Wallet,
+          description: 'Your online entry payments and receipts',
+        },
         // NOTE: No standalone "Show Day" item. The at-show/ringside experience
         // (`/at-show/:showId`) is inherently per-show, and an exhibitor may be
         // entered in several shows — a static link can't supply the right

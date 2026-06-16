@@ -350,7 +350,19 @@ async function handleEntryCheckout(
     cart.updated_at = recovered.updated_at;
   }
 
-  const platformFeePercent = resolvePlatformFeePercent(Deno.env.get('PLATFORM_FEE_PERCENT'));
+  // Authoritative platform fee: the platform_settings singleton, which a site
+  // admin can change with no deploy. Falls back to the PLATFORM_FEE_PERCENT env
+  // var (then the _shared default) if the row is missing. The DB value flows
+  // through resolvePlatformFeePercent so the 0–20 bounds validation is shared.
+  const { data: feeRow } = await supabase
+    .from('platform_settings')
+    .select('platform_fee_percent')
+    .eq('id', true)
+    .maybeSingle();
+  const platformFeePercent =
+    feeRow && feeRow.platform_fee_percent != null
+      ? resolvePlatformFeePercent(String(feeRow.platform_fee_percent))
+      : resolvePlatformFeePercent(Deno.env.get('PLATFORM_FEE_PERCENT'));
 
   // NEVER trust entry_cart_items.entry_fee_cents (round-14 P1): the
   // owner-update RLS policy covers every column, so a direct PostgREST write

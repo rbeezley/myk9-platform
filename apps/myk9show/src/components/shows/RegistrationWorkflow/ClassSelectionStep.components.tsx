@@ -283,14 +283,21 @@ export const NoTrialsAlert: React.FC<NoTrialsAlertProps> = ({ isOrganizer }) => 
 
 interface NoClassesAlertProps {
   trialCount: number;
+  isOrganizer?: boolean;
 }
 
-export const NoClassesAlert: React.FC<NoClassesAlertProps> = ({ trialCount }) => (
+export const NoClassesAlert: React.FC<NoClassesAlertProps> = ({ trialCount, isOrganizer }) => (
+  // INTENT: never strand an entrant at the class step. Like NoTrialsAlert, give a recovery path —
+  // organizers learn where to add classes; entrants are told to contact the organizer rather than
+  // hitting an unexplained dead end (UX-P1-01, "This respects my time").
   <Alert>
     <Info className="h-4 w-4" />
     <AlertDescription>
       No classes available yet. Found {trialCount} trial{trialCount !== 1 ? 's' : ''} but no classes
-      assigned.
+      assigned.{' '}
+      {isOrganizer
+        ? 'Add classes in the show management page before registering entries.'
+        : 'Please contact the show organizer.'}
     </AlertDescription>
   </Alert>
 );

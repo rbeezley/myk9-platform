@@ -378,7 +378,10 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                   ) : showTrials.length === 0 ? (
                     <NoTrialsAlert isOrganizer={isSecretary || isAdmin} />
                   ) : !hasClassGroups ? (
-                    <NoClassesAlert trialCount={showTrials.length} />
+                    <NoClassesAlert
+                      trialCount={showTrials.length}
+                      isOrganizer={isSecretary || isAdmin}
+                    />
                   ) : (
                     <div className="space-y-2">
                       {showTrials.map(trial => {

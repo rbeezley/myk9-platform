@@ -149,6 +149,13 @@ export function buildLedgerRows(
     const entries = entriesByShow.get(show.id) ?? [];
     const payout = pickCanonicalPayout(payoutsByShow.get(show.id) ?? []);
     const computedNet = calculateShowPayoutCents(entries);
+    // Trust the stored amount only for a non-failed canonical row (completed =
+    // what was transferred; processing/pending = the cron's current intent).
+    // A failed row's amount_cents is stale: the cron recomputes from entries on
+    // retry and refunds are allowed while no non-failed row exists, so a refund
+    // after a failure would shrink the real liability below the failed figure.
+    // Use the computed net there, but still surface the 'failed' status.
+    const useStoredAmount = !!payout && payout.status !== 'failed';
     return {
       showId: show.id,
       showName: show.name,
@@ -156,7 +163,7 @@ export function buildLedgerRows(
       clubName: show.clubName,
       onlineCollectedCents: sumOnlineCollectedCents(entries),
       refundedCents: sumRefundedCents(entries),
-      netOwedCents: payout ? payout.amount_cents : computedNet,
+      netOwedCents: useStoredAmount ? payout.amount_cents : computedNet,
       settleDate: computeSettleDate(show.endDate),
       payoutStatus: payout ? payout.status : null,
       stripeTransferId: payout?.stripe_transfer_id ?? null,

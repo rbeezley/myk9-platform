@@ -133,6 +133,22 @@ describe('buildLedgerRows', () => {
     expect(s2.payoutStatus).toBeNull();
   });
 
+  it('uses the computed net (not the stale failed amount) when only failed rows exist', () => {
+    // A payout failed at 5000, then the show was partly refunded → real
+    // liability is now 2000. The ledger must show the recomputed 2000 (what a
+    // retry would transfer), while still surfacing the failed status.
+    const entriesByShow = new Map<string, LedgerEntryRow[]>([
+      ['s1', [entry({ show_id: 's1', entry_fee: 50, payment_status: 'refunded', refund_amount: 30 })]],
+    ]);
+    const payoutsByShow = new Map<string, LedgerPayout[]>([
+      ['s1', [payout({ show_id: 's1', status: 'failed', amount_cents: 5000 })]],
+    ]);
+    const rows = buildLedgerRows(shows, entriesByShow, payoutsByShow);
+    const s1 = rows.find(r => r.showId === 's1')!;
+    expect(s1.netOwedCents).toBe(2000); // computed (50 - 30), not the stale 5000
+    expect(s1.payoutStatus).toBe('failed');
+  });
+
   it('ignores stale failed rows when a live row exists for the show', () => {
     const payoutsByShow = new Map<string, LedgerPayout[]>([
       [

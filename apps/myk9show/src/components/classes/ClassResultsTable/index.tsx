@@ -132,9 +132,18 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   // Read-only viewers (exhibitors/guests) on a results-released class have no
   // pending entries to score, so default them to "All" — otherwise the default
   // "Pending" tab renders empty and the released results look missing.
+  const readOnlyReleased = !canEdit && !!resultsReleasedAt;
   const [scoringTab, setScoringTab] = useState<ScoringStatusTab>(
-    !userPermissions.canEditEntries && resultsReleasedAt ? 'all' : 'pending'
+    readOnlyReleased ? 'all' : 'pending'
   );
+  // If results are released while a read-only viewer already has the page open,
+  // flip them off the (now-empty) "Pending" tab. Adjust-state-during-render
+  // pattern (not an effect — the repo lints against setState-in-effect).
+  const [wasReadOnlyReleased, setWasReadOnlyReleased] = useState(readOnlyReleased);
+  if (readOnlyReleased !== wasReadOnlyReleased) {
+    setWasReadOnlyReleased(readOnlyReleased);
+    if (readOnlyReleased) setScoringTab('all');
+  }
   const [searchQuery, setSearchQuery] = useState('');
 
   const scoredEntryIds = useMemo(

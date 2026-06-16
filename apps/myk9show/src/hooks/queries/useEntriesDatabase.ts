@@ -9,6 +9,7 @@ import {
   getPublicEntriesByShow,
   getEntriesByClass,
   getEntriesByDog,
+  countActiveEntriesByDog,
   getEntriesByStatus,
   createEntry,
   updateEntry,
@@ -98,6 +99,18 @@ export const useEntriesByDogQuery = (dogId: string, enabled = true) => {
       if (error) throw error;
       return data;
     },
+    enabled: !!dogId && enabled,
+    ...cacheStrategies.moderate,
+  });
+};
+
+// Count a dog's live entries — drives the delete-dog confirmation warning.
+// Direct count (see countActiveEntriesByDog), gated by `enabled` so it only
+// fires when the confirmation dialog is open.
+export const useDogActiveEntryCountQuery = (dogId: string, enabled = true) => {
+  return useQuery({
+    queryKey: [...queryKeys.dogEntries(dogId), 'active-count'],
+    queryFn: () => countActiveEntriesByDog(dogId),
     enabled: !!dogId && enabled,
     ...cacheStrategies.moderate,
   });

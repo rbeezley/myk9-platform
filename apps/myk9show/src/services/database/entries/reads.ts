@@ -456,6 +456,15 @@ async function postgrestGetEntriesByStatus(status: EntryStatus) {
 // SELECT functions — read from replication store, fallback to PostgREST
 // ---------------------------------------------------------------------------
 
+// A replicated entry becomes a tombstone once soft-deleted (e.g. by the
+// soft_delete_dog cascade in migration 20260616130000). The replication store
+// keeps tombstones around, so replication-backed reads must mirror the postgrest
+// `.is('deleted_at', null)` filter — otherwise a deleted dog's entries reappear
+// in rosters/scoring after sync. getEntryById is intentionally exempt (its
+// postgrest fallback also returns tombstones, for restore/detail lookups).
+const isLiveEntry = (entry: ReplicatedEntry): boolean =>
+  !entry.deletedAt && !entry.deleted_at;
+
 // Get all entries with related data
 export const getAllEntries = async () => {
   return readWithReplicationFallback({
@@ -466,7 +475,7 @@ export const getAllEntries = async () => {
         loadClassesMap(),
         loadShowsMap(),
       ]);
-      const sortedEntries = sortedCopy(entries, compareDateDesc(getEntryCreatedSortValue));
+      const sortedEntries = sortedCopy(entries.filter(isLiveEntry), compareDateDesc(getEntryCreatedSortValue));
       const data = mapEntriesWithStandardJoins(sortedEntries, dogsMap, classesMap, showsMap);
       return { data, error: null };
     },
@@ -507,7 +516,7 @@ export const getEntriesByShow = async (showId: string) => {
         loadDogsMap(),
         loadClassesMap(),
       ]);
-      const sortedEntries = sortedCopy(entries, compareDateDesc(getEntryCreatedSortValue));
+      const sortedEntries = sortedCopy(entries.filter(isLiveEntry), compareDateDesc(getEntryCreatedSortValue));
       const data = sortedEntries.map(entry =>
         mapReplicatedEntryToDbRow(entry, {
           dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
@@ -527,12 +536,14 @@ export const getEntriesByShow = async (showId: string) => {
 export const getEntriesByShowForFinancials = async (showId: string) => {
   return readWithReplicationFallback({
     replication: async () => {
-      const [entries, dogsMap, classesMap, trials] = await Promise.all([
+      const [rawEntries, dogsMap, classesMap, trials] = await Promise.all([
         replicatedEntriesTable.getEntriesByShow(showId),
         loadDogsMap(),
         loadClassesMap(),
         replicatedTrialsTable.getTrialsByShow(showId),
       ]);
+      // Exclude tombstoned entries (mirrors the postgrest deleted_at filter).
+      const entries = rawEntries.filter(isLiveEntry);
 
       // Build trial lookup map
       const trialsMap = new Map(trials.map(t => [t.id, { id: t.id, name: t.name }]));
@@ -595,7 +606,9 @@ export const getEntriesByTrial = async (trialId: string) => {
       const trialClassIds = new Set(trialClasses.map(c => c.id));
       const classesMap = buildMapFromArray(trialClasses, c => c.id);
       // Filter entries to only those whose classId is in the trial's classes (inner join)
-      const filtered = allEntries.filter(e => e.classId && trialClassIds.has(e.classId));
+      const filtered = allEntries.filter(
+        e => e.classId && trialClassIds.has(e.classId) && isLiveEntry(e)
+      );
       const sortedEntries = sortedCopy(filtered, compareDateDesc(getEntryCreatedSortValue));
       const data = sortedEntries.map(entry =>
         mapReplicatedEntryToDbRow(entry, {
@@ -620,7 +633,10 @@ export const getEntriesByClass = async (classId: string) => {
         replicatedEntriesTable.getEntriesByClass(classId),
         loadDogsMap(),
       ]);
-      const sortedEntries = sortedCopy(entries, compareNumberAscNullsLast(entry => entry.runOrder));
+      const sortedEntries = sortedCopy(
+        entries.filter(isLiveEntry),
+        compareNumberAscNullsLast(entry => entry.runOrder)
+      );
       const data = sortedEntries.map(entry =>
         mapReplicatedEntryToDbRow(entry, {
           dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
@@ -672,7 +688,7 @@ export const getEntriesByDog = async (dogId: string) => {
         loadClassesMap(),
         loadShowsMap(),
       ]);
-      const filtered = allEntries.filter(e => e.dogId === dogId);
+      const filtered = allEntries.filter(e => e.dogId === dogId && isLiveEntry(e));
       const sortedEntries = sortedCopy(filtered, compareDateDesc(getEntryCreatedSortValue));
       const data = sortedEntries.map(entry =>
         mapReplicatedEntryToDbRow(entry, {
@@ -689,6 +705,24 @@ export const getEntriesByDog = async (dogId: string) => {
   });
 };
 
+// Count a dog's live (non-soft-deleted) entries.
+//
+// Deliberately a DIRECT PostgREST head-count, NOT the replication layer:
+// entries replicate per-show, so a user who hasn't entered an /at-show session
+// has an empty local store and getEntriesByDog would return 0 — a false count.
+// This drives the delete-dog confirmation warning, which must be accurate
+// regardless of sync state. It is an authed action (not a public route) and not
+// offline-critical, so a direct read is appropriate.
+export const countActiveEntriesByDog = async (dogId: string): Promise<number> => {
+  const { count, error } = await supabase
+    .from('entries')
+    .select('*', { count: 'exact', head: true })
+    .eq('dog_id', dogId)
+    .is('deleted_at', null);
+  if (error) throw error;
+  return count ?? 0;
+};
+
 // Get entries by status
 export const getEntriesByStatus = async (status: EntryStatus) => {
   return readWithReplicationFallback({
@@ -699,7 +733,7 @@ export const getEntriesByStatus = async (status: EntryStatus) => {
         loadClassesMap(),
         loadShowsMap(),
       ]);
-      const filtered = allEntries.filter(e => e.entryStatus === status);
+      const filtered = allEntries.filter(e => e.entryStatus === status && isLiveEntry(e));
       const sortedEntries = sortedCopy(filtered, compareDateDesc(getEntryCreatedSortValue));
       const data = mapEntriesWithStandardJoins(sortedEntries, dogsMap, classesMap, showsMap);
       return { data, error: null };

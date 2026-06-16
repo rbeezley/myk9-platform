@@ -6,10 +6,23 @@ import {
   computeSettleDate,
   buildLedgerRows,
   summarizeLedger,
+  pickCanonicalPayout,
   type LedgerEntryRow,
   type LedgerShow,
   type LedgerPayout,
 } from './payoutLedger';
+
+function payout(p: Partial<LedgerPayout>): LedgerPayout {
+  return {
+    show_id: 's1',
+    amount_cents: 1000,
+    status: 'pending',
+    stripe_transfer_id: null,
+    completed_at: null,
+    created_at: '2026-06-01T00:00:00Z',
+    ...p,
+  };
+}
 
 function entry(p: Partial<LedgerEntryRow>): LedgerEntryRow {
   return {
@@ -53,14 +66,16 @@ describe('calculateShowPayoutCents (parity with _shared/payoutCalc.ts)', () => {
 });
 
 describe('sumOnlineCollectedCents / sumRefundedCents', () => {
-  it('collected counts only online paid (gross, pre-refund)', () => {
+  it('collected is gross: includes paid AND refunded online entries, excludes desk', () => {
+    // A refunded entry was still charged before the refund; refunds are shown
+    // separately, so Collected − Refunds == Net owed.
     expect(
       sumOnlineCollectedCents([
         entry({ entry_fee: 25 }),
         entry({ entry_fee: 25, payment_status: 'refunded', refund_amount: 25 }),
         entry({ entry_fee: 25, payment_method: 'cash' }),
       ])
-    ).toBe(2500);
+    ).toBe(5000);
   });
 
   it('refunded sums refund_amount across online entries', () => {
@@ -94,19 +109,13 @@ describe('buildLedgerRows', () => {
     const entriesByShow = new Map<string, LedgerEntryRow[]>([
       ['s1', [entry({ show_id: 's1', entry_fee: 25 })]],
     ]);
-    const payoutByShow = new Map<string, LedgerPayout>([
+    const payoutsByShow = new Map<string, LedgerPayout[]>([
       [
         's1',
-        {
-          show_id: 's1',
-          amount_cents: 9999,
-          status: 'completed',
-          stripe_transfer_id: 'tr_1',
-          completed_at: '2026-06-05',
-        },
+        [payout({ show_id: 's1', amount_cents: 9999, status: 'completed', stripe_transfer_id: 'tr_1' })],
       ],
     ]);
-    const rows = buildLedgerRows(shows, entriesByShow, payoutByShow);
+    const rows = buildLedgerRows(shows, entriesByShow, payoutsByShow);
     const s1 = rows.find(r => r.showId === 's1')!;
     expect(s1.netOwedCents).toBe(9999); // live payout, not the computed 2500
     expect(s1.payoutStatus).toBe('completed');
@@ -124,6 +133,23 @@ describe('buildLedgerRows', () => {
     expect(s2.payoutStatus).toBeNull();
   });
 
+  it('ignores stale failed rows when a live row exists for the show', () => {
+    const payoutsByShow = new Map<string, LedgerPayout[]>([
+      [
+        's1',
+        [
+          payout({ show_id: 's1', status: 'failed', amount_cents: 111, created_at: '2026-06-03T00:00:00Z' }),
+          payout({ show_id: 's1', status: 'completed', amount_cents: 5000, stripe_transfer_id: 'tr_ok', created_at: '2026-06-02T00:00:00Z' }),
+        ],
+      ],
+    ]);
+    const rows = buildLedgerRows(shows, new Map(), payoutsByShow);
+    const s1 = rows.find(r => r.showId === 's1')!;
+    expect(s1.payoutStatus).toBe('completed'); // not the newer failed row
+    expect(s1.netOwedCents).toBe(5000);
+    expect(s1.stripeTransferId).toBe('tr_ok');
+  });
+
   it('sorts by settle date descending (newest first)', () => {
     const rows = buildLedgerRows(shows, new Map(), new Map());
     expect(rows.map(r => r.showId)).toEqual(['s2', 's1']);
@@ -136,17 +162,43 @@ describe('summarizeLedger', () => {
       { id: 's1', name: 'A', club_id: 'c1', clubName: 'C1', endDate: '2026-06-01' },
       { id: 's2', name: 'B', club_id: 'c2', clubName: 'C2', endDate: '2026-06-02' },
     ];
-    const payoutByShow = new Map<string, LedgerPayout>([
-      [
-        's1',
-        { show_id: 's1', amount_cents: 5000, status: 'completed', stripe_transfer_id: 't', completed_at: 'x' },
-      ],
-      [
-        's2',
-        { show_id: 's2', amount_cents: 3000, status: 'pending', stripe_transfer_id: null, completed_at: null },
-      ],
+    const payoutsByShow = new Map<string, LedgerPayout[]>([
+      ['s1', [payout({ show_id: 's1', amount_cents: 5000, status: 'completed', stripe_transfer_id: 't' })]],
+      ['s2', [payout({ show_id: 's2', amount_cents: 3000, status: 'pending' })]],
     ]);
-    const rows = buildLedgerRows(shows, new Map(), payoutByShow);
+    const rows = buildLedgerRows(shows, new Map(), payoutsByShow);
     expect(summarizeLedger(rows)).toEqual({ outstandingCents: 3000, paidOutCents: 5000 });
+  });
+});
+
+describe('pickCanonicalPayout', () => {
+  it('returns undefined for no rows', () => {
+    expect(pickCanonicalPayout([])).toBeUndefined();
+  });
+
+  it('prefers the non-failed row over failed retries', () => {
+    const chosen = pickCanonicalPayout([
+      payout({ status: 'failed', amount_cents: 1, created_at: '2026-06-05T00:00:00Z' }),
+      payout({ status: 'pending', amount_cents: 2, created_at: '2026-06-01T00:00:00Z' }),
+    ]);
+    expect(chosen?.status).toBe('pending');
+  });
+
+  it('ranks completed over processing over pending', () => {
+    expect(
+      pickCanonicalPayout([
+        payout({ status: 'pending' }),
+        payout({ status: 'completed' }),
+        payout({ status: 'processing' }),
+      ])?.status
+    ).toBe('completed');
+  });
+
+  it('falls back to the most recent failed row when all failed', () => {
+    const chosen = pickCanonicalPayout([
+      payout({ status: 'failed', amount_cents: 1, created_at: '2026-06-01T00:00:00Z' }),
+      payout({ status: 'failed', amount_cents: 2, created_at: '2026-06-09T00:00:00Z' }),
+    ]);
+    expect(chosen?.amount_cents).toBe(2);
   });
 });

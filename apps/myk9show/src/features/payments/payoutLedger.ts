@@ -39,10 +39,19 @@ export function calculateShowPayoutCents(entries: LedgerEntryRow[]): number {
     }, 0);
 }
 
-/** Total online fees collected for a show, before refunds (gross). */
+/**
+ * Total online fees collected for a show, GROSS (before refunds). Includes both
+ * 'paid' and 'refunded' entries — a refunded entry was still charged before the
+ * refund, so excluding it would understate collected while refunds are shown
+ * separately (then Collected − Refunds == Net owed).
+ */
 export function sumOnlineCollectedCents(entries: LedgerEntryRow[]): number {
   return entries
-    .filter(e => e.payment_method === 'online' && e.payment_status === 'paid')
+    .filter(
+      e =>
+        e.payment_method === 'online' &&
+        (e.payment_status === 'paid' || e.payment_status === 'refunded')
+    )
     .reduce((sum, e) => sum + Math.round((e.entry_fee ?? 0) * 100), 0);
 }
 
@@ -70,6 +79,32 @@ export interface LedgerPayout {
   status: PayoutStatus;
   stripe_transfer_id: string | null;
   completed_at: string | null;
+  created_at: string | null;
+}
+
+// completed > processing > pending > failed. The cron keeps exactly one
+// non-failed row per show (its liveRow query is `.neq('status','failed')`);
+// failed rows accumulate as history. So a non-failed row always wins, and
+// failed is shown only when it's the sole outcome.
+const PAYOUT_STATUS_PRIORITY: Record<PayoutStatus, number> = {
+  completed: 3,
+  processing: 2,
+  pending: 1,
+  failed: 0,
+};
+
+/**
+ * The canonical payout row for a show from its (possibly multiple) rows: the
+ * non-failed live row if one exists, else the most recent failed attempt.
+ */
+export function pickCanonicalPayout(payouts: LedgerPayout[]): LedgerPayout | undefined {
+  if (payouts.length === 0) return undefined;
+  return [...payouts].sort((a, b) => {
+    const byStatus = PAYOUT_STATUS_PRIORITY[b.status] - PAYOUT_STATUS_PRIORITY[a.status];
+    if (byStatus !== 0) return byStatus;
+    // Same status → most recent first (nulls last).
+    return (b.created_at ?? '') < (a.created_at ?? '') ? -1 : 1;
+  })[0];
 }
 
 export interface LedgerRow {
@@ -108,11 +143,11 @@ export function computeSettleDate(endDate: string | null): string | null {
 export function buildLedgerRows(
   shows: LedgerShow[],
   entriesByShow: Map<string, LedgerEntryRow[]>,
-  payoutByShow: Map<string, LedgerPayout>
+  payoutsByShow: Map<string, LedgerPayout[]>
 ): LedgerRow[] {
   const rows = shows.map((show): LedgerRow => {
     const entries = entriesByShow.get(show.id) ?? [];
-    const payout = payoutByShow.get(show.id);
+    const payout = pickCanonicalPayout(payoutsByShow.get(show.id) ?? []);
     const computedNet = calculateShowPayoutCents(entries);
     return {
       showId: show.id,

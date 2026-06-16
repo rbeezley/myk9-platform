@@ -24,18 +24,26 @@ export function usePlatformPayoutLedger() {
   return useQuery({
     queryKey: ['admin', 'payout-ledger'],
     queryFn: async (): Promise<LedgerRow[]> => {
-      const { data: entryRows, error: entriesError } = await supabase
-        .from('entries')
-        .select('show_id, entry_fee, payment_method, payment_status, refund_amount')
-        .eq('payment_method', 'online');
-      if (entriesError) throw entriesError;
-
+      // Paginate: PostgREST caps a single response at 1000 rows. An unpaginated
+      // read would silently understate collected/refunded/net once online
+      // entries exceed the cap (same reason the payout cron paginates).
       const entriesByShow = new Map<string, LedgerEntryRow[]>();
-      for (const row of entryRows ?? []) {
-        if (!row.show_id) continue;
-        const list = entriesByShow.get(row.show_id) ?? [];
-        list.push(row as LedgerEntryRow);
-        entriesByShow.set(row.show_id, list);
+      const PAGE = 1000;
+      for (let from = 0; ; from += PAGE) {
+        const { data: entryRows, error: entriesError } = await supabase
+          .from('entries')
+          .select('show_id, entry_fee, payment_method, payment_status, refund_amount')
+          .eq('payment_method', 'online')
+          .order('id')
+          .range(from, from + PAGE - 1);
+        if (entriesError) throw entriesError;
+        for (const row of entryRows ?? []) {
+          if (!row.show_id) continue;
+          const list = entriesByShow.get(row.show_id) ?? [];
+          list.push(row as LedgerEntryRow);
+          entriesByShow.set(row.show_id, list);
+        }
+        if ((entryRows?.length ?? 0) < PAGE) break;
       }
 
       const showIds = [...entriesByShow.keys()];
@@ -49,7 +57,7 @@ export function usePlatformPayoutLedger() {
             .in('id', showIds),
           supabase
             .from('show_payouts')
-            .select('show_id, amount_cents, status, stripe_transfer_id, completed_at')
+            .select('show_id, amount_cents, status, stripe_transfer_id, completed_at, created_at')
             .in('show_id', showIds),
         ]);
       if (showsError) throw showsError;
@@ -63,19 +71,25 @@ export function usePlatformPayoutLedger() {
         endDate: s.end_date,
       }));
 
-      // One payout row per show (the cron upserts a single row per show).
-      const payoutByShow = new Map<string, LedgerPayout>();
+      // A show can have multiple payout rows: failed retries accumulate as
+      // history alongside one live row. Collect them all per show and let
+      // buildLedgerRows → pickCanonicalPayout choose the canonical one, so an
+      // old failed row can't overwrite the current completed/pending row.
+      const payoutsByShow = new Map<string, LedgerPayout[]>();
       for (const p of payoutRows ?? []) {
-        payoutByShow.set(p.show_id, {
+        const list = payoutsByShow.get(p.show_id) ?? [];
+        list.push({
           show_id: p.show_id,
           amount_cents: p.amount_cents,
           status: p.status as PayoutStatus,
           stripe_transfer_id: p.stripe_transfer_id,
           completed_at: p.completed_at,
+          created_at: p.created_at,
         });
+        payoutsByShow.set(p.show_id, list);
       }
 
-      return buildLedgerRows(shows, entriesByShow, payoutByShow);
+      return buildLedgerRows(shows, entriesByShow, payoutsByShow);
     },
     ...cacheStrategies.moderate,
   });

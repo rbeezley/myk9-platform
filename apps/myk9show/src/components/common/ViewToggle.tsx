@@ -9,7 +9,7 @@ const iconMap = {
   flow: Network,
 } as const;
 
-interface ViewMode {
+export interface ViewMode {
   key: string;
   label: string;
   icon: keyof typeof iconMap;

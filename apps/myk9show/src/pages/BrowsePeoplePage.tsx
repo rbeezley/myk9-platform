@@ -2,13 +2,12 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Search, Plus, X } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
-import { FilterBar } from '@/components/common/FilterBar';
-import type { FilterDefinition, FilterBarState } from '@/components/common/FilterBar';
+import { ListControls } from '@/components/common/ListControls';
+import type { FilterDefinition as ChipFilterDefinition } from '@/components/common/FilterChips';
 import { ErrorState } from '@/components/common/ErrorState';
-import { ViewToggle } from '@/components/common/ViewToggle';
+import { useViewPreference } from '@/hooks/useViewPreference';
 import { useRBAC } from '@/hooks/useRBAC';
 import { PERMISSIONS } from '@/services/auth/rbacService';
 import { useBrowsePeopleData } from '@/hooks/useBrowsePeopleData';
@@ -21,20 +20,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryClient';
 import type { User } from '@/types/user-types';
 
-type ViewMode = 'grid' | 'table';
-
-const VIEW_MODES = [
-  { key: 'grid', label: 'Grid', icon: 'grid' as const },
-  { key: 'table', label: 'Table', icon: 'table' as const },
-] as const;
-
 const BrowsePeoplePage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const rawView = searchParams.get('view');
-  const initialViewMode: ViewMode = rawView === 'grid' || rawView === 'table' ? rawView : 'grid';
-  const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
+  const [viewMode, setViewMode] = useViewPreference('people', 'cards');
   const [showCreatePersonDialog, setShowCreatePersonDialog] = useState(
     () => searchParams.get('add') === 'true'
   );
@@ -56,23 +46,6 @@ const BrowsePeoplePage: React.FC = () => {
   } = useBrowsePeopleData();
 
   const canCreatePeople = !rbacLoading && hasPermission(PERMISSIONS.PEOPLE_CREATE);
-
-  // Update URL when view mode changes
-  const handleViewModeChange = useCallback(
-    (newViewMode: string) => {
-      if (newViewMode !== 'grid' && newViewMode !== 'table') return;
-      if (newViewMode === viewMode) return;
-      setViewMode(newViewMode);
-      const params = new URLSearchParams(searchParams);
-      if (newViewMode === 'grid') {
-        params.delete('view');
-      } else {
-        params.set('view', newViewMode);
-      }
-      setSearchParams(params, { replace: true });
-    },
-    [searchParams, setSearchParams, viewMode]
-  );
 
   const breadcrumbItems = useMemo(() => [{ label: 'People' }], []);
 
@@ -145,13 +118,12 @@ const BrowsePeoplePage: React.FC = () => {
     [addUser, closeCreatePersonDialog, navigate, queryClient]
   );
 
-  // FilterBar definitions
-  const filterDefs: FilterDefinition[] = useMemo(
+  // FilterChips definitions
+  const chipFilters: ChipFilterDefinition[] = useMemo(
     () => [
       {
         key: 'role',
         label: 'Role',
-        type: 'select' as const,
         options: availableRoles.map(role => ({
           label: role.charAt(0).toUpperCase() + role.slice(1),
           value: role,
@@ -161,18 +133,15 @@ const BrowsePeoplePage: React.FC = () => {
     [availableRoles]
   );
 
-  const filterBarState: FilterBarState = useMemo(() => {
-    const filterState: Record<string, string | string[] | boolean> = {};
-    if (filters.role !== 'all') filterState.role = filters.role;
-    return { filters: filterState, sortKey: null, sortDirection: 'asc' };
+  const chipFilterValues = useMemo(() => {
+    const values: Record<string, string> = {};
+    if (filters.role !== 'all') values.role = filters.role;
+    return values;
   }, [filters.role]);
 
-  const handleFilterBarChange = useCallback(
-    (newState: FilterBarState) => {
-      setFilters(prev => ({
-        ...prev,
-        role: (newState.filters.role as string) || 'all',
-      }));
+  const handleChipFilterChange = useCallback(
+    (key: string, value: string | null) => {
+      setFilters(prev => ({ ...prev, [key]: value || 'all' }));
     },
     [setFilters]
   );
@@ -219,7 +188,7 @@ const BrowsePeoplePage: React.FC = () => {
     switch (viewMode) {
       case 'table':
         return <PeopleTableView people={filteredPeople} />;
-      case 'grid':
+      case 'cards':
       default:
         return <PeopleGridView people={filteredPeople} />;
     }
@@ -233,7 +202,9 @@ const BrowsePeoplePage: React.FC = () => {
           {error && !isLoading && <ErrorState message="We couldn't load people." />}
 
           {/* Loading state */}
-          {isLoading && people.length === 0 && <BrowsePeopleSkeleton viewMode={viewMode} />}
+          {isLoading && people.length === 0 && (
+            <BrowsePeopleSkeleton viewMode={viewMode === 'cards' ? 'grid' : 'table'} />
+          )}
 
           {/* Normal content */}
           {(!isLoading || people.length > 0) && (
@@ -254,44 +225,20 @@ const BrowsePeoplePage: React.FC = () => {
                 )}
               </div>
 
-              {/* Search & Filters */}
-              <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-300 hover:shadow-xl hover:border-primary/30">
-                <CardContent className="p-4">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search people by name or email..."
-                      value={filters.search}
-                      onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                      className="pl-9 h-10 bg-background border border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg transition-all duration-200"
-                    />
-                  </div>
-                  <FilterBar
-                    filterDefs={filterDefs}
-                    state={filterBarState}
-                    onStateChange={handleFilterBarChange}
-                    className="mt-3"
-                  />
-                </CardContent>
-              </Card>
-
-              {/* View Mode Toggle + Result Count */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-muted-foreground">View:</span>
-                  <ViewToggle
-                    modes={VIEW_MODES}
-                    active={viewMode}
-                    onChange={handleViewModeChange}
-                  />
-                </div>
-
-                <span className="text-sm text-muted-foreground">
-                  {filteredPeople.length} of {people.length}{' '}
-                  {people.length !== 1 ? 'people' : 'person'}
-                  {hasActiveFilters && ' (filtered)'}
-                </span>
-              </div>
+              <ListControls
+                search={filters.search}
+                onSearchChange={value => setFilters(prev => ({ ...prev, search: value }))}
+                searchPlaceholder="Search people by name or email..."
+                filters={chipFilters}
+                filterValues={chipFilterValues}
+                onFilterChange={handleChipFilterChange}
+                viewMode={viewMode}
+                onViewModeChange={setViewMode}
+                resultsShowing={filteredPeople.length}
+                resultsTotal={people.length}
+                filtered={hasActiveFilters}
+                entityName={people.length !== 1 ? 'people' : 'person'}
+              />
 
               {/* People Cards */}
               {renderContent()}

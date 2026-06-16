@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { logger } from '@/services/LoggingService';
 import { DogEditPanelSkeleton, PhotoDialogSkeleton } from './Skeletons';
 import { DeleteDogDialog } from '@/components/dogs/common/DeleteDogDialog';
+import { useDogActiveEntryCountQuery } from '@/hooks/queries/useEntriesDatabase';
 import { convertDogToDogInput, CELEBRATION_DURATION_MS, CELEBRATION_FADE_DELAY_MS } from './utils';
 import type { DogDialogsProps } from './types';
 
@@ -41,6 +42,10 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
 }) => {
   const celebrationTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const fadeTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // Fetch the dog's live entry count only while the delete dialog is open, so the
+  // confirmation can warn that those entries will be removed by the cascade.
+  const { data: activeEntryCount } = useDogActiveEntryCountQuery(dog.id, isDeleteDialogOpen);
 
   useEffect(() => {
     return () => {
@@ -135,6 +140,7 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
           }}
           dog={dog}
           isSubmitting={isDeleting ?? false}
+          activeEntryCount={activeEntryCount}
         />
       )}
 

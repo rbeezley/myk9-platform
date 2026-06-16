@@ -689,6 +689,24 @@ export const getEntriesByDog = async (dogId: string) => {
   });
 };
 
+// Count a dog's live (non-soft-deleted) entries.
+//
+// Deliberately a DIRECT PostgREST head-count, NOT the replication layer:
+// entries replicate per-show, so a user who hasn't entered an /at-show session
+// has an empty local store and getEntriesByDog would return 0 — a false count.
+// This drives the delete-dog confirmation warning, which must be accurate
+// regardless of sync state. It is an authed action (not a public route) and not
+// offline-critical, so a direct read is appropriate.
+export const countActiveEntriesByDog = async (dogId: string): Promise<number> => {
+  const { count, error } = await supabase
+    .from('entries')
+    .select('*', { count: 'exact', head: true })
+    .eq('dog_id', dogId)
+    .is('deleted_at', null);
+  if (error) throw error;
+  return count ?? 0;
+};
+
 // Get entries by status
 export const getEntriesByStatus = async (status: EntryStatus) => {
   return readWithReplicationFallback({

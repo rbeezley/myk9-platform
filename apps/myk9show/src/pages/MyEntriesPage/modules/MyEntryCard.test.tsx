@@ -295,6 +295,63 @@ describe('groupEntriesByShowAndDog', () => {
   });
 });
 
+describe('MyEntryCard scored result display', () => {
+  it('shows the placement pill for a placed qualifying entry alongside Q and search time', () => {
+    renderCard(
+      makeEntry({
+        classes: [
+          makeClass({
+            isScored: true,
+            resultStatus: 'qualified',
+            finalPlacement: 2,
+            searchTimeSeconds: 42.5,
+          }),
+        ],
+      })
+    );
+
+    expect(screen.getByText('Q')).toBeInTheDocument();
+    expect(screen.getByText('2nd')).toBeInTheDocument();
+    expect(screen.getByText('42.5s')).toBeInTheDocument();
+  });
+
+  it('does not show a placement pill for an NQ entry even if a placement value leaks through', () => {
+    renderCard(
+      makeEntry({
+        classes: [
+          makeClass({
+            isScored: true,
+            resultStatus: 'nq',
+            finalPlacement: 2,
+            searchTimeSeconds: 50,
+          }),
+        ],
+      })
+    );
+
+    expect(screen.getByText('NQ')).toBeInTheDocument();
+    expect(screen.queryByText('2nd')).not.toBeInTheDocument();
+  });
+
+  it('does not show a placement pill for a qualifying entry before the class is ranked (null placement)', () => {
+    renderCard(
+      makeEntry({
+        classes: [
+          makeClass({
+            isScored: true,
+            resultStatus: 'qualified',
+            finalPlacement: undefined,
+            searchTimeSeconds: 42.5,
+          }),
+        ],
+      })
+    );
+
+    expect(screen.getByText('Q')).toBeInTheDocument();
+    expect(screen.queryByText(/\d(st|nd|rd|th)$/)).not.toBeInTheDocument();
+  });
+});
+
 describe('MyEntryCard handler display', () => {
   it('shows handler name when a class has a handler set', () => {
     const entry = makeEntry({

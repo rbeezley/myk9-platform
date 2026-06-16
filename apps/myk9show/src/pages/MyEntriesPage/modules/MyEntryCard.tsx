@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow, format, isToday, isTomorrow, differenceInDays } from 'date-fns';
 import { ResultBadge } from '@/components/common/ResultBadge';
+import { PlacementPill } from '@/components/base/PlacementPill';
 import { buildVenueMapsUrls, formatVenueAddress } from '@/utils/venueMaps';
 import type { MyEntry, EntryClass } from './my-entries-types';
 import {
@@ -219,7 +220,15 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
 
                 {/* Result badge for scored entries */}
                 {cls.isScored && cls.resultStatus && (
-                  <ResultBadge resultStatus={cls.resultStatus} />
+                  <div className="flex items-center gap-1.5">
+                    <ResultBadge resultStatus={cls.resultStatus} />
+                    {/* AKC Scent Work awards placements to every qualifying run (incl.
+                        Novice). final_placement is only set once the whole class is
+                        scored and ranked by the trigger, so guard for null. */}
+                    {cls.resultStatus === 'qualified' && cls.finalPlacement != null && (
+                      <PlacementPill placement={cls.finalPlacement} size="sm" />
+                    )}
+                  </div>
                 )}
 
                 {/* Check-in Status Controls */}

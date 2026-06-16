@@ -20,6 +20,7 @@ interface GazetteLandingPageProps {
   show: Show | null | undefined;
   trial: Trial | null | undefined;
   allTrials: Trial[];
+  hasEntryClassInventory?: boolean | null;
 }
 
 /**
@@ -31,12 +32,18 @@ interface GazetteLandingPageProps {
  * Reduced-motion handling lives inside individual sections via the shared
  * Heritage hook.
  */
-export function GazetteLandingPage({ show, trial, allTrials }: GazetteLandingPageProps) {
+export function GazetteLandingPage({
+  show,
+  trial,
+  allTrials,
+  hasEntryClassInventory,
+}: GazetteLandingPageProps) {
   useEffect(() => {
     ensureGazetteFontsLoaded();
   }, []);
 
   const data = useGazetteLandingData(show, trial, allTrials);
+  const canEnterOnline = hasEntryClassInventory !== false;
 
   const editionLabel = data.edition != null
     ? `VOL. ${data.volumeRoman} · NO ${data.edition}`
@@ -61,6 +68,7 @@ export function GazetteLandingPage({ show, trial, allTrials }: GazetteLandingPag
         clubName={data.clubName}
         entryWizardUrl={data.entryWizardUrl}
         editionLabel={editionLabel}
+        canEnterOnline={canEnterOnline}
       />
 
       <MastheadSection
@@ -126,6 +134,7 @@ export function GazetteLandingPage({ show, trial, allTrials }: GazetteLandingPag
           entryWizardUrl={data.entryWizardUrl}
           entryCloseDate={data.entryCloseDate}
           timezone={data.timezone}
+          canEnterOnline={canEnterOnline}
         />
       </main>
 

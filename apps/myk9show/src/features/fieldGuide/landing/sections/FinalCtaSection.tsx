@@ -12,6 +12,8 @@ interface FinalCtaSectionProps {
   entryCloseDate: string | null;
   timezone: string;
   entryLimit: number | null;
+  /** When false, the show has no classes assigned — gate the Enter CTA. */
+  canEnterOnline?: boolean;
 }
 
 /**
@@ -25,6 +27,7 @@ export function FinalCtaSection({
   entryCloseDate,
   timezone,
   entryLimit,
+  canEnterOnline = true,
 }: FinalCtaSectionProps) {
   const closesLabel = entryCloseDate
     ? formatDateInTimezone(entryCloseDate, timezone, 'long')
@@ -73,7 +76,16 @@ export function FinalCtaSection({
               maxWidth: '18ch',
             }}
           >
-            Submit your <span style={{ color: fieldGuideColors.orange }}>entry</span>.
+            {canEnterOnline ? (
+              <>
+                Submit your <span style={{ color: fieldGuideColors.orange }}>entry</span>.
+              </>
+            ) : (
+              <>
+                Entries open when{' '}
+                <span style={{ color: fieldGuideColors.orange }}>classes are assigned</span>.
+              </>
+            )}
           </h2>
           <p
             style={{
@@ -85,11 +97,14 @@ export function FinalCtaSection({
               maxWidth: 540,
             }}
           >
-            {entryLimit != null
-              ? `${entryLimit} runs · first-received basis until the limit is hit.`
-              : 'First-received basis. Refunds (less processing fees) for written withdrawals received before close.'}
+            {!canEnterOnline
+              ? 'The secretary still needs to assign classes before online entry is available.'
+              : entryLimit != null
+                ? `${entryLimit} runs · first-received basis until the limit is hit.`
+                : 'First-received basis. Refunds (less processing fees) for written withdrawals received before close.'}
           </p>
         </div>
+        {canEnterOnline && (
         <div
           style={{
             background: fieldGuideColors.paper,
@@ -159,6 +174,7 @@ export function FinalCtaSection({
             ~3 MIN · SAVES &amp; RESUMES
           </div>
         </div>
+        )}
       </div>
     </FieldGuideDarkBand>
   );

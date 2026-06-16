@@ -20,6 +20,7 @@ interface HeritageLandingPageProps {
   show: Show | null | undefined;
   trial: Trial | null | undefined;
   allTrials: Trial[];
+  hasEntryClassInventory?: boolean | null;
 }
 
 /**
@@ -28,13 +29,19 @@ interface HeritageLandingPageProps {
  *
  * data-heritage on the root element scopes all .hl-* CSS rules (heritage.css).
  */
-export function HeritageLandingPage({ show, trial, allTrials }: HeritageLandingPageProps) {
+export function HeritageLandingPage({
+  show,
+  trial,
+  allTrials,
+  hasEntryClassInventory,
+}: HeritageLandingPageProps) {
   // Lazy-load Heritage fonts on first render — preconnect + <link> injected once.
   useEffect(() => {
     ensureHeritageFontsLoaded();
   }, []);
 
   const data = useHeritageLandingData(show, trial, allTrials);
+  const canEnterOnline = hasEntryClassInventory !== false;
 
   return (
     <div
@@ -56,7 +63,11 @@ export function HeritageLandingPage({ show, trial, allTrials }: HeritageLandingP
       <meta property="og:url" content={typeof window !== 'undefined' ? window.location.href : ''} />
       <meta name="twitter:card" content="summary" />
 
-      <StickyNav clubName={data.clubName} entryWizardUrl={data.entryWizardUrl} />
+      <StickyNav
+        clubName={data.clubName}
+        entryWizardUrl={data.entryWizardUrl}
+        canEnterOnline={canEnterOnline}
+      />
 
       <main>
         <HeroBlock
@@ -70,6 +81,7 @@ export function HeritageLandingPage({ show, trial, allTrials }: HeritageLandingP
           venueCity={data.venueCity}
           timezone={data.timezone}
           entryWizardUrl={data.entryWizardUrl}
+          canEnterOnline={canEnterOnline}
         />
 
         <WelcomeSection welcomeText={data.welcomeText} trialChairName={data.trialChairName} />
@@ -112,7 +124,7 @@ export function HeritageLandingPage({ show, trial, allTrials }: HeritageLandingP
           secretaryEmail={data.secretaryEmail}
         />
 
-        <FinalCtaBand entryWizardUrl={data.entryWizardUrl} />
+        <FinalCtaBand entryWizardUrl={data.entryWizardUrl} canEnterOnline={canEnterOnline} />
       </main>
 
       <HeritageFooter

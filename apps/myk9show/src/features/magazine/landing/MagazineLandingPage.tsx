@@ -21,6 +21,7 @@ interface MagazineLandingPageProps {
   show: Show | null | undefined;
   trial: Trial | null | undefined;
   allTrials: Trial[];
+  hasEntryClassInventory?: boolean | null;
 }
 
 /**
@@ -34,12 +35,18 @@ interface MagazineLandingPageProps {
  * SEO/OG meta is rendered via React 19's native `<title>` / `<meta>` head
  * tag hoisting — matches the Heritage / Banner pattern.
  */
-export function MagazineLandingPage({ show, trial, allTrials }: MagazineLandingPageProps) {
+export function MagazineLandingPage({
+  show,
+  trial,
+  allTrials,
+  hasEntryClassInventory,
+}: MagazineLandingPageProps) {
   useEffect(() => {
     ensureMagazineFontsLoaded();
   }, []);
 
   const data = useMagazineLandingData(show, trial, allTrials);
+  const canEnterOnline = hasEntryClassInventory !== false;
 
   const editionLabel = useMemo(() => {
     const year = data.trialStartDate
@@ -75,6 +82,7 @@ export function MagazineLandingPage({ show, trial, allTrials }: MagazineLandingP
         clubName={data.clubName}
         editionLabel={editionLabel}
         entryWizardUrl={data.entryWizardUrl}
+        canEnterOnline={canEnterOnline}
       />
 
       <main>
@@ -151,6 +159,7 @@ export function MagazineLandingPage({ show, trial, allTrials }: MagazineLandingP
           entryWizardUrl={data.entryWizardUrl}
           entryCloseDate={data.entryCloseDate}
           timezone={data.timezone}
+          canEnterOnline={canEnterOnline}
         />
       </main>
 

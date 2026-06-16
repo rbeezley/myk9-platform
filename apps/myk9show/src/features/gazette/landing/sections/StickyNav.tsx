@@ -7,6 +7,7 @@ interface StickyNavProps {
   entryWizardUrl: string;
   /** Optional edition strip ("VOL LXXIX · NO 47"). */
   editionLabel?: string | null;
+  canEnterOnline?: boolean;
 }
 
 const SECTIONS = [
@@ -21,7 +22,12 @@ const SECTIONS = [
  * deliberately stays compact (10.5px mono) to read as a newspaper running
  * header rather than a product nav bar.
  */
-export function StickyNav({ clubName, entryWizardUrl, editionLabel }: StickyNavProps) {
+export function StickyNav({
+  clubName,
+  entryWizardUrl,
+  editionLabel,
+  canEnterOnline = true,
+}: StickyNavProps) {
   const [activeId, setActiveId] = useState<string>('welcome');
 
   useEffect(() => {
@@ -96,18 +102,32 @@ export function StickyNav({ clubName, entryWizardUrl, editionLabel }: StickyNavP
         >
           Share
         </button>
-        <a
-          href={entryWizardUrl}
-          className="border px-3 py-1 text-[10.5px] uppercase transition-colors"
-          style={{
-            letterSpacing: '0.18em',
-            borderColor: 'var(--gz-ink)',
-            color: 'var(--gz-ink)',
-            fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-          }}
-        >
-          Enter
-        </a>
+        {canEnterOnline ? (
+          <a
+            href={entryWizardUrl}
+            className="border px-3 py-1 text-[10.5px] uppercase transition-colors"
+            style={{
+              letterSpacing: '0.18em',
+              borderColor: 'var(--gz-ink)',
+              color: 'var(--gz-ink)',
+              fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+            }}
+          >
+            Enter
+          </a>
+        ) : (
+          <span
+            className="border px-3 py-1 text-[10.5px] uppercase"
+            style={{
+              letterSpacing: '0.18em',
+              borderColor: 'var(--gz-mute)',
+              color: 'var(--gz-mute)',
+              fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+            }}
+          >
+            Classes pending
+          </span>
+        )}
       </div>
     </nav>
   );

@@ -83,7 +83,13 @@ export function Officers({ data }: { data: HeritageLandingData }) {
   );
 }
 
-export function FinalCta({ data }: { data: HeritageLandingData }) {
+export function FinalCta({
+  data,
+  canEnterOnline = true,
+}: {
+  data: HeritageLandingData;
+  canEnterOnline?: boolean;
+}) {
   return (
     <section className="hd-final" id="enter">
       <div className="hd-final-inner">
@@ -92,23 +98,47 @@ export function FinalCta({ data }: { data: HeritageLandingData }) {
             Closing {shortDate(data.entryCloseDate, data.timezone)}
           </div>
           <h2>
-            Get your dog
-            <br />
-            <span className="accent">on the entry list.</span>
+            {canEnterOnline ? (
+              <>
+                Get your dog
+                <br />
+                <span className="accent">on the entry list.</span>
+              </>
+            ) : (
+              <>
+                Entries open when
+                <br />
+                <span className="accent">classes are assigned.</span>
+              </>
+            )}
           </h2>
           <p className="hd-final-sub">
-            {data.entryLimit ? `${data.entryLimit} available runs. ` : ''}
-            Entries are accepted through myK9Show until the closing date or the published limit is
-            reached.
+            {canEnterOnline ? (
+              <>
+                {data.entryLimit ? `${data.entryLimit} available runs. ` : ''}
+                Entries are accepted through myK9Show until the closing date or the published limit
+                is reached.
+              </>
+            ) : (
+              'The secretary still needs to assign classes before online entry is available.'
+            )}
           </p>
         </div>
         <div className="hd-final-side">
           <div className="l">Online entry</div>
           <div className="v">{data.showName}</div>
-          <a className="cta" href={data.entryWizardUrl}>
-            Enter this show
-          </a>
-          <div className="helper">Review before submitting</div>
+          {canEnterOnline ? (
+            <>
+              <a className="cta" href={data.entryWizardUrl}>
+                Enter this show
+              </a>
+              <div className="helper">Review before submitting</div>
+            </>
+          ) : (
+            <div className="helper">
+              The secretary still needs to assign classes before online entry is available.
+            </div>
+          )}
         </div>
       </div>
     </section>

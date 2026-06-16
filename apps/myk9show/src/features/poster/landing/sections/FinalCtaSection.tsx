@@ -12,6 +12,7 @@ interface FinalCtaSectionProps {
   entryWizardUrl: string;
   entryCloseDate: string | null;
   timezone: string;
+  canEnterOnline?: boolean;
 }
 
 /**
@@ -25,6 +26,7 @@ export function FinalCtaSection({
   entryWizardUrl,
   entryCloseDate,
   timezone,
+  canEnterOnline = true,
 }: FinalCtaSectionProps) {
   const closesLabel = entryCloseDate
     ? formatDateInTimezone(entryCloseDate, timezone, 'monthDayUpper')
@@ -84,53 +86,81 @@ export function FinalCtaSection({
             maxWidth: '14ch',
           }}
         >
-          Enter
-          <br />
-          your <span style={{ color: posterColors.red }}>dog.</span>
-          <br />
-          <span
+          {canEnterOnline ? (
+            <>
+              Enter
+              <br />
+              your <span style={{ color: posterColors.red }}>dog.</span>
+              <br />
+              <span
+                style={{
+                  color: 'transparent',
+                  WebkitTextStroke: `3px ${posterColors.ink}`,
+                }}
+              >
+                Today.
+              </span>
+            </>
+          ) : (
+            <>
+              Entries open when{' '}
+              <span style={{ color: posterColors.red }}>classes</span> are assigned.
+            </>
+          )}
+        </h2>
+        {canEnterOnline ? (
+          <>
+            <p
+              style={{
+                fontFamily: POSTER_DISPLAY_TIGHT_FAMILY,
+                fontWeight: 800,
+                fontSize: 22,
+                letterSpacing: '-0.015em',
+                lineHeight: 1.35,
+                color: posterColors.inkSoft,
+                maxWidth: 540,
+                margin: '0 0 40px',
+              }}
+            >
+              First-received until the limit is hit. Refunds for written withdrawals before close.
+            </p>
+            <a
+              href={entryWizardUrl}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 14,
+                padding: '22px 44px',
+                background: posterColors.ink,
+                color: posterColors.cream,
+                fontFamily: POSTER_DISPLAY_FAMILY,
+                fontSize: 20,
+                letterSpacing: '-0.015em',
+                transition: 'all 200ms ease',
+                position: 'relative',
+                zIndex: 3,
+                textDecoration: 'none',
+              }}
+            >
+              OPEN ENTRY WIZARD →
+            </a>
+          </>
+        ) : (
+          <p
             style={{
-              color: 'transparent',
-              WebkitTextStroke: `3px ${posterColors.ink}`,
+              fontFamily: POSTER_DISPLAY_TIGHT_FAMILY,
+              fontWeight: 800,
+              fontSize: 22,
+              letterSpacing: '-0.015em',
+              lineHeight: 1.35,
+              color: posterColors.inkSoft,
+              maxWidth: 540,
+              margin: 0,
             }}
           >
-            Today.
-          </span>
-        </h2>
-        <p
-          style={{
-            fontFamily: POSTER_DISPLAY_TIGHT_FAMILY,
-            fontWeight: 800,
-            fontSize: 22,
-            letterSpacing: '-0.015em',
-            lineHeight: 1.35,
-            color: posterColors.inkSoft,
-            maxWidth: 540,
-            margin: '0 0 40px',
-          }}
-        >
-          First-received until the limit is hit. Refunds for written withdrawals before close.
-        </p>
-        <a
-          href={entryWizardUrl}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 14,
-            padding: '22px 44px',
-            background: posterColors.ink,
-            color: posterColors.cream,
-            fontFamily: POSTER_DISPLAY_FAMILY,
-            fontSize: 20,
-            letterSpacing: '-0.015em',
-            transition: 'all 200ms ease',
-            position: 'relative',
-            zIndex: 3,
-            textDecoration: 'none',
-          }}
-        >
-          OPEN ENTRY WIZARD →
-        </a>
+            The secretary still needs to assign classes before online entry is available.
+          </p>
+        )}
       </div>
     </section>
   );

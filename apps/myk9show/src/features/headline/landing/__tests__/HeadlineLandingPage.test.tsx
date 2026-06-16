@@ -116,4 +116,43 @@ describe('HeadlineLandingPage', () => {
 
     expect(screen.getByRole('heading', { name: /Pacific Northwest Scent Work Trial/i })).toBeTruthy();
   });
+
+  it('renders entry links when hasEntryClassInventory is true', () => {
+    render(
+      <HeadlineLandingPage show={null} trial={null} allTrials={[]} hasEntryClassInventory={true} />
+    );
+
+    expect(screen.getAllByRole('link', { name: /enter this show/i }).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Classes pending')).toBeNull();
+  });
+
+  it('gates every entry CTA when hasEntryClassInventory is false', () => {
+    render(
+      <HeadlineLandingPage show={null} trial={null} allTrials={[]} hasEntryClassInventory={false} />
+    );
+
+    // No anchor links into the registration wizard anywhere on the page.
+    expect(screen.queryByRole('link', { name: /enter this show/i })).toBeNull();
+    expect(
+      screen.queryByRole('link', { name: '/shows/show-1/register' })
+    ).toBeNull();
+    const wizardLinks = screen
+      .queryAllByRole('link')
+      .filter(link => link.getAttribute('href') === '/shows/show-1/register');
+    expect(wizardLinks).toHaveLength(0);
+
+    // Fallback copy is shown instead.
+    expect(screen.getByText('Classes pending')).toBeTruthy();
+    expect(
+      screen.getByText('Entries are not available yet because no classes are assigned yet.')
+    ).toBeTruthy();
+    expect(
+      screen.getByRole('heading', { name: /Entries open when\s*classes are assigned\./i })
+    ).toBeTruthy();
+    expect(
+      screen.getAllByText(
+        'The secretary still needs to assign classes before online entry is available.'
+      ).length
+    ).toBeGreaterThan(0);
+  });
 });

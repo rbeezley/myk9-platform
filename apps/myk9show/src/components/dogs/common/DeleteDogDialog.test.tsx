@@ -1,31 +1,39 @@
 import { describe, it, expect } from 'vitest';
-import { buildDescription } from './deleteDogDialogCopy';
+import { buildImpactSuffix, buildRestoreNote } from './deleteDogDialogCopy';
 
-describe('DeleteDogDialog buildDescription', () => {
-  it('shows the plain description when the dog has no active entries', () => {
-    const text = buildDescription(0);
-    expect(text).toBe(
-      'This will mark the dog as deleted and hide it from normal view. An administrator can restore it later if needed.'
+describe('DeleteDogDialog buildImpactSuffix', () => {
+  it('is empty when the dog has no active entries', () => {
+    expect(buildImpactSuffix(0)).toBe('');
+  });
+
+  it('is empty while the count is still loading (undefined)', () => {
+    expect(buildImpactSuffix(undefined)).toBe('');
+  });
+
+  it('uses the singular noun for exactly one entry', () => {
+    expect(buildImpactSuffix(1)).toBe(' and 1 entry');
+  });
+
+  it('uses the plural noun for multiple entries', () => {
+    expect(buildImpactSuffix(2)).toBe(' and 2 entries');
+  });
+});
+
+describe('DeleteDogDialog buildRestoreNote', () => {
+  it('mentions only the dog when there are no entries', () => {
+    expect(buildRestoreNote(0)).toBe(
+      'The dog can be restored by an administrator from Admin → Data Lifecycle.'
     );
-    expect(text).not.toMatch(/entr/i);
   });
 
-  it('treats undefined (count still loading) as no warning', () => {
-    expect(buildDescription(undefined)).not.toMatch(/entr/i);
+  it('mentions the dog and its entries when entries cascade', () => {
+    expect(buildRestoreNote(3)).toBe(
+      'The dog and its entries can be restored by an administrator from Admin → Data Lifecycle.'
+    );
   });
 
-  it('warns with the singular noun for exactly one entry', () => {
-    const text = buildDescription(1);
-    expect(text).toContain('1 active entry, which will also be removed');
-    expect(text).not.toContain('entries');
-  });
-
-  it('warns with the plural noun for multiple entries', () => {
-    const text = buildDescription(16);
-    expect(text).toContain('16 active entries, which will also be removed');
-  });
-
-  it('always retains the restore note', () => {
-    expect(buildDescription(3)).toContain('An administrator can restore it later');
+  it('never claims the action cannot be undone', () => {
+    expect(buildRestoreNote(3)).not.toMatch(/cannot be undone/i);
+    expect(buildRestoreNote(0)).not.toMatch(/cannot be undone/i);
   });
 });

@@ -1,7 +1,7 @@
 import React from 'react';
 import { DeleteConfirmationDialog } from '@/components/base';
 import type { Dog } from '@/types/dog-types';
-import { buildDescription } from './deleteDogDialogCopy';
+import { buildImpactSuffix, buildRestoreNote, deleteDogSubtitle } from './deleteDogDialogCopy';
 
 interface DeleteDogDialogProps {
   open: boolean;
@@ -32,7 +32,9 @@ const DeleteDogDialog: React.FC<DeleteDogDialogProps> = ({
       onConfirm={onDelete}
       entityName={dog?.callName || 'this dog'}
       entityType="Dog"
-      description={buildDescription(activeEntryCount)}
+      description={deleteDogSubtitle}
+      impactSuffix={buildImpactSuffix(activeEntryCount)}
+      warningText={buildRestoreNote(activeEntryCount)}
       isDeleting={isSubmitting}
     />
   );

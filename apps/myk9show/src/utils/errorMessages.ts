@@ -39,12 +39,12 @@ const DEFAULT_MESSAGE = 'Something went wrong. Please try again.';
  * In development builds the original message is preserved for debugging.
  * In production only mapped / generic messages are returned.
  */
-export function getUserFriendlyError(error: unknown): string {
+export function getUserFriendlyError(error: unknown, fallback: string = DEFAULT_MESSAGE): string {
   if (import.meta.env.DEV) {
     // In dev, return the raw message for easier debugging
     if (error instanceof Error) return error.message;
     if (typeof error === 'string') return error;
-    return DEFAULT_MESSAGE;
+    return fallback;
   }
 
   // Extract code from Supabase / PostgREST error shapes
@@ -60,7 +60,7 @@ export function getUserFriendlyError(error: unknown): string {
     }
   }
 
-  return DEFAULT_MESSAGE;
+  return fallback;
 }
 
 /** Attempt to pull an error `code` from various error shapes. */

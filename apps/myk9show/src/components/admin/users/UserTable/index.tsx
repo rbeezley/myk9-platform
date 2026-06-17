@@ -23,6 +23,7 @@ import { DeleteConfirmationDialog } from '@/components/base/DeleteConfirmationDi
 import { useUserStore } from '@/store/userStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { usePermanentDeleteUserMutation } from '@/hooks/queries/useUsersQuery';
+import { getUserFriendlyError } from '@/utils/errorMessages';
 import { AdminDeleteUserDialog } from '../AdminDeleteUserDialog';
 import '@/styles/myk9-table.css';
 
@@ -387,8 +388,10 @@ export const UserTable: React.FC<UserTableProps> = ({
       await deleteUser(deleteTarget.id);
       toast.success(`${deleteTarget.firstName} ${deleteTarget.lastName} has been deleted`);
       setDeleteTarget(null);
-    } catch {
-      toast.error('Failed to delete user');
+    } catch (err) {
+      // Surface the actionable guard message (e.g. "owns dogs") if the DB blocked
+      // it — e.g. when the dialog's owned-dogs pre-check was bypassed.
+      toast.error(getUserFriendlyError(err, 'Failed to delete user'));
     } finally {
       setIsDeleting(false);
     }
@@ -403,8 +406,8 @@ export const UserTable: React.FC<UserTableProps> = ({
         `${deleteTarget.firstName} ${deleteTarget.lastName} has been permanently deleted`
       );
       setDeleteTarget(null);
-    } catch {
-      toast.error('Failed to permanently delete user');
+    } catch (err) {
+      toast.error(getUserFriendlyError(err, 'Failed to permanently delete user'));
     } finally {
       setIsDeleting(false);
     }

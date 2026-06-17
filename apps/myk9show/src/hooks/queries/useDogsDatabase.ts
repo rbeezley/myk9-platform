@@ -85,13 +85,17 @@ export const useDogsByOwnerQuery = (ownerId: string, enabled = true) => {
 };
 
 // Live dogs a person primarily owns — drives the delete-person guard. Gated by
-// `enabled` so it only fires when the delete dialog is open.
+// `enabled` so it only fires when the delete dialog is open. Always refetched
+// fresh (staleTime 0 + refetchOnMount): this gates a destructive decision, and a
+// dog deleted between two opens of the dialog must not leave a stale block. Dog
+// deletes don't invalidate personDogs, so we can't rely on the moderate cache.
 export const useOwnedLiveDogsByPersonQuery = (personId: string, enabled = true) => {
   return useQuery({
     queryKey: [...queryKeys.personDogs(personId), 'owned-live'],
     queryFn: () => getOwnedLiveDogsByPerson(personId),
     enabled: !!personId && enabled,
-    ...cacheStrategies.moderate,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 };
 

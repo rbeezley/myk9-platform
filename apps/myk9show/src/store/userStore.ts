@@ -324,7 +324,12 @@ export const useUserStore = create<UserStore>()(
           const { error: dbError } = await deleteUserFromDb(id);
 
           if (dbError) {
-            throw new Error(dbError.message || 'Failed to delete user from database');
+            // Preserve the DB error code (e.g. MK001 — owns-dogs guard) so callers
+            // can map it to an actionable message; a bare Error would drop it.
+            throw Object.assign(
+              new Error(dbError.message || 'Failed to delete user from database'),
+              dbError.code ? { code: dbError.code } : {}
+            );
           }
 
           // Remove from local state after successful DB delete

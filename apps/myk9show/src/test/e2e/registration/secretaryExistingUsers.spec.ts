@@ -1,22 +1,14 @@
 import { test, expect, type Page } from '@playwright/test';
+import { signInAsSecretary } from '../uat/shared/auth';
 
-const SECRETARY_EMAIL = 'secretary@myk9t.com';
-const SECRETARY_PASSWORD = 'TestPass4567!';
-const SHOW_ID = '4584f257-19b5-4016-aae6-5e7827b769cb';
-
-async function signInAsSecretary(page: Page) {
-  await page.goto('/sign-in', { waitUntil: 'networkidle' });
-  await page.getByTestId('credential-input').fill(SECRETARY_EMAIL);
-  await page.getByTestId('continue-button').click();
-  await expect(page.getByTestId('password-input')).toBeVisible({ timeout: 15000 });
-  await page.getByTestId('password-input').fill(SECRETARY_PASSWORD);
-  await page.getByTestId('sign-in-button').click();
-  await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
-  await page.waitForLoadState('networkidle');
-}
+const SHOW_ID =
+  process.env.QA_EXISTING_USER_REGISTRATION_SHOW_ID ?? '5d8bfe56-a48d-48dd-ae75-7f90c2e02c4f';
 
 async function gotoRegistration(page: Page) {
-  await page.goto(`/secretary/register/${SHOW_ID}`, { waitUntil: 'networkidle' });
+  await page.goto(`/secretary/register/${SHOW_ID}`, {
+    waitUntil: 'domcontentloaded',
+    timeout: 15000,
+  });
   await expect(page.getByRole('heading', { name: 'Register for Show' })).toBeVisible({
     timeout: 15000,
   });
@@ -36,7 +28,7 @@ async function searchDog(page: Page, name: string) {
 
 test.describe('Secretary registration for existing users', () => {
   test.beforeEach(async ({ page }) => {
-    await signInAsSecretary(page);
+    await signInAsSecretary(page, '/secretary/dashboard');
     await gotoRegistration(page);
   });
 

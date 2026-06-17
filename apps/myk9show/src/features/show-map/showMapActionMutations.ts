@@ -1,6 +1,7 @@
 import { CLASS_STATUS, logger, type CheckInStatus } from '@myk9/core';
 
 import { createDatabaseError, supabase } from '@/services/database/supabaseClient';
+import { buildMovedUpFromNote } from '@/services/database/entries/moveUpNote';
 import { replicatedClassesTable, replicatedEntriesTable } from '@/services/replication';
 import {
   updateReplicatedCheckInStatus,
@@ -229,6 +230,10 @@ export async function moveUpShowMapEntry({
   const previousSpecialRequests =
     currentEntry.specialRequests ?? currentEntry.special_requests ?? null;
   const moveNote = `Moved up to ${targetClass.name}${reason ? ': ' + reason : ''}`;
+  const movedUpFromNote = buildMovedUpFromNote(
+    currentEntry.classId ?? currentEntry.class_id,
+    reason
+  );
   const newEntryId = generateUUID();
 
   await replicatedEntriesTable.updateEntry(entryId, {
@@ -253,8 +258,8 @@ export async function moveUpShowMapEntry({
       jumpHeight: currentEntry.jumpHeight,
       handler: currentEntry.handler,
       armband: currentEntry.armband,
-      specialRequests: `Moved up from class ${currentEntry.classId ?? currentEntry.class_id}${reason ? ': ' + reason : ''}`,
-      special_requests: `Moved up from class ${currentEntry.classId ?? currentEntry.class_id}${reason ? ': ' + reason : ''}`,
+      specialRequests: movedUpFromNote,
+      special_requests: movedUpFromNote,
     });
   } catch (error) {
     try {

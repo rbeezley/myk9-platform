@@ -41,6 +41,18 @@ describe('mapEntryStatus', () => {
     expect(mapEntryStatus('moved')).toBe(EntryStatus.MOVED);
   });
 
+  it("maps 'completed' to COMPLETED (scored entries are NOT pending)", () => {
+    // Regression guard for the Entry Management Pending over-count (audit F2):
+    // scored entries with released placements were falling through to PENDING.
+    expect(mapEntryStatus('completed')).toBe(EntryStatus.COMPLETED);
+  });
+
+  it("maps 'move-up-requested' to MOVE_UP_REQUESTED (NOT pending)", () => {
+    // Move-up approval is a separate queue; it must not inflate the
+    // accept/reject Pending count.
+    expect(mapEntryStatus('move-up-requested')).toBe(EntryStatus.MOVE_UP_REQUESTED);
+  });
+
   it('maps unknown strings to PENDING (safe default)', () => {
     expect(mapEntryStatus('unknown_value')).toBe(EntryStatus.PENDING);
     expect(mapEntryStatus(null)).toBe(EntryStatus.PENDING);
@@ -71,6 +83,18 @@ describe('mapStatusToDb round-trip', () => {
     const dbValue = mapStatusToDb(EntryStatus.CANCELLED);
     expect(dbValue).toBe('withdrawn');
     expect(mapEntryStatus(dbValue)).toBe(EntryStatus.CANCELLED);
+  });
+
+  it("COMPLETED writes 'completed' to DB and round-trips", () => {
+    const dbValue = mapStatusToDb(EntryStatus.COMPLETED);
+    expect(dbValue).toBe('completed');
+    expect(mapEntryStatus(dbValue)).toBe(EntryStatus.COMPLETED);
+  });
+
+  it("MOVE_UP_REQUESTED writes 'move-up-requested' to DB and round-trips", () => {
+    const dbValue = mapStatusToDb(EntryStatus.MOVE_UP_REQUESTED);
+    expect(dbValue).toBe('move-up-requested');
+    expect(mapEntryStatus(dbValue)).toBe(EntryStatus.MOVE_UP_REQUESTED);
   });
 });
 

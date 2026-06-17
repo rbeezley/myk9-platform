@@ -31,6 +31,15 @@ export const mapEntryStatus = (status?: string | null): EntryStatus => {
       return EntryStatus.SCRATCHED;
     case 'moved':
       return EntryStatus.MOVED;
+    case 'completed':
+      // Scored entries with recorded results — terminal, NOT awaiting review.
+      // Without this case they collapsed to PENDING and inflated the
+      // Entry Management "Pending / Need review" stat + tab (audit F2).
+      return EntryStatus.COMPLETED;
+    case 'move-up-requested':
+      // Exhibitor requested a class move-up; handled in a separate approval
+      // queue, so it must stay out of the accept/reject Pending bucket.
+      return EntryStatus.MOVE_UP_REQUESTED;
     default:
       return EntryStatus.PENDING;
   }
@@ -112,6 +121,10 @@ export const mapStatusToDb = (status: EntryStatus): CanonicalEntryStatus => {
       return 'scratched';
     case EntryStatus.MOVED:
       return 'moved';
+    case EntryStatus.COMPLETED:
+      return 'completed';
+    case EntryStatus.MOVE_UP_REQUESTED:
+      return 'move-up-requested';
     case EntryStatus.PENDING:
     case EntryStatus.MISSING_INFO:
     default:
@@ -144,6 +157,14 @@ export function getEntryStatusBadge(status: EntryStatus): React.ReactNode {
       return React.createElement(Badge, { className: 'bg-gray-100 text-gray-700' }, 'Pulled');
     case EntryStatus.MOVED:
       return React.createElement(Badge, { className: 'bg-gray-100 text-gray-700' }, 'Moved');
+    case EntryStatus.COMPLETED:
+      return React.createElement(Badge, { className: 'bg-blue-100 text-blue-800' }, 'Scored');
+    case EntryStatus.MOVE_UP_REQUESTED:
+      return React.createElement(
+        Badge,
+        { className: 'bg-amber-100 text-amber-800' },
+        'Move-Up Requested'
+      );
     default:
       return React.createElement(Badge, { variant: 'outline' }, 'Unknown');
   }

@@ -185,9 +185,8 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
           : []),
       ]);
 
-      // Prefix-match: useEntriesByShowQuery keys are suffixed with 'auth'/'public'
-      // (anon vs full read), so an exact getQueryData/setQueryData on the bare key
-      // misses the live query. Snapshot + update every matched variant.
+      // Prefix-match: useEntriesBy{Show,Class}Query keys are 'auth'/'public'-suffixed,
+      // so an exact write on the bare key misses the live query — snapshot/update all.
       const previousShowEntries = queryClient.getQueriesData<Record<string, unknown>[]>({
         queryKey: queryKeys.showEntries(showId),
       });

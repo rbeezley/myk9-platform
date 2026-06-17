@@ -135,7 +135,7 @@ const BrowseClubsPage: React.FC = () => {
       canCreateClub ? (
         <Button onClick={() => setShowCreateClubPanel(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Add Club
+          New Club
         </Button>
       ) : null,
     [canCreateClub]
@@ -156,7 +156,7 @@ const BrowseClubsPage: React.FC = () => {
           }
           action={
             canCreateClub
-              ? { label: 'Add Club', onClick: () => setShowCreateClubPanel(true), icon: Plus }
+              ? { label: 'New Club', onClick: () => setShowCreateClubPanel(true), icon: Plus }
               : undefined
           }
         />

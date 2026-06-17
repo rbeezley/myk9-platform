@@ -55,6 +55,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-restore-ui-remediation.md](plan-restore-ui-remediation.md)                           | Active    | Plan: Fix the Deleted Entities (restore) UI                          |
 | [plan-result-reveal-share-card.md](plan-result-reveal-share-card.md)                       | Active    | Plan: Result Reveal + Share Card                                      |
 | [plan-show-day-sequencing.md](plan-show-day-sequencing.md)                                 | Active    | Plan — Show-Day Workflow Sequencing                                   |
+| [plan-soft-delete-person-rpc.md](plan-soft-delete-person-rpc.md)                           | Active    | Plan: Fix person soft-delete (RLS WITH-CHECK block)                  |
 | [plan-ux-journey-audit.md](plan-ux-journey-audit.md)                                       | Active    | Plan: UX Journey Audit — Exhibitor & Secretary                        |
 | [plan-ux-journey-phase6.md](plan-ux-journey-phase6.md)                                     | Active    | Plan: UX Journey Audit — Phase 6 (Remediation Verification)           |
 | [plan-wave1-exhibitor-entry-payment-trust.md](plan-wave1-exhibitor-entry-payment-trust.md) | Active    | Wave 1 Exhibitor Entry And Payment Trust Implementation Plan          |

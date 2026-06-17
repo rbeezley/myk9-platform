@@ -91,6 +91,23 @@ describe('ToastContainer', () => {
     expect(screen.getByLabelText(/dog alert/i)).toBeInTheDocument();
   });
 
+  it('renders the View action link with the AA-compliant primary token, not low-contrast orange', () => {
+    // Regression: the action link used `text-orange-500` (#f97316), which on the
+    // light popover surface (#faf9f5) is only 2.66:1 — a serious WCAG AA
+    // color-contrast failure that reddened the A11y smoke gate whenever a live
+    // toast happened to be on screen during the secretary-dashboard scan. The
+    // theme-aware `--primary` token clears AA in every accent (5.5:1 light,
+    // 5.1:1 dark). Pin the class so the low-contrast shade cannot creep back.
+    useToastStore
+      .getState()
+      .addToast({ ...makePayload('1'), actionUrl: '/classes/abc' });
+    render(<ToastContainer />);
+
+    const link = screen.getByRole('link', { name: /view/i });
+    expect(link).toHaveClass('text-primary');
+    expect(link.className).not.toContain('text-orange-500');
+  });
+
   it('pauses auto-dismiss on hover and resumes on mouse leave', () => {
     useToastStore.getState().addToast(makePayload('1', 'normal'));
     render(<ToastContainer />);

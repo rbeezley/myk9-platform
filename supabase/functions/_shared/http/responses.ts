@@ -10,6 +10,9 @@ export class HttpError extends Error {
   constructor(
     public readonly status: number,
     message: string,
+    // Optional machine-readable code (e.g. a Postgres SQLSTATE like 'MK001')
+    // surfaced in the response body so the client can map it to a message.
+    public readonly code?: string,
   ) {
     super(message);
     this.name = 'HttpError';

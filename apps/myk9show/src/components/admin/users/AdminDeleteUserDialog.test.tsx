@@ -2,6 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { AdminDeleteUserDialog } from './AdminDeleteUserDialog';
 
+// Control the owns-dogs guard query directly; default = owns nothing.
+const mockOwnedDogs = vi.fn(() => ({ data: [] as { id: string; name: string }[], isLoading: false }));
+vi.mock('@/hooks/queries/useDogsDatabase', () => ({
+  useOwnedLiveDogsByPersonQuery: (...args: unknown[]) => mockOwnedDogs(...(args as [])),
+}));
+
 describe('AdminDeleteUserDialog', () => {
   const defaultProps = {
     open: true,
@@ -14,6 +20,7 @@ describe('AdminDeleteUserDialog', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockOwnedDogs.mockReturnValue({ data: [], isLoading: false });
   });
 
   it('renders with deactivate selected by default', () => {
@@ -96,5 +103,53 @@ describe('AdminDeleteUserDialog', () => {
     render(<AdminDeleteUserDialog {...defaultProps} entityName="3 users" bulkCount={3} />);
 
     expect(screen.getByText(/3 users/)).toBeInTheDocument();
+  });
+
+  describe('owns-dogs guard', () => {
+    it('blocks deletion and lists the owned dogs when the person owns live dogs', () => {
+      mockOwnedDogs.mockReturnValue({
+        data: [
+          { id: 'd1', name: 'Bravo' },
+          { id: 'd2', name: 'Alpha 1' },
+        ],
+        isLoading: false,
+      });
+      render(<AdminDeleteUserDialog {...defaultProps} personId="p1" />);
+
+      expect(screen.getByText(/Can't delete John Doe/)).toBeInTheDocument();
+      expect(screen.getByText(/still owns 2 live dogs/i)).toBeInTheDocument();
+      expect(screen.getByText('Bravo')).toBeInTheDocument();
+      expect(screen.getByText('Alpha 1')).toBeInTheDocument();
+
+      // The delete actions must NOT be reachable while blocked.
+      expect(screen.queryByLabelText(/Deactivate/)).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /permanently delete/i })).not.toBeInTheDocument();
+    });
+
+    it('truncates a long owned-dog list with a "and N more" line', () => {
+      mockOwnedDogs.mockReturnValue({
+        data: Array.from({ length: 11 }, (_, i) => ({ id: `d${i}`, name: `Dog ${i}` })),
+        isLoading: false,
+      });
+      render(<AdminDeleteUserDialog {...defaultProps} personId="p1" />);
+
+      expect(screen.getByText(/and 3 more/i)).toBeInTheDocument();
+    });
+
+    it('shows the normal delete chooser when the person owns no live dogs', () => {
+      mockOwnedDogs.mockReturnValue({ data: [], isLoading: false });
+      render(<AdminDeleteUserDialog {...defaultProps} personId="p1" />);
+
+      expect(screen.queryByText(/Can't delete/)).not.toBeInTheDocument();
+      expect(screen.getByLabelText(/Deactivate/)).toBeChecked();
+    });
+
+    it('does not block while the owned-dogs check is still loading', () => {
+      mockOwnedDogs.mockReturnValue({ data: undefined as never, isLoading: true });
+      render(<AdminDeleteUserDialog {...defaultProps} personId="p1" />);
+
+      expect(screen.queryByText(/Can't delete/)).not.toBeInTheDocument();
+      expect(screen.getByLabelText(/Deactivate/)).toBeInTheDocument();
+    });
   });
 });

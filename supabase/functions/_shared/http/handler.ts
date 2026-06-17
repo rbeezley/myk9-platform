@@ -96,7 +96,11 @@ export async function processRequest<TBody>(
     return json(result ?? { success: true }, 200, headers);
   } catch (err) {
     if (err instanceof HttpError) {
-      return json({ error: err.message }, err.status, headers);
+      return json(
+        { error: err.message, ...(err.code ? { code: err.code } : {}) },
+        err.status,
+        headers,
+      );
     }
     console.error('handle: unexpected handler error', err);
     return json({ error: 'Internal server error' }, 500, headers);

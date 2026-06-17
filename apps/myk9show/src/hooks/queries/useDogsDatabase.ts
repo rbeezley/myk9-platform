@@ -11,6 +11,7 @@ import {
   deleteDog,
   searchDogs,
   getDogStatistics,
+  getOwnedLiveDogsByPerson,
 } from '@/services/database/dogs';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { mapDatabaseToDog } from '@/services/mappers/dogMappers';
@@ -80,6 +81,21 @@ export const useDogsByOwnerQuery = (ownerId: string, enabled = true) => {
     },
     enabled: !!ownerId && enabled,
     ...cacheStrategies.moderate,
+  });
+};
+
+// Live dogs a person primarily owns — drives the delete-person guard. Gated by
+// `enabled` so it only fires when the delete dialog is open. Always refetched
+// fresh (staleTime 0 + refetchOnMount): this gates a destructive decision, and a
+// dog deleted between two opens of the dialog must not leave a stale block. Dog
+// deletes don't invalidate personDogs, so we can't rely on the moderate cache.
+export const useOwnedLiveDogsByPersonQuery = (personId: string, enabled = true) => {
+  return useQuery({
+    queryKey: [...queryKeys.personDogs(personId), 'owned-live'],
+    queryFn: () => getOwnedLiveDogsByPerson(personId),
+    enabled: !!personId && enabled,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 };
 

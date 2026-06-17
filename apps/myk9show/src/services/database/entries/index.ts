@@ -20,6 +20,7 @@ export {
   withdrawEntry,
 } from './writes';
 export * from './lifecycle';
+export * from './moveUpNote';
 export * from './search';
 export * from './secretary';
 export { hardDeleteEntry, restoreEntry, getDeletedEntries } from './admin';

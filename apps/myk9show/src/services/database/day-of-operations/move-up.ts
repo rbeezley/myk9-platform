@@ -19,6 +19,7 @@ import {
   rollbackEntryMove,
   denyMoveUpRequest as denyMoveUpRequestTransition,
 } from '../entries/lifecycle';
+import { buildMovedUpFromNote } from '../entries/moveUpNote';
 import { getReplicatedDayOfEntries } from './replicatedReadAdapter';
 
 /**
@@ -104,7 +105,7 @@ export const processMoveUp = async (entryId: string, toClassId: string, reason?:
         jump_height: currentEntry.jump_height,
         handler: currentEntry.handler,
         armband: currentEntry.armband,
-        special_requests: `Moved up from class ${currentEntry.class_id}${reason ? ': ' + reason : ''}`,
+        special_requests: buildMovedUpFromNote(currentEntry.class_id, reason),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })

@@ -134,6 +134,34 @@ describe('MyEntryCard payment recovery', () => {
 
     expect(screen.queryByRole('link', { name: /Finish Payment/i })).not.toBeInTheDocument();
   });
+
+  it('shows Finish Payment for an unpaid move-up request (payment split from edit eligibility)', () => {
+    renderCard(
+      makeEntry({
+        showId: 'show-1',
+        entryStatus: EntryStatus.MOVE_UP_REQUESTED,
+        paymentStatus: PaymentStatus.PENDING,
+        totalFee: 30,
+        classes: [makeClass({ id: 'entry-9' })],
+      })
+    );
+
+    expect(screen.getByRole('link', { name: /Finish Payment/i })).toBeInTheDocument();
+    // ...but a move-up request is NOT editable while awaiting approval.
+    expect(screen.queryByRole('button', { name: /Edit Entry/i })).not.toBeInTheDocument();
+  });
+
+  it('does not show Finish Payment for an unpaid waitlisted entry (pay on promotion)', () => {
+    renderCard(
+      makeEntry({
+        entryStatus: EntryStatus.WAITLIST,
+        paymentStatus: PaymentStatus.PENDING,
+        totalFee: 30,
+      })
+    );
+
+    expect(screen.queryByRole('link', { name: /Finish Payment/i })).not.toBeInTheDocument();
+  });
 });
 
 describe('MyEntryCard history status clarity', () => {

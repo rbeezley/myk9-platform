@@ -93,8 +93,14 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
   const canRequestPostDeadlineHelp = hasEditableStatus && isPastEntryDeadline;
 
   const canShowReceipt = entry.confirmationNumber && isPaid;
+  // Payment eligibility is intentionally split from edit eligibility: a
+  // move-up request is a confirmed entry that can still owe its fee even though
+  // it isn't editable while awaiting secretary approval. Waitlisted entries stay
+  // out — they pay on promotion, not before.
+  const canPayStatus =
+    hasEditableStatus || entry.entryStatus === EntryStatus.MOVE_UP_REQUESTED;
   const canFinishPayment =
-    hasEditableStatus && entry.paymentStatus === PaymentStatus.PENDING && entry.totalFee > 0;
+    canPayStatus && entry.paymentStatus === PaymentStatus.PENDING && entry.totalFee > 0;
 
   // Build a "Get directions" link from the full venue address (venue, city,
   // state) while the card still displays the shorter "city, state" label.

@@ -272,6 +272,23 @@ describe('TasksTab — personal-only', () => {
     expect(skeleton.style.minHeight).toBe(`${TASKS_TAB_RESERVED_MIN_HEIGHT_PX}px`);
   });
 
+  it('gives the loading skeleton role="status" so aria-label is permitted', () => {
+    // Regression: a bare <div aria-label> is `generic`, which forbids naming
+    // attrs — axe flags it `aria-prohibited-attr` (serious). role="status"
+    // makes the label valid and is correct loading-region semantics.
+    vi.mocked(useSecretaryTasks).mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useSecretaryTasks>);
+
+    render(<TasksTab clubId="club-1" />, { wrapper });
+    const skeleton = screen.getByTestId('tasks-tab-skeleton');
+    expect(skeleton).toHaveAttribute('role', 'status');
+    expect(skeleton).toHaveAttribute('aria-label', 'Loading tasks');
+  });
+
   it('renders the List/Timeline view toggle', () => {
     render(<TasksTab clubId="club-1" />, { wrapper });
     expect(screen.getByLabelText('List view')).toBeInTheDocument();

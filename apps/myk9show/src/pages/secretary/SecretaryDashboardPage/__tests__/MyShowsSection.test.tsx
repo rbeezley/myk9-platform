@@ -96,6 +96,17 @@ describe('MyShowsSectionSkeleton', () => {
     expect(skeleton).toHaveAttribute('aria-busy', 'true');
   });
 
+  it('uses role="status" so aria-label is a permitted (non-prohibited) attr', () => {
+    // Regression: a bare <div aria-label> has the implicit `generic` role,
+    // which forbids naming attrs — axe flags it `aria-prohibited-attr`
+    // (serious). role="status" makes the label valid and is the correct
+    // loading-region semantics.
+    render(<MyShowsSectionSkeleton />);
+    const skeleton = screen.getByTestId('my-shows-section-skeleton');
+    expect(skeleton).toHaveAttribute('role', 'status');
+    expect(skeleton).toHaveAttribute('aria-label', 'Loading your shows');
+  });
+
   it('does not render skeleton when loaded section is shown', () => {
     // The skeleton is only mounted by SecretaryDashboardPage when shows are
     // loading. Once the loaded MyShowsSection mounts, the skeleton is gone.

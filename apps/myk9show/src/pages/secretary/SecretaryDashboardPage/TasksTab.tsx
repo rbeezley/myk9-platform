@@ -119,6 +119,10 @@ export function TasksTab({ clubId }: TasksTabProps) {
           data-testid="tasks-tab-skeleton"
           className="flex flex-col gap-2"
           style={{ minHeight: `${TASKS_TAB_RESERVED_MIN_HEIGHT_PX}px` }}
+          // role="status" permits `aria-label` here — a bare <div> is `generic`,
+          // which forbids naming attrs (axe `aria-prohibited-attr`) — and is the
+          // right semantics for a loading region (implicit aria-live="polite").
+          role="status"
           aria-busy="true"
           aria-label="Loading tasks"
         >

@@ -294,4 +294,109 @@ describe('useShowEntriesForUser', () => {
     const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
     expect(result.current.allEntries).toHaveLength(0);
   });
+
+  describe('move-up duplicate handling', () => {
+    const DEST_CLASS_ID = 'class-2';
+
+    function reg(overrides = {}) {
+      return {
+        armband: '101',
+        runOrder: 3,
+        handler: 'Sarah',
+        submittedAt: '',
+        entryFee: 0,
+        paymentStatus: 'paid',
+        ...overrides,
+      };
+    }
+
+    function setupMoveUp(extraEntries: ReturnType<typeof makeEntry>[] = []) {
+      const sourceClass = makeClass(); // class-1: Container Novice A
+      const destClass = makeClass({
+        id: DEST_CLASS_ID,
+        element: 'Interior',
+        level: 'Excellent',
+        section: 'B',
+        className: 'Interior Excellent B',
+      });
+      const sourceEntry = makeEntry({
+        id: 'src-1',
+        classId: CLASS_ID,
+        status: 'moved',
+        registrationData: reg({ specialRequests: 'Moved up to Interior Excellent B' }),
+      });
+      const destEntry = makeEntry({
+        id: 'dest-1',
+        classId: DEST_CLASS_ID,
+        status: 'confirmed',
+        registrationData: reg({ runOrder: 1, specialRequests: `Moved up from class ${CLASS_ID}` }),
+      });
+      setMocks({
+        classes: [sourceClass, destClass],
+        entries: [sourceEntry, destEntry, ...extraEntries],
+      });
+    }
+
+    it('suppresses the moved source row, leaving only the destination', () => {
+      setupMoveUp();
+      const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
+      expect(result.current.allEntries).toHaveLength(1);
+      expect(result.current.allEntries[0].entryId).toBe('dest-1');
+      expect(result.current.allEntries[0].classId).toBe(DEST_CLASS_ID);
+      expect(result.current.totalClasses).toBe(1);
+    });
+
+    it('annotates the destination row with the source class name', () => {
+      setupMoveUp();
+      const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
+      expect(result.current.allEntries[0].movedUpFrom).toBe('Container Novice A');
+    });
+
+    it('suppresses the source but leaves movedUpFrom undefined when the source class is not loaded', () => {
+      // Destination references a source class that isn't in the class store (e.g.
+      // filtered out). The source row is still suppressed; annotation falls back
+      // to undefined rather than rendering a raw class id.
+      const destClass = makeClass({
+        id: DEST_CLASS_ID,
+        element: 'Interior',
+        level: 'Excellent',
+        section: 'B',
+        className: 'Interior Excellent B',
+      });
+      const sourceEntry = makeEntry({
+        id: 'src-1',
+        classId: CLASS_ID,
+        status: 'moved',
+        registrationData: reg({ specialRequests: 'Moved up to Interior Excellent B' }),
+      });
+      const destEntry = makeEntry({
+        id: 'dest-1',
+        classId: DEST_CLASS_ID,
+        status: 'confirmed',
+        registrationData: reg({ runOrder: 1, specialRequests: `Moved up from class ${CLASS_ID}` }),
+      });
+      // Only the destination class is loaded — the source class (CLASS_ID) is not.
+      setMocks({ classes: [destClass], entries: [sourceEntry, destEntry] });
+      const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
+      expect(result.current.allEntries).toHaveLength(1);
+      expect(result.current.allEntries[0].entryId).toBe('dest-1');
+      expect(result.current.allEntries[0].movedUpFrom).toBeUndefined();
+    });
+
+    it('keeps the moved source row when its destination is absent (half-failed move)', () => {
+      // Only the moved source exists — no destination row was inserted.
+      const sourceClass = makeClass();
+      const orphanSource = makeEntry({
+        id: 'src-1',
+        classId: CLASS_ID,
+        status: 'moved',
+        registrationData: reg({ specialRequests: 'Moved up to Interior Excellent B' }),
+      });
+      setMocks({ classes: [sourceClass], entries: [orphanSource] });
+      const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
+      expect(result.current.allEntries).toHaveLength(1);
+      expect(result.current.allEntries[0].entryId).toBe('src-1');
+      expect(result.current.allEntries[0].movedUpFrom).toBeUndefined();
+    });
+  });
 });

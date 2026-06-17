@@ -10,6 +10,7 @@ import { UserRole } from '@/types/auth-types';
 import { getClassName } from '@/components/classes/types/classTypes';
 import { entryIsScored } from '@/utils/entryPredicates';
 import { hasScopedClubRole, hasScopedShowRole } from '@/utils/roleScopes';
+import { resolveMoveUpDisplay } from '@/hooks/moveUpDisplay';
 import type { SyncableShowEntry } from '@/store/entry-store-types';
 
 export interface EnrichedShowEntry {
@@ -31,6 +32,8 @@ export interface EnrichedShowEntry {
   judgeName: string;
   dogsAhead: number;
   hasResult: boolean;
+  /** Set on a move-up destination row: the human name of the class moved up from. */
+  movedUpFrom?: string;
   result?: {
     qualified: boolean;
     time?: string;
@@ -63,6 +66,22 @@ function formatDayLabel(isoDate: string): string {
 function compareByTime(a: EnrichedShowEntry, b: EnrichedShowEntry): number {
   if (a.trialDate !== b.trialDate) return a.trialDate.localeCompare(b.trialDate);
   return a.startTime.localeCompare(b.startTime);
+}
+
+interface ClassNameFields {
+  element?: string | null | undefined;
+  level?: string | null | undefined;
+  section?: string | null | undefined;
+  className?: string | undefined;
+}
+
+function classDisplayName(cls: ClassNameFields): string {
+  return getClassName({
+    element: cls.element ?? '',
+    level: cls.level ?? '',
+    section: cls.section ?? '',
+    className: cls.className,
+  });
 }
 
 export function useShowEntriesForUser(showId: string | undefined): UseShowEntriesForUserResult {
@@ -105,6 +124,21 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
     }
     if (myEntries.length === 0) return empty;
 
+    // A move-up leaves the source row (status='moved') and a new destination row
+    // for the same dog. Suppress the dead source row (it never runs in its old
+    // class) and remember each destination's origin class for an annotation, so
+    // this view agrees with the secretary's Show Map (which resolves the dog to
+    // its destination class).
+    const { suppressedEntryIds, movedUpFromClassIdByEntryId } = resolveMoveUpDisplay(
+      myEntries.map(e => ({
+        id: e.id,
+        dogId: e.dogId,
+        classId: e.classId,
+        status: e.status,
+        specialRequests: e.registrationData.specialRequests,
+      }))
+    );
+
     const classMap = new Map(classes.map(c => [c.id, c]));
     const dogNameMap = new Map(
       dogs
@@ -122,6 +156,7 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
 
     const enriched: EnrichedShowEntry[] = [];
     for (const entry of myEntries) {
+      if (suppressedEntryIds.has(entry.id)) continue;
       const cls = classMap.get(entry.classId);
       if (!cls) continue;
 
@@ -132,9 +167,15 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
               e =>
                 (e.registrationData.runOrder ?? 0) > 0 &&
                 (e.registrationData.runOrder ?? 0) < runOrder &&
+                // A moved-up source row never runs, so it isn't "ahead".
+                e.status !== 'moved' &&
                 !entryIsScored(e)
             ).length
           : 0;
+
+      const movedUpFromClassId = movedUpFromClassIdByEntryId.get(entry.id);
+      const movedUpFromClass = movedUpFromClassId ? classMap.get(movedUpFromClassId) : undefined;
+      const movedUpFrom = movedUpFromClass ? classDisplayName(movedUpFromClass) : undefined;
 
       const trialDate = (cls.trialDate ?? '').split('T')[0];
       const element = cls.element ?? '';
@@ -155,8 +196,7 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
         element,
         level,
         section,
-        classTitle:
-          getClassName({ element, level, section, className: cls.className }) || 'Unnamed Class',
+        classTitle: classDisplayName(cls) || 'Unnamed Class',
         trialDate,
         dayLabel: trialDate ? formatDayLabel(trialDate) : '',
         trialName: cls.trial ?? '',
@@ -164,6 +204,7 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
         judgeName: cls.judge ?? '',
         dogsAhead,
         hasResult,
+        ...(movedUpFrom ? { movedUpFrom } : {}),
         ...(hasResult && compData
           ? {
               result: {

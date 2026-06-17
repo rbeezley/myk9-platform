@@ -7,6 +7,8 @@ import { hasScopedClubRole } from '@/utils/roleScopes';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useTemplateStore } from '@/store/templateStore';
 import { useShowStore } from '@/store/showStore';
+import { useTrialQuery } from '@/hooks/queries/useTrialsDatabase';
+import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
 import TrialDetailsMain from '@/components/trials/TrialDetailsMain';
 import { AddClassesToTrialPanel } from '@/components/classes/AddClassesToTrialPanel';
 import { TrialEditPanel } from '@/components/panels/edit/TrialEditPanel';
@@ -84,10 +86,29 @@ const TrialDetailsPage: React.FC = () => {
   // Current trial + its parent show — plain store derivations, safe to read
   // before the hooks below (they depend only on already-loaded store data) so
   // the staff gate can scope club_admin to this trial's club.
-  const currentTrial = trials.find(trial => trial.id === selectedTrialId) as
+  //
+  // Lane 3.7: the trial store is replication-fed and never syncs for a
+  // logged-out guest, so a cold anon visitor finds nothing here. Fall back to
+  // the anon-safe by-id service read (getTrialById self-falls-through to direct
+  // PostgREST) so the public trial page renders instead of being stuck on
+  // "Loading trial...". The query is disabled for warm sessions that already
+  // have the trial in the store.
+  const storeTrial = trials.find(trial => trial.id === selectedTrialId);
+  const { data: fallbackTrial, isFetched: fallbackTrialFetched } = useTrialQuery(
+    storeTrial ? undefined : trialId
+  );
+  const currentTrial = (storeTrial ?? fallbackTrial ?? undefined) as
     | (import('@/components/trials/types/trial.types').Trial & { classes?: TrialClass[] })
     | undefined;
-  const parentShow = currentTrial ? shows.find(show => show.id === currentTrial.showId) : undefined;
+
+  const storeShow = currentTrial
+    ? shows.find(show => show.id === currentTrial.showId)
+    : undefined;
+  // Same cold-store gap for the parent show — getShowById is already anon-safe.
+  const { data: fallbackShow } = useShowQuery(
+    !storeShow && currentTrial?.showId ? currentTrial.showId : ''
+  );
+  const parentShow = storeShow ?? fallbackShow ?? undefined;
   const showOrganization = parentShow?.organization;
 
   // Public route — exhibitors are now deep-linked here from styled landings.
@@ -277,8 +298,11 @@ const TrialDetailsPage: React.FC = () => {
     </div>
   );
 
-  // Not found state
-  if (trialId && !currentTrial && trials.length > 0) {
+  // Not found state — the store knows about other trials but not this one
+  // (warm session), OR the anon by-id fallback has settled empty (cold guest
+  // on a bad id). Without the `fallbackTrialFetched` arm, a cold guest hitting
+  // a missing trial would spin forever (trials.length stays 0).
+  if (trialId && !currentTrial && (trials.length > 0 || fallbackTrialFetched)) {
     return (
       <PageShell>
         <ErrorState

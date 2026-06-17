@@ -5,7 +5,13 @@ import { STYLED_LANDING_BY_STYLE } from '@/features/_shared/styledLandingRegistr
 import { Link, Outlet, useParams, useNavigate, useSearchParams, useMatch } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getTrialsByShow } from '@/services/database/trials';
+import { getClassesByTrialId } from '@/services/database/classes';
 import { pickLandingTrials } from './ShowDetailsPage.landingTrials';
+import {
+  buildPublicShowClasses,
+  buildPublicTrialStats,
+  type TrialClassRows,
+} from './ShowDetailsPage.publicClasses';
 import {
   LayoutDashboard,
   Trophy,
@@ -260,6 +266,34 @@ const ShowDetailsPage: React.FC = () => {
     () => pickLandingTrials(associatedTrials, publicTrialsResult?.data),
     [associatedTrials, publicTrialsResult]
   );
+  // For tabs/counts/derivations, treat landingTrials as the effective trial
+  // list: it IS associatedTrials when the store is warm, and the anon-safe
+  // public rows when the store is cold. (Lane 3.7)
+  const effectiveTrials = landingTrials;
+
+  // Public/anon fallback for trial *classes*. Same cold-store gap as trials:
+  // a logged-out guest on a DEFAULT-style show falls to the tabbed UI whose
+  // Trials/Classes tabs read the cold trialClasses store. getClassesByTrialId
+  // self-falls-through to a direct anon-safe PostgREST read, so fetch per
+  // landing trial when the store is cold, then reshape to the tab's ClassInfo.
+  const landingTrialIdsKey = useMemo(
+    () => landingTrials.map(t => t.id).join(','),
+    [landingTrials]
+  );
+  const { data: publicClassesByTrial } = useQuery<TrialClassRows[]>({
+    queryKey: ['public-show-classes', showId_, landingTrialIdsKey],
+    queryFn: async () => {
+      const results = await Promise.all(
+        landingTrials.map(async trial => {
+          const { data } = await getClassesByTrialId(trial.id);
+          return { trialId: trial.id, rows: (data ?? []) as Record<string, unknown>[] };
+        })
+      );
+      return results;
+    },
+    enabled: !!showId_ && associatedTrials.length === 0 && landingTrials.length > 0,
+    staleTime: 60_000,
+  });
 
   // Check if user has entries in this show (determines default tab)
   // Only enable polling when the My Entries tab is active (fix #3)
@@ -340,13 +374,22 @@ const ShowDetailsPage: React.FC = () => {
     });
   }, [associatedTrials, trialClasses, userEntryClassIds, showEntries]);
 
+  // Anon/cold-store fallback for the Classes tab + overview. When the store has
+  // trials we keep the store-derived `showClasses` verbatim (warm session, no
+  // behavior change); only a cold guest swaps in the public PostgREST reshape.
+  const publicShowClasses = useMemo(
+    () => buildPublicShowClasses(landingTrials, publicClassesByTrial ?? [], showEntries),
+    [landingTrials, publicClassesByTrial, showEntries]
+  );
+  const effectiveShowClasses = showClasses.length > 0 ? showClasses : publicShowClasses;
+
   const effectiveJudges = useMemo((): ShowJudgeAssignment[] => {
     return resolveOverviewJudgesWithRoster(
       actualCurrentShow?.assignedJudges,
       showJudgeRoster,
-      showClasses
+      effectiveShowClasses
     );
-  }, [actualCurrentShow, showJudgeRoster, showClasses]);
+  }, [actualCurrentShow, showJudgeRoster, effectiveShowClasses]);
 
   // Trial statistics for card display (class counts, entry counts, scoring progress)
   const trialStats = useMemo(() => {
@@ -366,8 +409,15 @@ const ShowDetailsPage: React.FC = () => {
     return stats;
   }, [associatedTrials, trialClasses, showEntries]);
 
+  // Same cold-store fallback for the Trials tab's per-trial stat cards.
+  const publicTrialStats = useMemo(
+    () => buildPublicTrialStats(publicClassesByTrial ?? [], showEntries),
+    [publicClassesByTrial, showEntries]
+  );
+  const effectiveTrialStats = associatedTrials.length > 0 ? trialStats : publicTrialStats;
+
   const hasEntryClassInventory =
-    associatedTrials.length > 0 ? showClasses.length > 0 : null;
+    effectiveTrials.length > 0 ? effectiveShowClasses.length > 0 : null;
 
   // Redirect if no show ID
   useEffect(() => {
@@ -402,7 +452,7 @@ const ShowDetailsPage: React.FC = () => {
     () => [
       { id: 'overview', label: 'Overview', icon: LayoutDashboard },
       ...(canShowMap ? [{ id: 'map', label: 'Show Map', icon: ListTree }] : []),
-      { id: 'trials', label: 'Trials', icon: Trophy, count: associatedTrials.length },
+      { id: 'trials', label: 'Trials', icon: Trophy, count: effectiveTrials.length },
       ...(!canManageShow && isAuthenticated
         ? [
             {
@@ -413,7 +463,7 @@ const ShowDetailsPage: React.FC = () => {
             },
           ]
         : []),
-      { id: 'classes', label: 'Classes', icon: ListChecks, count: showClasses.length },
+      { id: 'classes', label: 'Classes', icon: ListChecks, count: effectiveShowClasses.length },
       ...(canManageShow && isAuthenticated
         ? [
             {
@@ -431,8 +481,8 @@ const ShowDetailsPage: React.FC = () => {
       isAuthenticated,
       canShowMap,
       canManageShow,
-      associatedTrials.length,
-      showClasses.length,
+      effectiveTrials.length,
+      effectiveShowClasses.length,
       catalogEntryCount,
       userEntries.length,
     ]
@@ -605,7 +655,7 @@ const ShowDetailsPage: React.FC = () => {
                     classes/levels BEFORE committing to registration. Deep-links
                     the existing Classes tab — no new eligibility surface
                     (UX-P2-04). */}
-                {showClasses.length > 0 && (
+                {effectiveShowClasses.length > 0 && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -704,25 +754,25 @@ const ShowDetailsPage: React.FC = () => {
                 show={actualCurrentShow}
                 canManageShow={canManageShow}
                 judges={effectiveJudges}
-                classes={showClasses}
+                classes={effectiveShowClasses}
                 onViewClasses={() => setTab('classes')}
               />
             </TabsContent>
 
             <TabsContent value="trials">
               <TrialsTab
-                trials={associatedTrials}
+                trials={effectiveTrials}
                 showId={actualCurrentShow.id}
-                trialStats={trialStats}
+                trialStats={effectiveTrialStats}
               />
             </TabsContent>
 
             <TabsContent value="classes">
               <ClassesTab
-                classes={showClasses}
+                classes={effectiveShowClasses}
                 showId={actualCurrentShow.id}
                 userHasEntries={hasUserEntries}
-                hideRing={associatedTrials.some(
+                hideRing={effectiveTrials.some(
                   t =>
                     t.trialType === 'Scent Work' ||
                     t.trialType === 'Nosework' ||

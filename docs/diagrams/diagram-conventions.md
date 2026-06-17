@@ -14,7 +14,7 @@ The single visual language for **user-facing** diagrams in the myK9Show document
 | Reader | A developer tracing code | A secretary, exhibitor, or volunteer |
 | Altitude | Functions, routes, stores, gates | What the person does and sees |
 
-A user diagram obeys [`../user-guides/writing-style.md`](../user-guides/writing-style.md) and [`../INTENT.md`](../INTENT.md) tone **exactly as the prose does**. If a label names a route, a Zustand store, a component, or a feature flag, it is wrong — rewrite it in the words the user would use.
+A user diagram obeys the documentation writing-style rules (`docs/user-guides/writing-style.md` — planned in the user-documentation plan, Task 3; not yet written) and [`../INTENT.md`](../INTENT.md) tone **exactly as the prose does**. If a label names a route, a Zustand store, a component, or a feature flag, it is wrong — rewrite it in the words the user would use.
 
 ## Labeling rules
 

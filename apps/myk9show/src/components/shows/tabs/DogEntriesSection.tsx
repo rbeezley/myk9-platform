@@ -16,7 +16,7 @@ import { Chip } from '@/components/base/Chip';
 import { PlacementPill } from '@/components/base/PlacementPill';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
 import type { DogEntriesGroup, EnrichedShowEntry } from '@/hooks/useShowEntriesForUser';
-import { getPendingResultLabel } from './entryResultDisplay';
+import { getPendingResultLabel, getRemovedStateLabel } from './entryResultDisplay';
 
 type ElementIconConfig = { icon: React.ElementType; bg: string; fg: string };
 
@@ -139,6 +139,18 @@ function EntryRow({ entry, showId }: EntryRowProps) {
 }
 
 function EntryResultBadge({ entry }: { entry: EnrichedShowEntry }) {
+  // Terminal removal state (withdrawn/scratched/refunded) wins over the
+  // pending/result label so a withdrawn entry never reads "Upcoming" here while
+  // the secretary sees it as withdrawn + refunded (UX-P1-04).
+  const removedLabel = getRemovedStateLabel(entry);
+  if (removedLabel) {
+    return (
+      <Chip color="stone" size="sm">
+        {removedLabel}
+      </Chip>
+    );
+  }
+
   const pendingLabel = getPendingResultLabel(entry);
 
   if (pendingLabel) {

@@ -14,7 +14,21 @@ launch gate with *evidence* before more speculative UI lands.
   **merged** ([#775](https://github.com/rbeezley/myk9-platform/pull/775) + [#776](https://github.com/rbeezley/myk9-platform/pull/776)); P1-01/P1-02/P1-03 cleared. Scorecard row → **Yellow**.
 - **Finding B (public results) — DONE:** [#779](https://github.com/rbeezley/myk9-platform/pull/779) merged + mig `20260616120000` applied (2026-06-16). Server-side per-field visibility-cascade gate + direct `publicReads.ts` path; resolves the stale class-results read **and** closes a pre-existing anon over-broad `entries` SELECT (withheld scored columns + payment/PII on public detail routes).
 - **In flight (other sessions):** [#773](https://github.com/rbeezley/myk9-platform/pull/773) anon-RBAC trial page (management chrome on public trial page).
-- **Secretary golden path:** still **Yellow**, not yet re-walked.
+- **Secretary golden path:** **re-walked 2026-06-17** against the canonical seed — see
+  [`docs/audits/2026-06-ux-journeys/04-secretary-rewalk-2026-06-17.md`](audits/2026-06-ux-journeys/04-secretary-rewalk-2026-06-17.md).
+  Stays **Yellow** — workbench is strong and three prior High findings resolved, but **two blockers
+  gate Green:**
+  - **F1 (CRITICAL):** no account holds the `secretary`/`club_admin` role — the Lane 1.1 reseed
+    restored accounts but not role grants, so `/secretary/dashboard` 403s with the demo account.
+    Durable fix = add club-scoped role grants to `seed-demo.sql` (SQL in the audit doc). A manual
+    grant was applied to unblock the walk; **codify it.**
+  - **F2 (HIGH):** Entry Management badges scored/`completed` + `move-up-requested` entries as
+    "Pending," over-counting the review queue 7 vs the true 3 (Dashboard + Show Desk both show 3).
+    Root cause: `mapEntryStatus` (`entryManagementUtils.ts:14`) lacks `completed`/`move-up-requested`
+    cases → `default: PENDING`.
+  - Announcement time-to-task baseline recorded (2 clicks to compose, 3–4 to send) and the move-up
+    **decision** walk completed (decision dialog is good; target-class picker offers invalid lower/
+    cross-element targets — F3).
 
 ---
 

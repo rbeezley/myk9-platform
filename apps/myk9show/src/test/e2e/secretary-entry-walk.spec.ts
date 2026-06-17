@@ -1,22 +1,9 @@
 import { expect, test } from '@playwright/test';
+import { signInAsSecretary } from './uat/shared/auth';
+import { LIVE_SECRETARY_SHOW_ID, LIVE_SECRETARY_SHOW_NAME } from './uat/shared/seededShows';
 
-const SECRETARY_EMAIL = 'secretary@myk9t.com';
-const SECRETARY_PASS = 'TestPass4567!';
-const TEST_SHOW_ID = '4584f257-19b5-4016-aae6-5e7827b769cb';
+const TEST_SHOW_ID = LIVE_SECRETARY_SHOW_ID;
 const DOG_SEARCH = 'Bravo';
-
-async function signInAsSecretary(page: import('@playwright/test').Page) {
-  await page.goto('/sign-in');
-  await page.getByTestId('credential-input').fill(SECRETARY_EMAIL);
-  await page.getByTestId('continue-button').click();
-  await expect(page.getByTestId('password-input')).toBeVisible({ timeout: 15000 });
-  await page.getByTestId('password-input').fill(SECRETARY_PASS);
-  await Promise.all([
-    page.waitForURL(url => !url.href.includes('/sign-in'), { timeout: 15000 }),
-    page.getByTestId('sign-in-button').click(),
-  ]);
-  await page.waitForLoadState('domcontentloaded');
-}
 
 test.describe('Secretary Entry Walk', () => {
   test('full wizard walk: search dog → select → pick class → submit', async ({ page }) => {
@@ -100,9 +87,11 @@ test.describe('Secretary Entry Walk', () => {
       });
     });
 
-    await signInAsSecretary(page);
-    await page.goto(`/secretary/register/${TEST_SHOW_ID}`);
-    await page.waitForSelector('text=Select Dogs', { timeout: 10000 });
+    await signInAsSecretary(page, `/secretary/register/${TEST_SHOW_ID}`);
+    await page.goto(`/secretary/register/${TEST_SHOW_ID}`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible({
+      timeout: 15000,
+    });
 
     // ── Step 1: Find and select a dog ──────────────────────────────────────
     const searchInput = page
@@ -111,7 +100,8 @@ test.describe('Secretary Entry Walk', () => {
       )
       .first();
     await searchInput.fill(DOG_SEARCH);
-    // Dismiss autocomplete dropdown with Escape, then wait for table to render
+    await waitForDogSearch(page, DOG_SEARCH.toLowerCase());
+    // Dismiss autocomplete dropdown with Escape, then wait for table to render.
     await page.keyboard.press('Escape');
     await expect(page.getByText(/1 dog/i)).toBeVisible({ timeout: 5000 });
 
@@ -133,8 +123,7 @@ test.describe('Secretary Entry Walk', () => {
 
     const interiorCard = page.locator('.myk9-element-card').filter({ hasText: 'Interior' }).first();
     await expect(interiorCard).toBeVisible({ timeout: 10000 });
-    const noviceA = interiorCard.locator('label.myk9-level-chip').filter({ hasText: 'Novice A' });
-    await noviceA.click();
+    await interiorCard.getByRole('checkbox', { name: 'Select Novice' }).first().click();
     await expect(page.getByText(/1 selected/).first()).toBeVisible();
 
     // Click Next to step 3 (Handlers)
@@ -178,7 +167,19 @@ test.describe('Secretary Entry Walk', () => {
 
     await page.getByRole('button', { name: 'Complete Registration' }).click();
     await expect(page).toHaveURL(new RegExp(`/shows/${TEST_SHOW_ID}`));
-    await expect(page.getByRole('heading', { level: 2, name: 'June 2026' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { level: 2, name: LIVE_SECRETARY_SHOW_NAME })
+    ).toBeVisible();
     expect(errors).toHaveLength(0);
   });
 });
+
+async function waitForDogSearch(page: import('@playwright/test').Page, query: string) {
+  await page.waitForResponse(
+    response =>
+      response.url().includes('/rest/v1/dogs') &&
+      response.request().method() === 'GET' &&
+      response.url().toLowerCase().includes(query),
+    { timeout: 10000 }
+  );
+}

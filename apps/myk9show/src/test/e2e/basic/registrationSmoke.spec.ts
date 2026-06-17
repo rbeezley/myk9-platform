@@ -1,4 +1,18 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
+
+const REGISTRATION_PATH = `/shows/${LIVE_REGISTRATION_SHOW_ID}/register`;
+
+function appBrand(page: Page) {
+  return page.getByText('myK9Show', { exact: true }).first();
+}
+
+async function gotoRegistrationSmoke(page: Page) {
+  await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await expect(appBrand(page)).toBeVisible({ timeout: 30000 });
+  await page.goto(REGISTRATION_PATH, { waitUntil: 'commit', timeout: 60000 });
+  await page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => undefined);
+}
 
 test.describe('Registration Smoke Tests', () => {
   test.beforeEach(async ({ page }) => {
@@ -33,27 +47,24 @@ test.describe('Registration Smoke Tests', () => {
       }
     });
 
-    await page.goto('/shows/show-123/register');
+    await gotoRegistrationSmoke(page);
 
-    await expect(page.locator('h1, h2, [role="heading"], body').first()).toBeVisible();
+    await expect(appBrand(page)).toBeVisible({ timeout: 30000 });
+    await expect(page.locator('body')).toBeVisible();
 
     await page.waitForTimeout(2000);
     expect(errors.filter(e => !e.includes('Warning:'))).toHaveLength(0);
   });
 
   test('should expose a user-critical navigation affordance', async ({ page }) => {
-    await page.goto('/shows/show-123/register');
+    await gotoRegistrationSmoke(page);
 
-    const navigationControl = page.getByRole('button', {
-      name: /browse shows|next|back|cancel|complete registration|sign in|continue with google/i,
-    });
-    const accountLink = page.getByRole('link', { name: /sign in|sign up/i });
-
-    await expect(navigationControl.or(accountLink).first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('link', { name: 'Sign In' })).toBeVisible({ timeout: 30000 });
+    await expect(page.getByRole('link', { name: 'Sign Up' })).toBeVisible();
   });
 
   test('should respond to basic interactions', async ({ page }) => {
-    await page.goto('/shows/show-123/register');
+    await gotoRegistrationSmoke(page);
 
     const inputs = page.locator('input:visible');
     if ((await inputs.count()) > 0) {

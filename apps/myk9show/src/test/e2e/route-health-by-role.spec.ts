@@ -24,13 +24,14 @@
 import { expect, test, type Page } from '@playwright/test';
 import { TEST_USERS } from './helpers/testUsers';
 import { signIn } from './uat/shared/auth';
+import { LIVE_SECRETARY_SHOW_ID } from './uat/shared/seededShows';
 import {
   createBrowserHealth,
   watchBrowserHealth,
   type BrowserHealth,
 } from './uat/shared/artifacts';
 
-const SEEDED_SHOW = '4584f257-19b5-4016-aae6-5e7827b769cb';
+const SEEDED_SHOW = LIVE_SECRETARY_SHOW_ID;
 
 // domcontentloaded + fixed settle; avoids the ~32s networkidle stalls (2026-05-30).
 const SETTLE_MS = 1500;

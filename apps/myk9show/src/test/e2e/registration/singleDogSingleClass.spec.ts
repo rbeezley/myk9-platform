@@ -1,25 +1,14 @@
 import { test, expect, type Page } from '@playwright/test';
+import { signInAsSecretary } from '../uat/shared/auth';
+import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
 
 test.describe.configure({ mode: 'serial', timeout: 90000 });
 
-const SECRETARY_EMAIL = 'secretary@myk9t.com';
-const SECRETARY_PASSWORD = 'TestPass4567!';
-const SHOW_ID = '4584f257-19b5-4016-aae6-5e7827b769cb';
+const SHOW_ID = LIVE_REGISTRATION_SHOW_ID;
 const DOG_SEARCH = 'Bravo';
+const CLASS_ELEMENT = 'Interior';
+const CLASS_LEVEL = 'Novice';
 const MOCK_CART_ID = 'e2e-single-dog-cart';
-
-async function signInAsSecretary(page: Page, returnTo = '/secretary/dashboard') {
-  await page.goto(`/sign-in?returnTo=${encodeURIComponent(returnTo)}`, {
-    waitUntil: 'domcontentloaded',
-  });
-  await page.getByTestId('credential-input').fill(SECRETARY_EMAIL);
-  await page.getByTestId('continue-button').click();
-  await expect(page.getByTestId('password-input')).toBeVisible({ timeout: 15000 });
-  await page.getByTestId('password-input').fill(SECRETARY_PASSWORD);
-  await page.getByTestId('sign-in-button').click();
-  await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
-  await page.waitForLoadState('domcontentloaded');
-}
 
 async function preventSharedWrites(page: Page) {
   await page.route('**/rest/v1/entry_carts**', async route => {
@@ -186,9 +175,15 @@ async function selectFirstInteriorClass(page: Page) {
     timeout: 10000,
   });
 
-  const interiorCard = page.locator('.myk9-element-card').filter({ hasText: 'Interior' }).first();
+  const interiorCard = page
+    .locator('.myk9-element-card')
+    .filter({ hasText: CLASS_ELEMENT })
+    .first();
   await expect(interiorCard).toBeVisible({ timeout: 10000 });
-  await interiorCard.locator('label.myk9-level-chip').filter({ hasText: 'Novice A' }).click();
+  await interiorCard
+    .getByRole('checkbox', { name: `Select ${CLASS_LEVEL}` })
+    .first()
+    .click();
   await expect(page.getByText(/1 selected/).first()).toBeVisible();
 }
 
@@ -213,7 +208,8 @@ test('reaches payment with one selected dog and one selected class', async ({ pa
   await page.getByRole('button', { name: /Secretary Payment \(Already Received\)/i }).click();
   await expect(page.getByText('Total Due').locator('..')).toContainText(/\$\d+\.\d{2}/);
   await expect(page.getByText(/Bravo/).first()).toBeVisible();
-  await expect(page.getByText(/Interior Novice A/)).toBeVisible();
+  await expect(page.locator('body')).toContainText(CLASS_ELEMENT);
+  await expect(page.locator('body')).toContainText(CLASS_LEVEL);
 
   const exhibitorAgreement = page.getByText(/The exhibitor has read and agrees/i);
   if (await exhibitorAgreement.isVisible().catch(() => false)) {

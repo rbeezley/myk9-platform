@@ -43,6 +43,27 @@
 BEGIN;
 
 -- ---------------------------------------------------------------------------
+-- Preflight: every protected account this seed attaches data to must resolve to
+-- exactly one person. Without this, a missing/duplicate email would make the
+-- nullable owner_id/handler_id subqueries silently seed unowned dogs / null
+-- handlers instead of failing.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_email text;
+  v_count int;
+BEGIN
+  FOREACH v_email IN ARRAY ARRAY[
+    'e2e-exhibitor@test.myk9.com', 'beezley@cox.net', 'secretary@myk9t.com'
+  ] LOOP
+    SELECT count(*) INTO v_count FROM public.people WHERE lower(email) = v_email;
+    IF v_count <> 1 THEN
+      RAISE EXCEPTION 'seed-demo preflight: expected exactly 1 person for %, found %', v_email, v_count;
+    END IF;
+  END LOOP;
+END $$;
+
+-- ---------------------------------------------------------------------------
 -- Fixed ids
 -- ---------------------------------------------------------------------------
 --   club   dededede-0000-0000-0000-000000000001
@@ -55,6 +76,20 @@ BEGIN;
 -- ---------------------------------------------------------------------------
 -- 0. Idempotency: remove prior seed rows (children first, FK-safe)
 -- ---------------------------------------------------------------------------
+-- Cart items reference classes/dogs with NO ACTION FKs — clear any that point at
+-- seeded classes/dogs first, or a demo cart would block the class/dog deletes.
+DELETE FROM public.entry_cart_items
+WHERE class_id IN (
+        'dec1a55e-0000-0000-0000-000000000031','dec1a55e-0000-0000-0000-000000000032',
+        'dec1a55e-0000-0000-0000-000000000033','dec1a55e-0000-0000-0000-000000000034',
+        'dec1a55e-0000-0000-0000-000000000035')
+   OR dog_id IN (
+        'dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',
+        'dededede-0000-0000-0000-000000000043','dededede-0000-0000-0000-000000000044',
+        'dededede-0000-0000-0000-000000000045','dededede-0000-0000-0000-000000000046');
+-- Armbands hang off the seeded show (and reference dogs/entries) — clear by show
+-- before deleting entries/dogs so their FKs can't block.
+DELETE FROM public.armbands WHERE show_id = 'dededede-0000-0000-0000-000000000010';
 DELETE FROM public.entries WHERE id IN (
   'dededede-0000-0000-0000-000000000051','dededede-0000-0000-0000-000000000052',
   'dededede-0000-0000-0000-000000000053','dededede-0000-0000-0000-000000000054',
@@ -255,6 +290,22 @@ VALUES
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
    (SELECT id FROM public.people WHERE lower(email)='secretary@myk9t.com'), 'Test Secretary',
    'confirmed', 'paid', 30.00, 105, 3, 1);
+
+-- ---------------------------------------------------------------------------
+-- 7. Armbands (one per dog, per show) -- the allocator/lookup treats the
+--    `armbands` table as authoritative, so a seeded entry's armband must have a
+--    matching armbands row or staff could reassign the same number. Unique on
+--    (show_id, dog_id) and (show_id, armband_number). entry_id left NULL (a dog
+--    has one armband across its entries); is_available=false (already assigned).
+-- ---------------------------------------------------------------------------
+INSERT INTO public.armbands (id, show_id, dog_id, armband_number, is_available, assigned_at, version)
+VALUES
+  ('dededede-0000-0000-0000-000000000061', 'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000041', '100', false, '2026-07-15 00:00:00+00', 1),
+  ('dededede-0000-0000-0000-000000000062', 'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000042', '101', false, '2026-07-15 00:00:00+00', 1),
+  ('dededede-0000-0000-0000-000000000063', 'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000043', '102', false, '2026-07-15 00:00:00+00', 1),
+  ('dededede-0000-0000-0000-000000000064', 'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000044', '103', false, '2026-07-15 00:00:00+00', 1),
+  ('dededede-0000-0000-0000-000000000065', 'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000045', '104', false, '2026-07-15 00:00:00+00', 1),
+  ('dededede-0000-0000-0000-000000000066', 'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000046', '105', false, '2026-07-15 00:00:00+00', 1);
 
 COMMIT;
 

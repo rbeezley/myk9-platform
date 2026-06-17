@@ -66,6 +66,14 @@ interface DataTableProps<TData> {
   onSelectionChange?: (selectedRows: TData[]) => void;
   getRowId?: (row: TData) => string;
   toolbar?: (props: { table: TanstackTable<TData> }) => ReactNode;
+  /**
+   * Whether the default toolbar renders its built-in global-filter search box.
+   * Defaults to `true`. Set to `false` when an outer toolbar (e.g. the page's
+   * `ListControls`) already owns search, so the table contributes only its
+   * "Columns" visibility control instead of a second, redundant search.
+   * Ignored when a custom `toolbar` is supplied.
+   */
+  showSearch?: boolean;
   emptyState?: ReactNode;
   noResultsMessage?: ReactNode;
   loading?: boolean;
@@ -95,6 +103,7 @@ export function DataTable<TData>({
     return String(id ?? '');
   },
   toolbar,
+  showSearch = true,
   emptyState,
   noResultsMessage,
   loading = false,
@@ -216,7 +225,7 @@ export function DataTable<TData>({
         ? toolbar({ table })
         : tableId && (
             <DataTableToolbar table={table}>
-              <DataTableSearch />
+              {showSearch && <DataTableSearch />}
               <DataTableColumnToggle />
             </DataTableToolbar>
           )}

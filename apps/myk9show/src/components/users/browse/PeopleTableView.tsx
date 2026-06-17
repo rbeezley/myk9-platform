@@ -86,6 +86,8 @@ export const PeopleTableView: React.FC<PeopleTableViewProps> = ({ people }) => {
       tableId="peopleBrowse"
       columns={columns}
       data={people}
+      // Page-level ListControls owns search; table keeps only its Columns control.
+      showSearch={false}
       onRowClick={person => navigate(`/people/${person.id}`)}
       getRowId={person => person.id}
     />

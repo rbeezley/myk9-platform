@@ -1,6 +1,7 @@
 import { defineConfig, type PluginOption } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { execSync } from 'node:child_process';
 import { saveTemplatesPlugin } from './vite-plugins/saveTemplatesPlugin.js';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { sentryVitePlugin } from '@sentry/vite-plugin';
@@ -11,13 +12,37 @@ const shouldUploadSentrySourceMaps = Boolean(
   process.env.SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG && process.env.SENTRY_PROJECT
 );
 
+/**
+ * Resolve the build's git reference for the About dialog. Prefer Vercel's
+ * injected env vars (present during Vercel builds); otherwise fall back to local
+ * `git` so dev and self-hosted builds also surface a reference. Returns empty
+ * strings if git is unavailable (e.g. a tarball build with no repo).
+ */
+function resolveGitInfo(): { sha: string; message: string } {
+  const fromEnv = {
+    sha: process.env.VERCEL_GIT_COMMIT_SHA || '',
+    message: process.env.VERCEL_GIT_COMMIT_MESSAGE || '',
+  };
+  if (fromEnv.sha || fromEnv.message) return fromEnv;
+  try {
+    return {
+      sha: execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim(),
+      message: execSync('git log -1 --pretty=%s', { encoding: 'utf8' }).trim(),
+    };
+  } catch {
+    return fromEnv;
+  }
+}
+
+const gitInfo = resolveGitInfo();
+
 // https://vitejs.dev/config/
 export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(process.env.npm_package_version || '1.0.0'),
     __BUILD_TIMESTAMP__: JSON.stringify(new Date().toISOString()),
-    __GIT_COMMIT_SHA__: JSON.stringify(process.env.VERCEL_GIT_COMMIT_SHA || ''),
-    __GIT_COMMIT_MESSAGE__: JSON.stringify(process.env.VERCEL_GIT_COMMIT_MESSAGE || ''),
+    __GIT_COMMIT_SHA__: JSON.stringify(gitInfo.sha),
+    __GIT_COMMIT_MESSAGE__: JSON.stringify(gitInfo.message),
   },
   plugins: [
     react(),

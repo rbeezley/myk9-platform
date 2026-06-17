@@ -1,12 +1,14 @@
 # User Documentation and Support Materials Implementation Plan
 
+> **Status:** Active
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Create a reviewed, code-grounded plan for a customer self-service support library: user guide, slide decks, knowledge base, blog/how-to posts, reusable support answers, and other reference material that lets a one-person support operation answer questions quickly.
 
 **Architecture:** Treat the app itself as the primary source of truth, then verify it against role intent, launch-readiness goals, seeded walkthroughs, and real browser captures. Build one canonical source layer, then repurpose it into customer-facing artifacts: short KB answers, printable quickstarts, support macros, slide decks, blog posts, and launch/training packets. The first pass produces documentation architecture, source maps, content models, and acceptance criteria only; final assets wait until the underlying workflows stop moving. Support-operations docs (intake, macros, triage, investigation cookbook) are the exception — they depend on the support workflow, not UI stability, and ship first.
 
-**Tech Stack:** Markdown plans and guides, route/code inventory anchored on the test-enforced `pageDirectory.ts`, Playwright or Codex Browser screenshots for verification, optional future PowerPoint/PDF/video/blog assets generated from reviewed guide outlines.
+**Tech Stack:** Markdown plans and guides, route/code inventory anchored on the test-enforced `pageDirectory.ts`, Playwright or Codex Browser screenshots for verification, draw.io (desktop CLI, installed locally) for workflow flowcharts and architecture diagrams exported to SVG/PNG from in-repo `.drawio`/JSON sources, optional future PowerPoint/PDF/video/blog assets generated from reviewed guide outlines.
 
 ---
 
@@ -21,6 +23,7 @@
 - Every support artifact should reduce repeated questions or make the answer pointable in under one minute.
 - Make answers findable by what the user *says*: index KB content by verbatim error strings and the phrases customers actually use, not internal feature names.
 - Use one source, many formats: guide section -> KB article -> support macro -> slide/demo/blog snippet.
+- Diagrams are an asset class, not decoration: a flowchart earns its place only when it answers a question faster than prose (a branching decision, a multi-surface handoff, a role's end-to-end path). Author them in user language, keep the `.drawio`/JSON source in the repo, and regenerate from source — never redraw by hand.
 - Prefer short, searchable, task-specific answers over giant manuals for common questions.
 - Never hand-maintain a second copy of data the codebase already enforces. The route inventory lives in `pageDirectory.ts` (test-synced to the route registry); docs reference or generate from it.
 
@@ -60,6 +63,9 @@ Does this duplicate an existing page or feature surface? No. This plan creates a
 | Create | `docs/training/myk9show-overview-deck-outline.md` | Slide-deck outline before creating PowerPoint |
 | Create | `docs/training/role-based-deck-outlines.md` | Secretary, exhibitor, club, judge/steward deck outlines |
 | Create | `docs/training/screenshot-shot-list.md` | Required screenshots/video captures by workflow |
+| Create | `docs/diagrams/README.md` | Diagram index + per-diagram regeneration command (`.drawio`/JSON → SVG via draw.io CLI) |
+| Create | `docs/diagrams/diagram-conventions.md` | Shared draw.io style preset + node/label rules for user-facing flowcharts |
+| Create later | `docs/diagrams/*.drawio` + `*.svg` | Final per-workflow flowcharts (gated like screenshots; SVG embedded in guides/KB/decks) |
 | Create | `docs/blog/README.md` | Customer education/blog content calendar and article status |
 | Create | `docs/blog/post-template.md` | Standard structure for educational posts |
 | Create | `docs/blog/content-calendar-outline.md` | First 12 blog/post ideas by title and audience (Task 20) |
@@ -95,6 +101,21 @@ Decided 2026-06-12 (resolves the former review questions on doc hosting). Custom
 Why a public site instead of in-app pages: the locked-out user ("I can't sign in") can still reach help; links work in email for logged-out recipients; Google indexes articles and deflects tickets before they are sent; doc fixes deploy without app deploys. Third-party help-desk KBs (Zendesk, Intercom, etc.) are rejected at this stage: recurring cost, content lock-in, and they solve a multi-agent inbox problem a one-person team does not have.
 
 Standing up `apps/docs` waits until the first articles pass Task 22 verification — an empty site is pure maintenance. Building the site is **not** part of this plan; when ready, it gets its own small plan (scaffold, frontmatter wiring, search, subdomain, deploy) including unit tests for any frontmatter-parsing code.
+
+## Visual Diagrams and Flowcharts (draw.io) [ADDED]
+
+Decided 2026-06-17. Flowcharts and architecture diagrams for the documentation set are authored with the **draw.io** skill (desktop CLI installed locally; sources are plain `.drawio`/JSON kept in `docs/diagrams/`). draw.io is the right tool here for the same reasons the docs site is markdown-in-repo: diagram-as-code that lives in git, regenerates from source when a workflow changes, and exports to **SVG** — which embeds in the markdown docs site, stays razor-sharp at any zoom, and produces tiny files. PNG is used only where a surface cannot accept SVG; PDF only for print handouts.
+
+How the docs effort takes advantage of it:
+
+- **Two audiences, two registers — never reuse an engineering diagram as a user diagram.** An internal flow diagram speaks in code (`setGrant()`, `/at-show/:showId`, `hasPermission('canScore')`); a user diagram speaks the user's mental model (*"Enter your passcode → Confirm the show → You're in the ring"*). User-facing diagrams obey `docs/user-guides/writing-style.md` and `docs/INTENT.md` tone exactly as the prose does — no route names, store names, or feature-flag names.
+- **One shared style preset = one visual language.** A single saved preset (`~/.drawio-skill/styles/myk9-docs.json`) fixes palette, font, and edge style so every diagram across guides, KB, and decks reads as one family. Define it once in `docs/diagrams/diagram-conventions.md`; apply it to every export.
+- **One source, many formats — extends the existing principle.** The same `.drawio` source feeds a guide's inline SVG, a KB article, and a training-deck slide. Diagrams ride the shot-list discipline (Task 18) alongside screenshots and carry their own `diagram` artifact type.
+- **Drawing a flow is a QA instrument, like drafting prose.** Per QA-Draft Mode, if a user-facing flowchart cannot be drawn without a tangle of branches, back-tracks, or "if you came from page X" caveats, that complexity is a product finding — file it to the backlog; the diagram never papers over it. Diagrams of unstable flows are `qa-draft` and disposable.
+- **Readiness gate applies.** A final workflow diagram is gated exactly like a screenshot: do not finalize it until the flow's labels and routing are stable (Phase 0). Draft freely before then as a testing instrument.
+- **Public-repo safe.** Exported diagrams are world-readable on merge; the Sensitive Content Rules below apply — no PII, secrets, or internal-only investigation detail in any diagram.
+
+Setting up the preset and conventions, and drafting diagrams as a QA instrument, is in scope. Producing the final, verified diagram set is gated with the rest of the customer-facing assets and is not done now.
 
 ## Sensitive Content Rules (Public Repository) [ADDED]
 
@@ -180,7 +201,7 @@ Do not publish final customer-facing documentation until the relevant workflow m
 - [ ] Link every planned guide to the canonical app surfaces it depends on.
 - [ ] Add a "do not document yet" section for unstable workflows.
 - [ ] Add support-deflection priority: `high`, `medium`, `low`.
-- [ ] Add artifact type: `guide`, `kb`, `macro`, `deck`, `blog`, `quickstart`, `runbook`.
+- [ ] Add artifact type: `guide`, `kb`, `macro`, `deck`, `blog`, `quickstart`, `runbook`, `diagram`.
 
 ### Task 2: Map Workflows onto the Canonical Page Directory
 
@@ -205,6 +226,7 @@ The route inventory already exists: `pageDirectory.ts` lists every user-facing p
 - [ ] Avoid software jargon, schema names, internal route names, and feature-flag names.
 - [ ] Use numbered steps for actions, short troubleshooting blocks for errors, and plain-English terms from dog shows.
 - [ ] Add role tone notes from `docs/INTENT.md`: secretary "That was easy", exhibitor "This respects my time", judge "Invisible technology", steward "I've got this under control".
+- [ ] Define diagram conventions (draw.io): label nodes in user language (task names and page titles the user actually sees), never code symbols, route paths, store, or feature-flag names; always label decision branches; apply the shared style preset; export to SVG for the docs site (cross-reference `docs/diagrams/diagram-conventions.md`).
 - [ ] Define KB article length targets: answer first, then steps, then "still stuck?" escalation.
 - [ ] Define blog-post tone: educational, reassuring, practical, never salesy or overpromising.
 - [ ] Define support macro tone: short, warm, specific, and link-forward.
@@ -393,6 +415,19 @@ Outlines may begin immediately and should include rough numbered-step drafts (`q
 - [ ] Mark screenshots as blocked when the UI is not stable.
 - [ ] Add browser-capture needs for short training clips or animated deck walkthroughs.
 
+### Task 18a: Diagram Asset Plan and draw.io Conventions [ADDED]
+
+**Files:**
+- Create: `docs/diagrams/README.md`
+- Create: `docs/diagrams/diagram-conventions.md`
+
+- [ ] Define the shared draw.io style preset for user-facing diagrams (palette, font, edge style) and save it to `~/.drawio-skill/styles/myk9-docs.json`; document it in `diagram-conventions.md` so any author/agent applies the same look.
+- [ ] Set node/label rules: user-language labels only, decision branches always labeled, no code symbols / route names / store names / flag names (cross-reference `writing-style.md`).
+- [ ] List candidate workflow diagrams by role and map each to the guide/KB/deck section it serves and the workflow's readiness state (sibling to the screenshot shot list).
+- [ ] Standardize on SVG export for the docs site; record the regeneration command per diagram in `docs/diagrams/README.md` so sources stay reproducible.
+- [ ] Mark diagrams blocked when the underlying flow is unstable (same gate as screenshots in Task 18).
+- [ ] Keep diagram sources (`.drawio`/JSON) in the repo next to their exports; never hand-edit an exported SVG/PNG.
+
 ## Phase 5: Blog and Customer Education Plan
 
 ### Task 19: Blog Content System
@@ -470,6 +505,7 @@ Outlines may begin immediately and should include rough numbered-step drafts (`q
 - [ ] Support docs, KB articles, and macros link to user guides instead of duplicating large sections.
 - [ ] KB articles carry alias frontmatter so they are greppable now and portable to a future help center or in-app rendering without rewriting.
 - [ ] Training/deck work starts as outlines and screenshot lists, not premature PowerPoint files.
+- [ ] [ADDED] User-facing diagrams use a single shared draw.io style preset, speak in user language (no code/route/store/flag names), keep their `.drawio`/JSON source in `docs/diagrams/`, and export to SVG for the docs site.
 - [ ] Blog/customer education topics are mapped to real support needs and guide sections.
 - [ ] Richard can answer common launch questions by sending a link or macro rather than rewriting the answer.
 - [ ] Final guides require real browser verification before publication.
@@ -482,6 +518,7 @@ Outlines may begin immediately and should include rough numbered-step drafts (`q
 - Creating a PowerPoint, PDF, or video asset now.
 - Building an in-app help center (decided against — see Delivery Decision; the app gets links to the docs site only).
 - Building the static docs site (`apps/docs`) now — the platform decision is recorded in Delivery Decision, but scaffolding waits until first articles pass verification and gets its own plan.
+- Producing the final, verified diagram set now — the shared draw.io style preset and diagram conventions are in scope, but per-workflow flowcharts are gated with the other customer-facing assets (Phase 0).
 - Adding new app routes, dialogs, tours, or onboarding UI.
 - Rebuilding any deleted `apps/myk9q` documentation.
 

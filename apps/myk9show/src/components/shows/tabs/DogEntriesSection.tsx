@@ -11,6 +11,7 @@ import {
   XCircle,
   Clock,
   Hash,
+  ArrowUpRight,
 } from 'lucide-react';
 import { Chip } from '@/components/base/Chip';
 import { PlacementPill } from '@/components/base/PlacementPill';
@@ -118,6 +119,12 @@ function EntryRow({ entry, showId }: EntryRowProps) {
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold truncate">{entry.classTitle || 'Unnamed Class'}</p>
         {meta && <p className="text-xs text-muted-foreground truncate mt-0.5">{meta}</p>}
+        {entry.movedUpFrom && (
+          <p className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-primary truncate">
+            <ArrowUpRight className="h-3 w-3 shrink-0" />
+            Moved up from {entry.movedUpFrom}
+          </p>
+        )}
       </div>
 
       <div className="hidden shrink-0 flex-col items-end gap-0.5 text-right sm:flex">

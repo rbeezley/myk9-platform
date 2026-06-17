@@ -128,6 +128,10 @@ cross-element** classes. Only the dog's current class is excluded. A Master-leve
 a "move-up" to Novice is nonsensical and invites mis-filing.
 **Fix:** constrain targets to valid move-up destinations (same element, higher level — or whatever
 the registry rule is). Consolidation-safe: tighten the option list, no new UI.
+**RESOLVED:** `getAvailableMoveUpTargets` ([`moveUpTargets.ts`](../../../apps/myk9show/src/components/entries/moveUpTargets.ts))
+now scopes targets to the same element + strictly higher level (reusing the canonical level order in
+`classOrder.ts`), with an empty-state Alert when no valid higher class exists. Unit-tested in
+`moveUpTargets.test.ts`.
 
 ---
 
@@ -156,7 +160,9 @@ printable preview itself is clean: "AKC Container Check-in" etc.)
 ### F6 — LOW (cluster): polish & legacy
 
 - **`AKC:scent_work` jargon** shown verbatim in the Submit Results Organization selector (prior). → "AKC Scent Work".
-- **Move-up picker "999 spots"** — unconfigured-looking class-capacity default in each option label.
+- ~~**Move-up picker "999 spots"** — unconfigured-looking class-capacity default in each option label.~~
+  **RESOLVED** alongside F3: the spots badge now renders only when the class has a real configured
+  `max_entries`; uncapped classes show entry count / "no entry cap set" instead of the 999 sentinel.
 - ~~Legacy `?phase=show-desk` renders Setup, not Show Desk.~~ **RETRACTED on reconciliation.**
   PR #737 already redirects the real legacy bookmark shape — the **base** URL
   `/shows/:id?phase=show-desk` → `/show-desk` ([`showRouteRedirects.tsx:18`](../../../apps/myk9show/src/routes/showRouteRedirects.tsx)

@@ -15,6 +15,16 @@ function levelIndex(level: string): number {
   return i === -1 ? 999 : i;
 }
 
+/**
+ * Progression rank of a scent-work level (lower = earlier in the Novice →
+ * Detective ladder). Unknown/custom levels rank last (999). Use to compare two
+ * levels for move-up eligibility: `levelProgressionRank(b) > levelProgressionRank(a)`
+ * means b is a strictly higher level than a.
+ */
+export function levelProgressionRank(level: string): number {
+  return levelIndex(level);
+}
+
 export function compareLevelsByProgression(a: string, b: string): number {
   const progression = levelIndex(a) - levelIndex(b);
   if (progression !== 0) return progression;

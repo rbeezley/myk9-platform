@@ -33,8 +33,16 @@ function getActiveStep(entryStatus: EntryStatus, paymentStatus: PaymentStatus): 
     return 1; // At review stage
   }
 
-  // Accepted and paid
-  if (entryStatus === EntryStatus.ACCEPTED) {
+  // Completed (scored) - the registration lifecycle is fully past; show every
+  // step done rather than collapsing to the "Submitted" default.
+  if (entryStatus === EntryStatus.COMPLETED) {
+    return 3;
+  }
+
+  // Accepted (or accepted-with-pending-move-up) and paid. A move-up request is
+  // a confirmed entry awaiting a separate approval, so its registration
+  // lifecycle mirrors ACCEPTED.
+  if (entryStatus === EntryStatus.ACCEPTED || entryStatus === EntryStatus.MOVE_UP_REQUESTED) {
     const isPaid = paymentStatus === PaymentStatus.PAID_ONLINE ||
                    paymentStatus === PaymentStatus.PAID_BY_CHECK ||
                    paymentStatus === PaymentStatus.PAID_BY_CASH;

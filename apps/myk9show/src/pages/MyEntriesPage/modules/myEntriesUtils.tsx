@@ -63,6 +63,18 @@ export function getEntryStatusBadge(
           Withdrawn
         </Badge>
       );
+    case EntryStatus.COMPLETED:
+      return (
+        <Badge className="bg-success/10 text-success border-success/20 border">
+          Scored
+        </Badge>
+      );
+    case EntryStatus.MOVE_UP_REQUESTED:
+      return (
+        <Badge className="bg-warning/10 text-warning border-warning/20 border">
+          Move-Up Requested
+        </Badge>
+      );
     default:
       return (
         <Badge className="bg-muted text-muted-foreground border-border border">
@@ -119,6 +131,9 @@ export function getPaymentStatusBadge(
  * Returns an icon representing the combined entry and payment status
  */
 export function getStatusIcon(entryStatus: EntryStatus, paymentStatus: PaymentStatus): React.ReactNode {
+  if (entryStatus === EntryStatus.COMPLETED) {
+    return <CheckCircle2 className="h-5 w-5 text-[#34C759]" />;
+  }
   if (entryStatus === EntryStatus.ACCEPTED && paymentStatus !== PaymentStatus.PENDING) {
     return <CheckCircle2 className="h-5 w-5 text-[#34C759]" />;
   }

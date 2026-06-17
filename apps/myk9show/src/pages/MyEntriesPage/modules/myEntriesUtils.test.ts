@@ -91,4 +91,20 @@ describe('My Entries terminal status display', () => {
     );
     expect(screen.getByText(/Partial refund/i)).toBeInTheDocument();
   });
+
+  it('labels scored and move-up-requested entries instead of falling through to Unknown', () => {
+    // Regression guard: COMPLETED / MOVE_UP_REQUESTED reach My Entries via the
+    // shared mapEntryStatus and must render meaningful badges (audit F2 follow-up).
+    const { rerender } = render(
+      React.createElement(React.Fragment, null, getEntryStatusBadge(EntryStatus.COMPLETED))
+    );
+    expect(screen.getByText('Scored')).toBeInTheDocument();
+    expect(screen.queryByText('Unknown')).not.toBeInTheDocument();
+
+    rerender(
+      React.createElement(React.Fragment, null, getEntryStatusBadge(EntryStatus.MOVE_UP_REQUESTED))
+    );
+    expect(screen.getByText('Move-Up Requested')).toBeInTheDocument();
+    expect(screen.queryByText('Unknown')).not.toBeInTheDocument();
+  });
 });

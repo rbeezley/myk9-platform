@@ -76,7 +76,13 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
     entry.paymentStatus === PaymentStatus.PAID_BY_CHECK ||
     entry.paymentStatus === PaymentStatus.PAID_BY_CASH;
 
-  const isFullyComplete = entry.entryStatus === EntryStatus.ACCEPTED && isPaid;
+  // The registration stepper has nothing left to show once an entry is scored,
+  // or accepted/move-up-requested and paid — the header badges carry that state.
+  const isFullyComplete =
+    entry.entryStatus === EntryStatus.COMPLETED ||
+    (isPaid &&
+      (entry.entryStatus === EntryStatus.ACCEPTED ||
+        entry.entryStatus === EntryStatus.MOVE_UP_REQUESTED));
 
   const isPastEntryDeadline = entry.entryCloseDate
     ? entry.entryCloseDate.getTime() < currentTime

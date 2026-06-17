@@ -71,46 +71,53 @@ describe('resolveMoveUpDisplay', () => {
     expect(suppressedEntryIds.size).toBe(0);
   });
 
-  it('keys the linkage per-dog so another dog moved from the same class is unaffected', () => {
+  it('is per-dog: a dog with no surviving entry keeps its moved row', () => {
     const dog1Src = source({ id: 'src-1', dogId: 'dog-1' });
     const dog1Dest = destination({ id: 'dest-1', dogId: 'dog-1' });
-    // dog-2 has a moved source in the same old class, but no destination yet.
+    // dog-2 has only a moved source (its move half-failed — no surviving entry).
     const dog2Src = source({ id: 'src-2', dogId: 'dog-2' });
     const { suppressedEntryIds } = resolveMoveUpDisplay([dog1Src, dog1Dest, dog2Src]);
-    expect(suppressedEntryIds.has('src-1')).toBe(true);
-    expect(suppressedEntryIds.has('src-2')).toBe(false);
+    expect(suppressedEntryIds.has('src-1')).toBe(true); // dog-1 has a live dest
+    expect(suppressedEntryIds.has('src-2')).toBe(false); // dog-2 has none
   });
 
-  it('handles a dog that moved up twice (chained moves)', () => {
-    const novice = source({ id: 'src-novice', classId: 'class-novice' });
+  it('suppresses every moved row in a chain even after intermediate notes are overwritten', () => {
+    // Regression: Novice -> Advanced -> Excellent. When Advanced is moved again,
+    // markEntryMoved / the Show Map mutation OVERWRITE its "Moved up from class
+    // <Novice>" note with "Moved up to Excellent", destroying the back-pointer.
+    // A linkage-only rule would then leak the Novice row back; presence-based
+    // suppression does not, because the dog still has a surviving Excellent row.
+    const novice = source({
+      id: 'src-novice',
+      classId: 'class-novice',
+      status: 'moved',
+      specialRequests: 'Moved up to Advanced',
+    });
     const advanced = source({
       id: 'src-advanced',
       classId: 'class-advanced',
-      specialRequests: 'Moved up to Excellent',
-    });
-    const destAdvanced = destination({
-      id: 'dest-advanced',
-      classId: 'class-advanced',
       status: 'moved',
-      specialRequests: movedNote('class-novice'),
+      specialRequests: 'Moved up to Excellent', // back-pointer to Novice is gone
     });
-    const destExcellent = destination({
+    const excellent = destination({
       id: 'dest-excellent',
       classId: 'class-excellent',
+      status: 'confirmed',
       specialRequests: movedNote('class-advanced'),
     });
     const { suppressedEntryIds, movedUpFromClassIdByEntryId } = resolveMoveUpDisplay([
       novice,
       advanced,
-      destAdvanced,
-      destExcellent,
+      excellent,
     ]);
-    // Both intermediate 'moved' rows are suppressed; only the final row survives.
     expect(suppressedEntryIds.has('src-novice')).toBe(true);
     expect(suppressedEntryIds.has('src-advanced')).toBe(true);
-    expect(suppressedEntryIds.has('dest-advanced')).toBe(true);
     expect(suppressedEntryIds.has('dest-excellent')).toBe(false);
+    // Only the surviving destination carries a parseable origin; the overwritten
+    // intermediate rows do not.
     expect(movedUpFromClassIdByEntryId.get('dest-excellent')).toBe('class-advanced');
+    expect(movedUpFromClassIdByEntryId.has('src-novice')).toBe(false);
+    expect(movedUpFromClassIdByEntryId.has('src-advanced')).toBe(false);
   });
 
   it('returns empty resolution when there are no move-ups', () => {

@@ -14,15 +14,24 @@
  * roles in agreement the exhibitor view must do the same.
  *
  * This module is the pure join. It consumes the minimal entry shape and returns:
- *  - `suppressedEntryIds` — `moved` source rows whose destination is present and
- *    should therefore be hidden from the run schedule.
+ *  - `suppressedEntryIds` — dead `moved` source rows to hide from the run schedule.
  *  - `movedUpFromClassIdByEntryId` — destination entryId → the *source* class id,
  *    so the hook can resolve a human "Moved up from <class>" annotation.
  *
- * The linkage is the free-text `specialRequests` note `processMoveUp` writes on
- * the destination: `"Moved up from class <sourceClassId>[: reason]"`. We pair a
- * destination to its source by `dogId` + that source class id, which is
- * dog-scoped and 1:1 even when a dog moves up more than once.
+ * Suppression is presence-based, not linkage-based. A `moved` row is always a
+ * dead source — a move-up always creates a successor entry (and rolls back to
+ * `confirmed` on insert failure), so the dog never runs in a `moved` row's class.
+ * We therefore suppress every `moved` row for a dog as long as the dog still has
+ * at least one non-`moved` entry. This is what makes chained move-ups correct:
+ * Novice → Advanced → Excellent overwrites the intermediate row's note with
+ * "Moved up to …" (see `markEntryMoved` / the Show Map mutation), destroying the
+ * back-pointer, so a linkage-only rule would leak the Novice row back. The only
+ * case we keep a `moved` row is the pathological all-failed chain (every one of a
+ * dog's entries is `moved`), where hiding them would make the dog vanish entirely.
+ *
+ * The annotation is the only consumer of the free-text linkage: the `confirmed`
+ * destination's note `"Moved up from class <sourceClassId>[: reason]"` (written by
+ * `processMoveUp`). A parse miss degrades gracefully to no label.
  */
 
 import type { EntryStatus } from '@/types/entry-lifecycle';
@@ -39,7 +48,7 @@ export interface MoveUpLinkInput {
 }
 
 export interface MoveUpResolution {
-  /** `moved` source rows to hide because their destination is present. */
+  /** Dead `moved` source rows to hide (the dog has a surviving non-`moved` entry). */
   suppressedEntryIds: Set<string>;
   /** Destination entryId → source class id (for a "Moved up from <class>" label). */
   movedUpFromClassIdByEntryId: Map<string, string>;
@@ -60,27 +69,25 @@ export function parseMovedUpFromClassId(specialRequests: string | undefined): st
   return match?.[1] ?? null;
 }
 
-const linkKey = (dogId: string, classId: string) => `${dogId}::${classId}`;
-
 export function resolveMoveUpDisplay(entries: readonly MoveUpLinkInput[]): MoveUpResolution {
   const suppressedEntryIds = new Set<string>();
   const movedUpFromClassIdByEntryId = new Map<string, string>();
 
-  // First pass: index destinations by (dogId, sourceClassId) and record each
-  // destination's origin class for annotation.
-  const destinationKeys = new Set<string>();
+  // First pass: record which dogs still have a surviving (non-`moved`) entry, and
+  // index each destination's origin class for the annotation. These are
+  // independent — suppression is presence-based; the parse feeds the label only.
+  const dogHasLiveEntry = new Set<string>();
   for (const entry of entries) {
+    if (entry.status !== 'moved') dogHasLiveEntry.add(entry.dogId);
     const sourceClassId = parseMovedUpFromClassId(entry.specialRequests);
-    if (!sourceClassId) continue;
-    movedUpFromClassIdByEntryId.set(entry.id, sourceClassId);
-    destinationKeys.add(linkKey(entry.dogId, sourceClassId));
+    if (sourceClassId) movedUpFromClassIdByEntryId.set(entry.id, sourceClassId);
   }
 
-  // Second pass: suppress a `moved` source row only when its destination is
-  // present (guards against hiding a row whose move-up half-failed).
+  // Second pass: a `moved` row is a dead source. Suppress it as long as the dog
+  // has a surviving entry; keep it only when every one of the dog's entries is
+  // `moved`, so a pathological all-failed chain doesn't hide the dog entirely.
   for (const entry of entries) {
-    if (entry.status !== 'moved') continue;
-    if (destinationKeys.has(linkKey(entry.dogId, entry.classId))) {
+    if (entry.status === 'moved' && dogHasLiveEntry.has(entry.dogId)) {
       suppressedEntryIds.add(entry.id);
     }
   }

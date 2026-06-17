@@ -429,5 +429,40 @@ describe('useShowEntriesForUser', () => {
       expect(result.current.allEntries[0].entryId).toBe('src-1');
       expect(result.current.allEntries[0].movedUpFrom).toBeUndefined();
     });
+
+    it('shows only the final row for a chained move-up (no phantom intermediate rows)', () => {
+      // Novice -> Advanced -> Excellent. Both intermediate rows are 'moved' with
+      // their back-pointer overwritten to "Moved up to ..."; only the final
+      // Excellent row survives.
+      const noviceClass = makeClass({ id: CLASS_ID });
+      const advancedClass = makeClass({ id: 'class-adv', level: 'Advanced' });
+      const excellentClass = makeClass({ id: 'class-exc', level: 'Excellent' });
+      const novice = makeEntry({
+        id: 'src-novice',
+        classId: CLASS_ID,
+        status: 'moved',
+        registrationData: reg({ specialRequests: 'Moved up to Advanced' }),
+      });
+      const advanced = makeEntry({
+        id: 'src-advanced',
+        classId: 'class-adv',
+        status: 'moved',
+        registrationData: reg({ specialRequests: 'Moved up to Excellent' }),
+      });
+      const excellent = makeEntry({
+        id: 'dest-excellent',
+        classId: 'class-exc',
+        status: 'confirmed',
+        registrationData: reg({ runOrder: 1, specialRequests: 'Moved up from class class-adv' }),
+      });
+      setMocks({
+        classes: [noviceClass, advancedClass, excellentClass],
+        entries: [novice, advanced, excellent],
+      });
+      const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
+      expect(result.current.allEntries).toHaveLength(1);
+      expect(result.current.allEntries[0].entryId).toBe('dest-excellent');
+      expect(result.current.allEntries[0].movedUpFrom).toBe('Container Advanced A');
+    });
   });
 });

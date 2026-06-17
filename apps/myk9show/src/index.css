@@ -225,7 +225,7 @@
   /* myK9 semantic status scale */
   :root {
     /* Canonical semantic tokens — use these */
-    --success: 22 163 74;              /* green-600 */
+    --success: 21 128 61;              /* green-700 — WCAG AA as text (4.69:1 on page, 5.02:1 on card) AND as bg w/ white fg (5.02:1); green-600 failed both at ~3.1:1 */
     --success-foreground: 255 255 255;
     --warning: 217 119 6;              /* amber-600 */
     --warning-foreground: 255 255 255;

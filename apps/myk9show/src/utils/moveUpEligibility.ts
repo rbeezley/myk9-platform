@@ -11,7 +11,7 @@
  * Management, Show Map, Show Desk) and the write-path mutation share this rule,
  * so changing it once keeps them consistent.
  */
-import { levelProgressionRank } from '@/features/premium/pdf/bodies/classOrder';
+import { isKnownLevel, levelProgressionRank } from '@/features/premium/pdf/bodies/classOrder';
 
 export interface MoveUpClassIdentity {
   element?: string | null | undefined;
@@ -31,5 +31,9 @@ export function isEligibleMoveUpTarget(
   if (!current.element || !current.level) return false;
   if (!candidate.element || !candidate.level) return false;
   if (candidate.element !== current.element) return false;
+  // Both levels must be recognized. An unknown/custom level ranks last (999),
+  // which would otherwise read as "higher" than any known level and let e.g. a
+  // 'Open' or misspelled candidate be accepted from a known lower level.
+  if (!isKnownLevel(current.level) || !isKnownLevel(candidate.level)) return false;
   return levelProgressionRank(candidate.level) > levelProgressionRank(current.level);
 }

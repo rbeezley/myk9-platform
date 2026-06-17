@@ -2,8 +2,9 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { TestInfo } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { LIVE_SECRETARY_SHOW_ID } from './seededShows';
 
-const SHOW_ID = '4584f257-19b5-4016-aae6-5e7827b769cb';
+const SHOW_ID = LIVE_SECRETARY_SHOW_ID;
 
 export interface SecretaryUatSeed {
   runId: string;

@@ -2,6 +2,7 @@ import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { signInAsSecretary } from '../shared/auth';
+import { LIVE_SECRETARY_SHOW_ID } from '../shared/seededShows';
 import {
   createBrowserHealth,
   summarizeHealth,
@@ -10,7 +11,7 @@ import {
   type BrowserHealth,
 } from '../shared/artifacts';
 
-const SHOW_ID = '4584f257-19b5-4016-aae6-5e7827b769cb';
+const SHOW_ID = LIVE_SECRETARY_SHOW_ID;
 const healthByTest = new Map<string, BrowserHealth>();
 
 test.describe('Phase 1 UAT - Secretary evidence pass', () => {
@@ -45,7 +46,7 @@ test.describe('Phase 1 UAT - Secretary evidence pass', () => {
     await captureSecretaryPage(
       page,
       testInfo,
-      `/secretary/entries/${SHOW_ID}`,
+      `/shows/${SHOW_ID}/entry-management`,
       'secretary-entry-management',
       page.getByRole('button', { name: 'Export CSV' })
     );

@@ -96,22 +96,6 @@ Copy this block for each new finding.
 - **Proof required:** After the DB schema is repaired or a deliberate code fallback is implemented, rerun Phase 1 Vitest, the exact Phase 2 active Nightly Playwright command from `docs/qa/e2e-suite-map.md`, and standalone Phase 3 route-health on an isolated port. Required proof targets: Phase 2 `50/50` and Phase 3 `6/6` role groups with zero `42703` / owned 400s.
 - **Notes:** Not auto-fixed during Nightly because applying the existing migration or changing early-adopter semantics is a shared-system/product decision. Do not hide this by suppressing 400s in tests.
 
-### QA-TEST-FLAKE-023
-
-- **Status:** open
-- **Severity:** high
-- **Role:** secretary
-- **Surface:** exact Phase 2 active Nightly Playwright command from `docs/qa/e2e-suite-map.md`.
-- **Suite category:** nightly
-- **Pattern:** test-flake
-- **Detected by:** Playwright
-- **Evidence:** 2026-06-17 exact Phase 2 replay on branch `codex/fix-qa-test-flake-021` ran in `7.8m` with `37 passed, 11 failed, 2 did not run` (`--retries=0`). The `QA-TEST-FLAKE-021` failure sites passed inside that command (`simple-connectivity.spec.ts`, `registration/secretaryExistingUsers.spec.ts`, and admin route-health), but the suite still failed on a broader stale registration/secretary UAT cluster: fake `/shows/show-123/register` smoke navigation, registration specs still targeting the soft-deleted `4584f257-19b5-4016-aae6-5e7827b769cb` show/trial fixture, secretary route-health blank renders on show-scoped routes, Add Trials button/copy drift, and the known public 375px overflow tracked separately as `QA-MOBILE-LAYOUT-BREAK-022`. Representative evidence paths: `apps/myk9show/test-results/basic-registrationSmoke-Re-3e740-tration-page-without-errors-chromium/error-context.md`, `apps/myk9show/test-results/registration-secretaryNewU-cecad--without-auth-user-creation-chromium/error-context.md`, `apps/myk9show/test-results/registration-singleDogSing-28b55--dog-and-one-selected-class-chromium/error-context.md`, `apps/myk9show/test-results/route-health-by-role-Route-4ffda-cretary-routes-render-clean-chromium/error-context.md`, and `apps/myk9show/test-results/uat-secretary-qa-regressio-80c78--and-required-event-numbers-chromium/error-context.md`.
-- **User impact:** The Nightly active suite still cannot provide a clean launch-readiness signal even after the specific QA-021 waits were repaired. Failures point to stale wrappers and fixture drift rather than a single proven product defect.
-- **Intent check:** Harms secretary reliability confidence because QA cannot distinguish live secretary workflow failures from stale test fixtures.
-- **Fix owner:** active Playwright registration and secretary UAT specs that still depend on fake or stale show fixtures.
-- **Proof required:** Consolidate affected specs onto a live seeded show/fixture or demote stale wrappers, then rerun the exact Phase 2 command with `--retries=0` and confirm the residual cluster no longer appears. Also rerun focused proof for any spec whose fixture is changed.
-- **Notes:** Do not reopen `QA-TEST-FLAKE-021`; its named failure sites passed after this repair. Treat this as the next active-suite cleanup batch.
-
 ### QA-MOBILE-LAYOUT-BREAK-022
 
 - **Status:** open
@@ -210,6 +194,22 @@ Copy this block for each new finding.
 - **2026-06-05 — CLOSED (non-reproducing; proof met).** Phase 3 route sweep (site-admin session, isolated single-occupant worktree on port `5191`) reported `/admin/dashboard` `render=ok` with `loading=N`, `skel=0`, `err=0`, `repl=0`, `http=0` at both desktop and 375px, alongside all 9 admin routes rendering cleanly. This is the third consecutive clean scheduled replay (06-02, 06-04, 06-05) and the first where the full route sweep completed, satisfying this finding's `Proof required`. The original 2026-05-30 stuck-`Loading...` evidence was gathered under cross-agent dev-server contention. Closed as non-reproducing.
 
 ## Closed Findings
+
+### QA-TEST-FLAKE-023
+
+- **Status:** fixed
+- **Severity:** high
+- **Role:** secretary
+- **Surface:** exact Phase 2 active Nightly Playwright command from `docs/qa/e2e-suite-map.md`.
+- **Suite category:** nightly
+- **Pattern:** test-flake
+- **Detected by:** Playwright
+- **Evidence:** 2026-06-17 exact Phase 2 replay on branch `codex/fix-qa-test-flake-021` ran in `7.8m` with `37 passed, 11 failed, 2 did not run` (`--retries=0`). The `QA-TEST-FLAKE-021` failure sites passed inside that command (`simple-connectivity.spec.ts`, `registration/secretaryExistingUsers.spec.ts`, and admin route-health), but the suite still failed on a broader stale registration/secretary UAT cluster: fake `/shows/show-123/register` smoke navigation, registration specs still targeting the soft-deleted `4584f257-19b5-4016-aae6-5e7827b769cb` show/trial fixture, secretary route-health blank renders on show-scoped routes, Add Trials button/copy drift, and the known public 375px overflow tracked separately as `QA-MOBILE-LAYOUT-BREAK-022`. Representative evidence paths: `apps/myk9show/test-results/basic-registrationSmoke-Re-3e740-tration-page-without-errors-chromium/error-context.md`, `apps/myk9show/test-results/registration-secretaryNewU-cecad--without-auth-user-creation-chromium/error-context.md`, `apps/myk9show/test-results/registration-singleDogSing-28b55--dog-and-one-selected-class-chromium/error-context.md`, `apps/myk9show/test-results/route-health-by-role-Route-4ffda-cretary-routes-render-clean-chromium/error-context.md`, and `apps/myk9show/test-results/uat-secretary-qa-regressio-80c78--and-required-event-numbers-chromium/error-context.md`.
+- **User impact:** The Nightly active suite could not provide a clean launch-readiness signal even after the specific QA-021 waits were repaired. Failures pointed to stale wrappers and fixture drift rather than a single proven product defect.
+- **Intent check:** Restores secretary reliability confidence by making the Nightly distinguish live secretary workflow failures from stale test fixtures.
+- **Fix owner:** active Playwright registration and secretary UAT specs that depended on fake or stale show fixtures.
+- **Proof required:** Consolidate affected specs onto a live seeded show/fixture or demote stale wrappers, then rerun the exact Phase 2 command with `--retries=0` and confirm the residual cluster no longer appears. Also rerun focused proof for any spec whose fixture is changed.
+- **Notes:** Fixed on branch `codex/fix-qa-test-flake-023` by introducing a shared live seeded-show fixture (`5d8bfe56-a48d-48dd-ae75-7f90c2e02c4f`, Monogram), moving the active registration/secretary UAT specs and route-health show-scoped routes off the stale June 2026 fixture, replacing stale `Novice A` class assertions with accessible `Select Novice` checkbox locators, updating Add Trials assertions to accept current button copy and current-month date picker values, and narrowing the public registration smoke to app-shell/navigation behavior after a cold-start warmup. Focused proof passed with `--retries=0`: registration smoke/new-user/single-dog group `5 passed (47.9s)`, secretary UAT/show-wizard subset `14 passed` with only the now-fixed date assertion failing before patch, `qa-regression-proof.spec.ts` `3 passed (31.5s)`, route-health secretary group `1 passed (44.2s)`, and registration smoke alone `3 passed (49.2s)`. The exact Phase 2 active command then ran with `49 passed, 1 failed (5.0m, --retries=0)`; the only remaining failure was `QA-MOBILE-LAYOUT-BREAK-022` (`public/landing: horizontal overflow at 375px`, measured `31px`). The QA-023 stale fixture/copy/blank-route cluster no longer appears.
 
 ### QA-TEST-FLAKE-021
 

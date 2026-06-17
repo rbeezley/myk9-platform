@@ -91,7 +91,7 @@ pnpm test:e2e:clean \
   --project=chromium --workers=1 --timeout=90000 --retries=0
 ```
 
-The spec covers public, exhibitor, secretary, judge, club-admin, and admin route groups with seeded show `4584f257-19b5-4016-aae6-5e7827b769cb`. Per route it checks: render-not-blank, console errors (budget 0, minus documented noise), replication errors (QA-CONSOLE-ERROR-011 regression guard), owned 4xx/5xx, and 375px horizontal overflow on marked routes (`/` and `/admin/dashboard`). Log durable issues in `docs/qa/findings.md`.
+The spec covers public, exhibitor, secretary, judge, club-admin, and admin route groups with live seeded show `5d8bfe56-a48d-48dd-ae75-7f90c2e02c4f` (`QA_SECRETARY_SHOW_ID` override supported). Per route it checks: render-not-blank, console errors (budget 0, minus documented noise), replication errors (QA-CONSOLE-ERROR-011 regression guard), owned 4xx/5xx, and 375px horizontal overflow on marked routes (`/` and `/admin/dashboard`). Log durable issues in `docs/qa/findings.md`.
 
 ### Feature Audit
 

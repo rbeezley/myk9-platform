@@ -1,7 +1,8 @@
-import { test, expect, type Page, type Route } from '@playwright/test';
-import { TEST_USERS } from '../helpers/testUsers';
+import { test, expect, type Route } from '@playwright/test';
+import { signInAsSecretary } from '../uat/shared/auth';
+import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
 
-const SHOW_ID = '4584f257-19b5-4016-aae6-5e7827b769cb';
+const SHOW_ID = LIVE_REGISTRATION_SHOW_ID;
 const MAIL_IN_PERSON_ID = '11111111-1111-4111-8111-111111111111';
 const MAIL_IN_DOG_ID = '22222222-2222-4222-8222-222222222222';
 const MAIL_IN_REGISTRATION_ID = '33333333-3333-4333-8333-333333333333';
@@ -10,17 +11,6 @@ interface CapturedMailInWrites {
   person?: Record<string, unknown>;
   dog?: Record<string, unknown>;
   registration?: Record<string, unknown>;
-}
-
-async function signInAsSecretary(page: Page) {
-  await page.goto('/sign-in', { waitUntil: 'networkidle' });
-  await page.getByTestId('credential-input').fill(TEST_USERS.SECRETARY.email);
-  await page.getByTestId('continue-button').click();
-  await expect(page.getByTestId('password-input')).toBeVisible({ timeout: 15000 });
-  await page.getByTestId('password-input').fill(TEST_USERS.SECRETARY.password);
-  await page.getByTestId('sign-in-button').click();
-  await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
-  await page.waitForLoadState('networkidle');
 }
 
 async function fulfillJson(route: Route, body: unknown, status = 200) {
@@ -121,8 +111,8 @@ test('secretary can create a mail-in exhibitor and dog without auth user creatio
   const captured: CapturedMailInWrites = {};
   await captureMailInWrites(page, captured);
 
-  await signInAsSecretary(page);
-  await page.goto(`/secretary/register/${SHOW_ID}`, { waitUntil: 'networkidle' });
+  await signInAsSecretary(page, `/secretary/register/${SHOW_ID}`);
+  await page.goto(`/secretary/register/${SHOW_ID}`, { waitUntil: 'domcontentloaded' });
 
   await expect(page.getByRole('heading', { name: 'Register for Show' })).toBeVisible({
     timeout: 15000,

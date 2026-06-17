@@ -1,9 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { signInAsSecretary } from '../uat/shared/auth';
 import { currentMonthWizardDates } from '../shared/wizardDates';
-
-const ADD_TRIALS_SHOW_ID =
-  process.env.QA_ADD_TRIALS_SHOW_ID ?? '4584f257-19b5-4016-aae6-5e7827b769cb';
+import { ADD_TRIALS_SHOW_ID } from '../uat/shared/seededShows';
 
 test.describe('Trial Secretary - Show Creation Wizard', () => {
   test('secretary can open the show creation wizard', async ({ page }) => {

@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { signInAsSecretary } from '../shared/auth';
 import { currentMonthWizardDates } from '../../shared/wizardDates';
+import { ADD_TRIALS_SHOW_ID } from '../shared/seededShows';
 import {
   type BrowserHealth,
   createBrowserHealth,
@@ -9,8 +10,6 @@ import {
   writeUatFinding,
 } from '../shared/artifacts';
 
-const ADD_TRIALS_SHOW_ID =
-  process.env.QA_ADD_TRIALS_SHOW_ID ?? '4584f257-19b5-4016-aae6-5e7827b769cb';
 const strictBrowserHealth = process.env.QA_STRICT_BROWSER_HEALTH !== 'false';
 // The proof command pins --workers=1 so the UAT finding artifact order stays
 // stable while browser health is collected per test.
@@ -105,7 +104,7 @@ test.describe('Secretary QA regression proof', () => {
     await expect(page.getByRole('heading', { name: 'Add Trials', level: 2 })).toBeVisible({
       timeout: 15000,
     });
-    const addTrialAction = page.getByRole('button', { name: 'Add First Trial' });
+    const addTrialAction = page.getByRole('button', { name: /^Add (First )?Trial$/ }).last();
     await expect(addTrialAction).toBeVisible();
     await addTrialAction.click({ force: true });
 
@@ -124,8 +123,9 @@ test.describe('Secretary QA regression proof', () => {
     await expect(trialDateTime).toBeVisible();
     await trialDateTime.press('Enter');
     const dialog = page.getByRole('dialog').filter({ has: page.getByRole('grid') });
-    await expect(dialog.locator('select').first()).toHaveValue('5');
-    await expect(dialog.locator('select').nth(1)).toHaveValue('2026');
+    const now = new Date();
+    await expect(dialog.locator('select').first()).toHaveValue(String(now.getMonth() + 1));
+    await expect(dialog.locator('select').nth(1)).toHaveValue(String(now.getFullYear()));
   });
 });
 

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { signInAsSecretary } from '../shared/auth';
+import { LIVE_SECRETARY_SHOW_ID } from '../shared/seededShows';
 import {
   type BrowserHealth,
   createBrowserHealth,
@@ -10,7 +11,7 @@ import {
 
 test.describe.configure({ mode: 'serial' });
 
-const SHOW_ID = '4584f257-19b5-4016-aae6-5e7827b769cb';
+const SHOW_ID = LIVE_SECRETARY_SHOW_ID;
 const healthByTest = new Map<string, BrowserHealth>();
 
 test.describe('Phase 1 UAT - Secretary critical path', () => {

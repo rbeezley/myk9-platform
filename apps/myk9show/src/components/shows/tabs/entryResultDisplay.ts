@@ -8,9 +8,19 @@ interface PendingResultEntry {
   trialDate: string;
 }
 
+/**
+ * The runtime domain of `payment_status` is wider than the entry store's
+ * declared `'pending' | 'paid' | 'refunded'` union: the replication mapper
+ * casts the raw column without validating it (see entry-store-helpers.ts), so
+ * values like `'partial_refund'` (refund seam) and `'waived'` (move-ups) reach
+ * this layer. Model the real domain here so a partial refund is not silently
+ * dropped from the exhibitor's terminal-state label.
+ */
+export type EntryPaymentStatus = 'pending' | 'paid' | 'refunded' | 'partial_refund' | 'waived';
+
 interface RemovedStateEntry {
   entryStatus: EntryStatus;
-  paymentStatus: 'pending' | 'paid' | 'refunded';
+  paymentStatus: EntryPaymentStatus;
 }
 
 /**
@@ -19,14 +29,16 @@ interface RemovedStateEntry {
  * Show Details tab agrees with the secretary's Entry Management view rather
  * than mislabeling a withdrawn entry as "Upcoming" (UX-P1-04).
  *
- * 'absent' is intentionally excluded — it's a day-of competition outcome that
- * flows through the normal result rendering, not a pre-result removal.
+ * 'absent' is excluded — it's a day-of competition outcome that flows through
+ * normal result rendering, not a pre-result removal. 'moved' is excluded too:
+ * the move-up flow leaves the source row visible beside its live destination
+ * (move-up.ts), so de-duplicating that pair is move-up-seam work, not the
+ * refund/withdrawal seam this fix addresses.
  */
 const REMOVED_STATE_LABELS: Partial<Record<EntryStatus, string>> = {
   withdrawn: 'Withdrawn',
   scratched: 'Scratched',
   not_accepted: 'Not accepted',
-  moved: 'Moved',
 };
 
 function parseTrialDate(value: string): Date | undefined {
@@ -60,5 +72,7 @@ export function getPendingResultLabel(entry: PendingResultEntry, now = new Date(
 export function getRemovedStateLabel(entry: RemovedStateEntry): string | null {
   const base = REMOVED_STATE_LABELS[entry.entryStatus];
   if (!base) return null;
-  return entry.paymentStatus === 'refunded' ? `${base} · Refunded` : base;
+  if (entry.paymentStatus === 'refunded') return `${base} · Refunded`;
+  if (entry.paymentStatus === 'partial_refund') return `${base} · Partial refund`;
+  return base;
 }

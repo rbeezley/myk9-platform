@@ -12,6 +12,7 @@ import { entryIsScored } from '@/utils/entryPredicates';
 import { hasScopedClubRole, hasScopedShowRole } from '@/utils/roleScopes';
 import type { SyncableShowEntry } from '@/store/entry-store-types';
 import type { EntryStatus } from '@/types/entry-lifecycle';
+import type { EntryPaymentStatus } from '@/components/shows/tabs/entryResultDisplay';
 
 export interface EnrichedShowEntry {
   entryId: string;
@@ -35,7 +36,7 @@ export interface EnrichedShowEntry {
   // scratched, refunded) render the same on this tab as on the secretary's
   // Entry Management view (UX-P1-04) instead of falling through to "Upcoming".
   entryStatus: EntryStatus;
-  paymentStatus: 'pending' | 'paid' | 'refunded';
+  paymentStatus: EntryPaymentStatus;
   hasResult: boolean;
   result?: {
     qualified: boolean;

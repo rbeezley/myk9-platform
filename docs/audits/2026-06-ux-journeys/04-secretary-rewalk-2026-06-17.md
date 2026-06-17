@@ -128,10 +128,17 @@ cross-element** classes. Only the dog's current class is excluded. A Master-leve
 a "move-up" to Novice is nonsensical and invites mis-filing.
 **Fix:** constrain targets to valid move-up destinations (same element, higher level — or whatever
 the registry rule is). Consolidation-safe: tighten the option list, no new UI.
-**RESOLVED:** `getAvailableMoveUpTargets` ([`moveUpTargets.ts`](../../../apps/myk9show/src/components/entries/moveUpTargets.ts))
-now scopes targets to the same element + strictly higher level (reusing the canonical level order in
-`classOrder.ts`), with an empty-state Alert when no valid higher class exists. Unit-tested in
-`moveUpTargets.test.ts`.
+**RESOLVED:** the same-element + strictly-higher-level rule now lives in one place —
+`isEligibleMoveUpTarget` ([`moveUpEligibility.ts`](../../../apps/myk9show/src/utils/moveUpEligibility.ts),
+reusing the canonical level order in `classOrder.ts`) — and is enforced on every surface:
+- Entries Management approve dialog (`getAvailableMoveUpTargets`), with an empty-state Alert when no
+  valid higher class exists;
+- Show Map + Show Desk move-up dialogs (deduped into one shared `buildMoveUpTargets`);
+- the **write-path** mutation `moveUpShowMapEntry` rejects an ineligible target before writing, so a
+  stale UI or alternate surface can't move e.g. Buried Master into Container Novice.
+
+Unit-tested in `moveUpEligibility.test.ts`, `moveUpTargets.test.ts`, `buildMoveUpTargets.test.ts`, and
+`showMapActionMutations.test.ts` (write-path rejection).
 
 ---
 

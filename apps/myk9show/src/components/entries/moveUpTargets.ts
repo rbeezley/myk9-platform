@@ -1,16 +1,12 @@
 /**
- * Move-up target eligibility
+ * Move-up target eligibility for the Entries Management approve dialog.
  *
- * A pre-show move-up promotes a dog to a HIGHER level within the SAME element
- * (AKC Scent Work: Novice → Advanced → Excellent → Master → Detective, per
- * Container / Interior / Exterior / Buried / Handler Discrimination element).
- * Moving across elements, or to a lower/equal level, is not a move-up.
- *
- * ASSUMPTION: scoped to same element + strictly higher level. AKC Scent Work
- * titles progress within an element, so cross-element "move-ups" are invalid.
- * If the rule ever needs to allow cross-element moves, relax the element check.
+ * The same-element + strictly-higher-level rule lives in
+ * `@/utils/moveUpEligibility` so every move-up surface (Entries Management,
+ * Show Map, Show Desk) and the write-path mutation share one definition. This
+ * module just adds the capacity filter and the ClassWithCapacity shape.
  */
-import { levelProgressionRank } from '@/features/premium/pdf/bodies/classOrder';
+import { isEligibleMoveUpTarget } from '@/utils/moveUpEligibility';
 import type { ClassWithCapacity } from '@/services/database/day-of-operations';
 
 /**
@@ -20,8 +16,8 @@ import type { ClassWithCapacity } from '@/services/database/day-of-operations';
  *   - a strictly higher level than the current class
  *   - with at least one available spot
  *
- * Returns [] when the current class can't be resolved or has no element/level
- * (the conservative choice — never offer a target we can't validate).
+ * Returns [] when the current class can't be resolved (the conservative
+ * choice — never offer a target we can't validate).
  */
 export function getAvailableMoveUpTargets(
   classes: ClassWithCapacity[],
@@ -30,18 +26,12 @@ export function getAvailableMoveUpTargets(
   if (!currentClassId) return [];
 
   const current = classes.find(cls => cls.id === currentClassId);
-  if (!current || !current.element || !current.level) return [];
-
-  const currentRank = levelProgressionRank(current.level);
+  if (!current) return [];
 
   return classes.filter(cls => {
     if (cls.id === currentClassId) return false;
     if (cls.available_spots <= 0) return false;
-    // Same element only — a Buried dog cannot "move up" into Interior.
-    if (cls.element !== current.element) return false;
-    // Strictly higher level.
-    if (!cls.level) return false;
-    return levelProgressionRank(cls.level) > currentRank;
+    return isEligibleMoveUpTarget(current, cls);
   });
 }
 

@@ -258,18 +258,11 @@ export const restoreUser = async (id: string, restoredBy?: string) => {
   void restoredBy;
 
   try {
-    const updateData: TablesUpdate<'people'> = {
-      deleted_at: null,
-      deleted_by: null,
-      updated_at: new Date().toISOString(),
-    };
-
-    const { data, error } = await supabase
-      .from('people')
-      .update(updateData)
-      .eq('id', id)
-      .not('deleted_at', 'is', null) // Only restore if currently deleted
-      .select('id, first_name, last_name');
+    // people_select RLS hides soft-deleted rows from every role, so a direct
+    // UPDATE matches 0 rows (the SELECT policy gates the UPDATE's row-location
+    // step). Restore via an admin-gated SECURITY DEFINER RPC (migration
+    // 20260617120000). Person soft-delete does not cascade, so neither does restore.
+    const { data, error } = await supabase.rpc('restore_person', { p_person_id: id });
 
     const duration = Date.now() - startTime;
     logQuery('user', 'restore', duration, error?.message);

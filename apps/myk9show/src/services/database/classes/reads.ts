@@ -517,27 +517,11 @@ export const restoreClass = async (id: string, restoredBy?: string) => {
   try {
     log('restoreClass', 'Restoring class', { id });
 
-    const { data, error } = await supabase
-      .from('classes')
-      .update({
-        deleted_at: null,
-        deleted_by: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .not('deleted_at', 'is', null)
-      .select(
-        `
-        *,
-        trial:trials (
-          id,
-          name,
-          date,
-          trial_number
-        )
-      `
-      )
-      .single();
+    // classes_select RLS hides soft-deleted rows from every role, so a direct
+    // UPDATE matches 0 rows (the SELECT policy gates the UPDATE's row-location
+    // step). Restore via an admin-gated SECURITY DEFINER RPC that also
+    // cascade-restores the class's entries (migration 20260617120000).
+    const { data, error } = await supabase.rpc('restore_class', { p_class_id: id });
 
     if (error) {
       log('restoreClass', 'Error restoring class', { id, error });
@@ -545,7 +529,8 @@ export const restoreClass = async (id: string, restoredBy?: string) => {
     }
 
     log('restoreClass', 'Successfully restored class', { id });
-    return { data, error: null };
+    const restored = Array.isArray(data) ? data[0] : data;
+    return { data: restored ?? null, error: null };
   } catch (error) {
     log('restoreClass', 'Unexpected error', { id, error });
     return { data: null, error: createDatabaseError(error) };

@@ -165,18 +165,11 @@ export const restoreShow = async (id: string, restoredBy?: string) => {
   void restoredBy;
 
   try {
-    const updateData: TablesUpdate<'shows'> = {
-      deleted_at: null,
-      deleted_by: null,
-      updated_at: new Date().toISOString(),
-    };
-
-    const { data, error } = await supabase
-      .from('shows')
-      .update(updateData)
-      .eq('id', id)
-      .select('id, name')
-      .single();
+    // shows_select RLS hides soft-deleted rows from every role, so a direct
+    // UPDATE matches 0 rows (the SELECT policy gates the UPDATE's row-location
+    // step). Restore via an admin-gated SECURITY DEFINER RPC that also
+    // cascade-restores the show's trials/classes/entries (migration 20260617120000).
+    const { data, error } = await supabase.rpc('restore_show', { p_show_id: id });
 
     const duration = Date.now() - startTime;
     logQuery('show', 'restore', duration, error?.message);
@@ -185,7 +178,8 @@ export const restoreShow = async (id: string, restoredBy?: string) => {
       throw createDatabaseError(error, 'show', 'restore');
     }
 
-    return { data, error: null };
+    const restored = Array.isArray(data) ? data[0] : data;
+    return { data: restored ?? null, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'show', 'restore');

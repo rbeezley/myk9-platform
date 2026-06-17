@@ -8906,6 +8906,10 @@ export type Database = {
           steward: string
         }[]
       }
+      restore_class: { Args: { p_class_id: string }; Returns: Database['public']['Tables']['classes']['Row'][] }
+      restore_dog: { Args: { p_dog_id: string }; Returns: Database['public']['Tables']['dogs']['Row'][] }
+      restore_person: { Args: { p_person_id: string }; Returns: Database['public']['Tables']['people']['Row'][] }
+      restore_show: { Args: { p_show_id: string }; Returns: Database['public']['Tables']['shows']['Row'][] }
       review_club_access_request: {
         Args: {
           p_club_name?: string

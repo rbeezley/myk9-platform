@@ -90,11 +90,15 @@ WHERE class_id IN (
 -- Armbands hang off the seeded show (and reference dogs/entries) — clear by show
 -- before deleting entries/dogs so their FKs can't block.
 DELETE FROM public.armbands WHERE show_id = 'dededede-0000-0000-0000-000000000010';
+-- entry ...059 is the GAP FIXTURE #4 withdrawn/refunded row (added below). The
+-- refund-column guard fires only on INSERT/UPDATE, so a plain DELETE needs no role
+-- switch. entry_status_history rows cascade-delete with their entry.
 DELETE FROM public.entries WHERE id IN (
   'dededede-0000-0000-0000-000000000051','dededede-0000-0000-0000-000000000052',
   'dededede-0000-0000-0000-000000000053','dededede-0000-0000-0000-000000000054',
   'dededede-0000-0000-0000-000000000055','dededede-0000-0000-0000-000000000056',
-  'dededede-0000-0000-0000-000000000057','dededede-0000-0000-0000-000000000058'
+  'dededede-0000-0000-0000-000000000057','dededede-0000-0000-0000-000000000058',
+  'dededede-0000-0000-0000-000000000059'
 );
 DELETE FROM public.classes WHERE id IN (
   'dec1a55e-0000-0000-0000-000000000031','dec1a55e-0000-0000-0000-000000000032',
@@ -128,6 +132,15 @@ VALUES (
 
 -- ---------------------------------------------------------------------------
 -- 2. Published show  (AKC, fixed dates ~ Aug 1-3 2026)
+--    GAP FIXTURE #1 (accepting window): the entry window must contain "today"
+--    (the launch-gate walks run 2026-06-17) so the Show Details "Enter" CTA is
+--    live. The app derives "accepting entries" in EntryCTA.computeRegistrationState:
+--    status='published' AND now > entry_open_date AND now < entry_close_date
+--    (close treated as inclusive of its full calendar day). The prior window
+--    ('2026-07-01' .. '2026-07-28') was entirely future => NOT accepting. We open
+--    it '2026-06-01' .. '2026-09-01' (today falls inside) and keep the show dates
+--    Aug 1-3. NOTE: there is no separate status/registration_status enum for
+--    "accepting" — the gate is purely status='published' + the date window.
 -- ---------------------------------------------------------------------------
 INSERT INTO public.shows (
   id, name, organization, description,
@@ -148,7 +161,7 @@ VALUES (
   'AKC',
   'A two-day AKC Scent Work demo trial used to showcase the myK9Show experience.',
   '2026-08-01 00:00:00+00', '2026-08-03 00:00:00+00',
-  '2026-07-01 00:00:00+00', '2026-07-28 00:00:00+00',
+  '2026-06-01 00:00:00+00', '2026-09-01 00:00:00+00',
   '100 Dog Show Lane, Tulsa, OK 74101',
   'Tulsa', 'Oklahoma',
   'published',
@@ -241,7 +254,7 @@ VALUES
 -- ---------------------------------------------------------------------------
 INSERT INTO public.entries (
   id, dog_id, class_id, show_id, trial_id, handler_id, handler,
-  entry_status, payment_status, entry_fee, armband, run_order, version
+  entry_status, payment_status, entry_fee, armband, run_order, move_up_requested, version
 )
 VALUES
   -- Willow (e2e-exhibitor): Container Novice A + Interior Advanced
@@ -249,47 +262,54 @@ VALUES
    'dededede-0000-0000-0000-000000000041', 'dec1a55e-0000-0000-0000-000000000031',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
    (SELECT id FROM public.people WHERE lower(email)='e2e-exhibitor@test.myk9.com'), 'Test Exhibitor',
-   'confirmed', 'paid', 30.00, 100, 1, 1),
+   'confirmed', 'paid', 30.00, 100, 1, false, 1),
   ('dededede-0000-0000-0000-000000000052',
    'dededede-0000-0000-0000-000000000041', 'dec1a55e-0000-0000-0000-000000000032',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
    (SELECT id FROM public.people WHERE lower(email)='e2e-exhibitor@test.myk9.com'), 'Test Exhibitor',
-   'confirmed', 'paid', 30.00, 100, 1, 1),
+   'confirmed', 'paid', 30.00, 100, 1, false, 1),
   -- Ranger (e2e-exhibitor): Interior Advanced
   ('dededede-0000-0000-0000-000000000053',
    'dededede-0000-0000-0000-000000000042', 'dec1a55e-0000-0000-0000-000000000032',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
    (SELECT id FROM public.people WHERE lower(email)='e2e-exhibitor@test.myk9.com'), 'Test Exhibitor',
-   'submitted', 'pending', 30.00, 101, 2, 1),
+   'submitted', 'pending', 30.00, 101, 2, false, 1),
   -- Juniper (e2e-exhibitor): Exterior Excellent
   ('dededede-0000-0000-0000-000000000054',
    'dededede-0000-0000-0000-000000000043', 'dec1a55e-0000-0000-0000-000000000033',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
    (SELECT id FROM public.people WHERE lower(email)='e2e-exhibitor@test.myk9.com'), 'Test Exhibitor',
-   'submitted', 'pending', 30.00, 102, 1, 1),
+   'submitted', 'pending', 30.00, 102, 1, false, 1),
   -- Scout (beezley): Container Novice A + Buried Master (Sunday)
   ('dededede-0000-0000-0000-000000000055',
    'dededede-0000-0000-0000-000000000044', 'dec1a55e-0000-0000-0000-000000000031',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
    (SELECT id FROM public.people WHERE lower(email)='beezley@cox.net'), 'Richard Beezley',
-   'confirmed', 'paid', 30.00, 103, 2, 1),
+   'confirmed', 'paid', 30.00, 103, 2, false, 1),
+  -- GAP FIXTURE #3 (pending move-up request): a move-up is NOT a separate table.
+  -- The app models a pending request entirely on the entry row: entry_status=
+  -- 'move-up-requested' + move_up_requested=true (see getPendingMoveUpRequests,
+  -- which filters entries by entry_status='move-up-requested'). The target class
+  -- is chosen by the secretary at approval time (processMoveUp(entryId,toClassId)),
+  -- so nothing about the destination is stored on the pending row. We mark Scout's
+  -- Buried Master entry as a confirmed+paid entry awaiting move-up approval.
   ('dededede-0000-0000-0000-000000000056',
    'dededede-0000-0000-0000-000000000044', 'dec1a55e-0000-0000-0000-000000000034',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000022',
    (SELECT id FROM public.people WHERE lower(email)='beezley@cox.net'), 'Richard Beezley',
-   'submitted', 'pending', 30.00, 103, 1, 1),
+   'move-up-requested', 'paid', 30.00, 103, 1, true, 1),
   -- Maple (beezley): Interior Novice B (Sunday)
   ('dededede-0000-0000-0000-000000000057',
    'dededede-0000-0000-0000-000000000045', 'dec1a55e-0000-0000-0000-000000000035',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000022',
    (SELECT id FROM public.people WHERE lower(email)='beezley@cox.net'), 'Richard Beezley',
-   'submitted', 'pending', 30.00, 104, 1, 1),
+   'submitted', 'pending', 30.00, 104, 1, false, 1),
   -- Cooper (secretary): Container Novice A
   ('dededede-0000-0000-0000-000000000058',
    'dededede-0000-0000-0000-000000000046', 'dec1a55e-0000-0000-0000-000000000031',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
    (SELECT id FROM public.people WHERE lower(email)='secretary@myk9t.com'), 'Test Secretary',
-   'confirmed', 'paid', 30.00, 105, 3, 1);
+   'confirmed', 'paid', 30.00, 105, 3, false, 1);
 
 -- ---------------------------------------------------------------------------
 -- 7. Armbands (one per dog, per show) -- the allocator/lookup treats the
@@ -306,6 +326,84 @@ VALUES
   ('dededede-0000-0000-0000-000000000064', 'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000044', '103', false, '2026-07-15 00:00:00+00', 1),
   ('dededede-0000-0000-0000-000000000065', 'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000045', '104', false, '2026-07-15 00:00:00+00', 1),
   ('dededede-0000-0000-0000-000000000066', 'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000046', '105', false, '2026-07-15 00:00:00+00', 1);
+
+-- ---------------------------------------------------------------------------
+-- 8. GAP FIXTURE #2 (released results): Container Novice A (class ...031) is
+--    scored and publicly released. The public results gate is the per-field
+--    CASCADE resolved by resolve_class_result_visibility(class_id), read through
+--    view_public_entry_results — NOT the legacy show_visibility_settings row.
+--    With NO show_result_visibility_defaults row (that relation does not exist on
+--    this DB), the resolver falls back to the hardcoded 'open' preset:
+--      placement=class_complete, qualification/time/faults=immediate.
+--    => qualification/time/faults are visible immediately; PLACEMENT requires the
+--    class to be in state 'completed' or 'released'. We therefore mark the class
+--    completed + scoring-finalized AND stamp results_released_at (state='released').
+--
+--    The placement trigger (handle_entry_scoring_state_change -> refresh_class_
+--    scoring_state -> recalculate_class_placements) is AFTER UPDATE only and never
+--    fires on INSERT, so it does NOT auto-place these freshly-inserted rows. We set
+--    final_placement explicitly to the exact values that trigger would compute:
+--    for a non-nationals class it ranks by total_faults ASC, search_time_seconds
+--    ASC among is_scored=true AND result_status='qualified'. All three qualify with
+--    0 faults, so the order is purely fastest time first:
+--      Willow 38.50s -> 1, Scout 41.20s -> 2, Cooper 45.80s -> 3.
+-- ---------------------------------------------------------------------------
+UPDATE public.entries SET
+  is_scored = true, result_status = 'qualified', check_in_status = 'completed',
+  entry_status = 'completed', search_time_seconds = 38.50, total_faults = 0,
+  total_score = 100, final_placement = 1,
+  scoring_completed_at = '2026-08-01 09:15:00+00'
+WHERE id = 'dededede-0000-0000-0000-000000000051';  -- Willow
+UPDATE public.entries SET
+  is_scored = true, result_status = 'qualified', check_in_status = 'completed',
+  entry_status = 'completed', search_time_seconds = 41.20, total_faults = 0,
+  total_score = 100, final_placement = 2,
+  scoring_completed_at = '2026-08-01 09:22:00+00'
+WHERE id = 'dededede-0000-0000-0000-000000000055';  -- Scout
+UPDATE public.entries SET
+  is_scored = true, result_status = 'qualified', check_in_status = 'completed',
+  entry_status = 'completed', search_time_seconds = 45.80, total_faults = 0,
+  total_score = 100, final_placement = 3,
+  scoring_completed_at = '2026-08-01 09:30:00+00'
+WHERE id = 'dededede-0000-0000-0000-000000000058';  -- Cooper
+
+-- Finalize the class so the placement field clears the 'class_complete' gate and
+-- the results read as RELEASED. scored_count = 3 (all entries in ...031 scored).
+UPDATE public.classes SET
+  status = 'completed', is_scoring_finalized = true, scored_count = 3,
+  results_released_at = '2026-08-01 09:35:00+00'
+WHERE id = 'dec1a55e-0000-0000-0000-000000000031';
+
+-- ---------------------------------------------------------------------------
+-- 9. GAP FIXTURE #4 (refunded/withdrawn entry, P1-04 seam): one new fixed-id
+--    entry (...059) for Maple in Exterior Excellent (...033). entry_status=
+--    'withdrawn' + payment_status='refunded' with refund columns populated.
+--    Maple has no other entry in ...033, and withdrawn/scratched rows are excluded
+--    from entries_dog_class_unique_idx anyway, so there is no unique-index clash.
+--    The refund columns (refund_amount/refund_notes/refunded_at) are guarded by
+--    trg_restrict_entry_refund_columns_insert, which raises unless the current role
+--    is service_role; we briefly SET LOCAL ROLE service_role for this one insert
+--    (the documented manual path) then RESET. No armbands row is created for a
+--    withdrawn entry. payment_method left NULL so the paid-online insert guard
+--    (entries_protect_payment_fields_insert, which only fires for online refunds)
+--    does not trip.
+-- ---------------------------------------------------------------------------
+SET LOCAL ROLE service_role;
+INSERT INTO public.entries (
+  id, dog_id, class_id, show_id, trial_id, handler_id, handler,
+  entry_status, payment_status, entry_fee, armband, run_order, move_up_requested,
+  withdrawal_reason, refund_amount, refund_notes, refunded_at, version
+)
+VALUES
+  ('dededede-0000-0000-0000-000000000059',
+   'dededede-0000-0000-0000-000000000045', 'dec1a55e-0000-0000-0000-000000000033',
+   'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
+   (SELECT id FROM public.people WHERE lower(email)='beezley@cox.net'), 'Richard Beezley',
+   'withdrawn', 'refunded', 30.00, NULL, NULL, false,
+   'Exhibitor withdrew before the show; full refund issued.',
+   30.00, 'Demo refund for the withdrawn-entry walk fixture.',
+   '2026-07-20 00:00:00+00', 1);
+RESET ROLE;
 
 COMMIT;
 

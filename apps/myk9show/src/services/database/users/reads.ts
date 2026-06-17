@@ -231,7 +231,26 @@ export const permanentDeleteUser = async (personId: string) => {
     logQuery('user', 'permanent_delete', duration, error?.message);
 
     if (error) {
-      throw createDatabaseError(error, 'user', 'permanent_delete');
+      // On a non-2xx the edge body (e.g. { error, code: 'MK001' }) is carried in
+      // FunctionsHttpError.context (a Response), not in `data`. Pull the code out
+      // so the owns-dogs guard message survives instead of becoming a generic 500.
+      const context = (error as { context?: Response }).context;
+      let edgeMessage: string | undefined;
+      let edgeCode: string | undefined;
+      if (context && typeof context.json === 'function') {
+        try {
+          const body = (await context.json()) as { error?: string; code?: string };
+          edgeMessage = body?.error;
+          edgeCode = body?.code;
+        } catch {
+          // Body wasn't JSON / already consumed — fall back to the error itself.
+        }
+      }
+      throw createDatabaseError(
+        edgeCode ? { message: edgeMessage || error.message, code: edgeCode } : error,
+        'user',
+        'permanent_delete'
+      );
     }
 
     // Edge Function returns { error: string } on failure

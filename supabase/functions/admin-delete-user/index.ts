@@ -73,6 +73,12 @@ handle<DeleteRequest>(
 
     if (deleteError) {
       console.error('Failed to delete people row:', deleteError);
+      // The owns-dogs guard trigger (migration 20260617130000) blocks the delete
+      // with SQLSTATE MK001. Surface it as an actionable 409 instead of a generic
+      // 500 so the client can tell the admin to delete the dogs first.
+      if (deleteError.code === 'MK001') {
+        throw new HttpError(409, deleteError.message, 'MK001');
+      }
       throw new HttpError(500, 'Failed to delete user record');
     }
 

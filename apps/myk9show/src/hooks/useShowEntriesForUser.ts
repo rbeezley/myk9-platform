@@ -11,6 +11,7 @@ import { getClassName } from '@/components/classes/types/classTypes';
 import { entryIsScored } from '@/utils/entryPredicates';
 import { hasScopedClubRole, hasScopedShowRole } from '@/utils/roleScopes';
 import type { SyncableShowEntry } from '@/store/entry-store-types';
+import type { EntryStatus } from '@/types/entry-lifecycle';
 
 export interface EnrichedShowEntry {
   entryId: string;
@@ -30,6 +31,11 @@ export interface EnrichedShowEntry {
   startTime: string; // "9:00 AM" or ""
   judgeName: string;
   dogsAhead: number;
+  // Lifecycle + payment state, carried through so terminal states (withdrawn,
+  // scratched, refunded) render the same on this tab as on the secretary's
+  // Entry Management view (UX-P1-04) instead of falling through to "Upcoming".
+  entryStatus: EntryStatus;
+  paymentStatus: 'pending' | 'paid' | 'refunded';
   hasResult: boolean;
   result?: {
     qualified: boolean;
@@ -163,6 +169,8 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
         startTime: cls.startTime ?? '',
         judgeName: cls.judge ?? '',
         dogsAhead,
+        entryStatus: entry.status,
+        paymentStatus: entry.registrationData.paymentStatus,
         hasResult,
         ...(hasResult && compData
           ? {

@@ -17,4 +17,6 @@ export {
   hardDeleteDog,
   restoreDog,
   getDeletedDogs,
+  getOwnedLiveDogsByPerson,
 } from './reads';
+export type { OwnedLiveDog } from './reads';

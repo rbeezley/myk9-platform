@@ -475,6 +475,7 @@ export const UserTable: React.FC<UserTableProps> = ({
           onPermanentDelete={confirmPermanentDelete}
           entityName={deleteTarget ? `${deleteTarget.firstName} ${deleteTarget.lastName}` : ''}
           isDeleting={isDeleting}
+          {...(deleteTarget ? { personId: deleteTarget.id } : {})}
         />
       ) : (
         <DeleteConfirmationDialog

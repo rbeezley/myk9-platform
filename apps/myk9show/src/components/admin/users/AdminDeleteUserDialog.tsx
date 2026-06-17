@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AlertTriangle, Trash2, UserX } from 'lucide-react';
+import { AlertTriangle, Trash2, UserX, Dog } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -10,8 +10,11 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useOwnedLiveDogsByPersonQuery } from '@/hooks/queries/useDogsDatabase';
 
 type DeleteMode = 'soft' | 'permanent';
+
+const MAX_DOGS_LISTED = 8;
 
 interface AdminDeleteUserDialogProps {
   open: boolean;
@@ -21,6 +24,8 @@ interface AdminDeleteUserDialogProps {
   entityName: string;
   isDeleting: boolean;
   bulkCount?: number;
+  /** The person being deleted. Drives the owns-dogs guard (single delete only). */
+  personId?: string;
 }
 
 export function AdminDeleteUserDialog({
@@ -31,6 +36,7 @@ export function AdminDeleteUserDialog({
   entityName,
   isDeleting,
   bulkCount,
+  personId,
 }: AdminDeleteUserDialogProps) {
   const [mode, setMode] = useState<DeleteMode>('soft');
 
@@ -39,6 +45,16 @@ export function AdminDeleteUserDialog({
     if (open) setMode('soft');
   }, [open]);
 
+  // A person who still owns live dogs can't be deleted (it would orphan them) —
+  // the DB trigger (migration 20260617130000) enforces it; this is the friendly
+  // pre-check. Single-person delete only; bulk relies on the DB guard.
+  const checkOwnedDogs = open && !!personId && !bulkCount;
+  const { data: ownedDogs, isLoading: dogsLoading } = useOwnedLiveDogsByPersonQuery(
+    personId ?? '',
+    checkOwnedDogs
+  );
+  const blockedByDogs = checkOwnedDogs && !dogsLoading && (ownedDogs?.length ?? 0) > 0;
+
   const handleConfirm = () => {
     if (mode === 'soft') {
       onSoftDelete();
@@ -46,6 +62,50 @@ export function AdminDeleteUserDialog({
       onPermanentDelete();
     }
   };
+
+  if (blockedByDogs) {
+    const dogs = ownedDogs ?? [];
+    const shown = dogs.slice(0, MAX_DOGS_LISTED);
+    const remaining = dogs.length - shown.length;
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Dog className="h-5 w-5" />
+              Can&apos;t delete {entityName}
+            </DialogTitle>
+            <DialogDescription>
+              This person still owns {dogs.length} live{' '}
+              {dogs.length === 1 ? 'dog' : 'dogs'}. Deleting them would leave{' '}
+              {dogs.length === 1 ? 'it' : 'them'} without an owner.
+            </DialogDescription>
+          </DialogHeader>
+
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              <span className="font-medium">Delete or reassign these dogs first:</span>
+              <ul className="mt-2 list-disc pl-5 space-y-0.5">
+                {shown.map(d => (
+                  <li key={d.id}>{d.name}</li>
+                ))}
+              </ul>
+              {remaining > 0 && (
+                <p className="mt-1 text-sm text-muted-foreground">…and {remaining} more.</p>
+              )}
+            </AlertDescription>
+          </Alert>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -116,8 +176,8 @@ export function AdminDeleteUserDialog({
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                This will permanently delete <strong>{entityName}</strong>, including all related
-                records (dogs, entries, registrations). Proceed with caution.
+                This will permanently delete <strong>{entityName}</strong>, including their login
+                account, roles, and club memberships. Proceed with caution.
               </AlertDescription>
             </Alert>
           )}

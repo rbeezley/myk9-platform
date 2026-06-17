@@ -21,6 +21,9 @@ const ERROR_CODE_MAP: Record<string, string> = {
   // PostgreSQL class 08 — connection
   '08000': 'Unable to reach the server. Please check your connection.',
   '08006': 'Connection to the server was lost. Please try again.',
+
+  // myK9 custom SQLSTATEs (class MK)
+  MK001: 'This person still owns dogs. Delete those dogs first.',
 };
 
 /** Prefix-based fallbacks (e.g. all PGRST codes). */

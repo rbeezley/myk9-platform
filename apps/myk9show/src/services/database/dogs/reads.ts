@@ -688,3 +688,27 @@ export const getDeletedDogs = async () => {
     return { data: [], error: dbError };
   }
 };
+
+export interface OwnedLiveDog {
+  id: string;
+  name: string;
+}
+
+// Live dogs a person is the PRIMARY owner of (owner_id). Drives the
+// delete-person guard: a person who owns live dogs can't be deleted (the DB
+// trigger from migration 20260617130000 enforces it; this powers the friendly
+// pre-check). Direct PostgREST read — admins can see these via RLS, and the guard
+// must be accurate regardless of replication sync state. Co-owned dogs are
+// excluded on purpose: they keep their primary owner, so they aren't orphaned.
+export const getOwnedLiveDogsByPerson = async (
+  personId: string
+): Promise<OwnedLiveDog[]> => {
+  const { data, error } = await supabase
+    .from('dogs')
+    .select('id, call_name, name')
+    .eq('owner_id', personId)
+    .is('deleted_at', null)
+    .order('call_name', { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map(d => ({ id: d.id, name: d.call_name || d.name || 'Unnamed dog' }));
+};

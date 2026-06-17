@@ -8797,6 +8797,13 @@ export type Database = {
           entry_count: number
         }[]
       }
+      get_deleted_dogs: { Args: never; Returns: Database['public']['Tables']['dogs']['Row'][] }
+      get_deleted_shows: { Args: never; Returns: Database['public']['Tables']['shows']['Row'][] }
+      get_deleted_classes: {
+        Args: never
+        Returns: Database['public']['Tables']['classes']['Row'][]
+      }
+      get_deleted_people: { Args: never; Returns: Database['public']['Tables']['people']['Row'][] }
       get_my_handled_dog_ids: { Args: never; Returns: string[] }
       get_my_person_id: { Args: never; Returns: string }
       get_user_permissions: {

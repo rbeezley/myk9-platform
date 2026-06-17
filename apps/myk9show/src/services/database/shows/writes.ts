@@ -199,11 +199,9 @@ export const getDeletedShows = async () => {
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase
-      .from('shows')
-      .select('*')
-      .not('deleted_at', 'is', null)
-      .order('deleted_at', { ascending: false });
+    // shows_select RLS hides soft-deleted rows from every role; list via an
+    // admin-gated SECURITY DEFINER RPC (migration 20260616140000).
+    const { data, error } = await supabase.rpc('get_deleted_shows');
 
     const duration = Date.now() - startTime;
     logQuery('show', 'select_deleted', duration, error?.message);

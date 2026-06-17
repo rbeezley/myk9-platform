@@ -293,21 +293,9 @@ export const getDeletedUsers = async () => {
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase
-      .from('people')
-      .select(
-        `
-        *,
-        deleted_by_user:people!people_deleted_by_fkey(
-          id,
-          first_name,
-          last_name,
-          email
-        )
-      `
-      )
-      .not('deleted_at', 'is', null)
-      .order('deleted_at', { ascending: false });
+    // people_select RLS hides soft-deleted rows from every role; list via an
+    // admin-gated SECURITY DEFINER RPC (migration 20260616140000).
+    const { data, error } = await supabase.rpc('get_deleted_people');
 
     const duration = Date.now() - startTime;
     logQuery('user', 'select_deleted', duration, error?.message);

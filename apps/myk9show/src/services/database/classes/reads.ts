@@ -559,27 +559,9 @@ export const getDeletedClasses = async () => {
   try {
     log('getDeletedClasses', 'Fetching deleted classes');
 
-    const { data, error } = await supabase
-      .from('classes')
-      .select(
-        `
-        *,
-        trial:trials (
-          id,
-          name,
-          date,
-          trial_number
-        ),
-        deleted_by_user:deleted_by (
-          id,
-          first_name,
-          last_name,
-          email
-        )
-      `
-      )
-      .not('deleted_at', 'is', null)
-      .order('deleted_at', { ascending: false });
+    // classes_select RLS hides soft-deleted rows from every role; list via an
+    // admin-gated SECURITY DEFINER RPC (migration 20260616140000).
+    const { data, error } = await supabase.rpc('get_deleted_classes');
 
     if (error) {
       log('getDeletedClasses', 'Error fetching deleted classes', { error });

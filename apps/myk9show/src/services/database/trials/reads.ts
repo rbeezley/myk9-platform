@@ -458,8 +458,7 @@ export const getDeletedTrials = async () => {
     .select(
       `
       *,
-      show:shows (id, name),
-      deleted_by_user:deleted_by (id, first_name, last_name, email)
+      show:shows (id, name)
     `
     )
     .not('deleted_at', 'is', null)

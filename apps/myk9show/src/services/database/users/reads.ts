@@ -2,7 +2,6 @@
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { logger } from '@/services/LoggingService';
 import type { DbUserInsert, DbUserUpdate } from '../../../types/database-mappings';
-import type { TablesUpdate } from '@/types/supabase';
 
 // Shared select fragment for judge qualifications join
 const JUDGE_QUALIFICATIONS_SELECT = `judge_qualifications(
@@ -154,23 +153,16 @@ export const updateUser = async (id: string, updates: DbUserUpdate) => {
 // Soft delete user
 export const deleteUser = async (id: string, deletedBy?: string) => {
   const startTime = Date.now();
+  // The RPC stamps deleted_by = auth.uid(); the explicit arg is no longer needed.
+  void deletedBy;
 
   try {
-    const updateData: TablesUpdate<'people'> = {
-      deleted_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-
-    if (deletedBy) {
-      updateData.deleted_by = deletedBy;
-    }
-
-    const { data, error } = await supabase
-      .from('people')
-      .update(updateData)
-      .eq('id', id)
-      .is('deleted_at', null) // Only soft delete if not already deleted
-      .select('id, first_name, last_name');
+    // people_select RLS (deleted_at IS NULL) is enforced as a WITH CHECK on the
+    // UPDATE's new row, so a direct .update({ deleted_at }) is rejected ("new row
+    // violates RLS"). Soft-delete via an admin-gated SECURITY DEFINER RPC, like
+    // soft_delete_dog/show/class (migration 20260617140000). The owns-dogs guard
+    // trigger still fires inside the RPC and raises MK001 if the person owns dogs.
+    const { data, error } = await supabase.rpc('soft_delete_person', { p_person_id: id });
 
     const duration = Date.now() - startTime;
     logQuery('user', 'soft_delete', duration, error?.message);

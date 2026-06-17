@@ -269,7 +269,9 @@ describe('User Queries', () => {
   });
 
   describe('deleteUser', () => {
-    it('should delete user successfully', async () => {
+    // Soft-delete goes through the soft_delete_person SECURITY DEFINER RPC
+    // (people_select RLS blocks a direct .update of deleted_at). Mock rpc, not from.
+    it('should delete user successfully via the soft_delete_person RPC', async () => {
       const userId = 'user-123';
       const mockDeletedUser = {
         id: userId,
@@ -277,31 +279,31 @@ describe('User Queries', () => {
         last_name: 'User',
       };
 
-      mockSupabase.from.mockReturnValue(
-        createChainableQuery({ data: mockDeletedUser, error: null })
-      );
+      mockSupabase.rpc.mockResolvedValue({ data: [mockDeletedUser], error: null });
 
       const result = await deleteUser(userId);
 
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('soft_delete_person', {
+        p_person_id: userId,
+      });
       expect(result.data).toEqual(mockDeletedUser);
       expect(result.error).toBeNull();
     });
 
-    it('should handle foreign key constraint violations', async () => {
-      const userId = 'user-with-dependencies';
+    it('should surface the owns-dogs guard error (MK001)', async () => {
+      const userId = 'user-who-owns-dogs';
       const mockError = {
-        message: 'Foreign key constraint violation',
-        code: '23503',
-        details: 'User has associated dogs',
+        message: 'This person still owns 2 live dog(s). Delete those dogs first.',
+        code: 'MK001',
       };
 
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: null, error: mockError }));
+      mockSupabase.rpc.mockResolvedValue({ data: null, error: mockError });
 
       const result = await deleteUser(userId);
 
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
-      expect(result.error.code).toBe('23503');
+      expect(result.error.code).toBe('MK001');
     });
   });
 

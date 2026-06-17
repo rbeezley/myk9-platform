@@ -8930,6 +8930,10 @@ export type Database = {
       }
       soft_delete_class: { Args: { p_class_id: string }; Returns: undefined }
       soft_delete_dog: { Args: { p_dog_id: string }; Returns: undefined }
+      soft_delete_person: {
+        Args: { p_person_id: string }
+        Returns: Database['public']['Tables']['people']['Row'][]
+      }
       soft_delete_show: { Args: { p_show_id: string }; Returns: undefined }
       submit_club_access_request: {
         Args: {

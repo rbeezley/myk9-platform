@@ -38,9 +38,12 @@ export interface ListControlsProps {
  * everywhere (Dogs, People, Clubs, Shows) means the user learns search +
  * filter + view-switch exactly once.
  *
- * INTENT: search stays deliberately narrow — browse queries are short — so
- * filter chips get the room to breathe. On mobile the search takes its own row
- * and the rest wraps below it.
+ * INTENT: search stays deliberately narrow (fixed width — browse queries are
+ * short) so filter chips get the room to breathe and the row stays compact.
+ * The width is non-responsive on purpose: a `w-full sm:w-NN` pair does NOT work
+ * here because this app's generated CSS orders base utilities after responsive
+ * ones, so `w-full` overrides `sm:*`. On narrow screens the flex row simply
+ * wraps the chips/toggle beneath the search.
  */
 export function ListControls({
   search,
@@ -71,7 +74,7 @@ export function ListControls({
           value={search}
           onChange={onSearchChange}
           placeholder={searchPlaceholder}
-          className="w-full sm:w-48"
+          className="w-52 shrink-0"
         />
 
         {filters.length > 0 && (

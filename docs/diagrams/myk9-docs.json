@@ -1,0 +1,49 @@
+{
+  "$schema": "https://github.com/Agents365-ai/drawio-skill/styles/schema.json",
+  "name": "myk9-docs",
+  "version": 1,
+  "default": false,
+  "confidence": "high",
+  "source": { "type": "hand-authored", "extracted_at": "2026-06-17" },
+  "palette": {
+    "primary":   { "fillColor": "#fdf5ef", "strokeColor": "#a8472d" },
+    "success":   { "fillColor": "#eaf3ec", "strokeColor": "#2e7d5a" },
+    "warning":   { "fillColor": "#fdf3da", "strokeColor": "#b7791f" },
+    "accent":    { "fillColor": "#ecf6f4", "strokeColor": "#2f8a7f" },
+    "danger":    { "fillColor": "#fbeae8", "strokeColor": "#b4392b" },
+    "neutral":   { "fillColor": "#f5f3f0", "strokeColor": "#6b6560" },
+    "secondary": { "fillColor": "#f1ecf2", "strokeColor": "#7e5d86" }
+  },
+  "roles": {
+    "service":  "primary",
+    "database": "neutral",
+    "queue":    "warning",
+    "gateway":  "accent",
+    "error":    "danger",
+    "external": "neutral",
+    "security": "secondary"
+  },
+  "shapes": {
+    "service":   "rounded=1",
+    "database":  "shape=cylinder3",
+    "queue":     "rounded=1",
+    "decision":  "rhombus",
+    "external":  "rounded=1;dashed=1",
+    "container": "swimlane;startSize=30"
+  },
+  "font": {
+    "fontFamily": "Helvetica",
+    "fontSize": 13,
+    "titleFontSize": 15,
+    "titleBold": true
+  },
+  "edges": {
+    "style": "edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1",
+    "arrow": "endArrow=classic;endFill=1",
+    "dashedFor": ["optional", "alternate"]
+  },
+  "extras": {
+    "sketch": false,
+    "globalStrokeWidth": 1.5
+  }
+}

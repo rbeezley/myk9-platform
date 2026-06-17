@@ -80,6 +80,9 @@ export default {
         destructive: {
           DEFAULT: 'rgb(var(--destructive) / <alpha-value>)',
           foreground: 'rgb(var(--destructive-foreground) / <alpha-value>)',
+          // Theme-aware red tuned for AA contrast as SMALL text on
+          // popover/card surfaces (see --destructive-strong in index.css).
+          strong: 'rgb(var(--destructive-strong) / <alpha-value>)',
         },
         success: {
           DEFAULT: 'rgb(var(--success) / <alpha-value>)',

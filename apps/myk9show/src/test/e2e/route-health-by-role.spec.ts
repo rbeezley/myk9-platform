@@ -34,6 +34,7 @@ const SEEDED_SHOW = '4584f257-19b5-4016-aae6-5e7827b769cb';
 
 // domcontentloaded + fixed settle; avoids the ~32s networkidle stalls (2026-05-30).
 const SETTLE_MS = 1500;
+const ROUTE_GOTO_TIMEOUT_MS = 15000;
 
 // Console messages excluded from the error budget.
 // "Maximum update depth exceeded" is React StrictMode dev-mode noise.
@@ -82,9 +83,7 @@ const JUDGE_ROUTES: RouteSpec[] = [
   { label: 'check-in', path: '/judge/check-in' },
 ];
 
-const CLUB_ADMIN_ROUTES: RouteSpec[] = [
-  { label: 'members', path: '/club-admin/members' },
-];
+const CLUB_ADMIN_ROUTES: RouteSpec[] = [{ label: 'members', path: '/club-admin/members' }];
 
 const ADMIN_ROUTES: RouteSpec[] = [
   { label: 'dashboard', path: '/admin/dashboard', check375: true },
@@ -140,15 +139,36 @@ async function sweepRoutes(page: Page, group: string, routes: RouteSpec[]) {
   watchBrowserHealth(page, health);
 
   for (const route of routes) {
+    const id = `${group}/${route.label}`;
+
     // Reset accumulated state from the previous route visit.
     health.consoleErrors.length = 0;
     health.pageErrors.length = 0;
     health.failedResponses.length = 0;
 
-    await page.goto(route.path, { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(SETTLE_MS);
+    let navigationError: string | null = null;
+    try {
+      await page.goto(route.path, {
+        waitUntil: 'domcontentloaded',
+        timeout: ROUTE_GOTO_TIMEOUT_MS,
+      });
+    } catch (error) {
+      navigationError = error instanceof Error ? error.message : String(error);
+    }
 
-    const id = `${group}/${route.label}`;
+    expect
+      .soft(navigationError, `${id}: navigation failed within ${ROUTE_GOTO_TIMEOUT_MS}ms`)
+      .toBeNull();
+
+    if (navigationError) {
+      test.info().annotations.push({
+        type: 'route',
+        description: `${id} nav-failed=${navigationError}`,
+      });
+      continue;
+    }
+
+    await page.waitForTimeout(SETTLE_MS);
 
     // Render check: body must contain meaningful text (>20 chars).
     // This catches blank pages and pages stuck on "Loading page..." (14 chars).
@@ -183,9 +203,10 @@ async function sweepRoutes(page: Page, group: string, routes: RouteSpec[]) {
     expect.soft(viols, `${id}: browser health violations`).toHaveLength(0);
 
     // Annotate result for report visibility.
-    test
-      .info()
-      .annotations.push({ type: 'route', description: `${id} render=${bodyText.length}ch health=${viols.length > 0 ? viols.join('; ') : 'ok'}` });
+    test.info().annotations.push({
+      type: 'route',
+      description: `${id} render=${bodyText.length}ch health=${viols.length > 0 ? viols.join('; ') : 'ok'}`,
+    });
   }
 }
 
@@ -201,9 +222,10 @@ test.describe('Route health: exhibitor', () => {
   test('exhibitor routes render clean', async ({ page }) => {
     const user = TEST_USERS.EXHIBITOR;
     if (!user.email || !user.password) {
-      test
-        .info()
-        .annotations.push({ type: 'note', description: 'Exhibitor credentials absent from environment' });
+      test.info().annotations.push({
+        type: 'note',
+        description: 'Exhibitor credentials absent from environment',
+      });
       test.skip(true, 'Exhibitor credentials absent — group skipped');
     }
     await signIn(page, user.email, user.password, '/exhibitor/entries');
@@ -215,9 +237,10 @@ test.describe('Route health: secretary', () => {
   test('secretary routes render clean', async ({ page }) => {
     const user = TEST_USERS.SECRETARY;
     if (!user.email || !user.password) {
-      test
-        .info()
-        .annotations.push({ type: 'note', description: 'Secretary credentials absent from environment' });
+      test.info().annotations.push({
+        type: 'note',
+        description: 'Secretary credentials absent from environment',
+      });
       test.skip(true, 'Secretary credentials absent — group skipped');
     }
     await signIn(page, user.email, user.password, '/secretary/dashboard');
@@ -229,7 +252,10 @@ test.describe('Route health: judge', () => {
   test('judge routes render clean', async ({ page }) => {
     const user = TEST_USERS.JUDGE;
     if (!user.email || !user.password) {
-      test.info().annotations.push({ type: 'note', description: 'Judge credentials absent from environment' });
+      test.info().annotations.push({
+        type: 'note',
+        description: 'Judge credentials absent from environment',
+      });
       test.skip(true, 'Judge credentials absent — group skipped');
     }
     await signIn(page, user.email, user.password, '/judge/dashboard');
@@ -241,9 +267,10 @@ test.describe('Route health: club-admin', () => {
   test('club-admin routes render clean', async ({ page }) => {
     const user = TEST_USERS.CLUB_ADMIN;
     if (!user.email || !user.password) {
-      test
-        .info()
-        .annotations.push({ type: 'note', description: 'Club-admin credentials absent from environment' });
+      test.info().annotations.push({
+        type: 'note',
+        description: 'Club-admin credentials absent from environment',
+      });
       test.skip(true, 'Club-admin credentials absent — group skipped');
     }
     await signIn(page, user.email, user.password, '/club-admin/members');
@@ -255,7 +282,10 @@ test.describe('Route health: admin', () => {
   test('admin routes render clean', async ({ page }) => {
     const user = TEST_USERS.SITE_ADMIN;
     if (!user.email || !user.password) {
-      test.info().annotations.push({ type: 'note', description: 'Admin credentials absent from environment' });
+      test.info().annotations.push({
+        type: 'note',
+        description: 'Admin credentials absent from environment',
+      });
       test.skip(true, 'Admin credentials absent — group skipped');
     }
     await signIn(page, user.email, user.password, '/admin/dashboard');

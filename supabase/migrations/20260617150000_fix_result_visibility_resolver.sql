@@ -13,11 +13,16 @@
 --
 -- Column differences handled:
 --   * the overrides use `preset` (the dropped tables used `preset_name`).
---   * show_visibility_settings also carries a `preset`, so the SHOW base now gets
---     preset-expansion + per-field COALESCE (same precedence as the overrides),
---     not a bare timing read. This matters: a non-`open` preset (e.g. `review`)
---     with NULL per-field timings must expand from the preset, NOT silently fall
---     back to the open defaults and over-expose results.
+--   * The SHOW base reads its materialized timing columns DIRECTLY — no preset
+--     expansion. show_visibility_settings.*_timing are NOT NULL and stored
+--     already-resolved: the app write path expands the chosen preset into the
+--     columns (`placement_timing := input ?? PRESET_CONFIGS[preset].placement`),
+--     and the canonical resolveVisibilityCascade treats the show as the resolved
+--     base. Expanding the preset here instead would be wrong against NOT NULL
+--     columns (a COALESCE over the column would always win and silently discard
+--     the preset). Preset-expansion lives only at the trial/class override layers,
+--     whose timing columns are nullable (so a non-null value is an intentional
+--     per-field override).
 --
 -- Behavior is otherwise identical to the original resolver (class state derivation,
 -- per-field _result_timing_visible, fail-closed on unknown class). The helper

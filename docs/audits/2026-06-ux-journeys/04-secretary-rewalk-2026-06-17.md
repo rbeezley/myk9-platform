@@ -56,8 +56,13 @@ The route guard ([`secretaryRoutes.tsx:191`](../../../apps/myk9show/src/routes/s
 (`getUniqueActiveRoleNames` flattens names) — so a single club-scoped `secretary` row satisfies it.
 
 **Action taken to unblock this walk:** I inserted one club-scoped `secretary` `user_roles` row
-for `secretary@myk9t.com` (scoped to the Heartland club `dededede-…0001`). This is a **manual
-row, not yet codified** — it will survive until the next wipe, then re-break.
+for `secretary@myk9t.com` (scoped to the Heartland club `dededede-…0001`).
+
+**FIXED — PR #804 (2026-06-17):** `seed-demo.sql` §10 now codifies idempotent club-scoped grants
+for all four demo accounts (`secretary`→`secretary@`/`e2e-secretary@`, `club_admin`→`club@`/
+`e2e-clubadmin@`), applied to staging. A reseed now restores them. The SQL template below is the
+finding-time version; the shipped version sources `auth_user_id` from `people.auth_user_id`, uses
+a literal `granted_at`, and adds `show_id IS NULL` to the NOT EXISTS guard.
 
 **Durable fix (consolidation-safe — extend the existing reseed, do not add a surface):** add a
 role-grant block to `seed-demo.sql` (or a companion seed) for the demo secretary/club-admin
@@ -140,8 +145,11 @@ _(Data fidelity is good: the seeded Container Novice A placements export correct
 ### F5 — MEDIUM: Reports selectors display raw ids
 
 **Surface:** `/shows/:id/reports`. The "Select report" and "Select sort" comboboxes show their
-**raw values** — `check-in-sheet`, `run-order` — instead of "Check-in Sheet" / "Run Order". Prior
-audit Medium persists. (The printable preview itself is clean: "AKC Container Check-in" etc.)
+**raw values** — `check-in-sheet`, `run-order` — instead of "Check-in Sheet" / "Run Order".
+**Scope note (reconciled):** this is a *different* selector from the trial/class/dog UUID echoes
+fixed in #617/#737-era (those rendered UUIDs; `ReportControlsBar` now labels them). The
+**report-type** and **sort** selectors carry kebab-case string ids and still echo them raw. (The
+printable preview itself is clean: "AKC Container Check-in" etc.)
 
 ---
 
@@ -149,9 +157,12 @@ audit Medium persists. (The printable preview itself is clean: "AKC Container Ch
 
 - **`AKC:scent_work` jargon** shown verbatim in the Submit Results Organization selector (prior). → "AKC Scent Work".
 - **Move-up picker "999 spots"** — unconfigured-looking class-capacity default in each option label.
-- **Legacy `?phase=show-desk` renders Setup, not Show Desk.** Prior **High** → downgraded to Low:
-  current workbench nav links to the proper `/show-desk` route, so only stale bookmarks hit
-  `/setup?phase=show-desk` (still renders the Setup region). Cheap to redirect; low exposure.
+- ~~Legacy `?phase=show-desk` renders Setup, not Show Desk.~~ **RETRACTED on reconciliation.**
+  PR #737 already redirects the real legacy bookmark shape — the **base** URL
+  `/shows/:id?phase=show-desk` → `/show-desk` ([`showRouteRedirects.tsx:18`](../../../apps/myk9show/src/routes/showRouteRedirects.tsx)
+  honors the phase query only when there is no subPath). The `/shows/:id/setup?phase=show-desk`
+  shape I tested is synthetic — no old bookmark used it — and correctly renders Setup with a
+  harmless dangling query. Not a finding.
 - **Focused request queues render below the full 9-entry list.** The Move-Ups (and Pulled) tab
   shows the dedicated "Move-Up Requests (1)" / Approve-Deny card **beneath** the entire entry list,
   so the decision queue is buried. Same shape as the prior "Pulled tab buried below entry list"

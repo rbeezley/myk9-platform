@@ -461,11 +461,28 @@ RESET ROLE;
 --     above rejects that case (requires non-null auth_user_id for all four
 --     accounts) so it cannot reach this INSERT.
 --
---     IDEMPOTENT: the unique key is (user_id, role_id, club_id, show_id); the
---     NOT EXISTS guard matches on that key, so re-runs are no-ops AND the manual
---     one-off unblock row already inserted for secretary@myk9t.com is respected.
---     granted_at is a literal (no now()) to keep repeated runs byte-identical.
+--     REACTIVATE-THEN-INSERT (idempotent + revoke-safe): the unique key is
+--     (user_id, role_id, club_id, show_id). The app revokes a role by SOFT-
+--     deactivating its user_roles row (is_active = false), not deleting it, so a
+--     bare NOT EXISTS guard would treat a revoked grant as "already present" and
+--     leave the 403 in place across a reseed. Each role therefore runs an UPDATE
+--     that flips any matching inactive row back to active (and refreshes
+--     auth_user_id) BEFORE the INSERT fills genuinely-missing rows. The UPDATE's
+--     WHERE excludes already-correct rows, so a clean re-run touches nothing
+--     (UPDATE 0 / INSERT 0) and the manual one-off unblock row for
+--     secretary@myk9t.com is respected. granted_at is a literal (no now()) so
+--     inserts stay byte-identical; reactivation only fires when state diverges.
 -- ---------------------------------------------------------------------------
+UPDATE public.user_roles ur
+SET is_active = true, auth_user_id = p.auth_user_id
+FROM public.people p, public.roles r
+WHERE ur.user_id = p.id AND ur.role_id = r.id
+  AND r.name = 'secretary'
+  AND lower(p.email) IN ('secretary@myk9t.com', 'e2e-secretary@test.myk9.com')
+  AND ur.club_id = 'dededede-0000-0000-0000-000000000001'
+  AND ur.show_id IS NULL
+  AND (ur.is_active IS DISTINCT FROM true OR ur.auth_user_id IS DISTINCT FROM p.auth_user_id);
+
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id, granted_at)
 SELECT p.id, r.id, 'dededede-0000-0000-0000-000000000001', true, p.auth_user_id, '2026-06-17 00:00:00+00'
 FROM public.people p
@@ -477,6 +494,16 @@ WHERE r.name = 'secretary'
     WHERE ur.user_id = p.id AND ur.role_id = r.id
       AND ur.club_id = 'dededede-0000-0000-0000-000000000001'
       AND ur.show_id IS NULL);
+
+UPDATE public.user_roles ur
+SET is_active = true, auth_user_id = p.auth_user_id
+FROM public.people p, public.roles r
+WHERE ur.user_id = p.id AND ur.role_id = r.id
+  AND r.name = 'club_admin'
+  AND lower(p.email) IN ('club@myk9t.com', 'e2e-clubadmin@test.myk9.com')
+  AND ur.club_id = 'dededede-0000-0000-0000-000000000001'
+  AND ur.show_id IS NULL
+  AND (ur.is_active IS DISTINCT FROM true OR ur.auth_user_id IS DISTINCT FROM p.auth_user_id);
 
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id, granted_at)
 SELECT p.id, r.id, 'dededede-0000-0000-0000-000000000001', true, p.auth_user_id, '2026-06-17 00:00:00+00'

@@ -19,15 +19,24 @@ The admin restore UI (`/admin/data-lifecycle` → Deleted Entities) works for on
   to the Data API). PostgREST errors → the list returns empty *even though* the
   count (no embed) correctly shows 24 trials / 8 entries.
 
-Restore **writes** are fine: `dogs_update`/`shows_update`/`classes_update` carry no
-`deleted_at` block, so admins can restore once a row is listed. Only the **read**
-side is broken.
+- **C — RLS-blocked restore *writes* (dogs, shows, classes, people).** _(Found
+  2026-06-17, during the live restore walk — corrects an earlier wrong assumption
+  that "writes are fine.")_ The restore services issue a direct
+  `UPDATE <t> SET deleted_at = NULL WHERE id = X RETURNING ...`. That matches **0
+  rows**: PostgreSQL applies the table's SELECT policy during the UPDATE's
+  row-location step (the `WHERE`/`RETURNING` read columns), and the same
+  `deleted_at IS NULL` block from (A) makes the tombstone unlocatable. The
+  `*_update` policies never get a chance to run. Verified as the admin JWT:
+  `UPDATE ... WHERE deleted_at IS NOT NULL` returns `UPDATE 0` for shows (and the
+  restore toast fails), but `UPDATE 24` for trials — whose SELECT policy keys off
+  the parent show's `deleted_at`, not its own, so admins can see/update tombstones.
+  `clubs`/`entries` have no SELECT block either, so their restore keeps working.
 
 This also makes PR #781's dialog copy ("can be restored by an administrator from
 Admin → Data Lifecycle") currently **false for dogs**.
 
 ## Approach
-Two surgical fixes, no change to normal (non-deleted) read paths:
+Three surgical fixes, no change to normal (non-deleted) read paths:
 
 - **Embeds (B):** drop the invalid `deleted_by → auth.users` embed from the
   deleted-list reads. The "deleted by" name is non-essential for a restore list;
@@ -40,6 +49,15 @@ Two surgical fixes, no change to normal (non-deleted) read paths:
   has zero leak risk into normal views and mirrors the existing `soft_delete_dog`
   SECURITY DEFINER pattern. Each RPC raises/returns empty unless
   `is_platform_admin()`.
+- **RLS-blocked restore writes (C):** add admin-gated `SECURITY DEFINER` write RPCs
+  (`restore_dog/show/class/person`) that clear `deleted_at`/`deleted_by`, bypassing
+  the SELECT policy that blocks row location. Re-point `restoreDog/Show/Class/User`
+  to call them (`restoreTrial/Entry/Club` keep their direct `.update()` — their
+  tables aren't SELECT-blocked). Each RPC **cascade-restores** exactly the rows the
+  matching `soft_delete_*` cascade tombstoned, identified by an identical
+  `deleted_at` timestamp (a cascade stamps every row with one transaction-frozen
+  `NOW()`), so delete/restore are true inverses without disturbing
+  independently-deleted rows.
 
 ## Phases
 1. **Embed fix** — repair `getDeletedTrials`, `getDeletedEntries`,
@@ -54,9 +72,13 @@ Two surgical fixes, no change to normal (non-deleted) read paths:
 4. **Verify** — walk all 7 types in the restore UI (list shows rows → restore →
    row returns). Reconcile #781 copy (now accurate). Decide separately whether to
    surface "Data Lifecycle" in the admin sidebar (currently URL-only / parked).
+5. **Restore write RPCs (C)** — migration `20260617120000_restore_entity_rpcs.sql`
+   adding `restore_dog/show/class/person` (SECURITY DEFINER, `is_platform_admin()`
+   gate, `REVOKE … FROM PUBLIC` + `GRANT EXECUTE` to authenticated, cascade-restore
+   by timestamp match). Re-point the four restore services. Source-pinning tests for
+   the RPC wiring + migration contract. Logic validated against the live Alpha 1
+   tombstone in a `BEGIN … ROLLBACK` (dog + both entries restored, zero persistence).
 
 ## Out of scope
 - Sidebar discoverability of the Data Lifecycle page (parked by config) — a
   separate IA decision, noted in Phase 4.
-- Cascade-restore (restoring a dog also restoring its cascade-deleted entries) —
-  entries restore independently; revisit only if the manual two-step proves painful.

@@ -8,6 +8,7 @@ import {
   getEntriesByShow,
   getPublicEntriesByShow,
   getEntriesByClass,
+  getPublicEntriesByClass,
   getEntriesByDog,
   countActiveEntriesByDog,
   getEntriesByStatus,
@@ -78,14 +79,25 @@ export const useEntriesByShowQuery = (showId: string, enabled = true) => {
 
 // Get entries by class ID
 export const useEntriesByClassQuery = (classId: string, enabled = true) => {
+  // Public class page renders this for logged-out visitors, who no longer hold
+  // a broad SELECT on `entries`. Route anon through the cascade-gated public
+  // view (safe columns only); authenticated callers keep the full read. Mirrors
+  // useEntriesByShowQuery and useClassEntriesRaw.
+  const { user, loading } = useAuthContext();
+  const isAnon = !user;
+
   return useQuery({
-    queryKey: queryKeys.classEntries(classId),
+    queryKey: [...queryKeys.classEntries(classId), isAnon ? 'public' : 'auth'],
     queryFn: async () => {
+      if (isAnon) {
+        const { data } = await getPublicEntriesByClass(classId);
+        return data as unknown as Awaited<ReturnType<typeof getEntriesByClass>>['data'];
+      }
       const { data, error } = await getEntriesByClass(classId);
       if (error) throw error;
       return data;
     },
-    enabled: !!classId && enabled,
+    enabled: !!classId && enabled && !loading,
     ...cacheStrategies.moderate,
   });
 };

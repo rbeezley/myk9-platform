@@ -238,6 +238,12 @@ export const getAllClasses = async () => {
         loadTrialsMap(),
         loadEntryCountsByClassMap(),
       ]);
+      // Cold store yields [] without throwing (logged-out guest, never synced),
+      // so the fallback catch never fires. Mirror getClassesByTrialId's guard
+      // and fall through to PostgREST so public pages aren't left class-less.
+      if (classes.length === 0) {
+        return await postgrestGetAllClasses();
+      }
       const sortedClasses = sortedCopy(classes, compareStringAscNullsLast(cls => cls.startTime));
       const data = mapClassesWithJoins(sortedClasses, trialsMap, entryCountsMap);
       return { data, error: null };

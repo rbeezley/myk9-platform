@@ -22,8 +22,8 @@ test.describe('Browse Clubs Page', () => {
       await expect(page.locator('input[placeholder*="Search clubs"]')).toBeVisible();
     });
 
-    test('should display Add Club button', async ({ page }) => {
-      await expect(page.locator('button:has-text("Add Club")')).toBeVisible();
+    test('should display New Club button', async ({ page }) => {
+      await expect(page.locator('button:has-text("New Club")')).toBeVisible();
     });
 
     test('should display result count', async ({ page }) => {
@@ -170,7 +170,7 @@ test.describe('Browse Clubs Page', () => {
   });
 
   test.describe('Empty State', () => {
-    test('should show empty state with Add Club button when no clubs exist', async ({ page }) => {
+    test('should show empty state with New Club button when no clubs exist', async ({ page }) => {
       // This test checks the empty state rendering
       // If there are no clubs, we should see the empty state
       const emptyState = page.locator('text=No clubs yet');
@@ -181,7 +181,7 @@ test.describe('Browse Clubs Page', () => {
       if (!hasClubs) {
         await expect(emptyState).toBeVisible();
         await expect(page.locator('text=Get started by creating your first club')).toBeVisible();
-        await expect(page.locator('button:has-text("Add Club")')).toBeVisible();
+        await expect(page.locator('button:has-text("New Club")')).toBeVisible();
       }
     });
   });

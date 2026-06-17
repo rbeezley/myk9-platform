@@ -242,9 +242,9 @@ describe('BrowseClubsPage (shared primitives migration)', () => {
   });
 });
 
-// ── Add Club button role-gate tests ─────────────────────────────────────────
+// ── New Club button role-gate tests ─────────────────────────────────────────
 
-describe('BrowseClubsPage — Add Club button visibility', () => {
+describe('BrowseClubsPage — New Club button visibility', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockBrowseClubsReturn = {
@@ -261,7 +261,7 @@ describe('BrowseClubsPage — Add Club button visibility', () => {
     };
   });
 
-  it('shows Add Club button when user is a site admin', () => {
+  it('shows New Club button when user is a site admin', () => {
     mockAuthReturn = {
       user: { id: 'admin-user' },
       userWithRoles: { roles: ['site_admin'] },
@@ -269,10 +269,10 @@ describe('BrowseClubsPage — Add Club button visibility', () => {
 
     renderPage();
 
-    expect(screen.getByRole('button', { name: /add club/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /new club/i })).toBeInTheDocument();
   });
 
-  it('hides Add Club button when user is a secretary', () => {
+  it('hides New Club button when user is a secretary', () => {
     mockAuthReturn = {
       user: { id: 'secretary-user' },
       userWithRoles: { roles: ['secretary'] },
@@ -280,10 +280,10 @@ describe('BrowseClubsPage — Add Club button visibility', () => {
 
     renderPage();
 
-    expect(screen.queryByRole('button', { name: /add club/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /new club/i })).not.toBeInTheDocument();
   });
 
-  it('hides Add Club button when user is unauthenticated', () => {
+  it('hides New Club button when user is unauthenticated', () => {
     mockAuthReturn = {
       user: null,
       userWithRoles: null,
@@ -291,6 +291,6 @@ describe('BrowseClubsPage — Add Club button visibility', () => {
 
     renderPage();
 
-    expect(screen.queryByRole('button', { name: /add club/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /new club/i })).not.toBeInTheDocument();
   });
 });

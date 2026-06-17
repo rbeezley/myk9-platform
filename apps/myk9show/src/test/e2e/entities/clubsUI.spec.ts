@@ -4,7 +4,7 @@ import { test, expect, Page } from '@playwright/test';
  * Comprehensive UI test for the Clubs section.
  *
  * Unlike clubCRUD.spec.ts (which calls service functions via page.evaluate),
- * this exercises the actual UI: Add Club dialog, search/filter, view toggle,
+ * this exercises the actual UI: New Club dialog, search/filter, view toggle,
  * detail page tabs, members, branding, edit, and delete.
  *
  * Strategy:
@@ -61,7 +61,7 @@ async function gotoClubsBrowse(page: Page) {
 }
 
 async function openCreateClubDialog(page: Page) {
-  await page.getByRole('button', { name: 'Add Club' }).click();
+  await page.getByRole('button', { name: 'New Club' }).click();
   await expect(page.getByRole('dialog', { name: 'Create Club' })).toBeVisible();
 }
 
@@ -158,7 +158,7 @@ test.describe('Clubs UI — Browse Page', () => {
 
   test('loads club list with header and toolbar', async ({ page }) => {
     await gotoClubsBrowse(page);
-    await expect(page.getByRole('button', { name: 'Add Club' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'New Club' })).toBeVisible();
     await expect(page.getByRole('textbox', { name: /Search clubs by name/ })).toBeVisible();
     await expect(page.getByRole('button', { name: /Club Type/ })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Cards' })).toBeVisible();
@@ -340,7 +340,7 @@ test.describe('Clubs UI — Non-admin permissions', () => {
 
   test('exhibitor cannot create, edit branding, or delete clubs', async ({ page }) => {
     await page.goto('/clubs', { waitUntil: 'networkidle' });
-    await expect(page.getByRole('button', { name: 'Add Club' })).not.toBeVisible();
+    await expect(page.getByRole('button', { name: 'New Club' })).not.toBeVisible();
 
     await page
       .getByRole('link', { name: new RegExp(CLUB_C_NAME) })

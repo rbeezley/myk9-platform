@@ -185,9 +185,12 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
           : []),
       ]);
 
-      const previousShowEntries = queryClient.getQueryData<Record<string, unknown>[]>(
-        queryKeys.showEntries(showId)
-      );
+      // Prefix-match: useEntriesByShowQuery keys are suffixed with 'auth'/'public'
+      // (anon vs full read), so an exact getQueryData/setQueryData on the bare key
+      // misses the live query. Snapshot + update every matched variant.
+      const previousShowEntries = queryClient.getQueriesData<Record<string, unknown>[]>({
+        queryKey: queryKeys.showEntries(showId),
+      });
       const previousEntries = queryClient.getQueriesData<Record<string, unknown>[]>({
         queryKey: queryKeys.entries,
       });
@@ -198,16 +201,19 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
         queryKey: ['show-day', 'details'],
       });
       const previousClassEntries = classId
-        ? queryClient.getQueryData<Record<string, unknown>[]>(queryKeys.classEntries(classId))
-        : undefined;
+        ? queryClient.getQueriesData<Record<string, unknown>[]>({
+            queryKey: queryKeys.classEntries(classId),
+          })
+        : [];
       const previousLegacyClassEntries = classId
         ? queryClient.getQueriesData<Record<string, unknown>[]>({
             queryKey: ['classes', classId, 'entries'],
           })
         : [];
 
-      queryClient.setQueryData<Record<string, unknown>[]>(queryKeys.showEntries(showId), rows =>
-        markRowCheckedIn(rows, entryId)
+      queryClient.setQueriesData<Record<string, unknown>[]>(
+        { queryKey: queryKeys.showEntries(showId) },
+        rows => markRowCheckedIn(rows, entryId)
       );
       queryClient.setQueriesData<Record<string, unknown>[]>({ queryKey: queryKeys.entries }, rows =>
         markRowCheckedIn(rows, entryId)
@@ -219,8 +225,9 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
         markShowDayDetailsCheckedIn(rows, entryId)
       );
       if (classId) {
-        queryClient.setQueryData<Record<string, unknown>[]>(queryKeys.classEntries(classId), rows =>
-          markRowCheckedIn(rows, entryId)
+        queryClient.setQueriesData<Record<string, unknown>[]>(
+          { queryKey: queryKeys.classEntries(classId) },
+          rows => markRowCheckedIn(rows, entryId)
         );
         queryClient.setQueriesData<Record<string, unknown>[]>(
           { queryKey: ['classes', classId, 'entries'] },
@@ -242,7 +249,9 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
     },
     onError: (error, _variables, context) => {
       if (context?.previousShowEntries) {
-        queryClient.setQueryData(queryKeys.showEntries(showId), context.previousShowEntries);
+        for (const [key, data] of context.previousShowEntries) {
+          queryClient.setQueryData(key, data);
+        }
       }
       if (context?.previousEntries) {
         for (const [key, data] of context.previousEntries) {
@@ -257,11 +266,10 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
           queryClient.setQueryData(key, data);
         }
       }
-      if (context?.previousClassEntries && _variables.action.classId) {
-        queryClient.setQueryData(
-          queryKeys.classEntries(_variables.action.classId),
-          context.previousClassEntries
-        );
+      if (context?.previousClassEntries) {
+        for (const [key, data] of context.previousClassEntries) {
+          queryClient.setQueryData(key, data);
+        }
       }
       if (context?.previousLegacyClassEntries) {
         for (const [key, data] of context.previousLegacyClassEntries) {

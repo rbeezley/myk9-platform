@@ -18,6 +18,17 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-06-17
+
+- **Playwright command:** fail/stopped. Phase 1 Vitest passed (`18/18`). Phase 2 active Playwright was stopped after the global 30-minute Nightly budget was exceeded: `17 passed, 2 failed, 1 interrupted, 30 did not run (32.0m, --retries=0)`.
+- **Route sweep:** skipped. The committed `route-health-by-role.spec.ts` did not run because Phase 2 had already exceeded the global budget before reaching the route-health portion of the command.
+- **Active specs:** Vitest `18/18`; active Playwright stopped at `17/50` passed.
+- **Failures:** Refreshed `QA-TEST-FLAKE-021` because `registration/secretaryExistingUsers.spec.ts` repeated the stale `page.goto(..., waitUntil: 'networkidle')` registration wait failure on `origin/main`: first case failed after `21.9s`, second case was interrupted after `13.3s`. Opened `QA-TEST-FLAKE-023` for `registration/exhibitorSelfRegistration.spec.ts:134` timing out after `15.2m` while waiting for `label.myk9-level-chip` with `/Novice A/i`; evidence path `apps/myk9show/test-results/registration-exhibitorSelf-efb7d-t-without-enrollment-writes-chromium/error-context.md`.
+- **Fixes made:** docs only (`docs/qa/findings.md`, `docs/qa/nightly-history.md`). No code/test fix was made because the global budget was already exceeded and the failure set needs focused replay rather than another broad Nightly run.
+- **Demotions/promotions:** none.
+- **Findings:** refreshed `QA-TEST-FLAKE-021`; opened `QA-TEST-FLAKE-023`. `QA-MOBILE-LAYOUT-BREAK-022` did not run/reproduce in this stopped run because route-health was not reached.
+- **Notes:** Ran from isolated detached worktree `.worktrees/nightly-qa-2026-06-17-021317` on `origin/main` `ead5cc402208eb9f074fe3bbc98534022f9d9d20`, using `PLAYWRIGHT_PORT=5917`, `PLAYWRIGHT_BASE_URL=http://127.0.0.1:5917`, and `PLAYWRIGHT_HMR_PORT=25917`. Initial Phase 1 failed before bootstrap because the isolated worktree lacked `@vitejs/plugin-react`; `bash scripts/bootstrap-worktree.sh` completed successfully (`8.8s` dependency install, cached workspace build), and Phase 1 then passed. The requested `docs/plans/qa/2026-05-11-qa-regression-proof.md` file is not present on `origin/main`.
+
 ### 2026-06-16
 
 - **Playwright command:** fail. Phase 1 Vitest passed (`18/18`). Phase 2 active Playwright failed with `46 passed, 4 failed (49.9m, --retries=0)`, exceeding the 30-minute global Nightly budget.

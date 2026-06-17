@@ -111,6 +111,23 @@ Copy this block for each new finding.
 - **Fix owner:** active Playwright specs and route-health waits: `apps/myk9show/src/test/e2e/registration/secretaryExistingUsers.spec.ts`, `apps/myk9show/src/test/e2e/simple-connectivity.spec.ts`, and `apps/myk9show/src/test/e2e/route-health-by-role.spec.ts`; investigate `/admin/sync` route loading if a focused replay reproduces outside the broad suite.
 - **Proof required:** Run the three failing specs/files alone on an isolated port with `--retries=0`, repair or demote the failing waits/routes, then rerun the exact Phase 2 active Nightly Playwright command from `docs/qa/e2e-suite-map.md` under 30 minutes and standalone Phase 3 route-health.
 - **Notes:** Not auto-fixed during 2026-06-16 Nightly because the run had already breached the global budget and the failure set requires focused diagnosis. Do not suppress the failures; replace `networkidle` waits with deterministic UI or response waits only after focused proof.
+- **2026-06-17 update — REPRODUCED ON ORIGIN/MAIN.** Isolated Nightly from `origin/main` `ead5cc402208eb9f074fe3bbc98534022f9d9d20` again failed `registration/secretaryExistingUsers.spec.ts` before route-health could run. The first test failed after `21.9s` waiting for `Register for Show`; the second was interrupted after `13.3s` while in the same `gotoRegistration()` path. The source still uses `page.goto(..., { waitUntil: 'networkidle' })`, matching the 2026-06-16 failure mode. Evidence paths: `apps/myk9show/test-results/registration-secretaryExis-8f70b-led-until-a-dog-is-selected-chromium/error-context.md` and `apps/myk9show/test-results/registration-secretaryExis-e2d58-at-span-multiple-exhibitors-chromium/error-context.md`.
+
+### QA-TEST-FLAKE-023
+
+- **Status:** open
+- **Severity:** high
+- **Role:** exhibitor
+- **Surface:** `apps/myk9show/src/test/e2e/registration/exhibitorSelfRegistration.spec.ts`
+- **Suite category:** nightly
+- **Pattern:** test-flake
+- **Detected by:** Playwright
+- **Evidence:** 2026-06-17 isolated Nightly from `origin/main` `ead5cc402208eb9f074fe3bbc98534022f9d9d20` failed Phase 2 after `registration/exhibitorSelfRegistration.spec.ts:134` ran for `15.2m` and timed out waiting for `locator('label.myk9-level-chip').filter({ hasText: /Novice A/i }).first()` in `selectFirstAvailableClass()`. Phase 2 was stopped after exceeding the global 30-minute budget with `17 passed, 2 failed, 1 interrupted, 30 did not run`. Evidence path: `apps/myk9show/test-results/registration-exhibitorSelf-efb7d-t-without-enrollment-writes-chromium/error-context.md`.
+- **User impact:** Nightly cannot prove the exhibitor card-entry handoff flow. If the missing `Novice A` class option reflects real UI/data drift rather than a stale locator, exhibitors may be blocked before checkout.
+- **Intent check:** Harms the exhibitor expectation that registration is straightforward and predictable.
+- **Fix owner:** exhibitor self-registration Playwright spec and class-selection UI/data path.
+- **Proof required:** Focused isolated replay of `registration/exhibitorSelfRegistration.spec.ts` with `--project=chromium --workers=1 --timeout=90000 --retries=0`; if the missing `Novice A` class is current UI behavior, replace the stale class locator with a deterministic available-class selection. Then rerun the exact Phase 2 active Nightly command under 30 minutes.
+- **Notes:** Do not suppress or skip the spec. First inspect the failure snapshot and current class-selection markup to determine whether this is stale test text, seed-data drift, or a real registration page defect.
 
 ### QA-MOBILE-LAYOUT-BREAK-022
 

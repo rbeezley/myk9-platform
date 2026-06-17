@@ -12,6 +12,8 @@ import { entryIsScored } from '@/utils/entryPredicates';
 import { hasScopedClubRole, hasScopedShowRole } from '@/utils/roleScopes';
 import { resolveMoveUpDisplay } from '@/hooks/moveUpDisplay';
 import type { SyncableShowEntry } from '@/store/entry-store-types';
+import type { EntryStatus } from '@/types/entry-lifecycle';
+import type { EntryPaymentStatus } from '@/components/shows/tabs/entryResultDisplay';
 
 export interface EnrichedShowEntry {
   entryId: string;
@@ -31,6 +33,11 @@ export interface EnrichedShowEntry {
   startTime: string; // "9:00 AM" or ""
   judgeName: string;
   dogsAhead: number;
+  // Lifecycle + payment state, carried through so terminal states (withdrawn,
+  // scratched, refunded) render the same on this tab as on the secretary's
+  // Entry Management view (UX-P1-04) instead of falling through to "Upcoming".
+  entryStatus: EntryStatus;
+  paymentStatus: EntryPaymentStatus;
   hasResult: boolean;
   /** Set on a move-up destination row: the human name of the class moved up from. */
   movedUpFrom?: string;
@@ -203,6 +210,8 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
         startTime: cls.startTime ?? '',
         judgeName: cls.judge ?? '',
         dogsAhead,
+        entryStatus: entry.status,
+        paymentStatus: entry.registrationData.paymentStatus,
         hasResult,
         ...(movedUpFrom ? { movedUpFrom } : {}),
         ...(hasResult && compData

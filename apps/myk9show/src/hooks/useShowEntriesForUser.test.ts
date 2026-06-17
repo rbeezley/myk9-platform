@@ -295,6 +295,37 @@ describe('useShowEntriesForUser', () => {
     expect(result.current.allEntries).toHaveLength(0);
   });
 
+  it('carries entryStatus and paymentStatus through enrichment', () => {
+    setMocks();
+    const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
+    const entry = result.current.allEntries[0];
+    expect(entry.entryStatus).toBe('accepted');
+    expect(entry.paymentStatus).toBe('paid');
+  });
+
+  it('keeps a withdrawn/refunded entry (does not drop it) with its terminal state', () => {
+    setMocks({
+      entries: [
+        makeEntry({
+          status: 'withdrawn',
+          registrationData: {
+            armband: '101',
+            runOrder: 3,
+            handler: 'Sarah',
+            submittedAt: '',
+            entryFee: 30,
+            paymentStatus: 'refunded',
+          },
+        }),
+      ],
+    });
+    const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
+    expect(result.current.allEntries).toHaveLength(1);
+    const entry = result.current.allEntries[0];
+    expect(entry.entryStatus).toBe('withdrawn');
+    expect(entry.paymentStatus).toBe('refunded');
+  });
+
   describe('move-up duplicate handling', () => {
     const DEST_CLASS_ID = 'class-2';
 

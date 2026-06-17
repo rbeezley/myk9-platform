@@ -24,6 +24,13 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: vi.fn(),
 }));
 
+// AdminDeleteUserDialog (rendered by this component) calls the owns-dogs guard
+// query; stub it so the dialog renders without a QueryClient. Bulk delete passes
+// no personId, so the guard is inert here anyway.
+vi.mock('@/hooks/queries/useDogsDatabase', () => ({
+  useOwnedLiveDogsByPersonQuery: () => ({ data: [], isLoading: false }),
+}));
+
 const mockUseDeleteUserMutation = vi.mocked(useDeleteUserMutation);
 const mockUsePermanentDeleteUserMutation = vi.mocked(usePermanentDeleteUserMutation);
 const mockUseAuthContext = vi.mocked(useAuthContext);

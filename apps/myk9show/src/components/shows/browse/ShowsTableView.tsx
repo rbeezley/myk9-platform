@@ -168,6 +168,8 @@ export const ShowsTableView: React.FC<ShowsTableViewProps> = ({
         tableId="showsBrowse"
         data={shows}
         columns={columns}
+        // Page-level ListControls owns search; table keeps only its Columns control.
+        showSearch={false}
         getRowId={show => show.id}
         onRowClick={show => navigate(`/shows/${show.id}`)}
       />

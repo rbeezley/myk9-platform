@@ -113,6 +113,8 @@ export const DogsTableView: React.FC<DogsTableViewProps> = ({ dogs }) => {
       tableId="dogsBrowse"
       columns={columns}
       data={dogs}
+      // Page-level ListControls owns search; table keeps only its Columns control.
+      showSearch={false}
       onRowClick={dog => navigate(`/dogs/${dog.id}`)}
       getRowId={dog => dog.id}
     />

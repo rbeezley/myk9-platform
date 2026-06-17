@@ -26,6 +26,12 @@ describe('DataTable default toolbar', () => {
     expect(screen.getByRole('button', { name: /toggle columns/i })).toBeInTheDocument();
   });
 
+  it('hides the search box but keeps the column toggle when showSearch is false', () => {
+    render(<DataTable tableId="test" columns={columns} data={data} showSearch={false} />);
+    expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /toggle columns/i })).toBeInTheDocument();
+  });
+
   it('does not render default toolbar when tableId is absent', () => {
     render(<DataTable columns={columns} data={data} />);
     expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument();

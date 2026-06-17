@@ -214,6 +214,23 @@ describe('classQueries (replication)', () => {
       expect((result.data[0] as Record<string, unknown>).id).toBe('pg-class-1');
     });
 
+    it('preserves the empty list when the store is empty AND PostgREST fails (authed + offline)', async () => {
+      // A legitimately-empty store offline must keep rendering an empty class
+      // list, not error the whole query — the empty-fallthrough degrades back to
+      // [] when PostgREST itself fails rather than propagating the error.
+      mockClassesTable.getAll.mockResolvedValue([]);
+      mockTrialsTable.getAll.mockResolvedValue([]);
+      mockEntriesTable.getAll.mockResolvedValue([]);
+      mockSupabase.from.mockReturnValue(
+        createChainableQuery({ data: null, error: { message: 'network down' } })
+      );
+
+      const result = await getAllClasses();
+
+      expect(result.error).toBeNull();
+      expect(result.data).toEqual([]);
+    });
+
     it('sets trial to null when class has no trialId', async () => {
       setupListMocks([makeClass({ trialId: undefined })]);
 

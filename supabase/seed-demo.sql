@@ -54,11 +54,24 @@ DECLARE
   v_count int;
 BEGIN
   FOREACH v_email IN ARRAY ARRAY[
-    'e2e-exhibitor@test.myk9.com', 'beezley@cox.net', 'secretary@myk9t.com'
+    'e2e-exhibitor@test.myk9.com', 'beezley@cox.net', 'secretary@myk9t.com',
+    -- Section 10 grants RBAC roles to these accounts by email; a missing/dup row
+    -- would silently grant nothing (re-introducing the F1 secretary-403 bug),
+    -- so require each to resolve to exactly one person here.
+    'e2e-secretary@test.myk9.com', 'club@myk9t.com', 'e2e-clubadmin@test.myk9.com'
   ] LOOP
     SELECT count(*) INTO v_count FROM public.people WHERE lower(email) = v_email;
     IF v_count <> 1 THEN
       RAISE EXCEPTION 'seed-demo preflight: expected exactly 1 person for %, found %', v_email, v_count;
+    END IF;
+  END LOOP;
+
+  -- Section 10 grants by role NAME; a renamed/absent role would also silently
+  -- grant nothing. Require both scoped roles to exist exactly once.
+  FOREACH v_email IN ARRAY ARRAY['secretary', 'club_admin'] LOOP
+    SELECT count(*) INTO v_count FROM public.roles WHERE name = v_email;
+    IF v_count <> 1 THEN
+      RAISE EXCEPTION 'seed-demo preflight: expected exactly 1 role named %, found %', v_email, v_count;
     END IF;
   END LOOP;
 END $$;
@@ -404,6 +417,57 @@ VALUES
    30.00, 'Demo refund for the withdrawn-entry walk fixture.',
    '2026-07-20 00:00:00+00', 1);
 RESET ROLE;
+
+-- ---------------------------------------------------------------------------
+-- 10. Demo RBAC role grants  (F1 fix — audit 04-secretary-rewalk-2026-06-17)
+--     The Lane 1.1 wipe restores the protected ACCOUNTS but NOT their role
+--     grants, so after a reseed secretary@myk9t.com / e2e-secretary@test.myk9.com
+--     and club@myk9t.com / e2e-clubadmin@test.myk9.com hold only `exhibitor`.
+--     Result: /secretary/* and /club-admin/* 403 with "You don't have permission
+--     to access this page" and the sidebar renders exhibitor-only — the entire
+--     secretary golden path is unreachable with the canonical demo account.
+--     Granting the missing roles here makes a reseed restore a working flow.
+--
+--     CLUB-SCOPED, NOT GLOBAL: enforce_club_id_for_scoped_roles() (migration 102)
+--     RAISES check_violation if a secretary/club_admin grant has a NULL club_id,
+--     so every row below is scoped to the Heartland club (...0001) created in
+--     section 1 of this same transaction. The route guards match by role NAME
+--     (scope-agnostic — getUniqueActiveRoleNames flattens names), so one
+--     club-scoped row satisfies them.
+--
+--     auth_user_id is set from people.auth_user_id (the canonical auth link, and
+--     the exact value the sync_user_roles_auth_user_id trigger from migration 156
+--     would backfill). It is NOT NULL on this table, so a person with no linked
+--     auth account would fail loudly here rather than seed a broken grant.
+--
+--     IDEMPOTENT: the unique key is (user_id, role_id, club_id, show_id); the
+--     NOT EXISTS guard matches on that key, so re-runs are no-ops AND the manual
+--     one-off unblock row already inserted for secretary@myk9t.com is respected.
+--     granted_at is a literal (no now()) to keep repeated runs byte-identical.
+-- ---------------------------------------------------------------------------
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id, granted_at)
+SELECT p.id, r.id, 'dededede-0000-0000-0000-000000000001', true, p.auth_user_id, '2026-06-17 00:00:00+00'
+FROM public.people p
+CROSS JOIN public.roles r
+WHERE r.name = 'secretary'
+  AND lower(p.email) IN ('secretary@myk9t.com', 'e2e-secretary@test.myk9.com')
+  AND NOT EXISTS (
+    SELECT 1 FROM public.user_roles ur
+    WHERE ur.user_id = p.id AND ur.role_id = r.id
+      AND ur.club_id = 'dededede-0000-0000-0000-000000000001'
+      AND ur.show_id IS NULL);
+
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id, granted_at)
+SELECT p.id, r.id, 'dededede-0000-0000-0000-000000000001', true, p.auth_user_id, '2026-06-17 00:00:00+00'
+FROM public.people p
+CROSS JOIN public.roles r
+WHERE r.name = 'club_admin'
+  AND lower(p.email) IN ('club@myk9t.com', 'e2e-clubadmin@test.myk9.com')
+  AND NOT EXISTS (
+    SELECT 1 FROM public.user_roles ur
+    WHERE ur.user_id = p.id AND ur.role_id = r.id
+      AND ur.club_id = 'dededede-0000-0000-0000-000000000001'
+      AND ur.show_id IS NULL);
 
 COMMIT;
 

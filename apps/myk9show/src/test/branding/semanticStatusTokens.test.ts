@@ -13,8 +13,10 @@ describe('semantic status token foundation', () => {
   const tailwind = read('tailwind.config.js');
 
   describe('index.css — light values in :root', () => {
-    it('defines --success as an RGB triplet', () => {
-      expect(css).toContain('--success: 22 163 74');
+    it('defines --success as an RGB triplet that passes WCAG AA as text', () => {
+      // green-700 (21 128 61): 4.69:1 as text on page, 5.02:1 on card, 5.02:1 white-on-bg.
+      // green-600 (22 163 74) failed AA as small text (~3.1:1) — see Lane 3 hardening.
+      expect(css).toContain('--success: 21 128 61');
     });
     it('defines --success-foreground', () => {
       expect(css).toContain('--success-foreground: 255 255 255');

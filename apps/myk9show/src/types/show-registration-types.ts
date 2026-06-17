@@ -10,6 +10,8 @@ export enum EntryStatus {
   MISSING_INFO = 'missing_info',
   SCRATCHED = 'scratched',
   MOVED = 'moved',
+  COMPLETED = 'completed',
+  MOVE_UP_REQUESTED = 'move-up-requested',
 }
 
 // Enhanced Payment Status with refund support

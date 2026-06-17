@@ -6,9 +6,24 @@
 
 import { useState, useMemo } from 'react';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
-import { isPendingEntry, isAcceptedEntry, isWaitlistEntry } from '@/utils/entryPredicates';
+import { isPendingEntry, isWaitlistEntry } from '@/utils/entryPredicates';
 import { computeMyEntriesShowDateStats, isPastShowEntry } from './myEntriesStats.helpers';
 import type { MyEntry, MyEntryStats, EntryTabFilter } from './my-entries-types';
+
+/**
+ * Exhibitor-facing "your dog is in" predicate: a confirmed entry, including one
+ * that has since been scored (COMPLETED) or has a pending move-up request.
+ * Kept local to My Entries on purpose — the shared `isAcceptedEntry` stays
+ * strict (ACCEPTED only) so secretary Entry Management's Accepted/Pending
+ * buckets are unchanged.
+ */
+function isExhibitorInEntry(e: { entryStatus: EntryStatus }): boolean {
+  return (
+    e.entryStatus === EntryStatus.ACCEPTED ||
+    e.entryStatus === EntryStatus.COMPLETED ||
+    e.entryStatus === EntryStatus.MOVE_UP_REQUESTED
+  );
+}
 
 interface UseMyEntriesFiltersProps {
   entries: MyEntry[];
@@ -37,7 +52,7 @@ export function useMyEntriesFilters({
         filtered = filtered.filter(isPendingEntry);
         break;
       case 'accepted':
-        filtered = filtered.filter(isAcceptedEntry);
+        filtered = filtered.filter(isExhibitorInEntry);
         break;
       case 'waitlist':
         filtered = filtered.filter(isWaitlistEntry);
@@ -81,10 +96,10 @@ export function useMyEntriesFilters({
    */
   const entryStats = useMemo<MyEntryStats>(() => {
     const now = new Date();
-    const accepted = entries.filter(e => e.entryStatus === EntryStatus.ACCEPTED);
+    const accepted = entries.filter(isExhibitorInEntry);
     const pending = entries.filter(e => e.entryStatus === EntryStatus.PENDING);
     const currentEntries = entries.filter(entry => !isPastShowEntry(entry, now));
-    const currentAcceptedEntries = currentEntries.filter(isAcceptedEntry);
+    const currentAcceptedEntries = currentEntries.filter(isExhibitorInEntry);
     const currentPendingEntries = currentEntries.filter(isPendingEntry);
     const currentSummaryEntries = [...currentAcceptedEntries, ...currentPendingEntries];
     // Date-aware, distinct-show counts (see myEntriesStats.helpers). A multi-day

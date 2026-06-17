@@ -47,11 +47,16 @@ interface UseMyEntriesDataOptions {
 }
 
 // Highest-priority status wins when merging class rows for the same dog+show.
+// COMPLETED tops the scale: a scored result is the strongest positive signal.
 // ACCEPTED beats PENDING because the dog is in — the card should look "green".
-// Terminal statuses (SCRATCHED, CANCELLED) lose to any active status.
+// MOVE_UP_REQUESTED ties PENDING (both "awaiting"); a plain ACCEPTED sibling
+// class still dominates. Terminal statuses (SCRATCHED, CANCELLED) lose to any
+// active status.
 const ENTRY_STATUS_PRIORITY: Record<EntryStatus, number> = {
+  [EntryStatus.COMPLETED]: 7,
   [EntryStatus.ACCEPTED]: 6,
   [EntryStatus.PENDING]: 5,
+  [EntryStatus.MOVE_UP_REQUESTED]: 5,
   [EntryStatus.WAITLIST]: 4,
   [EntryStatus.MISSING_INFO]: 3,
   [EntryStatus.MOVED]: 2,

@@ -101,6 +101,42 @@ describe('EntryStatusStepper', () => {
     });
   });
 
+  describe('completed and move-up-requested progression', () => {
+    // Completed steps + their connectors carry the literal `bg-success` class,
+    // so the count is a proxy for "how far the stepper has progressed".
+    function progressMarkers(entryStatus: EntryStatus, paymentStatus: PaymentStatus): number {
+      const { container, unmount } = render(
+        <EntryStatusStepper entryStatus={entryStatus} paymentStatus={paymentStatus} />
+      );
+      const count = container.querySelectorAll('.bg-success').length;
+      unmount();
+      return count;
+    }
+
+    it('shows a scored (completed) entry fully progressed, not stuck at Submitted', () => {
+      // Regression guard: COMPLETED previously hit the default `return 0`
+      // (Submitted) branch. It should mirror an accepted+paid entry.
+      const completed = progressMarkers(EntryStatus.COMPLETED, PaymentStatus.PAID_ONLINE);
+      const acceptedPaid = progressMarkers(EntryStatus.ACCEPTED, PaymentStatus.PAID_ONLINE);
+      const submitted = progressMarkers(EntryStatus.PENDING, PaymentStatus.PENDING);
+
+      expect(completed).toBe(acceptedPaid);
+      expect(completed).toBeGreaterThan(submitted);
+    });
+
+    it('treats a paid move-up request like an accepted+paid entry', () => {
+      expect(progressMarkers(EntryStatus.MOVE_UP_REQUESTED, PaymentStatus.PAID_ONLINE)).toBe(
+        progressMarkers(EntryStatus.ACCEPTED, PaymentStatus.PAID_ONLINE)
+      );
+    });
+
+    it('treats an unpaid move-up request like an accepted-but-unpaid entry', () => {
+      expect(progressMarkers(EntryStatus.MOVE_UP_REQUESTED, PaymentStatus.PENDING)).toBe(
+        progressMarkers(EntryStatus.ACCEPTED, PaymentStatus.PENDING)
+      );
+    });
+  });
+
   describe('component structure', () => {
     it('should render with entry-status-stepper class', () => {
       const { container } = render(

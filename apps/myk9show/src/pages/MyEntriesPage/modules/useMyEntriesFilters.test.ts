@@ -145,4 +145,42 @@ describe('useMyEntriesFilters tab filtering (date-range aware)', () => {
     expect(result.current.entryStats.currentFees).toBe(65);
     expect(result.current.entryStats.currentAmountDue).toBe(55);
   });
+
+  it('counts scored and move-up-requested entries as accepted (exhibitor "in" family)', () => {
+    // Audit F2 follow-up: COMPLETED / MOVE_UP_REQUESTED reach My Entries via the
+    // shared mapEntryStatus. They are confirmed entries, so the exhibitor's
+    // "accepted" stat + tab must include them rather than dropping them.
+    const scored = makeEntry({
+      id: 'scored',
+      showId: 'scored-show',
+      entryStatus: EntryStatus.COMPLETED,
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+    });
+    const moveUp = makeEntry({
+      id: 'move-up',
+      showId: 'move-up-show',
+      entryStatus: EntryStatus.MOVE_UP_REQUESTED,
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+    });
+    const plainAccepted = makeEntry({
+      id: 'plain-accepted',
+      showId: 'plain-accepted-show',
+      entryStatus: EntryStatus.ACCEPTED,
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+    });
+
+    const { result } = renderHook(() =>
+      useMyEntriesFilters({ entries: [scored, moveUp, plainAccepted] })
+    );
+
+    expect(result.current.entryStats.accepted).toBe(3);
+    expect(result.current.entryStats.pending).toBe(0);
+
+    act(() => result.current.setSelectedTab('accepted'));
+    expect(result.current.filteredEntries.map(e => e.id).sort()).toEqual([
+      'move-up',
+      'plain-accepted',
+      'scored',
+    ]);
+  });
 });

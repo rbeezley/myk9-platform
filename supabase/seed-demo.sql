@@ -74,6 +74,25 @@ BEGIN
       RAISE EXCEPTION 'seed-demo preflight: expected exactly 1 role named %, found %', v_email, v_count;
     END IF;
   END LOOP;
+
+  -- Section 10 sets user_roles.auth_user_id = people.auth_user_id, but that
+  -- column is NULLABLE (migration 156's header planned a NOT NULL constraint
+  -- "after backfill" — the body never added it). A grant account whose
+  -- people.auth_user_id is NULL would seed a grant the RLS helpers
+  -- (ur.auth_user_id = auth.uid()) can NEVER match — a silent broken role, the
+  -- same 403 symptom this seed exists to prevent. Require each of the four RBAC
+  -- grant accounts to resolve to exactly one person WITH a non-null auth_user_id.
+  FOREACH v_email IN ARRAY ARRAY[
+    'secretary@myk9t.com', 'e2e-secretary@test.myk9.com',
+    'club@myk9t.com', 'e2e-clubadmin@test.myk9.com'
+  ] LOOP
+    SELECT count(*) INTO v_count
+    FROM public.people
+    WHERE lower(email) = v_email AND auth_user_id IS NOT NULL;
+    IF v_count <> 1 THEN
+      RAISE EXCEPTION 'seed-demo preflight: grant account % must resolve to exactly 1 person with a non-null auth_user_id (found %)', v_email, v_count;
+    END IF;
+  END LOOP;
 END $$;
 
 -- ---------------------------------------------------------------------------
@@ -437,8 +456,10 @@ RESET ROLE;
 --
 --     auth_user_id is set from people.auth_user_id (the canonical auth link, and
 --     the exact value the sync_user_roles_auth_user_id trigger from migration 156
---     would backfill). It is NOT NULL on this table, so a person with no linked
---     auth account would fail loudly here rather than seed a broken grant.
+--     would backfill). The column is NULLABLE, so a person with a NULL
+--     auth_user_id would seed a grant the RLS helpers never match — the preflight
+--     above rejects that case (requires non-null auth_user_id for all four
+--     accounts) so it cannot reach this INSERT.
 --
 --     IDEMPOTENT: the unique key is (user_id, role_id, club_id, show_id); the
 --     NOT EXISTS guard matches on that key, so re-runs are no-ops AND the manual

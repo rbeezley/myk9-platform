@@ -238,6 +238,20 @@ export const getAllClasses = async () => {
         loadTrialsMap(),
         loadEntryCountsByClassMap(),
       ]);
+      // Cold store yields [] without throwing (logged-out guest, never synced),
+      // so the fallback catch never fires. Fetch from PostgREST so public pages
+      // aren't left class-less. But an empty store can ALSO be legitimate (an
+      // authenticated user offline with no classes synced); there PostgREST
+      // throws, and we must keep serving the empty list rather than erroring the
+      // whole query (useClassesQuery rethrows on a non-null error). So fall back
+      // to the empty replication result when PostgREST itself fails.
+      if (classes.length === 0) {
+        try {
+          return await postgrestGetAllClasses();
+        } catch {
+          return { data: [], error: null };
+        }
+      }
       const sortedClasses = sortedCopy(classes, compareStringAscNullsLast(cls => cls.startTime));
       const data = mapClassesWithJoins(sortedClasses, trialsMap, entryCountsMap);
       return { data, error: null };

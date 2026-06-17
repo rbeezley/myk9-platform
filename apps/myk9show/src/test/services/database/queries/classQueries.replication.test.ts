@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
@@ -184,6 +185,45 @@ describe('classQueries (replication)', () => {
 
     it('returns empty array when no classes exist', async () => {
       setupListMocks([], [], []);
+
+      const result = await getAllClasses();
+
+      expect(result.error).toBeNull();
+      expect(result.data).toEqual([]);
+    });
+
+    it('falls through to PostgREST when the replication store is cold (logged-out guest)', async () => {
+      // A guest who never synced sees an empty store, which returns [] WITHOUT
+      // throwing, so withReplicationFallback's catch never fires. The empty-guard
+      // must fetch from PostgREST rather than serving a false-empty class list —
+      // otherwise the public class/trial pages render class-less. (Lane 3.7)
+      mockClassesTable.getAll.mockResolvedValue([]);
+      mockTrialsTable.getAll.mockResolvedValue([]);
+      mockEntriesTable.getAll.mockResolvedValue([]);
+      mockSupabase.from.mockReturnValue(
+        createChainableQuery({
+          data: [{ id: 'pg-class-1', name: 'From PostgREST', trial_id: 't1', deleted_at: null }],
+          error: null,
+        })
+      );
+
+      const result = await getAllClasses();
+
+      expect(mockSupabase.from).toHaveBeenCalledWith('classes');
+      expect(result.data).toHaveLength(1);
+      expect((result.data[0] as Record<string, unknown>).id).toBe('pg-class-1');
+    });
+
+    it('preserves the empty list when the store is empty AND PostgREST fails (authed + offline)', async () => {
+      // A legitimately-empty store offline must keep rendering an empty class
+      // list, not error the whole query — the empty-fallthrough degrades back to
+      // [] when PostgREST itself fails rather than propagating the error.
+      mockClassesTable.getAll.mockResolvedValue([]);
+      mockTrialsTable.getAll.mockResolvedValue([]);
+      mockEntriesTable.getAll.mockResolvedValue([]);
+      mockSupabase.from.mockReturnValue(
+        createChainableQuery({ data: null, error: { message: 'network down' } })
+      );
 
       const result = await getAllClasses();
 

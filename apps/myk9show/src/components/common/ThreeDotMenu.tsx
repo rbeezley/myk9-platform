@@ -1,13 +1,15 @@
+/**
+ * ThreeDotMenu — user/dog/profile overflow menu (View / Edit / photo / status /
+ * qualifications / Delete). A thin adapter over the canonical {@link RowActionMenu}
+ * primitive: the prop API is preserved so its call sites don't change, but all menu
+ * behavior (trigger, a11y, destructive token, separators) now lives in one place.
+ *
+ * New code should prefer RowActionMenu directly; this wrapper exists for the existing
+ * profile/list surfaces that pass these named callbacks.
+ */
 import React from 'react';
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
-import { MoreVertical, Eye, Pencil, Trash2, Award, Activity } from 'lucide-react';
+import { Eye, Pencil, Camera, Activity, Award, Trash2 } from 'lucide-react';
+import { RowActionMenu, type RowAction } from '@/components/ui/RowActionMenu';
 
 interface ThreeDotMenuProps {
   onView?: (() => void) | undefined;
@@ -34,67 +36,53 @@ const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
   editLabel = 'Edit Profile',
   showManageQualifications = false,
   hideEdit = false,
-}) => (
-  <DropdownMenu>
-    <DropdownMenuTrigger asChild nativeButton>
-      <Button variant="ghost" size="icon" className="h-10 w-10 p-0" aria-label="More actions">
-        <MoreVertical className="h-5 w-5" />
-      </Button>
-    </DropdownMenuTrigger>
-    <DropdownMenuContent align="end">
-      {onView && (
-        <DropdownMenuItem onClick={onView} className="min-h-[44px] cursor-pointer">
-          <Eye size={18} className="mr-2" />
-          {viewLabel}
-        </DropdownMenuItem>
-      )}
-      {onEdit && !hideEdit && (
-        <DropdownMenuItem onClick={onEdit} className="min-h-[44px] cursor-pointer">
-          <Pencil size={18} className="mr-2" />
-          {editLabel}
-        </DropdownMenuItem>
-      )}
-      {onEditPhoto && (
-        <DropdownMenuItem onClick={onEditPhoto} className="min-h-[44px] cursor-pointer">
-          <svg
-            className="w-[18px] h-[18px] mr-2"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
-          >
-            <path d="M21 19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2l2-3h6l2 3h2a2 2 0 0 1 2 2z" />
-            <circle cx="12" cy="13" r="4" />
-          </svg>
-          Change Photo
-        </DropdownMenuItem>
-      )}
-      {onChangeStatus && (
-        <DropdownMenuItem onClick={onChangeStatus} className="min-h-[44px] cursor-pointer">
-          <Activity size={18} className="mr-2" />
-          Change Status
-        </DropdownMenuItem>
-      )}
-      {showManageQualifications && onManageQualifications && (
-        <>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={onManageQualifications}
-            className="min-h-[44px] cursor-pointer"
-          >
-            <Award size={18} className="mr-2" />
-            Manage Qualifications
-          </DropdownMenuItem>
-        </>
-      )}
-      {onDelete && (
-        <DropdownMenuItem onClick={onDelete} className="text-red-600 min-h-[44px] cursor-pointer">
-          <Trash2 size={18} className="mr-2" />
-          Delete
-        </DropdownMenuItem>
-      )}
-    </DropdownMenuContent>
-  </DropdownMenu>
-);
+}) => {
+  const actions: RowAction[] = [];
+
+  if (onView) {
+    actions.push({ id: 'view', label: viewLabel, icon: <Eye />, onSelect: onView });
+  }
+  if (onEdit && !hideEdit) {
+    actions.push({ id: 'edit', label: editLabel, icon: <Pencil />, onSelect: onEdit });
+  }
+  if (onEditPhoto) {
+    actions.push({ id: 'photo', label: 'Change Photo', icon: <Camera />, onSelect: onEditPhoto });
+  }
+  if (onChangeStatus) {
+    actions.push({
+      id: 'status',
+      label: 'Change Status',
+      icon: <Activity />,
+      onSelect: onChangeStatus,
+    });
+  }
+  if (showManageQualifications && onManageQualifications) {
+    actions.push({
+      id: 'qualifications',
+      label: 'Manage Qualifications',
+      icon: <Award />,
+      onSelect: onManageQualifications,
+      separatorBefore: true,
+    });
+  }
+  if (onDelete) {
+    actions.push({
+      id: 'delete',
+      label: 'Delete',
+      icon: <Trash2 />,
+      onSelect: onDelete,
+      variant: 'destructive',
+    });
+  }
+
+  return (
+    <RowActionMenu
+      actions={actions}
+      label="More actions"
+      size="touch"
+      triggerClassName="h-10 w-10"
+    />
+  );
+};
 
 export default ThreeDotMenu;

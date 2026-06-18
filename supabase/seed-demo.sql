@@ -6,12 +6,16 @@
 --   AKC scent-work show, 2 trials, 5 classes, 6 dogs, 8 entries) with COMPLETE
 --   show officials and full RBAC role coverage so every role's golden path is
 --   walkable after a reseed:
---     - Named officials on the show (chairman / secretary / chief_steward) and a
---       judge_name on every class — the roster exhibitors see (section 2 + 4).
+--     - Named officials on the show: secretary is a snapshot of the section-10
+--       secretary LOGIN (the real actor); chairman / chief_steward are report-only
+--       free text (no in-app actor). classes.judge_name is a snapshot of the
+--       assigned judge (section 2 + 4).
+--     - Judges modeled as PEOPLE, not strings: judge_qualifications rows carry
+--       each judge's number + disciplines (section 13); judge_assignments link
+--       them to both trials (section 11). Login is optional for a judge.
 --     - RBAC grants for secretary, club_admin, judge, steward, AND chairman
 --       (section 10/10b/10c/10d) — not just secretary/club_admin as before.
---     - judge_assignments for both trials + both judge accounts (section 11) and
---       known ringside passcodes (section 12).
+--     - Known ringside passcodes (section 12).
 --   Intended to be run AFTER the hard wipe that clears all shows/trials/classes/
 --   entries/dogs/clubs and all non-protected people.
 --
@@ -121,6 +125,7 @@ END $$;
 --   armband      dededede-0000-0000-0000-00000000006{1..6}
 --   judge_assign dededede-0000-0000-0000-00000000007{1..3}
 --   passcode     dededede-0000-0000-0000-00000000008{1,2}
+--   judge_qual   dededede-0000-0000-0000-00000000009{1,2}
 
 -- ---------------------------------------------------------------------------
 -- 0. Idempotency: remove prior seed rows (children first, FK-safe)
@@ -224,12 +229,15 @@ VALUES (
   'none', false, 48,
   true, true,
   true,
-  -- Named officials (free-text display fields shown on the show / premium page).
-  -- Tied to the accounts that actually hold these roles for Heartland so the
-  -- displayed roster matches who can log in (section 10 grants): club@myk9t.com
-  -- ("Test Club") chairs + admins, secretary@myk9t.com ("Test Secretary"),
-  -- e2e-steward@test.myk9.com ("Test Steward"). classes.judge_name below = the
-  -- assigned judge@myk9t.com ("Test Judge").
+  -- Named officials. TWO DIFFERENT KINDS of data live in these columns:
+  --   * chairman + chief_steward are REPORT-ONLY free text — those people don't
+  --     act inside the program, we only print their names. Free text is correct;
+  --     promoting them to people rows would buy nothing and risk duplicate-person
+  --     drift. (Here: club@myk9t.com / e2e-steward person names, by convention.)
+  --   * secretary is a DENORMALIZED SNAPSHOT, not the source of truth. The real
+  --     secretary "who runs the show" is the section-10 club-scoped `secretary`
+  --     role grant (a real login: secretary@myk9t.com). This text is a cached
+  --     label for reports; the relational truth is the grant.
   'Test Club', 'Test Secretary', 'Test Steward',
   'headline', false, '{}'::jsonb,
   '#0d4d4f', true, 3, false
@@ -264,6 +272,10 @@ VALUES
 -- ---------------------------------------------------------------------------
 -- 4. Classes (5)  -- valid element/level/section, status 'upcoming'
 --    Saturday: 3 classes  |  Sunday: 2 classes
+--    judge_name is a DENORMALIZED SNAPSHOT of the assigned judge ('Test Judge' =
+--    judge@myk9t.com), NOT the source of truth: the relational link is
+--    judge_assignments.person_id (section 11) + judge_qualifications (section 13).
+--    Kept as a label so historical scorecards/reports print the name as-judged.
 -- ---------------------------------------------------------------------------
 INSERT INTO public.classes (
   id, trial_id, name, level, element, section, judge_name,
@@ -739,6 +751,48 @@ BEGIN
 EXCEPTION WHEN sqlstate '55000' THEN
   RAISE NOTICE 'Skipped Heartland ringside passcode seed (% - %). passcode_pepper Vault secret is unset; mint via regenerate_show_passcodes() instead.', SQLSTATE, SQLERRM;
 END $$;
+
+-- ---------------------------------------------------------------------------
+-- 13. Judge qualifications (people-table judge model, not free text).
+--     A judge is a `people` row with attributes we reason about — their judge
+--     NUMBER and WHAT THEY CAN JUDGE — recorded in judge_qualifications, NOT a
+--     `classes.judge_name` string. (classes.judge_name above is a denormalized
+--     report/scorecard SNAPSHOT of the assigned judge, never the source of
+--     truth; the relational link is judge_assignments.person_id in section 11.)
+--     A judge does NOT need a login for this — judge_qualifications.person_id
+--     just references people; both demo judges happen to also hold a login +
+--     the section 10b `judge` role grant, which is what surfaces them in the
+--     secretary's "assign a judge" picker (judges/reads.ts inner-joins
+--     user_roles), but the qualifications themselves are login-independent.
+--
+--     Columns the assignment UI reads (judges/reads.ts JUDGE_QUALIFICATIONS_SELECT):
+--     organization, qualification_level, disciplines[], judge_number,
+--     date_obtained, expiration_date, is_active. No CHECK constraints on level/
+--     disciplines (free-form); we mirror the app's mock shape (disciplines =
+--     ['Scent Work'], the sport — not per-element). RLS is FORCE-enabled but the
+--     seed runs as the table owner via psql (same as every other insert here).
+--
+--     Idempotent: delete the two fixed-id rows, then INSERT...SELECT joined to
+--     people by email (an absent judge account drops its row — person_id is NOT
+--     NULL, never inserted NULL). Literal dates (file forbids now()/random).
+-- ---------------------------------------------------------------------------
+DELETE FROM public.judge_qualifications WHERE id IN (
+  'dededede-0000-0000-0000-000000000091',
+  'dededede-0000-0000-0000-000000000092'
+);
+
+INSERT INTO public.judge_qualifications (
+  id, person_id, organization, qualification_level, disciplines, judge_number,
+  date_obtained, expiration_date, is_active
+)
+SELECT
+  v.id, p.id, 'AKC', 'Master', ARRAY['Scent Work'], v.judge_number,
+  '2021-01-01', '2027-01-01', true
+FROM (VALUES
+  ('dededede-0000-0000-0000-000000000091'::uuid, 'judge@myk9t.com',         'AKC-SW-1001'),
+  ('dededede-0000-0000-0000-000000000092'::uuid, 'e2e-judge@test.myk9.com', 'AKC-SW-1002')
+) AS v(id, email, judge_number)
+JOIN public.people p ON lower(p.email) = v.email;
 
 COMMIT;
 

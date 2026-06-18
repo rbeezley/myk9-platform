@@ -74,6 +74,28 @@ describe('seed-demo officials + RBAC completeness contract', () => {
     }
   });
 
+  it('models judges as people with judge_qualifications (number + disciplines), not just a name string', () => {
+    // Judges are people rows we reason about: judge_number + what they can judge.
+    expect(seed).toContain('INSERT INTO public.judge_qualifications');
+    expect(seed).toContain("ARRAY['Scent Work']");
+    // A judge_number per demo judge.
+    expect(seed).toContain("'AKC-SW-1001'");
+    expect(seed).toContain("'AKC-SW-1002'");
+    // Both judge accounts get a qualification row.
+    expect(seed).toContain('judge@myk9t.com');
+    expect(seed).toContain('e2e-judge@test.myk9.com');
+    // The two fixed qualification ids.
+    expect(seed).toContain('dededede-0000-0000-0000-000000000091');
+    expect(seed).toContain('dededede-0000-0000-0000-000000000092');
+  });
+
+  it('treats classes.judge_name / shows.secretary as derived snapshots, documented as such', () => {
+    // The comments must flag these as snapshots so a future edit does not mistake
+    // them for the source of truth (which is the assignment / role grant).
+    expect(seed).toContain('DENORMALIZED SNAPSHOT');
+    expect(seed).toMatch(/judge_qualifications/);
+  });
+
   it('assigns judges to BOTH trials and both judge accounts', () => {
     // judge_assignments cover the route INTO ringside (scheduling surface).
     expect(seed).toContain(HEARTLAND_SHOW_ID);

@@ -14,6 +14,8 @@ import { EntryStatsCards } from './EntryStatsCards';
 import { EntryFiltersCard } from './EntryFiltersCard';
 import { EnrollmentCard } from './EnrollmentCard';
 import { EntriesTableView } from './EntriesTableView';
+import { EntryBulkActionsBar } from './EntryBulkActionsBar';
+import { useBulkSelection } from '@/hooks/useBulkSelection';
 import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
 
 import type {
@@ -22,6 +24,9 @@ import type {
   EntryClass,
 } from '@/types/entry-management-types';
 import type { CheckInStatus } from '@myk9/core';
+
+/** Stable identity so useBulkSelection's memoized selectors don't churn each render. */
+const getEntryId = (entry: EntryManagementEntry) => entry.id;
 
 interface RegistrationViewProps {
   /** Entry stats for the stats cards */
@@ -102,6 +107,33 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
 }) => {
   const [entryViewMode, setEntryViewMode] = useState<'list' | 'table'>('list');
 
+  // Multi-select for the table view (lifted here so the bulk bar can clear it and
+  // select-all spans the full filtered set, not just the current page).
+  const selection = useBulkSelection({ items: filteredEntries, getItemId: getEntryId });
+  const tableSelection = useMemo(
+    () => ({
+      isSelected: selection.isSelected,
+      toggleItem: selection.toggleItem,
+      isAllSelected: selection.isAllSelected,
+      isPartiallySelected: selection.isPartiallySelected,
+      toggleAll: selection.toggleAll,
+    }),
+    [
+      selection.isSelected,
+      selection.toggleItem,
+      selection.isAllSelected,
+      selection.isPartiallySelected,
+      selection.toggleAll,
+    ]
+  );
+
+  // Clear selection on tab change (avoids carrying a selection into a different
+  // status bucket). Done in the handler, not an effect, per the no-setState-in-effect rule.
+  const handleTabChange = (tab: string) => {
+    selection.clearSelection();
+    setSelectedTab(tab);
+  };
+
   // Email status tracking (self-contained)
   const registrationIds = useMemo(
     () => [...new Set(entries.map(e => e.registrationId).filter(Boolean))],
@@ -147,7 +179,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
       />
 
       {/* Entries Tabs */}
-      <Tabs value={selectedTab} onValueChange={setSelectedTab}>
+      <Tabs value={selectedTab} onValueChange={handleTabChange}>
         <div className="flex items-center justify-between gap-4 mb-2">
           <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="all">All ({tabCounts.all})</TabsTrigger>
@@ -169,8 +201,13 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
             <Button
               variant={entryViewMode === 'list' ? 'default' : 'ghost'}
               size="sm"
-              onClick={() => setEntryViewMode('list')}
+              onClick={() => {
+                setEntryViewMode('list');
+                selection.clearSelection();
+              }}
               className="h-8 px-2"
+              aria-label="List view"
+              aria-pressed={entryViewMode === 'list'}
             >
               <List className="h-4 w-4" />
             </Button>
@@ -179,6 +216,8 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
               size="sm"
               onClick={() => setEntryViewMode('table')}
               className="h-8 px-2"
+              aria-label="Table view"
+              aria-pressed={entryViewMode === 'table'}
             >
               <Table2 className="h-4 w-4" />
             </Button>
@@ -199,6 +238,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
                 emailStatusMap={emailStatusMap}
                 onResendEmail={handleResendEmail}
                 isResendDisabled={isResendDisabled}
+                selection={tableSelection}
               />
             ) : (
               <div className="space-y-3">
@@ -249,6 +289,15 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
           </Card>
         </TabsContent>
       </Tabs>
+
+      {entryViewMode === 'table' && (
+        <EntryBulkActionsBar
+          selectedEntries={selection.selectedItems}
+          onBulkStatusChange={onBulkStatusChange}
+          onBulkCheckIn={onBulkCheckIn}
+          onClear={selection.clearSelection}
+        />
+      )}
     </div>
   );
 };

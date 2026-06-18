@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
-import { type ColumnDef } from '@tanstack/react-table';
+import { type ColumnDef, type DisplayColumnDef } from '@tanstack/react-table';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { DataTable } from '@/components/ui/data-table';
 import { getEntryStatusBadge, getPaymentStatusBadge } from '@/utils/entryManagementUtils';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
@@ -8,12 +9,54 @@ import { EmailStatusIcon } from '@/components/entries/EmailStatusIcon';
 import type { EmailLogEntry } from '@/hooks/useEmailStatus';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 
+/** Minimal selection surface (a subset of useBulkSelection) for the select column. */
+export interface EntriesTableSelection {
+  isSelected: (entry: EntryManagementEntry) => boolean;
+  toggleItem: (entry: EntryManagementEntry) => void;
+  isAllSelected: boolean;
+  isPartiallySelected: boolean;
+  toggleAll: () => void;
+}
+
 interface EntriesTableViewProps {
   entries: EntryManagementEntry[];
   onEntryClick?: (entry: EntryManagementEntry) => void;
   emailStatusMap?: Record<string, EmailLogEntry> | undefined;
   onResendEmail?: ((registrationId: string) => void) | undefined;
   isResendDisabled?: ((registrationId: string) => boolean) | undefined;
+  /** When provided, renders a leading checkbox select column wired to this selection. */
+  selection?: EntriesTableSelection | undefined;
+}
+
+function buildSelectColumn(
+  selection: EntriesTableSelection
+): DisplayColumnDef<EntryManagementEntry, unknown> {
+  return {
+    id: '_select',
+    header: () => (
+      <Checkbox
+        checked={selection.isAllSelected}
+        indeterminate={selection.isPartiallySelected}
+        onCheckedChange={() => selection.toggleAll()}
+        aria-label="Select all entries"
+      />
+    ),
+    cell: ({ row }) => (
+      <span
+        className="flex items-center"
+        onClick={e => e.stopPropagation()}
+        role="presentation"
+      >
+        <Checkbox
+          checked={selection.isSelected(row.original)}
+          onCheckedChange={() => selection.toggleItem(row.original)}
+          aria-label={`Select ${row.original.dogName}`}
+        />
+      </span>
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  };
 }
 
 function buildColumns(
@@ -121,11 +164,12 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
   emailStatusMap,
   onResendEmail,
   isResendDisabled,
+  selection,
 }) => {
-  const columns = useMemo(
-    () => buildColumns(emailStatusMap, onResendEmail, isResendDisabled),
-    [emailStatusMap, onResendEmail, isResendDisabled]
-  );
+  const columns = useMemo(() => {
+    const dataColumns = buildColumns(emailStatusMap, onResendEmail, isResendDisabled);
+    return selection ? [buildSelectColumn(selection), ...dataColumns] : dataColumns;
+  }, [emailStatusMap, onResendEmail, isResendDisabled, selection]);
 
   return (
     <DataTable<EntryManagementEntry>

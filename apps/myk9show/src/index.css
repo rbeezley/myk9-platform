@@ -419,6 +419,10 @@ select:hover {
     --accent-foreground: #7c4a2e;
     --destructive: 239 68 68;
     --destructive-foreground: 255 255 255;
+    /* Strong destructive red for small TEXT on neutral light surfaces.
+       red-700 (185 28 28) clears WCAG AA (≥4.5:1) on card/popover/background;
+       the DEFAULT red-500 does not. Icons/large text may use the DEFAULT. */
+    --destructive-strong: 185 28 28;
     --border: #e4dccc; /* was #e8e6dc — v2 ivory-200 */
     --input: #ffffff; /* was #f5f4ed — inputs match card */
     --input-border: #e4dccc; /* was #e8e6dc */
@@ -491,6 +495,9 @@ select:hover {
     --accent-foreground: #d97757;
     --destructive: 220 38 38;
     --destructive-foreground: 255 255 255;
+    /* Strong destructive red for small TEXT on neutral dark surfaces.
+       red-400 (248 113 113) clears WCAG AA on dark card/popover/background. */
+    --destructive-strong: 248 113 113;
     --success: 74 222 128;             /* green-400 */
     --warning: 251 191 36;             /* amber-400 */
     --info: 96 165 250;                /* blue-400 */

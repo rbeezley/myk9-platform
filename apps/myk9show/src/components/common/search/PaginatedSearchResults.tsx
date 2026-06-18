@@ -170,7 +170,7 @@ export function PaginatedSearchResults<T>({
     return (
       <Card>
         <CardContent className="p-8">
-          <div className="text-center text-red-500">
+          <div className="text-center text-destructive-strong">
             <p>Error: {error}</p>
             <Button 
               variant="outline" 

@@ -1,6 +1,6 @@
 # Plan: Fix public trial/class identity reads (Lane 3.7)
 
-> **Status:** Active — Stage 1 merged (PR #805); Stage 2 (the Zustand-store-backed pages) implemented and in PR. Flip to Complete when Stage 2 merges.
+> **Status:** Complete — Stage 1 merged (PR #805); Stage 2 merged (PR #811, 2026-06-17).
 
 ## Staging (why this is two PRs)
 The two blockers look symmetric but have different fix surfaces. **ClassDetailsPage** reads

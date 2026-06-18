@@ -47,6 +47,8 @@ Remediation plan for [`docs/ia-review-entry-status-surfaces.md`](ia-review-entry
 
 **Exit criterion:** the three core surfaces render via `getEntryDisplay`; the tests above pass; a `withdrawn`/`cancelled`/`moved` row, a `partial_refund` row, and a **class-less cold-store** row each produce identical, safe labels across all three.
 
+> **[ADDED] As built (Phase A PR):** the selector (`getEntryStatusKind`/`isRemovedStatus`/`getRemovedStatusLabel`/`getRefundLabel`/`resolveClassSection`/`composeClassTitle`/`getEntryDisplay`) shipped with 37 unit tests. Migrated the two **safe** divergence sites: the tab's `getRemovedStateLabel` (removal classification + refund now via the selector — fixes the legacy `cancelled`→"Upcoming" fall-through) and the tab-path section default (`classMappers` + `useShowEntriesForUser` → `resolveClassSection`). **Deferred to Phase B:** routing `mapEntryStatus` (page + secretary) and class-title composition through the selector — because `entry_status='paid'` is a **real persisted value** (in the `entry_status` CHECK constraint, written by `entryRegistrationStore`) that legacy `mapEntryStatus` maps to `PENDING` while the canonical classifier maps to `accepted`/`ACCEPTED`. Moving a paid entry from the "Pending / needs review" bucket to "Accepted" is a **product decision** (it shifts a secretary stat), not a silent refactor — Phase B makes that call explicitly (and aligns `promotion-expired` likewise). The remaining 3 section sites (`atShowDataAdapter` ×2, `reportDataMapping`) are also Phase B sweep.
+
 ---
 
 ## Phase B — Sweep the remaining render sites + delete the duplicates

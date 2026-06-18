@@ -142,6 +142,9 @@ describe('createDayOfEntry', () => {
         trial_id: 'trial-1',
         accepted_count: 1,
         available_spots: 1,
+        element: null,
+        level: null,
+        section: null,
       },
     ]);
   });

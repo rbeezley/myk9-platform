@@ -9,6 +9,7 @@ import {
 } from '@/services/show-day/checkInStatus';
 import { logReplicatedEntryStatusChange } from '@/services/show-day/entryStatusAudit';
 import { generateUUID } from '@/utils/idUtils';
+import { isEligibleMoveUpTarget } from '@/utils/moveUpEligibility';
 
 export interface ShowMapMoveUpInput {
   entryId: string;
@@ -209,6 +210,32 @@ export async function moveUpShowMapEntry({
   const targetClass = await replicatedClassesTable.getClassById(targetClassId);
   if (!targetClass) {
     throw createDatabaseError(new Error('Target class not found'), 'classes', 'show_map_move_up');
+  }
+
+  // Enforce the move-up rule server-side too — the UI target picker is the
+  // first line of defense, but a stale UI or alternate surface must not be able
+  // to move e.g. a Buried Master into Container Novice. Same element, strictly
+  // higher level. See isEligibleMoveUpTarget.
+  const sourceClassId = currentEntry.classId ?? currentEntry.class_id ?? null;
+  const sourceClass = sourceClassId
+    ? await replicatedClassesTable.getClassById(sourceClassId)
+    : null;
+  if (!sourceClass) {
+    throw createDatabaseError(
+      new Error('Current class not found'),
+      'classes',
+      'show_map_move_up'
+    );
+  }
+  if (!isEligibleMoveUpTarget(sourceClass, targetClass)) {
+    throw createDatabaseError(
+      new Error(
+        `${targetClass.name} is not a valid move-up target for ${sourceClass.name}. ` +
+          'A move-up must be to a higher level within the same element.'
+      ),
+      'entries',
+      'show_map_move_up'
+    );
   }
 
   const targetEntries = await replicatedEntriesTable.getEntriesByClass(targetClassId);

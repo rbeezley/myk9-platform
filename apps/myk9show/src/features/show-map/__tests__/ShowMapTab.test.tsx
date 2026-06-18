@@ -118,11 +118,30 @@ describe('ShowMapTab', () => {
       handler: 'Jane Handler',
       armband: '12',
     });
-    mockGetReplicatedClassById.mockResolvedValue({
-      id: 'class-2',
-      trialId: 'trial-1',
-      name: 'Exterior Advanced',
-      maxEntries: 50,
+    // id-aware so the move-up write path (which fetches both source and target
+    // classes to validate same-element + higher-level eligibility) sees real
+    // element/level values. class-1 Interior Novice → class-2 Interior Advanced
+    // is a valid move-up.
+    mockGetReplicatedClassById.mockImplementation((id: string) => {
+      if (id === 'class-1') {
+        return Promise.resolve({
+          id: 'class-1',
+          trialId: 'trial-1',
+          name: 'Interior Novice A',
+          element: 'Interior',
+          level: 'Novice',
+          section: 'A',
+          maxEntries: 50,
+        });
+      }
+      return Promise.resolve({
+        id: 'class-2',
+        trialId: 'trial-1',
+        name: 'Interior Advanced',
+        element: 'Interior',
+        level: 'Advanced',
+        maxEntries: 50,
+      });
     });
     mockGetReplicatedEntriesByClass.mockResolvedValue([]);
     mockMessageStore.getOrCreateThread.mockResolvedValue({ id: 'thread-1' });
@@ -641,12 +660,17 @@ describe('ShowMapTab', () => {
             id: 'class-1',
             trialId: 'trial-1',
             name: 'Interior Novice A',
+            element: 'Interior',
+            level: 'Novice',
+            section: 'A',
             status: 'In Progress',
           },
           {
             id: 'class-2',
             trialId: 'trial-1',
-            name: 'Exterior Advanced',
+            name: 'Interior Advanced',
+            element: 'Interior',
+            level: 'Advanced',
             status: 'Not Started',
           },
         ]}
@@ -671,7 +695,7 @@ describe('ShowMapTab', () => {
     expect(screen.getByRole('dialog', { name: /move up entry/i })).toBeInTheDocument();
 
     await user.click(screen.getByRole('combobox'));
-    await user.click(await screen.findByRole('option', { name: /exterior advanced/i }));
+    await user.click(await screen.findByRole('option', { name: /interior advanced/i }));
     await user.type(screen.getByLabelText(/reason/i), 'Qualified today');
     await user.click(screen.getByRole('button', { name: /move entry/i }));
 
@@ -680,7 +704,7 @@ describe('ShowMapTab', () => {
         'entry-1',
         expect.objectContaining({
           entryStatus: 'moved',
-          specialRequests: 'Moved up to Exterior Advanced: Qualified today',
+          specialRequests: 'Moved up to Interior Advanced: Qualified today',
         })
       );
     });

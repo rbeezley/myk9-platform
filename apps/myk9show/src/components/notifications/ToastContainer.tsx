@@ -77,11 +77,7 @@ function Toast({ entry, onDismiss }: { entry: ToastEntry; onDismiss: (id: string
               <a
                 href={payload.actionUrl}
                 onClick={dismiss}
-                // text-orange-500 on the near-white light popover is only 2.8:1
-                // (fails WCAG AA — axe color-contrast). orange-700 clears AA
-                // (5.0:1) on light; dark mode keeps orange-500 (6:1 on the dark
-                // popover, where orange-700 would be too dark).
-                className="text-xs font-medium text-orange-700 hover:text-orange-800 dark:text-orange-500 dark:hover:text-orange-400"
+                className="text-xs font-medium text-foreground underline underline-offset-2 hover:opacity-80"
               >
                 View &rarr;
               </a>
@@ -101,7 +97,7 @@ function Toast({ entry, onDismiss }: { entry: ToastEntry; onDismiss: (id: string
       </div>
 
       {payload.priority === 'urgent' && (
-        <p className="pb-1.5 text-center text-[9px] font-medium text-red-700 dark:text-red-400">
+        <p className="pb-1.5 text-center text-[9px] font-medium text-red-400">
           URGENT — will not auto-dismiss
         </p>
       )}

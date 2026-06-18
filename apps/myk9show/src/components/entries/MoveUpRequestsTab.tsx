@@ -50,6 +50,7 @@ import {
   approveMoveUpRequestReplicated,
   denyMoveUpRequestReplicated,
 } from '@/services/show-day/requestManagement';
+import { getAvailableMoveUpTargets, hasConfiguredCapacity } from './moveUpTargets';
 
 interface MoveUpRequest {
   id: string;
@@ -234,15 +235,10 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
     );
   });
 
-  // Get available target classes (exclude current class, only show higher levels)
-  const getAvailableTargetClasses = (request: MoveUpRequest) => {
-    return classes.filter(cls => {
-      // Exclude current class
-      if (cls.id === request.class_id) return false;
-      // Only show classes with available spots
-      return cls.available_spots > 0;
-    });
-  };
+  // Available targets: same element + strictly higher level + open spots.
+  // See getAvailableMoveUpTargets for the AKC move-up rule.
+  const getAvailableTargetClasses = (request: MoveUpRequest) =>
+    getAvailableMoveUpTargets(classes, request.class_id);
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleString('en-US', {
@@ -406,30 +402,52 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Target Class</label>
-              <Select value={targetClassId} onValueChange={setTargetClassId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select target class" />
-                </SelectTrigger>
-                <SelectContent>
-                  {selectedRequest &&
-                    getAvailableTargetClasses(selectedRequest).map(cls => (
-                      <SelectItem key={cls.id} value={cls.id}>
-                        <div className="flex items-center justify-between gap-4">
-                          <span>
-                            {cls.class_number && `#${cls.class_number} - `}
-                            {cls.name}
-                          </span>
-                          <Badge variant="outline" className="ml-2">
-                            {cls.available_spots} spots
-                          </Badge>
-                        </div>
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {(() => {
+              const targetOptions = selectedRequest
+                ? getAvailableTargetClasses(selectedRequest)
+                : [];
+
+              if (targetOptions.length === 0) {
+                return (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      No valid move-up target for{' '}
+                      <strong>{selectedRequest?.class?.name}</strong>. A move-up must be to a higher
+                      level within the same element, and this show has no higher class available.
+                    </AlertDescription>
+                  </Alert>
+                );
+              }
+
+              return (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Target Class</label>
+                  <Select value={targetClassId} onValueChange={setTargetClassId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select target class" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {targetOptions.map(cls => (
+                        <SelectItem key={cls.id} value={cls.id}>
+                          <div className="flex items-center justify-between gap-4">
+                            <span>
+                              {cls.class_number && `#${cls.class_number} - `}
+                              {cls.name}
+                            </span>
+                            {hasConfiguredCapacity(cls) && (
+                              <Badge variant="outline" className="ml-2">
+                                {cls.available_spots} spots
+                              </Badge>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              );
+            })()}
 
             {targetClassId && (
               <Alert>
@@ -438,11 +456,20 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
                   {(() => {
                     const targetClass = classes.find(c => c.id === targetClassId);
                     if (!targetClass) return null;
+                    if (!hasConfiguredCapacity(targetClass)) {
+                      return (
+                        <>
+                          <strong>{targetClass.name}</strong> has{' '}
+                          <strong>{targetClass.accepted_count}</strong>{' '}
+                          {targetClass.accepted_count === 1 ? 'entry' : 'entries'} (no entry cap set)
+                        </>
+                      );
+                    }
                     return (
                       <>
                         <strong>{targetClass.name}</strong> has{' '}
                         <strong>{targetClass.available_spots}</strong> spots available (
-                        {targetClass.accepted_count}/{targetClass.max_entries || '∞'} filled)
+                        {targetClass.accepted_count}/{targetClass.max_entries} filled)
                       </>
                     );
                   })()}

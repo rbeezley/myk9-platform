@@ -1,6 +1,6 @@
 # Plan: Fix public trial/class identity reads (Lane 3.7)
 
-> **Status:** Active — Stage 1 in PR; Stage 2 (the Zustand-store-backed pages) carved out as a follow-up.
+> **Status:** Active — Stage 1 merged (PR #805); Stage 2 (the Zustand-store-backed pages) implemented and in PR. Flip to Complete when Stage 2 merges.
 
 ## Staging (why this is two PRs)
 The two blockers look symmetric but have different fix surfaces. **ClassDetailsPage** reads
@@ -13,11 +13,21 @@ also use (real authed-regression risk). The low-risk service/hook fixes ship fir
 - **Stage 1 (this PR):** A.3 `getAllClasses` empty-guard (fixes ClassDetailsPage blocker #1 +
   class-list leak #3) + D `useEntriesByClassQuery` anon branch (#5). Both go through the
   query-hook layer; no store surgery. Fully tested + anon REST-verified.
-- **Stage 2 (follow-up):** A.1 `getTrialById` + A.2 `getClassById` fallthroughs, B.4
+- **Stage 2 (this PR):** A.1 `getTrialById` + A.2 `getClassById` fallthroughs, B.4
   `TrialDetailsPage` (#2, the trial-page blocker), C.6 `ShowDetailsPage` default-style tabs (#4).
   These need the store-shape work and dedicated render tests. NOTE: A.1/A.2 each break a pinned
   "returns null for missing records" test and carry a double-throw-on-miss wrinkle through
   `withReplicationFallback` — do them *with* their consuming page, not alone.
+  - **Decisions taken:** (A.1/A.2) chose option (ii) — `postgrestGet{Trial,Class}ById` switched to
+    `.maybeSingle()` so the cold-but-present and genuinely-missing cases both resolve in one call
+    with no throw; the pinned tests now mock `mockSupabase.from` and assert the fall-through.
+    (B.4) `currentTrial`/`parentShow` fall back to `useTrialQuery` (new `hooks/queries/useTrialsDatabase.ts`,
+    mapped via the existing `mapDatabaseToTrial`) and the existing anon-safe `useShowQuery`; the
+    not-found guard now also fires once the anon fallback settles empty (no infinite spinner).
+    (C.6) chose option B (feed the tabs, not extend the styled-landing early-return — option A would
+    render the Monogram landing for default shows, violating documented intent): `effectiveTrials` =
+    `landingTrials`, plus a per-trial `getClassesByTrialId` fetch reshaped by the new
+    `pages/ShowDetailsPage.publicClasses.ts` helper into the tabs' `ClassInfo`/`TrialStats`.
 
 Remediation for the Lane 3.7 replication-leak sweep (2026-06-17). Five public-route leaks
 let a logged-out guest hit a cold replication store; two are blockers (the public trial and

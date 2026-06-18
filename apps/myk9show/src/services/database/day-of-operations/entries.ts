@@ -101,6 +101,9 @@ export const getClassesWithCapacity = async (showId: string) => {
           trial_id: trialId ?? '',
           accepted_count: accepted,
           available_spots: Math.max(0, limit - accepted),
+          element: cls.element ?? null,
+          level: cls.level ?? null,
+          section: cls.section ?? null,
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name));

@@ -1,17 +1,13 @@
 /**
  * RowActions - Per-row action dropdown menu
+ *
+ * Renders the canonical {@link RowActionMenu} primitive, skinned with the
+ * `myk9-table-*` classes so it keeps the admin table's bespoke look.
  */
 
 import React from 'react';
-import { MoreHorizontal, Eye, Edit, Trash2, Shield } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Eye, Edit, Trash2, Shield } from 'lucide-react';
+import { RowActionMenu, type RowAction } from '@/components/ui/RowActionMenu';
 import { User } from '@/types/user-types';
 
 interface RowActionsProps {
@@ -29,38 +25,46 @@ export const RowActions: React.FC<RowActionsProps> = ({
   onDelete,
   onManageRoles,
 }) => {
+  const actions: RowAction[] = [
+    {
+      id: 'view',
+      label: 'View Details',
+      icon: <Eye />,
+      onSelect: () => onView(user),
+      className: 'myk9-table-dropdown-item',
+    },
+    {
+      id: 'edit',
+      label: 'Edit User',
+      icon: <Edit />,
+      onSelect: () => onEdit(user),
+      className: 'myk9-table-dropdown-item',
+    },
+    {
+      id: 'roles',
+      label: 'Manage Roles',
+      icon: <Shield />,
+      onSelect: () => (onManageRoles ? onManageRoles(user) : onView(user)),
+      className: 'myk9-table-dropdown-item',
+    },
+    {
+      id: 'delete',
+      label: 'Delete User',
+      icon: <Trash2 />,
+      onSelect: () => onDelete(user),
+      variant: 'destructive',
+      className: 'myk9-table-dropdown-item destructive',
+    },
+  ];
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild nativeButton>
-        <Button variant="ghost" size="sm" className="myk9-table-actions-trigger">
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="myk9-table-dropdown-content">
-        <DropdownMenuItem onClick={() => onView(user)} className="myk9-table-dropdown-item">
-          <Eye className="h-4 w-4" />
-          View Details
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onEdit(user)} className="myk9-table-dropdown-item">
-          <Edit className="h-4 w-4" />
-          Edit User
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => (onManageRoles ? onManageRoles(user) : onView(user))}
-          className="myk9-table-dropdown-item"
-        >
-          <Shield className="h-4 w-4" />
-          Manage Roles
-        </DropdownMenuItem>
-        <DropdownMenuSeparator className="bg-border/30 my-2" />
-        <DropdownMenuItem
-          onClick={() => onDelete(user)}
-          className="myk9-table-dropdown-item destructive"
-        >
-          <Trash2 className="h-4 w-4" />
-          Delete User
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <RowActionMenu
+      actions={actions}
+      icon="horizontal"
+      size="sm"
+      label={`Actions for ${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || 'User actions'}
+      triggerClassName="myk9-table-actions-trigger"
+      contentClassName="myk9-table-dropdown-content"
+    />
   );
 };

@@ -14,6 +14,8 @@ Remediation plan for [`docs/ia-review-entry-status-surfaces.md`](ia-review-entry
 - **Canonical status domain:** the selector operates on the raw `entry-lifecycle` `EntryStatus` union, NOT the UI `show-registration-types` `EntryStatus` enum. The dual-domain mismatch (`mapEntryStatus` folding `withdrawn`+`cancelled`) is the bug; do not preserve it.
 - **Assertion-first (CLAUDE.md Testing):** for each status→label / refund mapping, write the `expect(getEntryDisplay(row)).toEqual(...)` line first and run it red before moving the logic.
 - **Pre-launch, no users:** no backwards-compat shims for the old mappers — delete them in the same sweep.
+- **[ADDED] Robust to partial rows:** the selector is handed replication rows that may be mid-sync — null/absent class join, null `entry_status`, null `payment_status`. It must return a defined, safe display for every such case (e.g. missing class → empty title + neutral status, never a terminal-label fall-through). A row with no class join must NOT silently render "Upcoming"/"Scratched" — that is the exact fall-through this work removes.
+- **[ADDED] Display-only, not role-gating:** the selector returns presentation strings + a machine-readable `statusKind`. It must NOT decide *which role may see which field* — refund notes, internal status, and other role-scoped data stay gated at the surface and by RLS. The same `getEntryDisplay(row)` output is safe to compute everywhere; the *caller* chooses what to show.
 
 ---
 
@@ -39,8 +41,11 @@ Remediation plan for [`docs/ia-review-entry-status-surfaces.md`](ia-review-entry
 - Section: `null → ''`, `'A' → 'A'`, `'B' → 'B'`.
 - Refund: `refunded` + `refund_amount=30 → "Refunded $30"`; `partial_refund` + amount; `payment_status='refunded'` with no column → inferred label.
 - Regression pin: the walk fixture (Ranger / Exterior Excellent, withdrawn+refunded) yields **the same** `statusLabel`+`refundLabel` for all three hook inputs.
+- **[ADDED] Malformed/partial input:** null/absent class join → defined safe output (empty title, neutral status, **no** terminal-label fall-through); null `entry_status`; null `payment_status`. These assert the cold-store row never mis-renders as a terminal state.
+- **[ADDED] Class-title pin:** one test fixes the chosen composition rule (stored `name` vs composed `element+level+section`) so the decision can't silently drift back into a divergence source.
+- **[ADDED] Surface regression:** the existing `MyEntriesPage` / `MyEntriesTab` / Entry Management tests still pass; add (if absent) one render assertion per surface that the walk fixture shows the selector's `statusLabel`. Rebuild any edited `packages/*` before running app tests (built-dist gotcha).
 
-**Exit criterion:** the three core surfaces render via `getEntryDisplay`; the tests above pass; a `withdrawn`/`cancelled`/`moved` row and a `partial_refund` row produce identical labels across all three.
+**Exit criterion:** the three core surfaces render via `getEntryDisplay`; the tests above pass; a `withdrawn`/`cancelled`/`moved` row, a `partial_refund` row, and a **class-less cold-store** row each produce identical, safe labels across all three.
 
 ---
 
@@ -48,8 +53,10 @@ Remediation plan for [`docs/ia-review-entry-status-surfaces.md`](ia-review-entry
 
 **Entry trigger:** Phase A merged.
 
+> **[ADDED] Interim window:** after Phase A only the three core surfaces are unified; the remaining ~22 sites still map independently, so cross-surface divergence is only *fully* closed when Phase B lands. Treat A→B as one sprint, not two loosely-coupled efforts, so the gap window stays short.
+
 1. Migrate the ~22 remaining entry-state render sites (At-Show pages, Trial entries table, TV display, dog activity, move-up/pull/waitlist tabs, entry receipt/edit dialogs, scoring/results cards — full list via grep) onto `getEntryDisplay`.
-2. Delete the now-dead duplicates: the second `getEntryStatusBadge`, the dual-domain `mapEntryStatus` (or reduce it to a thin re-export of the selector's `statusKind`), and the per-mapper section defaults once nothing else reads them.
+2. Delete the now-dead duplicates: the second `getEntryStatusBadge`, the dual-domain `mapEntryStatus` (or reduce it to a thin re-export of the selector's `statusKind`), and the per-mapper section defaults once nothing else reads them. **[EXPANDED] Migrate the enum consumers, not just the labels:** anything keyed on the UI `EntryStatus` enum — the My Entries page status **filters** (`all`/`pending`/`accepted`/`waitlist`/`upcoming`/`completed`) and badge **styling** — must move to the selector's machine-readable `statusKind`, or filtering/coloring silently breaks while labels look fine. Audit every `EntryStatus.` reference before deleting `mapEntryStatus`.
 3. Update any source-text/unit tests that pinned the old mappers (grep `mapEntryStatus`, `getEntryStatusBadge`, `getRemovedStateLabel`).
 
 ### Phase B — Tests (required)

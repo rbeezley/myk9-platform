@@ -133,6 +133,16 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
   const uniqueAssignedJudges = new Set(assignedJudgeIds).size;
   const classesWithJudges = assignedJudgeIds.length;
 
+  // Pool judges (selected on Show Details) who were never assigned to a class.
+  // The wizard writes CLASS-LEVEL judge_assignments, and the judge dashboard is
+  // class-centric, so an unassigned pool judge will not see this show. Surface a
+  // non-blocking warning — this is allowed (validation never requires per-class
+  // judges), but the secretary should know before saving.
+  const assignedJudgeIdSet = new Set(assignedJudgeIds);
+  const unassignedPoolJudgeNames = show.judgeIds
+    .filter(id => !assignedJudgeIdSet.has(id))
+    .map(id => judgeDetails[id]?.name || 'Unknown Judge');
+
   return (
     <div className={className}>
       <div className="space-y-6">
@@ -154,6 +164,33 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                         </li>
                       ))}
                     </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Unassigned pool judges — non-blocking warning */}
+          {unassignedPoolJudgeNames.length > 0 && (
+            <Card className="border-warning/30 bg-warning/10">
+              <CardContent className="pt-4">
+                <div className="flex gap-3">
+                  <AlertTriangle className="h-5 w-5 text-warning mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-medium text-warning mb-1">
+                      {unassignedPoolJudgeNames.length === 1
+                        ? '1 judge is not assigned to any class'
+                        : `${unassignedPoolJudgeNames.length} judges are not assigned to any class`}
+                    </h4>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      {unassignedPoolJudgeNames.join(', ')} won’t see this show on their judge
+                      dashboard until assigned to a class. Go back to Classes to assign them, or
+                      continue — you can assign judges later.
+                    </p>
+                    <Button variant="outline" size="sm" onClick={() => setCurrentStep(2)}>
+                      <Edit className="h-4 w-4 mr-1" />
+                      Assign judges to classes
+                    </Button>
                   </div>
                 </div>
               </CardContent>

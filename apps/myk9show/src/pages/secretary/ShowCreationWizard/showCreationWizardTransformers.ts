@@ -147,6 +147,10 @@ export function createClassDataFromWizard(
           classOrder: String(index + 1),
           status: 'Scheduled' as const,
           judge: judgeDetails[cls.judgeId || '']?.name || 'TBD',
+          // Preserve the per-class judge UUID (not just the display name) so the
+          // RPC payload can write a class-level judge_assignment. Dropping it
+          // here is what left judges off the class-centric judge dashboard.
+          judgeId: cls.judgeId || undefined,
           element: element,
           level: level,
           section: (cls.customizations?.section as string) || '',

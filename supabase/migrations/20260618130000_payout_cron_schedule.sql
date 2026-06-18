@@ -29,8 +29,9 @@ create extension if not exists pg_cron with schema extensions;
 create extension if not exists pg_net  with schema extensions;
 
 -- Idempotent: unschedule first so re-applying this migration (e.g. after a
--- reset) doesn't create a duplicate job. No-op if the job doesn't exist.
-select cron.unschedule('nightly-show-payouts');
+-- reset) doesn't create a duplicate job. Uses the jobid-based form to avoid
+-- the XX000 error that cron.unschedule(name) raises when the job doesn't exist.
+SELECT cron.unschedule(jobid) FROM cron.job WHERE jobname = 'nightly-show-payouts';
 
 -- 02:00 UTC daily. The function applies a 3-day show-end delay internally
 -- so shows that closed today are NOT paid tonight — this just ensures the

@@ -16,6 +16,13 @@ loadEnv({ path: '.env', override: false });
  */
 export default defineConfig({
   testDir: './src/test/e2e',
+  // PR Smoke: 2 stable specs — connectivity + secretary regression proof.
+  // The Nightly suite (20 specs) runs on a separate schedule, not in CI.
+  testMatch: [
+    '**/simple-connectivity.spec.ts',
+    '**/uat/secretary/qa-regression-proof.spec.ts',
+  ],
+  grep: /load home page without authentication|Secretary QA regression proof/,
   fullyParallel: false,
   forbidOnly: true,
   retries: 2,

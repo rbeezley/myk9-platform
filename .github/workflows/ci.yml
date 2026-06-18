@@ -260,46 +260,52 @@ jobs:
           path: apps/myk9show/playwright-report-ci/
           retention-days: 7
 
-  # E2E jobs temporarily disabled to conserve GitHub Actions minutes (1,805/2,000 used).
-  # Resets April 1, 2026. Re-enable after reset.
-  # See: https://github.com/rbeezley/myk9-platform/settings/billing
-  #
-  # e2e-myk9show:
-  #   name: E2E myK9Show
-  #   runs-on: ubuntu-latest
-  #   timeout-minutes: 15
-  #   needs: build
-  #   continue-on-error: true
-  #
-  #   steps:
-  #     - uses: actions/checkout@v6
-  #
-  #     - uses: pnpm/action-setup@v6
-  #
-  #     - uses: actions/setup-node@v6
-  #       with:
-  #         node-version: '20'
-  #         cache: 'pnpm'
-  #
-  #     - name: Install dependencies
-  #       run: pnpm install --frozen-lockfile
-  #
-  #     - name: Build
-  #       run: pnpm build
-  #
-  #     - name: Install Playwright browsers
-  #       run: npx playwright install --with-deps chromium
-  #
-  #     - name: Run E2E tests
-  #       run: pnpm --filter=@myk9/show test:e2e:ci
-  #       env:
-  #         VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-  #         VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-  #
-  #     - name: Upload test results
-  #       if: always()
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: myk9show-e2e-results
-  #         path: apps/myk9show/playwright-report-ci/
-  #         retention-days: 7
+  # PR Smoke E2E — 2 stable specs (connectivity + secretary regression proof).
+  # Re-enabled 2026-06-18 (Lane 3.2): repo went public 2026-05-18 so GHA
+  # minutes are free. Nightly Active suite (20 specs) runs on a separate schedule.
+  # playwright.ci.config.ts scopes testMatch to PR Smoke specs only.
+  e2e-myk9show:
+    name: E2E PR Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: build
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build app + packages
+        run: pnpm build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Install Playwright browser
+        run: pnpm --filter @myk9/show exec playwright install --with-deps chromium
+
+      - name: Run E2E PR Smoke
+        working-directory: apps/myk9show
+        run: pnpm test:e2e:ci
+        env:
+          CI: 'true'
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Upload E2E results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: myk9show-e2e-results
+          path: apps/myk9show/playwright-report-ci/
+          retention-days: 7

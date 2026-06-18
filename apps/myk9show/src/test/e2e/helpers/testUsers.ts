@@ -49,6 +49,15 @@ export const TEST_USERS: Record<string, TestUser> = {
     description: 'Exhibitor (Alice Martin) — confirmed reset 2026-05-14',
   },
 
+  // Primary demo exhibitor with seeded dogs (Willow, Ranger, Juniper).
+  // Protected from DB wipes. Use this account for tests that need real dog data.
+  DEMO_EXHIBITOR: {
+    email: process.env.E2E_DEMO_EXHIBITOR_EMAIL ?? 'e2e-exhibitor@test.myk9.com',
+    password: process.env.E2E_DEMO_EXHIBITOR_PASSWORD ?? 'Test1234!',
+    role: 'exhibitor',
+    description: 'Demo exhibitor with seeded dogs — protected from wipes',
+  },
+
   EXHIBITOR_2: {
     email: 'exhibitor2@myk9t.com',
     password: 'TestPass4567!',

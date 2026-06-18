@@ -1,9 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 import { TEST_USERS } from '../helpers/testUsers';
+import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
 
 test.describe.configure({ mode: 'serial', timeout: 90000 });
 
-const SHOW_ID = '3b91e282-6e45-4a89-9446-f6ebeb0bf62c';
+const SHOW_ID = LIVE_REGISTRATION_SHOW_ID;
 const MOCK_CART_ID = 'e2e-mocked-entry-cart';
 
 interface CapturedWrites {
@@ -13,10 +14,10 @@ interface CapturedWrites {
 async function signInAsExhibitor(page: Page) {
   const params = new URLSearchParams({ returnTo: `/shows/${SHOW_ID}/register` });
   await page.goto(`/sign-in?${params.toString()}`, { waitUntil: 'domcontentloaded' });
-  await page.getByTestId('credential-input').fill(TEST_USERS.EXHIBITOR.email);
+  await page.getByTestId('credential-input').fill(TEST_USERS.DEMO_EXHIBITOR.email);
   await page.getByTestId('continue-button').click();
   await expect(page.getByTestId('password-input')).toBeVisible({ timeout: 15000 });
-  await page.getByTestId('password-input').fill(TEST_USERS.EXHIBITOR.password);
+  await page.getByTestId('password-input').fill(TEST_USERS.DEMO_EXHIBITOR.password);
   await page.getByTestId('sign-in-button').click();
   await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
   await page.waitForLoadState('domcontentloaded');

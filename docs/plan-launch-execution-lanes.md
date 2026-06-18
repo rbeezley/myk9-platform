@@ -108,18 +108,22 @@ Establishes what's actually broken before more UI changes land.
 3. **Print testing on venue hardware.** *(hardware task — not code)*
 
 ## Lane 3 — Pre-Launch Hardening  *(safe to parallelize)*
-1. **Fix `--success` token** — fails WCAG AA as small text.
+1. **Fix `--success` token** — fails WCAG AA as small text. — **DONE 2026-06-18**
+   ([#832](https://github.com/rbeezley/myk9-platform/pull/832)). Bumped light-mode to green-800
+   (`22 101 52`); dark-mode `--success-foreground` overridden to green-900 (`20 83 45`);
+   `EntryStatusStepper` updated from `text-white`; regression tests in `success-token.test.ts` +
+   `semanticStatusTokens.test.ts`.
 2. **E2E suite stability** (flake fix; `codex/fix-qa-test-flake-021` in flight) — gates #4.
 3. **Rotate + lock down E2E test accounts.**
 4. **Make E2E CI jobs blocking** — *only after #2 + #3* (blocking a flaky suite blocks every PR).
 5. **CI-gated Vercel deploys** — after #4.
-6. **Pre-load AKC & UKC Judge Directory.**
-7. **Replication-leak sweep — now a VERIFICATION pass** (mostly subsumed). The recurring pattern
-   (#753 TV display, #768 styled landings, finding B class results) was attacked at the root by
-   **#779**, which moved the public entries/classes/results/TV reads onto a direct, server-gated
-   `publicReads.ts` path. Remaining: a short audit confirming no *other* public/anon route still
-   reads entries/classes/**trials** from the replication store (the trials read path wasn't part of
-   #779's results scope) — switch any stragglers to a direct PostgREST read. Likely small.
+6. **Pre-load AKC & UKC Judge Directory.** — **Tooling DONE 2026-06-18**
+   ([#833](https://github.com/rbeezley/myk9-platform/pull/833)). `supabase/seed-data/akc-ukc-judges.csv`
+   template + `scripts/import-judges.ts` converter (CSV → idempotent SQL migration). Data rows
+   pending: populate CSV with real AKC/UKC exports, run `npx tsx scripts/import-judges.ts > migration.sql`.
+7. **Replication-leak sweep — DONE 2026-06-18.** Audit confirmed **clean** — no stragglers.
+   All public/anon routes use direct PostgREST reads (`publicReads.ts`) or replication-with-fallback
+   (trials/shows self-fall-through on cold guest store). `getPublicClassById` exists and is integrated.
    - Watch-item: ~30 wall-clock perf asserts — reactive only, do not chase proactively.
 
 ## Lane 4 — Payments Go-Live  *(isolated; one owner; no casual parallel Stripe/live-mode writes)*

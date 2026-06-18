@@ -100,9 +100,29 @@ describe('getEntryStatusClasses — colour via the shared classifier KIND', () =
     expect(getEntryStatusClasses('waitlisted')).toContain('text-info');
   });
 
-  it('falls back to the neutral chip for uncoloured kinds', () => {
+  it('uses the neutral chip for terminal/uncoloured statuses', () => {
+    // COMPLETED / SCRATCHED / MOVED / REJECTED project to the gray default.
     expect(getEntryStatusClasses('completed')).toContain('text-gray-700');
-    expect(getEntryStatusClasses(null)).toContain('text-gray-700');
+    expect(getEntryStatusClasses('scratched')).toContain('text-gray-700');
+    expect(getEntryStatusClasses('moved')).toContain('text-gray-700');
+  });
+
+  it('treats null / no-status as PENDING (warning), matching the stats bucket', () => {
+    // mapEntryStatus(null) is the safe PENDING default — the same bucket the
+    // needs-review stat counts — so the colour is warning, not a misleading
+    // neutral gray that would imply "nothing to do".
+    expect(getEntryStatusClasses(null)).toContain('text-warning');
+    expect(getEntryStatusClasses('no-status')).toContain('text-warning');
+  });
+
+  it("colours 'paid'/'promotion-expired' as PENDING (warning), matching the bucket — not success", () => {
+    // Regression pin (PR #829 review): these color via the owner-aware UI
+    // projection, NOT getEntryStatusKind. getEntryStatusKind('paid') is
+    // 'accepted', which would tint success/green while the stats count the
+    // entry pending — the exact label-vs-status divergence this PR removes.
+    expect(getEntryStatusClasses('paid')).toContain('text-warning');
+    expect(getEntryStatusClasses('paid')).not.toContain('text-success');
+    expect(getEntryStatusClasses('promotion-expired')).toContain('text-warning');
   });
 });
 

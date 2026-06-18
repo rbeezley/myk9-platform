@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryStatus as CanonicalEntryStatus } from '@/types/entry-lifecycle';
 import { getEntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
+import { mapEntryStatus } from '@/services/entryDisplay/entryStatusUiAdapter';
 
 /**
  * Entry management utility functions
@@ -15,9 +16,10 @@ import { getEntryStatusKind } from '@/services/entryDisplay/entryDisplaySelector
  * Re-exported from the single classifier home (`services/entryDisplay/`) so the
  * page + secretary surfaces classify identically to the exhibitor tab. The
  * `paid`/`promotion-expired` bucket preservation lives there too — see
- * `entryStatusUiAdapter`.
+ * `entryStatusUiAdapter`. Imported above (for local colour use) and re-exported
+ * here so existing `@/utils/entryManagementUtils` import paths keep working.
  */
-export { mapEntryStatus } from '@/services/entryDisplay/entryStatusUiAdapter';
+export { mapEntryStatus };
 
 /**
  * Map database payment status to UI enum
@@ -176,23 +178,25 @@ export function getPaymentStatusBadge(status: PaymentStatus): React.ReactNode {
 /**
  * Get Tailwind CSS classes for an entry status badge (string-based, for tables).
  * Accepts raw status strings from DB queries (e.g., 'confirmed', 'pending') and
- * derives the colour from the single classifier KIND, so the Trial entries table
- * and Show Details entries tab tint statuses exactly as every other surface
- * classifies them.
+ * colours via the SAME UI projection the filters/stats/badges use
+ * (`mapEntryStatus`), NOT the raw classifier kind. This matters for the owner
+ * overrides: `getEntryStatusKind('paid')` is `accepted`, but a paid entry is
+ * kept in the PENDING / needs-review lane — colouring it via the kind would tint
+ * it success/green on the Trial entries table and Show Details tab while the
+ * stats count it pending, recreating the very divergence this PR removes.
  */
 export function getEntryStatusClasses(status: string | null): string {
-  switch (getEntryStatusKind(status)) {
-    case 'accepted':
+  switch (mapEntryStatus(status)) {
+    case EntryStatus.ACCEPTED:
       return 'bg-success/10 text-success border-success/30';
-    case 'pending':
+    case EntryStatus.PENDING:
       return 'bg-warning/10 text-warning border-amber-200 ';
-    case 'withdrawn':
+    case EntryStatus.CANCELLED:
       return 'bg-destructive/10 text-destructive border-red-200 ';
-    case 'waitlist':
+    case EntryStatus.WAITLIST:
       return 'bg-info/10 text-info border-blue-200 ';
     default:
-      // not_accepted / scratched / moved / completed / in_ring / absent /
-      // move_up_requested / unknown — neutral chip, as before.
+      // REJECTED / SCRATCHED / MOVED / COMPLETED / MOVE_UP_REQUESTED — neutral, as before.
       return 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-200';
   }
 }

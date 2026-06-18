@@ -104,7 +104,15 @@ async function assertNoBlockingViolations(page: Page, name: string, excludedRule
 
   if (blocking.length > 0) {
     const detail = blocking
-      .map(v => `  - ${v.id} (${v.impact}): ${v.help} [${v.nodes.length} node(s)]\n    ${v.helpUrl}`)
+      .map(v => {
+        // Include each node's CSS-selector target and axe's failure summary so
+        // a CI failure names the exact element (e.g. the offending color pair)
+        // inline — no need to download the screenshot artifact to diagnose it.
+        const nodes = v.nodes
+          .map(n => `      • ${n.target.join(' ')}\n        ${(n.failureSummary ?? '').replace(/\n/g, '\n        ')}`)
+          .join('\n');
+        return `  - ${v.id} (${v.impact}): ${v.help} [${v.nodes.length} node(s)]\n    ${v.helpUrl}\n${nodes}`;
+      })
       .join('\n');
     throw new Error(`${name} has ${blocking.length} serious/critical a11y violation(s):\n${detail}`);
   }

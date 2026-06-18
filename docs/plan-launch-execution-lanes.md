@@ -79,7 +79,16 @@ Establishes what's actually broken before more UI changes land.
    open P0/P1**. The launch gate is not yet met — remaining work is the Yellow gaps + Admin
    walkthrough; the biggest single gate is **real-user testing (step 7)**, which also supplies the
    missing UX-clarity evidence.
-7. **Phase 3 — real-user testing** (after the app is coherent end-to-end).
+7. **Phase 3 — real-user testing** — **DEFERRED to the final pre-launch gate (decision 2026-06-18).**
+   Moved out of the Lane 1 arc to run *after* Lanes 2–4 (and the launch-affecting parts of Lane 5) so
+   real users test a near-final product, not a surface about to change under them. Lanes 1.1–1.6
+   already supply the internal evidence that de-risks getting there; this is the last gate before
+   launch. See **"Final pre-launch gate"** below. (It remains the sole closer for the overall launch
+   criterion "real-user testing completed" + the UX-clarity scorecard dimension.)
+
+   With step 7 deferred, **Lane 1's internal arc is complete** (1.1–1.6 done). The next active work is
+   Lane 2 onward; the only remaining non-real-user Lane 1 thread is the **Admin functional walkthrough**
+   (scorecard "Admin minimum" Unknown), which can run any time and is not gated on Lanes 2–5.
 
 ## Lane 2 — Secretary Operational UX  *(after Lane 1 has evidence; may overlap)*
 1. **Standardize the shared 3-dot row-action menu** (primitive first).
@@ -115,6 +124,17 @@ Establishes what's actually broken before more UI changes land.
 4. **Remove completed kill-switch flags** — *only after the first live shows*.
 
 ---
+
+## Final pre-launch gate  *(runs last — after Lanes 2–4 + launch-affecting Lane 5)*
+**Real-user testing (was Lane 1.7 / North Star Phase 3).** Deferred here 2026-06-18 so 2–3
+non-technical users (one secretary, one or two exhibitors) test a **near-final** product. Watch
+silently, log every hesitation, fix each one. This is the sole closer for two launch criteria:
+- the overall gate "real-user testing completed with no confusion-level findings outstanding", and
+- the scorecard **UX clarity** dimension (currently Yellow — its primary missing evidence *is* this).
+
+**Entry condition:** Lanes 2–4 done and the launch-affecting parts of Lane 5 settled. *Not* gated on
+Lane 5 #4 (kill-switch removal — itself post-first-live-shows). The two golden-path rows stay
+**Green-gated-on-real-user-test** until this passes. Plan: `docs/plans/strategy/2026-04-11-north-star-fall-2026.md`.
 
 ## Defer for now
 - **Result Reveal + Share Card**, **AI natural-language access / MCP / BYOK** (planning underway in

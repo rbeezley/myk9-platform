@@ -576,7 +576,7 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 
 ## North Star — Phase 3: Real-User Testing
 
-- [ ] **Phase 3 — Real-User Testing** — Canonical real-user testing task after the internal UX Journey Audit remediation and scorecard evidence pass: recruit 2–3 non-technical test users (one secretary, one or two exhibitors), hand them written tasks, watch silently, and fix every hesitation. Full plan: `docs/plans/strategy/2026-04-11-north-star-fall-2026.md`.
+- [ ] **Phase 3 — Real-User Testing** *(DEFERRED to the final pre-launch gate — decision 2026-06-18)* — Canonical real-user testing task: recruit 2–3 non-technical test users (one secretary, one or two exhibitors), hand them written tasks, watch silently, and fix every hesitation. **Re-sequenced to run last, after Lanes 2–4 + launch-affecting Lane 5**, so users test a near-final product (was Lane 1.7; the internal UX Journey Audit remediation + scorecard evidence pass are already done). Sole closer for the launch criterion "real-user testing completed" + the scorecard UX-clarity dimension. See [`docs/plan-launch-execution-lanes.md`](docs/plan-launch-execution-lanes.md#final-pre-launch-gate-runs-last--after-lanes-24--launch-affecting-lane-5). Full plan: `docs/plans/strategy/2026-04-11-north-star-fall-2026.md`.
 
 ## People
 

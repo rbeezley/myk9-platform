@@ -238,7 +238,14 @@ launch gate is **real-user testing (Lane 1.7)**, which also supplies the missing
 
 ### Next steps (in launch order)
 
-1. **Lane 1.7 — real-user testing** (2–3 non-technical users; closes the golden-path gate + UX clarity).
-2. Close the Yellow gaps: venue-hardware print test (Reports), live offline/reconnect rehearsal
-   (Offline-first + Show-day), Stripe go-live + CI-deploy hardening (Operational readiness).
-3. Run the **Admin** functional walkthrough (QA-Program step 4) to clear the last Unknown.
+**Real-user testing is deferred to the final pre-launch gate** (decision 2026-06-18) so users test a
+near-final product — see [`plan-launch-execution-lanes.md`](../plan-launch-execution-lanes.md#final-pre-launch-gate-runs-last--after-lanes-24--launch-affecting-lane-5).
+The golden-path rows stay Green-gated-on-real-user-test until then.
+
+1. Close the Yellow gaps via the lanes: Secretary Operational UX (Lane 2), Pre-Launch Hardening
+   (Lane 3 — `--success` token, E2E stability/blocking, CI-deploys, judge directory), Payments
+   Go-Live (Lane 4), Architecture/Data (Lane 5).
+2. Run the **Admin** functional walkthrough (QA-Program step 4) to clear the last Unknown — not gated
+   on the lanes, can run any time.
+3. **Final gate — real-user testing** (2–3 non-technical users): closes the overall launch criterion
+   + the UX-clarity dimension. Run after #1.

@@ -525,6 +525,74 @@ WHERE r.name = 'club_admin'
       AND ur.club_id = 'dededede-0000-0000-0000-000000000001'
       AND ur.show_id IS NULL);
 
+-- ---------------------------------------------------------------------------
+-- 11. GAP FIXTURE #5 (judge handoff, audit 05-showday-walk S2): assign
+--     judge@myk9t.com (a protected/kept account) to the Heartland show so
+--     /judge/dashboard surfaces an assignment — the route into ringside. Without
+--     this the judge dashboard reads "No Judging Assignments Yet" and the judge
+--     golden path is unreachable.
+--
+--     SCOPE NOTE: a judge_assignments row fixes the judge's SCHEDULING surface.
+--     It does NOT by itself grant entry-visibility RLS at ringside — entries_select
+--     (migration 129) admits only can_manage_show / handler / dog-owner, none of
+--     which a judge_assignment satisfies. Ringside entry visibility for a
+--     non-managing role is the passcode / ringside_session path (section 12).
+--
+--     Idempotent: delete any prior Heartland assignment for this judge, then
+--     INSERT...SELECT (a no-op if the judge account is absent — person_id is NOT
+--     NULL, so we never insert a NULL). version defaults to 1 (migration
+--     20260608200000); confirmed status so the dashboard treats it as active.
+-- ---------------------------------------------------------------------------
+DELETE FROM public.judge_assignments
+WHERE person_id = (SELECT id FROM public.people WHERE lower(email) = 'judge@myk9t.com')
+  AND show_id = 'dededede-0000-0000-0000-000000000010';
+
+INSERT INTO public.judge_assignments (
+  id, person_id, show_id, trial_id, status, confirmed_at, created_at, updated_at
+)
+SELECT
+  'dededede-0000-0000-0000-000000000071', p.id,
+  'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
+  'confirmed', '2026-06-17 00:00:00+00', '2026-06-17 00:00:00+00', '2026-06-17 00:00:00+00'
+FROM public.people p
+WHERE lower(p.email) = 'judge@myk9t.com';
+
+-- ---------------------------------------------------------------------------
+-- 12. GAP FIXTURE #6 (steward/judge ringside entry, audit 05-showday-walk S3):
+--     seed KNOWN ringside passcodes for Heartland so the SmartSignInPage
+--     "Email or show passcode" -> validate -> grant -> /at-show flow is walkable.
+--
+--     Passcodes are stored ONLY as peppered HMAC hashes (show_passcodes.passcode_hash,
+--     UNIQUE), so a hand-written hash can't be reproduced. We instead compute the
+--     hash with the database's own _hash_passcode() (which reads the `passcode_pepper`
+--     Vault secret), so the seeded codes actually validate through validate_passcode().
+--
+--     DEMO CODES (hand these to testers — validator lowercases input):
+--         judge   = 'jh3k9'      steward = 's7m2p'
+--     Format must satisfy the client classifier regex /^[ajse][a-z0-9]{4}$/
+--     (role letter a|j|s|e + 4 [a-z0-9]); the authoritative role is the DB row.
+--
+--     GUARDED: on a DB where the passcode_pepper Vault secret is unset,
+--     _hash_passcode raises SQLSTATE 55000; the EXCEPTION handler rolls back this
+--     block's DELETE+INSERT and RAISE NOTICEs rather than aborting the whole reset.
+--     On such a DB, mint codes via regenerate_show_passcodes() as a secretary instead.
+--
+--     SCOPE NOTE: this makes the passcode SIGN-IN flow walkable. Whether a
+--     passcode-only role then reads entries at ringside is a separate RLS/data-path
+--     question flagged in the audit (S2/S3) — not something a seed can settle.
+-- ---------------------------------------------------------------------------
+DO $$
+BEGIN
+  DELETE FROM public.show_passcodes WHERE show_id = 'dededede-0000-0000-0000-000000000010';
+  INSERT INTO public.show_passcodes (id, show_id, role, passcode_hash, created_at) VALUES
+    ('dededede-0000-0000-0000-000000000081', 'dededede-0000-0000-0000-000000000010', 'judge',
+     public._hash_passcode('jh3k9'), '2026-06-17 00:00:00+00'),
+    ('dededede-0000-0000-0000-000000000082', 'dededede-0000-0000-0000-000000000010', 'steward',
+     public._hash_passcode('s7m2p'), '2026-06-17 00:00:00+00');
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Skipped Heartland ringside passcode seed (% - %). passcode_pepper Vault secret is likely unset; mint via regenerate_show_passcodes() instead.', SQLSTATE, SQLERRM;
+END $$;
+
 COMMIT;
 
 -- ============================================================================

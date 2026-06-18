@@ -5,6 +5,7 @@ import type {
   ReplicatedTrial,
 } from '@/services/replication';
 import type { HydratedAccountTodayEntry } from './showTodayBanner.helpers';
+import { composeClassTitle } from '@/services/entryDisplay/entryDisplaySelectors';
 
 const FAVORITES_KEY_PREFIX = 'favorites';
 
@@ -26,9 +27,14 @@ interface ReplicatedRows {
 }
 
 function buildClassName(cls: ReplicatedClass): string {
-  const section = cls.section && cls.section !== '-' ? ` ${cls.section}` : '';
-  const elementLevel = `${cls.element ?? ''} ${cls.level ?? ''}${section}`.trim();
-  return elementLevel || cls.name;
+  // Composed element+level+section, falling back to the stored name. The '-'
+  // "no section" sentinel is handled by resolveClassSection inside composeClassTitle.
+  return composeClassTitle({
+    element: cls.element ?? null,
+    level: cls.level ?? null,
+    section: cls.section ?? null,
+    name: cls.name ?? null,
+  });
 }
 
 function readJsonArray(key: string): string[] {

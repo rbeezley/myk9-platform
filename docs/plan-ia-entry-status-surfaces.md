@@ -67,6 +67,16 @@ Remediation plan for [`docs/ia-review-entry-status-surfaces.md`](ia-review-entry
 
 **Exit criterion:** `grep` for independent status/section/refund derivation returns only the selector module; full test suite + `pnpm typecheck` green.
 
+### Phase B — outcome (implemented)
+
+- **`mapEntryStatus`** is now a re-export from `services/entryDisplay/entryStatusUiAdapter.ts`, a thin kind→UI-`EntryStatus` adapter built on `getEntryStatusKind`. **Owner decision (2026-06-18):** `entry_status='paid'` and `'promotion-expired'` are special-cased to stay `PENDING` (the secretary's "needs review" lane) rather than the classifier's `accepted`/`not_accepted` — payment ≠ acceptance. The one intentional change from the old switch: the underscore `move_up_requested` spelling now resolves like its hyphen twin.
+- **`getEntryStatusClasses` + `mapClassEntryStatus`** rebuilt to `switch` on the classifier KIND (no parallel raw switch).
+- **Section sweep:** `reportDataMapping.ts` (2 sites) + `atShowDataAdapter.ts` (`buildClassName` → `composeClassTitle`, 2 section defaults) onto `resolveClassSection`, which now also folds the at-show `'-'` "no section" sentinel and blanks to `''`.
+- **Enum consumers** (My Entries filters/predicates/badges, secretary stats) ride the single projection rather than being rewired to raw `statusKind` — keying the badge off the raw kind would re-diverge from the `paid→PENDING` filter. Audited every `EntryStatus.` reference; none classify raw independently anymore.
+- **Deliberately left** (different/finer status domains, not the divergent surfaces): `useClassEntries.mapEntryStatus` (finer live `at_gate`/`checked_in`), the scoring mappers (scoring domain; `scoringMappers` only validates the canonical value), `entryStatusUtils` (show-availability domain), and payment-status counters (metrics, not labels).
+- **The two same-named `getEntryStatusBadge`** are kept — they are per-surface voice layers ("Pulled/Not Accepted" vs "Pending Review/Rejected"+`isPastShow`), not redundant logic; both now consume the unified projection.
+- **Guard:** `entryStatusClassifierGuard.test.ts` fails if `'promotion-expired'`/`'move-up-requested'` are classified (case/`===`) outside `services/entryDisplay/`.
+
 ---
 
 ## Phase C *(optional)* — Page-vs-tab scope decision

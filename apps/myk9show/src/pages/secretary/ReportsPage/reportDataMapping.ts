@@ -1,4 +1,5 @@
 import { mapDbEntryToReportEntry } from '@/lib/reports/reportUtils';
+import { resolveClassSection } from '@/services/entryDisplay/entryDisplaySelectors';
 import { REPORT_ENTRY_SOURCE } from '@/lib/reports/types';
 import type { ReportEntry, ReportProps } from '@/lib/reports/types';
 import type { DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
@@ -104,7 +105,7 @@ function mapReportEntry(e: DbEntry, trial?: DbTrial, classData?: DbClass): Repor
           classId: classData.id,
           classElement: classData.element ?? '',
           classLevel: classData.level ?? '',
-          classSection: classData.section ?? '',
+          classSection: resolveClassSection(classData.section),
           ...(classData.judge_name ? { judgeName: classData.judge_name } : {}),
         }
       : {}),
@@ -151,7 +152,7 @@ export function buildTrialReportProps(input: {
     trialId: c.trial_id ?? '',
     element: c.element ?? '',
     level: c.level ?? '',
-    section: c.section ?? '',
+    section: resolveClassSection(c.section),
     ...(c.judge_name ? { judgeName: c.judge_name } : {}),
   }));
 

@@ -21,6 +21,7 @@ import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTa
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import { toRingsideClassStatus } from './ringsideClassStatusMap';
 import { getFavoriteClassIdsForTrial } from '@/features/show-today/accountTodayEntries.helpers';
+import { composeClassTitle } from '@/services/entryDisplay/entryDisplaySelectors';
 
 /** A trial and its classes (mapped to ringside `ClassEntry`), for grouped display. */
 export interface AtShowClassGroup {
@@ -28,10 +29,13 @@ export interface AtShowClassGroup {
   classes: ClassEntry[];
 }
 
-/** Render the class name from element + level (+ section unless '-'). */
+/** Render the class name from element + level (+ section). The '-' "no section" sentinel is handled by resolveClassSection inside composeClassTitle. */
 export function buildClassName(cls: ReplicatedClass): string {
-  const section = cls.section && cls.section !== '-' ? ` ${cls.section}` : '';
-  return `${cls.element ?? ''} ${cls.level ?? ''}${section}`.trim();
+  return composeClassTitle({
+    element: cls.element ?? null,
+    level: cls.level ?? null,
+    section: cls.section ?? null,
+  });
 }
 
 /** Section normalized to 'A'/'B' for pairing, else '' (no pairing). */

@@ -26,12 +26,22 @@ import {
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
+import { composeClassTitle, resolveClassSection } from '@/services/entryDisplay/entryDisplaySelectors';
 
-/** Build the rendered class name from element + level (+ section unless '-'). */
+/**
+ * Build the rendered class name from element + level (+ section). Delegates to
+ * the shared composeClassTitle; the '-' "no section" sentinel that used to be
+ * handled here now lives in resolveClassSection (see entryDisplaySelectors).
+ */
 function buildClassName(cls: ReplicatedClass | null): string {
   if (!cls) return '';
-  const section = cls.section && cls.section !== '-' ? ` ${cls.section}` : '';
-  return `${cls.element ?? ''} ${cls.level ?? ''}${section}`.trim();
+  // `?? null` because ReplicatedClass fields are `string | undefined` and
+  // ClassTitleInput is `string | null` under exactOptionalPropertyTypes.
+  return composeClassTitle({
+    element: cls.element ?? null,
+    level: cls.level ?? null,
+    section: cls.section ?? null,
+  });
 }
 
 /**
@@ -97,7 +107,7 @@ export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null)
 
     // Class-derived header fields.
     className: buildClassName(cls),
-    section: cls?.section ?? '',
+    section: resolveClassSection(cls?.section),
     element: cls?.element ?? re.element ?? '',
     level: cls?.level ?? re.level ?? '',
 
@@ -148,7 +158,7 @@ export function buildClassInfo(
     className: buildClassName(cls),
     element: cls.element ?? '',
     level: cls.level ?? '',
-    section: cls.section ?? '',
+    section: resolveClassSection(cls.section),
     trialDate: trial?.date ?? trial?.trial_date ?? entries[0]?.trialDate ?? '',
     judgeName: cls.judgeName ?? 'No Judge Assigned',
     actualClassId: cls.id,

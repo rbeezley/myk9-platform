@@ -1,0 +1,83 @@
+# Plan: Consolidate Entry-Status Display Logic
+
+> **Status:** Active
+
+Remediation plan for [`docs/ia-review-entry-status-surfaces.md`](ia-review-entry-status-surfaces.md). The IA review found the three entry surfaces (exhibitor cross-show page, exhibitor single-show tab, secretary management) are **deliberate and should stay**, but the same four display facts — status label, class section, refund, class title — are computed in **4+ independent mappers across two incompatible status enums**. That fragmentation caused the 2026-06-18 walk divergence ("withdrawn" vs "Upcoming", phantom "Section A"). This plan collapses the display logic to a single source so the surfaces cannot disagree.
+
+**Goal:** one pure `getEntryDisplay()` selector is the *only* place per-entry display facts are derived. Every surface renders through it.
+
+**Non-goal:** deleting or merging any of the three surfaces (they are intentional per CLAUDE.md / INTENT.md). Phase C only *considers* the page-vs-tab scope question.
+
+## Guardrails
+
+- **Offline-first (CLAUDE.md "Offline-first data"):** the selector is a **pure function of already-fetched replication-row fields**. It must NOT call `supabase.from` or any async read — that would break the offline path for `/exhibitor/entries` and the My Entries tab (both replication-first, PostgREST only as fallback). No hooks inside it.
+- **Canonical status domain:** the selector operates on the raw `entry-lifecycle` `EntryStatus` union, NOT the UI `show-registration-types` `EntryStatus` enum. The dual-domain mismatch (`mapEntryStatus` folding `withdrawn`+`cancelled`) is the bug; do not preserve it.
+- **Assertion-first (CLAUDE.md Testing):** for each status→label / refund mapping, write the `expect(getEntryDisplay(row)).toEqual(...)` line first and run it red before moving the logic.
+- **Pre-launch, no users:** no backwards-compat shims for the old mappers — delete them in the same sweep.
+
+---
+
+## Phase A — Extract the shared selector + migrate the 3 core hooks
+
+**Entry trigger:** plan approved.
+
+1. Create `apps/myk9show/src/services/entryDisplay/entryDisplaySelectors.ts` exporting a pure
+   `getEntryDisplay(row): { statusLabel, statusKind, classTitle, section, refundLabel }`.
+   - Input = canonical fields already present on a replication row: `entry_status` (canonical union), `payment_status`, `refund_amount`, `refunded_at`, class `{ element, level, section, name }`, trial date, `hasResult`.
+   - Status label: one `switch` over the canonical union — folds in today's `mapEntryStatus`, both `getEntryStatusBadge` copies, and `getRemovedStateLabel`/`getPendingResultLabel`. Every canonical status (including `cancelled`, `moved`, `move-up-requested`) maps explicitly; no fall-through to "Upcoming" for terminal states.
+   - Section: the single `section ?? ''` default (kills the phantom-"A" class structurally).
+   - Refund: **prefer explicit `refund_amount`/`refunded_at`**; only fall back to `payment_status` inference when columns are absent. `partial_refund` handled explicitly.
+   - Class title: one composition rule (decide: stored `name` vs composed `element+level+section` — match what exhibitors expect; document the choice in the module header).
+2. Migrate the three core hooks to call it instead of mapping inline:
+   - `useMyEntriesData` (`pages/MyEntriesPage/modules/`)
+   - `useShowEntriesForUser` (`hooks/`)
+   - `useEntryManagementData` (`pages/secretary/` / `utils/entryManagementUtils.ts`)
+3. Leave the old mappers in place *only* if still referenced by un-migrated sites; mark them `@deprecated` pointing at the selector.
+
+### Phase A — Tests (required)
+- Unit tests for `getEntryDisplay`: one case per status (`confirmed`, `submitted`, `withdrawn`, `scratched`, `not_accepted`, `cancelled`, `moved`, `move-up-requested`, `completed`) asserting an identical `statusLabel` regardless of caller.
+- Section: `null → ''`, `'A' → 'A'`, `'B' → 'B'`.
+- Refund: `refunded` + `refund_amount=30 → "Refunded $30"`; `partial_refund` + amount; `payment_status='refunded'` with no column → inferred label.
+- Regression pin: the walk fixture (Ranger / Exterior Excellent, withdrawn+refunded) yields **the same** `statusLabel`+`refundLabel` for all three hook inputs.
+
+**Exit criterion:** the three core surfaces render via `getEntryDisplay`; the tests above pass; a `withdrawn`/`cancelled`/`moved` row and a `partial_refund` row produce identical labels across all three.
+
+---
+
+## Phase B — Sweep the remaining render sites + delete the duplicates
+
+**Entry trigger:** Phase A merged.
+
+1. Migrate the ~22 remaining entry-state render sites (At-Show pages, Trial entries table, TV display, dog activity, move-up/pull/waitlist tabs, entry receipt/edit dialogs, scoring/results cards — full list via grep) onto `getEntryDisplay`.
+2. Delete the now-dead duplicates: the second `getEntryStatusBadge`, the dual-domain `mapEntryStatus` (or reduce it to a thin re-export of the selector's `statusKind`), and the per-mapper section defaults once nothing else reads them.
+3. Update any source-text/unit tests that pinned the old mappers (grep `mapEntryStatus`, `getEntryStatusBadge`, `getRemovedStateLabel`).
+
+### Phase B — Tests (required)
+- A guard test (source-text or import-graph) asserting entry status/section/refund are mapped **only** inside `services/entryDisplay/` — fails if a new independent mapper appears.
+- Rebuild any edited `packages/*` before running app tests (built-dist gotcha).
+
+**Exit criterion:** `grep` for independent status/section/refund derivation returns only the selector module; full test suite + `pnpm typecheck` green.
+
+---
+
+## Phase C *(optional)* — Page-vs-tab scope decision
+
+**Entry trigger:** owner decision (F5 is Medium, not blocking).
+
+The exhibitor **My Entries tab** (single-show, "where to be") overlaps the **My Entries page** (cross-show, "manage + pay") in data but not intent. Decide one of:
+- **Keep both** as distinct intents (status quo) — document why in INTENT.md.
+- **Collapse the tab to a summary** that deep-links to `/exhibitor/entries?show=<id>` (CLAUDE.md "fast path = link, not new UI"), removing the second full render.
+
+No code until the owner picks. If "collapse," it becomes its own small plan.
+
+---
+
+## Sequencing
+
+```
+Phase A (selector + 3 hooks + tests)  ──→  Phase B (sweep + delete + guard test)  ──→  Phase C (optional, owner-gated)
+```
+
+A is the foundation (resolves F1–F4 for the surfaces that actually disagreed). B makes the invariant repo-wide and un-revertable. C is a separate UX judgment call.
+
+**Estimated effort:** A = 1 PR · B = 2–3 PRs · C = 0–1 PR.

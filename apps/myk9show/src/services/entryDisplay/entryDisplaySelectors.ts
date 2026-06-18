@@ -158,9 +158,17 @@ export function getRefundLabel({ paymentStatus, refundAmount, refundedAt }: Refu
  * Class section, normalized. Only AKC Scent Work Novice splits into A/B; all
  * other levels store NULL and must render as '' — defaulting NULL to 'A' printed
  * a phantom "Exterior Excellent A". This is the single home for that default.
+ *
+ * Three spellings all mean "no section" and collapse to '': NULL/undefined, a
+ * blank/whitespace string, and the at-show/ringside sentinel '-' (previously
+ * special-cased only inside atShowDataAdapter.buildClassName). Centralizing the
+ * '-' rule here lets composeClassTitle stand in for that bespoke builder without
+ * printing a phantom "Exterior Excellent -".
  */
 export function resolveClassSection(raw: string | null | undefined): string {
-  return raw ?? '';
+  const trimmed = raw?.trim();
+  if (!trimmed || trimmed === '-') return '';
+  return trimmed;
 }
 
 export interface ClassTitleInput {

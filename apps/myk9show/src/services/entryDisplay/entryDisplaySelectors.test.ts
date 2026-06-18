@@ -90,6 +90,12 @@ describe('resolveClassSection — single phantom-A defense', () => {
     expect(resolveClassSection('A')).toBe('A');
     expect(resolveClassSection('B')).toBe('B');
   });
+  it('treats the at-show "-" sentinel and blank strings as no section', () => {
+    expect(resolveClassSection('-')).toBe('');
+    expect(resolveClassSection('')).toBe('');
+    expect(resolveClassSection('   ')).toBe('');
+    expect(resolveClassSection(' A ')).toBe('A');
+  });
 });
 
 describe('getRefundLabel — prefers explicit columns, falls back to inference', () => {
@@ -128,6 +134,11 @@ describe('composeClassTitle — section pinned, falls back to name', () => {
   it('includes a real section', () => {
     expect(composeClassTitle({ element: 'Interior', level: 'Novice', section: 'A' })).toBe(
       'Interior Novice A'
+    );
+  });
+  it('drops the at-show "-" no-section sentinel (parity with the old buildClassName)', () => {
+    expect(composeClassTitle({ element: 'Exterior', level: 'Excellent', section: '-' })).toBe(
+      'Exterior Excellent'
     );
   });
   it('falls back to the stored name when parts are missing', () => {

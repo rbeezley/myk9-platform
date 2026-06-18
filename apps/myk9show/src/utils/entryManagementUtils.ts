@@ -2,6 +2,8 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryStatus as CanonicalEntryStatus } from '@/types/entry-lifecycle';
+import { getEntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
+import { mapEntryStatus } from '@/services/entryDisplay/entryStatusUiAdapter';
 
 /**
  * Entry management utility functions
@@ -9,41 +11,15 @@ import type { EntryStatus as CanonicalEntryStatus } from '@/types/entry-lifecycl
  */
 
 /**
- * Map database entry status to UI enum
+ * Map a raw DB entry status to the UI `EntryStatus` enum.
+ *
+ * Re-exported from the single classifier home (`services/entryDisplay/`) so the
+ * page + secretary surfaces classify identically to the exhibitor tab. The
+ * `paid`/`promotion-expired` bucket preservation lives there too — see
+ * `entryStatusUiAdapter`. Imported above (for local colour use) and re-exported
+ * here so existing `@/utils/entryManagementUtils` import paths keep working.
  */
-export const mapEntryStatus = (status?: string | null): EntryStatus => {
-  switch (status) {
-    case 'accepted':
-    case 'confirmed':
-      return EntryStatus.ACCEPTED;
-    case 'pending':
-    case 'submitted':
-      return EntryStatus.PENDING;
-    case 'waitlisted':
-      return EntryStatus.WAITLIST;
-    case 'not_accepted':
-    case 'rejected': // legacy value from migration 173
-      return EntryStatus.REJECTED;
-    case 'withdrawn':
-    case 'cancelled': // legacy UI value
-      return EntryStatus.CANCELLED;
-    case 'scratched':
-      return EntryStatus.SCRATCHED;
-    case 'moved':
-      return EntryStatus.MOVED;
-    case 'completed':
-      // Scored entries with recorded results — terminal, NOT awaiting review.
-      // Without this case they collapsed to PENDING and inflated the
-      // Entry Management "Pending / Need review" stat + tab (audit F2).
-      return EntryStatus.COMPLETED;
-    case 'move-up-requested':
-      // Exhibitor requested a class move-up; handled in a separate approval
-      // queue, so it must stay out of the accept/reject Pending bucket.
-      return EntryStatus.MOVE_UP_REQUESTED;
-    default:
-      return EntryStatus.PENDING;
-  }
-};
+export { mapEntryStatus };
 
 /**
  * Map database payment status to UI enum
@@ -70,24 +46,25 @@ export const mapPaymentStatus = (status?: string | null): PaymentStatus => {
 };
 
 /**
- * Map database class entry status to UI string
+ * Map database class entry status to the participation chip shown on a class row.
+ * Derives from the single classifier KIND (no parallel raw switch) so the chip
+ * agrees with every other entry-status surface.
  */
 export const mapClassEntryStatus = (
   status?: string | null
 ): 'entered' | 'scratched' | 'moved' | 'absent' => {
-  switch (status) {
-    case 'accepted':
-    case 'pending':
-      return 'entered';
+  switch (getEntryStatusKind(status)) {
     case 'withdrawn':
     case 'scratched':
       return 'scratched';
     case 'moved':
       return 'moved';
-    case 'rejected':
+    case 'not_accepted': // declined / promotion-expired — not running
     case 'absent':
       return 'absent';
     default:
+      // accepted / pending / waitlist / in_ring / completed / move_up_requested
+      // / unknown all read as a live "entered" chip, matching the prior default.
       return 'entered';
   }
 };
@@ -200,22 +177,26 @@ export function getPaymentStatusBadge(status: PaymentStatus): React.ReactNode {
 
 /**
  * Get Tailwind CSS classes for an entry status badge (string-based, for tables).
- * Accepts raw status strings from DB queries (e.g., 'confirmed', 'pending').
+ * Accepts raw status strings from DB queries (e.g., 'confirmed', 'pending') and
+ * colours via the SAME UI projection the filters/stats/badges use
+ * (`mapEntryStatus`), NOT the raw classifier kind. This matters for the owner
+ * overrides: `getEntryStatusKind('paid')` is `accepted`, but a paid entry is
+ * kept in the PENDING / needs-review lane — colouring it via the kind would tint
+ * it success/green on the Trial entries table and Show Details tab while the
+ * stats count it pending, recreating the very divergence this PR removes.
  */
 export function getEntryStatusClasses(status: string | null): string {
-  switch (status?.toLowerCase()) {
-    case 'confirmed':
-    case 'accepted':
+  switch (mapEntryStatus(status)) {
+    case EntryStatus.ACCEPTED:
       return 'bg-success/10 text-success border-success/30';
-    case 'pending':
-    case 'submitted':
+    case EntryStatus.PENDING:
       return 'bg-warning/10 text-warning border-amber-200 ';
-    case 'cancelled':
-    case 'withdrawn':
+    case EntryStatus.CANCELLED:
       return 'bg-destructive/10 text-destructive border-red-200 ';
-    case 'waitlisted':
+    case EntryStatus.WAITLIST:
       return 'bg-info/10 text-info border-blue-200 ';
     default:
+      // REJECTED / SCRATCHED / MOVED / COMPLETED / MOVE_UP_REQUESTED — neutral, as before.
       return 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-200';
   }
 }

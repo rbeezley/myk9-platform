@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
-import { mapEntryStatus, mapPaymentStatus, mapStatusToDb } from './entryManagementUtils';
+import {
+  mapEntryStatus,
+  mapPaymentStatus,
+  mapStatusToDb,
+  mapClassEntryStatus,
+  getEntryStatusClasses,
+} from './entryManagementUtils';
 
 describe('mapEntryStatus', () => {
   it("maps 'confirmed' to ACCEPTED", () => {
@@ -57,6 +63,66 @@ describe('mapEntryStatus', () => {
     expect(mapEntryStatus('unknown_value')).toBe(EntryStatus.PENDING);
     expect(mapEntryStatus(null)).toBe(EntryStatus.PENDING);
     expect(mapEntryStatus(undefined)).toBe(EntryStatus.PENDING);
+  });
+
+  it("keeps 'paid' and 'promotion-expired' in the secretary PENDING lane (owner decision)", () => {
+    // Regression pin for docs/plan-ia-entry-status-surfaces.md Phase B: routing
+    // through the canonical classifier must NOT move these out of "needs review".
+    expect(mapEntryStatus('paid')).toBe(EntryStatus.PENDING);
+    expect(mapEntryStatus('promotion-expired')).toBe(EntryStatus.PENDING);
+  });
+});
+
+describe('mapClassEntryStatus — participation chip via the shared classifier', () => {
+  it('maps removed/terminal states to their chip', () => {
+    expect(mapClassEntryStatus('withdrawn')).toBe('scratched');
+    expect(mapClassEntryStatus('scratched')).toBe('scratched');
+    expect(mapClassEntryStatus('moved')).toBe('moved');
+    expect(mapClassEntryStatus('absent')).toBe('absent');
+    expect(mapClassEntryStatus('not_accepted')).toBe('absent');
+  });
+
+  it('reads live / pending states as an entered chip', () => {
+    expect(mapClassEntryStatus('confirmed')).toBe('entered');
+    expect(mapClassEntryStatus('accepted')).toBe('entered');
+    expect(mapClassEntryStatus('pending')).toBe('entered');
+    expect(mapClassEntryStatus('paid')).toBe('entered');
+    expect(mapClassEntryStatus(null)).toBe('entered');
+  });
+});
+
+describe('getEntryStatusClasses — colour via the shared classifier KIND', () => {
+  it('tints accepted / pending / withdrawn / waitlist consistently', () => {
+    expect(getEntryStatusClasses('confirmed')).toContain('text-success');
+    expect(getEntryStatusClasses('accepted')).toContain('text-success');
+    expect(getEntryStatusClasses('submitted')).toContain('text-warning');
+    expect(getEntryStatusClasses('withdrawn')).toContain('text-destructive');
+    expect(getEntryStatusClasses('waitlisted')).toContain('text-info');
+  });
+
+  it('uses the neutral chip for terminal/uncoloured statuses', () => {
+    // COMPLETED / SCRATCHED / MOVED / REJECTED project to the gray default.
+    expect(getEntryStatusClasses('completed')).toContain('text-gray-700');
+    expect(getEntryStatusClasses('scratched')).toContain('text-gray-700');
+    expect(getEntryStatusClasses('moved')).toContain('text-gray-700');
+  });
+
+  it('treats null / no-status as PENDING (warning), matching the stats bucket', () => {
+    // mapEntryStatus(null) is the safe PENDING default — the same bucket the
+    // needs-review stat counts — so the colour is warning, not a misleading
+    // neutral gray that would imply "nothing to do".
+    expect(getEntryStatusClasses(null)).toContain('text-warning');
+    expect(getEntryStatusClasses('no-status')).toContain('text-warning');
+  });
+
+  it("colours 'paid'/'promotion-expired' as PENDING (warning), matching the bucket — not success", () => {
+    // Regression pin (PR #829 review): these color via the owner-aware UI
+    // projection, NOT getEntryStatusKind. getEntryStatusKind('paid') is
+    // 'accepted', which would tint success/green while the stats count the
+    // entry pending — the exact label-vs-status divergence this PR removes.
+    expect(getEntryStatusClasses('paid')).toContain('text-warning');
+    expect(getEntryStatusClasses('paid')).not.toContain('text-success');
+    expect(getEntryStatusClasses('promotion-expired')).toContain('text-warning');
   });
 });
 

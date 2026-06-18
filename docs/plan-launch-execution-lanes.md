@@ -96,10 +96,16 @@ Establishes what's actually broken before more UI changes land.
    primitive (`components/ui/RowActionMenu`); destructive items use the themed `text-destructive` /
    `--destructive-strong` tokens (WCAG-AA) instead of hard-coded reds; `ui/ThreeDotMenu` now a thin
    adapter, dead `users/ThreeDotMenu` deleted, EntryActionsMenu + ClassRowActionsMenu + admin
-   RowActions migrated. Follow-up: fold `common/ThreeDotMenu` (12 consumers, last parallel impl).
+   RowActions migrated. **Follow-up DONE 2026-06-18:** `common/ThreeDotMenu` (12 consumers, the last
+   parallel impl) folded onto `RowActionMenu` — there is now a single menu implementation behind two
+   thin prop-preserving adapters.
 2. **Entry Management checkbox multi-select** for bulk editing — *after* #1, or the interaction
-   pattern gets touched twice. — **IN PROGRESS** (Lane 2.2).
-3. **Print testing on venue hardware.**
+   pattern gets touched twice. — **DONE 2026-06-18**
+   ([#827](https://github.com/rbeezley/myk9-platform/pull/827)). Table-view checkbox multi-select +
+   sticky bulk-action bar (Approve / Reject / Check-In) reusing existing bulk mutations; selection
+   prunes on filter/tab change. Waitlist bulk action deferred (needs the real `waitlist_entries`
+   workflow).
+3. **Print testing on venue hardware.** *(hardware task — not code)*
 
 ## Lane 3 — Pre-Launch Hardening  *(safe to parallelize)*
 1. **Fix `--success` token** — fails WCAG AA as small text.

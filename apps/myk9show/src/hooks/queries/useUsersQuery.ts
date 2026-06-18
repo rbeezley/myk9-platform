@@ -145,7 +145,18 @@ const UserService = {
   permanentDelete: async (id: string): Promise<void> => {
     const result = await permanentDeleteUser(id);
     if (result.error) {
-      throw new Error(result.error.message);
+      interface ErrorWithDatabaseMetadata extends Error {
+        code?: string;
+        details?: string;
+      }
+      const error = new Error(result.error.message) as ErrorWithDatabaseMetadata;
+      if (result.error.code !== undefined) {
+        error.code = result.error.code;
+      }
+      if (result.error.details !== undefined) {
+        error.details = result.error.details;
+      }
+      throw error;
     }
   },
 

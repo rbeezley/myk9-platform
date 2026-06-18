@@ -401,7 +401,7 @@ export const TemplatePreview: React.FC<TemplatePreviewProps> = ({ template }) =>
                   <div key={field.fieldName} className="space-y-2">
                     <Label>
                       {field.displayName}
-                      {field.required && <span className="text-red-500 ml-1">*</span>}
+                      {field.required && <span className="text-destructive ml-1">*</span>}
                     </Label>
                     {field.dataType === 'select' && field.options ? (
                       <select

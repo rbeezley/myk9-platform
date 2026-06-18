@@ -87,7 +87,7 @@ const DatePickerField: React.FC<DatePickerFieldProps> = ({
         <div className="flex items-center gap-1">
           <label htmlFor={id} className="block text-sm font-medium">
             {label}
-            {required && <span className="text-red-500 ml-1">*</span>}
+            {required && <span className="text-destructive ml-1">*</span>}
           </label>
         </div>
       )}

@@ -3,16 +3,9 @@
  */
 
 import React from 'react';
-import { Eye, Pencil, Clock, Trash2, MoreVertical, CheckCircle, AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Eye, Pencil, Clock, Trash2, CheckCircle, AlertCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { RowActionMenu, type RowAction } from '@/components/ui/RowActionMenu';
 import { EntryData } from '../../types/classTypes';
 import { InlineEditEntry } from '../types';
 
@@ -27,7 +20,6 @@ interface EntryActionsMenuProps {
 }
 
 export const EntryActionsMenu: React.FC<EntryActionsMenuProps> = ({
-  entry,
   enableInlineEditing,
   editData,
   onView,
@@ -53,7 +45,6 @@ export const EntryActionsMenu: React.FC<EntryActionsMenuProps> = ({
           )
         ) : (
           <ActionDropdown
-            entry={entry}
             onView={onView}
             onEdit={onEdit}
             onEnterResults={onEnterResults}
@@ -68,7 +59,6 @@ export const EntryActionsMenu: React.FC<EntryActionsMenuProps> = ({
   // Original dropdown menu for non-inline editing mode
   return (
     <ActionDropdown
-      entry={entry}
       onView={onView}
       onEdit={onEdit}
       onEnterResults={onEnterResults}
@@ -79,7 +69,6 @@ export const EntryActionsMenu: React.FC<EntryActionsMenuProps> = ({
 };
 
 interface ActionDropdownProps {
-  entry: EntryData;
   onView: () => void;
   onEdit: () => void;
   onEnterResults: () => void;
@@ -94,45 +83,25 @@ const ActionDropdown: React.FC<ActionDropdownProps> = ({
   onDelete,
   showEnterResults
 }) => {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 w-8 p-0 hover:bg-muted"
-        >
-          <span className="sr-only">Open menu</span>
-          <MoreVertical className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuItem onClick={onView}>
-          <Eye className="mr-2 h-4 w-4" />
-          <span>View Details</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={onEdit}>
-          <Pencil className="mr-2 h-4 w-4" />
-          <span>Edit Entry</span>
-        </DropdownMenuItem>
-        {showEnterResults && (
-          <DropdownMenuItem
-            onClick={onEnterResults}
-            className="text-amber-600 focus:text-amber-600"
-          >
-            <Clock className="mr-2 h-4 w-4" />
-            <span>Enter Results</span>
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={onDelete}
-          className="text-red-600 focus:text-red-600"
-        >
-          <Trash2 className="mr-2 h-4 w-4" />
-          <span>Delete Entry</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
+  const actions: RowAction[] = [
+    { id: 'view', label: 'View Details', icon: <Eye />, onSelect: onView },
+    { id: 'edit', label: 'Edit Entry', icon: <Pencil />, onSelect: onEdit },
+    {
+      id: 'enter-results',
+      label: 'Enter Results',
+      icon: <Clock />,
+      onSelect: onEnterResults,
+      variant: 'warning',
+      hidden: !showEnterResults,
+    },
+    {
+      id: 'delete',
+      label: 'Delete Entry',
+      icon: <Trash2 />,
+      onSelect: onDelete,
+      variant: 'destructive',
+    },
+  ];
+
+  return <RowActionMenu actions={actions} size="sm" label="Entry actions" />;
 };

@@ -1,7 +1,13 @@
-import React, { ReactNode, useState } from 'react';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
-import { MoreVertical } from 'lucide-react';
+/**
+ * ThreeDotMenu — thin adapter over the canonical {@link RowActionMenu} primitive.
+ *
+ * Kept for its existing call sites (its `items` API maps 1:1 onto RowAction). New
+ * code should import `RowActionMenu` directly. This file no longer owns any menu
+ * behavior — RowActionMenu is the single source of truth for trigger, a11y,
+ * destructive styling, and separators.
+ */
+import React, { ReactNode } from 'react';
+import { RowActionMenu, type RowAction } from '@/components/ui/RowActionMenu';
 
 export interface ThreeDotMenuItem {
   label: string;
@@ -16,27 +22,22 @@ interface ThreeDotMenuProps {
 }
 
 const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({ items, align = 'end' }) => {
-  const [menuOpen, setMenuOpen] = useState(false);
+  const actions: RowAction[] = items.map((item, idx) => ({
+    id: String(idx),
+    label: item.label,
+    icon: item.icon,
+    onSelect: item.onClick,
+    className: item.className,
+  }));
+
   return (
-    <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-10 w-10 p-0" aria-label="More actions">
-          <MoreVertical className="h-5 w-5" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align={align}>
-        {items.map((item, idx) => (
-          <DropdownMenuItem
-            key={idx}
-            onClick={item.onClick}
-            className={`min-h-[44px] ${item.className || ''}`}
-          >
-            {item.icon}
-            {item.label}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <RowActionMenu
+      actions={actions}
+      align={align}
+      label="More actions"
+      size="touch"
+      triggerClassName="h-10 w-10"
+    />
   );
 };
 

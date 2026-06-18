@@ -155,7 +155,7 @@ async function postgrestGetClassById(id: string) {
     )
     .eq('id', id)
     .is('deleted_at', null)
-    .single();
+    .maybeSingle();
 
   if (error) throw createDatabaseError(error, 'class', 'select_by_id');
   return { data, error: null };
@@ -270,7 +270,12 @@ export const getClassById = async (id: string) => {
   return readWithReplicationFallback({
     replication: async () => {
       const cls = await replicatedClassesTable.getClassById(id);
-      if (!cls) return { data: null, error: null };
+      // A cold replication store (logged-out guest never syncs) returns null
+      // WITHOUT throwing, so withReplicationFallback's catch never fires and the
+      // public class page would read as not-found. Self-fall-through to the
+      // anon-safe PostgREST read (classes are a public entity — anon has direct
+      // SELECT), mirroring getClassesByTrialId's empty-store branch.
+      if (!cls) return await postgrestGetClassById(id);
 
       const [trial, classEntries, allDogs] = await Promise.all([
         cls.trialId ? replicatedTrialsTable.getTrialById(cls.trialId) : Promise.resolve(null),

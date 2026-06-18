@@ -23,7 +23,7 @@ import { compareLevels } from '@/utils/schedule-summary';
 import { shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 
-interface ClassInfo {
+export interface ClassInfo {
   id: string;
   name: string;
   element: string;

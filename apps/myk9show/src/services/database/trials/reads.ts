@@ -67,7 +67,7 @@ async function postgrestGetTrialById(id: string) {
     )
     .eq('id', id)
     .is('deleted_at', null)
-    .single();
+    .maybeSingle();
 
   if (error) throw createDatabaseError(error, 'trial', 'select_by_id');
   return { data, error: null };
@@ -250,7 +250,12 @@ export const getTrialById = async (id: string) => {
   return readWithReplicationFallback({
     replication: async () => {
       const trial = await replicatedTrialsTable.getTrialById(id);
-      if (!trial) return { data: null, error: null };
+      // A cold replication store (logged-out guest never syncs) returns null
+      // WITHOUT throwing, so withReplicationFallback's catch never fires and the
+      // public trial page would read as not-found. Self-fall-through to the
+      // anon-safe PostgREST read (trials are a public entity — anon has direct
+      // SELECT), mirroring getTrialsByShow's `if (!show)` branch.
+      if (!trial) return await postgrestGetTrialById(id);
       const show = trial.showId ? await replicatedShowsTable.getShowById(trial.showId) : null;
       const data = mapReplicatedTrialToDbRow(trial, { show });
       return { data, error: null };

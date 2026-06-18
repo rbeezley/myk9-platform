@@ -319,12 +319,33 @@ describe('classQueries (replication)', () => {
     });
 
     it('returns { data: null, error: null } for missing records', async () => {
+      // Cold store AND no DB row: replication returns null, then the PostgREST
+      // self-fall-through (maybeSingle) also yields null — still a clean
+      // not-found, no throw, no double-call.
       mockClassesTable.getClassById.mockResolvedValue(null);
+      mockSupabase.from.mockReturnValue(createChainableQuery({ data: null, error: null }));
 
       const result = await getClassById('non-existent');
 
       expect(result.data).toBeNull();
       expect(result.error).toBeNull();
+    });
+
+    it('falls through to PostgREST when the replication store is cold (logged-out guest)', async () => {
+      // A guest never syncs, so the replicated store returns null WITHOUT
+      // throwing — withReplicationFallback's catch never fires. The by-id read
+      // must self-fall-through to the anon-safe PostgREST read so the public
+      // class page renders instead of reading as not-found. (Lane 3.7)
+      mockClassesTable.getClassById.mockResolvedValue(null);
+      mockSupabase.from.mockReturnValue(
+        createChainableQuery({ data: { id: 'class-1', name: 'Novice A Containers' }, error: null })
+      );
+
+      const result = await getClassById('class-1');
+
+      expect(mockSupabase.from).toHaveBeenCalledWith('classes');
+      expect(result.error).toBeNull();
+      expect((result.data as Record<string, unknown>).id).toBe('class-1');
     });
 
     it('uses dogCallName fallback when dog not in dogs table', async () => {

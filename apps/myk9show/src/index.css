@@ -419,10 +419,11 @@ select:hover {
     --accent-foreground: #7c4a2e;
     --destructive: 239 68 68;
     --destructive-foreground: 255 255 255;
-    /* Strong destructive red for small TEXT on neutral light surfaces.
-       red-700 (185 28 28) clears WCAG AA (≥4.5:1) on card/popover/background;
-       the DEFAULT red-500 does not. Icons/large text may use the DEFAULT. */
-    --destructive-strong: 185 28 28;
+    /* AA-compliant red for SMALL text (e.g. 9px urgent label) on light
+       popover/card surfaces. The base --destructive (red-500) only clears
+       ~3.6:1 here; red-700 clears 6.1:1. Theme-aware: the .dark value flips
+       to a LIGHT red because no single shade passes on both surfaces. */
+    --destructive-strong: 185 28 28; /* red-700 #b91c1c — 6.1:1 on light popover */
     --border: #e4dccc; /* was #e8e6dc — v2 ivory-200 */
     --input: #ffffff; /* was #f5f4ed — inputs match card */
     --input-border: #e4dccc; /* was #e8e6dc */
@@ -495,9 +496,10 @@ select:hover {
     --accent-foreground: #d97757;
     --destructive: 220 38 38;
     --destructive-foreground: 255 255 255;
-    /* Strong destructive red for small TEXT on neutral dark surfaces.
-       red-400 (248 113 113) clears WCAG AA on dark card/popover/background. */
-    --destructive-strong: 248 113 113;
+    /* Theme-aware counterpart to the light --destructive-strong: a LIGHT red
+       so small text clears AA on the near-black popover/card. red-700 would
+       only reach ~2.6:1 here; red-400 clears 6.2:1. */
+    --destructive-strong: 248 113 113; /* red-400 #f87171 — 6.2:1 on dark popover */
     --success: 74 222 128;             /* green-400 */
     --warning: 251 191 36;             /* amber-400 */
     --info: 96 165 250;                /* blue-400 */

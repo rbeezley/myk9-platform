@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
@@ -226,12 +227,38 @@ describe('trialQueries (replication)', () => {
     });
 
     it('returns { data: null, error: null } for missing records', async () => {
+      // Cold store AND no DB row: replication returns null, then the PostgREST
+      // self-fall-through (maybeSingle) also yields null — still a clean
+      // not-found, no throw, no double-call.
       mockTrialsTable.getTrialById.mockResolvedValue(null);
+      mockSupabase.from.mockReturnValue(createChainableQuery({ data: null, error: null }));
 
       const result = await getTrialById('non-existent');
 
       expect(result.data).toBeNull();
       expect(result.error).toBeNull();
+    });
+
+    it('falls through to PostgREST when the replication store is cold (logged-out guest)', async () => {
+      // A guest never syncs, so the replicated store returns null WITHOUT
+      // throwing — withReplicationFallback's catch never fires. The by-id read
+      // must self-fall-through to the anon-safe PostgREST read so the public
+      // trial page renders instead of being stuck on "Loading trial...". (Lane 3.7)
+      mockTrialsTable.getTrialById.mockResolvedValue(null);
+      mockSupabase.from.mockReturnValue(
+        createChainableQuery({
+          data: { id: 'trial-1', show: { id: 'show-1', name: 'Spring Championship' } },
+          error: null,
+        })
+      );
+
+      const result = await getTrialById('trial-1');
+
+      expect(mockSupabase.from).toHaveBeenCalledWith('trials');
+      expect(result.error).toBeNull();
+      const row = result.data as Record<string, unknown>;
+      expect(row.id).toBe('trial-1');
+      expect((row.show as Record<string, unknown>).name).toBe('Spring Championship');
     });
   });
 

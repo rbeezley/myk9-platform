@@ -91,6 +91,43 @@ describe('ToastContainer', () => {
     expect(screen.getByLabelText(/dog alert/i)).toBeInTheDocument();
   });
 
+  it('renders the urgent label with the AA-compliant destructive-strong token', () => {
+    // text-red-400 (#f87171) fails WCAG AA as 9px text on the popover surface
+    // (~2.6:1 light / needs 4.5:1). The theme-aware text-destructive-strong
+    // token flips shade per theme so the label clears AA in both modes.
+    useToastStore.getState().addToast(makePayload('1', 'urgent'));
+    render(<ToastContainer />);
+
+    const label = screen.getByText(/will not auto-dismiss/i);
+    expect(label.className).toContain('text-destructive-strong');
+    expect(label.className).not.toContain('text-red-400');
+  });
+
+  it('renders the View action link with an AA-safe foreground+underline, not a low-contrast accent token', () => {
+    // Regression: the action link first used `text-orange-500` (#f97316) — only
+    // 2.66:1 on the light popover (#faf9f5) — then `text-primary`, which still
+    // fails WCAG AA on bg-popover in several accents (grove light 3.94:1, dusk
+    // dark 4.39:1, heather dark 4.40:1). `--primary` varies per accent and is
+    // tuned for white-on-primary buttons, so no single accent token is AA on the
+    // popover surface across every theme. `--foreground` is mode-only (never
+    // overridden per accent) and is the maximal-contrast text color (~17:1 light,
+    // ~15:1 dark on bg-popover). The persistent underline carries the link
+    // affordance so color is not the only cue (WCAG 1.4.1). This intermittently
+    // reddened the A11y smoke gate whenever a live toast was on the
+    // secretary-dashboard scan. Pin the AA-safe classes so an accent token can't
+    // creep back.
+    useToastStore
+      .getState()
+      .addToast({ ...makePayload('1'), actionUrl: '/classes/abc' });
+    render(<ToastContainer />);
+
+    const link = screen.getByRole('link', { name: /view/i });
+    expect(link).toHaveClass('text-foreground');
+    expect(link).toHaveClass('underline');
+    expect(link.className).not.toContain('text-orange-500');
+    expect(link.className).not.toContain('text-primary');
+  });
+
   it('pauses auto-dismiss on hover and resumes on mouse leave', () => {
     useToastStore.getState().addToast(makePayload('1', 'normal'));
     render(<ToastContainer />);

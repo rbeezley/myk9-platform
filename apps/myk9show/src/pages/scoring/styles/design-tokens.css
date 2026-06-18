@@ -338,11 +338,18 @@
   --live-tint: var(--ring-green-50);
   --live-ink: var(--ring-green-700);
 
-  /* v2 semantic status */
-  --success: #4e7c53;
-  --warning: #c88b1a;
+  /* v2 semantic status
+     NOTE: --success / --warning / --info are intentionally NOT declared here.
+     index.css owns them canonically as space-separated RGB triplets
+     (e.g. `--success: 21 128 61`) that feed Tailwind's text-success/-warning/
+     -info utilities via `rgb(var(--token) / <alpha-value>)` and carry the
+     WCAG AA contrast values (see PR #810). This file is @imported app-wide, so
+     redeclaring them here as hex would collide globally — and under Tailwind v4
+     native @layer this UNLAYERED :root would outrank index.css's layered :root
+     AND .dark, silently breaking every semantic utility (rgb(#hex) is invalid).
+     --danger has no index.css counterpart and is consumed by landing.css, so it
+     remains here. */
   --danger: #b04835;
-  --info: #3d6d8c;
 
   /* v2 warm shadows */
   --shadow-card: rgba(61, 37, 22, 0.05) 0 4px 24px;

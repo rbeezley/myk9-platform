@@ -285,7 +285,12 @@ const ShowDetailsPage: React.FC = () => {
     queryFn: async () => {
       const results = await Promise.all(
         landingTrials.map(async trial => {
-          const { data } = await getClassesByTrialId(trial.id);
+          const { data, error } = await getClassesByTrialId(trial.id);
+          // The service returns { data: [], error } on a fallback failure — NOT a
+          // throw. Swallowing that error would turn a failed read into a silent
+          // empty tab, re-creating the exact false-empty bug this query fixes.
+          // Throw so React Query surfaces the error (and retries) instead.
+          if (error) throw error;
           return { trialId: trial.id, rows: (data ?? []) as Record<string, unknown>[] };
         })
       );

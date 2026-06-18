@@ -68,11 +68,19 @@ vi.mock('@/hooks/useClassStoreCompat', () => ({
 
 // The by-id fallback queries — capture args to assert the store-first gating.
 let mockFallbackTrial: Trial | null = null;
+let mockTrialQueryError = false;
 const trialQueryCalls: Array<string | undefined> = [];
 vi.mock('@/hooks/queries/useTrialsDatabase', () => ({
   useTrialQuery: (id: string | undefined) => {
     trialQueryCalls.push(id);
-    return { data: id ? mockFallbackTrial : undefined, isFetched: !!id };
+    if (!id) {
+      // Disabled (warm store) — never resolves on its own.
+      return { data: undefined, isSuccess: false, isError: false, refetch: vi.fn() };
+    }
+    if (mockTrialQueryError) {
+      return { data: undefined, isSuccess: false, isError: true, refetch: vi.fn() };
+    }
+    return { data: mockFallbackTrial, isSuccess: true, isError: false, refetch: vi.fn() };
   },
 }));
 
@@ -166,6 +174,7 @@ describe('TrialDetailsPage', () => {
     mockSelectedTrialId = null;
     mockShows = [];
     mockFallbackTrial = null;
+    mockTrialQueryError = false;
     mockFallbackShow = null;
     trialQueryCalls.length = 0;
     showQueryCalls.length = 0;
@@ -198,12 +207,27 @@ describe('TrialDetailsPage', () => {
   it('shows not-found (not an infinite spinner) when the anon fallback settles empty', () => {
     mockTrials = [];
     mockSelectedTrialId = null;
-    mockFallbackTrial = null; // missing trial — query fetched, no row
+    mockFallbackTrial = null; // missing trial — query SUCCEEDED with no row
 
     renderPage();
 
     expect(screen.queryByText('Loading trial...')).not.toBeInTheDocument();
     expect(screen.getByText(/doesn't exist/i)).toBeInTheDocument();
+  });
+
+  it('shows a load error (not "doesn\'t exist") when the anon fallback query errors', () => {
+    // isFetched is true after an error too — gating not-found on it would
+    // mis-render a failed fetch as a missing trial. The page must distinguish
+    // a fetch error from a successful empty result.
+    mockTrials = [];
+    mockSelectedTrialId = null;
+    mockTrialQueryError = true;
+
+    renderPage();
+
+    expect(screen.queryByText('Loading trial...')).not.toBeInTheDocument();
+    expect(screen.queryByText(/doesn't exist/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/couldn't load this trial/i)).toBeInTheDocument();
   });
 
   it('reads the warm store for an authenticated secretary without enabling the fallback', () => {

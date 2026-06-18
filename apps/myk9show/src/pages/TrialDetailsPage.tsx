@@ -94,9 +94,12 @@ const TrialDetailsPage: React.FC = () => {
   // "Loading trial...". The query is disabled for warm sessions that already
   // have the trial in the store.
   const storeTrial = trials.find(trial => trial.id === selectedTrialId);
-  const { data: fallbackTrial, isFetched: fallbackTrialFetched } = useTrialQuery(
-    storeTrial ? undefined : trialId
-  );
+  const {
+    data: fallbackTrial,
+    isSuccess: fallbackTrialResolved,
+    isError: fallbackTrialError,
+    refetch: refetchFallbackTrial,
+  } = useTrialQuery(storeTrial ? undefined : trialId);
   const currentTrial = (storeTrial ?? fallbackTrial ?? undefined) as
     | (import('@/components/trials/types/trial.types').Trial & { classes?: TrialClass[] })
     | undefined;
@@ -298,11 +301,27 @@ const TrialDetailsPage: React.FC = () => {
     </div>
   );
 
+  // Load error on the anon fallback — distinct from "not found". The fetch
+  // failing (network / RLS / PostgREST) is NOT the same as the trial not
+  // existing; surfacing it as not-found would be misleading and offers no
+  // retry. Only relevant when the store didn't resolve the trial.
+  if (trialId && !currentTrial && fallbackTrialError) {
+    return (
+      <PageShell>
+        <ErrorState
+          message="We couldn't load this trial. Please try again."
+          onRetry={() => refetchFallbackTrial()}
+        />
+      </PageShell>
+    );
+  }
+
   // Not found state — the store knows about other trials but not this one
-  // (warm session), OR the anon by-id fallback has settled empty (cold guest
-  // on a bad id). Without the `fallbackTrialFetched` arm, a cold guest hitting
-  // a missing trial would spin forever (trials.length stays 0).
-  if (trialId && !currentTrial && (trials.length > 0 || fallbackTrialFetched)) {
+  // (warm session), OR the anon by-id fallback SUCCEEDED with an empty result
+  // (cold guest on a genuinely missing id). Gate on `isSuccess`, not `isFetched`
+  // — the latter is also true after an error, which would mis-render a failed
+  // fetch as "doesn't exist" (handled by the error branch above instead).
+  if (trialId && !currentTrial && (trials.length > 0 || fallbackTrialResolved)) {
     return (
       <PageShell>
         <ErrorState

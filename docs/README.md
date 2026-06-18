@@ -51,7 +51,6 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-class-status-auto-derivation.md](plan-class-status-auto-derivation.md)               | Active    | Plan — Class Status Auto-Derivation (Stub)                            |
 | [plan-data-access-module-drift.md](plan-data-access-module-drift.md)                       | Active    | Data Access Module Drift Plan                                         |
 | [plan-dynamic-qa-infrastructure.md](plan-dynamic-qa-infrastructure.md)                     | Complete  | Plan: Dynamic QA Infrastructure (follow-on to the Code-Quality Audit) |
-| [plan-ia-entry-status-surfaces.md](plan-ia-entry-status-surfaces.md)                       | Active    | Plan: Consolidate Entry-Status Display Logic                          |
 | [plan-lane-2-2-entry-multiselect.md](plan-lane-2-2-entry-multiselect.md)                   | Active    | Plan: Lane 2.2 — Entry Management checkbox multi-select               |
 | [plan-launch-execution-lanes.md](plan-launch-execution-lanes.md)                           | Active    | Plan: Fall Launch — Execution Lanes (canonical to-do)                 |
 | [plan-public-results-release-gate.md](plan-public-results-release-gate.md)                  | Active    | Plan: Server-side gate for public/anon scored results                |

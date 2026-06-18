@@ -1,6 +1,6 @@
 # Plan: Consolidate Entry-Status Display Logic
 
-> **Status:** Active
+> **Status:** Complete
 
 Remediation plan for [`docs/ia-review-entry-status-surfaces.md`](ia-review-entry-status-surfaces.md). The IA review found the three entry surfaces (exhibitor cross-show page, exhibitor single-show tab, secretary management) are **deliberate and should stay**, but the same four display facts — status label, class section, refund, class title — are computed in **4+ independent mappers across two incompatible status enums**. That fragmentation caused the 2026-06-18 walk divergence ("withdrawn" vs "Upcoming", phantom "Section A"). This plan collapses the display logic to a single source so the surfaces cannot disagree.
 

@@ -59,6 +59,7 @@ export function getEntryStatusKind(raw: string | null | undefined): EntryStatusK
     case 'draft':
     case 'no-status':
     case 'scratch-requested':
+    case 'scratch_requested': // underscore form still permitted by the CHECK constraint
     case 'pending-payment':
       return 'pending';
     case 'waitlisted':
@@ -84,6 +85,7 @@ export function getEntryStatusKind(raw: string | null | undefined): EntryStatusK
     case 'moved':
       return 'moved';
     case 'move-up-requested':
+    case 'move_up_requested': // underscore form still permitted by the CHECK constraint
       return 'move_up_requested';
     default:
       return 'unknown';

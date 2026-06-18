@@ -160,6 +160,15 @@ export function ReportControlsBar({
           const dog = dogs.find(d => d.id === dogId);
           return dog ? formatDogOptionLabel(dog) : 'All Dogs';
         })();
+  // The report-type and sort triggers had the same raw-id echo as the
+  // trial/class/dog triggers did before 2026-06-09: their option ids are
+  // kebab-case strings (`check-in-sheet`, `run-order`), not UUIDs, but the
+  // collapsed trigger still printed them. Resolve explicit human labels from the
+  // report registry so the trigger always shows a name, falling back to the
+  // placeholder text rather than the raw id.
+  const selectedReportLabel = selectedReport?.name ?? 'Select report';
+  const selectedSortLabel =
+    selectedReport?.sortOptions.find(opt => opt.value === sortOrder)?.label ?? 'Sort by';
 
   return (
     <div className="flex items-end gap-3 flex-wrap border-b px-4 py-3">
@@ -168,7 +177,7 @@ export function ReportControlsBar({
         <label className="text-xs font-medium text-muted-foreground">Report</label>
         <Select value={reportType} onValueChange={onReportTypeChange}>
           <SelectTrigger className="w-[200px]" aria-label="Select report">
-            <SelectValue placeholder="Select report" />
+            <SelectValue placeholder="Select report">{selectedReportLabel}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {REPORT_GROUP_ORDER.map(({ category, label }) => (
@@ -252,7 +261,7 @@ export function ReportControlsBar({
           <label className="text-xs font-medium text-muted-foreground">Sort</label>
           <Select value={sortOrder} onValueChange={onSortChange}>
             <SelectTrigger className="w-[160px]" aria-label="Select sort">
-              <SelectValue placeholder="Sort by" />
+              <SelectValue placeholder="Sort by">{selectedSortLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {selectedReport.sortOptions.map(opt => (

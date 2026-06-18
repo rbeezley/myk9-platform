@@ -113,7 +113,10 @@ describe('ReportControlsBar', () => {
 
     expect(screen.getByRole('status')).toHaveTextContent('Official PDF needs a quick review');
     expect(screen.getByText('Official PDF needs a quick review')).toBeInTheDocument();
-    expect(screen.getByText(/Trial Secretary/)).toBeInTheDocument();
+    // Scope to the alert: the report-type trigger now also shows the human label
+    // "Trial Secretary Report" (F5), so a document-wide /Trial Secretary/ query
+    // would match two nodes.
+    expect(screen.getByRole('status')).toHaveTextContent(/Trial Secretary/);
 
     await user.click(screen.getByRole('button', { name: /download official pdf/i }));
     expect(onClick).toHaveBeenCalledTimes(1);
@@ -121,8 +124,8 @@ describe('ReportControlsBar', () => {
 
   it('shows the current report type name', () => {
     render(<ReportControlsBar {...defaultProps} />);
-    // Base UI Select renders items into a portal; the trigger shows the raw value.
-    // The hidden input carries the value — check that the report value is present.
+    // Base UI Select renders items into a portal; the hidden input carries the
+    // value while the trigger shows the human label (see the F5 block below).
     const hiddenInputs = document.querySelectorAll('input[aria-hidden="true"]');
     const reportInput = Array.from(hiddenInputs).find(
       el => (el as HTMLInputElement).value === 'check-in-sheet'
@@ -362,6 +365,32 @@ describe('ReportControlsBar', () => {
       const trigger = screen.getByRole('combobox', { name: /select class/i });
       expect(trigger.textContent ?? '').not.toMatch(UUID_RE);
       expect(trigger.textContent ?? '').toMatch(/Container Novice A/);
+    });
+  });
+
+  // Regression (F5, Lane 1.2 secretary re-walk 2026-06-17): the report-type and
+  // sort triggers echoed their raw kebab-case option ids (`check-in-sheet`,
+  // `run-order`) instead of the human label, the same Base UI SelectValue echo
+  // the trial/class triggers had. These option ids are not UUIDs, so the prior
+  // UUID guard didn't catch them — assert the human label shows and the raw id
+  // does not.
+  describe('Report-type and sort triggers show human labels, not raw ids (F5)', () => {
+    it('shows the report name in the report-type trigger, not its id', () => {
+      render(<ReportControlsBar {...defaultProps} reportType="check-in-sheet" />);
+      const trigger = screen.getByRole('combobox', { name: /select report/i });
+      expect(trigger.textContent ?? '').toMatch(/Check-in Sheet/);
+      expect(trigger.textContent ?? '').not.toMatch(/check-in-sheet/);
+    });
+
+    it('shows the sort label in the sort trigger, not its value', () => {
+      // check-in-sheet exposes the run-order sort options, so the Sort dropdown
+      // renders with sortOrder="run-order" selected.
+      render(
+        <ReportControlsBar {...defaultProps} reportType="check-in-sheet" sortOrder="run-order" />
+      );
+      const trigger = screen.getByRole('combobox', { name: /select sort/i });
+      expect(trigger.textContent ?? '').toMatch(/Run Order/);
+      expect(trigger.textContent ?? '').not.toMatch(/run-order/);
     });
   });
 

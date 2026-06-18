@@ -185,43 +185,51 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
           </div>
         </div>
 
-        <TabsContent value={selectedTab} className="mt-6">
-          {entryViewMode === 'table' ? (
-            <EntriesTableView
-              entries={filteredEntries}
-              emailStatusMap={emailStatusMap}
-              onResendEmail={handleResendEmail}
-              isResendDisabled={isResendDisabled}
-            />
-          ) : (
-            <div className="space-y-3">
-              {enrollmentGroups.map(group => (
-                <EnrollmentCard
-                  key={group.groupKey}
-                  group={group}
-                  onStatusChange={onStatusChange}
-                  onEntryRefunded={onRefresh}
-                  onCheckInStatusChange={onCheckInStatusChange}
-                  onOpenArmbandDialog={onOpenArmbandDialog}
-                  onCompEntry={(entryId: string) => {
-                    const entry = group.entries.find(e => e.id === entryId);
-                    if (entry) onOpenCompDialog(entry);
-                  }}
-                  onUncompEntry={onUncompEntry}
-                  onRemoveEntry={onRemoveEntry}
-                  onBulkStatusChange={onBulkStatusChange}
-                  onBulkCheckIn={onBulkCheckIn}
-                  onPaymentStatusChange={onPaymentStatusChange}
-                  emailStatusMap={emailStatusMap}
-                  onResendEmail={handleResendEmail}
-                  isResendDisabled={isResendDisabled}
-                  onSendDecisionEmail={onSendDecisionEmail}
-                  lastDecisionEmailedAt={group.enrollmentId ? lastEmailedMap[group.enrollmentId] : undefined}
-                />
-              ))}
-            </div>
-          )}
-        </TabsContent>
+        {/* Catch-all content for the entry-list tabs (all/pending/accepted/
+            waitlist/issues): one TabsContent whose value tracks the active tab.
+            The Move-Ups and Pulled tabs have their own dedicated content below,
+            so this catch-all is suppressed for them — otherwise it rendered the
+            full entry list ABOVE the focused request queue, burying the decision
+            card (F6b). */}
+        {selectedTab !== 'move-ups' && selectedTab !== 'scratches' && (
+          <TabsContent value={selectedTab} className="mt-6">
+            {entryViewMode === 'table' ? (
+              <EntriesTableView
+                entries={filteredEntries}
+                emailStatusMap={emailStatusMap}
+                onResendEmail={handleResendEmail}
+                isResendDisabled={isResendDisabled}
+              />
+            ) : (
+              <div className="space-y-3">
+                {enrollmentGroups.map(group => (
+                  <EnrollmentCard
+                    key={group.groupKey}
+                    group={group}
+                    onStatusChange={onStatusChange}
+                    onEntryRefunded={onRefresh}
+                    onCheckInStatusChange={onCheckInStatusChange}
+                    onOpenArmbandDialog={onOpenArmbandDialog}
+                    onCompEntry={(entryId: string) => {
+                      const entry = group.entries.find(e => e.id === entryId);
+                      if (entry) onOpenCompDialog(entry);
+                    }}
+                    onUncompEntry={onUncompEntry}
+                    onRemoveEntry={onRemoveEntry}
+                    onBulkStatusChange={onBulkStatusChange}
+                    onBulkCheckIn={onBulkCheckIn}
+                    onPaymentStatusChange={onPaymentStatusChange}
+                    emailStatusMap={emailStatusMap}
+                    onResendEmail={handleResendEmail}
+                    isResendDisabled={isResendDisabled}
+                    onSendDecisionEmail={onSendDecisionEmail}
+                    lastDecisionEmailedAt={group.enrollmentId ? lastEmailedMap[group.enrollmentId] : undefined}
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        )}
 
         {/* Move-Ups Tab Content */}
         <TabsContent value="move-ups" className="mt-6">

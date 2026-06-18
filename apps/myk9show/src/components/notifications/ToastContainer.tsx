@@ -97,7 +97,7 @@ function Toast({ entry, onDismiss }: { entry: ToastEntry; onDismiss: (id: string
       </div>
 
       {payload.priority === 'urgent' && (
-        <p className="pb-1.5 text-center text-[9px] font-medium text-red-400">
+        <p className="pb-1.5 text-center text-[9px] font-medium text-foreground">
           URGENT — will not auto-dismiss
         </p>
       )}

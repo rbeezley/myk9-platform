@@ -116,6 +116,27 @@ describe('ToastContainer', () => {
     expect(link.className).not.toContain('text-primary');
   });
 
+  it('renders the URGENT label with an AA-safe foreground, not the low-contrast text-red-400', () => {
+    // Regression: the urgent banner used `text-red-400` (#f87171) — only ~2.5:1
+    // as 9px text on the light popover (#faf9f5), well under the WCAG AA 4.5:1
+    // small-text bar. No red token is AA here: a single static red can't satisfy
+    // both popover surfaces (#faf9f5 light / #1e1c19 dark), `text-destructive`
+    // fails (~3.5:1 both modes, and it can't be darkened without breaking
+    // white-on-destructive buttons), and hand-paired `dark:` palette classes are
+    // banned by lint. `--foreground` is mode-only (never accent-overridden) and
+    // maximal-contrast (~17:1 light / ~15:1 dark on bg-popover). The red urgency
+    // cue is still carried by the red left border + the bold literal "URGENT"
+    // word, so color is not the only signal (WCAG 1.4.1). This intermittently
+    // reddened the A11y smoke gate whenever a live urgent toast was on the
+    // secretary-dashboard scan. Pin the AA-safe class so a flat red can't return.
+    useToastStore.getState().addToast(makePayload('1', 'urgent'));
+    render(<ToastContainer />);
+
+    const label = screen.getByText(/will not auto-dismiss/i);
+    expect(label).toHaveClass('text-foreground');
+    expect(label.className).not.toMatch(/text-red-\d/);
+  });
+
   it('pauses auto-dismiss on hover and resumes on mouse leave', () => {
     useToastStore.getState().addToast(makePayload('1', 'normal'));
     render(<ToastContainer />);

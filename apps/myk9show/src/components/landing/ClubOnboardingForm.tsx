@@ -259,7 +259,7 @@ export default function ClubOnboardingForm() {
               htmlFor="onb-club-name"
               className="block text-sm font-medium text-foreground mb-1.5"
             >
-              Club Name <span className="text-red-500">*</span>
+              Club Name <span className="text-destructive">*</span>
             </label>
             <input
               id="onb-club-name"
@@ -278,7 +278,7 @@ export default function ClubOnboardingForm() {
               htmlFor="onb-organization"
               className="block text-sm font-medium text-foreground mb-1.5"
             >
-              Organization <span className="text-red-500">*</span>
+              Organization <span className="text-destructive">*</span>
             </label>
             <select
               id="onb-organization"
@@ -303,7 +303,7 @@ export default function ClubOnboardingForm() {
                 htmlFor="onb-contact-name"
                 className="block text-sm font-medium text-foreground mb-1.5"
               >
-                Contact Name <span className="text-red-500">*</span>
+                Contact Name <span className="text-destructive">*</span>
               </label>
               <input
                 id="onb-contact-name"
@@ -320,7 +320,7 @@ export default function ClubOnboardingForm() {
                 htmlFor="onb-contact-email"
                 className="block text-sm font-medium text-foreground mb-1.5"
               >
-                Contact Email <span className="text-red-500">*</span>
+                Contact Email <span className="text-destructive">*</span>
               </label>
               <input
                 id="onb-contact-email"

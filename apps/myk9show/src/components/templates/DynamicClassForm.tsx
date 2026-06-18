@@ -386,7 +386,7 @@ export const DynamicClassForm: React.FC<DynamicClassFormProps> = ({
         <div className="flex items-center gap-2">
           <Label htmlFor={fieldId} className="text-sm font-medium">
             {field.displayName}
-            {field.required && <span className="text-red-500 ml-1">*</span>}
+            {field.required && <span className="text-destructive ml-1">*</span>}
           </Label>
           {field.unit && (
             <Badge variant="outline" className="text-xs">

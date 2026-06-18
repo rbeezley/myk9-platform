@@ -172,12 +172,12 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
 
           {/* Unassigned pool judges — non-blocking warning */}
           {unassignedPoolJudgeNames.length > 0 && (
-            <Card className="border-amber-500/30 bg-amber-500/10">
+            <Card className="border-warning/30 bg-warning/10">
               <CardContent className="pt-4">
                 <div className="flex gap-3">
-                  <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                  <AlertTriangle className="h-5 w-5 text-warning mt-0.5 flex-shrink-0" />
                   <div>
-                    <h4 className="font-medium text-amber-600 dark:text-amber-400 mb-1">
+                    <h4 className="font-medium text-warning mb-1">
                       {unassignedPoolJudgeNames.length === 1
                         ? '1 judge is not assigned to any class'
                         : `${unassignedPoolJudgeNames.length} judges are not assigned to any class`}

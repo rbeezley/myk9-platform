@@ -8,6 +8,7 @@ import { useShowStoreCompat } from '@/hooks/useShowStoreCompat';
 import { getDogDisplayName } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
 import { getClassName } from '@/components/classes/types/classTypes';
+import { resolveClassSection } from '@/services/entryDisplay/entryDisplaySelectors';
 import { entryIsScored } from '@/utils/entryPredicates';
 import { hasScopedClubRole, hasScopedShowRole } from '@/utils/roleScopes';
 import { resolveMoveUpDisplay } from '@/hooks/moveUpDisplay';
@@ -86,7 +87,7 @@ function classDisplayName(cls: ClassNameFields): string {
   return getClassName({
     element: cls.element ?? '',
     level: cls.level ?? '',
-    section: cls.section ?? '',
+    section: resolveClassSection(cls.section),
     className: cls.className,
   });
 }

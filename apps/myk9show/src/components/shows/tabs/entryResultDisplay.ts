@@ -1,6 +1,12 @@
 import { parseLocalDateString } from '@/utils/dateLocal';
 import { startOfLocalDay } from '@/pages/MyEntriesPage/modules/myEntriesStats.helpers';
 import type { EntryStatus } from '@/types/entry-lifecycle';
+import {
+  getEntryStatusKind,
+  getRefundLabel,
+  getRemovedStatusLabel,
+  isRemovedStatus,
+} from '@/services/entryDisplay/entryDisplaySelectors';
 
 interface PendingResultEntry {
   hasResult: boolean;
@@ -22,24 +28,6 @@ interface RemovedStateEntry {
   entryStatus: EntryStatus;
   paymentStatus: EntryPaymentStatus;
 }
-
-/**
- * Terminal "removal" states where an entry will never produce a normal run
- * result. These must win over the pending/result label so the exhibitor's
- * Show Details tab agrees with the secretary's Entry Management view rather
- * than mislabeling a withdrawn entry as "Upcoming" (UX-P1-04).
- *
- * 'absent' is excluded — it's a day-of competition outcome that flows through
- * normal result rendering, not a pre-result removal. 'moved' is excluded too:
- * the move-up flow leaves the source row visible beside its live destination
- * (move-up.ts), so de-duplicating that pair is move-up-seam work, not the
- * refund/withdrawal seam this fix addresses.
- */
-const REMOVED_STATE_LABELS: Partial<Record<EntryStatus, string>> = {
-  withdrawn: 'Withdrawn',
-  scratched: 'Scratched',
-  not_accepted: 'Not accepted',
-};
 
 function parseTrialDate(value: string): Date | undefined {
   const localDate = parseLocalDateString(value);
@@ -70,9 +58,13 @@ export function getPendingResultLabel(entry: PendingResultEntry, now = new Date(
  * renders — reading it here keeps the two roles in agreement (UX-P1-04).
  */
 export function getRemovedStateLabel(entry: RemovedStateEntry): string | null {
-  const base = REMOVED_STATE_LABELS[entry.entryStatus];
-  if (!base) return null;
-  if (entry.paymentStatus === 'refunded') return `${base} · Refunded`;
-  if (entry.paymentStatus === 'partial_refund') return `${base} · Partial refund`;
-  return base;
+  // Removal classification + refund are now owned by the shared entry-display
+  // selector, so this tab can't disagree with the page / secretary view on
+  // whether an entry is terminal (the old private 3-literal allowlist missed
+  // legacy values like 'cancelled' and mislabeled them "Upcoming").
+  const kind = getEntryStatusKind(entry.entryStatus);
+  if (!isRemovedStatus(kind)) return null;
+  const base = getRemovedStatusLabel(kind) ?? '';
+  const refund = getRefundLabel({ paymentStatus: entry.paymentStatus });
+  return refund ? `${base} · ${refund}` : base;
 }

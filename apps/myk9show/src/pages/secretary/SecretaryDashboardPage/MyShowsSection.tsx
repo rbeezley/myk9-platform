@@ -114,6 +114,11 @@ export function MyShowsSectionSkeleton() {
     <div
       data-testid="my-shows-section-skeleton"
       style={{ minHeight: `${MY_SHOWS_SECTION_RESERVED_MIN_HEIGHT_PX}px` }}
+      // role="status" makes `aria-label` permitted: a bare <div> has the
+      // implicit `generic` role, which forbids naming attrs (axe
+      // `aria-prohibited-attr`). `status` is also the correct semantics for a
+      // loading region (implicit aria-live="polite").
+      role="status"
       aria-busy="true"
       aria-label="Loading your shows"
     >

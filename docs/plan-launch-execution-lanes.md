@@ -118,7 +118,13 @@ Establishes what's actually broken before more UI changes land.
    `20260618140000`), loosened UTC-midnight date-picker assertion. Scoped `playwright.ci.config.ts`
    to 2 PR Smoke specs; re-enabled `e2e-myk9show` CI job (runs on every PR/push, not yet a
    required check — see #4). Payout cron migration `20260618130000` idempotency-fixed. — gates #4.
-3. **Rotate + lock down E2E test accounts.**
+3. **Rotate + lock down E2E test accounts.** — **DONE 2026-06-18 (Lane 3.3).** Renamed
+   `admin/secretary/judge@myk9t.com` to `e2e-admin/secretary/judge@test.myk9.com` (`.invalid`-safe
+   `.test.myk9.com` namespace); set strong rotated passwords via GoTrue admin API. Removed all
+   hardcoded password fallbacks from `testUsers.ts` and inline spec files (`classesUI`, `clubsUI`);
+   all credentials now env-var-only (tests self-skip when absent). Old auth accounts deleted after
+   FK cleanup (`exhibitor_profiles` + `people.auth_user_id`). Credentials in `.env.local` and
+   mirrored to GitHub Actions secrets.
 4. **Make E2E CI jobs blocking** — *only after #2 + #3* (blocking a flaky suite blocks every PR).
 5. **CI-gated Vercel deploys** — after #4.
 6. **Pre-load AKC & UKC Judge Directory.** — **Tooling DONE 2026-06-18**

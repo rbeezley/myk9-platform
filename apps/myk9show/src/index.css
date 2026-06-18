@@ -227,7 +227,7 @@
     /* Canonical semantic tokens — use these */
     --success: 21 128 61;              /* green-700 — WCAG AA as text (4.69:1 on page, 5.02:1 on card) AND as bg w/ white fg (5.02:1); green-600 failed both at ~3.1:1 */
     --success-foreground: 255 255 255;
-    --warning: 217 119 6;              /* amber-600 */
+    --warning: 146 64 14;              /* amber-800 — WCAG AA everywhere incl. the bg-warning/10 + text-warning tint pattern (5.7:1 page-tinted, 6.1:1 white-tinted, 7.1:1 white-on-solid); amber-700 (180 83 9) passed solid text but the /10 tint was only ~4.1:1 */
     --warning-foreground: 255 255 255;
     --info: 37 99 235;                 /* blue-600 */
     --info-foreground: 255 255 255;
@@ -417,7 +417,7 @@ select:hover {
     --secondary-foreground: #4d4c48;
     --accent: #f5f0e8;
     --accent-foreground: #7c4a2e;
-    --destructive: 239 68 68;
+    --destructive: 185 28 28;          /* red-700 — WCAG AA everywhere incl. the bg-destructive/10 + text-destructive tint pattern (5.1:1 page-tinted, 5.5:1 white-tinted, 6.5:1 white-on-solid); red-600 (220 38 38) passed solid text but the /10 tint was only ~3.9:1 */
     --destructive-foreground: 255 255 255;
     /* AA-compliant red for SMALL text (e.g. 9px urgent label) on light
        popover/card surfaces. The base --destructive (red-500) only clears

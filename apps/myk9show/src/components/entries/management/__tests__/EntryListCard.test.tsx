@@ -92,8 +92,8 @@ describe('EntryListCard - check-in button affordance', () => {
   });
 
   it('omits "Waitlisted" from the per-entry status menu', () => {
-    // The inline status write `entry_status: 'waitlist'` never creates
-    // `waitlist_entries` membership and reverts to Pending on reload. Real
+    // The inline status write maps WAITLIST → 'submitted', so it never creates
+    // `waitlist_entries` membership and leaves the entry Pending. Real
     // waitlisting is the dedicated per-class workflow (WaitlistManagementPage).
     render(<EntryListCard {...defaultProps} />);
 

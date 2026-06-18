@@ -325,11 +325,13 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                   Accept All
                 </DropdownMenuItem>
                 {/* No "Waitlist All": real waitlisting is per-class with
-                    position/capacity semantics tracked in `waitlist_entries`
-                    (see WaitlistManagementPage / useWaitListMutations). Writing
-                    entry_status: 'waitlist' here never creates membership and
-                    reverts to Pending on reload — same reason Lane 2.2 (#827)
-                    omitted bulk Waitlist from the table multi-select bar. */}
+                    position/capacity tracked in `waitlist_entries` (see
+                    WaitlistManagementPage / useWaitListMutations). This bulk
+                    action only writes entry_status, which maps WAITLIST →
+                    'submitted' (the entry's pre-decision state), so it never
+                    creates membership and the entry stays Pending — same reason
+                    Lane 2.2 (#827) omitted bulk Waitlist from the table
+                    multi-select bar. */}
                 <DropdownMenuItem
                   onClick={() =>
                     onBulkStatusChange(

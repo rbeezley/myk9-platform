@@ -1,4 +1,4 @@
-import { readFileSync, globSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -31,13 +31,27 @@ const CLASSIFY_PATTERNS = RAW_ONLY_LITERALS.flatMap(lit => [
   new RegExp(`['"]${lit}['"]\\s*[=!]==`),
 ]);
 
-function listSourceFiles(): string[] {
-  return globSync('**/*.{ts,tsx}', { cwd: SRC_ROOT })
-    .filter(rel => !rel.includes('services/entryDisplay/'))
-    .filter(rel => !rel.includes('.test.'))
-    .filter(rel => !rel.includes('__tests__/'))
-    // globSync can surface directories whose name ends in .ts/.tsx; keep files only.
-    .filter(rel => statSync(resolve(SRC_ROOT, rel)).isFile());
+// Manual recursive walk yielding only regular .ts/.tsx FILES. Avoids
+// fs.globSync (Node 22+, experimental — absent in CI) and the `recursive`/
+// `parentPath` readdir options (newer Node only). A directory can be named
+// like `foo.spec.ts` (snapshot dirs), so the isDirectory() branch is load-
+// bearing — a plain extension filter would readFileSync a directory (EISDIR).
+function listSourceFiles(dir = SRC_ROOT, base = ''): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const rel = base ? `${base}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      if (rel === 'services/entryDisplay') continue;
+      out.push(...listSourceFiles(resolve(dir, entry.name), rel));
+    } else if (
+      (rel.endsWith('.ts') || rel.endsWith('.tsx')) &&
+      !rel.includes('.test.') &&
+      !rel.includes('__tests__/')
+    ) {
+      out.push(rel);
+    }
+  }
+  return out;
 }
 
 describe('entry-status classifier guard', () => {

@@ -11,8 +11,9 @@
 -- registrations array as JSONB and inserts all rows in a single implicit
 -- PL/pgSQL transaction. Any exception rolls back the entire batch.
 --
--- Authorization mirrors the dogs_insert RLS policy (migration 006 / 147):
--- caller must be the owner (auth.uid() = owner_id) or a site admin.
+-- Authorization mirrors the dogs_insert RLS policy (migration 148):
+-- caller must be the people-table owner/co-owner (get_my_person_id()), or a
+-- trial secretary, club admin, or site admin.
 -- =============================================================================
 
 CREATE OR REPLACE FUNCTION public.create_dog_with_registrations(
@@ -49,7 +50,16 @@ BEGIN
       USING ERRCODE = '22023';
   END IF;
 
-  IF v_caller_auth <> v_owner_id AND NOT public.is_site_admin() THEN
+  -- Mirror dogs_insert RLS (migration 148): owner_id is a people.id, not an
+  -- auth.uid(). Use get_my_person_id() for the owner/co-owner check, plus
+  -- the same role helpers secretaries and club admins rely on.
+  IF NOT (
+    v_owner_id = public.get_my_person_id()
+    OR (p_dog->>'co_owner_id') IS NOT NULL AND (p_dog->>'co_owner_id')::uuid = public.get_my_person_id()
+    OR public.is_trial_secretary()
+    OR public.is_club_admin()
+    OR public.is_site_admin()
+  ) THEN
     RAISE EXCEPTION 'not authorized to create a dog for owner %', v_owner_id
       USING ERRCODE = '42501';
   END IF;
@@ -72,8 +82,8 @@ BEGIN
     NULLIF(p_dog->>'microchip_number', ''),
     NULLIF(p_dog->>'image_url', ''),
     NULLIF(p_dog->>'call_name', ''),
-    (p_dog->'spayed_neutered')::boolean,
-    COALESCE((p_dog->'deceased')::boolean, FALSE),
+    NULLIF(p_dog->>'spayed_neutered', '')::boolean,
+    COALESCE(NULLIF(p_dog->>'deceased', '')::boolean, FALSE),
     NULLIF(p_dog->>'deceased_date', '')::date,
     COALESCE(NULLIF(p_dog->>'status', ''), 'active'),
     NOW()
@@ -102,4 +112,4 @@ REVOKE ALL ON FUNCTION public.create_dog_with_registrations(jsonb, jsonb) FROM P
 GRANT EXECUTE ON FUNCTION public.create_dog_with_registrations(jsonb, jsonb) TO authenticated;
 
 COMMENT ON FUNCTION public.create_dog_with_registrations(jsonb, jsonb) IS
-  'Atomically creates a dog with its registrations in a single transaction. Any failure rolls back the whole batch. Authorization mirrors dogs_insert RLS: caller must be the owner (auth.uid() = owner_id) or a site admin.';
+  'Atomically creates a dog with its registrations in a single transaction. Any failure rolls back the whole batch. Authorization mirrors dogs_insert RLS (migration 148): caller must be the people-table owner/co-owner via get_my_person_id(), or a trial secretary, club admin, or site admin.';

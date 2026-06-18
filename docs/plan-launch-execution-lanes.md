@@ -64,7 +64,14 @@ Establishes what's actually broken before more UI changes land.
    (refund/withdrawn state agreement across exhibitor ↔ secretary) using the seeded refunded entry;
    while there, confirm the exhibitor results display renders correctly against #779's gated read.
 4. **Manual show-day walk** (full Phase A–F arc) against the seed fixtures.
-5. **UX Journey Audit Phase 6 — time-to-task re-measure**; record deltas in `SUMMARY.md`.
+5. **UX Journey Audit Phase 6 — time-to-task re-measure** — **DONE 2026-06-18.** Live read-only
+   re-walk (secretary + exhibitor) against the Heartland seed; delta tables recorded in
+   [`SUMMARY.md`](audits/2026-06-ux-journeys/SUMMARY.md#phase-6--time-to-task-re-measure-lane-15).
+   Numbers moved as intended: 3 secretary tasks now measurable (approve / move-up / announcement),
+   check-in 1-click + human labels (F5), closeout de-risked (F4-XML + P1-06 send gated); exhibitor
+   entry dead end gone (UX-P1-01), own placed result now 0-click on the hub (Finding A PlacementPill).
+   Verified live: F2 (pending count 3 not 7), F3 (constrained move-up picker), UX-P2-04/P2-05.
+   At-show tasks (ring status, dogs-ahead) deferred to the Lane 1.4 show-day walk (doc `05`).
 6. **Scorecard close-out** — flip Secretary + Exhibitor rows with evidence links; sweep remaining
    scorecard dimensions.
 7. **Phase 3 — real-user testing** (after the app is coherent end-to-end).

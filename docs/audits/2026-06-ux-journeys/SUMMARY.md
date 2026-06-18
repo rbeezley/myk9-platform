@@ -110,3 +110,62 @@ Before remediation begins, confirm:
 - [ ] **Open gate decision — unlock Wave 3 (consolidation remediation):** the severity-ordered findings, duplication answers, and remediation waves above are ready for approval. Approving them unlocks Wave 3 work.
 
 Recommended next action: approve the remediation list (unlocks Wave 3) and pick the Wave 5 live-walk read strategy (A or B). The harness is ready to run the moment a strategy is chosen (`PHASE4_SEAM_FIXTURE_READY=1`); until then the live spec self-skips and never touches shared data.
+
+## Phase 6 — Time-To-Task Re-Measure (Lane 1.5)
+
+**Date:** 2026-06-18. **Method:** live read-only Playwright re-walk against the canonical
+Heartland seed (`dededede-0000-0000-0000-000000000010`, PR #797) on a worktree dev server, signed
+in as `secretary@myk9t.com` and `e2e-exhibitor@test.myk9.com`. No shared-DB mutations submitted
+(approvals, pulls, move-ups, announcements opened only to count clicks, then cancelled). 0 console
+errors across the walk. The audit's success metric is **the numbers moving** — below.
+Evidence: [`artifacts/lane15-my-entries-placement.png`](artifacts/lane15-my-entries-placement.png)
+(exhibitor My Entries with the Q + "1st" PlacementPill), [`artifacts/lane15-see-classes.png`](artifacts/lane15-see-classes.png)
+(Show Details "See classes" → Classes tab).
+
+### Secretary (vs `02-secretary-journey.md` baselines)
+
+| Task | Baseline | Re-measure 2026-06-18 | Delta |
+| --- | --- | --- | --- |
+| Find attention item from dashboard | 0–1 clicks | 0–1 clicks (strip expanded: "3 entries pending review") | Unchanged. **F2 fix verified:** count is **3**, not the over-counted 7 |
+| Open pending-entry queue | 1 click | 1 click (attention deep-link → `entryTab=pending`) | Unchanged |
+| Approve entries | **Not measurable** (0 entries seeded) | **2 clicks per enrollment** (Actions → Accept All) | Now measurable. Bulk-by-enrollment; whole-tab single-action still pending Lane 2 multi-select |
+| Scratch a dog day-of | 4+ from Show Desk; 2 after row visible | 4 from Show Desk (expand trial+class+Actions+Pull); **2 after row visible** | Clicks unchanged; wording realigned to **"Pull / no-show"** (UX-P3-04) |
+| Move-up | **Not measurable** (no requests) | **2 clicks** to dialog (row Actions → Move up) | Now measurable. **F3 verified:** target picker constrains to same-element strictly-higher; offers "No other classes are available" rather than invalid targets |
+| Print check-in sheet | 2–3 (Show Desk) / 1 (Reports after select) | **1 click** from Reports (Check-in Sheet preselected, preview auto-renders → Print) | Improved. **F5 verified:** trigger reads "Check-in Sheet"/"Run Order", no raw ids |
+| Print armband labels | Selector uses raw id labels (needs polish) | Clean labels in option list **and** collapsed trigger ("Armband Labels") | **F5 RESOLVED** |
+| Send day-of announcement | No direct CTA found (baseline incomplete) | **2 clicks** to compose / **3–4** to send (doc `04`) | **RESOLVED** |
+| Produce sanctioning-body report | 1 route; raw XML + enabled Send (cognitively heavy) | 1 route; leads with plain-English **Submission summary**, XML behind "View electronic-submission details" disclosure, **Send to AKC `[disabled]`** until reg numbers resolved | **F4-XML + UX-P1-06 RESOLVED** |
+
+### Exhibitor (vs `01-exhibitor-journey.md` baselines) — as `e2e-exhibitor` (seed demo exhibitor)
+
+| Task | Baseline | Re-measure 2026-06-18 | Delta |
+| --- | --- | --- | --- |
+| Sign in → My Shows | 4 clicks / 3 screens / ~34s | 2 action-clicks + 2 typed fields / 2 screens / ~11s | Faster. Two-step email-first persists (UX-P3-03, accepted friction) |
+| Find accepting show | 2 clicks / 2 screens / ~22s | 2 clicks (Enter a Show → `/shows` → Heartland card) | Clicks unchanged; richer search/filter discovery |
+| Enter a dog | **FAIL** — show had 0 classes (~17s to dead end) | Show has classes (Classes tab populated; "See classes" + Manage Entry CTAs) | **UX-P1-01 dead end RESOLVED** |
+| Check armband / status | Partial; no armband visible for one entry | Armband (#100 Willow) + status (Accepted/Paid) on card | Improved |
+| View results | 2 clicks / 2 screens / ~19s; partial, ambiguous status | Own placed result shows **on the hub card** (Q + **"1st"** PlacementPill + 38.5s) = **0 extra clicks**; public read fixed (#779) | Major improvement. **Finding A (PlacementPill) verified live** |
+| Find ring / start status | Partial (1–2 clicks) | Not re-measured — seed show is future/Not-started | Deferred to Lane 1.4 show-day walk (doc `05`) |
+| See dogs-ahead / next-up | Pass (1 click / ~26s) | Not re-measured — future show | Deferred to Lane 1.4 show-day walk (doc `05`) |
+| Share a result | (not in baseline table) | No dedicated feature | Out of scope (Result Reveal + Share Card deferred/unbuilt) |
+
+**Pre-registration affordances re-verified live:** UX-P2-05 (Browse shows on the public landing
+header) and UX-P2-04 ("See classes" hero CTA → Classes tab with element/level/status/entry-count)
+both present.
+
+### Net result
+
+The numbers moved in the intended direction: **3 secretary tasks that were "not measurable"
+pre-seed are now measurable** (approve, move-up, and the announcement baseline), **2 became faster
+or cleaner** (check-in 1 click + human labels; report closeout de-risked), and on the exhibitor
+side the **entry dead end is gone** and **viewing your own placed result dropped from a 2-click
+ambiguous view to 0 extra clicks on the hub**. No regression increased any click count.
+
+### Residuals observed during the re-walk (not blocking; tracked separately)
+
+- **P1-04w-1** confirmed present: My Entries cards render "Registration #Pending" (reg-number
+  fallback). Already tracked in `OPEN-TODOS.md`.
+- Cosmetic: class level renders "NoviceA" (missing space) in the Show Details Classes tab.
+- Show-day badge findings still visible (out of Lane 1.5 scope, owned by doc `05`): **S5**
+  Saturday-trial badge contradiction ("Not started" + "Needs wrap-up" + "1/3 complete"); **S4**-style
+  "2/3 entries complete 67%" on Exterior Excellent alongside 2 pulled entries.

@@ -124,16 +124,14 @@ describe('useDogStoreCompat.addDog — atomic RPC path (with registrations)', ()
     expect(mockMutateAsync).not.toHaveBeenCalled();
   });
 
-  it('writes to IDB before the RPC call', async () => {
+  it('writes to IDB and calls the RPC', async () => {
     const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
 
     await act(async () => {
       await result.current.addDog(dogInputWithRegistrations);
     });
 
-    expect(mockReplicatedDogsTable.set).toHaveBeenCalledBefore
-      ? expect(mockReplicatedDogsTable.set).toHaveBeenCalled()
-      : expect(mockReplicatedDogsTable.set).toHaveBeenCalled();
+    expect(mockReplicatedDogsTable.set).toHaveBeenCalled();
     expect(mockSupabase.rpc).toHaveBeenCalled();
   });
 

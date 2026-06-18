@@ -15,6 +15,7 @@ describe('getEntryStatusKind — the single classifier', () => {
     ['confirmed', 'accepted'],
     ['accepted', 'accepted'],
     ['paid', 'accepted'],
+    ['scheduled', 'accepted'], // run order assigned, NOT in-ring
     ['submitted', 'pending'],
     ['pending', 'pending'],
     ['no-status', 'pending'],

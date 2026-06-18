@@ -52,6 +52,7 @@ export function getEntryStatusKind(raw: string | null | undefined): EntryStatusK
     case 'confirmed':
     case 'accepted':
     case 'paid':
+    case 'scheduled': // run order assigned, but NOT yet in the ring (pre-ring)
       return 'accepted';
     case 'submitted':
     case 'pending':
@@ -62,7 +63,6 @@ export function getEntryStatusKind(raw: string | null | undefined): EntryStatusK
       return 'pending';
     case 'waitlisted':
       return 'waitlist';
-    case 'scheduled':
     case 'checked-in':
     case 'at-gate':
     case 'in-ring':

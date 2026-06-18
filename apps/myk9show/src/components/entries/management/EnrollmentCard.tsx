@@ -324,16 +324,12 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                 >
                   Accept All
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() =>
-                    onBulkStatusChange(
-                      group.entries.map(e => e.id),
-                      EntryStatus.WAITLIST
-                    )
-                  }
-                >
-                  Waitlist All
-                </DropdownMenuItem>
+                {/* No "Waitlist All": real waitlisting is per-class with
+                    position/capacity semantics tracked in `waitlist_entries`
+                    (see WaitlistManagementPage / useWaitListMutations). Writing
+                    entry_status: 'waitlist' here never creates membership and
+                    reverts to Pending on reload — same reason Lane 2.2 (#827)
+                    omitted bulk Waitlist from the table multi-select bar. */}
                 <DropdownMenuItem
                   onClick={() =>
                     onBulkStatusChange(

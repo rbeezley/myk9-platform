@@ -145,6 +145,22 @@ describe('EnrollmentCard', () => {
     expect(badge.closest('button')).toBeNull();
   });
 
+  it('omits "Waitlist All" from the bulk actions menu', () => {
+    // Real waitlisting is per-class with position/capacity tracked in
+    // `waitlist_entries` (WaitlistManagementPage). A bulk entry_status write
+    // would silently no-op and revert to Pending — same reason Lane 2.2 (#827)
+    // omitted bulk Waitlist from the table multi-select bar.
+    render(<EnrollmentCard {...defaultProps} />);
+    fireEvent.click(screen.getByRole('button', { name: /actions/i }));
+
+    // Bulk actions that map to a valid entry_status write remain reachable…
+    expect(screen.getByText('Accept All')).toBeTruthy();
+    expect(screen.getByText('Reject All')).toBeTruthy();
+    expect(screen.getByText('Check In All')).toBeTruthy();
+    // …but "Waitlist All" is intentionally absent.
+    expect(screen.queryByText('Waitlist All')).toBeNull();
+  });
+
   it('collapses entries on toggle and expands again', () => {
     render(<EnrollmentCard {...defaultProps} />);
 

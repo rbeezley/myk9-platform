@@ -1,0 +1,24 @@
+# AKC & UKC Judge Directory
+#
+# Populate this file with real judge data, then run:
+#   npx tsx scripts/import-judges.ts > supabase/migrations/NNN_seed_akc_ukc_judges.sql
+#   supabase db push   (or paste into a migration file)
+#
+# Column notes:
+#   judge_number  — the org's own registry ID for this judge (e.g. AKC-SW-1234 for AKC,
+#                   UKC-J-099 for UKC). Stored on judge_qualifications (per-org), NOT people.
+#                   A judge with AKC + UKC credentials gets two rows with different judge_numbers.
+#   email         — required to merge multi-org rows for the same person. Without it, each
+#                   row creates a separate people entry regardless of name (safe but creates
+#                   duplicates for a judge with AKC + UKC credentials). Strongly recommended.
+#   organization  — AKC | UKC | NACSW | CPE | USDAA | NADAC | ASCA | CKC | OTHER
+#   level         — Provisional | Regular | Senior | Master | All-Breed | Specialty | Emeritus
+#   disciplines   — pipe-separated from: Scent Work | Agility | Obedience | Rally |
+#                   Conformation | Field Trials | Hunt Tests | Herding | Lure Coursing |
+#                   Tracking | Barn Hunt | FastCAT | Dock Diving | Weight Pull
+#   date_obtained / expiration_date — YYYY-MM-DD or blank
+#
+# A judge with qualifications from multiple organizations gets one row per org.
+# Quoted fields with commas are supported (e.g. "Smith, Jr." in last_name).
+#
+judge_number,first_name,last_name,email,organization,level,disciplines,date_obtained,expiration_date

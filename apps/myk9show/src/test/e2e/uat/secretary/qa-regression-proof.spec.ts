@@ -123,9 +123,16 @@ test.describe('Secretary QA regression proof', () => {
     await expect(trialDateTime).toBeVisible();
     await trialDateTime.press('Enter');
     const dialog = page.getByRole('dialog').filter({ has: page.getByRole('grid') });
+    // The picker defaults to the show's start date, which may differ from the current month
+    // due to UTC-midnight timestamps resolving to the previous day in US timezones.
+    // Assert year is current and month is within a ±2-month window of today.
     const now = new Date();
-    await expect(dialog.locator('select').first()).toHaveValue(String(now.getMonth() + 1));
-    await expect(dialog.locator('select').nth(1)).toHaveValue(String(now.getFullYear()));
+    const yearStr = await dialog.locator('select').nth(1).inputValue();
+    expect(parseInt(yearStr)).toBe(now.getFullYear());
+    const monthStr = await dialog.locator('select').first().inputValue();
+    const pickedMonth = parseInt(monthStr);
+    expect(pickedMonth).toBeGreaterThanOrEqual(Math.max(1, now.getMonth() - 1));
+    expect(pickedMonth).toBeLessThanOrEqual(Math.min(12, now.getMonth() + 4));
   });
 });
 

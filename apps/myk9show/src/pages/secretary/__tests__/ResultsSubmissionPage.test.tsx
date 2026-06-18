@@ -403,4 +403,87 @@ describe('ResultsSubmissionPage', () => {
 
     await waitFor(() => expect(mockInvoke).toHaveBeenCalledWith('send-results', expect.anything()));
   });
+
+  // F6a (Lane 1.2 re-walk): the Organization trigger echoed the raw
+  // `organization:sportType` value ("AKC:scent_work") instead of a human label.
+  describe('Organization selector shows a human label, not the raw id (F6a)', () => {
+    it('shows "AKC Scent Work" in the trigger, not "AKC:scent_work"', async () => {
+      renderPage();
+      const trigger = await screen.findByTestId('org-selector');
+      expect(trigger.textContent ?? '').toMatch(/AKC Scent Work/);
+      expect(trigger.textContent ?? '').not.toMatch(/AKC:scent_work/);
+    });
+  });
+
+  // F4-XML (Lane 1.2 re-walk): the page led with the raw generated XML. It now
+  // leads with a plain-English readiness checklist and keeps the XML behind a
+  // "View electronic-submission details" disclosure.
+  describe('Submission summary leads; raw XML is behind a disclosure (F4-XML)', () => {
+    const akcDataWithRegNumbers = {
+      show: {
+        id: 'show-1',
+        name: 'Spring',
+        clubName: 'Club',
+        date: null,
+        clubLicenseNumber: null,
+        secretaryName: 'Jane',
+        secretaryEmail: 'jane@example.com',
+      },
+      trials: [],
+      entries: [
+        {
+          dogName: 'Fluffy',
+          breed: 'X',
+          registrationNumber: 'HP123',
+          handlerName: '',
+          className: 'N',
+          element: 'Container',
+          level: 'Novice',
+          section: 'A',
+          resultCode: null,
+          searchTimeSeconds: null,
+          totalFaults: null,
+          finalPlacement: null,
+          armbandNumber: 101,
+          trialId: 't1',
+          classId: 'c1',
+          dogRegisteredName: null,
+          dogGender: 'B',
+          ownerName: null,
+          ownerAddress: null,
+          timeLimitSeconds: null,
+          entryStatus: 'accepted',
+          checkInStatus: 'present',
+          resultStatus: null,
+        },
+      ],
+    } as import('@myk9/secretary').AKCSubmissionData;
+
+    it('renders the human checklist and the disclosure (XML not the lead)', async () => {
+      mockAKCData.data = akcDataWithRegNumbers;
+      renderPage();
+
+      await waitFor(() => expect(screen.getByTestId('submission-checklist')).toBeInTheDocument());
+      const checklist = screen.getByTestId('submission-checklist');
+      expect(checklist.textContent).toMatch(/1 entry ready to submit/);
+      expect(checklist.textContent).toMatch(/All entries have AKC registration numbers/);
+
+      // XML lives behind the disclosure rather than leading the page.
+      expect(screen.getByTestId('xml-details')).toBeInTheDocument();
+      expect(screen.getByText('View electronic-submission details')).toBeInTheDocument();
+      expect(screen.queryByText('XML Preview')).not.toBeInTheDocument();
+    });
+
+    it('flags missing registration numbers in the checklist', async () => {
+      mockAKCData.data = {
+        ...akcDataWithRegNumbers,
+        entries: [{ ...akcDataWithRegNumbers.entries[0], registrationNumber: null }],
+      } as import('@myk9/secretary').AKCSubmissionData;
+      renderPage();
+
+      const checklist = await screen.findByTestId('submission-checklist');
+      expect(checklist.textContent).toMatch(/1 entry is missing AKC registration numbers/);
+      expect(checklist.textContent).toMatch(/Add the missing registration numbers before sending/);
+    });
+  });
 });

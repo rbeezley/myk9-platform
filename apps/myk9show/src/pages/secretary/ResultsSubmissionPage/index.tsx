@@ -30,6 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { CheckCircle2, AlertTriangle, FileText } from 'lucide-react';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { supabase } from '@/services/database/supabaseClient';
 import { listFormatters, AKCScentWorkFormatter } from '@myk9/secretary';
@@ -73,6 +74,18 @@ function formatDate(iso: string): string {
   }
 }
 
+// Human label for a formatter — e.g. { organization: 'AKC', sportType: 'scent_work' }
+// renders "AKC Scent Work". Used for both the option list and the collapsed
+// trigger so they never diverge; without an explicit label the Base UI trigger
+// echoes the raw `organization:sportType` value verbatim ("AKC:scent_work").
+function formatFormatterLabel(f: { organization: string; sportType: string }): string {
+  const sport = f.sportType
+    .split('_')
+    .map(word => (word ? word[0].toUpperCase() + word.slice(1) : word))
+    .join(' ');
+  return `${f.organization} ${sport}`.trim();
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -92,6 +105,7 @@ export default function ResultsSubmissionPage() {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const activeFormatter = formatters.find(f => `${f.organization}:${f.sportType}` === formatterKey);
+  const selectedOrgLabel = activeFormatter ? formatFormatterLabel(activeFormatter) : undefined;
 
   const isAKCScentWork =
     activeFormatter?.organization === 'AKC' && activeFormatter?.sportType === 'scent_work';
@@ -192,7 +206,7 @@ export default function ResultsSubmissionPage() {
           </label>
           <Select value={formatterKey} onValueChange={setFormatterKey}>
             <SelectTrigger id="org-select" className="w-[220px]" data-testid="org-selector">
-              <SelectValue placeholder="Select organization" />
+              <SelectValue placeholder="Select organization">{selectedOrgLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {formatters.map(f => (
@@ -200,7 +214,7 @@ export default function ResultsSubmissionPage() {
                   key={`${f.organization}:${f.sportType}`}
                   value={`${f.organization}:${f.sportType}`}
                 >
-                  {f.organization} — {f.sportType.replace(/_/g, ' ')}
+                  {formatFormatterLabel(f)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -285,19 +299,89 @@ export default function ResultsSubmissionPage() {
         </div>
       )}
 
-      {/* XML preview */}
-      <div className="space-y-2">
-        <h2 id="xml-preview-label" className="text-sm font-medium">
-          XML Preview
-        </h2>
-        <Textarea
-          readOnly
-          aria-labelledby="xml-preview-label"
-          value={isAKCLoading ? 'Fetching show data...' : xmlPreview}
-          placeholder="Select a show and organization to preview the XML."
-          className="font-mono text-xs min-h-[220px] resize-y"
-          data-testid="xml-preview"
-        />
+      {/* Submission summary — lead with a human checklist; the raw electronic
+          payload lives behind the disclosure below so the secretary reads a
+          plain-English readiness check first, not generated XML. */}
+      <div className="space-y-3">
+        <h2 className="text-base font-semibold">Submission summary</h2>
+        {!activeFormatter ? (
+          <p className="text-sm text-muted-foreground" data-testid="submission-summary-empty">
+            Select an organization to prepare a submission.
+          </p>
+        ) : !isAKCScentWork ? (
+          <p className="text-sm text-muted-foreground" data-testid="submission-summary-generic">
+            {formatFormatterLabel(activeFormatter)} results are prepared as a downloadable file. Use{' '}
+            <span className="font-medium">Download XML</span> to save it, then submit through the
+            organization&apos;s portal.
+          </p>
+        ) : isAKCLoading ? (
+          <p className="text-sm text-muted-foreground">Fetching show data...</p>
+        ) : !akcData ? (
+          <p className="text-sm text-muted-foreground" data-testid="submission-summary-no-data">
+            No results data is available for this show yet.
+          </p>
+        ) : (
+          <ul className="space-y-2 text-sm" data-testid="submission-checklist">
+            <li className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
+              <span>
+                <strong>{akcData.entries.length}</strong>{' '}
+                {akcData.entries.length === 1 ? 'entry' : 'entries'} ready to submit
+              </span>
+            </li>
+            <li className="flex items-center gap-2">
+              {missingAKCCount === 0 ? (
+                <>
+                  <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
+                  <span>All entries have AKC registration numbers</span>
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" />
+                  <span>
+                    <strong>{missingAKCCount}</strong>{' '}
+                    {missingAKCCount === 1 ? 'entry is' : 'entries are'} missing AKC registration
+                    numbers
+                  </span>
+                </>
+              )}
+            </li>
+            <li className="flex items-center gap-2">
+              {hasBlockingAKCPreflightIssue ? (
+                <>
+                  <AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" />
+                  <span>Add the missing registration numbers before sending</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
+                  <span>Submission file is ready to send or download</span>
+                </>
+              )}
+            </li>
+          </ul>
+        )}
+
+        {/* Raw electronic-submission payload — secondary, behind a disclosure. */}
+        <details className="rounded-md border" data-testid="xml-details">
+          <summary className="cursor-pointer select-none px-4 py-2 text-sm font-medium">
+            <FileText className="mr-2 inline h-4 w-4 align-text-bottom" aria-hidden="true" />
+            View electronic-submission details
+          </summary>
+          <div className="space-y-2 px-4 pb-4">
+            <label id="xml-preview-label" className="text-xs font-medium text-muted-foreground">
+              Generated XML
+            </label>
+            <Textarea
+              readOnly
+              aria-labelledby="xml-preview-label"
+              value={isAKCLoading ? 'Fetching show data...' : xmlPreview}
+              placeholder="Select a show and organization to preview the XML."
+              className="font-mono text-xs min-h-[220px] resize-y"
+              data-testid="xml-preview"
+            />
+          </div>
+        </details>
       </div>
 
       {/* Submission history */}

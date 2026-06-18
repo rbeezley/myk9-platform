@@ -26,10 +26,12 @@ describe('semantic status token foundation', () => {
   });
 
   describe('index.css — light values (before .dark block)', () => {
-    it('defines --success as an RGB triplet that passes WCAG AA as text', () => {
-      // green-700 (21 128 61): 4.69:1 as text on page, 5.02:1 on card, 5.02:1 white-on-bg.
-      // green-600 (22 163 74) failed AA as small text (~3.1:1) — see Lane 3 hardening.
-      expect(lightCss).toContain('--success: 21 128 61');
+    it('defines --success as an RGB triplet that passes WCAG AA incl. the /10 tint pattern', () => {
+      // green-800 (22 101 52): AA everywhere — 5.2:1 on the bg-success/10 page-tinted
+      // surface, 6.3:1 white-on-solid. green-700 (21 128 61) passed on plain white (~5.1:1)
+      // but the common bg-success/10 + text-success tint was only ~4.2:1 — see Lane 3.1.
+      expect(lightCss).toContain('--success: 22 101 52');
+      expect(lightCss).not.toContain('--success: 21 128 61');
     });
     it('defines --success-foreground', () => {
       expect(lightCss).toContain('--success-foreground: 255 255 255');

@@ -13,24 +13,45 @@
  * anon entry-results path). It mirrors `getPublicShows`: a direct PostgREST read, no
  * replication layer.
  *
- * ANON-SAFETY: this select deliberately fetches **only** the class scalars + the trial join.
- * It must NOT join `entries`/`dogs`/`owner`/`people` the way `postgrestGetClassById` in
- * `reads.ts` does — anon RLS withholds entry rows and PII, so that join would error or
- * return empty for a guest. Entry data for the page comes separately through the
- * cascade-gated public view. The `classes_select` RLS policy already admits anon for a
- * published show (migration 016/108), so the bare class read succeeds.
+ * ANON-SAFETY: this select fetches an **explicit lean column list** (only what
+ * `mapDatabaseToClass` consumes) plus the trial join. Two deliberate omissions:
+ *   1. No `entries`/`dogs`/`owner`/`people` join — the sibling `postgrestGetClassById`
+ *      fans into that PII chain, which anon RLS withholds (it would error or return empty
+ *      for a guest). Entry data for the page comes separately through the cascade-gated
+ *      `view_public_entry_results`.
+ *   2. No `*` — unlike the sibling reads, this names columns so internal audit fields
+ *      (`deleted_by`, `results_released_by`, `judge_name`, counts) never travel to anon.
+ * The `classes_select` RLS policy admits anon for a published show (migration 016/108), so
+ * the lean class read succeeds; an unpublished show's class returns null (no leak).
  */
 
 import { supabase, createDatabaseError } from '../supabaseClient';
 import { mapDatabaseToClass, type DbClassWithRelations } from '@/services/mappers/classMappers';
 
 /**
- * Anon-safe column set: class scalars (`*`) plus the trial join only. Intentionally omits
- * `entries`, `dogs`, `owner`, and `people` — see ANON-SAFETY above. Exported so a unit test
- * can pin the no-PII-join invariant.
+ * Anon-safe explicit column set: exactly the class scalars `mapDatabaseToClass` reads, plus the
+ * trial join. Names columns (never `*`) so internal/audit fields are not shipped to guests, and
+ * never joins `entries`/`dogs`/`owner`/`people`. Exported so a unit test can pin the
+ * no-PII-join invariant.
  */
 export const PUBLIC_CLASS_SELECT = `
-      *,
+      id,
+      trial_id,
+      name,
+      status,
+      start_time,
+      description,
+      class_number,
+      element,
+      level,
+      section,
+      entry_fee,
+      max_entries,
+      jump_heights,
+      display_order,
+      results_released_at,
+      created_at,
+      updated_at,
       trial:trials (
         id,
         name,

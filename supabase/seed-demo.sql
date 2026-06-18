@@ -573,9 +573,11 @@ WHERE lower(p.email) = 'judge@myk9t.com';
 --     (role letter a|j|s|e + 4 [a-z0-9]); the authoritative role is the DB row.
 --
 --     GUARDED: on a DB where the passcode_pepper Vault secret is unset,
---     _hash_passcode raises SQLSTATE 55000; the EXCEPTION handler rolls back this
---     block's DELETE+INSERT and RAISE NOTICEs rather than aborting the whole reset.
---     On such a DB, mint codes via regenerate_show_passcodes() as a secretary instead.
+--     _hash_passcode raises SQLSTATE 55000; the EXCEPTION handler catches ONLY that
+--     case, rolls back this block's DELETE+INSERT, and RAISE NOTICEs rather than
+--     aborting the whole reset. On such a DB, mint codes via regenerate_show_passcodes()
+--     as a secretary instead. Any OTHER error (FK/constraint/missing-function) is a real
+--     bug and propagates, so it surfaces loudly instead of silently committing a partial seed.
 --
 --     SCOPE NOTE: this makes the passcode SIGN-IN flow walkable. Whether a
 --     passcode-only role then reads entries at ringside is a separate RLS/data-path
@@ -589,8 +591,8 @@ BEGIN
      public._hash_passcode('jh3k9'), '2026-06-17 00:00:00+00'),
     ('dededede-0000-0000-0000-000000000082', 'dededede-0000-0000-0000-000000000010', 'steward',
      public._hash_passcode('s7m2p'), '2026-06-17 00:00:00+00');
-EXCEPTION WHEN OTHERS THEN
-  RAISE NOTICE 'Skipped Heartland ringside passcode seed (% - %). passcode_pepper Vault secret is likely unset; mint via regenerate_show_passcodes() instead.', SQLSTATE, SQLERRM;
+EXCEPTION WHEN sqlstate '55000' THEN
+  RAISE NOTICE 'Skipped Heartland ringside passcode seed (% - %). passcode_pepper Vault secret is unset; mint via regenerate_show_passcodes() instead.', SQLSTATE, SQLERRM;
 END $$;
 
 COMMIT;

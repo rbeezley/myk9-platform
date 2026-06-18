@@ -77,7 +77,7 @@ function Toast({ entry, onDismiss }: { entry: ToastEntry; onDismiss: (id: string
               <a
                 href={payload.actionUrl}
                 onClick={dismiss}
-                className="text-xs font-medium text-orange-500 hover:text-orange-400"
+                className="text-xs font-medium text-foreground underline underline-offset-2 hover:opacity-80"
               >
                 View &rarr;
               </a>

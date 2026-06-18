@@ -4,14 +4,45 @@ export interface UseBulkSelectionOptions<T> {
   items: T[];
   getItemId: (item: T) => string;
   onSelectionChange?: (selectedItems: T[]) => void;
+  /**
+   * When true, selections for items no longer present in `items` are dropped.
+   * Prevents stale selections from resurfacing when a filter is removed (e.g.
+   * select rows → filter them out → clear the filter — they must not reappear
+   * selected and become bulk-editable by accident).
+   */
+  pruneToItems?: boolean;
 }
 
 export function useBulkSelection<T>({
   items,
   getItemId,
   onSelectionChange,
+  pruneToItems = false,
 }: UseBulkSelectionOptions<T>) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Prune stale selections during render (the adjust-state-during-render pattern —
+  // not a useEffect, which the repo lints against). Converges: after pruning,
+  // every selected id is present, so this branch is skipped on the next render.
+  if (pruneToItems && selectedIds.size > 0) {
+    const presentIds = new Set(items.map(getItemId));
+    let hasStale = false;
+    for (const id of selectedIds) {
+      if (!presentIds.has(id)) {
+        hasStale = true;
+        break;
+      }
+    }
+    if (hasStale) {
+      setSelectedIds(prev => {
+        const next = new Set<string>();
+        prev.forEach(id => {
+          if (presentIds.has(id)) next.add(id);
+        });
+        return next;
+      });
+    }
+  }
 
   // Get selected items
   const selectedItems = useMemo(() => {

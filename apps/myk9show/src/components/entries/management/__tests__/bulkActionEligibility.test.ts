@@ -57,7 +57,6 @@ const ids = (entries: EntryManagementEntry[]) => entries.map(e => e.id).sort();
 describe('statusTargetForAction', () => {
   it('maps status actions to their target and check-in to null', () => {
     expect(statusTargetForAction('approve')).toBe(EntryStatus.ACCEPTED);
-    expect(statusTargetForAction('waitlist')).toBe(EntryStatus.WAITLIST);
     expect(statusTargetForAction('reject')).toBe(EntryStatus.REJECTED);
     expect(statusTargetForAction('check-in')).toBeNull();
   });
@@ -70,12 +69,6 @@ describe('getEligibleForBulkAction', () => {
     );
   });
 
-  it('waitlist excludes closed statuses and already-waitlisted entries', () => {
-    expect(ids(getEligibleForBulkAction(mixed, 'waitlist'))).toEqual(
-      ['accepted', 'pending', 'rejected'].sort()
-    );
-  });
-
   it('reject excludes closed statuses and already-rejected entries', () => {
     expect(ids(getEligibleForBulkAction(mixed, 'reject'))).toEqual(
       ['accepted', 'pending', 'waitlist'].sort()
@@ -83,7 +76,7 @@ describe('getEligibleForBulkAction', () => {
   });
 
   it('never includes completed or move-up-requested in any status change', () => {
-    for (const action of ['approve', 'waitlist', 'reject'] as const) {
+    for (const action of ['approve', 'reject'] as const) {
       const eligibleIds = ids(getEligibleForBulkAction(mixed, action));
       expect(eligibleIds).not.toContain('completed');
       expect(eligibleIds).not.toContain('moveup');

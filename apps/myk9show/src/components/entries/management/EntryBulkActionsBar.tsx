@@ -7,7 +7,7 @@
  * BulkOperationsBar pattern.
  */
 
-import { CheckCircle2, ListPlus, XCircle, UserCheck } from 'lucide-react';
+import { CheckCircle2, XCircle, UserCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { EntryStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
@@ -50,7 +50,6 @@ export function EntryBulkActionsBar({
 
   const count = selectedEntries.length;
   const approveCount = eligibleFor('approve').length;
-  const waitlistCount = eligibleFor('waitlist').length;
   const rejectCount = eligibleFor('reject').length;
   const checkInCount = eligibleFor('check-in').length;
 
@@ -78,15 +77,6 @@ export function EntryBulkActionsBar({
           >
             <CheckCircle2 className="mr-2 h-4 w-4" />
             Approve{approveCount > 0 ? ` (${approveCount})` : ''}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={waitlistCount === 0}
-            onClick={() => runStatus('waitlist', EntryStatus.WAITLIST)}
-          >
-            <ListPlus className="mr-2 h-4 w-4" />
-            Waitlist{waitlistCount > 0 ? ` (${waitlistCount})` : ''}
           </Button>
           <Button
             variant="outline"

@@ -109,7 +109,13 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
 
   // Multi-select for the table view (lifted here so the bulk bar can clear it and
   // select-all spans the full filtered set, not just the current page).
-  const selection = useBulkSelection({ items: filteredEntries, getItemId: getEntryId });
+  const selection = useBulkSelection({
+    items: filteredEntries,
+    getItemId: getEntryId,
+    // Drop selections for entries filtered out (search/payment/trial/class/tab) so
+    // they can't resurface and be bulk-edited when a filter is later removed.
+    pruneToItems: true,
+  });
   const tableSelection = useMemo(
     () => ({
       isSelected: selection.isSelected,

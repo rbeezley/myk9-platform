@@ -39,9 +39,12 @@ Selection is **lifted into `RegistrationView`** (not `DataTable`'s internal `row
 no external reset and only does page-scoped select-all). `useBulkSelection` keys off `filteredEntries`
 so select-all spans the full filtered set across pages, and the bar can clear it after an action.
 
-1. **`RegistrationView`** — `const selection = useBulkSelection({ items: filteredEntries, getItemId: e => e.id })`.
-   - Wrap the tab `onValueChange` to `selection.clearSelection()` before `setSelectedTab` (no
-     `useEffect` setState — repo lints against `react-hooks/set-state-in-effect`).
+1. **`RegistrationView`** — `useBulkSelection({ items: filteredEntries, getItemId, pruneToItems: true })`.
+   - `pruneToItems` drops selections for entries that leave `filteredEntries` (any filter: search,
+     payment, trial, class, tab) so a hidden selection can't resurface and be bulk-edited when the
+     filter is removed (review catch P2). Pruning is done via the adjust-state-during-render pattern
+     in the hook (not a `useEffect` — repo lints `react-hooks/set-state-in-effect`).
+   - Wrap the tab `onValueChange` to `selection.clearSelection()` before `setSelectedTab`.
    - Render `<EntryBulkActionsBar>` only when `entryViewMode === 'table'` and
      `selection.selectedItems.length > 0`.
 2. **`EntriesTableView`** — accept an optional `selection` prop; when present, prepend a leading
@@ -49,9 +52,12 @@ so select-all spans the full filtered set across pages, and the bar can clear it
    `toggleAll`; cell = `Checkbox` bound to `isSelected(entry)`/`toggleItem(entry)` with
    `stopPropagation` so row-click (if any) doesn't fire.
 3. **`EntryBulkActionsBar`** (new, modeled on `BulkOperationsBar`) — props: `selectedEntries`,
-   `onBulkStatusChange`, `onBulkCheckIn`, `onClear`. Actions: Approve, Waitlist, Reject,
-   Mark Checked-In, plus Clear. Each action operates on the **eligible** subset (see below), shows a
-   toast with the affected count, then calls `onClear()`.
+   `onBulkStatusChange`, `onBulkCheckIn`, `onClear`. Actions: Approve, Reject, Mark Checked-In, plus
+   Clear. Each action operates on the **eligible** subset (see below) and calls `onClear()`.
+   **Waitlist deliberately omitted** (review catch): real waitlisting goes through the dedicated
+   `waitlist_entries` workflow (`useWaitListMutations` / `WaitlistManagementPage`), not an
+   `entry_status` write — writing `'waitlist'` round-trips to PENDING and creates no membership.
+   Bulk waitlist is a follow-up.
 4. **Eligibility helper** (pure, testable) — `getEligibleForBulkAction(entries, action)`:
    - Approve/Waitlist/Reject: exclude `completed`, `scratched`, `moved`, `withdrawn`,
      `move-up-requested` (don't clobber scored/closed entries); Approve/Reject/Waitlist target
@@ -80,6 +86,10 @@ so select-all spans the full filtered set across pages, and the bar can clear it
 
 ## Out of scope / follow-ups
 
+- **Bulk Waitlist** — needs the real `waitlist_entries` workflow (`useWaitListMutations`), not an
+  `entry_status` change. NOTE: the existing list-view `EnrollmentCard` "Waitlist All" button has the
+  same latent bug (it also routes through `onBulkStatusChange(..., WAITLIST)`) — pre-existing, tracked
+  separately.
 - List-view (grouped) multi-select.
 - Bulk Withdraw/refund.
 - `common/ThreeDotMenu` consolidation (carried from Lane 2.1).

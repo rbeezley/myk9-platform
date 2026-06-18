@@ -3,9 +3,14 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
 
 /**
  * Bulk actions offered on the Entry Management table multi-select bar.
- * Withdraw/refund is intentionally NOT here — it stays per-entry (Lane 2.2 scope).
+ *
+ * Withdraw/refund is intentionally NOT here — it stays per-entry (refund nuance).
+ * Waitlist is intentionally NOT here either: real waitlisting goes through the
+ * dedicated `waitlist_entries` workflow (useWaitListMutations / WaitlistManagementPage),
+ * not an `entry_status` change — a status write to 'waitlist' round-trips to PENDING
+ * and never creates waitlist membership. Bulk waitlist is a follow-up.
  */
-export type BulkEntryAction = 'approve' | 'waitlist' | 'reject' | 'check-in';
+export type BulkEntryAction = 'approve' | 'reject' | 'check-in';
 
 /**
  * Statuses that are terminal or belong to a separate queue. A bulk status change
@@ -25,8 +30,6 @@ export function statusTargetForAction(action: BulkEntryAction): EntryStatus | nu
   switch (action) {
     case 'approve':
       return EntryStatus.ACCEPTED;
-    case 'waitlist':
-      return EntryStatus.WAITLIST;
     case 'reject':
       return EntryStatus.REJECTED;
     case 'check-in':

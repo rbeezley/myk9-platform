@@ -78,9 +78,13 @@ describe('EntryBulkActionsBar', () => {
   it('disables actions that have no eligible entries', () => {
     setup([entry('done', EntryStatus.COMPLETED)]);
     expect(screen.getByRole('button', { name: /approve/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /waitlist/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /reject/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /check in/i })).toBeDisabled();
+  });
+
+  it('does not offer a Waitlist action (waitlist uses the dedicated workflow)', () => {
+    setup([entry('p', EntryStatus.PENDING)]);
+    expect(screen.queryByRole('button', { name: /waitlist/i })).not.toBeInTheDocument();
   });
 
   it('reflects the eligible count in the button label', () => {

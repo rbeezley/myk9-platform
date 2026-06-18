@@ -110,9 +110,12 @@ function pgArray(vals: string[]): string {
   return `ARRAY[${vals.map(sq).join(', ')}]::text[]`;
 }
 
-function generateSql(rows: QualRow[]): string {
+function generateSql(rows: QualRow[]): { sql: string; personCount: number } {
   if (!rows.length) {
-    return '-- No judge rows found in CSV. Populate supabase/seed-data/akc-ukc-judges.csv and re-run.\n';
+    return {
+      sql: '-- No judge rows found in CSV. Populate supabase/seed-data/akc-ukc-judges.csv and re-run.\n',
+      personCount: 0,
+    };
   }
 
   // Group qualification rows by person.
@@ -209,12 +212,12 @@ ${qualInserts}
 END $$;`);
   }
 
-  return blocks.join('\n') + '\n';
+  return { sql: blocks.join('\n') + '\n', personCount: byPerson.size };
 }
 
 const rows = parseCsv(csvPath);
-process.stdout.write(generateSql(rows));
+const { sql, personCount } = generateSql(rows);
+process.stdout.write(sql);
 if (rows.length) {
-  const judgeCount = new Set(rows.map(r => r.email || `${r.first_name}|${r.last_name}`)).size;
-  process.stderr.write(`-- Processed ${rows.length} qualification row(s) for ${judgeCount} judge(s).\n`);
+  process.stderr.write(`-- Processed ${rows.length} qualification row(s) for ${personCount} people block(s).\n`);
 }

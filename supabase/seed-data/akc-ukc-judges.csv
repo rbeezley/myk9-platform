@@ -8,8 +8,9 @@
 #   judge_number  — the org's own registry ID for this judge (e.g. AKC-SW-1234 for AKC,
 #                   UKC-J-099 for UKC). Stored on judge_qualifications (per-org), NOT people.
 #                   A judge with AKC + UKC credentials gets two rows with different judge_numbers.
-#   email         — used to group multi-org rows for the same person. Optional but strongly
-#                   recommended; without it, rows with the same first+last name are grouped.
+#   email         — required to merge multi-org rows for the same person. Without it, each
+#                   row creates a separate people entry regardless of name (safe but creates
+#                   duplicates for a judge with AKC + UKC credentials). Strongly recommended.
 #   organization  — AKC | UKC | NACSW | CPE | USDAA | NADAC | ASCA | CKC | OTHER
 #   level         — Provisional | Regular | Senior | Master | All-Breed | Specialty | Emeritus
 #   disciplines   — pipe-separated from: Scent Work | Agility | Obedience | Rally |

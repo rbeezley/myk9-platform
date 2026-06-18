@@ -41,7 +41,7 @@ export function useCurrentUserPerson(authUserId: string | undefined) {
         .select('*')
         .eq('auth_user_id', authUserId!)
         .is('deleted_at', null)
-        .single();
+        .maybeSingle();
 
       if (error || !data) return null;
 

@@ -1006,6 +1006,7 @@
 }
 @media (max-width: 480px) {
   .landing-v2 .l-status-chip { display: none; }
+  .landing-v2 .l-signin-btn { display: none; }
   .landing-v2 .l-waitlist-btn { display: none; }
 }
 @media (max-width: 640px) {

@@ -23,7 +23,9 @@ describe('LandingHeader', () => {
     const onJoinWaitlistClick = vi.fn();
     render(<LandingHeader onJoinWaitlistClick={onJoinWaitlistClick} />);
 
-    expect(screen.getByRole('link', { name: /sign in/i })).toHaveAttribute('href', '/sign-in');
+    const signIn = screen.getByRole('link', { name: /sign in/i });
+    expect(signIn).toHaveAttribute('href', '/sign-in');
+    expect(signIn).toHaveClass('l-signin-btn');
     screen.getByRole('button', { name: /join the waitlist/i }).click();
     expect(onJoinWaitlistClick).toHaveBeenCalledTimes(1);
   });

@@ -5,9 +5,9 @@ import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
 test.describe.configure({ mode: 'serial', timeout: 90000 });
 
 const SHOW_ID = LIVE_REGISTRATION_SHOW_ID;
-const DOG_SEARCH = 'Bravo';
-const CLASS_ELEMENT = 'Interior';
-const CLASS_LEVEL = 'Novice';
+const DOG_SEARCH = 'Ranger';
+const CLASS_ELEMENT = 'Container';
+const CLASS_LEVEL = 'Novice A';
 const MOCK_CART_ID = 'e2e-single-dog-cart';
 
 async function preventSharedWrites(page: Page) {
@@ -170,17 +170,17 @@ async function searchAndSelectDog(page: Page) {
   await expect(page.getByRole('button', { name: /^Next/ })).toBeEnabled({ timeout: 10000 });
 }
 
-async function selectFirstInteriorClass(page: Page) {
+async function selectFirstContainerClass(page: Page) {
   await expect(page.getByRole('heading', { name: 'Select Classes' })).toBeVisible({
     timeout: 10000,
   });
 
-  const interiorCard = page
+  const containerCard = page
     .locator('.myk9-element-card')
     .filter({ hasText: CLASS_ELEMENT })
     .first();
-  await expect(interiorCard).toBeVisible({ timeout: 10000 });
-  await interiorCard
+  await expect(containerCard).toBeVisible({ timeout: 10000 });
+  await containerCard
     .getByRole('checkbox', { name: `Select ${CLASS_LEVEL}` })
     .first()
     .click();
@@ -196,7 +196,7 @@ test('reaches payment with one selected dog and one selected class', async ({ pa
   await searchAndSelectDog(page);
   await page.getByRole('button', { name: /^Next/ }).click();
 
-  await selectFirstInteriorClass(page);
+  await selectFirstContainerClass(page);
   await page.getByRole('button', { name: /^Next/ }).click();
 
   await expect(page.getByText(/All entries have handlers assigned/i)).toBeVisible({
@@ -207,7 +207,7 @@ test('reaches payment with one selected dog and one selected class', async ({ pa
   await expect(page.getByRole('heading', { name: 'Payment Information' })).toBeVisible();
   await page.getByRole('button', { name: /Secretary Payment \(Already Received\)/i }).click();
   await expect(page.getByText('Total Due').locator('..')).toContainText(/\$\d+\.\d{2}/);
-  await expect(page.getByText(/Bravo/).first()).toBeVisible();
+  await expect(page.getByText(new RegExp(DOG_SEARCH, 'i')).first()).toBeVisible();
   await expect(page.locator('body')).toContainText(CLASS_ELEMENT);
   await expect(page.locator('body')).toContainText(CLASS_LEVEL);
 

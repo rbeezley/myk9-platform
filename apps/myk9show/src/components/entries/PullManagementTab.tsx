@@ -135,16 +135,30 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
     setIsProcessing(true);
 
     try {
-      // Refund processing is handled separately via the payment service.
       const { error } = await approvePullRequestReplicated(selectedRequest.id);
 
       if (error) {
         toast.error('Failed to approve pull request');
-      } else {
-        toast.success(processRefund ? 'Pull approved with refund' : 'Pull approved');
-        await loadData();
-        onRefresh?.();
+        return;
       }
+
+      if (processRefund) {
+        const { error: refundError } = await updateRefundStatus(
+          selectedRequest.id,
+          'processed',
+          refundAmount,
+        );
+        if (refundError) {
+          toast.error('Pull approved but refund failed');
+          return;
+        }
+        toast.success('Pull approved with refund');
+      } else {
+        toast.success('Pull approved');
+      }
+
+      await loadData();
+      onRefresh?.();
     } catch (_err) {
       toast.error('An unexpected error occurred');
     } finally {
@@ -204,7 +218,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
   const openApproveDialog = (request: PullRequest) => {
     setSelectedRequest(request);
     setDialogAction('approve');
-    setProcessRefund(false);
+    setProcessRefund(request.refund_status === 'eligible' && !!request.stripe_payment_intent_id);
     setRefundAmount(request.entry_fee || 0);
   };
 

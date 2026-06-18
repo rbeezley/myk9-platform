@@ -225,7 +225,7 @@
   /* myK9 semantic status scale */
   :root {
     /* Canonical semantic tokens — use these */
-    --success: 21 128 61;              /* green-700 — WCAG AA as text (4.69:1 on page, 5.02:1 on card) AND as bg w/ white fg (5.02:1); green-600 failed both at ~3.1:1 */
+    --success: 22 101 52;              /* green-800 — WCAG AA everywhere incl. the bg-success/10 + text-success tint pattern (5.2:1 tinted, 6.3:1 white, 6.3:1 white-on-solid); green-700 (21 128 61) passed on plain white but failed the /10 tint at ~4.2:1 */
     --success-foreground: 255 255 255;
     --warning: 146 64 14;              /* amber-800 — WCAG AA everywhere incl. the bg-warning/10 + text-warning tint pattern (5.7:1 page-tinted, 6.1:1 white-tinted, 7.1:1 white-on-solid); amber-700 (180 83 9) passed solid text but the /10 tint was only ~4.1:1 */
     --warning-foreground: 255 255 255;
@@ -500,7 +500,8 @@ select:hover {
        so small text clears AA on the near-black popover/card. red-700 would
        only reach ~2.6:1 here; red-400 clears 6.2:1. */
     --destructive-strong: 248 113 113; /* red-400 #f87171 — 6.2:1 on dark popover */
-    --success: 74 222 128;             /* green-400 */
+    --success: 74 222 128;             /* green-400 — passes as text on dark bg (~10:1); keep bright for readability */
+    --success-foreground: 20 83 45;    /* green-900 — 5.2:1 on green-400 solid bg; white would be 1.75:1 */
     --warning: 251 191 36;             /* amber-400 */
     --info: 96 165 250;                /* blue-400 */
     --border: #2e2b27;

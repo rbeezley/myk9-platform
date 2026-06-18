@@ -27,7 +27,7 @@ vi.mock('@/services/show-day/requestManagement', () => ({
   denyPullRequestReplicated: requestMocks.denyPullRequestReplicated,
 }));
 
-// Paid online entry — refund button should appear and checkbox should pre-check.
+// Paid online entry — refund button should appear in the Processed tab.
 const onlineEntry: ScratchRequest = {
   id: 'entry-abc',
   class_id: 'class-1',
@@ -45,14 +45,6 @@ const onlineEntry: ScratchRequest = {
   class: { id: 'class-1', name: 'Novice A', class_number: '110' },
 };
 
-// Non-online entry — no payment intent, no refund path.
-const offlineEntry: ScratchRequest = {
-  ...onlineEntry,
-  id: 'entry-def',
-  payment_status: null,
-  stripe_payment_intent_id: null,
-};
-
 beforeEach(() => {
   vi.clearAllMocks();
   dayOfOpsMocks.getPendingScratchRequests.mockResolvedValue({ data: [], error: null });
@@ -62,37 +54,7 @@ beforeEach(() => {
   mockSupabase.functions.invoke.mockResolvedValue({ data: { amount_cents: 3200 }, error: null });
 });
 
-describe('PullManagementTab — approve dialog refund checkbox', () => {
-  it('pre-checks the refund box for an online-paid entry (payment_status=paid + payment intent)', async () => {
-    dayOfOpsMocks.getPendingScratchRequests.mockResolvedValue({
-      data: [onlineEntry],
-      error: null,
-    });
-    const user = userEvent.setup();
-
-    render(<PullManagementTab showId="show-1" />);
-
-    await screen.findByText('Buddy');
-    await user.click(screen.getByRole('button', { name: /approve/i }));
-
-    expect(screen.getByRole('checkbox', { name: /process refund/i })).toBeChecked();
-  });
-
-  it('does not pre-check the refund box when there is no payment intent', async () => {
-    dayOfOpsMocks.getPendingScratchRequests.mockResolvedValue({
-      data: [offlineEntry],
-      error: null,
-    });
-    const user = userEvent.setup();
-
-    render(<PullManagementTab showId="show-1" />);
-
-    await screen.findByText('Buddy');
-    await user.click(screen.getByRole('button', { name: /approve/i }));
-
-    expect(screen.getByRole('checkbox', { name: /process refund/i })).not.toBeChecked();
-  });
-
+describe('PullManagementTab — approve dialog', () => {
   it('approve does not call stripe-refund-entry — it only approves the pull', async () => {
     dayOfOpsMocks.getPendingScratchRequests.mockResolvedValue({
       data: [onlineEntry],
@@ -113,8 +75,8 @@ describe('PullManagementTab — approve dialog refund checkbox', () => {
   });
 });
 
-describe('PullManagementTab — Process Refund dialog calls stripe-refund-entry', () => {
-  it('calls stripe-refund-entry with entry_id and amount_cents when secretary processes a refund', async () => {
+describe('PullManagementTab — Process Refund opens RefundEntryDialog', () => {
+  it('calls stripe-refund-entry via RefundEntryDialog when secretary issues a refund', async () => {
     dayOfOpsMocks.getScratchedEntries.mockResolvedValue({
       data: [onlineEntry],
       error: null,
@@ -127,13 +89,16 @@ describe('PullManagementTab — Process Refund dialog calls stripe-refund-entry'
     await user.click(await screen.findByRole('tab', { name: /processed/i }));
     await user.click(await screen.findByRole('button', { name: /process refund/i }));
 
-    // Confirm in the dialog — last button with that label is the submit
-    const dialogButtons = screen.getAllByRole('button', { name: /process refund/i });
-    await user.click(dialogButtons[dialogButtons.length - 1]);
+    // RefundEntryDialog is open — click the "Issue refund" submit button
+    await user.click(await screen.findByRole('button', { name: /issue refund/i }));
 
     await waitFor(() => {
       expect(mockSupabase.functions.invoke).toHaveBeenCalledWith('stripe-refund-entry', {
-        body: { entry_id: 'entry-abc', amount_cents: 3200 },
+        body: {
+          entry_id: 'entry-abc',
+          amount_cents: undefined,
+          notes: undefined,
+        },
       });
     });
   });

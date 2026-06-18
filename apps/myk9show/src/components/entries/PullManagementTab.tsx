@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import {
   Dialog,
@@ -38,7 +37,6 @@ import {
   DollarSign,
   CreditCard,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 import {
   getPendingScratchRequests as getPendingPullRequests,
   getScratchedEntries as getPulledEntries,
@@ -48,6 +46,10 @@ import {
   approvePullRequestReplicated,
   denyPullRequestReplicated,
 } from '@/services/show-day/requestManagement';
+import {
+  RefundEntryDialog,
+  type RefundableEntry,
+} from '@/components/entries/management/RefundEntryDialog';
 
 interface PullManagementTabProps {
   showId: string;
@@ -65,10 +67,9 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
 
   // Dialog state
   const [selectedRequest, setSelectedRequest] = useState<PullRequest | null>(null);
-  const [dialogAction, setDialogAction] = useState<'approve' | 'deny' | 'refund' | null>(null);
-  const [processRefund, setProcessRefund] = useState(false);
-  const [refundAmount, setRefundAmount] = useState<number>(0);
+  const [dialogAction, setDialogAction] = useState<'approve' | 'deny' | null>(null);
   const [denyReason, setDenyReason] = useState('');
+  const [refundDialogEntry, setRefundDialogEntry] = useState<RefundableEntry | null>(null);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -148,36 +149,9 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
     }
   };
 
-  const handleProcessRefund = async () => {
-    if (!selectedRequest) return;
-
-    setIsProcessing(true);
-
-    try {
-      const { error } = await supabase.functions.invoke('stripe-refund-entry', {
-        body: { entry_id: selectedRequest.id, amount_cents: refundAmount },
-      });
-
-      if (error) {
-        toast.error(error.message ?? 'Refund failed');
-      } else {
-        toast.success('Refund processed successfully');
-        await loadData();
-        onRefresh?.();
-      }
-    } catch (_err) {
-      toast.error('An unexpected error occurred');
-    } finally {
-      setIsProcessing(false);
-      closeDialog();
-    }
-  };
-
   const openApproveDialog = (request: PullRequest) => {
     setSelectedRequest(request);
     setDialogAction('approve');
-    setProcessRefund(request.payment_status === 'paid' && !!request.stripe_payment_intent_id);
-    setRefundAmount(request.entry_fee || 0);
   };
 
   const openDenyDialog = (request: PullRequest) => {
@@ -187,16 +161,16 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
   };
 
   const openRefundDialog = (request: PullRequest) => {
-    setSelectedRequest(request);
-    setDialogAction('refund');
-    setRefundAmount(request.entry_fee || 0);
+    setRefundDialogEntry({
+      id: request.id,
+      totalFee: (request.entry_fee ?? 0) / 100,
+      dogName: request.dog?.name ?? '',
+    });
   };
 
   const closeDialog = () => {
     setSelectedRequest(null);
     setDialogAction(null);
-    setProcessRefund(false);
-    setRefundAmount(0);
     setDenyReason('');
   };
 
@@ -494,35 +468,10 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="processRefund"
-                checked={processRefund}
-                onCheckedChange={checked => setProcessRefund(checked as boolean)}
-              />
-              <Label htmlFor="processRefund" className="cursor-pointer">
-                Process refund for this entry
-              </Label>
-            </div>
-
-            {processRefund && (
-              <div className="space-y-2 pl-6">
-                <Label htmlFor="refundAmount">Refund Amount (cents)</Label>
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">$</span>
-                  <Input
-                    id="refundAmount"
-                    type="number"
-                    value={(refundAmount / 100).toFixed(2)}
-                    onChange={e => setRefundAmount(Math.round(parseFloat(e.target.value) * 100))}
-                    className="max-w-[150px]"
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Original entry fee: {formatCurrency(selectedRequest?.entry_fee || 0)}
-                </p>
-              </div>
-            )}
+            <p className="text-sm text-muted-foreground">
+              The entry will be marked as withdrawn. To issue a refund for a paid entry, use the
+              "Process Refund" button after approving.
+            </p>
           </div>
 
           <DialogFooter>
@@ -591,61 +540,12 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
         </DialogContent>
       </Dialog>
 
-      {/* Process Refund Dialog */}
-      <Dialog open={dialogAction === 'refund'} onOpenChange={open => !open && closeDialog()}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Process Refund</DialogTitle>
-            <DialogDescription>
-              Process a refund for the pulled entry. This will initiate a refund via Stripe.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <Alert>
-              <CreditCard className="h-4 w-4" />
-              <AlertDescription>
-                <strong>{selectedRequest?.dog?.name}</strong> - {selectedRequest?.class?.name}
-                <br />
-                Original payment: {formatCurrency(selectedRequest?.entry_fee || 0)}
-              </AlertDescription>
-            </Alert>
-
-            <div className="space-y-2">
-              <Label htmlFor="refundAmountProcess">Refund Amount</Label>
-              <div className="flex items-center gap-2">
-                <span className="text-muted-foreground">$</span>
-                <Input
-                  id="refundAmountProcess"
-                  type="number"
-                  value={(refundAmount / 100).toFixed(2)}
-                  onChange={e => setRefundAmount(Math.round(parseFloat(e.target.value) * 100))}
-                  className="max-w-[150px]"
-                />
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={closeDialog} disabled={isProcessing}>
-              Cancel
-            </Button>
-            <Button onClick={handleProcessRefund} disabled={isProcessing}>
-              {isProcessing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <CreditCard className="h-4 w-4 mr-2" />
-                  Process Refund
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <RefundEntryDialog
+        open={refundDialogEntry !== null}
+        onOpenChange={open => { if (!open) setRefundDialogEntry(null); }}
+        entry={refundDialogEntry}
+        onRefunded={loadData}
+      />
     </div>
   );
 };

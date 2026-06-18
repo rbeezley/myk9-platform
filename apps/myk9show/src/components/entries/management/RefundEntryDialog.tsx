@@ -30,10 +30,13 @@ const ERROR_MESSAGES: Record<string, string> = {
   invalid_amount: 'Enter a refund amount greater than zero.',
 };
 
+/** Minimal shape required by RefundEntryDialog — a subset of EntryManagementEntry. */
+export type RefundableEntry = Pick<EntryManagementEntry, 'id' | 'totalFee' | 'dogName'>;
+
 interface RefundEntryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  entry: EntryManagementEntry | null;
+  entry: RefundableEntry | null;
   /** Called after a successful refund so the host can reload entries. */
   onRefunded: () => void;
 }

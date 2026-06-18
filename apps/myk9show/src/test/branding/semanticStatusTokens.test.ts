@@ -21,8 +21,10 @@ describe('semantic status token foundation', () => {
     it('defines --success-foreground', () => {
       expect(css).toContain('--success-foreground: 255 255 255');
     });
-    it('defines --warning as an RGB triplet', () => {
-      expect(css).toContain('--warning: 217 119 6');
+    it('defines --warning as an RGB triplet that passes WCAG AA as text', () => {
+      // amber-700 (180 83 9): ~5.0:1 as text on white AND as bg w/ white fg.
+      // amber-600 (217 119 6) failed AA as small text (~3.2:1) — see a11y token hardening.
+      expect(css).toContain('--warning: 180 83 9');
     });
     it('defines --warning-foreground', () => {
       expect(css).toContain('--warning-foreground: 255 255 255');
@@ -33,8 +35,11 @@ describe('semantic status token foundation', () => {
     it('defines --info-foreground', () => {
       expect(css).toContain('--info-foreground: 255 255 255');
     });
-    it('defines --destructive as an RGB triplet (not hex)', () => {
-      expect(css).toContain('--destructive: 239 68 68');
+    it('defines --destructive as an RGB triplet that passes WCAG AA (not hex)', () => {
+      // red-600 (220 38 38): 4.83:1 as text on white AND as bg w/ white fg.
+      // red-500 (239 68 68) failed both at ~3.76:1; light now unifies with the dark-mode value.
+      expect(css).toContain('--destructive: 220 38 38');
+      expect(css).not.toContain('--destructive: 239 68 68');
       expect(css).not.toContain('--destructive: #ef4444');
     });
   });

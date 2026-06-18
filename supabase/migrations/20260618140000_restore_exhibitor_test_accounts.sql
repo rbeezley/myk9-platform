@@ -36,8 +36,8 @@ BEGIN
     END IF;
 
     -- Restore the people row (idempotent on auth_user_id or email unique index)
-    INSERT INTO public.people (first_name, last_name, email, auth_user_id, roles)
-    VALUES (v_first, v_last, v_email, v_auth_id, ARRAY['exhibitor']::text[])
+    INSERT INTO public.people (first_name, last_name, email, auth_user_id)
+    VALUES (v_first, v_last, v_email, v_auth_id)
     ON CONFLICT DO NOTHING;
 
     -- Fetch the (possibly just-inserted) person_id

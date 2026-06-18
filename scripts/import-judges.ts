@@ -115,14 +115,38 @@ function generateSql(rows: QualRow[]): string {
     return '-- No judge rows found in CSV. Populate supabase/seed-data/akc-ukc-judges.csv and re-run.\n';
   }
 
-  // Group qualification rows by person — keyed by email (preferred) or "first|last" fallback.
-  // judge_number is per-org and lives on judge_qualifications, not people (migration 070).
+  // Group qualification rows by person.
+  // - With email: key by email — safe cross-org dedup.
+  // - Without email: key by judge_number|organization — each row is its own block.
+  //   Grouping by name would silently merge two different judges who share a name.
+  //   A multi-org no-email judge ends up with separate blocks (and separate people rows);
+  //   a stderr warning tells the importer to add email to merge them.
   const byPerson = new Map<string, QualRow[]>();
+  const noEmailNameCount = new Map<string, number>();
+
   for (const row of rows) {
-    const key = row.email || `${row.first_name}|${row.last_name}`;
+    let key: string;
+    if (row.email) {
+      key = `email:${row.email}`;
+    } else {
+      key = `jnum:${row.judge_number}|${row.organization}`;
+      const nameKey = `${row.first_name}|${row.last_name}`;
+      noEmailNameCount.set(nameKey, (noEmailNameCount.get(nameKey) ?? 0) + 1);
+    }
     const existing = byPerson.get(key) ?? [];
     existing.push(row);
     byPerson.set(key, existing);
+  }
+
+  // Warn about no-email rows that share a name — they may be the same person.
+  for (const [nameKey, count] of noEmailNameCount) {
+    if (count > 1) {
+      const [first, last] = nameKey.split('|');
+      process.stderr.write(
+        `WARNING: ${count} rows for "${first} ${last}" have no email — ` +
+          `each will create a separate people row. Add email to merge them.\n`,
+      );
+    }
   }
 
   const blocks: string[] = [
@@ -134,7 +158,7 @@ function generateSql(rows: QualRow[]): string {
 
   for (const [personKey, quals] of byPerson) {
     const { first_name, last_name, email } = quals[0];
-    const label = `${first_name} ${last_name}${email ? ` <${email}>` : ` [${personKey}]`}`;
+    const label = `${first_name} ${last_name}${email ? ` <${email}>` : ` (no email — ${quals[0].judge_number}/${quals[0].organization})`}`;
 
     // Fallback lookup via first qualification's judge_number + org (when no email provided)
     const fallbackLookup = email

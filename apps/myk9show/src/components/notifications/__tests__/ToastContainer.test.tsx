@@ -77,6 +77,24 @@ describe('ToastContainer', () => {
     expect(screen.getByText('Alert 2')).toBeInTheDocument();
   });
 
+  it('renders the View action link with a WCAG-AA contrast color in light mode', () => {
+    // Regression: the action link was text-orange-500 (#f97316), only 2.8:1 on
+    // the near-white light popover — a serious axe color-contrast violation
+    // that broke the secretary-dashboard a11y smoke when a toast fired. The
+    // light-mode default must be the darker orange-700 (5.0:1); dark mode keeps
+    // orange-500 via a `dark:` variant.
+    useToastStore.getState().addToast({
+      ...makePayload('1', 'normal', 'announcement'),
+      actionUrl: '/at-show/show-1',
+    });
+    render(<ToastContainer />);
+
+    const link = screen.getByRole('link', { name: /view/i });
+    expect(link.className).toContain('text-orange-700');
+    // The only orange-500 allowed is the dark-mode override, never the base.
+    expect(link.className).not.toMatch(/(^|\s)text-orange-500/);
+  });
+
   it('shows correct icon for announcement type', () => {
     useToastStore.getState().addToast(makePayload('1', 'normal', 'announcement'));
     render(<ToastContainer />);

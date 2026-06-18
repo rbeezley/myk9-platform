@@ -3,9 +3,22 @@
 -- ----------------------------------------------------------------------------
 -- WHAT THIS IS
 --   A small, realistic, *publicly visible* demo dataset (1 club, 1 published
---   AKC scent-work show, 2 trials, 5 classes, 6 dogs, 8 entries). Intended to
---   be run AFTER the hard wipe that clears all shows/trials/classes/entries/
---   dogs/clubs and all non-protected people.
+--   AKC scent-work show, 2 trials, 5 classes, 6 dogs, 8 entries) with COMPLETE
+--   show officials and full RBAC role coverage so every role's golden path is
+--   walkable after a reseed:
+--     - Named officials on the show: secretary is a snapshot of the section-10
+--       secretary LOGIN (the real actor); chairman / chief_steward are report-only
+--       free text (no in-app actor). classes.judge_name is a snapshot of the
+--       assigned judge (section 2 + 4).
+--     - Judges modeled as PEOPLE, not strings: judge_qualifications rows carry
+--       each judge's number + disciplines (section 13); CLASS-LEVEL
+--       judge_assignments put all 5 classes on each judge's dashboard (section
+--       11 — trial/show-level rows are dropped by the dashboard). Login optional.
+--     - RBAC grants for secretary, club_admin, judge, steward, AND chairman
+--       (section 10/10b/10c/10d) — not just secretary/club_admin as before.
+--     - Known ringside passcodes (section 12).
+--   Intended to be run AFTER the hard wipe that clears all shows/trials/classes/
+--   entries/dogs/clubs and all non-protected people.
 --
 -- WHAT THIS IS NOT
 --   It does NOT create people and does NOT touch auth.users. The 11 protected
@@ -58,7 +71,10 @@ BEGIN
     -- Section 10 grants RBAC roles to these accounts by email; a missing/dup row
     -- would silently grant nothing (re-introducing the F1 secretary-403 bug),
     -- so require each to resolve to exactly one person here.
-    'e2e-secretary@test.myk9.com', 'club@myk9t.com', 'e2e-clubadmin@test.myk9.com'
+    'e2e-secretary@test.myk9.com', 'club@myk9t.com', 'e2e-clubadmin@test.myk9.com',
+    -- Judge / steward grant accounts (added so the judge + steward golden paths
+    -- survive a reseed; previously only secretary/club_admin were guaranteed).
+    'judge@myk9t.com', 'e2e-judge@test.myk9.com', 'e2e-steward@test.myk9.com'
   ] LOOP
     SELECT count(*) INTO v_count FROM public.people WHERE lower(email) = v_email;
     IF v_count <> 1 THEN
@@ -67,8 +83,8 @@ BEGIN
   END LOOP;
 
   -- Section 10 grants by role NAME; a renamed/absent role would also silently
-  -- grant nothing. Require both scoped roles to exist exactly once.
-  FOREACH v_email IN ARRAY ARRAY['secretary', 'club_admin'] LOOP
+  -- grant nothing. Require every granted role to exist exactly once.
+  FOREACH v_email IN ARRAY ARRAY['secretary', 'club_admin', 'judge', 'steward', 'chairman'] LOOP
     SELECT count(*) INTO v_count FROM public.roles WHERE name = v_email;
     IF v_count <> 1 THEN
       RAISE EXCEPTION 'seed-demo preflight: expected exactly 1 role named %, found %', v_email, v_count;
@@ -80,11 +96,14 @@ BEGIN
   -- "after backfill" — the body never added it). A grant account whose
   -- people.auth_user_id is NULL would seed a grant the RLS helpers
   -- (ur.auth_user_id = auth.uid()) can NEVER match — a silent broken role, the
-  -- same 403 symptom this seed exists to prevent. Require each of the four RBAC
-  -- grant accounts to resolve to exactly one person WITH a non-null auth_user_id.
+  -- same 403 symptom this seed exists to prevent. Require each RBAC grant
+  -- account to resolve to exactly one person WITH a non-null auth_user_id.
+  -- (club@myk9t.com / e2e-clubadmin also hold the new chairman grant; the judge
+  -- and steward accounts are added for sections 10b/10c.)
   FOREACH v_email IN ARRAY ARRAY[
     'secretary@myk9t.com', 'e2e-secretary@test.myk9.com',
-    'club@myk9t.com', 'e2e-clubadmin@test.myk9.com'
+    'club@myk9t.com', 'e2e-clubadmin@test.myk9.com',
+    'judge@myk9t.com', 'e2e-judge@test.myk9.com', 'e2e-steward@test.myk9.com'
   ] LOOP
     SELECT count(*) INTO v_count
     FROM public.people
@@ -103,7 +122,11 @@ END $$;
 --   trials dededede-0000-0000-0000-00000000002{1,2}
 --   class  dec1a55e-0000-0000-0000-00000000003{1..5}
 --   dog    dededede-0000-0000-0000-00000000004{1..6}
---   entry  dededede-0000-0000-0000-00000000005{1..8}
+--   entry  dededede-0000-0000-0000-00000000005{1..8}  (+ ...059/...060 refund fixtures)
+--   armband      dededede-0000-0000-0000-00000000006{1..6}
+--   judge_assign dededede-0000-0000-0000-0000000000a{1..5} (judge@) / b{1..5} (e2e-judge), class-level
+--   passcode     dededede-0000-0000-0000-00000000008{1,2}
+--   judge_qual   dededede-0000-0000-0000-00000000009{1,2}
 
 -- ---------------------------------------------------------------------------
 -- 0. Idempotency: remove prior seed rows (children first, FK-safe)
@@ -186,6 +209,7 @@ INSERT INTO public.shows (
   mail_in_strategy, mail_in_auto_release, waitlist_payment_deadline_hours,
   accept_check_payments, accept_cash_payments,
   cc_secretary_on_exhibitor_emails,
+  chairman, secretary, chief_steward,
   style, experience_is_published, experience_published_content,
   brand_color, unified_ringside_enabled, version, is_nationals
 )
@@ -206,6 +230,16 @@ VALUES (
   'none', false, 48,
   true, true,
   true,
+  -- Named officials. TWO DIFFERENT KINDS of data live in these columns:
+  --   * chairman + chief_steward are REPORT-ONLY free text — those people don't
+  --     act inside the program, we only print their names. Free text is correct;
+  --     promoting them to people rows would buy nothing and risk duplicate-person
+  --     drift. (Here: club@myk9t.com / e2e-steward person names, by convention.)
+  --   * secretary is a DENORMALIZED SNAPSHOT, not the source of truth. The real
+  --     secretary "who runs the show" is the section-10 club-scoped `secretary`
+  --     role grant (a real login: secretary@myk9t.com). This text is a cached
+  --     label for reports; the relational truth is the grant.
+  'Test Club', 'Test Secretary', 'Test Steward',
   'headline', false, '{}'::jsonb,
   '#0d4d4f', true, 3, false
 );
@@ -239,27 +273,31 @@ VALUES
 -- ---------------------------------------------------------------------------
 -- 4. Classes (5)  -- valid element/level/section, status 'upcoming'
 --    Saturday: 3 classes  |  Sunday: 2 classes
+--    judge_name is a DENORMALIZED SNAPSHOT of the assigned judge ('Test Judge' =
+--    judge@myk9t.com), NOT the source of truth: the relational link is
+--    judge_assignments.person_id (section 11) + judge_qualifications (section 13).
+--    Kept as a label so historical scorecards/reports print the name as-judged.
 -- ---------------------------------------------------------------------------
 INSERT INTO public.classes (
-  id, trial_id, name, level, element, section,
+  id, trial_id, name, level, element, section, judge_name,
   entry_fee, status, time_limit_seconds, num_hides, num_areas,
   has_blank, timer_mode, hides_known, display_order, version
 )
 VALUES
   ('dec1a55e-0000-0000-0000-000000000031', 'dededede-0000-0000-0000-000000000021',
-   'Container Novice A', 'Novice', 'Container', 'A',
+   'Container Novice A', 'Novice', 'Container', 'A', 'Test Judge',
    30.00, 'upcoming', 120, 1, 1, false, 'single', true, 1, 1),
   ('dec1a55e-0000-0000-0000-000000000032', 'dededede-0000-0000-0000-000000000021',
-   'Interior Advanced', 'Advanced', 'Interior', NULL,
+   'Interior Advanced', 'Advanced', 'Interior', NULL, 'Test Judge',
    30.00, 'upcoming', 180, 2, 2, false, 'single', true, 2, 1),
   ('dec1a55e-0000-0000-0000-000000000033', 'dededede-0000-0000-0000-000000000021',
-   'Exterior Excellent', 'Excellent', 'Exterior', NULL,
+   'Exterior Excellent', 'Excellent', 'Exterior', NULL, 'Test Judge',
    30.00, 'upcoming', 180, 2, 1, false, 'single', false, 3, 1),
   ('dec1a55e-0000-0000-0000-000000000034', 'dededede-0000-0000-0000-000000000022',
-   'Buried Master', 'Master', 'Buried', NULL,
+   'Buried Master', 'Master', 'Buried', NULL, 'Test Judge',
    30.00, 'upcoming', 240, 3, 1, true, 'single', false, 1, 1),
   ('dec1a55e-0000-0000-0000-000000000035', 'dededede-0000-0000-0000-000000000022',
-   'Interior Novice B', 'Novice', 'Interior', 'B',
+   'Interior Novice B', 'Novice', 'Interior', 'B', 'Test Judge',
    30.00, 'upcoming', 120, 1, 1, false, 'single', true, 2, 1);
 
 -- ---------------------------------------------------------------------------
@@ -542,36 +580,162 @@ WHERE r.name = 'club_admin'
       AND ur.show_id IS NULL);
 
 -- ---------------------------------------------------------------------------
--- 11. GAP FIXTURE #5 (judge handoff, audit 05-showday-walk S2): assign
---     judge@myk9t.com (a protected/kept account) to the Heartland show so
---     /judge/dashboard surfaces an assignment — the route into ringside. Without
---     this the judge dashboard reads "No Judging Assignments Yet" and the judge
---     golden path is unreachable.
+-- 10b/10c/10d. Judge / steward / chairman grants (parity with secretary +
+--     club_admin above). Section 10 historically guaranteed ONLY secretary and
+--     club_admin, so after a reseed the judge, steward, and chairman golden
+--     paths 403 exactly like the original F1 secretary bug:
+--       * /judge/* requires UserRole.JUDGE (judgeRoutes.tsx) — a section-11
+--         judge_assignments row fixes the judge's SCHEDULING surface but does
+--         NOT satisfy the route guard, which matches the role NAME. Both judge
+--         accounts therefore need an explicit `judge` user_roles grant here.
+--       * Steward ringside routes admit UserRole.STEWARD; e2e-steward needs it.
+--       * Chairman has no dedicated account, so per the demo decision the club
+--         officer doubles as show chairman: the two club_admin accounts also
+--         receive `chairman`.
+--
+--     CLUB SCOPE: migration 102's club_id-NOT-NULL constraint trigger covers
+--     ONLY secretary / trial_secretary / club_admin — judge/steward/chairman may
+--     legally carry a NULL club_id. We still club-scope them to Heartland
+--     (...0001) for consistency with the rows above and stability across reseeds
+--     (the club id is fixed); the name-based route guards are scope-agnostic, so
+--     a club-scoped row satisfies them. Same revoke-safe reactivate-then-insert
+--     pattern (flip a soft-deactivated/expired row active before filling missing
+--     rows), so a clean re-run is UPDATE 0 / INSERT 0.
+-- ---------------------------------------------------------------------------
+-- 10b. judge -> judge@myk9t.com + e2e-judge@test.myk9.com
+UPDATE public.user_roles ur
+SET is_active = true, auth_user_id = p.auth_user_id, expires_at = NULL
+FROM public.people p, public.roles r
+WHERE ur.user_id = p.id AND ur.role_id = r.id
+  AND r.name = 'judge'
+  AND lower(p.email) IN ('judge@myk9t.com', 'e2e-judge@test.myk9.com')
+  AND ur.club_id = 'dededede-0000-0000-0000-000000000001'
+  AND ur.show_id IS NULL
+  AND (ur.is_active IS DISTINCT FROM true
+       OR ur.auth_user_id IS DISTINCT FROM p.auth_user_id
+       OR ur.expires_at IS NOT NULL);
+
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id, granted_at)
+SELECT p.id, r.id, 'dededede-0000-0000-0000-000000000001', true, p.auth_user_id, '2026-06-17 00:00:00+00'
+FROM public.people p
+CROSS JOIN public.roles r
+WHERE r.name = 'judge'
+  AND lower(p.email) IN ('judge@myk9t.com', 'e2e-judge@test.myk9.com')
+  AND NOT EXISTS (
+    SELECT 1 FROM public.user_roles ur
+    WHERE ur.user_id = p.id AND ur.role_id = r.id
+      AND ur.club_id = 'dededede-0000-0000-0000-000000000001'
+      AND ur.show_id IS NULL);
+
+-- 10c. steward -> e2e-steward@test.myk9.com
+UPDATE public.user_roles ur
+SET is_active = true, auth_user_id = p.auth_user_id, expires_at = NULL
+FROM public.people p, public.roles r
+WHERE ur.user_id = p.id AND ur.role_id = r.id
+  AND r.name = 'steward'
+  AND lower(p.email) IN ('e2e-steward@test.myk9.com')
+  AND ur.club_id = 'dededede-0000-0000-0000-000000000001'
+  AND ur.show_id IS NULL
+  AND (ur.is_active IS DISTINCT FROM true
+       OR ur.auth_user_id IS DISTINCT FROM p.auth_user_id
+       OR ur.expires_at IS NOT NULL);
+
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id, granted_at)
+SELECT p.id, r.id, 'dededede-0000-0000-0000-000000000001', true, p.auth_user_id, '2026-06-17 00:00:00+00'
+FROM public.people p
+CROSS JOIN public.roles r
+WHERE r.name = 'steward'
+  AND lower(p.email) IN ('e2e-steward@test.myk9.com')
+  AND NOT EXISTS (
+    SELECT 1 FROM public.user_roles ur
+    WHERE ur.user_id = p.id AND ur.role_id = r.id
+      AND ur.club_id = 'dededede-0000-0000-0000-000000000001'
+      AND ur.show_id IS NULL);
+
+-- 10d. chairman -> club@myk9t.com + e2e-clubadmin@test.myk9.com (club officer doubles as chair)
+UPDATE public.user_roles ur
+SET is_active = true, auth_user_id = p.auth_user_id, expires_at = NULL
+FROM public.people p, public.roles r
+WHERE ur.user_id = p.id AND ur.role_id = r.id
+  AND r.name = 'chairman'
+  AND lower(p.email) IN ('club@myk9t.com', 'e2e-clubadmin@test.myk9.com')
+  AND ur.club_id = 'dededede-0000-0000-0000-000000000001'
+  AND ur.show_id IS NULL
+  AND (ur.is_active IS DISTINCT FROM true
+       OR ur.auth_user_id IS DISTINCT FROM p.auth_user_id
+       OR ur.expires_at IS NOT NULL);
+
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id, granted_at)
+SELECT p.id, r.id, 'dededede-0000-0000-0000-000000000001', true, p.auth_user_id, '2026-06-17 00:00:00+00'
+FROM public.people p
+CROSS JOIN public.roles r
+WHERE r.name = 'chairman'
+  AND lower(p.email) IN ('club@myk9t.com', 'e2e-clubadmin@test.myk9.com')
+  AND NOT EXISTS (
+    SELECT 1 FROM public.user_roles ur
+    WHERE ur.user_id = p.id AND ur.role_id = r.id
+      AND ur.club_id = 'dededede-0000-0000-0000-000000000001'
+      AND ur.show_id IS NULL);
+
+-- ---------------------------------------------------------------------------
+-- 11. GAP FIXTURE #5 (judge handoff, audit 05-showday-walk S2): assign judges to
+--     the Heartland show so /judge/dashboard surfaces assignments — the route into
+--     ringside. Without this the judge dashboard reads "No Judging Assignments Yet"
+--     and the judge golden path is unreachable.
+--
+--     MUST BE CLASS-LEVEL, NOT trial/show-level. The dashboard data path is
+--     class-centric: useJudgeAssignments selects judge_assignments -> classes ->
+--     trials and BOTH mappers DROP any row whose class is missing
+--     (mapAssignmentRowToJudgeClass: `if (!cls || !trial) return null`;
+--     mapReplicatedAssignmentToJudgeClass: `if (!a.classId ...) return null`). A
+--     row with only show_id + trial_id (class_id NULL) therefore produces ZERO
+--     dashboard classes — the judge still sees the empty state. So every row here
+--     sets class_id. (This is also why a wizard-created SHOW-level assignment
+--     does not reach the dashboard — a separate product gap, not seeded here.)
+--
+--     Coverage: both demo judges judge ALL 5 classes across both trials, so
+--     whichever judge account a tester signs in as, the dashboard is full. Both
+--     people are named "Test Judge" (matches classes.judge_name), so co-assigning
+--     them to the same classes is consistent. trial_id matches each class's trial.
+--       ...0a{1..5}  judge@myk9t.com         -> classes 031..035
+--       ...0b{1..5}  e2e-judge@test.myk9.com -> classes 031..035
 --
 --     SCOPE NOTE: a judge_assignments row fixes the judge's SCHEDULING surface.
 --     It does NOT by itself grant entry-visibility RLS at ringside — entries_select
 --     (migration 129) admits only can_manage_show / handler / dog-owner, none of
 --     which a judge_assignment satisfies. Ringside entry visibility for a
---     non-managing role is the passcode / ringside_session path (section 12).
+--     non-managing role is the passcode / ringside_session path (section 12). The
+--     route GUARD (UserRole.JUDGE) is satisfied by the section 10b grant, not here.
 --
---     Idempotent: delete any prior Heartland assignment for this judge, then
---     INSERT...SELECT (a no-op if the judge account is absent — person_id is NOT
---     NULL, so we never insert a NULL). version defaults to 1 (migration
---     20260608200000); confirmed status so the dashboard treats it as active.
+--     Idempotent: delete ALL prior Heartland assignments (any judge), then
+--     INSERT...SELECT joined to people by email — an absent judge account simply
+--     drops its rows (person_id is NOT NULL, so we never insert a NULL). version
+--     defaults to 1 (migration 20260608200000); confirmed => dashboard-active.
 -- ---------------------------------------------------------------------------
 DELETE FROM public.judge_assignments
-WHERE person_id = (SELECT id FROM public.people WHERE lower(email) = 'judge@myk9t.com')
-  AND show_id = 'dededede-0000-0000-0000-000000000010';
+WHERE show_id = 'dededede-0000-0000-0000-000000000010';
 
 INSERT INTO public.judge_assignments (
-  id, person_id, show_id, trial_id, status, confirmed_at, created_at, updated_at
+  id, person_id, show_id, trial_id, class_id, status, confirmed_at, created_at, updated_at
 )
 SELECT
-  'dededede-0000-0000-0000-000000000071', p.id,
-  'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
+  v.id, p.id, 'dededede-0000-0000-0000-000000000010', v.trial_id, v.class_id,
   'confirmed', '2026-06-17 00:00:00+00', '2026-06-17 00:00:00+00', '2026-06-17 00:00:00+00'
-FROM public.people p
-WHERE lower(p.email) = 'judge@myk9t.com';
+FROM (VALUES
+  -- judge@myk9t.com -> all 5 classes
+  ('dededede-0000-0000-0000-0000000000a1'::uuid, 'judge@myk9t.com',         'dededede-0000-0000-0000-000000000021'::uuid, 'dec1a55e-0000-0000-0000-000000000031'::uuid),
+  ('dededede-0000-0000-0000-0000000000a2'::uuid, 'judge@myk9t.com',         'dededede-0000-0000-0000-000000000021'::uuid, 'dec1a55e-0000-0000-0000-000000000032'::uuid),
+  ('dededede-0000-0000-0000-0000000000a3'::uuid, 'judge@myk9t.com',         'dededede-0000-0000-0000-000000000021'::uuid, 'dec1a55e-0000-0000-0000-000000000033'::uuid),
+  ('dededede-0000-0000-0000-0000000000a4'::uuid, 'judge@myk9t.com',         'dededede-0000-0000-0000-000000000022'::uuid, 'dec1a55e-0000-0000-0000-000000000034'::uuid),
+  ('dededede-0000-0000-0000-0000000000a5'::uuid, 'judge@myk9t.com',         'dededede-0000-0000-0000-000000000022'::uuid, 'dec1a55e-0000-0000-0000-000000000035'::uuid),
+  -- e2e-judge@test.myk9.com -> all 5 classes (e2e suite dashboard coverage)
+  ('dededede-0000-0000-0000-0000000000b1'::uuid, 'e2e-judge@test.myk9.com', 'dededede-0000-0000-0000-000000000021'::uuid, 'dec1a55e-0000-0000-0000-000000000031'::uuid),
+  ('dededede-0000-0000-0000-0000000000b2'::uuid, 'e2e-judge@test.myk9.com', 'dededede-0000-0000-0000-000000000021'::uuid, 'dec1a55e-0000-0000-0000-000000000032'::uuid),
+  ('dededede-0000-0000-0000-0000000000b3'::uuid, 'e2e-judge@test.myk9.com', 'dededede-0000-0000-0000-000000000021'::uuid, 'dec1a55e-0000-0000-0000-000000000033'::uuid),
+  ('dededede-0000-0000-0000-0000000000b4'::uuid, 'e2e-judge@test.myk9.com', 'dededede-0000-0000-0000-000000000022'::uuid, 'dec1a55e-0000-0000-0000-000000000034'::uuid),
+  ('dededede-0000-0000-0000-0000000000b5'::uuid, 'e2e-judge@test.myk9.com', 'dededede-0000-0000-0000-000000000022'::uuid, 'dec1a55e-0000-0000-0000-000000000035'::uuid)
+) AS v(id, email, trial_id, class_id)
+JOIN public.people p ON lower(p.email) = v.email;
 
 -- ---------------------------------------------------------------------------
 -- 12. GAP FIXTURE #6 (steward/judge ringside entry, audit 05-showday-walk S3):
@@ -610,6 +774,48 @@ BEGIN
 EXCEPTION WHEN sqlstate '55000' THEN
   RAISE NOTICE 'Skipped Heartland ringside passcode seed (% - %). passcode_pepper Vault secret is unset; mint via regenerate_show_passcodes() instead.', SQLSTATE, SQLERRM;
 END $$;
+
+-- ---------------------------------------------------------------------------
+-- 13. Judge qualifications (people-table judge model, not free text).
+--     A judge is a `people` row with attributes we reason about — their judge
+--     NUMBER and WHAT THEY CAN JUDGE — recorded in judge_qualifications, NOT a
+--     `classes.judge_name` string. (classes.judge_name above is a denormalized
+--     report/scorecard SNAPSHOT of the assigned judge, never the source of
+--     truth; the relational link is judge_assignments.person_id in section 11.)
+--     A judge does NOT need a login for this — judge_qualifications.person_id
+--     just references people; both demo judges happen to also hold a login +
+--     the section 10b `judge` role grant, which is what surfaces them in the
+--     secretary's "assign a judge" picker (judges/reads.ts inner-joins
+--     user_roles), but the qualifications themselves are login-independent.
+--
+--     Columns the assignment UI reads (judges/reads.ts JUDGE_QUALIFICATIONS_SELECT):
+--     organization, qualification_level, disciplines[], judge_number,
+--     date_obtained, expiration_date, is_active. No CHECK constraints on level/
+--     disciplines (free-form); we mirror the app's mock shape (disciplines =
+--     ['Scent Work'], the sport — not per-element). RLS is FORCE-enabled but the
+--     seed runs as the table owner via psql (same as every other insert here).
+--
+--     Idempotent: delete the two fixed-id rows, then INSERT...SELECT joined to
+--     people by email (an absent judge account drops its row — person_id is NOT
+--     NULL, never inserted NULL). Literal dates (file forbids now()/random).
+-- ---------------------------------------------------------------------------
+DELETE FROM public.judge_qualifications WHERE id IN (
+  'dededede-0000-0000-0000-000000000091',
+  'dededede-0000-0000-0000-000000000092'
+);
+
+INSERT INTO public.judge_qualifications (
+  id, person_id, organization, qualification_level, disciplines, judge_number,
+  date_obtained, expiration_date, is_active
+)
+SELECT
+  v.id, p.id, 'AKC', 'Master', ARRAY['Scent Work'], v.judge_number,
+  '2021-01-01', '2027-01-01', true
+FROM (VALUES
+  ('dededede-0000-0000-0000-000000000091'::uuid, 'judge@myk9t.com',         'AKC-SW-1001'),
+  ('dededede-0000-0000-0000-000000000092'::uuid, 'e2e-judge@test.myk9.com', 'AKC-SW-1002')
+) AS v(id, email, judge_number)
+JOIN public.people p ON lower(p.email) = v.email;
 
 COMMIT;
 

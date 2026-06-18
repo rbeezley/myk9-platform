@@ -22,22 +22,26 @@ import type { DbJudgeAvailability } from '@/types/database-mappings';
 // Helper to access tables not in generated types
 const qualificationsTable = () => untypedFrom('judge_qualifications');
 const certificationsTable = () => untypedFrom('judge_certifications');
-const USER_ROLES_FK = 'user_roles!user_roles_user_id_fkey';
-const JUDGE_QUALIFICATIONS_SELECT = `judge_qualifications(
+// `!inner` gates the result to people who HAVE a judge_qualifications row — a
+// judge is defined by their qualifications, not by holding a login/role grant.
+// Most judges never create an account: they exist as a people row + their
+// number/disciplines, entered by a secretary. Gating on user_roles (the prior
+// behavior) made those account-less judges invisible to the assignment picker.
+const JUDGE_QUALIFICATIONS_SELECT = `judge_qualifications!inner(
   id, organization, qualification_level, disciplines, judge_number,
   date_obtained, expiration_date, is_active
 )`;
 
 // Get judges with their qualifications for Secretary judge assignment UI.
+// Source of truth = judge_qualifications (org/active filtering happens in the UI
+// against the embedded rows); a `judge` user_roles grant is NOT required.
 export const getJudgesWithQualifications = async () => {
   const startTime = Date.now();
 
   try {
     const { data, error } = await supabase
       .from('people')
-      .select(`*, ${USER_ROLES_FK}!inner(role:roles!inner(name)), ${JUDGE_QUALIFICATIONS_SELECT}`)
-      .eq('user_roles.is_active', true)
-      .eq('user_roles.roles.name', 'judge')
+      .select(`*, ${JUDGE_QUALIFICATIONS_SELECT}`)
       .is('deleted_at', null)
       .order('last_name', { ascending: true });
 

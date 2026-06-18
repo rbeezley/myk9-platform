@@ -72,8 +72,13 @@ Establishes what's actually broken before more UI changes land.
    entry dead end gone (UX-P1-01), own placed result now 0-click on the hub (Finding A PlacementPill).
    Verified live: F2 (pending count 3 not 7), F3 (constrained move-up picker), UX-P2-04/P2-05.
    At-show tasks (ring status, dogs-ahead) deferred to the Lane 1.4 show-day walk (doc `05`).
-6. **Scorecard close-out** — flip Secretary + Exhibitor rows with evidence links; sweep remaining
-   scorecard dimensions.
+6. **Scorecard close-out** — **DONE 2026-06-18.** Flipped Secretary + Exhibitor golden-path rows to
+   **Green** (gated on real-user test) with evidence links, and swept all 10 primary dimensions in
+   [`fall-2026-launch-readiness-scorecard.md`](goals/fall-2026-launch-readiness-scorecard.md#scorecard-close-out--2026-06-18-lane-16).
+   Result: 3 Green (both golden paths + Test/CI health), 6 Yellow, 1 Unknown (Admin), **0 Red, no
+   open P0/P1**. The launch gate is not yet met — remaining work is the Yellow gaps + Admin
+   walkthrough; the biggest single gate is **real-user testing (step 7)**, which also supplies the
+   missing UX-clarity evidence.
 7. **Phase 3 — real-user testing** (after the app is coherent end-to-end).
 
 ## Lane 2 — Secretary Operational UX  *(after Lane 1 has evidence; may overlap)*

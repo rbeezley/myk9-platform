@@ -26,6 +26,12 @@
 
 Green is not available from this synthesis. Green requires remediation, fixture-backed or approved-seed seam evidence, and a re-walk against the scorecard pass thresholds.
 
+> **Superseded 2026-06-18 (Lane 1.6 close-out):** the proposed statuses above are the *synthesis-date*
+> snapshot. After remediation + the Phase 6 re-measure, the Secretary and Exhibitor golden-path rows
+> were flipped to **Green** (gated on real-user testing) in
+> [`fall-2026-launch-readiness-scorecard.md`](../../goals/fall-2026-launch-readiness-scorecard.md#scorecard-close-out--2026-06-18-lane-16).
+> See the Phase 6 section at the bottom of this file for the time-to-task deltas behind that flip.
+
 ## Severity-Ordered Findings
 
 | ID | Severity | Role / seam | Finding | Golden-path step or seam | INTENT violation | Evidence | Recommended remediation | Duplication answer | Verification needed |

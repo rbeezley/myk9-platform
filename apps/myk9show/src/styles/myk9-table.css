@@ -311,13 +311,16 @@
   color: #007aff !important;
 }
 
+/* Theme destructive token (AA on card/popover surfaces in both themes) — not a
+   hard-coded #ff3b30, which was only ~3.4:1 on the card. --destructive-strong is
+   the documented choice for small text on popover/card surfaces (see index.css). */
 .myk9-table-dropdown-item.destructive {
-  color: #ff3b30 !important;
+  color: rgb(var(--destructive-strong)) !important;
 }
 
 .myk9-table-dropdown-item.destructive:hover {
-  background: rgba(255, 59, 48, 0.1) !important;
-  color: #ff3b30 !important;
+  background: rgb(var(--destructive-strong) / 0.1) !important;
+  color: rgb(var(--destructive-strong)) !important;
 }
 
 /* Dark mode adjustments */

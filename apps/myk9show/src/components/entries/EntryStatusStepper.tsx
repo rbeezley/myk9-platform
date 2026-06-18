@@ -92,7 +92,7 @@ export const EntryStatusStepper: React.FC<EntryStatusStepperProps> = ({
                 <div
                   className={cn(
                     'w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium transition-all duration-300',
-                    completed && 'bg-success text-white',
+                    completed && 'bg-success text-success-foreground',
                     active && !hasError && 'bg-primary text-primary-foreground ring-2 ring-primary/30',
                     active && hasError && 'bg-destructive text-white ring-2 ring-destructive/30',
                     active && isWaitlist && 'bg-warning text-white ring-2 ring-warning/30',

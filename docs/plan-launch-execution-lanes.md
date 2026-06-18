@@ -91,9 +91,14 @@ Establishes what's actually broken before more UI changes land.
    (scorecard "Admin minimum" Unknown), which can run any time and is not gated on Lanes 2–5.
 
 ## Lane 2 — Secretary Operational UX  *(after Lane 1 has evidence; may overlap)*
-1. **Standardize the shared 3-dot row-action menu** (primitive first).
+1. **Standardize the shared 3-dot row-action menu** (primitive first). — **DONE 2026-06-18**
+   ([#825](https://github.com/rbeezley/myk9-platform/pull/825)). New canonical `RowActionMenu`
+   primitive (`components/ui/RowActionMenu`); destructive items use the themed `text-destructive` /
+   `--destructive-strong` tokens (WCAG-AA) instead of hard-coded reds; `ui/ThreeDotMenu` now a thin
+   adapter, dead `users/ThreeDotMenu` deleted, EntryActionsMenu + ClassRowActionsMenu + admin
+   RowActions migrated. Follow-up: fold `common/ThreeDotMenu` (12 consumers, last parallel impl).
 2. **Entry Management checkbox multi-select** for bulk editing — *after* #1, or the interaction
-   pattern gets touched twice.
+   pattern gets touched twice. — **IN PROGRESS** (Lane 2.2).
 3. **Print testing on venue hardware.**
 
 ## Lane 3 — Pre-Launch Hardening  *(safe to parallelize)*

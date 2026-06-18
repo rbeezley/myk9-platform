@@ -1,0 +1,121 @@
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, within } from '@/test/utils/testUtils';
+import { RegistrationView } from '../RegistrationView';
+import { EntryStatus } from '@/types/show-registration-types';
+import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
+import type {
+  EntryStats,
+  EntryManagementEntry,
+  EntryClass,
+} from '@/types/entry-management-types';
+
+// Keep the real EntriesTableView + EntryBulkActionsBar (this test is about their
+// wiring through RegistrationView); mock only the unrelated heavy children.
+vi.mock('../EntryStatsCards', () => ({ EntryStatsCards: () => <div data-testid="entry-stats" /> }));
+vi.mock('../EntryFiltersCard', () => ({ EntryFiltersCard: () => <div data-testid="entry-filters" /> }));
+vi.mock('../EnrollmentCard', () => ({ EnrollmentCard: () => <div data-testid="enrollment-card" /> }));
+vi.mock('@/components/entries/MoveUpRequestsTab', () => ({
+  MoveUpRequestsTab: () => <div data-testid="move-up-requests" />,
+}));
+vi.mock('@/components/entries/PullManagementTab', () => ({
+  PullManagementTab: () => <div data-testid="pull-management" />,
+}));
+vi.mock('@/hooks/useEmailStatus', () => ({ useEmailStatus: () => ({ data: {} }) }));
+
+const aClass: EntryClass = { id: 'c1', name: 'Novice A', number: '1', fee: 25, status: 'entered' };
+
+function entry(id: string, dogName: string): EntryManagementEntry {
+  return {
+    id,
+    registrationId: `reg-${id}`,
+    entryNumber: id,
+    showId: 'show-1',
+    dogId: `dog-${id}`,
+    dogName,
+    ownerName: 'Owner',
+    ownerEmail: 'o@example.com',
+    handlerName: 'Handler',
+    classes: [aClass],
+    totalFee: 25,
+    paidAmount: 0,
+    entryStatus: EntryStatus.PENDING,
+    paymentStatus: 'pending' as EntryManagementEntry['paymentStatus'],
+    submittedAt: new Date('2026-06-01'),
+    lastUpdated: new Date('2026-06-01'),
+  };
+}
+
+const enrollmentGroups = [
+  { groupKey: 'g1', enrollmentId: 'e1', entries: [] },
+] as unknown as EnrollmentGroup[];
+
+function renderView(overrides: Record<string, unknown> = {}) {
+  const onBulkStatusChange = vi.fn();
+  const setSelectedTab = vi.fn();
+  const filteredEntries = [entry('e1', 'Willow'), entry('e2', 'Ranger')];
+  const props = {
+    stats: {} as EntryStats,
+    searchTerm: '',
+    setSearchTerm: vi.fn(),
+    paymentFilter: 'all',
+    setPaymentFilter: vi.fn(),
+    selectedTab: 'pending',
+    setSelectedTab,
+    tabCounts: { all: 2, pending: 2, accepted: 0, waitlist: 0, issues: 0 },
+    filteredEntries,
+    entries: filteredEntries,
+    onBulkStatusChange,
+    onBulkCheckIn: vi.fn(),
+    onPaymentStatusChange: vi.fn(),
+    onStatusChange: vi.fn(),
+    onCheckInStatusChange: vi.fn(),
+    onOpenArmbandDialog: vi.fn(),
+    onOpenCompDialog: vi.fn(),
+    onUncompEntry: vi.fn(),
+    onRemoveEntry: vi.fn(),
+    showId: 'show-1',
+    onRefresh: vi.fn(),
+    enrollmentGroups,
+    onSendDecisionEmail: vi.fn().mockResolvedValue(undefined),
+    ...overrides,
+  };
+  const utils = render(<RegistrationView {...props} />);
+  return { ...utils, onBulkStatusChange, setSelectedTab };
+}
+
+describe('RegistrationView multi-select wiring', () => {
+  it('select-all reveals the bulk bar and Approve fires onBulkStatusChange with the selected ids', async () => {
+    const { user, onBulkStatusChange } = renderView();
+
+    // Switch to the table view, where multi-select lives.
+    await user.click(screen.getByRole('button', { name: /table view/i }));
+
+    // No bar until something is selected.
+    expect(screen.queryByText(/entries selected/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('checkbox', { name: /select all entries/i }));
+
+    const bar = screen.getByRole('region', { name: /bulk entry actions/i });
+    expect(within(bar).getByText('2 entries selected')).toBeInTheDocument();
+
+    await user.click(within(bar).getByRole('button', { name: /approve/i }));
+
+    expect(onBulkStatusChange).toHaveBeenCalledWith(['e1', 'e2'], EntryStatus.ACCEPTED);
+    // Selection clears after the action — bar goes away.
+    expect(screen.queryByRole('region', { name: /bulk entry actions/i })).not.toBeInTheDocument();
+  });
+
+  it('switching tabs clears the selection (and the bar)', async () => {
+    const { user, setSelectedTab } = renderView();
+    await user.click(screen.getByRole('button', { name: /table view/i }));
+    await user.click(screen.getByRole('checkbox', { name: /select willow/i }));
+
+    expect(screen.getByRole('region', { name: /bulk entry actions/i })).toBeInTheDocument();
+
+    // Clicking another tab routes through handleTabChange → clearSelection + setSelectedTab.
+    await user.click(screen.getByRole('tab', { name: /accepted/i }));
+
+    expect(setSelectedTab).toHaveBeenCalledWith('accepted');
+    expect(screen.queryByRole('region', { name: /bulk entry actions/i })).not.toBeInTheDocument();
+  });
+});

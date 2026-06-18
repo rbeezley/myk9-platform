@@ -91,6 +91,18 @@ describe('ToastContainer', () => {
     expect(screen.getByLabelText(/dog alert/i)).toBeInTheDocument();
   });
 
+  it('renders the urgent label with the AA-compliant destructive-strong token', () => {
+    // text-red-400 (#f87171) fails WCAG AA as 9px text on the popover surface
+    // (~2.6:1 light / needs 4.5:1). The theme-aware text-destructive-strong
+    // token flips shade per theme so the label clears AA in both modes.
+    useToastStore.getState().addToast(makePayload('1', 'urgent'));
+    render(<ToastContainer />);
+
+    const label = screen.getByText(/will not auto-dismiss/i);
+    expect(label.className).toContain('text-destructive-strong');
+    expect(label.className).not.toContain('text-red-400');
+  });
+
   it('renders the View action link with an AA-safe foreground+underline, not a low-contrast accent token', () => {
     // Regression: the action link first used `text-orange-500` (#f97316) — only
     // 2.66:1 on the light popover (#faf9f5) — then `text-primary`, which still

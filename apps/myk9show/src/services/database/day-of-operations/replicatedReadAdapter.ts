@@ -18,6 +18,7 @@ type DayOfReadEntry = {
   armband: string | null;
   entry_fee?: number | null;
   payment_status?: string | null;
+  stripe_payment_intent_id?: string | null;
   special_requests?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
@@ -156,6 +157,7 @@ async function enrichDayOfEntry(
     armband: entry.armband ?? null,
     entry_fee: entry.entryFee ?? null,
     payment_status: entry.paymentStatus ?? null,
+    stripe_payment_intent_id: entry.stripePaymentIntentId ?? null,
     special_requests: entry.specialRequests ?? entry.special_requests ?? null,
     created_at: getEntryCreatedAt(entry),
     updated_at: getEntryUpdatedAt(entry),

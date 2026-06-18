@@ -38,10 +38,10 @@ import {
   DollarSign,
   CreditCard,
 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import {
   getPendingScratchRequests as getPendingPullRequests,
   getScratchedEntries as getPulledEntries,
-  updateRefundStatus,
   type ScratchRequest as PullRequest,
 } from '@/services/database/day-of-operations';
 import {
@@ -113,10 +113,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
       if (error) {
         toast.error('Failed to approve pull request');
       } else {
-        if (processRefund) {
-          await updateRefundStatus(selectedRequest.id, 'processed', refundAmount);
-        }
-        toast.success(processRefund ? 'Pull approved with refund' : 'Pull approved');
+        toast.success('Pull approved');
         await loadData();
         onRefresh?.();
       }
@@ -157,12 +154,12 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
     setIsProcessing(true);
 
     try {
-      // In production, this would call a Stripe refund Edge Function
-      // For now, just update the status
-      const { error } = await updateRefundStatus(selectedRequest.id, 'processed', refundAmount);
+      const { error } = await supabase.functions.invoke('stripe-refund-entry', {
+        body: { entry_id: selectedRequest.id, amount_cents: refundAmount },
+      });
 
       if (error) {
-        toast.error('Failed to process refund');
+        toast.error(error.message ?? 'Refund failed');
       } else {
         toast.success('Refund processed successfully');
         await loadData();
@@ -179,7 +176,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
   const openApproveDialog = (request: PullRequest) => {
     setSelectedRequest(request);
     setDialogAction('approve');
-    setProcessRefund(request.refund_status === 'eligible' && !!request.stripe_payment_intent_id);
+    setProcessRefund(request.payment_status === 'paid' && !!request.stripe_payment_intent_id);
     setRefundAmount(request.entry_fee || 0);
   };
 
@@ -465,7 +462,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
                           Pulled: {formatDate(pull.scratched_at ?? pull.updated_at)}
                         </div>
 
-                        {pull.refund_status === 'eligible' && pull.stripe_payment_intent_id && (
+                        {pull.payment_status === 'paid' && pull.stripe_payment_intent_id && (
                           <Button
                             size="sm"
                             variant="outline"

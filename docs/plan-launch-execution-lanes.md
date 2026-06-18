@@ -113,7 +113,11 @@ Establishes what's actually broken before more UI changes land.
    (`22 101 52`); dark-mode `--success-foreground` overridden to green-900 (`20 83 45`);
    `EntryStatusStepper` updated from `text-white`; regression tests in `success-token.test.ts` +
    `semanticStatusTokens.test.ts`.
-2. **E2E suite stability** (flake fix; `codex/fix-qa-test-flake-021` in flight) — gates #4.
+2. **E2E suite stability** — **DONE 2026-06-18 (Lane 3.2).** Nightly Active suite (20 Playwright +
+   4 Vitest specs) green: fixed 3 exhibitor failures (exhibitor restore migration
+   `20260618140000`), loosened UTC-midnight date-picker assertion. Scoped `playwright.ci.config.ts`
+   to 2 PR Smoke specs; re-enabled `e2e-myk9show` CI job (runs on every PR/push, not yet a
+   required check — see #4). Payout cron migration `20260618130000` idempotency-fixed. — gates #4.
 3. **Rotate + lock down E2E test accounts.**
 4. **Make E2E CI jobs blocking** — *only after #2 + #3* (blocking a flaky suite blocks every PR).
 5. **CI-gated Vercel deploys** — after #4.

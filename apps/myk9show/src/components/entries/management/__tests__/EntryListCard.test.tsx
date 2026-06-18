@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { EntryListCard } from '../EntryListCard';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
@@ -89,6 +89,21 @@ describe('EntryListCard - check-in button affordance', () => {
       const button = indicator.closest('button');
       expect(button).toHaveClass('cursor-pointer');
     });
+  });
+
+  it('omits "Waitlisted" from the per-entry status menu', () => {
+    // The inline status write `entry_status: 'waitlist'` never creates
+    // `waitlist_entries` membership and reverts to Pending on reload. Real
+    // waitlisting is the dedicated per-class workflow (WaitlistManagementPage).
+    render(<EntryListCard {...defaultProps} />);
+
+    // The status dropdown trigger shows the entry's current status badge.
+    fireEvent.click(screen.getByText('Accepted'));
+
+    // Valid status transitions remain reachable…
+    expect(screen.getByText('Not Accepted')).toBeTruthy();
+    // …but the broken no-op "Waitlisted" option is gone.
+    expect(screen.queryByText('Waitlisted')).toBeNull();
   });
 
   it('confirms before removing an entry from a class', async () => {

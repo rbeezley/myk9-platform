@@ -4,8 +4,8 @@ import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Mock supabase — useCurrentUserPerson queries directly
-const mockSingle = vi.fn().mockResolvedValue({ data: null, error: null });
-const mockIsDeletedAt = vi.fn().mockReturnValue({ single: mockSingle });
+const mockMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+const mockIsDeletedAt = vi.fn().mockReturnValue({ maybeSingle: mockMaybeSingle });
 const mockEqAuthUserId = vi.fn().mockReturnValue({ is: mockIsDeletedAt });
 const mockSelect = vi.fn().mockReturnValue({ eq: mockEqAuthUserId });
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -75,12 +75,12 @@ describe('useProfileForm', () => {
     vi.clearAllMocks();
     mockMutateAsync.mockResolvedValue({});
     // Default: return person data from supabase
-    mockSingle.mockResolvedValue({ data: dbPersonData, error: null });
+    mockMaybeSingle.mockResolvedValue({ data: dbPersonData, error: null });
   });
 
   it('returns initial empty form values when loading', () => {
     // Simulate loading by returning a pending promise
-    mockSingle.mockReturnValue(new Promise(() => {}));
+    mockMaybeSingle.mockReturnValue(new Promise(() => {}));
 
     const { result } = renderHook(() => useProfileForm(), { wrapper: createWrapper() });
 
@@ -111,7 +111,7 @@ describe('useProfileForm', () => {
   });
 
   it('validates required name fields', () => {
-    mockSingle.mockResolvedValue({ data: null, error: { message: 'not found' } });
+    mockMaybeSingle.mockResolvedValue({ data: null, error: { message: 'not found' } });
 
     const { result } = renderHook(() => useProfileForm(), { wrapper: createWrapper() });
 
@@ -120,7 +120,7 @@ describe('useProfileForm', () => {
   });
 
   it('phone is optional — no validation error when empty', async () => {
-    mockSingle.mockResolvedValue({
+    mockMaybeSingle.mockResolvedValue({
       data: { ...dbPersonData, phone: '' },
       error: null,
     });
@@ -140,7 +140,7 @@ describe('useProfileForm', () => {
   });
 
   it('isValid is false when required fields are empty', () => {
-    mockSingle.mockResolvedValue({ data: null, error: { message: 'not found' } });
+    mockMaybeSingle.mockResolvedValue({ data: null, error: { message: 'not found' } });
 
     const { result } = renderHook(() => useProfileForm(), { wrapper: createWrapper() });
 
@@ -201,7 +201,7 @@ describe('useProfileForm', () => {
   });
 
   it('save() allows profile changes when address fields are blank', async () => {
-    mockSingle.mockResolvedValue({
+    mockMaybeSingle.mockResolvedValue({
       data: {
         ...dbPersonData,
         street_address: '',

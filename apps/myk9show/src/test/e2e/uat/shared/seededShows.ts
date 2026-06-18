@@ -1,7 +1,7 @@
 export const LIVE_SECRETARY_SHOW_ID =
-  process.env.QA_SECRETARY_SHOW_ID ?? '5d8bfe56-a48d-48dd-ae75-7f90c2e02c4f';
+  process.env.QA_SECRETARY_SHOW_ID ?? 'dededede-0000-0000-0000-000000000010';
 
-export const LIVE_SECRETARY_SHOW_NAME = 'Monogram';
+export const LIVE_SECRETARY_SHOW_NAME = 'Heartland Scent Work Classic';
 
 export const LIVE_REGISTRATION_SHOW_ID =
   process.env.QA_REGISTRATION_SHOW_ID ?? LIVE_SECRETARY_SHOW_ID;

@@ -18,6 +18,17 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-06-18
+
+- **Playwright command:** fail/partial. Phase 1 Vitest passed (`18/18`). Initial Phase 2 active Playwright was stopped at the global budget boundary after `31 passed, 13 failed, 1 interrupted, 5 did not run (29.1m, --retries=0)`, but that run was later found to be contaminated: `.qa-nightly.env` variables were sourced as shell locals, not exported, so child Playwright processes fell back to the shared `5173` server. Fixed the helper to emit `export KEY=value`, then reran focused proof with `set -a; source .qa-nightly.env; set +a` on isolated `PLAYWRIGHT_BASE_URL=http://127.0.0.1:5857`.
+- **Route sweep:** fail. Standalone route-health on the exported isolated port passed public, secretary, judge, club-admin, and admin (`5/6`) and failed only exhibitor. Public 375px overflow is fixed; exhibitor still redirects to `/onboarding`.
+- **Active specs:** Vitest `18/18`; focused registration/secretary proof `9/9`; standalone route-health `5/6`.
+- **Failures:** Opened `QA-ROLE-SCOPE-024` for `exhibitor1@myk9t.com` redirecting all exhibitor route-health routes to `/onboarding`. The pre-fix 406 browser-health noise from `useCurrentUserPerson` was removed by switching the optional current-person lookup from `.single()` to `.maybeSingle()`, but the account/profile seed state still needs inventory. Evidence path: `apps/myk9show/test-results/route-health-by-role-Route-26df1-hibitor-routes-render-clean-chromium/error-context.md`.
+- **Fixes made:** `scripts/qa/run-nightly-isolated.sh` now writes exported `.qa-nightly.env` assignments so the documented `source .qa-nightly.env && ...` workflow actually passes generated Playwright values to child processes. Active seeded-show fixtures moved from stale Monogram `5d8bfe56-a48d-48dd-ae75-7f90c2e02c4f` to Heartland `dededede-0000-0000-0000-000000000010`; stale `Bravo`/`Ziva` dog and `Interior/Novice` class assertions now use Heartland dogs/classes. `secretary-entry-walk` now uses local cart mocks and the secretary payment path instead of attempting a shared cart/checkout flow. Public landing mobile overflow fixed by compacting the phone header below 480px while keeping both `Browse shows` and `Sign in` visible.
+- **Demotions/promotions:** none.
+- **Findings:** closed `QA-MOBILE-LAYOUT-BREAK-022`; opened `QA-ROLE-SCOPE-024`.
+- **Notes:** Ran from isolated worktree `.worktrees/nightly-qa-2026-06-18-040501` on `origin/main` `fd6a9c80a94939f1c19c4a98461e94f2cfa92e9a`, using generated `PLAYWRIGHT_PORT=5857`, `PLAYWRIGHT_BASE_URL=http://127.0.0.1:5857`, and `PLAYWRIGHT_HMR_PORT=25857` after the export issue was identified. Focused proof passed with `--retries=0`: `LandingHeader.test.tsx` `2/2`, `useProfileForm.test.ts` `13/13`, public route-health `1/1`, and the affected registration/secretary subset `9/9`. The compact-header follow-up was re-proved on isolated port `5968`: public route-health `1/1` (`14.9s`).
+
 ### 2026-06-16
 
 - **Playwright command:** fail. Phase 1 Vitest passed (`18/18`). Phase 2 active Playwright failed with `46 passed, 4 failed (49.9m, --retries=0)`, exceeding the 30-minute global Nightly budget.

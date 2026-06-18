@@ -56,10 +56,14 @@ export function LandingHeader({ onJoinWaitlistClick }: LandingHeaderProps) {
         <Link to="/shows" className="l-btn l-btn-ghost">
           Browse shows
         </Link>
-        <Link to="/sign-in" className="l-btn l-btn-ghost">
+        <Link to="/sign-in" className="l-btn l-btn-ghost l-signin-btn">
           Sign in
         </Link>
-        <button type="button" className="l-btn l-btn-ghost l-waitlist-btn" onClick={onJoinWaitlistClick}>
+        <button
+          type="button"
+          className="l-btn l-btn-ghost l-waitlist-btn"
+          onClick={onJoinWaitlistClick}
+        >
           Join the waitlist
         </button>
       </div>

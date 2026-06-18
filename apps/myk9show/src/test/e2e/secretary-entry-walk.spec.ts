@@ -3,7 +3,8 @@ import { signInAsSecretary } from './uat/shared/auth';
 import { LIVE_SECRETARY_SHOW_ID, LIVE_SECRETARY_SHOW_NAME } from './uat/shared/seededShows';
 
 const TEST_SHOW_ID = LIVE_SECRETARY_SHOW_ID;
-const DOG_SEARCH = 'Bravo';
+const DOG_SEARCH = 'Ranger';
+const MOCK_CART_ID = 'secretary-entry-walk-cart';
 
 test.describe('Secretary Entry Walk', () => {
   test('full wizard walk: search dog → select → pick class → submit', async ({ page }) => {
@@ -26,6 +27,82 @@ test.describe('Secretary Entry Walk', () => {
         },
         body: JSON.stringify({ ok: true }),
       });
+    });
+
+    await page.route('**/rest/v1/entry_carts**', async route => {
+      const request = route.request();
+
+      if (request.method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: 'null',
+        });
+        return;
+      }
+
+      if (request.method() === 'POST') {
+        await route.fulfill({
+          status: 201,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            id: MOCK_CART_ID,
+            show_id: TEST_SHOW_ID,
+            exhibitor_id: 'secretary-entry-walk-exhibitor',
+            status: 'active',
+            expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+            subtotal_cents: 0,
+            platform_fee_cents: 0,
+            total_cents: 0,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }),
+        });
+        return;
+      }
+
+      if (request.method() === 'PATCH') {
+        await route.fulfill({ status: 204, body: '' });
+        return;
+      }
+
+      await route.fallback();
+    });
+
+    await page.route('**/rest/v1/entry_cart_items**', async route => {
+      const request = route.request();
+
+      if (request.method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([]),
+        });
+        return;
+      }
+
+      if (request.method() === 'POST') {
+        const requestBody = request.postDataJSON() as Record<string, unknown>;
+        await route.fulfill({
+          status: 201,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            id: 'secretary-entry-walk-cart-item',
+            cart_id: MOCK_CART_ID,
+            dog_id: requestBody.dog_id,
+            class_id: requestBody.class_id,
+            handler_id: null,
+            entry_fee_cents: requestBody.entry_fee_cents,
+            created_at: new Date().toISOString(),
+            dog: null,
+            class: null,
+            handler: null,
+          }),
+        });
+        return;
+      }
+
+      await route.fallback();
     });
 
     await page.route('**/rest/v1/enrollments**', async route => {
@@ -121,9 +198,12 @@ test.describe('Secretary Entry Walk', () => {
       timeout: 8000,
     });
 
-    const interiorCard = page.locator('.myk9-element-card').filter({ hasText: 'Interior' }).first();
-    await expect(interiorCard).toBeVisible({ timeout: 10000 });
-    await interiorCard.getByRole('checkbox', { name: 'Select Novice' }).first().click();
+    const containerCard = page
+      .locator('.myk9-element-card')
+      .filter({ hasText: 'Container' })
+      .first();
+    await expect(containerCard).toBeVisible({ timeout: 10000 });
+    await containerCard.getByRole('checkbox', { name: 'Select Novice A' }).first().click();
     await expect(page.getByText(/1 selected/).first()).toBeVisible();
 
     // Click Next to step 3 (Handlers)
@@ -138,15 +218,7 @@ test.describe('Secretary Entry Walk', () => {
     await nextBtn3.click();
     await page.waitForSelector('text=Payment Information', { timeout: 8000 });
 
-    // Payment options are <button> elements (not role=radio). Click the first one
-    // if present; $0 entries only require the agreement to continue.
-    const paymentOptionBtn = page
-      .locator('button')
-      .filter({ hasText: /credit.*card|check|cash|online payment/i })
-      .first();
-    if (await paymentOptionBtn.isVisible().catch(() => false)) {
-      await paymentOptionBtn.click();
-    }
+    await page.getByRole('button', { name: /Secretary Payment \(Already Received\)/i }).click();
     // Scroll down to find the entry agreement checkbox (below the fold)
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
 
@@ -161,7 +233,7 @@ test.describe('Secretary Entry Walk', () => {
     await expect(nextBtn4).toBeEnabled();
     await nextBtn4.click();
 
-    await expect(page.getByRole('heading', { name: 'Your entry is ready.' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: /^Ready to submit\./i })).toBeVisible({
       timeout: 10000,
     });
 

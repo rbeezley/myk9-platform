@@ -96,21 +96,21 @@ Copy this block for each new finding.
 - **Proof required:** After the DB schema is repaired or a deliberate code fallback is implemented, rerun Phase 1 Vitest, the exact Phase 2 active Nightly Playwright command from `docs/qa/e2e-suite-map.md`, and standalone Phase 3 route-health on an isolated port. Required proof targets: Phase 2 `50/50` and Phase 3 `6/6` role groups with zero `42703` / owned 400s.
 - **Notes:** Not auto-fixed during Nightly because applying the existing migration or changing early-adopter semantics is a shared-system/product decision. Do not hide this by suppressing 400s in tests.
 
-### QA-MOBILE-LAYOUT-BREAK-022
+### QA-ROLE-SCOPE-024
 
 - **Status:** open
-- **Severity:** medium
-- **Role:** public
-- **Surface:** public route-health 375px overflow check for `/`.
+- **Severity:** high
+- **Role:** exhibitor
+- **Surface:** `route-health-by-role.spec.ts` exhibitor group; `exhibitor1@myk9t.com`.
 - **Suite category:** nightly
-- **Pattern:** mobile-layout-break
+- **Pattern:** role-scope-empty
 - **Detected by:** Playwright route-health
-- **Evidence:** 2026-06-16 isolated Nightly Phase 2 failed `route-health-by-role.spec.ts:195` with `public/landing: horizontal overflow at 375px`; expected `0`, measured `31px`. Evidence path: `apps/myk9show/test-results/route-health-by-role-Route-0ffc7--public-routes-render-clean-chromium/error-context.md`. This is a recurrence of the public 375px overflow class previously tracked as `QA-MOBILE-LAYOUT-BREAK-012`, but the current proof is new and from the committed route-health spec.
-- **User impact:** Public visitors on narrow phones can get horizontal scrolling/clipped layout on the first route in the public group, reducing trust before sign-up.
-- **Intent check:** Harms the public/exhibitor "respects my time" first impression because the site looks less polished on mobile.
-- **Fix owner:** public landing/layout surface and the route-health overflow guard.
-- **Proof required:** Focused isolated replay of `route-health-by-role.spec.ts --grep "public routes render clean"` or a narrower 375px `/` check proving `document.documentElement.scrollWidth - window.innerWidth === 0`, then the full Phase 2/Phase 3 route-health proof.
-- **Notes:** Do not weaken the route-health assertion. Fix the overflowing public layout or prove the measurement is targeting the wrong route before closing.
+- **Evidence:** 2026-06-18 isolated route-health replay on exported `PLAYWRIGHT_BASE_URL=http://127.0.0.1:5857` passed public, secretary, judge, club-admin, and admin groups but failed the exhibitor group. All four exhibitor routes redirected to `/onboarding` instead of the expected route: `/exhibitor/entries`, `/account`, `/shows`, and `/notifications`. Before the code fix in this PR, the same path also produced `406 GET /rest/v1/people?select=*&auth_user_id=eq.a1000001-0000-0000-0000-000000000001&deleted_at=is.null`; after changing `useCurrentUserPerson` to `.maybeSingle()`, the 406/browser-health noise disappeared, leaving only the real onboarding redirect. Evidence path: `apps/myk9show/test-results/route-health-by-role-Route-26df1-hibitor-routes-render-clean-chromium/error-context.md`.
+- **User impact:** The primary exhibitor test account cannot prove the exhibitor route group because the app treats it as an incomplete user and forces onboarding. If this reflects staging seed drift, Nightly cannot currently validate the exhibitor authenticated baseline.
+- **Intent check:** Harms the exhibitor "ready to enter a show" path by blocking authenticated route access before My Entries and show discovery can render.
+- **Fix owner:** test-account seed/data state for `exhibitor1@myk9t.com` (`people`, `exhibitor_profiles`, onboarding completion fields, and related RLS visibility).
+- **Proof required:** Inventory `auth.users`, `people`, `exhibitor_profiles`, and any onboarding-completion fields for `exhibitor1@myk9t.com`; repair the staging/dev seed state if appropriate; rerun `route-health-by-role.spec.ts --grep "Route health: exhibitor"` and then standalone route-health `6/6` on an isolated exported Playwright port.
+- **Notes:** Do not suppress the redirect in route-health. The `.maybeSingle()` fix removed the false 406 network noise, but the onboarding redirect remains a real test-account readiness issue.
 
 ### QA-TEST-FLAKE-010
 
@@ -194,6 +194,22 @@ Copy this block for each new finding.
 - **2026-06-05 — CLOSED (non-reproducing; proof met).** Phase 3 route sweep (site-admin session, isolated single-occupant worktree on port `5191`) reported `/admin/dashboard` `render=ok` with `loading=N`, `skel=0`, `err=0`, `repl=0`, `http=0` at both desktop and 375px, alongside all 9 admin routes rendering cleanly. This is the third consecutive clean scheduled replay (06-02, 06-04, 06-05) and the first where the full route sweep completed, satisfying this finding's `Proof required`. The original 2026-05-30 stuck-`Loading...` evidence was gathered under cross-agent dev-server contention. Closed as non-reproducing.
 
 ## Closed Findings
+
+### QA-MOBILE-LAYOUT-BREAK-022
+
+- **Status:** fixed
+- **Severity:** medium
+- **Role:** public
+- **Surface:** public route-health 375px overflow check for `/`.
+- **Suite category:** nightly
+- **Pattern:** mobile-layout-break
+- **Detected by:** Playwright route-health
+- **Evidence:** 2026-06-16 isolated Nightly Phase 2 failed `route-health-by-role.spec.ts:195` with `public/landing: horizontal overflow at 375px`; expected `0`, measured `31px`. Evidence path: `apps/myk9show/test-results/route-health-by-role-Route-0ffc7--public-routes-render-clean-chromium/error-context.md`. This is a recurrence of the public 375px overflow class previously tracked as `QA-MOBILE-LAYOUT-BREAK-012`, but the current proof is new and from the committed route-health spec.
+- **User impact:** Public visitors on narrow phones can get horizontal scrolling/clipped layout on the first route in the public group, reducing trust before sign-up.
+- **Intent check:** Harms the public/exhibitor "respects my time" first impression because the site looks less polished on mobile.
+- **Fix owner:** public landing/layout surface and the route-health overflow guard.
+- **Proof required:** Focused isolated replay of `route-health-by-role.spec.ts --grep "public routes render clean"` or a narrower 375px `/` check proving `document.documentElement.scrollWidth - window.innerWidth === 0`, then the full Phase 2/Phase 3 route-health proof.
+- **Notes:** Closed 2026-06-18. Root cause was the public landing header overflowing at 375px: the persistent header actions extended past the viewport when `Browse shows` stayed visible for mobile discovery. Fixed by compacting the phone header below 480px: hide only the status chip and waitlist button, reduce header padding/gap/brand/button sizing, and keep both `Browse shows` and `Sign in` visible. Route-health now includes overflow-source diagnostics, which identified `Sign in` as the overflowing element before the compact-header fix. Proof: `route-health-by-role.spec.ts --grep "Route health: public"` passed after the compact-header media-query reorder on isolated port `5968` (`1 passed, 14.9s`), and full standalone route-health later passed the public group with `0px` overflow.
 
 ### QA-TEST-FLAKE-023
 

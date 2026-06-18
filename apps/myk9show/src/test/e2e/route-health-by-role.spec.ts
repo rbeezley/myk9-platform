@@ -33,7 +33,7 @@ import {
 
 const SEEDED_SHOW = LIVE_SECRETARY_SHOW_ID;
 
-// domcontentloaded + fixed settle; avoids the ~32s networkidle stalls (2026-05-30).
+// Response commit + fixed settle; the render/path checks below prove page readiness.
 const SETTLE_MS = 1500;
 const ROUTE_GOTO_TIMEOUT_MS = 15000;
 
@@ -131,6 +131,27 @@ function violations(health: BrowserHealth): string[] {
   return result;
 }
 
+async function measureHorizontalOverflow(page: Page) {
+  return page.evaluate(() => {
+    const overflowPx = Math.max(0, document.documentElement.scrollWidth - window.innerWidth);
+    const sources = Array.from(document.querySelectorAll('*'))
+      .map(element => {
+        const rect = element.getBoundingClientRect();
+        return {
+          tag: element.tagName.toLowerCase(),
+          className: String(element.className || '').slice(0, 120),
+          text: (element.textContent || '').trim().slice(0, 80),
+          left: Math.round(rect.left),
+          right: Math.round(rect.right),
+        };
+      })
+      .filter(source => source.left < 0 || source.right > window.innerWidth)
+      .slice(0, 3);
+
+    return { overflowPx, sources, url: window.location.href };
+  });
+}
+
 /**
  * Visits each route, soft-asserting render, health, and overflow checks.
  * All routes are visited even when individual checks fail.
@@ -150,9 +171,17 @@ async function sweepRoutes(page: Page, group: string, routes: RouteSpec[]) {
     let navigationError: string | null = null;
     try {
       await page.goto(route.path, {
-        waitUntil: 'domcontentloaded',
+        waitUntil: 'commit',
         timeout: ROUTE_GOTO_TIMEOUT_MS,
       });
+      await page
+        .waitForLoadState('domcontentloaded', { timeout: ROUTE_GOTO_TIMEOUT_MS })
+        .catch(() => {
+          test.info().annotations.push({
+            type: 'route',
+            description: `${id} domcontentloaded-not-observed-within=${ROUTE_GOTO_TIMEOUT_MS}ms`,
+          });
+        });
     } catch (error) {
       navigationError = error instanceof Error ? error.message : String(error);
     }
@@ -169,10 +198,14 @@ async function sweepRoutes(page: Page, group: string, routes: RouteSpec[]) {
       continue;
     }
 
-    await page.waitForTimeout(SETTLE_MS);
-
     // Render check: body must contain meaningful text (>20 chars).
     // This catches blank pages and pages stuck on "Loading page..." (14 chars).
+    await page
+      .waitForFunction(() => document.body.innerText.trim().length > 20, null, {
+        timeout: ROUTE_GOTO_TIMEOUT_MS,
+      })
+      .catch(() => undefined);
+    await page.waitForTimeout(SETTLE_MS);
     const bodyText = await page.evaluate(() => document.body.innerText.trim());
     expect.soft(bodyText.length, `${id}: page rendered blank`).toBeGreaterThan(20);
 
@@ -191,10 +224,13 @@ async function sweepRoutes(page: Page, group: string, routes: RouteSpec[]) {
     if (route.check375) {
       await page.setViewportSize({ width: 375, height: 667 });
       await page.waitForTimeout(300);
-      const overflowPx = await page.evaluate(() =>
-        Math.max(0, document.documentElement.scrollWidth - window.innerWidth)
-      );
-      expect.soft(overflowPx, `${id}: horizontal overflow at 375px`).toBe(0);
+      const overflow = await measureHorizontalOverflow(page);
+      expect
+        .soft(
+          overflow.overflowPx,
+          `${id}: horizontal overflow at 375px; url=${overflow.url}; sources=${JSON.stringify(overflow.sources)}`
+        )
+        .toBe(0);
       await page.setViewportSize({ width: 1280, height: 720 });
     }
 

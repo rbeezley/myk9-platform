@@ -1004,10 +1004,6 @@
   .landing-v2 .l-features-grid { grid-template-columns: 1fr; }
   .landing-v2 .l-foot-grid { grid-template-columns: 1fr 1fr; }
 }
-@media (max-width: 480px) {
-  .landing-v2 .l-status-chip { display: none; }
-  .landing-v2 .l-waitlist-btn { display: none; }
-}
 @media (max-width: 640px) {
   .landing-v2 .l-container,
   .landing-v2 .l-hdr-inner,
@@ -1020,4 +1016,12 @@
   .landing-v2 .l-waitlist .l-roles { grid-template-columns: 1fr; }
   .landing-v2 .l-foot-grid { grid-template-columns: 1fr; gap: 28px; }
   .landing-v2 .l-photo-meta { left: 20px; }
+}
+@media (max-width: 480px) {
+  .landing-v2 .l-status-chip { display: none; }
+  .landing-v2 .l-waitlist-btn { display: none; }
+  .landing-v2 .l-hdr-inner { gap: 8px; padding-left: 12px; padding-right: 12px; }
+  .landing-v2 .l-brand { gap: 6px; font-size: 18px; }
+  .landing-v2 .l-brand-mark { width: 24px; height: 24px; }
+  .landing-v2 .l-btn { padding: 8px 10px; font-size: 13px; }
 }

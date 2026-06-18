@@ -147,9 +147,10 @@ describe('EnrollmentCard', () => {
 
   it('omits "Waitlist All" from the bulk actions menu', () => {
     // Real waitlisting is per-class with position/capacity tracked in
-    // `waitlist_entries` (WaitlistManagementPage). A bulk entry_status write
-    // would silently no-op and revert to Pending — same reason Lane 2.2 (#827)
-    // omitted bulk Waitlist from the table multi-select bar.
+    // `waitlist_entries` (WaitlistManagementPage). The bulk status write maps
+    // WAITLIST → 'submitted', so it never creates membership and leaves the
+    // entry Pending — same reason Lane 2.2 (#827) omitted bulk Waitlist from
+    // the table multi-select bar.
     render(<EnrollmentCard {...defaultProps} />);
     fireEvent.click(screen.getByRole('button', { name: /actions/i }));
 

@@ -248,9 +248,10 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                         </DropdownMenuItem>
                         {/* No "Waitlisted" option: real waitlisting is per-class
                             with position/capacity tracked in `waitlist_entries`
-                            (WaitlistManagementPage / useWaitListMutations). A raw
-                            entry_status: 'waitlist' write never creates membership
-                            and silently reverts to Pending on reload. */}
+                            (WaitlistManagementPage / useWaitListMutations). This
+                            status write maps WAITLIST → 'submitted' (the entry's
+                            pre-decision state), so it never creates membership
+                            and the entry stays Pending. */}
                         <DropdownMenuItem
                           onClick={() => onStatusChange(entry.id, EntryStatus.REJECTED)}
                         >

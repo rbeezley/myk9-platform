@@ -13,8 +13,8 @@ import { test, expect, Page } from '@playwright/test';
  *   - Delete only Club C at the end — Club A and Club B remain in the DB
  *     to provide ongoing test data.
  *
- * Auth: site admin via E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD, or the shared
- * admin@myk9t.com / TestPass4567! test account.
+ * Auth: site admin via E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD (CI secrets / .env.local).
+ * Tests skip automatically when env vars are absent.
  * RLS: create/delete coverage expects a user with the site_admin role.
  */
 
@@ -25,11 +25,12 @@ const CLUB_A_NAME = `E2E Club A ${RUN_ID}`;
 const CLUB_B_NAME = `E2E Club B ${RUN_ID}`;
 const CLUB_C_NAME = `E2E Club C ${RUN_ID}`;
 
-// Admin credentials can come from env, but fall back to the shared dev/staging test account.
-const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? 'admin@myk9t.com';
-const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'TestPass4567!';
-const EXHIBITOR_EMAIL = 'exhibitor1@myk9t.com';
-const EXHIBITOR_PASSWORD = 'TestPass4567!';
+// Admin credentials come from CI secrets / .env.local (E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD).
+// Tests skip automatically via skipWithoutAdminCredentials() when env vars are absent.
+const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? '';
+const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? '';
+const EXHIBITOR_EMAIL = process.env.E2E_EXHIBITOR_EMAIL ?? 'exhibitor1@myk9t.com';
+const EXHIBITOR_PASSWORD = process.env.E2E_EXHIBITOR_PASSWORD ?? '';
 
 async function signIn(page: Page, email: string, password: string) {
   await page.goto('/sign-in', { waitUntil: 'networkidle' });

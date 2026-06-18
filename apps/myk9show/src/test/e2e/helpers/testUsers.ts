@@ -2,8 +2,16 @@
  * Test Users for Playwright E2E Testing
  *
  * All accounts live in the `myk9-platform` Supabase project.
- * Passwords marked "unverified" haven't been confirmed via automated test;
- * update this file and docs/testing/ if you reset them.
+ * Credentials are stored in CI secrets and .env.local only — never hardcoded here.
+ *
+ * CI-critical accounts (required for A11y smoke + E2E PR Smoke):
+ *   E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD
+ *   E2E_SECRETARY_EMAIL / E2E_SECRETARY_PASSWORD
+ *   E2E_JUDGE_EMAIL / E2E_JUDGE_PASSWORD
+ *
+ * Nightly-only accounts (EXHIBITOR, CLUB_ADMIN, DEMO_EXHIBITOR):
+ *   E2E_DEMO_EXHIBITOR_EMAIL / E2E_DEMO_EXHIBITOR_PASSWORD
+ *   Others use env vars or are skipped when absent.
  */
 
 export interface TestUser {
@@ -15,75 +23,75 @@ export interface TestUser {
 
 export const TEST_USERS: Record<string, TestUser> = {
   SITE_ADMIN: {
-    email: process.env.E2E_ADMIN_EMAIL ?? 'admin@myk9t.com',
-    password: process.env.E2E_ADMIN_PASSWORD ?? 'TestPass4567!',
+    email: process.env.E2E_ADMIN_EMAIL ?? '',
+    password: process.env.E2E_ADMIN_PASSWORD ?? '',
     role: 'site_admin',
-    description: 'Site administrator — confirmed reset 2026-05-14',
+    description: 'Site administrator — e2e-admin@test.myk9.com, rotated 2026-06-18',
   },
 
   SECRETARY: {
-    email: process.env.E2E_SECRETARY_EMAIL ?? 'secretary@myk9t.com',
-    password: process.env.E2E_SECRETARY_PASSWORD ?? 'TestPass4567!',
+    email: process.env.E2E_SECRETARY_EMAIL ?? '',
+    password: process.env.E2E_SECRETARY_PASSWORD ?? '',
     role: 'secretary',
-    description: 'Show secretary — confirmed reset 2026-05-14',
+    description: 'Show secretary — e2e-secretary@test.myk9.com, rotated 2026-06-18',
   },
 
   JUDGE: {
-    email: process.env.E2E_JUDGE_EMAIL ?? 'judge@myk9t.com',
-    password: process.env.E2E_JUDGE_PASSWORD ?? 'TestPass4567!',
+    email: process.env.E2E_JUDGE_EMAIL ?? '',
+    password: process.env.E2E_JUDGE_PASSWORD ?? '',
     role: 'judge',
-    description: 'Show judge — confirmed reset 2026-05-14',
+    description: 'Show judge — e2e-judge@test.myk9.com, rotated 2026-06-18',
   },
 
   CLUB_ADMIN: {
-    email: 'club@myk9t.com',
-    password: 'TestPass4567!',
+    email: process.env.E2E_CLUB_EMAIL ?? 'club@myk9t.com',
+    password: process.env.E2E_CLUB_PASSWORD ?? '',
     role: 'club_admin',
-    description: 'Club administrator — confirmed reset 2026-05-14',
+    description: 'Club administrator — nightly only',
   },
 
   EXHIBITOR: {
-    email: 'exhibitor1@myk9t.com',
-    password: 'TestPass4567!',
+    email: process.env.E2E_EXHIBITOR_EMAIL ?? 'exhibitor1@myk9t.com',
+    password: process.env.E2E_EXHIBITOR_PASSWORD ?? '',
     role: 'exhibitor',
-    description: 'Exhibitor (Alice Martin) — confirmed reset 2026-05-14',
+    description: 'Exhibitor (Alice Martin) — nightly only',
   },
 
   // Primary demo exhibitor with seeded dogs (Willow, Ranger, Juniper).
   // Protected from DB wipes. Use this account for tests that need real dog data.
   DEMO_EXHIBITOR: {
     email: process.env.E2E_DEMO_EXHIBITOR_EMAIL ?? 'e2e-exhibitor@test.myk9.com',
-    password: process.env.E2E_DEMO_EXHIBITOR_PASSWORD ?? 'Test1234!',
+    password: process.env.E2E_DEMO_EXHIBITOR_PASSWORD ?? '',
     role: 'exhibitor',
     description: 'Demo exhibitor with seeded dogs — protected from wipes',
   },
 
   EXHIBITOR_2: {
     email: 'exhibitor2@myk9t.com',
-    password: 'TestPass4567!',
+    password: process.env.E2E_EXHIBITOR_PASSWORD ?? '',
     role: 'exhibitor',
-    description: 'Exhibitor test account — confirmed reset 2026-05-14',
+    description: 'Exhibitor test account — nightly only',
   },
 
   EXHIBITOR_3: {
     email: 'exhibitor3@myk9t.com',
-    password: 'TestPass4567!',
+    password: process.env.E2E_EXHIBITOR_PASSWORD ?? '',
     role: 'exhibitor',
-    description: 'Exhibitor test account — confirmed reset 2026-05-14',
+    description: 'Exhibitor test account — nightly only',
   },
 
   EXHIBITOR_4: {
     email: 'exhibitor4@myk9t.com',
-    password: 'TestPass4567!',
+    password: process.env.E2E_EXHIBITOR_PASSWORD ?? '',
     role: 'exhibitor',
-    description: 'Exhibitor test account — confirmed reset 2026-05-14',
+    description: 'Exhibitor test account — nightly only',
   },
 
   EXHIBITOR_5: {
     email: 'exhibitor5@myk9t.com',
-    password: 'TestPass4567!',
+    password: process.env.E2E_EXHIBITOR_PASSWORD ?? '',
     role: 'exhibitor',
-    description: 'Exhibitor test account — confirmed reset 2026-05-14',
+    description: 'Exhibitor test account — nightly only',
   },
 };
 

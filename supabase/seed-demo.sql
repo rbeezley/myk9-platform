@@ -122,15 +122,17 @@ WHERE class_id IN (
 -- Armbands hang off the seeded show (and reference dogs/entries) — clear by show
 -- before deleting entries/dogs so their FKs can't block.
 DELETE FROM public.armbands WHERE show_id = 'dededede-0000-0000-0000-000000000010';
--- entry ...059 is the GAP FIXTURE #4 withdrawn/refunded row (added below). The
--- refund-column guard fires only on INSERT/UPDATE, so a plain DELETE needs no role
--- switch. entry_status_history rows cascade-delete with their entry.
+-- entries ...059 / ...060 are the GAP FIXTURE #4 withdrawn/refunded rows (added
+-- below: ...059 owned by beezley, ...060 owned by e2e-exhibitor for the P1-04
+-- exhibitor-surface walk). The refund-column guard fires only on INSERT/UPDATE,
+-- so a plain DELETE needs no role switch. entry_status_history rows cascade-delete
+-- with their entry.
 DELETE FROM public.entries WHERE id IN (
   'dededede-0000-0000-0000-000000000051','dededede-0000-0000-0000-000000000052',
   'dededede-0000-0000-0000-000000000053','dededede-0000-0000-0000-000000000054',
   'dededede-0000-0000-0000-000000000055','dededede-0000-0000-0000-000000000056',
   'dededede-0000-0000-0000-000000000057','dededede-0000-0000-0000-000000000058',
-  'dededede-0000-0000-0000-000000000059'
+  'dededede-0000-0000-0000-000000000059','dededede-0000-0000-0000-000000000060'
 );
 DELETE FROM public.classes WHERE id IN (
   'dec1a55e-0000-0000-0000-000000000031','dec1a55e-0000-0000-0000-000000000032',
@@ -407,14 +409,20 @@ UPDATE public.classes SET
 WHERE id = 'dec1a55e-0000-0000-0000-000000000031';
 
 -- ---------------------------------------------------------------------------
--- 9. GAP FIXTURE #4 (refunded/withdrawn entry, P1-04 seam): one new fixed-id
---    entry (...059) for Maple in Exterior Excellent (...033). entry_status=
---    'withdrawn' + payment_status='refunded' with refund columns populated.
---    Maple has no other entry in ...033, and withdrawn/scratched rows are excluded
---    from entries_dog_class_unique_idx anyway, so there is no unique-index clash.
---    The refund columns (refund_amount/refund_notes/refunded_at) are guarded by
---    trg_restrict_entry_refund_columns_insert, which raises unless the current role
---    is service_role; we briefly SET LOCAL ROLE service_role for this one insert
+-- 9. GAP FIXTURE #4 (refunded/withdrawn entries, P1-04 seam): two new fixed-id
+--    entries, both entry_status='withdrawn' + payment_status='refunded' with the
+--    refund columns populated:
+--      ...059  Maple (beezley)        in Exterior Excellent (...033)
+--      ...060  Ranger (e2e-exhibitor) in Exterior Excellent (...033)
+--    The ...060 row is owned by a PURE EXHIBITOR so the withdrawn/refunded state
+--    can be walked on the exhibitor-only Show Details "My Entries" tab — a
+--    site-admin owner (beezley/...059) gets the management "Entries" tab instead
+--    and never renders that surface (ShowDetailsPage canManageShow switch).
+--    Neither dog has another entry in ...033, and withdrawn/scratched rows are
+--    excluded from entries_dog_class_unique_idx anyway, so there is no unique-index
+--    clash. The refund columns (refund_amount/refund_notes/refunded_at) are guarded
+--    by trg_restrict_entry_refund_columns_insert, which raises unless the current
+--    role is service_role; we briefly SET LOCAL ROLE service_role for these inserts
 --    (the documented manual path) then RESET. No armbands row is created for a
 --    withdrawn entry. payment_method left NULL so the paid-online insert guard
 --    (entries_protect_payment_fields_insert, which only fires for online refunds)
@@ -434,6 +442,14 @@ VALUES
    'withdrawn', 'refunded', 30.00, NULL, NULL, false,
    'Exhibitor withdrew before the show; full refund issued.',
    30.00, 'Demo refund for the withdrawn-entry walk fixture.',
+   '2026-07-20 00:00:00+00', 1),
+  ('dededede-0000-0000-0000-000000000060',
+   'dededede-0000-0000-0000-000000000042', 'dec1a55e-0000-0000-0000-000000000033',
+   'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
+   (SELECT id FROM public.people WHERE lower(email)='e2e-exhibitor@test.myk9.com'), 'Test Exhibitor',
+   'withdrawn', 'refunded', 30.00, NULL, NULL, false,
+   'Exhibitor withdrew before the show; full refund issued.',
+   30.00, 'Demo refund for the withdrawn-entry walk fixture (exhibitor-owned).',
    '2026-07-20 00:00:00+00', 1);
 RESET ROLE;
 

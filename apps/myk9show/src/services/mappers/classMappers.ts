@@ -228,7 +228,12 @@ export const mapDatabaseToClass = (dbClass: DbClassWithRelations): SyncableClass
     classNumber: dbClass.class_number ?? dbClass.id.substring(0, 8),
     element: dbClass.element ?? extractElement(dbClass.description),
     level: dbClass.level ?? '',
-    section: dbClass.section ?? 'A',
+    // Only AKC Scent Work Novice is split into A/B sections; Advanced/Excellent/
+    // Master/Detective are single-section and store NULL. Defaulting NULL to 'A'
+    // printed a phantom "Interior Advanced A" / "Exterior Excellent A" in the
+    // exhibitor My Entries tab (which reads this compat store, not the
+    // replication mapper that already uses '' here). Keep NULL empty.
+    section: dbClass.section ?? '',
 
     // Entry configuration
     entryFee: dbClass.entry_fee ?? 0,

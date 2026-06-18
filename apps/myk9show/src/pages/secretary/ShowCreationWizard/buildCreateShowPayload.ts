@@ -59,6 +59,13 @@ export interface ClassRpcPayload {
   distraction_count: number | null;
   num_areas: number | null;
   time_limit_seconds: number | null;
+  /**
+   * Per-class judge UUID. When set, the create_show_with_children RPC writes a
+   * class-level judge_assignments row (person_id + class_id) — the grain the
+   * class-centric judge dashboard and waitlist-capacity functions both read.
+   * Null when the secretary left the class unassigned.
+   */
+  judge_id: string | null;
 }
 
 export interface CreateShowRpcInput {
@@ -159,6 +166,7 @@ export function buildCreateShowPayload(
       distraction_count: rule?.distraction_count_min ?? null,
       num_areas: rule?.area_count ?? null,
       time_limit_seconds: rule?.max_time_seconds_fixed ?? null,
+      judge_id: cls.judgeId || null,
     };
   });
 

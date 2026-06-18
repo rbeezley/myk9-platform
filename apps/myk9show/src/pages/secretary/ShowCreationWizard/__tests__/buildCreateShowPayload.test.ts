@@ -162,6 +162,50 @@ describe('buildCreateShowPayload', () => {
     expect(rpcInput.p_classes[0]!.trial_id).toBe(trialIdMap['wizard-trial-1']);
   });
 
+  it('carries the per-class judgeId into p_classes[].judge_id (class-level assignment grain)', () => {
+    const trialWithClass: WizardTrial = {
+      ...baseTrial,
+      classes: [
+        {
+          templateId: 'tmpl-1',
+          customizations: { element: 'Container', level: 'Novice', className: 'NW1 Containers' },
+          judgeId: 'judge-uuid-a',
+        },
+      ],
+    };
+    const { rpcInput } = buildCreateShowPayload(
+      baseShow,
+      [trialWithClass],
+      { 'judge-uuid-a': { name: 'Jane Smith', email: '', phone: '' } },
+      new Map(),
+      'unpublished'
+    );
+    // The RPC writes one class-level judge_assignments row per class carrying a
+    // judge_id; dropping this is what kept judges off the class-centric dashboard.
+    expect(rpcInput.p_classes[0]!.judge_id).toBe('judge-uuid-a');
+  });
+
+  it('sends judge_id: null for a class the secretary left unassigned', () => {
+    const trialWithClass: WizardTrial = {
+      ...baseTrial,
+      classes: [
+        {
+          templateId: 'tmpl-1',
+          customizations: { element: 'Container', level: 'Novice', className: 'NW1 Containers' },
+          // no judgeId
+        },
+      ],
+    };
+    const { rpcInput } = buildCreateShowPayload(
+      baseShow,
+      [trialWithClass],
+      {},
+      new Map(),
+      'unpublished'
+    );
+    expect(rpcInput.p_classes[0]!.judge_id).toBeNull();
+  });
+
   it('bakes timer_mode, hides_known, distraction_count, num_areas, time_limit_seconds from ruleMap', () => {
     const trialWithClass: WizardTrial = {
       ...baseTrial,

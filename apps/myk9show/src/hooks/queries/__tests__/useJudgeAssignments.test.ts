@@ -178,6 +178,26 @@ describe('mapAssignmentRowToJudgeClass (PostgREST shape)', () => {
     expect(result?.checkedInEntries).toBe(0);
     expect(result?.completedEntries).toBe(0);
   });
+
+  // Regression for the wizard judge-assignment grain bug: the Show Creation
+  // Wizard used to write SHOW-level rows (class_id NULL, classes embed absent),
+  // which this class-centric read drops — so wizard-assigned judges saw "No
+  // Judging Assignments Yet". The wizard now writes CLASS-level rows. These two
+  // cases pin the contract the write side must satisfy.
+  describe('wizard judge-assignment grain contract', () => {
+    it('surfaces a wizard-shaped CLASS-level assignment (class_id + trial join present)', () => {
+      const result = mapAssignmentRowToJudgeClass(makeRow({ class_id: 'class-1' }));
+      expect(result).not.toBeNull();
+      expect(result?.classId).toBe('class-1');
+      expect(result?.trialId).toBe('trial-1');
+    });
+
+    it('drops a legacy SHOW-level assignment (class_id null, no class embed)', () => {
+      // Exactly the row shape the old wizard/RPC produced.
+      const showLevel = makeRow({ class_id: null, classes: null });
+      expect(mapAssignmentRowToJudgeClass(showLevel)).toBeNull();
+    });
+  });
 });
 
 describe('mapReplicatedAssignmentToJudgeClass (denormalized replication shape)', () => {

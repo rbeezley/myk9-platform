@@ -29,6 +29,23 @@ launch gate with *evidence* before more speculative UI lands.
   - Announcement time-to-task baseline recorded (2 clicks to compose, 3–4 to send) and the move-up
     **decision** walk completed (decision dialog is good; target-class picker offers invalid lower/
     cross-element targets — F3).
+- **Show-day walk (Step 4):** **walked 2026-06-17** (Phase A–F, secretary ↔ steward ↔ judge) —
+  see [`docs/audits/2026-06-ux-journeys/05-showday-walk-2026-06-17.md`](audits/2026-06-ux-journeys/05-showday-walk-2026-06-17.md).
+  Secretary half is coherent; **ringside golden path stays Yellow** — judge/steward phases are
+  **unverified, not passing**. Three blockers:
+  - **S1 (HIGH, app bug):** public `/results` deep link dead-ends for a true guest ("No Classes
+    Available"). `ClassDetailsPage` reads the class via the **replication layer only**; the released
+    results *view* returns 200 but the page bails at `index.tsx:273` (`!currentClass`).
+    `getPublicClassById` doesn't exist — add it (mirror `getPublicShows`) + cold fallback. Twin leak
+    to check: `/trials/:trialId`.
+  - **S2 (HIGH, fixture):** no `judge_assignments` seeded → judge dashboard has no route to a ring,
+    and a judge admitted to ringside directly sees **0 entries everywhere** (entry-visibility RLS).
+    Seed a Heartland judge assignment (+ role grant), mirroring §10's secretary grant.
+  - **S3 (HIGH, fixture):** no ringside passcode seeded → the `SmartSignInPage` passcode branch
+    (steward entry) can't be walked. Seed a Heartland passcode/`ringside_session`.
+  - Also: S4 withdrawn entry counted as live across Show Map (9 vs 8 entries; Exterior "1/2
+    complete") **and** ringside picker ("0/2"); S5 Saturday trial badges contradict ("Not started" +
+    "Needs wrap-up" + "1/3 complete"); S6 stale `INTENT.md:152` (judges now land on `/judge/dashboard`).
 
 ---
 

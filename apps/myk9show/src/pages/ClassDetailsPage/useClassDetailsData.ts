@@ -18,6 +18,7 @@ import { useParams, useLocation } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { useClassStoreCompat, useClassEntriesWithQuery } from '@/hooks/useClassStoreCompat';
 import { useClassEntriesRaw } from '@/hooks/queries/useClassEntriesRaw';
+import { usePublicClassById } from '@/hooks/queries/usePublicClassById';
 import { useTrialStore } from '@/store/trialStore';
 import { useShowStore } from '@/store/showStore';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
@@ -79,7 +80,7 @@ export function useClassDetailsData() {
   // Fall back to the replication layer (trialStore.trialClasses) when the React
   // Query cache for getAllClasses hasn't loaded yet — classes created by the
   // wizard exist in IndexedDB before they've synced to Supabase.
-  const currentClass = useMemo(() => {
+  const classFromStore = useMemo(() => {
     if (!classId) return null;
     const fromQuery = classes.find(cls => cls.id === classId);
     if (fromQuery) return fromQuery;
@@ -90,6 +91,17 @@ export function useClassDetailsData() {
     }
     return null;
   }, [classId, classes, replicatedTrialClasses]);
+
+  // Cold-session fallback. A true guest's replicated class store is empty (guest sync is
+  // skipped), which would dead-end the public `/results` route on "No Classes Available"
+  // even though the release-gated results view returns data. Read the class identity directly
+  // via PostgREST (anon-safe — class + trial only). Enabled ONLY when the store has nothing,
+  // so warm/authed sessions are unaffected.
+  const { data: publicClass } = usePublicClassById(classId, {
+    enabled: !classFromStore && !!classId,
+  });
+
+  const currentClass = classFromStore ?? publicClass ?? null;
 
   // Filter classes to only show classes from the same trial
   const trialClasses = currentClass

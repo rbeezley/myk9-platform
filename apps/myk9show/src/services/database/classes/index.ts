@@ -19,4 +19,6 @@ export {
   getDeletedClasses,
 } from './reads';
 
+export { getPublicClassById, PUBLIC_CLASS_SELECT } from './publicReads';
+
 export { getClassRouteContext } from './routing';

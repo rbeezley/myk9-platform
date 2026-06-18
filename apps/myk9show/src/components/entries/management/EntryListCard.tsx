@@ -246,11 +246,11 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                         >
                           Accepted
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => onStatusChange(entry.id, EntryStatus.WAITLIST)}
-                        >
-                          Waitlisted
-                        </DropdownMenuItem>
+                        {/* No "Waitlisted" option: real waitlisting is per-class
+                            with position/capacity tracked in `waitlist_entries`
+                            (WaitlistManagementPage / useWaitListMutations). A raw
+                            entry_status: 'waitlist' write never creates membership
+                            and silently reverts to Pending on reload. */}
                         <DropdownMenuItem
                           onClick={() => onStatusChange(entry.id, EntryStatus.REJECTED)}
                         >

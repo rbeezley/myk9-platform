@@ -5,7 +5,7 @@
  * Allows secretary to approve, deny, and process refunds.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -70,40 +70,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
   const [refundAmount, setRefundAmount] = useState<number>(0);
   const [denyReason, setDenyReason] = useState('');
 
-  // Load data
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const [pendingResult, processedResult] = await Promise.all([
-          getPendingPullRequests(showId),
-          getPulledEntries(showId),
-        ]);
-
-        if (pendingResult.error) {
-          setError('Failed to load pull requests');
-        } else {
-          setPendingRequests(pendingResult.data as PullRequest[]);
-        }
-
-        if (!processedResult.error) {
-          setProcessedPulls(processedResult.data as PullRequest[]);
-        }
-      } catch (_err) {
-        setError('An unexpected error occurred');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (showId) {
-      fetchData();
-    }
-  }, [showId]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
@@ -127,7 +94,13 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [showId]);
+
+  useEffect(() => {
+    if (showId) {
+      void loadData();
+    }
+  }, [showId, loadData]);
 
   const handleApprove = async () => {
     if (!selectedRequest) return;
@@ -135,12 +108,14 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
     setIsProcessing(true);
 
     try {
-      // Refund processing is handled separately via the payment service.
       const { error } = await approvePullRequestReplicated(selectedRequest.id);
 
       if (error) {
         toast.error('Failed to approve pull request');
       } else {
+        if (processRefund) {
+          await updateRefundStatus(selectedRequest.id, 'processed', refundAmount);
+        }
         toast.success(processRefund ? 'Pull approved with refund' : 'Pull approved');
         await loadData();
         onRefresh?.();
@@ -204,7 +179,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
   const openApproveDialog = (request: PullRequest) => {
     setSelectedRequest(request);
     setDialogAction('approve');
-    setProcessRefund(false);
+    setProcessRefund(request.refund_status === 'eligible' && !!request.stripe_payment_intent_id);
     setRefundAmount(request.entry_fee || 0);
   };
 

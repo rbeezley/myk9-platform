@@ -12,51 +12,71 @@ describe('semantic status token foundation', () => {
   const css = read('src/index.css');
   const tailwind = read('tailwind.config.js');
 
-  describe('index.css — light values in :root', () => {
+  // Scope assertions to the correct mode. Light tokens live in the :root /
+  // light blocks that precede the `.dark {` override block; dark overrides
+  // live inside it. Splitting on `.dark {` stops a light-mode assertion from
+  // passing off the dark block's value (and vice versa) — e.g. both modes
+  // legitimately carry a `--destructive` whose values must NOT be conflated.
+  const darkBlockStart = css.indexOf('.dark {');
+  const lightCss = css.slice(0, darkBlockStart);
+  const darkCss = css.slice(darkBlockStart);
+
+  it('has a .dark block to anchor the light/dark split', () => {
+    expect(darkBlockStart).toBeGreaterThan(0);
+  });
+
+  describe('index.css — light values (before .dark block)', () => {
     it('defines --success as an RGB triplet that passes WCAG AA as text', () => {
       // green-700 (21 128 61): 4.69:1 as text on page, 5.02:1 on card, 5.02:1 white-on-bg.
       // green-600 (22 163 74) failed AA as small text (~3.1:1) — see Lane 3 hardening.
-      expect(css).toContain('--success: 21 128 61');
+      expect(lightCss).toContain('--success: 21 128 61');
     });
     it('defines --success-foreground', () => {
-      expect(css).toContain('--success-foreground: 255 255 255');
+      expect(lightCss).toContain('--success-foreground: 255 255 255');
     });
-    it('defines --warning as an RGB triplet that passes WCAG AA as text', () => {
-      // amber-700 (180 83 9): ~5.0:1 as text on white AND as bg w/ white fg.
-      // amber-600 (217 119 6) failed AA as small text (~3.2:1) — see a11y token hardening.
-      expect(css).toContain('--warning: 180 83 9');
+    it('defines --warning as amber-800 (passes WCAG AA incl. the /10 tint pattern)', () => {
+      // amber-800 (146 64 14): AA everywhere — 5.7:1 on the bg-warning/10 page-tinted
+      // surface, 7.1:1 white-on-solid. amber-700 (180 83 9) passed solid text but the
+      // common bg-warning/10 + text-warning tint was only ~4.1:1; amber-600 worse still.
+      expect(lightCss).toContain('--warning: 146 64 14');
+      expect(lightCss).not.toContain('--warning: 180 83 9');
+      expect(lightCss).not.toContain('--warning: 217 119 6');
     });
     it('defines --warning-foreground', () => {
-      expect(css).toContain('--warning-foreground: 255 255 255');
+      expect(lightCss).toContain('--warning-foreground: 255 255 255');
     });
     it('defines --info as an RGB triplet', () => {
-      expect(css).toContain('--info: 37 99 235');
+      expect(lightCss).toContain('--info: 37 99 235');
     });
     it('defines --info-foreground', () => {
-      expect(css).toContain('--info-foreground: 255 255 255');
+      expect(lightCss).toContain('--info-foreground: 255 255 255');
     });
-    it('defines --destructive as an RGB triplet that passes WCAG AA (not hex)', () => {
-      // red-600 (220 38 38): 4.83:1 as text on white AND as bg w/ white fg.
-      // red-500 (239 68 68) failed both at ~3.76:1; light now unifies with the dark-mode value.
-      expect(css).toContain('--destructive: 220 38 38');
-      expect(css).not.toContain('--destructive: 239 68 68');
-      expect(css).not.toContain('--destructive: #ef4444');
+    it('defines --destructive as red-700 (passes WCAG AA incl. the /10 tint pattern, not hex)', () => {
+      // red-700 (185 28 28): AA everywhere — 5.1:1 on the bg-destructive/10 page-tinted
+      // surface, 6.5:1 white-on-solid. red-600 (220 38 38) passed solid text but the
+      // common bg-destructive/10 + text-destructive tint was only ~3.9:1; red-500 worse.
+      // Asserted against lightCss so the dark-mode --destructive (220 38 38) can't satisfy it.
+      expect(lightCss).toContain('--destructive: 185 28 28');
+      expect(lightCss).not.toContain('--destructive: 220 38 38');
+      expect(lightCss).not.toContain('--destructive: 239 68 68');
+      expect(lightCss).not.toContain('--destructive: #ef4444');
     });
   });
 
   describe('index.css — dark values in .dark', () => {
     it('defines dark --success', () => {
-      expect(css).toContain('--success: 74 222 128');
+      expect(darkCss).toContain('--success: 74 222 128');
     });
     it('defines dark --warning', () => {
-      expect(css).toContain('--warning: 251 191 36');
+      expect(darkCss).toContain('--warning: 251 191 36');
     });
     it('defines dark --info', () => {
-      expect(css).toContain('--info: 96 165 250');
+      expect(darkCss).toContain('--info: 96 165 250');
     });
-    it('defines dark --destructive as an RGB triplet (not hex)', () => {
-      expect(css).toContain('--destructive: 220 38 38');
-      expect(css).not.toContain('--destructive: #dc2626');
+    it('defines dark --destructive as an RGB triplet (not hex), scoped to .dark', () => {
+      expect(darkCss).toContain('--destructive: 220 38 38');
+      expect(darkCss).not.toContain('--destructive: 185 28 28');
+      expect(darkCss).not.toContain('--destructive: #dc2626');
     });
   });
 

@@ -96,19 +96,35 @@ describe('seed-demo officials + RBAC completeness contract', () => {
     expect(seed).toMatch(/judge_qualifications/);
   });
 
-  it('assigns judges to BOTH trials and both judge accounts', () => {
-    // judge_assignments cover the route INTO ringside (scheduling surface).
+  it('assigns judges at CLASS level so the dashboard actually surfaces them', () => {
+    // REGRESSION (PR #823 review): the judge dashboard data path is class-centric
+    // (useJudgeAssignments -> classes -> trials; class-less rows are dropped by
+    // both mappers). A judge_assignments row with only show_id + trial_id yields
+    // an EMPTY dashboard. So every assignment must set class_id.
     expect(seed).toContain(HEARTLAND_SHOW_ID);
-    // Both trial ids appear as assignment targets.
-    expect(seed).toContain('dededede-0000-0000-0000-000000000021'); // Saturday
-    expect(seed).toContain('dededede-0000-0000-0000-000000000022'); // Sunday
-    // Three fixed assignment ids (...071 Sat, ...072 Sun, ...073 e2e-judge Sat).
-    for (const id of [
-      'dededede-0000-0000-0000-000000000071',
-      'dededede-0000-0000-0000-000000000072',
-      'dededede-0000-0000-0000-000000000073',
+
+    // The INSERT column list must include class_id (not just show_id/trial_id).
+    const insertCols = seed.slice(
+      seed.indexOf('INSERT INTO public.judge_assignments'),
+      seed.indexOf('JOIN public.people p', seed.indexOf('INSERT INTO public.judge_assignments'))
+    );
+    expect(insertCols).toContain('class_id');
+
+    // Every seeded class id must appear as an assignment target.
+    for (const classId of [
+      'dec1a55e-0000-0000-0000-000000000031',
+      'dec1a55e-0000-0000-0000-000000000032',
+      'dec1a55e-0000-0000-0000-000000000033',
+      'dec1a55e-0000-0000-0000-000000000034',
+      'dec1a55e-0000-0000-0000-000000000035',
     ]) {
-      expect(seed).toContain(id);
+      expect(insertCols).toContain(classId);
     }
+
+    // Both judge accounts get class-level rows (10 fixed ids: a1..a5 / b1..b5).
+    expect(insertCols).toContain('judge@myk9t.com');
+    expect(insertCols).toContain('e2e-judge@test.myk9.com');
+    expect(seed).toContain('dededede-0000-0000-0000-0000000000a1');
+    expect(seed).toContain('dededede-0000-0000-0000-0000000000b5');
   });
 });

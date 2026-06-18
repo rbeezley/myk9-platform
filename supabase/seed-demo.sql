@@ -11,8 +11,9 @@
 --       free text (no in-app actor). classes.judge_name is a snapshot of the
 --       assigned judge (section 2 + 4).
 --     - Judges modeled as PEOPLE, not strings: judge_qualifications rows carry
---       each judge's number + disciplines (section 13); judge_assignments link
---       them to both trials (section 11). Login is optional for a judge.
+--       each judge's number + disciplines (section 13); CLASS-LEVEL
+--       judge_assignments put all 5 classes on each judge's dashboard (section
+--       11 — trial/show-level rows are dropped by the dashboard). Login optional.
 --     - RBAC grants for secretary, club_admin, judge, steward, AND chairman
 --       (section 10/10b/10c/10d) — not just secretary/club_admin as before.
 --     - Known ringside passcodes (section 12).
@@ -123,7 +124,7 @@ END $$;
 --   dog    dededede-0000-0000-0000-00000000004{1..6}
 --   entry  dededede-0000-0000-0000-00000000005{1..8}  (+ ...059/...060 refund fixtures)
 --   armband      dededede-0000-0000-0000-00000000006{1..6}
---   judge_assign dededede-0000-0000-0000-00000000007{1..3}
+--   judge_assign dededede-0000-0000-0000-0000000000a{1..5} (judge@) / b{1..5} (e2e-judge), class-level
 --   passcode     dededede-0000-0000-0000-00000000008{1,2}
 --   judge_qual   dededede-0000-0000-0000-00000000009{1,2}
 
@@ -680,11 +681,24 @@ WHERE r.name = 'chairman'
 -- 11. GAP FIXTURE #5 (judge handoff, audit 05-showday-walk S2): assign judges to
 --     the Heartland show so /judge/dashboard surfaces assignments — the route into
 --     ringside. Without this the judge dashboard reads "No Judging Assignments Yet"
---     and the judge golden path is unreachable. Coverage (parity with the section
---     10b judge role grant):
---       ...071  judge@myk9t.com        -> Saturday trial (...0021)
---       ...072  judge@myk9t.com        -> Sunday trial   (...0022)   [both days]
---       ...073  e2e-judge@test.myk9.com -> Saturday trial (...0021)  [e2e suite]
+--     and the judge golden path is unreachable.
+--
+--     MUST BE CLASS-LEVEL, NOT trial/show-level. The dashboard data path is
+--     class-centric: useJudgeAssignments selects judge_assignments -> classes ->
+--     trials and BOTH mappers DROP any row whose class is missing
+--     (mapAssignmentRowToJudgeClass: `if (!cls || !trial) return null`;
+--     mapReplicatedAssignmentToJudgeClass: `if (!a.classId ...) return null`). A
+--     row with only show_id + trial_id (class_id NULL) therefore produces ZERO
+--     dashboard classes — the judge still sees the empty state. So every row here
+--     sets class_id. (This is also why a wizard-created SHOW-level assignment
+--     does not reach the dashboard — a separate product gap, not seeded here.)
+--
+--     Coverage: both demo judges judge ALL 5 classes across both trials, so
+--     whichever judge account a tester signs in as, the dashboard is full. Both
+--     people are named "Test Judge" (matches classes.judge_name), so co-assigning
+--     them to the same classes is consistent. trial_id matches each class's trial.
+--       ...0a{1..5}  judge@myk9t.com         -> classes 031..035
+--       ...0b{1..5}  e2e-judge@test.myk9.com -> classes 031..035
 --
 --     SCOPE NOTE: a judge_assignments row fixes the judge's SCHEDULING surface.
 --     It does NOT by itself grant entry-visibility RLS at ringside — entries_select
@@ -695,23 +709,32 @@ WHERE r.name = 'chairman'
 --
 --     Idempotent: delete ALL prior Heartland assignments (any judge), then
 --     INSERT...SELECT joined to people by email — an absent judge account simply
---     drops its row (person_id is NOT NULL, so we never insert a NULL). version
+--     drops its rows (person_id is NOT NULL, so we never insert a NULL). version
 --     defaults to 1 (migration 20260608200000); confirmed => dashboard-active.
 -- ---------------------------------------------------------------------------
 DELETE FROM public.judge_assignments
 WHERE show_id = 'dededede-0000-0000-0000-000000000010';
 
 INSERT INTO public.judge_assignments (
-  id, person_id, show_id, trial_id, status, confirmed_at, created_at, updated_at
+  id, person_id, show_id, trial_id, class_id, status, confirmed_at, created_at, updated_at
 )
 SELECT
-  v.id, p.id, 'dededede-0000-0000-0000-000000000010', v.trial_id,
+  v.id, p.id, 'dededede-0000-0000-0000-000000000010', v.trial_id, v.class_id,
   'confirmed', '2026-06-17 00:00:00+00', '2026-06-17 00:00:00+00', '2026-06-17 00:00:00+00'
 FROM (VALUES
-  ('dededede-0000-0000-0000-000000000071'::uuid, 'judge@myk9t.com',         'dededede-0000-0000-0000-000000000021'::uuid),
-  ('dededede-0000-0000-0000-000000000072'::uuid, 'judge@myk9t.com',         'dededede-0000-0000-0000-000000000022'::uuid),
-  ('dededede-0000-0000-0000-000000000073'::uuid, 'e2e-judge@test.myk9.com', 'dededede-0000-0000-0000-000000000021'::uuid)
-) AS v(id, email, trial_id)
+  -- judge@myk9t.com -> all 5 classes
+  ('dededede-0000-0000-0000-0000000000a1'::uuid, 'judge@myk9t.com',         'dededede-0000-0000-0000-000000000021'::uuid, 'dec1a55e-0000-0000-0000-000000000031'::uuid),
+  ('dededede-0000-0000-0000-0000000000a2'::uuid, 'judge@myk9t.com',         'dededede-0000-0000-0000-000000000021'::uuid, 'dec1a55e-0000-0000-0000-000000000032'::uuid),
+  ('dededede-0000-0000-0000-0000000000a3'::uuid, 'judge@myk9t.com',         'dededede-0000-0000-0000-000000000021'::uuid, 'dec1a55e-0000-0000-0000-000000000033'::uuid),
+  ('dededede-0000-0000-0000-0000000000a4'::uuid, 'judge@myk9t.com',         'dededede-0000-0000-0000-000000000022'::uuid, 'dec1a55e-0000-0000-0000-000000000034'::uuid),
+  ('dededede-0000-0000-0000-0000000000a5'::uuid, 'judge@myk9t.com',         'dededede-0000-0000-0000-000000000022'::uuid, 'dec1a55e-0000-0000-0000-000000000035'::uuid),
+  -- e2e-judge@test.myk9.com -> all 5 classes (e2e suite dashboard coverage)
+  ('dededede-0000-0000-0000-0000000000b1'::uuid, 'e2e-judge@test.myk9.com', 'dededede-0000-0000-0000-000000000021'::uuid, 'dec1a55e-0000-0000-0000-000000000031'::uuid),
+  ('dededede-0000-0000-0000-0000000000b2'::uuid, 'e2e-judge@test.myk9.com', 'dededede-0000-0000-0000-000000000021'::uuid, 'dec1a55e-0000-0000-0000-000000000032'::uuid),
+  ('dededede-0000-0000-0000-0000000000b3'::uuid, 'e2e-judge@test.myk9.com', 'dededede-0000-0000-0000-000000000021'::uuid, 'dec1a55e-0000-0000-0000-000000000033'::uuid),
+  ('dededede-0000-0000-0000-0000000000b4'::uuid, 'e2e-judge@test.myk9.com', 'dededede-0000-0000-0000-000000000022'::uuid, 'dec1a55e-0000-0000-0000-000000000034'::uuid),
+  ('dededede-0000-0000-0000-0000000000b5'::uuid, 'e2e-judge@test.myk9.com', 'dededede-0000-0000-0000-000000000022'::uuid, 'dec1a55e-0000-0000-0000-000000000035'::uuid)
+) AS v(id, email, trial_id, class_id)
 JOIN public.people p ON lower(p.email) = v.email;
 
 -- ---------------------------------------------------------------------------

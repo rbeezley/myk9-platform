@@ -311,7 +311,7 @@ the read-only baseline above, which could not submit any mutating action.
 | Scratch / pull | exhibitor `scratch-requested` → secretary guard-approve (`.single()`) → `scratched` + `pulled`; stale-guard = PGRST116/`data:null` (approve throws) | Pending live walk |
 | Waitlist | seed `waiting` → secretary `offered` → `acceptWaitlistOffer` guarded offered fetch (`.single()`) → entry insert (`confirmed`) → waitlist row **DELETEd** | Pending live walk |
 | Entry question | thread `.single()` read = 406/`data:null` before create → INSERT → reuse on next `.single()`; message send → secretary read → reply → exhibitor read | Pending live walk |
-| Refund / withdrawal | `stripe-refund-entry` → entry `refunded`/`withdrawn` + enrollment refund metadata; partial-refund clamps to fee | Pending live walk |
+| Refund / withdrawal | `stripe-refund-entry` → entry `refunded`/`withdrawn` + enrollment refund metadata; partial-refund clamps to fee | **PASS — live walk 2026-06-18** (see below) |
 | Results release | class `results_released_at` set → `view_entry_with_results` flips hidden → visible | Pending live walk |
 
 > **Fidelity fixes (2026-06-15, post-review).** The harness now honors PostgREST
@@ -338,3 +338,43 @@ live walk needs one of:
 This choice is the Phase 5 human-gate decision. Real-browser latency and the
 `phase4-dynamic-*` screenshots land after a strategy is chosen and
 `PHASE4_SEAM_FIXTURE_READY=1` is set.
+
+## Refund / Withdrawal — live two-context walk — 2026-06-18
+
+**Outcome: PASS.** The withdrawn/refunded entry renders the same terminal state
+across exhibitor and secretary surfaces.
+
+**Fixture.** Added a pure-exhibitor-owned gap fixture so the exhibitor-only Show
+Details "My Entries" tab could be walked (the existing `…059` fixture is owned by
+a site-admin, who gets the management `EntriesTab` instead — `ShowDetailsPage`
+`canManageShow` switch). New `seed-demo.sql` row `…060`: **Ranger** (owned by
+`e2e-exhibitor`) in **Exterior Excellent**, `entry_status='withdrawn'` /
+`payment_status='refunded'`, $30 refund.
+
+**Surfaces verified (as `e2e-exhibitor`, fresh incognito):**
+
+| Surface | Data path | Result |
+| --- | --- | --- |
+| Standalone My Entries (`/exhibitor/entries`) | direct PostgREST (`getUserEntries`) | Withdrawn + Refunded |
+| Show Details → My Entries tab (`MyEntriesTab`/`DogEntriesSection`) | replication store (`useEntryStore`) | **Withdrawn · Refunded** |
+| Secretary Entry Management | direct read | Withdrawn + reason + $30 refunded |
+
+**Two real bugs the walk surfaced (neither caught by the unit harness):**
+
+1. **Phantom class section "A"** — `classMappers.ts` (`mapDatabaseToClass`)
+   defaulted a NULL `section` to `'A'`, printing "Interior Advanced A" /
+   "Exterior Excellent A" (only Novice has A/B). Live in `main`. **Fixed** →
+   `?? ''` + regression test; also corrects `runOrderUtils` section grouping.
+2. **(Process, not code)** The withdrawn entry first appeared as "Upcoming". After
+   confirming the DB (`entry_status='withdrawn'`), the PostgREST sync response,
+   and the IndexedDB `replicated_tables` record were **all correct**, the cause
+   was that the dev server on `:5173` was serving a **different, stale worktree**
+   (`claude/flamboyant-davinci-3399b7`, pre-#800) whose `DogEntriesSection` lacked
+   the `getRemovedStateLabel` wiring. Re-running current code (this worktree, with
+   #800) on `:5174` rendered "Withdrawn · Refunded" correctly. **Lesson:** before
+   trusting live behavior, confirm which worktree the dev server's cwd points at
+   (`lsof -p <pid> -d cwd`).
+
+**Minor follow-ups filed (OPEN-TODOS P1-04w-1 / -2):** "Registration #Pending"
+subtitle on a terminal My Entries card; "(just now)" relative time for a
+future-dated `refunded_at` (`formatRelativeTime` + the seed using a future date).

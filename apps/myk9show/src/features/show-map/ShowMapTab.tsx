@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { getShowMapNodeId } from './showMapTree';
 import { ShowMapStructureTable } from './ShowMapStructureTable';
 import { useShowPresenceRoster } from '@/features/show-presence/showPresenceContext';
-import { ShowMapMoveUpDialog, type ShowMapMoveUpTarget } from './ShowMapMoveUpDialog';
+import { ShowMapMoveUpDialog } from './ShowMapMoveUpDialog';
+import { buildMoveUpTargets } from './buildMoveUpTargets';
 import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
 import { ShowMapScratchNoShowDialog } from './ShowMapScratchNoShowDialog';
 import { ShowMapToolbar } from './ShowMapToolbar';
@@ -127,22 +128,6 @@ function MoveUpUndoBanner({
       </div>
     </div>
   );
-}
-
-function buildMoveUpTargets(
-  classes: BuildShowMapTreeInput['classes'],
-  currentClassId: string | undefined
-): ShowMapMoveUpTarget[] {
-  return classes
-    .filter(cls => cls.id !== currentClassId)
-    .map(cls => ({
-      id: cls.id,
-      label: cls.name || [cls.element, cls.level, cls.section].filter(Boolean).join(' '),
-      detail: [cls.trialDate, cls.trialNumber ? `Trial ${cls.trialNumber}` : undefined]
-        .filter(Boolean)
-        .join(' · '),
-    }))
-    .sort((a, b) => a.label.localeCompare(b.label));
 }
 
 // INTENT: Thin dispatcher that decides whether to own state (legacy Today /

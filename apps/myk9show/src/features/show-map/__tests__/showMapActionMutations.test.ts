@@ -104,11 +104,28 @@ describe('showMapActionMutations', () => {
       handler: 'Jane Handler',
       armband: '101',
     });
-    mockGetReplicatedClassById.mockResolvedValue({
-      id: 'class-2',
-      trialId: 'trial-2',
-      name: 'Advanced A',
-      maxEntries: 50,
+    // Source class-1 (Container Novice) → target class-2 (Container Advanced):
+    // a valid same-element higher-level move-up. getClassById is id-aware so the
+    // write-path eligibility check has real element/level to compare.
+    mockGetReplicatedClassById.mockImplementation((id: string) => {
+      if (id === 'class-1') {
+        return Promise.resolve({
+          id: 'class-1',
+          trialId: 'trial-1',
+          name: 'Novice A',
+          element: 'Container',
+          level: 'Novice',
+          maxEntries: 50,
+        });
+      }
+      return Promise.resolve({
+        id: 'class-2',
+        trialId: 'trial-2',
+        name: 'Advanced A',
+        element: 'Container',
+        level: 'Advanced',
+        maxEntries: 50,
+      });
     });
     mockGetReplicatedEntriesByClass.mockResolvedValue([]);
     mockCreateReplicatedEntry.mockImplementation(entry => Promise.resolve(entry));
@@ -287,11 +304,25 @@ describe('showMapActionMutations', () => {
   });
 
   it('surfaces a replicated move-up capacity error', async () => {
-    mockGetReplicatedClassById.mockResolvedValue({
-      id: 'class-2',
-      trialId: 'trial-2',
-      name: 'Advanced A',
-      maxEntries: 1,
+    mockGetReplicatedClassById.mockImplementation((id: string) => {
+      if (id === 'class-1') {
+        return Promise.resolve({
+          id: 'class-1',
+          trialId: 'trial-1',
+          name: 'Novice A',
+          element: 'Container',
+          level: 'Novice',
+          maxEntries: 50,
+        });
+      }
+      return Promise.resolve({
+        id: 'class-2',
+        trialId: 'trial-2',
+        name: 'Advanced A',
+        element: 'Container',
+        level: 'Advanced',
+        maxEntries: 1,
+      });
     });
     mockGetReplicatedEntriesByClass.mockResolvedValue([{ entryStatus: 'confirmed' }]);
 
@@ -301,6 +332,43 @@ describe('showMapActionMutations', () => {
         targetClassId: 'class-2',
       })
     ).rejects.toThrow('Target class is full');
+  });
+
+  it('rejects a move-up to a lower/cross-element class (write-path enforcement)', async () => {
+    // Source is Container Master; target class-2 is Container Advanced — a
+    // LOWER level. The picker should never offer this, but the mutation must
+    // reject it even if a stale UI or alternate surface submits it.
+    mockGetReplicatedClassById.mockImplementation((id: string) => {
+      if (id === 'class-1') {
+        return Promise.resolve({
+          id: 'class-1',
+          trialId: 'trial-1',
+          name: 'Container Master',
+          element: 'Container',
+          level: 'Master',
+          maxEntries: 50,
+        });
+      }
+      return Promise.resolve({
+        id: 'class-2',
+        trialId: 'trial-2',
+        name: 'Advanced A',
+        element: 'Container',
+        level: 'Advanced',
+        maxEntries: 50,
+      });
+    });
+
+    await expect(
+      moveUpShowMapEntry({
+        entryId: 'entry-1',
+        targetClassId: 'class-2',
+      })
+    ).rejects.toThrow('not a valid move-up target');
+
+    // Nothing should have been written.
+    expect(mockUpdateReplicatedEntry).not.toHaveBeenCalled();
+    expect(mockCreateReplicatedEntry).not.toHaveBeenCalled();
   });
 
   it('preserves the create failure when move-up rollback also fails', async () => {

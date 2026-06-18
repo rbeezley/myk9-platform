@@ -18,7 +18,8 @@ import { ShowDeskToolsSheet, type ShowDeskToolSection } from './ShowDeskToolsShe
 import type { ShowDeskActionableTone } from './showDeskActionable';
 import { ShowMapReorderBanner } from './ShowMapReorderBanner';
 import { ShowMapEntryReviewSheet } from './ShowMapEntryReviewSheet';
-import { ShowMapMoveUpDialog, type ShowMapMoveUpTarget } from './ShowMapMoveUpDialog';
+import { ShowMapMoveUpDialog } from './ShowMapMoveUpDialog';
+import { buildMoveUpTargets } from './buildMoveUpTargets';
 import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
 import { ShowMapScratchNoShowDialog } from './ShowMapScratchNoShowDialog';
 import ShowMapTab from './ShowMapTab';
@@ -49,22 +50,6 @@ interface ShowDeskPanelProps extends BuildShowMapTreeInput {
   // Composed at the page level — the closeout section renders only when
   // at least one class is wrap-up-eligible (see ShowDeskCloseoutSection).
   closeoutContent?: ReactNode;
-}
-
-function buildMoveUpTargets(
-  classes: BuildShowMapTreeInput['classes'],
-  currentClassId: string | undefined
-): ShowMapMoveUpTarget[] {
-  return classes
-    .filter(cls => cls.id !== currentClassId)
-    .map(cls => ({
-      id: cls.id,
-      label: cls.name || [cls.element, cls.level, cls.section].filter(Boolean).join(' '),
-      detail: [cls.trialDate, cls.trialNumber ? `Trial ${cls.trialNumber}` : undefined]
-        .filter(Boolean)
-        .join(' · '),
-    }))
-    .sort((a, b) => a.label.localeCompare(b.label));
 }
 
 // INTENT: Show Desk surface for Phase B2a. Owns the shared workbench state so

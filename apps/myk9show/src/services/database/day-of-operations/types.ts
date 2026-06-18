@@ -77,6 +77,11 @@ export interface ClassWithCapacity {
   trial_id: string;
   accepted_count: number;
   available_spots: number;
+  // Structured class identity — used to constrain move-up targets to the same
+  // element and a strictly higher level (see getAvailableMoveUpTargets).
+  element: string | null;
+  level: string | null;
+  section: string | null;
 }
 
 export interface ScratchRequest {

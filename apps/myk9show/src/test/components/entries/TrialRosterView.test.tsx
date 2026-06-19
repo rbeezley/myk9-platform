@@ -1,6 +1,7 @@
 import { render, screen } from '@/test/utils/testUtils';
 import { TrialRosterView } from '@/components/entries/management/TrialRosterView';
 import type { RosterEntry } from '@/components/entries/management/TrialRosterView';
+import { setupCsvCapture } from '@/test/utils/csvCapture';
 
 const mockEntries: RosterEntry[] = [
   {
@@ -67,9 +68,7 @@ describe('TrialRosterView', () => {
 
   it('calls onClassClick when class name in header is clicked', async () => {
     const onClassClick = vi.fn();
-    const { user } = render(
-      <TrialRosterView entries={mockEntries} onClassClick={onClassClick} />
-    );
+    const { user } = render(<TrialRosterView entries={mockEntries} onClassClick={onClassClick} />);
 
     const classHeaders = screen.getAllByRole('button', { name: /Novice A|Open B/ });
     await user.click(classHeaders[0]);
@@ -100,10 +99,37 @@ describe('TrialRosterView', () => {
   });
 
   it('renders loading state when isLoading is true', () => {
-    render(
-      <TrialRosterView entries={[]} onClassClick={vi.fn()} isLoading={true} />
-    );
+    render(<TrialRosterView entries={[]} onClassClick={vi.fn()} isLoading={true} />);
 
     expect(screen.queryByText('No entries for this trial.')).not.toBeInTheDocument();
+  });
+
+  it('renders each class roster with the standard DataTable toolbar', () => {
+    render(<TrialRosterView {...defaultProps} />);
+
+    expect(screen.getAllByRole('button', { name: /toggle columns/i })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: /export csv/i })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: /compact density/i })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: /reset table view/i })).toHaveLength(2);
+  });
+
+  it('exports roster rows with readable dog, check-in, and scoring values', async () => {
+    const csvCapture = setupCsvCapture('blob:roster-export');
+    try {
+      const { user } = render(<TrialRosterView {...defaultProps} />);
+
+      await user.click(screen.getAllByRole('button', { name: /export csv/i })[0]);
+
+      const csv = await csvCapture.getCsv();
+      expect(csv).toContain('Rex (German Shepherd)');
+      expect(csv).toContain('Buddy (Golden Retriever)');
+      expect(csv).toContain('checked-in');
+      expect(csv).toContain('Not checked in');
+      expect(csv).toContain('Scored');
+      expect(csv).toContain('Pending');
+      expect(csv).not.toContain('Luna');
+    } finally {
+      csvCapture.restore();
+    }
   });
 });

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
-import { DataTable } from '@/components/ui/data-table';
+import { DataTable, type DataTableColumnMeta } from '@/components/ui/data-table';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { CheckInStatusBadge } from '@/components/common/CheckInStatusBadge';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +37,9 @@ const columns: ColumnDef<RosterEntry, unknown>[] = [
     accessorKey: 'armband',
     header: 'Armband',
     cell: ({ row }) => <ArmbandBadge armband={row.original.armband} />,
+    meta: {
+      exportValue: row => (row as RosterEntry).armband ?? '',
+    } satisfies DataTableColumnMeta,
   },
   {
     accessorKey: 'dogName',
@@ -49,10 +52,19 @@ const columns: ColumnDef<RosterEntry, unknown>[] = [
         )}
       </div>
     ),
+    meta: {
+      exportValue: row => {
+        const entry = row as RosterEntry;
+        return entry.breed ? `${entry.dogName} (${entry.breed})` : entry.dogName;
+      },
+    } satisfies DataTableColumnMeta,
   },
   {
     accessorKey: 'handlerName',
     header: 'Handler',
+    meta: {
+      exportValue: row => (row as RosterEntry).handlerName,
+    } satisfies DataTableColumnMeta,
   },
   {
     accessorKey: 'checkInStatus',
@@ -62,6 +74,9 @@ const columns: ColumnDef<RosterEntry, unknown>[] = [
       if (!status) return <span className="text-muted-foreground">--</span>;
       return <CheckInStatusBadge status={status as CheckInStatus} />;
     },
+    meta: {
+      exportValue: row => (row as RosterEntry).checkInStatus ?? 'Not checked in',
+    } satisfies DataTableColumnMeta,
   },
   {
     accessorKey: 'isScored',
@@ -72,6 +87,9 @@ const columns: ColumnDef<RosterEntry, unknown>[] = [
       ) : (
         <Badge variant="secondary">Pending</Badge>
       ),
+    meta: {
+      exportValue: row => ((row as RosterEntry).isScored ? 'Scored' : 'Pending'),
+    } satisfies DataTableColumnMeta,
   },
 ];
 
@@ -98,7 +116,7 @@ export function TrialRosterView({ entries, onClassClick, isLoading }: TrialRoste
   if (isLoading) {
     return (
       <div className="space-y-4">
-        {[1, 2].map((i) => (
+        {[1, 2].map(i => (
           <div key={i} className="space-y-2">
             <Skeleton className="h-8 w-48" />
             <Skeleton className="h-32 w-full" />
@@ -109,16 +127,12 @@ export function TrialRosterView({ entries, onClassClick, isLoading }: TrialRoste
   }
 
   if (entries.length === 0) {
-    return (
-      <p className="text-center text-muted-foreground py-8">
-        No entries for this trial.
-      </p>
-    );
+    return <p className="text-center text-muted-foreground py-8">No entries for this trial.</p>;
   }
 
   return (
     <div className="space-y-6">
-      {groups.map((group) => (
+      {groups.map(group => (
         <section key={group.classId}>
           <div className="flex items-center gap-3 mb-2">
             <button
@@ -133,9 +147,10 @@ export function TrialRosterView({ entries, onClassClick, isLoading }: TrialRoste
             </Badge>
           </div>
           <DataTable
+            tableId={`entryRoster-${group.classId}`}
             columns={columns}
             data={group.entries}
-            getRowId={(row) => row.id}
+            getRowId={row => row.id}
             pageSize={50}
           />
         </section>

@@ -4,6 +4,7 @@ import { render } from '@/test/utils/testUtils';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry, EntryClass } from '@/types/entry-management-types';
 import { EntriesTableView, type EntriesTableSelection } from '../EntriesTableView';
+import { setupCsvCapture } from '@/test/utils/csvCapture';
 
 const aClass: EntryClass = { id: 'c1', name: 'Novice A', number: '1', fee: 25, status: 'entered' };
 
@@ -129,6 +130,44 @@ describe('EntriesTableView selection column', () => {
 
     expect(screen.getByText('No waitlist entries right now.')).toBeInTheDocument();
     expect(screen.queryByText('No results found.')).not.toBeInTheDocument();
+  });
+
+  it('exports readable table values instead of display or sorting internals', async () => {
+    const exportEntry = {
+      ...entry('e3', 'Juniper'),
+      armbandNumber: '315',
+      classes: [aClass, { id: 'c2', name: 'Open B', number: '2', fee: 30, status: 'entered' }],
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+      submittedAt: new Date('2026-06-04T15:30:00.000Z'),
+    } satisfies EntryManagementEntry;
+    const csvCapture = setupCsvCapture('blob:entries-export');
+    try {
+      const { user } = render(
+        <EntriesTableView
+          entries={[exportEntry]}
+          emailStatusMap={{
+            [exportEntry.registrationId]: {
+              id: 'email-1',
+              related_id: exportEntry.registrationId,
+              status: 'sent',
+              created_at: '2026-06-04T15:31:00.000Z',
+            },
+          }}
+        />
+      );
+
+      await user.click(screen.getByRole('button', { name: /export csv/i }));
+
+      const csv = await csvCapture.getCsv();
+      expect(csv).toContain('315');
+      expect(csv).toContain('Juniper');
+      expect(csv).toContain('Novice A; Open B');
+      expect(csv).toContain(`${EntryStatus.PENDING} / ${PaymentStatus.PAID_ONLINE} / Email: sent`);
+      expect(csv).toContain('2026-06-04T15:30:00.000Z');
+      expect(csv).not.toContain('[object Object]');
+    } finally {
+      csvCapture.restore();
+    }
   });
 
   it('renders the enrollment payment status when it differs from entry payment status', () => {

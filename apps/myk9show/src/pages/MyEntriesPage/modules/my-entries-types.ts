@@ -38,6 +38,10 @@ export interface EntryClass {
   totalFaults?: number | undefined;
   /** Final placement */
   finalPlacement?: number | undefined;
+  /** Class result release marker; changes when secretary releases or re-releases results. */
+  resultsReleasedAt?: string | undefined;
+  /** Optional dog photo URL for result-card rendering. */
+  dogImageUrl?: string | undefined;
 }
 
 /**

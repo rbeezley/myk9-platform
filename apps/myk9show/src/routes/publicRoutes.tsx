@@ -102,7 +102,7 @@ function ShowManagementSectionRoute({ children }: { children: ReactNode }) {
   return (
     <ProtectedRoute
       redirectTo={canonicalShowPath}
-      requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}
+      requiredRole={[UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN]}
       fallback={<Navigate to={canonicalShowPath} replace />}
     >
       {/* Show-management URLs live in the public show route tree, but once authorized

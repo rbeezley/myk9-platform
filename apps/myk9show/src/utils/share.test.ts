@@ -119,10 +119,12 @@ describe('shareOrCopy', () => {
 describe('shareFile', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false })));
   });
 
-  it('uses native file share when supported', async () => {
+  it('uses native file share when supported on a coarse-pointer device', async () => {
     const fileShare = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true })));
     Object.defineProperty(navigator, 'canShare', {
       value: vi.fn(() => true),
       configurable: true,
@@ -146,6 +148,40 @@ describe('shareFile', () => {
       })
     );
     expect(result).toBe('shared');
+  });
+
+  it('downloads on desktop even when native file share is exposed', async () => {
+    const fileShare = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'canShare', {
+      value: vi.fn(() => true),
+      configurable: true,
+    });
+    Object.defineProperty(navigator, 'share', {
+      value: fileShare,
+      configurable: true,
+    });
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+      configurable: true,
+    });
+    const click = vi.fn();
+    vi.spyOn(document, 'createElement').mockReturnValue({
+      href: '',
+      download: '',
+      click,
+    } as unknown as HTMLAnchorElement);
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:result');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+
+    const result = await shareFile(new Blob(['png'], { type: 'image/png' }), {
+      title: 'Ditto qualified',
+      text: 'Ditto earned a Q.',
+      fileName: 'ditto-result.png',
+    });
+
+    expect(fileShare).not.toHaveBeenCalled();
+    expect(click).toHaveBeenCalled();
+    expect(result).toBe('copied');
   });
 
   it('downloads and copies text when file share is unavailable', async () => {
@@ -215,6 +251,7 @@ describe('shareFile', () => {
   });
 
   it('[ADDED] returns cancelled when the native file share sheet is dismissed', async () => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true })));
     Object.defineProperty(navigator, 'canShare', {
       value: vi.fn(() => true),
       configurable: true,

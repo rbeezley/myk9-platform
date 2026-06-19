@@ -363,10 +363,11 @@ VALUES
   -- 'move-up-requested' + move_up_requested=true (see getPendingMoveUpRequests,
   -- which filters entries by entry_status='move-up-requested'). The target class
   -- is chosen by the secretary at approval time (processMoveUp(entryId,toClassId)),
-  -- so nothing about the destination is stored on the pending row. We mark Scout's
-  -- Buried Master entry as a confirmed+paid entry awaiting move-up approval.
+  -- so nothing about the destination is stored on the pending row. We put Scout in
+  -- Interior Novice B (035, trial 022) so the approve dialog can show a valid
+  -- target: Interior Advanced (032, trial 021), same element, higher level.
   ('dededede-0000-0000-0000-000000000056',
-   'dededede-0000-0000-0000-000000000044', 'dec1a55e-0000-0000-0000-000000000034',
+   'dededede-0000-0000-0000-000000000044', 'dec1a55e-0000-0000-0000-000000000035',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000022',
    (SELECT id FROM public.people WHERE lower(email)='beezley@cox.net'), 'Richard Beezley',
    'move-up-requested', 'paid', 30.00, 103, 1, true, 1),
@@ -816,6 +817,75 @@ FROM (VALUES
   ('dededede-0000-0000-0000-000000000092'::uuid, 'e2e-judge@test.myk9.com', 'AKC-SW-1002')
 ) AS v(id, email, judge_number)
 JOIN public.people p ON lower(p.email) = v.email;
+
+-- ---------------------------------------------------------------------------
+-- 14. GAP FIXTURE #5 (move-up entry class patch, screenshot S-17)
+--     Entry ...056 was originally seeded as Scout/Buried Master. Buried Master
+--     is the highest Buried level in this show, so the approve dialog showed
+--     "no valid target." Patched to Interior Novice B (035, trial 022) so the
+--     dialog can offer Interior Advanced (032) as a valid move-up destination.
+--     The WHERE clause makes this a no-op on a fresh seed (entry is already 035).
+-- ---------------------------------------------------------------------------
+UPDATE public.entries
+SET class_id = 'dec1a55e-0000-0000-0000-000000000035',
+    trial_id  = 'dededede-0000-0000-0000-000000000022'
+WHERE id       = 'dededede-0000-0000-0000-000000000056'
+  AND class_id = 'dec1a55e-0000-0000-0000-000000000034';  -- only if still Buried Master
+
+-- ---------------------------------------------------------------------------
+-- 15. GAP FIXTURE #6 (waitlist entry, screenshot S-10)
+--     Juniper (043) waitlisted for Interior Advanced (032) at position 1.
+--     exhibitor_id references exhibitor_profiles, which only exists after the
+--     exhibitor signs in (auto-created by trigger on first auth). Skips silently
+--     with a NOTICE if the profile is not yet present.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_exhibitor_id uuid;
+BEGIN
+  SELECT ep.id INTO v_exhibitor_id
+  FROM   public.exhibitor_profiles ep
+  JOIN   public.people p ON p.id = ep.person_id
+  WHERE  lower(p.email) = 'e2e-exhibitor@test.myk9.com'
+  LIMIT  1;
+
+  IF v_exhibitor_id IS NULL THEN
+    RAISE NOTICE 'Section 15 skipped: exhibitor_profile for e2e-exhibitor@test.myk9.com not found (sign-in once to create it)';
+    RETURN;
+  END IF;
+
+  INSERT INTO public.waitlist_entries (
+    class_id,
+    exhibitor_id,
+    dog_id,
+    position,
+    status
+  )
+  SELECT
+    'dec1a55e-0000-0000-0000-000000000032',  -- Interior Advanced (trial 021)
+    v_exhibitor_id,
+    'dededede-0000-0000-0000-000000000043',  -- Juniper
+    1,
+    'waiting'
+  WHERE NOT EXISTS (
+    SELECT 1 FROM public.waitlist_entries
+    WHERE  class_id = 'dec1a55e-0000-0000-0000-000000000032'
+      AND  dog_id   = 'dededede-0000-0000-0000-000000000043'
+      AND  status   = 'waiting'
+  );
+
+  RAISE NOTICE 'Section 15: Juniper waitlist entry for Interior Advanced processed.';
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 16. GAP FIXTURE #7 (checked-in entry, screenshot E-15)
+--     Mark Willow's Interior Advanced entry (052) as checked in so the
+--     exhibitor's My Entries card shows the "Checked In" status pill.
+-- ---------------------------------------------------------------------------
+UPDATE public.entries
+SET check_in_status = 'checked-in'
+WHERE id = 'dededede-0000-0000-0000-000000000052';
 
 COMMIT;
 

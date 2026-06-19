@@ -108,7 +108,6 @@ export function useEntryManagementFilters({
           if (filter === 'all') next.delete('attention');
           else next.set('attention', filter);
           next.delete('entryTab');
-          next.delete('tab');
           return next;
         },
         { replace: true }

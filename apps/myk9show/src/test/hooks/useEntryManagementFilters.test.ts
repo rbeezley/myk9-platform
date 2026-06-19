@@ -155,7 +155,8 @@ describe('useEntryManagementFilters — trial/class filters', () => {
     expect(result.current.selectedTab).toBe('all');
     expect(params.get('attention')).toBeNull();
     expect(params.get('entryTab')).toBeNull();
-    expect(params.get('tab')).toBeNull();
+    // ?tab= is owned by the page-level tab system, not the filter hook — it stays
+    expect(params.get('tab')).toBe('waitlist');
     expect(params.get('trial')).toBe('trial-1');
   });
 

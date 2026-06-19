@@ -13,12 +13,12 @@ describe('entryManagementFilters', () => {
     expect(result.params.has('entryTab')).toBe(false);
   });
 
-  it('maps tab=waitlist to the waitlist attention filter', () => {
+  it('leaves tab=waitlist untouched (page-level tab, not an attention filter)', () => {
     const result = normalizeEntryManagementSearchParams(new URLSearchParams('tab=waitlist'));
 
-    expect(result.attention).toBe('waitlist');
-    expect(result.params.get('attention')).toBe('waitlist');
-    expect(result.params.has('tab')).toBe(false);
+    expect(result.attention).toBe('all');
+    expect(result.params.has('attention')).toBe(false);
+    expect(result.params.get('tab')).toBe('waitlist');
   });
 
   it('keeps table as the default view', () => {

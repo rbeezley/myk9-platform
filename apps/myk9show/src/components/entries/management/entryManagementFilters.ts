@@ -108,18 +108,15 @@ export function normalizeEntryManagementSearchParams(searchParams: URLSearchPara
 } {
   const params = new URLSearchParams(searchParams);
   const legacyAttention = legacyEntryTabToAttention(params.get('entryTab'));
-  const waitlistTab = params.get('tab') === 'waitlist';
   const rawAttention = params.get('attention');
   const attention =
-    legacyAttention ??
-    (waitlistTab ? 'waitlist' : isEntryAttentionFilter(rawAttention) ? rawAttention : 'all');
+    legacyAttention ?? (isEntryAttentionFilter(rawAttention) ? rawAttention : 'all');
   const rawMode = params.get('mode');
   const mode = isEntryWorkMode(rawMode) ? rawMode : 'review';
   const rawView = params.get('view');
   const view = isEntryManagementViewMode(rawView) ? rawView : 'table';
 
   params.delete('entryTab');
-  if (waitlistTab) params.delete('tab');
 
   if (attention === 'all') params.delete('attention');
   else params.set('attention', attention);

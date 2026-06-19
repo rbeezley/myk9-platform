@@ -228,8 +228,8 @@ All shots to be captured and added to `docs/training/screenshot-shot-list.md`. S
 
 | Shot ID | Section | Description | Status |
 |---|---|---|---|
-| C-01 | § 1 | Club Settings form — all fields visible | blocked: seed (needs club admin account in staging) |
-| C-02 | § 2 | Club Admin → Shows list | blocked: seed |
+| C-01 | § 1 | Club Settings form — all fields visible | ready |
+| C-02 | § 2 | Club Admin → Shows list | ready |
 | C-03 | § 3 | Members page — member row with Show Manager badge | ready |
 | C-04 | § 4 | Payments page — pre-onboarding "Connect bank account" state | blocked: stripe |
 | C-05 | § 5 | Payments page — payout history table | blocked: stripe |

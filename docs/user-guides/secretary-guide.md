@@ -5,7 +5,7 @@
 **Last verified:** 2026-06-19
 **Verified by:** walkthrough against outline (`docs/user-guides/secretary-guide-outline.md`)
 
-> **Note:** This is a QA-draft guide — written against the live app as a testing instrument. Screenshots are placeholders until the shot list (`docs/training/screenshot-shot-list.md`) is captured. Do not publish to customers until status is `verified`.
+> **Note:** This is a QA-draft guide — written against the live app as a testing instrument. Ready screenshots are embedded; shots marked `blocked:` in the checklist below require specific seed data or conditions before they can be captured. Do not publish to customers until status is `verified`.
 
 ---
 

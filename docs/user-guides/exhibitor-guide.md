@@ -5,7 +5,7 @@
 **Last verified:** 2026-06-19
 **Verified by:** walkthrough against outline (`docs/user-guides/exhibitor-guide-outline.md`)
 
-> **Note:** This is a QA-draft guide — written against the live app as a testing instrument. Screenshots are placeholders until the shot list (`docs/training/screenshot-shot-list.md`) is captured. Do not publish to customers until status is `verified`.
+> **Note:** This is a QA-draft guide — written against the live app as a testing instrument. Ready screenshots are embedded; shots marked `blocked:` in the checklist below require specific seed data or conditions before they can be captured. Do not publish to customers until status is `verified`.
 
 ---
 
@@ -170,17 +170,15 @@ Tap the banner to jump to your entry for that show.
 
 **Check in:**
 
-1. On your entry card, tap **Check In**.
+Once the secretary opens check-in for your class, a status pill appears on each class row of your entry card. If it says **Not Checked In**, find the ring steward at the gate and confirm your presence — the steward checks you in.
 
 ![E-14: Entry card — "Not Checked In" status on class row](../screenshots/E-14.png)
 
-2. The dialog confirms your class and armband number → tap **Confirm**.
+Once the steward marks you present, your card updates to **Checked In**.
 
 > *[Screenshot E-15: Entry card — Checked In state — blocked: needs a seeded checked-in entry]*
 
-Your card updates to **Checked In**.
-
-**Button not visible?** The secretary must open check-in for each class before the button appears. If you don't see it, check back closer to your ring time — or ask the steward if self check-in is open.
+**Status not visible?** The secretary must open check-in for each class before the status pill appears. If you don't see it, check back closer to your ring time.
 
 ---
 

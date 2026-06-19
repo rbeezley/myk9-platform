@@ -200,9 +200,10 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
 
   const isResendDisabled = (registrationId: string) =>
     (resendCooldowns[registrationId] || 0) > Date.now();
+  const hasSearchFilter = searchTerm.trim().length > 0;
   const emptyStateMessage = getEntryManagementEmptyStateMessage({
     attention: attentionFilter,
-    hasSearch: searchTerm.trim().length > 0,
+    hasSearch: hasSearchFilter,
     payment: paymentFilter,
   });
 
@@ -241,7 +242,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
         resultsTotal={entries.length}
         filtered={
           filteredEntries.length !== entries.length ||
-          searchTerm.length > 0 ||
+          hasSearchFilter ||
           paymentFilter !== 'all' ||
           attentionFilter !== 'all'
         }

@@ -35,6 +35,7 @@ coverage/
 .stryker-tmp/
 reports/mutation/
 playwright-report/
+playwright-report-ci/
 playwright-report-visual/
 .playwright-cli/
 test-results/

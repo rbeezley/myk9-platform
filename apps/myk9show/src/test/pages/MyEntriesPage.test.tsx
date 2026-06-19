@@ -116,7 +116,7 @@ const mockUser: UserWithRoles = {
   permissions: [],
 };
 
-const renderWithProviders = (ui: React.ReactElement) => {
+const renderWithProviders = (ui: React.ReactElement, initialRoute = '/my-entries') => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -126,10 +126,51 @@ const renderWithProviders = (ui: React.ReactElement) => {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/my-entries']}>{ui}</MemoryRouter>
+      <MemoryRouter initialEntries={[initialRoute]}>{ui}</MemoryRouter>
     </QueryClientProvider>
   );
 };
+
+function makeResultRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'entry-1',
+    registration_id: 'reg-1',
+    show_id: 'show-1',
+    dog_id: 'dog-1',
+    class_id: 'class-1',
+    trial_id: 'trial-1',
+    handler_id: 'person-1',
+    entry_status: 'accepted',
+    payment_status: 'paid_online',
+    entry_fee: 25,
+    check_in_status: 'checked-in',
+    is_scored: true,
+    result_status: 'qualified',
+    search_time_seconds: 42.18,
+    total_faults: 0,
+    final_placement: 1,
+    class_results_released_at: '2026-09-14T20:00:00.000Z',
+    dog_image_url: '/placeholder-dog.png',
+    submitted_at: '2026-06-01T12:00:00.000Z',
+    created_at: '2026-06-01T12:00:00.000Z',
+    updated_at: '2026-06-01T12:00:00.000Z',
+    dog: { id: 'dog-1', name: 'Ditto', call_name: 'Ditto' },
+    show: {
+      id: 'show-1',
+      name: 'Rocky Mountain Classic',
+      start_date: '2026-09-14',
+      end_date: '2026-09-14',
+      entry_close_date: '2026-09-01',
+      venue_name: 'Fairgrounds',
+      city: 'Denver',
+      state: 'CO',
+    },
+    class: { id: 'class-1', name: 'Container Novice A', class_number: '101' },
+    trial: { id: 'trial-1', trial_type: 'Scent Work' },
+    registration: { id: 'reg-1', confirmation_number: 'ABC123', payment_status: 'paid_online' },
+    ...overrides,
+  };
+}
 
 describe('MyEntriesPage UI Improvements', () => {
   beforeEach(() => {
@@ -384,6 +425,47 @@ describe('MyEntriesPage UI Improvements', () => {
       await screen.findByText('A Trial');
       expect(screen.getAllByText('Paid').length).toBeGreaterThan(0);
       expect(screen.queryByText('Payment Due')).not.toBeInTheDocument();
+    });
+
+    it('opens the result reveal from a resultEntryId query param when the result is visible', async () => {
+      (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
+        user: mockUser,
+        userWithRoles: { ...mockUser, databaseUserId: 'person-1' },
+        isAuthenticated: true,
+      });
+      (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        data: [makeResultRow()],
+        error: null,
+      });
+
+      renderWithProviders(<MyEntriesPage />, '/exhibitor/entries?resultEntryId=entry-1');
+
+      expect(await screen.findByRole('dialog', { name: /New result/i })).toBeInTheDocument();
+      expect(screen.getAllByText('Ditto').length).toBeGreaterThan(0);
+    });
+
+    it('ignores a resultEntryId query param when the result is not visible', async () => {
+      (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
+        user: mockUser,
+        userWithRoles: { ...mockUser, databaseUserId: 'person-1' },
+        isAuthenticated: true,
+      });
+      (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        data: [
+          makeResultRow({
+            id: 'entry-1',
+            result_status: null,
+            final_placement: null,
+            class_results_released_at: null,
+          }),
+        ],
+        error: null,
+      });
+
+      renderWithProviders(<MyEntriesPage />, '/exhibitor/entries?resultEntryId=entry-1');
+
+      expect(await screen.findByText('My Entries')).toBeInTheDocument();
+      expect(screen.queryByRole('dialog', { name: /New result/i })).not.toBeInTheDocument();
     });
   });
 });

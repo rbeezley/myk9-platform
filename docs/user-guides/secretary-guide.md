@@ -5,7 +5,7 @@
 **Last verified:** 2026-06-19
 **Verified by:** walkthrough against outline (`docs/user-guides/secretary-guide-outline.md`)
 
-> **Note:** This is a QA-draft guide — written against the live app as a testing instrument. Screenshots are placeholders until the shot list (`docs/training/screenshot-shot-list.md`) is captured. Do not publish to customers until status is `verified`.
+> **Note:** This is a QA-draft guide — written against the live app as a testing instrument. Ready screenshots are embedded; shots marked `blocked:` in the checklist below require specific seed data or conditions before they can be captured. Do not publish to customers until status is `verified`.
 
 ---
 
@@ -25,7 +25,7 @@ When you sign in, you land on the Secretary Dashboard. It shows all your active 
 
 Click any show to open its workbench.
 
-> *[Screenshot S-01: Secretary dashboard — one active Heritage show with entry count badge]*
+![S-01: Secretary dashboard — one active Heritage show with entry count badge](../screenshots/S-01.png)
 
 ---
 
@@ -47,13 +47,13 @@ The wizard walks you through four steps: show details, trial configuration, clas
 
 2. **Step 1 — Show Details.** Enter the show name, sanctioning organization, start and end dates, entry fee, and entry open and close dates. Click **Next**.
 
-   > *[Screenshot S-02: Create Show wizard — Step 1 (show details)]*
+   ![S-02: Create Show wizard — Step 1 (show details)](../screenshots/S-02.png)
 
 3. **Step 2 — Trial Configuration.** Add each trial with its date/time and AKC event number. Click **Add Trial** for each additional trial. Click **Next**.
 
 4. **Step 3 — Class Selection.** For each trial, choose which classes to offer and assign a judge to each class. Click **Next**.
 
-   > *[Screenshot S-04: Create Show wizard — Step 3 (class selection with judge dropdowns)]*
+   ![S-04: Create Show wizard — Step 3 (class selection)](../screenshots/S-04.png)
 
 5. **Step 4 — Review.** Scan the full structure. If anything looks wrong, click **Back** to correct it. When everything is correct, click **Create and Publish**.
 
@@ -68,7 +68,7 @@ Open the show from the Dashboard → click the **Setup** tab → click **Edit** 
 
 After creating your show, you can edit any part of its structure from the **Setup** tab on the Show Workbench.
 
-> *[Screenshot S-06: Show Workbench — Setup tab with readiness signals]*
+![S-06: Show Workbench — Setup tab with readiness signals](../screenshots/S-06.png)
 
 **Edit show details:**
 1. Click the **Setup** tab.
@@ -88,7 +88,7 @@ This is not available in the Setup tab after publication. If you need to add a t
 
 Entry Management is where you act on pending entries, add mail-in entries, and manage your waitlist.
 
-> *[Screenshot S-07: Entry Management — Pending tab with entry cards]*
+![S-07: Entry Management — Pending tab with entry cards](../screenshots/S-07.png)
 
 ### Approving an online entry
 
@@ -98,9 +98,9 @@ Entry Management is where you act on pending entries, add mail-in entries, and m
 
 **To approve many entries at once:** Check the box next to each entry → a sticky action bar appears at the bottom. Click **Approve selected**.
 
-> *[Screenshot S-09: Entry Management — bulk select with sticky approve bar]*
+![S-09: Entry Management — bulk select with sticky approve bar](../screenshots/S-09.png)
 
-> *[Screenshot S-08: Entry Management — three-dot menu open on a single entry card]*
+![S-08: Entry Management — three-dot menu open on a single entry card](../screenshots/S-08.png)
 
 ### Rejecting an entry
 
@@ -140,7 +140,7 @@ When a spot opens (someone scratches or is pulled):
 
 Exhibitors receive the announcement in their myK9Show inbox and as a push notification on their device.
 
-> *[Screenshot S-11: Message Center — compose form with show selected]*
+![S-11: Message Center — compose form with show selected](../screenshots/S-11.png)
 
 ### Send a message to one exhibitor
 
@@ -162,7 +162,7 @@ Messages in myK9Show send push notifications. Email delivery to exhibitors who h
 
 Run these reports before the show to prepare your rings, judges, and stewards.
 
-> *[Screenshot S-12: Reports page — Check-in Sheet selected]*
+![S-12: Reports page — Check-in Sheet selected](../screenshots/S-12.png)
 
 1. Open **Reports** from the Show Workbench sidebar or from the Show Desk.
 2. Select the trial from the dropdown.
@@ -171,14 +171,14 @@ Run these reports before the show to prepare your rings, judges, and stewards.
 | Report | When to run | Who gets it |
 |---|---|---|
 | Check-in Sheet | Morning of show day | Ring steward / check-in table |
-| Run Order | Before each class | Steward, posted at ring |
+| Steward's Report | Before each class | Steward, posted at ring |
 | Scoresheets | Before judges arrive | Each judge |
 | Armband Labels | Before check-in opens | Print on Avery 18262 stock |
 
 4. Print or download the report.
 
-> *[Screenshot S-13: Reports page — Run Order preview]*
-> *[Screenshot S-14: Reports page — Armband Labels]*
+![S-13: Reports page — Steward's Report selected](../screenshots/S-13.png)
+![S-14: Reports page — Armband Labels](../screenshots/S-14.png)
 
 **Note on run order:** The run order shows dog names, handler names, and armband numbers. Volunteer names are not included — those are managed separately outside the app.
 
@@ -188,7 +188,7 @@ Run these reports before the show to prepare your rings, judges, and stewards.
 
 The Show Desk is your headquarters on show day. Check-in, scratches, move-ups, late entries, and announcements are all here.
 
-> *[Screenshot S-15: Show Desk — Show Map with trial expanded and class rows]*
+![S-15: Show Desk — task queue with "Show in progress" banner and Next Best Action](../screenshots/S-15.png)
 
 **Getting there:** From the Show Workbench, click the **Show Desk** tab. On a show running today, the Dashboard will route you here automatically.
 
@@ -200,12 +200,20 @@ The Show Desk is your headquarters on show day. Check-in, scratches, move-ups, l
 
 ### Scratch / pull an exhibitor
 
-1. Find the entry in the Show Map.
-2. Open the three-dot menu on the entry row.
-3. Click **Scratch** → a confirmation dialog appears.
-4. Confirm → the entry is marked pulled and the class count updates.
+There are two different actions depending on the reason:
 
-> *[Screenshot S-16: Show Desk — scratch dialog open on entry row]*
+**Show-day withdrawal (stays in records):** Go to **Entry Management**, find the entry, and change the class status dropdown from **Pending** or **Accepted** to **Pulled**. The entry stays visible under the Pulled tab and counts correctly in AKC results submission.
+
+**Remove a mistaken or duplicate entry (deletes from records):**
+
+1. Go to **Entry Management**.
+2. Find the entry and expand the class row.
+3. Click the **trash icon** on the right of the class row → "Remove entry?" dialog appears.
+4. Confirm → the class entry is deleted from records.
+
+![S-16: Entry Management — "Remove entry?" confirmation dialog](../screenshots/S-16.png)
+
+> **Note:** Use Pulled for a real show-day scratch. Use Remove only for true mistakes (wrong dog, duplicate submission). The dialog text confirms the distinction.
 
 ### Process a move-up
 
@@ -221,12 +229,12 @@ A move-up promotes a qualifying dog to a higher-level class in the same element.
 ### Add a late entry (walk-in)
 
 1. Open the **Tools** panel (button at the top right of the Show Desk).
-2. Click **Late Entry**.
-3. Find or create the exhibitor record.
-4. Select their dog and the class → record the payment method and amount.
-5. Click **Save** → the entry is added and the class count updates.
+2. Click **Add late entry** — the Late Entry registration wizard opens.
+3. Step 1: search for the dog (or create a new dog record).
+4. Steps 2–4: select the class, assign a handler, and record payment.
+5. Confirm → the entry is added and the class count updates.
 
-> *[Screenshot S-18: Show Desk — Late Entry dialog in Tools panel]*
+![S-18: Late Entry registration wizard — Step 1 (Select Dogs)](../screenshots/S-18.png)
 
 ### Enter scores from paper scoresheets
 
@@ -237,13 +245,15 @@ When judges are scoring on paper rather than using the ringside app:
 ### Tools panel
 
 Open the Tools panel from the Show Desk for:
-- **Quick Broadcast** — message all exhibitors in the show
-- **Class Broadcast** — message exhibitors in one class
-- **Show Access Codes** — generate or share the passcode for judge and steward ringside access
-- **Incident Log** — record any show-day incidents
-- **Tasks and Notes** — your personal show-day checklist
+- **Late entries** — add a walk-in entry without leaving Show Desk
+- **Judge hospitality** — track judge meals, breaks, and show-day notes
+- **Incident log** — record any show-day incidents
+- **Delay scripts** — draft calm wording for schedule slips
+- **Access codes** — share judge and ringside entry codes
+- **Volunteers** — track helper assignments and gaps
+- **Tasks and notes** — your personal show-day checklist
 
-> *[Screenshot S-19: Show Desk — Tools panel side sheet with Quick Broadcast and Access Codes visible]*
+![S-19: Show Desk — Tools panel side sheet open](../screenshots/S-19.png)
 
 ---
 
@@ -279,8 +289,8 @@ After results are released, generate the electronic submission file and email it
 
 4. Click **Download XML** to download the submission file.
 
-   > *[Screenshot S-22: Submit Results — submission summary (preflight)]*
-   > *[Screenshot S-23: Submit Results — XML download button]*
+   ![S-22: Submit Results — submission summary (preflight)](../screenshots/S-22.png)
+   ![S-23: Submit Results — XML download button](../screenshots/S-23.png)
 
 5. Email the file to `eresults@akc.org`. Include in your message:
    - Club name
@@ -345,12 +355,12 @@ All shots from `docs/training/screenshot-shot-list.md`. Status as of 2026-06-19:
 | S-10 | § 4 | Waitlist Management page | blocked: seed |
 | S-11 | § 5 | Message Center — compose | ready |
 | S-12 | § 6 | Reports — Check-in Sheet | ready |
-| S-13 | § 6 | Reports — Run Order preview | ready |
+| S-13 | § 6 | Reports — Steward's Report selected | ready |
 | S-14 | § 6 | Reports — Armband Labels | ready |
-| S-15 | § 7 | Show Desk — Show Map | ready |
-| S-16 | § 7 | Scratch dialog | ready |
+| S-15 | § 7 | Show Desk — task queue with "Show in progress" banner and Next Best Action | ready |
+| S-16 | § 7 | Entry Management — "Remove entry?" dialog | ready |
 | S-17 | § 7 | Move-up dialog | blocked: seed |
-| S-18 | § 7 | Late Entry dialog | ready |
+| S-18 | § 7 | Late Entry wizard (Step 1: Select Dogs) | ready |
 | S-19 | § 7 | Tools panel | ready |
 | S-20 | § 8 | Results Control — all classes complete | blocked: seed |
 | S-21 | § 8 | Release Results toggle | blocked: seed |

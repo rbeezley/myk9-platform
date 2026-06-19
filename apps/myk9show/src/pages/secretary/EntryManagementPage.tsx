@@ -239,7 +239,7 @@ const EntryManagementPage: React.FC = () => {
             disabled={!selectedShowId || isProcessing}
           >
             <Download className="h-4 w-4 mr-2" />
-            Export CSV
+            Export Full CSV
           </Button>
         </div>
       </div>

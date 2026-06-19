@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { type ColumnDef, type DisplayColumnDef } from '@tanstack/react-table';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { DataTable } from '@/components/ui/data-table';
+import { DataTable, type DataTableColumnMeta } from '@/components/ui/data-table';
 import { getEntryStatusBadge, getPaymentStatusBadge } from '@/utils/entryManagementUtils';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { EmailStatusIcon } from '@/components/entries/EmailStatusIcon';
@@ -76,6 +76,9 @@ function buildColumns(
       header: 'Armband',
       accessorFn: entry => (entry.armbandNumber ?? '').toLowerCase(),
       cell: ({ row }) => <ArmbandBadge armband={row.original.armbandNumber} />,
+      meta: {
+        exportValue: row => (row as EntryManagementEntry).armbandNumber ?? '',
+      } satisfies DataTableColumnMeta,
     },
     {
       accessorKey: 'dogName',
@@ -87,6 +90,9 @@ function buildColumns(
           <div className="text-xs text-muted-foreground truncate">{row.original.entryNumber}</div>
         </div>
       ),
+      meta: {
+        exportValue: row => (row as EntryManagementEntry).dogName,
+      } satisfies DataTableColumnMeta,
     },
     {
       accessorKey: 'handlerName',
@@ -97,6 +103,9 @@ function buildColumns(
           {row.original.handlerName || '\u2014'}
         </span>
       ),
+      meta: {
+        exportValue: row => (row as EntryManagementEntry).handlerName || '',
+      } satisfies DataTableColumnMeta,
     },
     {
       accessorKey: 'classes',
@@ -123,6 +132,9 @@ function buildColumns(
           )}
         </div>
       ),
+      meta: {
+        exportValue: row => (row as EntryManagementEntry).classes.map(cls => cls.name).join('; '),
+      } satisfies DataTableColumnMeta,
     },
     {
       accessorKey: 'entryStatus',
@@ -144,6 +156,15 @@ function buildColumns(
           )}
         </div>
       ),
+      meta: {
+        exportValue: row => {
+          const entry = row as EntryManagementEntry;
+          const emailStatus = emailStatusMap?.[entry.registrationId]?.status;
+          return [entry.entryStatus, entry.paymentStatus, emailStatus && `Email: ${emailStatus}`]
+            .filter(Boolean)
+            .join(' / ');
+        },
+      } satisfies DataTableColumnMeta,
     },
     {
       accessorKey: 'submittedAt',
@@ -160,6 +181,9 @@ function buildColumns(
             : '\u2014'}
         </span>
       ),
+      meta: {
+        exportValue: row => (row as EntryManagementEntry).submittedAt?.toISOString() ?? '',
+      } satisfies DataTableColumnMeta,
     },
   ];
 
@@ -174,6 +198,7 @@ function buildColumns(
       ),
       enableSorting: false,
       enableHiding: false,
+      meta: { exportDisabled: true } satisfies DataTableColumnMeta,
     });
   }
 

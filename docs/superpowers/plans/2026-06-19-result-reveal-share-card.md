@@ -22,6 +22,12 @@
 - Use `apps/myk9show/src/test/utils/testUtils.tsx` instead of raw `render` for page/component tests that need providers.
 - Run focused tests after each task; final verification runs typecheck and lint.
 
+## Validation Profile
+
+- Risk: medium
+- Validation: app
+- Rationale: This changes one app's exhibitor result flow and notification deep links, touches a shared share utility, and needs focused tests plus app typecheck/lint before PR.
+
 ---
 
 ## File Structure
@@ -30,20 +36,20 @@
 - Create `apps/myk9show/src/features/result-card/resultCardModel.test.ts`: gating and formatting tests.
 - Create `apps/myk9show/src/features/result-card/resultRevealSeen.ts`: localStorage read/write helpers.
 - Create `apps/myk9show/src/features/result-card/resultRevealSeen.test.ts`: storage-key behavior.
-- Create `apps/myk9show/src/features/result-card/renderResultCardImage.ts`: Canvas 2D PNG renderer.
-- Create `apps/myk9show/src/features/result-card/renderResultCardImage.test.ts`: draw-call and fallback tests.
-- Create `apps/myk9show/src/features/result-card/ResultCard.tsx`: dog-first visual card used inside the reveal.
+- Create `apps/myk9show/src/features/result-card/renderResultCardImage.ts`: Canvas 2D PNG renderer with dog-photo load and placeholder fallback.
+- Create `apps/myk9show/src/features/result-card/renderResultCardImage.test.ts`: draw-call, photo, and fallback tests.
+- Create `apps/myk9show/src/features/result-card/ResultCard.tsx`: dog-first visual card with dog photo/placeholder used inside the reveal.
 - Create `apps/myk9show/src/features/result-card/ResultRevealDialog.tsx`: reveal modal, confetti, share flow.
 - Create `apps/myk9show/src/features/result-card/ResultRevealDialog.test.tsx`: motion and share behavior.
 - Create `apps/myk9show/src/features/result-card/index.ts`: public exports.
 - Modify `apps/myk9show/src/utils/share.ts`: add `shareFile`.
 - Modify `apps/myk9show/src/utils/share.test.ts`: add file-share branch tests.
 - Modify `apps/myk9show/src/pages/MyEntriesPage/modules/my-entries-types.ts`: add optional dog image and result release marker fields.
-- Modify `apps/myk9show/src/pages/MyEntriesPage/modules/useMyEntriesData.ts`: map dog image and release marker when available.
+- Modify `apps/myk9show/src/pages/MyEntriesPage/modules/useMyEntriesData.ts`: map cascade-aware `class_results_released_at` and `dog_image_url` from `view_own_entry_results`.
 - Modify `apps/myk9show/src/pages/MyEntriesPage/modules/MyEntryCard.tsx`: remove current duplicate declarations, render result prompt button, and call a new reveal handler.
 - Modify `apps/myk9show/src/pages/MyEntriesPage/modules/MyEntryCard.test.tsx`: prompt visibility tests.
 - Modify `apps/myk9show/src/pages/MyEntriesPage/index.tsx`: own reveal dialog state and query-param opening.
-- Modify `apps/myk9show/src/test/pages/MyEntriesPage.test.tsx`: query-param reveal integration if existing mocks make it practical.
+- Modify `apps/myk9show/src/test/pages/MyEntriesPage.test.tsx`: query-param reveal integration and invalid-link fallback.
 - Modify `apps/myk9show/src/hooks/useNotificationMonitor.ts`: retarget own-entry results to `/exhibitor/entries?resultEntryId=<entryId>`.
 - Modify `apps/myk9show/src/hooks/__tests__/useNotificationMonitor.test.ts`: assertion-first URL test.
 
@@ -130,7 +136,7 @@ git commit -m "fix(exhibitor): restore my entries typecheck"
 
 **Interfaces:**
 - Consumes: `MyEntry`, `EntryClass`, and explicit visibility flags.
-- Produces: `buildResultCardModel(input: BuildResultCardModelInput): ResultCardModel | null`, `isQualifyingResult(resultStatus: string | undefined): boolean`.
+- Produces: `buildResultCardVisibility(classEntry: EntryClass): ResultCardVisibility`, `buildResultCardModel(input: BuildResultCardModelInput): ResultCardModel | null`, `isQualifyingResult(resultStatus: string | undefined): boolean`.
 
 - [ ] **Step 1: Extend My Entries types**
 
@@ -151,7 +157,11 @@ Create `resultCardModel.test.ts`:
 import { describe, expect, it } from 'vitest';
 import type { EntryClass, MyEntry } from '@/pages/MyEntriesPage/modules';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
-import { buildResultCardModel, isQualifyingResult } from './resultCardModel';
+import {
+  buildResultCardModel,
+  buildResultCardVisibility,
+  isQualifyingResult,
+} from './resultCardModel';
 
 function makeEntry(overrides: Partial<MyEntry> = {}): MyEntry {
   return {
@@ -295,6 +305,24 @@ describe('buildResultCardModel', () => {
       faultsLabel: undefined,
     });
   });
+
+  it('[ADDED] derives visibility from cascade-nulled My Entries fields', () => {
+    const visibility = buildResultCardVisibility(
+      makeClass({
+        resultStatus: 'qualified',
+        finalPlacement: undefined,
+        searchTimeSeconds: undefined,
+        totalFaults: 0,
+      })
+    );
+
+    expect(visibility).toEqual({
+      showQualification: true,
+      showPlacement: false,
+      showTime: false,
+      showFaults: true,
+    });
+  });
 });
 ```
 
@@ -346,6 +374,15 @@ export interface ResultCardModel {
   shareTitle: string;
   shareText: string;
   shareEnabled: true;
+}
+
+export function buildResultCardVisibility(classEntry: EntryClass): ResultCardVisibility {
+  return {
+    showQualification: classEntry.resultStatus != null,
+    showPlacement: classEntry.finalPlacement != null,
+    showTime: classEntry.searchTimeSeconds != null,
+    showFaults: classEntry.totalFaults != null,
+  };
 }
 
 export function isQualifyingResult(resultStatus: string | undefined): boolean {
@@ -551,6 +588,25 @@ describe('shareFile', () => {
     expect(writeTextMock).toHaveBeenCalledWith('Ditto earned a Q.');
     expect(result).toBe('copied');
   });
+
+  it('[ADDED] returns cancelled when the native file share sheet is dismissed', async () => {
+    Object.defineProperty(navigator, 'canShare', {
+      value: vi.fn(() => true),
+      configurable: true,
+    });
+    Object.defineProperty(navigator, 'share', {
+      value: vi.fn().mockRejectedValue(new DOMException('Share canceled', 'AbortError')),
+      configurable: true,
+    });
+
+    const result = await shareFile(new Blob(['png'], { type: 'image/png' }), {
+      title: 'Ditto qualified',
+      text: 'Ditto earned a Q.',
+      fileName: 'ditto-result.png',
+    });
+
+    expect(result).toBe('cancelled');
+  });
 });
 ```
 
@@ -663,7 +719,7 @@ git commit -m "feat(results): add reveal seen state and file share"
 Create `renderResultCardImage.test.ts`:
 
 ```ts
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ResultCardModel } from './resultCardModel';
 import { renderResultCardImage } from './renderResultCardImage';
 
@@ -691,6 +747,20 @@ function makeModel(overrides: Partial<ResultCardModel> = {}): ResultCardModel {
 }
 
 describe('renderResultCardImage', () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      'Image',
+      class {
+        crossOrigin = '';
+        onload: (() => void) | null = null;
+        onerror: (() => void) | null = null;
+        set src(value: string) {
+          queueMicrotask(() => this.onload?.());
+        }
+      }
+    );
+  });
+
   it('draws the dog-first result facts', async () => {
     const fillText = vi.fn();
     const drawImage = vi.fn();
@@ -749,6 +819,49 @@ describe('renderResultCardImage', () => {
 
     expect(fillText).not.toHaveBeenCalledWith('1st', expect.any(Number), expect.any(Number));
   });
+
+  it('[ADDED] draws the dog photo area with placeholder fallback when photo loading fails', async () => {
+    const drawImage = vi.fn();
+    let imageLoads = 0;
+    vi.stubGlobal(
+      'Image',
+      class {
+        crossOrigin = '';
+        onload: (() => void) | null = null;
+        onerror: (() => void) | null = null;
+        set src(value: string) {
+          imageLoads += 1;
+          queueMicrotask(() => {
+            if (imageLoads === 1) this.onerror?.();
+            else this.onload?.();
+          });
+        }
+      }
+    );
+    const canvas = {
+      getContext: vi.fn(() => ({
+        fillRect: vi.fn(),
+        fillText: vi.fn(),
+        drawImage,
+        beginPath: vi.fn(),
+        arc: vi.fn(),
+        clip: vi.fn(),
+        save: vi.fn(),
+        restore: vi.fn(),
+        measureText: vi.fn((text: string) => ({ width: text.length * 12 })),
+        set fillStyle(value: string) {},
+        set font(value: string) {},
+        set textAlign(value: CanvasTextAlign) {},
+      })),
+      toBlob: vi.fn((cb: BlobCallback) => cb(new Blob(['png'], { type: 'image/png' }))),
+    } as unknown as HTMLCanvasElement;
+    vi.spyOn(document, 'createElement').mockReturnValue(canvas);
+
+    await renderResultCardImage(makeModel({ photoUrl: 'https://example.test/missing.jpg' }));
+
+    expect(drawImage).toHaveBeenCalled();
+    expect(imageLoads).toBe(2);
+  });
 });
 ```
 
@@ -787,14 +900,22 @@ export async function renderResultCardImage(model: ResultCardModel): Promise<Blo
   ctx.textAlign = 'center';
   ctx.fillText(model.dogName, WIDTH / 2, 150);
 
+  const photo = await loadImage(model.photoUrl ?? '/placeholder-dog.png');
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(WIDTH / 2, 305, 130, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.drawImage(photo, WIDTH / 2 - 130, 175, 260, 260);
+  ctx.restore();
+
   ctx.fillStyle = '#1d4ed8';
   ctx.font = '800 144px system-ui, sans-serif';
-  ctx.fillText(model.resultLabel, WIDTH / 2, 360);
+  ctx.fillText(model.resultLabel, WIDTH / 2, 530);
 
   if (model.placementLabel) {
     ctx.fillStyle = '#1f2933';
     ctx.font = '700 64px system-ui, sans-serif';
-    ctx.fillText(model.placementLabel, WIDTH / 2, 455);
+    ctx.fillText(model.placementLabel, WIDTH / 2, 625);
   }
 
   ctx.fillStyle = '#334155';
@@ -819,6 +940,24 @@ export async function renderResultCardImage(model: ResultCardModel): Promise<Blo
       if (blob) resolve(blob);
       else reject(new Error('Unable to create result card image'));
     }, 'image/png');
+  });
+}
+
+async function loadImage(src: string): Promise<HTMLImageElement> {
+  try {
+    return await loadSingleImage(src);
+  } catch {
+    return loadSingleImage('/placeholder-dog.png');
+  }
+}
+
+function loadSingleImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Unable to load result card image asset'));
+    image.src = src;
   });
 }
 ```
@@ -908,6 +1047,7 @@ function makeModel(overrides: Partial<ResultCardModel> = {}): ResultCardModel {
 describe('ResultRevealDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false })));
   });
 
   it('renders a dog-first qualifying reveal and marks it seen', () => {
@@ -950,6 +1090,40 @@ describe('ResultRevealDialog', () => {
       fileName: 'ditto-result.png',
     });
   });
+
+  it('[ADDED] skips confetti when reduced motion is requested', async () => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true })));
+    render(
+      <ResultRevealDialog
+        open
+        onOpenChange={vi.fn()}
+        model={makeModel()}
+        onSeen={vi.fn()}
+      />
+    );
+
+    const confetti = (await import('canvas-confetti')).default;
+    expect(confetti).not.toHaveBeenCalled();
+  });
+
+  it('[ADDED] keeps the result visible and explains when sharing fails', async () => {
+    const user = userEvent.setup();
+    const { shareFile } = await import('@/utils/share');
+    vi.mocked(shareFile).mockRejectedValueOnce(new Error('Share failed'));
+    render(
+      <ResultRevealDialog
+        open
+        onOpenChange={vi.fn()}
+        model={makeModel()}
+        onSeen={vi.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /Share/i }));
+
+    expect(await screen.findByText("We couldn't prepare the share card. Your result is still here.")).toBeInTheDocument();
+    expect(screen.getByText('Ditto')).toBeInTheDocument();
+  });
 });
 ```
 
@@ -968,7 +1142,6 @@ Expected: FAIL because components do not exist.
 Create `ResultCard.tsx`:
 
 ```tsx
-import { Award } from 'lucide-react';
 import type { ResultCardModel } from './resultCardModel';
 
 interface ResultCardProps {
@@ -979,8 +1152,15 @@ export function ResultCard({ model }: ResultCardProps) {
   return (
     <div className="overflow-hidden rounded-lg border border-primary/20 bg-card text-card-foreground">
       <div className="bg-primary/10 px-5 py-5 text-center">
-        <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground">
-          <Award className="h-8 w-8" aria-hidden="true" />
+        <div className="mx-auto mb-3 h-28 w-28 overflow-hidden rounded-full border-4 border-background bg-muted shadow-sm">
+          <img
+            src={model.photoUrl ?? '/placeholder-dog.png'}
+            alt=""
+            className="h-full w-full object-cover"
+            onError={event => {
+              event.currentTarget.src = '/placeholder-dog.png';
+            }}
+          />
         </div>
         <h2 className="text-3xl font-bold">{model.dogName}</h2>
         <p className="mt-1 text-sm text-muted-foreground">{model.showName}</p>
@@ -1054,6 +1234,7 @@ export function ResultRevealDialog({
   onSeen,
 }: ResultRevealDialogProps) {
   const [sharing, setSharing] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open || !model) return;
@@ -1065,6 +1246,7 @@ export function ResultRevealDialog({
   async function handleShare() {
     if (!model) return;
     setSharing(true);
+    setShareError(null);
     try {
       const blob = await renderResultCardImage(model);
       await shareFile(blob, {
@@ -1072,6 +1254,8 @@ export function ResultRevealDialog({
         text: model.shareText,
         fileName: `${model.dogName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-result.png`,
       });
+    } catch {
+      setShareError("We couldn't prepare the share card. Your result is still here.");
     } finally {
       setSharing(false);
     }
@@ -1086,6 +1270,7 @@ export function ResultRevealDialog({
         {model && (
           <div className="space-y-4">
             <ResultCard model={model} />
+            {shareError && <p className="text-sm text-destructive">{shareError}</p>}
             <Button onClick={handleShare} disabled={sharing} className="min-h-[44px] w-full">
               <Share2 className="mr-2 h-4 w-4" aria-hidden="true" />
               {sharing ? 'Preparing...' : 'Share'}
@@ -1141,23 +1326,25 @@ git commit -m "feat(results): add result reveal dialog"
 - Consumes: `buildResultCardModel`, `hasSeenResultReveal`, `markResultRevealSeen`.
 - Produces: My Entries soft prompt and reveal dialog.
 
-- [ ] **Step 1: Map dog image and release marker**
+- [ ] **Step 1: [EXPANDED] Map cascade-aware dog image and release marker**
 
-In `useMyEntriesData.ts`, add selected fields if the current query does not include them:
+In `apps/myk9show/src/services/database/entries/search.ts`, expand `USER_ENTRIES_SELECT` so `getUserEntries()` reads the fields already exposed by `view_own_entry_results`:
 
 ```ts
-// entries.classes join must include results_released_at through the class row.
-// dog join must include image_url.
+      class_results_released_at,
+      dog_image_url,
 ```
+
+Do not fetch `classes.results_released_at` through the class join for this feature. The release marker and dog image must come from the cascade-aware own-entry view row.
 
 When building `EntryClass`, assign:
 
 ```ts
-resultsReleasedAt: classData.results_released_at ?? undefined,
-dogImageUrl: dog?.image_url ?? undefined,
+resultsReleasedAt: (entry.class_results_released_at as string | null) ?? undefined,
+dogImageUrl: (entry.dog_image_url as string | null) ?? undefined,
 ```
 
-If `classData` or `dog` local types do not declare those fields, extend their local structural types instead of using `any`.
+If local structural types are needed, extend them exactly for `class_results_released_at` and `dog_image_url` instead of using `any`.
 
 - [ ] **Step 2: Write failing MyEntryCard prompt test**
 
@@ -1236,7 +1423,11 @@ Expected: FAIL because `MyEntryCard` does not accept reveal props.
 Update `MyEntryCardProps`:
 
 ```ts
-import { buildResultCardModel, type ResultCardModel } from '@/features/result-card';
+import {
+  buildResultCardModel,
+  buildResultCardVisibility,
+  type ResultCardModel,
+} from '@/features/result-card';
 
 interface MyEntryCardProps {
   entry: MyEntry;
@@ -1260,12 +1451,7 @@ For each class row, build the model:
 const resultModel = buildResultCardModel({
   entry,
   classEntry: cls,
-  visibility: {
-    showQualification: true,
-    showPlacement: true,
-    showTime: true,
-    showFaults: true,
-  },
+  visibility: buildResultCardVisibility(cls),
 });
 const showNewResult =
   resultModel != null && !seenResultReleaseKeys.has(resultModel.releaseKey);
@@ -1304,6 +1490,7 @@ In `index.tsx`, import:
 ```ts
 import {
   buildResultCardModel,
+  buildResultCardVisibility,
   ResultRevealDialog,
   hasSeenResultReveal,
   markResultRevealSeen,
@@ -1342,12 +1529,7 @@ React.useEffect(() => {
       const model = buildResultCardModel({
         entry,
         classEntry: cls,
-        visibility: {
-          showQualification: true,
-          showPlacement: true,
-          showTime: true,
-          showFaults: true,
-        },
+        visibility: buildResultCardVisibility(cls),
       });
       if (model && hasSeenResultReveal(model.releaseKey)) keys.add(model.releaseKey);
     }
@@ -1396,12 +1578,7 @@ React.useEffect(() => {
     const model = buildResultCardModel({
       entry,
       classEntry,
-      visibility: {
-        showQualification: true,
-        showPlacement: true,
-        showTime: true,
-        showFaults: true,
-      },
+      visibility: buildResultCardVisibility(classEntry),
     });
     if (model) {
       setResultRevealModel(model);
@@ -1414,7 +1591,118 @@ React.useEffect(() => {
 }, [entries, resultRevealModel, searchParams, setSearchParams]);
 ```
 
-- [ ] **Step 8: Run focused My Entries tests**
+- [ ] **Step 8: [ADDED] Add page-level deep-link tests**
+
+In `apps/myk9show/src/test/pages/MyEntriesPage.test.tsx`, first expand the existing `renderWithProviders` helper to accept an initial route:
+
+```tsx
+const renderWithProviders = (ui: React.ReactElement, initialRoute = '/my-entries') => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[initialRoute]}>{ui}</MemoryRouter>
+    </QueryClientProvider>
+  );
+};
+```
+
+Create this local raw-row helper above the new tests:
+
+```ts
+function makeResultRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'entry-1',
+    registration_id: 'reg-1',
+    show_id: 'show-1',
+    dog_id: 'dog-1',
+    class_id: 'class-1',
+    trial_id: 'trial-1',
+    handler_id: 'person-1',
+    entry_status: 'accepted',
+    payment_status: 'paid_online',
+    entry_fee: 25,
+    check_in_status: 'checked-in',
+    is_scored: true,
+    result_status: 'qualified',
+    search_time_seconds: 42.18,
+    total_faults: 0,
+    final_placement: 1,
+    class_results_released_at: '2026-09-14T20:00:00.000Z',
+    dog_image_url: '/placeholder-dog.png',
+    submitted_at: '2026-06-01T12:00:00.000Z',
+    created_at: '2026-06-01T12:00:00.000Z',
+    updated_at: '2026-06-01T12:00:00.000Z',
+    dog: { id: 'dog-1', name: 'Ditto', call_name: 'Ditto' },
+    show: {
+      id: 'show-1',
+      name: 'Rocky Mountain Classic',
+      start_date: '2026-09-14',
+      end_date: '2026-09-14',
+      entry_close_date: '2026-09-01',
+      venue_name: 'Fairgrounds',
+      city: 'Denver',
+      state: 'CO',
+    },
+    class: { id: 'class-1', name: 'Container Novice A', class_number: '101' },
+    trial: { id: 'trial-1', trial_type: 'Scent Work' },
+    registration: { id: 'reg-1', confirmation_number: 'ABC123', payment_status: 'paid_online' },
+    ...overrides,
+  };
+}
+```
+
+Then add these tests:
+
+```tsx
+it('opens the result reveal from a resultEntryId query param when the result is visible', async () => {
+  (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
+    user: mockUser,
+    userWithRoles: { ...mockUser, databaseUserId: 'person-1' },
+    isAuthenticated: true,
+  });
+  (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    data: [makeResultRow()],
+    error: null,
+  });
+
+  renderWithProviders(<MyEntriesPage />, '/exhibitor/entries?resultEntryId=entry-1');
+
+  expect(await screen.findByRole('dialog', { name: /New result/i })).toBeInTheDocument();
+  expect(screen.getByText('Ditto')).toBeInTheDocument();
+});
+
+it('ignores a resultEntryId query param when the result is not visible', async () => {
+  (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
+    user: mockUser,
+    userWithRoles: { ...mockUser, databaseUserId: 'person-1' },
+    isAuthenticated: true,
+  });
+  (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    data: [
+      makeResultRow({
+        id: 'entry-1',
+        result_status: null,
+        final_placement: null,
+        class_results_released_at: null,
+      }),
+    ],
+    error: null,
+  });
+
+  renderWithProviders(<MyEntriesPage />, '/exhibitor/entries?resultEntryId=entry-1');
+
+  expect(await screen.findByText('My Entries')).toBeInTheDocument();
+  expect(screen.queryByRole('dialog', { name: /New result/i })).not.toBeInTheDocument();
+});
+```
+
+- [ ] **Step 9: Run focused My Entries tests**
 
 Run:
 
@@ -1422,9 +1710,9 @@ Run:
 cd apps/myk9show && npx vitest run src/pages/MyEntriesPage/modules/MyEntryCard.test.tsx src/test/pages/MyEntriesPage.test.tsx
 ```
 
-Expected: PASS, or document why the broader page test needs a fixture update.
+Expected: PASS.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
 git add apps/myk9show/src/pages/MyEntriesPage apps/myk9show/src/features/result-card
@@ -1445,13 +1733,69 @@ git commit -m "feat(exhibitor): surface new qualifying results"
 
 - [ ] **Step 1: Write assertion-first notification test**
 
-Add a test that proves the exact URL:
+First extend the hoisted test state at the top of `useNotificationMonitor.test.ts`:
+
+```ts
+const { mockChannel, mockRemoveChannel, mockDeliver, mockPreferences, mockUseShowDayData, mockUseQueryResult } =
+  vi.hoisted(() => {
+    const mockChannel = {
+      on: vi.fn().mockReturnThis(),
+      subscribe: vi.fn().mockReturnThis(),
+    };
+    const mockRemoveChannel = vi.fn();
+    const mockDeliver = vi.fn();
+    const mockPreferences = {
+      enabled: true,
+      leadDogs: 3,
+      soundEnabled: true,
+      voiceEnabled: false,
+      vibrationEnabled: true,
+      pushEnabled: false,
+    };
+    const mockUseShowDayData = vi.fn(() => ({ activeShows: [{ showId: 'show-1' }] }));
+    const mockUseQueryResult = vi.fn(() => ({ data: null, isLoading: false }));
+    return { mockChannel, mockRemoveChannel, mockDeliver, mockPreferences, mockUseShowDayData, mockUseQueryResult };
+  });
+```
+
+Then change the React Query mock to use that mutable result:
+
+```ts
+vi.mock('@tanstack/react-query', async () => {
+  const actual = await vi.importActual('@tanstack/react-query');
+  return {
+    ...actual,
+    useQuery: () => mockUseQueryResult(),
+    useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+  };
+});
+```
+
+Add this assertion-first test:
 
 ```ts
 it('retargets single owned result notifications to the My Entries reveal URL', () => {
-  // Arrange useQuery mock data so class c1 has one owned dog entry e1.
-  // Then fire the classes UPDATE callback with is_scoring_finalized changing false -> true.
-  // Assert exact URL, not just delivery.
+  mockUseQueryResult.mockReturnValueOnce({
+    data: {
+      classes: [{ id: 'class-1', name: 'Container Novice A', status: 'Complete', is_scoring_finalized: true }],
+      entries: [
+        {
+          id: 'entry-1',
+          dog_id: 'dog-1',
+          class_id: 'class-1',
+          show_id: 'show-1',
+          check_in_status: 'checked-in',
+          armband: '27',
+          is_scored: true,
+          dog: { id: 'dog-1', call_name: 'Ditto' },
+        },
+      ],
+    },
+    isLoading: false,
+  });
+
+  renderHook(() => useNotificationMonitor());
+
   expect(mockDeliver).toHaveBeenCalledWith(
     expect.objectContaining({
       type: 'results_posted',
@@ -1460,8 +1804,6 @@ it('retargets single owned result notifications to the My Entries reveal URL', (
   );
 });
 ```
-
-If the existing test harness cannot inject query data, first refactor its hoisted `useQuery` mock to return a mutable `mockUseQueryData` object.
 
 - [ ] **Step 2: Run notification test red**
 
@@ -1588,7 +1930,7 @@ Open `/exhibitor/entries` as an exhibitor with a released qualifying result. Ver
 In `OPEN-TODOS.md`, mark the item complete:
 
 ```md
-- [x] ~~**Result Reveal + Share Card**~~ — Implemented in PR/commit <reference>: dog-first qualifying result reveal on My Entries, seen-state prompt, shareable PNG, native share/download fallback, and result notification deep-linking.
+- [x] ~~**Result Reveal + Share Card**~~ — Implemented in this result-reveal branch: dog-first qualifying result reveal on My Entries, seen-state prompt, shareable PNG, native share/download fallback, and result notification deep-linking.
 ```
 
 - [ ] **Step 5: Commit tracking**

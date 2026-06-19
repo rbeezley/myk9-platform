@@ -20,14 +20,14 @@ export interface ResultCardModel {
   showName: string;
   showDateLabel: string;
   className: string;
-  classNumber?: string | undefined;
-  armband?: string | undefined;
+  classNumber?: string;
+  armband?: string;
   resultLabel: 'Q';
-  placement?: number | undefined;
-  placementLabel?: string | undefined;
-  timeLabel?: string | undefined;
-  faultsLabel?: string | undefined;
-  photoUrl?: string | undefined;
+  placement?: number;
+  placementLabel?: string;
+  timeLabel?: string;
+  faultsLabel?: string;
+  photoUrl?: string;
   shareTitle: string;
   shareText: string;
   shareEnabled: true;
@@ -83,14 +83,14 @@ export function buildResultCardModel({
     showName: entry.showName,
     showDateLabel: entry.showDate.toLocaleDateString(),
     className: classEntry.name,
-    classNumber,
-    armband: entry.armband,
+    ...(classNumber ? { classNumber } : {}),
+    ...(entry.armband ? { armband: entry.armband } : {}),
     resultLabel: 'Q',
-    placement,
-    placementLabel,
-    timeLabel,
-    faultsLabel,
-    photoUrl: classEntry.dogImageUrl,
+    ...(placement != null ? { placement } : {}),
+    ...(placementLabel ? { placementLabel } : {}),
+    ...(timeLabel ? { timeLabel } : {}),
+    ...(faultsLabel ? { faultsLabel } : {}),
+    ...(classEntry.dogImageUrl ? { photoUrl: classEntry.dogImageUrl } : {}),
     shareTitle: `${entry.dogName} qualified at ${entry.showName}`,
     shareText: `${entry.dogName} earned a Q in ${classEntry.name} at ${entry.showName}.`,
     shareEnabled: true,

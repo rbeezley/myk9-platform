@@ -141,13 +141,11 @@ describe('buildResultCardModel', () => {
       },
     });
 
-    expect(model).toMatchObject({
-      resultLabel: 'Q',
-      placement: undefined,
-      placementLabel: undefined,
-      timeLabel: undefined,
-      faultsLabel: undefined,
-    });
+    expect(model).toMatchObject({ resultLabel: 'Q' });
+    expect(model).not.toHaveProperty('placement');
+    expect(model).not.toHaveProperty('placementLabel');
+    expect(model).not.toHaveProperty('timeLabel');
+    expect(model).not.toHaveProperty('faultsLabel');
   });
 
   it('[ADDED] derives visibility from cascade-nulled My Entries fields', () => {

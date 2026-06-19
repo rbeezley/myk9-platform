@@ -4,6 +4,7 @@ import { render } from '@/test/utils/testUtils';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry, EntryClass } from '@/types/entry-management-types';
 import { EntriesTableView, type EntriesTableSelection } from '../EntriesTableView';
+import { setupCsvCapture } from '@/test/utils/csvCapture';
 
 const aClass: EntryClass = { id: 'c1', name: 'Novice A', number: '1', fee: 25, status: 'entered' };
 
@@ -40,41 +41,6 @@ function makeSelection(overrides: Partial<EntriesTableSelection> = {}): EntriesT
 }
 
 const entries = [entry('e1', 'Willow'), entry('e2', 'Ranger')];
-
-function setupCsvCapture() {
-  let exportedBlob: Blob | undefined;
-  const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
-  const createObjectUrl = vi.fn((blob: Blob) => {
-    exportedBlob = blob;
-    return 'blob:entries-export';
-  });
-  const revokeObjectUrl = vi.fn();
-  vi.stubGlobal('URL', {
-    ...URL,
-    createObjectURL: createObjectUrl,
-    revokeObjectURL: revokeObjectUrl,
-  });
-
-  return {
-    getCsv: async () => {
-      expect(exportedBlob).toBeDefined();
-      return readBlobText(exportedBlob!);
-    },
-    restore: () => {
-      clickSpy.mockRestore();
-      vi.unstubAllGlobals();
-    },
-  };
-}
-
-async function readBlobText(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result ?? ''));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsText(blob);
-  });
-}
 
 function makeActionProps() {
   return {
@@ -174,31 +140,33 @@ describe('EntriesTableView selection column', () => {
       paymentStatus: PaymentStatus.PAID_ONLINE,
       submittedAt: new Date('2026-06-04T15:30:00.000Z'),
     } satisfies EntryManagementEntry;
-    const csvCapture = setupCsvCapture();
-    const { user } = render(
-      <EntriesTableView
-        entries={[exportEntry]}
-        emailStatusMap={{
-          [exportEntry.registrationId]: {
-            id: 'email-1',
-            related_id: exportEntry.registrationId,
-            status: 'sent',
-            created_at: '2026-06-04T15:31:00.000Z',
-          },
-        }}
-      />
-    );
+    const csvCapture = setupCsvCapture('blob:entries-export');
+    try {
+      const { user } = render(
+        <EntriesTableView
+          entries={[exportEntry]}
+          emailStatusMap={{
+            [exportEntry.registrationId]: {
+              id: 'email-1',
+              related_id: exportEntry.registrationId,
+              status: 'sent',
+              created_at: '2026-06-04T15:31:00.000Z',
+            },
+          }}
+        />
+      );
 
-    await user.click(screen.getByRole('button', { name: /export csv/i }));
+      await user.click(screen.getByRole('button', { name: /export csv/i }));
 
-    const csv = await csvCapture.getCsv();
-    expect(csv).toContain('315');
-    expect(csv).toContain('Juniper');
-    expect(csv).toContain('Novice A; Open B');
-    expect(csv).toContain(`${EntryStatus.PENDING} / ${PaymentStatus.PAID_ONLINE} / Email: sent`);
-    expect(csv).toContain('2026-06-04T15:30:00.000Z');
-    expect(csv).not.toContain('[object Object]');
-
-    csvCapture.restore();
+      const csv = await csvCapture.getCsv();
+      expect(csv).toContain('315');
+      expect(csv).toContain('Juniper');
+      expect(csv).toContain('Novice A; Open B');
+      expect(csv).toContain(`${EntryStatus.PENDING} / ${PaymentStatus.PAID_ONLINE} / Email: sent`);
+      expect(csv).toContain('2026-06-04T15:30:00.000Z');
+      expect(csv).not.toContain('[object Object]');
+    } finally {
+      csvCapture.restore();
+    }
   });
 });

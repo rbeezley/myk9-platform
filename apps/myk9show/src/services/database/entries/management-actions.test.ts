@@ -143,11 +143,12 @@ describe('executeBulkStatusChange', () => {
   it('updates entries optimistically in local state after a successful write', async () => {
     const entry = makeEntry({ entryStatus: EntryStatus.PENDING });
 
-    await executeBulkStatusChange(
+    const result = await executeBulkStatusChange(
       { entryIds: ['entry-1'], status: EntryStatus.REJECTED, selectedShowId: 'show-1' },
       { bulkUpdateStatus, reloadEntries, patchEntries, setError }
     );
 
+    expect(result.updated).toBe(true);
     expect(patchEntries).toHaveBeenCalledTimes(1);
     const updater = patchEntries.mock.calls[0]?.[0];
     const [updated] = updater([entry]);
@@ -157,22 +158,24 @@ describe('executeBulkStatusChange', () => {
   it('sets error and does not update entries when the DB call fails', async () => {
     bulkUpdateStatus.mockResolvedValue({ error: new Error('db fail') });
 
-    await executeBulkStatusChange(
+    const result = await executeBulkStatusChange(
       { entryIds: ['e1'], status: EntryStatus.ACCEPTED, selectedShowId: 'show-1' },
       { bulkUpdateStatus, reloadEntries, patchEntries, setError }
     );
 
+    expect(result.updated).toBe(false);
     expect(setError).toHaveBeenCalledWith('Failed to update entry statuses');
     expect(patchEntries).not.toHaveBeenCalled();
     expect(reloadEntries).not.toHaveBeenCalled();
   });
 
   it('does nothing when entryIds is empty', async () => {
-    await executeBulkStatusChange(
+    const result = await executeBulkStatusChange(
       { entryIds: [], status: EntryStatus.ACCEPTED, selectedShowId: 'show-1' },
       { bulkUpdateStatus, reloadEntries, patchEntries, setError }
     );
 
+    expect(result.updated).toBe(false);
     expect(bulkUpdateStatus).not.toHaveBeenCalled();
   });
 });

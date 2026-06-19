@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { EntryStatus } from '@/types/show-registration-types';
@@ -43,6 +43,14 @@ function setup(entries: EntryManagementEntry[]) {
   return { ...utils, onBulkStatusChange, onBulkCheckIn, onClear };
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>(res => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
 describe('EntryBulkActionsBar', () => {
   it('renders nothing when no entries are selected', () => {
     const { container } = setup([]);
@@ -66,6 +74,17 @@ describe('EntryBulkActionsBar', () => {
     expect(onClear).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps selection when a bulk status action reports failure', async () => {
+    const { user, onBulkStatusChange, onClear } = setup([entry('p', EntryStatus.PENDING)]);
+    onBulkStatusChange.mockResolvedValue(false);
+
+    await user.click(screen.getByRole('button', { name: /bulk actions/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /accept selected/i }));
+
+    expect(onBulkStatusChange).toHaveBeenCalledWith(['p'], EntryStatus.ACCEPTED);
+    expect(onClear).not.toHaveBeenCalled();
+  });
+
   it('check in calls onBulkCheckIn with accepted entries only', async () => {
     const { user, onBulkCheckIn } = setup([
       entry('acc', EntryStatus.ACCEPTED),
@@ -75,6 +94,21 @@ describe('EntryBulkActionsBar', () => {
     await user.click(await screen.findByRole('menuitem', { name: /check in selected/i }));
 
     expect(onBulkCheckIn).toHaveBeenCalledWith(['acc']);
+  });
+
+  it('waits to clear selection until an async check-in action succeeds', async () => {
+    const checkIn = deferred<boolean>();
+    const { user, onBulkCheckIn, onClear } = setup([entry('acc', EntryStatus.ACCEPTED)]);
+    onBulkCheckIn.mockReturnValue(checkIn.promise);
+
+    await user.click(screen.getByRole('button', { name: /bulk actions/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /check in selected/i }));
+
+    expect(onBulkCheckIn).toHaveBeenCalledWith(['acc']);
+    expect(onClear).not.toHaveBeenCalled();
+
+    checkIn.resolve(true);
+    await waitFor(() => expect(onClear).toHaveBeenCalledTimes(1));
   });
 
   it('disables actions that have no eligible entries', async () => {

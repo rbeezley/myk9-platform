@@ -118,6 +118,10 @@ export interface BulkStatusChangeParams {
   selectedShowId?: string;
 }
 
+export interface BulkStatusChangeResult {
+  updated: boolean;
+}
+
 /**
  * Orchestrates a bulk entry-status change:
  *   1. Persist via bulkUpdateStatus
@@ -127,15 +131,15 @@ export interface BulkStatusChangeParams {
 export async function executeBulkStatusChange(
   params: BulkStatusChangeParams,
   adapters: BulkStatusChangeAdapters
-): Promise<void> {
+): Promise<BulkStatusChangeResult> {
   const { entryIds, status } = params;
   const { bulkUpdateStatus, patchEntries, setError } = adapters;
-  if (entryIds.length === 0) return;
+  if (entryIds.length === 0) return { updated: false };
 
   const { error: dbError } = await bulkUpdateStatus(entryIds, mapStatusToDb(status));
   if (dbError) {
     setError('Failed to update entry statuses');
-    return;
+    return { updated: false };
   }
 
   patchEntries(prev =>
@@ -143,6 +147,8 @@ export async function executeBulkStatusChange(
       entryIds.includes(e.id) ? { ...e, entryStatus: status, lastUpdated: new Date() } : e
     )
   );
+
+  return { updated: true };
 }
 
 // ─── executeRemoveEntry ───────────────────────────────────────────────────

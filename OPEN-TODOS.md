@@ -206,7 +206,7 @@ Descoped from the shipped #602–#604 MVP. Not blockers for the enabled flag; bu
 
 ## Entry Management
 
-- [ ] **Brainstorm Entry Management layout for the trial secretary** — Discussion/design task (not yet a build). Step back and rethink the page layout so it's easier and faster for a trial secretary to work entries. Start from the existing surface (`EntryManagementPage` + `components/entries/management/*`) and the prior secretary-journey findings; produce options before any code. Per CLAUDE.md "consolidate, don't duplicate," ask the duplication question first (overlaps Show Map / Show Desk / checkbox-multiselect work). Output should be a short options doc, then a plan if approved. Full context in TO-DOS.md § "Entry Management layout brainstorm for trial secretary".
+- [x] ~~**Brainstorm Entry Management layout for the trial secretary**~~ — **DONE 2026-06-19.** Produced and implemented the one-page/two-mode Entry Management layout in `docs/plan-entry-management-layout.md`: shared list controls, table-first default, status filters instead of tabs, enrollment/dog grouped card view, row/bulk three-dot actions, Review/Day-of presets, seeded browser smoke, filter-aware empty states, and failure-aware bulk selection cleanup. The work consolidated the existing Entry Management surface without duplicating Show Desk or Show Map.
 - [x] ~~**Add checkbox multi-select for bulk editing on Entry Management**~~ — **DONE 2026-06-18 ([#827](https://github.com/rbeezley/myk9-platform/pull/827)).** Table-view checkbox multi-select + sticky bulk-action bar (Approve / Reject / Check-In) reusing existing bulk mutations; selection prunes on filter/tab change. Waitlist bulk action deferred (needs the real `waitlist_entries` workflow).
 
 ---

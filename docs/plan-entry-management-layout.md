@@ -464,6 +464,23 @@ Resolved in follow-up:
   `No waitlist entries right now.` for the waitlist filter and `No entries match these filters.`
   when search/payment filters narrow the result set.
 
+## Implementation Notes - 2026-06-19 Phase 6
+
+Completed the failure-aware bulk selection polish:
+
+- `executeBulkStatusChange` now returns whether the bulk status update actually changed entries.
+- Entry Management bulk status/check-in handlers return `true` only after the action succeeds and
+  local state is patched.
+- The selected-row bulk action menu now waits for async handlers and clears selection only on
+  success. If a handled failure returns `false`, or an unexpected rejection occurs, the current
+  selection stays in place so the secretary can retry without rebuilding the working set.
+
+Verified:
+
+- `cd apps/myk9show && pnpm exec vitest run src/components/entries/management/__tests__/EntryBulkActionsBar.test.tsx src/components/entries/management/__tests__/RegistrationView.multiselect.test.tsx src/components/entries/management/__tests__/bulkActionEligibility.test.ts src/services/database/entries/management-actions.test.ts src/hooks/__tests__/useEntryManagementActions.test.ts`
+  passed: 5 files, 34 tests.
+- `cd apps/myk9show && pnpm typecheck` passed.
+
 ## Open Questions
 
 - Should `Review` or `Day-of` be remembered per user/show, or should Entry Management always open in

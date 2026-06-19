@@ -109,6 +109,46 @@ describe('renderResultCardImage', () => {
     expect(fillText).not.toHaveBeenCalledWith('1st', expect.any(Number), expect.any(Number));
   });
 
+  it('fits long labels inside the share image width', async () => {
+    const fillText = vi.fn();
+    const longDogName = 'Ditto The Extremely Accomplished Fast Dog With A Very Long Registered Name';
+    const longShowName =
+      'The Extraordinarily Long Invitational Scent Work Classic Hosted At The Biggest Fairgrounds';
+    const canvas = {
+      getContext: vi.fn(() => ({
+        fillRect: vi.fn(),
+        fillText,
+        drawImage: vi.fn(),
+        beginPath: vi.fn(),
+        arc: vi.fn(),
+        clip: vi.fn(),
+        save: vi.fn(),
+        restore: vi.fn(),
+        measureText: vi.fn((text: string) => ({ width: text.length * 18 })),
+        set fillStyle(_value: string) {},
+        set font(_value: string) {},
+        set textAlign(_value: CanvasTextAlign) {},
+      })),
+      toBlob: vi.fn((cb: BlobCallback) => cb(new Blob(['png'], { type: 'image/png' }))),
+    } as unknown as HTMLCanvasElement;
+    vi.spyOn(document, 'createElement').mockReturnValue(canvas);
+
+    await renderResultCardImage(
+      makeModel({
+        dogName: longDogName,
+        showName: longShowName,
+      })
+    );
+
+    const dogNameCall = fillText.mock.calls.find(([, , y]) => y === 150);
+    const showNameCall = fillText.mock.calls.find(([, , y]) => y === 785);
+
+    expect(dogNameCall?.[0]).not.toBe(longDogName);
+    expect(dogNameCall?.[0]).toMatch(/\.\.\.$/);
+    expect(showNameCall?.[0]).not.toBe(longShowName);
+    expect(showNameCall?.[0]).toMatch(/\.\.\.$/);
+  });
+
   it('keeps the class name at least 70px below placement when both are present', async () => {
     const fillText = vi.fn();
     const canvas = {

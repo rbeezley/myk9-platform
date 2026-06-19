@@ -10,6 +10,7 @@ const SHOW_Y_WITH_PLACEMENT = CLASS_Y_WITH_PLACEMENT + 70;
 const SHOW_Y_WITHOUT_PLACEMENT = CLASS_Y_WITHOUT_PLACEMENT + 65;
 const DETAILS_Y_WITH_PLACEMENT = SHOW_Y_WITH_PLACEMENT + 95;
 const DETAILS_Y_WITHOUT_PLACEMENT = SHOW_Y_WITHOUT_PLACEMENT + 95;
+const TEXT_MAX_WIDTH = WIDTH - 160;
 
 export async function renderResultCardImage(model: ResultCardModel): Promise<Blob> {
   const canvas = document.createElement('canvas');
@@ -27,7 +28,7 @@ export async function renderResultCardImage(model: ResultCardModel): Promise<Blo
   ctx.fillStyle = '#1f2933';
   ctx.font = '700 84px system-ui, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText(model.dogName, WIDTH / 2, 150);
+  drawFittedText(ctx, model.dogName, WIDTH / 2, 150, TEXT_MAX_WIDTH);
 
   const photo = model.photoUrl ? await loadImage(model.photoUrl) : null;
   if (photo) {
@@ -43,7 +44,7 @@ export async function renderResultCardImage(model: ResultCardModel): Promise<Blo
 
   ctx.fillStyle = '#1d4ed8';
   ctx.font = '800 144px system-ui, sans-serif';
-  ctx.fillText(model.resultLabel, WIDTH / 2, RESULT_Y);
+  drawFittedText(ctx, model.resultLabel, WIDTH / 2, RESULT_Y, TEXT_MAX_WIDTH);
 
   const placementLabel = model.placementLabel;
   const hasPlacement = Boolean(placementLabel);
@@ -54,26 +55,26 @@ export async function renderResultCardImage(model: ResultCardModel): Promise<Blo
   if (placementLabel) {
     ctx.fillStyle = '#1f2933';
     ctx.font = '700 64px system-ui, sans-serif';
-    ctx.fillText(placementLabel, WIDTH / 2, PLACEMENT_Y);
+    drawFittedText(ctx, placementLabel, WIDTH / 2, PLACEMENT_Y, TEXT_MAX_WIDTH);
   }
 
   ctx.fillStyle = '#334155';
   ctx.font = '600 48px system-ui, sans-serif';
-  ctx.fillText(model.className, WIDTH / 2, classY);
+  drawFittedText(ctx, model.className, WIDTH / 2, classY, TEXT_MAX_WIDTH);
   ctx.font = '500 42px system-ui, sans-serif';
-  ctx.fillText(model.showName, WIDTH / 2, showY);
+  drawFittedText(ctx, model.showName, WIDTH / 2, showY, TEXT_MAX_WIDTH);
 
   const details = [model.timeLabel, model.faultsLabel, model.armband ? `Armband ${model.armband}` : undefined]
     .filter((value): value is string => Boolean(value));
 
   ctx.font = '500 38px system-ui, sans-serif';
   details.forEach((detail, index) => {
-    ctx.fillText(detail, WIDTH / 2, detailsStartY + index * 58);
+    drawFittedText(ctx, detail, WIDTH / 2, detailsStartY + index * 58, TEXT_MAX_WIDTH);
   });
 
   ctx.fillStyle = '#6b6358';
   ctx.font = '600 34px system-ui, sans-serif';
-  ctx.fillText('myK9Show', WIDTH / 2, HEIGHT - 90);
+  drawFittedText(ctx, 'myK9Show', WIDTH / 2, HEIGHT - 90, TEXT_MAX_WIDTH);
 
   return new Promise((resolve, reject) => {
     canvas.toBlob(blob => {
@@ -116,4 +117,32 @@ function drawPhotoPlaceholder(ctx: CanvasRenderingContext2D, dogName: string) {
   ctx.textAlign = 'center';
   ctx.fillText(dogName.trim().charAt(0).toUpperCase() || 'Q', WIDTH / 2, 340);
   ctx.restore();
+}
+
+function drawFittedText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number
+) {
+  ctx.fillText(fitCanvasText(ctx, text, maxWidth), x, y);
+}
+
+function fitCanvasText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
+  if (ctx.measureText(text).width <= maxWidth) {
+    return text;
+  }
+
+  const suffix = '...';
+  if (ctx.measureText(suffix).width > maxWidth) {
+    return '';
+  }
+
+  let fitted = text.trimEnd();
+  while (fitted.length > 0 && ctx.measureText(`${fitted}${suffix}`).width > maxWidth) {
+    fitted = fitted.slice(0, -1).trimEnd();
+  }
+
+  return fitted ? `${fitted}${suffix}` : suffix;
 }

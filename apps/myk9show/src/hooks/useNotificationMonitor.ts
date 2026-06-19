@@ -42,6 +42,14 @@ interface RealtimePayload<T> {
   old: T;
 }
 
+function buildResultsActionUrl(classId: string, userEntries: ShowEntry[]): string {
+  if (userEntries.length === 1) {
+    return `/exhibitor/entries?resultEntryId=${encodeURIComponent(userEntries[0].id)}`;
+  }
+
+  return `/classes/${classId}`;
+}
+
 /**
  * Core notification monitor hook.
  *
@@ -238,15 +246,14 @@ export function useNotificationMonitor(): void {
 
       if (cls.isScoringFinalized && !notifiedResultsPosted.current.has(classId)) {
         notifiedResultsPosted.current.add(classId);
-        const userDogNames = ctx.entries
-          .filter(e => userDogIdsRef.current.has(e.dogId))
-          .map(e => newDogNames.get(e.dogId) ?? 'Your dog');
+        const userEntries = ctx.entries.filter(e => userDogIdsRef.current.has(e.dogId));
+        const userDogNames = userEntries.map(e => newDogNames.get(e.dogId) ?? 'Your dog');
         if (userDogNames.length > 0) {
           const resultsPayload = buildResultsPostedPayload({
             dogName: userDogNames.join(', '),
             className: ctx.className,
           });
-          resultsPayload.actionUrl = `/classes/${classId}`;
+          resultsPayload.actionUrl = buildResultsActionUrl(classId, userEntries);
           deliverRef.current(resultsPayload);
         }
       }
@@ -374,15 +381,14 @@ export function useNotificationMonitor(): void {
       notifiedResultsPosted.current.add(newClass.id);
 
       // One notification per class — join all user dog names
-      const userDogNames = cls.entries
-        .filter(e => userDogIdsRef.current.has(e.dogId))
-        .map(e => dogNameMap.current.get(e.dogId) ?? 'Your dog');
+      const userEntries = cls.entries.filter(e => userDogIdsRef.current.has(e.dogId));
+      const userDogNames = userEntries.map(e => dogNameMap.current.get(e.dogId) ?? 'Your dog');
       if (userDogNames.length > 0) {
         const resultsPayload = buildResultsPostedPayload({
           dogName: userDogNames.join(', '),
           className: cls.className,
         });
-        resultsPayload.actionUrl = `/classes/${cls.classId}`;
+        resultsPayload.actionUrl = buildResultsActionUrl(newClass.id, userEntries);
         deliverRef.current(resultsPayload);
       }
     }

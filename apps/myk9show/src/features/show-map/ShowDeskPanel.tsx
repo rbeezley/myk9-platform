@@ -168,7 +168,7 @@ export default function ShowDeskPanel({
   }, [bulkApproveRequest, dispatchBulkApprove]);
 
   const openEntryManagement = useCallback(() => {
-    navigateTo(`/shows/${show.id}/entry-management?entryTab=pending`);
+    navigateTo(`/shows/${show.id}/entry-management?mode=review&attention=pending`);
   }, [navigateTo, show.id]);
 
   const desk = useMemo(
@@ -354,8 +354,8 @@ export default function ShowDeskPanel({
               <AlertDialogHeader>
                 <AlertDialogTitle>Approve {bulkApproveRequest?.label}?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  These entries will be marked as confirmed. Handlers will see their
-                  registrations move from "submitted" to "confirmed."
+                  These entries will be marked as confirmed. Handlers will see their registrations
+                  move from "submitted" to "confirmed."
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

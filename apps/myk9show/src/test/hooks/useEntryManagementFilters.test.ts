@@ -159,6 +159,58 @@ describe('useEntryManagementFilters — trial/class filters', () => {
     expect(params.get('trial')).toBe('trial-1');
   });
 
+  it('setWorkMode("day-of") applies the day-of table preset', () => {
+    let latestSearch = '';
+    const { result } = renderHook(
+      () => useEntryManagementFilters({ entries: [], tabCounts: emptyTabCounts }),
+      {
+        wrapper: createWrapper('/?attention=pending&view=cards', search => {
+          latestSearch = search;
+        }),
+      }
+    );
+
+    act(() => {
+      result.current.setPaymentFilter('pending');
+    });
+
+    act(() => {
+      result.current.setWorkMode('day-of');
+    });
+
+    const params = new URLSearchParams(latestSearch);
+    expect(result.current.workMode).toBe('day-of');
+    expect(result.current.selectedTab).toBe('accepted');
+    expect(result.current.paymentFilter).toBe('all');
+    expect(result.current.entryViewMode).toBe('table');
+    expect(params.get('mode')).toBe('day-of');
+    expect(params.get('attention')).toBe('accepted');
+    expect(params.get('view')).toBeNull();
+  });
+
+  it('setWorkMode("review") applies the review table preset and clears legacy tab params', () => {
+    let latestSearch = '';
+    const { result } = renderHook(
+      () => useEntryManagementFilters({ entries: [], tabCounts: emptyTabCounts }),
+      {
+        wrapper: createWrapper('/?mode=day-of&attention=accepted&entryTab=accepted', search => {
+          latestSearch = search;
+        }),
+      }
+    );
+
+    act(() => {
+      result.current.setWorkMode('review');
+    });
+
+    const params = new URLSearchParams(latestSearch);
+    expect(result.current.workMode).toBe('review');
+    expect(result.current.selectedTab).toBe('pending');
+    expect(params.get('mode')).toBeNull();
+    expect(params.get('attention')).toBe('pending');
+    expect(params.get('entryTab')).toBeNull();
+  });
+
   it('initializes trialFilter and classFilter as null', () => {
     const { result } = renderHook(
       () => useEntryManagementFilters({ entries: [], tabCounts: emptyTabCounts }),

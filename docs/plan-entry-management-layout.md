@@ -395,6 +395,38 @@ Still open:
 
 - Visible `Review` / `Day-of` mode presets and seeded browser smoke are the next phase.
 
+## Implementation Notes - 2026-06-19 Phase 4
+
+Completed in the Review / Day-of mode pass:
+
+- Added a compact `Review` / `Day-of` work-mode switch to Entry Management.
+- Kept mode state URL-backed through `mode=day-of`, with `Review` as the default mode.
+- Made mode changes apply table-first presets over the shared dataset:
+  - `Review` sets `attention=pending`.
+  - `Day-of` sets `mode=day-of&attention=accepted`.
+- Preserved search, trial, and class filters while applying mode presets.
+- Updated Show Desk and secretary dashboard pending-review links to use canonical
+  `mode=review&attention=pending` URLs instead of writing new legacy `entryTab` links.
+- Kept legacy `entryTab` / `tab=waitlist` compatibility in the normalization layer.
+
+Verified:
+
+- `cd apps/myk9show && pnpm exec vitest run src/test/hooks/useEntryManagementFilters.test.ts src/components/entries/management/__tests__/RegistrationView.test.tsx src/components/entries/management/__tests__/RegistrationView.multiselect.test.tsx src/features/show-map/__tests__/ShowDeskPanel.test.tsx src/pages/secretary/SecretaryDashboardPage/__tests__/SecretaryDashboardPage.test.tsx src/pages/secretary/__tests__/EntryManagementPage.tabs.test.tsx src/pages/secretary/__tests__/EntryManagementPage.errorState.test.tsx`
+  passed: 7 files, 42 tests.
+- `cd apps/myk9show && pnpm exec vitest run src/test/hooks/useEntryManagementFilters.test.ts src/components/entries/management/__tests__/entryManagementFilters.test.ts src/components/entries/management/__tests__/RegistrationView.test.tsx src/components/entries/management/__tests__/RegistrationView.multiselect.test.tsx src/components/entries/management/__tests__/EntriesTableView.selection.test.tsx src/components/entries/management/__tests__/EntryBulkActionsBar.test.tsx src/components/entries/management/__tests__/EntryRowActionMenu.test.tsx src/components/entries/management/__tests__/EnrollmentCard.test.tsx`
+  passed: 8 files, 59 tests.
+- `cd apps/myk9show && pnpm typecheck` passed.
+- Browser smoke:
+  - `pnpm dev:show` required unsandboxed execution so Vite could bind to localhost.
+  - Opened
+    `http://localhost:5173/shows/show-1/entry-management?mode=day-of&attention=accepted` with
+    Playwright.
+  - The app loaded without client-render crashes, but the route showed the existing
+    `We couldn't load this show. Please try again.` state because the smoke `show-1` fixture is not
+    present in the connected Supabase data. Mode UI verification remains covered by component tests;
+    a seeded secretary browser smoke should be run against staging or a known local seed show before
+    closing the larger layout plan.
+
 ## Open Questions
 
 - Should `Review` or `Day-of` be remembered per user/show, or should Entry Management always open in

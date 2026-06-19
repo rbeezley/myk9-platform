@@ -91,6 +91,8 @@ const EntryManagementPage: React.FC = () => {
     setPaymentFilter,
     attentionFilter,
     setAttentionFilter,
+    workMode,
+    setWorkMode,
     entryViewMode,
     setEntryViewMode,
     trialFilter,
@@ -366,6 +368,8 @@ const EntryManagementPage: React.FC = () => {
                   setPaymentFilter={setPaymentFilter}
                   attentionFilter={attentionFilter}
                   setAttentionFilter={setAttentionFilter}
+                  workMode={workMode}
+                  setWorkMode={setWorkMode}
                   entryViewMode={entryViewMode}
                   setEntryViewMode={setEntryViewMode}
                   filteredEntries={filteredEntries}

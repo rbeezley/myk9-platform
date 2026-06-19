@@ -89,10 +89,17 @@ export async function buildReplicatedUserEntryRows(
           }
         : null,
     });
+    const dog = entry.dogId ? (maps.dogsMap.get(entry.dogId) ?? null) : null;
     const enrollment = entry.registrationId ? enrollmentsMap.get(entry.registrationId) : null;
     if (enrollment) {
       row.registration = enrollment;
     }
+    row.class_results_released_at = cls?.resultsReleasedAt ?? cls?.results_released_at ?? null;
+    row.dog_image_url =
+      (row.dog_image_url as string | null | undefined) ??
+      (row.image_url as string | null | undefined) ??
+      dog?.imageUrl ??
+      null;
     return row;
   });
 

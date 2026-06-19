@@ -94,6 +94,8 @@ export const USER_ENTRIES_SELECT = `
       search_time_seconds,
       total_faults,
       final_placement,
+      class_results_released_at,
+      dog_image_url,
       submitted_at,
       created_at,
       updated_at,

@@ -26,6 +26,11 @@ import {
 import { formatDistanceToNow, format, isToday, isTomorrow, differenceInDays } from 'date-fns';
 import { ResultBadge } from '@/components/common/ResultBadge';
 import { PlacementPill } from '@/components/base/PlacementPill';
+import {
+  buildResultCardModel,
+  buildResultCardVisibility,
+  type ResultCardModel,
+} from '@/features/result-card';
 import { buildVenueMapsUrls, formatVenueAddress } from '@/utils/venueMaps';
 import type { MyEntry, EntryClass } from './my-entries-types';
 import {
@@ -41,6 +46,8 @@ interface MyEntryCardProps {
   onCheckInClick: (entry: MyEntry, classEntry: EntryClass) => void;
   onEditClick: (entry: MyEntry) => void;
   onReceiptClick: (entry: MyEntry) => void;
+  onResultRevealClick?: (model: ResultCardModel) => void;
+  seenResultReleaseKeys?: Set<string>;
 }
 
 function buildEntryPaymentHref(entry: MyEntry): string {
@@ -60,6 +67,8 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
   onCheckInClick,
   onEditClick,
   onReceiptClick,
+  onResultRevealClick,
+  seenResultReleaseKeys = new Set(),
 }) => {
   const [currentTime] = React.useState(() => Date.now());
   const statusMessage = getContextualStatusMessage(
@@ -218,83 +227,105 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
       <div className="myk9-entries-classes-section">
         <h5 className="myk9-entries-classes-title">Classes Entered:</h5>
         <div className="myk9-entries-classes-grid">
-          {entry.classes.map(cls => (
-            <div key={cls.id} className="myk9-entries-class-item">
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <div className="flex flex-col min-w-0">
-                  <span className="myk9-entries-class-name">
-                    {cls.name}
-                    {cls.number ? ` #${cls.number}` : ''}
-                    {cls.jumpHeight && ` (${cls.jumpHeight})`}
-                  </span>
-                  {(cls.trialDate || cls.trialNumber) && (
-                    <span className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                      {cls.trialDate && (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-muted/70 px-2 py-1 font-medium">
-                          <CalendarDays className="h-3 w-3" />
-                          {format(cls.trialDate, 'MMM d')}
-                        </span>
-                      )}
-                      {cls.trialNumber && (
-                        <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-1 font-semibold text-primary">
-                          Trial {cls.trialNumber}
-                        </span>
-                      )}
-                    </span>
-                  )}
-                  {cls.handler && (
-                    <span className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-                      <User className="h-3 w-3 flex-shrink-0" />
-                      {cls.handler}
-                    </span>
-                  )}
-                </div>
+          {entry.classes.map(cls => {
+            const resultModel = buildResultCardModel({
+              entry,
+              classEntry: cls,
+              visibility: buildResultCardVisibility(cls),
+            });
+            const showNewResult =
+              resultModel != null && !seenResultReleaseKeys.has(resultModel.releaseKey);
 
-                {/* Result badge for scored entries */}
-                {cls.isScored && cls.resultStatus && (
-                  <div className="flex items-center gap-1.5">
-                    <ResultBadge resultStatus={cls.resultStatus} />
-                    {/* Show the finishing rank for every qualifying run. 1st–4th are the official
+            return (
+              <div key={cls.id} className="myk9-entries-class-item">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="flex flex-col min-w-0">
+                    <span className="myk9-entries-class-name">
+                      {cls.name}
+                      {cls.number ? ` #${cls.number}` : ''}
+                      {cls.jumpHeight && ` (${cls.jumpHeight})`}
+                    </span>
+                    {(cls.trialDate || cls.trialNumber) && (
+                      <span className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                        {cls.trialDate && (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-muted/70 px-2 py-1 font-medium">
+                            <CalendarDays className="h-3 w-3" />
+                            {format(cls.trialDate, 'MMM d')}
+                          </span>
+                        )}
+                        {cls.trialNumber && (
+                          <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-1 font-semibold text-primary">
+                            Trial {cls.trialNumber}
+                          </span>
+                        )}
+                      </span>
+                    )}
+                    {cls.handler && (
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                        <User className="h-3 w-3 flex-shrink-0" />
+                        {cls.handler}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Result badge for scored entries */}
+                  {cls.isScored && cls.resultStatus && (
+                    <div className="flex items-center gap-1.5">
+                      <ResultBadge resultStatus={cls.resultStatus} />
+                      {/* Show the finishing rank for every qualifying run. 1st–4th are the official
                         AKC ribbon placements (PlacementPill gives them medal colors); 5th+ render
                         as a muted participation rank — nice to know where you came in (not capped
                         at 4th). final_placement is only set once the whole class is scored and
                         ranked by the trigger; exclude null and the 0 default so an un-ranked row
                         never renders "0th". */}
-                    {cls.resultStatus === 'qualified' &&
-                      cls.finalPlacement != null &&
-                      cls.finalPlacement >= 1 && (
-                        <PlacementPill placement={cls.finalPlacement} size="sm" />
-                      )}
-                  </div>
-                )}
+                      {cls.resultStatus === 'qualified' &&
+                        cls.finalPlacement != null &&
+                        cls.finalPlacement >= 1 && (
+                          <PlacementPill placement={cls.finalPlacement} size="sm" />
+                        )}
+                    </div>
+                  )}
 
-                {/* Check-in Status Controls */}
-                {!cls.isScored && (
-                  <button
-                    onClick={() => onCheckInClick(entry, cls)}
-                    className="hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded transition-transform"
-                  >
-                    <CheckInStatusIndicator
-                      status={cls.checkInStatus || 'no-status'}
+                  {showNewResult && onResultRevealClick && resultModel && (
+                    <Button
+                      type="button"
                       size="sm"
-                      showLabel={true}
-                      showTooltip={true}
-                    />
-                  </button>
-                )}
+                      variant="outline"
+                      onClick={() => onResultRevealClick(resultModel)}
+                      className="min-h-[36px] border-primary/30 text-primary"
+                    >
+                      New result
+                    </Button>
+                  )}
+
+                  {/* Check-in Status Controls */}
+                  {!cls.isScored && (
+                    <button
+                      onClick={() => onCheckInClick(entry, cls)}
+                      className="hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded transition-transform"
+                    >
+                      <CheckInStatusIndicator
+                        status={cls.checkInStatus || 'no-status'}
+                        size="sm"
+                        showLabel={true}
+                        showTooltip={true}
+                      />
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {cls.isScored && cls.searchTimeSeconds != null && (
+                    <span className="text-xs text-muted-foreground">
+                      {cls.searchTimeSeconds.toFixed(1)}s
+                    </span>
+                  )}
+                  {cls.isScored && cls.totalFaults != null && cls.totalFaults > 0 && (
+                    <span className="text-xs text-warning">{cls.totalFaults}F</span>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                {cls.isScored && cls.searchTimeSeconds != null && (
-                  <span className="text-xs text-muted-foreground">
-                    {cls.searchTimeSeconds.toFixed(1)}s
-                  </span>
-                )}
-                {cls.isScored && cls.totalFaults != null && cls.totalFaults > 0 && (
-                  <span className="text-xs text-warning">{cls.totalFaults}F</span>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

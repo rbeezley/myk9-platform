@@ -28,6 +28,7 @@ interface EntryRow {
   check_in_status: string | null;
   armband: string | null;
   is_scored: boolean | null;
+  result_status: string | null;
 }
 
 interface ClassRow {
@@ -35,11 +36,35 @@ interface ClassRow {
   name: string;
   status: string | null;
   is_scoring_finalized: boolean;
+  results_released_at: string | null;
 }
 
 interface RealtimePayload<T> {
   new: T;
   old: T;
+}
+
+function isRevealableResult(
+  resultStatus: string | null | undefined,
+  resultsReleasedAt: string | null | undefined
+): boolean {
+  return resultStatus === 'qualified' && Boolean(resultsReleasedAt);
+}
+
+function buildResultsActionUrl(
+  classId: string,
+  userEntries: ShowEntry[],
+  entryResultStatuses: ReadonlyMap<string, string | null>,
+  resultsReleasedAt: string | null | undefined
+): string {
+  if (
+    userEntries.length === 1 &&
+    isRevealableResult(entryResultStatuses.get(userEntries[0].id), resultsReleasedAt)
+  ) {
+    return `/exhibitor/entries?resultEntryId=${encodeURIComponent(userEntries[0].id)}`;
+  }
+
+  return `/classes/${classId}`;
 }
 
 /**
@@ -89,7 +114,7 @@ export function useNotificationMonitor(): void {
       const { data: classRows, error: classError } = await supabase
         .from('classes')
         .select(
-          `id, name, status, is_scoring_finalized,
+          `id, name, status, is_scoring_finalized, results_released_at,
          trial:trials!inner(show_id)`
         )
         .in('trial.show_id', showIds);
@@ -102,7 +127,7 @@ export function useNotificationMonitor(): void {
       const { data: entryRows, error: entryError } = await supabase
         .from('entries')
         .select(
-          `id, dog_id, class_id, show_id, check_in_status, armband, is_scored,
+          `id, dog_id, class_id, show_id, check_in_status, armband, is_scored, result_status,
          dog:dog_id!inner(id, call_name)`
         )
         .in('class_id', classIds);
@@ -136,6 +161,8 @@ export function useNotificationMonitor(): void {
   // --- Build class context map and dog name map ---
   const classContextRef = useRef<Map<string, ClassContext>>(new Map());
   const dogNameMap = useRef<Map<string, string>>(new Map());
+  const entryResultStatusMapRef = useRef<Map<string, string | null>>(new Map());
+  const classResultsReleasedAtMapRef = useRef<Map<string, string | null>>(new Map());
 
   useEffect(() => {
     const data = showEntriesQuery.data;
@@ -144,11 +171,18 @@ export function useNotificationMonitor(): void {
     const { entries, classes } = data;
     const newCtx = new Map<string, ClassContext>();
     const newDogNames = new Map<string, string>();
+    const newEntryResultStatuses = new Map<string, string | null>();
+    const newClassResultsReleasedAt = new Map<string, string | null>();
 
     // Build class lookup
     const classLookup = new Map<
       string,
-      { name: string; status: string; isScoringFinalized: boolean }
+      {
+        name: string;
+        status: string;
+        isScoringFinalized: boolean;
+        resultsReleasedAt: string | null;
+      }
     >();
     for (const cls of classes) {
       const c = cls as unknown as ClassRow;
@@ -156,7 +190,9 @@ export function useNotificationMonitor(): void {
         name: c.name,
         status: c.status ?? '',
         isScoringFinalized: c.is_scoring_finalized,
+        resultsReleasedAt: c.results_released_at,
       });
+      newClassResultsReleasedAt.set(c.id, c.results_released_at);
     }
 
     // Group entries by class and build dog name map
@@ -168,6 +204,7 @@ export function useNotificationMonitor(): void {
       if (entry.dog) {
         newDogNames.set(entry.dog.id, entry.dog.call_name);
       }
+      newEntryResultStatuses.set(entry.id, entry.result_status);
 
       const mapped: ShowEntry = {
         id: entry.id,
@@ -210,6 +247,8 @@ export function useNotificationMonitor(): void {
 
     classContextRef.current = newCtx;
     dogNameMap.current = newDogNames;
+    entryResultStatusMapRef.current = newEntryResultStatuses;
+    classResultsReleasedAtMapRef.current = newClassResultsReleasedAt;
 
     // Catch-up pass: fire missed notifications for classes already in progress
     // or already finalized when the app opens mid-show.
@@ -238,15 +277,19 @@ export function useNotificationMonitor(): void {
 
       if (cls.isScoringFinalized && !notifiedResultsPosted.current.has(classId)) {
         notifiedResultsPosted.current.add(classId);
-        const userDogNames = ctx.entries
-          .filter(e => userDogIdsRef.current.has(e.dogId))
-          .map(e => newDogNames.get(e.dogId) ?? 'Your dog');
+        const userEntries = ctx.entries.filter(e => userDogIdsRef.current.has(e.dogId));
+        const userDogNames = userEntries.map(e => newDogNames.get(e.dogId) ?? 'Your dog');
         if (userDogNames.length > 0) {
           const resultsPayload = buildResultsPostedPayload({
             dogName: userDogNames.join(', '),
             className: ctx.className,
           });
-          resultsPayload.actionUrl = `/classes/${classId}`;
+          resultsPayload.actionUrl = buildResultsActionUrl(
+            classId,
+            userEntries,
+            newEntryResultStatuses,
+            cls.resultsReleasedAt
+          );
           deliverRef.current(resultsPayload);
         }
       }
@@ -277,6 +320,9 @@ export function useNotificationMonitor(): void {
   const handleEntryChange = useCallback(
     (payload: RealtimePayload<EntryRow>) => {
       const newEntry = payload.new;
+      if (newEntry?.id) {
+        entryResultStatusMapRef.current.set(newEntry.id, newEntry.result_status);
+      }
       if (!newEntry || newEntry.check_in_status !== 'in-ring') return;
 
       const cls = classContextRef.current.get(newEntry.class_id);
@@ -331,6 +377,7 @@ export function useNotificationMonitor(): void {
     const newClass = payload.new;
     const oldClass = payload.old;
     if (!newClass) return;
+    classResultsReleasedAtMapRef.current.set(newClass.id, newClass.results_released_at);
 
     const cls = classContextRef.current.get(newClass.id);
     if (!cls) return;
@@ -374,15 +421,21 @@ export function useNotificationMonitor(): void {
       notifiedResultsPosted.current.add(newClass.id);
 
       // One notification per class — join all user dog names
-      const userDogNames = cls.entries
-        .filter(e => userDogIdsRef.current.has(e.dogId))
-        .map(e => dogNameMap.current.get(e.dogId) ?? 'Your dog');
+      const userEntries = cls.entries.filter(e => userDogIdsRef.current.has(e.dogId));
+      const userDogNames = userEntries.map(e => dogNameMap.current.get(e.dogId) ?? 'Your dog');
       if (userDogNames.length > 0) {
         const resultsPayload = buildResultsPostedPayload({
           dogName: userDogNames.join(', '),
           className: cls.className,
         });
-        resultsPayload.actionUrl = `/classes/${cls.classId}`;
+        resultsPayload.actionUrl = buildResultsActionUrl(
+          newClass.id,
+          userEntries,
+          entryResultStatusMapRef.current,
+          newClass.results_released_at ??
+            classResultsReleasedAtMapRef.current.get(newClass.id) ??
+            null
+        );
         deliverRef.current(resultsPayload);
       }
     }

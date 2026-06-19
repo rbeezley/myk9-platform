@@ -213,8 +213,16 @@ describe('getUserEntries replicated relation completeness', () => {
     handlerId: 'user-1',
     registrationId: 'reg-1',
   };
-  const replicatedDog = { id: 'dog-1', ownerId: 'user-1' };
-  const replicatedClass = { id: 'class-1', trialId: 'trial-1' };
+  const replicatedDog = {
+    id: 'dog-1',
+    ownerId: 'user-1',
+    imageUrl: 'https://example.com/dogs/dog-1.jpg',
+  };
+  const replicatedClass = {
+    id: 'class-1',
+    trialId: 'trial-1',
+    resultsReleasedAt: '2026-06-18T15:45:00.000Z',
+  };
   const replicatedShow = { id: 'show-1' };
   const replicatedTrial = { id: 'trial-1', trialType: 'Scent Work' };
 
@@ -255,6 +263,8 @@ describe('getUserEntries replicated relation completeness', () => {
       class: replicatedClass,
       dog: replicatedDog,
       show: replicatedShow,
+      class_results_released_at: '2026-06-18T15:45:00.000Z',
+      dog_image_url: 'https://example.com/dogs/dog-1.jpg',
       registration: {
         id: 'reg-1',
         confirmation_number: 'MK9-1',

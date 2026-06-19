@@ -1,25 +1,39 @@
 import { renderHook } from '@testing-library/react';
 import { vi } from 'vitest';
 
-const { mockChannel, mockRemoveChannel, mockDeliver, mockPreferences, mockUseShowDayData } =
-  vi.hoisted(() => {
-    const mockChannel = {
-      on: vi.fn().mockReturnThis(),
-      subscribe: vi.fn().mockReturnThis(),
-    };
-    const mockRemoveChannel = vi.fn();
-    const mockDeliver = vi.fn();
-    const mockPreferences = {
-      enabled: true,
-      leadDogs: 3,
-      soundEnabled: true,
-      voiceEnabled: false,
-      vibrationEnabled: true,
-      pushEnabled: false,
-    };
-    const mockUseShowDayData = vi.fn(() => ({ activeShows: [{ showId: 'show-1' }] }));
-    return { mockChannel, mockRemoveChannel, mockDeliver, mockPreferences, mockUseShowDayData };
-  });
+const {
+  mockChannel,
+  mockRemoveChannel,
+  mockDeliver,
+  mockPreferences,
+  mockUseShowDayData,
+  mockUseQueryResult,
+} = vi.hoisted(() => {
+  const mockChannel = {
+    on: vi.fn().mockReturnThis(),
+    subscribe: vi.fn().mockReturnThis(),
+  };
+  const mockRemoveChannel = vi.fn();
+  const mockDeliver = vi.fn();
+  const mockPreferences = {
+    enabled: true,
+    leadDogs: 3,
+    soundEnabled: true,
+    voiceEnabled: false,
+    vibrationEnabled: true,
+    pushEnabled: false,
+  };
+  const mockUseShowDayData = vi.fn(() => ({ activeShows: [{ showId: 'show-1' }] }));
+  const mockUseQueryResult = vi.fn(() => ({ data: null, isLoading: false }));
+  return {
+    mockChannel,
+    mockRemoveChannel,
+    mockDeliver,
+    mockPreferences,
+    mockUseShowDayData,
+    mockUseQueryResult,
+  };
+});
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
@@ -67,7 +81,7 @@ vi.mock('@tanstack/react-query', async () => {
   const actual = await vi.importActual('@tanstack/react-query');
   return {
     ...actual,
-    useQuery: () => ({ data: null, isLoading: false }),
+    useQuery: () => mockUseQueryResult(),
     useQueryClient: () => ({ invalidateQueries: vi.fn() }),
   };
 });
@@ -212,6 +226,218 @@ describe('results_posted', () => {
     vi.clearAllMocks();
     mockChannel.on.mockReturnValue(mockChannel);
     mockChannel.subscribe.mockReturnValue(mockChannel);
+  });
+
+  it('retargets single owned result notifications to the My Entries reveal URL', () => {
+    mockUseQueryResult.mockReturnValueOnce({
+      data: {
+        classes: [
+          {
+            id: 'class-1',
+            name: 'Container Novice A',
+            status: 'Complete',
+            is_scoring_finalized: true,
+            results_released_at: '2026-06-19T16:00:00.000Z',
+          },
+        ],
+        entries: [
+          {
+            id: 'e1',
+            dog_id: 'dog-1',
+            class_id: 'class-1',
+            show_id: 'show-1',
+            check_in_status: 'checked-in',
+            armband: '27',
+            is_scored: true,
+            result_status: 'qualified',
+            dog: { id: 'dog-1', call_name: 'Ditto' },
+          },
+        ],
+      },
+      isLoading: false,
+    });
+
+    renderHook(() => useNotificationMonitor());
+
+    expect(mockDeliver).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'results_posted',
+        actionUrl: '/exhibitor/entries?resultEntryId=e1',
+      })
+    );
+  });
+
+  it('falls back to the class page for single owned NQ results', () => {
+    mockUseQueryResult.mockReturnValueOnce({
+      data: {
+        classes: [
+          {
+            id: 'class-1',
+            name: 'Container Novice A',
+            status: 'Complete',
+            is_scoring_finalized: true,
+            results_released_at: '2026-06-19T16:00:00.000Z',
+          },
+        ],
+        entries: [
+          {
+            id: 'e1',
+            dog_id: 'dog-1',
+            class_id: 'class-1',
+            show_id: 'show-1',
+            check_in_status: 'checked-in',
+            armband: '27',
+            is_scored: true,
+            result_status: 'nq',
+            dog: { id: 'dog-1', call_name: 'Ditto' },
+          },
+        ],
+      },
+      isLoading: false,
+    });
+
+    renderHook(() => useNotificationMonitor());
+
+    expect(mockDeliver).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'results_posted',
+        actionUrl: '/classes/class-1',
+      })
+    );
+  });
+
+  it('falls back to the class page for unreleased single owned results in realtime', () => {
+    mockUseQueryResult.mockReturnValueOnce({
+      data: {
+        classes: [
+          {
+            id: 'class-1',
+            name: 'Container Novice A',
+            status: 'In Progress',
+            is_scoring_finalized: false,
+            results_released_at: null,
+          },
+        ],
+        entries: [
+          {
+            id: 'e1',
+            dog_id: 'dog-1',
+            class_id: 'class-1',
+            show_id: 'show-1',
+            check_in_status: 'checked-in',
+            armband: '27',
+            is_scored: true,
+            result_status: 'qualified',
+            dog: { id: 'dog-1', call_name: 'Ditto' },
+          },
+        ],
+      },
+      isLoading: false,
+    });
+
+    renderHook(() => useNotificationMonitor());
+    mockDeliver.mockClear();
+
+    const cb = getRealtimeCallback('classes');
+    cb!({
+      eventType: 'UPDATE',
+      new: {
+        id: 'class-1',
+        status: 'Completed',
+        is_scoring_finalized: true,
+        results_released_at: null,
+      },
+      old: {
+        id: 'class-1',
+        status: 'In Progress',
+        is_scoring_finalized: false,
+        results_released_at: null,
+      },
+    });
+
+    expect(mockDeliver).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'results_posted',
+        actionUrl: '/classes/class-1',
+      })
+    );
+  });
+
+  it('uses entry result updates before the class finalized event when retargeting realtime results', () => {
+    mockUseQueryResult.mockReturnValueOnce({
+      data: {
+        classes: [
+          {
+            id: 'class-1',
+            name: 'Container Novice A',
+            status: 'In Progress',
+            is_scoring_finalized: false,
+            results_released_at: null,
+          },
+        ],
+        entries: [
+          {
+            id: 'e1',
+            dog_id: 'dog-1',
+            class_id: 'class-1',
+            show_id: 'show-1',
+            check_in_status: 'checked-in',
+            armband: '27',
+            is_scored: false,
+            result_status: null,
+            dog: { id: 'dog-1', call_name: 'Ditto' },
+          },
+        ],
+      },
+      isLoading: false,
+    });
+
+    renderHook(() => useNotificationMonitor());
+    mockDeliver.mockClear();
+
+    const entryCallback = getRealtimeCallback('entries');
+    entryCallback!({
+      eventType: 'UPDATE',
+      new: {
+        id: 'e1',
+        dog_id: 'dog-1',
+        class_id: 'class-1',
+        show_id: 'show-1',
+        check_in_status: 'checked-in',
+        armband: '27',
+        is_scored: true,
+        result_status: 'qualified',
+      },
+      old: {
+        id: 'e1',
+        result_status: null,
+        check_in_status: 'checked-in',
+      },
+    });
+
+    const classCallback = getRealtimeCallback('classes');
+    classCallback!({
+      eventType: 'UPDATE',
+      new: {
+        id: 'class-1',
+        status: 'Completed',
+        is_scoring_finalized: true,
+        results_released_at: '2026-06-19T16:00:00.000Z',
+      },
+      old: {
+        id: 'class-1',
+        status: 'In Progress',
+        is_scoring_finalized: false,
+        results_released_at: null,
+      },
+    });
+
+    expect(mockDeliver).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'results_posted',
+        actionUrl: '/exhibitor/entries?resultEntryId=e1',
+      })
+    );
   });
 
   it('ignores when is_scoring_finalized was already true', () => {

@@ -4,8 +4,8 @@
  * @module pages/MyEntriesPage
  */
 
-import React, { useState, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useMemo, useCallback } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
@@ -24,6 +24,14 @@ import { CheckInStatusDialog } from '@/components/common/CheckInStatusDialog';
 import { EntryEditDialog } from '@/components/entries/EntryEditDialog';
 import { EntryReceipt } from '@/components/entries/EntryReceipt';
 import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
+import {
+  buildResultCardModel,
+  buildResultCardVisibility,
+  ResultRevealDialog,
+  hasSeenResultReveal,
+  markResultRevealSeen,
+  type ResultCardModel,
+} from '@/features/result-card';
 import { useCheckInMutation } from '@/hooks/mutations/useCheckInMutation';
 import {
   Calendar,
@@ -78,6 +86,7 @@ const MyEntriesPage: React.FC = () => {
   });
 
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const ownerId = userWithRoles?.databaseUserId ?? '';
 
   const { data: dogs = [] } = useDogsByOwnerQuery(ownerId, !!ownerId);
@@ -153,6 +162,10 @@ const MyEntriesPage: React.FC = () => {
     open: false,
     entry: null,
   });
+  const [resultRevealModel, setResultRevealModel] = useState<ResultCardModel | null>(null);
+  const [seenResultReleaseKeys, setSeenResultReleaseKeys] = useState<Set<string>>(() => {
+    return new Set();
+  });
 
   const [addDogOpen, setAddDogOpen] = useState(false);
   const currentUserPersonId = useCurrentUserPersonId();
@@ -178,6 +191,43 @@ const MyEntriesPage: React.FC = () => {
     setReceiptDialog({ open: true, entry });
   };
 
+  React.useEffect(() => {
+    const keys = new Set<string>();
+    for (const entry of entries) {
+      for (const cls of entry.classes) {
+        const model = buildResultCardModel({
+          entry,
+          classEntry: cls,
+          visibility: buildResultCardVisibility(cls),
+        });
+        if (model && hasSeenResultReveal(model.releaseKey)) keys.add(model.releaseKey);
+      }
+    }
+    setSeenResultReleaseKeys(keys);
+  }, [entries]);
+
+  React.useEffect(() => {
+    const resultEntryId = searchParams.get('resultEntryId');
+    if (!resultEntryId || resultRevealModel) return;
+
+    for (const entry of entries) {
+      const classEntry = entry.classes.find(cls => cls.id === resultEntryId);
+      if (!classEntry) continue;
+      const model = buildResultCardModel({
+        entry,
+        classEntry,
+        visibility: buildResultCardVisibility(classEntry),
+      });
+      if (model) {
+        setResultRevealModel(model);
+        const next = new URLSearchParams(searchParams);
+        next.delete('resultEntryId');
+        setSearchParams(next, { replace: true });
+      }
+      break;
+    }
+  }, [entries, resultRevealModel, searchParams, setSearchParams]);
+
   const handleCheckInStatusUpdate = async (status: CheckInStatus, notes?: string) => {
     if (!checkInDialog.entry || !checkInDialog.classEntry) return;
 
@@ -188,6 +238,16 @@ const MyEntriesPage: React.FC = () => {
       // Error handled in hook
     }
   };
+
+  const handleResultRevealSeen = useCallback((releaseKey: string) => {
+    markResultRevealSeen(releaseKey);
+    setSeenResultReleaseKeys(prev => {
+      if (prev.has(releaseKey)) return prev;
+      const next = new Set(prev);
+      next.add(releaseKey);
+      return next;
+    });
+  }, []);
 
   // Error state
   if (isError && !isLoading) {
@@ -311,6 +371,8 @@ const MyEntriesPage: React.FC = () => {
                     onCheckInClick={handleCheckInClick}
                     onEditClick={handleEditClick}
                     onReceiptClick={handleReceiptClick}
+                    onResultRevealClick={setResultRevealModel}
+                    seenResultReleaseKeys={seenResultReleaseKeys}
                   />
                 ))
               )}
@@ -350,6 +412,15 @@ const MyEntriesPage: React.FC = () => {
         dialog={receiptDialog}
         user={user}
         onClose={() => setReceiptDialog({ open: false, entry: null })}
+      />
+
+      <ResultRevealDialog
+        open={resultRevealModel != null}
+        onOpenChange={open => {
+          if (!open) setResultRevealModel(null);
+        }}
+        model={resultRevealModel}
+        onSeen={handleResultRevealSeen}
       />
 
       <AddDogPanel

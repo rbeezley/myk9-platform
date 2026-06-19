@@ -46,6 +46,11 @@ interface UseMyEntriesDataOptions {
   persistCheckInStatus: (input: PersistCheckInStatusInput) => Promise<unknown>;
 }
 
+type OwnEntryResultRow = Record<string, unknown> & {
+  class_results_released_at?: string | null;
+  dog_image_url?: string | null;
+};
+
 // Highest-priority status wins when merging class rows for the same dog+show.
 // COMPLETED tops the scale: a scored result is the strongest positive signal.
 // ACCEPTED beats PENDING because the dog is in — the card should look "green".
@@ -111,7 +116,7 @@ export function useMyEntriesData({
   /**
    * Transforms database entry to MyEntry format
    */
-  const transformEntry = useCallback((entry: Record<string, unknown>): MyEntry => {
+  const transformEntry = useCallback((entry: OwnEntryResultRow): MyEntry => {
     // Type assertions for nested objects
     const dog = entry.dog as { id: string; name: string; call_name?: string } | null;
     const show = entry.show as {
@@ -166,6 +171,8 @@ export function useMyEntriesData({
             searchTimeSeconds: (entry.search_time_seconds as number) ?? undefined,
             totalFaults: (entry.total_faults as number) ?? undefined,
             finalPlacement: (entry.final_placement as number) ?? undefined,
+            resultsReleasedAt: (entry.class_results_released_at as string | null) ?? undefined,
+            dogImageUrl: (entry.dog_image_url as string | null) ?? undefined,
           },
         ]
       : [];
@@ -229,7 +236,9 @@ export function useMyEntriesData({
         return;
       }
 
-      const userEntries = groupEntriesByShowAndDog(data.map(entry => transformEntry(entry)));
+      const userEntries = groupEntriesByShowAndDog(
+        (data as OwnEntryResultRow[]).map(entry => transformEntry(entry))
+      );
       setEntries(userEntries);
       setIsError(false);
     } catch (error) {

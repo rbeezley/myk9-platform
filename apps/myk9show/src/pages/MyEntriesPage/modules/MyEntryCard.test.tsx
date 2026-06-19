@@ -227,6 +227,62 @@ describe('MyEntryCard post-deadline recovery', () => {
   });
 });
 
+describe('MyEntryCard result reveal prompt', () => {
+  it('shows a New result button for a newly released qualifying result', () => {
+    const onResultRevealClick = vi.fn();
+    render(
+      <MemoryRouter>
+        <MyEntryCard
+          entry={makeEntry({
+            classes: [
+              makeClass({
+                id: 'entry-1',
+                isScored: true,
+                resultStatus: 'qualified',
+                finalPlacement: 1,
+                resultsReleasedAt: '2026-09-14T20:00:00.000Z',
+              }),
+            ],
+          })}
+          onCheckInClick={vi.fn()}
+          onEditClick={vi.fn()}
+          onReceiptClick={vi.fn()}
+          onResultRevealClick={onResultRevealClick}
+          seenResultReleaseKeys={new Set()}
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('button', { name: /New result/i })).toBeInTheDocument();
+  });
+
+  it('does not show New result for non-qualifying results', () => {
+    render(
+      <MemoryRouter>
+        <MyEntryCard
+          entry={makeEntry({
+            classes: [
+              makeClass({
+                id: 'entry-1',
+                isScored: true,
+                resultStatus: 'nq',
+                resultsReleasedAt: '2026-09-14T20:00:00.000Z',
+              }),
+            ],
+          })}
+          onCheckInClick={vi.fn()}
+          onEditClick={vi.fn()}
+          onReceiptClick={vi.fn()}
+          onResultRevealClick={vi.fn()}
+          seenResultReleaseKeys={new Set()}
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByRole('button', { name: /New result/i })).not.toBeInTheDocument();
+  });
+});
+
 describe('groupEntriesByShowAndDog', () => {
   it('returns a single entry unchanged when there is only one class', () => {
     const entry = makeEntry({ classes: [makeClass()] });

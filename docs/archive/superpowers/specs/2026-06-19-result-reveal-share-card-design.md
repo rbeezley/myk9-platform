@@ -1,5 +1,7 @@
 # Result Reveal + Share Card Design
 
+> **Status:** Complete in PR #851. Archived with the implementation plan.
+
 Date: 2026-06-19
 
 ## Decision

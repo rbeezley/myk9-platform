@@ -182,6 +182,38 @@ describe('shareFile', () => {
     expect(result).toBe('copied');
   });
 
+  it('still reports a completed download when clipboard text copy fails', async () => {
+    Object.defineProperty(navigator, 'canShare', {
+      value: vi.fn(() => false),
+      configurable: true,
+    });
+    Object.defineProperty(navigator, 'share', {
+      value: undefined,
+      configurable: true,
+    });
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: vi.fn().mockRejectedValue(new Error('Clipboard blocked')) },
+      configurable: true,
+    });
+    const click = vi.fn();
+    vi.spyOn(document, 'createElement').mockReturnValue({
+      href: '',
+      download: '',
+      click,
+    } as unknown as HTMLAnchorElement);
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:result');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+
+    const result = await shareFile(new Blob(['png'], { type: 'image/png' }), {
+      title: 'Ditto qualified',
+      text: 'Ditto earned a Q.',
+      fileName: 'ditto-result.png',
+    });
+
+    expect(click).toHaveBeenCalled();
+    expect(result).toBe('copied');
+  });
+
   it('[ADDED] returns cancelled when the native file share sheet is dismissed', async () => {
     Object.defineProperty(navigator, 'canShare', {
       value: vi.fn(() => true),

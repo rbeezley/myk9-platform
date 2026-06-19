@@ -1,4 +1,4 @@
-import type { SyntheticEvent } from 'react';
+import { useState } from 'react';
 import type { ResultCardModel } from './resultCardModel';
 
 interface ResultCardProps {
@@ -9,14 +9,7 @@ export function ResultCard({ model }: ResultCardProps) {
   return (
     <div className="overflow-hidden rounded-lg border border-primary/20 bg-card text-card-foreground shadow-sm">
       <div className="bg-primary/10 px-5 py-5 text-center">
-        <div className="mx-auto mb-3 h-28 w-28 overflow-hidden rounded-full border-4 border-background bg-muted shadow-sm">
-          <img
-            src={model.photoUrl ?? '/placeholder-dog.png'}
-            alt=""
-            className="h-full w-full object-cover"
-            onError={handlePhotoError}
-          />
-        </div>
+        <ResultPhoto model={model} />
         <h2 className="text-3xl font-bold tracking-normal">{model.dogName}</h2>
         <p className="mt-1 text-sm text-muted-foreground">{model.showName}</p>
       </div>
@@ -46,6 +39,26 @@ export function ResultCard({ model }: ResultCardProps) {
   );
 }
 
+function ResultPhoto({ model }: ResultCardProps) {
+  const [failed, setFailed] = useState(false);
+  const initial = model.dogName.trim().charAt(0).toUpperCase() || 'Q';
+
+  return (
+    <div className="mx-auto mb-3 flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-4 border-background bg-primary/15 text-4xl font-bold text-primary shadow-sm">
+      {model.photoUrl && !failed ? (
+        <img
+          src={model.photoUrl}
+          alt=""
+          className="h-full w-full object-cover"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <span aria-hidden="true">{initial}</span>
+      )}
+    </div>
+  );
+}
+
 function ResultFact({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md bg-muted/60 px-3 py-2">
@@ -53,9 +66,4 @@ function ResultFact({ label, value }: { label: string; value: string }) {
       <p className="font-semibold">{value}</p>
     </div>
   );
-}
-
-function handlePhotoError(event: SyntheticEvent<HTMLImageElement>) {
-  if (event.currentTarget.src.endsWith('/placeholder-dog.png')) return;
-  event.currentTarget.src = '/placeholder-dog.png';
 }

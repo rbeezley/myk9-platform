@@ -62,6 +62,10 @@ export async function shareFile(blob: Blob, options: ShareFileOptions): Promise<
     URL.revokeObjectURL(url);
   }
 
-  await navigator.clipboard.writeText(options.text);
+  try {
+    await navigator.clipboard?.writeText(options.text);
+  } catch {
+    // The PNG download already succeeded; clipboard support is best-effort.
+  }
   return 'copied';
 }

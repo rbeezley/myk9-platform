@@ -29,13 +29,17 @@ export async function renderResultCardImage(model: ResultCardModel): Promise<Blo
   ctx.textAlign = 'center';
   ctx.fillText(model.dogName, WIDTH / 2, 150);
 
-  const photo = await loadImage(model.photoUrl ?? '/placeholder-dog.png');
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(WIDTH / 2, 305, 130, 0, Math.PI * 2);
-  ctx.clip();
-  ctx.drawImage(photo, WIDTH / 2 - 130, 175, 260, 260);
-  ctx.restore();
+  const photo = model.photoUrl ? await loadImage(model.photoUrl) : null;
+  if (photo) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(WIDTH / 2, 305, 130, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(photo, WIDTH / 2 - 130, 175, 260, 260);
+    ctx.restore();
+  } else {
+    drawPhotoPlaceholder(ctx, model.dogName);
+  }
 
   ctx.fillStyle = '#1d4ed8';
   ctx.font = '800 144px system-ui, sans-serif';
@@ -82,11 +86,11 @@ export async function renderResultCardImage(model: ResultCardModel): Promise<Blo
   });
 }
 
-async function loadImage(src: string): Promise<HTMLImageElement> {
+async function loadImage(src: string): Promise<HTMLImageElement | null> {
   try {
     return await loadSingleImage(src);
   } catch {
-    return loadSingleImage('/placeholder-dog.png');
+    return null;
   }
 }
 
@@ -98,4 +102,18 @@ function loadSingleImage(src: string): Promise<HTMLImageElement> {
     image.onerror = () => reject(new Error('Unable to load result card image asset'));
     image.src = src;
   });
+}
+
+function drawPhotoPlaceholder(ctx: CanvasRenderingContext2D, dogName: string) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(WIDTH / 2, 305, 130, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.fillStyle = '#dbeafe';
+  ctx.fillRect(WIDTH / 2 - 130, 175, 260, 260);
+  ctx.fillStyle = '#1d4ed8';
+  ctx.font = '800 104px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(dogName.trim().charAt(0).toUpperCase() || 'Q', WIDTH / 2, 340);
+  ctx.restore();
 }

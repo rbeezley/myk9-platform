@@ -140,9 +140,9 @@ describe('renderResultCardImage', () => {
     expect((classCall?.[2] as number) - (placementCall?.[2] as number)).toBeGreaterThanOrEqual(70);
   });
 
-  it('draws the dog photo area with placeholder fallback when photo loading fails', async () => {
+  it('draws an in-canvas placeholder when photo loading fails', async () => {
     const drawImage = vi.fn();
-    let imageLoads = 0;
+    const fillText = vi.fn();
 
     vi.stubGlobal(
       'Image',
@@ -152,14 +152,7 @@ describe('renderResultCardImage', () => {
         onerror: (() => void) | null = null;
 
         set src(_value: string) {
-          imageLoads += 1;
-          queueMicrotask(() => {
-            if (imageLoads === 1) {
-              this.onerror?.();
-              return;
-            }
-            this.onload?.();
-          });
+          queueMicrotask(() => this.onerror?.());
         }
       }
     );
@@ -167,7 +160,7 @@ describe('renderResultCardImage', () => {
     const canvas = {
       getContext: vi.fn(() => ({
         fillRect: vi.fn(),
-        fillText: vi.fn(),
+        fillText,
         drawImage,
         beginPath: vi.fn(),
         arc: vi.fn(),
@@ -185,7 +178,7 @@ describe('renderResultCardImage', () => {
 
     await renderResultCardImage(makeModel({ photoUrl: 'https://example.test/missing.jpg' }));
 
-    expect(drawImage).toHaveBeenCalled();
-    expect(imageLoads).toBe(2);
+    expect(drawImage).not.toHaveBeenCalled();
+    expect(fillText).toHaveBeenCalledWith('D', expect.any(Number), expect.any(Number));
   });
 });

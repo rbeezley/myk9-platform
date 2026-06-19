@@ -1,5 +1,7 @@
 # Result Reveal + Share Card Implementation Plan
 
+> **Status:** Complete in PR #851. Archived after implementation; follow-up review hardening restored the run-order CTA, removed the missing placeholder image dependency, guarded storage/clipboard fallbacks, and added the own-entry view migration required by the live PostgREST path.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build a dog-first qualifying-result reveal in My Entries with a shareable PNG card and no new results page.

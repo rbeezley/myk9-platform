@@ -430,6 +430,15 @@ describe('MyEntryCard registration number fallback (P1-04w-1)', () => {
 });
 
 describe('MyEntryCard run order link', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-19T12:00:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('shows the run order link for an upcoming accepted entry with run orders assigned', () => {
     renderCard(
       makeEntry({

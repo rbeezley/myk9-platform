@@ -41,6 +41,7 @@ const columns: ColumnDef<User>[] = [
     id: 'name',
     accessorFn: user => getFullName(user),
     header: 'Name',
+    meta: { exportHeader: 'Name', exportValue: (user: unknown) => getFullName(user as User) },
     cell: ({ row }) => {
       const person = row.original;
       return (
@@ -58,6 +59,7 @@ const columns: ColumnDef<User>[] = [
   {
     accessorKey: 'email',
     header: 'Email',
+    meta: { exportHeader: 'Email', exportValue: (user: unknown) => (user as User).email || '' },
     cell: ({ row }) => (
       <span className="text-muted-foreground truncate">{row.original.email || '—'}</span>
     ),
@@ -66,12 +68,17 @@ const columns: ColumnDef<User>[] = [
     id: 'roles',
     accessorFn: user => (user.roles || []).join(','),
     header: 'Roles',
+    meta: {
+      exportHeader: 'Roles',
+      exportValue: (user: unknown) => ((user as User).roles || []).join(', '),
+    },
     cell: ({ row }) => getRoleBadges(row.original.roles),
   },
   {
     id: 'location',
     accessorFn: user => getLocation(user),
     header: 'Location',
+    meta: { exportHeader: 'Location', exportValue: (user: unknown) => getLocation(user as User) },
     cell: ({ row }) => (
       <span className="text-muted-foreground truncate">{getLocation(row.original) || '—'}</span>
     ),

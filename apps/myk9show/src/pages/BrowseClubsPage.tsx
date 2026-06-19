@@ -37,7 +37,7 @@ const BrowseClubsPage: React.FC = () => {
     return roles.includes(UserRole.SITE_ADMIN);
   }, [userWithRoles]);
 
-  const [viewMode, setViewMode] = useViewPreference('clubs', 'cards');
+  const [viewMode, setViewMode] = useViewPreference('clubs', 'table');
   const [showCreateClubPanel, setShowCreateClubPanel] = useState(false);
 
   const addClub = useClubStore(state => state.addClub);

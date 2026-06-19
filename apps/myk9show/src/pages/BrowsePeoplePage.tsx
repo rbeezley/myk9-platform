@@ -24,7 +24,7 @@ const BrowsePeoplePage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const [viewMode, setViewMode] = useViewPreference('people', 'cards');
+  const [viewMode, setViewMode] = useViewPreference('people', 'table');
   const [showCreatePersonDialog, setShowCreatePersonDialog] = useState(
     () => searchParams.get('add') === 'true'
   );

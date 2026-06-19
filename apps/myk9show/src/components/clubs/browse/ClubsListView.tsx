@@ -1,9 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Users, Calendar, Eye } from 'lucide-react';
+import { type ColumnDef } from '@tanstack/react-table';
+import { DataTable } from '@/components/ui/data-table';
 import { getClubInitials } from '@/components/clubs/ClubDetails/utils';
 import { CLUB_TYPES } from '@/types/club-types';
 import type { Club } from '@/types/club-types';
@@ -13,103 +12,132 @@ interface ClubsListViewProps {
   clubShowCounts: Map<string, number>;
 }
 
+interface ClubTableRow extends Club {
+  upcomingShowCount: number;
+  memberCount: number;
+  typeLabel: string | null;
+  location: string;
+}
+
 /** Get human-readable label for a club type value */
 function getClubTypeLabel(clubType: string | undefined): string | null {
   if (!clubType) return null;
   return CLUB_TYPES.find(t => t.value === clubType)?.label || clubType;
 }
 
+function getClubLocation(club: Club): string {
+  return [club.address?.city, club.address?.state].filter(Boolean).join(', ');
+}
+
 export const ClubsListView: React.FC<ClubsListViewProps> = ({ clubs, clubShowCounts }) => {
   const navigate = useNavigate();
 
-  return (
-    <div className="space-y-4">
-      {clubs.map(club => {
-        const upcomingCount = clubShowCounts.get(club.id) || 0;
-        const memberCount = club.memberIds?.length || 0;
-        const typeLabel = getClubTypeLabel(club.clubType);
-        const location = [club.address?.city, club.address?.state].filter(Boolean).join(', ');
+  const rows = React.useMemo<ClubTableRow[]>(
+    () =>
+      clubs.map(club => ({
+        ...club,
+        upcomingShowCount: clubShowCounts.get(club.id) || 0,
+        memberCount: club.memberIds?.length || 0,
+        typeLabel: getClubTypeLabel(club.clubType),
+        location: getClubLocation(club),
+      })),
+    [clubs, clubShowCounts]
+  );
 
-        return (
-          <Card
-            key={club.id}
-            className="bg-card/95 backdrop-blur-sm border-border/50 hover:shadow-md transition-all duration-200 cursor-pointer"
-            onClick={() => navigate(`/clubs/${club.id}`)}
-          >
-            <CardContent className="p-6">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      {club.logo ? (
-                        <img
-                          src={club.logo}
-                          alt={club.name}
-                          className="w-10 h-10 rounded-lg object-cover"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">
-                          {getClubInitials(club.name)}
-                        </div>
-                      )}
-                      <div>
-                        <h3 className="text-lg font-semibold">{club.name}</h3>
-                        {club.description && (
-                          <p className="text-sm text-muted-foreground line-clamp-1">
-                            {club.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    {typeLabel && (
-                      <Badge variant="secondary" className="text-xs">
-                        {typeLabel}
-                      </Badge>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-                    {location && (
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-muted-foreground" />
-                        <span>{location}</span>
-                      </div>
-                    )}
-
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                      <span>
-                        {memberCount} member{memberCount !== 1 ? 's' : ''}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span>
-                        {upcomingCount} upcoming show{upcomingCount !== 1 ? 's' : ''}
-                      </span>
-                    </div>
-                  </div>
+  const columns = React.useMemo<ColumnDef<ClubTableRow>[]>(
+    () => [
+      {
+        id: 'name',
+        accessorFn: club => club.name,
+        header: 'Club',
+        meta: { exportHeader: 'Club', exportValue: (club: unknown) => (club as Club).name },
+        cell: ({ row }) => {
+          const club = row.original;
+          return (
+            <div className="flex min-w-0 items-center gap-2.5">
+              {club.logo ? (
+                <img
+                  src={club.logo}
+                  alt={club.name}
+                  className="h-8 w-8 flex-shrink-0 rounded-md object-cover"
+                />
+              ) : (
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-primary/10 text-xs font-semibold text-primary">
+                  {getClubInitials(club.name)}
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={e => {
-                      e.stopPropagation();
-                      navigate(`/clubs/${club.id}`);
-                    }}
-                  >
-                    <Eye className="h-4 w-4 mr-2" />
-                    View Club
-                  </Button>
-                </div>
+              )}
+              <div className="min-w-0">
+                <div className="truncate font-medium">{club.name}</div>
+                {club.description && (
+                  <div className="truncate text-xs text-muted-foreground">{club.description}</div>
+                )}
               </div>
-            </CardContent>
-          </Card>
-        );
-      })}
+            </div>
+          );
+        },
+      },
+      {
+        id: 'typeLabel',
+        accessorFn: club => club.typeLabel || '',
+        header: 'Type',
+        meta: {
+          responsiveHide: 'md',
+          exportHeader: 'Type',
+          exportValue: (club: unknown) => (club as ClubTableRow).typeLabel || '',
+        },
+        cell: ({ row }) =>
+          row.original.typeLabel ? (
+            <Badge variant="secondary" className="text-xs">
+              {row.original.typeLabel}
+            </Badge>
+          ) : (
+            <span className="text-muted-foreground">-</span>
+          ),
+      },
+      {
+        accessorKey: 'location',
+        header: 'Location',
+        meta: {
+          exportHeader: 'Location',
+          exportValue: (club: unknown) => (club as ClubTableRow).location,
+        },
+        cell: ({ row }) => (
+          <span className="text-muted-foreground">{row.original.location || '-'}</span>
+        ),
+      },
+      {
+        accessorKey: 'memberCount',
+        header: 'Members',
+        meta: {
+          responsiveHide: 'lg',
+          exportHeader: 'Members',
+          exportValue: (club: unknown) => (club as ClubTableRow).memberCount,
+        },
+        cell: ({ row }) => <span>{row.original.memberCount}</span>,
+      },
+      {
+        accessorKey: 'upcomingShowCount',
+        header: 'Upcoming Shows',
+        meta: {
+          exportHeader: 'Upcoming Shows',
+          exportValue: (club: unknown) => (club as ClubTableRow).upcomingShowCount,
+        },
+        cell: ({ row }) => <span>{row.original.upcomingShowCount}</span>,
+      },
+    ],
+    []
+  );
+
+  return (
+    <div data-testid="clubs-list">
+      <DataTable
+        tableId="clubsBrowse"
+        columns={columns}
+        data={rows}
+        showSearch={false}
+        onRowClick={club => navigate(`/clubs/${club.id}`)}
+        getRowId={club => club.id}
+      />
     </div>
   );
 };

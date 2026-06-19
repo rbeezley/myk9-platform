@@ -287,6 +287,63 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
     vi.clearAllMocks();
   });
 
+  describe('View Mode Defaults', () => {
+    beforeEach(() => {
+      setupMocks({ user: null });
+    });
+
+    it('renders shows table view by default', async () => {
+      renderWithProviders(<BrowseShowsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('shows-table')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('shows-cards')).not.toBeInTheDocument();
+    });
+
+    it('honors an explicit cards view URL', async () => {
+      renderWithProviders(<BrowseShowsPage />, { route: '/shows?view=cards' });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('shows-cards')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('shows-table')).not.toBeInTheDocument();
+    });
+
+    it('renders cards by default for exhibitor-only users', async () => {
+      setupMocks({ user: createMockUser(UserRole.EXHIBITOR) });
+
+      renderWithProviders(<BrowseShowsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('shows-cards')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('shows-table')).not.toBeInTheDocument();
+    });
+
+    it('renders cards by default on the My Shows tab', async () => {
+      setupMocks({ user: createMockUser([UserRole.EXHIBITOR, UserRole.SECRETARY]) });
+
+      renderWithProviders(<BrowseShowsPage />, { route: '/shows?tab=entries' });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('shows-cards')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('shows-table')).not.toBeInTheDocument();
+    });
+
+    it('honors an explicit table view URL on the My Shows tab', async () => {
+      setupMocks({ user: createMockUser(UserRole.EXHIBITOR) });
+
+      renderWithProviders(<BrowseShowsPage />, { route: '/shows?tab=entries&view=table' });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('shows-table')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('shows-cards')).not.toBeInTheDocument();
+    });
+  });
+
   describe('Guest User Tab Rendering', () => {
     beforeEach(() => {
       setupMocks({ user: null });

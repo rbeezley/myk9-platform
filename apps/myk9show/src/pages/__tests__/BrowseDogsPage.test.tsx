@@ -128,6 +128,7 @@ function renderPage(initialRoute = '/dogs') {
 describe('BrowseDogsPage (shared primitives migration)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     mockGetUserRoles.mockReturnValue(['secretary']);
     mockBrowseDogsReturn = {
       dogs: [makeDog()],
@@ -208,7 +209,35 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
     expect(screen.getByText('Clear Filters')).toBeInTheDocument();
   });
 
-  it('renders dog cards with registration number badges', () => {
+  it('renders dog table view by default', () => {
+    renderPage();
+
+    expect(screen.getByRole('columnheader', { name: 'Name' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Breed' })).toBeInTheDocument();
+  });
+
+  it('renders dog cards by default for exhibitor-only users', () => {
+    mockGetUserRoles.mockReturnValue([UserRole.EXHIBITOR]);
+
+    renderPage();
+
+    expect(screen.getByText('AKC DN12345678')).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Name' })).not.toBeInTheDocument();
+  });
+
+  it('honors a stored table preference for exhibitor-only users', () => {
+    localStorage.setItem('view-pref-dogs', 'table');
+    mockGetUserRoles.mockReturnValue([UserRole.EXHIBITOR]);
+
+    renderPage();
+
+    expect(screen.getByRole('columnheader', { name: 'Name' })).toBeInTheDocument();
+    expect(screen.queryByText('AKC DN12345678')).not.toBeInTheDocument();
+  });
+
+  it('renders dog cards with registration number badges when cards are selected', () => {
+    localStorage.setItem('view-pref-dogs', 'cards');
+
     renderPage();
 
     // Registration badges should be visible on the card
@@ -217,6 +246,7 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
   });
 
   it('renders dog cards without registration badges when none exist', () => {
+    localStorage.setItem('view-pref-dogs', 'cards');
     mockBrowseDogsReturn = {
       ...mockBrowseDogsReturn,
       dogs: [makeDog({ registrations: [] })],
@@ -232,6 +262,8 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
   });
 
   it('uses "Gender" label on filter chip (not "Sex")', () => {
+    localStorage.setItem('view-pref-dogs', 'cards');
+
     renderPage();
 
     // The filter chip for sex should use the label "Gender"

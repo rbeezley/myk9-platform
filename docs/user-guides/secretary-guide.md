@@ -124,7 +124,7 @@ When a spot opens (someone scratches or is pulled):
 2. Find the next exhibitor in line → click **Offer Spot**.
 3. The exhibitor is notified. If they don't confirm within the notice window, move to the next person.
 
-> *[Screenshot S-10: Waitlist Management — blocked: needs a seeded waitlisted entry]*
+![S-10: Waitlist Management — Juniper at position 1 waiting for Interior Advanced](../screenshots/S-10.png)
 
 ---
 
@@ -224,7 +224,7 @@ A move-up promotes a qualifying dog to a higher-level class in the same element.
 3. Select the destination class from the picker (only eligible classes are shown — same element, higher level, same trial).
 4. Confirm → the entry appears in the new class and is removed from the original.
 
-> *[Screenshot S-17: Show Desk — move-up dialog with target class picker — blocked: needs a move-up-requested entry in seed data]*
+![S-17: Show Desk — Approve Move-Up dialog with target class picker](../screenshots/S-17.png)
 
 ### Add a late entry (walk-in)
 
@@ -285,7 +285,7 @@ After results are released, generate the electronic submission file and email it
 2. The page shows a preflight summary: number of entries ready for submission and any warnings.
 3. **If a warning appears about missing AKC registration numbers:** Contact those exhibitors to provide their dog's registration number before submitting. You can still download and submit without them, but AKC may return the file.
 
-   > *[Screenshot S-24: Submit Results — preflight warning listing dogs without AKC registration numbers — blocked: needs dogs with null AKC numbers in seed data]*
+   ![S-24: Submit Results — preflight warning listing dogs without AKC registration numbers](../screenshots/S-24.png)
 
 4. Click **Download XML** to download the submission file.
 
@@ -352,18 +352,18 @@ All shots from `docs/training/screenshot-shot-list.md`. Status as of 2026-06-19:
 | S-07 | § 4 | Entry Management — Pending tab | ready |
 | S-08 | § 4 | Three-dot menu on entry card | ready |
 | S-09 | § 4 | Bulk select + approve bar | ready |
-| S-10 | § 4 | Waitlist Management page | blocked: seed |
+| S-10 | § 4 | Waitlist Management page | ready |
 | S-11 | § 5 | Message Center — compose | ready |
 | S-12 | § 6 | Reports — Check-in Sheet | ready |
 | S-13 | § 6 | Reports — Steward's Report selected | ready |
 | S-14 | § 6 | Reports — Armband Labels | ready |
 | S-15 | § 7 | Show Desk — task queue with "Show in progress" banner and Next Best Action | ready |
 | S-16 | § 7 | Entry Management — "Remove entry?" dialog | ready |
-| S-17 | § 7 | Move-up dialog | blocked: seed |
+| S-17 | § 7 | Move-up dialog | ready |
 | S-18 | § 7 | Late Entry wizard (Step 1: Select Dogs) | ready |
 | S-19 | § 7 | Tools panel | ready |
 | S-20 | § 8 | Results Control — all classes complete | blocked: seed |
 | S-21 | § 8 | Release Results toggle | blocked: seed |
 | S-22 | § 9 | Submit Results — preflight summary | ready |
 | S-23 | § 9 | XML download button | ready |
-| S-24 | § 9 | Preflight warning — missing AKC numbers | blocked: seed |
+| S-24 | § 9 | Preflight warning — missing AKC numbers | ready |

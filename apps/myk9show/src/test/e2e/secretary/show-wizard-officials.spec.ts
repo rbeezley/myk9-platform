@@ -16,7 +16,7 @@ test.describe('Show Wizard — Officials & Judges Pickers', () => {
   test.beforeEach(async ({ page }) => {
     wizardPage = new ShowCreationWizardPage(page);
 
-    await signInAsSecretary(page, '/secretary/create-show/wizard');
+    await signInAsSecretary(page);
     await wizardPage.goto();
   });
 

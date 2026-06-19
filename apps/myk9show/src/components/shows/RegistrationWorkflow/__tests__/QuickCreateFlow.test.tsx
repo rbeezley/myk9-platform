@@ -1,6 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { fireEvent, screen } from '@/test/utils/testUtils';
-import { render, userEvent } from '@/test/utils/testUtils';
+import { fireEvent, render, screen, userEvent } from '@/test/utils/testUtils';
 import { UserRole } from '@/types/auth-types';
 import type { AddDogPanelProps } from '@/components/panels/edit';
 import { AddDogPanel } from '@/components/panels/edit';

@@ -23,7 +23,11 @@ import { AdditionalInfoTab } from './AdditionalInfoTab';
 
 export type { AddDogPanelProps } from './types';
 
-export const AddDogPanel: React.FC<AddDogPanelProps> = ({
+export const AddDogPanel: React.FC<AddDogPanelProps> = props => (
+  <AddDogPanelSession key={props.open ? 'open' : 'closed'} {...props} />
+);
+
+const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   open,
   onClose,
   onDogCreated,
@@ -33,10 +37,6 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
 }) => {
   const { addDog, isLoading: isSaving, error: saveError } = useDogStoreCompat();
   const [localSaveError, setLocalSaveError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setLocalSaveError(null);
-  }, [open]);
 
   // Stable initial data — recalculated when currentUserPersonId changes.
   // INTENT: when the panel opens with a contextual person (e.g. secretary

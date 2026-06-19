@@ -436,6 +436,33 @@ describe('MyEntryCard handler display', () => {
   });
 });
 
+describe('MyEntryCard run order link', () => {
+  it('shows a "View run order" link when at least one class has a runOrder assigned', () => {
+    renderCard(
+      makeEntry({
+        showId: 'show-1',
+        classes: [makeClass({ runOrder: 3 }), makeClass({ id: 'c2', runOrder: undefined })],
+      })
+    );
+
+    expect(screen.getByRole('link', { name: /View run order/i })).toHaveAttribute(
+      'href',
+      '/shows/show-1?tab=classes'
+    );
+  });
+
+  it('hides the "View run order" link when no class has a runOrder', () => {
+    renderCard(
+      makeEntry({
+        showId: 'show-1',
+        classes: [makeClass({ runOrder: undefined })],
+      })
+    );
+
+    expect(screen.queryByRole('link', { name: /View run order/i })).not.toBeInTheDocument();
+  });
+});
+
 describe('MyEntryCard class detail display', () => {
   it('shows the dog armband before the dog name', () => {
     renderCard(makeEntry({ armband: '142' }));

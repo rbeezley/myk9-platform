@@ -14,6 +14,7 @@ import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import {
   Calendar,
   CalendarDays,
+  ListOrdered,
   MapPin,
   Eye,
   Edit,
@@ -101,6 +102,8 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
     hasEditableStatus || entry.entryStatus === EntryStatus.MOVE_UP_REQUESTED;
   const canFinishPayment =
     canPayStatus && entry.paymentStatus === PaymentStatus.PENDING && entry.totalFee > 0;
+
+  const hasRunOrder = entry.classes.some(cls => cls.runOrder !== undefined);
 
   // Build a "Get directions" link from the full venue address (venue, city,
   // state) while the card still displays the shorter "city, state" label.
@@ -294,6 +297,19 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
               View Show
             </Link>
           </Button>
+
+          {hasRunOrder && (
+            <Button
+              variant="outline"
+              asChild
+              className="min-h-[44px] border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 transition-all duration-200"
+            >
+              <Link to={`/shows/${entry.showId}?tab=classes`}>
+                <ListOrdered className="h-5 w-5 mr-1.5" />
+                View run order
+              </Link>
+            </Button>
+          )}
 
           {canFinishPayment && (
             <Button asChild className="min-h-[44px] transition-all duration-200">

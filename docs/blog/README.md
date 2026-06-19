@@ -10,8 +10,8 @@ Content calendar and article system for customer education posts. These are exte
 
 | File | Status | Purpose |
 |---|---|---|
-| [post-template.md](post-template.md) | `planned` | Standard structure for educational posts |
-| [content-calendar-outline.md](content-calendar-outline.md) | `planned` | First 12 article ideas by title and audience |
+| [post-template.md](post-template.md) | `drafted` | Standard structure for educational posts |
+| [content-calendar-outline.md](content-calendar-outline.md) | `drafted` | First 12 article ideas by title and audience |
 
 ---
 

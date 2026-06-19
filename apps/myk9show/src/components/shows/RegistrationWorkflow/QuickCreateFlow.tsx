@@ -9,6 +9,7 @@ import { User as UserIcon, CheckCircle, Plus, Info } from 'lucide-react';
 import { CreateExhibitorDialog } from './CreateExhibitorDialog';
 import { AddDogPanel } from '@/components/panels/edit';
 import { User, Dog } from '@/types/dog-types';
+import { UserRole } from '@/types/auth-types';
 
 interface QuickCreateFlowProps {
   open: boolean;
@@ -414,6 +415,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
         open={showDogDialog}
         onClose={() => setShowDogDialog(false)}
         onDogCreated={handleDogCreated}
+        userRole={UserRole.SECRETARY}
         currentUserPersonId={flowState.exhibitor?.id}
         variant="dialog"
       />

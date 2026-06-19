@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { EditPanelWrapper } from '../EditPanelWrapper';
 import { useEditPanel } from '../useEditPanel';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
@@ -11,6 +11,7 @@ import { DogInput } from '@/store/dogStore';
 import { UserRole } from '@/types/auth-types';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
+import { getErrorMessage } from '@myk9/core';
 import type { AddDogPanelProps, DogFormData } from './types';
 import { createInitialFormData } from './types';
 import { addDogSchema, isTabValid } from './validation';
@@ -22,7 +23,11 @@ import { AdditionalInfoTab } from './AdditionalInfoTab';
 
 export type { AddDogPanelProps } from './types';
 
-export const AddDogPanel: React.FC<AddDogPanelProps> = ({
+export const AddDogPanel: React.FC<AddDogPanelProps> = props => (
+  <AddDogPanelSession key={props.open ? 'open' : 'closed'} {...props} />
+);
+
+const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   open,
   onClose,
   onDogCreated,
@@ -31,6 +36,7 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
   variant = 'panel',
 }) => {
   const { addDog, isLoading: isSaving, error: saveError } = useDogStoreCompat();
+  const [localSaveError, setLocalSaveError] = useState<string | null>(null);
 
   // Stable initial data — recalculated when currentUserPersonId changes.
   // INTENT: when the panel opens with a contextual person (e.g. secretary
@@ -47,6 +53,7 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
 
   // Handle save: map DogFormData -> DogInput and persist
   const handleSave = async (formData: DogFormData) => {
+    setLocalSaveError(null);
     const weight = formData.weight ? parseFloat(formData.weight) : undefined;
     const height = formData.height ? parseFloat(formData.height) : undefined;
     const dogInput: DogInput = {
@@ -71,7 +78,13 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
       })),
     };
 
-    const newDog = await addDog(dogInput);
+    let newDog;
+    try {
+      newDog = await addDog(dogInput);
+    } catch (error) {
+      setLocalSaveError(getErrorMessage(error));
+      throw error;
+    }
     // Once the dog is persisted, a failure in the parent callback must not
     // bubble up as a save error — the dog already exists in the DB.
     try {
@@ -108,7 +121,7 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
         open={open}
         userRole={userRole}
         currentUserPersonId={currentUserPersonId}
-        saveError={saveError}
+        saveError={localSaveError ?? saveError}
       />
     </EditPanelWrapper>
   );

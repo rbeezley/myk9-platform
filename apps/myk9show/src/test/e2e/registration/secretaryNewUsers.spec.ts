@@ -1,4 +1,4 @@
-import { test, expect, type Route } from '@playwright/test';
+import { test, expect, type Page, type Route } from '@playwright/test';
 import { signInAsSecretary } from '../uat/shared/auth';
 import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
 
@@ -77,6 +77,21 @@ async function captureMailInWrites(page: Page, captured: CapturedMailInWrites) {
       },
       201
     );
+  });
+
+  await page.route('**/rest/v1/rpc/create_dog_with_registrations', async route => {
+    if (route.request().method() !== 'POST') {
+      await route.fallback();
+      return;
+    }
+
+    const requestBody = route.request().postDataJSON() as {
+      p_dog: Record<string, unknown>;
+      p_registrations: Record<string, unknown>[];
+    };
+    captured.dog = requestBody.p_dog;
+    captured.registration = requestBody.p_registrations[0];
+    await fulfillJson(route, null);
   });
 
   await page.route('**/rest/v1/dog_registrations**', async route => {

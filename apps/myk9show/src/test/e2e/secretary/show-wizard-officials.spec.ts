@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { LoginPage, ShowCreationWizardPage } from '../page-objects';
+import { ShowCreationWizardPage } from '../page-objects';
+import { signInAsSecretary } from '../uat/shared/auth';
 
 /**
  * Smoke tests: Officials & Judges pickers in the Show Creation Wizard.
@@ -10,15 +11,12 @@ import { LoginPage, ShowCreationWizardPage } from '../page-objects';
  * - At least one person with judge_qualifications in the database
  */
 test.describe('Show Wizard — Officials & Judges Pickers', () => {
-  let loginPage: LoginPage;
   let wizardPage: ShowCreationWizardPage;
 
   test.beforeEach(async ({ page }) => {
-    loginPage = new LoginPage(page);
     wizardPage = new ShowCreationWizardPage(page);
 
-    await loginPage.goto();
-    await loginPage.loginAsSecretary();
+    await signInAsSecretary(page);
     await wizardPage.goto();
   });
 

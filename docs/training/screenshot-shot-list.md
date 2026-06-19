@@ -50,21 +50,21 @@ Every screenshot and diagram in final documentation and training materials must 
 | S-07 | Entry Management — Pending tab | `/shows/:showId/entry-management` | `secretary@myk9t.com` | Desktop | At least one entry card in Pending tab | § 4 Entry Management | `ready` |
 | S-08 | Entry Management — entry card with Accept / Reject / Waitlist actions visible | `/shows/:showId/entry-management` | `secretary@myk9t.com` | Desktop | Three-dot menu open on an entry card | § 4 | `ready` |
 | S-09 | Entry Management — bulk select + action bar | `/shows/:showId/entry-management` | `secretary@myk9t.com` | Desktop | Two or more entries checked; sticky "Approve selected" bar visible | § 4 | `ready` |
-| S-10 | Waitlist Management page | `/secretary/waitlist/:showId` | `secretary@myk9t.com` | Desktop | At least one waitlisted entry | § 4 | `blocked: seed` (needs a waitlisted entry) |
+| S-10 | Waitlist Management page | `/secretary/waitlist/:showId` | `secretary@myk9t.com` | Desktop | At least one waitlisted entry | § 4 | `ready` |
 | S-11 | Message Center — compose form | `/secretary/messages` | `secretary@myk9t.com` | Desktop | New message compose panel open, show pre-selected | § 5 Communications | `ready` |
 | S-12 | Reports page — Check-in Sheet selected | `/shows/:showId/reports` | `secretary@myk9t.com` | Desktop | Trial selector showing Heritage trial; Check-in Sheet selected | § 6 Reports | `ready` |
 | S-13 | Reports page — Steward's Report selected | `/shows/:showId/reports` | `secretary@myk9t.com` | Desktop | Steward's Report type selected; preview rendered | § 6 | `ready` |
 | S-14 | Reports page — Armband Labels | `/shows/:showId/reports` | `secretary@myk9t.com` | Desktop | Armband Labels selected; preview visible | § 6 | `ready` |
 | S-15 | Show Desk — task queue with "Show in progress" banner and Next Best Action | `/shows/:showId/show-desk` | `secretary@myk9t.com` | Desktop | Task queue visible; "Show in progress" banner; Next Best Action button | § 7 Show Desk | `ready` |
 | S-16 | Entry Management — "Remove entry?" confirmation dialog | `/shows/:showId/entry-management` | `secretary@myk9t.com` | Desktop | "Remove entry?" dialog open on a class row | § 7 | `ready` |
-| S-17 | Show Desk — move-up dialog | `/shows/:showId?phase=show-desk` | `secretary@myk9t.com` | Desktop | Move-up dialog open; target class picker visible | § 7 | `blocked: seed` (needs a move-up-requested entry) |
+| S-17 | Show Desk — move-up dialog | `/shows/:showId?phase=show-desk` | `secretary@myk9t.com` | Desktop | Move-up dialog open; target class picker visible | § 7 | `ready` |
 | S-18 | Late Entry registration wizard — Step 1 (Select Dogs) | `/secretary/register/:showId?source=show-desk&entryMode=late` | `secretary@myk9t.com` | Desktop | Late Entry wizard Step 1 open; dog search field and filters visible | § 7 | `ready` |
 | S-19 | Show Desk — Tools panel side sheet | `/shows/:showId/show-desk` | `secretary@myk9t.com` | Desktop | Tools panel open; Late entries, Access codes, Volunteers visible | § 7 | `ready` |
 | S-20 | Results Control — all classes complete | `/shows/:showId/results-control` | `secretary@myk9t.com` | Desktop | Every class shows all entries with a result; no blank rows | § 8 Results Control | `blocked: seed` (needs a fully-scored show) |
 | S-21 | Results Control — release toggle (Off → On) | `/shows/:showId/results-control` | `secretary@myk9t.com` | Desktop | Release Results toggle in Off position, ready to toggle | § 8 | `blocked: seed` (same as S-20) |
 | S-22 | Submit Results — submission summary (preflight) | `/shows/:showId/submit-results` | `secretary@myk9t.com` | Desktop | Submission summary checklist showing entries ready count | § 9 Submit to AKC | `ready` |
 | S-23 | Submit Results — XML download button | `/shows/:showId/submit-results` | `secretary@myk9t.com` | Desktop | "Download XML" button visible; no blocking warnings | § 9 | `ready` |
-| S-24 | Submit Results — preflight warning (missing AKC numbers) | `/shows/:showId/submit-results` | `secretary@myk9t.com` | Desktop | Warning listing dogs without AKC registration numbers | § 9 | `blocked: seed` (needs dogs with null AKC numbers) |
+| S-24 | Submit Results — preflight warning (missing AKC numbers) | `/shows/:showId/submit-results` | `secretary@myk9t.com` | Desktop | Warning listing dogs without AKC registration numbers | § 9 | `ready` |
 
 ---
 
@@ -86,9 +86,9 @@ Every screenshot and diagram in final documentation and training materials must 
 | E-12 | Class detail page — run order entry with dog name and armband number | `/shows/:showId/trials/:trialId/classes/:classId` | `e2e-exhibitor@test.myk9.com` | Mobile | Class detail view; run order entry showing dog name, armband number, and position | § 6 View Run Order | `ready` |
 | E-13 | My Entries — Show Today banner | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | "Show Today" banner visible at top (requires a show scheduled for today's date) | § 7 Check In | `blocked: date` |
 | E-14 | My Entries — entry card with "Not Checked In" status pill | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | Entry card showing "Not Checked In" status label; check-in must be open for the class | § 7 | `ready` |
-| E-15 | My Entries — entry card "Checked In" state | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | Entry card with green Checked In badge | § 7 | `blocked: seed` (needs checked-in entry) |
-| E-16 | My Entries — Q result badge on entry card | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | Entry card with Q result badge and placement pill visible | § 8 View Results | `blocked: seed` (needs scored + released class) |
-| E-17 | Class results page — placement table | `/shows/:showId/trials/:trialId/classes/:classId/results` | `e2e-exhibitor@test.myk9.com` | Mobile | Full results table with placements, times, Q/NQ | § 8 | `blocked: seed` (same as E-16) |
+| E-15 | My Entries — entry card "Checked In" state | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | Entry card with green Checked In badge | § 7 | `ready` |
+| E-16 | My Entries — Q result badge on entry card | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | Entry card with Q result badge and placement pill visible | § 8 View Results | `ready` |
+| E-17 | Class results page — placement table | `/shows/:showId/trials/:trialId/classes/:classId/results` | `e2e-exhibitor@test.myk9.com` | Mobile | Full results table with placements, times, Q/NQ | § 8 | `ready` |
 
 ---
 

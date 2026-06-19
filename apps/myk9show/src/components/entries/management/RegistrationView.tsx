@@ -1,28 +1,27 @@
 import React, { useMemo, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
-import { ArrowUpCircle, XCircle, List, Table2 } from 'lucide-react';
 import { MoveUpRequestsTab } from '@/components/entries/MoveUpRequestsTab';
 import { PullManagementTab } from '@/components/entries/PullManagementTab';
 import { toast } from 'sonner';
 import { useEmailStatus } from '@/hooks/useEmailStatus';
 import { supabase } from '@/lib/supabase';
+import { ListControls } from '@/components/common/ListControls';
 
 import { EntryStatsCards } from './EntryStatsCards';
-import { EntryFiltersCard } from './EntryFiltersCard';
 import { EnrollmentCard } from './EnrollmentCard';
 import { EntriesTableView } from './EntriesTableView';
 import { EntryBulkActionsBar } from './EntryBulkActionsBar';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
+import {
+  ENTRY_MANAGEMENT_FILTERS,
+  ENTRY_VIEW_MODES,
+  type EntryAttentionFilter,
+  type EntryManagementViewMode,
+} from './entryManagementFilters';
 
-import type {
-  EntryManagementEntry,
-  EntryStats,
-  EntryClass,
-} from '@/types/entry-management-types';
+import type { EntryManagementEntry, EntryStats, EntryClass } from '@/types/entry-management-types';
 import type { CheckInStatus } from '@myk9/core';
 
 /** Stable identity so useBulkSelection's memoized selectors don't churn each render. */
@@ -37,9 +36,12 @@ interface RegistrationViewProps {
   /** Payment filter */
   paymentFilter: string;
   setPaymentFilter: (v: string) => void;
-  /** Tab state */
-  selectedTab: string;
-  setSelectedTab: (tab: string) => void;
+  /** Attention filter state */
+  attentionFilter: EntryAttentionFilter;
+  setAttentionFilter: (filter: EntryAttentionFilter) => void;
+  /** Entry list view mode */
+  entryViewMode: EntryManagementViewMode;
+  setEntryViewMode: (view: EntryManagementViewMode) => void;
   /** Tab counts */
   tabCounts: {
     all: number;
@@ -55,11 +57,20 @@ interface RegistrationViewProps {
   /** Bulk enrollment-level action handlers */
   onBulkStatusChange: (entryIds: string[], status: EntryStatus) => void;
   onBulkCheckIn: (entryIds: string[]) => void;
-  onPaymentStatusChange: (enrollmentId: string, status: PaymentStatus, reference?: string | null, paidAmount?: number | null) => void;
+  onPaymentStatusChange: (
+    enrollmentId: string,
+    status: PaymentStatus,
+    reference?: string | null,
+    paidAmount?: number | null
+  ) => void;
   /** Status change handler */
   onStatusChange: (entryId: string, status: EntryStatus) => void;
   /** Check-in inline handler */
-  onCheckInStatusChange: (entry: EntryManagementEntry, cls: EntryClass, status: CheckInStatus) => void;
+  onCheckInStatusChange: (
+    entry: EntryManagementEntry,
+    cls: EntryClass,
+    status: CheckInStatus
+  ) => void;
   /** Dialog openers */
   onOpenArmbandDialog: (entry: EntryManagementEntry) => void;
   onOpenCompDialog: (entry: EntryManagementEntry) => void;
@@ -71,7 +82,11 @@ interface RegistrationViewProps {
   onRefresh: () => void;
   /** Entries grouped by enrollment/order for the list view */
   enrollmentGroups: EnrollmentGroup[];
-  onSendDecisionEmail: (registrationId: string, message?: string, amountDue?: number) => Promise<void>;
+  onSendDecisionEmail: (
+    registrationId: string,
+    message?: string,
+    amountDue?: number
+  ) => Promise<void>;
   lastEmailedMap?: Record<string, string>;
 }
 
@@ -85,9 +100,10 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   setSearchTerm,
   paymentFilter,
   setPaymentFilter,
-  selectedTab,
-  setSelectedTab,
-  tabCounts,
+  attentionFilter,
+  setAttentionFilter,
+  entryViewMode,
+  setEntryViewMode,
   filteredEntries,
   entries,
   onBulkStatusChange,
@@ -105,8 +121,6 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   onSendDecisionEmail,
   lastEmailedMap = {},
 }) => {
-  const [entryViewMode, setEntryViewMode] = useState<'list' | 'table'>('list');
-
   // Multi-select for the table view (lifted here so the bulk bar can clear it and
   // select-all spans the full filtered set, not just the current page).
   const selection = useBulkSelection({
@@ -133,11 +147,11 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
     ]
   );
 
-  // Clear selection on tab change (avoids carrying a selection into a different
+  // Clear selection on attention-filter change (avoids carrying a selection into a different
   // status bucket). Done in the handler, not an effect, per the no-setState-in-effect rule.
-  const handleTabChange = (tab: string) => {
+  const handleAttentionFilterChange = (filter: EntryAttentionFilter) => {
     selection.clearSelection();
-    setSelectedTab(tab);
+    setAttentionFilter(filter);
   };
 
   // Email status tracking (self-contained)
@@ -176,134 +190,108 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
       {/* Stats Overview */}
       <EntryStatsCards stats={stats} />
 
-      {/* Filters */}
-      <EntryFiltersCard
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-        paymentFilter={paymentFilter}
-        setPaymentFilter={setPaymentFilter}
+      {/* Search, filters, and view mode */}
+      <ListControls
+        search={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search entries..."
+        filters={ENTRY_MANAGEMENT_FILTERS}
+        filterValues={{
+          attention: attentionFilter === 'all' ? '' : attentionFilter,
+          payment: paymentFilter === 'all' ? '' : paymentFilter,
+        }}
+        onFilterChange={(key, value) => {
+          if (key === 'attention') {
+            handleAttentionFilterChange((value || 'all') as EntryAttentionFilter);
+          }
+          if (key === 'payment') {
+            setPaymentFilter(value || 'all');
+          }
+        }}
+        viewMode={entryViewMode}
+        onViewModeChange={mode => {
+          selection.clearSelection();
+          setEntryViewMode(mode as EntryManagementViewMode);
+        }}
+        viewModes={ENTRY_VIEW_MODES}
+        resultsShowing={filteredEntries.length}
+        resultsTotal={entries.length}
+        filtered={
+          filteredEntries.length !== entries.length ||
+          searchTerm.length > 0 ||
+          paymentFilter !== 'all' ||
+          attentionFilter !== 'all'
+        }
+        entityName="entries"
       />
 
-      {/* Entries Tabs */}
-      <Tabs value={selectedTab} onValueChange={handleTabChange}>
-        <div className="flex items-center justify-between gap-4 mb-2">
-          <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="all">All ({tabCounts.all})</TabsTrigger>
-            <TabsTrigger value="pending">Pending ({tabCounts.pending})</TabsTrigger>
-            <TabsTrigger value="accepted">Accepted ({tabCounts.accepted})</TabsTrigger>
-            <TabsTrigger value="waitlist">Waitlist ({tabCounts.waitlist})</TabsTrigger>
-            <TabsTrigger value="move-ups">
-              <ArrowUpCircle className="h-4 w-4 mr-1" />
-              Move-Ups
-            </TabsTrigger>
-            <TabsTrigger value="scratches">
-              <XCircle className="h-4 w-4 mr-1" />
-              Pulled
-            </TabsTrigger>
-            <TabsTrigger value="issues">Issues ({tabCounts.issues})</TabsTrigger>
-          </TabsList>
-
-          <div className="flex bg-muted/50 rounded-lg p-1 flex-shrink-0">
-            <Button
-              variant={entryViewMode === 'list' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => {
-                setEntryViewMode('list');
-                selection.clearSelection();
-              }}
-              className="h-8 px-2"
-              aria-label="List view"
-              aria-pressed={entryViewMode === 'list'}
-            >
-              <List className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={entryViewMode === 'table' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setEntryViewMode('table')}
-              className="h-8 px-2"
-              aria-label="Table view"
-              aria-pressed={entryViewMode === 'table'}
-            >
-              <Table2 className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Catch-all content for the entry-list tabs (all/pending/accepted/
-            waitlist/issues): one TabsContent whose value tracks the active tab.
-            The Move-Ups and Pulled tabs have their own dedicated content below,
-            so this catch-all is suppressed for them — otherwise it rendered the
-            full entry list ABOVE the focused request queue, burying the decision
-            card (F6b). */}
-        {selectedTab !== 'move-ups' && selectedTab !== 'scratches' && (
-          <TabsContent value={selectedTab} className="mt-6">
-            {entryViewMode === 'table' ? (
-              <EntriesTableView
-                entries={filteredEntries}
-                emailStatusMap={emailStatusMap}
-                onResendEmail={handleResendEmail}
-                isResendDisabled={isResendDisabled}
-                selection={tableSelection}
-              />
-            ) : (
-              <div className="space-y-3">
-                {enrollmentGroups.map(group => (
-                  <EnrollmentCard
-                    key={group.groupKey}
-                    group={group}
-                    onStatusChange={onStatusChange}
-                    onEntryRefunded={onRefresh}
-                    onCheckInStatusChange={onCheckInStatusChange}
-                    onOpenArmbandDialog={onOpenArmbandDialog}
-                    onCompEntry={(entryId: string) => {
-                      const entry = group.entries.find(e => e.id === entryId);
-                      if (entry) onOpenCompDialog(entry);
-                    }}
-                    onUncompEntry={onUncompEntry}
-                    onRemoveEntry={onRemoveEntry}
-                    onBulkStatusChange={onBulkStatusChange}
-                    onBulkCheckIn={onBulkCheckIn}
-                    onPaymentStatusChange={onPaymentStatusChange}
-                    emailStatusMap={emailStatusMap}
-                    onResendEmail={handleResendEmail}
-                    isResendDisabled={isResendDisabled}
-                    onSendDecisionEmail={onSendDecisionEmail}
-                    lastDecisionEmailedAt={group.enrollmentId ? lastEmailedMap[group.enrollmentId] : undefined}
-                  />
-                ))}
-              </div>
-            )}
-          </TabsContent>
-        )}
-
-        {/* Move-Ups Tab Content */}
-        <TabsContent value="move-ups" className="mt-6">
-          <Card>
-            <CardContent className="pt-6">
-              <MoveUpRequestsTab showId={showId} onRefresh={onRefresh} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Pulled Tab Content */}
-        <TabsContent value="scratches" className="mt-6">
-          <Card>
-            <CardContent className="pt-6">
-              <PullManagementTab showId={showId} onRefresh={onRefresh} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {entryViewMode === 'table' && (
-        <EntryBulkActionsBar
-          selectedEntries={selection.selectedItems}
-          onBulkStatusChange={onBulkStatusChange}
-          onBulkCheckIn={onBulkCheckIn}
-          onClear={selection.clearSelection}
+      {attentionFilter === 'move-ups' ? (
+        <Card>
+          <CardContent className="pt-6">
+            <MoveUpRequestsTab showId={showId} onRefresh={onRefresh} />
+          </CardContent>
+        </Card>
+      ) : attentionFilter === 'pulled' ? (
+        <Card>
+          <CardContent className="pt-6">
+            <PullManagementTab showId={showId} onRefresh={onRefresh} />
+          </CardContent>
+        </Card>
+      ) : entryViewMode === 'table' ? (
+        <EntriesTableView
+          entries={filteredEntries}
+          emailStatusMap={emailStatusMap}
+          onResendEmail={handleResendEmail}
+          isResendDisabled={isResendDisabled}
+          onStatusChange={onStatusChange}
+          onCheckInEntry={entryId => onBulkCheckIn([entryId])}
+          onOpenArmbandDialog={onOpenArmbandDialog}
+          onOpenCompDialog={onOpenCompDialog}
+          onUncompEntry={onUncompEntry}
+          onRemoveEntry={onRemoveEntry}
+          selection={tableSelection}
         />
+      ) : (
+        <div className="space-y-3">
+          {enrollmentGroups.map(group => (
+            <EnrollmentCard
+              key={group.groupKey}
+              group={group}
+              onStatusChange={onStatusChange}
+              onEntryRefunded={onRefresh}
+              onCheckInStatusChange={onCheckInStatusChange}
+              onOpenArmbandDialog={onOpenArmbandDialog}
+              onCompEntry={(entryId: string) => {
+                const entry = group.entries.find(e => e.id === entryId);
+                if (entry) onOpenCompDialog(entry);
+              }}
+              onUncompEntry={onUncompEntry}
+              onRemoveEntry={onRemoveEntry}
+              onBulkStatusChange={onBulkStatusChange}
+              onBulkCheckIn={onBulkCheckIn}
+              onPaymentStatusChange={onPaymentStatusChange}
+              emailStatusMap={emailStatusMap}
+              onResendEmail={handleResendEmail}
+              isResendDisabled={isResendDisabled}
+              onSendDecisionEmail={onSendDecisionEmail}
+              lastDecisionEmailedAt={
+                group.enrollmentId ? lastEmailedMap[group.enrollmentId] : undefined
+              }
+            />
+          ))}
+        </div>
       )}
+
+      {entryViewMode === 'table' &&
+        attentionFilter !== 'move-ups' &&
+        attentionFilter !== 'pulled' && (
+          <EntryBulkActionsBar
+            selectedEntries={selection.selectedItems}
+            onBulkStatusChange={onBulkStatusChange}
+            onBulkCheckIn={onBulkCheckIn}
+            onClear={selection.clearSelection}
+          />
+        )}
     </div>
   );
 };

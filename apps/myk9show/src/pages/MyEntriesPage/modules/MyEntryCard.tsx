@@ -22,7 +22,6 @@ import {
   User,
   CreditCard,
   MessageSquare,
-  ListOrdered,
 } from 'lucide-react';
 import { formatDistanceToNow, format, isToday, isTomorrow, differenceInDays } from 'date-fns';
 import { ResultBadge } from '@/components/common/ResultBadge';
@@ -117,12 +116,9 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
   // move-up request is a confirmed entry that can still owe its fee even though
   // it isn't editable while awaiting secretary approval. Waitlisted entries stay
   // out — they pay on promotion, not before.
-  const canPayStatus =
-    hasEditableStatus || entry.entryStatus === EntryStatus.MOVE_UP_REQUESTED;
+  const canPayStatus = hasEditableStatus || entry.entryStatus === EntryStatus.MOVE_UP_REQUESTED;
   const canFinishPayment =
     canPayStatus && entry.paymentStatus === PaymentStatus.PENDING && entry.totalFee > 0;
-
-  const hasRunOrder = entry.classes.some(cls => cls.runOrder !== undefined);
 
   // Build a "Get directions" link from the full venue address (venue, city,
   // state) while the card still displays the shorter "city, state" label.
@@ -157,7 +153,9 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
             )}
             <span>{entry.dogName}</span>
             <span aria-hidden="true">•</span>
-            <span>Registration #{entry.registrationNumber || (isTerminalStatus ? '—' : 'Pending')}</span>
+            <span>
+              Registration #{entry.registrationNumber || (isTerminalStatus ? '—' : 'Pending')}
+            </span>
           </div>
         </div>
         <div className="myk9-entries-badges">

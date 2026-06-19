@@ -9,9 +9,6 @@ import type { EntryStats } from '@/types/entry-management-types';
 vi.mock('../EntryStatsCards', () => ({
   EntryStatsCards: () => <div data-testid="entry-stats" />,
 }));
-vi.mock('../EntryFiltersCard', () => ({
-  EntryFiltersCard: () => <div data-testid="entry-filters" />,
-}));
 vi.mock('../EntriesTableView', () => ({
   EntriesTableView: () => <div data-testid="entries-table" />,
 }));
@@ -32,15 +29,20 @@ const enrollmentGroups = [
   { groupKey: 'g1', enrollmentId: 'e1', entries: [] },
 ] as unknown as EnrollmentGroup[];
 
-function renderView(selectedTab: string) {
+function renderView(
+  attentionFilter: 'all' | 'pending' | 'accepted' | 'waitlist' | 'move-ups' | 'pulled' | 'issues',
+  entryViewMode: 'table' | 'cards' = 'table'
+) {
   const props = {
     stats: {} as EntryStats,
     searchTerm: '',
     setSearchTerm: vi.fn(),
     paymentFilter: 'all',
     setPaymentFilter: vi.fn(),
-    selectedTab,
-    setSelectedTab: vi.fn(),
+    attentionFilter,
+    setAttentionFilter: vi.fn(),
+    entryViewMode,
+    setEntryViewMode: vi.fn(),
     tabCounts: { all: 9, pending: 3, accepted: 4, waitlist: 1, issues: 1 },
     filteredEntries: [],
     entries: [],
@@ -61,25 +63,37 @@ function renderView(selectedTab: string) {
   return render(<RegistrationView {...props} />);
 }
 
-describe('RegistrationView tab content routing (F6b)', () => {
-  it('shows the full entry list on a list tab (all)', () => {
+describe('RegistrationView filter content routing', () => {
+  it('renders shared list controls and defaults to table view', () => {
     renderView('all');
+
+    expect(screen.getByPlaceholderText('Search entries...')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /table view/i })).toBeInTheDocument();
+    expect(screen.getByTestId('entries-table')).toBeInTheDocument();
+  });
+
+  it('does not render the old entry status tab row', () => {
+    renderView('all');
+
+    expect(screen.queryByRole('tab', { name: /pending/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /accepted/i })).not.toBeInTheDocument();
+  });
+
+  it('shows enrollment cards in card view', () => {
+    renderView('all', 'cards');
     expect(screen.getByTestId('enrollment-card')).toBeInTheDocument();
     expect(screen.queryByTestId('move-up-requests')).not.toBeInTheDocument();
   });
 
-  it('shows ONLY the focused queue on the Move-Ups tab — not the full list above it', () => {
-    // Before the fix, the catch-all TabsContent (value={selectedTab}) also matched
-    // the move-ups tab, rendering the 9-entry list ABOVE the Move-Up Requests card
-    // and burying the decision.
+  it('shows ONLY the focused queue for the Move-Up Requested filter', () => {
     renderView('move-ups');
     expect(screen.getByTestId('move-up-requests')).toBeInTheDocument();
     expect(screen.queryByTestId('enrollment-card')).not.toBeInTheDocument();
     expect(screen.queryByTestId('entries-table')).not.toBeInTheDocument();
   });
 
-  it('shows ONLY the focused queue on the Pulled (scratches) tab', () => {
-    renderView('scratches');
+  it('shows ONLY the focused queue for the Pulled filter', () => {
+    renderView('pulled');
     expect(screen.getByTestId('pull-management')).toBeInTheDocument();
     expect(screen.queryByTestId('enrollment-card')).not.toBeInTheDocument();
     expect(screen.queryByTestId('entries-table')).not.toBeInTheDocument();

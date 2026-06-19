@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ import { ChevronDown, ChevronUp, Receipt, MoreHorizontal, Mail, Loader2 } from '
 import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/utils/format';
 import { EntryListCard } from './EntryListCard';
+import { groupEnrollmentEntriesByDog } from './enrollmentDogGroups';
 import { getPaymentStatusBadge } from '@/utils/entryManagementUtils';
 import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
 import type { EntryManagementEntry, EntryClass } from '@/types/entry-management-types';
@@ -142,6 +143,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
     group.totalAmountUnit === 'cents' ? group.totalAmount / 100 : group.totalAmount;
   const paidDollars = group.paidAmount;
   const remainingDollars = totalDollars - paidDollars;
+  const dogGroups = useMemo(() => groupEnrollmentEntriesByDog(group.entries), [group.entries]);
   const isPartiallyPaid =
     paidDollars > 0 && paidDollars < totalDollars && !PAID_STATUSES.has(group.paymentStatus);
 
@@ -400,21 +402,36 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
 
       {expanded && (
         <CardContent className={cn('pt-0 px-0 pb-2')}>
-          <EntryListCard
-            entries={group.entries}
-            onStatusChange={onStatusChange}
-            onEntryRefunded={onEntryRefunded}
-            onCheckInStatusChange={onCheckInStatusChange}
-            onOpenArmbandDialog={onOpenArmbandDialog}
-            onCompEntry={onCompEntry}
-            onUncompEntry={onUncompEntry}
-            onRemoveEntry={onRemoveEntry}
-            hidePaymentBadge={true}
-            hideHeader={true}
-            emailStatusMap={emailStatusMap}
-            onResendEmail={onResendEmail}
-            isResendDisabled={isResendDisabled}
-          />
+          <div className="space-y-3">
+            {dogGroups.map(dogGroup => (
+              <section
+                key={dogGroup.dogKey}
+                className="border-t border-border/50 px-4 pt-3 first:border-t-0 first:pt-0"
+              >
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-semibold">{dogGroup.dogName}</h3>
+                  <span className="text-xs text-muted-foreground">
+                    {dogGroup.entries.length} {dogGroup.entries.length === 1 ? 'entry' : 'entries'}
+                  </span>
+                </div>
+                <EntryListCard
+                  entries={dogGroup.entries}
+                  onStatusChange={onStatusChange}
+                  onEntryRefunded={onEntryRefunded}
+                  onCheckInStatusChange={onCheckInStatusChange}
+                  onOpenArmbandDialog={onOpenArmbandDialog}
+                  onCompEntry={onCompEntry}
+                  onUncompEntry={onUncompEntry}
+                  onRemoveEntry={onRemoveEntry}
+                  hidePaymentBadge={true}
+                  hideHeader={true}
+                  emailStatusMap={emailStatusMap}
+                  onResendEmail={onResendEmail}
+                  isResendDisabled={isResendDisabled}
+                />
+              </section>
+            ))}
+          </div>
         </CardContent>
       )}
 

@@ -162,11 +162,46 @@ describe('EnrollmentCard', () => {
     expect(screen.queryByText('Waitlist All')).toBeNull();
   });
 
+  it('groups entries by dog inside an enrollment card', () => {
+    render(
+      <EnrollmentCard
+        {...defaultProps}
+        group={makeGroup({
+          entries: [
+            makeEntry({
+              id: 'entry-1',
+              dogId: 'dog-1',
+              dogName: 'Bravo',
+              entryNumber: '#1',
+            }),
+            makeEntry({
+              id: 'entry-2',
+              dogId: 'dog-2',
+              dogName: 'Delta',
+              entryNumber: '#2',
+            }),
+            makeEntry({
+              id: 'entry-3',
+              dogId: 'dog-1',
+              dogName: 'Bravo',
+              entryNumber: '#3',
+            }),
+          ],
+        })}
+      />
+    );
+
+    expect(screen.getByRole('heading', { name: 'Bravo' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Delta' })).toBeTruthy();
+    expect(screen.getByText('2 entries')).toBeTruthy();
+    expect(screen.getByText('1 entry')).toBeTruthy();
+  });
+
   it('collapses entries on toggle and expands again', () => {
     render(<EnrollmentCard {...defaultProps} />);
 
     // Dog name visible while expanded
-    expect(screen.getByText('Bravo')).toBeTruthy();
+    expect(screen.getAllByText('Bravo').length).toBeGreaterThan(0);
 
     // Click collapse
     const collapseBtn = screen.getByRole('button', { name: 'Collapse' });
@@ -180,6 +215,6 @@ describe('EnrollmentCard', () => {
     fireEvent.click(expandBtn);
 
     // Dog name visible again
-    expect(screen.getByText('Bravo')).toBeTruthy();
+    expect(screen.getAllByText('Bravo').length).toBeGreaterThan(0);
   });
 });

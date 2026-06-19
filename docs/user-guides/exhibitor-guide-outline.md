@@ -330,7 +330,7 @@ The sign-in/sign-up gate is triggered only by "Enter This Show" — not by brows
 | Browse counts inconsistent (BUG-EX-07) | § 1 | Don't document counts; track in OPEN-TODOS |
 | Multi-dog discount bug (BUG-EX-03) | § 4 | Don't document discount; track in OPEN-TODOS |
 | Raw enum "scent_work" in wizard (BUG-EX-06) | § 4 | Fix before screenshotting |
-| Run order not in My Entries (journey § Phase 3) | § 6 | Document actual path (show detail page), file nav gap |
+| Run order not in My Entries (journey § Phase 3) | § 6 | **RESOLVED** — PR #845 added "View run order" deep-link on entry card → `/shows/:showId?tab=classes` |
 | ShowTodayBanner only on show day | § 7 | Explain clearly — exhibitors checking early won't see it |
 | My Payments not in pageDirectory.ts | § 10 | Add route before documenting section |
 | Results release RLS gap (P-04) | § 8 | Don't promise withholding; gap in backlog |

@@ -320,6 +320,9 @@ export function useNotificationMonitor(): void {
   const handleEntryChange = useCallback(
     (payload: RealtimePayload<EntryRow>) => {
       const newEntry = payload.new;
+      if (newEntry?.id) {
+        entryResultStatusMapRef.current.set(newEntry.id, newEntry.result_status);
+      }
       if (!newEntry || newEntry.check_in_status !== 'in-ring') return;
 
       const cls = classContextRef.current.get(newEntry.class_id);

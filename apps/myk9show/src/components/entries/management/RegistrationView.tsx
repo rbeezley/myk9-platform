@@ -17,6 +17,7 @@ import { useBulkSelection } from '@/hooks/useBulkSelection';
 import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
 import {
   ENTRY_MANAGEMENT_FILTERS,
+  ENTRY_WORK_MODE_PRESETS,
   ENTRY_VIEW_MODES,
   type EntryAttentionFilter,
   type EntryManagementViewMode,
@@ -154,6 +155,16 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   };
 
   const handleWorkModeChange = (mode: EntryWorkMode) => {
+    const preset = ENTRY_WORK_MODE_PRESETS[mode];
+    if (
+      mode === workMode &&
+      attentionFilter === preset.attention &&
+      paymentFilter === preset.payment &&
+      entryViewMode === preset.view
+    ) {
+      return;
+    }
+
     selection.clearSelection();
     setWorkMode(mode);
   };

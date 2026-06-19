@@ -93,6 +93,18 @@ describe('RegistrationView filter content routing', () => {
     expect(setWorkMode).toHaveBeenCalledWith('day-of');
   });
 
+  it('does not reapply the active matching work mode preset', async () => {
+    const setWorkMode = vi.fn();
+    const { user } = renderView('pending', 'table', {
+      workMode: 'review',
+      setWorkMode,
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Review' }));
+
+    expect(setWorkMode).not.toHaveBeenCalled();
+  });
+
   it('does not render the old entry status tab row', () => {
     renderView('all');
 

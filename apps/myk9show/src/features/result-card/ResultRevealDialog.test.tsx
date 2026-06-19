@@ -5,7 +5,13 @@ import { render } from '@/test/utils/testUtils';
 import type { ResultCardModel } from './resultCardModel';
 import { ResultRevealDialog } from './ResultRevealDialog';
 
-vi.mock('canvas-confetti', () => ({ default: vi.fn() }));
+const confettiMock = vi.hoisted(() => {
+  const mock = vi.fn();
+  return Object.assign(mock, {
+    create: vi.fn(() => mock),
+  });
+});
+vi.mock('canvas-confetti', () => ({ default: confettiMock }));
 vi.mock('./renderResultCardImage', () => ({
   renderResultCardImage: vi.fn(() => Promise.resolve(new Blob(['png'], { type: 'image/png' }))),
 }));
@@ -79,6 +85,20 @@ describe('ResultRevealDialog', () => {
 
     const confetti = (await import('canvas-confetti')).default;
     expect(confetti).not.toHaveBeenCalled();
+  });
+
+  it('creates confetti without a worker so strict CSP allows the reveal', async () => {
+    render(
+      <ResultRevealDialog open onOpenChange={vi.fn()} model={makeModel()} onSeen={vi.fn()} />
+    );
+
+    const confetti = (await import('canvas-confetti')).default;
+    expect(confetti.create).toHaveBeenCalledWith(undefined, { useWorker: false });
+    expect(confetti).toHaveBeenCalledWith(
+      expect.objectContaining({
+        particleCount: 80,
+      })
+    );
   });
 
   it('[ADDED] keeps the result visible and explains when sharing fails', async () => {

@@ -40,10 +40,11 @@ export async function shareOrCopy(options: ShareOptions): Promise<ShareResult> {
 export async function shareFile(blob: Blob, options: ShareFileOptions): Promise<ShareResult> {
   const file = new File([blob], options.fileName, { type: blob.type || 'image/png' });
   const data = { title: options.title, text: options.text, files: [file] };
+  const nativeShare = navigator.share?.bind(navigator);
 
-  if (navigator.share && (!navigator.canShare || navigator.canShare(data))) {
+  if (nativeShare && shouldUseNativeFileShare(data)) {
     try {
-      await navigator.share(data);
+      await nativeShare(data);
       return 'shared';
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
@@ -68,4 +69,13 @@ export async function shareFile(blob: Blob, options: ShareFileOptions): Promise<
     // The PNG download already succeeded; clipboard support is best-effort.
   }
   return 'copied';
+}
+
+function shouldUseNativeFileShare(data: ShareData): boolean {
+  if (navigator.canShare && !navigator.canShare(data)) return false;
+
+  return (
+    window.matchMedia?.('(pointer: coarse)').matches ||
+    /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  );
 }

@@ -33,7 +33,8 @@ export function ResultRevealDialog({
       return;
     }
 
-    void confetti({
+    const fireConfetti = confetti.create(undefined, { useWorker: false });
+    void fireConfetti({
       particleCount: 80,
       spread: 60,
       origin: { y: 0.3 },

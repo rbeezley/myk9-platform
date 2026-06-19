@@ -161,22 +161,30 @@ export default defineConfig({
         annotations: true,
       },
       output: {
-        // Simplified manual chunk splitting - avoid breaking icon libraries
         manualChunks: (id: string) => {
-          if (id.includes('node_modules')) {
-            // Large libraries that benefit from separate chunks
-            if (id.includes('react-dom')) {
-              return 'vendor-react-dom';
-            }
-            if (id.includes('@supabase')) {
-              return 'vendor-supabase';
-            }
-            if (id.includes('recharts') || id.includes('d3')) {
-              return 'vendor-charts';
-            }
-            // Let Vite handle everything else automatically
-          }
-          return undefined; // Let Vite decide
+          if (!id.includes('node_modules')) return undefined;
+
+          // Resolve the REAL installed package name from the path after the last
+          // `node_modules/`. pnpm encodes peer deps into its virtual-store dir
+          // (e.g. `recharts@2_react-dom@18/`), so a naive `id.includes('react-dom')`
+          // substring match misfiles every React library — which has react-dom as a
+          // peer — into the react-dom chunk and drags it onto the eager critical path.
+          const afterLast = id.split('node_modules/').pop() ?? '';
+          const seg = afterLast.split('/');
+          const pkg = seg[0]?.startsWith('@') ? `${seg[0]}/${seg[1]}` : seg[0];
+
+          // React core — small and legitimately eager (entry depends on it).
+          if (['react', 'react-dom', 'scheduler'].includes(pkg)) return 'vendor-react-dom';
+          if (pkg === '@supabase' || pkg.startsWith('@supabase')) return 'vendor-supabase';
+
+          // Everything else: NO manual chunk. Vite's automatic code-splitting routes
+          // each lazy lib (recharts, react-big-calendar, @dnd-kit, …) into a dynamic
+          // chunk loaded with the route that needs it, and does NOT modulepreload those
+          // onto first paint. Hand-naming them, by contrast, kept giving Rollup a reason
+          // to co-locate + preload the whole blob — so we let Rollup decide.
+          // Statically-reachable UI primitives (@base-ui, framer-motion) correctly stay
+          // eager in the entry chunk.
+          return undefined;
         },
         assetFileNames: assetInfo => {
           // Organize assets in subfolders for CDN optimization

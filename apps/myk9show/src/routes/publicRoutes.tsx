@@ -21,7 +21,6 @@ import { LegacyCheckInRedirect, LegacyShowDayRedirect } from './LegacyExhibitorR
 import { ComingSoonPage, type ComingSoonPageProps } from '@/components/common/ComingSoonPage';
 import { features } from '@/config/features';
 import { UserRole } from '@/types/auth-types';
-import BrowseDogsPage from '@/pages/BrowseDogsPage';
 import DogDetailPage from '@/pages/DogDetailPage';
 import ShowDetailsPrototype from '@/pages/ShowDetailsPrototype';
 import { SHOW_MANAGEMENT_SECTIONS, type ShowManagementSectionPath } from './showManagementSections';
@@ -37,6 +36,7 @@ function featurePage(enabled: boolean, page: ReactNode, coming: ComingSoonPagePr
 }
 
 // Public page lazy imports
+const BrowseDogsPage = lazy(() => import('@/pages/BrowseDogsPage'));
 const BrowseClubsPage = lazy(() => import('@/pages/BrowseClubsPage'));
 const ClubDetailPage = lazy(() => import('@/pages/ClubDetailPage'));
 const ShowDetailsPage = lazy(() => import('@/pages/ShowDetailsPage'));

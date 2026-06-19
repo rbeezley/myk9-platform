@@ -200,12 +200,20 @@ The Show Desk is your headquarters on show day. Check-in, scratches, move-ups, l
 
 ### Scratch / pull an exhibitor
 
-1. Find the entry in the Show Map.
-2. Open the three-dot menu on the entry row.
-3. Click **Scratch** → a confirmation dialog appears.
-4. Confirm → the entry is marked pulled and the class count updates.
+There are two different actions depending on the reason:
 
-> *[Screenshot S-16: Show Desk — scratch dialog open on entry row]*
+**Show-day withdrawal (stays in records):** Go to **Entry Management**, find the entry, and change the class status dropdown from **Pending** or **Accepted** to **Pulled**. The entry stays visible under the Pulled tab and counts correctly in AKC results submission.
+
+**Remove a mistaken or duplicate entry (deletes from records):**
+
+1. Go to **Entry Management**.
+2. Find the entry and expand the class row.
+3. Click the **trash icon** on the right of the class row → "Remove entry?" dialog appears.
+4. Confirm → the class entry is deleted from records.
+
+> *[Screenshot S-16: Entry Management — "Remove entry?" confirmation dialog]*
+
+> **Note:** Use Pulled for a real show-day scratch. Use Remove only for true mistakes (wrong dog, duplicate submission). The dialog text confirms the distinction.
 
 ### Process a move-up
 
@@ -347,8 +355,8 @@ All shots from `docs/training/screenshot-shot-list.md`. Status as of 2026-06-19:
 | S-12 | § 6 | Reports — Check-in Sheet | ready |
 | S-13 | § 6 | Reports — Run Order preview | ready |
 | S-14 | § 6 | Reports — Armband Labels | ready |
-| S-15 | § 7 | Show Desk — Show Map | ready |
-| S-16 | § 7 | Scratch dialog | ready |
+| S-15 | § 7 | Show Desk — task queue ("Show in progress", Next Best Action) | ready |
+| S-16 | § 7 | Entry Management — "Remove entry?" dialog | ready |
 | S-17 | § 7 | Move-up dialog | blocked: seed |
 | S-18 | § 7 | Late Entry dialog | ready |
 | S-19 | § 7 | Tools panel | ready |

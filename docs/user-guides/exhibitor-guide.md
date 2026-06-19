@@ -97,7 +97,7 @@ Your dog now appears in your list and is ready to enter shows.
 
 **Step 2 — Review and pay:**
 
-> *[Screenshot E-07: Registration wizard — Step 2 (review + entry agreement)]*
+> *[Screenshot E-07: Registration wizard — Step 1 with class selected (Container Novice A chip checked, "Added to cart" toast visible)]*
 
 5. Review: dog, class, and entry fee.
 6. Read and accept the entry agreement → click **Pay with Card**.
@@ -257,7 +257,7 @@ All shots from `docs/training/screenshot-shot-list.md`. Status as of 2026-06-19:
 | E-04 | § 3 | My Dogs list | ready |
 | E-05 | § 3 | Add Dog form | ready |
 | E-06 | § 4 | Registration wizard — Step 1 (class selection) | ready |
-| E-07 | § 4 | Registration wizard — Step 2 (review + payment) | ready |
+| E-07 | § 4 | Registration wizard — Step 1 with class selected + cart toast | ready |
 | E-08 | § 4 | Confirmation receipt | blocked: seed (Stripe checkout) |
 | E-09 | § 5 | My Shows — Pending entry card | ready |
 | E-10 | § 5 | My Shows — Accepted entry card | ready |

@@ -1,6 +1,8 @@
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { CheckInStatus } from '@/types/check-in-types';
 
+export type BulkActionResult = boolean | void;
+
 /**
  * Entry management types
  * Extracted from EntryManagementPage.tsx as part of DEBT-002 refactoring

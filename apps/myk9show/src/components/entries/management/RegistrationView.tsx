@@ -25,13 +25,16 @@ import {
   type EntryWorkMode,
 } from './entryManagementFilters';
 
-import type { EntryManagementEntry, EntryStats, EntryClass } from '@/types/entry-management-types';
+import type {
+  BulkActionResult,
+  EntryClass,
+  EntryManagementEntry,
+  EntryStats,
+} from '@/types/entry-management-types';
 import type { CheckInStatus } from '@myk9/core';
 
 /** Stable identity so useBulkSelection's memoized selectors don't churn each render. */
 const getEntryId = (entry: EntryManagementEntry) => entry.id;
-
-type BulkActionResult = boolean | void;
 
 interface RegistrationViewProps {
   /** Entry stats for the stats cards */

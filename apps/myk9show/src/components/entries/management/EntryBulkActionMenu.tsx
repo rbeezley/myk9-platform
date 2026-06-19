@@ -1,10 +1,8 @@
 import { CheckCircle2, ClipboardCheck, XCircle } from 'lucide-react';
 import { RowActionMenu, type RowAction } from '@/components/ui/RowActionMenu';
 import { EntryStatus } from '@/types/show-registration-types';
-import type { EntryManagementEntry } from '@/types/entry-management-types';
+import type { BulkActionResult, EntryManagementEntry } from '@/types/entry-management-types';
 import { getEligibleForBulkAction, type BulkEntryAction } from './bulkActionEligibility';
-
-type BulkActionResult = boolean | void;
 
 interface EntryBulkActionMenuProps {
   selectedEntries: EntryManagementEntry[];

@@ -9,10 +9,8 @@
 
 import { Button } from '@/components/ui/button';
 import type { EntryStatus } from '@/types/show-registration-types';
-import type { EntryManagementEntry } from '@/types/entry-management-types';
+import type { BulkActionResult, EntryManagementEntry } from '@/types/entry-management-types';
 import { EntryBulkActionMenu } from './EntryBulkActionMenu';
-
-type BulkActionResult = boolean | void;
 
 interface EntryBulkActionsBarProps {
   selectedEntries: EntryManagementEntry[];

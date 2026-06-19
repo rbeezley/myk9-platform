@@ -95,6 +95,7 @@ export default {
         info: {
           DEFAULT: 'rgb(var(--info) / <alpha-value>)',
           foreground: 'rgb(var(--info-foreground) / <alpha-value>)',
+          strong: 'rgb(var(--info-strong) / <alpha-value>)',
         },
         border: 'var(--border)',
         input: 'var(--input)',

@@ -39,7 +39,7 @@ function getStatusBadge(status: string) {
       );
     default:
       return (
-        <Badge variant="secondary" className="text-xs bg-info/10 text-info">
+        <Badge variant="secondary" className="text-xs bg-info/10 text-info-strong">
           {status ? status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ') : 'Active'}
         </Badge>
       );

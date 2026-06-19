@@ -108,6 +108,8 @@ describe('DataTable default toolbar', () => {
 
   it('exports visible filtered rows as CSV', async () => {
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    const appendChildSpy = vi.spyOn(document.body, 'appendChild');
+    const removeSpy = vi.spyOn(HTMLElement.prototype, 'remove');
     const createObjectUrl = vi.fn(() => 'blob:table-export');
     const revokeObjectUrl = vi.fn();
     vi.stubGlobal('URL', {
@@ -121,9 +123,14 @@ describe('DataTable default toolbar', () => {
     await user.click(screen.getByRole('button', { name: /export csv/i }));
 
     expect(createObjectUrl).toHaveBeenCalledWith(expect.any(Blob));
+    expect(appendChildSpy).toHaveBeenCalledWith(expect.any(HTMLAnchorElement));
     expect(clickSpy).toHaveBeenCalled();
+    expect(removeSpy).toHaveBeenCalled();
+    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:table-export');
 
+    appendChildSpy.mockRestore();
     clickSpy.mockRestore();
+    removeSpy.mockRestore();
     vi.unstubAllGlobals();
   });
 });

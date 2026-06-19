@@ -140,27 +140,17 @@ export const USER_ENTRIES_SELECT = `
       )
     `;
 
-async function postgrestGetUserEntries(userId: string) {
-  const { data: ownedDogs, error: dogsError } = await supabase
-    .from('dogs')
-    .select('id')
-    .eq('owner_id', userId);
-
-  if (dogsError) throw createDatabaseError(dogsError, 'dogs', 'select_user_entry_dogs');
-
-  const ownedDogIds = (ownedDogs ?? []).map(dog => sanitizePostgRESTFilter(dog.id));
-  const userFilter = `handler_id.eq.${sanitizePostgRESTFilter(userId)}`;
-  const entryFilter =
-    ownedDogIds.length > 0 ? `${userFilter},dog_id.in.(${ownedDogIds.join(',')})` : userFilter;
-
+// Routes own-entry reads through the cascade-aware view so scored columns
+// (final_placement, result_status, etc.) are nulled until the visibility
+// cascade releases them. The view uses security_invoker=true, so the
+// caller's entries_select RLS policy still restricts rows to own entries.
+async function postgrestGetUserEntries() {
   const { data, error } = await supabase
-    .from('entries')
+    .from('view_own_entry_results')
     .select(USER_ENTRIES_SELECT)
-    .or(entryFilter)
-    .is('deleted_at', null)
     .order('created_at', { ascending: false });
 
-  if (error) throw createDatabaseError(error, 'entries', 'select_user_entries');
+  if (error) throw createDatabaseError(error, 'view_own_entry_results', 'select_user_entries');
   return { data: data || [], error: null };
 }
 
@@ -314,7 +304,7 @@ export const getUserEntries = async (userId: string) => {
 
     if (missingRelations.length > 0) {
       try {
-        const result = await postgrestGetUserEntries(userId);
+        const result = await postgrestGetUserEntries();
         logQuery('entries', 'select_user_entries_fallback', Date.now() - startTime);
         return result;
       } catch {
@@ -342,7 +332,7 @@ export const getUserEntries = async (userId: string) => {
     return partialReplicationResult;
   } catch {
     try {
-      const result = await postgrestGetUserEntries(userId);
+      const result = await postgrestGetUserEntries();
       logQuery('entries', 'select_user_entries_fallback', Date.now() - startTime);
       return result;
     } catch (error) {

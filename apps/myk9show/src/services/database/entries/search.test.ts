@@ -60,19 +60,9 @@ vi.mock('@/services/mappers/entryMappers', () => ({
 import { USER_ENTRIES_SELECT, getUserEntries } from './search';
 import { findMissingReplicatedUserEntryRelations } from './userEntriesReplication';
 
-function makeDogQuery(data: Array<Record<string, unknown>>) {
+function makeViewEntriesQuery(data: Array<Record<string, unknown>>, error: Error | null = null) {
   const query = {
     select: vi.fn(() => query),
-    eq: vi.fn(() => Promise.resolve({ data, error: null })),
-  };
-  return query;
-}
-
-function makeEntriesQuery(data: Array<Record<string, unknown>>, error: Error | null = null) {
-  const query = {
-    select: vi.fn(() => query),
-    or: vi.fn(() => query),
-    is: vi.fn(() => query),
     order: vi.fn(() => Promise.resolve({ data, error })),
   };
   return query;
@@ -87,23 +77,23 @@ function makeEnrollmentsQuery(data: Array<Record<string, unknown>>) {
 }
 
 function mockSupabaseTables(options: {
-  dogRows?: Array<Record<string, unknown>>;
-  entryRows?: Array<Record<string, unknown>>;
-  entriesError?: Error | null;
+  viewEntryRows?: Array<Record<string, unknown>>;
+  viewEntriesError?: Error | null;
   enrollmentRows?: Array<Record<string, unknown>>;
 }) {
-  const dogQuery = makeDogQuery(options.dogRows ?? []);
-  const entriesQuery = makeEntriesQuery(options.entryRows ?? [], options.entriesError ?? null);
+  const viewQuery = makeViewEntriesQuery(
+    options.viewEntryRows ?? [],
+    options.viewEntriesError ?? null
+  );
   const enrollmentsQuery = makeEnrollmentsQuery(options.enrollmentRows ?? []);
 
   mocks.supabaseFrom.mockImplementation((table: string) => {
-    if (table === 'dogs') return dogQuery;
-    if (table === 'entries') return entriesQuery;
+    if (table === 'view_own_entry_results') return viewQuery;
     if (table === 'enrollments') return enrollmentsQuery;
     throw new Error(`Unexpected table: ${table}`);
   });
 
-  return { dogQuery, entriesQuery, enrollmentsQuery };
+  return { viewQuery, enrollmentsQuery };
 }
 
 beforeEach(() => {
@@ -280,15 +270,15 @@ describe('getUserEntries replicated relation completeness', () => {
     mockReplicatedStores({ classes: [] });
     const onlineRows = [{ id: 'online-entry', class: { id: 'class-1', name: 'Container' } }];
     mockSupabaseTables({
-      dogRows: [{ id: 'dog-1' }],
-      entryRows: onlineRows,
+      viewEntryRows: onlineRows,
     });
 
     const result = await getUserEntries('user-1');
 
     expect(result).toEqual({ data: onlineRows, error: null });
-    expect(mocks.supabaseFrom).toHaveBeenCalledWith('dogs');
-    expect(mocks.supabaseFrom).toHaveBeenCalledWith('entries');
+    expect(mocks.supabaseFrom).toHaveBeenCalledWith('view_own_entry_results');
+    expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('entries');
+    expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('dogs');
     expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('enrollments');
     expect(mocks.mapReplicatedEntryToDbRow).not.toHaveBeenCalled();
   });
@@ -296,8 +286,7 @@ describe('getUserEntries replicated relation completeness', () => {
   it('returns partial replicated rows when relation rows are missing and PostgREST fails', async () => {
     mockReplicatedStores({ classes: [] });
     mockSupabaseTables({
-      dogRows: [{ id: 'dog-1' }],
-      entriesError: new Error('offline'),
+      viewEntriesError: new Error('offline'),
       enrollmentRows: [],
     });
 
@@ -310,8 +299,9 @@ describe('getUserEntries replicated relation completeness', () => {
       dog: replicatedDog,
       show: replicatedShow,
     });
-    expect(mocks.supabaseFrom).toHaveBeenCalledWith('dogs');
-    expect(mocks.supabaseFrom).toHaveBeenCalledWith('entries');
+    expect(mocks.supabaseFrom).toHaveBeenCalledWith('view_own_entry_results');
+    expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('entries');
+    expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('dogs');
     expect(mocks.supabaseFrom).toHaveBeenCalledWith('enrollments');
     expect(mocks.logQuery).toHaveBeenCalledWith(
       'entries',
@@ -324,14 +314,14 @@ describe('getUserEntries replicated relation completeness', () => {
     mockReplicatedStores({ entriesThrows: true });
     const onlineRows = [{ id: 'online-entry' }];
     mockSupabaseTables({
-      dogRows: [{ id: 'dog-1' }],
-      entryRows: onlineRows,
+      viewEntryRows: onlineRows,
     });
 
     const result = await getUserEntries('user-1');
 
     expect(result).toEqual({ data: onlineRows, error: null });
-    expect(mocks.supabaseFrom).toHaveBeenCalledWith('dogs');
-    expect(mocks.supabaseFrom).toHaveBeenCalledWith('entries');
+    expect(mocks.supabaseFrom).toHaveBeenCalledWith('view_own_entry_results');
+    expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('entries');
+    expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('dogs');
   });
 });

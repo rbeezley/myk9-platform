@@ -8195,6 +8195,39 @@ export type Database = {
         }
         Relationships: []
       }
+      view_own_entry_results: {
+        Row: {
+          armband: string | null
+          check_in_status: string | null
+          class_id: string | null
+          created_at: string | null
+          dog_id: string | null
+          entry_fee: number | null
+          entry_status: string | null
+          final_placement: number | null
+          handler: string | null
+          handler_id: string | null
+          id: string | null
+          is_in_ring: boolean | null
+          is_scored: boolean | null
+          jump_height: string | null
+          payment_status: string | null
+          registration_id: string | null
+          result_status: string | null
+          result_text: string | null
+          run_order: number | null
+          scoring_completed_at: string | null
+          search_time_seconds: number | null
+          show_id: string | null
+          special_requests: string | null
+          submitted_at: string | null
+          total_faults: number | null
+          total_score: number | null
+          trial_id: string | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
       view_public_entry_results: {
         Row: {
           armband: string | null

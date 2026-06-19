@@ -115,4 +115,12 @@ describe('EntriesTableView selection column', () => {
 
     expect(screen.getAllByRole('button', { name: /actions for/i })).toHaveLength(entries.length);
   });
+
+  it('renders row actions when only one action handler is provided', () => {
+    render(
+      <EntriesTableView entries={entries} selection={makeSelection()} onRemoveEntry={vi.fn()} />
+    );
+
+    expect(screen.getAllByRole('button', { name: /actions for/i })).toHaveLength(entries.length);
+  });
 });

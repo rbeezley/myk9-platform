@@ -42,14 +42,6 @@ interface RegistrationViewProps {
   /** Entry list view mode */
   entryViewMode: EntryManagementViewMode;
   setEntryViewMode: (view: EntryManagementViewMode) => void;
-  /** Tab counts */
-  tabCounts: {
-    all: number;
-    pending: number;
-    accepted: number;
-    waitlist: number;
-    issues: number;
-  };
   /** Filtered entries to display */
   filteredEntries: EntryManagementEntry[];
   /** All entries (for looking up entry by id in comp handler) */

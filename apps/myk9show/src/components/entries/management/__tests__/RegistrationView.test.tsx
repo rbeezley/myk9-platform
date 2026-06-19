@@ -43,7 +43,6 @@ function renderView(
     setAttentionFilter: vi.fn(),
     entryViewMode,
     setEntryViewMode: vi.fn(),
-    tabCounts: { all: 9, pending: 3, accepted: 4, waitlist: 1, issues: 1 },
     filteredEntries: [],
     entries: [],
     onBulkStatusChange: vi.fn(),

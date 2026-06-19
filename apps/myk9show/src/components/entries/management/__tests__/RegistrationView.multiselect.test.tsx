@@ -60,7 +60,6 @@ function renderView(overrides: Record<string, unknown> = {}) {
     setAttentionFilter,
     entryViewMode: 'table',
     setEntryViewMode: vi.fn(),
-    tabCounts: { all: 2, pending: 2, accepted: 0, waitlist: 0, issues: 0 },
     filteredEntries,
     entries: filteredEntries,
     onBulkStatusChange,

@@ -368,7 +368,6 @@ const EntryManagementPage: React.FC = () => {
                   setAttentionFilter={setAttentionFilter}
                   entryViewMode={entryViewMode}
                   setEntryViewMode={setEntryViewMode}
-                  tabCounts={tabCounts}
                   filteredEntries={filteredEntries}
                   entries={entries}
                   onBulkStatusChange={handleEnrollmentBulkStatusChange}

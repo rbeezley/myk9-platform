@@ -9,7 +9,7 @@ import { EmailStatusIcon } from '@/components/entries/EmailStatusIcon';
 import type { EmailLogEntry } from '@/hooks/useEmailStatus';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { EntryStatus } from '@/types/show-registration-types';
-import { EntryRowActionMenu } from './EntryRowActionMenu';
+import { EntryRowActionMenu, type EntryRowActionMenuProps } from './EntryRowActionMenu';
 
 /** Minimal selection surface (a subset of useBulkSelection) for the select column. */
 export interface EntriesTableSelection {
@@ -67,16 +67,9 @@ function buildColumns(
   emailStatusMap?: Record<string, EmailLogEntry>,
   onResendEmail?: (registrationId: string) => void,
   isResendDisabled?: (registrationId: string) => boolean,
-  actionHandlers?: {
-    onStatusChange: (entryId: string, status: EntryStatus) => void;
-    onCheckInEntry: (entryId: string) => void;
-    onOpenArmbandDialog: (entry: EntryManagementEntry) => void;
-    onOpenCompDialog: (entry: EntryManagementEntry) => void;
-    onUncompEntry: (entryId: string) => void;
-    onRemoveEntry: (entryId: string) => void;
-  }
+  actionHandlers?: Omit<EntryRowActionMenuProps, 'entry'> | undefined
 ): ColumnDef<EntryManagementEntry, unknown>[] {
-  return [
+  const columns: ColumnDef<EntryManagementEntry, unknown>[] = [
     {
       accessorKey: 'armbandNumber',
       header: 'Armband',
@@ -167,31 +160,23 @@ function buildColumns(
         </span>
       ),
     },
-    {
+  ];
+
+  if (actionHandlers) {
+    columns.push({
       id: '_actions',
       header: '',
-      cell: ({ row }) => {
-        if (!actionHandlers) return null;
-        return (
-          <span onClick={e => e.stopPropagation()} role="presentation">
-            <EntryRowActionMenu
-              entry={row.original}
-              onStatusChange={actionHandlers.onStatusChange}
-              onCheckInEntry={actionHandlers.onCheckInEntry}
-              onOpenArmbandDialog={actionHandlers.onOpenArmbandDialog}
-              onOpenCompDialog={actionHandlers.onOpenCompDialog}
-              onUncompEntry={actionHandlers.onUncompEntry}
-              onRemoveEntry={actionHandlers.onRemoveEntry}
-              onResendEmail={onResendEmail}
-              isResendDisabled={isResendDisabled}
-            />
-          </span>
-        );
-      },
+      cell: ({ row }) => (
+        <span onClick={e => e.stopPropagation()} role="presentation">
+          <EntryRowActionMenu entry={row.original} {...actionHandlers} />
+        </span>
+      ),
       enableSorting: false,
       enableHiding: false,
-    },
-  ];
+    });
+  }
+
+  return columns;
 }
 
 export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
@@ -209,22 +194,26 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
   selection,
 }) => {
   const columns = useMemo(() => {
-    const actionHandlers =
-      onStatusChange &&
-      onCheckInEntry &&
-      onOpenArmbandDialog &&
-      onOpenCompDialog &&
-      onUncompEntry &&
-      onRemoveEntry
-        ? {
-            onStatusChange,
-            onCheckInEntry,
-            onOpenArmbandDialog,
-            onOpenCompDialog,
-            onUncompEntry,
-            onRemoveEntry,
-          }
-        : undefined;
+    const hasAnyAction =
+      onStatusChange ||
+      onCheckInEntry ||
+      onOpenArmbandDialog ||
+      onOpenCompDialog ||
+      onUncompEntry ||
+      onRemoveEntry ||
+      onResendEmail;
+    const actionHandlers = hasAnyAction
+      ? {
+          ...(onStatusChange ? { onStatusChange } : {}),
+          ...(onCheckInEntry ? { onCheckInEntry } : {}),
+          ...(onOpenArmbandDialog ? { onOpenArmbandDialog } : {}),
+          ...(onOpenCompDialog ? { onOpenCompDialog } : {}),
+          ...(onUncompEntry ? { onUncompEntry } : {}),
+          ...(onRemoveEntry ? { onRemoveEntry } : {}),
+          ...(onResendEmail ? { onResendEmail } : {}),
+          ...(isResendDisabled ? { isResendDisabled } : {}),
+        }
+      : undefined;
     const dataColumns = buildColumns(
       emailStatusMap,
       onResendEmail,

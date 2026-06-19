@@ -98,12 +98,15 @@ export function groupEntriesByEnrollment(entries: EntryManagementEntry[]): Enrol
       const entryRefundTotal = group.entries.reduce((sum, e) => sum + (e.refundAmount ?? 0), 0);
       if (entryRefundTotal > 0) {
         group.refundAmount = entryRefundTotal;
+        // .slice(-1)[0] (ES2020-safe) instead of .at(-1): the build targets
+        // chrome87/safari14.1, which predate Array.prototype.at and esbuild does
+        // not polyfill runtime APIs.
         group.refundedAt =
           group.entries
             .map(e => e.refundedAt)
             .filter((t): t is string => t != null)
             .sort()
-            .at(-1) ?? null;
+            .slice(-1)[0] ?? null;
       }
     }
   }

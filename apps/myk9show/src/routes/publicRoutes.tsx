@@ -13,6 +13,7 @@ import { lazy, type ReactNode } from 'react';
 import { Route, Navigate, useParams } from 'react-router-dom';
 import { BarChart3, Calendar, ClipboardList } from 'lucide-react';
 import { ProtectedRoute } from '@/context/AuthContext';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
 import { RoleSurfaceErrorBoundary } from '@/components/common/RoleSurfaceErrorBoundary';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
@@ -24,6 +25,8 @@ import { UserRole } from '@/types/auth-types';
 import DogDetailPage from '@/pages/DogDetailPage';
 import ShowDetailsPrototype from '@/pages/ShowDetailsPrototype';
 import { SHOW_MANAGEMENT_SECTIONS, type ShowManagementSectionPath } from './showManagementSections';
+import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
+import { hasScopedClubRole } from '@/utils/roleScopes';
 
 function featurePage(enabled: boolean, page: ReactNode, coming: ComingSoonPageProps): ReactNode {
   return enabled ? (
@@ -98,18 +101,36 @@ const SHOW_MANAGEMENT_SECTION_ELEMENTS: Record<ShowManagementSectionPath, ReactN
 function ShowManagementSectionRoute({ children }: { children: ReactNode }) {
   const { id } = useParams<{ id?: string }>();
   const canonicalShowPath = id ? `/shows/${id}` : '/shows';
+  const { user, loading: authLoading, rbacLoading, hasRole, userWithRoles } = useAuthContext();
+  const { data: shows = [], isLoading: showsLoading } = useShowsQuery();
 
-  return (
-    <ProtectedRoute
-      redirectTo={canonicalShowPath}
-      requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}
-      fallback={<Navigate to={canonicalShowPath} replace />}
-    >
-      {/* Show-management URLs live in the public show route tree, but once authorized
-      this surface is secretary work and should report with secretary context. */}
+  if (authLoading || rbacLoading) return null;
+  if (!user) return <Navigate to={canonicalShowPath} replace />;
+
+  const isSecretary = hasRole(UserRole.SECRETARY);
+  const isSiteAdmin = hasRole(UserRole.SITE_ADMIN);
+
+  // Secretary and site admin are authorized without needing show data.
+  if (isSecretary || isSiteAdmin) {
+    return (
       <RoleSurfaceErrorBoundary surface="secretary">{children}</RoleSurfaceErrorBoundary>
-    </ProtectedRoute>
-  );
+    );
+  }
+
+  // Club admin check requires the show's clubId to enforce club-scoping.
+  // Wait for shows to load before deciding — avoids a spurious redirect.
+  if (showsLoading) return null;
+
+  const show = shows.find(s => s.id === id);
+  const isClubAdmin =
+    hasRole(UserRole.CLUB_ADMIN) &&
+    hasScopedClubRole(userWithRoles, UserRole.CLUB_ADMIN, show?.clubId);
+
+  if (!isClubAdmin) return <Navigate to={canonicalShowPath} replace />;
+
+  // Show-management URLs live in the public show route tree, but once authorized
+  // this surface is secretary work and should report with secretary context.
+  return <RoleSurfaceErrorBoundary surface="secretary">{children}</RoleSurfaceErrorBoundary>;
 }
 
 export const PublicRoutes = () => (

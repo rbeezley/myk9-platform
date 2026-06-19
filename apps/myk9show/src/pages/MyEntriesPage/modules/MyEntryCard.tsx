@@ -22,7 +22,6 @@ import {
   User,
   CreditCard,
   MessageSquare,
-  ListOrdered,
 } from 'lucide-react';
 import { formatDistanceToNow, format, isToday, isTomorrow, differenceInDays } from 'date-fns';
 import { ResultBadge } from '@/components/common/ResultBadge';
@@ -121,8 +120,6 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
     hasEditableStatus || entry.entryStatus === EntryStatus.MOVE_UP_REQUESTED;
   const canFinishPayment =
     canPayStatus && entry.paymentStatus === PaymentStatus.PENDING && entry.totalFee > 0;
-
-  const hasRunOrder = entry.classes.some(cls => cls.runOrder !== undefined);
 
   // Build a "Get directions" link from the full venue address (venue, city,
   // state) while the card still displays the shorter "city, state" label.

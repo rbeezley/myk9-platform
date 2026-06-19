@@ -123,4 +123,11 @@ describe('EntriesTableView selection column', () => {
 
     expect(screen.getAllByRole('button', { name: /actions for/i })).toHaveLength(entries.length);
   });
+
+  it('renders filter-aware empty copy when no entries are shown', () => {
+    render(<EntriesTableView entries={[]} emptyState="No waitlist entries right now." />);
+
+    expect(screen.getByText('No waitlist entries right now.')).toBeInTheDocument();
+    expect(screen.queryByText('No results found.')).not.toBeInTheDocument();
+  });
 });

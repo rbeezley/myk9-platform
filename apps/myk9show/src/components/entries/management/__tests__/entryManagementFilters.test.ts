@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ENTRY_ATTENTION_FILTER_VALUES,
+  getEntryManagementEmptyStateMessage,
   normalizeEntryManagementSearchParams,
 } from '../entryManagementFilters';
 
@@ -33,5 +34,41 @@ describe('entryManagementFilters', () => {
 
     expect(result.attention).toBe('all');
     expect(result.params.has('attention')).toBe(false);
+  });
+
+  it('returns filter-aware empty copy for attention filters', () => {
+    expect(
+      getEntryManagementEmptyStateMessage({
+        attention: 'waitlist',
+        hasSearch: false,
+        payment: 'all',
+      })
+    ).toBe('No waitlist entries right now.');
+
+    expect(
+      getEntryManagementEmptyStateMessage({
+        attention: 'pulled',
+        hasSearch: false,
+        payment: 'all',
+      })
+    ).toBe('No pulled / no-show entries right now.');
+  });
+
+  it('mentions active filters when search or payment narrows the empty result', () => {
+    expect(
+      getEntryManagementEmptyStateMessage({
+        attention: 'all',
+        hasSearch: true,
+        payment: 'all',
+      })
+    ).toBe('No entries match these filters.');
+
+    expect(
+      getEntryManagementEmptyStateMessage({
+        attention: 'pending',
+        hasSearch: false,
+        payment: 'pending',
+      })
+    ).toBe('No pending entries match these filters.');
   });
 });

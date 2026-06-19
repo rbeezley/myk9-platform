@@ -130,6 +130,54 @@ export function normalizeEntryManagementSearchParams(searchParams: URLSearchPara
   return { params, attention, mode, view };
 }
 
+export function getEntryManagementEmptyStateMessage({
+  attention,
+  hasSearch,
+  payment,
+}: {
+  attention: EntryAttentionFilter;
+  hasSearch: boolean;
+  payment: string;
+}): string {
+  const hasExtraFilters = hasSearch || payment !== 'all';
+
+  if (hasExtraFilters) {
+    switch (attention) {
+      case 'pending':
+        return 'No pending entries match these filters.';
+      case 'accepted':
+        return 'No accepted entries match these filters.';
+      case 'waitlist':
+        return 'No waitlist entries match these filters.';
+      case 'move-ups':
+        return 'No move-up requests match these filters.';
+      case 'pulled':
+        return 'No pulled / no-show entries match these filters.';
+      case 'issues':
+        return 'No issue entries match these filters.';
+      case 'all':
+        return 'No entries match these filters.';
+    }
+  }
+
+  switch (attention) {
+    case 'pending':
+      return 'No pending entries right now.';
+    case 'accepted':
+      return 'No accepted entries right now.';
+    case 'waitlist':
+      return 'No waitlist entries right now.';
+    case 'move-ups':
+      return 'No move-up requests right now.';
+    case 'pulled':
+      return 'No pulled / no-show entries right now.';
+    case 'issues':
+      return 'No entries have issues right now.';
+    case 'all':
+      return 'No entries yet.';
+  }
+}
+
 export function isMoveUpStatus(status: EntryStatus): boolean {
   return status === EntryStatus.MOVE_UP_REQUESTED;
 }

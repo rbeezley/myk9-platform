@@ -1,6 +1,6 @@
 # Entry Management Layout Plan
 
-> **Status:** Active
+> **Status:** Complete
 
 ## Validation Profile
 
@@ -457,6 +457,12 @@ Non-blocking polish found:
 - The waitlist empty state shows the generic table message `No results found.` below the active
   `Waitlist` chip and `0 of 10 entries (filtered)` count. It is not misleading, but a future polish
   pass could make the table empty copy fully filter-aware.
+
+Resolved in follow-up:
+
+- Entry Management now passes filter-aware empty copy into the table and card views, including
+  `No waitlist entries right now.` for the waitlist filter and `No entries match these filters.`
+  when search/payment filters narrow the result set.
 
 ## Open Questions
 

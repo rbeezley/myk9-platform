@@ -7,6 +7,7 @@ import {
   isWaitlistEntry,
   isIssueEntry,
 } from '@/utils/entryPredicates';
+import { getEffectivePaymentStatus } from '@/utils/entryManagementUtils';
 import {
   ENTRY_WORK_MODE_PRESETS,
   type EntryAttentionFilter,
@@ -239,7 +240,7 @@ export function useEntryManagementFilters({
 
     // Apply payment filter
     if (paymentFilter !== 'all') {
-      filtered = filtered.filter(e => e.paymentStatus === paymentFilter);
+      filtered = filtered.filter(e => getEffectivePaymentStatus(e) === paymentFilter);
     }
 
     // Apply search

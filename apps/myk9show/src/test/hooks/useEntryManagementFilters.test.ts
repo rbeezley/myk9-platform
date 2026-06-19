@@ -4,6 +4,7 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import { createElement, useEffect, type ReactNode } from 'react';
 import { useEntryManagementFilters } from '@/hooks/useEntryManagementFilters';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
+import { PaymentStatus } from '@/types/show-registration-types';
 
 const emptyTabCounts = { all: 0, pending: 0, accepted: 0, waitlist: 0, issues: 0 };
 
@@ -303,6 +304,42 @@ describe('useEntryManagementFilters — trial/class filters', () => {
 
     expect(result.current.filteredEntries.length).toBe(1);
     expect(result.current.filteredEntries[0].id).toBe('3');
+  });
+
+  it('uses enrollment payment status when applying the payment filter', () => {
+    const entries = [
+      makeEntry({
+        id: 'dog-a-entry',
+        registrationId: 'enrollment-1',
+        paymentStatus: PaymentStatus.PENDING,
+        enrollmentPaymentStatus: PaymentStatus.PAID_BY_CHECK,
+      }),
+      makeEntry({
+        id: 'dog-b-entry',
+        registrationId: 'enrollment-1',
+        paymentStatus: PaymentStatus.PENDING,
+        enrollmentPaymentStatus: PaymentStatus.PAID_BY_CHECK,
+      }),
+      makeEntry({
+        id: 'unpaid-entry',
+        registrationId: 'enrollment-2',
+        paymentStatus: PaymentStatus.PENDING,
+      }),
+    ] as EntryManagementEntry[];
+
+    const { result } = renderHook(
+      () => useEntryManagementFilters({ entries, tabCounts: emptyTabCounts }),
+      { wrapper: createWrapper() }
+    );
+
+    act(() => {
+      result.current.setPaymentFilter(PaymentStatus.PAID_BY_CHECK);
+    });
+
+    expect(result.current.filteredEntries.map(entry => entry.id)).toEqual([
+      'dog-a-entry',
+      'dog-b-entry',
+    ]);
   });
 
   it('clears trial and class filters when showId changes', () => {

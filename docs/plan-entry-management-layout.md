@@ -481,9 +481,26 @@ Verified:
   passed: 5 files, 34 tests.
 - `cd apps/myk9show && pnpm typecheck` passed.
 
+## Implementation Notes - 2026-06-19 Phase 7
+
+Completed enrollment payment-scope hardening:
+
+- Added one effective payment-status helper so Entry Management treats enrollment/order payment
+  state as authoritative when `enrollmentPaymentStatus` is present.
+- Updated the shared payment filter to use that effective status, so a multi-dog enrollment marked
+  paid by check remains visible under the paid-by-check filter even when the individual entry rows
+  still carry their original entry-level payment status.
+- Updated table/list payment badges to show the same effective status that filtering uses.
+
+Verified:
+
+- `cd apps/myk9show && pnpm exec vitest run src/test/hooks/useEntryManagementFilters.test.ts src/components/entries/management/__tests__/EntriesTableView.selection.test.tsx src/components/entries/management/__tests__/EntryListCard.test.tsx src/components/entries/management/__tests__/EnrollmentCard.test.tsx src/hooks/__tests__/useEntryManagementActions.test.ts`
+  passed: 5 files, 50 tests.
+- `cd apps/myk9show && pnpm typecheck` passed.
+
 ## Open Questions
 
 - Should `Review` or `Day-of` be remembered per user/show, or should Entry Management always open in
   `Review` unless the URL specifies otherwise?
-- Which payment/confirmation actions are safe at dog scope versus enrollment scope?
+- Which confirmation/email actions are safe at dog scope versus enrollment scope?
 - Should legacy `entryTab` params remain supported indefinitely, or only through a transition helper?

@@ -145,9 +145,9 @@ Once the secretary publishes the run order, a **View run order** button appears 
 
 1. Go to **My Shows**.
 2. On your entry card, tap **View run order**.
-3. The Classes tab opens showing your class in run order.
+3. The Classes tab opens. Tap your class to see the run order.
 
-![E-12: Show detail page — Classes tab with run order and armband numbers](../screenshots/E-12.png)
+![E-12: Class detail — run order entry with dog name and armband number](../screenshots/E-12.png)
 
 The run order shows dog names, handler names, and armband numbers. **Armband numbers** are assigned by the secretary and may not appear until close to show day.
 
@@ -261,7 +261,7 @@ All shots from `docs/training/screenshot-shot-list.md`. Status as of 2026-06-19:
 | E-09 | § 5 | My Shows — Pending entry card | ready |
 | E-10 | § 5 | My Shows — Accepted entry card | ready |
 | E-11 | § 5 | My Shows — show card | ready |
-| E-12 | § 6 | Classes tab with run order | ready |
+| E-12 | § 6 | Class detail — run order with armband number | ready |
 | E-13 | § 7 | Show Today banner | blocked: date |
 | E-14 | § 7 | Entry card — "Not Checked In" status pill | ready |
 | E-15 | § 7 | Entry card — Checked In state | blocked: seed |

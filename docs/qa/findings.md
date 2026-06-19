@@ -110,7 +110,39 @@ Copy this block for each new finding.
 - **Intent check:** Harms the exhibitor "ready to enter a show" path by blocking authenticated route access before My Entries and show discovery can render.
 - **Fix owner:** test-account seed/data state for `exhibitor1@myk9t.com` (`people`, `exhibitor_profiles`, onboarding completion fields, and related RLS visibility).
 - **Proof required:** Inventory `auth.users`, `people`, `exhibitor_profiles`, and any onboarding-completion fields for `exhibitor1@myk9t.com`; repair the staging/dev seed state if appropriate; rerun `route-health-by-role.spec.ts --grep "Route health: exhibitor"` and then standalone route-health `6/6` on an isolated exported Playwright port.
-- **Notes:** Do not suppress the redirect in route-health. The `.maybeSingle()` fix removed the false 406 network noise, but the onboarding redirect remains a real test-account readiness issue.
+- **Notes:** Do not suppress the redirect in route-health. The `.maybeSingle()` fix removed the false 406 network noise, but the onboarding redirect remains a real test-account readiness issue. 2026-06-19 update: active cross-role and route-health exhibitor checks were moved to the configured `TEST_USERS.DEMO_EXHIBITOR` account and passed focused proof; this finding remains open for the legacy `exhibitor1@myk9t.com` seed/onboarding state.
+
+### QA-HIDDEN-VALIDATION-025
+
+- **Status:** open
+- **Severity:** high
+- **Role:** secretary
+- **Surface:** `apps/myk9show/src/test/e2e/registration/secretaryNewUsers.spec.ts` mail-in exhibitor/new-dog flow.
+- **Suite category:** nightly
+- **Pattern:** hidden-validation
+- **Detected by:** Playwright
+- **Evidence:** 2026-06-19 focused replay after the account-rotation auth fix still failed the "registers a mail-in exhibitor without auth user creation" path. After the spec clicked `Create Dog`, the app stayed inside the `Add New Dog` dialog on the Registration tab; the snapshot showed the filled dog registration fields, `Unsaved changes`, and the `Create Dog` button, but no visible validation or save error. The test timed out waiting for the resulting `Dogs Added (1):` heading. The final focused `test:e2e:clean` replay cleaned the earlier artifact folder, so the durable evidence is the Playwright failure output from the run rather than a retained test-results path.
+- **User impact:** A secretary creating a mail-in exhibitor/dog can be blocked in the add-dog dialog without an actionable error, preventing completion of a core registration workflow.
+- **Intent check:** Harms the secretary "That was easy" target because the workflow appears to accept the dog details but does not progress or explain what is missing.
+- **Fix owner:** secretary registration quick-create flow and dog form validation/save path (`AddDogPanel`, registration payload, owner/person linkage).
+- **Proof required:** Identify whether the save is blocked by missing owner/person linkage, hidden validation, or a mutation failure; fix the user-visible behavior; rerun `registration/secretaryNewUsers.spec.ts --grep "registers a mail-in exhibitor without auth user creation"` with `--retries=0`, then rerun the exact Phase 2 active Nightly command.
+- **Notes:** Do not close by weakening the `Dogs Added (1):` assertion. The fix needs to either save the dog or show a visible, actionable validation/error state.
+
+### QA-TEST-FLAKE-026
+
+- **Status:** open
+- **Severity:** high
+- **Role:** secretary
+- **Surface:** `apps/myk9show/src/test/e2e/route-health-by-role.spec.ts` secretary group.
+- **Suite category:** nightly
+- **Pattern:** test-flake
+- **Detected by:** Playwright route-health
+- **Evidence:** 2026-06-19 Phase 2 exact active Playwright command and focused replay both timed out the secretary route-health group at the 90s Playwright test budget. The failure reported `route-health-by-role.spec.ts` in `sweepRoutes`, while the file consumed roughly 16 minutes in the broader run. Public, judge, and admin route-health passed in the initial command; exhibitor route-health passed after switching to the configured demo exhibitor account.
+- **User impact:** Nightly cannot currently prove the secretary route-health baseline, and the route group can consume enough time to breach the unattended run budget.
+- **Intent check:** Harms secretary reliability confidence because the system cannot distinguish a slow/broken secretary route from a route-health harness stall.
+- **Fix owner:** route-health secretary route list and the slow secretary route/page load path identified by focused isolation.
+- **Proof required:** Isolate the secretary route that stalls, repair the route or bound the route-health harness without suppressing real browser-health failures, rerun `route-health-by-role.spec.ts --grep "Route health: secretary"` with `--retries=0`, then rerun standalone route-health `6/6` and the exact Phase 2 active Nightly command.
+- **Notes:** Treat this separately from credential drift. The secretary auth helper now uses `TEST_USERS.SECRETARY`, and the rotated secretary credential specs passed focused proof.
 
 ### QA-TEST-FLAKE-010
 

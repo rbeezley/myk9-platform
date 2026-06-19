@@ -164,8 +164,13 @@ function exportTableCsv<TData>(table: TanstackTable<TData>, tableId: string) {
   const link = document.createElement('a');
   link.href = url;
   link.download = `${tableId}-${new Date().toISOString().slice(0, 10)}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
+  try {
+    document.body.appendChild(link);
+    link.click();
+  } finally {
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
 }
 
 export function DataTable<TData>({

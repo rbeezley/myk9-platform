@@ -4,7 +4,7 @@
  * @module pages/MyEntriesPage
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { TabsContent } from '@/components/ui/tabs';
@@ -239,6 +239,16 @@ const MyEntriesPage: React.FC = () => {
     }
   };
 
+  const handleResultRevealSeen = useCallback((releaseKey: string) => {
+    markResultRevealSeen(releaseKey);
+    setSeenResultReleaseKeys(prev => {
+      if (prev.has(releaseKey)) return prev;
+      const next = new Set(prev);
+      next.add(releaseKey);
+      return next;
+    });
+  }, []);
+
   // Error state
   if (isError && !isLoading) {
     return (
@@ -410,10 +420,7 @@ const MyEntriesPage: React.FC = () => {
           if (!open) setResultRevealModel(null);
         }}
         model={resultRevealModel}
-        onSeen={releaseKey => {
-          markResultRevealSeen(releaseKey);
-          setSeenResultReleaseKeys(prev => new Set(prev).add(releaseKey));
-        }}
+        onSeen={handleResultRevealSeen}
       />
 
       <AddDogPanel

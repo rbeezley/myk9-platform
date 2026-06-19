@@ -175,6 +175,7 @@ function makeResultRow(overrides: Record<string, unknown> = {}) {
 describe('MyEntriesPage UI Improvements', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
       user: mockUser,
       userWithRoles: null,
@@ -442,6 +443,41 @@ describe('MyEntriesPage UI Improvements', () => {
 
       expect(await screen.findByRole('dialog', { name: /New result/i })).toBeInTheDocument();
       expect(screen.getAllByText('Ditto').length).toBeGreaterThan(0);
+    });
+
+    it('opens and closes the My Entries result reveal without hitting an update loop', async () => {
+      const user = userEvent.setup();
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
+        user: mockUser,
+        userWithRoles: { ...mockUser, databaseUserId: 'person-1' },
+        isAuthenticated: true,
+      });
+      (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        data: [makeResultRow()],
+        error: null,
+      });
+
+      renderWithProviders(<MyEntriesPage />, '/exhibitor/entries');
+
+      await user.click(await screen.findByRole('button', { name: /New result/i }));
+
+      expect(await screen.findByRole('dialog', { name: /New result/i })).toBeInTheDocument();
+      expect(screen.getAllByText('Ditto').length).toBeGreaterThan(0);
+
+      await user.click(screen.getByRole('button', { name: /Close/i }));
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog', { name: /New result/i })).not.toBeInTheDocument();
+      });
+      expect(screen.queryByRole('button', { name: /New result/i })).not.toBeInTheDocument();
+      expect(
+        consoleErrorSpy.mock.calls.some(call =>
+          call.some(arg => typeof arg === 'string' && arg.includes('Maximum update depth exceeded'))
+        )
+      ).toBe(false);
+
+      consoleErrorSpy.mockRestore();
     });
 
     it('ignores a resultEntryId query param when the result is not visible', async () => {

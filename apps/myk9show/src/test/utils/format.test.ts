@@ -197,6 +197,17 @@ describe('format utilities', () => {
       expect(formatRelativeTime(oneMonthAgo)).toBe(oneMonthAgo.toLocaleDateString());
     });
 
+    it('should format future dates as a date string, not "just now"', () => {
+      // A completed refund with a future-dated refunded_at (e.g. a seed fixture
+      // set to a future date) must not render as "just now" (P1-04w-2).
+      const tomorrow = new Date('2024-01-16T12:00:00Z');
+      const nextMonth = new Date('2024-02-15T12:00:00Z');
+
+      expect(formatRelativeTime(tomorrow)).toBe(tomorrow.toLocaleDateString());
+      expect(formatRelativeTime(nextMonth)).toBe(nextMonth.toLocaleDateString());
+      expect(formatRelativeTime(tomorrow)).not.toBe('just now');
+    });
+
     it('should handle singular vs plural correctly', () => {
       const oneMinuteAgo = new Date('2024-01-15T11:59:00Z');
       const oneHourAgo = new Date('2024-01-15T11:00:00Z');

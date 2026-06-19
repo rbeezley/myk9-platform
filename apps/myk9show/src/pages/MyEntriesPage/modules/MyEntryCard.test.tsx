@@ -406,6 +406,111 @@ describe('MyEntryCard scored result display', () => {
   });
 });
 
+describe('MyEntryCard registration number fallback (P1-04w-1)', () => {
+  it('shows "Pending" fallback for an active entry with no registration number', () => {
+    renderCard(makeEntry({ registrationNumber: undefined, entryStatus: EntryStatus.PENDING }));
+    expect(screen.getByText(/Registration #Pending/)).toBeInTheDocument();
+  });
+
+  it('shows "—" fallback for a withdrawn entry with no registration number', () => {
+    renderCard(makeEntry({ registrationNumber: undefined, entryStatus: EntryStatus.CANCELLED }));
+    expect(screen.getByText(/Registration #—/)).toBeInTheDocument();
+    expect(screen.queryByText(/Registration #Pending/)).not.toBeInTheDocument();
+  });
+
+  it('shows "—" fallback for a scratched entry with no registration number', () => {
+    renderCard(makeEntry({ registrationNumber: undefined, entryStatus: EntryStatus.SCRATCHED }));
+    expect(screen.getByText(/Registration #—/)).toBeInTheDocument();
+  });
+
+  it('always shows the real registration number when present, regardless of status', () => {
+    renderCard(makeEntry({ registrationNumber: 'AKC-12345', entryStatus: EntryStatus.CANCELLED }));
+    expect(screen.getByText(/AKC-12345/)).toBeInTheDocument();
+  });
+});
+
+describe('MyEntryCard run order link', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-19T12:00:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('shows the run order link for an upcoming accepted entry with run orders assigned', () => {
+    renderCard(
+      makeEntry({
+        showId: 'show-1',
+        showDate: new Date('2026-09-01'),
+        entryStatus: EntryStatus.ACCEPTED,
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+        classes: [makeClass({ runOrder: 3 })],
+      })
+    );
+
+    expect(screen.getByRole('link', { name: /View run order/i })).toHaveAttribute(
+      'href',
+      '/shows/show-1?tab=classes'
+    );
+  });
+
+  it('shows the run order link for an upcoming move-up-requested entry with run orders assigned', () => {
+    renderCard(
+      makeEntry({
+        showId: 'show-2',
+        showDate: new Date('2026-09-01'),
+        entryStatus: EntryStatus.MOVE_UP_REQUESTED,
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+        classes: [makeClass({ runOrder: 7 })],
+      })
+    );
+
+    expect(screen.getByRole('link', { name: /View run order/i })).toHaveAttribute(
+      'href',
+      '/shows/show-2?tab=classes'
+    );
+  });
+
+  it('does not show the run order link when no class has a run order assigned', () => {
+    renderCard(
+      makeEntry({
+        showDate: new Date('2026-09-01'),
+        entryStatus: EntryStatus.ACCEPTED,
+        classes: [makeClass({ runOrder: undefined })],
+      })
+    );
+
+    expect(screen.queryByRole('link', { name: /View run order/i })).not.toBeInTheDocument();
+  });
+
+  it('does not show the run order link for a pending entry (no confirmed spot yet)', () => {
+    renderCard(
+      makeEntry({
+        showDate: new Date('2026-09-01'),
+        entryStatus: EntryStatus.PENDING,
+        classes: [makeClass({ runOrder: 5 })],
+      })
+    );
+
+    expect(screen.queryByRole('link', { name: /View run order/i })).not.toBeInTheDocument();
+  });
+
+  it('does not show the run order link for a past show', () => {
+    renderCard(
+      makeEntry({
+        showDate: new Date('2020-01-01'),
+        showEndDate: new Date('2020-01-02'),
+        entryStatus: EntryStatus.ACCEPTED,
+        classes: [makeClass({ runOrder: 2 })],
+      })
+    );
+
+    expect(screen.queryByRole('link', { name: /View run order/i })).not.toBeInTheDocument();
+  });
+});
+
 describe('MyEntryCard handler display', () => {
   it('shows handler name when a class has a handler set', () => {
     const entry = makeEntry({

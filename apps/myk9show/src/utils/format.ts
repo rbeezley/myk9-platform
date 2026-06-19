@@ -68,7 +68,9 @@ export function formatRelativeTime(date: Date): string {
   const diffHours = Math.floor(diffMinutes / 60);
   const diffDays = Math.floor(diffHours / 24);
 
-  if (diffSeconds < 60) {
+  if (diffMs < 0) {
+    return date.toLocaleDateString();
+  } else if (diffSeconds < 60) {
     return 'just now';
   } else if (diffMinutes < 60) {
     return `${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''} ago`;

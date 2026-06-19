@@ -427,6 +427,37 @@ Verified:
     a seeded secretary browser smoke should be run against staging or a known local seed show before
     closing the larger layout plan.
 
+## Implementation Notes - 2026-06-19 Phase 5
+
+Seeded browser smoke completed against the live local app and the shared secretary fixture show:
+
+- Sign-in used the rotated local E2E secretary credential from `apps/myk9show/.env.local`; the older
+  documented `secretary@myk9t.com` password in `docs/testing/secretary-walk-seed.md` is stale.
+- Seed show: `dededede-0000-0000-0000-000000000010` / `Heartland Scent Work Classic`.
+- Review mode loaded `/shows/:showId/entry-management?attention=pending`, kept table view as the
+  default, showed `3 of 10 entries (filtered)`, and rendered armband as the first data column.
+- Day-of mode switched to `/shows/:showId/entry-management?attention=accepted&mode=day-of`, kept
+  table view, and showed the accepted entry row.
+- Row actions opened from the table three-dot menu and exposed check-in, armband, comp, reject, and
+  remove actions.
+- Selected-row bulk actions appeared in the sticky bulk bar, explained disabled `Accept selected`,
+  and exposed `Check in selected` plus destructive `Reject selected` inside the menu.
+- Card view switched to `view=cards`, preserved the active filters, and rendered enrollment/payment
+  as the card scope with the dog entry nested inside.
+- Legacy deep links normalized correctly:
+  - `entryTab=pending` -> `attention=pending`
+  - `tab=waitlist` -> `attention=waitlist`
+- Show Desk `Manage entries (3)` deep-linked to Entry Management with `attention=pending` rather
+  than duplicating the entry table.
+- No browser console errors appeared during the Entry Management smoke. The only console output was
+  existing preload/monitoring warnings.
+
+Non-blocking polish found:
+
+- The waitlist empty state shows the generic table message `No results found.` below the active
+  `Waitlist` chip and `0 of 10 entries (filtered)` count. It is not misleading, but a future polish
+  pass could make the table empty copy fully filter-aware.
+
 ## Open Questions
 
 - Should `Review` or `Day-of` be remembered per user/show, or should Entry Management always open in

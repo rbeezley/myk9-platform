@@ -34,6 +34,7 @@ interface EntriesTableViewProps {
   onRemoveEntry?: ((entryId: string) => void) | undefined;
   /** When provided, renders a leading checkbox select column wired to this selection. */
   selection?: EntriesTableSelection | undefined;
+  emptyState?: React.ReactNode;
 }
 
 function buildSelectColumn(
@@ -192,6 +193,7 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
   onUncompEntry,
   onRemoveEntry,
   selection,
+  emptyState,
 }) => {
   const columns = useMemo(() => {
     const hasAnyAction =
@@ -241,6 +243,8 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
       columns={columns}
       getRowId={entry => entry.id}
       showSearch={false}
+      emptyState={emptyState}
+      noResultsMessage={emptyState}
       {...(onEntryClick !== undefined ? { onRowClick: onEntryClick } : {})}
     />
   );

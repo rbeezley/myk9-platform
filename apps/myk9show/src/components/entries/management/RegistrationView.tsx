@@ -19,6 +19,7 @@ import {
   ENTRY_MANAGEMENT_FILTERS,
   ENTRY_WORK_MODE_PRESETS,
   ENTRY_VIEW_MODES,
+  getEntryManagementEmptyStateMessage,
   type EntryAttentionFilter,
   type EntryManagementViewMode,
   type EntryWorkMode,
@@ -199,6 +200,12 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
 
   const isResendDisabled = (registrationId: string) =>
     (resendCooldowns[registrationId] || 0) > Date.now();
+  const hasSearchFilter = searchTerm.trim().length > 0;
+  const emptyStateMessage = getEntryManagementEmptyStateMessage({
+    attention: attentionFilter,
+    hasSearch: hasSearchFilter,
+    payment: paymentFilter,
+  });
 
   return (
     <div className="space-y-6">
@@ -235,7 +242,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
         resultsTotal={entries.length}
         filtered={
           filteredEntries.length !== entries.length ||
-          searchTerm.length > 0 ||
+          hasSearchFilter ||
           paymentFilter !== 'all' ||
           attentionFilter !== 'all'
         }
@@ -267,35 +274,42 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
           onUncompEntry={onUncompEntry}
           onRemoveEntry={onRemoveEntry}
           selection={tableSelection}
+          emptyState={emptyStateMessage}
         />
       ) : (
         <div className="space-y-3">
-          {enrollmentGroups.map(group => (
-            <EnrollmentCard
-              key={group.groupKey}
-              group={group}
-              onStatusChange={onStatusChange}
-              onEntryRefunded={onRefresh}
-              onCheckInStatusChange={onCheckInStatusChange}
-              onOpenArmbandDialog={onOpenArmbandDialog}
-              onCompEntry={(entryId: string) => {
-                const entry = group.entries.find(e => e.id === entryId);
-                if (entry) onOpenCompDialog(entry);
-              }}
-              onUncompEntry={onUncompEntry}
-              onRemoveEntry={onRemoveEntry}
-              onBulkStatusChange={onBulkStatusChange}
-              onBulkCheckIn={onBulkCheckIn}
-              onPaymentStatusChange={onPaymentStatusChange}
-              emailStatusMap={emailStatusMap}
-              onResendEmail={handleResendEmail}
-              isResendDisabled={isResendDisabled}
-              onSendDecisionEmail={onSendDecisionEmail}
-              lastDecisionEmailedAt={
-                group.enrollmentId ? lastEmailedMap[group.enrollmentId] : undefined
-              }
-            />
-          ))}
+          {enrollmentGroups.length > 0 ? (
+            enrollmentGroups.map(group => (
+              <EnrollmentCard
+                key={group.groupKey}
+                group={group}
+                onStatusChange={onStatusChange}
+                onEntryRefunded={onRefresh}
+                onCheckInStatusChange={onCheckInStatusChange}
+                onOpenArmbandDialog={onOpenArmbandDialog}
+                onCompEntry={(entryId: string) => {
+                  const entry = group.entries.find(e => e.id === entryId);
+                  if (entry) onOpenCompDialog(entry);
+                }}
+                onUncompEntry={onUncompEntry}
+                onRemoveEntry={onRemoveEntry}
+                onBulkStatusChange={onBulkStatusChange}
+                onBulkCheckIn={onBulkCheckIn}
+                onPaymentStatusChange={onPaymentStatusChange}
+                emailStatusMap={emailStatusMap}
+                onResendEmail={handleResendEmail}
+                isResendDisabled={isResendDisabled}
+                onSendDecisionEmail={onSendDecisionEmail}
+                lastDecisionEmailedAt={
+                  group.enrollmentId ? lastEmailedMap[group.enrollmentId] : undefined
+                }
+              />
+            ))
+          ) : (
+            <div className="rounded-lg border border-dashed border-border/70 bg-card/60 px-4 py-8 text-center text-sm text-muted-foreground">
+              {emptyStateMessage}
+            </div>
+          )}
         </div>
       )}
 

@@ -53,13 +53,13 @@ Every screenshot and diagram in final documentation and training materials must 
 | S-10 | Waitlist Management page | `/secretary/waitlist/:showId` | `secretary@myk9t.com` | Desktop | At least one waitlisted entry | § 4 | `blocked: seed` (needs a waitlisted entry) |
 | S-11 | Message Center — compose form | `/secretary/messages` | `secretary@myk9t.com` | Desktop | New message compose panel open, show pre-selected | § 5 Communications | `ready` |
 | S-12 | Reports page — Check-in Sheet selected | `/shows/:showId/reports` | `secretary@myk9t.com` | Desktop | Trial selector showing Heritage trial; Check-in Sheet selected | § 6 Reports | `ready` |
-| S-13 | Reports page — Run Order preview | `/shows/:showId/reports` | `secretary@myk9t.com` | Desktop | Run Order report type selected; preview rendered | § 6 | `ready` |
+| S-13 | Reports page — Steward's Report selected | `/shows/:showId/reports` | `secretary@myk9t.com` | Desktop | Steward's Report type selected; preview rendered | § 6 | `ready` |
 | S-14 | Reports page — Armband Labels | `/shows/:showId/reports` | `secretary@myk9t.com` | Desktop | Armband Labels selected; preview visible | § 6 | `ready` |
 | S-15 | Show Desk — Show Map with class rows | `/shows/:showId?phase=show-desk` | `secretary@myk9t.com` | Desktop | Show Map tab; at least one trial expanded with class rows | § 7 Show Desk | `ready` |
-| S-16 | Show Desk — scratch / pull dialog | `/shows/:showId?phase=show-desk` | `secretary@myk9t.com` | Desktop | Scratch dialog open on an entry row | § 7 | `ready` |
+| S-16 | Entry Management — "Remove entry?" confirmation dialog | `/shows/:showId/entry-management` | `secretary@myk9t.com` | Desktop | "Remove entry?" dialog open on a class row | § 7 | `ready` |
 | S-17 | Show Desk — move-up dialog | `/shows/:showId?phase=show-desk` | `secretary@myk9t.com` | Desktop | Move-up dialog open; target class picker visible | § 7 | `blocked: seed` (needs a move-up-requested entry) |
-| S-18 | Show Desk — late entry dialog | `/shows/:showId?phase=show-desk` | `secretary@myk9t.com` | Desktop | Late Entry dialog open in Tools panel | § 7 | `ready` |
-| S-19 | Show Desk — Tools panel side sheet | `/shows/:showId?phase=show-desk` | `secretary@myk9t.com` | Desktop | Tools panel open; Quick Broadcast, Access Codes, Tasks visible | § 7 | `ready` |
+| S-18 | Late Entry registration wizard — Step 1 (Select Dogs) | `/secretary/register/:showId?source=show-desk&entryMode=late` | `secretary@myk9t.com` | Desktop | Late Entry wizard Step 1 open; dog search field and filters visible | § 7 | `ready` |
+| S-19 | Show Desk — Tools panel side sheet | `/shows/:showId/show-desk` | `secretary@myk9t.com` | Desktop | Tools panel open; Late entries, Access codes, Volunteers visible | § 7 | `ready` |
 | S-20 | Results Control — all classes complete | `/shows/:showId/results-control` | `secretary@myk9t.com` | Desktop | Every class shows all entries with a result; no blank rows | § 8 Results Control | `blocked: seed` (needs a fully-scored show) |
 | S-21 | Results Control — release toggle (Off → On) | `/shows/:showId/results-control` | `secretary@myk9t.com` | Desktop | Release Results toggle in Off position, ready to toggle | § 8 | `blocked: seed` (same as S-20) |
 | S-22 | Submit Results — submission summary (preflight) | `/shows/:showId/submit-results` | `secretary@myk9t.com` | Desktop | Submission summary checklist showing entries ready count | § 9 Submit to AKC | `ready` |
@@ -78,7 +78,7 @@ Every screenshot and diagram in final documentation and training materials must 
 | E-04 | My Dogs page — at least one dog card | `/dogs` | `e2e-exhibitor@test.myk9.com` | Desktop | Dog list with at least one entry | § 3 Add a Dog | `ready` |
 | E-05 | Add Dog form | `/dogs` (Add Dog dialog) | `e2e-exhibitor@test.myk9.com` | Desktop | Add Dog form open with required fields visible | § 3 | `ready` |
 | E-06 | Registration wizard — Step 1 (class selection) | `/shows/:showId/register` | `e2e-exhibitor@test.myk9.com` | Desktop | Class selection step; dog chip visible at top; classes grouped by element/level | § 4 Enter a Show | `ready` |
-| E-07 | Registration wizard — Step 2 (review + payment) | `/shows/:showId/register` | `e2e-exhibitor@test.myk9.com` | Desktop | Review step; dog, class, and fee visible; entry agreement | § 4 | `ready` |
+| E-07 | Registration wizard — Step 1 with class selected + cart toast | `/shows/:showId/register` | `e2e-exhibitor@test.myk9.com` | Desktop | Class selection step; class chip checked; "Added to cart" toast visible | § 4 | `ready` |
 | E-08 | Confirmation receipt | `/checkout/success` | `e2e-exhibitor@test.myk9.com` | Desktop | Success screen with entry confirmed | § 4 | `blocked: seed` (needs a Stripe checkout completion) |
 | E-09 | My Entries — Pending tab with entry card | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | At least one entry card in Pending status | § 5 Track Your Entry | `ready` |
 | E-10 | My Entries — Accepted tab with entry card | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | At least one entry card in Accepted status | § 5 | `ready` |

@@ -21,7 +21,7 @@ If you're coming from paper entries or mySWT, the main change is that entries, p
 
 No account needed to browse. Go to myK9Show — the shows list is the first thing you see.
 
-> *[Screenshot E-01: Shows list — upcoming shows with "Accepting Entries" and "Closing Soon" badges]*
+![E-01: Shows list — upcoming shows with "Accepting Entries" and "Closing Soon" badges](../screenshots/E-01.png)
 
 Each show card shows the name, sanctioning organization, dates, entry deadline, and status:
 
@@ -33,7 +33,7 @@ Each show card shows the name, sanctioning organization, dates, entry deadline, 
 
 Click any show to open its detail page — trial schedule, classes offered, entry fee, and deadline.
 
-> *[Screenshot E-02: Show detail page — "Enter This Show" button visible]*
+![E-02: Show detail page — "Enter This Show" button visible](../screenshots/E-02.png)
 
 When you're ready to enter, click **Enter This Show**. If you don't have an account yet, you'll be prompted to create one (Section 2).
 
@@ -49,7 +49,7 @@ If this is your first time, you'll need an account before entering a show.
 4. Check your inbox for a confirmation email → click the link to verify your address.
 5. You're signed in and ready to enter.
 
-> *[Screenshot E-03: Sign-up form]*
+![E-03: Sign-up form](../screenshots/E-03.png)
 
 **Next step:** Add your dog before returning to enter the show — the entry wizard requires at least one dog in your profile (Section 3).
 
@@ -64,7 +64,7 @@ Before entering a show, your dog needs a profile in your account.
 1. Go to **My Dogs** in the navigation.
 2. Click **Add Dog**.
 
-> *[Screenshot E-05: Add Dog form — required fields visible]*
+![E-05: Add Dog form — required fields visible](../screenshots/E-05.png)
 
 3. Fill in:
    - **Call name** (required) — the name used on the scoresheet
@@ -73,7 +73,7 @@ Before entering a show, your dog needs a profile in your account.
 4. Under **Additional**: enter the AKC or UKC registration number, registered name, and breed.
 5. Click **Create Dog**.
 
-> *[Screenshot E-04: My Dogs list — dog card visible]*
+![E-04: My Dogs list — dog card visible](../screenshots/E-04.png)
 
 Your dog now appears in your list and is ready to enter shows.
 
@@ -90,14 +90,14 @@ Your dog now appears in your list and is ready to enter shows.
 
 **Step 1 — Select your class:**
 
-> *[Screenshot E-06: Registration wizard — Step 1 (class selection; dog chip visible at top)]*
+![E-06: Registration wizard — Step 1 (class selection; dog chip visible at top)](../screenshots/E-06.png)
 
 3. Classes are grouped by element (Container, Exterior, Interior, Buried) and level. Select the class or classes you want to enter.
 4. Click **Next**.
 
 **Step 2 — Review and pay:**
 
-> *[Screenshot E-07: Registration wizard — Step 1 with class selected (Container Novice A chip checked, "Added to cart" toast visible)]*
+![E-07: Registration wizard — Step 1 with class selected + cart toast](../screenshots/E-07.png)
 
 5. Review: dog, class, and entry fee.
 6. Read and accept the entry agreement → click **Pay with Card**.
@@ -118,10 +118,10 @@ Your dog now appears in your list and is ready to enter shows.
 
 Go to **My Shows** in the navigation to see all your entries.
 
-> *[Screenshot E-11: My Shows — show card with status badge and entry details]*
+![E-11: My Shows — show card with status badge and entry details](../screenshots/E-11.png)
 
-> *[Screenshot E-09: My Shows — Pending entry card]*
-> *[Screenshot E-10: My Shows — Accepted entry card]*
+![E-09: My Shows — Pending entry card](../screenshots/E-09.png)
+![E-10: My Shows — Accepted entry card](../screenshots/E-10.png)
 
 **Status meanings:**
 
@@ -146,7 +146,7 @@ Once the secretary publishes the run order, a **View run order** button appears 
 2. On your entry card, tap **View run order**.
 3. The Classes tab opens showing your class in run order.
 
-> *[Screenshot E-12: Show detail page — Classes tab with run order and armband numbers]*
+![E-12: Show detail page — Classes tab with run order and armband numbers](../screenshots/E-12.png)
 
 The run order shows dog names, handler names, and armband numbers. **Armband numbers** are assigned by the secretary and may not appear until close to show day.
 
@@ -172,7 +172,7 @@ Tap the banner to jump to your entry for that show.
 
 1. On your entry card, tap **Check In**.
 
-> *[Screenshot E-14: Entry card — "Not Checked In" button visible]*
+![E-14: Entry card — "Not Checked In" status on class row](../screenshots/E-14.png)
 
 2. The dialog confirms your class and armband number → tap **Confirm**.
 

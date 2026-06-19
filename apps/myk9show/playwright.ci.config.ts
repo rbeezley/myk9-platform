@@ -6,6 +6,8 @@ import { config as loadEnv } from 'dotenv';
 loadEnv({ path: '.env.local', override: false });
 loadEnv({ path: '.env', override: false });
 
+const isA11ySmoke = process.env.PLAYWRIGHT_A11Y === 'true';
+
 /**
  * CI E2E Test Configuration for myK9Show
  *
@@ -18,11 +20,12 @@ export default defineConfig({
   testDir: './src/test/e2e',
   // PR Smoke: 2 stable specs — connectivity + secretary regression proof.
   // The Nightly suite (20 specs) runs on a separate schedule, not in CI.
-  testMatch: [
-    '**/simple-connectivity.spec.ts',
-    '**/uat/secretary/qa-regression-proof.spec.ts',
-  ],
-  grep: /load home page without authentication|Secretary QA regression proof/,
+  testMatch: isA11ySmoke
+    ? ['**/a11y-smoke.spec.ts']
+    : ['**/simple-connectivity.spec.ts', '**/uat/secretary/qa-regression-proof.spec.ts'],
+  grep: isA11ySmoke
+    ? /has no serious\/critical violations/
+    : /load home page without authentication|Secretary QA regression proof/,
   fullyParallel: false,
   forbidOnly: true,
   retries: 2,

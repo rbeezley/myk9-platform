@@ -235,7 +235,7 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
             });
             const showNewResult =
               resultModel != null && !seenResultReleaseKeys.has(resultModel.releaseKey);
-            const showResultCardAction = resultModel != null && onResultRevealClick;
+            const showResultCardAction = resultModel != null && onResultRevealClick != null;
 
             return (
               <div key={cls.id} className="myk9-entries-class-item">
@@ -287,7 +287,7 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
                     </div>
                   )}
 
-                  {showResultCardAction && (
+                  {showResultCardAction && resultModel && onResultRevealClick && (
                     <Button
                       type="button"
                       size="sm"

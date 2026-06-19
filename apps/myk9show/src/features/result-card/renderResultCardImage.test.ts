@@ -73,6 +73,7 @@ describe('renderResultCardImage', () => {
     await renderResultCardImage(makeModel());
 
     expect(fillText).toHaveBeenCalledWith('Ditto', expect.any(Number), expect.any(Number));
+    expect(fillText).toHaveBeenCalledWith('Armband 27', expect.any(Number), expect.any(Number));
     expect(fillText).toHaveBeenCalledWith('Q', expect.any(Number), expect.any(Number));
     expect(fillText).toHaveBeenCalledWith('1st', expect.any(Number), expect.any(Number));
     expect(fillText).toHaveBeenCalledWith(
@@ -140,8 +141,8 @@ describe('renderResultCardImage', () => {
       })
     );
 
-    const dogNameCall = fillText.mock.calls.find(([, , y]) => y === 150);
-    const showNameCall = fillText.mock.calls.find(([, , y]) => y === 785);
+    const dogNameCall = fillText.mock.calls.find(([, , y]) => y === 120);
+    const showNameCall = fillText.mock.calls.find(([, , y]) => y === 825);
 
     expect(dogNameCall?.[0]).not.toBe(longDogName);
     expect(dogNameCall?.[0]).toMatch(/\.\.\.$/);

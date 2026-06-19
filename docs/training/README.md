@@ -8,9 +8,9 @@ Outlines, shot lists, and planning material for club training, slide decks, and 
 
 | File | Status | Purpose |
 |---|---|---|
-| [myk9show-overview-deck-outline.md](myk9show-overview-deck-outline.md) | `planned` | Slide-deck outline for club decision-makers + secretaries |
-| [role-based-deck-outlines.md](role-based-deck-outlines.md) | `planned` | Secretary, exhibitor, club/treasurer, judge/steward deck outlines |
-| [screenshot-shot-list.md](screenshot-shot-list.md) | `planned` | Required screenshots + demo captures by workflow |
+| [myk9show-overview-deck-outline.md](myk9show-overview-deck-outline.md) | `drafted` | Slide-deck outline for club decision-makers + secretaries |
+| [role-based-deck-outlines.md](role-based-deck-outlines.md) | `drafted` | Secretary, exhibitor, club/treasurer, judge/steward deck outlines |
+| [screenshot-shot-list.md](screenshot-shot-list.md) | `drafted` | Required screenshots + demo captures by workflow |
 
 ---
 

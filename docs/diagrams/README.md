@@ -42,7 +42,13 @@ Status values match the plan: `qa-draft` (disposable, drawn during development),
 
 | Diagram | Audience | Serves | Source | Status |
 |---|---|---|---|---|
-| _(none yet — add a row per diagram as it is drafted)_ | | | | |
+| Exhibitor entry flow | Exhibitor | Exhibitor Guide § 1–4; KB: enter-a-show; Overview Deck slide 10; Exhibitor Deck slide 3 | `exhibitor-entry-flow.drawio` | `qa-draft` — candidate |
+| Entry lifecycle | Exhibitor, Secretary | Exhibitor Guide § 5; Secretary Guide § 4; KB: entry-status; Exhibitor Deck slide 4 | `entry-lifecycle.drawio` | `qa-draft` — candidate |
+| Secretary setup flow | Secretary | Secretary Guide § 2–3; Overview Deck slide 5; Secretary Deck slide 3 | `secretary-setup-flow.drawio` | `qa-draft` — candidate |
+| Secretary show-day flow | Secretary | Secretary Guide § 7; Overview Deck slide 8; Secretary Deck slides 5–6 | `secretary-show-day-flow.drawio` | `qa-draft` — candidate |
+| Payment flow | Exhibitor, Club | Club Admin Guide § 4–5; KB: payout-timing; Overview Deck slides 14–15; Club Deck slides 5–6 | `payment-flow.drawio` | `blocked: Stripe live-mode pending` |
+| At-show access paths | Judge, Steward | Quickstart § 1; Overview Deck slide 12; Judge/Steward Deck slide 2 | `at-show-access-paths.drawio` | `blocked: unified_ringside_enabled flag` |
+| Support triage flow | Support operator | Show-day triage outline; investigation cookbook | `support-triage-flow.drawio` | `qa-draft` — candidate |
 
 ## Rules (summary — full detail in `diagram-conventions.md`)
 

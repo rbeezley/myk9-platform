@@ -29,7 +29,7 @@ Customer-facing help articles. These are public, task-specific answers organized
 
 | File | Audience | Status | Aliases (searchable phrases) |
 |---|---|---|---|
-| [article-template.md](article-template.md) | — | `template` | — |
+| [article-template.md](article-template.md) | — | `drafted` | — |
 
 Articles are created here as `how-to-enter-a-show.md`, `payment-under-review.md`, etc. Every article uses the template and includes `aliases` frontmatter.
 

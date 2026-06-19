@@ -28,13 +28,13 @@ Two lookup paths must always work: by task ("how do I check in a dog") and by sy
 
 | File | Status | Purpose |
 |---|---|---|
-| [intake-template.md](intake-template.md) | `planned` | Universal "what to ask first" checklist + intake macro |
-| [error-message-inventory.md](error-message-inventory.md) | `planned` | Verbatim error/toast/status strings mapped to answers |
-| [question-bank.md](question-bank.md) | `source-mapped` | Common questions, answer owner, and target artifact |
-| [common-issues-outline.md](common-issues-outline.md) | `planned` | Troubleshooting taxonomy by symptom, role, and workflow |
-| [investigation-cookbook.md](investigation-cookbook.md) | `planned` | Per-symptom admin recipes: Supabase queries, Stripe paths |
-| [macros.md](macros.md) | `planned` | Reusable reply snippets for email, chat, and phone |
-| [show-day-triage-outline.md](show-day-triage-outline.md) | `planned` | Outline for the live show-day support runbook |
+| [intake-template.md](intake-template.md) | `drafted` | Universal "what to ask first" checklist + intake macro |
+| [error-message-inventory.md](error-message-inventory.md) | `drafted` | Verbatim error/toast/status strings mapped to answers |
+| [question-bank.md](question-bank.md) | `drafted` | Common questions, answer owner, and target artifact |
+| [common-issues-outline.md](common-issues-outline.md) | `drafted` | Troubleshooting taxonomy by symptom, role, and workflow |
+| [investigation-cookbook.md](investigation-cookbook.md) | `drafted` | Per-symptom admin recipes: Supabase queries, Stripe paths |
+| [macros.md](macros.md) | `drafted` | Reusable reply snippets for email, chat, and phone |
+| [show-day-triage-outline.md](show-day-triage-outline.md) | `drafted` | Outline for the live show-day support runbook |
 
 ### Graduated to final (create when outline is verified)
 

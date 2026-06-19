@@ -23,10 +23,10 @@ Index of all customer-facing guides and their current status. Every guide listed
 
 | Title | Status | Source file |
 |---|---|---|
-| [Secretary Guide Outline](secretary-guide-outline.md) | `planned` | This file |
-| [Exhibitor Guide Outline](exhibitor-guide-outline.md) | `planned` | This file |
-| [Ringside Quickstart Outline](judge-steward-quickstart-outline.md) | `planned` | This file |
-| [Club Admin Guide Outline](club-admin-guide-outline.md) | `planned` | This file |
+| [Secretary Guide Outline](secretary-guide-outline.md) | `qa-draft` | `docs/journeys/secretary.md`, golden path checklist |
+| [Exhibitor Guide Outline](exhibitor-guide-outline.md) | `qa-draft` | `docs/journeys/exhibitor.md`, golden path checklist |
+| [Ringside Quickstart Outline](judge-steward-quickstart-outline.md) | `qa-draft` | Secretary golden path § Part 6; gated on flag removal |
+| [Club Admin Guide Outline](club-admin-guide-outline.md) | `qa-draft` | `docs/roles/club-admin.md`, stripe-treasurer-guide.md |
 
 ## Supporting Files
 

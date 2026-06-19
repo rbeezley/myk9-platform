@@ -1,9 +1,7 @@
 import { expect, type Page } from '@playwright/test';
+import { TEST_USERS } from '../../helpers/testUsers';
 
-export const SECRETARY_USER = {
-  email: 'secretary@myk9t.com',
-  password: 'TestPass4567!',
-};
+export const SECRETARY_USER = TEST_USERS.SECRETARY;
 
 async function gotoSignIn(page: Page, signInPath: string) {
   const input = page.getByTestId('credential-input');

@@ -257,7 +257,7 @@ test.describe('Route health: public', () => {
 
 test.describe('Route health: exhibitor', () => {
   test('exhibitor routes render clean', async ({ page }) => {
-    const user = TEST_USERS.EXHIBITOR;
+    const user = TEST_USERS.DEMO_EXHIBITOR;
     if (!user.email || !user.password) {
       test.info().annotations.push({
         type: 'note',

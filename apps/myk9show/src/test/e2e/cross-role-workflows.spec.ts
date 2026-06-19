@@ -1,21 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
-import { TEST_USERS, type TestUser } from './helpers/testUsers';
-
-async function signIn(page: Page, user: TestUser, returnTo: string) {
-  const params = new URLSearchParams({ returnTo });
-  await page.goto(`/sign-in?${params.toString()}`, { waitUntil: 'domcontentloaded' });
-
-  await expect(page.getByTestId('credential-input')).toBeVisible({ timeout: 15000 });
-  await page.getByTestId('credential-input').fill(user.email);
-  await page.getByTestId('continue-button').click();
-  await expect(page.getByTestId('password-input')).toBeVisible({ timeout: 15000 });
-  await page.getByTestId('password-input').fill(user.password);
-  await page.getByTestId('sign-in-button').click();
-
-  await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
-  await page.waitForLoadState('domcontentloaded');
-  await expect(page).not.toHaveURL(/\/sign-in/);
-}
+import { expect, test } from '@playwright/test';
+import { TEST_USERS } from './helpers/testUsers';
+import { signIn } from './uat/shared/auth';
 
 test.describe('Cross-role workflow smoke', () => {
   test('public browse route keeps legacy links moving to the current Shows page', async ({
@@ -32,7 +17,12 @@ test.describe('Cross-role workflow smoke', () => {
   });
 
   test('secretary can land on the current command center', async ({ page }) => {
-    await signIn(page, TEST_USERS.SECRETARY, '/secretary/dashboard');
+    await signIn(
+      page,
+      TEST_USERS.SECRETARY.email,
+      TEST_USERS.SECRETARY.password,
+      '/secretary/dashboard'
+    );
 
     await expect(
       page.getByRole('heading', { name: /Good (morning|afternoon|evening)/ })
@@ -45,7 +35,12 @@ test.describe('Cross-role workflow smoke', () => {
   });
 
   test('exhibitor can land on My Shows and continue to show discovery', async ({ page }) => {
-    await signIn(page, TEST_USERS.EXHIBITOR, '/exhibitor/entries');
+    await signIn(
+      page,
+      TEST_USERS.DEMO_EXHIBITOR.email,
+      TEST_USERS.DEMO_EXHIBITOR.password,
+      '/exhibitor/entries'
+    );
 
     await expect(page).toHaveURL(/\/exhibitor\/entries|\/my-entries/);
     await expect(page.getByRole('heading', { name: 'My Shows' })).toBeVisible({ timeout: 15000 });
@@ -57,7 +52,7 @@ test.describe('Cross-role workflow smoke', () => {
   test('judge can land on the assignment dashboard without myK9Show scoring controls', async ({
     page,
   }) => {
-    await signIn(page, TEST_USERS.JUDGE, '/judge/dashboard');
+    await signIn(page, TEST_USERS.JUDGE.email, TEST_USERS.JUDGE.password, '/judge/dashboard');
 
     await expect(page).toHaveURL(/\/judge\/dashboard/);
     await expect(page.getByText('Manage your judging assignments')).toBeVisible({

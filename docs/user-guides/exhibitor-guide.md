@@ -263,7 +263,7 @@ All shots from `docs/training/screenshot-shot-list.md`. Status as of 2026-06-19:
 | E-11 | § 5 | My Shows — show card | ready |
 | E-12 | § 6 | Classes tab with run order | ready |
 | E-13 | § 7 | Show Today banner | blocked: date |
-| E-14 | § 7 | Entry card — check-in button | ready |
+| E-14 | § 7 | Entry card — "Not Checked In" status pill | ready |
 | E-15 | § 7 | Entry card — Checked In state | blocked: seed |
 | E-16 | § 8 | Entry card — Q result badge | blocked: seed |
 | E-17 | § 8 | Class results page | blocked: seed |

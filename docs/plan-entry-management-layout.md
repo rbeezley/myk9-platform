@@ -491,11 +491,13 @@ Completed enrollment payment-scope hardening:
   paid by check remains visible under the paid-by-check filter even when the individual entry rows
   still carry their original entry-level payment status.
 - Updated table/list payment badges to show the same effective status that filtering uses.
+- Updated the Issues attention filter and count to use the same effective payment status, so a paid
+  enrollment is not simultaneously shown as paid and flagged as payment-due.
 
 Verified:
 
-- `cd apps/myk9show && pnpm exec vitest run src/test/hooks/useEntryManagementFilters.test.ts src/components/entries/management/__tests__/EntriesTableView.selection.test.tsx src/components/entries/management/__tests__/EntryListCard.test.tsx src/components/entries/management/__tests__/EnrollmentCard.test.tsx src/hooks/__tests__/useEntryManagementActions.test.ts`
-  passed: 5 files, 50 tests.
+- `cd apps/myk9show && pnpm exec vitest run src/test/hooks/useEntryManagementFilters.test.ts src/hooks/__tests__/useEntryManagementData.test.ts src/components/entries/management/__tests__/EntryListCard.test.tsx src/components/entries/management/__tests__/EntriesTableView.selection.test.tsx src/components/entries/management/__tests__/EnrollmentCard.test.tsx src/hooks/__tests__/useEntryManagementActions.test.ts`
+  passed: 6 files, 64 tests.
 - `cd apps/myk9show && pnpm typecheck` passed.
 
 ## Open Questions

@@ -231,7 +231,12 @@ export function useEntryManagementFilters({
     } else if (attentionFilter === 'waitlist') {
       filtered = filtered.filter(isWaitlistEntry);
     } else if (attentionFilter === 'issues') {
-      filtered = filtered.filter(isIssueEntry);
+      filtered = filtered.filter(e =>
+        isIssueEntry({
+          entryStatus: e.entryStatus,
+          paymentStatus: getEffectivePaymentStatus(e),
+        })
+      );
     } else if (attentionFilter === 'move-ups') {
       filtered = filtered.filter(e => isMoveUpStatus(e.entryStatus));
     } else if (attentionFilter === 'pulled') {

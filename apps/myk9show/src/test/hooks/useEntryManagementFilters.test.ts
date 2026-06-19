@@ -342,6 +342,28 @@ describe('useEntryManagementFilters — trial/class filters', () => {
     ]);
   });
 
+  it('does not flag accepted entries as issues when the enrollment is paid', () => {
+    const entries = [
+      makeEntry({
+        id: 'paid-enrollment-entry',
+        entryStatus: 'accepted',
+        paymentStatus: PaymentStatus.PENDING,
+        enrollmentPaymentStatus: PaymentStatus.PAID_BY_CHECK,
+      }),
+      makeEntry({
+        id: 'unpaid-entry',
+        entryStatus: 'accepted',
+        paymentStatus: PaymentStatus.PENDING,
+      }),
+    ] as EntryManagementEntry[];
+
+    const { result } = renderHook(() => useEntryManagementFilters({ entries, tabCounts: emptyTabCounts }), {
+      wrapper: createWrapper('/?attention=issues'),
+    });
+
+    expect(result.current.filteredEntries.map(entry => entry.id)).toEqual(['unpaid-entry']);
+  });
+
   it('clears trial and class filters when showId changes', () => {
     const { result, rerender } = renderHook(
       ({ showId }) => useEntryManagementFilters({ entries: [], tabCounts: emptyTabCounts, showId }),

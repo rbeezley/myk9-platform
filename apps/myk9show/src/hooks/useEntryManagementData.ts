@@ -13,6 +13,7 @@ import type {
 } from '@/types/entry-management-types';
 import type { SecretaryEntry } from '@/services/database/entries';
 import {
+  getEffectivePaymentStatus,
   mapEntryStatus,
   mapPaymentStatus,
   mapClassEntryStatus,
@@ -336,7 +337,14 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
       if (isPendingEntry(e)) acc.pending++;
       if (isAcceptedEntry(e)) acc.accepted++;
       if (isWaitlistEntry(e)) acc.waitlist++;
-      if (isIssueEntry(e)) acc.issues++;
+      if (
+        isIssueEntry({
+          entryStatus: e.entryStatus,
+          paymentStatus: getEffectivePaymentStatus(e),
+        })
+      ) {
+        acc.issues++;
+      }
       acc.revenue += e.paidAmount;
     }
     return {

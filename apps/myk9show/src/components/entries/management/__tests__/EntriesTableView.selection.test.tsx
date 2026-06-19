@@ -169,4 +169,21 @@ describe('EntriesTableView selection column', () => {
       csvCapture.restore();
     }
   });
+
+  it('renders the enrollment payment status when it differs from entry payment status', () => {
+    render(
+      <EntriesTableView
+        entries={[
+          {
+            ...entry('paid-by-check', 'Willow'),
+            paymentStatus: PaymentStatus.PENDING,
+            enrollmentPaymentStatus: PaymentStatus.PAID_BY_CHECK,
+          },
+        ]}
+      />
+    );
+
+    expect(screen.getByText('Paid')).toBeInTheDocument();
+    expect(screen.queryByText('Payment Due')).not.toBeInTheDocument();
+  });
 });

@@ -8,19 +8,37 @@ import {
   SHOW_MANAGEMENT_SECTIONS,
   type ShowManagementSectionPath,
 } from '@/routes/showManagementSections';
+import { ScopeType, UserRole } from '@/types/auth-types';
 
-const mockCanManage = vi.hoisted(() => ({ value: false }));
+// ── Hoisted control objects ────────────────────────────────────────────────
+const mockAuth = vi.hoisted(() => ({
+  user: { id: 'user-1' } as object | null,
+  loading: false,
+  rbacLoading: false,
+  hasRole: (_role: string) => false as boolean,
+  userWithRoles: null as object | null,
+}));
+
+const mockShows = vi.hoisted(() => ({
+  data: [] as { id: string; clubId: string }[],
+  isLoading: false,
+}));
+
+// ── Module mocks ───────────────────────────────────────────────────────────
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => mockAuth,
+}));
+
+vi.mock('@/hooks/queries/useShowsDatabase', () => ({
+  useShowsQuery: () => mockShows,
+}));
 
 vi.mock('@/context/AuthContext', () => ({
-  ProtectedRoute: ({
-    children,
-    fallback,
-    requiredRole,
-  }: {
-    children: ReactNode;
-    fallback?: ReactNode;
-    requiredRole?: unknown;
-  }) => <>{requiredRole && !mockCanManage.value ? fallback : children}</>,
+  ProtectedRoute: ({ children, fallback }: { children: ReactNode; fallback?: ReactNode }) =>
+    // ProtectedRoute is no longer used in ShowManagementSectionRoute, but is
+    // still used in other routes (exhibitor gate). Treat as always-pass here
+    // since the gate under test is ShowManagementSectionRoute's own logic.
+    <>{children ?? fallback}</>,
 }));
 
 vi.mock('@/components/common/PageTransition', () => ({
@@ -64,6 +82,8 @@ vi.mock('@/pages/secretary/ResultsControlPage', () => ({
 vi.mock('@/pages/secretary/ResultsSubmissionPage', () => ({
   default: () => <div data-testid="production-submit-results">Submit Results</div>,
 }));
+
+// ── Helpers ────────────────────────────────────────────────────────────────
 
 const PRODUCTION_SECTION_TEST_IDS: Record<ShowManagementSectionPath, string> = {
   setup: 'production-setup',
@@ -151,6 +171,8 @@ function CanonicalAccessProbe({ canManage }: { canManage: boolean }) {
   );
 }
 
+// ── Tests ──────────────────────────────────────────────────────────────────
+
 describe('canonical show route redirects', () => {
   it('redirects the legacy secretary show base route to canonical setup', async () => {
     renderRedirect('/secretary/shows/show-1');
@@ -197,8 +219,11 @@ describe('canonical show management routes', () => {
       `/shows/show-1/${path}`,
       PRODUCTION_SECTION_TEST_IDS[path],
     ] as const)
-  )('renders %s through the production PublicRoutes tree', async (path, sectionTestId) => {
-    mockCanManage.value = true;
+  )('secretary renders %s through the production PublicRoutes tree', async (path, sectionTestId) => {
+    mockAuth.hasRole = (role: string) => role === UserRole.SECRETARY;
+    mockAuth.userWithRoles = null;
+    mockShows.data = [];
+    mockShows.isLoading = false;
 
     render(
       <MemoryRouter initialEntries={[path]}>
@@ -208,6 +233,24 @@ describe('canonical show management routes', () => {
 
     expect(await screen.findByTestId('production-show-details')).toBeInTheDocument();
     expect(screen.getByTestId(sectionTestId)).toBeInTheDocument();
+  });
+
+  it('redirects an unauthenticated user from management URLs back to show overview', async () => {
+    mockAuth.user = null;
+    mockAuth.hasRole = () => false;
+
+    render(
+      <MemoryRouter initialEntries={['/shows/show-1/show-desk']}>
+        <Routes>{PublicRoutes()}</Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByTestId('production-show-details-location')).toHaveTextContent(
+      '/shows/show-1'
+    );
+    expect(screen.queryByTestId('production-show-desk')).not.toBeInTheDocument();
+
+    mockAuth.user = { id: 'user-1' };
   });
 
   it('redirects a non-manager direct management URL back to the canonical overview', async () => {
@@ -226,14 +269,15 @@ describe('canonical show management routes', () => {
     expect(await screen.findByTestId('location')).toHaveTextContent('/shows/show-1');
   });
 
-  it('redirects non-manager direct management URLs through the production PublicRoutes tree', async () => {
-    mockCanManage.value = false;
+  it('redirects a user with no management role through the production PublicRoutes tree', async () => {
+    mockAuth.hasRole = () => false;
+    mockAuth.userWithRoles = null;
+    mockShows.data = [{ id: 'show-1', clubId: 'club-a' }];
+    mockShows.isLoading = false;
 
     render(
       <MemoryRouter initialEntries={['/shows/show-1/show-desk']}>
-        <Routes>
-          {PublicRoutes()}
-        </Routes>
+        <Routes>{PublicRoutes()}</Routes>
       </MemoryRouter>
     );
 
@@ -241,5 +285,44 @@ describe('canonical show management routes', () => {
       '/shows/show-1'
     );
     expect(screen.queryByTestId('production-show-desk')).not.toBeInTheDocument();
+  });
+
+  it("allows a club admin scoped to the show's club", async () => {
+    mockAuth.hasRole = (role: string) => role === UserRole.CLUB_ADMIN;
+    mockAuth.userWithRoles = {
+      scopes: [{ scopeType: ScopeType.CLUB, scopeId: 'club-a', roleId: UserRole.CLUB_ADMIN }],
+    };
+    mockShows.data = [{ id: 'show-1', clubId: 'club-a' }];
+    mockShows.isLoading = false;
+
+    render(
+      <MemoryRouter initialEntries={['/shows/show-1/setup']}>
+        <Routes>{PublicRoutes()}</Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByTestId('production-show-details')).toBeInTheDocument();
+    expect(screen.getByTestId('production-setup')).toBeInTheDocument();
+  });
+
+  it('redirects a club admin scoped to a different club', async () => {
+    mockAuth.hasRole = (role: string) => role === UserRole.CLUB_ADMIN;
+    mockAuth.userWithRoles = {
+      // Club admin for club-b, not club-a which owns this show
+      scopes: [{ scopeType: ScopeType.CLUB, scopeId: 'club-b', roleId: UserRole.CLUB_ADMIN }],
+    };
+    mockShows.data = [{ id: 'show-1', clubId: 'club-a' }];
+    mockShows.isLoading = false;
+
+    render(
+      <MemoryRouter initialEntries={['/shows/show-1/setup']}>
+        <Routes>{PublicRoutes()}</Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByTestId('production-show-details-location')).toHaveTextContent(
+      '/shows/show-1'
+    );
+    expect(screen.queryByTestId('production-setup')).not.toBeInTheDocument();
   });
 });

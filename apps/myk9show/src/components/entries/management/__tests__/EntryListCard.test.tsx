@@ -106,6 +106,23 @@ describe('EntryListCard - check-in button affordance', () => {
     expect(screen.queryByText('Waitlisted')).toBeNull();
   });
 
+  it('renders the enrollment payment status when it differs from entry payment status', () => {
+    render(
+      <EntryListCard
+        {...defaultProps}
+        entries={[
+          makeEntry({
+            paymentStatus: PaymentStatus.PENDING,
+            enrollmentPaymentStatus: PaymentStatus.PAID_BY_CHECK,
+          }),
+        ]}
+      />
+    );
+
+    expect(screen.getByText('Paid')).toBeInTheDocument();
+    expect(screen.queryByText('Payment Due')).not.toBeInTheDocument();
+  });
+
   it('confirms before removing an entry from a class', async () => {
     const user = userEvent.setup();
     const onRemoveEntry = vi.fn();

@@ -23,7 +23,11 @@ import { CheckInStatusIndicator } from '@/components/common/CheckInStatusIndicat
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Users, Hash, MessageSquare, Gift, ChevronDown, Trash2 } from 'lucide-react';
 import { EntryStatus } from '@/types/show-registration-types';
-import { getEntryStatusBadge, getPaymentStatusBadge } from '@/utils/entryManagementUtils';
+import {
+  getEffectivePaymentStatus,
+  getEntryStatusBadge,
+  getPaymentStatusBadge,
+} from '@/utils/entryManagementUtils';
 import type { EntryManagementEntry, EntryClass } from '@/types/entry-management-types';
 import { EmailStatusIcon } from '@/components/entries/EmailStatusIcon';
 import type { EmailLogEntry } from '@/hooks/useEmailStatus';
@@ -191,7 +195,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
               )
             )}
 
-            {!hidePaymentBadge && getPaymentStatusBadge(entry.paymentStatus)}
+            {!hidePaymentBadge && getPaymentStatusBadge(getEffectivePaymentStatus(entry))}
 
             {emailStatusMap && (
               <EmailStatusIcon

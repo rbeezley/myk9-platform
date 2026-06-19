@@ -6,7 +6,8 @@
  * These are NOT React hooks — they are pure, synchronous selectors.
  */
 
-import { getRegistry, type Registry } from './index';
+import { getRegistry } from './lookup';
+import type { Registry } from './types';
 
 /** All experience styles a show can be assigned. Mirrors PremiumStyle. */
 export type ShowStyle =

@@ -51,18 +51,23 @@ SELECT
   CASE WHEN vis.time_visible          THEN e.total_score          END AS total_score,
   CASE WHEN vis.faults_visible        THEN e.total_faults         END AS total_faults,
   CASE
-    WHEN vis.qualification_visible AND e.is_scored AND e.result_status = 'qualified'  THEN 'Q'
-    WHEN vis.qualification_visible AND e.is_scored AND e.result_status = 'nq'         THEN 'NQ'
-    WHEN vis.qualification_visible AND e.is_scored AND e.result_status = 'absent'     THEN 'ABS'
-    WHEN vis.qualification_visible AND e.is_scored AND e.result_status = 'excused'    THEN 'EX'
-    WHEN vis.qualification_visible AND e.is_scored AND e.result_status = 'withdrawn'  THEN 'WD'
+    WHEN vis.qualification_visible AND e.is_scored = true AND e.result_status = 'qualified'  THEN 'Q'
+    WHEN vis.qualification_visible AND e.is_scored = true AND e.result_status = 'nq'         THEN 'NQ'
+    WHEN vis.qualification_visible AND e.is_scored = true AND e.result_status = 'absent'     THEN 'ABS'
+    WHEN vis.qualification_visible AND e.is_scored = true AND e.result_status = 'excused'    THEN 'EX'
+    WHEN vis.qualification_visible AND e.is_scored = true AND e.result_status = 'withdrawn'  THEN 'WD'
     ELSE NULL
   END AS result_text
 FROM public.entries e
+JOIN public.shows sh ON sh.id = e.show_id
 CROSS JOIN LATERAL public.resolve_class_result_visibility(e.class_id) AS vis
-WHERE e.deleted_at IS NULL;
+WHERE e.deleted_at IS NULL
+  AND sh.deleted_at IS NULL
+  AND sh.status IN ('published', 'upcoming', 'in_progress', 'completed');
 
--- Only authenticated users (own-entry filter enforced by entries_select RLS)
+-- Authenticated users: own-entry row filter enforced by entries_select RLS.
+-- service_role: granted for Edge Functions and admin RPCs that may need cascade-aware reads.
 GRANT SELECT ON public.view_own_entry_results TO authenticated;
+GRANT SELECT ON public.view_own_entry_results TO service_role;
 
 NOTIFY pgrst, 'reload schema';

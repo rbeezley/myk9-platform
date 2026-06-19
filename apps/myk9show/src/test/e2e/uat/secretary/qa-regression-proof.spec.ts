@@ -117,7 +117,11 @@ test.describe('Secretary QA regression proof', () => {
       await expect(page.getByRole('option', { name: label, exact: true })).toBeVisible();
     }
     await expect(page.getByRole('option', { name: /scent_work/i })).toHaveCount(0);
-    await page.getByRole('option', { name: 'Scent Work', exact: true }).click();
+    const scentWorkOption = page
+      .getByRole('option', { name: 'Scent Work', exact: true })
+      .filter({ visible: true });
+    await expect(scentWorkOption).toHaveCount(1);
+    await scentWorkOption.click();
 
     const trialDateTime = page.getByLabel(/Trial Date & Time/i);
     await expect(trialDateTime).toBeVisible();

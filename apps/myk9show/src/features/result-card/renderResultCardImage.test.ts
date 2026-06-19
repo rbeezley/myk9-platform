@@ -109,6 +109,37 @@ describe('renderResultCardImage', () => {
     expect(fillText).not.toHaveBeenCalledWith('1st', expect.any(Number), expect.any(Number));
   });
 
+  it('keeps the class name at least 70px below placement when both are present', async () => {
+    const fillText = vi.fn();
+    const canvas = {
+      getContext: vi.fn(() => ({
+        fillRect: vi.fn(),
+        fillText,
+        drawImage: vi.fn(),
+        beginPath: vi.fn(),
+        arc: vi.fn(),
+        clip: vi.fn(),
+        save: vi.fn(),
+        restore: vi.fn(),
+        measureText: vi.fn((text: string) => ({ width: text.length * 12 })),
+        set fillStyle(_value: string) {},
+        set font(_value: string) {},
+        set textAlign(_value: CanvasTextAlign) {},
+      })),
+      toBlob: vi.fn((cb: BlobCallback) => cb(new Blob(['png'], { type: 'image/png' }))),
+    } as unknown as HTMLCanvasElement;
+    vi.spyOn(document, 'createElement').mockReturnValue(canvas);
+
+    await renderResultCardImage(makeModel());
+
+    const placementCall = fillText.mock.calls.find(([text]) => text === '1st');
+    const classCall = fillText.mock.calls.find(([text]) => text === 'Container Novice A');
+
+    expect(placementCall).toBeDefined();
+    expect(classCall).toBeDefined();
+    expect((classCall?.[2] as number) - (placementCall?.[2] as number)).toBeGreaterThanOrEqual(70);
+  });
+
   it('draws the dog photo area with placeholder fallback when photo loading fails', async () => {
     const drawImage = vi.fn();
     let imageLoads = 0;

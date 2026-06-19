@@ -2,6 +2,14 @@ import type { ResultCardModel } from './resultCardModel';
 
 const WIDTH = 1080;
 const HEIGHT = 1350;
+const RESULT_Y = 530;
+const PLACEMENT_Y = 625;
+const CLASS_Y_WITH_PLACEMENT = PLACEMENT_Y + 90;
+const CLASS_Y_WITHOUT_PLACEMENT = 640;
+const SHOW_Y_WITH_PLACEMENT = CLASS_Y_WITH_PLACEMENT + 70;
+const SHOW_Y_WITHOUT_PLACEMENT = CLASS_Y_WITHOUT_PLACEMENT + 65;
+const DETAILS_Y_WITH_PLACEMENT = SHOW_Y_WITH_PLACEMENT + 95;
+const DETAILS_Y_WITHOUT_PLACEMENT = SHOW_Y_WITHOUT_PLACEMENT + 95;
 
 export async function renderResultCardImage(model: ResultCardModel): Promise<Blob> {
   const canvas = document.createElement('canvas');
@@ -31,26 +39,32 @@ export async function renderResultCardImage(model: ResultCardModel): Promise<Blo
 
   ctx.fillStyle = '#1d4ed8';
   ctx.font = '800 144px system-ui, sans-serif';
-  ctx.fillText(model.resultLabel, WIDTH / 2, 530);
+  ctx.fillText(model.resultLabel, WIDTH / 2, RESULT_Y);
 
-  if (model.placementLabel) {
+  const placementLabel = model.placementLabel;
+  const hasPlacement = Boolean(placementLabel);
+  const classY = hasPlacement ? CLASS_Y_WITH_PLACEMENT : CLASS_Y_WITHOUT_PLACEMENT;
+  const showY = hasPlacement ? SHOW_Y_WITH_PLACEMENT : SHOW_Y_WITHOUT_PLACEMENT;
+  const detailsStartY = hasPlacement ? DETAILS_Y_WITH_PLACEMENT : DETAILS_Y_WITHOUT_PLACEMENT;
+
+  if (placementLabel) {
     ctx.fillStyle = '#1f2933';
     ctx.font = '700 64px system-ui, sans-serif';
-    ctx.fillText(model.placementLabel, WIDTH / 2, 625);
+    ctx.fillText(placementLabel, WIDTH / 2, PLACEMENT_Y);
   }
 
   ctx.fillStyle = '#334155';
   ctx.font = '600 48px system-ui, sans-serif';
-  ctx.fillText(model.className, WIDTH / 2, 610);
+  ctx.fillText(model.className, WIDTH / 2, classY);
   ctx.font = '500 42px system-ui, sans-serif';
-  ctx.fillText(model.showName, WIDTH / 2, 685);
+  ctx.fillText(model.showName, WIDTH / 2, showY);
 
   const details = [model.timeLabel, model.faultsLabel, model.armband ? `Armband ${model.armband}` : undefined]
     .filter((value): value is string => Boolean(value));
 
   ctx.font = '500 38px system-ui, sans-serif';
   details.forEach((detail, index) => {
-    ctx.fillText(detail, WIDTH / 2, 780 + index * 58);
+    ctx.fillText(detail, WIDTH / 2, detailsStartY + index * 58);
   });
 
   ctx.fillStyle = '#6b6358';

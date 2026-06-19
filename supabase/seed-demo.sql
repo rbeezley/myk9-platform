@@ -480,7 +480,7 @@ VALUES
    'withdrawn', 'refunded', 30.00, NULL, NULL, false,
    'Exhibitor withdrew before the show; full refund issued.',
    30.00, 'Demo refund for the withdrawn-entry walk fixture.',
-   '2026-07-20 00:00:00+00', 1),
+   '2026-06-01 00:00:00+00', 1),
   ('dededede-0000-0000-0000-000000000060',
    'dededede-0000-0000-0000-000000000042', 'dec1a55e-0000-0000-0000-000000000033',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
@@ -488,7 +488,7 @@ VALUES
    'withdrawn', 'refunded', 30.00, NULL, NULL, false,
    'Exhibitor withdrew before the show; full refund issued.',
    30.00, 'Demo refund for the withdrawn-entry walk fixture (exhibitor-owned).',
-   '2026-07-20 00:00:00+00', 1);
+   '2026-06-01 00:00:00+00', 1);
 RESET ROLE;
 
 -- ---------------------------------------------------------------------------

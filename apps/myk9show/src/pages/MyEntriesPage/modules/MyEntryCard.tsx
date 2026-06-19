@@ -21,6 +21,7 @@ import {
   User,
   CreditCard,
   MessageSquare,
+  ListOrdered,
 } from 'lucide-react';
 import { formatDistanceToNow, format, isToday, isTomorrow, differenceInDays } from 'date-fns';
 import { ResultBadge } from '@/components/common/ResultBadge';
@@ -92,6 +93,24 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
   const canEdit = hasEditableStatus && !isPastEntryDeadline;
   const canRequestPostDeadlineHelp = hasEditableStatus && isPastEntryDeadline;
 
+  // Terminal statuses have no active workflow — "Registration #Pending" reads as
+  // a contradictory status label next to Withdrawn/Refunded badges (P1-04w-1).
+  const isTerminalStatus =
+    entry.entryStatus === EntryStatus.CANCELLED ||
+    entry.entryStatus === EntryStatus.SCRATCHED ||
+    entry.entryStatus === EntryStatus.REJECTED ||
+    entry.entryStatus === EntryStatus.MOVED ||
+    entry.entryStatus === EntryStatus.COMPLETED;
+
+  // Run order link: show once the secretary has assigned run orders (at least one
+  // class has a run_order number) and the exhibitor has a confirmed spot.
+  const hasRunOrder = entry.classes.some(cls => cls.runOrder != null);
+  const canViewRunOrder =
+    !isPastShow &&
+    hasRunOrder &&
+    (entry.entryStatus === EntryStatus.ACCEPTED ||
+      entry.entryStatus === EntryStatus.MOVE_UP_REQUESTED);
+
   const canShowReceipt = entry.confirmationNumber && isPaid;
   // Payment eligibility is intentionally split from edit eligibility: a
   // move-up request is a confirmed entry that can still owe its fee even though
@@ -135,7 +154,7 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
             )}
             <span>{entry.dogName}</span>
             <span aria-hidden="true">•</span>
-            <span>Registration #{entry.registrationNumber || 'Pending'}</span>
+            <span>Registration #{entry.registrationNumber || (isTerminalStatus ? '—' : 'Pending')}</span>
           </div>
         </div>
         <div className="myk9-entries-badges">
@@ -312,6 +331,19 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
             >
               <Edit className="h-5 w-5 mr-1.5" />
               Edit Entry
+            </Button>
+          )}
+
+          {canViewRunOrder && (
+            <Button
+              variant="outline"
+              asChild
+              className="min-h-[44px] hover:bg-muted/50 transition-all duration-200"
+            >
+              <Link to={`/shows/${entry.showId}?tab=classes`}>
+                <ListOrdered className="h-5 w-5 mr-1.5" />
+                View run order
+              </Link>
             </Button>
           )}
 

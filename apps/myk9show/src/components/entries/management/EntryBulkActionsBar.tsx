@@ -4,17 +4,13 @@
  * Operates on the selected entries, applying each action only to the subset it can
  * validly affect (see {@link getEligibleForBulkAction}). Routes to the existing bulk
  * mutation handlers — no new mutation machinery. Mirrors the ResultsControlPage
- * BulkOperationsBar pattern.
+ * BulkOperationsBar pattern while using the canonical overflow action menu.
  */
 
-import { CheckCircle2, XCircle, UserCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { EntryStatus } from '@/types/show-registration-types';
+import type { EntryStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
-import {
-  getEligibleForBulkAction,
-  type BulkEntryAction,
-} from './bulkActionEligibility';
+import { EntryBulkActionMenu } from './EntryBulkActionMenu';
 
 interface EntryBulkActionsBarProps {
   selectedEntries: EntryManagementEntry[];
@@ -31,27 +27,7 @@ export function EntryBulkActionsBar({
 }: EntryBulkActionsBarProps) {
   if (selectedEntries.length === 0) return null;
 
-  const eligibleFor = (action: BulkEntryAction) =>
-    getEligibleForBulkAction(selectedEntries, action);
-
-  const runStatus = (action: BulkEntryAction, status: EntryStatus) => {
-    const ids = eligibleFor(action).map(e => e.id);
-    if (ids.length === 0) return;
-    onBulkStatusChange(ids, status);
-    onClear();
-  };
-
-  const runCheckIn = () => {
-    const ids = eligibleFor('check-in').map(e => e.id);
-    if (ids.length === 0) return;
-    onBulkCheckIn(ids);
-    onClear();
-  };
-
   const count = selectedEntries.length;
-  const approveCount = eligibleFor('approve').length;
-  const rejectCount = eligibleFor('reject').length;
-  const checkInCount = eligibleFor('check-in').length;
 
   return (
     <div
@@ -68,36 +44,12 @@ export function EntryBulkActionsBar({
             Clear
           </Button>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={approveCount === 0}
-            onClick={() => runStatus('approve', EntryStatus.ACCEPTED)}
-          >
-            <CheckCircle2 className="mr-2 h-4 w-4" />
-            Approve{approveCount > 0 ? ` (${approveCount})` : ''}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={checkInCount === 0}
-            onClick={runCheckIn}
-          >
-            <UserCheck className="mr-2 h-4 w-4" />
-            Check In{checkInCount > 0 ? ` (${checkInCount})` : ''}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-destructive focus:text-destructive"
-            disabled={rejectCount === 0}
-            onClick={() => runStatus('reject', EntryStatus.REJECTED)}
-          >
-            <XCircle className="mr-2 h-4 w-4" />
-            Reject{rejectCount > 0 ? ` (${rejectCount})` : ''}
-          </Button>
-        </div>
+        <EntryBulkActionMenu
+          selectedEntries={selectedEntries}
+          onBulkStatusChange={onBulkStatusChange}
+          onBulkCheckIn={onBulkCheckIn}
+          onClear={onClear}
+        />
       </div>
     </div>
   );

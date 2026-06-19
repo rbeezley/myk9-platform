@@ -8,6 +8,8 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { EmailStatusIcon } from '@/components/entries/EmailStatusIcon';
 import type { EmailLogEntry } from '@/hooks/useEmailStatus';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
+import { EntryStatus } from '@/types/show-registration-types';
+import { EntryRowActionMenu, type EntryRowActionMenuProps } from './EntryRowActionMenu';
 
 /** Minimal selection surface (a subset of useBulkSelection) for the select column. */
 export interface EntriesTableSelection {
@@ -24,6 +26,12 @@ interface EntriesTableViewProps {
   emailStatusMap?: Record<string, EmailLogEntry> | undefined;
   onResendEmail?: ((registrationId: string) => void) | undefined;
   isResendDisabled?: ((registrationId: string) => boolean) | undefined;
+  onStatusChange?: ((entryId: string, status: EntryStatus) => void) | undefined;
+  onCheckInEntry?: ((entryId: string) => void) | undefined;
+  onOpenArmbandDialog?: ((entry: EntryManagementEntry) => void) | undefined;
+  onOpenCompDialog?: ((entry: EntryManagementEntry) => void) | undefined;
+  onUncompEntry?: ((entryId: string) => void) | undefined;
+  onRemoveEntry?: ((entryId: string) => void) | undefined;
   /** When provided, renders a leading checkbox select column wired to this selection. */
   selection?: EntriesTableSelection | undefined;
 }
@@ -42,11 +50,7 @@ function buildSelectColumn(
       />
     ),
     cell: ({ row }) => (
-      <span
-        className="flex items-center"
-        onClick={e => e.stopPropagation()}
-        role="presentation"
-      >
+      <span className="flex items-center" onClick={e => e.stopPropagation()} role="presentation">
         <Checkbox
           checked={selection.isSelected(row.original)}
           onCheckedChange={() => selection.toggleItem(row.original)}
@@ -62,12 +66,19 @@ function buildSelectColumn(
 function buildColumns(
   emailStatusMap?: Record<string, EmailLogEntry>,
   onResendEmail?: (registrationId: string) => void,
-  isResendDisabled?: (registrationId: string) => boolean
+  isResendDisabled?: (registrationId: string) => boolean,
+  actionHandlers?: Omit<EntryRowActionMenuProps, 'entry'> | undefined
 ): ColumnDef<EntryManagementEntry, unknown>[] {
-  return [
+  const columns: ColumnDef<EntryManagementEntry, unknown>[] = [
+    {
+      accessorKey: 'armbandNumber',
+      header: 'Armband',
+      accessorFn: entry => (entry.armbandNumber ?? '').toLowerCase(),
+      cell: ({ row }) => <ArmbandBadge armband={row.original.armbandNumber} />,
+    },
     {
       accessorKey: 'dogName',
-      header: 'Dog Name',
+      header: 'Dog',
       accessorFn: entry => (entry.dogName ?? '').toLowerCase(),
       cell: ({ row }) => (
         <div className="min-w-0">
@@ -113,12 +124,6 @@ function buildColumns(
       ),
     },
     {
-      accessorKey: 'armbandNumber',
-      header: 'Armband #',
-      accessorFn: entry => (entry.armbandNumber ?? '').toLowerCase(),
-      cell: ({ row }) => <ArmbandBadge armband={row.original.armbandNumber} />,
-    },
-    {
       accessorKey: 'entryStatus',
       header: 'Status',
       accessorFn: entry => (entry.entryStatus ?? '').toLowerCase(),
@@ -156,6 +161,22 @@ function buildColumns(
       ),
     },
   ];
+
+  if (actionHandlers) {
+    columns.push({
+      id: '_actions',
+      header: '',
+      cell: ({ row }) => (
+        <span onClick={e => e.stopPropagation()} role="presentation">
+          <EntryRowActionMenu entry={row.original} {...actionHandlers} />
+        </span>
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    });
+  }
+
+  return columns;
 }
 
 export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
@@ -164,12 +185,54 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
   emailStatusMap,
   onResendEmail,
   isResendDisabled,
+  onStatusChange,
+  onCheckInEntry,
+  onOpenArmbandDialog,
+  onOpenCompDialog,
+  onUncompEntry,
+  onRemoveEntry,
   selection,
 }) => {
   const columns = useMemo(() => {
-    const dataColumns = buildColumns(emailStatusMap, onResendEmail, isResendDisabled);
+    const hasAnyAction =
+      onStatusChange ||
+      onCheckInEntry ||
+      onOpenArmbandDialog ||
+      onOpenCompDialog ||
+      onUncompEntry ||
+      onRemoveEntry ||
+      onResendEmail;
+    const actionHandlers = hasAnyAction
+      ? {
+          ...(onStatusChange ? { onStatusChange } : {}),
+          ...(onCheckInEntry ? { onCheckInEntry } : {}),
+          ...(onOpenArmbandDialog ? { onOpenArmbandDialog } : {}),
+          ...(onOpenCompDialog ? { onOpenCompDialog } : {}),
+          ...(onUncompEntry ? { onUncompEntry } : {}),
+          ...(onRemoveEntry ? { onRemoveEntry } : {}),
+          ...(onResendEmail ? { onResendEmail } : {}),
+          ...(isResendDisabled ? { isResendDisabled } : {}),
+        }
+      : undefined;
+    const dataColumns = buildColumns(
+      emailStatusMap,
+      onResendEmail,
+      isResendDisabled,
+      actionHandlers
+    );
     return selection ? [buildSelectColumn(selection), ...dataColumns] : dataColumns;
-  }, [emailStatusMap, onResendEmail, isResendDisabled, selection]);
+  }, [
+    emailStatusMap,
+    onResendEmail,
+    isResendDisabled,
+    onStatusChange,
+    onCheckInEntry,
+    onOpenArmbandDialog,
+    onOpenCompDialog,
+    onUncompEntry,
+    onRemoveEntry,
+    selection,
+  ]);
 
   return (
     <DataTable<EntryManagementEntry>
@@ -177,6 +240,7 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
       data={entries}
       columns={columns}
       getRowId={entry => entry.id}
+      showSearch={false}
       {...(onEntryClick !== undefined ? { onRowClick: onEntryClick } : {})}
     />
   );

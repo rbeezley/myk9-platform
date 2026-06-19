@@ -41,6 +41,17 @@ function makeSelection(overrides: Partial<EntriesTableSelection> = {}): EntriesT
 
 const entries = [entry('e1', 'Willow'), entry('e2', 'Ranger')];
 
+function makeActionProps() {
+  return {
+    onStatusChange: vi.fn(),
+    onCheckInEntry: vi.fn(),
+    onOpenArmbandDialog: vi.fn(),
+    onOpenCompDialog: vi.fn(),
+    onUncompEntry: vi.fn(),
+    onRemoveEntry: vi.fn(),
+  };
+}
+
 describe('EntriesTableView selection column', () => {
   it('renders no select column when selection is not provided', () => {
     render(<EntriesTableView entries={entries} />);
@@ -86,5 +97,30 @@ describe('EntriesTableView selection column', () => {
     await user.click(screen.getByRole('checkbox', { name: /select willow/i }));
     expect(toggleItem).toHaveBeenCalledTimes(1);
     expect(onEntryClick).not.toHaveBeenCalled();
+  });
+
+  it('renders armband as the first data column after selection', () => {
+    render(
+      <EntriesTableView entries={entries} selection={makeSelection()} {...makeActionProps()} />
+    );
+
+    const headers = screen.getAllByRole('columnheader').map(header => header.textContent?.trim());
+    expect(headers[1]).toBe('Armband');
+  });
+
+  it('renders one row action menu per entry', () => {
+    render(
+      <EntriesTableView entries={entries} selection={makeSelection()} {...makeActionProps()} />
+    );
+
+    expect(screen.getAllByRole('button', { name: /actions for/i })).toHaveLength(entries.length);
+  });
+
+  it('renders row actions when only one action handler is provided', () => {
+    render(
+      <EntriesTableView entries={entries} selection={makeSelection()} onRemoveEntry={vi.fn()} />
+    );
+
+    expect(screen.getAllByRole('button', { name: /actions for/i })).toHaveLength(entries.length);
   });
 });

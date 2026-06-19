@@ -89,8 +89,10 @@ const EntryManagementPage: React.FC = () => {
     setSearchTerm,
     paymentFilter,
     setPaymentFilter,
-    selectedTab,
-    setSelectedTab,
+    attentionFilter,
+    setAttentionFilter,
+    entryViewMode,
+    setEntryViewMode,
     trialFilter,
     classFilter,
     viewMode,
@@ -354,7 +356,7 @@ const EntryManagementPage: React.FC = () => {
                 onClearClass={() => setClassFilter(null)}
               />
 
-              {/* Registration view: stats, filters, bulk actions, entries tabs */}
+              {/* Registration view: stats, filters, bulk actions, and entries */}
               {viewMode === 'registration' && (
                 <RegistrationView
                   stats={stats}
@@ -362,9 +364,10 @@ const EntryManagementPage: React.FC = () => {
                   setSearchTerm={setSearchTerm}
                   paymentFilter={paymentFilter}
                   setPaymentFilter={setPaymentFilter}
-                  selectedTab={selectedTab}
-                  setSelectedTab={setSelectedTab}
-                  tabCounts={tabCounts}
+                  attentionFilter={attentionFilter}
+                  setAttentionFilter={setAttentionFilter}
+                  entryViewMode={entryViewMode}
+                  setEntryViewMode={setEntryViewMode}
                   filteredEntries={filteredEntries}
                   entries={entries}
                   onBulkStatusChange={handleEnrollmentBulkStatusChange}

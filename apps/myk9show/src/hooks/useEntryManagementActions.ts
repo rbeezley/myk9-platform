@@ -68,8 +68,11 @@ interface UseEntryManagementActionsReturn {
     cls: EntryClass,
     status: CheckInStatus
   ) => Promise<void>;
-  handleEnrollmentBulkStatusChange: (entryIds: string[], status: EntryStatus) => Promise<void>;
-  handleEnrollmentBulkCheckIn: (entryIds: string[]) => Promise<void>;
+  handleEnrollmentBulkStatusChange: (
+    entryIds: string[],
+    status: EntryStatus
+  ) => Promise<boolean>;
+  handleEnrollmentBulkCheckIn: (entryIds: string[]) => Promise<boolean>;
   handleEnrollmentPaymentChange: (
     enrollmentId: string,
     status: PaymentStatus,
@@ -221,7 +224,7 @@ export function useEntryManagementActions({
     async (entryIds: string[], status: EntryStatus) => {
       setIsProcessing(true);
       try {
-        await executeBulkStatusChange(
+        const result = await executeBulkStatusChange(
           { entryIds, status, selectedShowId },
           {
             bulkUpdateStatus: bulkUpdateEntryStatus,
@@ -230,9 +233,11 @@ export function useEntryManagementActions({
             setError,
           }
         );
+        return result.updated;
       } catch (err) {
         setError('Failed to update entry statuses');
         logger.error('Error bulk updating statuses:', 'secretary', {}, err as Error);
+        return false;
       } finally {
         setIsProcessing(false);
       }
@@ -243,7 +248,7 @@ export function useEntryManagementActions({
   // Handle enrollment-level bulk check-in
   const handleEnrollmentBulkCheckIn = useCallback(
     async (entryIds: string[]) => {
-      if (entryIds.length === 0) return;
+      if (entryIds.length === 0) return false;
       setIsProcessing(true);
       try {
         await Promise.all(
@@ -259,9 +264,11 @@ export function useEntryManagementActions({
               : e
           )
         );
+        return true;
       } catch (err) {
         setError('Failed to check in entries');
         logger.error('Error bulk checking in entries:', 'secretary', {}, err as Error);
+        return false;
       } finally {
         setIsProcessing(false);
       }

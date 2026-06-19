@@ -1,13 +1,16 @@
 import { CheckCircle2, ClipboardCheck, XCircle } from 'lucide-react';
 import { RowActionMenu, type RowAction } from '@/components/ui/RowActionMenu';
 import { EntryStatus } from '@/types/show-registration-types';
-import type { EntryManagementEntry } from '@/types/entry-management-types';
+import type { BulkActionResult, EntryManagementEntry } from '@/types/entry-management-types';
 import { getEligibleForBulkAction, type BulkEntryAction } from './bulkActionEligibility';
 
 interface EntryBulkActionMenuProps {
   selectedEntries: EntryManagementEntry[];
-  onBulkStatusChange: (entryIds: string[], status: EntryStatus) => void;
-  onBulkCheckIn: (entryIds: string[]) => void;
+  onBulkStatusChange: (
+    entryIds: string[],
+    status: EntryStatus
+  ) => BulkActionResult | Promise<BulkActionResult>;
+  onBulkCheckIn: (entryIds: string[]) => BulkActionResult | Promise<BulkActionResult>;
   onClear: () => void;
 }
 
@@ -20,18 +23,30 @@ export function EntryBulkActionMenu({
   const eligibleFor = (action: BulkEntryAction) =>
     getEligibleForBulkAction(selectedEntries, action);
 
-  const runStatus = (action: BulkEntryAction, status: EntryStatus) => {
-    const ids = eligibleFor(action).map(entry => entry.id);
-    if (ids.length === 0) return;
-    onBulkStatusChange(ids, status);
-    onClear();
+  const clearWhenSuccessful = (result: BulkActionResult) => {
+    if (result !== false) onClear();
   };
 
-  const runCheckIn = () => {
+  const runStatus = async (action: BulkEntryAction, status: EntryStatus) => {
+    const ids = eligibleFor(action).map(entry => entry.id);
+    if (ids.length === 0) return;
+    try {
+      const result = await onBulkStatusChange(ids, status);
+      clearWhenSuccessful(result);
+    } catch {
+      // Parent action handlers own user-visible error copy; keeping selection enables retry.
+    }
+  };
+
+  const runCheckIn = async () => {
     const ids = eligibleFor('check-in').map(entry => entry.id);
     if (ids.length === 0) return;
-    onBulkCheckIn(ids);
-    onClear();
+    try {
+      const result = await onBulkCheckIn(ids);
+      clearWhenSuccessful(result);
+    } catch {
+      // Parent action handlers own user-visible error copy; keeping selection enables retry.
+    }
   };
 
   const approveCount = eligibleFor('approve').length;

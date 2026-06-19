@@ -25,7 +25,12 @@ import {
   type EntryWorkMode,
 } from './entryManagementFilters';
 
-import type { EntryManagementEntry, EntryStats, EntryClass } from '@/types/entry-management-types';
+import type {
+  BulkActionResult,
+  EntryClass,
+  EntryManagementEntry,
+  EntryStats,
+} from '@/types/entry-management-types';
 import type { CheckInStatus } from '@myk9/core';
 
 /** Stable identity so useBulkSelection's memoized selectors don't churn each render. */
@@ -54,8 +59,11 @@ interface RegistrationViewProps {
   /** All entries (for looking up entry by id in comp handler) */
   entries: EntryManagementEntry[];
   /** Bulk enrollment-level action handlers */
-  onBulkStatusChange: (entryIds: string[], status: EntryStatus) => void;
-  onBulkCheckIn: (entryIds: string[]) => void;
+  onBulkStatusChange: (
+    entryIds: string[],
+    status: EntryStatus
+  ) => BulkActionResult | Promise<BulkActionResult>;
+  onBulkCheckIn: (entryIds: string[]) => BulkActionResult | Promise<BulkActionResult>;
   onPaymentStatusChange: (
     enrollmentId: string,
     status: PaymentStatus,

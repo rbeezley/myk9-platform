@@ -9,13 +9,16 @@
 
 import { Button } from '@/components/ui/button';
 import type { EntryStatus } from '@/types/show-registration-types';
-import type { EntryManagementEntry } from '@/types/entry-management-types';
+import type { BulkActionResult, EntryManagementEntry } from '@/types/entry-management-types';
 import { EntryBulkActionMenu } from './EntryBulkActionMenu';
 
 interface EntryBulkActionsBarProps {
   selectedEntries: EntryManagementEntry[];
-  onBulkStatusChange: (entryIds: string[], status: EntryStatus) => void;
-  onBulkCheckIn: (entryIds: string[]) => void;
+  onBulkStatusChange: (
+    entryIds: string[],
+    status: EntryStatus
+  ) => BulkActionResult | Promise<BulkActionResult>;
+  onBulkCheckIn: (entryIds: string[]) => BulkActionResult | Promise<BulkActionResult>;
   onClear: () => void;
 }
 

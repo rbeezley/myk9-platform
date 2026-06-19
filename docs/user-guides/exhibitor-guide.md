@@ -177,7 +177,7 @@ Once the secretary opens check-in for your class, a status pill appears on each 
 
 Once the steward marks you present, your card updates to **Checked In**.
 
-> *[Screenshot E-15: Entry card — Checked In state — blocked: needs a seeded checked-in entry]*
+![E-15: Entry card showing Interior Advanced class with Checked In status badge](../screenshots/E-15.png)
 
 **Status not visible?** The secretary must open check-in for each class before the status pill appears. If you don't see it, check back closer to your ring time.
 
@@ -187,7 +187,7 @@ Once the steward marks you present, your card updates to **Checked In**.
 
 After the class is scored and the secretary releases results, they appear on your entry card.
 
-> *[Screenshot E-16: My Shows — entry card with Q result badge and placement pill — blocked: needs a scored and released class in staging data]*
+![E-16: My Shows — entry card showing Q result badge and placement](../screenshots/E-16.png)
 
 Each scored class shows:
 - **Q** (qualified) or **NQ** (did not qualify)
@@ -196,7 +196,7 @@ Each scored class shows:
 
 Tap the result badge to open the full class results page.
 
-> *[Screenshot E-17: Class results page — placement table with all entries — blocked: same as E-16]*
+![E-17: Class results page — placement table with scored entries](../screenshots/E-17.png)
 
 **Does a Q count toward my title?** A Q counts toward your AKC title if the class is at or above your current level and the secretary submits results to AKC. Title totals are tracked through AKC directly — myK9Show doesn't display cumulative title points.
 
@@ -264,6 +264,6 @@ All shots from `docs/training/screenshot-shot-list.md`. Status as of 2026-06-19:
 | E-12 | § 6 | Class detail — run order with armband number | ready |
 | E-13 | § 7 | Show Today banner | blocked: date |
 | E-14 | § 7 | Entry card — "Not Checked In" status pill | ready |
-| E-15 | § 7 | Entry card — Checked In state | blocked: seed |
-| E-16 | § 8 | Entry card — Q result badge | blocked: seed |
-| E-17 | § 8 | Class results page | blocked: seed |
+| E-15 | § 7 | Entry card — Checked In state | ready |
+| E-16 | § 8 | Entry card — Q result badge | ready |
+| E-17 | § 8 | Class results page | ready |

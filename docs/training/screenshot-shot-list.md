@@ -55,7 +55,7 @@ Every screenshot and diagram in final documentation and training materials must 
 | S-12 | Reports page — Check-in Sheet selected | `/shows/:showId/reports` | `secretary@myk9t.com` | Desktop | Trial selector showing Heritage trial; Check-in Sheet selected | § 6 Reports | `ready` |
 | S-13 | Reports page — Steward's Report selected | `/shows/:showId/reports` | `secretary@myk9t.com` | Desktop | Steward's Report type selected; preview rendered | § 6 | `ready` |
 | S-14 | Reports page — Armband Labels | `/shows/:showId/reports` | `secretary@myk9t.com` | Desktop | Armband Labels selected; preview visible | § 6 | `ready` |
-| S-15 | Show Desk — Show Map with class rows | `/shows/:showId?phase=show-desk` | `secretary@myk9t.com` | Desktop | Show Map tab; at least one trial expanded with class rows | § 7 Show Desk | `ready` |
+| S-15 | Show Desk — task queue with "Show in progress" banner and Next Best Action | `/shows/:showId/show-desk` | `secretary@myk9t.com` | Desktop | Task queue visible; "Show in progress" banner; Next Best Action button | § 7 Show Desk | `ready` |
 | S-16 | Entry Management — "Remove entry?" confirmation dialog | `/shows/:showId/entry-management` | `secretary@myk9t.com` | Desktop | "Remove entry?" dialog open on a class row | § 7 | `ready` |
 | S-17 | Show Desk — move-up dialog | `/shows/:showId?phase=show-desk` | `secretary@myk9t.com` | Desktop | Move-up dialog open; target class picker visible | § 7 | `blocked: seed` (needs a move-up-requested entry) |
 | S-18 | Late Entry registration wizard — Step 1 (Select Dogs) | `/secretary/register/:showId?source=show-desk&entryMode=late` | `secretary@myk9t.com` | Desktop | Late Entry wizard Step 1 open; dog search field and filters visible | § 7 | `ready` |

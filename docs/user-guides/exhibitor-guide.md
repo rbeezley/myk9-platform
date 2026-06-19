@@ -92,12 +92,13 @@ Your dog now appears in your list and is ready to enter shows.
 
 ![E-06: Registration wizard — Step 1 (class selection; dog chip visible at top)](../screenshots/E-06.png)
 
-3. Classes are grouped by element (Container, Exterior, Interior, Buried) and level. Select the class or classes you want to enter.
+3. Classes are grouped by element (Container, Exterior, Interior, Buried) and level. Select the class or classes you want to enter. A toast confirms each selection.
+
+![E-07: Registration wizard — Step 1 with class selected + cart toast](../screenshots/E-07.png)
+
 4. Click **Next**.
 
 **Step 2 — Review and pay:**
-
-![E-07: Registration wizard — Step 1 with class selected + cart toast](../screenshots/E-07.png)
 
 5. Review: dog, class, and entry fee.
 6. Read and accept the entry agreement → click **Pay with Card**.

@@ -2,6 +2,7 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryStatus as CanonicalEntryStatus } from '@/types/entry-lifecycle';
+import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { getEntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
 import { mapEntryStatus } from '@/services/entryDisplay/entryStatusUiAdapter';
 
@@ -44,6 +45,12 @@ export const mapPaymentStatus = (status?: string | null): PaymentStatus => {
       return PaymentStatus.PENDING;
   }
 };
+
+export function getEffectivePaymentStatus(
+  entry: Pick<EntryManagementEntry, 'paymentStatus' | 'enrollmentPaymentStatus'>
+): PaymentStatus {
+  return entry.enrollmentPaymentStatus ?? entry.paymentStatus;
+}
 
 /**
  * Map database class entry status to the participation chip shown on a class row.

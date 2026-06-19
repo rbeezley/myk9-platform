@@ -3,7 +3,11 @@ import { type ColumnDef, type DisplayColumnDef } from '@tanstack/react-table';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DataTable } from '@/components/ui/data-table';
-import { getEntryStatusBadge, getPaymentStatusBadge } from '@/utils/entryManagementUtils';
+import {
+  getEffectivePaymentStatus,
+  getEntryStatusBadge,
+  getPaymentStatusBadge,
+} from '@/utils/entryManagementUtils';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { EmailStatusIcon } from '@/components/entries/EmailStatusIcon';
 import type { EmailLogEntry } from '@/hooks/useEmailStatus';
@@ -131,7 +135,7 @@ function buildColumns(
       cell: ({ row }) => (
         <div className="flex items-center gap-1">
           {getEntryStatusBadge(row.original.entryStatus)}
-          {getPaymentStatusBadge(row.original.paymentStatus)}
+          {getPaymentStatusBadge(getEffectivePaymentStatus(row.original))}
           {emailStatusMap && (
             <EmailStatusIcon
               status={emailStatusMap[row.original.registrationId]?.status}

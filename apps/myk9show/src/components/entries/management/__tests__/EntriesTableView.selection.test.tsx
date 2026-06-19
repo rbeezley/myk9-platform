@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
-import { EntryStatus } from '@/types/show-registration-types';
+import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry, EntryClass } from '@/types/entry-management-types';
 import { EntriesTableView, type EntriesTableSelection } from '../EntriesTableView';
 
@@ -129,5 +129,22 @@ describe('EntriesTableView selection column', () => {
 
     expect(screen.getByText('No waitlist entries right now.')).toBeInTheDocument();
     expect(screen.queryByText('No results found.')).not.toBeInTheDocument();
+  });
+
+  it('renders the enrollment payment status when it differs from entry payment status', () => {
+    render(
+      <EntriesTableView
+        entries={[
+          {
+            ...entry('paid-by-check', 'Willow'),
+            paymentStatus: PaymentStatus.PENDING,
+            enrollmentPaymentStatus: PaymentStatus.PAID_BY_CHECK,
+          },
+        ]}
+      />
+    );
+
+    expect(screen.getByText('Paid')).toBeInTheDocument();
+    expect(screen.queryByText('Payment Due')).not.toBeInTheDocument();
   });
 });

@@ -1,5 +1,6 @@
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { PaymentStatus } from '@/types/show-registration-types';
+import { getEffectivePaymentStatus } from './entryManagementUtils';
 
 export interface EnrollmentGroup {
   /** Unique per group (registrationId | pi:<intent> | entry:<id>) — the React
@@ -44,7 +45,7 @@ export function groupEntriesByEnrollment(entries: EntryManagementEntry[]): Enrol
         enrollmentId: entry.registrationId || null,
         confirmationNumber: entry.confirmationNumber ?? null,
         handlerName: entry.handlerName,
-        paymentStatus: entry.enrollmentPaymentStatus ?? entry.paymentStatus,
+        paymentStatus: getEffectivePaymentStatus(entry),
         totalAmount: hasEnrollmentTotal ? entry.enrollmentTotalAmount! : 0,
         totalAmountUnit: hasEnrollmentTotal ? 'cents' : 'dollars',
         // Dollar-unit groups start at 0 and accumulate per-entry below;

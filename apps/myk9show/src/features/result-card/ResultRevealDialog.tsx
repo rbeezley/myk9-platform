@@ -63,12 +63,12 @@ export function ResultRevealDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-h-[calc(100svh-2rem)] max-w-sm overflow-y-auto p-4 sm:p-5">
         <DialogHeader>
           <DialogTitle>New result</DialogTitle>
         </DialogHeader>
         {model ? (
-          <div className="space-y-4">
+          <div className="space-y-3">
             <ResultCard model={model} />
             {shareError ? <p className="text-sm text-destructive">{shareError}</p> : null}
             {model.shareEnabled ? (

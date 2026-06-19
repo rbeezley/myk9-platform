@@ -2,10 +2,14 @@ import type { ResultCardModel } from './resultCardModel';
 
 const WIDTH = 1080;
 const HEIGHT = 1350;
-const RESULT_Y = 530;
-const PLACEMENT_Y = 625;
+const DOG_NAME_Y = 120;
+const ARMBAND_Y = 178;
+const PHOTO_CENTER_Y = 340;
+const PHOTO_RADIUS = 130;
+const RESULT_Y = 570;
+const PLACEMENT_Y = 665;
 const CLASS_Y_WITH_PLACEMENT = PLACEMENT_Y + 90;
-const CLASS_Y_WITHOUT_PLACEMENT = 640;
+const CLASS_Y_WITHOUT_PLACEMENT = 680;
 const SHOW_Y_WITH_PLACEMENT = CLASS_Y_WITH_PLACEMENT + 70;
 const SHOW_Y_WITHOUT_PLACEMENT = CLASS_Y_WITHOUT_PLACEMENT + 65;
 const DETAILS_Y_WITH_PLACEMENT = SHOW_Y_WITH_PLACEMENT + 95;
@@ -28,15 +32,27 @@ export async function renderResultCardImage(model: ResultCardModel): Promise<Blo
   ctx.fillStyle = '#1f2933';
   ctx.font = '700 84px system-ui, sans-serif';
   ctx.textAlign = 'center';
-  drawFittedText(ctx, model.dogName, WIDTH / 2, 150, TEXT_MAX_WIDTH);
+  drawFittedText(ctx, model.dogName, WIDTH / 2, DOG_NAME_Y, TEXT_MAX_WIDTH);
+
+  if (model.armband) {
+    ctx.fillStyle = '#6b6358';
+    ctx.font = '700 36px system-ui, sans-serif';
+    drawFittedText(ctx, `Armband ${model.armband}`, WIDTH / 2, ARMBAND_Y, TEXT_MAX_WIDTH);
+  }
 
   const photo = model.photoUrl ? await loadImage(model.photoUrl) : null;
   if (photo) {
     ctx.save();
     ctx.beginPath();
-    ctx.arc(WIDTH / 2, 305, 130, 0, Math.PI * 2);
+    ctx.arc(WIDTH / 2, PHOTO_CENTER_Y, PHOTO_RADIUS, 0, Math.PI * 2);
     ctx.clip();
-    ctx.drawImage(photo, WIDTH / 2 - 130, 175, 260, 260);
+    ctx.drawImage(
+      photo,
+      WIDTH / 2 - PHOTO_RADIUS,
+      PHOTO_CENTER_Y - PHOTO_RADIUS,
+      PHOTO_RADIUS * 2,
+      PHOTO_RADIUS * 2
+    );
     ctx.restore();
   } else {
     drawPhotoPlaceholder(ctx, model.dogName);
@@ -64,8 +80,9 @@ export async function renderResultCardImage(model: ResultCardModel): Promise<Blo
   ctx.font = '500 42px system-ui, sans-serif';
   drawFittedText(ctx, model.showName, WIDTH / 2, showY, TEXT_MAX_WIDTH);
 
-  const details = [model.timeLabel, model.faultsLabel, model.armband ? `Armband ${model.armband}` : undefined]
-    .filter((value): value is string => Boolean(value));
+  const details = [model.timeLabel, model.faultsLabel].filter(
+    (value): value is string => Boolean(value)
+  );
 
   ctx.font = '500 38px system-ui, sans-serif';
   details.forEach((detail, index) => {
@@ -108,14 +125,19 @@ function loadSingleImage(src: string): Promise<HTMLImageElement> {
 function drawPhotoPlaceholder(ctx: CanvasRenderingContext2D, dogName: string) {
   ctx.save();
   ctx.beginPath();
-  ctx.arc(WIDTH / 2, 305, 130, 0, Math.PI * 2);
+  ctx.arc(WIDTH / 2, PHOTO_CENTER_Y, PHOTO_RADIUS, 0, Math.PI * 2);
   ctx.clip();
   ctx.fillStyle = '#dbeafe';
-  ctx.fillRect(WIDTH / 2 - 130, 175, 260, 260);
+  ctx.fillRect(
+    WIDTH / 2 - PHOTO_RADIUS,
+    PHOTO_CENTER_Y - PHOTO_RADIUS,
+    PHOTO_RADIUS * 2,
+    PHOTO_RADIUS * 2
+  );
   ctx.fillStyle = '#1d4ed8';
   ctx.font = '800 104px system-ui, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText(dogName.trim().charAt(0).toUpperCase() || 'Q', WIDTH / 2, 340);
+  ctx.fillText(dogName.trim().charAt(0).toUpperCase() || 'Q', WIDTH / 2, PHOTO_CENTER_Y + 35);
   ctx.restore();
 }
 

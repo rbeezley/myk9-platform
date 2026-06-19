@@ -256,6 +256,40 @@ describe('MyEntryCard result reveal prompt', () => {
     expect(screen.getByRole('button', { name: /New result/i })).toBeInTheDocument();
   });
 
+  it('shows a quieter Result card button after the reveal has been seen', () => {
+    const onResultRevealClick = vi.fn();
+    render(
+      <MemoryRouter>
+        <MyEntryCard
+          entry={makeEntry({
+            classes: [
+              makeClass({
+                id: 'entry-1',
+                isScored: true,
+                resultStatus: 'qualified',
+                finalPlacement: 1,
+                resultsReleasedAt: '2026-09-14T20:00:00.000Z',
+              }),
+            ],
+          })}
+          onCheckInClick={vi.fn()}
+          onEditClick={vi.fn()}
+          onReceiptClick={vi.fn()}
+          onResultRevealClick={onResultRevealClick}
+          seenResultReleaseKeys={
+            new Set(['entry-1:2026-09-14T20:00:00.000Z:qualified:1'])
+          }
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByRole('button', { name: /New result/i })).not.toBeInTheDocument();
+    const resultCardButton = screen.getByRole('button', { name: /Result card/i });
+    expect(resultCardButton).toBeInTheDocument();
+    resultCardButton.click();
+    expect(onResultRevealClick).toHaveBeenCalledWith(expect.objectContaining({ entryId: 'entry-1' }));
+  });
+
   it('does not show New result for non-qualifying results', () => {
     render(
       <MemoryRouter>
@@ -280,6 +314,7 @@ describe('MyEntryCard result reveal prompt', () => {
     );
 
     expect(screen.queryByRole('button', { name: /New result/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Result card/i })).not.toBeInTheDocument();
   });
 });
 

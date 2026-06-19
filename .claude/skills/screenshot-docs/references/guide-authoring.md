@@ -139,10 +139,10 @@ Do NOT add individual guides to `docs/README.md` (the main index) — that track
 
 | Guide | Outline source | Status | Notes |
 |---|---|---|---|
-| [secretary-guide.md](../docs/user-guides/secretary-guide.md) | `secretary-guide-outline.md` | `qa-draft` | Phase 0 gate met; screenshots pending |
-| [exhibitor-guide.md](../docs/user-guides/exhibitor-guide.md) | `exhibitor-guide-outline.md` | `qa-draft` | Phase 0 gate met; § 10 stub |
-| [club-admin-guide.md](../docs/user-guides/club-admin-guide.md) | `club-admin-guide-outline.md` | `qa-draft` | C-04/C-05 blocked: stripe |
-| judge-steward-quickstart.md | `judge-steward-quickstart-outline.md` | `planned` | **Gated on `unified_ringside_enabled` flag removal** |
+| `docs/user-guides/secretary-guide.md` | `secretary-guide-outline.md` | `qa-draft` | Phase 0 gate met; screenshots pending |
+| `docs/user-guides/exhibitor-guide.md` | `exhibitor-guide-outline.md` | `qa-draft` | Phase 0 gate met; § 10 stub |
+| `docs/user-guides/club-admin-guide.md` | `club-admin-guide-outline.md` | `qa-draft` | C-04/C-05 blocked: stripe |
+| `docs/user-guides/judge-steward-quickstart.md` | `judge-steward-quickstart-outline.md` | `planned` | **Gated on `unified_ringside_enabled` flag removal** |
 
 ---
 

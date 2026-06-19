@@ -3,6 +3,7 @@ import { render, screen } from '@/test/utils/testUtils';
 import { RegistrationView } from '../RegistrationView';
 import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
 import type { EntryStats } from '@/types/entry-management-types';
+import type { EntryWorkMode } from '../entryManagementFilters';
 
 // Mock the heavy children down to markers so the test isolates RegistrationView's
 // own tab-content routing (the F6b fix) rather than their data-fetching.
@@ -31,7 +32,11 @@ const enrollmentGroups = [
 
 function renderView(
   attentionFilter: 'all' | 'pending' | 'accepted' | 'waitlist' | 'move-ups' | 'pulled' | 'issues',
-  entryViewMode: 'table' | 'cards' = 'table'
+  entryViewMode: 'table' | 'cards' = 'table',
+  overrides: Partial<{
+    workMode: EntryWorkMode;
+    setWorkMode: (mode: EntryWorkMode) => void;
+  }> = {}
 ) {
   const props = {
     stats: {} as EntryStats,
@@ -41,6 +46,8 @@ function renderView(
     setPaymentFilter: vi.fn(),
     attentionFilter,
     setAttentionFilter: vi.fn(),
+    workMode: 'review' as EntryWorkMode,
+    setWorkMode: vi.fn(),
     entryViewMode,
     setEntryViewMode: vi.fn(),
     filteredEntries: [],
@@ -58,6 +65,7 @@ function renderView(
     onRefresh: vi.fn(),
     enrollmentGroups,
     onSendDecisionEmail: vi.fn().mockResolvedValue(undefined),
+    ...overrides,
   };
   return render(<RegistrationView {...props} />);
 }
@@ -67,8 +75,34 @@ describe('RegistrationView filter content routing', () => {
     renderView('all');
 
     expect(screen.getByPlaceholderText('Search entries...')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /review/i })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /day-of/i })).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    );
     expect(screen.getByRole('button', { name: /table view/i })).toBeInTheDocument();
     expect(screen.getByTestId('entries-table')).toBeInTheDocument();
+  });
+
+  it('lets the secretary switch to Day-of mode', async () => {
+    const setWorkMode = vi.fn();
+    const { user } = renderView('all', 'table', { setWorkMode });
+
+    await user.click(screen.getByRole('button', { name: /day-of/i }));
+
+    expect(setWorkMode).toHaveBeenCalledWith('day-of');
+  });
+
+  it('does not reapply the active matching work mode preset', async () => {
+    const setWorkMode = vi.fn();
+    const { user } = renderView('pending', 'table', {
+      workMode: 'review',
+      setWorkMode,
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Review' }));
+
+    expect(setWorkMode).not.toHaveBeenCalled();
   });
 
   it('does not render the old entry status tab row', () => {

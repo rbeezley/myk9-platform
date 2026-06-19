@@ -8,6 +8,7 @@ import {
   isIssueEntry,
 } from '@/utils/entryPredicates';
 import {
+  ENTRY_WORK_MODE_PRESETS,
   type EntryAttentionFilter,
   type EntryManagementViewMode,
   type EntryWorkMode,
@@ -120,11 +121,19 @@ export function useEntryManagementFilters({
 
   const setWorkMode = useCallback(
     (mode: EntryWorkMode) => {
+      const preset = ENTRY_WORK_MODE_PRESETS[mode];
+      setPaymentFilter(preset.payment);
       setSearchParams(
         prev => {
           const next = new URLSearchParams(prev);
           if (mode === 'review') next.delete('mode');
           else next.set('mode', mode);
+          if (preset.attention === 'all') next.delete('attention');
+          else next.set('attention', preset.attention);
+          if (preset.view === 'table') next.delete('view');
+          else next.set('view', preset.view);
+          next.delete('entryTab');
+          next.delete('tab');
           return next;
         },
         { replace: true }

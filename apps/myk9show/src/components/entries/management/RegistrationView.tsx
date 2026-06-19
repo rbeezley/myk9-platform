@@ -12,13 +12,16 @@ import { EntryStatsCards } from './EntryStatsCards';
 import { EnrollmentCard } from './EnrollmentCard';
 import { EntriesTableView } from './EntriesTableView';
 import { EntryBulkActionsBar } from './EntryBulkActionsBar';
+import { EntryWorkModeSwitch } from './EntryWorkModeSwitch';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
 import {
   ENTRY_MANAGEMENT_FILTERS,
+  ENTRY_WORK_MODE_PRESETS,
   ENTRY_VIEW_MODES,
   type EntryAttentionFilter,
   type EntryManagementViewMode,
+  type EntryWorkMode,
 } from './entryManagementFilters';
 
 import type { EntryManagementEntry, EntryStats, EntryClass } from '@/types/entry-management-types';
@@ -39,6 +42,9 @@ interface RegistrationViewProps {
   /** Attention filter state */
   attentionFilter: EntryAttentionFilter;
   setAttentionFilter: (filter: EntryAttentionFilter) => void;
+  /** Work mode preset state */
+  workMode: EntryWorkMode;
+  setWorkMode: (mode: EntryWorkMode) => void;
   /** Entry list view mode */
   entryViewMode: EntryManagementViewMode;
   setEntryViewMode: (view: EntryManagementViewMode) => void;
@@ -94,6 +100,8 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   setPaymentFilter,
   attentionFilter,
   setAttentionFilter,
+  workMode,
+  setWorkMode,
   entryViewMode,
   setEntryViewMode,
   filteredEntries,
@@ -146,6 +154,21 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
     setAttentionFilter(filter);
   };
 
+  const handleWorkModeChange = (mode: EntryWorkMode) => {
+    const preset = ENTRY_WORK_MODE_PRESETS[mode];
+    if (
+      mode === workMode &&
+      attentionFilter === preset.attention &&
+      paymentFilter === preset.payment &&
+      entryViewMode === preset.view
+    ) {
+      return;
+    }
+
+    selection.clearSelection();
+    setWorkMode(mode);
+  };
+
   // Email status tracking (self-contained)
   const registrationIds = useMemo(
     () => [...new Set(entries.map(e => e.registrationId).filter(Boolean))],
@@ -181,6 +204,8 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
     <div className="space-y-6">
       {/* Stats Overview */}
       <EntryStatsCards stats={stats} />
+
+      <EntryWorkModeSwitch value={workMode} onChange={handleWorkModeChange} />
 
       {/* Search, filters, and view mode */}
       <ListControls

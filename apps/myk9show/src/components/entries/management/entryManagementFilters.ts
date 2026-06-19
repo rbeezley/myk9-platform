@@ -25,6 +25,26 @@ export const ENTRY_VIEW_MODES: readonly ViewMode[] = [
   { key: 'cards', label: 'Cards', icon: 'grid' },
 ];
 
+export const ENTRY_WORK_MODE_PRESETS: Record<
+  EntryWorkMode,
+  {
+    attention: EntryAttentionFilter;
+    payment: 'all';
+    view: EntryManagementViewMode;
+  }
+> = {
+  review: {
+    attention: 'pending',
+    payment: 'all',
+    view: 'table',
+  },
+  'day-of': {
+    attention: 'accepted',
+    payment: 'all',
+    view: 'table',
+  },
+};
+
 export const ENTRY_MANAGEMENT_FILTERS: FilterDefinition[] = [
   {
     key: 'attention',

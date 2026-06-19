@@ -58,6 +58,8 @@ function renderView(overrides: Record<string, unknown> = {}) {
     setPaymentFilter: vi.fn(),
     attentionFilter: 'pending',
     setAttentionFilter,
+    workMode: 'review',
+    setWorkMode: vi.fn(),
     entryViewMode: 'table',
     setEntryViewMode: vi.fn(),
     filteredEntries,

@@ -43,6 +43,41 @@ const defaultProps = {
   onClassClick: vi.fn(),
 };
 
+function setupCsvCapture() {
+  let exportedBlob: Blob | undefined;
+  const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+  const createObjectUrl = vi.fn((blob: Blob) => {
+    exportedBlob = blob;
+    return 'blob:roster-export';
+  });
+  const revokeObjectUrl = vi.fn();
+  vi.stubGlobal('URL', {
+    ...URL,
+    createObjectURL: createObjectUrl,
+    revokeObjectURL: revokeObjectUrl,
+  });
+
+  return {
+    getCsv: async () => {
+      expect(exportedBlob).toBeDefined();
+      return readBlobText(exportedBlob!);
+    },
+    restore: () => {
+      clickSpy.mockRestore();
+      vi.unstubAllGlobals();
+    },
+  };
+}
+
+async function readBlobText(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ''));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(blob);
+  });
+}
+
 describe('TrialRosterView', () => {
   it('renders entries with dog name, handler, and class columns', () => {
     render(<TrialRosterView {...defaultProps} />);
@@ -67,9 +102,7 @@ describe('TrialRosterView', () => {
 
   it('calls onClassClick when class name in header is clicked', async () => {
     const onClassClick = vi.fn();
-    const { user } = render(
-      <TrialRosterView entries={mockEntries} onClassClick={onClassClick} />
-    );
+    const { user } = render(<TrialRosterView entries={mockEntries} onClassClick={onClassClick} />);
 
     const classHeaders = screen.getAllByRole('button', { name: /Novice A|Open B/ });
     await user.click(classHeaders[0]);
@@ -100,10 +133,35 @@ describe('TrialRosterView', () => {
   });
 
   it('renders loading state when isLoading is true', () => {
-    render(
-      <TrialRosterView entries={[]} onClassClick={vi.fn()} isLoading={true} />
-    );
+    render(<TrialRosterView entries={[]} onClassClick={vi.fn()} isLoading={true} />);
 
     expect(screen.queryByText('No entries for this trial.')).not.toBeInTheDocument();
+  });
+
+  it('renders each class roster with the standard DataTable toolbar', () => {
+    render(<TrialRosterView {...defaultProps} />);
+
+    expect(screen.getAllByRole('button', { name: /toggle columns/i })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: /export csv/i })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: /compact density/i })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: /reset table view/i })).toHaveLength(2);
+  });
+
+  it('exports roster rows with readable dog, check-in, and scoring values', async () => {
+    const csvCapture = setupCsvCapture();
+    const { user } = render(<TrialRosterView {...defaultProps} />);
+
+    await user.click(screen.getAllByRole('button', { name: /export csv/i })[0]);
+
+    const csv = await csvCapture.getCsv();
+    expect(csv).toContain('Rex (German Shepherd)');
+    expect(csv).toContain('Buddy (Golden Retriever)');
+    expect(csv).toContain('checked-in');
+    expect(csv).toContain('Not checked in');
+    expect(csv).toContain('Scored');
+    expect(csv).toContain('Pending');
+    expect(csv).not.toContain('Luna');
+
+    csvCapture.restore();
   });
 });

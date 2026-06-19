@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
-import { EntryStatus } from '@/types/show-registration-types';
+import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry, EntryClass } from '@/types/entry-management-types';
 import { EntriesTableView, type EntriesTableSelection } from '../EntriesTableView';
 
@@ -40,6 +40,41 @@ function makeSelection(overrides: Partial<EntriesTableSelection> = {}): EntriesT
 }
 
 const entries = [entry('e1', 'Willow'), entry('e2', 'Ranger')];
+
+function setupCsvCapture() {
+  let exportedBlob: Blob | undefined;
+  const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+  const createObjectUrl = vi.fn((blob: Blob) => {
+    exportedBlob = blob;
+    return 'blob:entries-export';
+  });
+  const revokeObjectUrl = vi.fn();
+  vi.stubGlobal('URL', {
+    ...URL,
+    createObjectURL: createObjectUrl,
+    revokeObjectURL: revokeObjectUrl,
+  });
+
+  return {
+    getCsv: async () => {
+      expect(exportedBlob).toBeDefined();
+      return readBlobText(exportedBlob!);
+    },
+    restore: () => {
+      clickSpy.mockRestore();
+      vi.unstubAllGlobals();
+    },
+  };
+}
+
+async function readBlobText(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ''));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(blob);
+  });
+}
 
 function makeActionProps() {
   return {
@@ -129,5 +164,41 @@ describe('EntriesTableView selection column', () => {
 
     expect(screen.getByText('No waitlist entries right now.')).toBeInTheDocument();
     expect(screen.queryByText('No results found.')).not.toBeInTheDocument();
+  });
+
+  it('exports readable table values instead of display or sorting internals', async () => {
+    const exportEntry = {
+      ...entry('e3', 'Juniper'),
+      armbandNumber: '315',
+      classes: [aClass, { id: 'c2', name: 'Open B', number: '2', fee: 30, status: 'entered' }],
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+      submittedAt: new Date('2026-06-04T15:30:00.000Z'),
+    } satisfies EntryManagementEntry;
+    const csvCapture = setupCsvCapture();
+    const { user } = render(
+      <EntriesTableView
+        entries={[exportEntry]}
+        emailStatusMap={{
+          [exportEntry.registrationId]: {
+            id: 'email-1',
+            related_id: exportEntry.registrationId,
+            status: 'sent',
+            created_at: '2026-06-04T15:31:00.000Z',
+          },
+        }}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /export csv/i }));
+
+    const csv = await csvCapture.getCsv();
+    expect(csv).toContain('315');
+    expect(csv).toContain('Juniper');
+    expect(csv).toContain('Novice A; Open B');
+    expect(csv).toContain(`${EntryStatus.PENDING} / ${PaymentStatus.PAID_ONLINE} / Email: sent`);
+    expect(csv).toContain('2026-06-04T15:30:00.000Z');
+    expect(csv).not.toContain('[object Object]');
+
+    csvCapture.restore();
   });
 });

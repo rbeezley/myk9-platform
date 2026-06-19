@@ -5,7 +5,7 @@
 **Last verified:** 2026-06-19
 **Verified by:** walkthrough against outline (`docs/user-guides/exhibitor-guide-outline.md`)
 
-> **Note:** This is a QA-draft guide — written against the live app as a testing instrument. Screenshots are placeholders until the shot list (`docs/training/screenshot-shot-list.md`) is captured. Do not publish to customers until status is `verified`.
+> **Note:** This is a QA-draft guide — written against the live app as a testing instrument. Ready screenshots are embedded; shots marked `blocked:` in the checklist below require specific seed data or conditions before they can be captured. Do not publish to customers until status is `verified`.
 
 ---
 
@@ -21,7 +21,7 @@ If you're coming from paper entries or mySWT, the main change is that entries, p
 
 No account needed to browse. Go to myK9Show — the shows list is the first thing you see.
 
-> *[Screenshot E-01: Shows list — upcoming shows with "Accepting Entries" and "Closing Soon" badges]*
+![E-01: Shows list — upcoming shows with "Accepting Entries" and "Closing Soon" badges](../screenshots/E-01.png)
 
 Each show card shows the name, sanctioning organization, dates, entry deadline, and status:
 
@@ -33,7 +33,7 @@ Each show card shows the name, sanctioning organization, dates, entry deadline, 
 
 Click any show to open its detail page — trial schedule, classes offered, entry fee, and deadline.
 
-> *[Screenshot E-02: Show detail page — "Enter This Show" button visible]*
+![E-02: Show detail page — "Enter This Show" button visible](../screenshots/E-02.png)
 
 When you're ready to enter, click **Enter This Show**. If you don't have an account yet, you'll be prompted to create one (Section 2).
 
@@ -49,7 +49,7 @@ If this is your first time, you'll need an account before entering a show.
 4. Check your inbox for a confirmation email → click the link to verify your address.
 5. You're signed in and ready to enter.
 
-> *[Screenshot E-03: Sign-up form]*
+![E-03: Sign-up form](../screenshots/E-03.png)
 
 **Next step:** Add your dog before returning to enter the show — the entry wizard requires at least one dog in your profile (Section 3).
 
@@ -64,7 +64,7 @@ Before entering a show, your dog needs a profile in your account.
 1. Go to **My Dogs** in the navigation.
 2. Click **Add Dog**.
 
-> *[Screenshot E-05: Add Dog form — required fields visible]*
+![E-05: Add Dog form — required fields visible](../screenshots/E-05.png)
 
 3. Fill in:
    - **Call name** (required) — the name used on the scoresheet
@@ -73,7 +73,7 @@ Before entering a show, your dog needs a profile in your account.
 4. Under **Additional**: enter the AKC or UKC registration number, registered name, and breed.
 5. Click **Create Dog**.
 
-> *[Screenshot E-04: My Dogs list — dog card visible]*
+![E-04: My Dogs list — dog card visible](../screenshots/E-04.png)
 
 Your dog now appears in your list and is ready to enter shows.
 
@@ -90,14 +90,15 @@ Your dog now appears in your list and is ready to enter shows.
 
 **Step 1 — Select your class:**
 
-> *[Screenshot E-06: Registration wizard — Step 1 (class selection; dog chip visible at top)]*
+![E-06: Registration wizard — Step 1 (class selection; dog chip visible at top)](../screenshots/E-06.png)
 
-3. Classes are grouped by element (Container, Exterior, Interior, Buried) and level. Select the class or classes you want to enter.
+3. Classes are grouped by element (Container, Exterior, Interior, Buried) and level. Select the class or classes you want to enter. A toast confirms each selection.
+
+![E-07: Registration wizard — Step 1 with class selected + cart toast](../screenshots/E-07.png)
+
 4. Click **Next**.
 
 **Step 2 — Review and pay:**
-
-> *[Screenshot E-07: Registration wizard — Step 2 (review + entry agreement)]*
 
 5. Review: dog, class, and entry fee.
 6. Read and accept the entry agreement → click **Pay with Card**.
@@ -118,10 +119,10 @@ Your dog now appears in your list and is ready to enter shows.
 
 Go to **My Shows** in the navigation to see all your entries.
 
-> *[Screenshot E-11: My Shows — show card with status badge and entry details]*
+![E-11: My Shows — show card with status badge and entry details](../screenshots/E-11.png)
 
-> *[Screenshot E-09: My Shows — Pending entry card]*
-> *[Screenshot E-10: My Shows — Accepted entry card]*
+![E-09: My Shows — Pending entry card](../screenshots/E-09.png)
+![E-10: My Shows — Accepted entry card](../screenshots/E-10.png)
 
 **Status meanings:**
 
@@ -144,9 +145,9 @@ Once the secretary publishes the run order, a **View run order** button appears 
 
 1. Go to **My Shows**.
 2. On your entry card, tap **View run order**.
-3. The Classes tab opens showing your class in run order.
+3. The Classes tab opens. Tap your class to see the run order.
 
-> *[Screenshot E-12: Show detail page — Classes tab with run order and armband numbers]*
+![E-12: Class detail — run order entry with dog name and armband number](../screenshots/E-12.png)
 
 The run order shows dog names, handler names, and armband numbers. **Armband numbers** are assigned by the secretary and may not appear until close to show day.
 
@@ -170,17 +171,15 @@ Tap the banner to jump to your entry for that show.
 
 **Check in:**
 
-1. On your entry card, tap **Check In**.
+Once the secretary opens check-in for your class, a status pill appears on each class row of your entry card. If it says **Not Checked In**, find the ring steward at the gate and confirm your presence — the steward checks you in.
 
-> *[Screenshot E-14: Entry card — "Not Checked In" button visible]*
+![E-14: Entry card — "Not Checked In" status on class row](../screenshots/E-14.png)
 
-2. The dialog confirms your class and armband number → tap **Confirm**.
+Once the steward marks you present, your card updates to **Checked In**.
 
 > *[Screenshot E-15: Entry card — Checked In state — blocked: needs a seeded checked-in entry]*
 
-Your card updates to **Checked In**.
-
-**Button not visible?** The secretary must open check-in for each class before the button appears. If you don't see it, check back closer to your ring time — or ask the steward if self check-in is open.
+**Status not visible?** The secretary must open check-in for each class before the status pill appears. If you don't see it, check back closer to your ring time.
 
 ---
 
@@ -257,14 +256,14 @@ All shots from `docs/training/screenshot-shot-list.md`. Status as of 2026-06-19:
 | E-04 | § 3 | My Dogs list | ready |
 | E-05 | § 3 | Add Dog form | ready |
 | E-06 | § 4 | Registration wizard — Step 1 (class selection) | ready |
-| E-07 | § 4 | Registration wizard — Step 2 (review + payment) | ready |
+| E-07 | § 4 | Registration wizard — Step 1 with class selected + cart toast | ready |
 | E-08 | § 4 | Confirmation receipt | blocked: seed (Stripe checkout) |
 | E-09 | § 5 | My Shows — Pending entry card | ready |
 | E-10 | § 5 | My Shows — Accepted entry card | ready |
 | E-11 | § 5 | My Shows — show card | ready |
-| E-12 | § 6 | Classes tab with run order | ready |
+| E-12 | § 6 | Class detail — run order with armband number | ready |
 | E-13 | § 7 | Show Today banner | blocked: date |
-| E-14 | § 7 | Entry card — check-in button | ready |
+| E-14 | § 7 | Entry card — "Not Checked In" status pill | ready |
 | E-15 | § 7 | Entry card — Checked In state | blocked: seed |
 | E-16 | § 8 | Entry card — Q result badge | blocked: seed |
 | E-17 | § 8 | Class results page | blocked: seed |

@@ -44,6 +44,7 @@ test-results/
 !apps/myk9q/tests/visual/**/*-snapshots/
 !apps/myk9q/tests/visual/**/*-snapshots/**
 screenshots/
+!docs/screenshots/
 e2e-screenshots/
 e2e-test-report.md
 debug-*.png

@@ -27,17 +27,16 @@ const BrowseDogsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const [viewMode, setViewMode] = useViewPreference('dogs', 'cards');
+  const { getUserRoles } = useAuthContext();
+  // Exhibitor-only users see their own roster; secretaries/admins see all dogs.
+  const isExhibitorOnly = getPrimaryRole(getUserRoles()) === UserRole.EXHIBITOR;
+  const [viewMode, setViewMode] = useViewPreference('dogs', isExhibitorOnly ? 'cards' : 'table');
   const [showCreateDogPanel, setShowCreateDogPanel] = useState(
     () => searchParams.get('add') === 'true'
   );
 
-  const { getUserRoles } = useAuthContext();
   const currentUserPersonId = useCurrentUserPersonId();
   const { hasPermission, isLoading: rbacLoading } = useRBAC();
-
-  // Exhibitor-only users see their own roster; secretaries/admins see all dogs.
-  const isExhibitorOnly = getPrimaryRole(getUserRoles()) === UserRole.EXHIBITOR;
 
   const {
     dogs,

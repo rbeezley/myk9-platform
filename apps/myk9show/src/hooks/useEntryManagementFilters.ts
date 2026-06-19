@@ -7,6 +7,14 @@ import {
   isWaitlistEntry,
   isIssueEntry,
 } from '@/utils/entryPredicates';
+import {
+  type EntryAttentionFilter,
+  type EntryManagementViewMode,
+  type EntryWorkMode,
+  isMoveUpStatus,
+  isPulledStatus,
+  normalizeEntryManagementSearchParams,
+} from '@/components/entries/management/entryManagementFilters';
 
 interface TabCounts {
   all: number;
@@ -23,20 +31,6 @@ interface UseEntryManagementFiltersProps {
 }
 
 type ViewMode = 'registration' | 'roster' | 'scoring';
-const ENTRY_TABS = [
-  'all',
-  'pending',
-  'accepted',
-  'waitlist',
-  'move-ups',
-  'scratches',
-  'issues',
-] as const;
-type EntryTab = (typeof ENTRY_TABS)[number];
-
-function isEntryTab(value: string | null): value is EntryTab {
-  return ENTRY_TABS.includes(value as EntryTab);
-}
 
 interface UseEntryManagementFiltersReturn {
   // Filter state
@@ -45,7 +39,13 @@ interface UseEntryManagementFiltersReturn {
   paymentFilter: string;
   setPaymentFilter: (payment: string) => void;
   selectedTab: string;
-  setSelectedTab: (tab: string) => void;
+  setSelectedTab: (tab: EntryAttentionFilter) => void;
+  attentionFilter: EntryAttentionFilter;
+  setAttentionFilter: (filter: EntryAttentionFilter) => void;
+  workMode: EntryWorkMode;
+  setWorkMode: (mode: EntryWorkMode) => void;
+  entryViewMode: EntryManagementViewMode;
+  setEntryViewMode: (view: EntryManagementViewMode) => void;
 
   // Trial/class filters
   trialFilter: string | null;
@@ -79,26 +79,67 @@ export function useEntryManagementFilters({
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('all');
-  const routeEntryTab = searchParams.get('entryTab');
-  const resolvedEntryTab = isEntryTab(routeEntryTab) ? routeEntryTab : 'all';
-  const selectedTab: EntryTab = resolvedEntryTab;
+  const normalized = useMemo(
+    () => normalizeEntryManagementSearchParams(searchParams),
+    [searchParams]
+  );
+  const attentionFilter = normalized.attention;
+  const workMode = normalized.mode;
+  const entryViewMode = normalized.view;
+  const selectedTab = attentionFilter;
   const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
 
   // Trial/class filters — read from URL search params
   const trialFilter = searchParams.get('trial');
   const classFilter = searchParams.get('class');
 
-  const setSelectedTab = useCallback(
-    (tab: string) => {
-      const nextTab = isEntryTab(tab) ? tab : 'all';
+  useEffect(() => {
+    if (normalized.params.toString() !== searchParams.toString()) {
+      setSearchParams(normalized.params, { replace: true });
+    }
+  }, [normalized, searchParams, setSearchParams]);
+
+  const setAttentionFilter = useCallback(
+    (filter: EntryAttentionFilter) => {
       setSearchParams(
         prev => {
           const next = new URLSearchParams(prev);
-          if (nextTab === 'all') {
-            next.delete('entryTab');
-          } else {
-            next.set('entryTab', nextTab);
-          }
+          if (filter === 'all') next.delete('attention');
+          else next.set('attention', filter);
+          next.delete('entryTab');
+          next.delete('tab');
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
+  const setSelectedTab = setAttentionFilter;
+
+  const setWorkMode = useCallback(
+    (mode: EntryWorkMode) => {
+      setSearchParams(
+        prev => {
+          const next = new URLSearchParams(prev);
+          if (mode === 'review') next.delete('mode');
+          else next.set('mode', mode);
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
+  const setEntryViewMode = useCallback(
+    (view: EntryManagementViewMode) => {
+      setSearchParams(
+        prev => {
+          const next = new URLSearchParams(prev);
+          if (view === 'table') next.delete('view');
+          else next.set('view', view);
           return next;
         },
         { replace: true }
@@ -174,14 +215,18 @@ export function useEntryManagementFilters({
     let filtered = entries;
 
     // Apply tab filters
-    if (selectedTab === 'pending') {
+    if (attentionFilter === 'pending') {
       filtered = filtered.filter(isPendingEntry);
-    } else if (selectedTab === 'accepted') {
+    } else if (attentionFilter === 'accepted') {
       filtered = filtered.filter(isAcceptedEntry);
-    } else if (selectedTab === 'waitlist') {
+    } else if (attentionFilter === 'waitlist') {
       filtered = filtered.filter(isWaitlistEntry);
-    } else if (selectedTab === 'issues') {
+    } else if (attentionFilter === 'issues') {
       filtered = filtered.filter(isIssueEntry);
+    } else if (attentionFilter === 'move-ups') {
+      filtered = filtered.filter(e => isMoveUpStatus(e.entryStatus));
+    } else if (attentionFilter === 'pulled') {
+      filtered = filtered.filter(e => isPulledStatus(e.entryStatus));
     }
 
     // Apply payment filter
@@ -203,7 +248,7 @@ export function useEntryManagementFilters({
     }
 
     return filtered;
-  }, [entries, selectedTab, searchTerm, paymentFilter]);
+  }, [entries, attentionFilter, searchTerm, paymentFilter]);
 
   // Selection handlers
   const handleSelectEntry = useCallback((entryId: string, checked: boolean) => {
@@ -236,6 +281,12 @@ export function useEntryManagementFilters({
     setPaymentFilter,
     selectedTab,
     setSelectedTab,
+    attentionFilter,
+    setAttentionFilter,
+    workMode,
+    setWorkMode,
+    entryViewMode,
+    setEntryViewMode,
     trialFilter,
     setTrialFilter,
     classFilter,

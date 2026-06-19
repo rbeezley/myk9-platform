@@ -3,17 +3,14 @@ import { render, screen, within } from '@/test/utils/testUtils';
 import { RegistrationView } from '../RegistrationView';
 import { EntryStatus } from '@/types/show-registration-types';
 import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
-import type {
-  EntryStats,
-  EntryManagementEntry,
-  EntryClass,
-} from '@/types/entry-management-types';
+import type { EntryStats, EntryManagementEntry, EntryClass } from '@/types/entry-management-types';
 
 // Keep the real EntriesTableView + EntryBulkActionsBar (this test is about their
 // wiring through RegistrationView); mock only the unrelated heavy children.
 vi.mock('../EntryStatsCards', () => ({ EntryStatsCards: () => <div data-testid="entry-stats" /> }));
-vi.mock('../EntryFiltersCard', () => ({ EntryFiltersCard: () => <div data-testid="entry-filters" /> }));
-vi.mock('../EnrollmentCard', () => ({ EnrollmentCard: () => <div data-testid="enrollment-card" /> }));
+vi.mock('../EnrollmentCard', () => ({
+  EnrollmentCard: () => <div data-testid="enrollment-card" />,
+}));
 vi.mock('@/components/entries/MoveUpRequestsTab', () => ({
   MoveUpRequestsTab: () => <div data-testid="move-up-requests" />,
 }));
@@ -51,7 +48,7 @@ const enrollmentGroups = [
 
 function renderView(overrides: Record<string, unknown> = {}) {
   const onBulkStatusChange = vi.fn();
-  const setSelectedTab = vi.fn();
+  const setAttentionFilter = vi.fn();
   const filteredEntries = [entry('e1', 'Willow'), entry('e2', 'Ranger')];
   const props = {
     stats: {} as EntryStats,
@@ -59,9 +56,10 @@ function renderView(overrides: Record<string, unknown> = {}) {
     setSearchTerm: vi.fn(),
     paymentFilter: 'all',
     setPaymentFilter: vi.fn(),
-    selectedTab: 'pending',
-    setSelectedTab,
-    tabCounts: { all: 2, pending: 2, accepted: 0, waitlist: 0, issues: 0 },
+    attentionFilter: 'pending',
+    setAttentionFilter,
+    entryViewMode: 'table',
+    setEntryViewMode: vi.fn(),
     filteredEntries,
     entries: filteredEntries,
     onBulkStatusChange,
@@ -80,15 +78,12 @@ function renderView(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
   const utils = render(<RegistrationView {...props} />);
-  return { ...utils, onBulkStatusChange, setSelectedTab };
+  return { ...utils, onBulkStatusChange, setAttentionFilter };
 }
 
 describe('RegistrationView multi-select wiring', () => {
   it('select-all reveals the bulk bar and Approve fires onBulkStatusChange with the selected ids', async () => {
     const { user, onBulkStatusChange } = renderView();
-
-    // Switch to the table view, where multi-select lives.
-    await user.click(screen.getByRole('button', { name: /table view/i }));
 
     // No bar until something is selected.
     expect(screen.queryByText(/entries selected/i)).not.toBeInTheDocument();
@@ -98,24 +93,24 @@ describe('RegistrationView multi-select wiring', () => {
     const bar = screen.getByRole('region', { name: /bulk entry actions/i });
     expect(within(bar).getByText('2 entries selected')).toBeInTheDocument();
 
-    await user.click(within(bar).getByRole('button', { name: /approve/i }));
+    await user.click(within(bar).getByRole('button', { name: /bulk actions/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /accept selected/i }));
 
     expect(onBulkStatusChange).toHaveBeenCalledWith(['e1', 'e2'], EntryStatus.ACCEPTED);
     // Selection clears after the action — bar goes away.
     expect(screen.queryByRole('region', { name: /bulk entry actions/i })).not.toBeInTheDocument();
   });
 
-  it('switching tabs clears the selection (and the bar)', async () => {
-    const { user, setSelectedTab } = renderView();
-    await user.click(screen.getByRole('button', { name: /table view/i }));
+  it('switching attention filters clears the selection (and the bar)', async () => {
+    const { user, setAttentionFilter } = renderView();
     await user.click(screen.getByRole('checkbox', { name: /select willow/i }));
 
     expect(screen.getByRole('region', { name: /bulk entry actions/i })).toBeInTheDocument();
 
-    // Clicking another tab routes through handleTabChange → clearSelection + setSelectedTab.
-    await user.click(screen.getByRole('tab', { name: /accepted/i }));
+    await user.click(screen.getByRole('button', { name: /pending review/i }));
+    await user.click(screen.getByRole('button', { name: /accepted/i }));
 
-    expect(setSelectedTab).toHaveBeenCalledWith('accepted');
+    expect(setAttentionFilter).toHaveBeenCalledWith('accepted');
     expect(screen.queryByRole('region', { name: /bulk entry actions/i })).not.toBeInTheDocument();
   });
 });

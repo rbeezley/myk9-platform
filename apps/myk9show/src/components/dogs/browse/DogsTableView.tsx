@@ -53,6 +53,7 @@ const columns: ColumnDef<Dog>[] = [
     id: 'name',
     accessorFn: dog => getDogDisplayName(dog),
     header: 'Name',
+    meta: { exportHeader: 'Name', exportValue: (dog: unknown) => getDogDisplayName(dog as Dog) },
     cell: ({ row }) => {
       const dog = row.original;
       return (
@@ -81,6 +82,7 @@ const columns: ColumnDef<Dog>[] = [
   {
     accessorKey: 'breed',
     header: 'Breed',
+    meta: { exportHeader: 'Breed', exportValue: (dog: unknown) => (dog as Dog).breed || '' },
     cell: ({ row }) => (
       <span className="text-muted-foreground truncate">{row.original.breed || '—'}</span>
     ),
@@ -88,12 +90,14 @@ const columns: ColumnDef<Dog>[] = [
   {
     accessorKey: 'sex',
     header: 'Sex',
+    meta: { exportHeader: 'Sex', exportValue: (dog: unknown) => (dog as Dog).sex || '' },
     cell: ({ row }) => getSexBadge(row.original.sex),
   },
   {
     id: 'owner',
     accessorFn: dog => dog.ownerName || '',
     header: 'Owner',
+    meta: { exportHeader: 'Owner', exportValue: (dog: unknown) => (dog as Dog).ownerName || '' },
     cell: ({ row }) => (
       <span className="text-muted-foreground truncate">{row.original.ownerName || '—'}</span>
     ),
@@ -101,6 +105,7 @@ const columns: ColumnDef<Dog>[] = [
   {
     accessorKey: 'status',
     header: 'Status',
+    meta: { exportHeader: 'Status', exportValue: (dog: unknown) => (dog as Dog).status || 'active' },
     cell: ({ row }) => getStatusBadge(row.original.status),
   },
 ];

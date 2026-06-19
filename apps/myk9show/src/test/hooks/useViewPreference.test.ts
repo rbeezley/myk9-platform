@@ -20,6 +20,35 @@ describe('useViewPreference', () => {
     expect(result.current[2]).toBe(true);
   });
 
+  it('updates an unsaved mode when the default changes', () => {
+    const { result, rerender } = renderHook(
+      ({ defaultMode }) => useViewPreference('dogs', defaultMode),
+      { initialProps: { defaultMode: 'table' as const } }
+    );
+
+    expect(result.current[0]).toBe('table');
+
+    rerender({ defaultMode: 'cards' as const });
+
+    expect(result.current[0]).toBe('cards');
+    expect(result.current[2]).toBe(false);
+  });
+
+  it('keeps a stored mode when the default changes', () => {
+    localStorage.setItem('view-pref-dogs', 'table');
+    const { result, rerender } = renderHook(
+      ({ defaultMode }) => useViewPreference('dogs', defaultMode),
+      { initialProps: { defaultMode: 'cards' as const } }
+    );
+
+    expect(result.current[0]).toBe('table');
+
+    rerender({ defaultMode: 'cards' as const });
+
+    expect(result.current[0]).toBe('table');
+    expect(result.current[2]).toBe(true);
+  });
+
   it('writes to localStorage on change', () => {
     const { result } = renderHook(() => useViewPreference('classes', 'table'));
     act(() => result.current[1]('cards'));

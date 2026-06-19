@@ -22,6 +22,7 @@ import {
 import { ShowCalendar } from '@/components/common/LazyComponents';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import '@/styles/myk9-show-details.css';
+import { UserRole, type UserWithRoles } from '@/types/auth-types';
 
 import {
   ShowsPageSkeleton,
@@ -55,6 +56,22 @@ const VIEW_MODES = [
   { key: 'calendar', label: 'Calendar', icon: 'calendar' as const },
 ];
 
+const VALID_VIEW_MODES: ReadonlySet<string> = new Set(VIEW_MODES.map(mode => mode.key));
+
+function parseViewMode(value: string | null): ViewMode | null {
+  return value && VALID_VIEW_MODES.has(value) ? (value as ViewMode) : null;
+}
+
+function isExhibitorOnlyUser(user: UserWithRoles | null): boolean {
+  const roles = user?.roles ?? [];
+  return roles.length > 0 && roles.every(role => role === UserRole.EXHIBITOR);
+}
+
+function getDefaultViewMode(selectedTab: string, user: UserWithRoles | null): ViewMode {
+  if (selectedTab === 'entries' || isExhibitorOnlyUser(user)) return 'cards';
+  return 'table';
+}
+
 const BrowseShowsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { userWithRoles: authUser, isSecretary, isAdmin } = useAuthContext();
@@ -66,7 +83,8 @@ const BrowseShowsPage: React.FC = () => {
   const [selectedTab, setSelectedTab] = useUrlTab(allowedTabIds, tabConfig.defaultTab);
 
   // View mode state (still URL-synced manually — useUrlTab only manages ?tab=)
-  const initialViewMode = (searchParams.get('view') as ViewMode) || 'cards';
+  const defaultViewMode = getDefaultViewMode(selectedTab, authUser);
+  const initialViewMode = parseViewMode(searchParams.get('view')) ?? defaultViewMode;
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
   const [isTabSwitching, setIsTabSwitching] = useState(false);
   const [isViewModeChanging, setIsViewModeChanging] = useState(false);
@@ -192,7 +210,7 @@ const BrowseShowsPage: React.FC = () => {
       setSearchParams(
         prev => {
           const next = new URLSearchParams(prev);
-          if (newViewMode === 'cards') {
+          if (newViewMode === defaultViewMode) {
             next.delete('view');
           } else {
             next.set('view', newViewMode);
@@ -202,7 +220,7 @@ const BrowseShowsPage: React.FC = () => {
         { replace: true }
       );
     },
-    [setSearchParams]
+    [defaultViewMode, setSearchParams]
   );
 
   // Handle tab change with permission check and loading state
@@ -238,7 +256,7 @@ const BrowseShowsPage: React.FC = () => {
 
   // Sync view mode and club filter from URL on mount and param changes
   useEffect(() => {
-    const viewFromUrl = (searchParams.get('view') as ViewMode) || 'cards';
+    const viewFromUrl = parseViewMode(searchParams.get('view')) ?? defaultViewMode;
     if (viewFromUrl !== viewMode) {
       queueMicrotask(() => setViewMode(viewFromUrl));
     }
@@ -246,7 +264,7 @@ const BrowseShowsPage: React.FC = () => {
     if (clubFromUrl && clubFromUrl !== (filters.club === 'all' ? null : filters.club)) {
       queueMicrotask(() => setFilters(prev => ({ ...prev, club: clubFromUrl })));
     }
-  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [defaultViewMode, searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Breadcrumb items for PageHeader
   const breadcrumbs = useMemo(() => {

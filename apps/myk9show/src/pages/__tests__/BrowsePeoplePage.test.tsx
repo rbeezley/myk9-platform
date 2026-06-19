@@ -75,6 +75,7 @@ function LocationProbe() {
 describe('BrowsePeoplePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     mockBrowsePeopleReturn = {
       people: [
         {
@@ -108,6 +109,22 @@ describe('BrowsePeoplePage', () => {
     render(<BrowsePeoplePage />, { initialRoute: '/people?add=true' });
 
     expect(screen.getByTestId('add-person-panel')).toBeInTheDocument();
+  });
+
+  it('renders people table view by default', () => {
+    render(<BrowsePeoplePage />, { initialRoute: '/people' });
+
+    expect(screen.getByTestId('people-table')).toBeInTheDocument();
+    expect(screen.queryByTestId('people-grid')).not.toBeInTheDocument();
+  });
+
+  it('honors a stored cards preference', () => {
+    localStorage.setItem('view-pref-people', 'cards');
+
+    render(<BrowsePeoplePage />, { initialRoute: '/people' });
+
+    expect(screen.getByTestId('people-grid')).toBeInTheDocument();
+    expect(screen.queryByTestId('people-table')).not.toBeInTheDocument();
   });
 
   it('removes the add query parameter when the add person panel closes', async () => {

@@ -17,13 +17,22 @@ const data: TestRow[] = [
   { id: '2', name: 'Beta', value: 20 },
 ];
 
+const pagedData: TestRow[] = Array.from({ length: 30 }, (_, index) => ({
+  id: String(index + 1),
+  name: `Row ${index + 1}`,
+  value: index + 1,
+}));
+
 describe('DataTable default toolbar', () => {
   beforeEach(() => localStorage.clear());
 
-  it('renders search and column toggle when tableId is provided and no toolbar prop', () => {
+  it('renders the standard toolbar controls when tableId is provided and no toolbar prop', () => {
     render(<DataTable tableId="test" columns={columns} data={data} />);
     expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /toggle columns/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /export csv/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /compact density/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /reset table view/i })).toBeInTheDocument();
   });
 
   it('hides the search box but keeps the column toggle when showSearch is false', () => {
@@ -61,5 +70,67 @@ describe('DataTable default toolbar', () => {
     expect(stored).toBeTruthy();
     const parsed = JSON.parse(stored!);
     expect(parsed.value).toBe(false);
+  });
+
+  it('resets sorting, filters, density, page size, and column visibility', async () => {
+    const { user } = render(<DataTable tableId="test-reset" columns={columns} data={pagedData} />);
+
+    await user.click(screen.getByRole('button', { name: /toggle columns/i }));
+    const labels = screen.getAllByText('Value');
+    const toggleLabel = labels.find(el => el.closest('label'));
+    if (toggleLabel) {
+      await user.click(toggleLabel);
+    }
+
+    await user.click(screen.getByRole('button', { name: /compact density/i }));
+    await user.selectOptions(screen.getByLabelText('Rows per page'), '50');
+
+    expect(localStorage.getItem('datatable-density-test-reset')).toBe('compact');
+    expect(localStorage.getItem('datatable-page-size-test-reset')).toBe('50');
+
+    await user.click(screen.getByRole('button', { name: /reset table view/i }));
+
+    expect(JSON.parse(localStorage.getItem('datatable-cols-test-reset')!)).toEqual({});
+    expect(localStorage.getItem('datatable-density-test-reset')).toBe('comfortable');
+    expect(localStorage.getItem('datatable-page-size-test-reset')).toBe('25');
+    expect(screen.getByRole('columnheader', { name: /value/i })).toBeInTheDocument();
+  });
+
+  it('persists page size per table', async () => {
+    const { user } = render(
+      <DataTable tableId="test-page-size" columns={columns} data={pagedData} />
+    );
+
+    await user.selectOptions(screen.getByLabelText('Rows per page'), '50');
+
+    expect(localStorage.getItem('datatable-page-size-test-page-size')).toBe('50');
+  });
+
+  it('exports visible filtered rows as CSV', async () => {
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    const appendChildSpy = vi.spyOn(document.body, 'appendChild');
+    const removeSpy = vi.spyOn(HTMLElement.prototype, 'remove');
+    const createObjectUrl = vi.fn(() => 'blob:table-export');
+    const revokeObjectUrl = vi.fn();
+    vi.stubGlobal('URL', {
+      ...URL,
+      createObjectURL: createObjectUrl,
+      revokeObjectURL: revokeObjectUrl,
+    });
+
+    const { user } = render(<DataTable tableId="test-export" columns={columns} data={data} />);
+
+    await user.click(screen.getByRole('button', { name: /export csv/i }));
+
+    expect(createObjectUrl).toHaveBeenCalledWith(expect.any(Blob));
+    expect(appendChildSpy).toHaveBeenCalledWith(expect.any(HTMLAnchorElement));
+    expect(clickSpy).toHaveBeenCalled();
+    expect(removeSpy).toHaveBeenCalled();
+    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:table-export');
+
+    appendChildSpy.mockRestore();
+    clickSpy.mockRestore();
+    removeSpy.mockRestore();
+    vi.unstubAllGlobals();
   });
 });

@@ -59,7 +59,8 @@ describe('EntryBulkActionsBar', () => {
       entry('p', EntryStatus.PENDING),
       entry('done', EntryStatus.COMPLETED), // ineligible — excluded
     ]);
-    await user.click(screen.getByRole('button', { name: /approve/i }));
+    await user.click(screen.getByRole('button', { name: /bulk actions/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /accept selected/i }));
 
     expect(onBulkStatusChange).toHaveBeenCalledWith(['p'], EntryStatus.ACCEPTED);
     expect(onClear).toHaveBeenCalledTimes(1);
@@ -70,16 +71,24 @@ describe('EntryBulkActionsBar', () => {
       entry('acc', EntryStatus.ACCEPTED),
       entry('pend', EntryStatus.PENDING), // not accepted — excluded from check-in
     ]);
-    await user.click(screen.getByRole('button', { name: /check in/i }));
+    await user.click(screen.getByRole('button', { name: /bulk actions/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /check in selected/i }));
 
     expect(onBulkCheckIn).toHaveBeenCalledWith(['acc']);
   });
 
-  it('disables actions that have no eligible entries', () => {
-    setup([entry('done', EntryStatus.COMPLETED)]);
-    expect(screen.getByRole('button', { name: /approve/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /reject/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /check in/i })).toBeDisabled();
+  it('disables actions that have no eligible entries', async () => {
+    const { user } = setup([entry('done', EntryStatus.COMPLETED)]);
+    await user.click(screen.getByRole('button', { name: /bulk actions/i }));
+    expect(await screen.findByRole('menuitem', { name: /accept selected/i })).toHaveAttribute(
+      'data-disabled'
+    );
+    expect(screen.getByRole('menuitem', { name: /reject selected/i })).toHaveAttribute(
+      'data-disabled'
+    );
+    expect(screen.getByRole('menuitem', { name: /check in selected/i })).toHaveAttribute(
+      'data-disabled'
+    );
   });
 
   it('does not offer a Waitlist action (waitlist uses the dedicated workflow)', () => {
@@ -87,12 +96,15 @@ describe('EntryBulkActionsBar', () => {
     expect(screen.queryByRole('button', { name: /waitlist/i })).not.toBeInTheDocument();
   });
 
-  it('reflects the eligible count in the button label', () => {
-    setup([
+  it('reflects the eligible count in the action label', async () => {
+    const { user } = setup([
       entry('p1', EntryStatus.PENDING),
       entry('p2', EntryStatus.PENDING),
       entry('acc', EntryStatus.ACCEPTED), // not eligible for approve (already accepted)
     ]);
-    expect(screen.getByRole('button', { name: /approve \(2\)/i })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /bulk actions/i }));
+    expect(
+      await screen.findByRole('menuitem', { name: /accept selected \(2\)/i })
+    ).toBeInTheDocument();
   });
 });

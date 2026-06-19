@@ -41,23 +41,24 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [ai-ux-adaptation.md](ai-ux-adaptation.md)                                                 | Reference | myK9 Adaptation Notes — "4 AI UX Prompts" Guide                       |
 | [codex-review-playbook.md](codex-review-playbook.md)                                       | Reference | Codex review playbook                                                 |
 | [feature-audit-2026.md](feature-audit-2026.md)                                             | Reference | Feature Audit — Fall 2026                                             |
-| [ia-review-entry-status-surfaces.md](ia-review-entry-status-surfaces.md)                   | Active    | IA Review: Entry-Status Surfaces (cross-role)                        |
+| [ia-review-entry-status-surfaces.md](ia-review-entry-status-surfaces.md)                   | Active    | IA Review: Entry-Status Surfaces (cross-role)                         |
 | [launch-milestone-qa-checklist.md](launch-milestone-qa-checklist.md)                       | Reference | Launch-Milestone QA Checklist                                         |
 | [navigation-ia.md](navigation-ia.md)                                                       | Reference | Navigation & IA Sketch — Fall 2026                                    |
 | [plan-active-docs-triage-2026-06-14.md](plan-active-docs-triage-2026-06-14.md)             | Active    | Active-Docs Triage — 2026-06-14                                       |
-| [plan-admin-payout-ledger-platform-fee.md](plan-admin-payout-ledger-platform-fee.md)       | Active    | Admin Payout Ledger + Platform Fee Setting                           |
+| [plan-admin-payout-ledger-platform-fee.md](plan-admin-payout-ledger-platform-fee.md)       | Active    | Admin Payout Ledger + Platform Fee Setting                            |
 | [plan-architecture-deepening.md](plan-architecture-deepening.md)                           | Active    | Architecture Deepening Plan                                           |
 | [plan-block-person-delete-owns-dogs.md](plan-block-person-delete-owns-dogs.md)             | Active    | Block deleting a person who still owns dogs                           |
 | [plan-class-status-auto-derivation.md](plan-class-status-auto-derivation.md)               | Active    | Plan — Class Status Auto-Derivation (Stub)                            |
 | [plan-data-access-module-drift.md](plan-data-access-module-drift.md)                       | Active    | Data Access Module Drift Plan                                         |
 | [plan-dynamic-qa-infrastructure.md](plan-dynamic-qa-infrastructure.md)                     | Complete  | Plan: Dynamic QA Infrastructure (follow-on to the Code-Quality Audit) |
+| [plan-entry-management-layout.md](plan-entry-management-layout.md)                         | Active    | Entry Management Layout Plan                                          |
 | [plan-lane-2-2-entry-multiselect.md](plan-lane-2-2-entry-multiselect.md)                   | Active    | Plan: Lane 2.2 — Entry Management checkbox multi-select               |
 | [plan-launch-execution-lanes.md](plan-launch-execution-lanes.md)                           | Active    | Plan: Fall Launch — Execution Lanes (canonical to-do)                 |
-| [plan-public-results-release-gate.md](plan-public-results-release-gate.md)                  | Active    | Plan: Server-side gate for public/anon scored results                |
-| [plan-restore-ui-remediation.md](plan-restore-ui-remediation.md)                           | Active    | Plan: Fix the Deleted Entities (restore) UI                          |
+| [plan-public-results-release-gate.md](plan-public-results-release-gate.md)                 | Active    | Plan: Server-side gate for public/anon scored results                 |
+| [plan-restore-ui-remediation.md](plan-restore-ui-remediation.md)                           | Active    | Plan: Fix the Deleted Entities (restore) UI                           |
 | [plan-result-reveal-share-card.md](plan-result-reveal-share-card.md)                       | Active    | Plan: Result Reveal + Share Card                                      |
 | [plan-show-day-sequencing.md](plan-show-day-sequencing.md)                                 | Active    | Plan — Show-Day Workflow Sequencing                                   |
-| [plan-soft-delete-person-rpc.md](plan-soft-delete-person-rpc.md)                           | Active    | Plan: Fix person soft-delete (RLS WITH-CHECK block)                  |
+| [plan-soft-delete-person-rpc.md](plan-soft-delete-person-rpc.md)                           | Active    | Plan: Fix person soft-delete (RLS WITH-CHECK block)                   |
 | [plan-ux-journey-audit.md](plan-ux-journey-audit.md)                                       | Active    | Plan: UX Journey Audit — Exhibitor & Secretary                        |
 | [plan-ux-journey-phase6.md](plan-ux-journey-phase6.md)                                     | Active    | Plan: UX Journey Audit — Phase 6 (Remediation Verification)           |
 | [plan-wave1-exhibitor-entry-payment-trust.md](plan-wave1-exhibitor-entry-payment-trust.md) | Active    | Wave 1 Exhibitor Entry And Payment Trust Implementation Plan          |
@@ -191,11 +192,11 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 
 ### operations/ — runbooks
 
-| Doc                                                                        | Status    | Title                                                           |
-| -------------------------------------------------------------------------- | --------- | --------------------------------------------------------------- |
-| [operations/stripe-platform-setup.md](operations/stripe-platform-setup.md)   | Reference | Stripe Platform Setup — Operator Runbook (Richard)              |
+| Doc                                                                          | Status    | Title                                                                   |
+| ---------------------------------------------------------------------------- | --------- | ----------------------------------------------------------------------- |
+| [operations/stripe-platform-setup.md](operations/stripe-platform-setup.md)   | Reference | Stripe Platform Setup — Operator Runbook (Richard)                      |
 | [operations/stripe-treasurer-guide.md](operations/stripe-treasurer-guide.md) | Reference | Stripe Treasurer Guide — Club payout onboarding (share with treasurers) |
-| [operations/supabase-auth-email.md](operations/supabase-auth-email.md)       | Reference | Supabase Auth Email — Resend, Rate Limits & Manual Confirmation |
+| [operations/supabase-auth-email.md](operations/supabase-auth-email.md)       | Reference | Supabase Auth Email — Resend, Rate Limits & Manual Confirmation         |
 
 ### future/ — parked backlog
 

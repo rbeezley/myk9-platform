@@ -50,6 +50,9 @@ describe('semantic status token foundation', () => {
     it('defines --info as an RGB triplet', () => {
       expect(lightCss).toContain('--info: 37 99 235');
     });
+    it('defines --info-strong as blue-800 for AA contrast on the /10 tint pattern', () => {
+      expect(lightCss).toContain('--info-strong: 30 64 175');
+    });
     it('defines --info-foreground', () => {
       expect(lightCss).toContain('--info-foreground: 255 255 255');
     });
@@ -75,6 +78,9 @@ describe('semantic status token foundation', () => {
     it('defines dark --info', () => {
       expect(darkCss).toContain('--info: 96 165 250');
     });
+    it('defines dark --info-strong', () => {
+      expect(darkCss).toContain('--info-strong: 147 197 253');
+    });
     it('defines dark --destructive as an RGB triplet (not hex), scoped to .dark', () => {
       expect(darkCss).toContain('--destructive: 220 38 38');
       expect(darkCss).not.toContain('--destructive: 185 28 28');
@@ -91,6 +97,9 @@ describe('semantic status token foundation', () => {
     });
     it('wires info with rgb alpha form', () => {
       expect(tailwind).toContain("DEFAULT: 'rgb(var(--info) / <alpha-value>)'");
+    });
+    it('wires info strong with rgb alpha form', () => {
+      expect(tailwind).toContain("strong: 'rgb(var(--info-strong) / <alpha-value>)'");
     });
     it('wires destructive with rgb alpha form', () => {
       expect(tailwind).toContain("DEFAULT: 'rgb(var(--destructive) / <alpha-value>)'");

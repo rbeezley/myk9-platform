@@ -14,7 +14,7 @@ Index of all customer-facing guides and their current status. Every guide listed
 
 | Title | Audience | Status | Priority | Notes |
 |---|---|---|---|---|
-| [Secretary Guide](secretary-guide.md) | Trial secretaries | `planned` | high | Create after outline (below) passes Phase 0 gate |
+| [Secretary Guide](secretary-guide.md) | Trial secretaries | `qa-draft` | high | Phase 0 gate met (2026-06-19); screenshots pending; § 11 Closeout stub (feature not built) |
 | [Exhibitor Guide](exhibitor-guide.md) | Dog exhibitors | `planned` | high | Create after outline passes Phase 0 gate |
 | [Ringside Quickstart](judge-steward-quickstart.md) | Judges, stewards | `planned` | medium | Printable; keep short enough to hand out at the gate |
 | [Club Admin & Treasurer Guide](club-admin-guide.md) | Club admins, treasurers | `planned` | medium | Gate payment screenshots until sandbox walkthrough is fresh |

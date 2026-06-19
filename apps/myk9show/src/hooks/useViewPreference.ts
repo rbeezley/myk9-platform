@@ -51,5 +51,7 @@ export function useViewPreference(
     [tabKey]
   );
 
-  return [preference.mode, setMode, preference.hasStoredPreference];
+  const mode = preference.hasStoredPreference ? preference.mode : defaultMode;
+
+  return [mode, setMode, preference.hasStoredPreference];
 }

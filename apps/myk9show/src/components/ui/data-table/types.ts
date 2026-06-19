@@ -10,6 +10,12 @@ export type EditType = 'text' | 'number' | 'select' | 'time' | 'custom';
 export interface DataTableColumnMeta {
   /** Tailwind breakpoint below which this column hides via CSS */
   responsiveHide?: ResponsiveBreakpoint;
+  /** Label to use when exporting this column to CSV. */
+  exportHeader?: string;
+  /** Return a plain export value for this column. Defaults to the column value. */
+  exportValue?: (row: unknown) => string | number | boolean | null | undefined;
+  /** Exclude this column from CSV export. */
+  exportDisabled?: boolean;
   /** Enable inline editing for this column */
   editable?: boolean;
   /** Built-in editor type */

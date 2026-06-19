@@ -65,6 +65,7 @@ const DATA_COLUMNS: ColumnDef<EnhancedShow, unknown>[] = [
     accessorKey: 'name',
     header: 'Name',
     accessorFn: show => (show.name ?? '').toLowerCase(),
+    meta: { exportHeader: 'Name', exportValue: (show: unknown) => (show as EnhancedShow).name || '' },
     cell: ({ row }) => (
       <div className="min-w-0">
         <div className="font-medium truncate">{row.original.name}</div>
@@ -80,6 +81,13 @@ const DATA_COLUMNS: ColumnDef<EnhancedShow, unknown>[] = [
     id: 'dateRange',
     header: 'Dates',
     accessorFn: show => show.startDate ?? '',
+    meta: {
+      exportHeader: 'Dates',
+      exportValue: (show: unknown) => {
+        const row = show as EnhancedShow;
+        return row.startDate ? formatDateRange(row.startDate, row.endDate) : '';
+      },
+    },
     cell: ({ row }) => (
       <span className="text-muted-foreground">
         {row.original.startDate
@@ -92,6 +100,10 @@ const DATA_COLUMNS: ColumnDef<EnhancedShow, unknown>[] = [
     accessorKey: 'location',
     header: 'Location',
     accessorFn: show => (show.location ?? '').toLowerCase(),
+    meta: {
+      exportHeader: 'Location',
+      exportValue: (show: unknown) => (show as EnhancedShow).location || '',
+    },
     cell: ({ row }) => (
       <span className="text-muted-foreground truncate">{row.original.location || '\u2014'}</span>
     ),
@@ -100,6 +112,10 @@ const DATA_COLUMNS: ColumnDef<EnhancedShow, unknown>[] = [
     accessorKey: 'organization',
     header: 'Organization',
     accessorFn: show => (show.organization ?? '').toLowerCase(),
+    meta: {
+      exportHeader: 'Organization',
+      exportValue: (show: unknown) => (show as EnhancedShow).organization || '',
+    },
     cell: ({ row }) => (
       <span className="text-muted-foreground truncate">
         {row.original.organization || '\u2014'}
@@ -110,12 +126,20 @@ const DATA_COLUMNS: ColumnDef<EnhancedShow, unknown>[] = [
     accessorKey: 'status',
     header: 'Status',
     accessorFn: show => (show.status ?? '').toLowerCase(),
+    meta: {
+      exportHeader: 'Status',
+      exportValue: (show: unknown) => (show as EnhancedShow).status || '',
+    },
     cell: ({ row }) => getStatusBadge(row.original.status),
   },
   {
     accessorKey: 'clubName',
     header: 'Host Club',
     accessorFn: show => (show.clubName ?? '').toLowerCase(),
+    meta: {
+      exportHeader: 'Host Club',
+      exportValue: (show: unknown) => (show as EnhancedShow).clubName || '',
+    },
     cell: ({ row }) => (
       <span className="text-muted-foreground truncate">{row.original.clubName || '\u2014'}</span>
     ),

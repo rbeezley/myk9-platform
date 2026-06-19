@@ -123,6 +123,7 @@ function renderPage() {
 describe('BrowseClubsPage (shared primitives migration)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     mockAuthReturn = {
       user: { id: 'test-user' },
       userWithRoles: { roles: ['secretary'] },
@@ -234,11 +235,20 @@ describe('BrowseClubsPage (shared primitives migration)', () => {
     expect(screen.getByTestId('clubs-skeleton')).toBeInTheDocument();
   });
 
-  it('renders club grid view by default', () => {
+  it('renders club table view by default', () => {
+    renderPage();
+
+    expect(screen.getByTestId('clubs-list')).toBeInTheDocument();
+    expect(screen.getByText('Golden State Dog Club')).toBeInTheDocument();
+  });
+
+  it('honors a stored cards preference', () => {
+    localStorage.setItem('view-pref-clubs', 'cards');
+
     renderPage();
 
     expect(screen.getByTestId('clubs-grid')).toBeInTheDocument();
-    expect(screen.getByText('Golden State Dog Club')).toBeInTheDocument();
+    expect(screen.queryByTestId('clubs-list')).not.toBeInTheDocument();
   });
 });
 
@@ -247,6 +257,7 @@ describe('BrowseClubsPage (shared primitives migration)', () => {
 describe('BrowseClubsPage — New Club button visibility', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     mockBrowseClubsReturn = {
       clubs: [makeClub()],
       filteredClubs: [makeClub()],

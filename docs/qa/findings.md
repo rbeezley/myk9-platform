@@ -114,7 +114,7 @@ Copy this block for each new finding.
 
 ### QA-HIDDEN-VALIDATION-025
 
-- **Status:** open
+- **Status:** closed
 - **Severity:** high
 - **Role:** secretary
 - **Surface:** `apps/myk9show/src/test/e2e/registration/secretaryNewUsers.spec.ts` mail-in exhibitor/new-dog flow.
@@ -127,10 +127,11 @@ Copy this block for each new finding.
 - **Fix owner:** secretary registration quick-create flow and dog form validation/save path (`AddDogPanel`, registration payload, owner/person linkage).
 - **Proof required:** Identify whether the save is blocked by missing owner/person linkage, hidden validation, or a mutation failure; fix the user-visible behavior; rerun `registration/secretaryNewUsers.spec.ts --grep "registers a mail-in exhibitor without auth user creation"` with `--retries=0`, then rerun the exact Phase 2 active Nightly command.
 - **Notes:** Do not close by weakening the `Dogs Added (1):` assertion. The fix needs to either save the dog or show a visible, actionable validation/error state.
+- **2026-06-19 — CLOSED.** Root cause was the test and UI drifting behind the current dog create path. `useDogStoreCompat.addDog()` now uses the `create_dog_with_registrations` RPC whenever a dog has registrations, but `secretaryNewUsers.spec.ts` still mocked the older direct `/dogs` plus `/dog_registrations` writes. The dialog stayed open after the unmocked RPC path failed, and the save error was only surfaced through the global notification path. Fixed by mocking the actual RPC payload in the mail-in E2E, passing `UserRole.SECRETARY` into `AddDogPanel` from `QuickCreateFlow` so the owner context is explicit, and rendering RPC/save failures inline in the `Add New Dog` dialog. Proof: new `QuickCreateFlow.test.tsx` regression passed; focused Playwright proof passed (`registration/secretaryNewUsers.spec.ts --grep "mail-in exhibitor"`, `1 passed`, `--retries=0`); exact Phase 2 active Playwright command passed locally with `49 passed, 1 skipped` in `3.0m` (`club-admin` route-health skipped because local club-admin credentials were absent).
 
 ### QA-TEST-FLAKE-026
 
-- **Status:** open
+- **Status:** closed
 - **Severity:** high
 - **Role:** secretary
 - **Surface:** `apps/myk9show/src/test/e2e/route-health-by-role.spec.ts` secretary group.
@@ -143,6 +144,7 @@ Copy this block for each new finding.
 - **Fix owner:** route-health secretary route list and the slow secretary route/page load path identified by focused isolation.
 - **Proof required:** Isolate the secretary route that stalls, repair the route or bound the route-health harness without suppressing real browser-health failures, rerun `route-health-by-role.spec.ts --grep "Route health: secretary"` with `--retries=0`, then rerun standalone route-health `6/6` and the exact Phase 2 active Nightly command.
 - **Notes:** Treat this separately from credential drift. The secretary auth helper now uses `TEST_USERS.SECRETARY`, and the rotated secretary credential specs passed focused proof.
+- **2026-06-19 — CLOSED.** Focused secretary route-health no longer reproduces the timeout: `route-health-by-role.spec.ts --grep "Route health: secretary"` passed in `18.3s` with `--retries=0`. Standalone route-health passed all locally available role groups (`5 passed, 1 skipped`, `1.0m`); the only skip was `club-admin`, because local club-admin credentials were absent. The exact Phase 2 active Playwright command then passed locally with `49 passed, 1 skipped` in `3.0m`; the secretary route-health group passed inside that full command in `14.0s`. During the full-command proof, `show-wizard-officials.spec.ts` exposed a separate stale-login page-object path that still used hardcoded legacy fixture credentials; fixed that spec to use the shared env-backed `signInAsSecretary` helper, then reran the full command successfully.
 
 ### QA-TEST-FLAKE-010
 

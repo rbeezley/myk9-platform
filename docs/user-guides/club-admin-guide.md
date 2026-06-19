@@ -48,7 +48,7 @@ Your club profile holds the information that flows into every show your club hos
    - Contact email and phone
 4. Update any field that is out of date → click **Save**.
 
-> *[Screenshot C-01: Club Settings form — club name, AKC number, address, and contact fields visible]*
+![Club Profile form — club name, AKC number, address, and contact fields visible](../screenshots/C-01.png)
 
 Changes take effect immediately on all future shows. Existing shows that have already been submitted to AKC are not retroactively changed.
 
@@ -62,26 +62,30 @@ The **Shows** page lists every show your club is hosting or has hosted. It is a 
 2. Each show card displays the show name, dates, and entry status.
 3. Click a show to open its workbench.
 
-> *[Screenshot C-02: Club Admin → Shows list — cards for past and upcoming shows]*
+![Shows list filtered to your club — cards for past and upcoming shows](../screenshots/C-02.png)
 
 From the show workbench you can see entry counts, the assigned secretary, and show status. You do not manage entries or run day-of operations from here — that is the secretary's job.
 
 ---
 
-## Section 3 — Assign a Secretary to a Show
+## Section 3 — Grant Show Access to a Secretary
 
-When a show is created for your club, it needs a secretary assigned before it can go live.
+Show access is managed from the **Members** page, not from the show itself. When you grant a member show access, they can manage any of your club's shows: entries, run order, show-day operations, and AKC results submission.
 
-1. In **Shows**, click the show that needs a secretary.
-2. In the show's **Setup** tab, find the **Secretary** section.
-3. Click **Assign Secretary** → search for the secretary's account by email.
-4. Select the account → click **Save**.
+**The person must already be a club member before you can grant show access.** If they are not yet in the members list, add them first (see Section 6).
 
-> *[Screenshot C-03: Show Setup tab — Secretary assignment section with search field]*
+1. In the sidebar, open **Members**.
+2. Find the person you want to make secretary.
+3. Click **⋮** (the action menu) next to their name.
+4. Under **Show Access**, click **Grant Show Access**.
 
-The secretary now has full access to manage that show: entries, run order, show-day operations, and AKC results submission. They do not need to be a Club Admin.
+![Members page — member row showing the Show Manager badge confirming active show access](../screenshots/C-03.png)
 
-**To change the secretary:** repeat the steps above and select a different account. The previous secretary immediately loses access to that show.
+The member's row now shows a **Show Manager** badge (key icon) indicating active show access. They can sign in and immediately access show management for all of your club's shows.
+
+**To revoke access:** open the same **⋮** menu and click **Revoke Show Access**. The person loses management access immediately — they remain a club member.
+
+> **Note:** Show access is club-wide — a secretary you authorize can manage all of your club's shows, not just one. If you need to restrict access to a specific show, contact your platform administrator.
 
 ---
 
@@ -185,7 +189,7 @@ The **Members** page lists everyone with club-level access: Club Admins and Secr
 1. In the sidebar, open **Members**.
 2. The **Members** tab lists accounts with club access and their role.
 
-> *[Screenshot C-06: Club Members page — members list with name, role badge, and action menu — blocked: seed]*
+![Club Members page — member list with name, Show Manager badge, type, status, and action menu](../screenshots/C-06.png)
 
 **Add a member:**
 
@@ -194,7 +198,7 @@ The **Members** page lists everyone with club-level access: Club Admins and Secr
 3. Select the account and assign a role (Club Admin or Secretary).
 4. Click **Save** — they now have access immediately.
 
-> *[Screenshot C-07: Add Member dialog — email search field and role selector visible — blocked: seed]*
+![Add Member dialog — name/email search filtered to fixture accounts, with membership type selector](../screenshots/C-07.png)
 
 If the person does not have a myK9Show account yet, they need to create one first. Send them to the show list page to sign up, then add them once their account is active.
 
@@ -226,8 +230,8 @@ All shots to be captured and added to `docs/training/screenshot-shot-list.md`. S
 |---|---|---|---|
 | C-01 | § 1 | Club Settings form — all fields visible | blocked: seed (needs club admin account in staging) |
 | C-02 | § 2 | Club Admin → Shows list | blocked: seed |
-| C-03 | § 3 | Show Setup tab — Secretary assignment section | blocked: seed |
+| C-03 | § 3 | Members page — member row with Show Manager badge | ready |
 | C-04 | § 4 | Payments page — pre-onboarding "Connect bank account" state | blocked: stripe |
 | C-05 | § 5 | Payments page — payout history table | blocked: stripe |
-| C-06 | § 7 | Club Members page — members list | blocked: seed |
-| C-07 | § 7 | Add Member dialog | blocked: seed |
+| C-06 | § 7 | Club Members page — members list | ready |
+| C-07 | § 7 | Add Member dialog | ready |

@@ -113,7 +113,7 @@ All shots in this section are **blocked by `unified_ringside_enabled` flag** —
 |---|---|---|---|---|---|---|---|
 | C-01 | Club Admin sidebar + Club Settings form | Club settings page | `club@myk9t.com` | Desktop | Club name, AKC number, address, and contact fields visible | § 2 Club Profile | `ready` |
 | C-02 | Club Admin → Shows list | Club admin shows page | `club@myk9t.com` | Desktop | Heritage show listed; secretary assignment visible | § 3 Show Access | `ready` |
-| C-03 | Secretary assignment section | Club admin show detail | `club@myk9t.com` | Desktop | Secretary field with current assignment shown | § 3 | `ready` |
+| C-03 | Grant show access | Club admin members page | `club@myk9t.com` | Desktop | Member row with Show Manager badge (access confirmed) | § 3 | `ready` |
 | C-04 | Club Admin → Payments — pre-onboarding | `/club-admin/payments` | `club@myk9t.com` | Desktop | "Set Up Payment Account" button; no Stripe account connected | § 4 Stripe Onboarding | `blocked: stripe` |
 | C-05 | Club Admin → Payments — connected with payout history | `/club-admin/payments` | `club@myk9t.com` | Desktop | Stripe account connected; per-show payout table with gross/fee/net | § 5 Payout History | `blocked: stripe` |
 

@@ -150,6 +150,11 @@ GRANT SELECT ON public.view_authenticated_entry_results TO authenticated;
 GRANT SELECT ON public.view_authenticated_entry_results TO service_role;
 REVOKE SELECT ON public.view_authenticated_entry_results FROM anon;
 
+-- This owner-run view supersedes the earlier own-entry-only invoker view.
+-- Dropping the old view avoids keeping a duplicate result-read surface that
+-- would fail after scored columns are revoked from authenticated below.
+DROP VIEW IF EXISTS public.view_own_entry_results;
+
 -- Replace authenticated's broad table SELECT with a safe column allowlist.
 -- Scored/result columns are intentionally omitted; staff and own-entry reads
 -- that need those fields must use view_authenticated_entry_results.

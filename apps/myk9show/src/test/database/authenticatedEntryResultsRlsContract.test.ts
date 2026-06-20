@@ -64,7 +64,9 @@ describe('authenticated entry results — RLS/grants contract', () => {
     expect(view).toMatch(
       /CASE\s+WHEN\s+access\.can_manage\s+OR\s+vis\.faults_visible\s+THEN\s+e\.total_faults\s+END\s+AS\s+total_faults/i
     );
-    expect(view).toMatch(/CASE\s+WHEN\s+access\.can_manage\s+THEN\s+e\.judge_notes\s+END\s+AS\s+judge_notes/i);
+    expect(view).toMatch(
+      /CASE\s+WHEN\s+access\.can_manage\s+THEN\s+e\.judge_notes\s+END\s+AS\s+judge_notes/i
+    );
   });
 
   it('revokes authenticated table-wide SELECT and re-grants only non-scored columns', () => {
@@ -91,5 +93,9 @@ describe('authenticated entry results — RLS/grants contract', () => {
     expect(migration).toMatch(
       /REVOKE\s+SELECT\s+ON\s+public\.view_authenticated_entry_results\s+FROM\s+anon/i
     );
+  });
+
+  it('drops the superseded invoker-rights own-entry view', () => {
+    expect(migration).toMatch(/DROP\s+VIEW\s+IF\s+EXISTS\s+public\.view_own_entry_results/i);
   });
 });

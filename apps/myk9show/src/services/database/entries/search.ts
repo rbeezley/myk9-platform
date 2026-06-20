@@ -142,52 +142,91 @@ export const USER_ENTRIES_SELECT = `
       )
     `;
 
-// Routes own-entry reads through the cascade-aware view so scored columns
-// (final_placement, result_status, etc.) are nulled until the visibility
-// cascade releases them. The view uses security_invoker=true, so the
-// caller's entries_select RLS policy still restricts rows to own entries.
+// Routes own-entry reads through the cascade-aware authenticated view so scored
+// columns (final_placement, result_status, etc.) are nulled until the
+// visibility cascade releases them. The view is owner-run and embeds the same
+// manager/own-entry row gate as entries_select, so it keeps working after
+// scored columns are revoked from the shared authenticated role.
 async function postgrestGetUserEntries() {
   const { data, error } = await supabase
-    .from('view_own_entry_results')
+    .from('view_authenticated_entry_results')
     .select(USER_ENTRIES_SELECT)
     .order('created_at', { ascending: false });
 
-  if (error) throw createDatabaseError(error, 'view_own_entry_results', 'select_user_entries');
+  if (error)
+    throw createDatabaseError(error, 'view_authenticated_entry_results', 'select_user_entries');
   return { data: data || [], error: null };
+}
+
+const SEARCH_ENTRIES_SELECT = `
+  id,
+  dog_id,
+  show_id,
+  class_id,
+  trial_id,
+  handler,
+  handler_id,
+  payment_status,
+  entry_status,
+  check_in_status,
+  entry_fee,
+  armband,
+  run_order,
+  jump_height,
+  special_requests,
+  is_scored,
+  result_status,
+  search_time_seconds,
+  total_faults,
+  final_placement,
+  submitted_at,
+  created_at,
+  updated_at,
+  registration_id,
+  deleted_at,
+  dog_name,
+  dog_call_name,
+  dog_breed,
+  class_name,
+  show_name,
+  show_start_date
+`;
+
+function mapAuthenticatedEntrySearchRow(row: Record<string, unknown>) {
+  return {
+    ...row,
+    dog: row.dog_id
+      ? {
+          id: row.dog_id,
+          name: row.dog_name,
+          call_name: row.dog_call_name,
+          breed: row.dog_breed,
+          owner: null,
+        }
+      : null,
+    class: row.class_id
+      ? {
+          id: row.class_id,
+          name: row.class_name,
+          class_number: null,
+          entry_fee: row.entry_fee,
+        }
+      : null,
+    show: row.show_id
+      ? {
+          id: row.show_id,
+          name: row.show_name,
+          start_date: row.show_start_date,
+          end_date: null,
+        }
+      : null,
+  };
 }
 
 async function postgrestSearchEntries(searchTerm: string) {
   const { data, error } = await supabase
-    .from('entries')
-    .select(
-      `
-      *,
-      dog:dog_id (
-        id,
-        name,
-        call_name,
-        breed,
-        owner:owner_id (
-          id,
-          first_name,
-          last_name,
-          email
-        )
-      ),
-      class:class_id (
-        id,
-        name,
-        class_number,
-        entry_fee
-      ),
-      show:show_id (
-        id,
-        name,
-        start_date,
-        end_date
-      )
-    `
-    )
+    .from('view_authenticated_entry_results')
+    .select(SEARCH_ENTRIES_SELECT)
     .or(
       `armband.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,handler.ilike.%${sanitizePostgRESTFilter(searchTerm)}%`
     )
@@ -195,8 +234,8 @@ async function postgrestSearchEntries(searchTerm: string) {
     .order('created_at', { ascending: false })
     .limit(50);
 
-  if (error) throw createDatabaseError(error, 'entries', 'search');
-  return { data: data || [], error: null };
+  if (error) throw createDatabaseError(error, 'view_authenticated_entry_results', 'search');
+  return { data: (data || []).map(row => mapAuthenticatedEntrySearchRow(row)), error: null };
 }
 
 async function postgrestCanModifyEntry(

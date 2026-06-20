@@ -8,9 +8,14 @@
     "dev": "pnpm prepare-content && astro dev",
     "build": "pnpm prepare-content && astro build",
     "preview": "astro preview",
+    "typecheck": "pnpm prepare-content && astro check",
     "astro": "astro"
   },
   "dependencies": {
     "astro": "^5.13.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.4",
+    "typescript": "^5.6.0"
   }
 }

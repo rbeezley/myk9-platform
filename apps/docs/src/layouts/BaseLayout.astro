@@ -4,8 +4,9 @@ interface Props {
   title: string;
   description?: string;
   active?: string;
+  draft?: boolean;
 }
-const { title, description = 'Step-by-step guides for running and entering dog shows on myK9Show.', active } = Astro.props;
+const { title, description = 'Step-by-step guides for running and entering dog shows on myK9Show.', active, draft = true } = Astro.props;
 const nav = [
   { href: '/guides/exhibitor-guide', label: 'Exhibitors', key: 'exhibitor' },
   { href: '/guides/secretary-guide', label: 'Secretaries', key: 'secretary' },
@@ -18,6 +19,7 @@ const nav = [
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
+    <meta name="robots" content="noindex, nofollow" />
     <title>{title}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -38,6 +40,12 @@ const nav = [
         <a class="nav-cta" href="https://myk9-platform-myk9show.vercel.app">Open the app</a>
       </div>
     </header>
+    {draft && (
+      <div class="draft-bar">
+        <span class="dot">●</span>
+        <span><strong>Draft preview</strong> — these guides are under review and not yet final. Content and screenshots may change.</span>
+      </div>
+    )}
     <slot />
     <footer class="site-footer">
       <div class="wrap">

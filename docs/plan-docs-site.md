@@ -36,8 +36,17 @@ so a non-author reviewer — and eventually customers — can read them on the w
    their screenshots resolving) — `astro build` in CI / a vitest that asserts output.
 6. Vercel config + deploy (user connects the project on their account).
 
+## Draft gate (review fixes, PR after #869)
+- The guides are still `qa-draft` ("do not publish to customers until verified"). The
+  site is a **reviewer preview**, not a customer publish: every page carries
+  `<meta robots="noindex,nofollow">` and a visible "Draft preview" banner. The banner
+  is driven by frontmatter `status` (prepare-content carries the source `**Status:**`
+  through) and disappears automatically once a guide flips to `verified`.
+- `astro check` is wired as the `typecheck` script so the monorepo typecheck/CI actually
+  validates this package (was a false green before).
+
 ## Deferred (v2)
-- Client-side search (prototype shows a search bar; wire it with Pagefind).
+- Client-side search with Pagefind (the non-functional search box was removed for v1).
 - Split each `## Section` into its own page with prev/next (v1 = one page per guide, anchored).
 - Judge/steward guide (blocked on the ringside flag).
 - Dark mode.

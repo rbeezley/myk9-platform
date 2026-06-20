@@ -65,13 +65,18 @@ async function run() {
     const slug = file.replace(/\.md$/, '');
     const meta = META[slug];
     if (!meta) continue; // only publish the curated guides
-    const body = transform(await readFile(join(srcGuides, file), 'utf8'));
+    const raw = await readFile(join(srcGuides, file), 'utf8');
+    // Carry the source's publish status into frontmatter (don't silently drop
+    // it) so the site can honestly badge drafts and gate indexing.
+    const status = raw.match(/^\*\*Status:\*\*\s*`?([\w-]+)`?/im)?.[1] ?? 'qa-draft';
+    const body = transform(raw);
     const fm = [
       '---',
       `title: ${JSON.stringify(meta.title)}`,
       `role: ${JSON.stringify(meta.role)}`,
       `blurb: ${JSON.stringify(meta.blurb)}`,
       `icon: ${JSON.stringify(meta.icon)}`,
+      `status: ${JSON.stringify(status)}`,
       `order: ${meta.order}`,
       '---',
       '',

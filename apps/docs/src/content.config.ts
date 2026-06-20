@@ -8,6 +8,7 @@ const guides = defineCollection({
     role: z.string(),
     blurb: z.string(),
     icon: z.string(),
+    status: z.string().default('qa-draft'),
     order: z.number(),
   }),
 });

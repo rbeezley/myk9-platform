@@ -165,7 +165,7 @@ Check yourself in so the secretary and stewards know you're at the show.
 
 On show day, a **Show Today** banner appears at the top of My Shows when you open the app. The banner only shows on the actual day of your show.
 
-> *[Screenshot E-13: My Shows — Show Today banner — blocked: date-controlled; banner only renders on the show's start date]*
+![E-13: My Shows — green "Show Day Is Here" banner at top with first-class time, entry count, and "Go to show day"](../screenshots/E-13.png)
 
 Tap the banner to jump to your entry for that show.
 
@@ -262,7 +262,7 @@ All shots from `docs/training/screenshot-shot-list.md`. Status as of 2026-06-19:
 | E-10 | § 5 | My Shows — Accepted entry card | ready |
 | E-11 | § 5 | My Shows — show card | ready |
 | E-12 | § 6 | Class detail — run order with armband number | ready |
-| E-13 | § 7 | Show Today banner | blocked: date |
+| E-13 | § 7 | Show Today banner | ready |
 | E-14 | § 7 | Entry card — "Not Checked In" status pill | ready |
 | E-15 | § 7 | Entry card — Checked In state | ready |
 | E-16 | § 8 | Entry card — Q result badge | ready |

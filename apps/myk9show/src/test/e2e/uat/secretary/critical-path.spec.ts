@@ -106,22 +106,24 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     await expect(page.getByText('Confirmed entries', { exact: true })).toBeVisible();
 
     await expect(page.getByRole('textbox', { name: 'Search entries' })).toBeVisible();
-    await expect(page.getByRole('tab', { name: /^All \(\d+\)$/ })).toBeVisible({
+    await expect(page.getByRole('tab', { name: 'Entries', exact: true })).toBeVisible({
       timeout: 10000,
     });
+    await expect(page.getByRole('group', { name: 'Entry work mode' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Review', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Day-of', exact: true })).toBeVisible();
 
     await page.getByRole('tab', { name: 'Waitlist', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Waitlist Management' })).toBeVisible();
     await page.getByRole('tab', { name: 'Entries', exact: true }).click();
 
-    const assignButton = page.getByRole('button', { name: 'Assign' }).first();
-    if (await assignButton.isVisible()) {
-      await assignButton.click();
-      const dialog = page.getByRole('dialog', { name: 'Assign Armband' });
-      await expect(dialog).toBeVisible();
-      await dialog.getByRole('button', { name: 'Cancel' }).click();
-      await expect(dialog).not.toBeVisible();
-    }
+    const rowActions = page.getByRole('button', { name: /^Actions for / }).first();
+    await expect(rowActions).toBeVisible({ timeout: 10000 });
+    await rowActions.click();
+    await expect(
+      page.getByRole('menuitem', { name: /Assign armband|Change armband/i }).first()
+    ).toBeVisible();
+    await page.keyboard.press('Escape');
   });
 
   test('reports page exposes financial and statistics report choices', async ({ page }) => {

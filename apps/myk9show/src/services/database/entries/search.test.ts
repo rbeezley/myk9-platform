@@ -63,6 +63,7 @@ import { findMissingReplicatedUserEntryRelations } from './userEntriesReplicatio
 function makeViewEntriesQuery(data: Array<Record<string, unknown>>, error: Error | null = null) {
   const query = {
     select: vi.fn(() => query),
+    is: vi.fn(() => query),
     order: vi.fn(() => Promise.resolve({ data, error })),
   };
   return query;
@@ -292,7 +293,7 @@ describe('getUserEntries replicated relation completeness', () => {
   it('prefers the complete PostgREST result when replicated relation rows are missing', async () => {
     mockReplicatedStores({ classes: [] });
     const onlineRows = [{ id: 'online-entry', class: { id: 'class-1', name: 'Container' } }];
-    mockSupabaseTables({
+    const { viewQuery } = mockSupabaseTables({
       viewEntryRows: onlineRows,
     });
 
@@ -300,6 +301,7 @@ describe('getUserEntries replicated relation completeness', () => {
 
     expect(result).toEqual({ data: onlineRows, error: null });
     expect(mocks.supabaseFrom).toHaveBeenCalledWith('view_authenticated_entry_results');
+    expect(viewQuery.is).toHaveBeenCalledWith('deleted_at', null);
     expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('entries');
     expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('dogs');
     expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('enrollments');

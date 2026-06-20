@@ -151,6 +151,7 @@ async function postgrestGetUserEntries() {
   const { data, error } = await supabase
     .from('view_authenticated_entry_results')
     .select(USER_ENTRIES_SELECT)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false });
 
   if (error)

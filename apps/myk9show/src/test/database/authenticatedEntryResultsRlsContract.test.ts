@@ -10,6 +10,14 @@ const migration = readFileSync(
   'utf8'
 );
 
+const refreshMigration = readFileSync(
+  resolve(
+    __dirname,
+    '../../../../../supabase/migrations/20260620185323_refresh_authenticated_entry_result_view_watermark.sql'
+  ),
+  'utf8'
+);
+
 const FORBIDDEN_AUTHENTICATED_COLUMNS = [
   'result_status',
   'search_time_seconds',
@@ -97,5 +105,14 @@ describe('authenticated entry results — RLS/grants contract', () => {
 
   it('drops the superseded invoker-rights own-entry view', () => {
     expect(migration).toMatch(/DROP\s+VIEW\s+IF\s+EXISTS\s+public\.view_own_entry_results/i);
+  });
+
+  it('watermarks authenticated result rows on visibility changes for incremental sync', () => {
+    expect(refreshMigration).toMatch(
+      /GREATEST\(\s*e\.updated_at,\s*c\.updated_at,\s*sh\.updated_at,\s*show_vis\.updated_at,\s*trial_vis\.updated_at,\s*class_vis\.updated_at\s*\)\s+AS\s+updated_at/i
+    );
+    expect(refreshMigration).toMatch(/show_visibility_settings\s+show_vis/i);
+    expect(refreshMigration).toMatch(/trial_visibility_overrides\s+trial_vis/i);
+    expect(refreshMigration).toMatch(/class_visibility_overrides\s+class_vis/i);
   });
 });

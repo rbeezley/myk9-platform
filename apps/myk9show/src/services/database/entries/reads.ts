@@ -33,15 +33,24 @@ import type { DbEntryWithRelations } from '@/services/mappers/classMappers';
 // ---------------------------------------------------------------------------
 
 async function loadDogsMap(): Promise<Map<string, ReplicatedDog>> {
-  return loadLookupMap(() => replicatedDogsTable.getAllDogs(), d => d.id);
+  return loadLookupMap(
+    () => replicatedDogsTable.getAllDogs(),
+    d => d.id
+  );
 }
 
 async function loadClassesMap(): Promise<Map<string, ReplicatedClass>> {
-  return loadLookupMap(() => replicatedClassesTable.getAll(), c => c.id);
+  return loadLookupMap(
+    () => replicatedClassesTable.getAll(),
+    c => c.id
+  );
 }
 
 async function loadShowsMap(): Promise<Map<string, ReplicatedShow>> {
-  return loadLookupMap(() => replicatedShowsTable.getAllShows(), s => s.id);
+  return loadLookupMap(
+    () => replicatedShowsTable.getAllShows(),
+    s => s.id
+  );
 }
 
 function getEntryCreatedSortValue(entry: ReplicatedEntry): string | undefined {
@@ -122,12 +131,64 @@ async function fetchMissingArmbands(
 // PostgREST fallback wrappers (original implementations)
 // ---------------------------------------------------------------------------
 
+const AUTHENTICATED_ENTRY_READ_COLUMNS = `
+      id,
+      dog_id,
+      class_id,
+      show_id,
+      trial_id,
+      handler_id,
+      entry_status,
+      payment_status,
+      handler,
+      entry_fee,
+      submitted_at,
+      special_requests,
+      armband,
+      run_order,
+      jump_height,
+      preferred_judge,
+      move_up_requested,
+      is_scored,
+      is_in_ring,
+      ring_entry_time,
+      ring_exit_time,
+      scoring_started_at,
+      scoring_completed_at,
+      license_key,
+      local_id,
+      sync_version,
+      last_synced_at,
+      created_at,
+      updated_at,
+      deleted_at,
+      deleted_by,
+      check_in_status,
+      payment_method,
+      entry_source,
+      is_day_of_show,
+      registration_id,
+      withdrawal_reason,
+      refund_amount,
+      refund_notes,
+      refunded_at,
+      stripe_payment_intent_id,
+      comped,
+      comped_reason,
+      discount_amount,
+      promo_code_id,
+      confirmation_email_sent_at,
+      confirmation_email_message_id,
+      confirmation_email_status,
+      version
+`;
+
 async function postgrestGetAllEntries() {
   const { data, error } = await supabase
     .from('entries')
     .select(
       `
-      *,
+      ${AUTHENTICATED_ENTRY_READ_COLUMNS},
       dog:dog_id (
         id,
         name,
@@ -174,7 +235,7 @@ async function postgrestGetEntryById(id: string) {
     .from('entries')
     .select(
       `
-      *,
+      ${AUTHENTICATED_ENTRY_READ_COLUMNS},
       dog:dog_id (
         id,
         name,
@@ -224,7 +285,7 @@ async function postgrestGetEntriesByShow(showId: string) {
     .from('entries')
     .select(
       `
-      *,
+      ${AUTHENTICATED_ENTRY_READ_COLUMNS},
       dog:dog_id (
         id,
         name,
@@ -262,7 +323,7 @@ async function postgrestGetEntriesByShowForFinancials(showId: string) {
     .from('entries')
     .select(
       `
-      *,
+      ${AUTHENTICATED_ENTRY_READ_COLUMNS},
       dog:dog_id (
         id,
         name,
@@ -306,7 +367,7 @@ async function postgrestGetEntriesByTrial(trialId: string) {
     .from('entries')
     .select(
       `
-      *,
+      ${AUTHENTICATED_ENTRY_READ_COLUMNS},
       dog:dog_id (
         id,
         name,
@@ -347,7 +408,7 @@ async function postgrestGetEntriesByClass(classId: string) {
     .from('entries')
     .select(
       `
-      *,
+      ${AUTHENTICATED_ENTRY_READ_COLUMNS},
       dog:dog_id (
         id,
         name,
@@ -388,7 +449,7 @@ async function postgrestGetEntriesByDog(dogId: string) {
     .from('entries')
     .select(
       `
-      *,
+      ${AUTHENTICATED_ENTRY_READ_COLUMNS},
       class:class_id (
         id,
         name,
@@ -417,7 +478,7 @@ async function postgrestGetEntriesByStatus(status: EntryStatus) {
     .from('entries')
     .select(
       `
-      *,
+      ${AUTHENTICATED_ENTRY_READ_COLUMNS},
       dog:dog_id (
         id,
         name,
@@ -462,8 +523,7 @@ async function postgrestGetEntriesByStatus(status: EntryStatus) {
 // `.is('deleted_at', null)` filter — otherwise a deleted dog's entries reappear
 // in rosters/scoring after sync. getEntryById is intentionally exempt (its
 // postgrest fallback also returns tombstones, for restore/detail lookups).
-const isLiveEntry = (entry: ReplicatedEntry): boolean =>
-  !entry.deletedAt && !entry.deleted_at;
+const isLiveEntry = (entry: ReplicatedEntry): boolean => !entry.deletedAt && !entry.deleted_at;
 
 // Get all entries with related data
 export const getAllEntries = async () => {
@@ -475,7 +535,10 @@ export const getAllEntries = async () => {
         loadClassesMap(),
         loadShowsMap(),
       ]);
-      const sortedEntries = sortedCopy(entries.filter(isLiveEntry), compareDateDesc(getEntryCreatedSortValue));
+      const sortedEntries = sortedCopy(
+        entries.filter(isLiveEntry),
+        compareDateDesc(getEntryCreatedSortValue)
+      );
       const data = mapEntriesWithStandardJoins(sortedEntries, dogsMap, classesMap, showsMap);
       return { data, error: null };
     },
@@ -516,7 +579,10 @@ export const getEntriesByShow = async (showId: string) => {
         loadDogsMap(),
         loadClassesMap(),
       ]);
-      const sortedEntries = sortedCopy(entries.filter(isLiveEntry), compareDateDesc(getEntryCreatedSortValue));
+      const sortedEntries = sortedCopy(
+        entries.filter(isLiveEntry),
+        compareDateDesc(getEntryCreatedSortValue)
+      );
       const data = sortedEntries.map(entry =>
         mapReplicatedEntryToDbRow(entry, {
           dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
@@ -716,7 +782,7 @@ export const getEntriesByDog = async (dogId: string) => {
 export const countActiveEntriesByDog = async (dogId: string): Promise<number> => {
   const { count, error } = await supabase
     .from('entries')
-    .select('*', { count: 'exact', head: true })
+    .select('id', { count: 'exact', head: true })
     .eq('dog_id', dogId)
     .is('deleted_at', null);
   if (error) throw error;

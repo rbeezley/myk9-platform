@@ -78,7 +78,7 @@ describe('useJudgeShowStats', () => {
     const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
     const mockAssignSelect = vi.fn().mockReturnValue({ eq: mockEq1 });
 
-    // Second call: view_entry_with_results - chained .eq().in()
+    // Second call: view_authenticated_entry_results - chained .eq().in()
     const mockIn = vi.fn().mockResolvedValue({ data: mockEntries, error: null });
     const mockEntryEq = vi.fn().mockReturnValue({ in: mockIn });
     const mockEntrySelect = vi.fn().mockReturnValue({ eq: mockEntryEq });
@@ -97,6 +97,6 @@ describe('useJudgeShowStats', () => {
     expect(result.current.data![0].dogCallName).toBe('Rex');
     expect(result.current.data![0].trialDate).toBe('2026-04-01');
     expect(mockFrom).toHaveBeenCalledWith('judge_assignments');
-    expect(mockFrom).toHaveBeenCalledWith('view_entry_with_results');
+    expect(mockFrom).toHaveBeenCalledWith('view_authenticated_entry_results');
   });
 });

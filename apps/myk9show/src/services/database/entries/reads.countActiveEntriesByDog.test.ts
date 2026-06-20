@@ -62,6 +62,7 @@ describe('countActiveEntriesByDog', () => {
 
     expect(result).toBe(16);
     expect(mocks.supabaseFrom).toHaveBeenCalledWith('entries');
+    expect(calls.select?.[0]).toBe('id');
     expect(calls.select?.[1]).toEqual({ count: 'exact', head: true });
     expect(calls.eq).toEqual(['dog_id', 'dog-123']);
     // The critical filter: tombstoned (deleted_at) entries must be excluded.

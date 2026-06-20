@@ -1,7 +1,7 @@
 import type { StatsEntry } from '@/components/analytics/analytics-utils';
 
 /**
- * Maps a raw Supabase row from `view_entry_with_results` to a StatsEntry.
+ * Maps a raw Supabase row from `view_authenticated_entry_results` to a StatsEntry.
  * Shared across useShowStats, useJudgeShowStats, and useMyShowStats.
  */
 export function mapRowToStatsEntry(
@@ -28,7 +28,7 @@ export function mapRowToStatsEntry(
   };
 }
 
-/** The select fragment used when querying view_entry_with_results for stats. */
+/** The select fragment used when querying authenticated entry-result views for stats. */
 export const STATS_ENTRY_SELECT = `
   id,
   dog_id,

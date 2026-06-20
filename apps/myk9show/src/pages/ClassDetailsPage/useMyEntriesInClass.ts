@@ -32,7 +32,7 @@ export interface UseMyEntriesInClassResult {
 export function useMyEntriesInClass(
   classId: string | undefined,
   /**
-   * Released results read directly from `view_entry_with_results` (see
+   * Released results read directly from `view_public_entry_results` (see
    * `useClassReleasedResults`). When provided, scoring/result values are
    * sourced from these rows instead of the replication store, which is cold
    * or stale for a post-show exhibitor/guest. Run-order/position (pre-class

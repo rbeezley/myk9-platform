@@ -9,6 +9,10 @@ import { logger } from '@/services/LoggingService';
 import type { DbEntryInsert, DbEntryUpdate } from '../../../types/database-mappings';
 import type { EntryStatus } from '@/types/entry-lifecycle';
 import { rejectEntry, setEntryLifecycleStatus } from './lifecycle';
+import {
+  AUTHENTICATED_ENTRY_READ_COLUMNS,
+  ENTRY_WITH_STANDARD_RELATIONS_SELECT,
+} from './entrySelects';
 
 // Create new entry
 export const createEntry = async (entryData: DbEntryInsert) => {
@@ -18,35 +22,7 @@ export const createEntry = async (entryData: DbEntryInsert) => {
     const { data, error } = await supabase
       .from('entries')
       .insert(entryData)
-      .select(
-        `
-        *,
-        dog:dog_id (
-          id,
-          name,
-          call_name,
-          breed,
-          owner:owner_id (
-            id,
-            first_name,
-            last_name,
-            email
-          )
-        ),
-        class:class_id (
-          id,
-          name,
-          class_number,
-          entry_fee
-        ),
-        show:show_id (
-          id,
-          name,
-          start_date,
-          end_date
-        )
-      `
-      )
+      .select(ENTRY_WITH_STANDARD_RELATIONS_SELECT)
       .single();
 
     const duration = Date.now() - startTime;
@@ -81,35 +57,7 @@ export const updateEntry = async (params: { id: string; updates: DbEntryUpdate }
       .from('entries')
       .update(updateData)
       .eq('id', id)
-      .select(
-        `
-        *,
-        dog:dog_id (
-          id,
-          name,
-          call_name,
-          breed,
-          owner:owner_id (
-            id,
-            first_name,
-            last_name,
-            email
-          )
-        ),
-        class:class_id (
-          id,
-          name,
-          class_number,
-          entry_fee
-        ),
-        show:show_id (
-          id,
-          name,
-          start_date,
-          end_date
-        )
-      `
-      )
+      .select(ENTRY_WITH_STANDARD_RELATIONS_SELECT)
       .single();
 
     const duration = Date.now() - startTime;
@@ -202,33 +150,10 @@ export const createMultipleEntries = async (entriesData: DbEntryInsert[]) => {
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase.from('entries').insert(entriesData).select(`
-        *,
-        dog:dog_id (
-          id,
-          name,
-          call_name,
-          breed,
-          owner:owner_id (
-            id,
-            first_name,
-            last_name,
-            email
-          )
-        ),
-        class:class_id (
-          id,
-          name,
-          class_number,
-          entry_fee
-        ),
-        show:show_id (
-          id,
-          name,
-          start_date,
-          end_date
-        )
-      `);
+    const { data, error } = await supabase
+      .from('entries')
+      .insert(entriesData)
+      .select(ENTRY_WITH_STANDARD_RELATIONS_SELECT);
 
     const duration = Date.now() - startTime;
     logQuery('entries', 'bulk_insert', duration, error?.message);
@@ -266,7 +191,7 @@ export const updateEntryDetails = async (params: {
         updated_at: new Date().toISOString(),
       })
       .eq('id', entryId)
-      .select()
+      .select(AUTHENTICATED_ENTRY_READ_COLUMNS)
       .single();
 
     const duration = Date.now() - startTime;
@@ -336,7 +261,7 @@ export const compEntry = async (params: { entryId: string; reason: string }) => 
         updated_at: new Date().toISOString(),
       })
       .eq('id', entryId)
-      .select()
+      .select(AUTHENTICATED_ENTRY_READ_COLUMNS)
       .single();
 
     const duration = Date.now() - startTime;
@@ -369,7 +294,7 @@ export const uncompEntry = async (entryId: string) => {
         updated_at: new Date().toISOString(),
       })
       .eq('id', entryId)
-      .select()
+      .select(AUTHENTICATED_ENTRY_READ_COLUMNS)
       .single();
 
     const duration = Date.now() - startTime;
@@ -461,7 +386,7 @@ export const applyPromoCodeToEntry = async (params: {
         updated_at: new Date().toISOString(),
       })
       .eq('id', entryId)
-      .select()
+      .select(AUTHENTICATED_ENTRY_READ_COLUMNS)
       .single();
 
     const duration = Date.now() - startTime;

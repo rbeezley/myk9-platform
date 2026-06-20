@@ -29,6 +29,7 @@ interface EntryRow {
   armband: string | null;
   is_scored: boolean | null;
   result_status: string | null;
+  dog_call_name: string | null;
 }
 
 interface ClassRow {
@@ -125,10 +126,10 @@ export function useNotificationMonitor(): void {
 
       // Fetch entries for those classes
       const { data: entryRows, error: entryError } = await supabase
-        .from('entries')
+        .from('view_authenticated_entry_results')
         .select(
           `id, dog_id, class_id, show_id, check_in_status, armband, is_scored, result_status,
-         dog:dog_id!inner(id, call_name)`
+         dog_call_name`
         )
         .in('class_id', classIds);
       if (entryError) throw entryError;
@@ -198,11 +199,9 @@ export function useNotificationMonitor(): void {
     // Group entries by class and build dog name map
     const entriesByClass = new Map<string, ShowEntry[]>();
     for (const raw of entries) {
-      const entry = raw as unknown as EntryRow & {
-        dog?: { id: string; call_name: string };
-      };
-      if (entry.dog) {
-        newDogNames.set(entry.dog.id, entry.dog.call_name);
+      const entry = raw as unknown as EntryRow;
+      if (entry.dog_id && entry.dog_call_name) {
+        newDogNames.set(entry.dog_id, entry.dog_call_name);
       }
       newEntryResultStatuses.set(entry.id, entry.result_status);
 

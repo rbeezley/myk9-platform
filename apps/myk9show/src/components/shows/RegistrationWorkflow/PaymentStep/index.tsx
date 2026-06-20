@@ -37,6 +37,10 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   const { classes = [] } = useClassStoreCompat();
   const { shows = [] } = useShowStore();
   const { isSecretary, isClubAdmin, isSiteAdmin } = useRegistrationPermissions();
+  // On-behalf organizers cannot pay by card: Stripe checkout runs under the
+  // logged-in user and stripe-checkout 403s any cart they don't own. They
+  // record check/cash/secretary_paid/waived instead.
+  const isOnBehalf = isSecretary || isClubAdmin || isSiteAdmin;
 
   const show = showId ? shows.find(s => s.id === showId) : undefined;
 
@@ -74,6 +78,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         onPaymentMethodChange={onPaymentMethodChange}
         onPaymentDetailsChange={onPaymentDetailsChange}
         acceptedMethods={acceptedMethods}
+        allowCardCheckout={!isOnBehalf}
       />
 
       {/* Secretary Features */}

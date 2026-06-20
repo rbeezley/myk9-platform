@@ -396,6 +396,18 @@ function RegistrationWizardContent() {
       const paymentDetails = paymentDetailsRef.current;
       try {
         if (registrationData.paymentMethod === 'credit_card') {
+          // Card checkout is exhibitor-self-service only. Stripe-hosted checkout
+          // runs under the logged-in user's account and stripe-checkout 403s any
+          // cart that user doesn't own, so an organizer paying on behalf of an
+          // exhibitor can't go through card checkout — and exhibitorProfile here
+          // is the ORGANIZER's profile, not the selected dogs' owner. The UI
+          // hides the card option for these modes; this guards loaded drafts and
+          // any other path that bypasses it. Caught below → toast + flag reset.
+          if (currentWorkflowMode !== 'exhibitor') {
+            throw new Error(
+              'Online card checkout is only available when an exhibitor pays for their own entries. For on-behalf entries, record the payment as check, cash, or mark it as paid.'
+            );
+          }
           await submitRegistrationCartCheckout({
             showId,
             ownerResolution,

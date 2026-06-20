@@ -87,6 +87,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   onPaymentMethodChange,
   onPaymentDetailsChange,
   acceptedMethods,
+  allowCardCheckout = true,
 }) => {
   const [checkNumber, setCheckNumber] = useState('');
   const [paymentDate, setPaymentDate] = useState('');
@@ -150,24 +151,34 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
           onValueChange={v => onPaymentMethodChange(v as PaymentMethod)}
         >
           <div className="space-y-3">
-            <PaymentOptionCard
-              value="credit_card"
-              selected={paymentMethod === 'credit_card'}
-              icon={CreditCard}
-              title="Credit/Debit Card (Online Payment)"
-              description="Secure online payment via credit or debit card"
-              onSelect={handleSelect}
-            />
+            {/* Card checkout is exhibitor-self-service only: Stripe-hosted
+                checkout runs under the logged-in user's account and
+                stripe-checkout 403s any cart they don't own, so on-behalf modes
+                cannot pay by card (see allowCardCheckout). */}
+            {allowCardCheckout && (
+              <>
+                <PaymentOptionCard
+                  value="credit_card"
+                  selected={paymentMethod === 'credit_card'}
+                  icon={CreditCard}
+                  title="Credit/Debit Card (Online Payment)"
+                  description="Secure online payment via credit or debit card"
+                  onSelect={handleSelect}
+                />
 
-            {/* INTENT: No card form here — Stripe-hosted checkout keeps payment
-                details off myK9 pages and preserves user trust. */}
-            {paymentMethod === 'credit_card' && (
-              <div className="ml-4 border-l-2 border-primary/20 pl-4">
-                <Alert>
-                  <CreditCard className="h-4 w-4" />
-                  <AlertDescription>{PAYMENT_MESSAGES.CARD_CHECKOUT_REDIRECT}</AlertDescription>
-                </Alert>
-              </div>
+                {/* INTENT: No card form here — Stripe-hosted checkout keeps payment
+                    details off myK9 pages and preserves user trust. */}
+                {paymentMethod === 'credit_card' && (
+                  <div className="ml-4 border-l-2 border-primary/20 pl-4">
+                    <Alert>
+                      <CreditCard className="h-4 w-4" />
+                      <AlertDescription>
+                        {PAYMENT_MESSAGES.CARD_CHECKOUT_REDIRECT}
+                      </AlertDescription>
+                    </Alert>
+                  </div>
+                )}
+              </>
             )}
 
             {showCheck && (

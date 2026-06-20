@@ -110,7 +110,7 @@ Before your club can receive entry fee revenue, a treasurer needs to complete St
 4. Click **Continue to Stripe** → you leave myK9Show and enter Stripe's onboarding form.
 5. Fill in your club's details as prompted. When you finish, Stripe returns you to myK9Show.
 
-> *[Screenshot C-04: Payments page — "Connect bank account" button and pre-flight checklist visible — blocked: stripe]*
+![C-04: Payments page — pre-onboarding state with "Connect payment account" button](../screenshots/C-04.png)
 
 Once onboarding is complete, the Payments page shows a **Payouts enabled** badge. Your club will receive a deposit automatically after each show closes — you do not need to request it.
 
@@ -143,7 +143,7 @@ The platform fee covers myK9Show's operating costs and Stripe's card processing.
 1. In the sidebar, open **Payments**.
 2. The **Show payouts** section lists each show with the deposit amount, date, and status.
 
-> *[Screenshot C-05: Payments page — Show payouts list with show name, amount, date, and status badge — blocked: stripe]*
+![C-05: Payments page — "Payouts enabled" with a Show payouts row (show name, date, amount, Paid status)](../screenshots/C-05.png)
 
 | Status | Meaning |
 |---|---|
@@ -231,7 +231,7 @@ All shots to be captured and added to `docs/training/screenshot-shot-list.md`. S
 | C-01 | § 1 | Club Settings form — all fields visible | ready |
 | C-02 | § 2 | Club Admin → Shows list | ready |
 | C-03 | § 3 | Members page — member row with Show Manager badge | ready |
-| C-04 | § 4 | Payments page — pre-onboarding "Connect bank account" state | blocked: stripe |
-| C-05 | § 5 | Payments page — payout history table | blocked: stripe |
+| C-04 | § 4 | Payments page — pre-onboarding "Connect payment account" state | ready |
+| C-05 | § 5 | Payments page — payout history table | ready |
 | C-06 | § 7 | Club Members page — members list | ready |
 | C-07 | § 7 | Add Member dialog | ready |

@@ -1,0 +1,10 @@
+# build output
+dist/
+.astro/
+
+# generated build artifacts — source of truth is docs/user-guides + docs/screenshots
+src/content/guides/
+public/screenshots/
+
+node_modules/
+.DS_Store

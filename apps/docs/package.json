@@ -1,0 +1,16 @@
+{
+  "name": "@myk9/docs",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "prepare-content": "node scripts/prepare-content.mjs",
+    "dev": "pnpm prepare-content && astro dev",
+    "build": "pnpm prepare-content && astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "astro": "^5.13.0"
+  }
+}

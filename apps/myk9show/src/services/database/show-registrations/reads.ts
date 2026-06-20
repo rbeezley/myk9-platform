@@ -10,6 +10,28 @@ import type { TablesUpdate } from '@/types/supabase';
 
 const POSTGRES_UNIQUE_VIOLATION = '23505';
 
+function mapEnrollmentPaymentStatusToEntryStatus(
+  paymentStatus: string
+): 'pending' | 'paid' | 'refunded' | 'waived' {
+  // Keep this collapse aligned with mapEnrollmentStatusToEntryPaymentStatus in
+  // hooks/useEntryManagementActions.ts. Entries can only persist coarse values.
+  switch (paymentStatus) {
+    case 'paid':
+    case 'paid_online':
+    case 'paid_by_cash':
+    case 'paid_by_check':
+      return 'paid';
+    case 'refunded':
+    case 'partial_refund':
+      return 'refunded';
+    case 'waived':
+      return 'waived';
+    case 'pending':
+    default:
+      return 'pending';
+  }
+}
+
 /**
  * Create a new registration. The DB trigger auto-generates the confirmation number.
  * If a registration already exists for this show+handler (unique constraint),
@@ -327,6 +349,32 @@ export const updateEnrollmentPaymentStatus = async (
     logQuery('enrollments', 'update_payment_status', duration, error?.message);
 
     if (error) throw createDatabaseError(error, 'enrollments', 'update_payment_status');
+
+    const entryPaymentStatus = mapEnrollmentPaymentStatusToEntryStatus(paymentStatus);
+    const entryUpdateData: TablesUpdate<'entries'> = {
+      payment_status: entryPaymentStatus,
+      updated_at: new Date().toISOString(),
+    };
+    const { error: entriesError } = await supabase
+      .from('entries')
+      .update(entryUpdateData)
+      .eq('registration_id', enrollmentId)
+      .neq('payment_status', 'refunded')
+      .neq('payment_status', 'waived');
+
+    logQuery(
+      'entries',
+      'cascade_enrollment_payment_status',
+      Date.now() - startTime,
+      entriesError?.message
+    );
+
+    if (entriesError)
+      return {
+        data,
+        error: createDatabaseError(entriesError, 'entries', 'cascade_enrollment_payment_status'),
+      };
+
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;

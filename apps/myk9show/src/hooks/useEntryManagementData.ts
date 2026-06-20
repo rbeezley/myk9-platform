@@ -13,6 +13,7 @@ import type {
 } from '@/types/entry-management-types';
 import type { SecretaryEntry } from '@/services/database/entries';
 import {
+  getEntryPaidAmount,
   getEffectivePaymentStatus,
   mapEntryStatus,
   mapPaymentStatus,
@@ -178,14 +179,15 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
               ]
             : [],
           totalFee: entry.entry_fee || 0,
-          // 'refunded' covers partial refunds too (stripe-refund-entry sets it
-          // for both) — net paid is fee minus refund, not zero (Codex P2).
-          paidAmount:
-            entry.payment_status === 'paid'
-              ? entry.entry_fee || 0
-              : entry.payment_status === 'refunded'
-                ? Math.max(0, (entry.entry_fee || 0) - (entry.refund_amount ?? 0))
-                : 0,
+          paidAmount: getEntryPaidAmount({
+            paymentStatus: mapPaymentStatus(entry.payment_status),
+            enrollmentPaymentStatus:
+              entry.registration?.payment_status != null
+                ? mapPaymentStatus(entry.registration.payment_status)
+                : null,
+            totalFee: entry.entry_fee || 0,
+            refundAmount: entry.refund_amount ?? null,
+          }),
           entryStatus: mapEntryStatus(entry.entry_status),
           paymentStatus: mapPaymentStatus(entry.payment_status),
           submittedAt: entry.submitted_at

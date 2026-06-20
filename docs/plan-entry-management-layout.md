@@ -500,6 +500,23 @@ Verified:
   passed: 6 files, 64 tests.
 - `cd apps/myk9show && pnpm typecheck` passed.
 
+## Implementation Notes - 2026-06-19 Phase 8
+
+Completed the deferred enrollment payment cascade follow-up from PR #861:
+
+- Added a shared Entry Management paid-amount helper so loaded revenue uses the same effective
+  enrollment-aware payment status as filters, badges, and issue counts.
+- Updated the enrollment payment action's optimistic state patch so matching entry rows immediately
+  carry a coarse paid/refunded/pending entry status and collected amount when an enrollment payment
+  changes.
+- Updated the enrollment payment database helper to cascade the enrollment payment state to linked
+  `entries.payment_status` rows using the coarse values allowed by the entries table constraint.
+
+Verified:
+
+- `cd apps/myk9show && pnpm exec vitest run src/hooks/__tests__/useEntryManagementData.test.ts src/hooks/__tests__/useEntryManagementActions.test.ts src/services/database/show-registrations/reads.test.ts`
+  passed: 3 files, 19 tests.
+
 ## Open Questions
 
 - Should `Review` or `Day-of` be remembered per user/show, or should Entry Management always open in

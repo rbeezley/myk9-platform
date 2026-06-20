@@ -312,6 +312,47 @@ describe('useEntryManagementData', () => {
     expect(result.current.tabCounts.issues).toBe(1);
   });
 
+  it('counts enrollment-paid entries as collected revenue even when entry rows are still pending', async () => {
+    mocks.getEntriesForShow.mockResolvedValue({
+      data: [
+        {
+          id: 'paid-enrollment-entry',
+          show_id: 'show-1',
+          payment_status: 'pending',
+          entry_fee: 35,
+          dog: null,
+          class: null,
+          registration: {
+            id: 'enrollment-1',
+            payment_status: 'paid_by_check',
+          },
+        },
+        {
+          id: 'unpaid-entry',
+          show_id: 'show-1',
+          payment_status: 'pending',
+          entry_fee: 40,
+          dog: null,
+          class: null,
+          registration: {
+            id: 'enrollment-2',
+            payment_status: 'pending',
+          },
+        },
+      ],
+      error: null,
+    });
+
+    const { result } = renderHook(() => useEntryManagementData());
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+    act(() => result.current.setSelectedShowId('show-1'));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.entries[0]?.paidAmount).toBe(35);
+    expect(result.current.entries[1]?.paidAmount).toBe(0);
+    expect(result.current.stats.revenue).toBe(35);
+  });
+
   it('preserves registration id when offline metadata enrichment is unavailable', async () => {
     mocks.getEntriesForShow.mockResolvedValue({
       data: [

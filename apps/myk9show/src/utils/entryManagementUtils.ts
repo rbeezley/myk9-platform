@@ -52,6 +52,26 @@ export function getEffectivePaymentStatus(
   return entry.enrollmentPaymentStatus ?? entry.paymentStatus;
 }
 
+export function getEntryPaidAmount(
+  entry: Pick<
+    EntryManagementEntry,
+    'paymentStatus' | 'enrollmentPaymentStatus' | 'totalFee' | 'refundAmount'
+  >
+): number {
+  switch (getEffectivePaymentStatus(entry)) {
+    case PaymentStatus.PAID_ONLINE:
+    case PaymentStatus.PAID_BY_CHECK:
+    case PaymentStatus.PAID_BY_CASH:
+      return entry.totalFee;
+    case PaymentStatus.REFUNDED:
+    case PaymentStatus.PARTIAL_REFUND:
+      return entry.refundAmount != null ? Math.max(0, entry.totalFee - entry.refundAmount) : 0;
+    case PaymentStatus.PENDING:
+    default:
+      return 0;
+  }
+}
+
 /**
  * Map database class entry status to the participation chip shown on a class row.
  * Derives from the single classifier KIND (no parallel raw switch) so the chip

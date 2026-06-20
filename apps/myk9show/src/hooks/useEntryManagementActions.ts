@@ -26,6 +26,7 @@ import { supabase } from '@/services/database/supabaseClient';
 import { resolveSecretaryCc } from '@/services/notifications/ccSecretary';
 import { updateEnrollmentPaymentStatus } from '@/services/database/show-registrations';
 import { buildExportRow, type ExportEntry } from '@/utils/entryExportUtils';
+import { getEntryPaidAmount } from '@/utils/entryManagementUtils';
 import { changeSecretaryEntryStatus } from '@/services/secretary/entry-workflow';
 import type {
   EntryManagementEntry,
@@ -90,6 +91,21 @@ interface UseEntryManagementActionsReturn {
     message?: string,
     amountDue?: number
   ) => Promise<void>;
+}
+
+function mapEnrollmentStatusToEntryPaymentStatus(status: PaymentStatus): PaymentStatus {
+  switch (status) {
+    case PaymentStatus.PAID_ONLINE:
+    case PaymentStatus.PAID_BY_CHECK:
+    case PaymentStatus.PAID_BY_CASH:
+      return PaymentStatus.PAID_ONLINE;
+    case PaymentStatus.REFUNDED:
+    case PaymentStatus.PARTIAL_REFUND:
+      return status;
+    case PaymentStatus.PENDING:
+    default:
+      return PaymentStatus.PENDING;
+  }
 }
 
 /**
@@ -288,19 +304,26 @@ export function useEntryManagementActions({
       const snapshot = entries;
 
       setEntries(prev =>
-        prev.map(e =>
-          e.registrationId === enrollmentId
-            ? {
-                ...e,
-                enrollmentPaymentStatus: status,
-                ...(reference != null ? { enrollmentPaymentReference: reference } : {}),
-                ...(paidAmount != null ? { enrollmentPaidAmount: paidAmount } : {}),
-                ...(refundAmount != null ? { enrollmentRefundAmount: refundAmount } : {}),
-                ...(refundNotes != null ? { enrollmentRefundNotes: refundNotes } : {}),
-                ...(refundAmount != null ? { enrollmentRefundedAt: new Date().toISOString() } : {}),
-              }
-            : e
-        )
+        prev.map(e => {
+          const entryPaymentStatus = mapEnrollmentStatusToEntryPaymentStatus(status);
+          if (e.registrationId !== enrollmentId) return e;
+
+          return {
+            ...e,
+            enrollmentPaymentStatus: status,
+            paymentStatus: entryPaymentStatus,
+            paidAmount: getEntryPaidAmount({
+              ...e,
+              paymentStatus: entryPaymentStatus,
+              enrollmentPaymentStatus: status,
+            }),
+            ...(reference != null ? { enrollmentPaymentReference: reference } : {}),
+            ...(paidAmount != null ? { enrollmentPaidAmount: paidAmount } : {}),
+            ...(refundAmount != null ? { enrollmentRefundAmount: refundAmount } : {}),
+            ...(refundNotes != null ? { enrollmentRefundNotes: refundNotes } : {}),
+            ...(refundAmount != null ? { enrollmentRefundedAt: new Date().toISOString() } : {}),
+          };
+        })
       );
 
       try {

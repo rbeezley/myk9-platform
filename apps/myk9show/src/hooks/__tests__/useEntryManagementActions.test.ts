@@ -5,6 +5,7 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { setEntryArmband } from '@/services/database/armbands';
 import { bulkCheckIn, deleteEntry, updateCheckInStatus } from '@/services/database/entries';
+import { updateEnrollmentPaymentStatus } from '@/services/database/show-registrations';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 
 const mocks = vi.hoisted(() => ({
@@ -190,6 +191,66 @@ describe('useEntryManagementActions', () => {
     expect(updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-2', 'checked-in');
     expect(bulkCheckIn).not.toHaveBeenCalled();
     expect(setError).not.toHaveBeenCalled();
+  });
+
+  it('marks matching enrollment entries paid locally when the enrollment payment changes', async () => {
+    vi.mocked(updateEnrollmentPaymentStatus).mockResolvedValue({
+      data: { id: 'registration-1', payment_status: 'paid_by_check' },
+      error: null,
+    });
+    const entry = { ...makeEntry(), totalFee: 35 };
+    const otherEntry = {
+      ...makeEntry(),
+      id: 'entry-2',
+      registrationId: 'registration-2',
+      totalFee: 40,
+    };
+    const setEntries = vi.fn();
+    const setError = vi.fn();
+
+    const { result } = renderHook(() =>
+      useEntryManagementActions({
+        entries: [entry, otherEntry],
+        setEntries,
+        selectedShowId: 'show-1',
+        selectedShow: null,
+        loadEntries: vi.fn(),
+        setError,
+        user: { id: 'secretary-1', email: 'secretary@example.test' },
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleEnrollmentPaymentChange(
+        'registration-1',
+        PaymentStatus.PAID_BY_CHECK,
+        'check-100',
+        35
+      );
+    });
+
+    expect(updateEnrollmentPaymentStatus).toHaveBeenCalledWith(
+      'registration-1',
+      PaymentStatus.PAID_BY_CHECK,
+      'check-100',
+      35,
+      undefined,
+      undefined
+    );
+
+    const updater = setEntries.mock.calls[0]?.[0];
+    expect(typeof updater).toBe('function');
+    expect(updater([entry, otherEntry])).toEqual([
+      {
+        ...entry,
+        enrollmentPaymentStatus: PaymentStatus.PAID_BY_CHECK,
+        enrollmentPaymentReference: 'check-100',
+        enrollmentPaidAmount: 35,
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+        paidAmount: 35,
+      },
+      otherEntry,
+    ]);
   });
 
   it('updates inline class check-in through the replicated check-in writer', async () => {

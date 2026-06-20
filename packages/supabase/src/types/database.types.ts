@@ -8195,36 +8195,102 @@ export type Database = {
         }
         Relationships: []
       }
-      view_own_entry_results: {
+      view_authenticated_entry_results: {
         Row: {
+          area1_correct: number | null
+          area1_faults: number | null
+          area1_incorrect: number | null
+          area1_time_seconds: number | null
+          area2_correct: number | null
+          area2_faults: number | null
+          area2_incorrect: number | null
+          area2_time_seconds: number | null
+          area3_correct: number | null
+          area3_faults: number | null
+          area3_incorrect: number | null
+          area3_time_seconds: number | null
+          area4_time_seconds: number | null
           armband: string | null
+          bonus_points: number | null
           check_in_status: string | null
+          class_element: string | null
           class_id: string | null
+          class_level: string | null
+          class_name: string | null
+          class_results_released_at: string | null
+          comped: boolean | null
+          comped_reason: string | null
+          confirmation_email_message_id: string | null
+          confirmation_email_sent_at: string | null
+          confirmation_email_status: string | null
           created_at: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          discount_amount: number | null
+          disqualification_reason: string | null
+          dog_breed: string | null
+          dog_call_name: string | null
           dog_id: string | null
+          dog_image_url: string | null
+          dog_name: string | null
           entry_fee: number | null
+          entry_source: string | null
           entry_status: string | null
           final_placement: number | null
           handler: string | null
           handler_id: string | null
+          has_video_review: boolean | null
           id: string | null
+          is_day_of_show: boolean | null
           is_in_ring: boolean | null
           is_scored: boolean | null
+          judge_notes: string | null
+          judge_signature: string | null
+          judge_signature_timestamp: string | null
           jump_height: string | null
+          last_synced_at: string | null
+          license_key: string | null
+          local_id: string | null
+          move_up_requested: boolean | null
+          no_finish_count: number | null
+          payment_method: string | null
           payment_status: string | null
+          penalty_points: number | null
+          points_earned: number | null
+          points_possible: number | null
+          preferred_judge: string | null
+          promo_code_id: string | null
+          refund_amount: number | null
+          refund_notes: string | null
+          refunded_at: string | null
           registration_id: string | null
           result_status: string | null
           result_text: string | null
+          ring_entry_time: string | null
+          ring_exit_time: string | null
           run_order: number | null
           scoring_completed_at: string | null
+          scoring_started_at: string | null
           search_time_seconds: number | null
           show_id: string | null
+          show_name: string | null
+          show_organization: string | null
+          show_start_date: string | null
           special_requests: string | null
+          stripe_payment_intent_id: string | null
           submitted_at: string | null
+          sync_version: number | null
+          time_limit_exceeded_seconds: number | null
+          time_over_limit: boolean | null
+          total_correct_finds: number | null
           total_faults: number | null
+          total_incorrect_finds: number | null
           total_score: number | null
           trial_id: string | null
           updated_at: string | null
+          version: number | null
+          video_review_notes: string | null
+          withdrawal_reason: string | null
         }
         Relationships: []
       }

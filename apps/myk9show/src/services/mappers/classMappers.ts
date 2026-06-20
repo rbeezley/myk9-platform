@@ -49,8 +49,9 @@ export interface DbClassWithRelations extends DbClass {
   entry?: unknown[];
 }
 
-/** DbEntry with optional joined relations from Supabase queries */
-export interface DbEntryWithRelations extends DbEntry {
+/** DbEntry shape used by legacy class-store compatibility mappers. */
+export interface DbEntryWithRelations extends Partial<DbEntry> {
+  id: string;
   dog?: JoinedDog | null;
   class?: unknown;
   result?: JoinedResult | null;
@@ -319,7 +320,7 @@ export const mapDatabaseToEntry = (dbEntry: DbEntryWithRelations): SyncableEntry
     armband: dbEntry.armband || '',
     handler: dbEntry.handler || 'Unknown',
     dog: dog?.name || 'Unknown Dog',
-    status: mapDatabaseEntryStatus(dbEntry.entry_status),
+    status: mapDatabaseEntryStatus(dbEntry.entry_status ?? null),
     score: result?.score || '',
     time: result?.time_seconds?.toString() || '',
     placement: result?.placement || '',

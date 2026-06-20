@@ -17,6 +17,7 @@ import type { TablesUpdate } from '@/types/supabase';
 import type { PendingEntry, SecretaryStatusEntrySeed } from './secretaryTypes';
 import { postgrestGetSecretaryEntriesForShow } from './secretaryPostgrest';
 import { logger } from '@/services/LoggingService';
+import { AUTHENTICATED_ENTRY_READ_COLUMNS } from './entrySelects';
 
 export type { PendingEntry, SecretaryEntry, SecretaryStatusEntrySeed } from './secretaryTypes';
 
@@ -77,11 +78,10 @@ export const getEntriesForShow = async (showId: string) => {
     }
     // Cold store: zero raw rows for this show (never synced in at-show context).
     // Fall through to PostgREST so entry management agrees with the attention strip.
-    logger.warn(
-      'Secretary entries replication cold; falling back to PostGREST',
-      'database',
-      { showId, operation: 'get_entries_for_show' }
-    );
+    logger.warn('Secretary entries replication cold; falling back to PostGREST', 'database', {
+      showId,
+      operation: 'get_entries_for_show',
+    });
   } catch (error) {
     const replicationError = error instanceof Error ? error : new Error(String(error));
     logger.warn(
@@ -272,7 +272,7 @@ export const updateCheckInStatus = async (
       .from('entries')
       .update(updateData)
       .eq('id', entryId)
-      .select()
+      .select(AUTHENTICATED_ENTRY_READ_COLUMNS)
       .single();
 
     const duration = Date.now() - startTime;
@@ -306,7 +306,7 @@ export const bulkCheckIn = async (entryIds: string[]) => {
         updated_at: new Date().toISOString(),
       })
       .in('id', entryIds)
-      .select();
+      .select(AUTHENTICATED_ENTRY_READ_COLUMNS);
 
     const duration = Date.now() - startTime;
     logQuery('entries', 'bulk_check_in', duration, error?.message);
@@ -478,7 +478,7 @@ export const updateRunOrder = async (entryId: string, runOrder: number) => {
         updated_at: new Date().toISOString(),
       })
       .eq('id', entryId)
-      .select()
+      .select(AUTHENTICATED_ENTRY_READ_COLUMNS)
       .single();
 
     const duration = Date.now() - startTime;

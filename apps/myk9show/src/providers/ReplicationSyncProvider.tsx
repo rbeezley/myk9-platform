@@ -85,6 +85,8 @@ const REPLICATED_TABLES = [
 
 const REPLICATED_TABLE_NAMES = REPLICATED_TABLES.map(({ name }) => name);
 const REPLICATED_TABLE_NAME_SET: ReadonlySet<string> = new Set(REPLICATED_TABLE_NAMES);
+const ENTRY_RESULT_REPLICA_VERSION_KEY = 'myk9:entry-result-replica-version';
+const ENTRY_RESULT_REPLICA_VERSION = '20260620-authenticated-entry-results-view-v2';
 
 // Adapt myK9Show's LoggingService to the @myk9/replication Logger interface
 const replicationLogger = {
@@ -124,6 +126,42 @@ configureConflictSurfacing(showConflictSurfacingEnabled());
  */
 function warnRecoveredFromEmptyReplica(tableName: string): void {
   logger.warn('Replica recovered from unexpected empty state', 'replication', { tableName });
+}
+
+async function ensureAuthenticatedEntryResultReplicaVersion(): Promise<void> {
+  if (typeof window === 'undefined') return;
+
+  try {
+    if (
+      window.localStorage.getItem(ENTRY_RESULT_REPLICA_VERSION_KEY) === ENTRY_RESULT_REPLICA_VERSION
+    ) {
+      return;
+    }
+  } catch (error) {
+    logger.warn('Could not read entry result replica version', 'replication', { error });
+  }
+
+  const pendingCount = await mutationManager.getPendingCount();
+  if (pendingCount > 0) {
+    logger.warn(
+      'Deferring entry result replica refresh while mutations are pending',
+      'replication',
+      {
+        pendingCount,
+      }
+    );
+    return;
+  }
+
+  await replicatedEntriesTable.clearCache();
+
+  try {
+    window.localStorage.setItem(ENTRY_RESULT_REPLICA_VERSION_KEY, ENTRY_RESULT_REPLICA_VERSION);
+  } catch (error) {
+    logger.warn('Could not persist entry result replica version', 'replication', { error });
+  }
+
+  logger.info('Entry result replica cache refreshed for authenticated result view', 'replication');
 }
 
 export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = ({
@@ -254,6 +292,8 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         // Continue to Phase 2 even if upload fails
       }
 
+      await ensureAuthenticatedEntryResultReplicaVersion();
+
       // Phase 2: parallel download — one failure must not block others.
       setStatus(prev => ({
         ...prev,
@@ -282,19 +322,15 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         })
       );
 
-      const {
-        tableStatusUpdates,
-        downloadFailures,
-        recoveredTables,
-        abortedTables,
-      } = classifyTableSyncResults(syncResults, isAbortSyncError);
+      const { tableStatusUpdates, downloadFailures, recoveredTables, abortedTables } =
+        classifyTableSyncResults(syncResults, isAbortSyncError);
 
       for (const name of recoveredTables) {
         warnRecoveredFromEmptyReplica(name);
       }
 
       for (const { name, error } of abortedTables) {
-          logger.debug('Table sync aborted', 'replication', { name, error });
+        logger.debug('Table sync aborted', 'replication', { name, error });
       }
 
       for (const { name, error } of downloadFailures) {
@@ -574,10 +610,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
             // discard the pending mutation that would re-upload the old local value.
             if (anyTable) {
               void anyTable.resolveReplicationConflict(detail.rowId, 'take-remote');
-              void mutationManager.discardPendingMutationsForRow(
-                detail.tableName,
-                detail.rowId
-              );
+              void mutationManager.discardPendingMutationsForRow(detail.tableName, detail.rowId);
             }
             toast.dismiss(conflictId);
           },

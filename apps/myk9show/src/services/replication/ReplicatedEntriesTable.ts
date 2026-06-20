@@ -124,13 +124,13 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     const adapter: SyncReplicatedTableAdapter<EntryRow, ReplicatedEntry> = {
       fetchRemoteRows: async ({ scope, since }) => {
         // Filter by show_id if provided. In myK9Show this scope value is the Show ID.
-        // Embed the dog's display fields (call_name/breed) so entry cards can
-        // show the dog without a separate per-row dogs lookup. `entries.dog_id`
-        // is a to-one FK, so `dogs(...)` returns a single object. These land on
-        // the replica as `dog_call_name` / `dog_breed` (see rowToEntry).
+        // Read through the authenticated result view instead of public.entries:
+        // managers receive raw scored fields, while exhibitors only receive
+        // their own entries with result columns nulled by the release cascade.
+        // The view flattens dog display fields as dog_call_name/dog_breed.
         let query = supabase
-          .from('entries')
-          .select('*, dogs(call_name, breed)')
+          .from('view_authenticated_entry_results')
+          .select('*')
           .gt('updated_at', new Date(since).toISOString())
           .order('updated_at', { ascending: true });
 
@@ -144,7 +144,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
           throw new Error(`Supabase query failed: ${error.message}`);
         }
 
-        return data ?? [];
+        return (data ?? []) as unknown as EntryRow[];
       },
       getRemoteId: remote => {
         return String(remote.id);

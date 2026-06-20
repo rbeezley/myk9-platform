@@ -124,7 +124,7 @@ describe('useClassReleasedResults', () => {
 
     await waitFor(() => expect(result.current.rawEntries).toHaveLength(1));
 
-    expect(mockFrom).toHaveBeenCalledWith('view_entry_with_results');
+    expect(mockFrom).toHaveBeenCalledWith('view_public_entry_results');
     expect(eq1).toHaveBeenCalledWith('class_id', CLASS_ID);
     expect(eq2).toHaveBeenCalledWith('is_scored', true);
 

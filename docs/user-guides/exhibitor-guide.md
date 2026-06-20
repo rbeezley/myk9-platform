@@ -106,7 +106,7 @@ Your dog now appears in your list and is ready to enter shows.
 
 **Step 3 — Confirmation:**
 
-> *[Screenshot E-08: Confirmation receipt — blocked: needs a completed Stripe checkout in staging data]*
+![E-08: Confirmation receipt — "Entry Submitted Successfully!" with confirmation number, order total, and entries](../screenshots/E-08.png)
 
 8. After payment, you're returned to myK9Show with your entry confirmed.
 9. Your entry starts as **Pending** — it moves to **Accepted** once the secretary reviews it.
@@ -257,7 +257,7 @@ All shots from `docs/training/screenshot-shot-list.md`. Status as of 2026-06-19:
 | E-05 | § 3 | Add Dog form | ready |
 | E-06 | § 4 | Registration wizard — Step 1 (class selection) | ready |
 | E-07 | § 4 | Registration wizard — Step 1 with class selected + cart toast | ready |
-| E-08 | § 4 | Confirmation receipt | blocked: seed (Stripe checkout) |
+| E-08 | § 4 | Confirmation receipt | ready |
 | E-09 | § 5 | My Shows — Pending entry card | ready |
 | E-10 | § 5 | My Shows — Accepted entry card | ready |
 | E-11 | § 5 | My Shows — show card | ready |

@@ -12,7 +12,7 @@
  * PostgREST on a *throw*, and a cold store resolves to `[]` (a false-empty
  * success), so the fallback never fires. This mirrors the TV display (#753)
  * and styled-landings (#768) fixes: when results are released, read them with
- * a DIRECT PostgREST query of `view_entry_with_results`.
+ * a DIRECT PostgREST query of `view_public_entry_results`.
  *
  * Scope: this is the read path for the read-only exhibitor/guest display only.
  * Secretary / at-show scoring legitimately uses the live replication store and
@@ -25,13 +25,12 @@ import { mapResultStatusToQualification, dbSecondsToInputFormat } from '@/utils/
 import type { RawEntryRow } from './useClassEntriesRaw';
 import type { ClassEntryDisplay } from '@/pages/ClassDetailsPage/types';
 
-/** Columns selected from `view_entry_with_results` (a superset of `entries`). */
+/** Columns selected from `view_public_entry_results`. */
 const RELEASED_RESULTS_SELECT = `
   id,
   class_id,
   show_id,
   dog_id,
-  handler_id,
   armband,
   handler,
   result_status,
@@ -39,13 +38,10 @@ const RELEASED_RESULTS_SELECT = `
   search_time_seconds,
   total_faults,
   final_placement,
-  judge_notes,
-  disqualification_reason,
   scoring_completed_at,
   check_in_status,
   run_order,
   created_at,
-  updated_at,
   dog_name,
   dog_call_name,
   dog_breed
@@ -59,7 +55,7 @@ export interface ClassReleasedResults {
 }
 
 /**
- * Map one `view_entry_with_results` row into both shapes the page consumes.
+ * Map one `view_public_entry_results` row into both shapes the page consumes.
  * Pure — exported for unit testing without a Supabase mock.
  */
 export function mapReleasedResultRow(row: Record<string, unknown>): {
@@ -76,7 +72,7 @@ export function mapReleasedResultRow(row: Record<string, unknown>): {
     class_id: row.class_id as string,
     show_id: row.show_id as string,
     dog_id: row.dog_id as string,
-    handler_id: (row.handler_id as string | null) ?? null,
+    handler_id: null,
     armband: (row.armband as string | null) ?? null,
     handler: (row.handler as string | null) ?? null,
     result_status: (row.result_status as string | null) ?? null,
@@ -84,8 +80,8 @@ export function mapReleasedResultRow(row: Record<string, unknown>): {
     search_time_seconds: (row.search_time_seconds as number | null) ?? null,
     total_faults: (row.total_faults as number | null) ?? null,
     final_placement: (row.final_placement as number | null) ?? null,
-    judge_notes: (row.judge_notes as string | null) ?? null,
-    disqualification_reason: (row.disqualification_reason as string | null) ?? null,
+    judge_notes: null,
+    disqualification_reason: null,
     scoring_completed_at: (row.scoring_completed_at as string | null) ?? null,
     check_in_status: (row.check_in_status as string | null) ?? null,
     run_order: (row.run_order as number | null) ?? null,
@@ -100,7 +96,7 @@ export function mapReleasedResultRow(row: Record<string, unknown>): {
       owner: null,
     },
     created_at: (row.created_at as string | null) ?? null,
-    updated_at: (row.updated_at as string | null) ?? null,
+    updated_at: null,
   };
 
   const entry: ClassEntryDisplay = {
@@ -111,9 +107,6 @@ export function mapReleasedResultRow(row: Record<string, unknown>): {
     // `status` may be '' for non-scored rows, but the query filters to
     // is_scored=true so released rows always carry a qualification.
     status: status as ClassEntryDisplay['status'],
-    ...(row.disqualification_reason
-      ? { qualificationReason: row.disqualification_reason as string }
-      : {}),
     score: '',
     time,
     placement,
@@ -125,7 +118,7 @@ export function mapReleasedResultRow(row: Record<string, unknown>): {
 
 async function fetchClassReleasedResults(classId: string): Promise<ClassReleasedResults> {
   const { data, error } = await supabase
-    .from('view_entry_with_results')
+    .from('view_public_entry_results')
     .select(RELEASED_RESULTS_SELECT)
     .eq('class_id', classId)
     .eq('is_scored', true)

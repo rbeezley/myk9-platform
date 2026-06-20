@@ -79,7 +79,7 @@ Every screenshot and diagram in final documentation and training materials must 
 | E-05 | Add Dog form | `/dogs` (Add Dog dialog) | `e2e-exhibitor@test.myk9.com` | Desktop | Add Dog form open with required fields visible | § 3 | `ready` |
 | E-06 | Registration wizard — Step 1 (class selection) | `/shows/:showId/register` | `e2e-exhibitor@test.myk9.com` | Desktop | Class selection step; dog chip visible at top; classes grouped by element/level | § 4 Enter a Show | `ready` |
 | E-07 | Registration wizard — Step 1 with class selected + cart toast | `/shows/:showId/register` | `e2e-exhibitor@test.myk9.com` | Desktop | Class selection step; class chip checked; "Added to cart" toast visible | § 4 | `ready` |
-| E-08 | Confirmation receipt | `/checkout/success` | `e2e-exhibitor@test.myk9.com` | Desktop | Success screen with entry confirmed | § 4 | `blocked: seed` (needs a Stripe checkout completion) |
+| E-08 | Confirmation receipt | `/checkout/success` | `e2e-exhibitor@test.myk9.com` | Desktop | Success screen with entry confirmed | § 4 | `ready` (captured 2026-06-20 from the end-to-end sandbox payment) |
 | E-09 | My Entries — Pending tab with entry card | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | At least one entry card in Pending status | § 5 Track Your Entry | `ready` |
 | E-10 | My Entries — Accepted tab with entry card | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | At least one entry card in Accepted status | § 5 | `ready` |
 | E-11 | My Entries — show card (unexpanded) | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | Show card with date, club, and entry status | § 5 | `ready` |

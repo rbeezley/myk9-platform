@@ -1,6 +1,6 @@
 /**
  * Hook for fetching scored results for the current user's dogs.
- * Queries view_entry_with_results for entries that have been scored.
+ * Queries the authenticated result view for own entries that have been scored.
  */
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
@@ -32,7 +32,7 @@ async function fetchExhibitorResults(dogIds: string[]) {
   if (dogIds.length === 0) return [];
 
   const { data, error } = await supabase
-    .from('view_entry_with_results')
+    .from('view_authenticated_entry_results')
     .select(
       `
       id,
@@ -50,11 +50,8 @@ async function fetchExhibitorResults(dogIds: string[]) {
       total_faults,
       final_placement,
       scoring_completed_at,
-      show:show_id (
-        id,
-        name,
-        start_date
-      )
+      show_name,
+      show_start_date
     `
     )
     .in('dog_id', dogIds)
@@ -80,8 +77,8 @@ async function fetchExhibitorResults(dogIds: string[]) {
       totalFaults: row.total_faults as number | null,
       finalPlacement: row.final_placement as number | null,
       scoringCompletedAt: row.scoring_completed_at as string | null,
-      showName: ((row.show as Record<string, unknown>)?.name as string) || 'Unknown Show',
-      showDate: ((row.show as Record<string, unknown>)?.start_date as string) || '',
+      showName: (row.show_name as string) || 'Unknown Show',
+      showDate: (row.show_start_date as string) || '',
     })
   );
 }

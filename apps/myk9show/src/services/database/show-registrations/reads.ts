@@ -13,6 +13,8 @@ const POSTGRES_UNIQUE_VIOLATION = '23505';
 function mapEnrollmentPaymentStatusToEntryStatus(
   paymentStatus: string
 ): 'pending' | 'paid' | 'refunded' | 'waived' {
+  // Keep this collapse aligned with mapEnrollmentStatusToEntryPaymentStatus in
+  // hooks/useEntryManagementActions.ts. Entries can only persist coarse values.
   switch (paymentStatus) {
     case 'paid':
     case 'paid_online':
@@ -356,7 +358,9 @@ export const updateEnrollmentPaymentStatus = async (
     const { error: entriesError } = await supabase
       .from('entries')
       .update(entryUpdateData)
-      .eq('registration_id', enrollmentId);
+      .eq('registration_id', enrollmentId)
+      .neq('payment_status', 'refunded')
+      .neq('payment_status', 'waived');
 
     logQuery(
       'entries',
@@ -365,9 +369,11 @@ export const updateEnrollmentPaymentStatus = async (
       entriesError?.message
     );
 
-    if (entriesError) {
-      throw createDatabaseError(entriesError, 'entries', 'cascade_enrollment_payment_status');
-    }
+    if (entriesError)
+      return {
+        data,
+        error: createDatabaseError(entriesError, 'entries', 'cascade_enrollment_payment_status'),
+      };
 
     return { data, error: null };
   } catch (error) {

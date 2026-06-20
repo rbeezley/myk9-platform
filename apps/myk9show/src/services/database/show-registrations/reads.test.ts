@@ -38,10 +38,12 @@ function makeEnrollmentUpdateQuery() {
   return query;
 }
 
-function makeEntriesUpdateQuery() {
+function makeEntriesUpdateQuery(result = { data: null, error: null as Error | null }) {
   const query = {
     update: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockResolvedValue({ data: null, error: null }),
+    eq: vi.fn().mockReturnThis(),
+    neq: vi.fn().mockReturnThis(),
+    then: vi.fn(resolve => Promise.resolve(resolve(result))),
   };
   return query;
 }
@@ -78,5 +80,39 @@ describe('updateEnrollmentPaymentStatus', () => {
       updated_at: expect.any(String),
     });
     expect(entriesQuery.eq).toHaveBeenCalledWith('registration_id', 'enrollment-1');
+    expect(entriesQuery.neq).toHaveBeenCalledWith('payment_status', 'refunded');
+    expect(entriesQuery.neq).toHaveBeenCalledWith('payment_status', 'waived');
+  });
+
+  it('returns the saved enrollment data when the entry cascade fails', async () => {
+    const enrollmentQuery = makeEnrollmentUpdateQuery();
+    const entriesQuery = makeEntriesUpdateQuery({
+      data: null,
+      error: new Error('cascade failed'),
+    });
+    mocks.from.mockImplementation((table: string) =>
+      table === 'enrollments' ? enrollmentQuery : entriesQuery
+    );
+
+    const result = await updateEnrollmentPaymentStatus(
+      'enrollment-1',
+      PaymentStatus.PAID_BY_CHECK,
+      'check-100',
+      70
+    );
+
+    expect(result.data).toEqual(
+      expect.objectContaining({
+        id: 'enrollment-1',
+        payment_status: PaymentStatus.PAID_BY_CHECK,
+      })
+    );
+    expect(result.error).toEqual(
+      expect.objectContaining({
+        message: 'cascade failed',
+        table: 'entries',
+        operation: 'cascade_enrollment_payment_status',
+      })
+    );
   });
 });

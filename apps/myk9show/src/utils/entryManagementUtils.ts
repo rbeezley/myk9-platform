@@ -52,20 +52,35 @@ export function getEffectivePaymentStatus(
   return entry.enrollmentPaymentStatus ?? entry.paymentStatus;
 }
 
+export function hasEntryLevelRefund(
+  entry: Pick<EntryManagementEntry, 'paymentStatus' | 'refundAmount'>
+): boolean {
+  return (
+    entry.paymentStatus === PaymentStatus.REFUNDED ||
+    entry.paymentStatus === PaymentStatus.PARTIAL_REFUND ||
+    (entry.refundAmount ?? 0) > 0
+  );
+}
+
 export function getEntryPaidAmount(
   entry: Pick<
     EntryManagementEntry,
     'paymentStatus' | 'enrollmentPaymentStatus' | 'totalFee' | 'refundAmount'
   >
 ): number {
+  if (hasEntryLevelRefund(entry)) {
+    return entry.refundAmount != null ? Math.max(0, entry.totalFee - entry.refundAmount) : 0;
+  }
+
   switch (getEffectivePaymentStatus(entry)) {
     case PaymentStatus.PAID_ONLINE:
     case PaymentStatus.PAID_BY_CHECK:
     case PaymentStatus.PAID_BY_CASH:
       return entry.totalFee;
     case PaymentStatus.REFUNDED:
+      return 0;
     case PaymentStatus.PARTIAL_REFUND:
-      return entry.refundAmount != null ? Math.max(0, entry.totalFee - entry.refundAmount) : 0;
+      return entry.totalFee;
     case PaymentStatus.PENDING:
     default:
       return 0;

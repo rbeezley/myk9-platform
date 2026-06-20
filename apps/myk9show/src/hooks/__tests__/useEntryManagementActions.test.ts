@@ -253,6 +253,52 @@ describe('useEntryManagementActions', () => {
     ]);
   });
 
+  it('keeps entry-level refunds when an enrollment payment changes later', async () => {
+    vi.mocked(updateEnrollmentPaymentStatus).mockResolvedValue({
+      data: { id: 'registration-1', payment_status: 'paid_by_check' },
+      error: null,
+    });
+    const refundedEntry = {
+      ...makeEntry(),
+      totalFee: 50,
+      paymentStatus: PaymentStatus.REFUNDED,
+      refundAmount: 20,
+      paidAmount: 30,
+    };
+    const setEntries = vi.fn();
+    const setError = vi.fn();
+
+    const { result } = renderHook(() =>
+      useEntryManagementActions({
+        entries: [refundedEntry],
+        setEntries,
+        selectedShowId: 'show-1',
+        selectedShow: null,
+        loadEntries: vi.fn(),
+        setError,
+        user: { id: 'secretary-1', email: 'secretary@example.test' },
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleEnrollmentPaymentChange(
+        'registration-1',
+        PaymentStatus.PAID_BY_CHECK
+      );
+    });
+
+    const updater = setEntries.mock.calls[0]?.[0];
+    expect(typeof updater).toBe('function');
+    expect(updater([refundedEntry])).toEqual([
+      {
+        ...refundedEntry,
+        enrollmentPaymentStatus: PaymentStatus.PAID_BY_CHECK,
+        paymentStatus: PaymentStatus.REFUNDED,
+        paidAmount: 30,
+      },
+    ]);
+  });
+
   it('updates inline class check-in through the replicated check-in writer', async () => {
     vi.mocked(updateCheckInStatus).mockResolvedValue({ data: null, error: null });
     const cls = {

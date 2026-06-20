@@ -6,6 +6,7 @@ import {
   mapStatusToDb,
   mapClassEntryStatus,
   getEntryStatusClasses,
+  getEntryPaidAmount,
 } from './entryManagementUtils';
 
 describe('mapEntryStatus', () => {
@@ -180,5 +181,29 @@ describe('mapPaymentStatus', () => {
 
   it('maps unknown to PENDING (safe default)', () => {
     expect(mapPaymentStatus(null)).toBe(PaymentStatus.PENDING);
+  });
+});
+
+describe('getEntryPaidAmount', () => {
+  it('lets entry-level refunds win over enrollment-level paid status', () => {
+    expect(
+      getEntryPaidAmount({
+        paymentStatus: PaymentStatus.REFUNDED,
+        enrollmentPaymentStatus: PaymentStatus.PAID_ONLINE,
+        totalFee: 50,
+        refundAmount: 20,
+      })
+    ).toBe(30);
+  });
+
+  it('does not zero non-refunded entries under an enrollment-level partial refund', () => {
+    expect(
+      getEntryPaidAmount({
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+        enrollmentPaymentStatus: PaymentStatus.PARTIAL_REFUND,
+        totalFee: 50,
+        refundAmount: null,
+      })
+    ).toBe(50);
   });
 });

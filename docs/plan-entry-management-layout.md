@@ -511,11 +511,14 @@ Completed the deferred enrollment payment cascade follow-up from PR #861:
   changes.
 - Updated the enrollment payment database helper to cascade the enrollment payment state to linked
   `entries.payment_status` rows using the coarse values allowed by the entries table constraint.
+- Review follow-up: kept entry-level refund markers authoritative for paid-amount math, skipped
+  refunded/waived entry rows during the cascade, and avoided rolling the UI back when the enrollment
+  save succeeds but the secondary entry cascade reports an error.
 
 Verified:
 
-- `cd apps/myk9show && pnpm exec vitest run src/hooks/__tests__/useEntryManagementData.test.ts src/hooks/__tests__/useEntryManagementActions.test.ts src/services/database/show-registrations/reads.test.ts`
-  passed: 3 files, 19 tests.
+- `cd apps/myk9show && pnpm exec vitest run src/utils/entryManagementUtils.test.ts src/hooks/__tests__/useEntryManagementData.test.ts src/hooks/__tests__/useEntryManagementActions.test.ts src/services/database/show-registrations/reads.test.ts`
+  passed: 4 files, 53 tests.
 
 ## Open Questions
 

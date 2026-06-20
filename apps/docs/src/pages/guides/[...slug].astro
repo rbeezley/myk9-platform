@@ -1,0 +1,70 @@
+---
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+export async function getStaticPaths() {
+  const guides = await getCollection('guides');
+  return guides.map(g => ({ params: { slug: g.id }, props: { guide: g } }));
+}
+
+const { guide } = Astro.props;
+const { Content, headings } = await render(guide);
+const sections = headings.filter(h => h.depth === 2);
+
+const allGuides = (await getCollection('guides')).sort((a, b) => a.data.order - b.data.order);
+const activeKey = guide.id.split('-')[0];
+const glyph: Record<string, string> = {
+  'exhibitor-guide': '◆', 'secretary-guide': '▲', 'club-admin-guide': '●',
+};
+const short = (t: string) => t.replace(/^Section\s+\d+\s*[—–-]\s*/i, '');
+---
+<BaseLayout title={`${guide.data.title} · myK9Show Guides`} description={guide.data.blurb} active={activeKey}>
+  <div class="shell">
+    <aside class="side">
+      <div class="guidelabel"><span class="d">{glyph[guide.id] ?? '◆'}</span> {guide.data.title}</div>
+      <nav id="section-nav">
+        {sections.map(s => <a class="navlink" href={`#${s.slug}`} data-spy={s.slug}>{short(s.text)}</a>)}
+      </nav>
+      <div class="switch">
+        <div class="t">Other guides</div>
+        {allGuides.filter(g => g.id !== guide.id).map(g => <a href={`/guides/${g.id}`}>{g.data.title}</a>)}
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="crumb">Guides <b>›</b> {guide.data.title}</div>
+      <div class="guide-role">{guide.data.role}</div>
+      <h1 class="guide-title">{guide.data.title}</h1>
+      <article class="prose"><Content /></article>
+    </main>
+
+    <aside class="toc">
+      <div class="t">On this page</div>
+      <nav id="toc-nav">
+        {sections.map(s => <a href={`#${s.slug}`} data-spy={s.slug}>{short(s.text)}</a>)}
+      </nav>
+    </aside>
+  </div>
+
+  <script>
+    const links = Array.from(document.querySelectorAll('[data-spy]'));
+    const bySlug = new Map();
+    links.forEach(l => {
+      const s = l.getAttribute('data-spy');
+      if (!bySlug.has(s)) bySlug.set(s, []);
+      bySlug.get(s).push(l);
+    });
+    const setActive = slug => {
+      links.forEach(l => l.classList.remove('on'));
+      (bySlug.get(slug) || []).forEach(l => l.classList.add('on'));
+    };
+    const obs = new IntersectionObserver(
+      entries => {
+        const visible = entries.filter(e => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible[0]) setActive(visible[0].target.id);
+      },
+      { rootMargin: '-72px 0px -68% 0px', threshold: 0 }
+    );
+    document.querySelectorAll('.prose h2[id]').forEach(h => obs.observe(h));
+  </script>
+</BaseLayout>

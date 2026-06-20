@@ -1,0 +1,82 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const guides = (await getCollection('guides')).sort((a, b) => a.data.order - b.data.order);
+
+const glyphs: Record<string, { g: string; cls: string }> = {
+  'exhibitor-guide': { g: '◆', cls: '' },
+  'secretary-guide': { g: '▲', cls: 's' },
+  'club-admin-guide': { g: '●', cls: 'g' },
+};
+
+function counts(body: string) {
+  const sections = (body.match(/^##\s+/gm) || []).length;
+  const shots = (body.match(/!\[/g) || []).length;
+  return { sections, shots };
+}
+---
+<BaseLayout title="myK9Show Guides">
+  <section class="hero">
+    <div class="wrap">
+      <span class="eyebrow">● Everything you need, in one place</span>
+      <h1>Run and enter dog shows,<br /><em>beautifully simple.</em></h1>
+      <p class="lede">
+        Step-by-step guides for every role — from entering your first scent work trial to
+        closing out a show and paying your club.
+      </p>
+      <div class="searchbar">
+        <span>⌕</span>
+        <input placeholder="Search the guides — “check in”, “release results”, “refund”…" aria-label="Search the guides" />
+        <span class="k">⌘K</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2>Choose your guide</h2>
+        <span>Updated June 2026</span>
+      </div>
+      <div class="cards">
+        {guides.map(guide => {
+          const c = counts(guide.body ?? '');
+          const gl = glyphs[guide.id] ?? { g: '◆', cls: '' };
+          return (
+            <a class="gcard" href={`/guides/${guide.id}`}>
+              <div class={`ic ${gl.cls}`}>{gl.g}</div>
+              <h3>{guide.data.title}</h3>
+              <p>{guide.data.blurb}</p>
+              <div class="meta">
+                <span class="n">{c.sections} sections · {c.shots} screenshots</span>
+                <span class="go">Read guide →</span>
+              </div>
+            </a>
+          );
+        })}
+        <div class="gcard" style="opacity:.85">
+          <div class="ic b">■</div>
+          <h3>Judge &amp; steward quickstart</h3>
+          <p>Get ringside access, score on the tablet, and post results.</p>
+          <div class="meta">
+            <span class="n">4 sections</span>
+            <span class="badge">Coming soon</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" style="padding-top:0">
+    <div class="wrap">
+      <div class="strip">
+        <div>
+          <h3>New to myK9Show?</h3>
+          <p>Entries, payments, and results all live in one account — start with the exhibitor guide.</p>
+        </div>
+        <a href="/guides/exhibitor-guide">Read the exhibitor guide →</a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

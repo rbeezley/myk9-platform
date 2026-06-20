@@ -9,7 +9,7 @@ async function fetchMyShowEntries(showId: string, dogIds: string[]): Promise<Sta
   if (dogIds.length === 0) return [];
 
   const { data, error } = await supabase
-    .from('view_entry_with_results')
+    .from('view_authenticated_entry_results')
     .select(STATS_ENTRY_SELECT)
     .eq('show_id', showId)
     .in('dog_id', dogIds);

@@ -6,7 +6,7 @@ import { mapRowToStatsEntry, STATS_ENTRY_SELECT } from './statsEntryMapper';
 
 async function fetchShowEntries(showId: string): Promise<StatsEntry[]> {
   const { data: entryData, error: entryError } = await supabase
-    .from('view_entry_with_results')
+    .from('view_authenticated_entry_results')
     .select(STATS_ENTRY_SELECT)
     .eq('show_id', showId);
 

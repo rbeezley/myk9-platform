@@ -16,7 +16,7 @@ Every screenshot and diagram in final documentation and training materials must 
 
 | Role | Account |
 |---|---|
-| Secretary | `secretary@myk9t.com` |
+| Secretary | `e2e-secretary@test.myk9.com` |
 | Exhibitor | `e2e-exhibitor@test.myk9.com` |
 | Judge | `judge@myk9t.com` |
 | Club admin | `club@myk9t.com` |
@@ -60,8 +60,8 @@ Every screenshot and diagram in final documentation and training materials must 
 | S-17 | Show Desk — move-up dialog | `/shows/:showId?phase=show-desk` | `secretary@myk9t.com` | Desktop | Move-up dialog open; target class picker visible | § 7 | `ready` |
 | S-18 | Late Entry registration wizard — Step 1 (Select Dogs) | `/secretary/register/:showId?source=show-desk&entryMode=late` | `secretary@myk9t.com` | Desktop | Late Entry wizard Step 1 open; dog search field and filters visible | § 7 | `ready` |
 | S-19 | Show Desk — Tools panel side sheet | `/shows/:showId/show-desk` | `secretary@myk9t.com` | Desktop | Tools panel open; Late entries, Access codes, Volunteers visible | § 7 | `ready` |
-| S-20 | Results Control — all classes complete | `/shows/:showId/results-control` | `secretary@myk9t.com` | Desktop | Every class shows all entries with a result; no blank rows | § 8 Results Control | `blocked: seed` (needs a fully-scored show) |
-| S-21 | Results Control — release toggle (Off → On) | `/shows/:showId/results-control` | `secretary@myk9t.com` | Desktop | Release Results toggle in Off position, ready to toggle | § 8 | `blocked: seed` (same as S-20) |
+| S-20 | Results Control — visibility preset cards | `/shows/:showId/results-control` | `secretary@myk9t.com` | Desktop | Three preset cards visible; "After Class" card highlighted as active | § 8 Results Control | `ready` |
+| S-21 | Results Control — Release Results action bar | `/shows/:showId/results-control` | `secretary@myk9t.com` | Desktop | Classes selected via checkboxes; sticky bottom bar showing "Release Results" button enabled | § 8 | `ready` |
 | S-22 | Submit Results — submission summary (preflight) | `/shows/:showId/submit-results` | `secretary@myk9t.com` | Desktop | Submission summary checklist showing entries ready count | § 9 Submit to AKC | `ready` |
 | S-23 | Submit Results — XML download button | `/shows/:showId/submit-results` | `secretary@myk9t.com` | Desktop | "Download XML" button visible; no blocking warnings | § 9 | `ready` |
 | S-24 | Submit Results — preflight warning (missing AKC numbers) | `/shows/:showId/submit-results` | `secretary@myk9t.com` | Desktop | Warning listing dogs without AKC registration numbers | § 9 | `ready` |

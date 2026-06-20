@@ -259,21 +259,31 @@ Open the Tools panel from the Show Desk for:
 
 ## Section 8 — Results Control
 
-After all classes are scored, use Results Control to verify results are complete and release them to exhibitors.
+Results Control lets you choose when exhibitors can see their results. Open it from the **Results Control** tab on the show workbench.
 
-> *[Screenshot S-20: Results Control — all classes complete — blocked: needs a fully-scored show in seed data]*
+There are three visibility settings — pick the one that fits your show:
 
-1. From the Show Desk, scroll to the **Closeout** section.
-2. Click **Results Control**.
-3. Review each class: every entry must have a result (Q, NQ, or Absent). If any entry shows a blank result, go back to Show Desk and enter the missing score before proceeding.
-4. When every class is complete, toggle **Release Results** to On.
+| Setting | What exhibitors see |
+|---|---|
+| **Immediately** | Q/NQ, time, and faults appear as each dog finishes. Placement appears when the class is complete. |
+| **After Class** | Q/NQ appears as dogs run. Time, faults, and placement wait until the full class is done. |
+| **After Review** | All results are hidden until you manually release them. |
 
-Once released, exhibitors can see their Q/NQ result and placement in their My Shows view immediately.
+Click the card for the setting you want. It applies to all classes at once.
 
-> *[Screenshot S-21: Results Control — Release Results toggle in Off position — blocked: needs fully-scored show]*
+![Results Control — three visibility preset cards; "After Class" is the active selection](../screenshots/S-20.png)
+
+**To release results when using "After Review":**
+
+1. Check the box next to each class you are ready to release — or click **Select All**.
+2. In the bar that appears at the bottom of the screen, click **Release Results**.
+
+![Results Control — classes selected; sticky action bar with "Release Results" button visible](../screenshots/S-21.png)
+
+Once released, exhibitors can see their results in **My Shows** immediately.
 
 **Can I un-release results?**
-Yes — toggle Release Results back to Off. Results will no longer be visible to exhibitors. This is useful if a scoring correction is needed after an initial release.
+Yes — select the classes and apply **After Review** again from the action bar. Results will be hidden until you release them again. Use this if a scoring correction is needed after an initial release.
 
 ---
 
@@ -362,8 +372,8 @@ All shots from `docs/training/screenshot-shot-list.md`. Status as of 2026-06-19:
 | S-17 | § 7 | Move-up dialog | ready |
 | S-18 | § 7 | Late Entry wizard (Step 1: Select Dogs) | ready |
 | S-19 | § 7 | Tools panel | ready |
-| S-20 | § 8 | Results Control — all classes complete | blocked: seed |
-| S-21 | § 8 | Release Results toggle | blocked: seed |
+| S-20 | § 8 | Results Control — three preset cards, "After Class" active | ready |
+| S-21 | § 8 | Results Control — classes selected, sticky "Release Results" action bar visible | ready |
 | S-22 | § 9 | Submit Results — preflight summary | ready |
 | S-23 | § 9 | XML download button | ready |
 | S-24 | § 9 | Preflight warning — missing AKC numbers | ready |

@@ -5,6 +5,7 @@
  * Normal Entry creation, updates, and soft deletion live in writes.ts.
  */
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
+import { AUTHENTICATED_ENTRY_READ_COLUMNS } from './entrySelects';
 
 export const hardDeleteEntry = async (id: string) => {
   const startTime = Date.now();
@@ -43,7 +44,7 @@ export const restoreEntry = async (id: string, restoredBy?: string) => {
       .not('deleted_at', 'is', null)
       .select(
         `
-        *,
+        ${AUTHENTICATED_ENTRY_READ_COLUMNS},
         dog:dog_id (
           id,
           name,
@@ -82,7 +83,7 @@ export const getDeletedEntries = async () => {
       .from('entries')
       .select(
         `
-        *,
+        ${AUTHENTICATED_ENTRY_READ_COLUMNS},
         dog:dog_id (
           id,
           name,

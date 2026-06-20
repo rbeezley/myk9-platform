@@ -24,6 +24,7 @@ import { mapStatusToDb } from '@/utils/entryManagementUtils';
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { updateEntryStatus } from './secretary';
 import type { SecretaryStatusEntrySeed } from './secretary';
+import { AUTHENTICATED_ENTRY_READ_COLUMNS } from './entrySelects';
 
 export type EntryLifecycleAction = 'accept' | 'reject' | 'scratch' | 'waitlist';
 
@@ -377,7 +378,7 @@ export const denyScratchRequest = async (entryId: string, reason?: string) => {
       })
       .eq('id', entryId)
       .eq('entry_status', 'scratch-requested')
-      .select()
+      .select(AUTHENTICATED_ENTRY_READ_COLUMNS)
       .single();
 
     const duration = Date.now() - startTime;

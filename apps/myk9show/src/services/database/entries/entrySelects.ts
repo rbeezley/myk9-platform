@@ -1,0 +1,79 @@
+export const AUTHENTICATED_ENTRY_READ_COLUMNS = `
+      id,
+      dog_id,
+      class_id,
+      show_id,
+      trial_id,
+      handler_id,
+      entry_status,
+      payment_status,
+      handler,
+      entry_fee,
+      submitted_at,
+      special_requests,
+      armband,
+      run_order,
+      jump_height,
+      preferred_judge,
+      move_up_requested,
+      is_scored,
+      is_in_ring,
+      ring_entry_time,
+      ring_exit_time,
+      scoring_started_at,
+      scoring_completed_at,
+      license_key,
+      local_id,
+      sync_version,
+      last_synced_at,
+      created_at,
+      updated_at,
+      deleted_at,
+      deleted_by,
+      check_in_status,
+      payment_method,
+      entry_source,
+      is_day_of_show,
+      registration_id,
+      withdrawal_reason,
+      refund_amount,
+      refund_notes,
+      refunded_at,
+      stripe_payment_intent_id,
+      comped,
+      comped_reason,
+      discount_amount,
+      promo_code_id,
+      confirmation_email_sent_at,
+      confirmation_email_message_id,
+      confirmation_email_status,
+      version
+`;
+
+export const ENTRY_WITH_STANDARD_RELATIONS_SELECT = `
+      ${AUTHENTICATED_ENTRY_READ_COLUMNS},
+      dog:dog_id (
+        id,
+        name,
+        call_name,
+        breed,
+        owner:owner_id (
+          id,
+          first_name,
+          last_name,
+          email
+        )
+      ),
+      class:class_id (
+        id,
+        name,
+        class_number,
+        entry_fee
+      ),
+      show:show_id (
+        id,
+        name,
+        start_date,
+        end_date
+      )
+`;

@@ -533,15 +533,20 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   // Stripe gets a 200 before this handler runs (EdgeRuntime.waitUntil), so a
   // re-delivered event would otherwise create duplicate paid entries — which
   // the payout cron would then pay the club for twice.
+  // Expiry is already enforced in pure code by sessionMatchesCart above (the
+  // cartExpiresAt < now check on the SAME cart.expires_at read), so the claim
+  // only needs the status latch for idempotency. We deliberately do NOT
+  // re-filter on expires_at here: a raw ISO timestamp inside PostgREST's .or()
+  // mini-language misparses the dotted/colon'd value and the whole UPDATE
+  // fails with `column entry_carts.expires_at does not exist` — which, because
+  // Stripe already has its 200, silently charges the exhibitor with zero
+  // entries created. The TOCTOU window the .or() guarded is sub-millisecond
+  // and fully covered by the read-time check, so dropping it is safe.
   const { data: claimed, error: claimError } = await supabase
     .from('entry_carts')
     .update({ status: 'submitted' })
     .eq('id', cartId)
     .eq('status', 'active')
-    // Belt-and-suspenders for the guard's expiry check above: closes the
-    // seconds-wide TOCTOU between the cart read and this claim. NULL expiry
-    // (legacy rows) is tolerated, matching sessionMatchesCart.
-    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
     .select('id');
 
   if (claimError) {

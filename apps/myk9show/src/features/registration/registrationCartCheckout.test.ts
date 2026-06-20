@@ -14,12 +14,13 @@ function makeDeps() {
 }
 
 describe('submitRegistrationCartCheckout', () => {
-  it('creates a cart, adds registration items, deletes the draft, and navigates to cart', async () => {
+  it('creates a cart using exhibitorProfileId (not ownerId), adds items, deletes draft, navigates', async () => {
     const deps = makeDeps();
 
     await submitRegistrationCartCheckout({
       showId: 'show-1',
-      ownerResolution: { ok: true, ownerId: 'owner-1' },
+      ownerResolution: { ok: true, ownerId: 'people-1' },
+      exhibitorProfileId: 'profile-1',
       classSelections: [
         {
           dogId: 'dog-1',
@@ -39,8 +40,9 @@ describe('submitRegistrationCartCheckout', () => {
       deps,
     });
 
-    expect(deps.loadCart).toHaveBeenCalledWith('show-1', 'owner-1');
-    expect(deps.createCart).toHaveBeenCalledWith('show-1', 'owner-1');
+    // Cart operations must use exhibitorProfileId, not ownerResolution.ownerId
+    expect(deps.loadCart).toHaveBeenCalledWith('show-1', 'profile-1');
+    expect(deps.createCart).toHaveBeenCalledWith('show-1', 'profile-1');
     expect(deps.addItem).toHaveBeenCalledWith({
       dogId: 'dog-1',
       classId: 'class-1',
@@ -59,7 +61,8 @@ describe('submitRegistrationCartCheckout', () => {
     await expect(
       submitRegistrationCartCheckout({
         showId: 'show-1',
-        ownerResolution: { ok: true, ownerId: 'owner-1' },
+        ownerResolution: { ok: true, ownerId: 'people-1' },
+        exhibitorProfileId: 'profile-1',
         classSelections: [
           {
             dogId: 'dog-1',
@@ -88,7 +91,8 @@ describe('submitRegistrationCartCheckout', () => {
 
     await submitRegistrationCartCheckout({
       showId: 'show-1',
-      ownerResolution: { ok: true, ownerId: 'owner-1' },
+      ownerResolution: { ok: true, ownerId: 'people-1' },
+      exhibitorProfileId: 'profile-1',
       classSelections: [
         {
           dogId: 'dog-1',
@@ -119,7 +123,8 @@ describe('submitRegistrationCartCheckout', () => {
     await expect(
       submitRegistrationCartCheckout({
         showId: 'show-1',
-        ownerResolution: { ok: true, ownerId: 'owner-1' },
+        ownerResolution: { ok: true, ownerId: 'people-1' },
+        exhibitorProfileId: 'profile-1',
         classSelections: [
           {
             dogId: 'dog-1',
@@ -149,7 +154,8 @@ describe('submitRegistrationCartCheckout', () => {
     await expect(
       submitRegistrationCartCheckout({
         showId: 'show-1',
-        ownerResolution: { ok: true, ownerId: 'owner-1' },
+        ownerResolution: { ok: true, ownerId: 'people-1' },
+        exhibitorProfileId: 'profile-1',
         classSelections: [
           {
             dogId: 'dog-1',
@@ -170,5 +176,24 @@ describe('submitRegistrationCartCheckout', () => {
     expect(deps.abandonCart).not.toHaveBeenCalled();
     expect(deps.deleteDraft).not.toHaveBeenCalled();
     expect(deps.navigate).not.toHaveBeenCalled();
+  });
+
+  it('throws when exhibitorProfileId is empty', async () => {
+    const deps = makeDeps();
+
+    await expect(
+      submitRegistrationCartCheckout({
+        showId: 'show-1',
+        ownerResolution: { ok: true, ownerId: 'people-1' },
+        exhibitorProfileId: '',
+        classSelections: [],
+        handlerAssignments: {},
+        classes: [],
+        showFeeInfo: { preEntryFee: '25', startDate: '2099-05-01' },
+        deps,
+      })
+    ).rejects.toThrow('Cannot determine exhibitor profile');
+
+    expect(deps.createCart).not.toHaveBeenCalled();
   });
 });

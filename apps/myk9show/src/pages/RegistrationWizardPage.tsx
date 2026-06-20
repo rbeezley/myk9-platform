@@ -32,6 +32,7 @@ import { RegistrationErrorBoundary } from '@/components/common/ErrorBoundary';
 import { DraftManager } from '@/components/shows/RegistrationWorkflow/DraftManager';
 import { useDraftPersistence, type SavedDraft } from '@/hooks/useDraftPersistence';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { RegistrationProvider } from '@/context/RegistrationContext';
 import HorizontalProgressIndicator from '@/components/shows/wizard/components/HorizontalProgressIndicator';
 import WizardNavigation from '@/components/shows/wizard/components/WizardNavigation';
@@ -71,6 +72,7 @@ function RegistrationWizardContent() {
   // Auth and permissions
   const { isSecretary, isClubAdmin, isSiteAdmin, canAssignArmbands } = useRegistrationPermissions();
   const { user } = useAuthContext();
+  const { profile: exhibitorProfile } = useExhibitorProfile();
   const { triggerSync } = useReplicationSync();
 
   // Trigger a sync on mount so any pending local mutations are uploaded
@@ -394,9 +396,22 @@ function RegistrationWizardContent() {
       const paymentDetails = paymentDetailsRef.current;
       try {
         if (registrationData.paymentMethod === 'credit_card') {
+          // Card checkout is exhibitor-self-service only. Stripe-hosted checkout
+          // runs under the logged-in user's account and stripe-checkout 403s any
+          // cart that user doesn't own, so an organizer paying on behalf of an
+          // exhibitor can't go through card checkout — and exhibitorProfile here
+          // is the ORGANIZER's profile, not the selected dogs' owner. The UI
+          // hides the card option for these modes; this guards loaded drafts and
+          // any other path that bypasses it. Caught below → toast + flag reset.
+          if (currentWorkflowMode !== 'exhibitor') {
+            throw new Error(
+              'Online card checkout is only available when an exhibitor pays for their own entries. For on-behalf entries, record the payment as check, cash, or mark it as paid.'
+            );
+          }
           await submitRegistrationCartCheckout({
             showId,
             ownerResolution,
+            exhibitorProfileId: exhibitorProfile?.id ?? '',
             classSelections,
             handlerAssignments,
             classes,

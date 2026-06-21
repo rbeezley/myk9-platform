@@ -1,6 +1,7 @@
 import {
   CheckCircle2,
   ClipboardCheck,
+  CreditCard,
   DollarSign,
   Mail,
   PencilLine,
@@ -11,6 +12,7 @@ import {
 import { RowActionMenu, type RowAction } from '@/components/ui/RowActionMenu';
 import { EntryStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
+import { isPaymentRequestable } from './paymentRequestEligibility';
 
 export interface EntryRowActionMenuProps {
   entry: EntryManagementEntry;
@@ -22,6 +24,7 @@ export interface EntryRowActionMenuProps {
   onRemoveEntry?: ((entryId: string) => void) | undefined;
   onResendEmail?: ((registrationId: string) => void) | undefined;
   isResendDisabled?: ((registrationId: string) => boolean) | undefined;
+  onOpenRequestPayment?: ((entry: EntryManagementEntry) => void) | undefined;
 }
 
 const canMoveToWaitlist = (status: EntryStatus) =>
@@ -40,6 +43,7 @@ export function EntryRowActionMenu({
   onRemoveEntry,
   onResendEmail,
   isResendDisabled,
+  onOpenRequestPayment,
 }: EntryRowActionMenuProps) {
   const actions: RowAction[] = [
     {
@@ -76,6 +80,13 @@ export function EntryRowActionMenu({
       icon: <DollarSign className="h-4 w-4" />,
       onSelect: () => (entry.comped ? onUncompEntry?.(entry.id) : onOpenCompDialog?.(entry)),
       hidden: entry.comped ? !onUncompEntry : !onOpenCompDialog,
+    },
+    {
+      id: 'request-payment',
+      label: 'Request payment…',
+      icon: <CreditCard className="h-4 w-4" />,
+      onSelect: () => onOpenRequestPayment?.(entry),
+      hidden: !onOpenRequestPayment || !isPaymentRequestable(entry),
     },
     {
       id: 'resend-email',

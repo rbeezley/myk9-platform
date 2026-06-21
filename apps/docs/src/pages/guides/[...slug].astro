@@ -18,7 +18,7 @@ const glyph: Record<string, string> = {
 };
 const short = (t: string) => t.replace(/^Section\s+\d+\s*[—–-]\s*/i, '');
 ---
-<BaseLayout title={`${guide.data.title} · myK9Show Guides`} description={guide.data.blurb} active={activeKey} draft={guide.data.status !== 'verified'}>
+<BaseLayout title={`${guide.data.title} · myK9Show Help`} description={guide.data.blurb} active={activeKey} draft={guide.data.status !== 'verified'}>
   <div class="shell">
     <aside class="side">
       <div class="guidelabel"><span class="d">{glyph[guide.id] ?? '◆'}</span> {guide.data.title}</div>
@@ -32,7 +32,7 @@ const short = (t: string) => t.replace(/^Section\s+\d+\s*[—–-]\s*/i, '');
     </aside>
 
     <main class="main">
-      <div class="crumb">Guides <b>›</b> {guide.data.title}</div>
+      <div class="crumb">Help <b>›</b> {guide.data.title}</div>
       <div class="guide-role">{guide.data.role}</div>
       <h1 class="guide-title">{guide.data.title}</h1>
       <article class="prose"><Content /></article>

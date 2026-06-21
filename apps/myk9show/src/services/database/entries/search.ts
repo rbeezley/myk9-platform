@@ -357,8 +357,20 @@ export const getUserEntries = async (userId: string) => {
     if (missingRelations.length > 0 || hasScoredEntries) {
       try {
         const result = await postgrestGetUserEntries();
+        // view_authenticated_entry_results returns can_manage OR is_own_entry
+        // rows, so a secretary/admin would otherwise receive every manageable
+        // show entry in My Entries. Scope the view result back to the locally
+        // determined own entries (handler is me OR I own the dog) — the same set
+        // the replicated and offline paths return — so My Entries stays
+        // own-entry-only. `filtered` is a superset-safe key: the live view
+        // contains every own entry, so intersecting drops only the
+        // manageable-not-own rows.
+        const ownEntryIds = new Set(filtered.map(e => e.id));
+        const scopedData = (result.data as Array<Record<string, unknown>>).filter(row =>
+          ownEntryIds.has(row.id as string)
+        );
         logQuery('entries', 'select_user_entries_fallback', Date.now() - startTime);
-        return result;
+        return { data: scopedData, error: result.error };
       } catch {
         // Permanently-missing relation rows will try the online join on each
         // load; when offline or blocked, the replicated rows still keep the

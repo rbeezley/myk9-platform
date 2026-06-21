@@ -714,6 +714,34 @@ describe('entryQueries (replication)', () => {
       const row = result.data[0] as Record<string, unknown>;
       expect(row.id).toBe('unscored-1');
     });
+
+    it('scopes the view result to own entries (no manageable show entries leak into My Entries)', async () => {
+      // A secretary/admin: one own scored entry, so getUserEntries prefers the
+      // cascade-aware view. That view returns can_manage OR is_own_entry rows,
+      // so it also surfaces OTHER people's entries in shows the user manages —
+      // those must NOT appear in My Entries.
+      const entries = [
+        makeEntry({
+          id: 'own-1',
+          handlerId: 'user-1',
+          isScored: true,
+          finalPlacement: 1,
+        } as Partial<ReplicatedEntry>),
+      ];
+      setupListMocks(entries);
+      mockViewRows.current = [
+        { id: 'own-1', final_placement: 1, result_status: 'qualified', is_scored: true },
+        // Manageable-but-not-own row the view returns for a show manager.
+        { id: 'managed-other-1', final_placement: 2, result_status: 'qualified', is_scored: true },
+      ];
+
+      const result = await getUserEntries('user-1');
+
+      const ids = (result.data as Array<Record<string, unknown>>).map(r => r.id);
+      expect(ids).toContain('own-1');
+      expect(ids).not.toContain('managed-other-1');
+      expect(result.data).toHaveLength(1);
+    });
   });
 
   // -----------------------------------------------------------------------

@@ -8763,6 +8763,10 @@ export type Database = {
         Args: { p_show_id: string; p_subscription_endpoint: string }
         Returns: undefined
       }
+      create_dog_with_registrations: {
+        Args: { p_dog: Json; p_registrations: Json }
+        Returns: string
+      }
       create_show_managed_dog: {
         Args: {
           p_akc_number?: string

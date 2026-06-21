@@ -16,6 +16,7 @@ import {
   RefreshCw,
   ShoppingCart,
   Info,
+  LifeBuoy,
   MessageSquare,
   Menu,
 } from 'lucide-react';
@@ -41,6 +42,7 @@ import { useGlobalSyncStatus } from '@/hooks/useGlobalSyncStatus';
 import { buildClasses } from '@/utils/designTokens';
 import { useCartItemCount } from '@/store/cartStore';
 import { AboutDialog } from '@/components/common/AboutDialog';
+import { helpUrl } from '@/lib/help';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 import { useCurrentUserPerson } from '@/hooks/useProfileForm';
@@ -433,6 +435,17 @@ const AppHeader: React.FC = () => {
                       </>
                     )}
 
+                    <DropdownMenuItem asChild>
+                      <a
+                        href={helpUrl()}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full flex items-center gap-2 cursor-pointer"
+                      >
+                        <LifeBuoy className="h-4 w-4" />
+                        Help &amp; Guides
+                      </a>
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setAboutOpen(true)} className="cursor-pointer">
                       <Info className="h-4 w-4 mr-2" />
                       About

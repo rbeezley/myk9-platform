@@ -822,6 +822,8 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
   const paymentIntentId = extractPaymentIntentId(session.payment_intent);
   const result = reconcileEntryPaymentRequest({
     linkStatus: link.status,
+    sessionPaymentStatus: session.payment_status ?? null,
+    expectedEntryIds: entryIds,
     entries: (entriesData ?? []) as {
       id: string;
       payment_status: string | null;
@@ -830,11 +832,24 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     paymentIntentId,
   });
 
-  if (result.action === 'noop') {
+  if (result.action === 'skip') {
     console.log(
-      `Payment link ${session.id} already processed (link status: ${link.status}) — idempotent skip`
+      `Payment link ${session.id} skipped (${result.skipReason}; link status: ${link.status}, payment_status: ${session.payment_status})`
     );
     return;
+  }
+
+  // Entries the link was created for that no longer exist — the charge paid for
+  // nothing recoverable. Alert (Task 3.5 Step 3 refund). Still process the rest.
+  if (result.missingEntryIds.length > 0) {
+    console.error(`Payment link ${session.id} references missing entries:`, result.missingEntryIds);
+    await alertAdmin(
+      'Payment link paid for entries that no longer exist — refund needed',
+      `<p>Session <code>${session.id}</code> was PAID, but these entries it was created for
+       are gone (deleted/withdrawn since): <code>${result.missingEntryIds.join(', ')}</code>
+       (payment intent <code>${paymentIntentId ?? 'unknown'}</code>).</p>
+       <p>Refund the portion for the missing entries (make-whole).</p>`
+    );
   }
 
   // Apply per-entry patches. The .eq('payment_status','pending') guard makes

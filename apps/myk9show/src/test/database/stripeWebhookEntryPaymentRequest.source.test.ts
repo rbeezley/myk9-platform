@@ -26,6 +26,13 @@ describe('stripe-webhook entry_payment_request branch', () => {
     expect(source).toContain('reconcileEntryPaymentRequest');
   });
 
+  it('feeds the session payment_status + expected entry ids to the helper (F3/F4 coherence checks)', () => {
+    expect(source).toContain('sessionPaymentStatus: session.payment_status');
+    expect(source).toContain('expectedEntryIds: entryIds');
+    // alerts when the paid link references entries that no longer exist (F4)
+    expect(source).toContain('missingEntryIds');
+  });
+
   it('anchors on the persisted entry_payment_links row (anti-tamper + idempotency latch)', () => {
     expect(source).toContain('entry_payment_links');
     // closes the link so a re-delivered event is a no-op

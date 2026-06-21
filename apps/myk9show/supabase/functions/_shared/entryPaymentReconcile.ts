@@ -15,6 +15,12 @@ export interface ReconcileEntryRow {
 export interface ReconcileInput {
   /** entry_payment_links.status — the idempotency / anti-replay latch. */
   linkStatus: string;
+  /** Stripe session.payment_status — only 'paid' should mark entries paid.
+   * checkout.session.completed can fire 'unpaid' for async/delayed methods. */
+  sessionPaymentStatus: string | null;
+  /** The ids the link was created for — to detect entries deleted since. */
+  expectedEntryIds: string[];
+  /** Entries actually loaded now (may be a subset if some were deleted). */
   entries: ReconcileEntryRow[];
   paymentIntentId: string | null;
 }
@@ -32,24 +38,39 @@ export interface EntryPaymentPatch {
 }
 
 export interface ReconcileResult {
-  /** 'noop' when the link is not open (replay / already processed / expired). */
-  action: 'apply' | 'noop';
+  /** 'skip' = do nothing (replay/expired link, or the session isn't actually paid). */
+  action: 'apply' | 'skip';
+  /** Why we skipped — for logging; absent when action is 'apply'. */
+  skipReason?: 'link_not_open' | 'not_paid';
   /** Entries to flip to paid (were unpaid). */
   patches: EntryPaymentPatch[];
   /** Entries already paid before this event — duplicate-charge candidates for
    *  the Task 3.5 Step 2 auto-refund; empty on the happy path. */
   alreadyPaidEntryIds: string[];
+  /** Expected entries no longer present (deleted since the link was created) —
+   *  paid-for-nothing; the caller alerts (Task 3.5 Step 3 refund). */
+  missingEntryIds: string[];
 }
 
 const UNPAID = 'pending';
 const WAITLIST_PENDING = 'pending-payment';
 
 export function reconcileEntryPaymentRequest(input: ReconcileInput): ReconcileResult {
+  const empty = { patches: [], alreadyPaidEntryIds: [], missingEntryIds: [] };
+
   // The link row is the idempotency latch: once it leaves 'open' (we marked it
   // 'paid'/'expired'), a re-delivered event must not touch entries again.
   if (input.linkStatus !== 'open') {
-    return { action: 'noop', patches: [], alreadyPaidEntryIds: [] };
+    return { action: 'skip', skipReason: 'link_not_open', ...empty };
   }
+  // checkout.session.completed can fire for an unpaid async method — never mark
+  // entries paid on a session that didn't actually collect money.
+  if (input.sessionPaymentStatus !== 'paid') {
+    return { action: 'skip', skipReason: 'not_paid', ...empty };
+  }
+
+  const presentIds = new Set(input.entries.map(e => e.id));
+  const missingEntryIds = input.expectedEntryIds.filter(id => !presentIds.has(id));
 
   const patches: EntryPaymentPatch[] = [];
   const alreadyPaidEntryIds: string[] = [];
@@ -75,5 +96,5 @@ export function reconcileEntryPaymentRequest(input: ReconcileInput): ReconcileRe
     }
   }
 
-  return { action: 'apply', patches, alreadyPaidEntryIds };
+  return { action: 'apply', patches, alreadyPaidEntryIds, missingEntryIds };
 }

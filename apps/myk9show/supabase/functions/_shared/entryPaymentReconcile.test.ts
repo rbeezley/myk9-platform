@@ -3,6 +3,8 @@ import { reconcileEntryPaymentRequest } from './entryPaymentReconcile';
 
 const base = {
   linkStatus: 'open',
+  sessionPaymentStatus: 'paid',
+  expectedEntryIds: ['mailin', 'wl'],
   paymentIntentId: 'pi_123',
   entries: [
     { id: 'mailin', payment_status: 'pending', entry_status: 'submitted' },
@@ -30,15 +32,34 @@ describe('reconcileEntryPaymentRequest', () => {
     expect(mailin.entry_status).toBeUndefined(); // money changed, lifecycle didn't
   });
 
-  it('is an idempotent no-op when the link is no longer open (replay / already processed)', () => {
+  it('skips (idempotent) when the link is no longer open (replay / already processed)', () => {
     const r = reconcileEntryPaymentRequest({ ...base, linkStatus: 'paid' });
-    expect(r.action).toBe('noop');
+    expect(r.action).toBe('skip');
+    expect(r.skipReason).toBe('link_not_open');
     expect(r.patches).toHaveLength(0);
+  });
+
+  it('skips when the session is not actually paid (async/delayed method) — never marks paid on no money', () => {
+    const r = reconcileEntryPaymentRequest({ ...base, sessionPaymentStatus: 'unpaid' });
+    expect(r.action).toBe('skip');
+    expect(r.skipReason).toBe('not_paid');
+    expect(r.patches).toHaveLength(0);
+  });
+
+  it('reports entries that were deleted since the link was created (paid-for-nothing → caller alerts)', () => {
+    const r = reconcileEntryPaymentRequest({
+      ...base,
+      expectedEntryIds: ['mailin', 'wl', 'gone'],
+      // 'gone' is missing from the loaded entries
+    });
+    expect(r.missingEntryIds).toEqual(['gone']);
+    expect(r.patches.map(p => p.id)).toEqual(['mailin', 'wl']);
   });
 
   it('flags an already-paid entry as a duplicate-charge candidate, does not re-patch it', () => {
     const r = reconcileEntryPaymentRequest({
       ...base,
+      expectedEntryIds: ['fresh', 'dup'],
       entries: [
         { id: 'fresh', payment_status: 'pending', entry_status: 'submitted' },
         { id: 'dup', payment_status: 'paid', entry_status: 'confirmed' },

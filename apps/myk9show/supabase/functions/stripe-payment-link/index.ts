@@ -73,9 +73,21 @@ interface PaymentLinkRequest {
   cancel_url: string;
 }
 
+// Entry lifecycle states that must NOT be charged even if still payment-pending:
+// a withdrawn/scratched/rejected/expired entry isn't in the show.
+const INACTIVE_ENTRY_STATUSES = new Set([
+  'withdrawn',
+  'scratched',
+  'not_accepted',
+  'absent',
+  'promotion-expired',
+  'cancelled',
+]);
+
 interface EntryRow {
   id: string;
   payment_status: string | null;
+  entry_status: string | null;
   dog: { call_name: string | null } | null;
   class: { name: string | null; entry_fee: number | string | null } | null;
   show: {
@@ -129,6 +141,7 @@ Deno.serve(async req => {
         `
         id,
         payment_status,
+        entry_status,
         dog:dog_id(call_name),
         class:class_id(name, entry_fee),
         show:show_id(id, club_id, name, pre_entry_fee, day_of_show_fee, start_date)
@@ -200,6 +213,16 @@ Deno.serve(async req => {
       );
     }
 
+    // Don't collect money for an entry that isn't in the show (withdrawn,
+    // scratched, rejected, expired) even if its payment is still pending.
+    const inactive = entries.filter(e => INACTIVE_ENTRY_STATUSES.has(e.entry_status ?? ''));
+    if (inactive.length > 0) {
+      return corsResponse(
+        { error: 'One or more entries are withdrawn, scratched, or no longer active' },
+        422
+      );
+    }
+
     // Authoritative fee percent: platform_settings row, else env, else default.
     const { data: feeRow } = await supabase
       .from('platform_settings')
@@ -235,6 +258,29 @@ Deno.serve(async req => {
       .eq('status', 'open')
       .overlaps('entry_ids', entry_ids);
     for (const prior of priorLinks ?? []) {
+      // A prior link that was JUST paid (webhook not yet processed) still reads
+      // 'open'. Expiring it would throw (can't expire a completed session) AND
+      // marking it 'expired' here would make the webhook skip it → the real
+      // payment never reconciles (orphaned charge). Inspect first: if it's
+      // already complete, abort this re-request rather than double-issue/orphan.
+      let priorStatus: string | null = null;
+      try {
+        const priorSession = await stripe.checkout.sessions.retrieve(
+          prior.stripe_checkout_session_id
+        );
+        priorStatus = priorSession.status ?? null;
+      } catch (err) {
+        console.log(`Could not inspect prior session ${prior.stripe_checkout_session_id}:`, err);
+      }
+      if (priorStatus === 'complete') {
+        return corsResponse(
+          {
+            error:
+              'A payment for one of these entries just completed — refresh to see it before requesting again.',
+          },
+          409
+        );
+      }
       try {
         await stripe.checkout.sessions.expire(prior.stripe_checkout_session_id);
       } catch (err) {

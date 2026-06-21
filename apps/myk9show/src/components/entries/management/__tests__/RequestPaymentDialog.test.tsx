@@ -3,7 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { RequestPaymentDialog, isPaymentRequestable } from '../RequestPaymentDialog';
-import { PaymentStatus } from '@/types/show-registration-types';
+import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { supabase } from '@/lib/supabase';
 
@@ -91,13 +91,21 @@ describe('RequestPaymentDialog', () => {
 });
 
 describe('isPaymentRequestable', () => {
-  it('is true for a pending (unpaid) entry', () => {
-    expect(isPaymentRequestable({ paymentStatus: PaymentStatus.PENDING, comped: false })).toBe(true);
+  const active = { paymentStatus: PaymentStatus.PENDING, comped: false, entryStatus: EntryStatus.ACCEPTED };
+
+  it('is true for a pending, active (unpaid) entry', () => {
+    expect(isPaymentRequestable(active)).toBe(true);
   });
 
   it('is false once paid, and false for a comped entry', () => {
-    expect(isPaymentRequestable({ paymentStatus: PaymentStatus.PAID_ONLINE, comped: false })).toBe(false);
-    expect(isPaymentRequestable({ paymentStatus: PaymentStatus.PAID_BY_CHECK, comped: false })).toBe(false);
-    expect(isPaymentRequestable({ paymentStatus: PaymentStatus.PENDING, comped: true })).toBe(false);
+    expect(isPaymentRequestable({ ...active, paymentStatus: PaymentStatus.PAID_ONLINE })).toBe(false);
+    expect(isPaymentRequestable({ ...active, paymentStatus: PaymentStatus.PAID_BY_CHECK })).toBe(false);
+    expect(isPaymentRequestable({ ...active, comped: true })).toBe(false);
+  });
+
+  it('is false for a withdrawn / scratched / rejected entry even if still payment-pending (F1)', () => {
+    expect(isPaymentRequestable({ ...active, entryStatus: EntryStatus.CANCELLED })).toBe(false);
+    expect(isPaymentRequestable({ ...active, entryStatus: EntryStatus.SCRATCHED })).toBe(false);
+    expect(isPaymentRequestable({ ...active, entryStatus: EntryStatus.REJECTED })).toBe(false);
   });
 });

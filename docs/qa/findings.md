@@ -79,6 +79,70 @@ Copy this block for each new finding.
 
 ## Open Findings
 
+### QA-MOBILE-LAYOUT-BREAK-028
+
+- **Status:** open
+- **Severity:** high
+- **Role:** public, secretary
+- **Surface:** `/shows/:showId`, `/shows/:showId/setup`, `/shows/:showId/show-desk`, `/shows/:showId/entry-management`, `/shows/:showId/reports`
+- **Suite category:** nightly
+- **Pattern:** mobile-layout-break
+- **Detected by:** audit-pages
+- **Evidence:** 2026-06-21 mobile responsiveness sweep at 375x667. Public show detail measured 68px horizontal overflow; source elements were the heritage landing countdown ticker (`.hd-ticker`, `.hd-ticker .b`). Secretary show workbench routes rendered without page-level overflow but screenshots showed shared show shell/header overlap and clipped nav labels. Session artifacts: `docs/qa/assets/mobile-2026-06-21/public-show-detail.png`, `docs/qa/assets/mobile-2026-06-21/secretary-setup-workbench.png`, `docs/qa/assets/mobile-2026-06-21/secretary-entry-management.png`, `docs/qa/assets/mobile-2026-06-21/secretary-show-reports.png`.
+- **User impact:** Public visitors and secretaries see cramped or overlapping show context on phones, making the show detail/workbench feel unreliable before they reach the actual task.
+- **Intent check:** Harms public/exhibitor "respects my time" and secretary "That was easy" by making the most important show context hard to read on mobile.
+- **Fix owner:** `apps/myk9show/src/features/headline/landing/HeadlineLandingPage.tsx`, `apps/myk9show/src/features/headline/headline.css`, shared show detail/workbench shell and navigation components.
+- **Proof required:** Replay the listed routes at 375x667, verify zero page-level horizontal overflow on public show detail, and manually confirm the show shell/header/tabs no longer overlap or clip on the secretary workbench routes.
+- **Notes:** Fix the existing shared surfaces; do not add new pages.
+
+### QA-MOBILE-LAYOUT-BREAK-029
+
+- **Status:** open
+- **Severity:** high
+- **Role:** secretary
+- **Surface:** `/secretary/create-show`, `/secretary/create-show/wizard`
+- **Suite category:** nightly
+- **Pattern:** mobile-layout-break
+- **Detected by:** audit-pages
+- **Evidence:** 2026-06-21 mobile responsiveness sweep at 375x667. The Create Show wizard step 1 keeps desktop two-column groups on phones: labels and controls collide around show name/organization, fees, official pickers, and judge search. Session artifact: `docs/qa/assets/mobile-2026-06-21/secretary-create-show.png`.
+- **User impact:** A secretary setting up a show on a phone must parse cramped labels and clipped controls in a core setup workflow.
+- **Intent check:** Harms the secretary target feeling "The software already knows what I need" because the form feels like desktop data entry squeezed onto a phone.
+- **Fix owner:** `apps/myk9show/src/pages/secretary/ShowCreationWizardPage.tsx`, `apps/myk9show/src/components/shows/wizard/steps/ShowDetailsStep.tsx`, and picker controls used by officials/judges.
+- **Proof required:** Replay `/secretary/create-show/wizard` at 375x667 and verify one readable field/control per row, no clipped labels, no overlapping picker controls, and no page-level overflow.
+- **Notes:** Keep the existing wizard; this is responsive layout work, not a new setup surface.
+
+### QA-MOBILE-LAYOUT-BREAK-030
+
+- **Status:** open
+- **Severity:** high
+- **Role:** secretary, admin
+- **Surface:** `/people`, `/shows/:showId/entry-management`, `/shows/:showId/reports`, `/admin/users`, `/admin/permissions/users`, `/admin/judges/analytics`
+- **Suite category:** feature-audit
+- **Pattern:** mobile-layout-break
+- **Detected by:** audit-pages
+- **Evidence:** 2026-06-21 mobile responsiveness sweep at 375x667. Page-level overflow was often zero, but screenshots showed internal table/print-preview clipping: People email column clipped, Entry Management row columns clipped, Reports print preview wider than the viewport, Admin Users/Permissions Users/Judge Analytics table columns partially hidden. Session artifacts include `docs/qa/assets/mobile-2026-06-21/secretary-people.png`, `docs/qa/assets/mobile-2026-06-21/secretary-entry-management.png`, `docs/qa/assets/mobile-2026-06-21/secretary-show-reports.png`, `docs/qa/assets/mobile-2026-06-21/admin-users.png`, `docs/qa/assets/mobile-2026-06-21/admin-permissions-users.png`, `docs/qa/assets/mobile-2026-06-21/admin-judges-analytics.png`.
+- **User impact:** Dense management pages appear to hide important data/actions on phones, even when the browser does not expose page-level horizontal scrolling.
+- **Intent check:** Harms secretary "I can handle this" and admin "The platform is healthy" because operational lists become hard to scan and compare.
+- **Fix owner:** `BrowsePeoplePage` / `PeopleTableView`, `EntryManagementPage` / entry management table components, report preview components, admin user and permission table components, judge analytics table.
+- **Proof required:** Add or standardize a mobile card/list variant or explicit scroll container with clear affordance. Replay each route at 375x667 and manually verify important columns/actions are visible and understandable without clipped text.
+- **Notes:** Page-level `scrollWidth` checks are not sufficient for this class; proof needs screenshot/manual review or component-level assertions.
+
+### QA-MOBILE-LAYOUT-BREAK-031
+
+- **Status:** open
+- **Severity:** medium
+- **Role:** admin, public
+- **Surface:** `/admin/dashboard`, `/admin/templates`, `/admin/permissions`, `/admin/alerts`, `/admin/sync`, `/admin/performance`, `/shows`
+- **Suite category:** feature-audit
+- **Pattern:** mobile-layout-break
+- **Detected by:** audit-pages
+- **Evidence:** 2026-06-21 mobile responsiveness sweep at 375x667. Admin page header actions clip or run off-screen on dashboard/templates/permissions. Admin monitoring tab strips overlap labels on Alerts, Sync Monitoring, and Performance Dashboard. Public Browse Shows table toolbar clips controls. Session artifacts include `docs/qa/assets/mobile-2026-06-21/admin-dashboard.png`, `docs/qa/assets/mobile-2026-06-21/admin-templates.png`, `docs/qa/assets/mobile-2026-06-21/admin-permissions.png`, `docs/qa/assets/mobile-2026-06-21/admin-alerts.png`, `docs/qa/assets/mobile-2026-06-21/admin-sync.png`, `docs/qa/assets/mobile-2026-06-21/admin-performance.png`, `docs/qa/assets/mobile-2026-06-21/public-browse-shows.png`.
+- **User impact:** Admin and public discovery pages remain usable, but controls look clipped or broken on phones.
+- **Intent check:** Harms admin "standard operations" and public/exhibitor trust by making controls look unfinished.
+- **Fix owner:** shared page header/action-bar patterns, admin tabs/monitoring components, `ListControls` / shows browse table toolbar.
+- **Proof required:** Replay the listed routes at 375x667 and verify action bars stack/wrap, tabs do not overlap, and Browse Shows toolbar controls remain visible.
+- **Notes:** This is a pattern-level polish fix; avoid per-page bespoke patches if a shared primitive can solve it.
+
 ### QA-NETWORK-ERROR-018
 
 - **Status:** resolved (code fallback; 2026-06-15)

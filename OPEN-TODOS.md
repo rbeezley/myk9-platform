@@ -17,6 +17,17 @@ Four steps toward the fall launch, in dependency order. Detailed phase checklist
 
 ---
 
+## Mobile Responsiveness Audit — 2026-06-21
+
+Source: [`docs/qa/mobile-responsiveness-audit-2026-06-21.md`](docs/qa/mobile-responsiveness-audit-2026-06-21.md). Implementation plan: [`docs/superpowers/plans/2026-06-21-mobile-responsiveness-remediation.md`](docs/superpowers/plans/2026-06-21-mobile-responsiveness-remediation.md). Route sweep covered 48 routes at `375x667` across public, exhibitor, secretary, judge, and admin roles. No console/network errors or critical blank pages found. Club-admin skipped because local credentials were absent. Durable QA findings: `QA-MOBILE-LAYOUT-BREAK-028` through `031`.
+
+- [ ] **[Mobile P1] Fix shared show detail/workbench mobile shell** — Public show detail overflows from the heritage countdown ticker and secretary show workbench routes show overlapping/clipped show header/tabs. Affects `/shows/:showId`, `/shows/:showId/setup`, `/shows/:showId/show-desk`, `/shows/:showId/entry-management`, `/shows/:showId/reports`. Fix existing shared show shell/header/nav components; do not add duplicate pages.
+- [ ] **[Mobile P1] Make Create Show wizard step 1 phone-readable** — `/secretary/create-show/wizard` keeps desktop two-column fields on phones, causing labels/controls to collide. Stack fields/selects/date controls and footer actions for mobile.
+- [ ] **[Mobile P1] Standardize mobile rows for dense management tables** — People, Entry Management, Reports print preview, Admin Users, Permission Users, and Judge Analytics clip internal columns even when page-level overflow is zero. Prefer shared mobile card/list variants or explicit scroll containers with clear affordance.
+- [ ] **[Mobile P2] Repair admin action bars, admin tab strips, and Browse Shows toolbar** — Header actions clip on admin dashboard/templates/permissions; tabs overlap on Alerts/Sync/Performance; public Browse Shows table toolbar clips controls.
+
+---
+
 ## Code-Quality Audit — 2026-06-12
 
 Plan: [`docs/plan-code-quality-audit.md`](docs/plan-code-quality-audit.md). Current status in [`docs/audits/2026-06-code-quality/SUMMARY.md`](docs/audits/2026-06-code-quality/SUMMARY.md). Phase 1 inventory and Phase 2 verification are done; Wave A cleanup merged in PR [#652](https://github.com/rbeezley/myk9-platform/pull/652); Wave B type-file unification merged in PR [#653](https://github.com/rbeezley/myk9-platform/pull/653); Wave B P1 launch-gate coverage/fix merged in PR [#654](https://github.com/rbeezley/myk9-platform/pull/654); Wave B Magazine/Gazette email parity merged in PR [#656](https://github.com/rbeezley/myk9-platform/pull/656); Wave B read-shape parity implemented in PR [#658](https://github.com/rbeezley/myk9-platform/pull/658).

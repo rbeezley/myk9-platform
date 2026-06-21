@@ -33,7 +33,14 @@ jobs:
     timeout-minutes: 20
     # Only when CI SUCCEEDED on a push to main (post-merge). Skips PR runs,
     # failed/cancelled CI runs, and any non-main branch.
+    #
+    # The PRODUCTION_DEPLOY_ENABLED repo variable is the enable gate: until an
+    # operator sets it to 'true' (AFTER adding the VERCEL_* secrets), this job is
+    # SKIPPED — so the workflow is genuinely inert on merge and never runs
+    # `vercel deploy` with empty secrets (which would fail the run, not no-op).
+    # See docs/operations/ci-vercel-deploys.md.
     if: >-
+      vars.PRODUCTION_DEPLOY_ENABLED == 'true' &&
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_branch == 'main'

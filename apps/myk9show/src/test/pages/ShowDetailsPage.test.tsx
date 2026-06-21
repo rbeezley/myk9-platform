@@ -448,7 +448,13 @@ describe('ShowDetailsPage', () => {
   it('surfaces a "See classes" deep-link in the hero when the show has classes (UX-P2-04)', () => {
     mockUserEntries = [];
     mockTrials = [
-      { id: 'trial-1', showId: 'show-1', trialDate: '2026-03-22', trialNumber: '1', name: 'Trial 1' },
+      {
+        id: 'trial-1',
+        showId: 'show-1',
+        trialDate: '2026-03-22',
+        trialNumber: '1',
+        name: 'Trial 1',
+      },
     ];
     mockTrialClasses = { 'trial-1': [{ id: 'class-1', element: 'Container', level: 'Novice' }] };
 
@@ -463,7 +469,13 @@ describe('ShowDetailsPage', () => {
   it('omits the "See classes" link when the show has no classes assigned', () => {
     mockUserEntries = [];
     mockTrials = [
-      { id: 'trial-1', showId: 'show-1', trialDate: '2026-03-22', trialNumber: '1', name: 'Trial 1' },
+      {
+        id: 'trial-1',
+        showId: 'show-1',
+        trialDate: '2026-03-22',
+        trialNumber: '1',
+        name: 'Trial 1',
+      },
     ];
     mockTrialClasses = { 'trial-1': [] };
 
@@ -532,7 +544,9 @@ describe('ShowDetailsPage', () => {
 
     renderPage();
 
-    expect(screen.getByTestId('canonical-show-management-nav')).toBeInTheDocument();
+    const nav = screen.getByTestId('canonical-show-management-nav');
+    expect(nav).toBeInTheDocument();
+    expect(nav.firstElementChild?.className).toContain('max-w-full');
     expect(screen.getByRole('link', { name: 'Setup' })).toHaveAttribute(
       'href',
       '/shows/show-1/setup'
@@ -574,7 +588,9 @@ describe('ShowDetailsPage', () => {
     expect(screen.getByRole('menuitem', { name: /edit/i })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /delete/i })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /preview public page/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /manage in workbench/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('menuitem', { name: /manage in workbench/i })
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /manage in workbench/i })).not.toBeInTheDocument();
   });
 
@@ -585,10 +601,7 @@ describe('ShowDetailsPage', () => {
 
     expect(screen.getByTestId('detail-hero')).toBeInTheDocument();
     expect(screen.getByTestId('canonical-child')).toHaveTextContent('Show Desk child');
-    expect(screen.getByRole('link', { name: 'Show Desk' })).toHaveAttribute(
-      'aria-current',
-      'page'
-    );
+    expect(screen.getByRole('link', { name: 'Show Desk' })).toHaveAttribute('aria-current', 'page');
   });
 
   // Regression: the Setup readiness chip "Exhibitor info not published yet" is a

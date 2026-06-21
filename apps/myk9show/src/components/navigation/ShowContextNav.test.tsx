@@ -16,7 +16,14 @@ function renderNav(path = '/shows/show-42/setup') {
 describe('ShowContextNav', () => {
   it('renders all 6 section links', () => {
     renderNav();
-    const labels = ['Setup', 'Show Desk', 'Entry Management', 'Reports', 'Results Control', 'Submit Results'];
+    const labels = [
+      'Setup',
+      'Show Desk',
+      'Entry Management',
+      'Reports',
+      'Results Control',
+      'Submit Results',
+    ];
     for (const label of labels) {
       expect(screen.getByRole('link', { name: label })).toBeInTheDocument();
     }
@@ -74,5 +81,13 @@ describe('ShowContextNav', () => {
       </MemoryRouter>
     );
     expect(screen.queryByTestId('show-context-nav')).not.toBeInTheDocument();
+  });
+
+  it('uses a mobile-safe horizontal rail', () => {
+    renderNav();
+
+    const nav = screen.getByTestId('show-context-nav');
+    expect(nav.firstElementChild?.className).toContain('max-w-full');
+    expect(screen.getByRole('link', { name: 'Entry Management' }).className).toContain('min-h-11');
   });
 });

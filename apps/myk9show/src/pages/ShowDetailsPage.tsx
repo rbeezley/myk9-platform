@@ -223,7 +223,7 @@ const ShowDetailsPage: React.FC = () => {
   const activeManagementSection = managementSectionMatch?.params.section;
   const isManagementSection = Boolean(
     activeManagementSection &&
-      SHOW_MANAGEMENT_SECTIONS.some(item => item.path === activeManagementSection)
+    SHOW_MANAGEMENT_SECTIONS.some(item => item.path === activeManagementSection)
   );
 
   useEffect(() => {
@@ -276,10 +276,7 @@ const ShowDetailsPage: React.FC = () => {
   // Trials/Classes tabs read the cold trialClasses store. getClassesByTrialId
   // self-falls-through to a direct anon-safe PostgREST read, so fetch per
   // landing trial when the store is cold, then reshape to the tab's ClassInfo.
-  const landingTrialIdsKey = useMemo(
-    () => landingTrials.map(t => t.id).join(','),
-    [landingTrials]
-  );
+  const landingTrialIdsKey = useMemo(() => landingTrials.map(t => t.id).join(','), [landingTrials]);
   const { data: publicClassesByTrial } = useQuery<TrialClassRows[]>({
     queryKey: ['public-show-classes', showId_, landingTrialIdsKey],
     queryFn: async () => {
@@ -722,7 +719,7 @@ const ShowDetailsPage: React.FC = () => {
             aria-label="Show management sections"
             data-testid="canonical-show-management-nav"
           >
-            <div className="flex overflow-x-auto px-4 sm:px-6">
+            <div className="flex max-w-full overflow-x-auto no-scrollbar px-4 sm:px-6">
               {SHOW_MANAGEMENT_SECTIONS.map(({ label, path }) => {
                 const href = `${canonicalShowHref}/${path}`;
                 const isActive = activeManagementSection === path;
@@ -732,7 +729,7 @@ const ShowDetailsPage: React.FC = () => {
                     to={href}
                     aria-current={isActive ? 'page' : undefined}
                     className={cn(
-                      'shrink-0 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition-colors',
+                      'min-h-11 shrink-0 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition-colors',
                       isActive
                         ? 'border-primary text-foreground'
                         : 'border-transparent text-muted-foreground hover:text-foreground'

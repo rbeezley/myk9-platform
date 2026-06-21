@@ -101,6 +101,18 @@ describe('HeadlineLandingPage', () => {
     );
   });
 
+  it('renders heritage countdown content without requiring desktop-only layout', () => {
+    render(<HeadlineLandingPage show={null} trial={null} allTrials={[]} />);
+
+    const countdown = screen.getByLabelText(/countdown to entries close/i);
+    expect(countdown).toHaveTextContent(/closing in/i);
+    expect(countdown).toHaveTextContent('12');
+    expect(countdown).toHaveTextContent('06');
+    expect(countdown).toHaveTextContent('38');
+    expect(countdown).toHaveTextContent('04');
+    expect(screen.getByRole('heading', { name: /Spring Scent Work Trial/i })).toBeTruthy();
+  });
+
   it('renders date-only show dates as Jun 12-14 in the hero and footer', () => {
     process.env.TZ = 'Asia/Tokyo';
 
@@ -114,7 +126,9 @@ describe('HeadlineLandingPage', () => {
 
     render(<HeadlineLandingPage show={null} trial={null} allTrials={[]} />);
 
-    expect(screen.getByRole('heading', { name: /Pacific Northwest Scent Work Trial/i })).toBeTruthy();
+    expect(
+      screen.getByRole('heading', { name: /Pacific Northwest Scent Work Trial/i })
+    ).toBeTruthy();
   });
 
   it('renders entry links when hasEntryClassInventory is true', () => {
@@ -133,9 +147,7 @@ describe('HeadlineLandingPage', () => {
 
     // No anchor links into the registration wizard anywhere on the page.
     expect(screen.queryByRole('link', { name: /enter this show/i })).toBeNull();
-    expect(
-      screen.queryByRole('link', { name: '/shows/show-1/register' })
-    ).toBeNull();
+    expect(screen.queryByRole('link', { name: '/shows/show-1/register' })).toBeNull();
     const wizardLinks = screen
       .queryAllByRole('link')
       .filter(link => link.getAttribute('href') === '/shows/show-1/register');

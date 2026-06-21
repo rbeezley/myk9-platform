@@ -39,7 +39,7 @@ export function ShowDayReconciliation({ entries }: ShowDayReconciliationProps) {
           className={cn(
             'inline-flex w-fit items-center rounded-md px-2 py-1 text-xs font-medium',
             needsReview
-              ? 'bg-primary text-primary-foreground'
+              ? 'bg-[color:var(--chip-amber-bg)] text-[color:var(--chip-amber-fg)]'
               : 'bg-secondary text-secondary-foreground'
           )}
         >

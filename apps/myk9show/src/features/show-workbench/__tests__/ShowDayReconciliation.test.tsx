@@ -27,7 +27,13 @@ describe('ShowDayReconciliation', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'Show-day reconciliation' })).toBeInTheDocument();
-    expect(screen.getByText('1 pulled · 1 review')).toBeInTheDocument();
+    const reviewChip = screen.getByText('1 pulled · 1 review');
+    expect(reviewChip).toBeInTheDocument();
+    // "Needs review" is a caution status, not a call to action: it must use the
+    // amber status chip token, never the user's accent (bg-primary), which
+    // would shift the meaning per selected accent (Clay/Grove/Dusk/Heather).
+    expect(reviewChip.className).toContain('var(--chip-amber-bg)');
+    expect(reviewChip.className).not.toContain('bg-primary');
     expect(
       within(screen.getByRole('group', { name: 'Show entries' })).getByText('1 day-of')
     ).toBeInTheDocument();

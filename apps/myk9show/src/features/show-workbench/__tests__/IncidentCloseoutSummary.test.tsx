@@ -50,7 +50,13 @@ describe('IncidentCloseoutSummary', () => {
 
     render(<IncidentCloseoutSummary showId="show-1" />);
 
-    expect(await screen.findByText('1 reportable')).toBeInTheDocument();
+    const reviewChip = await screen.findByText('1 reportable');
+    expect(reviewChip).toBeInTheDocument();
+    // Reportable incidents are a caution status, not a CTA: amber status chip
+    // token, never the user's accent (bg-primary), which shifts meaning per
+    // selected accent.
+    expect(reviewChip.className).toContain('var(--chip-amber-bg)');
+    expect(reviewChip.className).not.toContain('bg-primary');
     expect(within(screen.getByRole('group', { name: 'All incidents' })).getByText('2')).toBeInTheDocument();
     expect(
       within(screen.getByRole('group', { name: 'Reportable incidents' })).getByText('1')

@@ -5,7 +5,11 @@ import { buildEntryInsert, extractPaymentIntentId } from '../_shared/entryFromCa
 import { accountToRowPatch } from '../_shared/connectAccountMapper.ts';
 import { parsePremiumPriceIds, priceIdToTier } from '../_shared/premiumPrices.ts';
 import { sessionMatchesCart } from '../_shared/sessionCartGuard.ts';
-import { reconcileEntryPaymentRequest } from '../_shared/entryPaymentReconcile.ts';
+import {
+  INACTIVE_ENTRY_STATUSES,
+  reconcileEntryPaymentRequest,
+} from '../_shared/entryPaymentReconcile.ts';
+import { reconcileEntryPaymentUpdateOutcome } from '../_shared/entryPaymentUpdateReconcile.ts';
 import { alertAdmin } from '../_shared/alertAdmin.ts';
 import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
 import { calculatePlatformFeeCents, resolvePlatformFeePercent } from '../_shared/platformFee.ts';
@@ -108,7 +112,16 @@ async function handleEvent(event: Stripe.Event) {
 
   switch (event.type) {
     case 'checkout.session.completed':
+    case 'checkout.session.async_payment_succeeded':
       await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
+      break;
+
+    case 'checkout.session.async_payment_failed':
+      console.log(
+        `Async Checkout payment failed for session ${
+          (event.data.object as Stripe.Checkout.Session).id
+        } — entries remain pending`
+      );
       break;
 
     case 'customer.subscription.created':
@@ -203,16 +216,22 @@ async function handleDisputeCreated(dispute: Stripe.Dispute) {
  * (e.g. the Stripe dashboard). A payment intent can cover a whole cart, so a
  * dashboard refund can't be attributed to a single entry — mark the order and
  * log loudly for manual entry-level reconciliation. Refunds from
- * stripe-refund-entry carry entry_id metadata and were already recorded.
+ * app-originated refunds carry metadata and were already recorded.
  */
 async function handleChargeRefunded(charge: Stripe.Charge) {
   const refunds = charge.refunds?.data ?? [];
-  // Skip only when EVERY refund came from stripe-refund-entry (.some would let
-  // an app refund mask a later dashboard refund on the same charge — review
-  // finding #3). Mixed charges fall through to the RECONCILE log below.
-  const allFromRefundEntry = refunds.length > 0 && refunds.every(r => r.metadata?.entry_id);
-  if (allFromRefundEntry) {
-    console.log(`charge.refunded for ${charge.id} originated from stripe-refund-entry — already recorded`);
+  // Skip only when EVERY refund came from an app flow (.some would let an app
+  // refund mask a later dashboard refund on the same charge — review finding
+  // #3). Mixed charges fall through to the RECONCILE log below.
+  const allFromAppRefund =
+    refunds.length > 0 &&
+    refunds.every(
+      r => r.metadata?.entry_id || r.metadata?.type === 'entry_payment_request_auto_refund'
+    );
+  if (allFromAppRefund) {
+    console.log(
+      `charge.refunded for ${charge.id} originated from app refund flow — already recorded`
+    );
     return;
   }
 
@@ -630,7 +649,10 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
       .from('entries')
       .insert(
         buildEntryInsert(
-          { ...item, entry_fee_cents: authoritativeByClass.get(item.class_id) ?? item.entry_fee_cents },
+          {
+            ...item,
+            entry_fee_cents: authoritativeByClass.get(item.class_id) ?? item.entry_fee_cents,
+          },
           paymentIntentId,
           new Date().toISOString(),
           {
@@ -709,9 +731,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
       .select('entry_ids')
       .eq('stripe_checkout_session_id', session.id)
       .maybeSingle();
-    const existingEntryIds = ((existingOrder?.entry_ids as string[] | null) ?? [])
-      .slice()
-      .sort();
+    const existingEntryIds = ((existingOrder?.entry_ids as string[] | null) ?? []).slice().sort();
     const sortedEntryIds = entryIds.slice().sort();
     const sameEntrySet =
       existingEntryIds.length === sortedEntryIds.length &&
@@ -722,10 +742,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
         `stripe_orders row already recorded for session ${session.id} with matching entries (idempotent retry)`
       );
     } else {
-      console.error(
-        'Duplicate stripe_orders session with mismatched entry set:',
-        orderError
-      );
+      console.error('Duplicate stripe_orders session with mismatched entry set:', orderError);
       await alertAdmin(
         'Duplicate Stripe order — possible duplicate entries',
         `<p>A <code>stripe_orders</code> row already exists for Checkout Session
@@ -782,6 +799,8 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
  * re-delivered event is a no-op).
  */
 async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Session) {
+  const paymentIntentId = extractPaymentIntentId(session.payment_intent);
+
   const { data: link, error: linkError } = await supabase
     .from('entry_payment_links')
     .select('id, show_id, entry_ids, status')
@@ -800,6 +819,14 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
        <p>Recovery: verify the payment in Stripe and refund it, or stamp the entries
        manually.</p>`
     );
+    await issueEntryPaymentAutoRefund({
+      session,
+      paymentIntentId,
+      amountCents: session.amount_total ?? null,
+      reason: 'no_link_record',
+      invalidEntryIds: [],
+      linkId: null,
+    });
     return;
   }
 
@@ -819,7 +846,6 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     return;
   }
 
-  const paymentIntentId = extractPaymentIntentId(session.payment_intent);
   const result = reconcileEntryPaymentRequest({
     linkStatus: link.status,
     sessionPaymentStatus: session.payment_status ?? null,
@@ -839,23 +865,40 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     return;
   }
 
-  // Entries the link was created for that no longer exist — the charge paid for
-  // nothing recoverable. Alert (Task 3.5 Step 3 refund). Still process the rest.
+  // Entries the link was created for that no longer exist/in-show, or that were
+  // already paid by another link. The valid subset is still marked paid; the
+  // invalid subset is refunded below after the stripe_orders row is recorded.
   if (result.missingEntryIds.length > 0) {
     console.error(`Payment link ${session.id} references missing entries:`, result.missingEntryIds);
     await alertAdmin(
-      'Payment link paid for entries that no longer exist — refund needed',
+      'Payment link paid for entries that no longer exist',
       `<p>Session <code>${session.id}</code> was PAID, but these entries it was created for
        are gone (deleted/withdrawn since): <code>${result.missingEntryIds.join(', ')}</code>
        (payment intent <code>${paymentIntentId ?? 'unknown'}</code>).</p>
-       <p>Refund the portion for the missing entries (make-whole).</p>`
+       <p>The webhook will auto-refund the invalid portion after recording payment history.</p>`
+    );
+  }
+  if (result.inactiveEntryIds.length > 0) {
+    console.error(
+      `Payment link ${session.id} references inactive entries:`,
+      result.inactiveEntryIds
+    );
+    await alertAdmin(
+      'Payment link paid for inactive entries',
+      `<p>Session <code>${session.id}</code> was PAID, but these entries are no longer
+       active in the show: <code>${result.inactiveEntryIds.join(', ')}</code>
+       (payment intent <code>${paymentIntentId ?? 'unknown'}</code>).</p>
+       <p>The webhook will auto-refund the invalid portion after recording payment history.</p>`
     );
   }
 
-  // Apply per-entry patches. The .eq('payment_status','pending') guard makes
-  // each update a no-op if something already paid it (belt-and-suspenders with
-  // the link latch). Marks payment_method='online' so cron-process-payouts
-  // actually pays the club for these entries (Task 1 / Task 3 Step 4).
+  // Apply per-entry patches. The payment + active-status guards make each
+  // update a no-op if something already paid/removed it after the pre-read.
+  // Marks payment_method='online' so cron-process-payouts actually pays the
+  // club for these entries (Task 1 / Task 3 Step 4).
+  const plannedPatchIds = result.patches.map(p => p.id);
+  const updatedEntryIds: string[] = [];
+  const inactiveEntryStatusFilter = `(${[...INACTIVE_ENTRY_STATUSES].join(',')})`;
   for (const patch of result.patches) {
     const update: Record<string, unknown> = {
       payment_status: patch.payment_status,
@@ -863,11 +906,13 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       stripe_payment_intent_id: patch.stripe_payment_intent_id,
     };
     if (patch.entry_status) update.entry_status = patch.entry_status;
-    const { error } = await supabase
+    const { data: updatedRows, error } = await supabase
       .from('entries')
       .update(update)
       .eq('id', patch.id)
-      .eq('payment_status', 'pending');
+      .eq('payment_status', 'pending')
+      .not('entry_status', 'in', inactiveEntryStatusFilter)
+      .select('id');
     if (error) {
       console.error(`Failed to mark entry ${patch.id} paid:`, error);
       await alertAdmin(
@@ -878,7 +923,58 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
          club for it. Recovery: stamp the entry manually.</p>`
       );
     }
+    updatedEntryIds.push(...((updatedRows ?? []) as { id: string }[]).map(row => row.id));
   }
+
+  const noOpPatchIds = plannedPatchIds.filter(id => !updatedEntryIds.includes(id));
+  let rereadNoOpEntries: {
+    id: string;
+    payment_status: string | null;
+    entry_status: string | null;
+  }[] = [];
+  if (noOpPatchIds.length > 0) {
+    const { data: noOpEntriesData, error: noOpEntriesError } = await supabase
+      .from('entries')
+      .select('id, payment_status, entry_status')
+      .in('id', noOpPatchIds);
+    if (noOpEntriesError) {
+      console.error('Failed to re-read no-op entry payment patches:', noOpEntriesError);
+      await alertAdmin(
+        'Payment link paid but no-op entries could not be re-read',
+        `<p>Session <code>${session.id}</code> was PAID but these planned entry
+         stamps did not update and could not be re-read:
+         <code>${noOpPatchIds.join(', ')}</code>.</p>
+         <pre>${noOpEntriesError.message}</pre>
+         <p>The webhook will treat them as invalid for refund safety.</p>`
+      );
+    } else {
+      rereadNoOpEntries = (noOpEntriesData ?? []) as {
+        id: string;
+        payment_status: string | null;
+        entry_status: string | null;
+      }[];
+    }
+  }
+
+  const hasPotentialInvalidEntries =
+    result.missingEntryIds.length > 0 ||
+    result.inactiveEntryIds.length > 0 ||
+    result.alreadyPaidEntryIds.length > 0 ||
+    noOpPatchIds.length > 0;
+  const entryFeesById = hasPotentialInvalidEntries
+    ? await loadEntryPaymentLineItemFees(session.id)
+    : new Map<string, number>();
+  const updateOutcome = reconcileEntryPaymentUpdateOutcome({
+    plannedPatchIds,
+    updatedEntryIds,
+    rereadNoOpEntries,
+    initialMissingEntryIds: result.missingEntryIds,
+    initialInactiveEntryIds: result.inactiveEntryIds,
+    initialAlreadyPaidEntryIds: result.alreadyPaidEntryIds,
+    paymentIntentId,
+    sessionAmountTotalCents: session.amount_total ?? null,
+    entryFeesById,
+  });
 
   // Close the link (idempotency latch); guard on still-open so a racing
   // delivery can't double-close.
@@ -890,7 +986,7 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
 
   // Payment history. Idempotent via the UNIQUE stripe_payment_intent_id /
   // stripe_checkout_session_id; a benign retry hits 23505 and is ignored.
-  const paidIds = result.patches.map(p => p.id);
+  const paidIds = updateOutcome.paidEntryIds;
   const { error: orderError } = await supabase.from('stripe_orders').insert({
     // customer_id is a UUID FK to stripe_customers(id) — NOT Stripe's cus_… id.
     // A link payer may have no stripe_customers row at all, so leave it null
@@ -919,18 +1015,57 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     );
   }
 
-  // Duplicate-charge: a second link was paid for an already-paid entry. The
-  // full make-whole auto-refund is Task 3.5 Step 2/6; alert now so the money
-  // isn't silently kept.
-  if (result.alreadyPaidEntryIds.length > 0) {
+  if (updateOutcome.alreadyPaidEntryIds.length > 0) {
     await alertAdmin(
-      'Payment link paid for already-paid entries — refund needed',
+      'Payment link paid for already-paid entries',
       `<p>Session <code>${session.id}</code> paid for entries that were already paid:
-       <code>${result.alreadyPaidEntryIds.join(', ')}</code> (payment intent
+       <code>${updateOutcome.alreadyPaidEntryIds.join(', ')}</code> (payment intent
        <code>${paymentIntentId ?? 'unknown'}</code>).</p>
-       <p>Refund this charge (make-whole, including the platform fee) — the exhibitor
-       was double-charged.</p>`
+       <p>The webhook will auto-refund the invalid portion; if the exhibitor received
+       no new paid entries, it refunds the full charge including platform fee.</p>`
     );
+  }
+
+  if (updateOutcome.unknownNoOpEntryIds.length > 0) {
+    await alertAdmin(
+      'Payment link paid but entries did not stamp',
+      `<p>Session <code>${session.id}</code> was PAID but these entries did not update
+       despite still being present and not clearly paid/inactive:
+       <code>${updateOutcome.unknownNoOpEntryIds.join(', ')}</code>.</p>
+       <p>The webhook will treat them as invalid for refund safety.</p>`
+    );
+  }
+
+  const invalidEntryIds = updateOutcome.invalidEntryIds;
+  if (invalidEntryIds.length > 0) {
+    const decision = updateOutcome.refundDecision;
+
+    if (decision.action === 'refund') {
+      await issueEntryPaymentAutoRefund({
+        session,
+        paymentIntentId,
+        amountCents: decision.amountCents,
+        reason: decision.reason,
+        invalidEntryIds,
+        linkId: link.id,
+      });
+    } else if (decision.action === 'needs_manual_amount') {
+      await alertAdmin(
+        'Payment link auto-refund needs manual amount',
+        `<p>Session <code>${session.id}</code> was PAID and has invalid entries
+         <code>${invalidEntryIds.join(', ')}</code>, but the webhook could not derive
+         fees for: <code>${decision.missingFeeEntryIds.join(', ')}</code>.</p>
+         <p>Recovery: refund the invalid portion from Stripe, including the matching
+         share of the platform fee.</p>`
+      );
+    } else if (decision.action === 'cannot_refund') {
+      await alertAdmin(
+        'Payment link auto-refund could not be created',
+        `<p>Session <code>${session.id}</code> was PAID and has invalid entries
+         <code>${invalidEntryIds.join(', ')}</code>, but auto-refund could not run:
+         <code>${decision.reason}</code>.</p>`
+      );
+    }
   }
 
   console.log(
@@ -938,6 +1073,105 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       paidIds.length === 1 ? 'y' : 'ies'
     } marked paid (show ${link.show_id})`
   );
+}
+
+async function loadEntryPaymentLineItemFees(sessionId: string): Promise<Map<string, number>> {
+  const entryFeesById = new Map<string, number>();
+  try {
+    const lineItems = await stripe.checkout.sessions.listLineItems(sessionId, { limit: 100 });
+    for (const item of lineItems.data) {
+      const entryId = item.metadata?.entry_id;
+      if (entryId && typeof item.amount_total === 'number') {
+        entryFeesById.set(entryId, item.amount_total);
+      }
+    }
+  } catch (err) {
+    console.error(`Could not load line items for payment-link session ${sessionId}:`, err);
+  }
+  return entryFeesById;
+}
+
+async function issueEntryPaymentAutoRefund(input: {
+  session: Stripe.Checkout.Session;
+  paymentIntentId: string | null;
+  amountCents: number | null;
+  reason: 'no_link_record' | 'full_make_whole' | 'partial_invalid_entries';
+  invalidEntryIds: string[];
+  linkId: string | null;
+}) {
+  if (!input.paymentIntentId || !input.amountCents || input.amountCents <= 0) {
+    await alertAdmin(
+      'Payment link auto-refund could not be created',
+      `<p>Session <code>${input.session.id}</code> needs an auto-refund, but the
+       payment intent or amount was missing (payment intent
+       <code>${input.paymentIntentId ?? 'unknown'}</code>, amount
+       <code>${input.amountCents ?? 'unknown'}</code>).</p>`
+    );
+    return;
+  }
+
+  try {
+    const refund = await stripe.refunds.create(
+      {
+        payment_intent: input.paymentIntentId,
+        amount: input.amountCents,
+        metadata: {
+          type: 'entry_payment_request_auto_refund',
+          checkout_session_id: input.session.id,
+          entry_payment_link_id: input.linkId ?? '',
+          reason: input.reason,
+          invalid_entry_ids: JSON.stringify(input.invalidEntryIds),
+        },
+      },
+      { idempotencyKey: `entry-payment-request-auto-refund-${input.session.id}-${input.reason}` }
+    );
+    console.error(
+      `AUTO-REFUND: ${refund.id} refunded ${refund.amount}¢ for payment-link session ${input.session.id} (${input.reason})`
+    );
+    await alertAdmin(
+      'Payment link charge auto-refunded',
+      `<p>Auto-refund <code>${refund.id}</code> refunded
+       ${(refund.amount / 100).toFixed(2)} USD for Checkout Session
+       <code>${input.session.id}</code> (payment intent
+       <code>${input.paymentIntentId}</code>).</p>
+       <p>Reason: <code>${input.reason}</code>${
+         input.invalidEntryIds.length > 0
+           ? `; invalid entries: <code>${input.invalidEntryIds.join(', ')}</code>`
+           : ''
+       }.</p>`
+    );
+    if (input.reason === 'full_make_whole') {
+      const { error: orderUpdateError } = await supabase
+        .from('stripe_orders')
+        .update({ status: 'refunded', refunded_at: new Date().toISOString() })
+        .eq('stripe_checkout_session_id', input.session.id);
+      if (orderUpdateError) {
+        console.error(
+          `CRITICAL: auto-refund ${refund.id} succeeded but stripe_orders update failed:`,
+          orderUpdateError
+        );
+        await alertAdmin(
+          'Payment link auto-refund issued but order not marked refunded',
+          `<p>Auto-refund <code>${refund.id}</code> succeeded for session
+           <code>${input.session.id}</code>, but updating <code>stripe_orders</code>
+           failed:</p><pre>${orderUpdateError.message}</pre>`
+        );
+      }
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(
+      `CRITICAL: auto-refund failed for payment-link session ${input.session.id}:`,
+      err
+    );
+    await alertAdmin(
+      'Payment link auto-refund FAILED',
+      `<p>Session <code>${input.session.id}</code> needs an auto-refund of
+       ${(input.amountCents / 100).toFixed(2)} USD, but Stripe refund creation failed:</p>
+       <pre>${message}</pre>
+       <p>Recovery: refund payment intent <code>${input.paymentIntentId}</code> manually.</p>`
+    );
+  }
 }
 
 /**
@@ -1174,10 +1408,7 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
  * Sync subscription data from Stripe to database
  * Updates both stripe_subscriptions and exhibitor_profiles
  */
-async function syncSubscriptionFromStripe(
-  stripeCustomerId: string,
-  knownSubscriptionId?: string
-) {
+async function syncSubscriptionFromStripe(stripeCustomerId: string, knownSubscriptionId?: string) {
   try {
     // Get stripe_customers record
     const { data: stripeCustomer, error: customerError } = await supabase

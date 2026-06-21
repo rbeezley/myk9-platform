@@ -27,6 +27,7 @@ export interface BuildEntryPaymentLinkInput {
 }
 
 interface LineItem {
+  metadata: Record<string, string>;
   price_data: {
     currency: string;
     unit_amount: number;
@@ -37,10 +38,6 @@ interface LineItem {
 
 export interface EntryPaymentLinkSessionParams {
   mode: 'payment';
-  // Card only: delayed/async methods would settle via a LATER event
-  // (async_payment_succeeded) the entry webhook doesn't handle, so
-  // checkout.session.completed always means paid for these links.
-  payment_method_types: ['card'];
   line_items: LineItem[];
   expires_at: number;
   success_url: string;
@@ -59,6 +56,7 @@ export function buildEntryPaymentLinkSession(
   }
 
   const lineItems: LineItem[] = input.entries.map(e => ({
+    metadata: { type: 'entry', entry_id: e.entryId },
     price_data: {
       currency: 'usd',
       unit_amount: e.authoritativeFeeCents,
@@ -76,6 +74,7 @@ export function buildEntryPaymentLinkSession(
   const platformFeeCents = calculatePlatformFeeCents(subtotal, input.platformFeePercent);
   if (platformFeeCents > 0) {
     lineItems.push({
+      metadata: { type: 'platform_fee' },
       price_data: {
         currency: 'usd',
         unit_amount: platformFeeCents,
@@ -91,7 +90,6 @@ export function buildEntryPaymentLinkSession(
 
   return {
     mode: 'payment',
-    payment_method_types: ['card'],
     line_items: lineItems,
     expires_at: input.expiresAtEpoch,
     success_url: input.successUrl,

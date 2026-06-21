@@ -56,6 +56,19 @@ describe('reconcileEntryPaymentRequest', () => {
     expect(r.patches.map(p => p.id)).toEqual(['mailin', 'wl']);
   });
 
+  it('reports entries that became inactive since the link was created and does not mark them paid', () => {
+    const r = reconcileEntryPaymentRequest({
+      ...base,
+      expectedEntryIds: ['fresh', 'withdrawn'],
+      entries: [
+        { id: 'fresh', payment_status: 'pending', entry_status: 'submitted' },
+        { id: 'withdrawn', payment_status: 'pending', entry_status: 'withdrawn' },
+      ],
+    });
+    expect(r.patches.map(p => p.id)).toEqual(['fresh']);
+    expect(r.inactiveEntryIds).toEqual(['withdrawn']);
+  });
+
   it('flags an already-paid entry as a duplicate-charge candidate, does not re-patch it', () => {
     const r = reconcileEntryPaymentRequest({
       ...base,

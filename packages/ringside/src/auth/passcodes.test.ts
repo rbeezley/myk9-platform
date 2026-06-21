@@ -56,6 +56,21 @@ describe('parsePasscode', () => {
     expect(result.isValid).toBe(false);
   });
 
+  test('is case-insensitive on the role prefix', () => {
+    // The parser lower-cases the role letter, so an uppercase-prefixed
+    // passcode resolves to the same role as its lowercase form. Without this
+    // test the `.toLowerCase()` branch is unexercised (every other input is
+    // already lowercase).
+    expect(parsePasscode('Ad860')).toEqual({
+      role: 'admin',
+      licenseKey: 'd860',
+      isValid: true,
+    });
+    expect(parsePasscode('J9f3b').role).toBe('judge');
+    expect(parsePasscode('S0000').role).toBe('steward');
+    expect(parsePasscode('E0000').role).toBe('exhibitor');
+  });
+
   test('handles empty passcode', () => {
     const result = parsePasscode('');
     expect(result.isValid).toBe(false);

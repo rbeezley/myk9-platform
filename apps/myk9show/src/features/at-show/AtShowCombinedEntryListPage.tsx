@@ -285,6 +285,8 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             hasPermission,
             hideMaxTimeOption: !canManageClasses,
             hideSettingsOption: !canManageClasses,
+            // No printing at ringside — reports live on the secretary Reports page.
+            hidePrintOptions: true,
           }}
           onPrintSortOrder={onPrintSortOrder}
           onApplyRunOrder={onApplyRunOrder}

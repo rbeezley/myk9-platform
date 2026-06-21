@@ -25,6 +25,9 @@ import type {
   Entry,
 } from '@myk9/ringside';
 import { logger } from '@/utils/logger';
+import { replicatedEntriesTable } from '@/services/replication';
+import { supabase } from '@/services/database/supabaseClient';
+import { calculateRunOrder, toMyK9ShowRunOrderPreset } from '@/lib/runOrderUtils';
 
 type ResetConfirmState = { show: boolean; entry: Entry | null };
 
@@ -99,6 +102,10 @@ export function useAtShowEntryListHandlers(
   // up in-ring. Within-tab only; true cross-device exclusivity needs a
   // server-side constraint (deferred with the /at-show service layer).
   const inRingMutex = useRef<Promise<void>>(Promise.resolve());
+
+  // The entry whose reset is awaiting confirmation. Captured when the reset menu
+  // opens the dialog so confirmResetScore (which takes no args) knows the target.
+  const resetEntryRef = useRef<Entry | null>(null);
 
   // ── Routing ──────────────────────────────────────────────────────────
   const getScoreSheetRoute = useCallback<EntryListHandlers['getScoreSheetRoute']>(
@@ -199,6 +206,7 @@ export function useAtShowEntryListHandlers(
 
   const handleResetScore = useCallback<EntryListHandlers['handleResetScore']>(
     entry => {
+      resetEntryRef.current = entry;
       setActiveResetMenu(null);
       setResetMenuPosition(null);
       setResetConfirmDialog({ show: true, entry });
@@ -207,10 +215,21 @@ export function useAtShowEntryListHandlers(
   );
 
   const confirmResetScore = useCallback<EntryListHandlers['confirmResetScore']>(async () => {
-    // Optimistic UI clear happens shim-side; the action itself is a spike stub.
-    setActiveTab('pending');
+    const entry = resetEntryRef.current;
+    // Close the dialog and move the row to the pending tab immediately for a
+    // responsive feel; the persisted clear + refresh runs underneath.
     setResetConfirmDialog({ show: false, entry: null });
-  }, [setActiveTab, setResetConfirmDialog]);
+    setActiveTab('pending');
+    if (!entry) return;
+    try {
+      await actions.handleResetScore(entry.id);
+      await refresh();
+    } catch (error) {
+      logger.error('[at-show] reset score failed', 'at-show', { error: String(error) });
+    } finally {
+      resetEntryRef.current = null;
+    }
+  }, [actions, refresh, setActiveTab, setResetConfirmDialog]);
 
   const cancelResetScore = useCallback<EntryListHandlers['cancelResetScore']>(() => {
     setResetConfirmDialog({ show: false, entry: null });
@@ -232,12 +251,27 @@ export function useAtShowEntryListHandlers(
         setIsDragMode(true);
         return;
       }
-      // INTENT (spike): run-order apply/persist is STUBBED. The `run_order`
-      // column exists (reads are real → Entry.exhibitorOrder), but the
-      // preset-apply write path is deferred to a later /at-show PR.
-      logger.warn(`[at-show] handleApplyRunOrder('${preset}') is stubbed for the spike`);
+      // Compute the preset order with the shared myK9Show helper, then persist
+      // each entry's new run_order. run_order is ringside-whitelisted, so
+      // updateEntry auto-routes through ringside_update_entry. refresh() re-pulls
+      // so the list re-sorts into the new order.
+      const results = calculateRunOrder(
+        localEntries.map(e => ({
+          id: e.id,
+          armband: e.armband != null ? String(e.armband) : null,
+          section: e.section ?? null,
+        })),
+        // Translate the wide ringside preset to myK9Show's supported set —
+        // notably ringside 'random-all' → 'random'. A bare cast let 'random-all'
+        // fall through to deterministic armband order.
+        toMyK9ShowRunOrderPreset(preset)
+      );
+      await Promise.all(
+        results.map(r => replicatedEntriesTable.updateEntry(r.id, { runOrder: r.runOrder }))
+      );
+      await refresh();
     },
-    [setIsDragMode]
+    [localEntries, refresh, setIsDragMode]
   );
 
   // ── Refresh ──────────────────────────────────────────────────────────
@@ -272,14 +306,33 @@ export function useAtShowEntryListHandlers(
   const handleRecalculatePlacements = useCallback<
     EntryListHandlers['handleRecalculatePlacements']
   >(async () => {
-    // INTENT (spike): myK9Show computes placements via client-side
-    // PlacementCalculatorService, not myK9Q's recalculate_class_placements RPC.
-    // Reconciling the two is out of spike scope.
-    logger.warn('[at-show] handleRecalculatePlacements is stubbed for the spike');
-  }, []);
+    const classId = deps.classId;
+    if (!classId) return;
+    // refresh_class_scoring_state is the SAME server-side routine the scoring
+    // trigger runs: it derives is_nationals, recomputes final_placement for a
+    // fully-scored class (or clears stale placements otherwise) and updates the
+    // class status. Server-authoritative and DRY — no client placement math, and
+    // placements already recompute automatically on each score write, so this is
+    // a manual backstop. SECURITY DEFINER, so a judge/admin may invoke it.
+    try {
+      const { error } = await supabase.rpc('refresh_class_scoring_state', {
+        p_class_id: classId,
+      });
+      if (error) throw error;
+      await refresh(true);
+    } catch (error) {
+      logger.error('[at-show] recalculate placements failed', 'at-show', {
+        error: String(error),
+      });
+    }
+  }, [deps, refresh]);
 
+  // Printing is intentionally NOT offered at /at-show — reports live on the
+  // secretary Reports page (the ringside print menu is hidden via
+  // context.hidePrintOptions). These remain as no-ops only to satisfy the
+  // EntryListHandlers contract; they are unreachable from the at-show UI.
   const stubPrint = useCallback((kind: string) => {
-    logger.warn(`[at-show] ${kind} print is not available in the spike`);
+    logger.warn(`[at-show] print (${kind}) is not offered at ringside — use the Reports page`);
   }, []);
   const handlePrintCheckIn = useCallback<EntryListHandlers['handlePrintCheckIn']>(
     () => stubPrint('check-in'),

@@ -22,6 +22,7 @@ import type { CheckInStatus } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import { rowToEntry, type EntryRow, type ReplicatedEntry } from './ReplicatedEntriesTable.mapper';
+import { buildRingsideRpcFields, RINGSIDE_RPC_FUNCTION } from './ringsideEntryRpc';
 
 export { rowToEntry };
 export type { ReplicatedEntry };
@@ -288,11 +289,19 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     };
 
     await this.set(entryId, updated, true);
-    const mutationId = await this.queueMutation('UPDATE', entryId, {
-      id: entryId,
-      check_in_status: status,
-      updated_at: new Date().toISOString(),
-    });
+    const mutationId = await this.queueMutation(
+      'UPDATE',
+      entryId,
+      {
+        id: entryId,
+        check_in_status: status,
+        updated_at: new Date().toISOString(),
+      },
+      undefined,
+      // check_in_status is ringside-whitelisted; route through the RPC so judges/
+      // stewards can persist check-ins (updated_at is auto-managed, not intent).
+      { name: RINGSIDE_RPC_FUNCTION, fields: { check_in_status: status } }
+    );
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated entry ${entryId} check-in status to ${status}`);
     return mutationId;
@@ -316,7 +325,20 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     };
 
     await this.set(entryId, updated, true);
-    const mutationId = await this.queueMutation('UPDATE', entryId, this.toSupabaseRow(updated));
+    const supabaseRow = this.toSupabaseRow(updated);
+    // Auto-route ringside-only writes (scoring/run-order/check-in/placement)
+    // through the SECURITY DEFINER RPC so assigned judges / stewards — who are
+    // denied by the entries UPDATE RLS policy — can persist. Writes that touch
+    // any non-ringside column fall through to the direct UPDATE. See
+    // ./ringsideEntryRpc.ts.
+    const rpcFields = buildRingsideRpcFields(Object.keys(updates), supabaseRow);
+    const mutationId = await this.queueMutation(
+      'UPDATE',
+      entryId,
+      supabaseRow,
+      undefined,
+      rpcFields ? { name: RINGSIDE_RPC_FUNCTION, fields: rpcFields } : undefined
+    );
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated entry ${entryId}`);
     return mutationId;

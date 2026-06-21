@@ -131,6 +131,21 @@ export interface PendingMutation {
 
   /** When the mutation was moved to the failed_mutations store (permanent failure) */
   failedAt?: number;
+
+  /**
+   * Optional: apply this UPDATE through a SECURITY DEFINER RPC instead of a
+   * direct table UPDATE. Used by callers (e.g. at-show ringside) whose role is
+   * not admitted by the table's UPDATE RLS policy but IS admitted by a function
+   * that does its own per-row authorization. `fields` is the delta to write
+   * (the RPC's `p_fields`), kept separate from `data` (the full optimistic row
+   * persisted to IndexedDB). Only honored for UPDATE operations.
+   */
+  rpc?: {
+    /** RPC function name, e.g. `ringside_update_entry`. */
+    name: string;
+    /** Delta payload passed as the RPC's `p_fields` argument. */
+    fields: Record<string, unknown>;
+  };
 }
 
 /**

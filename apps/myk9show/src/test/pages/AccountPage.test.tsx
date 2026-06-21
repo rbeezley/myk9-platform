@@ -134,7 +134,7 @@ describe('AccountPage', () => {
   it('switches to My dogs section on click', () => {
     render();
     fireEvent.click(screen.getByRole('button', { name: 'My dogs' }));
-    expect(screen.getByText(/no dogs linked/i)).toBeInTheDocument();
+    expect(screen.getByText(/you don't have any dogs yet/i)).toBeInTheDocument();
   });
 
   it('switches to Appearance section and renders ThemeSelector', () => {

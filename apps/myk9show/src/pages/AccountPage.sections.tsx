@@ -188,7 +188,7 @@ export function DogsSection() {
       <CardContent>
         {dogs.length === 0 ? (
           <div className="py-4 text-center space-y-3">
-            <p className="text-sm text-muted-foreground">No dogs linked to your account.</p>
+            <p className="text-sm text-muted-foreground">You don't have any dogs yet.</p>
             <Button variant="outline" size="sm" asChild>
               <Link to="/dogs">Browse or add dogs</Link>
             </Button>

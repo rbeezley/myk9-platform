@@ -6,8 +6,9 @@ import { signInAsSecretary } from '../uat/shared/auth';
  *
  * Offline round-trip guard for the at-show live scoresheet. The spec reuses a
  * stable Heritage fixture from shared staging seed data instead of creating live
- * rows, then intercepts entry PATCH uploads so reconnect verification never
- * mutates the shared Supabase project. If the fixture is rebuilt, update the
+ * rows, then intercepts the ringside_update_entry RPC (the routed sync target
+ * for ringside-column writes — PR #886) so reconnect verification never mutates
+ * the shared Supabase project. If the fixture is rebuilt, update the
  * show/class/entry IDs together.
  */
 
@@ -22,16 +23,15 @@ const REPLICATION_DB_NAME = 'myK9_Replication';
 const REPLICATED_TABLES_STORE = 'replicated_tables';
 const PENDING_MUTATIONS_STORE = 'pending_mutations';
 
-type PatchPayload = Record<string, unknown>;
-type EntryPatchPayload = PatchPayload & { id: string };
+type RpcCall = { p_entry_id?: string; p_fields?: Record<string, unknown> };
 
 test.describe('At-show offline scoring', () => {
   test('scores offline, queues the entry update, and flushes it after reconnect', async ({
     page,
     context,
   }) => {
-    const entryPatches: EntryPatchPayload[] = [];
-    await interceptEntryUploads(page, entryPatches);
+    const rpcCalls: RpcCall[] = [];
+    await interceptRingsideRpc(page, rpcCalls);
 
     await signInAsSecretary(page, SCORE_PATH);
     await expect(page).toHaveURL(new RegExp(escapeRegExp(SCORE_PATH)));
@@ -65,7 +65,9 @@ test.describe('At-show offline scoring', () => {
     await expect
       .poll(
         () =>
-          entryPatches.some(patch => patch.id === ENTRY_ID && patch.result_status === 'qualified'),
+          rpcCalls.some(
+            call => call.p_entry_id === ENTRY_ID && call.p_fields?.result_status === 'qualified'
+          ),
         { timeout: 20_000 }
       )
       .toBe(true);
@@ -73,35 +75,24 @@ test.describe('At-show offline scoring', () => {
   });
 });
 
-async function interceptEntryUploads(page: Page, entryPatches: EntryPatchPayload[]) {
-  await page.route('**/rest/v1/entries?*', async (route: Route) => {
+async function interceptRingsideRpc(page: Page, rpcCalls: RpcCall[]) {
+  // Ringside-column writes (scoring/check-in/etc.) now sync through the
+  // ringside_update_entry RPC, not a direct entries PATCH (PR #886). Capture the
+  // flushed call and return a bumped version integer (the RPC's real return)
+  // so the client treats the sync as successful without touching staging.
+  await page.route('**/rest/v1/rpc/ringside_update_entry', async (route: Route) => {
     const request = route.request();
-    if (request.method() !== 'PATCH') {
+    if (request.method() !== 'POST') {
       await route.continue();
       return;
     }
-
-    const patch = request.postDataJSON() as unknown;
-    if (!isEntryPatchPayload(patch)) {
-      await route.fulfill({
-        status: 500,
-        contentType: 'application/json',
-        body: JSON.stringify({ error: `Unexpected entries PATCH payload for ${ENTRY_ID}` }),
-      });
-      return;
-    }
-
-    entryPatches.push(patch);
+    rpcCalls.push((request.postDataJSON() ?? {}) as RpcCall);
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify([{ id: patch.id, version: 100 + entryPatches.length }]),
+      body: JSON.stringify(100 + rpcCalls.length),
     });
   });
-}
-
-function isEntryPatchPayload(value: unknown): value is EntryPatchPayload {
-  return typeof value === 'object' && value !== null && (value as { id?: unknown }).id === ENTRY_ID;
 }
 
 async function readEntryReplica(page: Page) {

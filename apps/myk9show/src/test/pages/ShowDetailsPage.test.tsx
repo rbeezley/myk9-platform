@@ -857,4 +857,58 @@ describe('ShowDetailsPage', () => {
     );
     expect(setQueryDataSpy).toHaveBeenCalledWith(['shows', 'list'], expect.any(Function));
   });
+
+  it('computes per-trial entry counts from the entryCountByClassId index', async () => {
+    // 1 trial, 2 classes, 3 entries split 2/1, plus 1 entry with undefined class_id
+    mockTrials = [
+      {
+        id: 'trial-1',
+        showId: 'show-1',
+        trialDate: '2026-03-22',
+        trialNumber: '1',
+        name: 'Trial 1',
+      },
+    ];
+    mockTrialClasses = {
+      'trial-1': [
+        {
+          id: 'class-a',
+          element: 'Container',
+          level: 'Novice',
+          section: '',
+          judgeName: '',
+          startTime: '',
+          status: 'Scheduled',
+          completedEntries: 0,
+        },
+        {
+          id: 'class-b',
+          element: 'Interior',
+          level: 'Novice',
+          section: '',
+          judgeName: '',
+          startTime: '',
+          status: 'Scheduled',
+          completedEntries: 0,
+        },
+      ],
+    };
+    mockShowEntries = [
+      { id: 'e1', show_id: 'show-1', class_id: 'class-a' },
+      { id: 'e2', show_id: 'show-1', class_id: 'class-a' },
+      { id: 'e3', show_id: 'show-1', class_id: 'class-b' },
+      // e4 has no class_id — must not contribute to any class's count
+      { id: 'e4', show_id: 'show-1' },
+    ];
+    mockAuthContext.isSecretary = true;
+
+    renderPage('show-1', '', '?tab=trials');
+
+    // TrialsTab renders "<count> entries" — trialStats for trial-1 = 3 (class-a:2 + class-b:1)
+    // e4 has no class_id, so it must not be counted.
+    const strong = await screen.findByText((content, el) => {
+      return el?.tagName === 'STRONG' && content === '3';
+    });
+    expect(strong.closest('span')?.parentElement).toHaveTextContent('entries');
+  });
 });

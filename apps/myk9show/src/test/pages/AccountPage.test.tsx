@@ -112,7 +112,7 @@ describe('AccountPage', () => {
     render();
     [
       'Profile',
-      'Linked dogs',
+      'My dogs',
       'Appearance',
       'General',
       'Notifications',
@@ -131,9 +131,9 @@ describe('AccountPage', () => {
     expect(screen.getByText('Personal information')).toBeInTheDocument();
   });
 
-  it('switches to Linked dogs section on click', () => {
+  it('switches to My dogs section on click', () => {
     render();
-    fireEvent.click(screen.getByRole('button', { name: 'Linked dogs' }));
+    fireEvent.click(screen.getByRole('button', { name: 'My dogs' }));
     expect(screen.getByText(/no dogs linked/i)).toBeInTheDocument();
   });
 
@@ -191,7 +191,7 @@ describe('AccountPage', () => {
       { id: 'd-2', name: 'Max', call_name: 'Max', breed: '' },
     ];
     render();
-    fireEvent.click(screen.getByRole('button', { name: 'Linked dogs' }));
+    fireEvent.click(screen.getByRole('button', { name: 'My dogs' }));
     expect(screen.getByText('Biscuit')).toBeInTheDocument();
     expect(screen.getByText('Border Collie')).toBeInTheDocument();
     expect(screen.getByText('Max')).toBeInTheDocument();

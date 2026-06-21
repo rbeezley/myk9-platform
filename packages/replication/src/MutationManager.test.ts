@@ -48,6 +48,8 @@ function createMockSupabaseClient() {
         })),
       })),
     })),
+    // RPC-routed UPDATEs (e.g. ringside_update_entry) return the new version.
+    rpc: vi.fn(() => Promise.resolve({ data: 2, error: null })),
   };
   return mockClient as unknown as SupabaseClient;
 }
@@ -437,6 +439,51 @@ describe('MutationManager', () => {
       expect(results).toHaveLength(1);
       expect(results[0]!.success).toBe(true);
       expect(vi.mocked(mockSupabase.from)).toHaveBeenCalledWith('entries');
+    });
+
+    it('routes a tagged UPDATE through the RPC, not a direct table update', async () => {
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({
+          id: 'mut-rpc',
+          tableName: 'entries',
+          operation: 'UPDATE',
+          data: { id: 'entry-1', run_order: 3 },
+          serverVersion: 5,
+          rpc: { name: 'ringside_update_entry', fields: { run_order: 3 } },
+        })
+      );
+
+      const results = await manager.uploadPendingMutations();
+
+      expect(results[0]!.success).toBe(true);
+      expect(vi.mocked(mockSupabase.rpc)).toHaveBeenCalledWith('ringside_update_entry', {
+        p_entry_id: 'entry-1',
+        p_fields: { run_order: 3 },
+        p_expected_version: 5,
+      });
+      // The direct table-update path must NOT be used for an RPC-tagged mutation.
+      expect(vi.mocked(mockSupabase.from)).not.toHaveBeenCalled();
+    });
+
+    it('passes a null expected version when the tagged UPDATE has no serverVersion', async () => {
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({
+          id: 'mut-rpc-noocc',
+          operation: 'UPDATE',
+          data: { id: 'entry-2', check_in_status: 'in-ring' },
+          rpc: { name: 'ringside_update_entry', fields: { check_in_status: 'in-ring' } },
+        })
+      );
+
+      await manager.uploadPendingMutations();
+
+      expect(vi.mocked(mockSupabase.rpc)).toHaveBeenCalledWith('ringside_update_entry', {
+        p_entry_id: 'entry-2',
+        p_fields: { check_in_status: 'in-ring' },
+        p_expected_version: null,
+      });
     });
 
     it('should detect RLS rejection (0 rows returned)', async () => {

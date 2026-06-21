@@ -116,7 +116,8 @@ export class MutationManager {
     rowId: string,
     data: Record<string, unknown>,
     dependsOn?: string[],
-    serverVersion?: number
+    serverVersion?: number,
+    rpc?: PendingMutation['rpc']
   ): Promise<string> {
     // Queue overflow protection
     const pendingCount = await this.getPendingCount();
@@ -149,6 +150,7 @@ export class MutationManager {
       status: 'pending',
       dependsOn,
       ...(serverVersion !== undefined && { serverVersion }),
+      ...(rpc !== undefined && { rpc }),
     };
     await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation);
     this.logger.log(`[MutationManager] Queued ${operation} for ${tableName}/${rowId}`);
@@ -602,6 +604,29 @@ export class MutationManager {
       }
 
       case 'UPDATE': {
+        // RPC-routed UPDATE: apply through a SECURITY DEFINER function instead of
+        // a direct table UPDATE. Used when the caller's role is denied by the
+        // table's UPDATE RLS policy but admitted by the function's own per-row
+        // authorization (e.g. at-show ringside writes by an assigned judge). The
+        // function returns the authoritative post-trigger version.
+        if (mutation.rpc) {
+          const { data: returned, error } = await withTimeout(
+            this.supabase.rpc(mutation.rpc.name, {
+              p_entry_id: data.id as string,
+              p_fields: mutation.rpc.fields,
+              p_expected_version: mutation.serverVersion ?? null,
+            }),
+            TIMEOUT_PRESETS.standard,
+            `${tableName} rpc ${mutation.rpc.name}`
+          );
+          if (error) throw error;
+          // The RPC returns the new integer version (or null if the function
+          // signals a no-op). Surface it so the local row's OCC token stays fresh.
+          const newServerVersion =
+            typeof returned === 'number' ? returned : undefined;
+          return { newServerVersion };
+        }
+
         // Build the query: add OCC precondition when serverVersion is set so a
         // concurrent server write (trigger bumped version) causes 0-row rejection
         // rather than silently overwriting with last-write-wins.

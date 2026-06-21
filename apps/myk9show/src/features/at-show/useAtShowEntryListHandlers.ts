@@ -27,10 +27,7 @@ import type {
 import { logger } from '@/utils/logger';
 import { replicatedEntriesTable } from '@/services/replication';
 import { supabase } from '@/services/database/supabaseClient';
-import {
-  calculateRunOrder,
-  type RunOrderPreset as LibRunOrderPreset,
-} from '@/lib/runOrderUtils';
+import { calculateRunOrder, toMyK9ShowRunOrderPreset } from '@/lib/runOrderUtils';
 
 type ResetConfirmState = { show: boolean; entry: Entry | null };
 
@@ -264,7 +261,10 @@ export function useAtShowEntryListHandlers(
           armband: e.armband != null ? String(e.armband) : null,
           section: e.section ?? null,
         })),
-        preset as LibRunOrderPreset
+        // Translate the wide ringside preset to myK9Show's supported set —
+        // notably ringside 'random-all' → 'random'. A bare cast let 'random-all'
+        // fall through to deterministic armband order.
+        toMyK9ShowRunOrderPreset(preset)
       );
       await Promise.all(
         results.map(r => replicatedEntriesTable.updateEntry(r.id, { runOrder: r.runOrder }))

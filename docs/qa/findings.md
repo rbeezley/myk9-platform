@@ -146,6 +146,22 @@ Copy this block for each new finding.
 - **Notes:** Treat this separately from credential drift. The secretary auth helper now uses `TEST_USERS.SECRETARY`, and the rotated secretary credential specs passed focused proof.
 - **2026-06-19 — CLOSED.** Focused secretary route-health no longer reproduces the timeout: `route-health-by-role.spec.ts --grep "Route health: secretary"` passed in `18.3s` with `--retries=0`. Standalone route-health passed all locally available role groups (`5 passed, 1 skipped`, `1.0m`); the only skip was `club-admin`, because local club-admin credentials were absent. The exact Phase 2 active Playwright command then passed locally with `49 passed, 1 skipped` in `3.0m`; the secretary route-health group passed inside that full command in `14.0s`. During the full-command proof, `show-wizard-officials.spec.ts` exposed a separate stale-login page-object path that still used hardcoded legacy fixture credentials; fixed that spec to use the shared env-backed `signInAsSecretary` helper, then reran the full command successfully.
 
+### QA-TEST-FLAKE-027
+
+- **Status:** open
+- **Severity:** high
+- **Role:** exhibitor, secretary, judge
+- **Surface:** exact Phase 2 active Nightly Playwright command from `docs/qa/e2e-suite-map.md`.
+- **Suite category:** nightly
+- **Pattern:** test-flake
+- **Detected by:** Playwright
+- **Evidence:** 2026-06-21 isolated Nightly from `origin/main` `fa32888e139018e2f758dd99e298586e08e75da8` passed Phase 1 Vitest (`18/18`) but failed Phase 2 active Playwright with `40 passed, 4 failed, 2 skipped, 4 did not run (49.1m, --retries=0)`, exceeding the 30-minute global Nightly budget. Failures: `registration/exhibitorSelfRegistration.spec.ts:135` timed out in `page.goto('/sign-in?...')` while the sign-in page snapshot showed the credential form already rendered; `route-health-by-role.spec.ts:289` timed out the judge route-health group in `sweepRoutes`; `uat/secretary/critical-path.spec.ts:33` timed out waiting for the greeting heading while `/secretary/dashboard` rendered the app shell but stayed on two `Loading...` paragraphs; `uat/secretary/disposable-entry.spec.ts:48` timed out waiting for/clicking the first `Assign` button while the Entry Management page rendered 13 entries and 6 pending entries. Evidence paths: `apps/myk9show/test-results/registration-exhibitorSelf-efb7d-t-without-enrollment-writes-chromium/error-context.md`, `apps/myk9show/test-results/route-health-by-role-Route-a87b6-e-judge-routes-render-clean-chromium/error-context.md`, `apps/myk9show/test-results/uat-secretary-critical-pat-281c6-nd-show-creation-affordance-chromium/error-context.md`, and `apps/myk9show/test-results/uat-secretary-disposable-e-b1800-check-in-a-disposable-entry-chromium/error-context.md`.
+- **User impact:** Nightly cannot currently prove the active exhibitor, secretary, and judge baseline within the unattended time budget. The failures mix route/test harness timeouts with possible loading-state or data-state defects, so the suite signal is not actionable until the failing specs are isolated.
+- **Intent check:** Harms launch-readiness confidence for the exhibitor checkout path, secretary command-center/entry-management path, and judge route-health baseline.
+- **Fix owner:** active Playwright specs and the route/page load paths they exercise: `registration/exhibitorSelfRegistration.spec.ts`, `route-health-by-role.spec.ts`, `uat/secretary/critical-path.spec.ts`, and `uat/secretary/disposable-entry.spec.ts`.
+- **Proof required:** Run the four failed specs or focused grep targets alone on an isolated port with `--retries=0`, identify whether each failure is stale test logic or product/data state, repair or demote the failing coverage, then rerun the exact Phase 2 active Nightly Playwright command under 30 minutes and standalone Phase 3 route-health.
+- **Notes:** Do not suppress these failures or close this finding with a retry-only pass. The Phase 2 command exceeded the global wall-clock budget, so standalone Phase 3 was skipped for this run.
+
 ### QA-TEST-FLAKE-010
 
 - **Status:** fixed

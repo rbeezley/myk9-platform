@@ -5,7 +5,7 @@
 **Viewport:** 375 x 667
 **Scope:** 48 myK9Show routes across public, exhibitor, secretary, judge, and admin roles. Club-admin routes were skipped because local club-admin credentials were absent.
 **Sources:** `docs/INTENT.md`, `docs/qa/assets.md`, `docs/qa/e2e-suite-map.md`, `docs/qa/findings.md`, route screenshots from a local Playwright sweep, route source files, and manual screenshot review.
-**Raw run artifact:** `/private/tmp/myk9-mobile-audit-2026-06-21/results.json` plus screenshots in the same directory.
+**Raw run artifact:** `docs/qa/assets/mobile-2026-06-21/route-summary.json` plus referenced screenshots in the same directory.
 
 ## Executive Summary
 
@@ -173,6 +173,6 @@ For each remediation PR:
 
 - Run focused unit tests for the touched component/page.
 - Run Playwright at `375x667` for each affected route.
-- Assert `document.documentElement.scrollWidth === window.innerWidth` where applicable.
+- Assert `document.documentElement.scrollWidth <= window.innerWidth` where applicable.
 - Add a screenshot/manual check for internal table clipping where page-level overflow is insufficient.
 - Keep route-health clean: no console errors, no owned 4xx/5xx, no stuck loading text.

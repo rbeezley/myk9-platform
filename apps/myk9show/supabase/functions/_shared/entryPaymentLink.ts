@@ -37,6 +37,10 @@ interface LineItem {
 
 export interface EntryPaymentLinkSessionParams {
   mode: 'payment';
+  // Card only: delayed/async methods would settle via a LATER event
+  // (async_payment_succeeded) the entry webhook doesn't handle, so
+  // checkout.session.completed always means paid for these links.
+  payment_method_types: ['card'];
   line_items: LineItem[];
   expires_at: number;
   success_url: string;
@@ -87,6 +91,7 @@ export function buildEntryPaymentLinkSession(
 
   return {
     mode: 'payment',
+    payment_method_types: ['card'],
     line_items: lineItems,
     expires_at: input.expiresAtEpoch,
     success_url: input.successUrl,

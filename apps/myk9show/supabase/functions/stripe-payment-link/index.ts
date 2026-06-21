@@ -272,20 +272,36 @@ Deno.serve(async req => {
       } catch (err) {
         console.log(`Could not inspect prior session ${prior.stripe_checkout_session_id}:`, err);
       }
+      const justCompleted =
+        'A payment for one of these entries just completed — refresh to see it before requesting again.';
       if (priorStatus === 'complete') {
-        return corsResponse(
-          {
-            error:
-              'A payment for one of these entries just completed — refresh to see it before requesting again.',
-          },
-          409
-        );
+        return corsResponse({ error: justCompleted }, 409);
       }
       try {
         await stripe.checkout.sessions.expire(prior.stripe_checkout_session_id);
       } catch (err) {
-        console.log(`Could not expire prior session ${prior.stripe_checkout_session_id}:`, err);
+        // expire() can fail because the session was paid in the gap between our
+        // retrieve and now. Re-check: if it's complete, abort (let the webhook
+        // reconcile the real payment) — and crucially do NOT mark the row
+        // 'expired', which would make the webhook skip the charge (orphan).
+        let recheck: string | null = null;
+        try {
+          recheck = (await stripe.checkout.sessions.retrieve(prior.stripe_checkout_session_id))
+            .status;
+        } catch {
+          // ignore — fall through to leaving the row 'open'
+        }
+        if (recheck === 'complete') {
+          return corsResponse({ error: justCompleted }, 409);
+        }
+        console.log(
+          `Could not expire prior session ${prior.stripe_checkout_session_id} — leaving link open:`,
+          err
+        );
+        continue;
       }
+      // Only NOW that Stripe has confirmed the session is expired is it safe to
+      // mark the link expired — the webhook will never see a paid-but-expired row.
       await supabase
         .from('entry_payment_links')
         .update({ status: 'expired', updated_at: nowIso })

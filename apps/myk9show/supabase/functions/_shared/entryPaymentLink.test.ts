@@ -59,6 +59,11 @@ describe('buildEntryPaymentLinkSession', () => {
     expect(s.line_items).toHaveLength(2);
   });
 
+  it('restricts to card so the session settles synchronously (completed === paid)', () => {
+    const s = buildEntryPaymentLinkSession(base);
+    expect(s.payment_method_types).toEqual(['card']);
+  });
+
   it('carries NO connected-account params — charges land in the platform account (hold-and-transfer)', () => {
     const s = buildEntryPaymentLinkSession(base) as Record<string, unknown>;
     expect(s.on_behalf_of).toBeUndefined();

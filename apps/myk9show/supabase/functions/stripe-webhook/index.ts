@@ -892,7 +892,10 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
   // stripe_checkout_session_id; a benign retry hits 23505 and is ignored.
   const paidIds = result.patches.map(p => p.id);
   const { error: orderError } = await supabase.from('stripe_orders').insert({
-    customer_id: typeof session.customer === 'string' ? session.customer : null,
+    // customer_id is a UUID FK to stripe_customers(id) — NOT Stripe's cus_… id.
+    // A link payer may have no stripe_customers row at all, so leave it null
+    // (writing session.customer here threw an invalid-uuid error every time).
+    customer_id: null,
     stripe_payment_intent_id: paymentIntentId,
     stripe_checkout_session_id: session.id,
     amount_cents: session.amount_total ?? 0,

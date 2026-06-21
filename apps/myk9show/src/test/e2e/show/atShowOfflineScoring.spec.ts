@@ -4,17 +4,21 @@ import { signInAsSecretary } from '../uat/shared/auth';
 /**
  * Suite category: feature-audit.
  *
- * Offline round-trip guard for the at-show live scoresheet. The spec reuses a
- * stable Heritage fixture from shared staging seed data instead of creating live
- * rows, then intercepts the ringside_update_entry RPC (the routed sync target
- * for ringside-column writes — PR #886) so reconnect verification never mutates
- * the shared Supabase project. If the fixture is rebuilt, update the
+ * Offline round-trip guard for the at-show live scoresheet, run as the SECRETARY
+ * (a show manager — the role the at-show data layer fully supports for read +
+ * write). Reuses the Heartland Scent Work Classic demo seed instead of creating
+ * live rows, then intercepts the ringside_update_entry RPC (the routed sync
+ * target for ringside-column writes — PR #886) so reconnect verification never
+ * mutates the shared Supabase project. If the seed is rebuilt, update the
  * show/class/entry IDs together.
+ *
+ * (Previous Heritage fixture 3b91e282… was wiped from staging — "Ringside isn't
+ * enabled" — so this moved to the stable Heartland demo show.)
  */
 
-const SHOW_ID = '3b91e282-6e45-4a89-9446-f6ebeb0bf62c';
-const CLASS_ID = 'ff0b5419-3e12-4bf5-96e4-40e8e297989f';
-const ENTRY_ID = '206c4806-e757-4f00-a2eb-250c6ba468bb';
+const SHOW_ID = 'dededede-0000-0000-0000-000000000010';
+const CLASS_ID = 'dec1a55e-0000-0000-0000-000000000032';
+const ENTRY_ID = 'dededede-0000-0000-0000-000000000053';
 const SCORE_PATH = `/at-show/${SHOW_ID}/class/${CLASS_ID}/score/${ENTRY_ID}`;
 const CLASS_PATH = `/at-show/${SHOW_ID}/class/${CLASS_ID}`;
 // Mirrors @myk9/replication constants: DB_NAME in packages/replication/src/constants.ts

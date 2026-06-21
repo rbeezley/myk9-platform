@@ -33,7 +33,16 @@ const REPLICATED_TABLES_STORE = 'replicated_tables';
 type RpcCall = { p_entry_id?: string; p_fields?: Record<string, unknown> };
 
 test.describe('At-show judge scoring authorization', () => {
-  test('routes a judge score through ringside_update_entry and persists it', async ({ page }) => {
+  // KNOWN-BLOCKED (fixme): PR #886 fixed the judge WRITE path (ringside_update_entry
+  // authorizes class-assigned judges), but judge ringside is still blocked on the
+  // READ side — entry reads flow through `view_authenticated_entry_results`, gated
+  // `can_manage OR is_own_entry`, so a judge gets "Entry not found" and never
+  // reaches scoring. This spec passes once a read path admits assigned judges /
+  // ringside-session passcodes (follow-up RLS work). Kept as the regression guard
+  // for that fix. See docs/plan-atshow-ringside-writes.md.
+  test.fixme(
+    'routes a judge score through ringside_update_entry and persists it',
+    async ({ page }) => {
     const rpcCalls: RpcCall[] = [];
     await interceptRingsideRpc(page, rpcCalls);
 

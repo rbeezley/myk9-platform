@@ -109,7 +109,6 @@ export const useDogStoreCompat = () => {
             status: r.status || 'pending',
           }));
 
-        // @ts-expect-error — RPC exists but generated DB types need refreshing post-migration.
         const { error: rpcError } = await supabase.rpc('create_dog_with_registrations', {
           p_dog: dbData,
           p_registrations: registrationsPayload,

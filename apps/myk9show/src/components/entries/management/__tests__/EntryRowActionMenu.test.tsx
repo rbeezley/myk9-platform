@@ -75,4 +75,53 @@ describe('EntryRowActionMenu', () => {
     expect(screen.queryByRole('menuitem', { name: /assign armband/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /comp entry/i })).not.toBeInTheDocument();
   });
+
+  it('shows the Refund action for a stripe-refundable entry when onOpenRefund is supplied', async () => {
+    const onOpenRefund = vi.fn();
+    const refundable = makeEntry({
+      paymentMethod: 'online',
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+    });
+    const { user } = render(
+      <EntryRowActionMenu entry={refundable} onStatusChange={vi.fn()} onOpenRefund={onOpenRefund} />
+    );
+
+    await user.click(screen.getByRole('button', { name: /actions for bravo/i }));
+    await screen.findByRole('menu');
+
+    const refundItem = screen.getByRole('menuitem', { name: /refund payment/i });
+    expect(refundItem).toBeInTheDocument();
+
+    await user.click(refundItem);
+    expect(onOpenRefund).toHaveBeenCalledWith(refundable);
+  });
+
+  it('hides the Refund action when the entry is not stripe-refundable', async () => {
+    const { user } = render(
+      <EntryRowActionMenu
+        entry={makeEntry({ paymentMethod: 'online', refundedAt: new Date('2026-02-01') })}
+        onStatusChange={vi.fn()}
+        onOpenRefund={vi.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /actions for bravo/i }));
+    await screen.findByRole('menu');
+
+    expect(screen.queryByRole('menuitem', { name: /refund payment/i })).not.toBeInTheDocument();
+  });
+
+  it('hides the Refund action when onOpenRefund is not supplied', async () => {
+    const { user } = render(
+      <EntryRowActionMenu
+        entry={makeEntry({ paymentMethod: 'online', paymentStatus: PaymentStatus.PAID_ONLINE })}
+        onStatusChange={vi.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /actions for bravo/i }));
+    await screen.findByRole('menu');
+
+    expect(screen.queryByRole('menuitem', { name: /refund payment/i })).not.toBeInTheDocument();
+  });
 });

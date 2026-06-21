@@ -25,7 +25,7 @@ const META = {
   'secretary-guide': {
     title: 'Secretary guide',
     role: 'For trial secretaries',
-    blurb: 'Create a show, manage entries, run show day, release results, submit to AKC.',
+    blurb: 'Create a show, manage entries, run show day, release results, submit to AKC or UKC.',
     icon: 'clipboard',
     order: 2,
   },

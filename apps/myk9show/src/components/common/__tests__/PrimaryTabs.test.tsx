@@ -102,6 +102,27 @@ describe('PrimaryTabs', () => {
 
     const tabList = screen.getByRole('tablist');
     expect(tabList.className).toContain('overflow-x-auto');
+    expect(tabList.className).toContain('max-w-full');
+  });
+
+  it('keeps long labels in non-overlapping scrollable triggers', () => {
+    render(
+      <PrimaryTabs
+        tabs={[
+          { id: 'alerts', label: 'Alert Monitoring' },
+          { id: 'sync', label: 'Sync Monitoring' },
+          { id: 'performance', label: 'Performance Dashboard' },
+        ]}
+        value="alerts"
+        onValueChange={vi.fn()}
+      />
+    );
+
+    const tabs = screen.getAllByRole('tab');
+    tabs.forEach(tab => {
+      expect(tab.className).toContain('min-w-max');
+      expect(tab.className).toContain('whitespace-nowrap');
+    });
   });
 
   it('fires onValueChange when tab is clicked', async () => {

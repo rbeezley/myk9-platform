@@ -38,12 +38,9 @@ export interface ListControlsProps {
  * everywhere (Dogs, People, Clubs, Shows) means the user learns search +
  * filter + view-switch exactly once.
  *
- * INTENT: search stays deliberately narrow (fixed width — browse queries are
- * short) so filter chips get the room to breathe and the row stays compact.
- * The width is non-responsive on purpose: a `w-full sm:w-NN` pair does NOT work
- * here because this app's generated CSS orders base utilities after responsive
- * ones, so `w-full` overrides `sm:*`. On narrow screens the flex row simply
- * wraps the chips/toggle beneath the search.
+ * INTENT: search stays compact on desktop so filter chips get room to breathe,
+ * but uses full width on phones so the toolbar does not clip. PR #791 fixed the
+ * old Tailwind emission-order issue that made `w-full sm:w-NN` unsafe.
  */
 export function ListControls({
   search,
@@ -68,13 +65,13 @@ export function ListControls({
         className
       )}
     >
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
         <SearchBar
           size="sm"
           value={search}
           onChange={onSearchChange}
           placeholder={searchPlaceholder}
-          className="w-52 shrink-0"
+          className="w-full shrink-0 sm:w-52"
         />
 
         {filters.length > 0 && (
@@ -85,7 +82,7 @@ export function ListControls({
           modes={viewModes}
           active={viewMode}
           onChange={onViewModeChange}
-          className="ml-auto"
+          className="self-end sm:ml-auto sm:self-auto"
         />
       </div>
 

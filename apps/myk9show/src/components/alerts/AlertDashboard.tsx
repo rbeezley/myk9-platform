@@ -387,38 +387,29 @@ export const AlertDashboard: React.FC<AlertDashboardProps> = ({ className }) => 
       {/* Premium Alert Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList
-          className="grid w-full grid-cols-4 bg-gradient-to-r from-muted/50 to-muted/30 
-                             border border-border/30 rounded-xl p-1"
+          className="flex w-full max-w-full overflow-x-auto no-scrollbar bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 md:grid md:grid-cols-4"
         >
           <TabsTrigger
             value="active"
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 
-                       data-[state=active]:to-primary/5 data-[state=active]:text-primary 
-                       data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
+            className="min-w-max px-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300 md:min-w-0"
           >
             Active ({statistics?.byStatus[AlertStatus.ACTIVE] || 0})
           </TabsTrigger>
           <TabsTrigger
             value="acknowledged"
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 
-                       data-[state=active]:to-primary/5 data-[state=active]:text-primary 
-                       data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
+            className="min-w-max px-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300 md:min-w-0"
           >
             Acknowledged ({statistics?.byStatus[AlertStatus.ACKNOWLEDGED] || 0})
           </TabsTrigger>
           <TabsTrigger
             value="resolved"
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 
-                       data-[state=active]:to-primary/5 data-[state=active]:text-primary 
-                       data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
+            className="min-w-max px-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300 md:min-w-0"
           >
             Resolved ({statistics?.byStatus[AlertStatus.RESOLVED] || 0})
           </TabsTrigger>
           <TabsTrigger
             value="snoozed"
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 
-                       data-[state=active]:to-primary/5 data-[state=active]:text-primary 
-                       data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
+            className="min-w-max px-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300 md:min-w-0"
           >
             Snoozed ({statistics?.byStatus[AlertStatus.SNOOZED] || 0})
           </TabsTrigger>

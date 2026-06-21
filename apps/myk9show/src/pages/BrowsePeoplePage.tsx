@@ -187,7 +187,16 @@ const BrowsePeoplePage: React.FC = () => {
 
     switch (viewMode) {
       case 'table':
-        return <PeopleTableView people={filteredPeople} />;
+        return (
+          <>
+            <div className="hidden md:block" data-testid="people-table-desktop">
+              <PeopleTableView people={filteredPeople} />
+            </div>
+            <div className="md:hidden" data-testid="people-mobile-cards">
+              <PeopleGridView people={filteredPeople} />
+            </div>
+          </>
+        );
       case 'cards':
       default:
         return <PeopleGridView people={filteredPeople} />;
@@ -196,7 +205,7 @@ const BrowsePeoplePage: React.FC = () => {
 
   return (
     <div className="bg-background">
-      <div className="container mx-auto px-6 py-6 max-w-7xl">
+      <div className="container mx-auto max-w-7xl px-4 py-6 sm:px-6">
         <div className="space-y-8">
           {/* Error state */}
           {error && !isLoading && <ErrorState message="We couldn't load people." />}
@@ -210,7 +219,7 @@ const BrowsePeoplePage: React.FC = () => {
           {(!isLoading || people.length > 0) && (
             <>
               <h1 className="sr-only">People</h1>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <Breadcrumb
                   items={breadcrumbItems}
                   showHomeIcon={true}
@@ -218,7 +227,7 @@ const BrowsePeoplePage: React.FC = () => {
                 />
 
                 {canCreatePeople && (
-                  <Button onClick={openCreatePersonDialog}>
+                  <Button onClick={openCreatePersonDialog} className="w-full sm:w-auto">
                     <Plus className="h-4 w-4 mr-2" />
                     New Person
                   </Button>

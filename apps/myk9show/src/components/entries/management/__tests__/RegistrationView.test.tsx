@@ -71,7 +71,7 @@ function renderView(
 }
 
 describe('RegistrationView filter content routing', () => {
-  it('renders shared list controls and defaults to table view', () => {
+  it('renders shared list controls with desktop table and mobile cards in table mode', () => {
     renderView('all');
 
     expect(screen.getByPlaceholderText('Search entries...')).toBeInTheDocument();
@@ -82,6 +82,10 @@ describe('RegistrationView filter content routing', () => {
     );
     expect(screen.getByRole('button', { name: /table view/i })).toBeInTheDocument();
     expect(screen.getByTestId('entries-table')).toBeInTheDocument();
+    expect(screen.getByTestId('entries-table-desktop').className).toContain('hidden');
+    expect(screen.getByTestId('entries-table-desktop').className).toContain('md:block');
+    expect(screen.getByTestId('entries-mobile-cards').className).toContain('md:hidden');
+    expect(screen.getByTestId('enrollment-card')).toBeInTheDocument();
   });
 
   it('lets the secretary switch to Day-of mode', async () => {

@@ -96,6 +96,9 @@ describe('ReportPreview', () => {
       />
     );
 
+    expect(screen.getByLabelText('Report preview scroll area').className).toContain(
+      'overflow-x-auto'
+    );
     const iframe = screen.getByTitle('Report Preview') as HTMLIFrameElement;
 
     await waitFor(() => {

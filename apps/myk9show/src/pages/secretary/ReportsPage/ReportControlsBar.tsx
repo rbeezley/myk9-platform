@@ -171,12 +171,12 @@ export function ReportControlsBar({
     selectedReport?.sortOptions.find(opt => opt.value === sortOrder)?.label ?? 'Sort by';
 
   return (
-    <div className="flex items-end gap-3 flex-wrap border-b px-4 py-3">
+    <div className="flex flex-col items-stretch gap-3 border-b px-4 py-3 sm:flex-row sm:flex-wrap sm:items-end">
       {/* Report Type */}
-      <div className="flex flex-col gap-1">
+      <div className="flex min-w-0 flex-col gap-1 sm:w-auto">
         <label className="text-xs font-medium text-muted-foreground">Report</label>
         <Select value={reportType} onValueChange={onReportTypeChange}>
-          <SelectTrigger className="w-[200px]" aria-label="Select report">
+          <SelectTrigger className="w-full sm:w-[200px]" aria-label="Select report">
             <SelectValue placeholder="Select report">{selectedReportLabel}</SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -197,10 +197,10 @@ export function ReportControlsBar({
 
       {/* Trial dropdown — hidden if report doesn't have trial/class scope */}
       {(hasTrialScope || hasClassScope) && (
-        <div className="flex flex-col gap-1">
+        <div className="flex min-w-0 flex-col gap-1 sm:w-auto">
           <label className="text-xs font-medium text-muted-foreground">Trial</label>
           <Select value={trialId} onValueChange={onTrialChange}>
-            <SelectTrigger className="w-[160px]" aria-label="Select trial">
+            <SelectTrigger className="w-full sm:w-[160px]" aria-label="Select trial">
               <SelectValue placeholder="All Trials">{selectedTrialLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -217,10 +217,10 @@ export function ReportControlsBar({
 
       {/* Class dropdown — hidden if report doesn't have class scope */}
       {hasClassScope && (
-        <div className="flex flex-col gap-1">
+        <div className="flex min-w-0 flex-col gap-1 sm:w-auto">
           <label className="text-xs font-medium text-muted-foreground">Class</label>
           <Select value={classId} onValueChange={onClassChange} disabled={trialId === 'all'}>
-            <SelectTrigger className="w-[200px]" aria-label="Select class">
+            <SelectTrigger className="w-full sm:w-[200px]" aria-label="Select class">
               <SelectValue placeholder="All Classes">{selectedClassLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -237,10 +237,10 @@ export function ReportControlsBar({
 
       {/* Dog dropdown — hidden if report doesn't support dog filter */}
       {hasDogFilter && (
-        <div className="flex flex-col gap-1">
+        <div className="flex min-w-0 flex-col gap-1 sm:w-auto">
           <label className="text-xs font-medium text-muted-foreground">Dog</label>
           <Select value={dogId} onValueChange={onDogChange}>
-            <SelectTrigger className="w-[240px]" aria-label="Select dog">
+            <SelectTrigger className="w-full sm:w-[240px]" aria-label="Select dog">
               <SelectValue placeholder="All Dogs">{selectedDogLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -257,10 +257,10 @@ export function ReportControlsBar({
 
       {/* Sort dropdown — hidden if report has no sortOptions */}
       {hasSortOptions && selectedReport && (
-        <div className="flex flex-col gap-1">
+        <div className="flex min-w-0 flex-col gap-1 sm:w-auto">
           <label className="text-xs font-medium text-muted-foreground">Sort</label>
           <Select value={sortOrder} onValueChange={onSortChange}>
-            <SelectTrigger className="w-[160px]" aria-label="Select sort">
+            <SelectTrigger className="w-full sm:w-[160px]" aria-label="Select sort">
               <SelectValue placeholder="Sort by">{selectedSortLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -274,7 +274,7 @@ export function ReportControlsBar({
         </div>
       )}
 
-      <Button onClick={onPrint} className="mb-0">
+      <Button onClick={onPrint} className="mb-0 w-full sm:w-auto">
         Print
       </Button>
       {officialPdfAction && (
@@ -283,7 +283,7 @@ export function ReportControlsBar({
           variant="outline"
           onClick={officialPdfAction.onClick}
           disabled={officialPdfAction.disabled || officialPdfAction.isLoading}
-          className="mb-0"
+          className="mb-0 w-full sm:w-auto"
         >
           <Download className="h-4 w-4" aria-hidden="true" />
           {officialPdfAction.isLoading ? 'Preparing PDF' : officialPdfAction.label}

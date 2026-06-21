@@ -134,10 +134,10 @@ export function TrialRosterView({ entries, onClassClick, isLoading }: TrialRoste
     <div className="space-y-6">
       {groups.map(group => (
         <section key={group.classId}>
-          <div className="flex items-center gap-3 mb-2">
+          <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
             <button
               type="button"
-              className="text-primary hover:underline cursor-pointer font-semibold text-lg"
+              className="cursor-pointer text-left text-lg font-semibold text-primary hover:underline"
               onClick={() => onClassClick(group.classId)}
             >
               {group.className}
@@ -146,13 +146,20 @@ export function TrialRosterView({ entries, onClassClick, isLoading }: TrialRoste
               {group.scoredCount}/{group.entries.length} scored
             </Badge>
           </div>
-          <DataTable
-            tableId={`entryRoster-${group.classId}`}
-            columns={columns}
-            data={group.entries}
-            getRowId={row => row.id}
-            pageSize={50}
-          />
+          <div
+            className="max-w-full overflow-x-auto rounded-lg border border-border"
+            aria-label={`${group.className} roster table scroll area`}
+          >
+            <div className="min-w-[720px]">
+              <DataTable
+                tableId={`entryRoster-${group.classId}`}
+                columns={columns}
+                data={group.entries}
+                getRowId={row => row.id}
+                pageSize={50}
+              />
+            </div>
+          </div>
         </section>
       ))}
     </div>

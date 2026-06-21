@@ -214,6 +214,42 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
     hasSearch: hasSearchFilter,
     payment: paymentFilter,
   });
+  const enrollmentCardList = (
+    <div className="space-y-3">
+      {enrollmentGroups.length > 0 ? (
+        enrollmentGroups.map(group => (
+          <EnrollmentCard
+            key={group.groupKey}
+            group={group}
+            onStatusChange={onStatusChange}
+            onEntryRefunded={onRefresh}
+            onCheckInStatusChange={onCheckInStatusChange}
+            onOpenArmbandDialog={onOpenArmbandDialog}
+            onCompEntry={(entryId: string) => {
+              const entry = group.entries.find(e => e.id === entryId);
+              if (entry) onOpenCompDialog(entry);
+            }}
+            onUncompEntry={onUncompEntry}
+            onRemoveEntry={onRemoveEntry}
+            onBulkStatusChange={onBulkStatusChange}
+            onBulkCheckIn={onBulkCheckIn}
+            onPaymentStatusChange={onPaymentStatusChange}
+            emailStatusMap={emailStatusMap}
+            onResendEmail={handleResendEmail}
+            isResendDisabled={isResendDisabled}
+            onSendDecisionEmail={onSendDecisionEmail}
+            lastDecisionEmailedAt={
+              group.enrollmentId ? lastEmailedMap[group.enrollmentId] : undefined
+            }
+          />
+        ))
+      ) : (
+        <div className="rounded-lg border border-dashed border-border/70 bg-card/60 px-4 py-8 text-center text-sm text-muted-foreground">
+          {emptyStateMessage}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -270,56 +306,30 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
           </CardContent>
         </Card>
       ) : entryViewMode === 'table' ? (
-        <EntriesTableView
-          entries={filteredEntries}
-          emailStatusMap={emailStatusMap}
-          onResendEmail={handleResendEmail}
-          isResendDisabled={isResendDisabled}
-          onStatusChange={onStatusChange}
-          onCheckInEntry={entryId => onBulkCheckIn([entryId])}
-          onOpenArmbandDialog={onOpenArmbandDialog}
-          onOpenCompDialog={onOpenCompDialog}
-          onUncompEntry={onUncompEntry}
-          onRemoveEntry={onRemoveEntry}
-          onEntryRefunded={onRefresh}
-          selection={tableSelection}
-          emptyState={emptyStateMessage}
-        />
+        <>
+          <div className="hidden md:block" data-testid="entries-table-desktop">
+            <EntriesTableView
+              entries={filteredEntries}
+              emailStatusMap={emailStatusMap}
+              onResendEmail={handleResendEmail}
+              isResendDisabled={isResendDisabled}
+              onStatusChange={onStatusChange}
+              onCheckInEntry={entryId => onBulkCheckIn([entryId])}
+              onOpenArmbandDialog={onOpenArmbandDialog}
+              onOpenCompDialog={onOpenCompDialog}
+              onUncompEntry={onUncompEntry}
+              onRemoveEntry={onRemoveEntry}
+              onEntryRefunded={onRefresh}
+              selection={tableSelection}
+              emptyState={emptyStateMessage}
+            />
+          </div>
+          <div className="md:hidden" data-testid="entries-mobile-cards">
+            {enrollmentCardList}
+          </div>
+        </>
       ) : (
-        <div className="space-y-3">
-          {enrollmentGroups.length > 0 ? (
-            enrollmentGroups.map(group => (
-              <EnrollmentCard
-                key={group.groupKey}
-                group={group}
-                onStatusChange={onStatusChange}
-                onEntryRefunded={onRefresh}
-                onCheckInStatusChange={onCheckInStatusChange}
-                onOpenArmbandDialog={onOpenArmbandDialog}
-                onCompEntry={(entryId: string) => {
-                  const entry = group.entries.find(e => e.id === entryId);
-                  if (entry) onOpenCompDialog(entry);
-                }}
-                onUncompEntry={onUncompEntry}
-                onRemoveEntry={onRemoveEntry}
-                onBulkStatusChange={onBulkStatusChange}
-                onBulkCheckIn={onBulkCheckIn}
-                onPaymentStatusChange={onPaymentStatusChange}
-                emailStatusMap={emailStatusMap}
-                onResendEmail={handleResendEmail}
-                isResendDisabled={isResendDisabled}
-                onSendDecisionEmail={onSendDecisionEmail}
-                lastDecisionEmailedAt={
-                  group.enrollmentId ? lastEmailedMap[group.enrollmentId] : undefined
-                }
-              />
-            ))
-          ) : (
-            <div className="rounded-lg border border-dashed border-border/70 bg-card/60 px-4 py-8 text-center text-sm text-muted-foreground">
-              {emptyStateMessage}
-            </div>
-          )}
-        </div>
+        enrollmentCardList
       )}
 
       {entryViewMode === 'table' &&

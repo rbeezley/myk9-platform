@@ -111,11 +111,14 @@ describe('BrowsePeoplePage', () => {
     expect(screen.getByTestId('add-person-panel')).toBeInTheDocument();
   });
 
-  it('renders people table view by default', () => {
+  it('keeps desktop table preference while showing cards below md', () => {
     render(<BrowsePeoplePage />, { initialRoute: '/people' });
 
     expect(screen.getByTestId('people-table')).toBeInTheDocument();
-    expect(screen.queryByTestId('people-grid')).not.toBeInTheDocument();
+    expect(screen.getByTestId('people-table-desktop').className).toContain('hidden');
+    expect(screen.getByTestId('people-table-desktop').className).toContain('md:block');
+    expect(screen.getByTestId('people-mobile-cards').className).toContain('md:hidden');
+    expect(screen.getByTestId('people-grid')).toBeInTheDocument();
   });
 
   it('honors a stored cards preference', () => {

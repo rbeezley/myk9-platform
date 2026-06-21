@@ -76,7 +76,16 @@ vi.mock('@/services/database/supabaseClient', () => ({
         return {
           select: () => ({
             is: () => ({
-              order: () => Promise.resolve({ data: mockViewRows.current, error: null }),
+              // Mirrors the server-side own-entry scope: getUserEntries filters
+              // the view with .eq('is_own_entry', true), so manageable-not-own
+              // rows are excluded at the source.
+              eq: (column: string, value: unknown) => ({
+                order: () =>
+                  Promise.resolve({
+                    data: mockViewRows.current.filter(row => row[column] === value),
+                    error: null,
+                  }),
+              }),
             }),
           }),
         };
@@ -694,7 +703,13 @@ describe('entryQueries (replication)', () => {
       // placement; getUserEntries must surface the view's value, not the raw
       // replicated one.
       mockViewRows.current = [
-        { id: 'scored-1', final_placement: 1, result_status: 'qualified', is_scored: true },
+        {
+          id: 'scored-1',
+          final_placement: 1,
+          result_status: 'qualified',
+          is_scored: true,
+          is_own_entry: true,
+        },
       ];
 
       const result = await getUserEntries('user-1');
@@ -730,9 +745,16 @@ describe('entryQueries (replication)', () => {
       ];
       setupListMocks(entries);
       mockViewRows.current = [
-        { id: 'own-1', final_placement: 1, result_status: 'qualified', is_scored: true },
-        // Manageable-but-not-own row the view returns for a show manager.
-        { id: 'managed-other-1', final_placement: 2, result_status: 'qualified', is_scored: true },
+        { id: 'own-1', final_placement: 1, result_status: 'qualified', is_scored: true, is_own_entry: true },
+        // Manageable-but-not-own row the view returns for a show manager — the
+        // .eq('is_own_entry', true) filter must exclude it from My Entries.
+        {
+          id: 'managed-other-1',
+          final_placement: 2,
+          result_status: 'qualified',
+          is_scored: true,
+          is_own_entry: false,
+        },
       ];
 
       const result = await getUserEntries('user-1');

@@ -8243,6 +8243,7 @@ export type Database = {
           id: string | null
           is_day_of_show: boolean | null
           is_in_ring: boolean | null
+          is_own_entry: boolean | null
           is_scored: boolean | null
           judge_notes: string | null
           judge_signature: string | null

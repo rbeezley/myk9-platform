@@ -153,6 +153,12 @@ async function postgrestGetUserEntries() {
     .from('view_authenticated_entry_results')
     .select(USER_ENTRIES_SELECT)
     .is('deleted_at', null)
+    // My Entries is OWN entries only. The view returns can_manage OR
+    // is_own_entry rows, so without this filter a secretary/admin would receive
+    // every manageable show entry here. is_own_entry is a SQL-resolved column
+    // (handler is me OR I own the dog), so this scopes every read path —
+    // including the replication-failure fallback — at the source.
+    .eq('is_own_entry', true)
     .order('created_at', { ascending: false });
 
   if (error)
@@ -356,21 +362,13 @@ export const getUserEntries = async (userId: string) => {
 
     if (missingRelations.length > 0 || hasScoredEntries) {
       try {
+        // postgrestGetUserEntries scopes to own entries in SQL
+        // (is_own_entry = true), so this returns the complete authoritative set
+        // — including own entries not yet in the local replication snapshot —
+        // without leaking manageable-not-own rows.
         const result = await postgrestGetUserEntries();
-        // view_authenticated_entry_results returns can_manage OR is_own_entry
-        // rows, so a secretary/admin would otherwise receive every manageable
-        // show entry in My Entries. Scope the view result back to the locally
-        // determined own entries (handler is me OR I own the dog) — the same set
-        // the replicated and offline paths return — so My Entries stays
-        // own-entry-only. `filtered` is a superset-safe key: the live view
-        // contains every own entry, so intersecting drops only the
-        // manageable-not-own rows.
-        const ownEntryIds = new Set(filtered.map(e => e.id));
-        const scopedData = (result.data as Array<Record<string, unknown>>).filter(row =>
-          ownEntryIds.has(row.id as string)
-        );
         logQuery('entries', 'select_user_entries_fallback', Date.now() - startTime);
-        return { data: scopedData, error: result.error };
+        return result;
       } catch {
         // Permanently-missing relation rows will try the online join on each
         // load; when offline or blocked, the replicated rows still keep the

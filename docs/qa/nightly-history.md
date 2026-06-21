@@ -18,6 +18,17 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-06-21
+
+- **Playwright command:** fail. Phase 1 promoted Vitest passed (`18/18`). Phase 2 exact active Playwright command failed with `40 passed, 4 failed, 2 skipped, 4 did not run (49.1m, --retries=0)`, exceeding the 30-minute global Nightly budget.
+- **Route sweep:** fail/partial. The committed `route-health-by-role.spec.ts` ran inside Phase 2. Public, exhibitor, secretary, and admin role groups completed; judge timed out; club-admin was skipped. Standalone Phase 3 was skipped because Phase 2 had already breached the global budget.
+- **Active specs:** Vitest `18/18`; active Playwright `40/50`.
+- **Failures:** Opened `QA-TEST-FLAKE-027` for the active-suite budget breach and four failed surfaces: `registration/exhibitorSelfRegistration.spec.ts:135` timed out during `page.goto('/sign-in?...')` even though the sign-in form rendered; `route-health-by-role.spec.ts:289` timed out the judge route-health group; `uat/secretary/critical-path.spec.ts:33` timed out waiting for the secretary dashboard greeting while the page stayed on `Loading...`; `uat/secretary/disposable-entry.spec.ts:48` timed out waiting for/clicking the first `Assign` button on an Entry Management page with pending entries. Evidence paths: `apps/myk9show/test-results/registration-exhibitorSelf-efb7d-t-without-enrollment-writes-chromium/error-context.md`, `apps/myk9show/test-results/route-health-by-role-Route-a87b6-e-judge-routes-render-clean-chromium/error-context.md`, `apps/myk9show/test-results/uat-secretary-critical-pat-281c6-nd-show-creation-affordance-chromium/error-context.md`, and `apps/myk9show/test-results/uat-secretary-disposable-e-b1800-check-in-a-disposable-entry-chromium/error-context.md`.
+- **Fixes made:** docs only (`docs/qa/findings.md`, `docs/qa/nightly-history.md`). No product/test fix was made because the run exceeded the global budget and the failure set needs focused isolation before changing code.
+- **Demotions/promotions:** none.
+- **Findings:** opened `QA-TEST-FLAKE-027`. `QA-ROLE-SCOPE-024` remains open for the legacy exhibitor seed/onboarding state. Recently closed `QA-HIDDEN-VALIDATION-025` and `QA-TEST-FLAKE-026` were not reopened; this run produced different failure evidence.
+- **Notes:** The first `pnpm qa:nightly:prepare` attempt failed on GitHub connectivity, but a direct `git fetch origin main` immediately succeeded and the helper then prepared isolated detached worktree `.worktrees/nightly-qa-2026-06-21-022059` on `origin/main` `fa32888e139018e2f758dd99e298586e08e75da8`, using `PLAYWRIGHT_PORT=6558`, `PLAYWRIGHT_BASE_URL=http://127.0.0.1:6558`, and `PLAYWRIGHT_HMR_PORT=26558`. The requested plan file `docs/plans/qa/2026-05-11-qa-regression-proof.md` is archived at `docs/archive/plans/qa/2026-05-11-qa-regression-proof.md` on this baseline.
+
 ### 2026-06-19
 
 - **Playwright command:** fail/partial. Phase 1 promoted Vitest passed (`18/18`). Phase 2 exact active Playwright command exceeded the 30-minute global Nightly budget and was stopped after `20 passed, 10 failed, 1 interrupted, 2 skipped, 17 did not run (38.6m, --retries=0)`. A focused post-fix proof then passed the repaired cross-role smoke (`4/4`, `13.5s`), the rotated secretary-auth specs, the single-dog registration proof, secretary class/show-wizard proofs, and exhibitor route-health, while two failures remained open.

@@ -61,7 +61,7 @@ describe('useWaitListMutations', () => {
       expect(promoteWaitlistEntry).toHaveBeenCalledWith('wl-entry-1', 48);
     });
 
-    it('uses default deadline of 24 hours when not specified', async () => {
+    it('uses default deadline of 48 hours when not specified', async () => {
       const { result } = renderHook(() => useWaitListMutations('show-1'), {
         wrapper: makeWrapper(),
       });
@@ -70,7 +70,7 @@ describe('useWaitListMutations', () => {
         await result.current.promoteEntry.mutateAsync({ waitlistEntryId: 'wl-entry-2' });
       });
 
-      expect(promoteWaitlistEntry).toHaveBeenCalledWith('wl-entry-2', 24);
+      expect(promoteWaitlistEntry).toHaveBeenCalledWith('wl-entry-2', 48);
     });
 
     it('throws when promotion fails', async () => {

@@ -8,11 +8,9 @@ export {
   getClassesWithWaitlistCounts,
   bulkPromoteWaitlistEntries,
   closeWaitlistForClasses,
-  offerWaitlistSpot,
   getWaitlistOfferMessageTarget,
   promoteWaitlistEntry,
   removeFromWaitlist,
   getWaitlistPosition,
   joinWaitlist,
-  acceptWaitlistOffer,
 } from './reads';

@@ -19,7 +19,7 @@ export function useWaitListMutations(showId: string) {
   const promoteEntry = useMutation({
     mutationFn: ({
       waitlistEntryId,
-      deadlineHours = 24,
+      deadlineHours = 48,
     }: {
       waitlistEntryId: string;
       deadlineHours?: number;
@@ -38,7 +38,7 @@ export function useWaitListMutations(showId: string) {
   const bulkPromote = useMutation({
     mutationFn: ({
       entryIds,
-      deadlineHours = 24,
+      deadlineHours = 48,
     }: {
       entryIds: string[];
       deadlineHours?: number;

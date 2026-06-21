@@ -133,64 +133,33 @@ describe('Seam 1: scratch / pull request', () => {
   });
 });
 
-describe('Seam 2: waitlist offer / acceptance', () => {
-  it('secretary offers -> acceptWaitlistOffer fetch+insert+DELETE -> entry created, row removed', () => {
+describe('Seam 2: waitlist promotion', () => {
+  it('secretary promotes -> RPC creates pending-payment entry and keeps the offered row', () => {
     const state = createPhase4SeamState();
     const audit: AuditEntry[] = [];
     const wId = PHASE4_IDS.waitlist;
     expect(state.waitlistEntries[wId].status).toBe('waiting'); // seed matches the app enum
 
-    // Secretary offers the spot (offerWaitlistSpot uses `.single()`).
-    run(state, audit, {
-      method: 'PATCH',
-      url: `${REST}/waitlist_entries?id=eq.${wId}`,
-      postData: {
-        status: 'offered',
-        offered_at: '2026-06-10T10:00:00.000Z',
-        offer_expires_at: '2026-06-11T10:00:00.000Z',
-      },
-      headers: OBJ,
-    });
-    expect(state.waitlistEntries[wId].status).toBe('offered');
-
-    // acceptWaitlistOffer step 1: guarded fetch of the offered row (`.single()`).
-    const fetchResp = run(state, audit, {
-      method: 'GET',
-      url: `${REST}/waitlist_entries?id=eq.${wId}&status=eq.offered`,
-      postData: null,
-      headers: OBJ,
-    });
-    expect((fetchResp.body as { id: string }).id).toBe(wId); // single object, not array
-
-    // step 2: insert the confirmed entry (`.insert().select().single()`).
-    const insertResp = run(state, audit, {
+    const promoteResp = run(state, audit, {
       method: 'POST',
-      url: `${REST}/entries`,
+      url: `${REST}/rpc/promote_waitlist_entry`,
       postData: {
-        class_id: PHASE4_IDS.classFull,
-        dog_id: PHASE4_IDS.dogA,
-        handler_id: PHASE4_IDS.personA,
-        trial_id: PHASE4_IDS.trial,
-        entry_status: 'confirmed',
-        payment_status: 'pending',
-        entry_fee: 30,
+        p_waitlist_entry_id: wId,
+        p_deadline_hours: 48,
       },
       headers: OBJ,
     });
-    expect(insertResp.status).toBe(201);
-    const created = Object.values(state.entries).find(
-      e => e.class_id === PHASE4_IDS.classFull && e.dog_id === PHASE4_IDS.dogA
-    );
-    expect(created?.entry_status).toBe('confirmed');
+    expect(promoteResp.status).toBe(200);
+    const promotedEntryId = promoteResp.body as string;
 
-    // step 3: DELETE the waitlist row (NOT a PATCH to status='accepted').
-    const delResp = run(state, audit, {
-      method: 'DELETE',
-      url: `${REST}/waitlist_entries?id=eq.${wId}`,
-      postData: null,
-    });
-    expect(delResp.status).toBe(204);
-    expect(state.waitlistEntries[wId]).toBeUndefined();
+    expect(state.waitlistEntries[wId].status).toBe('offered');
+    expect(state.waitlistEntries[wId].promoted_entry_id).toBe(promotedEntryId);
+    expect(
+      Date.parse(state.waitlistEntries[wId].offer_expires_at ?? '') -
+        Date.parse(state.waitlistEntries[wId].offered_at ?? '')
+    ).toBe(48 * 60 * 60 * 1000);
+    expect(state.entries[promotedEntryId]?.entry_status).toBe('pending-payment');
+    expect(state.entries[promotedEntryId]?.payment_status).toBe('pending');
 
     assertNoSharedWrites(audit);
     assertNoUnhandledAppDataMutations(audit);

@@ -10,8 +10,8 @@ import { logger } from '@/services/LoggingService';
 import {
   getClassesWithWaitlistCounts,
   getWaitlistByClass,
-  offerWaitlistSpot,
   getWaitlistOfferMessageTarget,
+  promoteWaitlistEntry,
   removeFromWaitlist,
 } from '@/services/database/waitlists';
 import { getSecretaryShows } from '@/services/database/shows';
@@ -224,28 +224,27 @@ export function useWaitlistManagementData(showId?: string) {
     setError(null);
 
     try {
-      const { data, error } = await offerWaitlistSpot(actionDialog.entry.id);
+      await promoteWaitlistEntry(actionDialog.entry.id);
 
-      if (error) {
-        setError('Failed to offer spot. Please try again.');
-        logger.error('Error offering waitlist spot:', 'secretary', {}, error as Error);
-      } else {
-        // Notify the offered exhibitor via the show-messaging system. This
-        // writes an inbox thread + message (push fires via push-trigger-chat-
-        // message), reusing the same single-recipient transport the show-map
-        // "Message handler" action uses — not a parallel notifier.
-        await notifyOfferedExhibitor(data, actionDialog.entry, selectedShowId);
+      // Notify the offered exhibitor via the show-messaging system. This
+      // writes an inbox thread + message (push fires via push-trigger-chat-
+      // message), reusing the same single-recipient transport the show-map
+      // "Message handler" action uses — not a parallel notifier.
+      await notifyOfferedExhibitor(
+        { exhibitor_id: actionDialog.entry.exhibitor_id },
+        actionDialog.entry,
+        selectedShowId
+      );
 
-        // Refresh the waitlist and class counts
-        if (selectedClassId) {
-          await loadWaitlist(selectedClassId);
-        }
-        if (selectedShowId) {
-          await loadClasses(selectedShowId);
-        }
+      // Refresh the waitlist and class counts
+      if (selectedClassId) {
+        await loadWaitlist(selectedClassId);
+      }
+      if (selectedShowId) {
+        await loadClasses(selectedShowId);
       }
     } catch (err) {
-      setError('An unexpected error occurred');
+      setError('Failed to offer spot. Please try again.');
       logger.error('Error offering spot:', 'secretary', {}, err as Error);
     } finally {
       setIsProcessing(false);

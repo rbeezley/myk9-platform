@@ -14,7 +14,6 @@ import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable'
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { mapWaitlistEntry, mapClassWithWaitlistCount } from '@/services/mappers/waitlistMappers';
 import { buildMapFromArray } from '../_shared/maps';
-import { AUTHENTICATED_ENTRY_READ_COLUMNS } from '../entries/entrySelects';
 
 export interface WaitlistEntry {
   id: string;
@@ -218,64 +217,6 @@ export const getClassesWithWaitlistCounts = async (showId: string) => {
 };
 
 /**
- * Offer a waitlist spot (update status to 'offered' and set expiration)
- */
-export const offerWaitlistSpot = async (waitlistEntryId: string, expirationHours: number = 24) => {
-  const startTime = Date.now();
-
-  try {
-    const offerExpiration = new Date();
-    offerExpiration.setHours(offerExpiration.getHours() + expirationHours);
-
-    const { data, error } = await supabase
-      .from('waitlist_entries')
-      .update({
-        status: 'offered',
-        offered_at: new Date().toISOString(),
-        offer_expires_at: offerExpiration.toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', waitlistEntryId)
-      .select(
-        `
-        id,
-        class_id,
-        dog_id,
-        exhibitor_id,
-        status,
-        offered_at,
-        offer_expires_at,
-        dog:dog_id (
-          id,
-          name,
-          call_name
-        ),
-        class:class_id (
-          id,
-          name,
-          class_number
-        )
-      `
-      )
-      .single();
-
-    const duration = Date.now() - startTime;
-    logQuery('waitlist_entries', 'offer_waitlist_spot', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'waitlist_entries', 'offer_waitlist_spot');
-    }
-
-    return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'waitlist_entries', 'offer_waitlist_spot');
-    logQuery('waitlist_entries', 'offer_waitlist_spot', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};
-
-/**
  * Resolve the messaging recipient for a waitlist offer.
  *
  * Maps the waitlist entry's `exhibitor_id` (a `people.id`) to the exhibitor's
@@ -348,7 +289,7 @@ export const removeFromWaitlist = async (waitlistEntryId: string) => {
 
 export const promoteWaitlistEntry = async (
   waitlistEntryId: string,
-  deadlineHours: number = 24
+  deadlineHours: number = 48
 ): Promise<string> => {
   const { data, error } = await supabase.rpc('promote_waitlist_entry', {
     p_waitlist_entry_id: waitlistEntryId,
@@ -364,7 +305,7 @@ export const promoteWaitlistEntry = async (
 
 export const bulkPromoteWaitlistEntries = async (
   waitlistEntryIds: string[],
-  deadlineHours: number = 24
+  deadlineHours: number = 48
 ): Promise<string[]> => {
   const settled = await Promise.allSettled(
     waitlistEntryIds.map(id => promoteWaitlistEntry(id, deadlineHours))
@@ -501,77 +442,5 @@ export const joinWaitlist = async (
     const dbError = createDatabaseError(error, 'waitlist_entries', 'join_waitlist');
     logQuery('waitlist_entries', 'join_waitlist', duration, dbError.message);
     return { data: null, error: dbError, position: null };
-  }
-};
-
-/**
- * Accept a waitlist offer - creates an entry and removes from waitlist
- */
-export const acceptWaitlistOffer = async (waitlistEntryId: string) => {
-  const startTime = Date.now();
-
-  try {
-    // Get the waitlist entry details
-    const { data: waitlistEntry, error: fetchError } = await supabase
-      .from('waitlist_entries')
-      .select(
-        `
-        id,
-        class_id,
-        dog_id,
-        exhibitor_id,
-        handler_id,
-        class:class_id (
-          trial_id,
-          entry_fee
-        )
-      `
-      )
-      .eq('id', waitlistEntryId)
-      .eq('status', 'offered')
-      .single();
-
-    if (fetchError || !waitlistEntry) {
-      throw createDatabaseError(
-        fetchError || new Error('Waitlist entry not found or not offered'),
-        'waitlist_entries',
-        'accept_waitlist_offer'
-      );
-    }
-
-    // Create the entry
-    const classData = waitlistEntry.class as { trial_id: string; entry_fee: number | null } | null;
-    const { data: newEntry, error: insertError } = await supabase
-      .from('entries')
-      .insert({
-        class_id: waitlistEntry.class_id,
-        dog_id: waitlistEntry.dog_id,
-        handler_id: waitlistEntry.handler_id,
-        ...(classData?.trial_id !== undefined && { trial_id: classData.trial_id }),
-        entry_status: 'confirmed',
-        payment_status: 'pending',
-        ...(classData?.entry_fee !== undefined && { entry_fee: classData.entry_fee }),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .select(AUTHENTICATED_ENTRY_READ_COLUMNS)
-      .single();
-
-    if (insertError) {
-      throw createDatabaseError(insertError, 'entries', 'accept_waitlist_offer_insert');
-    }
-
-    // Remove from waitlist
-    await supabase.from('waitlist_entries').delete().eq('id', waitlistEntryId);
-
-    const duration = Date.now() - startTime;
-    logQuery('waitlist_entries', 'accept_waitlist_offer', duration);
-
-    return { data: newEntry, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'waitlist_entries', 'accept_waitlist_offer');
-    logQuery('waitlist_entries', 'accept_waitlist_offer', duration, dbError.message);
-    return { data: null, error: dbError };
   }
 };

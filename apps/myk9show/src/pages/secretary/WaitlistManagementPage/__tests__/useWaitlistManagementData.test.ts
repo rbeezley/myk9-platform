@@ -6,8 +6,8 @@ import { toast } from 'sonner';
 import { useWaitlistManagementData } from '../useWaitlistManagementData';
 import { createTestQueryClient } from '@/test/utils/testUtils';
 import {
-  offerWaitlistSpot,
   getWaitlistOfferMessageTarget,
+  promoteWaitlistEntry,
 } from '@/services/database/waitlists';
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -29,8 +29,8 @@ vi.mock('@/services/database/shows', () => ({
 vi.mock('@/services/database/waitlists', () => ({
   getClassesWithWaitlistCounts: vi.fn().mockResolvedValue({ data: [], error: null }),
   getWaitlistByClass: vi.fn().mockResolvedValue({ data: [], error: null }),
-  offerWaitlistSpot: vi.fn(),
   getWaitlistOfferMessageTarget: vi.fn(),
+  promoteWaitlistEntry: vi.fn(),
   removeFromWaitlist: vi.fn(),
 }));
 
@@ -148,10 +148,7 @@ describe('useWaitlistManagementData — offer notification', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(offerWaitlistSpot).mockResolvedValue({
-      data: { exhibitor_id: 'person-1' },
-      error: null,
-    } as unknown as Awaited<ReturnType<typeof offerWaitlistSpot>>);
+    vi.mocked(promoteWaitlistEntry).mockResolvedValue('pending-payment-entry-1');
     vi.mocked(getWaitlistOfferMessageTarget).mockResolvedValue({
       data: { participantAuthUserId: 'auth-user-9', exhibitorName: 'Jane Doe' },
       error: null,
@@ -194,10 +191,7 @@ describe('useWaitlistManagementData — offer notification', () => {
   });
 
   it('does not message when the offer mutation fails', async () => {
-    vi.mocked(offerWaitlistSpot).mockResolvedValue({
-      data: null,
-      error: new Error('db down'),
-    } as unknown as Awaited<ReturnType<typeof offerWaitlistSpot>>);
+    vi.mocked(promoteWaitlistEntry).mockRejectedValue(new Error('db down'));
 
     const { result } = renderHook(() => useWaitlistManagementData('show-77'), {
       wrapper: createWrapper(),

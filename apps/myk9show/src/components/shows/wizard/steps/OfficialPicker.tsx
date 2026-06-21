@@ -152,7 +152,7 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
       {showCreateForm && (
         <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-3">
           <p className="text-sm font-semibold">New {label}</p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div className="space-y-1">
               <Label htmlFor={firstNameId} className="text-xs">
                 First name *
@@ -192,8 +192,14 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
             />
           </div>
           {saveError && <p className="text-xs text-destructive">{saveError}</p>}
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={handleCancelCreate}>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleCancelCreate}
+              className="w-full sm:w-auto"
+            >
               Cancel
             </Button>
             <Button
@@ -201,6 +207,7 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
               size="sm"
               disabled={!canSave || saving}
               onClick={handleSaveCreate}
+              className="w-full sm:w-auto"
             >
               Add {label}
             </Button>

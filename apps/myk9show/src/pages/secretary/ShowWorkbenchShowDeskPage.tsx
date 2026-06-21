@@ -18,8 +18,7 @@ import { ScheduleSlipScriptCard } from '@/features/show-workbench/ScheduleSlipSc
 import { TasksNotesCard } from '@/features/show-workbench/TasksNotesCard';
 import { VolunteersCard } from '@/features/show-workbench/VolunteersCard';
 import { WorkbenchLateEntryAction } from '@/features/show-workbench/WorkbenchLateEntryAction';
-import { ShowDayReconciliation } from '@/features/show-workbench/ShowDayReconciliation';
-import { IncidentCloseoutSummary } from '@/features/show-workbench/IncidentCloseoutSummary';
+import { ShowCloseoutSummary } from '@/features/show-workbench/ShowCloseoutSummary';
 import { useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -319,8 +318,7 @@ export function ShowWorkbenchShowDeskPage() {
         actionableTone={actionable.tone}
         closeoutContent={
           <>
-            <ShowDayReconciliation entries={showEntries} />
-            <IncidentCloseoutSummary showId={currentShow.id} />
+            <ShowCloseoutSummary showId={currentShow.id} entries={showEntries} />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
                 <Link to={`/shows/${currentShow.id}/results-control`}>

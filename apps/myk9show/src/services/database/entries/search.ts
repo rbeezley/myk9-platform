@@ -18,6 +18,7 @@ import {
   buildReplicatedUserEntryRows,
   findMissingReplicatedUserEntryRelations,
 } from './userEntriesReplication';
+import { hasScoredResult } from './resultVisibility';
 
 // ---------------------------------------------------------------------------
 // PostgREST fallback wrappers (original implementations)
@@ -344,7 +345,16 @@ export const getUserEntries = async (userId: string) => {
       showsMap,
     });
 
-    if (missingRelations.length > 0) {
+    // The replication store syncs raw scored columns (final_placement,
+    // result_status, etc.) WITHOUT the per-field visibility cascade, which is
+    // not in replication scope. The replication-mapped rows null those columns
+    // (see withholdScoredResultColumns), so when any own entry is scored we
+    // prefer the cascade-aware server view to surface correctly-RELEASED
+    // results. Offline (view unreachable) we fall back to the nulled
+    // replication rows — safe-by-default: withheld results never leak.
+    const hasScoredEntries = filtered.some(hasScoredResult);
+
+    if (missingRelations.length > 0 || hasScoredEntries) {
       try {
         const result = await postgrestGetUserEntries();
         logQuery('entries', 'select_user_entries_fallback', Date.now() - startTime);

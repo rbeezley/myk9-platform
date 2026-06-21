@@ -59,19 +59,39 @@ vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
   replicatedTrialsTable: mockTrialsTable,
 }));
 
-// Mock supabase client (for fetchMissingArmbands and promo_codes fallback)
+// Captured rows returned by the cascade-aware authenticated view
+// (view_authenticated_entry_results). The view is what getUserEntries must
+// PREFER once any own entry is scored, since it applies the per-field
+// visibility cascade the replication store cannot.
+const { mockViewRows } = vi.hoisted(() => ({
+  mockViewRows: { current: [] as Record<string, unknown>[] },
+}));
+
+// Mock supabase client (for fetchMissingArmbands, promo_codes fallback, and the
+// view_authenticated_entry_results read in postgrestGetUserEntries).
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
-    from: () => ({
-      select: () => ({
-        in: () => ({
-          in: () => Promise.resolve({ data: [], error: null }),
+    from: (table: string) => {
+      if (table === 'view_authenticated_entry_results') {
+        return {
+          select: () => ({
+            is: () => ({
+              order: () => Promise.resolve({ data: mockViewRows.current, error: null }),
+            }),
+          }),
+        };
+      }
+      return {
+        select: () => ({
+          in: () => ({
+            in: () => Promise.resolve({ data: [], error: null }),
+          }),
+          eq: () => ({
+            single: () => Promise.resolve({ data: null, error: null }),
+          }),
         }),
-        eq: () => ({
-          single: () => Promise.resolve({ data: null, error: null }),
-        }),
-      }),
-    }),
+      };
+    },
   },
   logQuery: vi.fn(),
   createDatabaseError: vi.fn((error: unknown) => {
@@ -622,6 +642,77 @@ describe('entryQueries (replication)', () => {
       const result = await getUserEntries('user-999');
 
       expect(result.data).toEqual([]);
+    });
+
+    it('does NOT leak raw scored columns from the replication store for an unreleased scored entry', async () => {
+      // Replicated entry carries raw scored values (synced without the cascade).
+      const entries = [
+        makeEntry({
+          id: 'scored-1',
+          handlerId: 'user-1',
+          isScored: true,
+          resultStatus: 'qualified',
+          finalPlacement: 1,
+          searchTimeSeconds: 33.7,
+          totalFaults: 0,
+        } as Partial<ReplicatedEntry>),
+      ];
+      setupListMocks(entries);
+      // Simulate the view being unreachable (offline / RLS) so we exercise the
+      // replication fallback rows — those must have the scored fields nulled.
+      mockViewRows.current = [];
+      const view = await import('@/services/database/supabaseClient');
+      vi.spyOn(view.supabase, 'from').mockImplementationOnce(() => {
+        throw new Error('view unreachable');
+      });
+
+      const result = await getUserEntries('user-1');
+
+      expect(result.data).toHaveLength(1);
+      const row = result.data[0] as Record<string, unknown>;
+      // The leak: these must NOT carry the raw replicated values.
+      expect(row.final_placement).toBeNull();
+      expect(row.result_status).toBeNull();
+      expect(row.search_time_seconds).toBeNull();
+      expect(row.total_faults).toBeNull();
+      // Identity still works offline.
+      expect(row.id).toBe('scored-1');
+      expect(row.is_scored).toBe(true);
+    });
+
+    it('prefers the cascade-aware server view when an entry is scored', async () => {
+      const entries = [
+        makeEntry({
+          id: 'scored-1',
+          handlerId: 'user-1',
+          isScored: true,
+          finalPlacement: 1,
+        } as Partial<ReplicatedEntry>),
+      ];
+      setupListMocks(entries);
+      // The view applies the cascade. For a RELEASED class it returns the real
+      // placement; getUserEntries must surface the view's value, not the raw
+      // replicated one.
+      mockViewRows.current = [
+        { id: 'scored-1', final_placement: 1, result_status: 'qualified', is_scored: true },
+      ];
+
+      const result = await getUserEntries('user-1');
+
+      const row = result.data[0] as Record<string, unknown>;
+      expect(row.final_placement).toBe(1);
+      expect(row.result_status).toBe('qualified');
+    });
+
+    it('stays on the replication path (no view round-trip) when no entry is scored', async () => {
+      const entries = [makeEntry({ id: 'unscored-1', handlerId: 'user-1', isScored: false })];
+      setupListMocks(entries);
+      mockViewRows.current = [{ id: 'SHOULD-NOT-BE-USED', final_placement: 9 }];
+
+      const result = await getUserEntries('user-1');
+
+      const row = result.data[0] as Record<string, unknown>;
+      expect(row.id).toBe('unscored-1');
     });
   });
 

@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient';
 import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
+import { withholdScoredResultColumns } from './resultVisibility';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
@@ -100,6 +101,12 @@ export async function buildReplicatedUserEntryRows(
       (row.image_url as string | null | undefined) ??
       dog?.imageUrl ??
       null;
+    // The per-class result-visibility cascade is NOT in replication scope, so
+    // the raw scored columns synced here are withheld until the cascade-aware
+    // server view (preferred by getUserEntries when any entry is scored) can
+    // release them. Safe-by-default: never leak placement/result/time/faults
+    // from the offline path. See ./resultVisibility for the full rationale.
+    withholdScoredResultColumns(row);
     return row;
   });
 

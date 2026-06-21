@@ -59,6 +59,12 @@ import {
 } from './RegistrationWizardPage.routes';
 import { proceedBlockedReason } from './RegistrationWizardPage/proceedGating';
 
+// Exhibitor self-service defaults to online card payment; on-behalf modes
+// (secretary/admin/club) can't use card checkout, so they start unset and must
+// choose explicitly. Shared by the initial state and the mode-change reset.
+const defaultPaymentForMode = (mode: WorkflowMode): PaymentMethod | undefined =>
+  mode === 'exhibitor' ? 'credit_card' : undefined;
+
 function RegistrationWizardContent() {
   const { showId: showIdParam } = useParams<{ showId: string }>();
   // showId is guaranteed by the outer RegistrationWizardPage guard
@@ -129,6 +135,15 @@ function RegistrationWizardContent() {
       prevWorkflowMode.current = currentWorkflowMode;
       setStepCompletionState({});
       setCurrentStep(0);
+      // Re-apply the per-mode payment default. RBAC resolves async, so the mode
+      // can start as 'exhibitor' (card default) and flip to an on-behalf mode
+      // once permissions load — clear the card default there since on-behalf
+      // flows can't use card checkout and would otherwise hit the guard in
+      // handleNext. Restore it if the mode flips back to exhibitor.
+      setRegistrationData(prev => ({
+        ...prev,
+        paymentMethod: defaultPaymentForMode(currentWorkflowMode),
+      }));
     }
   }, [currentWorkflowMode]);
 
@@ -148,9 +163,29 @@ function RegistrationWizardContent() {
     selectedDogs: [],
     entries: [],
     documents: [],
-    paymentMethod: undefined,
+    // INTENT: Default exhibitor self-service to online card payment so most
+    // exhibitors can pay instantly without touching the radio; they only switch
+    // if they intend to pay by check/cash (and only when the show offers those).
+    paymentMethod: defaultPaymentForMode(currentWorkflowMode),
     specialRequests: undefined,
   });
+
+  // Scroll the wizard back to the top of its scroll container on every step
+  // change. Steps differ a lot in height, so otherwise the prior scroll offset
+  // carries over and a tall step (the payment step in particular) opens scrolled
+  // past its first controls — exactly the "I land near the bottom and can't see
+  // the payment choices" symptom. scrollIntoView climbs to whichever ancestor
+  // actually scrolls: the window when the wizard is full-page, the sidebar's
+  // overflow-auto pane when embedded under /secretary.
+  const scrollTopRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scrollTopRef.current;
+    // jsdom (test env) doesn't implement scrollIntoView; guard so it's a no-op
+    // there while still running in every real browser.
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ block: 'start' });
+    }
+  }, [currentStep]);
 
   // Resolve the exhibitor that this submission is filed under. For exhibitor
   // self-service this equals the caller's own people.id (since they only see
@@ -599,7 +634,7 @@ function RegistrationWizardContent() {
 
   return (
     <RegistrationErrorBoundary>
-      <div className={isInsideSidebar ? 'bg-background' : 'min-h-screen bg-background'}>
+      <div ref={scrollTopRef} className={isInsideSidebar ? 'bg-background' : 'min-h-screen bg-background'}>
         {/* Sticky header stack — breadcrumb + title + step indicator as ONE
             sticky unit. Keeping them together means the stepper can never slide
             under the breadcrumb: the previous separate top-28 offset was

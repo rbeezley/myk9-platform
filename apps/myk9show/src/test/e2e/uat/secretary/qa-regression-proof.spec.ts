@@ -113,6 +113,14 @@ test.describe('Secretary QA regression proof', () => {
     await expect(eventNumber).toHaveAttribute('required', '');
 
     await page.getByLabel(/Trial Type/i).click({ force: true });
+    // Wait for the Select listbox to mount and finish its open animation before
+    // asserting individual options. Probing a single option locator directly races
+    // the portal mount + animation and produces a ~15s visibility flake on cold runs.
+    const trialTypeListbox = page.getByRole('listbox');
+    await expect(trialTypeListbox).toBeVisible();
+    await expect(
+      trialTypeListbox.getByRole('option', { name: 'Scent Work', exact: true })
+    ).toBeVisible();
     for (const label of ['Scent Work', 'Obedience', 'Rally', 'Obedience & Rally', 'Tracking']) {
       await expect(page.getByRole('option', { name: label, exact: true })).toBeVisible();
     }

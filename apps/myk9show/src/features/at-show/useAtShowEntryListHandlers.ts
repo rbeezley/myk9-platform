@@ -24,6 +24,7 @@ import type {
   RingsideReplication,
   Entry,
 } from '@myk9/ringside';
+import { toast } from 'sonner';
 import { logger } from '@/utils/logger';
 import { replicatedEntriesTable } from '@/services/replication';
 import { supabase } from '@/services/database/supabaseClient';
@@ -151,7 +152,7 @@ export function useAtShowEntryListHandlers(
     entry => {
       if (entry.isScored) return;
       if (!hasPermission('canScore')) {
-        alert('You do not have permission to score entries.');
+        toast.error('You do not have permission to score entries.');
         return;
       }
       // INTENT (spike): the tryApplyFixedMaxTime / MaxTimeDialog gate is

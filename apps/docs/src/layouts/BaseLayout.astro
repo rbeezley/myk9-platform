@@ -32,7 +32,10 @@ const nav = [
     <header class="site-header">
       <div class="nav">
         <a class="brand" href="/">
-          <img class="logo" src="/logo.png" alt="myK9Show" width="123" height="52" /> <span class="sub">Help</span>
+          <img class="logo" src="/logo.png" alt="" width="48" height="48" />
+          <span class="divider"></span>
+          <span class="wordmark">myK9<span class="accent">Show</span></span>
+          <span class="sub">Help</span>
         </a>
         <nav class="nav-links">
           {nav.map(n => <a href={n.href} class={active === n.key ? 'active' : ''}>{n.label}</a>)}

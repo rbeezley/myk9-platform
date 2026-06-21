@@ -12,7 +12,7 @@ import {
 import { RowActionMenu, type RowAction } from '@/components/ui/RowActionMenu';
 import { EntryStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
-import { isPaymentRequestable } from './RequestPaymentDialog';
+import { isPaymentRequestable } from './paymentRequestEligibility';
 
 export interface EntryRowActionMenuProps {
   entry: EntryManagementEntry;

@@ -34,8 +34,10 @@ import type { EmailLogEntry } from '@/hooks/useEmailStatus';
 import type { CheckInStatus } from '@myk9/core';
 import { CHECKIN_STATUS } from '@myk9/core';
 import { WithdrawalReasonDialog } from './WithdrawalReasonDialog';
-import { RefundEntryDialog, isStripeRefundable } from './RefundEntryDialog';
-import { RequestPaymentDialog, isPaymentRequestable } from './RequestPaymentDialog';
+import { RefundEntryDialog } from './RefundEntryDialog';
+import { isStripeRefundable } from './refundEligibility';
+import { RequestPaymentDialog } from './RequestPaymentDialog';
+import { isPaymentRequestable } from './paymentRequestEligibility';
 
 interface EntryListCardProps {
   entries: EntryManagementEntry[];

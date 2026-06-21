@@ -6,7 +6,7 @@
 |-----|---------------|----------------|-------------|
 | myK9Show | `myk9-platform-myk9show` | `apps/myk9show` | myk9-platform-myk9show.vercel.app |
 
-myK9Show deploys from `rbeezley/myk9-platform`. Pushes to `main` trigger production deployments. PRs get preview deployments. (Ringside scoring lives inside myK9Show at `/at-show`; the former standalone `apps/myk9q` app — and its `myk9-platform-myk9q` Vercel project — have been removed.)
+myK9Show deploys from `rbeezley/myk9-platform`. Production deploys are **CI-gated**: a push to `main` ships to production only after the `CI` workflow passes, via the [`Deploy Production`](../../.github/workflows/deploy-production.yml) workflow — see [`ci-vercel-deploys.md`](../operations/ci-vercel-deploys.md) for setup and the rollout order. PRs still get preview deployments from Vercel's Git integration. (Ringside scoring lives inside myK9Show at `/at-show`; the former standalone `apps/myk9q` app — and its `myk9-platform-myk9q` Vercel project — have been removed.)
 
 **Note:** The standalone `my-k9-q-react` Vercel project (legacy separate repo) remains untouched and serves production at myk9q.com.
 

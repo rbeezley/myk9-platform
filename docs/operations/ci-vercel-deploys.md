@@ -58,30 +58,45 @@ At this point production has been deployed **twice** (once by Vercel's Git
 integration, once by the workflow) — that is expected and harmless during
 validation.
 
-### 3. Disable Vercel's production auto-deploy
+### 3. Disable Vercel's production auto-deploy (Git events only)
 
-Once step 2 looks correct, stop Vercel from auto-deploying production so the
-workflow becomes the sole production path. In the Vercel **myK9Show** project →
-Settings → Git, use the **Ignored Build Step** to skip Git-triggered production
-builds while keeping PR preview deploys:
+Once step 2 looks correct, stop Vercel's **Git integration** from deploying
+`main` so the workflow becomes the sole production path.
 
-```bash
-# Ignored Build Step (Settings → Git → Ignored Build Step):
-# exit 0  → skip the build; exit 1 → build.
-# Skip production (the workflow handles it); still build previews for PRs.
-if [ "$VERCEL_ENV" = "production" ]; then exit 0; else exit 1; fi
+> **Do NOT use an Ignored Build Step keyed on `VERCEL_ENV=production`.** The
+> Ignored Build Step runs for **every** production build that enters BUILDING —
+> including the one this workflow's `vercel deploy --prod` creates — so
+> `exit 0 when production` would abort the gated deploy too. It cannot
+> distinguish a Git-triggered build from a CLI/API build.
+
+Instead, set `git.deploymentEnabled` for `main` to `false` in
+[`apps/myk9show/vercel.json`](../../apps/myk9show/vercel.json). This blocks
+deploys created from **Git events** on `main`, while leaving **CLI/API** deploys
+(this workflow) and **PR preview** deploys (other branches) fully working:
+
+```jsonc
+{
+  // ...existing config...
+  "git": {
+    "deploymentEnabled": {
+      "main": false
+    }
+  }
+}
 ```
 
-(Alternatively, disconnect the Git integration entirely and add a second job to
-the workflow for preview deploys — heavier; the Ignored Build Step above is the
-lighter option and preserves PR previews.)
+Land that as a small follow-up commit once the workflow is validated — it is
+config as code (reviewable, no dashboard step). From the commit that adds it,
+pushes to `main` no longer auto-deploy; only the CI-gated workflow does.
 
 ## Rollback
 
 If the gated deploy misbehaves, restore the previous behavior immediately by
-clearing the **Ignored Build Step** (so Vercel auto-deploys `main` again). The
-workflow can be left in place or disabled in Actions; with auto-deploy back on,
-production is unblocked while the workflow is fixed.
+reverting the `git.deploymentEnabled` change in `apps/myk9show/vercel.json`
+(set `main` back to `true` or remove the `git` block) and merging — Vercel
+resumes auto-deploying `main` on push. The workflow can be left in place or
+disabled in Actions; with auto-deploy back on, production is unblocked while the
+workflow is fixed.
 
 ## Not covered here
 

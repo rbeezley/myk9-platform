@@ -7,10 +7,11 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useMatch, useSearchParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getErrorMessage } from '@myk9/core';
 import { notifications } from '@/lib/notifications';
+import { helpUrl } from '@/lib/help';
 import { useShowRegistrationStore } from '@/store/showRegistrationStore';
 import {
   ClassSelectionData,
@@ -625,6 +626,16 @@ function RegistrationWizardContent() {
                 <span>/</span>
                 <span className="text-foreground font-medium">{workflowLabel}</span>
               </div>
+              {/* Contextual deep-link to the public exhibitor guide. */}
+              <a
+                href={helpUrl('exhibitor-guide')}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ml-auto hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <HelpCircle className="h-4 w-4" />
+                Help
+              </a>
             </div>
 
             {/* Title + horizontal step indicator */}

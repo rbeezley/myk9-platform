@@ -26,6 +26,7 @@
 - Mobile proof viewport is `375x667`.
 - Every remediation PR must show: no page-level horizontal overflow, no internal clipping for the affected route, no owned 4xx/5xx network errors, and no new console errors.
 - Durable finding IDs covered by this plan: `QA-MOBILE-LAYOUT-BREAK-028`, `QA-MOBILE-LAYOUT-BREAK-029`, `QA-MOBILE-LAYOUT-BREAK-030`, `QA-MOBILE-LAYOUT-BREAK-031`.
+- [ADDED] These findings and the audit source are introduced by PR #888. If implementing from another branch before #888 merges, first cherry-pick or recreate `docs/qa/mobile-responsiveness-audit-2026-06-21.md` and the four `docs/qa/findings.md` entries, then verify the screenshot/artifact evidence still exists.
 - [ADDED] Do not weaken auth/role checks while making mobile rows or action menus. A mobile card/action must expose only the same actions the desktop row exposes for the current role.
 - [ADDED] Do not dual-render expensive table and card bodies for large datasets unless the hidden version is small and inert. Prefer conditional rendering from viewport state or CSS-only wrappers around already-rendered lightweight content.
 - [ADDED] Rollback strategy: each task must land as its own PR/commit so a layout regression can be reverted independently. No database migrations, env var changes, or shared-system writes are part of this plan.
@@ -62,7 +63,7 @@ Before implementing any task:
 - Modify `apps/myk9show/src/pages/secretary/ReportsPage/ReportPreview.tsx`: wrap print preview in an explicit scroll/scale container with a clear visual affordance.
 - Modify admin pages/components for `/admin/dashboard`, `/admin/templates`, `/admin/permissions`, `/admin/users`, `/admin/permissions/users`, `/admin/judges/analytics`, `/admin/alerts`, `/admin/sync`, `/admin/performance`: prefer shared header/action and tab fixes over bespoke per-page CSS.
 - Test `apps/myk9show/src/test/components/common/ListControls.test.tsx`.
-- Test `apps/myk9show/src/test/components/common/PrimaryTabs.test.tsx`.
+- Create test `apps/myk9show/src/test/components/common/PrimaryTabs.test.tsx` if it does not already exist.
 - Test `apps/myk9show/src/test/components/wizard/ShowDetailsStep.helpers.test.tsx` if helpers change; otherwise add a render-focused test next to the existing wizard tests.
 - Test `apps/myk9show/src/pages/__tests__/BrowsePeoplePage.test.tsx`.
 - Test `apps/myk9show/src/pages/secretary/__tests__/EntryManagementPage.tabs.test.tsx`.
@@ -252,14 +253,13 @@ Before implementing any task:
   Replace `col-span-2` with:
 
   ```tsx
-  className = 'space-y-2 md:col-span-2';
+  <div className="space-y-2 md:col-span-2">
   ```
 
   Reduce card padding:
 
   ```tsx
-  className =
-    'group relative rounded-2xl border border-border bg-gradient-to-br from-card to-card/80 p-4 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg md:p-6';
+  <div className="group relative rounded-2xl border border-border bg-gradient-to-br from-card to-card/80 p-4 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg md:p-6">
   ```
 
 - [ ] **Step 4: Make picker sections single-column on phones**
@@ -468,7 +468,11 @@ Before implementing any task:
   });
   ```
 
-- [ ] **Step 2: Add PrimaryTabs regression test**
+- [ ] **Step 2: Confirm the PrimaryTabs overlap still reproduces**
+
+  `PrimaryTabs` already uses `overflow-x-auto` on `TabsList` and `whitespace-nowrap` on triggers. Before changing it, replay `/admin/alerts`, `/admin/sync`, and `/admin/performance` at `375x667` and confirm whether the overlap is caused by `PrimaryTabs` itself, a parent container, or a route-specific tab implementation. If the current branch no longer reproduces overlap, leave `PrimaryTabs` untouched and document that `QA-MOBILE-LAYOUT-BREAK-031` is limited to action bars or Browse Shows controls.
+
+- [ ] **Step 3: Add PrimaryTabs regression test if the overlap reproduces in PrimaryTabs**
 
   ```typescript
   it('renders long tab labels as non-overlapping scrollable triggers', () => {
@@ -490,9 +494,21 @@ Before implementing any task:
   });
   ```
 
-- [ ] **Step 3: Make `ListControls` phone-first**
+- [ ] **Step 4: Make `ListControls` phone-first**
 
-  Preserve the INTENT comment about compact desktop search, but change mobile width:
+  Update the INTENT comment instead of preserving the stale width warning. PR #791 fixed the duplicate `@tailwind utilities` ordering issue that made `w-full sm:w-NN` unsafe, so the comment should now preserve only the product intent: compact desktop search, full-width mobile search, and room for filters.
+
+  Suggested comment shape:
+
+  ```tsx
+  /**
+   * INTENT: search stays compact on desktop so filter chips get room to breathe,
+   * but uses full width on phones so the toolbar does not clip. PR #791 fixed
+   * the old Tailwind emission-order issue that made `w-full sm:w-NN` unsafe.
+   */
+  ```
+
+  Then change mobile width:
 
   ```tsx
   <SearchBar
@@ -512,7 +528,7 @@ Before implementing any task:
   <ViewToggle className="w-full sm:ml-auto sm:w-auto" ... />
   ```
 
-- [ ] **Step 4: Harden `PrimaryTabs`**
+- [ ] **Step 5: Harden `PrimaryTabs` only if Step 2 proves the shared primitive is the source**
 
   Ensure the list and triggers cannot overlap:
 
@@ -523,10 +539,10 @@ Before implementing any task:
   Keep triggers:
 
   ```tsx
-  className = 'inline-flex min-w-max items-center gap-1.5 whitespace-nowrap ...';
+  <TabsTrigger className="inline-flex min-w-max items-center gap-1.5 whitespace-nowrap ...">
   ```
 
-- [ ] **Step 5: Stack admin header actions on mobile**
+- [ ] **Step 6: Stack admin header actions on mobile**
 
   For dashboard/templates/permissions headers, use:
 
@@ -537,7 +553,7 @@ Before implementing any task:
   </div>
   ```
 
-- [ ] **Step 6: Run focused tests**
+- [ ] **Step 7: Run focused tests**
 
   Run:
 
@@ -547,7 +563,7 @@ Before implementing any task:
 
   Expected: PASS.
 
-- [ ] **Step 7: Verify routes at phone width**
+- [ ] **Step 8: Verify routes at phone width**
 
   Replay:
 
@@ -561,7 +577,7 @@ Before implementing any task:
 
   Expected: action bars wrap/stack, tab labels do not overlap, and Browse Shows toolbar controls remain visible.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
   Review any admin header/tab and Browse Shows files changed by this task with `git diff --name-only`; stage those exact paths individually. Do not stage broad page/component directories.
 
@@ -638,7 +654,7 @@ Before implementing any task:
   - **Status:** open
   ```
 
-  to resolved status using the actual merged PR number and merge date from the implementation run. Add a `Resolution` line that cites the focused Vitest command, `pnpm typecheck`, `pnpm lint`, and the mobile Playwright replay artifact path captured in Step 3. Do not leave example PR numbers, dates, or artifact paths in the committed findings.
+  to `fixed` status using the actual merged PR number and merge date from the implementation run. Add a `Resolution` line that cites the focused Vitest command, `pnpm typecheck`, `pnpm lint`, and the mobile Playwright replay artifact path captured in Step 3. Then move the finding from `Open Findings` to `Closed Findings` in the same change, per `docs/qa/findings.md`'s lifecycle. Do not leave example PR numbers, dates, or artifact paths in the committed findings.
 
 - [ ] **Step 5: Update `OPEN-TODOS.md`**
 

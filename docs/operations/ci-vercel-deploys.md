@@ -1,17 +1,20 @@
 # CI-gated production deploys (myK9Show)
 
-> **Status:** Active
+> **Status:** Rollout pending — the workflow is merged but **not yet in effect**.
+> Until the operator setup below completes (secrets + `git.deploymentEnabled`),
+> Vercel's Git integration still auto-deploys `main` on every push.
 
-Production deploys of myK9Show are gated on a green CI run. The
+**Target state:** production deploys of myK9Show gated on a green CI run — the
 [`Deploy Production`](../../.github/workflows/deploy-production.yml) workflow
 ships `main` to Vercel **only after** the entire `CI` workflow (Quality Checks +
 Test + Build + A11y smoke + E2E PR Smoke) succeeds on the merged commit.
 
-Before this, Vercel's Git integration deployed every push to `main` to
-production regardless of whether tests passed. This runbook covers the one-time
-operator setup and the **safe rollout order** — do not disable Vercel
-auto-deploy until you have seen the CI-gated workflow produce a correct
-production deployment at least once.
+**Current state:** Vercel's Git integration still deploys every push to `main`
+to production regardless of whether tests passed. The workflow is inert without
+its `VERCEL_*` secrets, and Git auto-deploy stays on until step 3 lands. This
+runbook covers the one-time operator setup and the **safe rollout order** — do
+not disable Vercel auto-deploy until you have seen the CI-gated workflow produce
+a correct production deployment at least once.
 
 ## How it works
 

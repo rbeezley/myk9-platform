@@ -281,6 +281,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
           onOpenCompDialog={onOpenCompDialog}
           onUncompEntry={onUncompEntry}
           onRemoveEntry={onRemoveEntry}
+          onEntryRefunded={onRefresh}
           selection={tableSelection}
           emptyState={emptyStateMessage}
         />

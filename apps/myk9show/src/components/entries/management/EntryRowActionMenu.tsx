@@ -7,12 +7,14 @@ import {
   PencilLine,
   Ticket,
   Trash2,
+  Undo2,
   XCircle,
 } from 'lucide-react';
 import { RowActionMenu, type RowAction } from '@/components/ui/RowActionMenu';
 import { EntryStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { isPaymentRequestable } from './paymentRequestEligibility';
+import { isStripeRefundable } from './refundEligibility';
 
 export interface EntryRowActionMenuProps {
   entry: EntryManagementEntry;
@@ -25,6 +27,7 @@ export interface EntryRowActionMenuProps {
   onResendEmail?: ((registrationId: string) => void) | undefined;
   isResendDisabled?: ((registrationId: string) => boolean) | undefined;
   onOpenRequestPayment?: ((entry: EntryManagementEntry) => void) | undefined;
+  onOpenRefund?: ((entry: EntryManagementEntry) => void) | undefined;
 }
 
 const canMoveToWaitlist = (status: EntryStatus) =>
@@ -44,6 +47,7 @@ export function EntryRowActionMenu({
   onResendEmail,
   isResendDisabled,
   onOpenRequestPayment,
+  onOpenRefund,
 }: EntryRowActionMenuProps) {
   const actions: RowAction[] = [
     {
@@ -87,6 +91,13 @@ export function EntryRowActionMenu({
       icon: <CreditCard className="h-4 w-4" />,
       onSelect: () => onOpenRequestPayment?.(entry),
       hidden: !onOpenRequestPayment || !isPaymentRequestable(entry),
+    },
+    {
+      id: 'refund',
+      label: 'Refund payment…',
+      icon: <Undo2 className="h-4 w-4" />,
+      onSelect: () => onOpenRefund?.(entry),
+      hidden: !onOpenRefund || !isStripeRefundable(entry),
     },
     {
       id: 'resend-email',

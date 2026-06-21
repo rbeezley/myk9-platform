@@ -15,6 +15,7 @@ import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { EntryStatus } from '@/types/show-registration-types';
 import { EntryRowActionMenu, type EntryRowActionMenuProps } from './EntryRowActionMenu';
 import { RequestPaymentDialog } from './RequestPaymentDialog';
+import { RefundEntryDialog } from './RefundEntryDialog';
 
 /** Minimal selection surface (a subset of useBulkSelection) for the select column. */
 export interface EntriesTableSelection {
@@ -39,6 +40,8 @@ interface EntriesTableViewProps {
   onRemoveEntry?: ((entryId: string) => void) | undefined;
   /** Reload entries after a payment link is requested (refresh "requested" state). */
   onPaymentRequested?: (() => void) | undefined;
+  /** Reload entries after a refund so the badge updates and the action self-hides. */
+  onEntryRefunded?: (() => void) | undefined;
   /** When provided, renders a leading checkbox select column wired to this selection. */
   selection?: EntriesTableSelection | undefined;
   emptyState?: React.ReactNode;
@@ -226,6 +229,7 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
   onUncompEntry,
   onRemoveEntry,
   onPaymentRequested,
+  onEntryRefunded,
   selection,
   emptyState,
 }) => {
@@ -234,6 +238,8 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
     (entry: EntryManagementEntry) => setRequestPaymentEntry(entry),
     []
   );
+  const [refundEntry, setRefundEntry] = useState<EntryManagementEntry | null>(null);
+  const openRefund = useCallback((entry: EntryManagementEntry) => setRefundEntry(entry), []);
 
   const columns = useMemo(() => {
     const hasAnyAction =
@@ -257,6 +263,8 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
           // Always available where the menu shows; the item self-gates via
           // isPaymentRequestable. Reuses the same dialog as the card view.
           onOpenRequestPayment: openRequestPayment,
+          // Likewise self-gates via isStripeRefundable; same dialog as the card view.
+          onOpenRefund: openRefund,
         }
       : undefined;
     const dataColumns = buildColumns(
@@ -278,6 +286,7 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
     onRemoveEntry,
     selection,
     openRequestPayment,
+    openRefund,
   ]);
 
   return (
@@ -299,6 +308,14 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
         }}
         entry={requestPaymentEntry}
         onRequested={() => onPaymentRequested?.()}
+      />
+      <RefundEntryDialog
+        open={refundEntry !== null}
+        onOpenChange={open => {
+          if (!open) setRefundEntry(null);
+        }}
+        entry={refundEntry}
+        onRefunded={() => onEntryRefunded?.()}
       />
     </>
   );

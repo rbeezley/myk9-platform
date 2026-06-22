@@ -270,13 +270,17 @@ export function useAtShowEntryListHandlers(
       );
       try {
         await persistRunOrderResults(results);
-        await refresh();
       } catch (error) {
         // The single-class RunOrderDialog fires this fire-and-forget (`void
         // onApplyOrder(...)`), so a re-throw would surface as an unhandled
-        // rejection. Surface the failure as a toast and stop here instead.
+        // rejection. Surface the failure as a toast and stop here instead — the
+        // write didn't land, so there's nothing to re-pull.
         notifyRunOrderPersistError(error);
+        return;
       }
+      // The write landed — re-pull is best-effort reconciliation, kept OUT of the
+      // try so a refresh hiccup can't read as a failed apply (false error toast).
+      await refresh();
     },
     [localEntries, refresh, setIsDragMode]
   );

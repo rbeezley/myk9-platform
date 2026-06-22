@@ -227,7 +227,6 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
       }
       try {
         await applyCombinedRunOrder(localEntries, preset, scope, renumberMode);
-        await refresh();
       } catch (error) {
         // Surface the failure, then re-throw: the ringside CombinedEntryListPage
         // wrapper catches it to close the dialog WITHOUT flashing the success
@@ -235,6 +234,10 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
         notifyRunOrderPersistError(error);
         throw error;
       }
+      // The write landed — re-pull is best-effort reconciliation, kept OUT of the
+      // try so a refresh hiccup can't read as a failed apply (false error toast +
+      // suppressed success banner). The persist outcome alone decides success.
+      await refresh();
     },
     [localEntries, refresh]
   );

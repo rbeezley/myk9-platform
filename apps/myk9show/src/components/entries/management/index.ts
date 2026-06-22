@@ -13,6 +13,6 @@ export { CompEntryDialog } from './CompEntryDialog';
 export { FilterBreadcrumb } from './FilterBreadcrumb';
 export { TrialClassFilters } from './TrialClassFilters';
 export { TrialRosterView } from './TrialRosterView';
-export { ScoringModeWrapper } from './ScoringModeWrapper';
+export { TrialScopeBar } from './TrialScopeBar';
 export { RegistrationView } from './RegistrationView';
 export { ExceptionsView } from './ExceptionsView';

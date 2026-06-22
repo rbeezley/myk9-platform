@@ -28,9 +28,18 @@ interface UseEntryManagementFiltersProps {
   entries: EntryManagementEntry[];
   tabCounts: TabCounts;
   showId?: string;
+  /**
+   * Class ids belonging to the currently-selected trial. Lets the trial filter
+   * narrow the (show-wide) entries list in place. Memoize at the call site so
+   * the filter memo stays stable between renders.
+   */
+  trialClassIds?: readonly string[];
 }
 
-type ViewMode = 'registration' | 'roster' | 'scoring';
+// Phase D: scoring is no longer a view of this page — it is an explicit
+// deep-link out to the dedicated scoresheet. Roster is an opt-in toggle
+// (`?roster=1`), not a side effect of selecting a trial.
+type ViewMode = 'registration' | 'roster';
 
 interface UseEntryManagementFiltersReturn {
   // Filter state
@@ -53,6 +62,9 @@ interface UseEntryManagementFiltersReturn {
   classFilter: string | null;
   setClassFilter: (id: string | null) => void;
   viewMode: ViewMode;
+  /** Whether the explicit Roster toggle is on (only meaningful with a trial). */
+  rosterView: boolean;
+  setRosterView: (on: boolean) => void;
 
   // Selection
   selectedEntries: Set<string>;
@@ -75,6 +87,7 @@ export function useEntryManagementFilters({
   entries,
   tabCounts,
   showId,
+  trialClassIds,
 }: UseEntryManagementFiltersProps): UseEntryManagementFiltersReturn {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState('');
@@ -92,6 +105,8 @@ export function useEntryManagementFilters({
   // Trial/class filters — read from URL search params
   const trialFilter = searchParams.get('trial');
   const classFilter = searchParams.get('class');
+  // Explicit Roster toggle (Phase D) — only meaningful when a trial is selected.
+  const rosterView = searchParams.get('roster') === '1';
 
   useEffect(() => {
     if (normalized.params.toString() !== searchParams.toString()) {
@@ -155,12 +170,27 @@ export function useEntryManagementFilters({
     [setSearchParams]
   );
 
-  // Derived view mode
+  // Derived view mode — Roster only when the secretary explicitly toggles it on
+  // for a selected trial; otherwise the registration list (now filtered in place
+  // by trial/class). Scoring is no longer a view here — it deep-links out.
   const viewMode: ViewMode = useMemo(() => {
-    if (trialFilter && classFilter) return 'scoring';
-    if (trialFilter) return 'roster';
-    return 'registration';
-  }, [trialFilter, classFilter]);
+    return trialFilter && rosterView ? 'roster' : 'registration';
+  }, [trialFilter, rosterView]);
+
+  const setRosterView = useCallback(
+    (on: boolean) => {
+      setSearchParams(
+        prev => {
+          const next = new URLSearchParams(prev);
+          if (on) next.set('roster', '1');
+          else next.delete('roster');
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
 
   const setTrialFilter = useCallback(
     (id: string | null) => {
@@ -171,6 +201,8 @@ export function useEntryManagementFilters({
             next.set('trial', id);
           } else {
             next.delete('trial');
+            // Roster is meaningless without a trial — drop it too.
+            next.delete('roster');
           }
           // Always clear class when trial changes
           next.delete('class');
@@ -210,6 +242,7 @@ export function useEntryManagementFilters({
           const next = new URLSearchParams(prev);
           next.delete('trial');
           next.delete('class');
+          next.delete('roster');
           return next;
         },
         { replace: true }
@@ -220,6 +253,18 @@ export function useEntryManagementFilters({
   // Derive filtered entries from current filter state
   const filteredEntries = useMemo(() => {
     let filtered = entries;
+
+    // Trial/class scope — honest in-place filters now (Phase D): no silent mode
+    // switch. A class filter matches an entry's class directly; a trial filter
+    // needs the trial's class id set (passed from the page) to map entries →
+    // trial. With no class id set available, the trial filter can't narrow, so
+    // it leaves the list untouched rather than emptying it.
+    if (classFilter) {
+      filtered = filtered.filter(e => e.classes.some(c => c.id === classFilter));
+    } else if (trialFilter && trialClassIds && trialClassIds.length > 0) {
+      const ids = new Set(trialClassIds);
+      filtered = filtered.filter(e => e.classes.some(c => ids.has(c.id)));
+    }
 
     // Apply tab filters
     if (attentionFilter === 'pending') {
@@ -256,7 +301,7 @@ export function useEntryManagementFilters({
     }
 
     return filtered;
-  }, [entries, attentionFilter, searchTerm, paymentFilter]);
+  }, [entries, attentionFilter, searchTerm, paymentFilter, classFilter, trialFilter, trialClassIds]);
 
   // Selection handlers
   const handleSelectEntry = useCallback((entryId: string, checked: boolean) => {
@@ -300,6 +345,8 @@ export function useEntryManagementFilters({
     classFilter,
     setClassFilter,
     viewMode,
+    rosterView,
+    setRosterView,
     selectedEntries,
     setSelectedEntries,
     handleSelectEntry,

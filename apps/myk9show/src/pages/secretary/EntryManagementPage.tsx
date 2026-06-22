@@ -52,9 +52,9 @@ const EntryManagementPage: React.FC = () => {
   // entry list in place).
   const trialParam = searchParams.get('trial');
 
-  // Combined tab + filter reset: leaving Entries clears trial/class params so
-  // returning doesn't unexpectedly re-enter scoring mode; the Exceptions queue
-  // (`queue`) only survives while the Exceptions tab is active.
+  // Leaving Entries resets the entry drill-down (trial/class/roster) so a later
+  // return doesn't re-enter scoring/roster unexpectedly; `queue` only survives
+  // while the Exceptions tab is active.
   const handlePageTabChange = (tab: string) => {
     setSearchParams(
       prev => {
@@ -66,6 +66,7 @@ const EntryManagementPage: React.FC = () => {
           next.set('tab', tab);
           next.delete('trial');
           next.delete('class');
+          next.delete('roster');
           if (tab !== 'exceptions') next.delete('queue');
         }
         return next;
@@ -174,9 +175,10 @@ const EntryManagementPage: React.FC = () => {
     ? (trialClasses.find(cl => cl.id === classFilter)?.name ?? null)
     : null;
 
+  // Roster rows for the selected trial, narrowed by the class filter.
   const rosterEntries = useMemo(() => {
     if (!trialEntryRows.length) return [];
-    return trialEntryRows.map(row => ({
+    const rows = trialEntryRows.map(row => ({
       id: row.id,
       armband: row.armband,
       dogName: row.dog?.call_name || row.dog?.name || 'Unknown Dog',
@@ -191,7 +193,8 @@ const EntryManagementPage: React.FC = () => {
       isScored: row.is_scored === true,
       checkInStatus: row.check_in_status || null,
     }));
-  }, [trialEntryRows]);
+    return classFilter ? rows.filter(e => e.classId === classFilter) : rows;
+  }, [trialEntryRows, classFilter]);
 
   const [compDialog, setCompDialog] = useState<{
     open: boolean;
@@ -373,9 +376,7 @@ const EntryManagementPage: React.FC = () => {
               />
 
               {/* Trial scope controls (List/Roster toggle + "Score this class"
-                  deep-link) — only once a trial is selected. Replaces the old
-                  silent mode-switch; nothing changes shape or navigates without
-                  a deliberate click. */}
+                  deep-link) — only once a trial is selected. */}
               {trialFilter && (
                 <TrialScopeBar
                   rosterView={rosterView}
@@ -434,7 +435,7 @@ const EntryManagementPage: React.FC = () => {
                 />
               )}
 
-              {/* Roster view: trial entries grouped by class (explicit toggle) */}
+              {/* Roster view: trial entries (explicit toggle, class-filtered). */}
               {viewMode === 'roster' && (
                 <TrialRosterView
                   entries={rosterEntries}

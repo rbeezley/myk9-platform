@@ -87,6 +87,7 @@ import { ShowPresenceStack } from '@/features/show-presence/ShowPresenceStack';
 import { LiveUpdateIndicator } from '@/features/show-live-sync/LiveUpdateIndicator';
 import { SHOW_MANAGEMENT_SECTIONS } from '@/routes/showManagementSections';
 import { SETUP_PUBLISH_ANCHOR } from '@/features/show-workbench/setupReadinessSignals';
+import { selectOwnedDogIds } from '@/utils/dogOwnership';
 
 const ShowMapTab = React.lazy(() => import('@/features/show-map/ShowMapTab'));
 
@@ -302,8 +303,7 @@ const ShowDetailsPage: React.FC = () => {
   const { entries: userEntries, isLoading: userEntriesLoading } = useMyEntries(showId_);
   const userDogIds = useMemo(() => {
     const databaseUserId = userWithRoles?.databaseUserId;
-    if (!databaseUserId) return new Set<string>();
-    return new Set(dogs.filter(dog => dog.ownerId === databaseUserId).map(dog => dog.id));
+    return selectOwnedDogIds(dogs, databaseUserId);
   }, [dogs, userWithRoles?.databaseUserId]);
 
   const userEntryClassIds = useMemo(() => {

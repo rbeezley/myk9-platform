@@ -19,6 +19,7 @@ import {
   findMissingReplicatedUserEntryRelations,
 } from './userEntriesReplication';
 import { hasScoredResult } from './resultVisibility';
+import { selectOwnedDogIds } from '@/utils/dogOwnership';
 
 // ---------------------------------------------------------------------------
 // PostgREST fallback wrappers (original implementations)
@@ -336,7 +337,7 @@ export const getUserEntries = async (userId: string) => {
     const classesMap = buildMapFromArray(classes, c => c.id);
     const showsMap = buildMapFromArray(shows, s => s.id);
     const trialsMap = buildMapFromArray(trials, t => t.id);
-    const ownedDogIds = new Set(dogs.filter(dog => dog.ownerId === userId).map(dog => dog.id));
+    const ownedDogIds = selectOwnedDogIds(dogs, userId);
     const filtered = allEntries.filter(
       e => e.handlerId === userId || (e.dogId ? ownedDogIds.has(e.dogId) : false)
     );

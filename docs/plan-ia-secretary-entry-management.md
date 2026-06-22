@@ -36,6 +36,7 @@ These three were the genuine IA decisions gating this plan. Per `CLAUDE.md` ("st
 
 ## Phase A — Delete the orphan filter component (free win)
 
+**Status:** ✅ Implemented in PR #901 (pending merge).
 **Finding:** F6. **Risk:** none. **Est:** 1 PR.
 
 **Entry trigger:** Now. Independent of all other phases.
@@ -54,6 +55,7 @@ These three were the genuine IA decisions gating this plan. Per `CLAUDE.md` ("st
 
 ## Phase B — De-overload the row action menus
 
+**Status:** ✅ Implemented in PR #901 (pending merge). Status menu grouped (status block / quiet "Payment" header with `CreditCard` cues / separated destructive Remove); payment menu grouped into Mark paid / Adjust / Reset. Implementation note: Base UI `DropdownMenuLabel` (`MenuGroupLabel`) **must** be wrapped in a `DropdownMenuGroup` or it throws `MenuGroupContext is missing` — each labeled section is wrapped accordingly.
 **Findings:** F3 (status menu, `EntryListCard.tsx:252-314`), F5 (payment menu, `EnrollmentCard.tsx:242-280`). **Risk:** low (presentation only — no behavior change). **Est:** 1 PR.
 
 **Entry trigger:** Phase A merged (avoids two PRs touching the same files in parallel).

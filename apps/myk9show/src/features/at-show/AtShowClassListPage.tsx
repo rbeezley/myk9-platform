@@ -199,16 +199,15 @@ export const AtShowClassListPage: React.FC = () => {
                         onClick={() => handleClassClick(entry)}
                         className={cn(
                           'flex min-h-12 w-full items-center gap-3 rounded-xl border bg-card px-4 py-3 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md active:scale-[0.99]',
-                          entry.is_favorite && 'border-emerald-400 bg-emerald-50'
+                          // #923 tokenized the favorite (theme-aware, calm in
+                          // dark); keep that and add this PR's 48px tap floor.
+                          entry.is_favorite && 'border-primary bg-primary/5'
                         )}
                       >
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             {entry.is_favorite && (
-                              <Star
-                                size={15}
-                                className="shrink-0 fill-emerald-600 text-emerald-600"
-                              />
+                              <Star size={15} className="shrink-0 fill-primary text-primary" />
                             )}
                             <span className="truncate font-medium">{entry.class_name}</span>
                           </div>

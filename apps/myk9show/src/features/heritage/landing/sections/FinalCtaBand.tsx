@@ -18,9 +18,9 @@ export function FinalCtaBand({ entryWizardUrl, canEnterOnline = true }: FinalCta
         <div
           className="flex h-14 w-14 items-center justify-center rounded-full border text-2xl"
           style={{
-            borderColor: 'var(--hl-gold)',
+            borderColor: 'var(--hl-gold-on-dark)',
             fontFamily: "'Cormorant Garamond', Georgia, serif",
-            color: 'var(--hl-gold)',
+            color: 'var(--hl-gold-on-dark)',
           }}
         >
           {heritageOrnaments.diamond}
@@ -36,11 +36,12 @@ export function FinalCtaBand({ entryWizardUrl, canEnterOnline = true }: FinalCta
         >
           {canEnterOnline ? (
             <>
-              You are <em style={{ color: 'var(--hl-gold)' }}>cordially</em> invited.
+              You are <em style={{ color: 'var(--hl-gold-on-dark)' }}>cordially</em> invited.
             </>
           ) : (
             <>
-              Entries open when <em style={{ color: 'var(--hl-gold)' }}>classes are assigned</em>.
+              Entries open when{' '}
+              <em style={{ color: 'var(--hl-gold-on-dark)' }}>classes are assigned</em>.
             </>
           )}
         </p>
@@ -49,7 +50,7 @@ export function FinalCtaBand({ entryWizardUrl, canEnterOnline = true }: FinalCta
           <>
             <p
               className="text-sm leading-relaxed"
-              style={{ color: '#b8a99a', fontFamily: "'EB Garamond', Georgia, serif" }}
+              style={{ color: 'var(--hl-paper-soft)', fontFamily: "'EB Garamond', Georgia, serif" }}
             >
               Join us for this licensed trial and test your partnership against the finest scent work
               standards.
@@ -57,7 +58,7 @@ export function FinalCtaBand({ entryWizardUrl, canEnterOnline = true }: FinalCta
 
             <a
               href={entryWizardUrl}
-              className="border px-10 py-4 text-sm uppercase tracking-widest transition-colors text-[var(--hl-paper)] hover:bg-[var(--hl-paper)] hover:text-[var(--hl-ink)]"
+              className="inline-flex min-h-[44px] items-center justify-center border px-10 py-4 text-sm uppercase tracking-widest transition-colors text-[var(--hl-paper)] hover:bg-[var(--hl-paper)] hover:text-[var(--hl-ink)]"
               style={{
                 borderColor: 'var(--hl-paper)',
                 fontFamily: "'EB Garamond', Georgia, serif",
@@ -78,17 +79,20 @@ export function FinalCtaBand({ entryWizardUrl, canEnterOnline = true }: FinalCta
                 <div
                   key={method.title}
                   className="border p-4 text-center"
-                  style={{ borderColor: '#3a3028' }}
+                  style={{ borderColor: 'var(--hl-ink-border)' }}
                 >
                   <p
                     className="text-xs uppercase tracking-widest"
-                    style={{ color: 'var(--hl-gold)', fontFamily: "'EB Garamond', Georgia, serif" }}
+                    style={{
+                      color: 'var(--hl-gold-on-dark)',
+                      fontFamily: "'EB Garamond', Georgia, serif",
+                    }}
                   >
                     {method.title}
                   </p>
                   <p
                     className="mt-1 text-xs"
-                    style={{ color: '#8a7a6a', fontFamily: "'EB Garamond', Georgia, serif" }}
+                    style={{ color: 'var(--hl-paper-muted)', fontFamily: "'EB Garamond', Georgia, serif" }}
                   >
                     {method.desc}
                   </p>
@@ -99,7 +103,7 @@ export function FinalCtaBand({ entryWizardUrl, canEnterOnline = true }: FinalCta
         ) : (
           <p
             className="text-sm leading-relaxed"
-            style={{ color: '#b8a99a', fontFamily: "'EB Garamond', Georgia, serif" }}
+            style={{ color: 'var(--hl-paper-soft)', fontFamily: "'EB Garamond', Georgia, serif" }}
           >
             The secretary still needs to assign classes before online entry is available.
           </p>

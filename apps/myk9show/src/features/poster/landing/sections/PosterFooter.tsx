@@ -98,12 +98,12 @@ export function PosterFooter({
           </h4>
           {secretaryName && <p style={footerLink}>{secretaryName}</p>}
           {secretaryEmail && (
-            <a href={`mailto:${secretaryEmail}`} style={footerLink}>
+            <a href={`mailto:${secretaryEmail}`} style={footerLinkInteractive}>
               {secretaryEmail}
             </a>
           )}
           {secretaryPhone && (
-            <a href={`tel:${secretaryPhone}`} style={footerLink}>
+            <a href={`tel:${secretaryPhone}`} style={footerLinkInteractive}>
               {secretaryPhone}
             </a>
           )}
@@ -158,4 +158,13 @@ const footerLink = {
   letterSpacing: '0.02em',
   lineHeight: 1.7,
   textDecoration: 'none',
+} as const;
+
+// Interactive variant — anchors get a ≥44px tap target while the
+// non-interactive <p> labels keep the compact `footerLink` rhythm.
+const footerLinkInteractive = {
+  ...footerLink,
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 44,
 } as const;

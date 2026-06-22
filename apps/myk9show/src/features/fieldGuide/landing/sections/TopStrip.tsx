@@ -48,7 +48,14 @@ export function TopStrip({
           <a
             key={a}
             href={`#${a}`}
-            style={{ color: 'rgba(246,241,230,0.7)', textDecoration: 'none' }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 44,
+              color: fieldGuideColors.paperTranslucent,
+              textDecoration: 'none',
+            }}
           >
             {a}
           </a>
@@ -58,6 +65,10 @@ export function TopStrip({
         <a
           href={entryWizardUrl}
           style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: 44,
             padding: '4px 12px',
             background: fieldGuideColors.orange,
             color: fieldGuideColors.paper,
@@ -71,7 +82,7 @@ export function TopStrip({
           style={{
             padding: '4px 12px',
             border: `1px solid ${fieldGuideColors.mute}`,
-            color: 'rgba(246,241,230,0.7)',
+            color: fieldGuideColors.paperTranslucent,
           }}
         >
           Classes pending

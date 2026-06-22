@@ -51,7 +51,7 @@ function CapacityMeter({ count, limit }: { count: number; limit: number | null }
       {pct != null && (
         <div
           className="h-1.5 w-full max-w-md overflow-hidden rounded-full"
-          style={{ background: 'var(--hl-paperDark, #d9d2c2)' }}
+          style={{ background: 'var(--hl-paper-dark)' }}
         >
           <div className="h-full hl-capacity-bar" />
         </div>

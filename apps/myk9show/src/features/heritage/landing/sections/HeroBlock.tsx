@@ -213,7 +213,7 @@ export function HeroBlock({
           {canEnterOnline ? (
             <a
               href={entryWizardUrl}
-              className="mt-4 border px-8 py-3 text-sm uppercase tracking-widest transition-colors text-[var(--hl-claret)] hover:bg-[var(--hl-claret)] hover:text-[var(--hl-paper)]"
+              className="mt-4 inline-flex min-h-[44px] items-center justify-center border px-8 py-3 text-sm uppercase tracking-widest transition-colors text-[var(--hl-claret)] hover:bg-[var(--hl-claret)] hover:text-[var(--hl-paper)]"
               style={{
                 borderColor: 'var(--hl-claret)',
                 fontFamily: "'EB Garamond', Georgia, serif",

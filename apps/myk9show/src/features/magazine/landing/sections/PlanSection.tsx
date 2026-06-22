@@ -53,7 +53,7 @@ function PlanCard({ item, index }: { item: MagazineAccommodation; index: number 
           href={item.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="self-start underline"
+          className="inline-flex min-h-[44px] items-center justify-center self-start underline"
           style={{
             color: 'var(--mz-ink)',
             fontFamily: 'var(--mz-body)',

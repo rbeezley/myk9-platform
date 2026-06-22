@@ -58,6 +58,19 @@ vi.mock('../CloneFromShowCombobox', () => ({
 
 import { ShowDetailsStep } from '../ShowDetailsStep';
 
+describe('ShowDetailsStep — mobile layout (QA-MOBILE-LAYOUT-BREAK-029)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders all step one controls for mobile layout', () => {
+    render(<ShowDetailsStep />);
+    expect(screen.getByLabelText(/show name/i)).toBeInTheDocument();
+    expect(screen.getByText(/show dates/i)).toBeInTheDocument();
+    expect(screen.getByText(/entry period/i)).toBeInTheDocument();
+  });
+});
+
 describe('ShowDetailsStep — Payment Methods section', () => {
   beforeEach(() => {
     vi.clearAllMocks();

@@ -2,7 +2,7 @@ import * as React from 'react';
 import { AlertDialog as AlertDialogPrimitive } from '@base-ui/react/alert-dialog';
 
 import { cn } from '@/lib/utils';
-import { buttonVariants } from '@/components/ui/button/buttonVariants';
+import { buttonVariants } from '@/components/ui/button';
 import { getNativeButtonProp } from '@/components/ui/base-ui-native-button';
 
 const AlertDialog = AlertDialogPrimitive.Root;

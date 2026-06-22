@@ -987,6 +987,8 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
   // Payment history. Idempotent via the UNIQUE stripe_payment_intent_id /
   // stripe_checkout_session_id; a benign retry hits 23505 and is ignored.
   const paidIds = updateOutcome.paidEntryIds;
+  await resolvePaidWaitlistOffers(paidIds, session.id);
+
   const { error: orderError } = await supabase.from('stripe_orders').insert({
     // customer_id is a UUID FK to stripe_customers(id) — NOT Stripe's cus_… id.
     // A link payer may have no stripe_customers row at all, so leave it null
@@ -1073,6 +1075,29 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       paidIds.length === 1 ? 'y' : 'ies'
     } marked paid (show ${link.show_id})`
   );
+}
+
+async function resolvePaidWaitlistOffers(entryIds: string[], sessionId: string) {
+  if (entryIds.length === 0) return;
+
+  const { error } = await supabase
+    .from('waitlist_entries')
+    .update({ status: 'accepted', updated_at: new Date().toISOString() })
+    .in('promoted_entry_id', entryIds)
+    .eq('status', 'offered');
+
+  if (error) {
+    console.error('Payment link paid but waitlist row could not be resolved:', error);
+    await alertAdmin(
+      'Payment link paid but waitlist offer stayed open',
+      `<p>Session <code>${sessionId}</code> paid entries
+       <code>${entryIds.join(', ')}</code>, but resolving the linked
+       <code>waitlist_entries.promoted_entry_id</code> rows failed:</p>
+       <pre>${error.message}</pre>
+       <p>Recovery: mark the matching waitlist row accepted manually so the
+       cascade does not offer the spot again.</p>`
+    );
+  }
 }
 
 async function loadEntryPaymentLineItemFees(sessionId: string): Promise<Map<string, number>> {

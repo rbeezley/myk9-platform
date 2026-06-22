@@ -77,6 +77,14 @@ describe('stripe-webhook entry_payment_request branch', () => {
     expect(source).toContain('paidIds = updateOutcome.paidEntryIds');
   });
 
+  it('resolves linked waitlist offers only after entries are actually marked paid', () => {
+    expect(source).toContain('await resolvePaidWaitlistOffers(paidIds, session.id)');
+    expect(source).toContain(".from('waitlist_entries')");
+    expect(source).toContain(".update({ status: 'accepted'");
+    expect(source).toContain(".in('promoted_entry_id', entryIds)");
+    expect(source).toContain(".eq('status', 'offered')");
+  });
+
   it('re-reads no-op patch ids so races become invalid refund candidates', () => {
     expect(source).toContain('noOpPatchIds');
     expect(source).toContain(".select('id, payment_status, entry_status')");

@@ -165,6 +165,15 @@ const EntryManagementPage: React.FC = () => {
     trialFilter || ''
   );
 
+  // Breadcrumb display names for the active trial/class filters.
+  const breadcrumbTrial = trialFilter ? trials.find(tr => tr.id === trialFilter) : null;
+  const breadcrumbTrialName = breadcrumbTrial
+    ? breadcrumbTrial.name || `Trial ${breadcrumbTrial.trial_number}`
+    : null;
+  const breadcrumbClassName = classFilter
+    ? (trialClasses.find(cl => cl.id === classFilter)?.name ?? null)
+    : null;
+
   const rosterEntries = useMemo(() => {
     if (!trialEntryRows.length) return [];
     return trialEntryRows.map(row => ({
@@ -357,33 +366,16 @@ const EntryManagementPage: React.FC = () => {
 
               {/* Filter Breadcrumb */}
               <FilterBreadcrumb
-                trialName={
-                  trialFilter
-                    ? (() => {
-                        const t = trials.find(tr => tr.id === trialFilter);
-                        return t ? t.name || `Trial ${t.trial_number}` : null;
-                      })()
-                    : null
-                }
-                className={
-                  classFilter
-                    ? (() => {
-                        const c = trialClasses.find(cl => cl.id === classFilter);
-                        return c?.name || null;
-                      })()
-                    : null
-                }
+                trialName={breadcrumbTrialName}
+                className={breadcrumbClassName}
                 onClearTrial={() => setTrialFilter(null)}
                 onClearClass={() => setClassFilter(null)}
               />
 
-              {/*
-                Trial scope controls — only once a trial is selected. The
-                List/Roster toggle and the "Score this class" deep-link replace
-                the old silent mode-switch (selecting a trial morphed the page;
-                selecting a class redirected off to scoring). Now nothing changes
-                shape or navigates without a deliberate click.
-              */}
+              {/* Trial scope controls (List/Roster toggle + "Score this class"
+                  deep-link) — only once a trial is selected. Replaces the old
+                  silent mode-switch; nothing changes shape or navigates without
+                  a deliberate click. */}
               {trialFilter && (
                 <TrialScopeBar
                   rosterView={rosterView}

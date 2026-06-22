@@ -148,7 +148,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Add Trial Button */}
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold pl-3 border-l-2 border-primary text-primary">
+            <h3 className="text-lg font-semibold text-foreground">
               Trials ({trials.length})
             </h3>
             <Button onClick={handleAddTrial} className="flex items-center gap-2">
@@ -169,7 +169,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
 
           {/* Trial List */}
           {trials.length === 0 ? (
-            <div className="relative rounded-2xl border-2 border-dashed border-primary/20 bg-gradient-to-br from-primary/5 to-transparent p-12 text-center overflow-hidden">
+            <div className="relative rounded-2xl border-2 border-dashed border-primary/20 bg-primary/5 p-12 text-center overflow-hidden">
               {/* Background decoration */}
               <div className="absolute inset-0 opacity-5">
                 <div className="absolute top-4 left-4 w-24 h-24 rounded-full bg-primary" />

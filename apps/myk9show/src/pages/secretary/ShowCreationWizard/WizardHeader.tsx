@@ -11,7 +11,7 @@ interface WizardHeaderProps {
 
 /** Sticky header with a back button and Secretary / Create Show breadcrumb. */
 export const WizardHeader: React.FC<WizardHeaderProps> = ({ editMode, onClose }) => (
-  <div className="border-b bg-card/95 backdrop-blur-xl sticky top-0 z-40">
+  <div className="border-b bg-card sticky top-0 z-40">
     <div className="container mx-auto px-6 py-4 max-w-7xl">
       <div className="flex items-center gap-4">
         <Button

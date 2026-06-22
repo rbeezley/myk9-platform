@@ -30,16 +30,17 @@ interface LineItem {
   price_data: {
     currency: string;
     unit_amount: number;
-    product_data: { name: string; description?: string };
+    product_data: {
+      name: string;
+      description?: string;
+      metadata?: Record<string, string>;
+    };
   };
   quantity: number;
 }
 
 export interface EntryPaymentLinkSessionParams {
   mode: 'payment';
-  // Card only: delayed/async methods would settle via a LATER event
-  // (async_payment_succeeded) the entry webhook doesn't handle, so
-  // checkout.session.completed always means paid for these links.
   payment_method_types: ['card'];
   line_items: LineItem[];
   expires_at: number;
@@ -65,6 +66,7 @@ export function buildEntryPaymentLinkSession(
       product_data: {
         name: `${e.dogName} - ${e.className}`,
         description: e.showName,
+        metadata: { type: 'entry', entry_id: e.entryId },
       },
     },
     quantity: 1,
@@ -79,7 +81,11 @@ export function buildEntryPaymentLinkSession(
       price_data: {
         currency: 'usd',
         unit_amount: platformFeeCents,
-        product_data: { name: 'Platform Fee', description: 'Online entry processing fee' },
+        product_data: {
+          name: 'Platform Fee',
+          description: 'Online entry processing fee',
+          metadata: { type: 'platform_fee' },
+        },
       },
       quantity: 1,
     });

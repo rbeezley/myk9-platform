@@ -12,13 +12,28 @@
  */
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
+import {
+  DEFAULT_WAITLIST_PAYMENT_DEADLINE_HOURS,
+  expireWaitlistOffer,
+  type ExpiredWaitlistOffer,
+  type WaitlistExpirationStripe,
+  type WaitlistExpirationSupabase,
+} from '../_shared/waitlistExpiration.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const cronSecret = Deno.env.get('CRON_SECRET');
+const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY');
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const stripe = stripeSecret
+  ? new Stripe(stripeSecret, {
+      appInfo: { name: 'myK9Show', version: '1.0.0' },
+    })
+  : null;
+const waitlistStripe = stripe as WaitlistExpirationStripe | null;
 
 // CORS configuration - restrict to known app domains
 const ALLOWED_ORIGINS = [
@@ -41,8 +56,20 @@ function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
   };
 }
 
-// Offer expiration time (24 hours)
-const OFFER_EXPIRATION_HOURS = 24;
+async function secretMatches(provided: string | null): Promise<boolean> {
+  if (!provided || !cronSecret) return false;
+
+  const enc = new TextEncoder();
+  const [a, b] = await Promise.all([
+    crypto.subtle.digest('SHA-256', enc.encode(provided)),
+    crypto.subtle.digest('SHA-256', enc.encode(cronSecret)),
+  ]);
+  const av = new Uint8Array(a);
+  const bv = new Uint8Array(b);
+  let diff = 0;
+  for (let i = 0; i < av.length; i++) diff |= av[i] ^ bv[i];
+  return diff === 0;
+}
 
 interface WaitlistEntry {
   id: string;
@@ -50,6 +77,8 @@ interface WaitlistEntry {
   exhibitor_id: string;
   dog_id: string;
   handler_id: string | null;
+  promoted_entry_id: string | null;
+  joined_via: string | null;
   position: number;
   status: string;
   offered_at: string | null;
@@ -82,21 +111,21 @@ interface ExhibitorInfo {
 Deno.serve(async req => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
+  // Handle CORS
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
   // Verify cron secret for security
   const authHeader = req.headers.get('Authorization');
-  const providedSecret = authHeader?.replace('Bearer ', '');
+  const providedSecret = authHeader?.replace('Bearer ', '') ?? null;
 
-  if (!cronSecret || providedSecret !== cronSecret) {
+  if (!(await secretMatches(providedSecret))) {
     console.error('Unauthorized cron request');
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-  }
-
-  // Handle CORS
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   if (req.method !== 'POST') {
@@ -112,13 +141,16 @@ Deno.serve(async req => {
     const results = {
       expiredOffers: 0,
       newOffers: 0,
+      skippedPaidOffers: 0,
+      skippedMailInOffers: 0,
       errors: [] as string[],
     };
+    const classesExpiredThisRun = new Set<string>();
 
     // Step 1: Find and expire offers past their deadline
     const { data: expiredOffers, error: expiredError } = await supabase
       .from('waitlist_entries')
-      .select('id, class_id, exhibitor_id')
+      .select('id, class_id, exhibitor_id, promoted_entry_id, joined_via')
       .eq('status', 'offered')
       .lt('offer_expires_at', new Date().toISOString());
 
@@ -130,46 +162,30 @@ Deno.serve(async req => {
     // Process each expired offer
     for (const offer of expiredOffers || []) {
       try {
-        // Mark as expired
-        const { error: updateError } = await supabase
-          .from('waitlist_entries')
-          .update({
-            status: 'expired',
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', offer.id);
+        if (offer.joined_via === 'mail_in') {
+          results.skippedMailInOffers++;
+          continue;
+        }
 
-        if (updateError) {
-          results.errors.push(`Expire ${offer.id}: ${updateError.message}`);
+        const expired = await expireWaitlistOffer({
+          supabase: supabase as WaitlistExpirationSupabase,
+          stripe: waitlistStripe,
+          offer: offer as ExpiredWaitlistOffer,
+          nowIso: new Date().toISOString(),
+        });
+        if (expired === 'paid') {
+          console.log(`Offer ${offer.id} has a completed payment; leaving it for reconciliation`);
+          results.skippedPaidOffers++;
+          continue;
+        }
+        if (expired === 'error') {
+          results.errors.push(`Expire ${offer.id}: failed`);
           continue;
         }
 
         results.expiredOffers++;
+        classesExpiredThisRun.add(offer.class_id);
         console.log(`Expired offer ${offer.id} for class ${offer.class_id}`);
-
-        // Step 2: Find next in line for this class
-        const { data: nextInLine, error: nextError } = await supabase
-          .from('waitlist_entries')
-          .select('*')
-          .eq('class_id', offer.class_id)
-          .eq('status', 'waiting')
-          .order('position', { ascending: true })
-          .limit(1)
-          .single();
-
-        if (nextError && nextError.code !== 'PGRST116') {
-          // PGRST116 = no rows found (which is fine)
-          results.errors.push(`Find next ${offer.class_id}: ${nextError.message}`);
-          continue;
-        }
-
-        // Step 3: Offer spot to next person
-        if (nextInLine) {
-          const newOffer = await offerSpot(nextInLine);
-          if (newOffer) {
-            results.newOffers++;
-          }
-        }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error';
         results.errors.push(`Process ${offer.id}: ${errorMessage}`);
@@ -178,7 +194,7 @@ Deno.serve(async req => {
 
     // Also check for any classes with available spots but no current offers
     // This handles cases where spots opened up (cancellations) but no one was auto-offered
-    await processClassesWithOpenSpots(results);
+    await processClassesWithOpenSpots(results, classesExpiredThisRun);
 
     console.log(
       `[${new Date().toISOString()}] Cron complete: ${results.expiredOffers} expired, ${results.newOffers} new offers`
@@ -208,30 +224,33 @@ Deno.serve(async req => {
  * Offer a waitlist spot to an exhibitor
  */
 async function offerSpot(entry: WaitlistEntry): Promise<boolean> {
-  const offerExpiresAt = new Date();
-  offerExpiresAt.setHours(offerExpiresAt.getHours() + OFFER_EXPIRATION_HOURS);
+  const { data: promotedEntryId, error: promoteError } = await supabase.rpc(
+    'promote_waitlist_entry_from_cron',
+    {
+      p_waitlist_entry_id: entry.id,
+    }
+  );
 
-  // Update status to offered
-  const { error: updateError } = await supabase
-    .from('waitlist_entries')
-    .update({
-      status: 'offered',
-      offered_at: new Date().toISOString(),
-      offer_expires_at: offerExpiresAt.toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', entry.id);
-
-  if (updateError) {
-    console.error(`Failed to offer spot ${entry.id}:`, updateError);
+  if (promoteError || !promotedEntryId) {
+    console.error(`Failed to promote waitlist spot ${entry.id}:`, promoteError);
     return false;
+  }
+
+  const { data: offeredEntry, error: fetchError } = await supabase
+    .from('waitlist_entries')
+    .select('*')
+    .eq('id', entry.id)
+    .single();
+
+  if (fetchError) {
+    console.error(`Promoted waitlist spot ${entry.id}, but could not reload it:`, fetchError);
   }
 
   console.log(`Offered spot to ${entry.exhibitor_id} for class ${entry.class_id}`);
 
   // Try to send notification email
   try {
-    await sendOfferNotification(entry);
+    await sendOfferNotification((offeredEntry as WaitlistEntry | null) ?? entry);
   } catch (err) {
     console.error('Failed to send notification (non-blocking):', err);
   }
@@ -294,7 +313,15 @@ async function sendOfferNotification(entry: WaitlistEntry): Promise<void> {
 
   const dogName = dog?.call_name || dog?.name || 'your dog';
   const showName = classInfo.trial?.show?.name || 'the show';
+  const showId = classInfo.trial?.show?.id || '';
   const className = classInfo.name || 'the class';
+  const expiresAt = entry.offer_expires_at
+    ? new Date(entry.offer_expires_at)
+    : new Date(new Date().getTime() + DEFAULT_WAITLIST_PAYMENT_DEADLINE_HOURS * 60 * 60 * 1000);
+  const paymentUrl =
+    entry.joined_via !== 'mail_in' && entry.promoted_entry_id && showId
+      ? await createWaitlistPaymentLink(entry.promoted_entry_id, showId)
+      : null;
 
   // Call send-email function
   const emailResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-email`, {
@@ -310,9 +337,8 @@ async function sendOfferNotification(entry: WaitlistEntry): Promise<void> {
       showName,
       className,
       dogName,
-      expiresAt: new Date(
-        new Date().getTime() + OFFER_EXPIRATION_HOURS * 60 * 60 * 1000
-      ).toLocaleString(),
+      expiresAt: expiresAt.toLocaleString(),
+      paymentUrl,
     }),
   });
 
@@ -321,14 +347,49 @@ async function sendOfferNotification(entry: WaitlistEntry): Promise<void> {
   }
 }
 
+async function createWaitlistPaymentLink(entryId: string, showId: string): Promise<string | null> {
+  if (!cronSecret) {
+    console.error('CRON_SECRET is missing; cannot create waitlist payment link');
+    return null;
+  }
+
+  const body = {
+    entry_ids: [entryId],
+    success_url: `https://myk9show.com/shows/${showId}?payment=success`,
+    cancel_url: `https://myk9show.com/shows/${showId}?payment=cancelled`,
+  };
+
+  const response = await fetch(`${supabaseUrl}/functions/v1/stripe-payment-link`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-function-secret': cronSecret,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    console.error('Waitlist payment link creation failed:', await response.text());
+    return null;
+  }
+
+  const data = await response.json();
+  return typeof data?.url === 'string' ? data.url : null;
+}
+
 /**
  * Process classes that have open spots and waiting entries but no current offers
  */
-async function processClassesWithOpenSpots(results: {
-  expiredOffers: number;
-  newOffers: number;
-  errors: string[];
-}): Promise<void> {
+async function processClassesWithOpenSpots(
+  results: {
+    expiredOffers: number;
+    newOffers: number;
+    skippedPaidOffers: number;
+    skippedMailInOffers: number;
+    errors: string[];
+  },
+  skipClassIds: ReadonlySet<string> = new Set()
+): Promise<void> {
   // Find classes with waiting entries but no pending offers
   const { data: classesWithWaiting, error } = await supabase
     .from('waitlist_entries')
@@ -344,6 +405,10 @@ async function processClassesWithOpenSpots(results: {
   const uniqueClassIds = [...new Set(classesWithWaiting.map(w => w.class_id))];
 
   for (const classId of uniqueClassIds) {
+    if (skipClassIds.has(classId)) {
+      continue;
+    }
+
     // Check if there's already an active offer for this class
     const { data: activeOffer } = await supabase
       .from('waitlist_entries')
@@ -377,6 +442,14 @@ async function processClassesWithOpenSpots(results: {
       .single();
 
     if (nextError || !nextInLine) {
+      continue;
+    }
+
+    if (nextInLine.joined_via === 'mail_in') {
+      console.log(
+        `Next waitlist row ${nextInLine.id} for class ${classId} is mail-in; leaving it for secretary handling`
+      );
+      results.skippedMailInOffers++;
       continue;
     }
 

@@ -39,6 +39,28 @@ describe('reconcileEntryPaymentRequest', () => {
     expect(r.patches).toHaveLength(0);
   });
 
+  it('revives a paid waitlist promotion that races the expiry cron latch', () => {
+    const r = reconcileEntryPaymentRequest({
+      ...base,
+      linkStatus: 'expired',
+      expectedEntryIds: ['wl'],
+      entries: [{ id: 'wl', payment_status: 'pending', entry_status: 'promotion-expired' }],
+    });
+
+    expect(r.action).toBe('apply');
+    expect(r.inactiveEntryIds).toEqual([]);
+    expect(r.patches).toEqual([
+      {
+        id: 'wl',
+        payment_status: 'paid',
+        payment_method: 'online',
+        stripe_payment_intent_id: 'pi_123',
+        entry_status: 'confirmed',
+        allowExpiredPromotionClaim: true,
+      },
+    ]);
+  });
+
   it('skips when the session is not actually paid (async/delayed method) — never marks paid on no money', () => {
     const r = reconcileEntryPaymentRequest({ ...base, sessionPaymentStatus: 'unpaid' });
     expect(r.action).toBe('skip');
@@ -54,6 +76,19 @@ describe('reconcileEntryPaymentRequest', () => {
     });
     expect(r.missingEntryIds).toEqual(['gone']);
     expect(r.patches.map(p => p.id)).toEqual(['mailin', 'wl']);
+  });
+
+  it('reports entries that became inactive since the link was created and does not mark them paid', () => {
+    const r = reconcileEntryPaymentRequest({
+      ...base,
+      expectedEntryIds: ['fresh', 'withdrawn'],
+      entries: [
+        { id: 'fresh', payment_status: 'pending', entry_status: 'submitted' },
+        { id: 'withdrawn', payment_status: 'pending', entry_status: 'withdrawn' },
+      ],
+    });
+    expect(r.patches.map(p => p.id)).toEqual(['fresh']);
+    expect(r.inactiveEntryIds).toEqual(['withdrawn']);
   });
 
   it('flags an already-paid entry as a duplicate-charge candidate, does not re-patch it', () => {

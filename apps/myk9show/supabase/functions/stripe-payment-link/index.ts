@@ -4,11 +4,13 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { calculatePlatformFeeCents, resolvePlatformFeePercent } from '../_shared/platformFee.ts';
 import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
 import { buildEntryPaymentLinkSession } from '../_shared/entryPaymentLink.ts';
+import { INACTIVE_ENTRY_STATUSES } from '../_shared/entryPaymentReconcile.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
+const cronSecret = Deno.env.get('CRON_SECRET');
 
 if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey || !stripeSecret) {
   throw new Error('Missing required environment variables');
@@ -42,7 +44,8 @@ function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
   return {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Headers':
+      'authorization, x-client-info, apikey, content-type, x-function-secret',
   };
 }
 
@@ -56,6 +59,21 @@ function corsResponse(body: string | object | null, status = 200) {
     status,
     headers: { ..._corsHeaders, 'Content-Type': 'application/json' },
   });
+}
+
+async function secretMatches(provided: string | null): Promise<boolean> {
+  if (!provided || !cronSecret) return false;
+
+  const enc = new TextEncoder();
+  const [a, b] = await Promise.all([
+    crypto.subtle.digest('SHA-256', enc.encode(provided)),
+    crypto.subtle.digest('SHA-256', enc.encode(cronSecret)),
+  ]);
+  const av = new Uint8Array(a);
+  const bv = new Uint8Array(b);
+  let diff = 0;
+  for (let i = 0; i < av.length; i++) diff |= av[i] ^ bv[i];
+  return diff === 0;
 }
 
 /** Prevent open-redirect: success/cancel must point at one of our origins. */
@@ -72,17 +90,6 @@ interface PaymentLinkRequest {
   success_url: string;
   cancel_url: string;
 }
-
-// Entry lifecycle states that must NOT be charged even if still payment-pending:
-// a withdrawn/scratched/rejected/expired entry isn't in the show.
-const INACTIVE_ENTRY_STATUSES = new Set([
-  'withdrawn',
-  'scratched',
-  'not_accepted',
-  'absent',
-  'promotion-expired',
-  'cancelled',
-]);
 
 interface EntryRow {
   id: string;
@@ -107,17 +114,24 @@ Deno.serve(async req => {
     if (req.method === 'OPTIONS') return corsResponse({}, 204);
     if (req.method !== 'POST') return corsResponse({ error: 'Method not allowed' }, 405);
 
-    // Authenticate the caller (the secretary/admin issuing the link).
+    const isInternalCall = await secretMatches(req.headers.get('x-function-secret'));
+
+    // Authenticate the caller (the secretary/admin issuing the link). Cron may
+    // call with x-function-secret after it creates a waitlist promotion.
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) return corsResponse({ error: 'Missing Authorization header' }, 401);
-    const token = authHeader.replace('Bearer ', '');
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(token);
-    if (authError || !user) {
-      console.error('Authentication failed:', authError);
-      return corsResponse({ error: 'Authentication failed' }, 401);
+    let userId: string | null = null;
+    if (!isInternalCall) {
+      if (!authHeader) return corsResponse({ error: 'Missing Authorization header' }, 401);
+      const token = authHeader.replace('Bearer ', '');
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser(token);
+      if (authError || !user) {
+        console.error('Authentication failed:', authError);
+        return corsResponse({ error: 'Authentication failed' }, 401);
+      }
+      userId = user.id;
     }
 
     const body: PaymentLinkRequest = await req.json();
@@ -165,23 +179,25 @@ Deno.serve(async req => {
     }
     const show = entries[0].show;
 
-    // Authorize AS THE CALLER via the canonical SQL predicates (mirror
-    // stripe-refund-entry): show-scoped secretary, the club's admin, or site
-    // admin. No club → no club-admin path (is_club_admin(NULL) = any club).
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const [secretaryRes, clubAdminRes, siteAdminRes] = await Promise.all([
-      userClient.rpc('is_show_secretary', { check_show_id: show.id }),
-      show.club_id
-        ? userClient.rpc('is_club_admin', { check_club_id: show.club_id })
-        : Promise.resolve({ data: false }),
-      userClient.rpc('is_site_admin'),
-    ]);
-    const authorized =
-      secretaryRes.data === true || clubAdminRes.data === true || siteAdminRes.data === true;
-    if (!authorized) {
-      return corsResponse({ error: 'Not authorized to request payment for this show' }, 403);
+    if (!isInternalCall) {
+      // Authorize AS THE CALLER via the canonical SQL predicates (mirror
+      // stripe-refund-entry): show-scoped secretary, the club's admin, or site
+      // admin. No club → no club-admin path (is_club_admin(NULL) = any club).
+      const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const [secretaryRes, clubAdminRes, siteAdminRes] = await Promise.all([
+        userClient.rpc('is_show_secretary', { check_show_id: show.id }),
+        show.club_id
+          ? userClient.rpc('is_club_admin', { check_club_id: show.club_id })
+          : Promise.resolve({ data: false }),
+        userClient.rpc('is_site_admin'),
+      ]);
+      const authorized =
+        secretaryRes.data === true || clubAdminRes.data === true || siteAdminRes.data === true;
+      if (!authorized) {
+        return corsResponse({ error: 'Not authorized to request payment for this show' }, 403);
+      }
     }
 
     // The club must be able to receive online entry fees (the charge lands in
@@ -259,40 +275,57 @@ Deno.serve(async req => {
       .overlaps('entry_ids', entry_ids);
     for (const prior of priorLinks ?? []) {
       // A prior link that was JUST paid (webhook not yet processed) still reads
-      // 'open'. Expiring it would throw (can't expire a completed session) AND
-      // marking it 'expired' here would make the webhook skip it → the real
-      // payment never reconciles (orphaned charge). Inspect first: if it's
-      // already complete, abort this re-request rather than double-issue/orphan.
+      // 'open'. Inspect first: only payment_status='paid' blocks re-request.
+      // A completed-but-unpaid async session should be closed locally so the
+      // secretary can issue a fresh card-only link.
       let priorStatus: string | null = null;
+      let priorPaymentStatus: string | null = null;
       try {
         const priorSession = await stripe.checkout.sessions.retrieve(
           prior.stripe_checkout_session_id
         );
         priorStatus = priorSession.status ?? null;
+        priorPaymentStatus = priorSession.payment_status ?? null;
       } catch (err) {
         console.log(`Could not inspect prior session ${prior.stripe_checkout_session_id}:`, err);
       }
       const justCompleted =
         'A payment for one of these entries just completed — refresh to see it before requesting again.';
-      if (priorStatus === 'complete') {
+      if (priorPaymentStatus === 'paid') {
         return corsResponse({ error: justCompleted }, 409);
+      }
+      if (priorStatus && priorStatus !== 'open') {
+        await supabase
+          .from('entry_payment_links')
+          .update({ status: 'expired', updated_at: nowIso })
+          .eq('id', prior.id);
+        continue;
       }
       try {
         await stripe.checkout.sessions.expire(prior.stripe_checkout_session_id);
       } catch (err) {
         // expire() can fail because the session was paid in the gap between our
-        // retrieve and now. Re-check: if it's complete, abort (let the webhook
-        // reconcile the real payment) — and crucially do NOT mark the row
-        // 'expired', which would make the webhook skip the charge (orphan).
-        let recheck: string | null = null;
+        // retrieve and now. Re-check payment_status: if paid, abort and let the
+        // webhook reconcile the real payment; if it completed unpaid, close the
+        // app-side link so this re-request can proceed.
+        let recheckStatus: string | null = null;
+        let recheckPaymentStatus: string | null = null;
         try {
-          recheck = (await stripe.checkout.sessions.retrieve(prior.stripe_checkout_session_id))
-            .status;
+          const recheck = await stripe.checkout.sessions.retrieve(prior.stripe_checkout_session_id);
+          recheckStatus = recheck.status ?? null;
+          recheckPaymentStatus = recheck.payment_status ?? null;
         } catch {
           // ignore — fall through to leaving the row 'open'
         }
-        if (recheck === 'complete') {
+        if (recheckPaymentStatus === 'paid') {
           return corsResponse({ error: justCompleted }, 409);
+        }
+        if (recheckStatus && recheckStatus !== 'open') {
+          await supabase
+            .from('entry_payment_links')
+            .update({ status: 'expired', updated_at: nowIso })
+            .eq('id', prior.id);
+          continue;
         }
         console.log(
           `Could not expire prior session ${prior.stripe_checkout_session_id} — leaving link open:`,
@@ -327,7 +360,7 @@ Deno.serve(async req => {
       stripe_checkout_session_id: session.id,
       status: 'open',
       amount_cents: amountCents,
-      created_by: user.id,
+      created_by: userId,
     });
     if (insertError) {
       // Without the persisted row the webhook can still reconcile from session
@@ -345,7 +378,7 @@ Deno.serve(async req => {
     console.log(
       `Created entry payment link ${session.id} for ${entry_ids.length} entr${
         entry_ids.length === 1 ? 'y' : 'ies'
-      } (show ${show.id}) by ${user.id}`
+      } (show ${show.id}) by ${userId ?? 'cron'}`
     );
     // Return the exact breakdown so the dialog can disclose entry fee + platform
     // fee = total (fee-on-top) without re-deriving fee math on the client.

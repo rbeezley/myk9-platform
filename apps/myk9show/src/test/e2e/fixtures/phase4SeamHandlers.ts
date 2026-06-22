@@ -14,8 +14,8 @@
  *            { entry_status:'scratched', check_in_status:'pulled' }  (`.single()`)
  *            services/database/entries/lifecycle.ts
  * Seam 2 — waitlist:
- *   offer    PATCH /rest/v1/waitlist_entries?id=eq.<id> { status:'offered', ... }
- *   accept   GET offered (`.single()`) + POST /rest/v1/entries + DELETE waitlist row
+ *   promote  POST /rest/v1/rpc/promote_waitlist_entry
+ *            -> creates entries.entry_status='pending-payment' and keeps row offered
  *            services/database/waitlists/reads.ts
  * Seam 3 — entry question:
  *   thread   GET/POST /rest/v1/show_message_threads (getOrCreateThread `.single()`)
@@ -42,7 +42,6 @@ import {
   error,
   extractEqFilter,
   fulfilled,
-  JSON_CT,
   noRow,
   singleOrArray,
   type HandleOptions,
@@ -77,12 +76,75 @@ export function handleFixtureWrite(
   }
 }
 
+export function handleFixtureRpc(
+  state: Phase4SeamState,
+  name: string,
+  req: SeamRequest,
+  options?: HandleOptions
+): { response: SeamResponse; seam: SeamName } {
+  if (name !== 'promote_waitlist_entry') {
+    return { response: error(500, `No RPC handler for ${name}`), seam: 'read' };
+  }
+
+  const body = asObject(req.postData);
+  const waitlistEntryId =
+    typeof body?.p_waitlist_entry_id === 'string' ? body.p_waitlist_entry_id : null;
+  const deadlineHours = typeof body?.p_deadline_hours === 'number' ? body.p_deadline_hours : 48;
+
+  if (!waitlistEntryId || !state.waitlistEntries[waitlistEntryId]) {
+    return {
+      response: error(500, `Unexpected waitlist promotion target: ${waitlistEntryId}`),
+      seam: 'waitlist',
+    };
+  }
+
+  const row = state.waitlistEntries[waitlistEntryId];
+  if (row.status !== 'waiting') {
+    return {
+      response: error(400, 'Waitlist entry is not available for promotion'),
+      seam: 'waitlist',
+    };
+  }
+
+  const now = clock(options);
+  const promotedEntryId = `phase4-entry-promoted-${++state.sequence}`;
+  row.status = 'offered';
+  row.offered_at = now.toISOString();
+  row.offer_expires_at = new Date(now.getTime() + deadlineHours * 60 * 60 * 1000).toISOString();
+  row.promoted_entry_id = promotedEntryId;
+  row.updated_at = now.toISOString();
+
+  const cls = state.classes[row.class_id];
+  state.entries[promotedEntryId] = {
+    id: promotedEntryId,
+    show_id: row.show_id,
+    trial_id: cls?.trial_id ?? PHASE4_IDS.trial,
+    class_id: row.class_id,
+    dog_id: row.dog_id,
+    handler_id: row.handler_id,
+    exhibitor_user_id: row.exhibitor_user_id,
+    enrollment_id: null,
+    entry_status: 'pending-payment',
+    check_in_status: 'not-checked-in',
+    payment_status: 'pending',
+    entry_fee: cls?.entry_fee ?? 30,
+    handler: state.users.exhibitorA.name,
+    armband: null,
+    special_requests: null,
+    is_scored: false,
+    final_placement: null,
+    updated_at: row.updated_at,
+  };
+
+  return { response: fulfilled(200, promotedEntryId), seam: 'waitlist' };
+}
+
 function handleEntriesWrite(
   state: Phase4SeamState,
   req: SeamRequest,
   options?: HandleOptions
 ): { response: SeamResponse; seam: SeamName } {
-  // INSERT (waitlist acceptance) has no id filter and an array/object body.
+  // INSERT has no id filter and an array/object body.
   if (req.method.toUpperCase() === 'POST') {
     const body = asObject(req.postData);
     if (!body || typeof body.class_id !== 'string' || typeof body.dog_id !== 'string') {
@@ -109,7 +171,6 @@ function handleEntriesWrite(
       final_placement: null,
       updated_at: clock(options).toISOString(),
     };
-    // acceptWaitlistOffer inserts with `.select().single()` -> 201 single object.
     return { response: singleOrArray(req, state.entries[id], 201), seam: 'waitlist' };
   }
 
@@ -167,12 +228,10 @@ function handleWaitlistWrite(
     return { response: error(500, `Unexpected waitlist target: ${id}`) };
   }
 
-  // Acceptance: acceptWaitlistOffer DELETEs the waitlist row after inserting the
-  // confirmed entry (it does NOT PATCH status='accepted'). PostgREST delete
-  // without a returning clause -> 204 No Content.
+  // Waitlist promotion is handled by the promote_waitlist_entry RPC. Deleting
+  // the row here would reintroduce the retired grant-then-collect path.
   if (req.method.toUpperCase() === 'DELETE') {
-    delete state.waitlistEntries[id];
-    return { response: { action: 'fulfill', status: 204, body: '', contentType: JSON_CT } };
+    return { response: error(500, 'Waitlist DELETE is not part of the pay-to-claim fixture') };
   }
 
   const body = asObject(req.postData);
@@ -180,7 +239,6 @@ function handleWaitlistWrite(
     return { response: error(500, 'Malformed waitlist PATCH payload') };
   }
   const row = state.waitlistEntries[id];
-  // offerWaitlistSpot is the only fixture PATCH: 'waiting' -> 'offered'.
   if (body.status === 'offered') {
     row.status = 'offered';
     row.offered_at =
@@ -392,8 +450,7 @@ export function handleFixtureRead(
       return { response: fulfilled(200, rows), seam: 'results' };
     }
     case 'waitlist_entries': {
-      // Serves both the class roster (array) and acceptWaitlistOffer's guarded
-      // `.eq('id').eq('status','offered').single()` fetch (single object / 406).
+      // Serves the waitlist roster and direct row reads.
       const id = extractEqFilter(req.url, 'id');
       const showId = extractEqFilter(req.url, 'show_id');
       const classId = extractEqFilter(req.url, 'class_id');

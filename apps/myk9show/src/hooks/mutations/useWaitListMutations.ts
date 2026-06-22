@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryClient';
+import { classAvailabilityQueryKey } from '@/hooks/useClassAvailability';
 import { reassignClassJudge } from '@/services/database/judges';
 import {
   bulkPromoteWaitlistEntries,
@@ -14,12 +15,13 @@ export function useWaitListMutations(showId: string) {
   const invalidateShow = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.show(showId) });
     queryClient.invalidateQueries({ queryKey: queryKeys.showEntries(showId) });
+    queryClient.invalidateQueries({ queryKey: classAvailabilityQueryKey(showId) });
   };
 
   const promoteEntry = useMutation({
     mutationFn: ({
       waitlistEntryId,
-      deadlineHours = 24,
+      deadlineHours,
     }: {
       waitlistEntryId: string;
       deadlineHours?: number;
@@ -36,13 +38,8 @@ export function useWaitListMutations(showId: string) {
   });
 
   const bulkPromote = useMutation({
-    mutationFn: ({
-      entryIds,
-      deadlineHours = 24,
-    }: {
-      entryIds: string[];
-      deadlineHours?: number;
-    }) => bulkPromoteWaitlistEntries(entryIds, deadlineHours),
+    mutationFn: ({ entryIds, deadlineHours }: { entryIds: string[]; deadlineHours?: number }) =>
+      bulkPromoteWaitlistEntries(entryIds, deadlineHours),
     onSettled: invalidateShow,
   });
 

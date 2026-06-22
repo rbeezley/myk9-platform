@@ -2,7 +2,7 @@
  * Phase 4 cross-role seam fixture model.
  *
  * Typed, in-memory model of ONE complete cross-role show used to exercise the
- * five Phase 4 seams (scratch/pull, waitlist offer/accept, entry question,
+ * five Phase 4 seams (scratch/pull, waitlist promotion, entry question,
  * withdrawal/refund, results release) without mutating the shared Supabase
  * project. `createPhase4SeamState()` returns a fresh, deeply-cloned mutable
  * state per test so retries and later tests never inherit mutated data.
@@ -52,6 +52,7 @@ export const PHASE4_ROUTES = {
 
 export type EntryStatus =
   | 'confirmed'
+  | 'pending-payment'
   | 'scratch-requested'
   | 'scratched'
   | 'withdrawn'
@@ -62,7 +63,7 @@ export type CheckInStatus = 'not-checked-in' | 'checked-in' | 'pulled';
 export type PaymentStatus = 'pending' | 'paid' | 'refunded' | 'partial-refund';
 
 // Matches src/types/waitlist-types.ts. A pending row is 'waiting' (NOT
-// 'waitlisted'); acceptance DELETEs the row rather than setting 'accepted'.
+// 'waitlisted'); promotion keeps the row offered while payment is pending.
 export type WaitlistStatus = 'waiting' | 'offered' | 'accepted' | 'declined' | 'expired';
 
 export interface FixtureUser {
@@ -133,8 +134,8 @@ export interface FixtureWaitlistEntry {
   status: WaitlistStatus;
   offered_at: string | null;
   offer_expires_at: string | null;
-  /** Entry id created when the offer is accepted (waitlist -> confirmed entry). */
-  accepted_entry_id: string | null;
+  /** Entry id created when the offer is promoted (waitlist -> pending-payment entry). */
+  promoted_entry_id: string | null;
   updated_at: string;
 }
 
@@ -366,7 +367,7 @@ function seedState(): Phase4SeamState {
         status: 'waiting',
         offered_at: null,
         offer_expires_at: null,
-        accepted_entry_id: null,
+        promoted_entry_id: null,
         updated_at: SEED_TS,
       },
     },

@@ -35,6 +35,8 @@ export interface EntryPaymentPatch {
   stripe_payment_intent_id: string | null;
   /** Set only when advancing a promoted waitlist entry's lifecycle. */
   entry_status?: 'confirmed';
+  /** True only for a paid webhook racing a just-expired promotion offer. */
+  allowExpiredPromotionClaim?: true;
 }
 
 export interface ReconcileResult {
@@ -50,17 +52,30 @@ export interface ReconcileResult {
   /** Expected entries no longer present (deleted since the link was created) —
    *  paid-for-nothing; the caller alerts (Task 3.5 Step 3 refund). */
   missingEntryIds: string[];
+  /** Entries still present but no longer active in the show. */
+  inactiveEntryIds: string[];
 }
 
 const UNPAID = 'pending';
 const WAITLIST_PENDING = 'pending-payment';
+const WAITLIST_EXPIRED = 'promotion-expired';
+export const INACTIVE_ENTRY_STATUSES = new Set([
+  'withdrawn',
+  'scratched',
+  'not_accepted',
+  'absent',
+  'promotion-expired',
+  'cancelled',
+]);
 
 export function reconcileEntryPaymentRequest(input: ReconcileInput): ReconcileResult {
-  const empty = { patches: [], alreadyPaidEntryIds: [], missingEntryIds: [] };
+  const empty = { patches: [], alreadyPaidEntryIds: [], missingEntryIds: [], inactiveEntryIds: [] };
 
   // The link row is the idempotency latch: once it leaves 'open' (we marked it
   // 'paid'/'expired'), a re-delivered event must not touch entries again.
-  if (input.linkStatus !== 'open') {
+  const paidExpiredPromotionLink =
+    input.linkStatus === 'expired' && input.sessionPaymentStatus === 'paid';
+  if (input.linkStatus !== 'open' && !paidExpiredPromotionLink) {
     return { action: 'skip', skipReason: 'link_not_open', ...empty };
   }
   // checkout.session.completed can fire for an unpaid async method — never mark
@@ -74,8 +89,32 @@ export function reconcileEntryPaymentRequest(input: ReconcileInput): ReconcileRe
 
   const patches: EntryPaymentPatch[] = [];
   const alreadyPaidEntryIds: string[] = [];
+  const inactiveEntryIds: string[] = [];
 
   for (const e of input.entries) {
+    const isExpiredPromotionClaim =
+      input.linkStatus === 'expired' &&
+      input.sessionPaymentStatus === 'paid' &&
+      e.payment_status === UNPAID &&
+      e.entry_status === WAITLIST_EXPIRED;
+
+    if (isExpiredPromotionClaim) {
+      patches.push({
+        id: e.id,
+        payment_status: 'paid',
+        payment_method: 'online',
+        stripe_payment_intent_id: input.paymentIntentId,
+        entry_status: 'confirmed',
+        allowExpiredPromotionClaim: true,
+      });
+      continue;
+    }
+
+    if (INACTIVE_ENTRY_STATUSES.has(e.entry_status ?? '')) {
+      inactiveEntryIds.push(e.id);
+      continue;
+    }
+
     if (e.payment_status === UNPAID) {
       const patch: EntryPaymentPatch = {
         id: e.id,
@@ -96,5 +135,5 @@ export function reconcileEntryPaymentRequest(input: ReconcileInput): ReconcileRe
     }
   }
 
-  return { action: 'apply', patches, alreadyPaidEntryIds, missingEntryIds };
+  return { action: 'apply', patches, alreadyPaidEntryIds, missingEntryIds, inactiveEntryIds };
 }

@@ -4,10 +4,12 @@
  * judge's total entries for that date, not per-class max_entries.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
 import { IN_RING_STATUSES } from '@/types/entry-lifecycle';
+import { calculateMailInReserved } from '@/utils/waitlistCapacity';
 
 export interface ClassAvailability {
   classId: string;
@@ -64,6 +66,8 @@ interface ShowCapacityRow {
   default_judge_day_capacity: number;
   mail_in_strategy: string | null;
   mail_in_value: number | null;
+  mail_in_auto_release: boolean | null;
+  mail_in_release_date: string | null;
 }
 
 interface UseClassAvailabilityResult {
@@ -75,22 +79,17 @@ interface UseClassAvailabilityResult {
   fullClasses: number;
 }
 
+export const classAvailabilityQueryKey = (showId: string | undefined) =>
+  ['shows', showId, 'class-availability'] as const;
+
 export function useClassAvailability(
   showId: string | undefined,
   options: UseClassAvailabilityOptions = {}
 ): UseClassAvailabilityResult {
   const { enabled = true } = options;
 
-  const [classes, setClasses] = useState<ClassAvailability[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const mountedRef = useRef(true);
-
-  const fetchClassAvailability = useCallback(async () => {
-    if (!showId || !enabled) return;
-
-    setIsLoading(true);
-    setError(null);
+  const fetchClassAvailability = useCallback(async (): Promise<ClassAvailability[]> => {
+    if (!showId) return [];
 
     try {
       const { data: classData, error: classError } = await supabase
@@ -126,8 +125,7 @@ export function useClassAvailability(
       }
 
       if (!classData || classData.length === 0) {
-        setClasses([]);
-        return;
+        return [];
       }
 
       const classIds = classData.map((c: { id: string }) => c.id);
@@ -135,7 +133,9 @@ export function useClassAvailability(
       const [showResult, entryResult, waitlistResult, judgeResult] = await Promise.all([
         supabase
           .from('shows')
-          .select('default_judge_day_capacity, mail_in_strategy, mail_in_value')
+          .select(
+            'default_judge_day_capacity, mail_in_strategy, mail_in_value, mail_in_auto_release, mail_in_release_date'
+          )
           .eq('id', showId)
           .single(),
         supabase
@@ -203,12 +203,13 @@ export function useClassAvailability(
         }
       }
 
-      let mailInReserved = 0;
-      if (show?.mail_in_strategy === 'fixed') {
-        mailInReserved = show.mail_in_value ?? 0;
-      } else if (show?.mail_in_strategy === 'percentage') {
-        mailInReserved = Math.floor((defaultCapacity * (show.mail_in_value ?? 0)) / 100);
-      }
+      const mailInReserved = calculateMailInReserved({
+        capacity: defaultCapacity,
+        strategy: show?.mail_in_strategy ?? null,
+        value: show?.mail_in_value ?? null,
+        autoRelease: show?.mail_in_auto_release ?? null,
+        releaseDate: show?.mail_in_release_date ?? null,
+      });
 
       const availability: ClassAvailability[] = (classData as ClassWithTrialRow[]).map(cls => {
         const trial = cls.trials;
@@ -254,29 +255,32 @@ export function useClassAvailability(
         };
       });
 
-      if (mountedRef.current) setClasses(availability);
+      return availability;
     } catch (err) {
-      if (!mountedRef.current) return;
       const message = err instanceof Error ? err.message : 'Failed to fetch class availability';
-      setError(message);
       logger.error(
         'Failed to fetch class availability',
         'useClassAvailability',
         { showId },
         err as Error
       );
-    } finally {
-      if (mountedRef.current) setIsLoading(false);
+      throw new Error(message);
     }
-  }, [showId, enabled]);
+  }, [showId]);
 
-  useEffect(() => {
-    mountedRef.current = true;
-    fetchClassAvailability();
-    return () => {
-      mountedRef.current = false;
-    };
-  }, [fetchClassAvailability]);
+  const query = useQuery({
+    queryKey: classAvailabilityQueryKey(showId),
+    queryFn: fetchClassAvailability,
+    enabled: Boolean(showId && enabled),
+  });
+
+  const classes = showId && enabled ? (query.data ?? []) : [];
+  const isLoading = Boolean(showId && enabled && query.isLoading);
+  const error = query.error instanceof Error ? query.error.message : null;
+
+  const refetch = useCallback(async () => {
+    await query.refetch();
+  }, [query]);
 
   const totalSpotsAvailable = classes.reduce((sum, cls) => sum + cls.spotsAvailable, 0);
   const fullClasses = classes.filter(cls => cls.isFull).length;
@@ -285,7 +289,7 @@ export function useClassAvailability(
     classes,
     isLoading,
     error,
-    refetch: fetchClassAvailability,
+    refetch,
     totalSpotsAvailable,
     fullClasses,
   };

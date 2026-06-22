@@ -161,6 +161,48 @@ describe('useJudgeDayCapacity', () => {
     expect(day.availableSpots).toBe(85);
   });
 
+  it('auto-releases mail-in reserved spots after the release date', async () => {
+    const mockSummaryData = [
+      {
+        show_id: 'show-1',
+        judge_id: 'judge-1',
+        judge_name: 'Jane Doe',
+        show_date: '2026-05-01',
+        class_ids: ['c1'],
+        class_names: ['Novice A'],
+        confirmed_count: 50,
+        waitlist_count: 0,
+      },
+    ];
+
+    const mockShowData = {
+      default_judge_day_capacity: 125,
+      mail_in_strategy: 'fixed',
+      mail_in_value: 20,
+      mail_in_deadline: null,
+      mail_in_auto_release: true,
+      mail_in_release_date: '2020-01-01',
+    };
+
+    mockSelect.mockReturnValueOnce({
+      eq: vi.fn().mockResolvedValueOnce({ data: mockSummaryData, error: null }),
+    });
+    mockSelect.mockReturnValueOnce({
+      eq: vi.fn().mockReturnValueOnce({
+        single: vi.fn().mockResolvedValueOnce({ data: mockShowData, error: null }),
+      }),
+    });
+
+    const { result } = renderHook(() => useJudgeDayCapacity('show-1'), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    const day = result.current.judgeDays[0]!;
+    expect(day.mailInReserved).toBe(0);
+    expect(day.availableSpots).toBe(75); // 125 - 50
+  });
+
   it('surfaces error from supabase', async () => {
     mockSelect.mockReturnValueOnce({
       eq: vi.fn().mockResolvedValueOnce({ data: null, error: { message: 'DB error' } }),

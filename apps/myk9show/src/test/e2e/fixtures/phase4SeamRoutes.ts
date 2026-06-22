@@ -32,6 +32,7 @@ import {
 } from './phase4SeamHttp';
 import {
   handleFixtureRead,
+  handleFixtureRpc,
   handleFixtureWrite,
   handleRefundFunction,
 } from './phase4SeamHandlers';
@@ -68,11 +69,16 @@ export function handleSeamRequest(
 
   const isFixtureFn = kind === 'function' && name !== null && FIXTURE_FUNCTIONS.has(name);
   const isFixtureTable = kind === 'rest' && name !== null && FIXTURE_TABLES.has(name);
+  const isFixtureRpc = kind === 'rpc' && name === 'promote_waitlist_entry';
 
   // --- WRITES -------------------------------------------------------------
   if (isWrite || isFixtureFn) {
     if (isFixtureFn) {
       const resp = handleRefundFunction(state, req, options);
+      return record(req, name, resp.response, resp.seam, true, false, start, options);
+    }
+    if (isFixtureRpc) {
+      const resp = handleFixtureRpc(state, name as string, req, options);
       return record(req, name, resp.response, resp.seam, true, false, start, options);
     }
     if (isFixtureTable) {

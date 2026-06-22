@@ -25,7 +25,9 @@ import type { EmailLogEntry } from '@/hooks/useEmailStatus';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -240,43 +242,65 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      onClick={() => handlePayment(PaymentStatus.PAID_BY_CASH, null, totalDollars)}
-                    >
-                      Paid in Full — Cash
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => setCheckDialog({ open: true, checkNumber: '' })}
-                    >
-                      Paid in Full — Check…
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handlePayment(PaymentStatus.PAID_ONLINE)}>
-                      Paid in Full — Online
-                    </DropdownMenuItem>
+                    {/* Grouped into three concerns so this 7-action money menu
+                        reads as sections, not one flat list: Mark paid (record a
+                        full payment), Adjust (partial / refunds), Reset (back to
+                        unpaid). Handlers and dialogs are unchanged. */}
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
+                        Mark paid
+                      </DropdownMenuLabel>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          handlePayment(PaymentStatus.PAID_BY_CASH, null, totalDollars)
+                        }
+                      >
+                        Paid in Full — Cash
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => setCheckDialog({ open: true, checkNumber: '' })}
+                      >
+                        Paid in Full — Check…
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handlePayment(PaymentStatus.PAID_ONLINE)}>
+                        Paid in Full — Online
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() =>
-                        setPartialDialog({
-                          open: true,
-                          amountPaid: '',
-                          method: 'cash',
-                          checkNumber: '',
-                        })
-                      }
-                    >
-                      Partial Payment…
-                    </DropdownMenuItem>
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
+                        Adjust
+                      </DropdownMenuLabel>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          setPartialDialog({
+                            open: true,
+                            amountPaid: '',
+                            method: 'cash',
+                            checkNumber: '',
+                          })
+                        }
+                      >
+                        Partial Payment…
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => openRefundDialog(false)}>
+                        Refunded…
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => openRefundDialog(true)}>
+                        Partial Refund…
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => openRefundDialog(false)}>
-                      Refunded…
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => openRefundDialog(true)}>
-                      Partial Refund…
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => handlePayment(PaymentStatus.PENDING, null, 0)}>
-                      Payment Due
-                    </DropdownMenuItem>
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
+                        Reset
+                      </DropdownMenuLabel>
+                      <DropdownMenuItem
+                        onClick={() => handlePayment(PaymentStatus.PENDING, null, 0)}
+                      >
+                        Payment Due
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}

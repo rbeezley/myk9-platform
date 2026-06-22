@@ -40,8 +40,9 @@ import {
   type EntryListDataDependencies,
   type RingsideShowContext,
 } from '@myk9/ringside';
-import { replicatedShowsTable, replicatedEntriesTable } from '@/services/replication';
+import { replicatedShowsTable } from '@/services/replication';
 import { buildRingsideContextValue, buildRingsideReplication } from './ringsideCapabilities';
+import { persistEntryRunOrder } from './persistEntryRunOrder';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { createAtShowDataDependencies } from './atShowDataAdapter';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
@@ -153,20 +154,13 @@ export const AtShowEntryListPage: React.FC = () => {
   const currentEntries = activeTab === 'pending' ? pendingEntries : completedEntries;
 
   // ── Drag-and-drop (pure ringside hook) ─────────────────────────────────
-  const updateExhibitorOrder = useCallback(async (reordered: Entry[]): Promise<unknown> => {
-    // Persist each entry's new run order. run_order is ringside-whitelisted, so
-    // updateEntry auto-routes through ringside_update_entry (assigned judges and
-    // stewards may set run order, not just managers). The drag hook owns the
-    // optimistic local reorder + grace period, so we only queue the writes here.
-    await Promise.all(
-      reordered.map((entry, index) =>
-        replicatedEntriesTable.updateEntry(entry.id, {
-          runOrder: entry.exhibitorOrder ?? index + 1,
-        })
-      )
-    );
-    return undefined;
-  }, []);
+  // Persist run order through the shared helper — see persistEntryRunOrder for
+  // the offline-first / ringside-RLS details. The drag hook owns the optimistic
+  // local reorder + grace period; we only queue the writes here.
+  const updateExhibitorOrder = useCallback(
+    (reordered: Entry[]) => persistEntryRunOrder(reordered),
+    []
+  );
 
   const { sensors, handleDragStart, handleDragEnd, isDragging } = useDragAndDropEntries({
     localEntries,

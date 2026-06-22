@@ -10,12 +10,13 @@
  *  - ringside `useEntryHandlers` → the combined `combinedHandlers` bag
  *  - custom `compareEntries` sort (adds 'section-armband')
  *
- * Run-order apply IS implemented: the section-aware preset path persists each
- * entry's run_order offline-first via `applyCombinedRunOrder` (mirrors the
- * single-class path, but respects the combined `scope` A/B + `renumberMode`
- * contract). Remaining out-of-scope service callbacks are deliberate stubs:
- * print and scoresheet prefetch are no-ops, and combined drag-persist is still
- * stubbed here. Scoresheet navigation points at the at-show scoresheet route.
+ * Run order persists offline-first through the replication layer (same RLS /
+ * `ringside_update_entry` routing as the single-class AtShowEntryListPage), for
+ * BOTH paths: drag-to-reorder via `persistEntryRunOrder`, and the section-aware
+ * PRESET dialog via `applyCombinedRunOrder` (which respects the combined `scope`
+ * A/B + `renumberMode` contract). Remaining out-of-scope service callbacks are
+ * deliberate stubs: print and scoresheet prefetch are no-ops. Scoresheet
+ * navigation points at the at-show scoresheet route (built in a later slice).
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -47,6 +48,7 @@ type PrintDialogState = CombinedEntryListUiState['printDialogState'];
 import { replicatedShowsTable } from '@/services/replication';
 import { logger } from '@/utils/logger';
 import { applyCombinedRunOrder } from './applyCombinedRunOrder';
+import { persistEntryRunOrder } from './persistEntryRunOrder';
 import { buildRingsideContextValue } from './ringsideCapabilities';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { createAtShowDataDependencies } from './atShowDataAdapter';
@@ -171,11 +173,13 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     setActiveTab,
   });
 
-  // ── Drag (run-order persist stubbed — out of scope at-show) ────────────
-  const updateExhibitorOrder = useCallback(async (): Promise<unknown> => {
-    logger.warn('[at-show] combined drag run-order persist is stubbed for the spike', 'at-show');
-    return undefined;
-  }, []);
+  // ── Drag (run-order persist) ───────────────────────────────────────────
+  // Same contract as the single-class AtShowEntryListPage — see
+  // persistEntryRunOrder for the offline-first / RLS details.
+  const updateExhibitorOrder = useCallback(
+    (reordered: Entry[]) => persistEntryRunOrder(reordered),
+    []
+  );
   const { sensors, handleDragStart, handleDragEnd } = useDragAndDropEntries({
     localEntries,
     setLocalEntries,

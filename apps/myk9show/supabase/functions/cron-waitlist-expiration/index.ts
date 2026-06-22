@@ -130,6 +130,7 @@ Deno.serve(async req => {
       skippedMailInOffers: 0,
       errors: [] as string[],
     };
+    const classesExpiredThisRun = new Set<string>();
 
     // Step 1: Find and expire offers past their deadline
     const { data: expiredOffers, error: expiredError } = await supabase
@@ -168,31 +169,8 @@ Deno.serve(async req => {
         }
 
         results.expiredOffers++;
+        classesExpiredThisRun.add(offer.class_id);
         console.log(`Expired offer ${offer.id} for class ${offer.class_id}`);
-
-        // Step 2: Find next in line for this class
-        const { data: nextInLine, error: nextError } = await supabase
-          .from('waitlist_entries')
-          .select('*')
-          .eq('class_id', offer.class_id)
-          .eq('status', 'waiting')
-          .order('position', { ascending: true })
-          .limit(1)
-          .single();
-
-        if (nextError && nextError.code !== 'PGRST116') {
-          // PGRST116 = no rows found (which is fine)
-          results.errors.push(`Find next ${offer.class_id}: ${nextError.message}`);
-          continue;
-        }
-
-        // Step 3: Offer spot to next person
-        if (nextInLine) {
-          const newOffer = await offerSpot(nextInLine);
-          if (newOffer) {
-            results.newOffers++;
-          }
-        }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error';
         results.errors.push(`Process ${offer.id}: ${errorMessage}`);
@@ -201,7 +179,7 @@ Deno.serve(async req => {
 
     // Also check for any classes with available spots but no current offers
     // This handles cases where spots opened up (cancellations) but no one was auto-offered
-    await processClassesWithOpenSpots(results);
+    await processClassesWithOpenSpots(results, classesExpiredThisRun);
 
     console.log(
       `[${new Date().toISOString()}] Cron complete: ${results.expiredOffers} expired, ${results.newOffers} new offers`
@@ -387,13 +365,16 @@ async function createWaitlistPaymentLink(entryId: string, showId: string): Promi
 /**
  * Process classes that have open spots and waiting entries but no current offers
  */
-async function processClassesWithOpenSpots(results: {
-  expiredOffers: number;
-  newOffers: number;
-  skippedPaidOffers: number;
-  skippedMailInOffers: number;
-  errors: string[];
-}): Promise<void> {
+async function processClassesWithOpenSpots(
+  results: {
+    expiredOffers: number;
+    newOffers: number;
+    skippedPaidOffers: number;
+    skippedMailInOffers: number;
+    errors: string[];
+  },
+  skipClassIds: ReadonlySet<string> = new Set()
+): Promise<void> {
   // Find classes with waiting entries but no pending offers
   const { data: classesWithWaiting, error } = await supabase
     .from('waitlist_entries')
@@ -409,6 +390,10 @@ async function processClassesWithOpenSpots(results: {
   const uniqueClassIds = [...new Set(classesWithWaiting.map(w => w.class_id))];
 
   for (const classId of uniqueClassIds) {
+    if (skipClassIds.has(classId)) {
+      continue;
+    }
+
     // Check if there's already an active offer for this class
     const { data: activeOffer } = await supabase
       .from('waitlist_entries')

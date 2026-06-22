@@ -907,13 +907,16 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       stripe_payment_intent_id: patch.stripe_payment_intent_id,
     };
     if (patch.entry_status) update.entry_status = patch.entry_status;
-    const { data: updatedRows, error } = await supabase
+    let updateQuery = supabase
       .from('entries')
       .update(update)
       .eq('id', patch.id)
-      .eq('payment_status', 'pending')
-      .not('entry_status', 'in', inactiveEntryStatusFilter)
-      .select('id');
+      .eq('payment_status', 'pending');
+    updateQuery = patch.allowExpiredPromotionClaim
+      ? updateQuery.eq('entry_status', 'promotion-expired')
+      : updateQuery.not('entry_status', 'in', inactiveEntryStatusFilter);
+
+    const { data: updatedRows, error } = await updateQuery.select('id');
     if (error) {
       console.error(`Failed to mark entry ${patch.id} paid:`, error);
       await alertAdmin(

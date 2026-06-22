@@ -1,5 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { createElement, type ReactNode } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useClassAvailability } from '../useClassAvailability';
 
 const { mockFrom } = vi.hoisted(() => ({ mockFrom: vi.fn() }));
@@ -63,13 +65,25 @@ const CLASS_DATA = [
   },
 ];
 
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return createElement(QueryClientProvider, { client: queryClient }, children);
+  };
+}
+
 describe('useClassAvailability', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('returns empty state when showId is undefined', () => {
-    const { result } = renderHook(() => useClassAvailability(undefined));
+    const { result } = renderHook(() => useClassAvailability(undefined), {
+      wrapper: createWrapper(),
+    });
     expect(result.current.classes).toEqual([]);
     expect(result.current.isLoading).toBe(false);
   });
@@ -92,7 +106,9 @@ describe('useClassAvailability', () => {
       return makeClassQuery([]);
     });
 
-    const { result } = renderHook(() => useClassAvailability('show-1'));
+    const { result } = renderHook(() => useClassAvailability('show-1'), {
+      wrapper: createWrapper(),
+    });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     const cls = result.current.classes[0]!;
@@ -122,7 +138,9 @@ describe('useClassAvailability', () => {
       return makeClassQuery([]);
     });
 
-    const { result } = renderHook(() => useClassAvailability('show-1'));
+    const { result } = renderHook(() => useClassAvailability('show-1'), {
+      wrapper: createWrapper(),
+    });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     const cls = result.current.classes[0]!;
@@ -150,7 +168,9 @@ describe('useClassAvailability', () => {
       return makeClassQuery([]);
     });
 
-    const { result } = renderHook(() => useClassAvailability('show-1'));
+    const { result } = renderHook(() => useClassAvailability('show-1'), {
+      wrapper: createWrapper(),
+    });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     const cls = result.current.classes[0]!;
@@ -178,7 +198,9 @@ describe('useClassAvailability', () => {
       return makeClassQuery([]);
     });
 
-    const { result } = renderHook(() => useClassAvailability('show-1'));
+    const { result } = renderHook(() => useClassAvailability('show-1'), {
+      wrapper: createWrapper(),
+    });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     const cls = result.current.classes[0]!;
@@ -192,7 +214,9 @@ describe('useClassAvailability', () => {
       return makeClassQuery([]);
     });
 
-    const { result } = renderHook(() => useClassAvailability('show-1'));
+    const { result } = renderHook(() => useClassAvailability('show-1'), {
+      wrapper: createWrapper(),
+    });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(result.current.classes).toEqual([]);
@@ -206,7 +230,9 @@ describe('useClassAvailability', () => {
       return makeClassQuery([]);
     });
 
-    const { result } = renderHook(() => useClassAvailability('show-1'));
+    const { result } = renderHook(() => useClassAvailability('show-1'), {
+      wrapper: createWrapper(),
+    });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(result.current.error).toBe('network error');
@@ -236,12 +262,14 @@ describe('useClassAvailability', () => {
       return makeClassQuery([]);
     });
 
-    const { result } = renderHook(() => useClassAvailability('show-1'));
+    const { result } = renderHook(() => useClassAvailability('show-1'), {
+      wrapper: createWrapper(),
+    });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(inStatusSpy).toHaveBeenCalledWith(
       'entry_status',
-      expect.arrayContaining(['in-ring', 'competing'])
+      expect.arrayContaining(['in-ring', 'competing', 'pending-payment'])
     );
   });
 });

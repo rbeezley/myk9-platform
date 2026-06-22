@@ -59,6 +59,29 @@ describe('waitlist expiration cron payment-link offer wiring', () => {
     expect(promotionMigration).toContain('public.is_site_admin()');
   });
 
+  it('re-checks capacity under a class-level lock before creating a promotion entry', () => {
+    expect(promotionMigration).toContain('pg_advisory_xact_lock(hashtext(v_wl.class_id::text))');
+    expect(promotionMigration).toContain(
+      "e.entry_status IN ('submitted', 'paid', 'confirmed', 'checked-in', 'competing', 'in-ring', 'pending-payment')"
+    );
+    expect(promotionMigration).toContain('FROM public.get_judge_day_capacity');
+    expect(promotionMigration).toContain("RAISE EXCEPTION 'Judge-day capacity is full'");
+    expect(promotionMigration).toContain("RAISE EXCEPTION 'Class is full'");
+  });
+
+  it('keeps server judge-day capacity aligned with mail-in auto-release settings', () => {
+    expect(promotionMigration).toContain('s.mail_in_auto_release');
+    expect(promotionMigration).toContain('s.mail_in_release_date');
+    expect(promotionMigration).toContain('v_mail_in_release_date <= CURRENT_DATE');
+  });
+
+  it('does not re-offer a just-expired class in the same cron run', () => {
+    expect(cronSource).toContain('const classesExpiredThisRun = new Set<string>()');
+    expect(cronSource).toContain('classesExpiredThisRun.add(offer.class_id)');
+    expect(cronSource).toContain('await processClassesWithOpenSpots(results, classesExpiredThisRun)');
+    expect(cronSource).toContain('if (skipClassIds.has(classId))');
+  });
+
   it('answers CORS preflight before requiring the cron secret', () => {
     expect(cronSource.indexOf("req.method === 'OPTIONS'")).toBeLessThan(
       cronSource.indexOf("req.headers.get('Authorization')")

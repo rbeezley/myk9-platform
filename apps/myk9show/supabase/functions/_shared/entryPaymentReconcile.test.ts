@@ -39,6 +39,28 @@ describe('reconcileEntryPaymentRequest', () => {
     expect(r.patches).toHaveLength(0);
   });
 
+  it('revives a paid waitlist promotion that races the expiry cron latch', () => {
+    const r = reconcileEntryPaymentRequest({
+      ...base,
+      linkStatus: 'expired',
+      expectedEntryIds: ['wl'],
+      entries: [{ id: 'wl', payment_status: 'pending', entry_status: 'promotion-expired' }],
+    });
+
+    expect(r.action).toBe('apply');
+    expect(r.inactiveEntryIds).toEqual([]);
+    expect(r.patches).toEqual([
+      {
+        id: 'wl',
+        payment_status: 'paid',
+        payment_method: 'online',
+        stripe_payment_intent_id: 'pi_123',
+        entry_status: 'confirmed',
+        allowExpiredPromotionClaim: true,
+      },
+    ]);
+  });
+
   it('skips when the session is not actually paid (async/delayed method) — never marks paid on no money', () => {
     const r = reconcileEntryPaymentRequest({ ...base, sessionPaymentStatus: 'unpaid' });
     expect(r.action).toBe('skip');

@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryClient';
+import { classAvailabilityQueryKey } from '@/hooks/useClassAvailability';
 import { reassignClassJudge } from '@/services/database/judges';
 import {
   bulkPromoteWaitlistEntries,
@@ -14,6 +15,7 @@ export function useWaitListMutations(showId: string) {
   const invalidateShow = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.show(showId) });
     queryClient.invalidateQueries({ queryKey: queryKeys.showEntries(showId) });
+    queryClient.invalidateQueries({ queryKey: classAvailabilityQueryKey(showId) });
   };
 
   const promoteEntry = useMutation({

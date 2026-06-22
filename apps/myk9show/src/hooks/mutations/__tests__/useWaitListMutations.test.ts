@@ -73,6 +73,22 @@ describe('useWaitListMutations', () => {
       expect(promoteWaitlistEntry).toHaveBeenCalledWith('wl-entry-2', undefined);
     });
 
+    it('invalidates class availability after promotion', async () => {
+      const invalidateSpy = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
+      const { result } = renderHook(() => useWaitListMutations('show-1'), {
+        wrapper: makeWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.promoteEntry.mutateAsync({ waitlistEntryId: 'wl-entry-2' });
+      });
+
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: ['shows', 'show-1', 'class-availability'],
+      });
+      invalidateSpy.mockRestore();
+    });
+
     it('throws when promotion fails', async () => {
       vi.mocked(promoteWaitlistEntry).mockRejectedValue(new Error('rpc failed'));
 

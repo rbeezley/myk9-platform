@@ -15,6 +15,163 @@ create extension if not exists pg_cron with schema extensions;
 create extension if not exists pg_net  with schema extensions;
 create extension if not exists supabase_vault with schema vault;
 
+CREATE OR REPLACE FUNCTION public.get_judge_day_capacity(
+  p_judge_id uuid,
+  p_show_id uuid,
+  p_date date
+)
+RETURNS TABLE (
+  judge_id uuid,
+  show_date date,
+  capacity integer,
+  confirmed_count integer,
+  waitlist_count integer,
+  mail_in_reserved integer,
+  available_spots integer,
+  class_ids uuid[]
+) AS $$
+DECLARE
+  v_capacity integer;
+  v_override integer;
+  v_show_capacity integer;
+  v_confirmed integer;
+  v_waitlist integer;
+  v_reserved integer;
+  v_class_ids uuid[];
+  v_mail_in_strategy text;
+  v_mail_in_value integer;
+  v_mail_in_auto_release boolean;
+  v_mail_in_release_date date;
+BEGIN
+  SELECT ARRAY_AGG(ja.class_id)
+  INTO v_class_ids
+  FROM public.judge_assignments ja
+  JOIN public.classes c ON c.id = ja.class_id
+  JOIN public.trials t ON t.id = c.trial_id
+  WHERE ja.person_id = p_judge_id
+    AND ja.show_id = p_show_id
+    AND t.date = p_date
+    AND ja.status = 'confirmed';
+
+  v_class_ids := COALESCE(v_class_ids, ARRAY[]::uuid[]);
+
+  SELECT
+    s.default_judge_day_capacity,
+    s.mail_in_strategy,
+    s.mail_in_value,
+    s.mail_in_auto_release,
+    s.mail_in_release_date
+  INTO
+    v_show_capacity,
+    v_mail_in_strategy,
+    v_mail_in_value,
+    v_mail_in_auto_release,
+    v_mail_in_release_date
+  FROM public.shows s
+  WHERE s.id = p_show_id;
+
+  SELECT MAX(ja.day_capacity_override)
+  INTO v_override
+  FROM public.judge_assignments ja
+  JOIN public.classes c ON c.id = ja.class_id
+  JOIN public.trials t ON t.id = c.trial_id
+  WHERE ja.person_id = p_judge_id
+    AND ja.show_id = p_show_id
+    AND t.date = p_date
+    AND ja.day_capacity_override IS NOT NULL;
+
+  v_capacity := COALESCE(v_override, v_show_capacity, 125);
+
+  v_reserved := 0;
+  IF NOT (
+    COALESCE(v_mail_in_auto_release, false)
+    AND v_mail_in_release_date IS NOT NULL
+    AND v_mail_in_release_date <= CURRENT_DATE
+  ) THEN
+    IF v_mail_in_strategy = 'fixed' THEN
+      v_reserved := GREATEST(0, COALESCE(v_mail_in_value, 0));
+    ELSIF v_mail_in_strategy = 'percentage' THEN
+      v_reserved := GREATEST(0, FLOOR(v_capacity * COALESCE(v_mail_in_value, 0) / 100.0));
+    END IF;
+  END IF;
+
+  SELECT COUNT(*)
+  INTO v_confirmed
+  FROM public.entries e
+  WHERE e.class_id = ANY(v_class_ids)
+    AND e.entry_status IN ('submitted', 'paid', 'confirmed', 'checked-in', 'competing', 'in-ring', 'pending-payment')
+    AND e.deleted_at IS NULL;
+
+  SELECT COUNT(*)
+  INTO v_waitlist
+  FROM public.waitlist_entries we
+  WHERE we.class_id = ANY(v_class_ids)
+    AND we.status = 'waiting';
+
+  judge_id := p_judge_id;
+  show_date := p_date;
+  capacity := v_capacity;
+  confirmed_count := v_confirmed;
+  waitlist_count := v_waitlist;
+  mail_in_reserved := v_reserved;
+  available_spots := GREATEST(0, v_capacity - v_confirmed - v_reserved);
+  class_ids := v_class_ids;
+
+  RETURN NEXT;
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = public;
+
+REVOKE ALL ON FUNCTION public.get_judge_day_capacity(uuid, uuid, date) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_judge_day_capacity(uuid, uuid, date) TO authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.check_class_availability(p_class_id uuid)
+RETURNS TABLE (
+  available_spots integer,
+  is_available boolean,
+  waitlist_position integer,
+  entry_limit integer,
+  confirmed_count integer
+) AS $$
+DECLARE
+  v_class_limit integer;
+  v_confirmed_count integer;
+  v_waitlist_count integer;
+BEGIN
+  SELECT c.max_entries
+  INTO v_class_limit
+  FROM public.classes c
+  WHERE c.id = p_class_id;
+
+  v_class_limit := COALESCE(v_class_limit, 0);
+
+  SELECT COUNT(*)
+  INTO v_confirmed_count
+  FROM public.entries e
+  WHERE e.class_id = p_class_id
+    AND e.entry_status IN ('submitted', 'paid', 'confirmed', 'checked-in', 'competing', 'in-ring', 'pending-payment')
+    AND e.deleted_at IS NULL;
+
+  SELECT COUNT(*)
+  INTO v_waitlist_count
+  FROM public.waitlist_entries we
+  WHERE we.class_id = p_class_id
+    AND we.status = 'waiting';
+
+  available_spots := GREATEST(0, v_class_limit - v_confirmed_count);
+  is_available := v_class_limit = 0 OR available_spots > 0;
+  waitlist_position := v_waitlist_count + 1;
+  entry_limit := v_class_limit;
+  confirmed_count := v_confirmed_count;
+
+  RETURN NEXT;
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = public;
+
+REVOKE ALL ON FUNCTION public.check_class_availability(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.check_class_availability(uuid) TO authenticated, service_role;
+
 ALTER TABLE public.waitlist_entries
   ADD COLUMN IF NOT EXISTS promoted_entry_id uuid REFERENCES public.entries(id) ON DELETE SET NULL;
 
@@ -35,6 +192,13 @@ DECLARE
   v_wl waitlist_entries%ROWTYPE;
   v_new_entry_id uuid;
   v_deadline_hours integer;
+  v_class_limit integer;
+  v_class_entry_count integer;
+  v_show_id uuid;
+  v_trial_id uuid;
+  v_trial_date date;
+  v_judge_id uuid;
+  v_judge_capacity record;
 BEGIN
   PERFORM pg_advisory_xact_lock(hashtext(p_waitlist_entry_id::text));
 
@@ -52,6 +216,44 @@ BEGIN
     RAISE EXCEPTION 'Waitlist entry is not available for promotion';
   END IF;
 
+  PERFORM pg_advisory_xact_lock(hashtext(v_wl.class_id::text));
+
+  SELECT c.max_entries, c.trial_id, t.show_id, t.date, ja.person_id
+  INTO v_class_limit, v_trial_id, v_show_id, v_trial_date, v_judge_id
+  FROM classes c
+  JOIN trials t ON t.id = c.trial_id
+  LEFT JOIN judge_assignments ja ON ja.class_id = c.id AND ja.status = 'confirmed'
+  WHERE c.id = v_wl.class_id
+  LIMIT 1;
+
+  IF v_show_id IS NULL OR v_trial_id IS NULL THEN
+    RAISE EXCEPTION 'Class/show not found for waitlist entry';
+  END IF;
+
+  IF COALESCE(v_class_limit, 0) > 0 THEN
+    SELECT COUNT(*)
+    INTO v_class_entry_count
+    FROM entries e
+    WHERE e.class_id = v_wl.class_id
+      AND e.entry_status IN ('submitted', 'paid', 'confirmed', 'checked-in', 'competing', 'in-ring', 'pending-payment')
+      AND e.deleted_at IS NULL;
+
+    IF v_class_entry_count >= v_class_limit THEN
+      RAISE EXCEPTION 'Class is full';
+    END IF;
+  END IF;
+
+  IF v_judge_id IS NOT NULL THEN
+    SELECT *
+    INTO v_judge_capacity
+    FROM public.get_judge_day_capacity(v_judge_id, v_show_id, v_trial_date)
+    LIMIT 1;
+
+    IF COALESCE(v_judge_capacity.available_spots, 0) <= 0 THEN
+      RAISE EXCEPTION 'Judge-day capacity is full';
+    END IF;
+  END IF;
+
   SELECT GREATEST(
     1,
     COALESCE(p_deadline_hours, s.waitlist_payment_deadline_hours, 48)
@@ -67,10 +269,7 @@ BEGIN
   END IF;
 
   INSERT INTO entries (dog_id, class_id, show_id, trial_id, entry_status, handler_id)
-  SELECT v_wl.dog_id, v_wl.class_id, t.show_id, c.trial_id, 'pending-payment', v_wl.handler_id
-  FROM classes c
-  JOIN trials t ON t.id = c.trial_id
-  WHERE c.id = v_wl.class_id
+  VALUES (v_wl.dog_id, v_wl.class_id, v_show_id, v_trial_id, 'pending-payment', v_wl.handler_id)
   RETURNING id INTO v_new_entry_id;
 
   UPDATE waitlist_entries

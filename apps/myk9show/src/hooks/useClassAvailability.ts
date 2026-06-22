@@ -4,7 +4,8 @@
  * judge's total entries for that date, not per-class max_entries.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
 import { IN_RING_STATUSES } from '@/types/entry-lifecycle';
@@ -78,22 +79,17 @@ interface UseClassAvailabilityResult {
   fullClasses: number;
 }
 
+export const classAvailabilityQueryKey = (showId: string | undefined) =>
+  ['shows', showId, 'class-availability'] as const;
+
 export function useClassAvailability(
   showId: string | undefined,
   options: UseClassAvailabilityOptions = {}
 ): UseClassAvailabilityResult {
   const { enabled = true } = options;
 
-  const [classes, setClasses] = useState<ClassAvailability[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const mountedRef = useRef(true);
-
-  const fetchClassAvailability = useCallback(async () => {
-    if (!showId || !enabled) return;
-
-    setIsLoading(true);
-    setError(null);
+  const fetchClassAvailability = useCallback(async (): Promise<ClassAvailability[]> => {
+    if (!showId) return [];
 
     try {
       const { data: classData, error: classError } = await supabase
@@ -129,8 +125,7 @@ export function useClassAvailability(
       }
 
       if (!classData || classData.length === 0) {
-        setClasses([]);
-        return;
+        return [];
       }
 
       const classIds = classData.map((c: { id: string }) => c.id);
@@ -260,29 +255,32 @@ export function useClassAvailability(
         };
       });
 
-      if (mountedRef.current) setClasses(availability);
+      return availability;
     } catch (err) {
-      if (!mountedRef.current) return;
       const message = err instanceof Error ? err.message : 'Failed to fetch class availability';
-      setError(message);
       logger.error(
         'Failed to fetch class availability',
         'useClassAvailability',
         { showId },
         err as Error
       );
-    } finally {
-      if (mountedRef.current) setIsLoading(false);
+      throw new Error(message);
     }
-  }, [showId, enabled]);
+  }, [showId]);
 
-  useEffect(() => {
-    mountedRef.current = true;
-    fetchClassAvailability();
-    return () => {
-      mountedRef.current = false;
-    };
-  }, [fetchClassAvailability]);
+  const query = useQuery({
+    queryKey: classAvailabilityQueryKey(showId),
+    queryFn: fetchClassAvailability,
+    enabled: Boolean(showId && enabled),
+  });
+
+  const classes = showId && enabled ? (query.data ?? []) : [];
+  const isLoading = Boolean(showId && enabled && query.isLoading);
+  const error = query.error instanceof Error ? query.error.message : null;
+
+  const refetch = useCallback(async () => {
+    await query.refetch();
+  }, [query]);
 
   const totalSpotsAvailable = classes.reduce((sum, cls) => sum + cls.spotsAvailable, 0);
   const fullClasses = classes.filter(cls => cls.isFull).length;
@@ -291,7 +289,7 @@ export function useClassAvailability(
     classes,
     isLoading,
     error,
-    refetch: fetchClassAvailability,
+    refetch,
     totalSpotsAvailable,
     fullClasses,
   };

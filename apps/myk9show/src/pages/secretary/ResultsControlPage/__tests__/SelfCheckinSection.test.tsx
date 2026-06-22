@@ -54,4 +54,27 @@ describe('SelfCheckinSection accessibility', () => {
     expect(tapRow).toHaveClass('min-h-[44px]');
     expect(tapRow).toHaveAttribute('for', 'checkin-show');
   });
+
+  it('renders the size="icon-lg" reset button with real 44px sizing classes', () => {
+    // Guards against the dead local buttonVariants.ts: the live Button comes from
+    // @myk9/ui, whose icon-lg variant must emit h-11 w-11 min-h/w-[44px]. If icon-lg
+    // were an unknown variant, CVA would silently drop these classes.
+    const trialOverrides = [
+      { trialId: 'trial-1', selfCheckinEnabled: false, override: {} },
+    ] as unknown as React.ComponentProps<typeof SelfCheckinSection>['trialOverrides'];
+
+    render(
+      <SelfCheckinSection
+        showId="show-1"
+        settings={settings}
+        trialOverrides={trialOverrides}
+        classOverrides={[]}
+        trials={trials}
+        classes={classes}
+      />
+    );
+
+    const reset = screen.getByRole('button', { name: 'Reset to show defaults' });
+    expect(reset).toHaveClass('h-11', 'w-11', 'min-h-[44px]', 'min-w-[44px]');
+  });
 });

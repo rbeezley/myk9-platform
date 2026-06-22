@@ -28,6 +28,7 @@ import { toast } from 'sonner';
 import { logger } from '@/utils/logger';
 import { supabase } from '@/services/database/supabaseClient';
 import { calculateRunOrder, toMyK9ShowRunOrderPreset } from '@/lib/runOrderUtils';
+import { notifyRunOrderPersistError } from './runOrderErrorToast';
 import { persistRunOrderResults } from './persistRunOrderResults';
 
 type ResetConfirmState = { show: boolean; entry: Entry | null };
@@ -267,8 +268,15 @@ export function useAtShowEntryListHandlers(
         // fall through to deterministic armband order.
         toMyK9ShowRunOrderPreset(preset)
       );
-      await persistRunOrderResults(results);
-      await refresh();
+      try {
+        await persistRunOrderResults(results);
+        await refresh();
+      } catch (error) {
+        // The single-class RunOrderDialog fires this fire-and-forget (`void
+        // onApplyOrder(...)`), so a re-throw would surface as an unhandled
+        // rejection. Surface the failure as a toast and stop here instead.
+        notifyRunOrderPersistError(error);
+      }
     },
     [localEntries, refresh, setIsDragMode]
   );

@@ -13,8 +13,6 @@ import {
   type EntryAttentionFilter,
   type EntryManagementViewMode,
   type EntryWorkMode,
-  isMoveUpStatus,
-  isPulledStatus,
   normalizeEntryManagementSearchParams,
 } from '@/components/entries/management/entryManagementFilters';
 
@@ -237,10 +235,6 @@ export function useEntryManagementFilters({
           paymentStatus: getEffectivePaymentStatus(e),
         })
       );
-    } else if (attentionFilter === 'move-ups') {
-      filtered = filtered.filter(e => isMoveUpStatus(e.entryStatus));
-    } else if (attentionFilter === 'pulled') {
-      filtered = filtered.filter(e => isPulledStatus(e.entryStatus));
     }
 
     // Apply payment filter

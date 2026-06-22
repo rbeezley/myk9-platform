@@ -1,18 +1,31 @@
 import type { FilterDefinition } from '@/components/common/FilterChips';
 import type { ViewMode } from '@/components/common/ViewToggle';
-import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import { PaymentStatus } from '@/types/show-registration-types';
 
 export const ENTRY_ATTENTION_FILTER_VALUES = [
   'all',
   'pending',
   'accepted',
   'waitlist',
-  'move-ups',
-  'pulled',
   'issues',
 ] as const;
 
 export type EntryAttentionFilter = (typeof ENTRY_ATTENTION_FILTER_VALUES)[number];
+
+/**
+ * Exception queues — move-up requests and pulls/no-shows. These are NOT entry
+ * status filters: each swaps the whole content pane for a dedicated management
+ * sub-app (`MoveUpRequestsTab` / `PullManagementTab`). They live on their own
+ * top-level "Exceptions" tab (Phase C), reached via `?tab=exceptions&queue=…`,
+ * NOT as `attention` chips — a surface-swap disguised as a status filter was the
+ * core cognitive-load defect this page is being remediated for.
+ */
+export const EXCEPTION_QUEUE_VALUES = ['move-ups', 'pulled'] as const;
+export type ExceptionQueue = (typeof EXCEPTION_QUEUE_VALUES)[number];
+
+export function isExceptionQueue(value: string | null): value is ExceptionQueue {
+  return EXCEPTION_QUEUE_VALUES.includes(value as ExceptionQueue);
+}
 
 export const ENTRY_WORK_MODE_VALUES = ['review', 'day-of'] as const;
 export type EntryWorkMode = (typeof ENTRY_WORK_MODE_VALUES)[number];
@@ -67,8 +80,6 @@ export const ENTRY_MANAGEMENT_FILTERS: FilterDefinition[] = [
       { label: 'Pending review', value: 'pending' },
       { label: 'Accepted', value: 'accepted' },
       { label: 'Waitlist', value: 'waitlist' },
-      { label: 'Move-up requested', value: 'move-ups' },
-      { label: 'Pulled / no-show', value: 'pulled' },
       { label: 'Issues', value: 'issues' },
     ],
   },
@@ -104,13 +115,24 @@ function legacyEntryTabToAttention(value: string | null): EntryAttentionFilter |
     case 'waitlist':
     case 'issues':
       return value;
-    case 'move-ups':
-      return 'move-ups';
-    case 'scratches':
-      return 'pulled';
     default:
       return null;
   }
+}
+
+/**
+ * Detect a legacy URL that pointed at move-ups / pulled while they were still
+ * `attention` chips (`?attention=move-ups|pulled`) or even older `entryTab`
+ * values (`move-ups` / `scratches`). Phase C moved both onto the Exceptions tab,
+ * so these now migrate to `?tab=exceptions&queue=…` (see normalize below).
+ */
+function legacyExceptionQueue(
+  rawAttention: string | null,
+  rawEntryTab: string | null
+): ExceptionQueue | null {
+  if (rawAttention === 'move-ups' || rawEntryTab === 'move-ups') return 'move-ups';
+  if (rawAttention === 'pulled' || rawEntryTab === 'scratches') return 'pulled';
+  return null;
 }
 
 export function normalizeEntryManagementSearchParams(searchParams: URLSearchParams): {
@@ -120,10 +142,15 @@ export function normalizeEntryManagementSearchParams(searchParams: URLSearchPara
   view: EntryManagementViewMode;
 } {
   const params = new URLSearchParams(searchParams);
-  const legacyAttention = legacyEntryTabToAttention(params.get('entryTab'));
+  const rawEntryTab = params.get('entryTab');
   const rawAttention = params.get('attention');
-  const attention =
-    legacyAttention ?? (isEntryAttentionFilter(rawAttention) ? rawAttention : 'all');
+  const exceptionQueue = legacyExceptionQueue(rawAttention, rawEntryTab);
+  const legacyAttention = legacyEntryTabToAttention(rawEntryTab);
+  // A legacy exceptions link resolves to attention 'all' on the (now separate)
+  // Entries tab; the queue selection rides on `tab`/`queue` instead.
+  const attention = exceptionQueue
+    ? 'all'
+    : (legacyAttention ?? (isEntryAttentionFilter(rawAttention) ? rawAttention : 'all'));
   const rawMode = params.get('mode');
   const mode = isEntryWorkMode(rawMode) ? rawMode : 'review';
   const rawView = params.get('view');
@@ -131,8 +158,20 @@ export function normalizeEntryManagementSearchParams(searchParams: URLSearchPara
 
   params.delete('entryTab');
 
-  if (attention === 'all') params.delete('attention');
-  else params.set('attention', attention);
+  if (exceptionQueue) {
+    // Migrate the stale bookmark onto the Exceptions tab. `move-ups` is the
+    // default queue, so it stays out of the URL; `pulled` is explicit.
+    params.set('tab', 'exceptions');
+    if (exceptionQueue === 'pulled') params.set('queue', 'pulled');
+    else params.delete('queue');
+    params.delete('attention');
+    params.delete('trial');
+    params.delete('class');
+  } else if (attention === 'all') {
+    params.delete('attention');
+  } else {
+    params.set('attention', attention);
+  }
 
   if (mode === 'review') params.delete('mode');
   else params.set('mode', mode);
@@ -162,10 +201,6 @@ export function getEntryManagementEmptyStateMessage({
         return 'No accepted entries match these filters.';
       case 'waitlist':
         return 'No waitlist entries match these filters.';
-      case 'move-ups':
-        return 'No move-up requests match these filters.';
-      case 'pulled':
-        return 'No pulled / no-show entries match these filters.';
       case 'issues':
         return 'No issue entries match these filters.';
       case 'all':
@@ -180,21 +215,9 @@ export function getEntryManagementEmptyStateMessage({
       return 'No accepted entries right now.';
     case 'waitlist':
       return 'No waitlist entries right now.';
-    case 'move-ups':
-      return 'No move-up requests right now.';
-    case 'pulled':
-      return 'No pulled / no-show entries right now.';
     case 'issues':
       return 'No entries have issues right now.';
     case 'all':
       return 'No entries yet.';
   }
-}
-
-export function isMoveUpStatus(status: EntryStatus): boolean {
-  return status === EntryStatus.MOVE_UP_REQUESTED;
-}
-
-export function isPulledStatus(status: EntryStatus): boolean {
-  return status === EntryStatus.SCRATCHED || status === EntryStatus.CANCELLED;
 }

@@ -23,7 +23,7 @@ export const WizardSuccessOverlay: React.FC<WizardSuccessOverlayProps> = ({
   onGoToDashboard,
 }) => (
   <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-background p-8">
-    <CheckCircle className="h-16 w-16 text-green-500" />
+    <CheckCircle className="h-16 w-16 text-success" />
     <div className="text-center">
       <h1 className="text-3xl font-bold">Show Created!</h1>
       <p className="mt-1 text-muted-foreground">{createdShow.name}</p>

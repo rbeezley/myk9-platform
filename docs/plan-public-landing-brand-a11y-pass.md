@@ -79,15 +79,23 @@ on a brand slot, with raw `green-500/orange-500` badges.
 
 ## Testing
 
-- Unit: assert each themed CTA renders with a ≥44px min-height class (source-text or RTL).
+- Unit: themed CTAs render with a ≥44px min-height (heritage RTL render assertions).
+- Unit: the shared `SeeClassesLink` carries the 44px tap-target default and still honors
+  caller `style` overrides (defaults precede the spread).
 - Unit: heritage token contrast — a small test pinning the new hex values + a ratio assertion
   (mirror the contrast helper) so the palette can't silently regress below AA.
-- `DetailHero` `headingLevel` prop test (default `h2`, override `h1`).
+- Unit: `DetailHero` success/warning badges use the semantic tokens, not raw green/orange.
+- No `DetailHero` `headingLevel` test — the heading-order finding was a false positive
+  (`PageHeader` already emits an `sr-only` `<h1>`); no prop was added. Do not chase this.
 - `pnpm typecheck` + affected vitest green before each PR.
 
-## PR breakdown
+## Shipped as one PR
 
-- **PR A** — Phase 1 (touch targets, 7 themes).
-- **PR B** — Phase 2 (heritage AA palette + tokenize).
-- **PR C** — Phase 3 (tokenize other 6 themes).
-- **PR D** — Phase 4 (DetailHero `headingLevel` + badge tokens; redesign deferred to its own plan).
+Owner chose a single cohesive PR over the per-phase split. Contents:
+
+- Phase 1 — touch targets across all 7 themes **plus** the shared `SeeClassesLink` (fixed once
+  at the source so every themed caller inherits the 44px floor).
+- Phase 2 — heritage AA palette + tokenize.
+- Phase 3 — tokenize other 6 themes (only `rgba()` alpha variants existed; no color change).
+- Phase 4 — `DetailHero` badge tokens only. Heading-order skipped (false positive, above).
+  Committed default-landing redesign still **deferred** to its own plan — not built here.

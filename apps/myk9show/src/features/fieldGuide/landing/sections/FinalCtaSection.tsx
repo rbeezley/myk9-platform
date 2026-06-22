@@ -170,10 +170,6 @@ export function FinalCtaSection({
             <SeeClassesLink
               href={classesHref}
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minHeight: 44,
                 color: fieldGuideColors.paper,
                 fontFamily: FIELD_GUIDE_BODY_FAMILY,
               }}

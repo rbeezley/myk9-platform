@@ -28,6 +28,14 @@ Source: [`docs/qa/mobile-responsiveness-audit-2026-06-21.md`](docs/qa/mobile-res
 
 ---
 
+## Public Default Landing — Brand Decision — 2026-06-22
+
+Deferred Phase 4 from the public-landing brand/a11y pass (PR [#916](https://github.com/rbeezley/myk9-platform/pull/916)). The touch-target, heritage-AA, tokenize, and `DetailHero` badge-token sub-items already shipped; this is the **design decision only**.
+
+- [ ] **Decide committed default landing for `/shows/:id`** — the default (non-`style`) public show landing reuses the shared product `DetailHero` (product-template chrome on a brand-register slot), unlike the 7 bespoke styled themes. Decide: build a committed default landing vs. extend one of the existing themes as the default. Needs a design pass before any build — do **not** build blind. Full context in TO-DOS.md § "Public default landing — DetailHero vs. brand register — 2026-06-22".
+
+---
+
 ## Code-Quality Audit — 2026-06-12
 
 Plan: [`docs/plan-code-quality-audit.md`](docs/plan-code-quality-audit.md). Current status in [`docs/audits/2026-06-code-quality/SUMMARY.md`](docs/audits/2026-06-code-quality/SUMMARY.md). Phase 1 inventory and Phase 2 verification are done; Wave A cleanup merged in PR [#652](https://github.com/rbeezley/myk9-platform/pull/652); Wave B type-file unification merged in PR [#653](https://github.com/rbeezley/myk9-platform/pull/653); Wave B P1 launch-gate coverage/fix merged in PR [#654](https://github.com/rbeezley/myk9-platform/pull/654); Wave B Magazine/Gazette email parity merged in PR [#656](https://github.com/rbeezley/myk9-platform/pull/656); Wave B read-shape parity implemented in PR [#658](https://github.com/rbeezley/myk9-platform/pull/658).

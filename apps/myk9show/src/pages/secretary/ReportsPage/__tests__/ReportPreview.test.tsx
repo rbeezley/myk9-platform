@@ -96,9 +96,9 @@ describe('ReportPreview', () => {
       />
     );
 
-    expect(screen.getByLabelText('Report preview scroll area').className).toContain(
-      'overflow-x-auto'
-    );
+    const scrollArea = screen.getByRole('region', { name: 'Report preview scroll area' });
+    expect(scrollArea.className).toContain('overflow-x-auto');
+    expect(scrollArea).toHaveAttribute('tabindex', '0');
     const iframe = screen.getByTitle('Report Preview') as HTMLIFrameElement;
 
     await waitFor(() => {

@@ -305,6 +305,8 @@ export function ReportPreview({
     <div
       className="max-w-full overflow-x-auto rounded-lg border border-border bg-muted/20 p-2"
       aria-label="Report preview scroll area"
+      role="region"
+      tabIndex={0}
     >
       <div className="min-w-[8.5in]">
         <iframe

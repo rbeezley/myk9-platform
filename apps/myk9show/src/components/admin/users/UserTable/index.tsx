@@ -447,6 +447,8 @@ export const UserTable: React.FC<UserTableProps> = ({
       <div
         className="max-w-full overflow-x-auto rounded-[20px]"
         aria-label="Users table scroll area"
+        role="region"
+        tabIndex={0}
       >
         <div className="myk9-table-container min-w-[760px]">
           <DataTable

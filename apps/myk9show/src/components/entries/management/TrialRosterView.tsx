@@ -149,6 +149,8 @@ export function TrialRosterView({ entries, onClassClick, isLoading }: TrialRoste
           <div
             className="max-w-full overflow-x-auto rounded-lg border border-border"
             aria-label={`${group.className} roster table scroll area`}
+            role="region"
+            tabIndex={0}
           >
             <div className="min-w-[720px]">
               <DataTable

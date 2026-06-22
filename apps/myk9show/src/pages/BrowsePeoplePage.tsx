@@ -7,6 +7,7 @@ import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { ListControls } from '@/components/common/ListControls';
 import type { FilterDefinition as ChipFilterDefinition } from '@/components/common/FilterChips';
 import { ErrorState } from '@/components/common/ErrorState';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useViewPreference } from '@/hooks/useViewPreference';
 import { useRBAC } from '@/hooks/useRBAC';
 import { PERMISSIONS } from '@/services/auth/rbacService';
@@ -25,6 +26,7 @@ const BrowsePeoplePage: React.FC = () => {
   const navigate = useNavigate();
 
   const [viewMode, setViewMode] = useViewPreference('people', 'table');
+  const isMobileViewport = useMediaQuery('(max-width: 767px)');
   const [showCreatePersonDialog, setShowCreatePersonDialog] = useState(
     () => searchParams.get('add') === 'true'
   );
@@ -187,15 +189,10 @@ const BrowsePeoplePage: React.FC = () => {
 
     switch (viewMode) {
       case 'table':
-        return (
-          <>
-            <div className="hidden md:block" data-testid="people-table-desktop">
-              <PeopleTableView people={filteredPeople} />
-            </div>
-            <div className="md:hidden" data-testid="people-mobile-cards">
-              <PeopleGridView people={filteredPeople} />
-            </div>
-          </>
+        return isMobileViewport ? (
+          <PeopleGridView people={filteredPeople} />
+        ) : (
+          <PeopleTableView people={filteredPeople} />
         );
       case 'cards':
       default:

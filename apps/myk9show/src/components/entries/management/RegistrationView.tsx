@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { useEmailStatus } from '@/hooks/useEmailStatus';
 import { supabase } from '@/lib/supabase';
 import { ListControls } from '@/components/common/ListControls';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 import { EntryStatsCards } from './EntryStatsCards';
 import { EnrollmentCard } from './EnrollmentCard';
@@ -184,6 +185,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
     [entries]
   );
   const { data: emailStatusMap } = useEmailStatus(registrationIds);
+  const isMobileViewport = useMediaQuery('(max-width: 767px)');
 
   // Resend cooldown state (registrationId -> cooldown expiry timestamp)
   const [resendCooldowns, setResendCooldowns] = useState<Record<string, number>>({});
@@ -305,29 +307,24 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
             <PullManagementTab showId={showId} onRefresh={onRefresh} />
           </CardContent>
         </Card>
+      ) : entryViewMode === 'table' && isMobileViewport ? (
+        enrollmentCardList
       ) : entryViewMode === 'table' ? (
-        <>
-          <div className="hidden md:block" data-testid="entries-table-desktop">
-            <EntriesTableView
-              entries={filteredEntries}
-              emailStatusMap={emailStatusMap}
-              onResendEmail={handleResendEmail}
-              isResendDisabled={isResendDisabled}
-              onStatusChange={onStatusChange}
-              onCheckInEntry={entryId => onBulkCheckIn([entryId])}
-              onOpenArmbandDialog={onOpenArmbandDialog}
-              onOpenCompDialog={onOpenCompDialog}
-              onUncompEntry={onUncompEntry}
-              onRemoveEntry={onRemoveEntry}
-              onEntryRefunded={onRefresh}
-              selection={tableSelection}
-              emptyState={emptyStateMessage}
-            />
-          </div>
-          <div className="md:hidden" data-testid="entries-mobile-cards">
-            {enrollmentCardList}
-          </div>
-        </>
+        <EntriesTableView
+          entries={filteredEntries}
+          emailStatusMap={emailStatusMap}
+          onResendEmail={handleResendEmail}
+          isResendDisabled={isResendDisabled}
+          onStatusChange={onStatusChange}
+          onCheckInEntry={entryId => onBulkCheckIn([entryId])}
+          onOpenArmbandDialog={onOpenArmbandDialog}
+          onOpenCompDialog={onOpenCompDialog}
+          onUncompEntry={onUncompEntry}
+          onRemoveEntry={onRemoveEntry}
+          onEntryRefunded={onRefresh}
+          selection={tableSelection}
+          emptyState={emptyStateMessage}
+        />
       ) : (
         enrollmentCardList
       )}

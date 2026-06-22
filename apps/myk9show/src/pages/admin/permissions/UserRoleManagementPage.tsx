@@ -389,6 +389,8 @@ const UserRoleManagementPage: React.FC = () => {
           <div
             className="max-w-full overflow-x-auto rounded-lg border border-border"
             aria-label="User role assignments table scroll area"
+            role="region"
+            tabIndex={0}
           >
             <div className="min-w-[760px]">
               <DataTable

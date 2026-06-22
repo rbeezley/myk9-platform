@@ -216,6 +216,8 @@ const JudgeAnalyticsPage: React.FC = () => {
             <div
               className="max-w-full overflow-x-auto rounded-lg border border-border"
               aria-label="Judge utilization table scroll area"
+              role="region"
+              tabIndex={0}
             >
               <table className="min-w-[720px] w-full text-sm">
                 <thead>

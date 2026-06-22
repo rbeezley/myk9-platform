@@ -10,10 +10,12 @@
  *  - ringside `useEntryHandlers` → the combined `combinedHandlers` bag
  *  - custom `compareEntries` sort (adds 'section-armband')
  *
- * Out-of-scope service callbacks are deliberate stubs (owner: at-show only
- * READS run order; the Trial Secretary sets it elsewhere): print, run-order
- * apply, and scoresheet prefetch are no-ops. Scoresheet navigation points at
- * the at-show scoresheet route (built in a later slice).
+ * Run-order apply IS implemented: the section-aware preset path persists each
+ * entry's run_order offline-first via `applyCombinedRunOrder` (mirrors the
+ * single-class path, but respects the combined `scope` A/B + `renumberMode`
+ * contract). Remaining out-of-scope service callbacks are deliberate stubs:
+ * print and scoresheet prefetch are no-ops, and combined drag-persist is still
+ * stubbed here. Scoresheet navigation points at the at-show scoresheet route.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -32,6 +34,9 @@ import {
   type EntryListDataDependencies,
   type RingsideShowContext,
   type CombinedEntryListUiState,
+  type RunOrderPreset,
+  type RunOrderScope,
+  type RenumberMode,
 } from '@myk9/ringside';
 
 // Derive these from the page's own UI-state type — the barrel also exports
@@ -41,6 +46,7 @@ type SortOrder = CombinedEntryListUiState['sortOrder'];
 type PrintDialogState = CombinedEntryListUiState['printDialogState'];
 import { replicatedShowsTable } from '@/services/replication';
 import { logger } from '@/utils/logger';
+import { applyCombinedRunOrder } from './applyCombinedRunOrder';
 import { buildRingsideContextValue } from './ringsideCapabilities';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { createAtShowDataDependencies } from './atShowDataAdapter';
@@ -198,13 +204,27 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     [showId]
   );
 
-  // ── Out-of-scope service callbacks (stubs) ─────────────────────────────
+  // ── Service callbacks (print/prefetch still stubbed; run-order is real) ──
   const onPrintSortOrder = useCallback(() => {
     logger.warn('[at-show] combined print is not available in the spike', 'at-show');
   }, []);
-  const onApplyRunOrder = useCallback(async () => {
-    logger.warn('[at-show] combined run-order apply is stubbed for the spike', 'at-show');
-  }, []);
+  // Apply a run-order PRESET (by-armband / random / section-scoped). Mirrors the
+  // single-class preset path but section-aware: `scope` (A/B/all) + `renumberMode`
+  // route through `applyCombinedRunOrder`, which persists each entry's run_order
+  // offline-first via the replication layer. `manual` opens drag mode instead.
+  const onApplyRunOrder = useCallback<
+    (preset: RunOrderPreset, scope?: RunOrderScope, renumberMode?: RenumberMode) => Promise<void>
+  >(
+    async (preset, scope, renumberMode) => {
+      if (preset === 'manual') {
+        setIsDragMode(true);
+        return;
+      }
+      await applyCombinedRunOrder(localEntries, preset, scope, renumberMode);
+      await refresh();
+    },
+    [localEntries, refresh]
+  );
   const onPrefetchScoresheet = useCallback(() => {}, []);
 
   // ── Ownership annotations (own-dog highlight + dogs-ahead pills) ────────

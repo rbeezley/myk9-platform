@@ -228,3 +228,36 @@ export function calculateRunOrderScoped(
     return [...reorderedScoped, ...adjustedOther];
   }
 }
+
+/** Which section a combined run-order preset applies to. Mirrors ringside's
+ * `RunOrderScope` (`'all'` ignores sections). */
+export type RunOrderScope = 'all' | 'A' | 'B';
+
+/**
+ * Combined (Section A/B) run-order dispatcher — the section-aware sibling of
+ * `calculateRunOrder` used by the single-class list.
+ *
+ * Routes by `scope`:
+ *  - `'all'`  → reorder the whole class with `calculateRunOrder` (the preset
+ *               itself decides section grouping, e.g. `a-then-b-asc`).
+ *  - `'A'|'B'`→ reorder ONLY that section via `calculateRunOrderScoped`,
+ *               with `renumberMode` deciding what happens to the other
+ *               section's numbers (`'renumber'` re-sequences 1..N, `'preserve'`
+ *               keeps the other section ahead untouched).
+ *
+ * `renumberMode` is ignored for `'all'` (every entry is renumbered anyway).
+ * Returns a `RunOrderResult` for EVERY entry so the caller can persist the
+ * whole class atomically. `'manual'` yields `[]` (drag mode handles it).
+ */
+export function calculateCombinedRunOrder(
+  entries: RunOrderEntry[],
+  preset: RunOrderPreset,
+  scope: RunOrderScope = 'all',
+  renumberMode: 'preserve' | 'renumber' = 'renumber'
+): RunOrderResult[] {
+  if (preset === 'manual') return [];
+  if (scope === 'A' || scope === 'B') {
+    return calculateRunOrderScoped(entries, preset, scope, renumberMode);
+  }
+  return calculateRunOrder(entries, preset);
+}

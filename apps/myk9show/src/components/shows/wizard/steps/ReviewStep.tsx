@@ -197,32 +197,33 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
             </Card>
           )}
 
-          {/* Overview Stats - Enhanced with gradients */}
+          {/* Overview Stats — flat warm-paper summary; ink counts on card-white,
+              no saturated gradients (DESIGN.md: warm-paper palette, not cold glass). */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Trials Card */}
-            <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 p-6 text-white shadow-lg">
-              <Calendar className="absolute -right-3 -bottom-3 h-20 w-20 text-white/10" />
+            <div className="relative overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm">
+              <Calendar className="absolute -right-3 -bottom-3 h-20 w-20 text-muted-foreground/10" />
               <div className="relative">
-                <p className="text-sm font-medium text-white/80">Trials</p>
-                <p className="text-4xl font-bold mt-1">{trials.length}</p>
+                <p className="text-sm font-medium text-muted-foreground">Trials</p>
+                <p className="text-4xl font-bold mt-1 text-foreground">{trials.length}</p>
               </div>
             </div>
 
             {/* Classes Card */}
-            <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 p-6 text-white shadow-lg">
-              <Trophy className="absolute -right-3 -bottom-3 h-20 w-20 text-white/10" />
+            <div className="relative overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm">
+              <Trophy className="absolute -right-3 -bottom-3 h-20 w-20 text-muted-foreground/10" />
               <div className="relative">
-                <p className="text-sm font-medium text-white/80">Classes</p>
-                <p className="text-4xl font-bold mt-1">{totalClasses}</p>
+                <p className="text-sm font-medium text-muted-foreground">Classes</p>
+                <p className="text-4xl font-bold mt-1 text-foreground">{totalClasses}</p>
               </div>
             </div>
 
             {/* Show Dates Card */}
-            <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 p-6 text-white shadow-lg">
-              <Calendar className="absolute -right-3 -bottom-3 h-20 w-20 text-white/10" />
+            <div className="relative overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm">
+              <Calendar className="absolute -right-3 -bottom-3 h-20 w-20 text-muted-foreground/10" />
               <div className="relative">
-                <p className="text-sm font-medium text-white/80">Show Dates</p>
-                <p className="text-lg font-bold mt-1">
+                <p className="text-sm font-medium text-muted-foreground">Show Dates</p>
+                <p className="text-lg font-bold mt-1 text-foreground">
                   {show.startDate ? format(new Date(show.startDate), 'MMM d') : 'TBD'}
                   {show.endDate && show.endDate !== show.startDate && (
                     <span> – {format(new Date(show.endDate), 'MMM d')}</span>
@@ -232,11 +233,11 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
             </div>
 
             {/* Entry Window Card */}
-            <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-cyan-500 to-teal-600 p-6 text-white shadow-lg">
-              <FileText className="absolute -right-3 -bottom-3 h-20 w-20 text-white/10" />
+            <div className="relative overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm">
+              <FileText className="absolute -right-3 -bottom-3 h-20 w-20 text-muted-foreground/10" />
               <div className="relative">
-                <p className="text-sm font-medium text-white/80">Entry Window</p>
-                <p className="text-lg font-bold mt-1">
+                <p className="text-sm font-medium text-muted-foreground">Entry Window</p>
+                <p className="text-lg font-bold mt-1 text-foreground">
                   {show.entryOpenDate ? format(new Date(show.entryOpenDate), 'MMM d') : 'TBD'}
                   {show.entryCloseDate && (
                     <span> – {format(new Date(show.entryCloseDate), 'MMM d')}</span>
@@ -246,13 +247,13 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
             </div>
 
             {/* Judges Card */}
-            <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 p-6 text-white shadow-lg">
-              <Users className="absolute -right-3 -bottom-3 h-20 w-20 text-white/10" />
+            <div className="relative overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm">
+              <Users className="absolute -right-3 -bottom-3 h-20 w-20 text-muted-foreground/10" />
               <div className="relative">
-                <p className="text-sm font-medium text-white/80">Judges Assigned</p>
-                <p className="text-4xl font-bold mt-1">
+                <p className="text-sm font-medium text-muted-foreground">Judges Assigned</p>
+                <p className="text-4xl font-bold mt-1 text-foreground">
                   {uniqueAssignedJudges}
-                  <span className="text-2xl text-white/60">/{totalJudges}</span>
+                  <span className="text-2xl text-muted-foreground">/{totalJudges}</span>
                 </p>
               </div>
             </div>
@@ -380,7 +381,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                 {trials.map((trial, trialIndex) => (
                   <div
                     key={trial.id}
-                    className="border rounded-lg p-5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 "
+                    className="border rounded-lg p-5 bg-muted/30"
                   >
                     {/* Trial Header */}
                     <div className="flex items-center justify-between mb-4">

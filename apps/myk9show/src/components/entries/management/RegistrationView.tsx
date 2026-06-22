@@ -1,8 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
-import { MoveUpRequestsTab } from '@/components/entries/MoveUpRequestsTab';
-import { PullManagementTab } from '@/components/entries/PullManagementTab';
 import { toast } from 'sonner';
 import { useEmailStatus } from '@/hooks/useEmailStatus';
 import { supabase } from '@/lib/supabase';
@@ -84,8 +81,6 @@ interface RegistrationViewProps {
   onOpenCompDialog: (entry: EntryManagementEntry) => void;
   onUncompEntry: (entryId: string) => void;
   onRemoveEntry: (entryId: string) => void;
-  /** Show ID for move-ups / pulled entries tabs */
-  showId: string;
   /** Reload entries callback */
   onRefresh: () => void;
   /** Entries grouped by enrollment/order for the list view */
@@ -125,7 +120,6 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   onOpenCompDialog,
   onUncompEntry,
   onRemoveEntry,
-  showId,
   onRefresh,
   enrollmentGroups,
   onSendDecisionEmail,
@@ -295,19 +289,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
         entityName="entries"
       />
 
-      {attentionFilter === 'move-ups' ? (
-        <Card>
-          <CardContent className="pt-6">
-            <MoveUpRequestsTab showId={showId} onRefresh={onRefresh} />
-          </CardContent>
-        </Card>
-      ) : attentionFilter === 'pulled' ? (
-        <Card>
-          <CardContent className="pt-6">
-            <PullManagementTab showId={showId} onRefresh={onRefresh} />
-          </CardContent>
-        </Card>
-      ) : entryViewMode === 'table' && isMobileViewport ? (
+      {entryViewMode === 'table' && isMobileViewport ? (
         enrollmentCardList
       ) : entryViewMode === 'table' ? (
         <EntriesTableView
@@ -329,16 +311,14 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
         enrollmentCardList
       )}
 
-      {entryViewMode === 'table' &&
-        attentionFilter !== 'move-ups' &&
-        attentionFilter !== 'pulled' && (
-          <EntryBulkActionsBar
-            selectedEntries={selection.selectedItems}
-            onBulkStatusChange={onBulkStatusChange}
-            onBulkCheckIn={onBulkCheckIn}
-            onClear={selection.clearSelection}
-          />
-        )}
+      {entryViewMode === 'table' && (
+        <EntryBulkActionsBar
+          selectedEntries={selection.selectedItems}
+          onBulkStatusChange={onBulkStatusChange}
+          onBulkCheckIn={onBulkCheckIn}
+          onClear={selection.clearSelection}
+        />
+      )}
     </div>
   );
 };

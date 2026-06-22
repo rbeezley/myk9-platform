@@ -83,7 +83,7 @@ export function MagazineFooter({
             {secretaryEmail && (
               <a
                 href={`mailto:${secretaryEmail}`}
-                className="underline"
+                className="inline-flex min-h-[44px] items-center justify-center underline"
                 style={{
                   color: 'var(--mz-soft)',
                   fontFamily: 'var(--mz-body)',
@@ -100,7 +100,7 @@ export function MagazineFooter({
       <div
         className="mx-auto mt-10 flex w-full max-w-[1280px] flex-wrap items-center justify-between gap-3 pt-6 text-xs uppercase"
         style={{
-          borderTop: '1px solid rgba(26,26,26,0.18)',
+          borderTop: '1px solid var(--mz-rule-soft)',
           color: 'var(--mz-mute)',
           fontFamily: 'var(--mz-meta)',
           letterSpacing: '0.28em',

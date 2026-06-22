@@ -123,6 +123,25 @@ describe('EntryListCard - check-in button affordance', () => {
     expect(screen.queryByText('Payment Due')).not.toBeInTheDocument();
   });
 
+  it('groups payment actions under a "Payment" header in the status menu', () => {
+    // Phase B de-overloads the 9-item status menu: money actions now sit under
+    // their own quiet "Payment" header, distinct from the lifecycle items above
+    // and the destructive Remove below. An entry that still owes money
+    // (active + payment pending) surfaces "Request payment…".
+    render(
+      <EntryListCard
+        {...defaultProps}
+        entries={[makeEntry({ paymentStatus: PaymentStatus.PENDING, paidAmount: 0 })]}
+      />
+    );
+
+    // Open the status menu via the entry's status badge (ACCEPTED → "Accepted").
+    fireEvent.click(screen.getByText('Accepted'));
+
+    expect(screen.getByText('Payment')).toBeInTheDocument();
+    expect(screen.getByText('Request payment…')).toBeInTheDocument();
+  });
+
   it('confirms before removing an entry from a class', async () => {
     const user = userEvent.setup();
     const onRemoveEntry = vi.fn();

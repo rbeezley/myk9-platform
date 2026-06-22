@@ -15,6 +15,7 @@ import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable'
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { mapReplicatedDogToDbRow } from '@/services/mappers/dogMappers';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
+import { selectOwnedDogs } from '@/utils/dogOwnership';
 
 // PostgREST OR filter for dogs owned or co-owned by a person
 const ownedByPerson = (personId: string) => `owner_id.eq.${personId},co_owner_id.eq.${personId}`;
@@ -25,7 +26,7 @@ const ownedByPerson = (personId: string) => `owner_id.eq.${personId},co_owner_id
  * Co-owned dogs that are not primary-owned will be caught by the PostgREST fallback.
  */
 function filterByOwnership(dogs: ReplicatedDog[], personId: string): ReplicatedDog[] {
-  return dogs.filter(d => d.ownerId === personId);
+  return selectOwnedDogs(dogs, personId);
 }
 
 // ---------------------------------------------------------------------------

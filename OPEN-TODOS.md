@@ -28,6 +28,25 @@ Source: [`docs/qa/mobile-responsiveness-audit-2026-06-21.md`](docs/qa/mobile-res
 
 ---
 
+## Public Default Landing — Brand Decision — 2026-06-22
+
+Deferred Phase 4 from the public-landing brand/a11y pass (PR [#916](https://github.com/rbeezley/myk9-platform/pull/916)). The touch-target, heritage-AA, tokenize, and `DetailHero` badge-token sub-items already shipped; this is the **design decision only**.
+
+- [ ] **Decide committed default landing for `/shows/:id`** — the default (non-`style`) public show landing reuses the shared product `DetailHero` (product-template chrome on a brand-register slot), unlike the 7 bespoke styled themes. Decide: build a committed default landing vs. extend one of the existing themes as the default. Needs a design pass before any build — do **not** build blind. Full context in TO-DOS.md § "Public default landing — DetailHero vs. brand register — 2026-06-22".
+
+---
+
+## Improve Audit — 2026-06-21
+
+Source: [`docs/improve-audit-2026-06/README.md`](docs/improve-audit-2026-06/README.md). Standard-effort `/improve` audit against `deb820e35`. The two P1 quick wins shipped — PR [#903](https://github.com/rbeezley/myk9-platform/pull/903) (ShowDetailsPage entry-count perf) and PR [#910](https://github.com/rbeezley/myk9-platform/pull/910) (one shared owned-dog selector across 12 sites). The audit's headline security findings were vetted and **rejected** (already remediated or by-design) — recorded in the index so they aren't re-audited. Remaining executor-ready plans below, in recommended order; run one via `/improve execute <plan-file>`.
+
+- [ ] **[Improve P1] Add scoring→placement integration test** — Pin the core-value contract end-to-end: score → placement calc → exhibitor-visible rank + Q/NQ. Mutation/unit coverage exists, but nothing asserts the full seam. Plan: [`005`](docs/improve-audit-2026-06/005-scoring-placement-integration-test.md). Effort M, test-only.
+- [ ] **[Improve P2] Fix `calculateTotalAreaTime` falsy 0-check** — `if (area1Time)` skips a legitimate `0`; numerically harmless today (a contract/clarity fix, not a live bug) but a latent truthiness trap. Replace with nullish guards + regression tests. Plan: [`003`](docs/improve-audit-2026-06/003-calculatetotalareatime-zero-bug.md). Effort S.
+- [ ] **[Improve P2] Investigate INSERT retry idempotency (read-only spike)** — Determine whether a retried replication-queue INSERT can duplicate a row (depends on client-UUID vs server-generated PK) and emit a verdict + scoped fix. Read-only; output is a `docs/` findings doc, not a code change. Plan: [`006`](docs/improve-audit-2026-06/006-insert-retry-idempotency-investigate.md). Effort M.
+- [ ] **[Improve P2] Spike: rationalize the 7 entry-read modules (doc-only)** — Map callers + replication-vs-PostgREST paths across `services/database/entries/*`, then propose a safe consolidation before any refactor (the path is offline-critical). Doc-only; scopes a later L-effort refactor. Plan: [`004`](docs/improve-audit-2026-06/004-entries-read-module-consolidation-spike.md). Effort L.
+
+---
+
 ## Code-Quality Audit — 2026-06-12
 
 Plan: [`docs/plan-code-quality-audit.md`](docs/plan-code-quality-audit.md). Current status in [`docs/audits/2026-06-code-quality/SUMMARY.md`](docs/audits/2026-06-code-quality/SUMMARY.md). Phase 1 inventory and Phase 2 verification are done; Wave A cleanup merged in PR [#652](https://github.com/rbeezley/myk9-platform/pull/652); Wave B type-file unification merged in PR [#653](https://github.com/rbeezley/myk9-platform/pull/653); Wave B P1 launch-gate coverage/fix merged in PR [#654](https://github.com/rbeezley/myk9-platform/pull/654); Wave B Magazine/Gazette email parity merged in PR [#656](https://github.com/rbeezley/myk9-platform/pull/656); Wave B read-shape parity implemented in PR [#658](https://github.com/rbeezley/myk9-platform/pull/658).

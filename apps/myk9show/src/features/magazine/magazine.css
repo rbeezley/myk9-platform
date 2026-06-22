@@ -19,6 +19,11 @@
   --mz-gold-1: #c9a87c;
   --mz-gold-2: #a8814f;
   --mz-gold-3: #4a3826;
+  /* Hairline rule on the cream page — ink (#1a1a1a) at 18% for byline/footer
+     dividers. */
+  --mz-rule-soft: rgba(26, 26, 26, 0.18);
+  /* Muted paper text on the dark final band — paper (#f6f1e8) at 70%. */
+  --mz-paper-mute: rgba(246, 241, 232, 0.7);
   --mz-gold-rule: linear-gradient(90deg, #c9a87c, #a8814f);
   --mz-cover-fallback: linear-gradient(135deg, #c9a87c 0%, #a8814f 45%, #4a3826 100%);
   --mz-portrait-fallback: linear-gradient(160deg, #c9a87c 0%, #8a6a45 60%, #4a3826 100%);

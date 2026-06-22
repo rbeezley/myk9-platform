@@ -225,6 +225,7 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 | `apps/myk9show/src/test/e2e/real-auth-browse-shows.spec.ts`            | Authenticated browse shows.                                                                     |
 | `apps/myk9show/src/test/e2e/show-creation-wizard-detailed.spec.ts`     | Detailed show wizard.                                                                           |
 | `apps/myk9show/src/test/e2e/show-details-sidebar-navigation.spec.ts`   | Show details navigation.                                                                        |
+| `apps/myk9show/src/test/e2e/show/atShowJudgeScoring.spec.ts`           | At-show judge scoring authorization path.                                                       |
 | `apps/myk9show/src/test/e2e/show/atShowOfflineScoring.spec.ts`         | At-show offline scoring round-trip.                                                             |
 | `apps/myk9show/src/test/e2e/show/phase4CrossRoleSeams.spec.ts`         | Phase 4 fixture-backed cross-role seam audit.                                                   |
 | `apps/myk9show/src/test/e2e/show/showConflictSurfacing.spec.ts`        | Show replication conflict surfacing.                                                            |

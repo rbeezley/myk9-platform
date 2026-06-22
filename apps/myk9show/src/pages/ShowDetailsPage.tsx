@@ -87,6 +87,7 @@ import { ShowPresenceStack } from '@/features/show-presence/ShowPresenceStack';
 import { LiveUpdateIndicator } from '@/features/show-live-sync/LiveUpdateIndicator';
 import { SHOW_MANAGEMENT_SECTIONS } from '@/routes/showManagementSections';
 import { SETUP_PUBLISH_ANCHOR } from '@/features/show-workbench/setupReadinessSignals';
+import { selectOwnedDogIds } from '@/utils/dogOwnership';
 
 const ShowMapTab = React.lazy(() => import('@/features/show-map/ShowMapTab'));
 
@@ -302,8 +303,7 @@ const ShowDetailsPage: React.FC = () => {
   const { entries: userEntries, isLoading: userEntriesLoading } = useMyEntries(showId_);
   const userDogIds = useMemo(() => {
     const databaseUserId = userWithRoles?.databaseUserId;
-    if (!databaseUserId) return new Set<string>();
-    return new Set(dogs.filter(dog => dog.ownerId === databaseUserId).map(dog => dog.id));
+    return selectOwnedDogIds(dogs, databaseUserId);
   }, [dogs, userWithRoles?.databaseUserId]);
 
   const userEntryClassIds = useMemo(() => {
@@ -350,6 +350,18 @@ const ShowDetailsPage: React.FC = () => {
       : 'overview';
   const [activeTab, setTab] = useUrlTab(allowedTabs, defaultTab);
 
+  // Count entries per class once (O(entries)) instead of re-filtering the full
+  // showEntries array per class below (was O(classes × entries) per recompute).
+  const entryCountByClassId = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const entry of showEntries) {
+      const classId = typeof entry.class_id === 'string' ? entry.class_id : undefined;
+      if (!classId) continue;
+      counts.set(classId, (counts.get(classId) ?? 0) + 1);
+    }
+    return counts;
+  }, [showEntries]);
+
   // Flatten trial classes for judge roster resolution and entry overlap detection
   const showClasses = useMemo(() => {
     return associatedTrials.flatMap(trial => {
@@ -365,8 +377,7 @@ const ShowDetailsPage: React.FC = () => {
         time: cls.startTime || '',
         ring: 0,
         status: cls.status || CLASS_STATUS.SCHEDULED,
-        entryCount: showEntries.filter((e: Record<string, unknown>) => e.class_id === cls.id)
-          .length,
+        entryCount: entryCountByClassId.get(cls.id) ?? 0,
         scoredCount: cls.completedEntries ?? 0,
         userHasEntry: userEntryClassIds.has(cls.id),
         trialDate: trial.trialDate || '',
@@ -374,7 +385,7 @@ const ShowDetailsPage: React.FC = () => {
         trialName: trial.name || '',
       }));
     });
-  }, [associatedTrials, trialClasses, userEntryClassIds, showEntries]);
+  }, [associatedTrials, trialClasses, userEntryClassIds, entryCountByClassId]);
 
   // Anon/cold-store fallback for the Classes tab + overview. When the store has
   // trials we keep the store-derived `showClasses` verbatim (warm session, no
@@ -398,10 +409,10 @@ const ShowDetailsPage: React.FC = () => {
     const stats: Record<string, TrialStats> = {};
     for (const trial of associatedTrials) {
       const classes = trialClasses[trial.id] || [];
-      const classIdSet = new Set(classes.map(c => c.id));
-      const trialEntryCount = showEntries.filter((e: Record<string, unknown>) =>
-        classIdSet.has(e.class_id as string)
-      ).length;
+      const trialEntryCount = classes.reduce(
+        (sum, c) => sum + (entryCountByClassId.get(c.id) ?? 0),
+        0
+      );
       stats[trial.id] = {
         classCount: classes.length,
         entryCount: trialEntryCount,
@@ -409,7 +420,7 @@ const ShowDetailsPage: React.FC = () => {
       };
     }
     return stats;
-  }, [associatedTrials, trialClasses, showEntries]);
+  }, [associatedTrials, trialClasses, entryCountByClassId]);
 
   // Same cold-store fallback for the Trials tab's per-trial stat cards.
   const publicTrialStats = useMemo(
@@ -668,12 +679,18 @@ const ShowDetailsPage: React.FC = () => {
                   </Button>
                 )}
                 {entryStatus.canEnter ? (
-                  <button
-                    className="min-h-[44px] sm:h-9 px-5 text-sm font-medium rounded-md inline-flex items-center gap-2 transition-colors bg-[#c96442] hover:bg-[#b45a3a] text-[#faf9f5] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3898ec] focus-visible:ring-offset-2"
+                  // Primary entry CTA: the shared Button (default = filled
+                  // var(--primary)) so it honors the user's accent and the
+                  // semantic focus ring, instead of a hardcoded Clay hex that
+                  // broke under Grove/Dusk/Heather. Filled vs the outline
+                  // siblings keeps it the dominant action.
+                  <Button
+                    size="sm"
+                    className="min-h-[44px] sm:min-h-8"
                     onClick={handleRegisterForShow}
                   >
                     {hasUserEntries ? 'Manage Entry' : 'Enter This Show'}
-                  </button>
+                  </Button>
                 ) : hasUserEntries ? (
                   <Button
                     variant="outline"

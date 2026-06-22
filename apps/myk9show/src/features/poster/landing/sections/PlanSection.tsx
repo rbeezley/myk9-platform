@@ -107,6 +107,9 @@ export function PlanSection({ accommodations }: PlanSectionProps) {
                 <a
                   href={acc.url}
                   style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    minHeight: 44,
                     fontFamily: POSTER_BODY_FAMILY,
                     fontSize: 14,
                     lineHeight: 1.6,

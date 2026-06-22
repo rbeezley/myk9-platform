@@ -19,9 +19,12 @@ const STATUS_LABEL: Record<ShowDeskShowStatus, string> = {
 
 const STATUS_TONE: Record<ShowDeskShowStatus, string> = {
   setup: 'bg-muted text-muted-foreground',
-  'show-in-progress': 'bg-success/10 text-success ',
-  'wrap-up': 'bg-warning/10 text-warning ',
-  closed: 'bg-slate-200 text-slate-900 dark:bg-slate-800 dark:text-slate-200',
+  'show-in-progress': 'bg-success/10 text-success',
+  'wrap-up': 'bg-warning/10 text-warning',
+  // "Closed" is an inactive state: warm stone chip token (DESIGN.md
+  // "stone=inactive"), not a cool slate. The token carries both light and
+  // dark values, so no dark: variant is needed.
+  closed: 'bg-[color:var(--chip-stone-bg)] text-[color:var(--chip-stone-fg)]',
 };
 
 export interface ShowDeskAdaptiveHeaderProps {

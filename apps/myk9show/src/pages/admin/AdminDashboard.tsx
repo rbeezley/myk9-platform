@@ -60,10 +60,10 @@ function DashboardHeader({ firstName }: { firstName: string | null }) {
           className="text-4xl tracking-tight mb-3"
         />
       </div>
-      <div className="flex items-center gap-3 mt-6 md:mt-0">
+      <div className="flex w-full flex-col gap-3 mt-6 sm:flex-row sm:flex-wrap md:mt-0 md:w-auto md:justify-end">
         <Button
           variant="outline"
-          className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40
+          className="w-full border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 sm:w-auto
                      hover:-translate-y-0.5 transition-all duration-300 shadow-sm rounded-xl px-6 py-2.5"
           style={{
             fontWeight: 500,
@@ -77,7 +77,7 @@ function DashboardHeader({ firstName }: { firstName: string | null }) {
           </Link>
         </Button>
         <Button
-          className="px-6 py-2.5"
+          className="w-full px-6 py-2.5 sm:w-auto"
           style={{
             fontWeight: 500,
             transitionTimingFunction: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',

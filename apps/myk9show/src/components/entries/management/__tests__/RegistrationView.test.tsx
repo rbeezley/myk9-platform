@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import { RegistrationView } from '../RegistrationView';
 import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
@@ -29,6 +29,23 @@ vi.mock('@/hooks/useEmailStatus', () => ({
 const enrollmentGroups = [
   { groupKey: 'g1', enrollmentId: 'e1', entries: [] },
 ] as unknown as EnrollmentGroup[];
+
+function mockViewport(matches: boolean) {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+}
 
 function renderView(
   attentionFilter: 'all' | 'pending' | 'accepted' | 'waitlist' | 'move-ups' | 'pulled' | 'issues',
@@ -71,7 +88,11 @@ function renderView(
 }
 
 describe('RegistrationView filter content routing', () => {
-  it('renders shared list controls and defaults to table view', () => {
+  beforeEach(() => {
+    mockViewport(false);
+  });
+
+  it('renders shared list controls with desktop table in table mode', () => {
     renderView('all');
 
     expect(screen.getByPlaceholderText('Search entries...')).toBeInTheDocument();
@@ -82,6 +103,16 @@ describe('RegistrationView filter content routing', () => {
     );
     expect(screen.getByRole('button', { name: /table view/i })).toBeInTheDocument();
     expect(screen.getByTestId('entries-table')).toBeInTheDocument();
+    expect(screen.queryByTestId('enrollment-card')).not.toBeInTheDocument();
+  });
+
+  it('renders mobile cards instead of the table in table mode on mobile viewports', () => {
+    mockViewport(true);
+
+    renderView('all');
+
+    expect(screen.getByTestId('enrollment-card')).toBeInTheDocument();
+    expect(screen.queryByTestId('entries-table')).not.toBeInTheDocument();
   });
 
   it('lets the secretary switch to Day-of mode', async () => {

@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import confetti from 'canvas-confetti';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import {
@@ -46,18 +45,6 @@ const ShowCreationWizardPage: React.FC = () => {
   const [createdShow, setCreatedShow] = useState<CreatedShow | null>(null);
   const stepContentRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!createdShow) return;
-    // Two-burst confetti: immediate burst from both sides, then a second pop
-    const fire = (opts: confetti.Options) =>
-      confetti({ zIndex: 9999, disableForReducedMotion: true, ...opts });
-    fire({ particleCount: 80, spread: 70, origin: { x: 0.3, y: 0.6 } });
-    fire({ particleCount: 80, spread: 70, origin: { x: 0.7, y: 0.6 } });
-    const t = setTimeout(() => {
-      fire({ particleCount: 50, spread: 100, origin: { x: 0.5, y: 0.5 }, scalar: 0.8 });
-    }, 350);
-    return () => clearTimeout(t);
-  }, [createdShow]);
   const editModeInitializedRef = useRef<string | null>(null);
 
   // Extract edit mode from URL params
@@ -316,7 +303,7 @@ const ShowCreationWizardPage: React.FC = () => {
         {/* Header with breadcrumb and back button */}
         <WizardHeader editMode={editMode} onClose={handleClose} />
 
-        <div className="container mx-auto px-4 sm:px-6 pt-6 pb-8 max-w-6xl">
+        <div className="container mx-auto max-w-6xl px-4 pb-8 pt-4 sm:px-6 sm:pt-6">
           {/* Title */}
           <h2 className="text-base font-semibold mb-4 text-foreground">
             {getEditModeTitle(editMode) ?? 'Create New Show'}
@@ -326,7 +313,7 @@ const ShowCreationWizardPage: React.FC = () => {
               steps stay visible while the form scrolls. Kept a direct child of
               the tall container (not nested in a short title wrapper) so it
               sticks for the whole scroll, not just while the title is on screen. */}
-          <div className="sticky top-16 z-30 mb-4 sm:mb-6 rounded-2xl border border-border bg-card/95 px-4 py-5 shadow-sm backdrop-blur-xl sm:px-6">
+          <div className="sticky top-16 z-30 mb-4 rounded-2xl border border-border bg-card px-3 py-4 shadow-sm sm:mb-6 sm:px-6 sm:py-5">
             <HorizontalProgressIndicator
               steps={WIZARD_STEPS}
               currentStep={currentStep}
@@ -335,9 +322,9 @@ const ShowCreationWizardPage: React.FC = () => {
             />
           </div>
 
-          {/* Main Content */}
-          <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl min-h-[700px] flex flex-col transition-all duration-300 hover:shadow-lg">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          {/* Main Content — flat cream worksheet region (not a card) so the inner
+              step cards are the single lifting card layer, never card-in-card. */}
+          <div className="relative flex min-h-[560px] flex-col overflow-hidden rounded-2xl border border-border bg-background sm:min-h-[700px]">
 
             {/* Collapsible Validation Banner — only shown after user clicks Next */}
             {hasAttemptedNext && validationMessages.length > 0 && (
@@ -353,7 +340,7 @@ const ShowCreationWizardPage: React.FC = () => {
               <div
                 ref={stepContentRef}
                 key={currentStep}
-                className="p-6 sm:p-8 animate-in fade-in slide-in-from-right-4 duration-300"
+                className="animate-in fade-in slide-in-from-right-4 p-4 duration-300 sm:p-8"
                 role="region"
                 aria-label={`Step ${currentStep + 1}: ${WIZARD_STEPS[currentStep]?.label}`}
               >
@@ -374,7 +361,7 @@ const ShowCreationWizardPage: React.FC = () => {
 
             {/* Navigation - Fixed at bottom, hidden on Review step */}
             {currentStep < WIZARD_STEPS.length - 1 && (
-              <div className="relative border-t bg-gradient-to-r from-muted/10 to-muted/5 backdrop-blur-sm p-4 sm:p-6 rounded-b-2xl">
+              <div className="relative border-t bg-muted/20 p-4 sm:p-6 rounded-b-2xl">
                 <WizardNavigation
                   currentStep={currentStep}
                   totalSteps={WIZARD_STEPS.length}

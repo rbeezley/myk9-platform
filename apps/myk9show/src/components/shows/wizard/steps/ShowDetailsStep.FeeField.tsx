@@ -41,7 +41,7 @@ export const FeeField: React.FC<FeeFieldProps> = ({ id, label, tooltip, value, o
       value={value}
       onChange={onChange}
       placeholder="0.00"
-      className="border border-border bg-secondary rounded-md"
+      className="border border-border bg-input rounded-md"
     />
   </div>
 );

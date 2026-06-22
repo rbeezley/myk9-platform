@@ -386,24 +386,33 @@ const UserRoleManagementPage: React.FC = () => {
       >
         {/* User Assignments Tab */}
         <TabsContent value="assignments" className="space-y-4">
-          <DataTable
-            tableId="userRoleAssignments"
-            columns={columns}
-            data={userRoles}
-            emptyState={
-              <div className="text-center py-8">
-                <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">No assignments found</h3>
-                <p className="text-muted-foreground">No role assignments have been made yet</p>
-              </div>
-            }
-            toolbar={({ table }) => (
-              <DataTableToolbar table={table}>
-                <DataTableSearch placeholder="Search by user, role, or scope..." />
-                <DataTableColumnToggle />
-              </DataTableToolbar>
-            )}
-          />
+          <div
+            className="max-w-full overflow-x-auto rounded-lg border border-border"
+            aria-label="User role assignments table scroll area"
+            role="region"
+            tabIndex={0}
+          >
+            <div className="min-w-[760px]">
+              <DataTable
+                tableId="userRoleAssignments"
+                columns={columns}
+                data={userRoles}
+                emptyState={
+                  <div className="text-center py-8">
+                    <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-medium mb-2">No assignments found</h3>
+                    <p className="text-muted-foreground">No role assignments have been made yet</p>
+                  </div>
+                }
+                toolbar={({ table }) => (
+                  <DataTableToolbar table={table}>
+                    <DataTableSearch placeholder="Search by user, role, or scope..." />
+                    <DataTableColumnToggle />
+                  </DataTableToolbar>
+                )}
+              />
+            </div>
+          </div>
         </TabsContent>
 
         {/* Role Summary Tab */}

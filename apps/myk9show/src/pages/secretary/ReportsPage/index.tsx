@@ -156,7 +156,9 @@ export default function ReportsPage() {
   };
 
   const handlePrint = () => {
-    printIframe(iframeRef);
+    if (!printIframe(iframeRef)) {
+      toast.error('The report is still loading. Wait for the preview, then print.');
+    }
   };
 
   const officialPdfProps = useMemo(() => {

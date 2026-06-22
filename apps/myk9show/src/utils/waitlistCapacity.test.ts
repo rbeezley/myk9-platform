@@ -20,6 +20,19 @@ describe('calculateMailInReserved', () => {
     ).toBe(0);
   });
 
+  it('treats timestamp-shaped release dates as releasing on their date', () => {
+    expect(
+      calculateMailInReserved({
+        capacity: 125,
+        strategy: 'fixed',
+        value: 20,
+        autoRelease: true,
+        releaseDate: '2026-05-01T23:59:59Z',
+        todayIso: '2026-05-01',
+      })
+    ).toBe(0);
+  });
+
   it('keeps the reserve before the auto-release date', () => {
     expect(
       calculateMailInReserved({

@@ -9,7 +9,8 @@ export interface MailInReserveInput {
 
 export function calculateMailInReserved(input: MailInReserveInput): number {
   const todayIso = input.todayIso ?? new Date().toISOString().slice(0, 10);
-  if (input.autoRelease && input.releaseDate && input.releaseDate <= todayIso) {
+  const releaseDateIso = input.releaseDate?.slice(0, 10);
+  if (input.autoRelease && releaseDateIso && releaseDateIso <= todayIso) {
     return 0;
   }
 

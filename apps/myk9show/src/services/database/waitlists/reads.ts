@@ -289,12 +289,16 @@ export const removeFromWaitlist = async (waitlistEntryId: string) => {
 
 export const promoteWaitlistEntry = async (
   waitlistEntryId: string,
-  deadlineHours: number = 48
+  deadlineHours?: number
 ): Promise<string> => {
-  const { data, error } = await supabase.rpc('promote_waitlist_entry', {
+  const args: { p_waitlist_entry_id: string; p_deadline_hours?: number } = {
     p_waitlist_entry_id: waitlistEntryId,
-    p_deadline_hours: deadlineHours,
-  });
+  };
+  if (deadlineHours !== undefined) {
+    args.p_deadline_hours = deadlineHours;
+  }
+
+  const { data, error } = await supabase.rpc('promote_waitlist_entry', args);
 
   if (error) {
     throw createDatabaseError(error, 'waitlist_entries', 'promote_waitlist_entry');
@@ -305,7 +309,7 @@ export const promoteWaitlistEntry = async (
 
 export const bulkPromoteWaitlistEntries = async (
   waitlistEntryIds: string[],
-  deadlineHours: number = 48
+  deadlineHours?: number
 ): Promise<string[]> => {
   const settled = await Promise.allSettled(
     waitlistEntryIds.map(id => promoteWaitlistEntry(id, deadlineHours))

@@ -12,13 +12,28 @@
  */
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
+import {
+  DEFAULT_WAITLIST_PAYMENT_DEADLINE_HOURS,
+  expireWaitlistOffer,
+  type ExpiredWaitlistOffer,
+  type WaitlistExpirationStripe,
+  type WaitlistExpirationSupabase,
+} from '../_shared/waitlistExpiration.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const cronSecret = Deno.env.get('CRON_SECRET');
+const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY');
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const stripe = stripeSecret
+  ? new Stripe(stripeSecret, {
+      appInfo: { name: 'myK9Show', version: '1.0.0' },
+    })
+  : null;
+const waitlistStripe = stripe as WaitlistExpirationStripe | null;
 
 // CORS configuration - restrict to known app domains
 const ALLOWED_ORIGINS = [
@@ -41,15 +56,13 @@ function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
   };
 }
 
-// Offer expiration time (24 hours)
-const OFFER_EXPIRATION_HOURS = 24;
-
 interface WaitlistEntry {
   id: string;
   class_id: string;
   exhibitor_id: string;
   dog_id: string;
   handler_id: string | null;
+  promoted_entry_id: string | null;
   position: number;
   status: string;
   offered_at: string | null;
@@ -112,13 +125,14 @@ Deno.serve(async req => {
     const results = {
       expiredOffers: 0,
       newOffers: 0,
+      skippedPaidOffers: 0,
       errors: [] as string[],
     };
 
     // Step 1: Find and expire offers past their deadline
     const { data: expiredOffers, error: expiredError } = await supabase
       .from('waitlist_entries')
-      .select('id, class_id, exhibitor_id')
+      .select('id, class_id, exhibitor_id, promoted_entry_id')
       .eq('status', 'offered')
       .lt('offer_expires_at', new Date().toISOString());
 
@@ -130,17 +144,19 @@ Deno.serve(async req => {
     // Process each expired offer
     for (const offer of expiredOffers || []) {
       try {
-        // Mark as expired
-        const { error: updateError } = await supabase
-          .from('waitlist_entries')
-          .update({
-            status: 'expired',
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', offer.id);
-
-        if (updateError) {
-          results.errors.push(`Expire ${offer.id}: ${updateError.message}`);
+        const expired = await expireWaitlistOffer({
+          supabase: supabase as WaitlistExpirationSupabase,
+          stripe: waitlistStripe,
+          offer: offer as ExpiredWaitlistOffer,
+          nowIso: new Date().toISOString(),
+        });
+        if (expired === 'paid') {
+          console.log(`Offer ${offer.id} has a completed payment; leaving it for reconciliation`);
+          results.skippedPaidOffers++;
+          continue;
+        }
+        if (expired === 'error') {
+          results.errors.push(`Expire ${offer.id}: failed`);
           continue;
         }
 
@@ -208,30 +224,33 @@ Deno.serve(async req => {
  * Offer a waitlist spot to an exhibitor
  */
 async function offerSpot(entry: WaitlistEntry): Promise<boolean> {
-  const offerExpiresAt = new Date();
-  offerExpiresAt.setHours(offerExpiresAt.getHours() + OFFER_EXPIRATION_HOURS);
+  const { data: promotedEntryId, error: promoteError } = await supabase.rpc(
+    'promote_waitlist_entry_from_cron',
+    {
+      p_waitlist_entry_id: entry.id,
+    }
+  );
 
-  // Update status to offered
-  const { error: updateError } = await supabase
-    .from('waitlist_entries')
-    .update({
-      status: 'offered',
-      offered_at: new Date().toISOString(),
-      offer_expires_at: offerExpiresAt.toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', entry.id);
-
-  if (updateError) {
-    console.error(`Failed to offer spot ${entry.id}:`, updateError);
+  if (promoteError || !promotedEntryId) {
+    console.error(`Failed to promote waitlist spot ${entry.id}:`, promoteError);
     return false;
+  }
+
+  const { data: offeredEntry, error: fetchError } = await supabase
+    .from('waitlist_entries')
+    .select('*')
+    .eq('id', entry.id)
+    .single();
+
+  if (fetchError) {
+    console.error(`Promoted waitlist spot ${entry.id}, but could not reload it:`, fetchError);
   }
 
   console.log(`Offered spot to ${entry.exhibitor_id} for class ${entry.class_id}`);
 
   // Try to send notification email
   try {
-    await sendOfferNotification(entry);
+    await sendOfferNotification((offeredEntry as WaitlistEntry | null) ?? entry);
   } catch (err) {
     console.error('Failed to send notification (non-blocking):', err);
   }
@@ -295,6 +314,9 @@ async function sendOfferNotification(entry: WaitlistEntry): Promise<void> {
   const dogName = dog?.call_name || dog?.name || 'your dog';
   const showName = classInfo.trial?.show?.name || 'the show';
   const className = classInfo.name || 'the class';
+  const expiresAt = entry.offer_expires_at
+    ? new Date(entry.offer_expires_at)
+    : new Date(new Date().getTime() + DEFAULT_WAITLIST_PAYMENT_DEADLINE_HOURS * 60 * 60 * 1000);
 
   // Call send-email function
   const emailResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-email`, {
@@ -310,9 +332,7 @@ async function sendOfferNotification(entry: WaitlistEntry): Promise<void> {
       showName,
       className,
       dogName,
-      expiresAt: new Date(
-        new Date().getTime() + OFFER_EXPIRATION_HOURS * 60 * 60 * 1000
-      ).toLocaleString(),
+      expiresAt: expiresAt.toLocaleString(),
     }),
   });
 
@@ -327,6 +347,7 @@ async function sendOfferNotification(entry: WaitlistEntry): Promise<void> {
 async function processClassesWithOpenSpots(results: {
   expiredOffers: number;
   newOffers: number;
+  skippedPaidOffers: number;
   errors: string[];
 }): Promise<void> {
   // Find classes with waiting entries but no pending offers

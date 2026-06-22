@@ -32,6 +32,8 @@ interface BulkOperationsBarProps {
   allClassIds: string[];
   onSelectAll: () => void;
   onClearSelection: () => void;
+  /** Drop specific class IDs from the selection (used to keep only failed releases selected). */
+  onDeselectClasses: (classIds: string[]) => void;
   hasManualReleaseClasses: boolean;
 }
 
@@ -47,6 +49,7 @@ export function BulkOperationsBar({
   allClassIds,
   onSelectAll,
   onClearSelection,
+  onDeselectClasses,
   hasManualReleaseClasses,
 }: BulkOperationsBarProps) {
   const bulkUpdate = useBulkUpdateClassOverrides();
@@ -105,10 +108,16 @@ export function BulkOperationsBar({
     releaseResults.mutate(
       { classIds, showId },
       {
-        // Clear only on a clean release; on partial/total failure keep the
-        // selection so the secretary can retry the failed classes in place.
-        onSuccess: ({ failed }) => {
-          if (failed.length === 0) onClearSelection();
+        // Clean release → clear everything. Partial release → drop the classes that
+        // succeeded so only the failed ones stay selected, making retry re-release just
+        // those (no re-stamping resultsReleasedAt on already-released classes). Total
+        // failure → keep the whole selection (every class is a failed class).
+        onSuccess: ({ released, failed }) => {
+          if (failed.length === 0) {
+            onClearSelection();
+          } else if (released.length > 0) {
+            onDeselectClasses(released);
+          }
         },
       }
     );

@@ -21,6 +21,7 @@ function renderBar(overrides: Partial<React.ComponentProps<typeof BulkOperations
     allClassIds: ['a', 'b', 'c'],
     onSelectAll: vi.fn(),
     onClearSelection: vi.fn(),
+    onDeselectClasses: vi.fn(),
     hasManualReleaseClasses: true,
     ...overrides,
   };
@@ -62,6 +63,56 @@ describe('BulkOperationsBar', () => {
     await user.click(await screen.findByRole('button', { name: 'Cancel' }));
 
     expect(mockReleaseMutate).not.toHaveBeenCalled();
+  });
+
+  it('on partial failure, keeps only the failed classes selected', async () => {
+    // Drive the mutation's onSuccess with a partial result.
+    mockReleaseMutate.mockImplementation((_vars, opts) =>
+      opts?.onSuccess?.({ released: ['a'], failed: ['b'] })
+    );
+    const onClearSelection = vi.fn();
+    const onDeselectClasses = vi.fn();
+    const { user } = renderBar({ onClearSelection, onDeselectClasses });
+
+    await user.click(screen.getByRole('button', { name: 'Release Results' }));
+    const confirm = screen.getByRole('alertdialog').querySelector('button:last-of-type');
+    await user.click(confirm as HTMLElement);
+
+    // Succeeded class 'a' is dropped; the whole selection is NOT cleared.
+    expect(onDeselectClasses).toHaveBeenCalledWith(['a']);
+    expect(onClearSelection).not.toHaveBeenCalled();
+  });
+
+  it('on total failure, keeps the entire selection (every class is failed)', async () => {
+    mockReleaseMutate.mockImplementation((_vars, opts) =>
+      opts?.onSuccess?.({ released: [], failed: ['a', 'b'] })
+    );
+    const onClearSelection = vi.fn();
+    const onDeselectClasses = vi.fn();
+    const { user } = renderBar({ onClearSelection, onDeselectClasses });
+
+    await user.click(screen.getByRole('button', { name: 'Release Results' }));
+    const confirm = screen.getByRole('alertdialog').querySelector('button:last-of-type');
+    await user.click(confirm as HTMLElement);
+
+    expect(onDeselectClasses).not.toHaveBeenCalled();
+    expect(onClearSelection).not.toHaveBeenCalled();
+  });
+
+  it('on a clean release, clears the whole selection', async () => {
+    mockReleaseMutate.mockImplementation((_vars, opts) =>
+      opts?.onSuccess?.({ released: ['a', 'b'], failed: [] })
+    );
+    const onClearSelection = vi.fn();
+    const onDeselectClasses = vi.fn();
+    const { user } = renderBar({ onClearSelection, onDeselectClasses });
+
+    await user.click(screen.getByRole('button', { name: 'Release Results' }));
+    const confirm = screen.getByRole('alertdialog').querySelector('button:last-of-type');
+    await user.click(confirm as HTMLElement);
+
+    expect(onClearSelection).toHaveBeenCalledTimes(1);
+    expect(onDeselectClasses).not.toHaveBeenCalled();
   });
 
   it('disables Release when no selected class uses manual release', () => {

@@ -679,12 +679,18 @@ const ShowDetailsPage: React.FC = () => {
                   </Button>
                 )}
                 {entryStatus.canEnter ? (
-                  <button
-                    className="min-h-[44px] sm:h-9 px-5 text-sm font-medium rounded-md inline-flex items-center gap-2 transition-colors bg-[#c96442] hover:bg-[#b45a3a] text-[#faf9f5] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3898ec] focus-visible:ring-offset-2"
+                  // Primary entry CTA: the shared Button (default = filled
+                  // var(--primary)) so it honors the user's accent and the
+                  // semantic focus ring, instead of a hardcoded Clay hex that
+                  // broke under Grove/Dusk/Heather. Filled vs the outline
+                  // siblings keeps it the dominant action.
+                  <Button
+                    size="sm"
+                    className="min-h-[44px] sm:min-h-8"
                     onClick={handleRegisterForShow}
                   >
                     {hasUserEntries ? 'Manage Entry' : 'Enter This Show'}
-                  </button>
+                  </Button>
                 ) : hasUserEntries ? (
                   <Button
                     variant="outline"

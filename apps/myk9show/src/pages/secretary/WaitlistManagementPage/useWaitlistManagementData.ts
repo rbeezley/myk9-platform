@@ -253,18 +253,20 @@ export function useWaitlistManagementData(showId?: string) {
       const promotedEntryId = await promoteWaitlistEntry(actionDialog.entry.id);
 
       let paymentLinkUrl: string | null = null;
-      try {
-        paymentLinkUrl = await createWaitlistPaymentLink(promotedEntryId, selectedShowId);
-      } catch (err) {
-        logger.error(
-          'Waitlist offer: failed to create payment link',
-          'secretary',
-          { waitlistEntryId: actionDialog.entry.id, promotedEntryId },
-          err as Error
-        );
-        toast.warning(
-          'Spot offered, but the payment link could not be created. Request payment from the entry list.'
-        );
+      if (actionDialog.entry.joined_via !== 'mail_in') {
+        try {
+          paymentLinkUrl = await createWaitlistPaymentLink(promotedEntryId, selectedShowId);
+        } catch (err) {
+          logger.error(
+            'Waitlist offer: failed to create payment link',
+            'secretary',
+            { waitlistEntryId: actionDialog.entry.id, promotedEntryId },
+            err as Error
+          );
+          toast.warning(
+            'Spot offered, but the payment link could not be created. Request payment from the entry list.'
+          );
+        }
       }
 
       // Notify the offered exhibitor via the show-messaging system. This

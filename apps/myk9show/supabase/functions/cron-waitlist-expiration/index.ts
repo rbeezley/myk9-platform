@@ -63,6 +63,7 @@ interface WaitlistEntry {
   dog_id: string;
   handler_id: string | null;
   promoted_entry_id: string | null;
+  joined_via: string | null;
   position: number;
   status: string;
   offered_at: string | null;
@@ -126,13 +127,14 @@ Deno.serve(async req => {
       expiredOffers: 0,
       newOffers: 0,
       skippedPaidOffers: 0,
+      skippedMailInOffers: 0,
       errors: [] as string[],
     };
 
     // Step 1: Find and expire offers past their deadline
     const { data: expiredOffers, error: expiredError } = await supabase
       .from('waitlist_entries')
-      .select('id, class_id, exhibitor_id, promoted_entry_id')
+      .select('id, class_id, exhibitor_id, promoted_entry_id, joined_via')
       .eq('status', 'offered')
       .lt('offer_expires_at', new Date().toISOString());
 
@@ -144,6 +146,11 @@ Deno.serve(async req => {
     // Process each expired offer
     for (const offer of expiredOffers || []) {
       try {
+        if (offer.joined_via === 'mail_in') {
+          results.skippedMailInOffers++;
+          continue;
+        }
+
         const expired = await expireWaitlistOffer({
           supabase: supabase as WaitlistExpirationSupabase,
           stripe: waitlistStripe,
@@ -319,7 +326,7 @@ async function sendOfferNotification(entry: WaitlistEntry): Promise<void> {
     ? new Date(entry.offer_expires_at)
     : new Date(new Date().getTime() + DEFAULT_WAITLIST_PAYMENT_DEADLINE_HOURS * 60 * 60 * 1000);
   const paymentUrl =
-    entry.promoted_entry_id && showId
+    entry.joined_via !== 'mail_in' && entry.promoted_entry_id && showId
       ? await createWaitlistPaymentLink(entry.promoted_entry_id, showId)
       : null;
 
@@ -384,6 +391,7 @@ async function processClassesWithOpenSpots(results: {
   expiredOffers: number;
   newOffers: number;
   skippedPaidOffers: number;
+  skippedMailInOffers: number;
   errors: string[];
 }): Promise<void> {
   // Find classes with waiting entries but no pending offers

@@ -9,10 +9,7 @@ import type { ReplicatedWaitlistEntry } from '@/services/replication/ReplicatedW
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
-import type {
-  WaitlistEntry,
-  ClassWithWaitlistCount,
-} from '@/services/database/waitlists';
+import type { WaitlistEntry, ClassWithWaitlistCount } from '@/services/database/waitlists';
 
 /**
  * Map a ReplicatedWaitlistEntry + joined dog/class into the WaitlistEntry shape
@@ -31,6 +28,7 @@ export function mapWaitlistEntry(
     handler_id: entry.handlerId ?? null,
     position: entry.position,
     status: entry.status,
+    joined_via: entry.joinedVia ?? 'online',
     offered_at: entry.offeredAt ?? null,
     offer_expires_at: entry.offerExpiresAt ?? null,
     created_at: entry.createdAt ?? null,

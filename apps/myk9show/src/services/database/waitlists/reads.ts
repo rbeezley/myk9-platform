@@ -23,6 +23,7 @@ export interface WaitlistEntry {
   handler_id: string | null;
   position: number;
   status: string | null;
+  joined_via: 'online' | 'mail_in' | null;
   offered_at: string | null;
   offer_expires_at: string | null;
   created_at: string | null;
@@ -405,6 +406,7 @@ export const joinWaitlist = async (
         handler_id: handlerId || null,
         position: nextPosition,
         status: 'waiting',
+        joined_via: 'online',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })

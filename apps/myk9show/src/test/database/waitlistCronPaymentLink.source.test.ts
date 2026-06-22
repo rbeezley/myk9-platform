@@ -20,6 +20,12 @@ describe('waitlist expiration cron payment-link offer wiring', () => {
     expect(cronSource).toContain('entry_ids: [entryId]');
   });
 
+  it('does not use the online expiry/payment-link path for mail-in waitlist rows', () => {
+    expect(cronSource).toContain("offer.joined_via === 'mail_in'");
+    expect(cronSource).toContain('skippedMailInOffers');
+    expect(cronSource).toContain("entry.joined_via !== 'mail_in'");
+  });
+
   it('uses public show redirects for waitlist payment links', () => {
     expect(cronSource).toContain('https://myk9show.com/shows/${showId}?payment=success');
     expect(cronSource).toContain('https://myk9show.com/shows/${showId}?payment=cancelled');

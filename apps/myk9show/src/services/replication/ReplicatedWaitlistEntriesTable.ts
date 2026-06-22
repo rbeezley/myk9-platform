@@ -34,6 +34,7 @@ interface WaitlistEntryRow {
   handler_id: string | null;
   position: number;
   status: string | null;
+  joined_via: string | null;
   offered_at: string | null;
   offer_expires_at: string | null;
   created_at: string | null;
@@ -51,6 +52,7 @@ export interface ReplicatedWaitlistEntry {
   handlerId?: string | undefined;
   position: number;
   status: string; // 'waiting' | 'offered' | 'accepted' | 'expired' | 'declined'
+  joinedVia?: 'online' | 'mail_in' | undefined;
   offeredAt?: string | undefined;
   offerExpiresAt?: string | undefined;
   createdAt?: string | undefined;
@@ -75,6 +77,7 @@ function rowToWaitlistEntry(row: WaitlistEntryRow): ReplicatedWaitlistEntry {
     handlerId: row.handler_id ? String(row.handler_id) : undefined,
     position: row.position,
     status: row.status ?? 'waiting',
+    joinedVia: row.joined_via === 'mail_in' ? 'mail_in' : 'online',
     offeredAt: row.offered_at ?? undefined,
     offerExpiresAt: row.offer_expires_at ?? undefined,
     createdAt: row.created_at ?? undefined,
@@ -114,9 +117,14 @@ export class ReplicatedWaitlistEntriesTable extends ReplicatedTable<ReplicatedWa
       resolveConflict: (_local, remote) => remote,
     };
 
-    const result = await syncReplicatedTable(this, adapter, {}, {
-      incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
-    });
+    const result = await syncReplicatedTable(
+      this,
+      adapter,
+      {},
+      {
+        incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
+      }
+    );
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {
       logger.error(`[${this.getTableName()}] Sync failed:`, result.error);

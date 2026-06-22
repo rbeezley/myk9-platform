@@ -139,6 +139,7 @@ describe('useWaitlistManagementData — offer notification', () => {
     handler_id: null,
     position: 1,
     status: 'waiting',
+    joined_via: 'online' as const,
     offered_at: null,
     offer_expires_at: null,
     created_at: null,
@@ -252,6 +253,34 @@ describe('useWaitlistManagementData — offer notification', () => {
     expect(toast.warning).toHaveBeenCalledWith(
       'Spot offered, but the payment link could not be created. Request payment from the entry list.'
     );
+    expect(mockSendMessage).toHaveBeenCalledWith(
+      'thread-1',
+      'show-77',
+      'A waitlist spot in Novice A just opened up for Rex! ' +
+        'Open My Entries to accept the offer before it expires.'
+    );
+  });
+
+  it('does not create an online payment link for mail-in waitlist rows', async () => {
+    const { result } = renderHook(() => useWaitlistManagementData('show-77'), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+
+    act(() => {
+      result.current.setActionDialog({
+        open: true,
+        action: 'offer',
+        entry: { ...sampleEntry, joined_via: 'mail_in' },
+      });
+    });
+
+    await act(async () => {
+      await result.current.handleOfferSpot();
+    });
+
+    expect(supabase.functions.invoke).not.toHaveBeenCalled();
     expect(mockSendMessage).toHaveBeenCalledWith(
       'thread-1',
       'show-77',

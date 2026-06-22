@@ -209,12 +209,9 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         <CloneFromShowCombobox clubId={show.clubId || undefined} />
 
         {/* Basic Show Information */}
-        <div className="group relative bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg hover:-translate-y-0.5">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          <div className="relative">
-            <h3 className="text-lg font-semibold mb-4 pl-3 border-l-2 border-primary text-primary transition-colors duration-300">
-              Basic Show Information
-            </h3>
+        <div>
+          <div>
+            <h3 className="text-lg font-semibold mb-4 text-foreground">Basic Show Information</h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="show-name">
@@ -225,7 +222,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                   value={show.name || ''}
                   onChange={e => updateShowData({ name: e.target.value })}
                   placeholder="Enter show name"
-                  className="border border-border bg-secondary rounded-md"
+                  className="border border-border bg-input rounded-md"
                 />
               </div>
 
@@ -239,7 +236,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                     updateShowData({ organization: value as 'AKC' | 'UKC' | 'NASDA' | 'Other' })
                   }
                 >
-                  <SelectTrigger id="show-organization" className="!bg-secondary h-10">
+                  <SelectTrigger id="show-organization" className="bg-input h-10">
                     <SelectValue placeholder="Select organization">
                       {show.organization
                         ? ORGANIZATIONS.find(t => t.value === show.organization)?.label
@@ -334,7 +331,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                   value={resolvePremiumStyle(show.style)}
                   onValueChange={value => updateShowData({ style: value as PremiumStyle })}
                 >
-                  <SelectTrigger id="show-premium-style" className="!bg-secondary h-10">
+                  <SelectTrigger id="show-premium-style" className="bg-input h-10">
                     <SelectValue placeholder="Select style">
                       {getPremiumStyleLabel(show.style)}
                     </SelectValue>
@@ -376,7 +373,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                       startingArmbandNumber: parseInt(e.target.value, 10) || 100,
                     })
                   }
-                  className="border border-border bg-secondary rounded-md"
+                  className="border border-border bg-input rounded-md"
                 />
               </div>
 
@@ -390,7 +387,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                   onChange={e => updateShowData({ location: e.target.value })}
                   placeholder="Enter venue name and address"
                   rows={3}
-                  className="border border-border bg-secondary rounded-md"
+                  className="border border-border bg-input rounded-md"
                 />
               </div>
             </div>
@@ -398,12 +395,9 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         </div>
 
         {/* Payment Methods */}
-        <div className="group relative bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg hover:-translate-y-0.5">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          <div className="relative">
-            <h3 className="text-lg font-semibold mb-4 pl-3 border-l-2 border-primary text-primary transition-colors duration-300">
-              Payment Methods
-            </h3>
+        <div>
+          <div>
+            <h3 className="text-lg font-semibold mb-4 text-foreground">Payment Methods</h3>
             <PaymentMethodsCheckboxGroup
               acceptCheck={show.acceptCheckPayments ?? false}
               acceptCash={show.acceptCashPayments ?? false}
@@ -427,12 +421,9 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         />
 
         {/* Show Officials */}
-        <div className="group relative bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg hover:-translate-y-0.5">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          <div className="relative">
-            <h3 className="text-lg font-semibold mb-4 pl-3 border-l-2 border-primary text-primary transition-colors duration-300">
-              Show Officials
-            </h3>
+        <div>
+          <div>
+            <h3 className="text-lg font-semibold mb-4 text-foreground">Show Officials</h3>
             <div className="grid grid-cols-2 gap-4">
               <OfficialPicker
                 label="Show Chairman"
@@ -464,9 +455,8 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         </div>
 
         {/* Show Judges */}
-        <div className="group relative bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg hover:-translate-y-0.5">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          <div className="relative">
+        <div>
+          <div>
             <JudgesPicker
               selectedJudges={selectedJudges}
               people={people}

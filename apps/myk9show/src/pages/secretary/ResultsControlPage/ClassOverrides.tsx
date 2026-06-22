@@ -177,7 +177,7 @@ export function ClassOverrides({
                       {hasOverride && (
                         <Button
                           variant="ghost"
-                          size="icon"
+                          size="icon-lg"
                           title="Reset to inherited settings"
                           onClick={() => handleResetClass(cls.id)}
                           disabled={resetOverride.isPending}

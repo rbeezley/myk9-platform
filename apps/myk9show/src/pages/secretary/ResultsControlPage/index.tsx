@@ -102,6 +102,16 @@ export default function ResultsControlPage() {
     [showClasses, bulkOps]
   );
 
+  // Adapter: drop specific class IDs from the selection (by id, not item)
+  const deselectClassesByIds = useCallback(
+    (classIds: string[]) => {
+      const idSet = new Set(classIds);
+      const toDeselect = showClasses.filter(c => idSet.has(c.id));
+      bulkOps.deselectItems(toDeselect);
+    },
+    [showClasses, bulkOps]
+  );
+
   // Check if any selected class uses manual_release timing on any field
   const hasManualReleaseClasses = useMemo(() => {
     if (!settings) return false;
@@ -216,6 +226,7 @@ export default function ResultsControlPage() {
         allClassIds={allClassIds}
         onSelectAll={bulkOps.selectAll}
         onClearSelection={bulkOps.clearSelection}
+        onDeselectClasses={deselectClassesByIds}
         hasManualReleaseClasses={hasManualReleaseClasses}
       />
     </div>

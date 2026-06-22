@@ -106,7 +106,7 @@ export function TrialOverrides({ showId, trials, trialOverrides }: TrialOverride
               {hasOverride && (
                 <Button
                   variant="ghost"
-                  size="icon"
+                  size="icon-lg"
                   title="Reset to show defaults"
                   onClick={() => handleResetTrial(trial.id)}
                   disabled={resetOverride.isPending}

@@ -14,8 +14,16 @@
  * slot module under the 500-line ceiling.
  */
 
-/** Colour tiers shared by every ringside chrome badge / pill. */
-export type BadgeTier = 'success' | 'warning' | 'info' | 'neutral' | 'destructive';
+/**
+ * Colour tiers shared by every ringside chrome badge / pill.
+ *
+ * `live` is distinct from `success`: per DESIGN.md's "Ring Green Rule", the
+ * Ring Green token is reserved EXCLUSIVELY for live judging ("a dog is in the
+ * ring right now"). It renders as a SOLID green pill (white text) so it is the
+ * one chip that pops against the soft-tinted statuses around it — letting a
+ * gate steward glance a ring list and instantly see which class is live.
+ */
+export type BadgeTier = 'success' | 'warning' | 'info' | 'neutral' | 'destructive' | 'live';
 
 const BADGE_CLASS: Record<BadgeTier, string> = {
   success: 'bg-green-500/15 text-success ',
@@ -23,6 +31,9 @@ const BADGE_CLASS: Record<BadgeTier, string> = {
   info: 'bg-blue-500/15 text-info ',
   neutral: 'bg-muted text-muted-foreground',
   destructive: 'bg-red-500/15 text-destructive ',
+  // Solid Ring Green, theme-invariant by design (no dark override on --live).
+  // White-on-#4e7c53 measures 4.85:1 — AA for the pill's text-xs label.
+  live: 'bg-[var(--live)] text-white ',
 };
 
 /** Tailwind background+text classes for a badge/pill of the given tier. */
@@ -47,7 +58,12 @@ const STATUS_TIERS: Record<string, BadgeTier> = {
   none: 'info',
   setup: 'warning',
   briefing: 'warning',
-  in_progress: 'success',
+  // Live judging earns the solid Ring Green pill (DESIGN.md "Ring Green Rule"),
+  // matching the class-list card so the popover and list agree. The popover
+  // only has the raw DB status (`in_progress`), so we key off it directly —
+  // smart-detection (`getClassStatusColor`) isn't available without the full
+  // ClassEntry. Ring Green is reserved for live judging; never render via --success.
+  in_progress: 'live',
   break: 'info',
   upcoming: 'info',
   completed: 'neutral',
@@ -64,6 +80,37 @@ export function getClassStatusLabel(status?: string): string | null {
 export function getClassStatusTier(status?: string): BadgeTier {
   if (!status) return 'info';
   return STATUS_TIERS[status] ?? 'info';
+}
+
+/**
+ * Badge tier for the at-show class-list card pill, keyed off ringside's
+ * smart-detection colour key (`getClassStatusColor`) rather than the raw DB
+ * status — so a class whose dogs are in the ring reads `live` even if its
+ * stored status lags.
+ *
+ * Only `in-progress` earns the Ring Green `live` tier (DESIGN.md "Ring Green
+ * Rule"). Prep states (setup/briefing/start-time) and offline scoring are
+ * amber `warning`; a break is `info`; done / not-yet-started recede to
+ * `neutral`. The colour vocabulary lets a steward triage a ring list at a
+ * glance: green = go, amber = getting ready, grey = nothing happening.
+ */
+const CLASS_STATUS_COLOR_TIER: Record<string, BadgeTier> = {
+  'in-progress': 'live',
+  'offline-scoring': 'warning',
+  setup: 'warning',
+  briefing: 'warning',
+  'start-time': 'warning',
+  break: 'info',
+  completed: 'neutral',
+  'no-status': 'neutral',
+};
+
+/**
+ * Map a ringside class-status colour key (from `getClassStatusColor`) to a
+ * badge tier for the class-list card pill. Unknown keys recede to `neutral`.
+ */
+export function getClassListStatusTier(colorKey: string): BadgeTier {
+  return CLASS_STATUS_COLOR_TIER[colorKey] ?? 'neutral';
 }
 
 // ---------------------------------------------------------------------------

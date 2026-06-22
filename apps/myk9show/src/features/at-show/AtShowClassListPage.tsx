@@ -17,6 +17,7 @@ import { Loader2, AlertCircle, User, ChevronRight, Star } from 'lucide-react';
 import {
   groupSectionedClasses,
   getClassIds,
+  getClassStatusColor,
   getFormattedClassStatus,
   type ClassEntry,
 } from '@myk9/ringside';
@@ -25,6 +26,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { cn } from '@/lib/utils';
 import { useAtShowClassList } from './useAtShowClassList';
 import { loadCollapsedTrialIds, saveCollapsedTrialIds } from './atShowClassListState';
+import { badgeClass, getClassListStatusTier } from './slots/atShowChrome.helpers';
 
 const LIVE_CLASS_STATUSES = new Set<ClassEntry['class_status']>([
   'briefing',
@@ -183,22 +185,29 @@ export const AtShowClassListPage: React.FC = () => {
               <ul className="mt-2 space-y-2">
                 {classes.map(entry => {
                   const status = getFormattedClassStatus(entry);
+                  // Smart colour key (folds in dogs-in-ring / completed-count
+                  // detection) → badge tier, so the pill glance-distinguishes a
+                  // live ring from a finished one. INTENT: in-ring gloved taps
+                  // want ~48px rows — hence min-h-12.
+                  const statusTier = getClassListStatusTier(
+                    getClassStatusColor(entry.class_status, entry)
+                  );
                   return (
                     <li key={entry.id}>
                       <button
                         type="button"
                         onClick={() => handleClassClick(entry)}
-                        className={`flex w-full items-center gap-3 rounded-xl border bg-card px-4 py-3 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md active:scale-[0.99] ${
-                          entry.is_favorite ? 'border-emerald-400 bg-emerald-50' : ''
-                        }`}
+                        className={cn(
+                          'flex min-h-12 w-full items-center gap-3 rounded-xl border bg-card px-4 py-3 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md active:scale-[0.99]',
+                          // #923 tokenized the favorite (theme-aware, calm in
+                          // dark); keep that and add this PR's 48px tap floor.
+                          entry.is_favorite && 'border-primary bg-primary/5'
+                        )}
                       >
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             {entry.is_favorite && (
-                              <Star
-                                size={15}
-                                className="shrink-0 fill-emerald-600 text-emerald-600"
-                              />
+                              <Star size={15} className="shrink-0 fill-primary text-primary" />
                             )}
                             <span className="truncate font-medium">{entry.class_name}</span>
                           </div>
@@ -210,7 +219,12 @@ export const AtShowClassListPage: React.FC = () => {
                           )}
                         </div>
                         <div className="flex shrink-0 flex-col items-end gap-1">
-                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
+                          <span
+                            className={cn(
+                              'rounded-full px-2 py-0.5 text-xs font-medium',
+                              badgeClass(statusTier)
+                            )}
+                          >
                             {status.label}
                           </span>
                           <span className="text-xs text-muted-foreground">

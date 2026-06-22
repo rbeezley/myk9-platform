@@ -93,7 +93,9 @@ export const SyncIndicator: React.FC<SyncIndicatorProps> = ({
       {status === 'error' && onRetry && (
         <button
           type="button"
-          className="ml-0.5 rounded bg-foreground/10 px-2 py-0.5 text-xs font-medium transition-colors hover:bg-foreground/20"
+          // Ringside recovery tap: meet the 44px touch floor (INTENT.md) even
+          // though it lives inside an inline status pill — the pill grows to fit.
+          className="ml-0.5 inline-flex min-h-11 items-center justify-center rounded-md bg-foreground/10 px-3 text-sm font-medium transition-colors hover:bg-foreground/20"
           onClick={onRetry}
         >
           Retry
@@ -176,13 +178,20 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium">Sort by</legend>
           {sortOptions.map(option => (
-            <label key={option.value} className="flex items-center gap-2 text-sm">
+            // Full-width row is the tap target: a native ~16px radio is well
+            // under the 44px ringside floor, so the label wraps it to min-h-11
+            // and a tap anywhere on the row toggles the radio.
+            <label
+              key={option.value}
+              className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-1 text-sm transition-colors hover:bg-muted"
+            >
               <input
                 type="radio"
                 name="at-show-sort-order"
                 value={option.value}
                 checked={sortOrder === option.value}
                 onChange={() => onSortChange(option.value)}
+                className="h-5 w-5 shrink-0 accent-[var(--primary,#14b8a6)]"
               />
               {option.icon}
               <span>{option.label}</span>

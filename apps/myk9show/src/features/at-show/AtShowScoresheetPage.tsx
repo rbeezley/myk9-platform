@@ -151,17 +151,23 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({ classId, entryId,
   return (
     <div className="ringside-root">
       {(isSyncing || hasSyncError) && (
-        <div className="fixed top-0 left-0 right-0 z-50 px-4 py-2 text-center text-sm">
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed top-0 left-0 right-0 z-50 px-4 py-2 text-center text-sm"
+        >
           {isSyncing && (
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-100 text-amber-800 rounded-full">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-info/10 text-info rounded-full">
               <Loader2 className="h-4 w-4 animate-spin" />
               Syncing score...
             </div>
           )}
           {hasSyncError && !isSyncing && (
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-orange-100 text-orange-800 rounded-full">
+            // Offline is normal, not broken (PRODUCT.md): a calm neutral tone,
+            // not alarm-orange. The token carries both light and dark values.
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-muted text-muted-foreground rounded-full">
               <WifiOff className="h-4 w-4" />
-              Offline - score saved locally
+              Offline, score saved locally
             </div>
           )}
         </div>

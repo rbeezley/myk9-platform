@@ -10,10 +10,13 @@
  *  - ringside `useEntryHandlers` → the combined `combinedHandlers` bag
  *  - custom `compareEntries` sort (adds 'section-armband')
  *
- * Out-of-scope service callbacks are deliberate stubs (owner: at-show only
- * READS run order; the Trial Secretary sets it elsewhere): print, run-order
- * apply, and scoresheet prefetch are no-ops. Scoresheet navigation points at
- * the at-show scoresheet route (built in a later slice).
+ * Run order persists offline-first through the replication layer (same RLS /
+ * `ringside_update_entry` routing as the single-class AtShowEntryListPage), for
+ * BOTH paths: drag-to-reorder via `persistEntryRunOrder`, and the section-aware
+ * PRESET dialog via `applyCombinedRunOrder` (which respects the combined `scope`
+ * A/B + `renumberMode` contract). Remaining out-of-scope service callbacks are
+ * deliberate stubs: print and scoresheet prefetch are no-ops. Scoresheet
+ * navigation points at the at-show scoresheet route (built in a later slice).
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -32,6 +35,9 @@ import {
   type EntryListDataDependencies,
   type RingsideShowContext,
   type CombinedEntryListUiState,
+  type RunOrderPreset,
+  type RunOrderScope,
+  type RenumberMode,
 } from '@myk9/ringside';
 
 // Derive these from the page's own UI-state type — the barrel also exports
@@ -41,6 +47,9 @@ type SortOrder = CombinedEntryListUiState['sortOrder'];
 type PrintDialogState = CombinedEntryListUiState['printDialogState'];
 import { replicatedShowsTable } from '@/services/replication';
 import { logger } from '@/utils/logger';
+import { applyCombinedRunOrder } from './applyCombinedRunOrder';
+import { notifyRunOrderPersistError } from './runOrderErrorToast';
+import { persistEntryRunOrder } from './persistEntryRunOrder';
 import { buildRingsideContextValue } from './ringsideCapabilities';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { createAtShowDataDependencies } from './atShowDataAdapter';
@@ -165,11 +174,13 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     setActiveTab,
   });
 
-  // ── Drag (run-order persist stubbed — out of scope at-show) ────────────
-  const updateExhibitorOrder = useCallback(async (): Promise<unknown> => {
-    logger.warn('[at-show] combined drag run-order persist is stubbed for the spike', 'at-show');
-    return undefined;
-  }, []);
+  // ── Drag (run-order persist) ───────────────────────────────────────────
+  // Same contract as the single-class AtShowEntryListPage — see
+  // persistEntryRunOrder for the offline-first / RLS details.
+  const updateExhibitorOrder = useCallback(
+    (reordered: Entry[]) => persistEntryRunOrder(reordered),
+    []
+  );
   const { sensors, handleDragStart, handleDragEnd } = useDragAndDropEntries({
     localEntries,
     setLocalEntries,
@@ -198,13 +209,38 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     [showId]
   );
 
-  // ── Out-of-scope service callbacks (stubs) ─────────────────────────────
+  // ── Service callbacks (print/prefetch still stubbed; run-order is real) ──
   const onPrintSortOrder = useCallback(() => {
     logger.warn('[at-show] combined print is not available in the spike', 'at-show');
   }, []);
-  const onApplyRunOrder = useCallback(async () => {
-    logger.warn('[at-show] combined run-order apply is stubbed for the spike', 'at-show');
-  }, []);
+  // Apply a run-order PRESET (by-armband / random / section-scoped). Mirrors the
+  // single-class preset path but section-aware: `scope` (A/B/all) + `renumberMode`
+  // route through `applyCombinedRunOrder`, which persists each entry's run_order
+  // offline-first via the replication layer. `manual` opens drag mode instead.
+  const onApplyRunOrder = useCallback<
+    (preset: RunOrderPreset, scope?: RunOrderScope, renumberMode?: RenumberMode) => Promise<void>
+  >(
+    async (preset, scope, renumberMode) => {
+      if (preset === 'manual') {
+        setIsDragMode(true);
+        return;
+      }
+      try {
+        await applyCombinedRunOrder(localEntries, preset, scope, renumberMode);
+      } catch (error) {
+        // Surface the failure, then re-throw: the ringside CombinedEntryListPage
+        // wrapper catches it to close the dialog WITHOUT flashing the success
+        // banner. Swallowing here would let that banner show on a failed write.
+        notifyRunOrderPersistError(error);
+        throw error;
+      }
+      // The write landed — re-pull is best-effort reconciliation, kept OUT of the
+      // try so a refresh hiccup can't read as a failed apply (false error toast +
+      // suppressed success banner). The persist outcome alone decides success.
+      await refresh();
+    },
+    [localEntries, refresh]
+  );
   const onPrefetchScoresheet = useCallback(() => {}, []);
 
   // ── Ownership annotations (own-dog highlight + dogs-ahead pills) ────────

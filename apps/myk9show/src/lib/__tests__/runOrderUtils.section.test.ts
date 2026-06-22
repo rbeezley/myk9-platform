@@ -4,7 +4,12 @@
  * and calculateRunOrderScoped.
  */
 import { describe, it, expect } from 'vitest';
-import { hasMultipleSections, calculateRunOrder, calculateRunOrderScoped } from '../runOrderUtils';
+import {
+  hasMultipleSections,
+  calculateRunOrder,
+  calculateRunOrderScoped,
+  calculateCombinedRunOrder,
+} from '../runOrderUtils';
 
 // ─── Fixture entries ──────────────────────────────────────────────────────────
 
@@ -267,5 +272,48 @@ describe('calculateRunOrderScoped', () => {
       calculateRunOrderScoped(mixed, 'armband-asc', 'A', 'renumber');
       expect(mixed.map(e => e.id)).toEqual(copy.map(e => e.id));
     });
+  });
+});
+
+// ─── calculateCombinedRunOrder (scope dispatcher) ─────────────────────────────
+
+describe('calculateCombinedRunOrder', () => {
+  it('routes scope "all" to a whole-class reorder (delegates to calculateRunOrder)', () => {
+    const result = calculateCombinedRunOrder(mixed, 'armband-asc', 'all');
+    // Sorted by armband across both sections: a1(1),a3(2),a2(3),b1(4),b3(5),b2(6).
+    expect(result.map(r => r.id)).toEqual(['a1', 'a3', 'a2', 'b1', 'b3', 'b2']);
+    expect(result.map(r => r.runOrder)).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+
+  it('defaults scope to "all" when omitted', () => {
+    expect(calculateCombinedRunOrder(mixed, 'armband-asc')).toEqual(
+      calculateRunOrder(mixed, 'armband-asc')
+    );
+  });
+
+  it('routes scope "A"/"B" to calculateRunOrderScoped with the renumber mode', () => {
+    expect(calculateCombinedRunOrder(mixed, 'armband-asc', 'A', 'renumber')).toEqual(
+      calculateRunOrderScoped(mixed, 'armband-asc', 'A', 'renumber')
+    );
+    expect(calculateCombinedRunOrder(mixed, 'armband-asc', 'B', 'preserve')).toEqual(
+      calculateRunOrderScoped(mixed, 'armband-asc', 'B', 'preserve')
+    );
+  });
+
+  it('defaults renumberMode to "renumber" for a scoped preset', () => {
+    expect(calculateCombinedRunOrder(mixed, 'armband-asc', 'A')).toEqual(
+      calculateRunOrderScoped(mixed, 'armband-asc', 'A', 'renumber')
+    );
+  });
+
+  it('returns an empty list for the manual preset', () => {
+    expect(calculateCombinedRunOrder(mixed, 'manual', 'all')).toEqual([]);
+    expect(calculateCombinedRunOrder(mixed, 'manual', 'A', 'renumber')).toEqual([]);
+  });
+
+  it('returns a run order for every entry (whole class covered)', () => {
+    const result = calculateCombinedRunOrder(mixed, 'armband-asc', 'B', 'renumber');
+    expect(result).toHaveLength(mixed.length);
+    expect(result.map(r => r.id).sort()).toEqual(mixed.map(e => e.id).sort());
   });
 });

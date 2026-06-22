@@ -41,12 +41,12 @@
   },
   "packageManager": "pnpm@9.15.9",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.12.0"
   },
   "pnpm": {
     "overrides": {
       "eslint-plugin-react-hooks": "7.0.1",
-      "@supabase/supabase-js": "2.108.1",
+      "@supabase/supabase-js": "2.108.2",
       "esbuild": "^0.28.1",
       "qs": "^6.15.2",
       "undici": "^7.16.0",

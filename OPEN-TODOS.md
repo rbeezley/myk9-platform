@@ -36,6 +36,14 @@ Deferred Phase 4 from the public-landing brand/a11y pass (PR [#916](https://gith
 
 ---
 
+## At-Show Combined Run-Order — preset path — 2026-06-22
+
+Surfaced during PR [#924](https://github.com/rbeezley/myk9-platform/pull/924) (which fixed the combined **drag** run-order, previously a silent-discard stub). The drag and preset paths now diverge: a steward who reorders via drag (persists) then tweaks via the run-order preset dialog (silently discards) gets inconsistent feedback. Documented in the `AtShowCombinedEntryListPage.tsx` header docstring; tracking here so it doesn't rot.
+
+- [ ] **Wire combined preset run-order apply (`onApplyRunOrder`)** — `AtShowCombinedEntryListPage.tsx` still stubs the preset dialog apply. Unlike the single-class page (`useAtShowEntryListHandlers.ts` `handleApplyRunOrder` → `calculateRunOrder` → `replicatedEntriesTable.updateEntry({ runOrder })`), the combined contract is section-aware (`preset, scope, renumberMode`) and needs a section-aware run-order calculator myK9Show doesn't have yet. Persist offline-first through the replication layer (`run_order` routes through `ringside_update_entry`); reuse `persistEntryRunOrder` for the writes. Assertion-first tests on the section-aware calculator. Update the file header docstring once shipped.
+
+---
+
 ## Improve Audit — 2026-06-21
 
 Source: [`docs/improve-audit-2026-06/README.md`](docs/improve-audit-2026-06/README.md). Standard-effort `/improve` audit against `deb820e35`. The two P1 quick wins shipped — PR [#903](https://github.com/rbeezley/myk9-platform/pull/903) (ShowDetailsPage entry-count perf) and PR [#910](https://github.com/rbeezley/myk9-platform/pull/910) (one shared owned-dog selector across 12 sites). The audit's headline security findings were vetted and **rejected** (already remediated or by-design) — recorded in the index so they aren't re-audited. Remaining executor-ready plans below, in recommended order; run one via `/improve execute <plan-file>`.

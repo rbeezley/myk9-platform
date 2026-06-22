@@ -122,6 +122,24 @@ describe('entryManagementFilters', () => {
     });
   });
 
+  describe('roster invariant (Phase D)', () => {
+    it('strips an orphaned ?roster=1 when no trial is selected', () => {
+      // Without this, returning to Entries and picking any trial would jump
+      // straight into Roster without clicking the explicit toggle.
+      const result = normalizeEntryManagementSearchParams(new URLSearchParams('roster=1'));
+
+      expect(result.params.has('roster')).toBe(false);
+    });
+
+    it('keeps ?roster=1 while a trial is selected', () => {
+      const input = new URLSearchParams('trial=t1&roster=1');
+      const result = normalizeEntryManagementSearchParams(input);
+
+      expect(result.params.get('roster')).toBe('1');
+      expect(result.params.get('trial')).toBe('t1');
+    });
+  });
+
   it('mentions active filters when search or payment narrows the empty result', () => {
     expect(
       getEntryManagementEmptyStateMessage({

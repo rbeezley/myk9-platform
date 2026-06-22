@@ -119,6 +119,8 @@ export function FinalCtaBand({
             style={{
               display: 'inline-flex',
               alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 44,
               gap: 14,
               padding: '18px 44px',
               background: monogramColors.paper,

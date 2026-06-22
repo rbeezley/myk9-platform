@@ -49,7 +49,7 @@ export function BannerFooter({
               fontFamily: BANNER_BODY_FAMILY,
               fontSize: 13,
               lineHeight: 1.55,
-              color: 'rgba(250, 250, 248, 0.7)',
+              color: bannerColors.footerSoft,
               margin: 0,
             }}
           >
@@ -69,7 +69,7 @@ export function BannerFooter({
             fontSize: 10,
             letterSpacing: '0.28em',
             textTransform: 'uppercase',
-            color: 'rgba(250, 250, 248, 0.55)',
+            color: bannerColors.footerMute,
             textAlign: 'right',
             lineHeight: 2,
           }}

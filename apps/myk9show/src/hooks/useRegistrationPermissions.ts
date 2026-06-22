@@ -1,4 +1,5 @@
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { selectOwnedDogs } from '@/utils/dogOwnership';
 import {
   Permission,
   PERMISSIONS,
@@ -240,7 +241,7 @@ export function useRegistrationPermissions() {
       );
     }
 
-    return dogs.filter(dog => dog.ownerId === userWithRoles.id);
+    return selectOwnedDogs(dogs, userWithRoles.id);
   };
 
   return {

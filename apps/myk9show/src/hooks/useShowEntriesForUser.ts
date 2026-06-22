@@ -12,6 +12,7 @@ import { resolveClassSection } from '@/services/entryDisplay/entryDisplaySelecto
 import { entryIsScored } from '@/utils/entryPredicates';
 import { hasScopedClubRole, hasScopedShowRole } from '@/utils/roleScopes';
 import { resolveMoveUpDisplay } from '@/hooks/moveUpDisplay';
+import { selectOwnedDogIds } from '@/utils/dogOwnership';
 import type { SyncableShowEntry } from '@/store/entry-store-types';
 import type { EntryStatus } from '@/types/entry-lifecycle';
 import type { EntryPaymentStatus } from '@/components/shows/tabs/entryResultDisplay';
@@ -126,7 +127,7 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
     let visibleDogIds = new Set(allShowEntries.map(e => e.dogId));
     if (!canSeeAll) {
       if (!databaseUserId) return empty;
-      visibleDogIds = new Set(dogs.filter(d => d.ownerId === databaseUserId).map(d => d.id));
+      visibleDogIds = selectOwnedDogIds(dogs, databaseUserId);
       if (visibleDogIds.size === 0) return empty;
       myEntries = allShowEntries.filter(e => visibleDogIds.has(e.dogId));
     }

@@ -2,7 +2,7 @@ import * as React from 'react';
 import { AlertDialog as AlertDialogPrimitive } from '@base-ui/react/alert-dialog';
 
 import { cn } from '@/lib/utils';
-import { buttonVariants } from '@/components/ui/button/buttonVariants';
+import { buttonVariants } from '@/components/ui/button';
 import { getNativeButtonProp } from '@/components/ui/base-ui-native-button';
 
 const AlertDialog = AlertDialogPrimitive.Root;
@@ -112,7 +112,7 @@ const AlertDialogAction = React.forwardRef<
 >(({ className, style, ...props }, ref) => (
   <AlertDialogPrimitive.Close
     ref={ref}
-    className={cn(buttonVariants(), className)}
+    className={cn(buttonVariants({ size: 'lg' }), className)}
     {...(style !== undefined && { style })}
     {...props}
   />
@@ -125,7 +125,7 @@ const AlertDialogCancel = React.forwardRef<
 >(({ className, style, ...props }, ref) => (
   <AlertDialogPrimitive.Close
     ref={ref}
-    className={cn(buttonVariants({ variant: 'outline' }), 'mt-2 sm:mt-0', className)}
+    className={cn(buttonVariants({ variant: 'outline', size: 'lg' }), 'mt-2 sm:mt-0', className)}
     {...(style !== undefined && { style })}
     {...props}
   />

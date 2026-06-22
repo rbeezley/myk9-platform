@@ -65,6 +65,10 @@ export function StickyNav({
           href={entryWizardUrl}
           className="mg-nav__cta"
           style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: 44,
             padding: '10px 22px',
             border: `1px solid ${monogramColors.ink}`,
             fontSize: 13,

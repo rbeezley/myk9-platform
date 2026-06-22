@@ -5,6 +5,7 @@ import { useUserStore } from '@/store/userStore';
 import { useUsersQuery } from '@/hooks/queries/useUsersQuery';
 import { UserRole } from '@/types/auth-types';
 import type { User } from '@/types/user-types';
+import { selectOwnedDogs } from '@/utils/dogOwnership';
 
 /**
  * Hook to filter data based on user's role
@@ -39,7 +40,7 @@ export function useRoleBasedDogs() {
       return [];
     }
 
-    return allDogs.filter(dog => dog.ownerId === userPersonId);
+    return selectOwnedDogs(allDogs, userPersonId);
   }, [userWithRoles, allDogs, allPeople, hasRole, isLoading, error]);
 
   return filteredDogs;

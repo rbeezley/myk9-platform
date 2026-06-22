@@ -47,6 +47,10 @@ export function StickyNav({ flag, entryCount, entryLimit }: StickyNavProps) {
             key={s.id}
             href={`#${s.id}`}
             style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 44,
               fontFamily: BANNER_BODY_FAMILY,
               fontWeight: 500,
               fontSize: 11,

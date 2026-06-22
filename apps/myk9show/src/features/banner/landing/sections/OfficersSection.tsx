@@ -93,7 +93,10 @@ export function OfficersSection({
               <a
                 href={`mailto:${officer.email}`}
                 style={{
-                  display: 'block',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: 44,
                   marginTop: 6,
                   fontFamily: BANNER_BODY_FAMILY,
                   fontSize: 13,

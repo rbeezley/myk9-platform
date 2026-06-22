@@ -87,7 +87,7 @@ export function FinalCtaSection({
         {canEnterOnline && (
           <a
             href={entryWizardUrl}
-            className="inline-flex items-center gap-3.5 px-9 py-4 transition-colors"
+            className="inline-flex min-h-[44px] items-center justify-center gap-3.5 px-9 py-4 transition-colors"
             style={{
               background: 'var(--gz-paper)',
               color: 'var(--gz-ink)',

@@ -233,6 +233,8 @@ export function HeroBlock({
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: 44,
                 gap: 14,
                 padding: '18px 36px',
                 background: monogramColors.ink,

@@ -117,7 +117,7 @@ describe('ShowDetailsStep — Payment Methods section', () => {
     const showDatesGroup = screen.getByText(/show dates/i).closest('div');
     expect(showDatesGroup?.className).toContain('md:col-span-2');
 
-    const officialsSection = screen.getByText('Show Officials').closest('.relative');
+    const officialsSection = screen.getByText('Show Officials').closest('div');
     const officialsGrid = officialsSection?.querySelector('[class*="grid"]');
     expect(officialsGrid?.className).toContain('grid-cols-1');
     expect(officialsGrid?.className).toContain('md:grid-cols-2');

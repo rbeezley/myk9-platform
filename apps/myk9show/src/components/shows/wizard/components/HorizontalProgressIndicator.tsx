@@ -104,14 +104,6 @@ export const HorizontalProgressIndicator: React.FC<HorizontalProgressIndicatorPr
                   ) : (
                     <span className="text-xs font-semibold">{index + 1}</span>
                   )}
-
-                  {/* Glow for current step */}
-                  {isCurrent && !isCompleted && (
-                    <span
-                      className="absolute inset-0 rounded-full bg-primary/20 animate-pulse"
-                      style={{ animationDuration: '2s' }}
-                    />
-                  )}
                 </span>
 
                 {/* Label + description (description hidden on the narrowest screens) */}

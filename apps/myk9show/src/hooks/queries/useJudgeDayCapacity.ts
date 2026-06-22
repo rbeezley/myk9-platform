@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { queryKeys } from '@/lib/queryClient';
 import type { JudgeDayCapacity } from '@/types/waitlist-types';
+import { calculateMailInReserved } from '@/utils/waitlistCapacity';
 
 interface JudgeDaySummaryRow {
   show_id: string;
@@ -20,6 +21,8 @@ interface ShowCapacityRow {
   mail_in_strategy: string | null;
   mail_in_value: number | null;
   mail_in_deadline: string | null;
+  mail_in_auto_release: boolean | null;
+  mail_in_release_date: string | null;
 }
 
 export function useJudgeDayCapacity(showId: string | undefined) {
@@ -31,7 +34,9 @@ export function useJudgeDayCapacity(showId: string | undefined) {
         (supabase as any).from('judge_day_summary').select('*').eq('show_id', showId!),
         supabase
           .from('shows')
-          .select('default_judge_day_capacity, mail_in_strategy, mail_in_value, mail_in_deadline')
+          .select(
+            'default_judge_day_capacity, mail_in_strategy, mail_in_value, mail_in_deadline, mail_in_auto_release, mail_in_release_date'
+          )
           .eq('id', showId!)
           .single(),
       ]);
@@ -44,12 +49,13 @@ export function useJudgeDayCapacity(showId: string | undefined) {
       const capacity = show.default_judge_day_capacity ?? 125;
 
       return (data as JudgeDaySummaryRow[]).map(row => {
-        let mailInReserved = 0;
-        if (show.mail_in_strategy === 'fixed') {
-          mailInReserved = show.mail_in_value ?? 0;
-        } else if (show.mail_in_strategy === 'percentage') {
-          mailInReserved = Math.floor((capacity * (show.mail_in_value ?? 0)) / 100);
-        }
+        const mailInReserved = calculateMailInReserved({
+          capacity,
+          strategy: show.mail_in_strategy,
+          value: show.mail_in_value,
+          autoRelease: show.mail_in_auto_release,
+          releaseDate: show.mail_in_release_date,
+        });
 
         return {
           judgeId: row.judge_id,

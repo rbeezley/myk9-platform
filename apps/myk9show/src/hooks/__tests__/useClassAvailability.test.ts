@@ -158,6 +158,34 @@ describe('useClassAvailability', () => {
     expect(cls.isFull).toBe(false);
   });
 
+  it('auto-releases mail-in reserved spots after the release date', async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'classes') return makeClassQuery(CLASS_DATA);
+      if (table === 'shows')
+        return makeShowQuery({
+          default_judge_day_capacity: 125,
+          mail_in_strategy: 'fixed',
+          mail_in_value: 20,
+          mail_in_auto_release: true,
+          mail_in_release_date: '2020-01-01',
+        });
+      if (table === 'entries') return makeEntryQuery([]);
+      if (table === 'waitlist_entries') return makeWaitlistQuery([]);
+      if (table === 'judge_assignments')
+        return makeJudgeQuery([
+          { class_id: 'c1', person_id: 'judge-1', trials: { date: '2026-05-01' } },
+        ]);
+      return makeClassQuery([]);
+    });
+
+    const { result } = renderHook(() => useClassAvailability('show-1'));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const cls = result.current.classes[0]!;
+    expect(cls.judgeDayAvailable).toBe(125);
+    expect(cls.isFull).toBe(false);
+  });
+
   it('returns empty classes when show has no classes', async () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === 'classes') return makeClassQuery([]);

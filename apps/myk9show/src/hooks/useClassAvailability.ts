@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
 import { IN_RING_STATUSES } from '@/types/entry-lifecycle';
+import { calculateMailInReserved } from '@/utils/waitlistCapacity';
 
 export interface ClassAvailability {
   classId: string;
@@ -64,6 +65,8 @@ interface ShowCapacityRow {
   default_judge_day_capacity: number;
   mail_in_strategy: string | null;
   mail_in_value: number | null;
+  mail_in_auto_release: boolean | null;
+  mail_in_release_date: string | null;
 }
 
 interface UseClassAvailabilityResult {
@@ -135,7 +138,9 @@ export function useClassAvailability(
       const [showResult, entryResult, waitlistResult, judgeResult] = await Promise.all([
         supabase
           .from('shows')
-          .select('default_judge_day_capacity, mail_in_strategy, mail_in_value')
+          .select(
+            'default_judge_day_capacity, mail_in_strategy, mail_in_value, mail_in_auto_release, mail_in_release_date'
+          )
           .eq('id', showId)
           .single(),
         supabase
@@ -203,12 +208,13 @@ export function useClassAvailability(
         }
       }
 
-      let mailInReserved = 0;
-      if (show?.mail_in_strategy === 'fixed') {
-        mailInReserved = show.mail_in_value ?? 0;
-      } else if (show?.mail_in_strategy === 'percentage') {
-        mailInReserved = Math.floor((defaultCapacity * (show.mail_in_value ?? 0)) / 100);
-      }
+      const mailInReserved = calculateMailInReserved({
+        capacity: defaultCapacity,
+        strategy: show?.mail_in_strategy ?? null,
+        value: show?.mail_in_value ?? null,
+        autoRelease: show?.mail_in_auto_release ?? null,
+        releaseDate: show?.mail_in_release_date ?? null,
+      });
 
       const availability: ClassAvailability[] = (classData as ClassWithTrialRow[]).map(cls => {
         const trial = cls.trials;

@@ -1,6 +1,6 @@
 # Plan — IA Remediation: Secretary Entry Management
 
-> **Status:** Active
+> **Status:** Complete
 
 **Date:** 2026-06-21
 **Scope:** Execute the Critical + High findings from [`docs/ia-review-secretary-entry-management.md`](ia-review-secretary-entry-management.md). This is the **cognitive-load track** for `pages/secretary/EntryManagementPage.tsx` + `components/entries/management/**`. Theming (chip tokens) was already fixed in PR #893 and is out of scope here.

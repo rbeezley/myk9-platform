@@ -218,11 +218,10 @@ BEGIN
 
   PERFORM pg_advisory_xact_lock(hashtext(v_wl.class_id::text));
 
-  SELECT c.max_entries, c.trial_id, t.show_id, t.date, ja.person_id
-  INTO v_class_limit, v_trial_id, v_show_id, v_trial_date, v_judge_id
+  SELECT c.max_entries, c.trial_id, t.show_id, t.date
+  INTO v_class_limit, v_trial_id, v_show_id, v_trial_date
   FROM classes c
   JOIN trials t ON t.id = c.trial_id
-  LEFT JOIN judge_assignments ja ON ja.class_id = c.id AND ja.status = 'confirmed'
   WHERE c.id = v_wl.class_id
   LIMIT 1;
 
@@ -243,7 +242,18 @@ BEGIN
     END IF;
   END IF;
 
-  IF v_judge_id IS NOT NULL THEN
+  FOR v_judge_id IN
+    SELECT DISTINCT ja.person_id
+    FROM judge_assignments ja
+    WHERE ja.class_id = v_wl.class_id
+      AND ja.status = 'confirmed'
+      AND ja.person_id IS NOT NULL
+    ORDER BY ja.person_id
+  LOOP
+    PERFORM pg_advisory_xact_lock(
+      hashtext('judgeday:' || v_judge_id::text || ':' || v_trial_date::text)
+    );
+
     SELECT *
     INTO v_judge_capacity
     FROM public.get_judge_day_capacity(v_judge_id, v_show_id, v_trial_date)
@@ -252,7 +262,7 @@ BEGIN
     IF COALESCE(v_judge_capacity.available_spots, 0) <= 0 THEN
       RAISE EXCEPTION 'Judge-day capacity is full';
     END IF;
-  END IF;
+  END LOOP;
 
   SELECT GREATEST(
     1,

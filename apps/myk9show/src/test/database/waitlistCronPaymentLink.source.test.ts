@@ -64,6 +64,11 @@ describe('waitlist expiration cron payment-link offer wiring', () => {
     expect(promotionMigration).toContain(
       "e.entry_status IN ('submitted', 'paid', 'confirmed', 'checked-in', 'competing', 'in-ring', 'pending-payment')"
     );
+    expect(promotionMigration).toContain('FOR v_judge_id IN');
+    expect(promotionMigration).toContain('SELECT DISTINCT ja.person_id');
+    expect(promotionMigration).toContain(
+      "hashtext('judgeday:' || v_judge_id::text || ':' || v_trial_date::text)"
+    );
     expect(promotionMigration).toContain('FROM public.get_judge_day_capacity');
     expect(promotionMigration).toContain("RAISE EXCEPTION 'Judge-day capacity is full'");
     expect(promotionMigration).toContain("RAISE EXCEPTION 'Class is full'");
@@ -86,5 +91,13 @@ describe('waitlist expiration cron payment-link offer wiring', () => {
     expect(cronSource.indexOf("req.method === 'OPTIONS'")).toBeLessThan(
       cronSource.indexOf("req.headers.get('Authorization')")
     );
+  });
+
+  it('uses a constant-time cron secret comparison', () => {
+    expect(cronSource).toContain('async function secretMatches');
+    expect(cronSource).toContain("crypto.subtle.digest('SHA-256', enc.encode(provided))");
+    expect(cronSource).toContain("crypto.subtle.digest('SHA-256', enc.encode(cronSecret))");
+    expect(cronSource).toContain('if (!(await secretMatches(providedSecret)))');
+    expect(cronSource).not.toContain('providedSecret !== cronSecret');
   });
 });

@@ -41,6 +41,7 @@ interface LineItem {
 
 export interface EntryPaymentLinkSessionParams {
   mode: 'payment';
+  payment_method_types: ['card'];
   line_items: LineItem[];
   expires_at: number;
   success_url: string;
@@ -96,6 +97,7 @@ export function buildEntryPaymentLinkSession(
 
   return {
     mode: 'payment',
+    payment_method_types: ['card'],
     line_items: lineItems,
     expires_at: input.expiresAtEpoch,
     success_url: input.successUrl,

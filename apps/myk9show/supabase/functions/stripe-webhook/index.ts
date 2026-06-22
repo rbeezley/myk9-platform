@@ -901,6 +901,11 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
   const updatedEntryIds: string[] = [];
   const inactiveEntryStatusFilter = `(${[...INACTIVE_ENTRY_STATUSES].join(',')})`;
   for (const patch of result.patches) {
+    if (patch.allowExpiredPromotionClaim) {
+      const collided = await paidExpiredClaimHasReplacementOffer(patch.id, session.id);
+      if (collided) continue;
+    }
+
     const update: Record<string, unknown> = {
       payment_status: patch.payment_status,
       payment_method: patch.payment_method,
@@ -1081,6 +1086,72 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
   );
 }
 
+async function paidExpiredClaimHasReplacementOffer(
+  entryId: string,
+  sessionId: string
+): Promise<boolean> {
+  const { data: linkedOffer, error: linkedOfferError } = await supabase
+    .from('waitlist_entries')
+    .select('id, class_id, status, promoted_entry_id')
+    .eq('promoted_entry_id', entryId)
+    .maybeSingle();
+
+  if (linkedOfferError || !linkedOffer) {
+    console.error(
+      `Paid expired waitlist claim ${entryId} has no resolvable waitlist row:`,
+      linkedOfferError
+    );
+    await alertAdmin(
+      'Paid expired waitlist claim could not be verified',
+      `<p>Session <code>${sessionId}</code> paid expired promotion entry
+       <code>${entryId}</code>, but the linked waitlist row could not be loaded.
+       The webhook left the entry unpaid so the charge can be refunded.</p>
+       ${linkedOfferError ? `<pre>${linkedOfferError.message}</pre>` : ''}`
+    );
+    return true;
+  }
+
+  const { data: replacementOffer, error: replacementError } = await supabase
+    .from('waitlist_entries')
+    .select('id, promoted_entry_id')
+    .eq('class_id', linkedOffer.class_id)
+    .eq('status', 'offered')
+    .neq('promoted_entry_id', entryId)
+    .limit(1)
+    .maybeSingle();
+
+  if (replacementError) {
+    console.error(
+      `Could not check replacement waitlist offers before reviving ${entryId}:`,
+      replacementError
+    );
+    await alertAdmin(
+      'Paid expired waitlist claim collision check failed',
+      `<p>Session <code>${sessionId}</code> paid expired promotion entry
+       <code>${entryId}</code>, but checking for a replacement offer failed.
+       The webhook left the entry unpaid so the charge can be refunded.</p>
+       <pre>${replacementError.message}</pre>`
+    );
+    return true;
+  }
+
+  if (replacementOffer) {
+    console.error(
+      `Paid expired waitlist claim ${entryId} collided with replacement waitlist offer ${replacementOffer.id}`
+    );
+    await alertAdmin(
+      'Paid expired waitlist claim collided with a replacement offer',
+      `<p>Session <code>${sessionId}</code> paid expired promotion entry
+       <code>${entryId}</code>, but waitlist offer <code>${replacementOffer.id}</code>
+       is already active for the same class. The webhook left the expired entry
+       unpaid so the charge can be refunded instead of double-selling the spot.</p>`
+    );
+    return true;
+  }
+
+  return false;
+}
+
 async function resolvePaidWaitlistOffers(entryIds: string[], sessionId: string) {
   if (entryIds.length === 0) return;
 
@@ -1088,7 +1159,7 @@ async function resolvePaidWaitlistOffers(entryIds: string[], sessionId: string) 
     .from('waitlist_entries')
     .update({ status: 'accepted', updated_at: new Date().toISOString() })
     .in('promoted_entry_id', entryIds)
-    .eq('status', 'offered');
+    .in('status', ['offered', 'expired']);
 
   if (error) {
     console.error('Payment link paid but waitlist row could not be resolved:', error);

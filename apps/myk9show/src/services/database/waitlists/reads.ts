@@ -220,31 +220,32 @@ export const getClassesWithWaitlistCounts = async (showId: string) => {
 /**
  * Resolve the messaging recipient for a waitlist offer.
  *
- * Maps the waitlist entry's `exhibitor_id` (a `people.id`) to the exhibitor's
- * `auth_user_id`, which is the `participant_id` the show-messaging system keys
- * inbox threads on. Mirrors `getShowMapHandlerMessageTarget` so the waitlist
- * offer reuses the same single-recipient notification transport.
+ * Maps the waitlist entry's `exhibitor_id` (an `exhibitor_profiles.id`) to the
+ * exhibitor's auth user id, which is the `participant_id` the show-messaging
+ * system keys inbox threads on. Mirrors `getShowMapHandlerMessageTarget` so the
+ * waitlist offer reuses the same single-recipient notification transport.
  */
 export const getWaitlistOfferMessageTarget = async (exhibitorId: string) => {
   const startTime = Date.now();
 
   try {
     const { data, error } = await supabase
-      .from('people')
-      .select('id, auth_user_id, first_name, last_name')
+      .from('exhibitor_profiles')
+      .select('id, auth_user_id, person:person_id(first_name, last_name)')
       .eq('id', exhibitorId)
       .single();
 
     const duration = Date.now() - startTime;
-    logQuery('people', 'waitlist_offer_message_target', duration, error?.message);
+    logQuery('exhibitor_profiles', 'waitlist_offer_message_target', duration, error?.message);
 
     if (error) {
-      throw createDatabaseError(error, 'people', 'waitlist_offer_message_target');
+      throw createDatabaseError(error, 'exhibitor_profiles', 'waitlist_offer_message_target');
     }
 
     const authUserId = data?.auth_user_id ?? null;
+    const person = Array.isArray(data?.person) ? data.person[0] : data?.person;
     const exhibitorName =
-      [data?.first_name, data?.last_name].filter(Boolean).join(' ').trim() || null;
+      [person?.first_name, person?.last_name].filter(Boolean).join(' ').trim() || null;
 
     return {
       data: { participantAuthUserId: authUserId, exhibitorName },
@@ -252,8 +253,12 @@ export const getWaitlistOfferMessageTarget = async (exhibitorId: string) => {
     };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'people', 'waitlist_offer_message_target');
-    logQuery('people', 'waitlist_offer_message_target', duration, dbError.message);
+    const dbError = createDatabaseError(
+      error,
+      'exhibitor_profiles',
+      'waitlist_offer_message_target'
+    );
+    logQuery('exhibitor_profiles', 'waitlist_offer_message_target', duration, dbError.message);
     return { data: null, error: dbError };
   }
 };

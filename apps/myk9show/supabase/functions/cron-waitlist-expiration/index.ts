@@ -56,6 +56,21 @@ function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
   };
 }
 
+async function secretMatches(provided: string | null): Promise<boolean> {
+  if (!provided || !cronSecret) return false;
+
+  const enc = new TextEncoder();
+  const [a, b] = await Promise.all([
+    crypto.subtle.digest('SHA-256', enc.encode(provided)),
+    crypto.subtle.digest('SHA-256', enc.encode(cronSecret)),
+  ]);
+  const av = new Uint8Array(a);
+  const bv = new Uint8Array(b);
+  let diff = 0;
+  for (let i = 0; i < av.length; i++) diff |= av[i] ^ bv[i];
+  return diff === 0;
+}
+
 interface WaitlistEntry {
   id: string;
   class_id: string;
@@ -103,9 +118,9 @@ Deno.serve(async req => {
 
   // Verify cron secret for security
   const authHeader = req.headers.get('Authorization');
-  const providedSecret = authHeader?.replace('Bearer ', '');
+  const providedSecret = authHeader?.replace('Bearer ', '') ?? null;
 
-  if (!cronSecret || providedSecret !== cronSecret) {
+  if (!(await secretMatches(providedSecret))) {
     console.error('Unauthorized cron request');
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,

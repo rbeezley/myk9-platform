@@ -89,7 +89,16 @@ describe('stripe-webhook entry_payment_request branch', () => {
     expect(source).toContain(".from('waitlist_entries')");
     expect(source).toContain(".update({ status: 'accepted'");
     expect(source).toContain(".in('promoted_entry_id', entryIds)");
+    expect(source).toContain(".in('status', ['offered', 'expired'])");
+  });
+
+  it('fails paid expired waitlist claims closed when a replacement offer exists', () => {
+    expect(source).toContain('paidExpiredClaimHasReplacementOffer(patch.id, session.id)');
+    expect(source).toContain(".eq('promoted_entry_id', entryId)");
     expect(source).toContain(".eq('status', 'offered')");
+    expect(source).toContain(".neq('promoted_entry_id', entryId)");
+    expect(source).toContain('left the expired entry');
+    expect(source).toContain('double-selling the spot');
   });
 
   it('re-reads no-op patch ids so races become invalid refund candidates', () => {

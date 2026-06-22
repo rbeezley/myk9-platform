@@ -1,6 +1,10 @@
 # Public Show Landing — Brand & A11y Pass
 
-> **Status:** Active
+> **Status:** Complete
+
+> Shipped in [#916](https://github.com/rbeezley/myk9-platform/pull/916). The committed
+> default-landing redesign (Phase 4, "DetailHero vs. brand register") remains a **deferred
+> design decision** — not built here; spin up a fresh plan if/when it's taken on.
 
 Live-browser / brand follow-ups deferred from the impeccable mechanical sweep of the public
 show landing (`/shows/:id`). PR #899 fixed only the accent-hardcoded entry CTA. This plan

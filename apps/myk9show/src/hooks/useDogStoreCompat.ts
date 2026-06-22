@@ -31,6 +31,7 @@ import { aggregateQueryErrors, aggregateLoadingStates } from '@/hooks/storeCompa
 import { syncDogRegistrations } from '@/hooks/dogStoreCompatHelpers';
 import { translateDogDbError } from '@/hooks/translateDogDbError';
 import { supabase } from '@/lib/supabase';
+import { selectOwnedDogs } from '@/utils/dogOwnership';
 
 /**
  * Compatibility hook that provides dogStore-like API using React Query
@@ -208,7 +209,7 @@ export const useDogStoreCompat = () => {
   };
 
   const getDogsByOwner = (ownerId: string): Dog[] => {
-    return dogs.filter(dog => dog.ownerId === ownerId);
+    return selectOwnedDogs(dogs, ownerId);
   };
 
   const getSyncStatus = (): 'synced' | 'pending' | 'error' | 'conflict' => {

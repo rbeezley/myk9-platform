@@ -12,6 +12,7 @@ import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
 import { mapDogToDogInput } from '@/services/mappers/dogMappers';
 import { saveDogPhoto } from '@/components/dogs/DogDetailsMain/utils';
+import { selectOwnedDogs } from '@/utils/dogOwnership';
 
 interface PeopleDetailsTabsProps {
   selectedUser: User;
@@ -24,7 +25,7 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
 
   // Get actual Dog objects by owner relationship
   const userDogs = useMemo(() => {
-    return dogs.filter(dog => dog.ownerId === selectedUser.id);
+    return selectOwnedDogs(dogs, selectedUser.id);
   }, [dogs, selectedUser.id]);
 
   // Edit dialog state

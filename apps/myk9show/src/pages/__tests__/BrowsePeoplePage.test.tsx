@@ -72,10 +72,28 @@ function LocationProbe() {
   return <div data-testid="current-location">{`${location.pathname}${location.search}`}</div>;
 }
 
+function mockViewport(matches: boolean) {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+}
+
 describe('BrowsePeoplePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    mockViewport(false);
     mockBrowsePeopleReturn = {
       people: [
         {
@@ -111,11 +129,20 @@ describe('BrowsePeoplePage', () => {
     expect(screen.getByTestId('add-person-panel')).toBeInTheDocument();
   });
 
-  it('renders people table view by default', () => {
+  it('keeps desktop table preference on desktop viewports', () => {
     render(<BrowsePeoplePage />, { initialRoute: '/people' });
 
     expect(screen.getByTestId('people-table')).toBeInTheDocument();
     expect(screen.queryByTestId('people-grid')).not.toBeInTheDocument();
+  });
+
+  it('uses card presentation for table preference on mobile viewports', () => {
+    mockViewport(true);
+
+    render(<BrowsePeoplePage />, { initialRoute: '/people' });
+
+    expect(screen.getByTestId('people-grid')).toBeInTheDocument();
+    expect(screen.queryByTestId('people-table')).not.toBeInTheDocument();
   });
 
   it('honors a stored cards preference', () => {

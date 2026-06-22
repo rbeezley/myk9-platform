@@ -22,7 +22,7 @@ export function ShowContextNav() {
       aria-label="Show sections"
       data-testid="show-context-nav"
     >
-      <div className="flex overflow-x-auto px-4 sm:px-6">
+      <div className="flex max-w-full overflow-x-auto no-scrollbar px-4 sm:px-6">
         {NAV_ITEMS.map(({ label, path }) => {
           const to = `/shows/${resolvedShowId}/${path}`;
           return (
@@ -32,7 +32,7 @@ export function ShowContextNav() {
               end
               className={({ isActive }) =>
                 cn(
-                  'shrink-0 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition-colors',
+                  'min-h-11 shrink-0 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition-colors',
                   isActive
                     ? 'border-primary text-foreground'
                     : 'border-transparent text-muted-foreground hover:text-foreground'

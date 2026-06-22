@@ -316,7 +316,7 @@ const ShowCreationWizardPage: React.FC = () => {
         {/* Header with breadcrumb and back button */}
         <WizardHeader editMode={editMode} onClose={handleClose} />
 
-        <div className="container mx-auto px-4 sm:px-6 pt-6 pb-8 max-w-6xl">
+        <div className="container mx-auto max-w-6xl px-4 pb-8 pt-4 sm:px-6 sm:pt-6">
           {/* Title */}
           <h2 className="text-base font-semibold mb-4 text-foreground">
             {getEditModeTitle(editMode) ?? 'Create New Show'}
@@ -326,7 +326,7 @@ const ShowCreationWizardPage: React.FC = () => {
               steps stay visible while the form scrolls. Kept a direct child of
               the tall container (not nested in a short title wrapper) so it
               sticks for the whole scroll, not just while the title is on screen. */}
-          <div className="sticky top-16 z-30 mb-4 sm:mb-6 rounded-2xl border border-border bg-card/95 px-4 py-5 shadow-sm backdrop-blur-xl sm:px-6">
+          <div className="sticky top-16 z-30 mb-4 rounded-2xl border border-border bg-card/95 px-3 py-4 shadow-sm backdrop-blur-xl sm:mb-6 sm:px-6 sm:py-5">
             <HorizontalProgressIndicator
               steps={WIZARD_STEPS}
               currentStep={currentStep}
@@ -336,7 +336,7 @@ const ShowCreationWizardPage: React.FC = () => {
           </div>
 
           {/* Main Content */}
-          <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl min-h-[700px] flex flex-col transition-all duration-300 hover:shadow-lg">
+          <div className="group relative flex min-h-[560px] flex-col overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-card to-card/80 shadow-sm backdrop-blur-xl transition-all duration-300 hover:shadow-lg sm:min-h-[700px]">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
             {/* Collapsible Validation Banner — only shown after user clicks Next */}
@@ -353,7 +353,7 @@ const ShowCreationWizardPage: React.FC = () => {
               <div
                 ref={stepContentRef}
                 key={currentStep}
-                className="p-6 sm:p-8 animate-in fade-in slide-in-from-right-4 duration-300"
+                className="animate-in fade-in slide-in-from-right-4 p-4 duration-300 sm:p-8"
                 role="region"
                 aria-label={`Step ${currentStep + 1}: ${WIZARD_STEPS[currentStep]?.label}`}
               >

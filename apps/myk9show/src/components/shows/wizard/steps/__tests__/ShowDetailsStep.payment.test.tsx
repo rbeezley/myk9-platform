@@ -106,4 +106,20 @@ describe('ShowDetailsStep — Payment Methods section', () => {
       /monogram \(default\)/i
     );
   });
+
+  it('uses single-column field groups on mobile with desktop two-column restoration', () => {
+    render(<ShowDetailsStep />);
+
+    const basicGrid = screen.getByLabelText(/show name/i).closest('[class*="grid"]');
+    expect(basicGrid?.className).toContain('grid-cols-1');
+    expect(basicGrid?.className).toContain('md:grid-cols-2');
+
+    const showDatesGroup = screen.getByText(/show dates/i).closest('div');
+    expect(showDatesGroup?.className).toContain('md:col-span-2');
+
+    const officialsSection = screen.getByText('Show Officials').closest('.relative');
+    const officialsGrid = officialsSection?.querySelector('[class*="grid"]');
+    expect(officialsGrid?.className).toContain('grid-cols-1');
+    expect(officialsGrid?.className).toContain('md:grid-cols-2');
+  });
 });

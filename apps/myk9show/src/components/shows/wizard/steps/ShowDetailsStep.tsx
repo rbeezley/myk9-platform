@@ -209,13 +209,13 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         <CloneFromShowCombobox clubId={show.clubId || undefined} />
 
         {/* Basic Show Information */}
-        <div className="group relative bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg hover:-translate-y-0.5">
+        <div className="group relative bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-4 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg hover:-translate-y-0.5 md:p-6">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           <div className="relative">
             <h3 className="text-lg font-semibold mb-4 pl-3 border-l-2 border-primary text-primary transition-colors duration-300">
               Basic Show Information
             </h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="show-name">
                   Show Name <span className="text-destructive">*</span>
@@ -256,7 +256,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                 </Select>
               </div>
 
-              <div className="space-y-2 col-span-2">
+              <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="show-dates">
                   Show Dates <span className="text-destructive">*</span>
                 </Label>
@@ -281,7 +281,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                 )}
               </div>
 
-              <div className="space-y-2 col-span-2">
+              <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="show-entry-period">
                   Entry Period <span className="text-destructive">*</span>
                 </Label>
@@ -380,7 +380,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                 />
               </div>
 
-              <div className="space-y-2 col-span-2">
+              <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="show-location">
                   Location <span className="text-destructive">*</span>
                 </Label>
@@ -398,7 +398,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         </div>
 
         {/* Payment Methods */}
-        <div className="group relative bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg hover:-translate-y-0.5">
+        <div className="group relative bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-4 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg hover:-translate-y-0.5 md:p-6">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           <div className="relative">
             <h3 className="text-lg font-semibold mb-4 pl-3 border-l-2 border-primary text-primary transition-colors duration-300">
@@ -427,13 +427,13 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         />
 
         {/* Show Officials */}
-        <div className="group relative bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg hover:-translate-y-0.5">
+        <div className="group relative bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-4 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg hover:-translate-y-0.5 md:p-6">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           <div className="relative">
             <h3 className="text-lg font-semibold mb-4 pl-3 border-l-2 border-primary text-primary transition-colors duration-300">
               Show Officials
             </h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <OfficialPicker
                 label="Show Chairman"
                 required
@@ -464,7 +464,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         </div>
 
         {/* Show Judges */}
-        <div className="group relative bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg hover:-translate-y-0.5">
+        <div className="group relative bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-4 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg hover:-translate-y-0.5 md:p-6">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           <div className="relative">
             <JudgesPicker

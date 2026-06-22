@@ -285,8 +285,14 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
             />
           </div>
           {saveError && <p className="text-xs text-destructive">{saveError}</p>}
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={resetForm}>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={resetForm}
+              className="w-full sm:w-auto"
+            >
               Cancel
             </Button>
             <Button
@@ -294,6 +300,7 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
               size="sm"
               disabled={!canSaveCredentials || saving}
               onClick={handleSaveCredentials}
+              className="w-full sm:w-auto"
             >
               Save &amp; Add to Show
             </Button>
@@ -308,7 +315,7 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
           <p className="text-xs text-muted-foreground">
             Person not in the system yet. Creates their profile and credentials.
           </p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div className="space-y-1">
               <Label htmlFor="judge-new-first-name" className="text-xs">
                 First name *
@@ -355,8 +362,14 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
             />
           </div>
           {saveError && <p className="text-xs text-destructive">{saveError}</p>}
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={resetForm}>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={resetForm}
+              className="w-full sm:w-auto"
+            >
               Cancel
             </Button>
             <Button
@@ -364,6 +377,7 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
               size="sm"
               disabled={!canCreateJudge || saving}
               onClick={handleCreateJudge}
+              className="w-full sm:w-auto"
             >
               Add Judge
             </Button>
@@ -397,7 +411,7 @@ const OrgAndJudgeNumberFields: React.FC<OrgAndJudgeNumberFieldsProps> = ({
   const orgId = `${idPrefix}-organization`;
   const judgeNumberId = `${idPrefix}-judge-number`;
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
       <div className="space-y-1">
         <Label htmlFor={orgId} className="text-xs">
           Organization *

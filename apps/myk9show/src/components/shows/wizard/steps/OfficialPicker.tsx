@@ -143,7 +143,7 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
       {autoFillBadge && selectedName && !showCreateForm && (
         <Badge
           variant="outline"
-          className="text-[10px] px-1.5 py-0 text-indigo-400 border-indigo-400/30"
+          className="text-xs px-1.5 py-0 text-info border-info/30"
         >
           {autoFillBadge}
         </Badge>

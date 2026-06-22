@@ -151,7 +151,7 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
         {groupKey === GROUP_QUALIFIED && judge.judgeInfo && (
           <Badge
             variant="outline"
-            className="ml-2 text-[10px] px-1.5 py-0 text-emerald-400 border-emerald-400/30"
+            className="ml-2 text-xs px-1.5 py-0 text-success border-success/30"
           >
             {(() => {
               const org = judge.judgeInfo.qualifications[0]?.organization;
@@ -246,7 +246,7 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
             >
               <Plus className="mr-2 h-3.5 w-3.5" />
               Add new judge
-              <span className="ml-1 text-[10px] opacity-60">(person not in system)</span>
+              <span className="ml-1 text-xs opacity-60">(person not in system)</span>
             </Button>
           }
         />
@@ -259,7 +259,7 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
             <p className="text-sm font-semibold">
               Add Judge Credentials — {credPerson.firstName} {credPerson.lastName}
             </p>
-            <p className="text-xs text-emerald-500 mt-1">
+            <p className="text-xs text-success mt-1">
               Adding credentials to {credPerson.firstName}&apos;s existing profile. No duplicate
               record will be created.
             </p>

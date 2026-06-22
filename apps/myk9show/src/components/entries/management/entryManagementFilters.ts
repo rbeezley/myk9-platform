@@ -179,6 +179,11 @@ export function normalizeEntryManagementSearchParams(searchParams: URLSearchPara
   if (view === 'table') params.delete('view');
   else params.set('view', view);
 
+  // Invariant: the Roster view is trial-scoped. An orphaned `roster` (e.g. left
+  // behind when the trial was cleared on another tab) would otherwise make the
+  // next trial selection jump straight into Roster without the explicit toggle.
+  if (!params.get('trial')) params.delete('roster');
+
   return { params, attention, mode, view };
 }
 

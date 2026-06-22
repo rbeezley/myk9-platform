@@ -32,7 +32,10 @@ const nav = [
     <header class="site-header">
       <div class="nav">
         <a class="brand" href="/">
-          <span class="logo">K9</span> myK9Show <span class="sub">Guides</span>
+          <img class="logo" src="/logo.png" alt="" width="48" height="48" />
+          <span class="divider"></span>
+          <span class="wordmark">myK9<span class="accent">Show</span></span>
+          <span class="sub">Help</span>
         </a>
         <nav class="nav-links">
           {nav.map(n => <a href={n.href} class={active === n.key ? 'active' : ''}>{n.label}</a>)}
@@ -50,7 +53,7 @@ const nav = [
     <footer class="site-footer">
       <div class="wrap">
         <span>© 2026 myK9Show</span>
-        <span>Guides · Support · Release notes</span>
+        <span>Help · Support · Release notes</span>
       </div>
     </footer>
   </body>

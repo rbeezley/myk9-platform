@@ -32,6 +32,10 @@ export const bannerColors = {
   flagBright: '#1a7679',
   /** Single warm accent — used 1× for the live-status pulsing dot. */
   warn: '#d97742',
+  /** Footer body copy — paper at 70% on the dark ink footer. */
+  footerSoft: 'rgba(250, 250, 248, 0.7)',
+  /** Footer fine print — paper at 55% on the dark ink footer. */
+  footerMute: 'rgba(250, 250, 248, 0.55)',
 } as const;
 
 export type BannerColorToken = keyof typeof bannerColors;

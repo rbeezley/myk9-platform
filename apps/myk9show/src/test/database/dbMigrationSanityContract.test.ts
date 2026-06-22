@@ -108,4 +108,12 @@ describe('DB migration sanity contracts', () => {
     expect(waitlistPolicy).toContain("position('@' in email) > 1");
     expect(waitlistPolicy).not.toContain('with check (true)');
   });
+
+  it('keeps own-entry results visible for every non-draft, non-cancelled show state', () => {
+    const { sql } = latestMigrationContaining(/view_own_entry_results/i);
+    const view = sliceBetween(sql, 'VIEW public.view_own_entry_results', 'GRANT SELECT');
+
+    expect(view).toContain('security_invoker = true');
+    expect(view).toContain("sh.status IN ('published', 'accepting_entries', 'closed', 'in_progress', 'completed')");
+  });
 });

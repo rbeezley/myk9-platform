@@ -23,12 +23,15 @@ export const WizardValidationBanner: React.FC<WizardValidationBannerProps> = ({
   expanded,
   onToggle,
 }) => (
-  <div className="relative border-b border-warning/30 rounded-t-2xl overflow-hidden">
+  <div
+    role="alert"
+    className="relative border-b border-warning/30 rounded-t-2xl overflow-hidden"
+  >
     <button
       onClick={onToggle}
       aria-expanded={expanded}
       aria-controls="wizard-validation-details"
-      className="w-full px-6 sm:px-8 py-3 bg-gradient-to-r from-amber-50/80 to-amber-100/80 dark:from-amber-900/30 dark:to-amber-800/30 backdrop-blur-sm flex items-center justify-between hover:from-amber-100/80 hover:to-amber-150/80 dark:hover:from-amber-900/40 dark:hover:to-amber-800/40 transition-colors duration-200"
+      className="w-full px-6 sm:px-8 py-3 bg-warning/10 flex items-center justify-between hover:bg-warning/20 transition-colors duration-200"
     >
       <div className="flex items-center gap-3">
         <AlertTriangle className="h-4 w-4 text-warning flex-shrink-0" />
@@ -54,7 +57,7 @@ export const WizardValidationBanner: React.FC<WizardValidationBannerProps> = ({
         expanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
       }`}
     >
-      <div className="px-6 sm:px-8 py-4 bg-gradient-to-r from-amber-50/60 to-amber-100/60 dark:from-amber-900/20 dark:to-amber-800/20">
+      <div className="px-6 sm:px-8 py-4 bg-warning/5">
         <ul className="text-sm text-warning space-y-1.5">
           {messages.map((message, index) => (
             <li key={index} className="flex items-start gap-2">

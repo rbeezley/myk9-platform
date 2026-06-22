@@ -112,7 +112,23 @@ test.describe('Secretary QA regression proof', () => {
     await expect(eventNumber).toBeVisible();
     await expect(eventNumber).toHaveAttribute('required', '');
 
-    await page.getByLabel(/Trial Type/i).click({ force: true });
+    // This is a Base UI Select (@base-ui/react/select), not Radix. Its options
+    // are recomputed (TrialConfigurationStep `trialTypeOptions` useMemo) when the
+    // show's `organization` hydrates from the show query and templates load — both
+    // async, both landing AFTER this row mounts. A single `click({ force: true })`
+    // can fire the open during one of those re-render windows; Base UI then leaves
+    // the portal open-but-empty (or detached) for the full timeout, passing only on
+    // the next run's fresh open. Re-open inside toPass() so each attempt re-clicks
+    // the trigger and re-asserts content — deterministically recovering from a
+    // re-render that dropped the popup, instead of racing a single forced open.
+    const trialTypeTrigger = page.getByLabel(/Trial Type/i);
+    const scentWorkOptionByRole = page.getByRole('option', { name: 'Scent Work', exact: true });
+    await expect(async () => {
+      if (!(await scentWorkOptionByRole.isVisible().catch(() => false))) {
+        await trialTypeTrigger.click();
+      }
+      await expect(scentWorkOptionByRole).toBeVisible({ timeout: 2000 });
+    }).toPass({ timeout: 15000 });
     for (const label of ['Scent Work', 'Obedience', 'Rally', 'Obedience & Rally', 'Tracking']) {
       await expect(page.getByRole('option', { name: label, exact: true })).toBeVisible();
     }

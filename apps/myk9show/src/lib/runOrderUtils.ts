@@ -40,6 +40,37 @@ export interface RunOrderResult {
   runOrder: number;
 }
 
+/**
+ * Translate a (wider) ringside `RunOrderPreset` to myK9Show's supported preset.
+ *
+ * ringside's union carries members myK9Show's RunOrderDialog doesn't model
+ * (`combined-asc | combined-desc | random-all`). The at-show "Randomize All"
+ * button emits ringside's `random-all`, which is semantically myK9Show's
+ * `random`. Casting the wide type onto the narrow one (the previous approach)
+ * let `random-all` fall through `calculateRunOrder`'s default branch to
+ * deterministic armband-ascending — silently wrong. This makes the boundary
+ * explicit: `random-all` → `random`; any other unsupported member (never
+ * emitted by the dialog) falls back to `armband-asc`.
+ */
+export function toMyK9ShowRunOrderPreset(preset: RingsideRunOrderPreset): RunOrderPreset {
+  switch (preset) {
+    case 'armband-asc':
+    case 'armband-desc':
+    case 'random':
+    case 'manual':
+    case 'random-sections':
+    case 'a-then-b-asc':
+    case 'a-then-b-desc':
+    case 'b-then-a-asc':
+    case 'b-then-a-desc':
+      return preset;
+    case 'random-all':
+      return 'random';
+    default:
+      return 'armband-asc';
+  }
+}
+
 function parseArmband(armband: string | null): number {
   const n = parseInt(armband ?? '0', 10);
   return isNaN(n) ? 0 : n;

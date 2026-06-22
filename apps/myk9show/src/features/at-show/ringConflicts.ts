@@ -43,16 +43,26 @@ export interface DetectMyRingConflictsInput {
   leadDogs: number;
 }
 
-/** Map a replicated row onto the fields ringside's queue util reads. */
+/**
+ * Map a replicated row onto the fields ringside's `computeDogsAheadInList` reads
+ * (id, armband, exhibitorOrder, isScored, status, inRing).
+ *
+ * `satisfies Pick<Entry, …>` type-checks each field against `Entry` so drift in
+ * these six is caught at compile time; the trailing `as unknown as Entry` only
+ * bridges the many other required-but-unread `Entry` fields. `status` is narrowed
+ * from the replicated string to `Entry`'s union here (the one genuinely ambiguous
+ * field), defaulting an absent check-in to `'no-status'`.
+ */
 function toQueueEntry(entry: RingConflictEntry): Entry {
   return {
     id: entry.id,
     armband: Number(entry.armband) || 0,
-    exhibitorOrder: entry.runOrder,
     isScored: entry.isScored ?? false,
-    status: entry.checkInStatus,
+    status: (entry.checkInStatus ?? 'no-status') as Entry['status'],
     inRing: entry.checkInStatus === 'in-ring',
-  } as unknown as Entry;
+    // Omit when absent rather than write `undefined` (exactOptionalPropertyTypes).
+    ...(entry.runOrder !== undefined && { exhibitorOrder: entry.runOrder }),
+  } satisfies Partial<Entry> as unknown as Entry;
 }
 
 interface NearUpItem {

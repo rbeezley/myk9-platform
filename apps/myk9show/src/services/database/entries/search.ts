@@ -18,6 +18,8 @@ import {
   buildReplicatedUserEntryRows,
   findMissingReplicatedUserEntryRelations,
 } from './userEntriesReplication';
+import { hasScoredResult } from './resultVisibility';
+import { selectOwnedDogIds } from '@/utils/dogOwnership';
 
 // ---------------------------------------------------------------------------
 // PostgREST fallback wrappers (original implementations)
@@ -152,6 +154,12 @@ async function postgrestGetUserEntries() {
     .from('view_authenticated_entry_results')
     .select(USER_ENTRIES_SELECT)
     .is('deleted_at', null)
+    // My Entries is OWN entries only. The view returns can_manage OR
+    // is_own_entry rows, so without this filter a secretary/admin would receive
+    // every manageable show entry here. is_own_entry is a SQL-resolved column
+    // (handler is me OR I own the dog), so this scopes every read path —
+    // including the replication-failure fallback — at the source.
+    .eq('is_own_entry', true)
     .order('created_at', { ascending: false });
 
   if (error)
@@ -329,7 +337,7 @@ export const getUserEntries = async (userId: string) => {
     const classesMap = buildMapFromArray(classes, c => c.id);
     const showsMap = buildMapFromArray(shows, s => s.id);
     const trialsMap = buildMapFromArray(trials, t => t.id);
-    const ownedDogIds = new Set(dogs.filter(dog => dog.ownerId === userId).map(dog => dog.id));
+    const ownedDogIds = selectOwnedDogIds(dogs, userId);
     const filtered = allEntries.filter(
       e => e.handlerId === userId || (e.dogId ? ownedDogIds.has(e.dogId) : false)
     );
@@ -344,8 +352,21 @@ export const getUserEntries = async (userId: string) => {
       showsMap,
     });
 
-    if (missingRelations.length > 0) {
+    // The replication store syncs raw scored columns (final_placement,
+    // result_status, etc.) WITHOUT the per-field visibility cascade, which is
+    // not in replication scope. The replication-mapped rows null those columns
+    // (see withholdScoredResultColumns), so when any own entry is scored we
+    // prefer the cascade-aware server view to surface correctly-RELEASED
+    // results. Offline (view unreachable) we fall back to the nulled
+    // replication rows — safe-by-default: withheld results never leak.
+    const hasScoredEntries = filtered.some(hasScoredResult);
+
+    if (missingRelations.length > 0 || hasScoredEntries) {
       try {
+        // postgrestGetUserEntries scopes to own entries in SQL
+        // (is_own_entry = true), so this returns the complete authoritative set
+        // — including own entries not yet in the local replication snapshot —
+        // without leaking manageable-not-own rows.
         const result = await postgrestGetUserEntries();
         logQuery('entries', 'select_user_entries_fallback', Date.now() - startTime);
         return result;

@@ -1,19 +1,3 @@
-/**
- * UserTable Component - Premium data table for user management
- *
- * Features:
- * - DataTable-powered sorting with visual indicators
- * - Multi-select with external state (controlled by parent)
- * - Three-dot menus following standard patterns
- * - Advanced hover states with standard easing
- * - Responsive design with mobile adaptation
- * - Loading skeletons matching table structure
- * - Empty states with Premium messaging
- * - Column density controls
- * - Search result highlighting
- * - Accessibility compliant (WCAG 2.1 AA)
- */
-
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -444,17 +428,24 @@ export const UserTable: React.FC<UserTableProps> = ({
   return (
     <div className="space-y-6" style={APPLE_FONT_STYLE}>
       {/* Table — use large pageSize so DataTable never shows its own pagination */}
-      <div className="myk9-table-container">
-        <DataTable
-          tableId="adminUsers"
-          columns={columns}
-          data={users}
-          pageSize={9999}
-          loading={isLoading}
-          onRowClick={user => onUserClick(user)}
-          className="myk9-table"
-          emptyState={<UserTableEmptyState searchTerm={searchTerm} />}
-        />
+      <div
+        className="max-w-full overflow-x-auto rounded-[20px]"
+        aria-label="Users table scroll area"
+        role="region"
+        tabIndex={0}
+      >
+        <div className="myk9-table-container min-w-[760px]">
+          <DataTable
+            tableId="adminUsers"
+            columns={columns}
+            data={users}
+            pageSize={9999}
+            loading={isLoading}
+            onRowClick={user => onUserClick(user)}
+            className="myk9-table"
+            emptyState={<UserTableEmptyState searchTerm={searchTerm} />}
+          />
+        </div>
       </div>
 
       {/* External pagination — controlled by parent */}

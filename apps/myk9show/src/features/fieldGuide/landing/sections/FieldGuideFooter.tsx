@@ -118,7 +118,9 @@ export function FieldGuideFooter({
               <a
                 href={`mailto:${secretaryEmail}`}
                 style={{
-                  display: 'block',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  minHeight: 44,
                   fontFamily: FIELD_GUIDE_MONO_FAMILY,
                   fontSize: 12,
                   color: fieldGuideColors.soft,
@@ -133,7 +135,9 @@ export function FieldGuideFooter({
               <a
                 href={`tel:${secretaryPhone.replace(/[^0-9+]/g, '')}`}
                 style={{
-                  display: 'block',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  minHeight: 44,
                   fontFamily: FIELD_GUIDE_MONO_FAMILY,
                   fontSize: 12,
                   color: fieldGuideColors.soft,

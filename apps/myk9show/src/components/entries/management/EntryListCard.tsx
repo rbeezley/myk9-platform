@@ -5,7 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -21,7 +23,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { CheckInStatusIndicator } from '@/components/common/CheckInStatusIndicator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Users, Hash, MessageSquare, Gift, ChevronDown, Trash2 } from 'lucide-react';
+import { Users, Hash, MessageSquare, Gift, ChevronDown, Trash2, CreditCard } from 'lucide-react';
 import { EntryStatus } from '@/types/show-registration-types';
 import {
   getEffectivePaymentStatus,
@@ -34,7 +36,10 @@ import type { EmailLogEntry } from '@/hooks/useEmailStatus';
 import type { CheckInStatus } from '@myk9/core';
 import { CHECKIN_STATUS } from '@myk9/core';
 import { WithdrawalReasonDialog } from './WithdrawalReasonDialog';
-import { RefundEntryDialog, isStripeRefundable } from './RefundEntryDialog';
+import { RefundEntryDialog } from './RefundEntryDialog';
+import { isStripeRefundable } from './refundEligibility';
+import { RequestPaymentDialog } from './RequestPaymentDialog';
+import { isPaymentRequestable } from './paymentRequestEligibility';
 
 interface EntryListCardProps {
   entries: EntryManagementEntry[];
@@ -56,6 +61,8 @@ interface EntryListCardProps {
   hideHeader?: boolean | undefined;
   /** Reload entries after a successful Stripe refund (e.g. loadEntries). */
   onEntryRefunded?: (() => void) | undefined;
+  /** Reload entries after a payment link is requested (refresh "requested" state). */
+  onPaymentRequested?: (() => void) | undefined;
 }
 
 export const EntryListCard: React.FC<EntryListCardProps> = ({
@@ -72,6 +79,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
   hidePaymentBadge,
   hideHeader,
   onEntryRefunded,
+  onPaymentRequested,
 }) => {
   const [withdrawalDialog, setWithdrawalDialog] = useState<{
     open: boolean;
@@ -82,6 +90,10 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
     entry: EntryManagementEntry | null;
   }>({ open: false, entry: null });
   const [refundDialog, setRefundDialog] = useState<{
+    open: boolean;
+    entry: EntryManagementEntry | null;
+  }>({ open: false, entry: null });
+  const [requestPaymentDialog, setRequestPaymentDialog] = useState<{
     open: boolean;
     entry: EntryManagementEntry | null;
   }>({ open: false, entry: null });
@@ -274,14 +286,36 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                         >
                           Pulled
                         </DropdownMenuItem>
-                        {isStripeRefundable(entry) && (
+                        {/* Money group — payment actions live under their own
+                            quiet header so they read as a distinct concern from
+                            the lifecycle (status) items above and the destructive
+                            action below. Each item is individually gated, so the
+                            header only renders when at least one money action is
+                            available. */}
+                        {(isPaymentRequestable(entry) || isStripeRefundable(entry)) && (
                           <>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => setRefundDialog({ open: true, entry })}
-                            >
-                              Refund payment…
-                            </DropdownMenuItem>
+                            <DropdownMenuGroup>
+                              <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
+                                Payment
+                              </DropdownMenuLabel>
+                              {isPaymentRequestable(entry) && (
+                                <DropdownMenuItem
+                                  onClick={() => setRequestPaymentDialog({ open: true, entry })}
+                                >
+                                  <CreditCard className="h-4 w-4 mr-2" />
+                                  Request payment…
+                                </DropdownMenuItem>
+                              )}
+                              {isStripeRefundable(entry) && (
+                                <DropdownMenuItem
+                                  onClick={() => setRefundDialog({ open: true, entry })}
+                                >
+                                  <CreditCard className="h-4 w-4 mr-2" />
+                                  Refund payment…
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuGroup>
                           </>
                         )}
                         <DropdownMenuSeparator />
@@ -368,6 +402,14 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
         onOpenChange={open => setRefundDialog(open ? prev => prev : { open: false, entry: null })}
         entry={refundDialog.entry}
         onRefunded={() => onEntryRefunded?.()}
+      />
+      <RequestPaymentDialog
+        open={requestPaymentDialog.open}
+        onOpenChange={open =>
+          setRequestPaymentDialog(open ? prev => prev : { open: false, entry: null })
+        }
+        entry={requestPaymentDialog.entry}
+        onRequested={() => onPaymentRequested?.()}
       />
       <AlertDialog
         open={removeDialog.open}

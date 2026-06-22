@@ -128,6 +128,7 @@ export function LeadArticleSection({
         <div className="gz-continued mx-auto max-w-[1100px] px-0 md:px-0">
           <a
             href="#particulars"
+            className="inline-flex min-h-[44px] items-center justify-center"
             style={{
               color: 'var(--gz-brown)',
               textDecorationColor: 'var(--gz-hair)',

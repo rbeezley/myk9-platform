@@ -42,16 +42,22 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [codex-review-playbook.md](codex-review-playbook.md)                                       | Reference | Codex review playbook                                                 |
 | [feature-audit-2026.md](feature-audit-2026.md)                                             | Reference | Feature Audit — Fall 2026                                             |
 | [ia-review-entry-status-surfaces.md](ia-review-entry-status-surfaces.md)                   | Active    | IA Review: Entry-Status Surfaces (cross-role)                         |
+| [ia-review-secretary-entry-management.md](ia-review-secretary-entry-management.md)          | Active    | IA Review: Secretary Entry Management (cognitive-load track)          |
+| [improve-audit-2026-06/README.md](improve-audit-2026-06/README.md)                         | Active    | Improve Audit — June 2026 (remaining plans 003–006)                  |
 | [launch-milestone-qa-checklist.md](launch-milestone-qa-checklist.md)                       | Reference | Launch-Milestone QA Checklist                                         |
 | [navigation-ia.md](navigation-ia.md)                                                       | Reference | Navigation & IA Sketch — Fall 2026                                    |
 | [plan-active-docs-triage-2026-06-14.md](plan-active-docs-triage-2026-06-14.md)             | Active    | Active-Docs Triage — 2026-06-14                                       |
 | [plan-admin-payout-ledger-platform-fee.md](plan-admin-payout-ledger-platform-fee.md)       | Active    | Admin Payout Ledger + Platform Fee Setting                            |
 | [plan-architecture-deepening.md](plan-architecture-deepening.md)                           | Active    | Architecture Deepening Plan                                           |
+| [plan-atshow-ringside-writes.md](plan-atshow-ringside-writes.md)                           | Active    | At-Show Ringside — wire deferred writes + judge/steward write authz   |
 | [plan-block-person-delete-owns-dogs.md](plan-block-person-delete-owns-dogs.md)             | Active    | Block deleting a person who still owns dogs                           |
 | [plan-class-status-auto-derivation.md](plan-class-status-auto-derivation.md)               | Active    | Plan — Class Status Auto-Derivation (Stub)                            |
 | [plan-data-access-module-drift.md](plan-data-access-module-drift.md)                       | Active    | Data Access Module Drift Plan                                         |
 | [plan-dynamic-qa-infrastructure.md](plan-dynamic-qa-infrastructure.md)                     | Complete  | Plan: Dynamic QA Infrastructure (follow-on to the Code-Quality Audit) |
 | [plan-entry-management-layout.md](plan-entry-management-layout.md)                         | Active    | Entry Management Layout Plan                                          |
+| [plan-entry-draw-lottery.md](plan-entry-draw-lottery.md)                                   | Active    | Entry Draw / Lottery — random-draw intake (depends on payment plan)   |
+| [plan-entry-payment-request.md](plan-entry-payment-request.md)                             | Active    | Entry Payment, Waitlist & Capacity (links, pay-to-claim, judge-day)   |
+| [plan-ia-secretary-entry-management.md](plan-ia-secretary-entry-management.md)             | Active    | IA Remediation: Secretary Entry Management (cognitive-load)           |
 | [plan-landing-hero-lcp-prerender.md](plan-landing-hero-lcp-prerender.md)                   | Active    | Landing-page mobile LCP — prerender + hydrate the hero                |
 | [plan-lane-2-2-entry-multiselect.md](plan-lane-2-2-entry-multiselect.md)                   | Active    | Plan: Lane 2.2 — Entry Management checkbox multi-select               |
 | [plan-launch-execution-lanes.md](plan-launch-execution-lanes.md)                           | Active    | Plan: Fall Launch — Execution Lanes (canonical to-do)                 |

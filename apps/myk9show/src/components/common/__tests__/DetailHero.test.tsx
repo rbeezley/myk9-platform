@@ -43,6 +43,23 @@ describe('DetailHero', () => {
     expect(screen.getByText('Accepting')).toBeInTheDocument();
   });
 
+  it('styles success/warning badges with AA-tuned semantic tokens (not raw green/orange)', () => {
+    render(
+      <DetailHero
+        name="Test Show"
+        badges={[
+          { label: 'Accepting', variant: 'success' },
+          { label: 'Closing soon', variant: 'warning' },
+        ]}
+      />
+    );
+    expect(screen.getByText('Accepting').className).toContain('text-success');
+    expect(screen.getByText('Closing soon').className).toContain('text-warning');
+    // guard against regressing to the raw Tailwind palette
+    expect(screen.getByText('Accepting').className).not.toContain('green-500');
+    expect(screen.getByText('Closing soon').className).not.toContain('orange-500');
+  });
+
   it('renders primary action button', () => {
     const onClick = () => {};
     render(

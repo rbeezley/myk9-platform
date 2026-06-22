@@ -649,6 +649,14 @@ export interface EntryListPageProps {
      * option.
      */
     hideSettingsOption: boolean;
+    /**
+     * True means the actions menu hides the print options entirely. Reports are
+     * a host concern: the at-show ringside surface deliberately offers no
+     * printing (reports live on the secretary Reports page), so the host sets
+     * this. Optional — omitting it preserves the default (print shown for
+     * non-exhibitor roles).
+     */
+    hidePrintOptions?: boolean;
   };
 }
 

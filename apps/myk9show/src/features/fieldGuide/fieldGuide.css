@@ -12,6 +12,8 @@
 
 [data-field-guide] {
   --fg-paper: #f6f1e6;
+  --fg-paper-translucent: rgba(246, 241, 230, 0.7);
+  --fg-paper-translucent-strong: rgba(246, 241, 230, 0.75);
   --fg-paper-warm: #ebe4cf;
   --fg-paper-deep: #1f2a24;
   --fg-ink: #1f2a24;

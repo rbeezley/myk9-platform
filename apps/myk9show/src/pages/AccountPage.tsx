@@ -43,7 +43,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Your account',
     items: [
       { key: 'profile', label: 'Profile', icon: User },
-      { key: 'dogs', label: 'Linked dogs', icon: Dog },
+      { key: 'dogs', label: 'My dogs', icon: Dog },
     ],
   },
   {
@@ -270,61 +270,66 @@ export default function AccountPage() {
           </Alert>
         )}
 
-        <div className="flex gap-8">
-          <nav className="w-52 shrink-0">
-            {NAV_GROUPS.map(group => (
-              <div key={group.label || 'danger'} className="mb-4">
-                {group.label && (
-                  <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-                    {group.label}
-                  </p>
-                )}
-                <ul className="space-y-0.5">
-                  {group.items.map(({ key, label, icon: Icon }) => (
-                    <li key={key}>
-                      <button
-                        onClick={() => setActive(key)}
-                        aria-current={active === key ? 'page' : undefined}
-                        className={`w-full flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors ${
-                          active === key
-                            ? key === 'delete'
-                              ? 'bg-destructive/10 text-destructive font-medium'
-                              : 'bg-primary/10 text-primary font-medium'
-                            : key === 'delete'
-                              ? 'text-destructive/70 hover:bg-destructive/5 hover:text-destructive'
-                              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                        }`}
-                      >
-                        <Icon className="h-4 w-4 shrink-0" />
-                        {label}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+        <div className="flex flex-col gap-6 md:flex-row md:gap-8">
+          <nav className="w-full md:w-52 md:shrink-0" aria-label="Account sections">
+            <div className="-mx-4 overflow-x-auto px-4 pb-2 md:mx-0 md:overflow-visible md:px-0 md:pb-0">
+              <div className="flex w-max gap-2 md:block md:w-auto">
+                {NAV_GROUPS.map(group => (
+                  <div key={group.label || 'danger'} className="contents md:mb-4 md:block">
+                    {group.label && (
+                      <p className="sr-only px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 md:not-sr-only">
+                        {group.label}
+                      </p>
+                    )}
+                    <ul className="contents md:block md:space-y-0.5">
+                      {group.items.map(({ key, label, icon: Icon }) => (
+                        <li key={key} className="contents md:block">
+                          <button
+                            onClick={() => setActive(key)}
+                            aria-current={active === key ? 'page' : undefined}
+                            className={`flex min-h-11 w-auto items-center gap-2.5 whitespace-nowrap rounded-md px-3 py-2 text-sm transition-colors md:w-full md:whitespace-normal ${
+                              active === key
+                                ? key === 'delete'
+                                  ? 'bg-destructive/10 text-destructive font-medium'
+                                  : 'bg-primary/10 text-primary font-medium'
+                                : key === 'delete'
+                                  ? 'text-destructive/70 hover:bg-destructive/5 hover:text-destructive'
+                                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                            }`}
+                          >
+                            <Icon className="h-4 w-4 shrink-0" />
+                            {label}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
 
-            <div className="mt-4 pt-4 border-t border-border/50 space-y-1">
+            <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border/50 pt-3 md:mt-4 md:block md:space-y-1 md:pt-4">
               {actionButtons.map(({ key, label, Icon, action }) => (
                 <Button
                   key={key}
                   variant="ghost"
-                  className="min-h-11 w-full justify-start text-muted-foreground text-sm"
+                  className="min-h-11 justify-center px-3 text-muted-foreground md:w-full md:justify-start md:text-sm"
                   onClick={action}
                   disabled={!!actionLoading}
+                  title={label}
                 >
                   {actionLoading === key ? (
-                    <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+                    <Loader2 className="h-3.5 w-3.5 animate-spin md:mr-2" />
                   ) : (
-                    <Icon className="h-3.5 w-3.5 mr-2" />
+                    <Icon className="h-3.5 w-3.5 md:mr-2" />
                   )}
-                  {label}
+                  <span className="sr-only md:not-sr-only">{label}</span>
                 </Button>
               ))}
             </div>
           </nav>
 
-          <div className="flex-1 min-w-0">{renderSection()}</div>
+          <div className="w-full min-w-0 md:flex-1">{renderSection()}</div>
         </div>
       </div>
     </div>

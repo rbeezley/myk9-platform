@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { type ColumnDef, type DisplayColumnDef } from '@tanstack/react-table';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -14,6 +14,8 @@ import type { EmailLogEntry } from '@/hooks/useEmailStatus';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { EntryStatus } from '@/types/show-registration-types';
 import { EntryRowActionMenu, type EntryRowActionMenuProps } from './EntryRowActionMenu';
+import { RequestPaymentDialog } from './RequestPaymentDialog';
+import { RefundEntryDialog } from './RefundEntryDialog';
 
 /** Minimal selection surface (a subset of useBulkSelection) for the select column. */
 export interface EntriesTableSelection {
@@ -36,6 +38,10 @@ interface EntriesTableViewProps {
   onOpenCompDialog?: ((entry: EntryManagementEntry) => void) | undefined;
   onUncompEntry?: ((entryId: string) => void) | undefined;
   onRemoveEntry?: ((entryId: string) => void) | undefined;
+  /** Reload entries after a payment link is requested (refresh "requested" state). */
+  onPaymentRequested?: (() => void) | undefined;
+  /** Reload entries after a refund so the badge updates and the action self-hides. */
+  onEntryRefunded?: (() => void) | undefined;
   /** When provided, renders a leading checkbox select column wired to this selection. */
   selection?: EntriesTableSelection | undefined;
   emptyState?: React.ReactNode;
@@ -222,9 +228,19 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
   onOpenCompDialog,
   onUncompEntry,
   onRemoveEntry,
+  onPaymentRequested,
+  onEntryRefunded,
   selection,
   emptyState,
 }) => {
+  const [requestPaymentEntry, setRequestPaymentEntry] = useState<EntryManagementEntry | null>(null);
+  const openRequestPayment = useCallback(
+    (entry: EntryManagementEntry) => setRequestPaymentEntry(entry),
+    []
+  );
+  const [refundEntry, setRefundEntry] = useState<EntryManagementEntry | null>(null);
+  const openRefund = useCallback((entry: EntryManagementEntry) => setRefundEntry(entry), []);
+
   const columns = useMemo(() => {
     const hasAnyAction =
       onStatusChange ||
@@ -244,6 +260,11 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
           ...(onRemoveEntry ? { onRemoveEntry } : {}),
           ...(onResendEmail ? { onResendEmail } : {}),
           ...(isResendDisabled ? { isResendDisabled } : {}),
+          // Always available where the menu shows; the item self-gates via
+          // isPaymentRequestable. Reuses the same dialog as the card view.
+          onOpenRequestPayment: openRequestPayment,
+          // Likewise self-gates via isStripeRefundable; same dialog as the card view.
+          onOpenRefund: openRefund,
         }
       : undefined;
     const dataColumns = buildColumns(
@@ -264,19 +285,39 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
     onUncompEntry,
     onRemoveEntry,
     selection,
+    openRequestPayment,
+    openRefund,
   ]);
 
   return (
-    <DataTable<EntryManagementEntry>
-      tableId="entriesManagement"
-      data={entries}
-      columns={columns}
-      getRowId={entry => entry.id}
-      showSearch={false}
-      emptyState={emptyState}
-      noResultsMessage={emptyState}
-      {...(onEntryClick !== undefined ? { onRowClick: onEntryClick } : {})}
-    />
+    <>
+      <DataTable<EntryManagementEntry>
+        tableId="entriesManagement"
+        data={entries}
+        columns={columns}
+        getRowId={entry => entry.id}
+        showSearch={false}
+        emptyState={emptyState}
+        noResultsMessage={emptyState}
+        {...(onEntryClick !== undefined ? { onRowClick: onEntryClick } : {})}
+      />
+      <RequestPaymentDialog
+        open={requestPaymentEntry !== null}
+        onOpenChange={open => {
+          if (!open) setRequestPaymentEntry(null);
+        }}
+        entry={requestPaymentEntry}
+        onRequested={() => onPaymentRequested?.()}
+      />
+      <RefundEntryDialog
+        open={refundEntry !== null}
+        onOpenChange={open => {
+          if (!open) setRefundEntry(null);
+        }}
+        entry={refundEntry}
+        onRefunded={() => onEntryRefunded?.()}
+      />
+    </>
   );
 };
 

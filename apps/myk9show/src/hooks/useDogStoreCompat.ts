@@ -31,6 +31,7 @@ import { aggregateQueryErrors, aggregateLoadingStates } from '@/hooks/storeCompa
 import { syncDogRegistrations } from '@/hooks/dogStoreCompatHelpers';
 import { translateDogDbError } from '@/hooks/translateDogDbError';
 import { supabase } from '@/lib/supabase';
+import { selectOwnedDogs } from '@/utils/dogOwnership';
 
 /**
  * Compatibility hook that provides dogStore-like API using React Query
@@ -109,7 +110,6 @@ export const useDogStoreCompat = () => {
             status: r.status || 'pending',
           }));
 
-        // @ts-expect-error — RPC exists but generated DB types need refreshing post-migration.
         const { error: rpcError } = await supabase.rpc('create_dog_with_registrations', {
           p_dog: dbData,
           p_registrations: registrationsPayload,
@@ -209,7 +209,7 @@ export const useDogStoreCompat = () => {
   };
 
   const getDogsByOwner = (ownerId: string): Dog[] => {
-    return dogs.filter(dog => dog.ownerId === ownerId);
+    return selectOwnedDogs(dogs, ownerId);
   };
 
   const getSyncStatus = (): 'synced' | 'pending' | 'error' | 'conflict' => {

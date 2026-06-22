@@ -1,0 +1,295 @@
+{
+  "viewport": "375x667",
+  "generatedAt": "2026-06-21T20:14:38.941Z",
+  "routeCount": 48,
+  "routes": [
+    {
+      "role": "public",
+      "label": "landing",
+      "path": "/",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "public",
+      "label": "sign-in",
+      "path": "/sign-in",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "public",
+      "label": "browse-shows",
+      "path": "/shows",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "public",
+      "label": "show-detail",
+      "path": "/shows/dededede-0000-0000-0000-000000000010",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "public",
+      "label": "browse-clubs",
+      "path": "/clubs",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "public",
+      "label": "terms",
+      "path": "/terms",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "public",
+      "label": "privacy",
+      "path": "/privacy",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "exhibitor",
+      "label": "dashboard",
+      "path": "/exhibitor/dashboard",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "exhibitor",
+      "label": "entries",
+      "path": "/exhibitor/entries",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "exhibitor",
+      "label": "my-entries",
+      "path": "/my-entries",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "exhibitor",
+      "label": "account",
+      "path": "/account",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "exhibitor",
+      "label": "profile",
+      "path": "/profile",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "exhibitor",
+      "label": "dogs",
+      "path": "/dogs",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "exhibitor",
+      "label": "shows",
+      "path": "/shows",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "exhibitor",
+      "label": "notifications",
+      "path": "/notifications",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "exhibitor",
+      "label": "cart",
+      "path": "/cart",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "exhibitor",
+      "label": "subscription",
+      "path": "/subscription",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "secretary",
+      "label": "dashboard",
+      "path": "/secretary/dashboard",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "secretary",
+      "label": "create-show",
+      "path": "/secretary/create-show",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "secretary",
+      "label": "wizard",
+      "path": "/secretary/create-show/wizard",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "secretary",
+      "label": "entry-management",
+      "path": "/shows/dededede-0000-0000-0000-000000000010/entry-management",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "secretary",
+      "label": "setup-workbench",
+      "path": "/shows/dededede-0000-0000-0000-000000000010/setup",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "secretary",
+      "label": "show-reports",
+      "path": "/shows/dededede-0000-0000-0000-000000000010/reports",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "secretary",
+      "label": "settings",
+      "path": "/secretary/settings",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "secretary",
+      "label": "day-of",
+      "path": "/secretary/day-of",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "secretary",
+      "label": "check-in",
+      "path": "/secretary/check-in",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "secretary",
+      "label": "run-order",
+      "path": "/secretary/run-order",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "secretary",
+      "label": "waitlist",
+      "path": "/secretary/waitlist",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "secretary",
+      "label": "volunteers",
+      "path": "/secretary/volunteers",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "secretary",
+      "label": "people",
+      "path": "/people",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "judge",
+      "label": "dashboard",
+      "path": "/judge/dashboard",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "judge",
+      "label": "check-in",
+      "path": "/judge/check-in",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "judge",
+      "label": "stats",
+      "path": "/judge/stats",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "admin",
+      "label": "dashboard",
+      "path": "/admin/dashboard",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "admin",
+      "label": "users",
+      "path": "/admin/users",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "admin",
+      "label": "templates",
+      "path": "/admin/templates",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "admin",
+      "label": "sync",
+      "path": "/admin/sync",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "admin",
+      "label": "settings",
+      "path": "/admin/settings",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "admin",
+      "label": "role-requests",
+      "path": "/admin/role-requests",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "admin",
+      "label": "permissions",
+      "path": "/admin/permissions",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "admin",
+      "label": "permissions-roles",
+      "path": "/admin/permissions/roles",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "admin",
+      "label": "permissions-users",
+      "path": "/admin/permissions/users",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "admin",
+      "label": "permissions-audit",
+      "path": "/admin/permissions/audit",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "admin",
+      "label": "performance",
+      "path": "/admin/performance",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "admin",
+      "label": "alerts",
+      "path": "/admin/alerts",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "admin",
+      "label": "onboarding",
+      "path": "/admin/onboarding",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "admin",
+      "label": "judges-analytics",
+      "path": "/admin/judges/analytics",
+      "consoleErrorCount": 0
+    },
+    {
+      "role": "admin",
+      "label": "help",
+      "path": "/admin/help",
+      "consoleErrorCount": 0
+    }
+  ]
+}

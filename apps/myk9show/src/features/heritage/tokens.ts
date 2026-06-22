@@ -17,7 +17,15 @@ export const heritageColors = {
   gold: '#8a6a45',
   /** Italic muted text, captions, labels. */
   quill: '#6b4f3a',
-  /** Off-page background — preview-only, not used in prod. */
+  /** Lighter gold for accents on the dark ink band — 5.2:1 on ink (AA). */
+  goldOnDark: '#a3855c',
+  /** Muted caption/footer text on the dark ink band — 6.1:1 on ink (AA). */
+  paperMuted: '#a39383',
+  /** Body copy on the dark ink band — 7.9:1 on ink (AA). */
+  paperSoft: '#b8a99a',
+  /** Decorative divider/border on the dark ink band (non-text). */
+  inkBorder: '#3a3028',
+  /** Off-page background / capacity-bar track on the paper surface. */
   paperDark: '#d9d2c2',
 } as const;
 

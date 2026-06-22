@@ -64,6 +64,7 @@ function makeViewEntriesQuery(data: Array<Record<string, unknown>>, error: Error
   const query = {
     select: vi.fn(() => query),
     is: vi.fn(() => query),
+    eq: vi.fn(() => query),
     order: vi.fn(() => Promise.resolve({ data, error })),
   };
   return query;

@@ -5,6 +5,7 @@ import { buildEntryInsert, extractPaymentIntentId } from '../_shared/entryFromCa
 import { accountToRowPatch } from '../_shared/connectAccountMapper.ts';
 import { parsePremiumPriceIds, priceIdToTier } from '../_shared/premiumPrices.ts';
 import { sessionMatchesCart } from '../_shared/sessionCartGuard.ts';
+import { reconcileEntryPaymentRequest } from '../_shared/entryPaymentReconcile.ts';
 import { alertAdmin } from '../_shared/alertAdmin.ts';
 import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
 import { calculatePlatformFeeCents, resolvePlatformFeePercent } from '../_shared/platformFee.ts';
@@ -310,6 +311,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   if (checkoutType === 'entry') {
     await handleEntryPaymentCompleted(session);
+  } else if (checkoutType === 'entry_payment_request') {
+    await handleEntryPaymentRequestCompleted(session);
   } else if (session.mode === 'subscription') {
     await handleSubscriptionCheckoutCompleted(session);
   } else if (session.mode === 'payment') {
@@ -765,6 +768,176 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     platformFeeCents: authoritativeTotal - authoritativeSubtotal,
     totalCents: authoritativeTotal,
   });
+}
+
+/**
+ * Handle a secretary-initiated entry payment-link completion
+ * (metadata.type='entry_payment_request' from the stripe-payment-link fn).
+ *
+ * Unlike the cart flow, the entries ALREADY EXIST — a mail-in entry sitting at
+ * payment_status='pending', or a promoted waitlist entry at 'pending-payment'.
+ * We MARK them paid (not create them); see _shared/entryPaymentReconcile.ts.
+ * The persisted entry_payment_links row is both the anti-tamper anchor (a paid
+ * session must have one) and the idempotency latch (once it leaves 'open', a
+ * re-delivered event is a no-op).
+ */
+async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Session) {
+  const { data: link, error: linkError } = await supabase
+    .from('entry_payment_links')
+    .select('id, show_id, entry_ids, status')
+    .eq('stripe_checkout_session_id', session.id)
+    .maybeSingle();
+
+  if (linkError || !link) {
+    // A PAID session with no link row: tampering, or the row was lost. Charge
+    // taken, nothing marked paid, no Stripe retry — alert (Task 3.5 refund).
+    console.error('Paid payment-link session has no link row:', linkError);
+    await alertAdmin(
+      'Paid payment link has no record — entries NOT marked paid',
+      `<p>Checkout session <code>${session.id}</code> (entry_payment_request) was PAID,
+       but no <code>entry_payment_links</code> row matches it. No entries were marked
+       paid and Stripe will not retry.</p>
+       <p>Recovery: verify the payment in Stripe and refund it, or stamp the entries
+       manually.</p>`
+    );
+    return;
+  }
+
+  const entryIds = (link.entry_ids as string[] | null) ?? [];
+  const { data: entriesData, error: entriesError } = await supabase
+    .from('entries')
+    .select('id, payment_status, entry_status')
+    .in('id', entryIds);
+  if (entriesError) {
+    console.error('Failed to load entries for payment link:', entriesError);
+    await alertAdmin(
+      'Payment link paid but entries could not be read',
+      `<p>Session <code>${session.id}</code> was PAID but loading its entries failed:</p>
+       <pre>${entriesError.message}</pre>
+       <p>Recovery: mark entries <code>${entryIds.join(', ')}</code> paid manually.</p>`
+    );
+    return;
+  }
+
+  const paymentIntentId = extractPaymentIntentId(session.payment_intent);
+  const result = reconcileEntryPaymentRequest({
+    linkStatus: link.status,
+    sessionPaymentStatus: session.payment_status ?? null,
+    expectedEntryIds: entryIds,
+    entries: (entriesData ?? []) as {
+      id: string;
+      payment_status: string | null;
+      entry_status: string | null;
+    }[],
+    paymentIntentId,
+  });
+
+  if (result.action === 'skip') {
+    console.log(
+      `Payment link ${session.id} skipped (${result.skipReason}; link status: ${link.status}, payment_status: ${session.payment_status})`
+    );
+    return;
+  }
+
+  // Entries the link was created for that no longer exist — the charge paid for
+  // nothing recoverable. Alert (Task 3.5 Step 3 refund). Still process the rest.
+  if (result.missingEntryIds.length > 0) {
+    console.error(`Payment link ${session.id} references missing entries:`, result.missingEntryIds);
+    await alertAdmin(
+      'Payment link paid for entries that no longer exist — refund needed',
+      `<p>Session <code>${session.id}</code> was PAID, but these entries it was created for
+       are gone (deleted/withdrawn since): <code>${result.missingEntryIds.join(', ')}</code>
+       (payment intent <code>${paymentIntentId ?? 'unknown'}</code>).</p>
+       <p>Refund the portion for the missing entries (make-whole).</p>`
+    );
+  }
+
+  // Apply per-entry patches. The .eq('payment_status','pending') guard makes
+  // each update a no-op if something already paid it (belt-and-suspenders with
+  // the link latch). Marks payment_method='online' so cron-process-payouts
+  // actually pays the club for these entries (Task 1 / Task 3 Step 4).
+  for (const patch of result.patches) {
+    const update: Record<string, unknown> = {
+      payment_status: patch.payment_status,
+      payment_method: patch.payment_method,
+      stripe_payment_intent_id: patch.stripe_payment_intent_id,
+    };
+    if (patch.entry_status) update.entry_status = patch.entry_status;
+    const { error } = await supabase
+      .from('entries')
+      .update(update)
+      .eq('id', patch.id)
+      .eq('payment_status', 'pending');
+    if (error) {
+      console.error(`Failed to mark entry ${patch.id} paid:`, error);
+      await alertAdmin(
+        'Payment link paid but an entry could not be stamped',
+        `<p>Session <code>${session.id}</code> was PAID but stamping entry
+         <code>${patch.id}</code> failed:</p><pre>${error.message}</pre>
+         <p>Until it is stamped paid+online, cron-process-payouts will NOT pay the
+         club for it. Recovery: stamp the entry manually.</p>`
+      );
+    }
+  }
+
+  // Close the link (idempotency latch); guard on still-open so a racing
+  // delivery can't double-close.
+  await supabase
+    .from('entry_payment_links')
+    .update({ status: 'paid', updated_at: new Date().toISOString() })
+    .eq('id', link.id)
+    .eq('status', 'open');
+
+  // Payment history. Idempotent via the UNIQUE stripe_payment_intent_id /
+  // stripe_checkout_session_id; a benign retry hits 23505 and is ignored.
+  const paidIds = result.patches.map(p => p.id);
+  const { error: orderError } = await supabase.from('stripe_orders').insert({
+    // customer_id is a UUID FK to stripe_customers(id) — NOT Stripe's cus_… id.
+    // A link payer may have no stripe_customers row at all, so leave it null
+    // (writing session.customer here threw an invalid-uuid error every time).
+    customer_id: null,
+    stripe_payment_intent_id: paymentIntentId,
+    stripe_checkout_session_id: session.id,
+    amount_cents: session.amount_total ?? 0,
+    currency: session.currency || 'usd',
+    status: 'succeeded',
+    order_type: 'entry',
+    metadata: { entry_payment_link_id: link.id, entry_count: paidIds.length },
+    show_id: link.show_id,
+    entry_ids: paidIds,
+    paid_at: new Date().toISOString(),
+  });
+  if (orderError && orderError.code !== '23505') {
+    console.error('Error creating stripe_orders for payment link:', orderError);
+    await alertAdmin(
+      'Entry payment-link recorded without a stripe_orders row',
+      `<p>Entries for session <code>${session.id}</code> were marked paid, but
+       inserting the <code>stripe_orders</code> record failed:</p>
+       <pre>${orderError.message}</pre>
+       <p>Recovery: insert the order row manually (payment intent
+       <code>${paymentIntentId ?? 'unknown'}</code>) so payment history stays complete.</p>`
+    );
+  }
+
+  // Duplicate-charge: a second link was paid for an already-paid entry. The
+  // full make-whole auto-refund is Task 3.5 Step 2/6; alert now so the money
+  // isn't silently kept.
+  if (result.alreadyPaidEntryIds.length > 0) {
+    await alertAdmin(
+      'Payment link paid for already-paid entries — refund needed',
+      `<p>Session <code>${session.id}</code> paid for entries that were already paid:
+       <code>${result.alreadyPaidEntryIds.join(', ')}</code> (payment intent
+       <code>${paymentIntentId ?? 'unknown'}</code>).</p>
+       <p>Refund this charge (make-whole, including the platform fee) — the exhibitor
+       was double-charged.</p>`
+    );
+  }
+
+  console.log(
+    `Payment link ${session.id} reconciled: ${paidIds.length} entr${
+      paidIds.length === 1 ? 'y' : 'ies'
+    } marked paid (show ${link.show_id})`
+  );
 }
 
 /**

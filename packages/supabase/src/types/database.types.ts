@@ -8243,6 +8243,7 @@ export type Database = {
           id: string | null
           is_day_of_show: boolean | null
           is_in_ring: boolean | null
+          is_own_entry: boolean | null
           is_scored: boolean | null
           judge_notes: string | null
           judge_signature: string | null
@@ -8761,6 +8762,10 @@ export type Database = {
       clear_ringside_session_presence: {
         Args: { p_show_id: string; p_subscription_endpoint: string }
         Returns: undefined
+      }
+      create_dog_with_registrations: {
+        Args: { p_dog: Json; p_registrations: Json }
+        Returns: string
       }
       create_show_managed_dog: {
         Args: {

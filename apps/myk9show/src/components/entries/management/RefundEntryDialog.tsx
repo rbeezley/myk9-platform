@@ -15,7 +15,6 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/lib/supabase';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
-import { PaymentStatus } from '@/types/show-registration-types';
 
 // Server validation is authoritative; these map its error codes to language a
 // secretary can act on.
@@ -182,18 +181,5 @@ export function RefundEntryDialog({ open, onOpenChange, entry, onRefunded }: Ref
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-/** An entry qualifies for the Stripe refund flow exactly when it was paid
- * online and hasn't been refunded yet. Server-side validation remains
- * authoritative; this only decides whether to offer the dialog. */
-export function isStripeRefundable(
-  entry: Pick<EntryManagementEntry, 'paymentMethod' | 'refundedAt' | 'paymentStatus'>
-): boolean {
-  return (
-    entry.paymentMethod === 'online' &&
-    entry.paymentStatus === PaymentStatus.PAID_ONLINE &&
-    !entry.refundedAt
   );
 }

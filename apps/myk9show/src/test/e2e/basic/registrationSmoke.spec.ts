@@ -8,7 +8,7 @@ function appBrand(page: Page) {
 }
 
 async function gotoRegistrationSmoke(page: Page) {
-  await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await page.goto('/', { waitUntil: 'commit', timeout: 60000 });
   await expect(appBrand(page)).toBeVisible({ timeout: 30000 });
   await page.goto(REGISTRATION_PATH, { waitUntil: 'commit', timeout: 60000 });
   await page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => undefined);

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { signInAsSecretary } from '../shared/auth';
 import {
   createBrowserHealth,
@@ -58,8 +58,9 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
     await page.getByRole('textbox', { name: 'Search entries' }).fill(seed.dogName);
     await expect(page.getByText(seed.dogName).first()).toBeVisible({ timeout: 10000 });
     await expect(page.getByText(seed.className).first()).toBeVisible();
+    await page.getByRole('button', { name: 'Cards view' }).click();
 
-    await page.getByRole('button', { name: 'Assign' }).first().click();
+    await openArmbandDialog(page, seed.dogName);
     const armbandDialog = page.getByRole('dialog', { name: 'Assign Armband' });
     await expect(armbandDialog).toBeVisible();
     await armbandDialog.getByLabel('Armband Number').fill(seed.armband);
@@ -90,3 +91,21 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
     });
   });
 });
+
+async function openArmbandDialog(page: Page, dogName: string) {
+  const escapedDogName = dogName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const rowActions = page
+    .getByRole('button', { name: new RegExp(`^Actions for ${escapedDogName}$`) })
+    .first();
+
+  if ((await rowActions.count()) > 0) {
+    await expect(rowActions).toBeVisible({ timeout: 10000 });
+    await rowActions.click();
+    const assignItem = page.getByRole('menuitem', { name: /Assign armband|Change armband/i });
+    await expect(assignItem.first()).toBeVisible({ timeout: 10000 });
+    await assignItem.first().click();
+    return;
+  }
+
+  await page.getByRole('button', { name: 'Assign' }).first().click();
+}

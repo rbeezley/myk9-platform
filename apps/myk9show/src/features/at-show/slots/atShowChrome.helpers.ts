@@ -58,7 +58,12 @@ const STATUS_TIERS: Record<string, BadgeTier> = {
   none: 'info',
   setup: 'warning',
   briefing: 'warning',
-  in_progress: 'success',
+  // Live judging earns the solid Ring Green pill (DESIGN.md "Ring Green Rule"),
+  // matching the class-list card so the popover and list agree. The popover
+  // only has the raw DB status (`in_progress`), so we key off it directly —
+  // smart-detection (`getClassStatusColor`) isn't available without the full
+  // ClassEntry. Ring Green is reserved for live judging; never render via --success.
+  in_progress: 'live',
   break: 'info',
   upcoming: 'info',
   completed: 'neutral',

@@ -10,6 +10,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { PRESET_INFO, PRESET_CONFIGS, type VisibilityPreset } from '@myk9/secretary';
 import { useBulkUpdateClassOverrides } from '@/hooks/mutations/useShowSettingsMutations';
@@ -91,7 +102,16 @@ export function BulkOperationsBar({
   function handleReleaseResults() {
     const classIds = getValidClassIds(selectedClasses, allClassIds);
     if (classIds.length === 0) return;
-    releaseResults.mutate({ classIds, showId }, { onSuccess: () => onClearSelection() });
+    releaseResults.mutate(
+      { classIds, showId },
+      {
+        // Clear only on a clean release; on partial/total failure keep the
+        // selection so the secretary can retry the failed classes in place.
+        onSuccess: ({ failed }) => {
+          if (failed.length === 0) onClearSelection();
+        },
+      }
+    );
   }
 
   const count = selectedClasses.size;
@@ -103,16 +123,17 @@ export function BulkOperationsBar({
           <span className="text-sm font-medium">
             {count} class{count === 1 ? '' : 'es'} selected
           </span>
-          <Button variant="ghost" size="sm" onClick={onSelectAll}>
+          {/* size="sm" keeps the dense bar compact; min-h-[44px] meets the touch floor. */}
+          <Button variant="ghost" size="sm" className="min-h-[44px]" onClick={onSelectAll}>
             Select All ({allClassIds.length})
           </Button>
-          <Button variant="ghost" size="sm" onClick={onClearSelection}>
+          <Button variant="ghost" size="sm" className="min-h-[44px]" onClick={onClearSelection}>
             Clear
           </Button>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Select onValueChange={v => handleBulkPreset(v as VisibilityPreset)} disabled={isPending}>
-            <SelectTrigger className="w-36">
+            <SelectTrigger className="min-h-[44px] w-36">
               <SelectValue placeholder="Apply Preset" />
             </SelectTrigger>
             <SelectContent>
@@ -126,6 +147,7 @@ export function BulkOperationsBar({
           <Button
             variant="outline"
             size="sm"
+            className="min-h-[44px]"
             onClick={() => handleBulkCheckin(true)}
             disabled={isPending}
           >
@@ -134,18 +156,40 @@ export function BulkOperationsBar({
           <Button
             variant="outline"
             size="sm"
+            className="min-h-[44px]"
             onClick={() => handleBulkCheckin(false)}
             disabled={isPending}
           >
             Disable Check-in
           </Button>
-          <Button
-            size="sm"
-            onClick={handleReleaseResults}
-            disabled={!hasManualReleaseClasses || isPending}
-          >
-            Release Results
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                size="sm"
+                className="min-h-[44px]"
+                disabled={!hasManualReleaseClasses || isPending}
+              >
+                Release Results
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  Release results for {count} class{count === 1 ? '' : 'es'}?
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  This makes results publicly visible to exhibitors and spectators right away.
+                  It can&apos;t be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleReleaseResults} disabled={isPending}>
+                  Release Results
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
     </div>

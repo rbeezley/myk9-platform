@@ -15,3 +15,4 @@ export { TrialClassFilters } from './TrialClassFilters';
 export { TrialRosterView } from './TrialRosterView';
 export { ScoringModeWrapper } from './ScoringModeWrapper';
 export { RegistrationView } from './RegistrationView';
+export { ExceptionsView } from './ExceptionsView';

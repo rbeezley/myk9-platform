@@ -1,19 +1,3 @@
-/**
- * UserTable Component - Premium data table for user management
- *
- * Features:
- * - DataTable-powered sorting with visual indicators
- * - Multi-select with external state (controlled by parent)
- * - Three-dot menus following standard patterns
- * - Advanced hover states with standard easing
- * - Responsive design with mobile adaptation
- * - Loading skeletons matching table structure
- * - Empty states with Premium messaging
- * - Column density controls
- * - Search result highlighting
- * - Accessibility compliant (WCAG 2.1 AA)
- */
-
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';

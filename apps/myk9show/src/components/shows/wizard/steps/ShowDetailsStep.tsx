@@ -212,7 +212,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         <div>
           <div>
             <h3 className="text-lg font-semibold mb-4 text-foreground">Basic Show Information</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="show-name">
                   Show Name <span className="text-destructive">*</span>
@@ -253,7 +253,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                 </Select>
               </div>
 
-              <div className="space-y-2 col-span-2">
+              <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="show-dates">
                   Show Dates <span className="text-destructive">*</span>
                 </Label>
@@ -278,7 +278,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                 )}
               </div>
 
-              <div className="space-y-2 col-span-2">
+              <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="show-entry-period">
                   Entry Period <span className="text-destructive">*</span>
                 </Label>
@@ -377,7 +377,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                 />
               </div>
 
-              <div className="space-y-2 col-span-2">
+              <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="show-location">
                   Location <span className="text-destructive">*</span>
                 </Label>
@@ -424,7 +424,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         <div>
           <div>
             <h3 className="text-lg font-semibold mb-4 text-foreground">Show Officials</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <OfficialPicker
                 label="Show Chairman"
                 required

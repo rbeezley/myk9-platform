@@ -2,6 +2,7 @@ import { expect, type Page } from '@playwright/test';
 import { TEST_USERS } from '../../helpers/testUsers';
 
 export const SECRETARY_USER = TEST_USERS.SECRETARY;
+export const JUDGE_USER = TEST_USERS.JUDGE;
 
 async function gotoSignIn(page: Page, signInPath: string) {
   const input = page.getByTestId('credential-input');
@@ -45,4 +46,8 @@ export async function signIn(page: Page, email: string, password: string, return
 
 export async function signInAsSecretary(page: Page, returnTo = '/') {
   await signIn(page, SECRETARY_USER.email, SECRETARY_USER.password, returnTo);
+}
+
+export async function signInAsJudge(page: Page, returnTo = '/') {
+  await signIn(page, JUDGE_USER.email, JUDGE_USER.password, returnTo);
 }

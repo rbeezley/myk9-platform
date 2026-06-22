@@ -205,14 +205,14 @@ const TemplateManagementPage: React.FC = () => {
       <div className="myk9-template-container">
         {/* Header */}
         <div className="myk9-template-header">
-          <div className="flex justify-between items-start">
-            <div>
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="min-w-0">
               <h1 className="myk9-template-title">Template Management</h1>
               <p className="myk9-template-subtitle">
                 Create and manage class templates for different organizations and show types
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex w-full flex-wrap gap-2 md:w-auto md:justify-end">
               {/* Save button temporarily removed */}
               <Button
                 onClick={() => {
@@ -220,14 +220,14 @@ const TemplateManagementPage: React.FC = () => {
                   initializeDefaultTemplates(true);
                 }}
                 variant="outline"
-                className="text-xs"
+                className="flex-1 text-xs sm:flex-none"
               >
                 Force Initialize
               </Button>
               <Button
                 onClick={() => setShowResetDialog(true)}
                 variant="destructive"
-                className="text-xs"
+                className="flex-1 text-xs sm:flex-none"
               >
                 Reset Templates
               </Button>
@@ -237,11 +237,11 @@ const TemplateManagementPage: React.FC = () => {
                   logger.info('Cleaned up duplicate templates', 'templates', { removed });
                 }}
                 variant="outline"
-                className="text-xs"
+                className="flex-1 text-xs sm:flex-none"
               >
                 Clean Duplicates
               </Button>
-              <Button onClick={handleCreateNew} className="myk9-button-primary">
+              <Button onClick={handleCreateNew} className="myk9-button-primary flex-1 sm:flex-none">
                 <Plus className="h-4 w-4" />
                 Create Template
               </Button>

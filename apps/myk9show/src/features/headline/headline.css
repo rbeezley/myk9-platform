@@ -489,3 +489,82 @@
   font-size: 16px;
   font-weight: 500;
 }
+
+@media (max-width: 640px) {
+  [data-headline] .hd-hero,
+  [data-headline] .hd-section {
+    padding: 40px 20px;
+  }
+
+  [data-headline] .hd-title {
+    font-size: 48px;
+    line-height: 1;
+    overflow-wrap: anywhere;
+  }
+
+  [data-headline] .hd-subtitle {
+    font-size: 18px;
+  }
+
+  [data-headline] .hd-hero-grid,
+  [data-headline] .hd-judges,
+  [data-headline] .hd-cards-grid,
+  [data-headline] .hd-officers {
+    grid-template-columns: 1fr;
+  }
+
+  [data-headline] .hd-hero-grid > div,
+  [data-headline] .hd-fee,
+  [data-headline] .hd-judge,
+  [data-headline] .hd-card,
+  [data-headline] .hd-officers .o {
+    border-right: none;
+    border-bottom: 1px solid var(--hd-hair);
+  }
+
+  [data-headline] .hd-hero-grid > div:last-child,
+  [data-headline] .hd-fee:last-child,
+  [data-headline] .hd-judge:last-child,
+  [data-headline] .hd-card:last-child,
+  [data-headline] .hd-officers .o:last-child {
+    border-bottom: none;
+  }
+
+  [data-headline] .hd-hero-bottom {
+    align-items: stretch;
+  }
+
+  [data-headline] .hd-cta-stack {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  [data-headline] .hd-cta {
+    justify-content: center;
+  }
+
+  [data-headline] .hd-ticker {
+    display: grid;
+    width: 100%;
+    max-width: 100%;
+    grid-template-columns: 1fr;
+    justify-items: stretch;
+    overflow-wrap: anywhere;
+  }
+
+  [data-headline] .hd-ticker .pre,
+  [data-headline] .hd-ticker .b {
+    justify-content: center;
+  }
+
+  [data-headline] .hd-ticker .b {
+    min-width: 0;
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--hd-hair);
+  }
+
+  [data-headline] .hd-ticker .b:last-child {
+    border-bottom: none;
+  }
+}

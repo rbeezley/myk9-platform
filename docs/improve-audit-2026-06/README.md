@@ -21,7 +21,7 @@ conditions. Execute one at a time; honor each plan's STOP conditions.
 
 | Plan | Title | Priority | Effort | Risk | Kind |
 |------|-------|----------|--------|------|------|
-| [003](003-calculatetotalareatime-zero-bug.md) | Fix `calculateTotalAreaTime` falsy 0-check | P2 | S | LOW | fix (contract) |
+| [003](003-calculatetotalareatime-zero-bug.md) | Fix `calculateTotalAreaTime` falsy 0-check | P2 | S | LOW | fix (contract) | ✅ Done — branch `advisor/003-area-time-zero` |
 | [005](005-scoring-placement-integration-test.md) | Integration test: score → placement → exhibitor-visible rank | P1 | M | LOW | tests |
 | [006](006-insert-retry-idempotency-investigate.md) | Investigate INSERT retry idempotency in the replication queue | P2 | M | LOW | investigate (read-only) — **DONE: Verdict B; findings → `docs/plan-replication-insert-idempotency.md`** |
 | [004](004-entries-read-module-consolidation-spike.md) | Spike: map & rationalize the 7 entry-read modules | P2 | L | LOW | investigate (doc-only) — ✅ Complete; findings at [docs/plan-entries-read-consolidation.md](../plan-entries-read-consolidation.md) |

@@ -37,6 +37,17 @@ describe('calculationUtils', () => {
     it('should return 0 when called with no arguments', () => {
       expect(calculateTotalAreaTime()).toBe(0);
     });
+
+    it('counts a 0-second area as a real value, not a missing one', () => {
+      expect(calculateTotalAreaTime(0, 30, 0)).toBe(30);
+      expect(calculateTotalAreaTime(0, 0, 0)).toBe(0);
+      expect(calculateTotalAreaTime(45, 0, 12)).toBe(57);
+    });
+
+    it('treats null and undefined as missing (0 contribution)', () => {
+      expect(calculateTotalAreaTime(45, null, undefined)).toBe(45);
+      expect(calculateTotalAreaTime(undefined, undefined, undefined)).toBe(0);
+    });
   });
 
   describe('formatTimeDisplay', () => {

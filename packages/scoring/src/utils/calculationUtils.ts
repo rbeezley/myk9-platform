@@ -44,15 +44,15 @@ export function calculateTotalAreaTime(
 ): number {
   let totalTime = 0;
 
-  if (area1Time) {
+  if (area1Time != null) {
     totalTime += area1Time;
   }
 
-  if (area2Time) {
+  if (area2Time != null) {
     totalTime += area2Time;
   }
 
-  if (area3Time) {
+  if (area3Time != null) {
     totalTime += area3Time;
   }
 

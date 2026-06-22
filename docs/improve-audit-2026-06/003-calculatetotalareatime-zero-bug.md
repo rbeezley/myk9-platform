@@ -1,6 +1,6 @@
 # Plan 003: Fix `calculateTotalAreaTime` dropping a legitimate 0-second area time
 
-> **Status:** Active
+> **Status:** Complete
 
 > **Executor instructions**: Follow this plan step by step. Run every
 > verification command and confirm the expected result before moving to the

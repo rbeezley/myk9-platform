@@ -49,4 +49,19 @@ describe('waitlist expiration cron payment-link offer wiring', () => {
     expect(promotionMigration).toContain("where name = 'cron_secret'");
     expect(promotionMigration).not.toContain('REPLACE_WITH_CRON_SECRET');
   });
+
+  it('keeps manual waitlist promotion authorization scoped to the owning show or club', () => {
+    expect(promotionMigration).toContain('JOIN classes c ON c.id = wl.class_id');
+    expect(promotionMigration).toContain('JOIN trials t ON t.id = c.trial_id');
+    expect(promotionMigration).toContain('JOIN shows s ON s.id = t.show_id');
+    expect(promotionMigration).toContain('public.is_show_secretary(v_show_id)');
+    expect(promotionMigration).toContain('public.is_club_admin(v_club_id)');
+    expect(promotionMigration).toContain('public.is_site_admin()');
+  });
+
+  it('answers CORS preflight before requiring the cron secret', () => {
+    expect(cronSource.indexOf("req.method === 'OPTIONS'")).toBeLessThan(
+      cronSource.indexOf("req.headers.get('Authorization')")
+    );
+  });
 });

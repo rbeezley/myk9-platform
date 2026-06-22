@@ -16,6 +16,11 @@ const source = readFileSync(
   'utf8'
 );
 
+const lineItemSource = readFileSync(
+  resolve(__dirname, '../../../supabase/functions/_shared/entryPaymentLineItems.ts'),
+  'utf8'
+);
+
 describe('stripe-webhook entry_payment_request branch', () => {
   it('dispatches checkout.session.completed of type entry_payment_request to its own handler', () => {
     expect(source).toContain("checkoutType === 'entry_payment_request'");
@@ -59,8 +64,10 @@ describe('stripe-webhook entry_payment_request branch', () => {
 
   it('auto-refunds invalid paid-for-nothing link charges through Stripe with an explicit amount', () => {
     expect(source).toContain('updateOutcome.refundDecision');
-    expect(source).toContain('stripe.checkout.sessions.listLineItems');
-    expect(source).toContain('item.metadata?.entry_id');
+    expect(source).toContain('loadEntryPaymentLineItemFeesFromStripe');
+    expect(lineItemSource).toContain('listLineItems');
+    expect(lineItemSource).toContain("expand: ['data.price.product']");
+    expect(lineItemSource).toContain('product.metadata?.entry_id');
     expect(source).toContain('stripe.refunds.create');
     expect(source).toContain('payment_intent: input.paymentIntentId');
     expect(source).toContain('amount: input.amountCents');

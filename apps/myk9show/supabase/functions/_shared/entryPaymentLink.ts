@@ -27,11 +27,14 @@ export interface BuildEntryPaymentLinkInput {
 }
 
 interface LineItem {
-  metadata: Record<string, string>;
   price_data: {
     currency: string;
     unit_amount: number;
-    product_data: { name: string; description?: string };
+    product_data: {
+      name: string;
+      description?: string;
+      metadata?: Record<string, string>;
+    };
   };
   quantity: number;
 }
@@ -56,13 +59,13 @@ export function buildEntryPaymentLinkSession(
   }
 
   const lineItems: LineItem[] = input.entries.map(e => ({
-    metadata: { type: 'entry', entry_id: e.entryId },
     price_data: {
       currency: 'usd',
       unit_amount: e.authoritativeFeeCents,
       product_data: {
         name: `${e.dogName} - ${e.className}`,
         description: e.showName,
+        metadata: { type: 'entry', entry_id: e.entryId },
       },
     },
     quantity: 1,
@@ -74,11 +77,14 @@ export function buildEntryPaymentLinkSession(
   const platformFeeCents = calculatePlatformFeeCents(subtotal, input.platformFeePercent);
   if (platformFeeCents > 0) {
     lineItems.push({
-      metadata: { type: 'platform_fee' },
       price_data: {
         currency: 'usd',
         unit_amount: platformFeeCents,
-        product_data: { name: 'Platform Fee', description: 'Online entry processing fee' },
+        product_data: {
+          name: 'Platform Fee',
+          description: 'Online entry processing fee',
+          metadata: { type: 'platform_fee' },
+        },
       },
       quantity: 1,
     });

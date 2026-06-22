@@ -44,10 +44,16 @@ describe('buildEntryPaymentLinkSession', () => {
     expect(s.line_items[0].price_data.product_data.name).toBe('Rex - Novice A');
   });
 
-  it('stamps each entry line item with its entry id so refund math does not depend on array order', () => {
+  it('stamps each entry product with its entry id so refund math does not depend on array order', () => {
     const s = buildEntryPaymentLinkSession(base);
-    expect(s.line_items[0].metadata).toEqual({ type: 'entry', entry_id: 'e1' });
-    expect(s.line_items[1].metadata).toEqual({ type: 'entry', entry_id: 'e2' });
+    expect(s.line_items[0].price_data.product_data.metadata).toEqual({
+      type: 'entry',
+      entry_id: 'e1',
+    });
+    expect(s.line_items[1].price_data.product_data.metadata).toEqual({
+      type: 'entry',
+      entry_id: 'e2',
+    });
   });
 
   it('adds the platform fee ON TOP as its own line item (fee-on-top — the exhibitor pays it)', () => {
@@ -56,7 +62,7 @@ describe('buildEntryPaymentLinkSession', () => {
     const fee = s.line_items[s.line_items.length - 1];
     expect(fee.price_data.product_data.name).toBe('Platform Fee');
     expect(fee.price_data.unit_amount).toBe(420); // 7% of 6000
-    expect(fee.metadata).toEqual({ type: 'platform_fee' });
+    expect(fee.price_data.product_data.metadata).toEqual({ type: 'platform_fee' });
     // stamp the rate so the webhook validates against the exact charged rate
     expect(s.metadata.platform_fee_percent).toBe('7');
   });

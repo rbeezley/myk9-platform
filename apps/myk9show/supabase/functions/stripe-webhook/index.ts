@@ -13,6 +13,7 @@ import { reconcileEntryPaymentUpdateOutcome } from '../_shared/entryPaymentUpdat
 import { alertAdmin } from '../_shared/alertAdmin.ts';
 import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
 import { calculatePlatformFeeCents, resolvePlatformFeePercent } from '../_shared/platformFee.ts';
+import { loadEntryPaymentLineItemFeesFromStripe } from '../_shared/entryPaymentLineItems.ts';
 
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
@@ -1101,19 +1102,12 @@ async function resolvePaidWaitlistOffers(entryIds: string[], sessionId: string) 
 }
 
 async function loadEntryPaymentLineItemFees(sessionId: string): Promise<Map<string, number>> {
-  const entryFeesById = new Map<string, number>();
   try {
-    const lineItems = await stripe.checkout.sessions.listLineItems(sessionId, { limit: 100 });
-    for (const item of lineItems.data) {
-      const entryId = item.metadata?.entry_id;
-      if (entryId && typeof item.amount_total === 'number') {
-        entryFeesById.set(entryId, item.amount_total);
-      }
-    }
+    return await loadEntryPaymentLineItemFeesFromStripe(stripe.checkout.sessions, sessionId);
   } catch (err) {
     console.error(`Could not load line items for payment-link session ${sessionId}:`, err);
   }
-  return entryFeesById;
+  return new Map<string, number>();
 }
 
 async function issueEntryPaymentAutoRefund(input: {

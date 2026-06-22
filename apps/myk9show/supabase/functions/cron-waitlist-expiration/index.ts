@@ -96,6 +96,11 @@ interface ExhibitorInfo {
 Deno.serve(async req => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
+  // Handle CORS
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
   // Verify cron secret for security
   const authHeader = req.headers.get('Authorization');
   const providedSecret = authHeader?.replace('Bearer ', '');
@@ -106,11 +111,6 @@ Deno.serve(async req => {
       status: 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-  }
-
-  // Handle CORS
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   if (req.method !== 'POST') {

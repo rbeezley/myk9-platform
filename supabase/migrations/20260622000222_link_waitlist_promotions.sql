@@ -97,14 +97,22 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
+DECLARE
+  v_show_id uuid;
+  v_club_id uuid;
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM user_roles ur
-    JOIN roles r ON r.id = ur.role_id
-    JOIN people p ON p.id = ur.user_id
-    WHERE p.auth_user_id = auth.uid()
-      AND r.name IN ('secretary', 'club_admin', 'site_admin')
+  SELECT t.show_id, s.club_id
+  INTO v_show_id, v_club_id
+  FROM waitlist_entries wl
+  JOIN classes c ON c.id = wl.class_id
+  JOIN trials t ON t.id = c.trial_id
+  JOIN shows s ON s.id = t.show_id
+  WHERE wl.id = p_waitlist_entry_id;
+
+  IF NOT (
+    public.is_show_secretary(v_show_id)
+    OR public.is_club_admin(v_club_id)
+    OR public.is_site_admin()
   ) THEN
     RAISE EXCEPTION 'Permission denied';
   END IF;

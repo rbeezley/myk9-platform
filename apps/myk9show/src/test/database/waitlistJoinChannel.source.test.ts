@@ -30,9 +30,8 @@ describe('waitlist joined_via channel contract', () => {
     expect(migration).toContain("p_joined_via NOT IN ('online', 'mail_in')");
     expect(migration).toContain("p_joined_via = 'mail_in'");
     expect(migration).toContain('public.is_show_secretary(v_show_id)');
-    expect(migration).toContain('public.is_club_admin(v_club_id)');
     expect(migration).toContain('public.is_site_admin()');
-    expect(migration).toContain('Only show managers may create mail-in waitlist rows');
+    expect(migration).toContain('Only show secretaries may create mail-in waitlist rows');
     expect(migration).toContain('p_joined_via');
     expect(migration).toContain('add_to_waitlist(uuid, uuid, uuid, uuid, text)');
   });

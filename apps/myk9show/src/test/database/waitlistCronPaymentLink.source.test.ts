@@ -12,6 +12,11 @@ const emailSource = readFileSync(
   'utf8'
 );
 
+const promotionMigration = readFileSync(
+  resolve(__dirname, '../../../../../supabase/migrations/20260622000222_link_waitlist_promotions.sql'),
+  'utf8'
+);
+
 describe('waitlist expiration cron payment-link offer wiring', () => {
   it('requests a Stripe payment link for the promoted pending-payment entry', () => {
     expect(cronSource).toContain('createWaitlistPaymentLink(entry.promoted_entry_id, showId)');
@@ -35,5 +40,11 @@ describe('waitlist expiration cron payment-link offer wiring', () => {
     expect(cronSource).toContain('paymentUrl,');
     expect(emailSource).toContain('paymentUrl?: string | null');
     expect(emailSource).toContain('Pay to Claim This Spot');
+  });
+
+  it('loads the cron secret from Vault instead of migration text', () => {
+    expect(promotionMigration).toContain('vault.decrypted_secrets');
+    expect(promotionMigration).toContain("where name = 'cron_secret'");
+    expect(promotionMigration).not.toContain('REPLACE_WITH_CRON_SECRET');
   });
 });

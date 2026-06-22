@@ -2,14 +2,18 @@
 -- the spot. This lets cron expire the entry and any open Stripe link when the
 -- offer deadline passes.
 --
--- Shared-system note: before pushing this migration, replace
--- REPLACE_WITH_CRON_SECRET with the actual CRON_SECRET value configured for the
--- cron-waitlist-expiration edge function.
+-- Required Vault secret names:
+--   cron_secret
+--
+-- Seed/rotate with vault.create_secret(...) or vault.update_secret(...)
+-- before expecting the cron job to succeed. The scheduled SQL resolves the
+-- secret at execution time so the value never lands in migration history.
 
 begin;
 
 create extension if not exists pg_cron with schema extensions;
 create extension if not exists pg_net  with schema extensions;
+create extension if not exists supabase_vault with schema vault;
 
 ALTER TABLE public.waitlist_entries
   ADD COLUMN IF NOT EXISTS promoted_entry_id uuid REFERENCES public.entries(id) ON DELETE SET NULL;
@@ -137,14 +141,29 @@ select
     'waitlist-offer-expiration',
     '*/15 * * * *',
     $$
-    select net.http_post(
-      url     := 'https://sojmvhhwsjxmfistvzbe.supabase.co/functions/v1/cron-waitlist-expiration',
-      headers := jsonb_build_object(
-        'Content-Type',  'application/json',
-        'Authorization', 'Bearer REPLACE_WITH_CRON_SECRET'
-      ),
-      body    := '{}'::jsonb
-    );
+    do $waitlist_offer_expiration_cron$
+    declare
+      function_secret text;
+    begin
+      select decrypted_secret
+      into function_secret
+      from vault.decrypted_secrets
+      where name = 'cron_secret';
+
+      if nullif(function_secret, '') is null then
+        raise exception 'Missing Vault secret: cron_secret';
+      end if;
+
+      perform net.http_post(
+        url     := 'https://sojmvhhwsjxmfistvzbe.supabase.co/functions/v1/cron-waitlist-expiration',
+        headers := jsonb_build_object(
+          'Content-Type',  'application/json',
+          'Authorization', 'Bearer ' || function_secret
+        ),
+        body    := '{}'::jsonb
+      );
+    end
+    $waitlist_offer_expiration_cron$;
     $$
   );
 

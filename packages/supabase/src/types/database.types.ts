@@ -8709,6 +8709,7 @@ export type Database = {
           p_dog_id: string
           p_exhibitor_id: string
           p_handler_id?: string
+          p_joined_via?: string
         }
         Returns: {
           class_id: string
@@ -8717,9 +8718,11 @@ export type Database = {
           exhibitor_id: string
           handler_id: string | null
           id: string
+          joined_via: string | null
           offer_expires_at: string | null
           offered_at: string | null
           position: number
+          promoted_entry_id: string | null
           status: string | null
           updated_at: string | null
           version: number

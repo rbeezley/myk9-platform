@@ -1136,6 +1136,8 @@ async function issueEntryPaymentAutoRefund(input: {
   }
 
   try {
+    // Safe with reason in the key: callers first close the payment-link row, so
+    // later webhook deliveries return before they can issue a second refund.
     const refund = await stripe.refunds.create(
       {
         payment_intent: input.paymentIntentId,

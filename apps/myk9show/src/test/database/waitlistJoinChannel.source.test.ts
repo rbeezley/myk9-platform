@@ -23,4 +23,12 @@ describe('waitlist joined_via channel contract', () => {
     expect(migration).toContain('joined_via');
     expect(migration).toContain("'online'");
   });
+
+  it('allows trusted callers to create mail-in waitlist rows through the RPC', () => {
+    expect(migration).toContain('DROP FUNCTION IF EXISTS public.add_to_waitlist(uuid, uuid, uuid, uuid)');
+    expect(migration).toContain("p_joined_via text DEFAULT 'online'");
+    expect(migration).toContain("p_joined_via NOT IN ('online', 'mail_in')");
+    expect(migration).toContain('p_joined_via');
+    expect(migration).toContain('add_to_waitlist(uuid, uuid, uuid, uuid, text)');
+  });
 });

@@ -10,13 +10,13 @@
  *  - ringside `useEntryHandlers` → the combined `combinedHandlers` bag
  *  - custom `compareEntries` sort (adds 'section-armband')
  *
- * Drag-to-reorder persists run order through the replication layer (same
- * contract as the single-class AtShowEntryListPage). The remaining out-of-scope
- * service callbacks are deliberate stubs: print and scoresheet prefetch are
- * no-ops, and the run-order PRESET dialog (`onApplyRunOrder`) is still a stub —
- * the combined preset apply needs a section-aware (scope/renumberMode) run-order
- * calculator that myK9Show doesn't have yet. Scoresheet navigation points at the
- * at-show scoresheet route (built in a later slice).
+ * Run order persists offline-first through the replication layer (same RLS /
+ * `ringside_update_entry` routing as the single-class AtShowEntryListPage), for
+ * BOTH paths: drag-to-reorder via `persistEntryRunOrder`, and the section-aware
+ * PRESET dialog via `applyCombinedRunOrder` (which respects the combined `scope`
+ * A/B + `renumberMode` contract). Remaining out-of-scope service callbacks are
+ * deliberate stubs: print and scoresheet prefetch are no-ops. Scoresheet
+ * navigation points at the at-show scoresheet route (built in a later slice).
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -35,6 +35,9 @@ import {
   type EntryListDataDependencies,
   type RingsideShowContext,
   type CombinedEntryListUiState,
+  type RunOrderPreset,
+  type RunOrderScope,
+  type RenumberMode,
 } from '@myk9/ringside';
 
 // Derive these from the page's own UI-state type — the barrel also exports
@@ -44,6 +47,7 @@ type SortOrder = CombinedEntryListUiState['sortOrder'];
 type PrintDialogState = CombinedEntryListUiState['printDialogState'];
 import { replicatedShowsTable } from '@/services/replication';
 import { logger } from '@/utils/logger';
+import { applyCombinedRunOrder } from './applyCombinedRunOrder';
 import { persistEntryRunOrder } from './persistEntryRunOrder';
 import { buildRingsideContextValue } from './ringsideCapabilities';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
@@ -204,13 +208,27 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     [showId]
   );
 
-  // ── Out-of-scope service callbacks (stubs) ─────────────────────────────
+  // ── Service callbacks (print/prefetch still stubbed; run-order is real) ──
   const onPrintSortOrder = useCallback(() => {
     logger.warn('[at-show] combined print is not available in the spike', 'at-show');
   }, []);
-  const onApplyRunOrder = useCallback(async () => {
-    logger.warn('[at-show] combined run-order apply is stubbed for the spike', 'at-show');
-  }, []);
+  // Apply a run-order PRESET (by-armband / random / section-scoped). Mirrors the
+  // single-class preset path but section-aware: `scope` (A/B/all) + `renumberMode`
+  // route through `applyCombinedRunOrder`, which persists each entry's run_order
+  // offline-first via the replication layer. `manual` opens drag mode instead.
+  const onApplyRunOrder = useCallback<
+    (preset: RunOrderPreset, scope?: RunOrderScope, renumberMode?: RenumberMode) => Promise<void>
+  >(
+    async (preset, scope, renumberMode) => {
+      if (preset === 'manual') {
+        setIsDragMode(true);
+        return;
+      }
+      await applyCombinedRunOrder(localEntries, preset, scope, renumberMode);
+      await refresh();
+    },
+    [localEntries, refresh]
+  );
   const onPrefetchScoresheet = useCallback(() => {}, []);
 
   // ── Ownership annotations (own-dog highlight + dogs-ahead pills) ────────

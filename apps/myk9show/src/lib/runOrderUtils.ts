@@ -1,4 +1,4 @@
-import type { RunOrderPreset as RingsideRunOrderPreset } from '@myk9/ringside';
+import type { RunOrderPreset as RingsideRunOrderPreset, RunOrderScope } from '@myk9/ringside';
 
 /**
  * myK9Show exposes a deliberately narrower run-order preset surface than
@@ -227,4 +227,38 @@ export function calculateRunOrderScoped(
     }));
     return [...reorderedScoped, ...adjustedOther];
   }
+}
+
+// `RunOrderScope` ('all' | 'A' | 'B') is single-sourced from `@myk9/ringside`
+// (re-exported here for the calculators' callers) — same DRY discipline as
+// `RunOrderPreset` above, so a future ringside scope can't drift silently.
+export type { RunOrderScope };
+
+/**
+ * Combined (Section A/B) run-order dispatcher — the section-aware sibling of
+ * `calculateRunOrder` used by the single-class list.
+ *
+ * Routes by `scope`:
+ *  - `'all'`  → reorder the whole class with `calculateRunOrder` (the preset
+ *               itself decides section grouping, e.g. `a-then-b-asc`).
+ *  - `'A'|'B'`→ reorder ONLY that section via `calculateRunOrderScoped`,
+ *               with `renumberMode` deciding what happens to the other
+ *               section's numbers (`'renumber'` re-sequences 1..N, `'preserve'`
+ *               keeps the other section ahead untouched).
+ *
+ * `renumberMode` is ignored for `'all'` (every entry is renumbered anyway).
+ * Returns a `RunOrderResult` for EVERY entry so the caller can persist the
+ * whole class atomically. `'manual'` yields `[]` (drag mode handles it).
+ */
+export function calculateCombinedRunOrder(
+  entries: RunOrderEntry[],
+  preset: RunOrderPreset,
+  scope: RunOrderScope = 'all',
+  renumberMode: 'preserve' | 'renumber' = 'renumber'
+): RunOrderResult[] {
+  if (preset === 'manual') return [];
+  if (scope === 'A' || scope === 'B') {
+    return calculateRunOrderScoped(entries, preset, scope, renumberMode);
+  }
+  return calculateRunOrder(entries, preset);
 }

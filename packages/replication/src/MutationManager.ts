@@ -593,6 +593,11 @@ export class MutationManager {
           TIMEOUT_PRESETS.standard,
           `${tableName} insert`
         );
+        if (error?.code === '23505') {
+          // Row already exists — retry hit a duplicate-key on a client-generated UUID.
+          // The INSERT succeeded on a prior attempt; treat this as success.
+          return {};
+        }
         if (error) throw error;
         if (!rows || rows.length === 0) {
           throw new Error(

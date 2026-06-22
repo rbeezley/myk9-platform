@@ -99,6 +99,7 @@ These three were the genuine IA decisions gating this plan. Per `CLAUDE.md` ("st
 
 ## Phase D — Make the trial/class drilldown honest (filters + deep-link)
 
+**Status:** ✅ Implemented (pending PR). The derived `viewMode` no longer produces `scoring` or auto-`roster`: trial/class are now in-place filters on the entry list (the page passes the trial's class ids into `useEntryManagementFilters`), **Roster is an explicit `?roster=1` toggle**, and scoring is an explicit **"Score this class →" deep-link** (`TrialScopeBar`, a real `<a>` to `/scoring/classes/:classId/entries`) — `ScoringModeWrapper`'s redirect-on-render is deleted. F4: `EntryWorkModeSwitch` is relabeled "Quick views" so it reads as a preset, not a fourth axis. **Live walk:** deferred — the Preview MCP serves `main` in a worktree session and a full playwright drive needs a seeded show + login; behavior is covered by unit tests (no `/scoring` redirect on class select, roster toggle, deep-link href, in-place filtering). Recommended as a manual pre-merge check on staging.
 **Findings:** F1 (Critical) + F4 (workMode legibility). **Risk:** high (changes the page's derived state model). **Est:** 1–2 PRs.
 
 **Entry trigger:** Phase C merged (avoids reshaping the content area twice). This is the architectural core — it goes last on purpose.

@@ -145,6 +145,38 @@ describe('EnrollmentCard', () => {
     expect(badge.closest('button')).toBeNull();
   });
 
+  it('groups the payment menu into Mark paid / Adjust / Reset sections', () => {
+    // Phase B de-overloads the 7-action money menu into three labeled concerns
+    // so it reads as sections rather than one flat list.
+    render(<EnrollmentCard {...defaultProps} group={makeGroup({ enrollmentId: 'enroll-1' })} />);
+    fireEvent.click(screen.getByText('Paid'));
+
+    expect(screen.getByText('Mark paid')).toBeTruthy();
+    expect(screen.getByText('Adjust')).toBeTruthy();
+    expect(screen.getByText('Reset')).toBeTruthy();
+  });
+
+  it('still fires onPaymentStatusChange from the regrouped payment menu', () => {
+    // Guards against the regrouping silently dropping a handler: a money action
+    // must still write through onPaymentStatusChange with the right enrollment +
+    // status.
+    const onPaymentStatusChange = vi.fn();
+    render(
+      <EnrollmentCard
+        {...defaultProps}
+        group={makeGroup({ enrollmentId: 'enroll-1' })}
+        onPaymentStatusChange={onPaymentStatusChange}
+      />
+    );
+    fireEvent.click(screen.getByText('Paid'));
+    fireEvent.click(screen.getByText('Paid in Full — Cash'));
+
+    expect(onPaymentStatusChange).toHaveBeenCalledTimes(1);
+    const [enrollmentId, status] = onPaymentStatusChange.mock.calls[0];
+    expect(enrollmentId).toBe('enroll-1');
+    expect(status).toBe(PaymentStatus.PAID_BY_CASH);
+  });
+
   it('omits "Waitlist All" from the bulk actions menu', () => {
     // Real waitlisting is per-class with position/capacity tracked in
     // `waitlist_entries` (WaitlistManagementPage). The bulk status write maps

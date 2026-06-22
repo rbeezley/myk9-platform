@@ -27,21 +27,31 @@ import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTa
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
 import type { EntryStatus } from '@/types/entry-lifecycle';
 import type { DbEntryWithRelations } from '@/services/mappers/classMappers';
+import { AUTHENTICATED_ENTRY_READ_COLUMNS } from './entrySelects';
 
 // ---------------------------------------------------------------------------
 // Helpers — batch-load related data into Maps to avoid N+1 reads
 // ---------------------------------------------------------------------------
 
 async function loadDogsMap(): Promise<Map<string, ReplicatedDog>> {
-  return loadLookupMap(() => replicatedDogsTable.getAllDogs(), d => d.id);
+  return loadLookupMap(
+    () => replicatedDogsTable.getAllDogs(),
+    d => d.id
+  );
 }
 
 async function loadClassesMap(): Promise<Map<string, ReplicatedClass>> {
-  return loadLookupMap(() => replicatedClassesTable.getAll(), c => c.id);
+  return loadLookupMap(
+    () => replicatedClassesTable.getAll(),
+    c => c.id
+  );
 }
 
 async function loadShowsMap(): Promise<Map<string, ReplicatedShow>> {
-  return loadLookupMap(() => replicatedShowsTable.getAllShows(), s => s.id);
+  return loadLookupMap(
+    () => replicatedShowsTable.getAllShows(),
+    s => s.id
+  );
 }
 
 function getEntryCreatedSortValue(entry: ReplicatedEntry): string | undefined {
@@ -127,7 +137,7 @@ async function postgrestGetAllEntries() {
     .from('entries')
     .select(
       `
-      *,
+      ${AUTHENTICATED_ENTRY_READ_COLUMNS},
       dog:dog_id (
         id,
         name,
@@ -174,7 +184,7 @@ async function postgrestGetEntryById(id: string) {
     .from('entries')
     .select(
       `
-      *,
+      ${AUTHENTICATED_ENTRY_READ_COLUMNS},
       dog:dog_id (
         id,
         name,
@@ -224,7 +234,7 @@ async function postgrestGetEntriesByShow(showId: string) {
     .from('entries')
     .select(
       `
-      *,
+      ${AUTHENTICATED_ENTRY_READ_COLUMNS},
       dog:dog_id (
         id,
         name,
@@ -262,7 +272,7 @@ async function postgrestGetEntriesByShowForFinancials(showId: string) {
     .from('entries')
     .select(
       `
-      *,
+      ${AUTHENTICATED_ENTRY_READ_COLUMNS},
       dog:dog_id (
         id,
         name,
@@ -306,7 +316,7 @@ async function postgrestGetEntriesByTrial(trialId: string) {
     .from('entries')
     .select(
       `
-      *,
+      ${AUTHENTICATED_ENTRY_READ_COLUMNS},
       dog:dog_id (
         id,
         name,
@@ -347,7 +357,7 @@ async function postgrestGetEntriesByClass(classId: string) {
     .from('entries')
     .select(
       `
-      *,
+      ${AUTHENTICATED_ENTRY_READ_COLUMNS},
       dog:dog_id (
         id,
         name,
@@ -388,7 +398,7 @@ async function postgrestGetEntriesByDog(dogId: string) {
     .from('entries')
     .select(
       `
-      *,
+      ${AUTHENTICATED_ENTRY_READ_COLUMNS},
       class:class_id (
         id,
         name,
@@ -417,7 +427,7 @@ async function postgrestGetEntriesByStatus(status: EntryStatus) {
     .from('entries')
     .select(
       `
-      *,
+      ${AUTHENTICATED_ENTRY_READ_COLUMNS},
       dog:dog_id (
         id,
         name,
@@ -462,8 +472,7 @@ async function postgrestGetEntriesByStatus(status: EntryStatus) {
 // `.is('deleted_at', null)` filter — otherwise a deleted dog's entries reappear
 // in rosters/scoring after sync. getEntryById is intentionally exempt (its
 // postgrest fallback also returns tombstones, for restore/detail lookups).
-const isLiveEntry = (entry: ReplicatedEntry): boolean =>
-  !entry.deletedAt && !entry.deleted_at;
+const isLiveEntry = (entry: ReplicatedEntry): boolean => !entry.deletedAt && !entry.deleted_at;
 
 // Get all entries with related data
 export const getAllEntries = async () => {
@@ -475,7 +484,10 @@ export const getAllEntries = async () => {
         loadClassesMap(),
         loadShowsMap(),
       ]);
-      const sortedEntries = sortedCopy(entries.filter(isLiveEntry), compareDateDesc(getEntryCreatedSortValue));
+      const sortedEntries = sortedCopy(
+        entries.filter(isLiveEntry),
+        compareDateDesc(getEntryCreatedSortValue)
+      );
       const data = mapEntriesWithStandardJoins(sortedEntries, dogsMap, classesMap, showsMap);
       return { data, error: null };
     },
@@ -516,7 +528,10 @@ export const getEntriesByShow = async (showId: string) => {
         loadDogsMap(),
         loadClassesMap(),
       ]);
-      const sortedEntries = sortedCopy(entries.filter(isLiveEntry), compareDateDesc(getEntryCreatedSortValue));
+      const sortedEntries = sortedCopy(
+        entries.filter(isLiveEntry),
+        compareDateDesc(getEntryCreatedSortValue)
+      );
       const data = sortedEntries.map(entry =>
         mapReplicatedEntryToDbRow(entry, {
           dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
@@ -716,7 +731,7 @@ export const getEntriesByDog = async (dogId: string) => {
 export const countActiveEntriesByDog = async (dogId: string): Promise<number> => {
   const { count, error } = await supabase
     .from('entries')
-    .select('*', { count: 'exact', head: true })
+    .select('id', { count: 'exact', head: true })
     .eq('dog_id', dogId)
     .is('deleted_at', null);
   if (error) throw error;

@@ -7,10 +7,11 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useMatch, useSearchParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getErrorMessage } from '@myk9/core';
 import { notifications } from '@/lib/notifications';
+import { helpUrl } from '@/lib/help';
 import { useShowRegistrationStore } from '@/store/showRegistrationStore';
 import {
   ClassSelectionData,
@@ -32,6 +33,7 @@ import { RegistrationErrorBoundary } from '@/components/common/ErrorBoundary';
 import { DraftManager } from '@/components/shows/RegistrationWorkflow/DraftManager';
 import { useDraftPersistence, type SavedDraft } from '@/hooks/useDraftPersistence';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { RegistrationProvider } from '@/context/RegistrationContext';
 import HorizontalProgressIndicator from '@/components/shows/wizard/components/HorizontalProgressIndicator';
 import WizardNavigation from '@/components/shows/wizard/components/WizardNavigation';
@@ -57,6 +59,12 @@ import {
 } from './RegistrationWizardPage.routes';
 import { proceedBlockedReason } from './RegistrationWizardPage/proceedGating';
 
+// Exhibitor self-service defaults to online card payment; on-behalf modes
+// (secretary/admin/club) can't use card checkout, so they start unset and must
+// choose explicitly. Shared by the initial state and the mode-change reset.
+const defaultPaymentForMode = (mode: WorkflowMode): PaymentMethod | undefined =>
+  mode === 'exhibitor' ? 'credit_card' : undefined;
+
 function RegistrationWizardContent() {
   const { showId: showIdParam } = useParams<{ showId: string }>();
   // showId is guaranteed by the outer RegistrationWizardPage guard
@@ -71,6 +79,7 @@ function RegistrationWizardContent() {
   // Auth and permissions
   const { isSecretary, isClubAdmin, isSiteAdmin, canAssignArmbands } = useRegistrationPermissions();
   const { user } = useAuthContext();
+  const { profile: exhibitorProfile } = useExhibitorProfile();
   const { triggerSync } = useReplicationSync();
 
   // Trigger a sync on mount so any pending local mutations are uploaded
@@ -126,6 +135,15 @@ function RegistrationWizardContent() {
       prevWorkflowMode.current = currentWorkflowMode;
       setStepCompletionState({});
       setCurrentStep(0);
+      // Re-apply the per-mode payment default. RBAC resolves async, so the mode
+      // can start as 'exhibitor' (card default) and flip to an on-behalf mode
+      // once permissions load — clear the card default there since on-behalf
+      // flows can't use card checkout and would otherwise hit the guard in
+      // handleNext. Restore it if the mode flips back to exhibitor.
+      setRegistrationData(prev => ({
+        ...prev,
+        paymentMethod: defaultPaymentForMode(currentWorkflowMode),
+      }));
     }
   }, [currentWorkflowMode]);
 
@@ -145,9 +163,29 @@ function RegistrationWizardContent() {
     selectedDogs: [],
     entries: [],
     documents: [],
-    paymentMethod: undefined,
+    // INTENT: Default exhibitor self-service to online card payment so most
+    // exhibitors can pay instantly without touching the radio; they only switch
+    // if they intend to pay by check/cash (and only when the show offers those).
+    paymentMethod: defaultPaymentForMode(currentWorkflowMode),
     specialRequests: undefined,
   });
+
+  // Scroll the wizard back to the top of its scroll container on every step
+  // change. Steps differ a lot in height, so otherwise the prior scroll offset
+  // carries over and a tall step (the payment step in particular) opens scrolled
+  // past its first controls — exactly the "I land near the bottom and can't see
+  // the payment choices" symptom. scrollIntoView climbs to whichever ancestor
+  // actually scrolls: the window when the wizard is full-page, the sidebar's
+  // overflow-auto pane when embedded under /secretary.
+  const scrollTopRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scrollTopRef.current;
+    // jsdom (test env) doesn't implement scrollIntoView; guard so it's a no-op
+    // there while still running in every real browser.
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ block: 'start' });
+    }
+  }, [currentStep]);
 
   // Resolve the exhibitor that this submission is filed under. For exhibitor
   // self-service this equals the caller's own people.id (since they only see
@@ -394,9 +432,22 @@ function RegistrationWizardContent() {
       const paymentDetails = paymentDetailsRef.current;
       try {
         if (registrationData.paymentMethod === 'credit_card') {
+          // Card checkout is exhibitor-self-service only. Stripe-hosted checkout
+          // runs under the logged-in user's account and stripe-checkout 403s any
+          // cart that user doesn't own, so an organizer paying on behalf of an
+          // exhibitor can't go through card checkout — and exhibitorProfile here
+          // is the ORGANIZER's profile, not the selected dogs' owner. The UI
+          // hides the card option for these modes; this guards loaded drafts and
+          // any other path that bypasses it. Caught below → toast + flag reset.
+          if (currentWorkflowMode !== 'exhibitor') {
+            throw new Error(
+              'Online card checkout is only available when an exhibitor pays for their own entries. For on-behalf entries, record the payment as check, cash, or mark it as paid.'
+            );
+          }
           await submitRegistrationCartCheckout({
             showId,
             ownerResolution,
+            exhibitorProfileId: exhibitorProfile?.id ?? '',
             classSelections,
             handlerAssignments,
             classes,
@@ -583,7 +634,7 @@ function RegistrationWizardContent() {
 
   return (
     <RegistrationErrorBoundary>
-      <div className={isInsideSidebar ? 'bg-background' : 'min-h-screen bg-background'}>
+      <div ref={scrollTopRef} className={isInsideSidebar ? 'bg-background' : 'min-h-screen bg-background'}>
         {/* Sticky header stack — breadcrumb + title + step indicator as ONE
             sticky unit. Keeping them together means the stepper can never slide
             under the breadcrumb: the previous separate top-28 offset was
@@ -610,6 +661,16 @@ function RegistrationWizardContent() {
                 <span>/</span>
                 <span className="text-foreground font-medium">{workflowLabel}</span>
               </div>
+              {/* Contextual deep-link to the public exhibitor guide. */}
+              <a
+                href={helpUrl('exhibitor-guide')}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ml-auto hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <HelpCircle className="h-4 w-4" />
+                Help
+              </a>
             </div>
 
             {/* Title + horizontal step indicator */}

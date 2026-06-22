@@ -20,6 +20,7 @@ import type { EntryListActions } from '@myk9/ringside';
 import type { EntryStatus } from '@myk9/core';
 import { logger } from '@/utils/logger';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
+import { replicatedEntriesTable } from '@/services/replication';
 
 export interface UseAtShowEntryListActionsDeps {
   /** Refresh callback from the data hook; awaited after a successful mutation. */
@@ -108,17 +109,37 @@ export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): 
     [runMutation, refresh]
   );
 
-  const handleResetScore = useCallback<EntryListActions['handleResetScore']>(async entryId => {
-    // INTENT (Phase 1a spike): score-reset is a STUB. The unified DB lacks the
-    // `unlock_entry_for_edit` RPC + `protect_scored_entries` trigger that a
-    // faithful reset depends on (verified absent 2026-05-28). Wiring a real
-    // reset is a follow-up once the edit-lock model is decided — do NOT
-    // silently write a partial reset here (it would bypass scored-entry
-    // protection). The handler clears the row optimistically for UX.
-    logger.warn(
-      `[at-show] resetEntryScore is stubbed for the spike — no DB write for entry ${entryId}`
-    );
-  }, []);
+  const handleResetScore = useCallback<EntryListActions['handleResetScore']>(
+    async entryId => {
+      // Clear the scored fields back to an unscored/pending state. There is no
+      // `protect_scored_entries` trigger (verified absent), so no unlock step is
+      // needed — the same pattern the secretary paper scoresheet uses
+      // (usePaperScoring.clearEntry). All cleared columns are ringside-
+      // whitelisted, so updateEntry auto-routes through ringside_update_entry,
+      // letting an assigned judge reset as well as a manager. The scoring-state
+      // trigger clears any stale placement automatically.
+      await runMutation(async () => {
+        await replicatedEntriesTable.updateEntry(entryId, {
+          // Use the nullable (camel finalPlacement / snake scoring_completed_at /
+          // disqualification_reason) field variants so clears persist as NULL.
+          isScored: false,
+          is_scored: false,
+          resultStatus: 'pending',
+          result_status: 'pending',
+          searchTimeSeconds: 0,
+          search_time_seconds: 0,
+          totalFaults: 0,
+          total_faults: 0,
+          finalPlacement: null,
+          scoringCompletedAt: null,
+          scoring_completed_at: null,
+          disqualification_reason: null,
+        });
+        await refresh();
+      });
+    },
+    [runMutation, refresh]
+  );
 
   return {
     handleStatusChange,

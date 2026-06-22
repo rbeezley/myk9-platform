@@ -1,6 +1,6 @@
 /**
  * Hook for fetching public results for a show — podium placements (1st–4th).
- * Queries view_entry_with_results for scored entries with placements,
+ * Queries view_public_entry_results for scored entries with placements,
  * grouped by class.
  */
 

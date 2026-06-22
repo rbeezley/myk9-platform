@@ -155,7 +155,7 @@ Two destinations are needed because Stripe scopes them (each with its OWN signin
 ```bash
 supabase secrets set STRIPE_SECRET_KEY=sk_test_...        # Developers → API keys (test mode)
 supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_...      # from step 3
-supabase secrets set PLATFORM_FEE_PERCENT=3
+supabase secrets set PLATFORM_FEE_PERCENT=7    # fallback only; platform_settings (site-admin editable) is authoritative
 supabase secrets set PAYOUT_CRON_SECRET=$(openssl rand -hex 32)
 supabase secrets list                                     # verify all four names exist
 ```

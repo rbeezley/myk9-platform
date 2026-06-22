@@ -69,6 +69,14 @@ export interface PaymentMethodSelectorProps {
   onPaymentDetailsChange?: ((details: PaymentDetails) => void) | undefined;
   /** Which at-show payment methods are enabled for this show. Defaults to all enabled. */
   acceptedMethods?: { check: boolean; cash: boolean } | undefined;
+  /**
+   * Whether online card checkout is offered. Defaults to true. Card checkout
+   * routes through Stripe-hosted checkout under the LOGGED-IN user's account,
+   * and stripe-checkout rejects any cart whose exhibitor isn't the caller — so
+   * it only works for an exhibitor paying their OWN entries. On-behalf modes
+   * (secretary/club admin/site admin) must use check/cash/secretary_paid/waived.
+   */
+  allowCardCheckout?: boolean | undefined;
 }
 
 /** Props for the SecretaryPaymentManagement sub-component. */

@@ -100,7 +100,7 @@ export function HeroSpread({
         <div
           className="flex flex-wrap items-center gap-4 pt-6 text-xs uppercase"
           style={{
-            borderTop: '1px solid rgba(26,26,26,0.18)',
+            borderTop: '1px solid var(--mz-rule-soft)',
             color: 'var(--mz-mute)',
             fontFamily: 'var(--mz-meta)',
             letterSpacing: '0.28em',

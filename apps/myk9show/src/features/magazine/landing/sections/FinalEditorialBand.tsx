@@ -93,7 +93,7 @@ export function FinalEditorialBand({
             <p
               className="max-w-xl italic"
               style={{
-                color: 'rgba(246, 241, 232, 0.7)',
+                color: 'var(--mz-paper-mute)',
                 fontFamily: 'var(--mz-display)',
                 fontSize: 'clamp(17px, 2vw, 22px)',
                 lineHeight: 1.5,
@@ -105,7 +105,7 @@ export function FinalEditorialBand({
 
             <a
               href={entryWizardUrl}
-              className="mt-4 inline-flex items-center gap-3 px-11 py-4 transition-colors"
+              className="mt-4 inline-flex min-h-[44px] items-center justify-center gap-3 px-11 py-4 transition-colors"
               style={{
                 background: 'var(--mz-paper)',
                 color: 'var(--mz-ink)',
@@ -122,7 +122,7 @@ export function FinalEditorialBand({
           <p
             className="max-w-xl italic"
             style={{
-              color: 'rgba(246, 241, 232, 0.7)',
+              color: 'var(--mz-paper-mute)',
               fontFamily: 'var(--mz-display)',
               fontSize: 'clamp(17px, 2vw, 22px)',
               lineHeight: 1.5,

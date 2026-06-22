@@ -15,6 +15,13 @@
   --hl-claret: #8a1818;
   --hl-gold: #8a6a45;
   --hl-quill: #6b4f3a;
+  /* Dark-surface variants — the paper-tuned gold/muted fail WCAG AA on the ink
+   * band (gold-on-ink is 3.6:1). These lighter values restore ≥4.5:1 there. */
+  --hl-gold-on-dark: #a3855c; /* 5.2:1 on ink — accents on the ink band */
+  --hl-paper-muted: #a39383; /* 6.1:1 on ink — muted captions/footer text */
+  --hl-paper-soft: #b8a99a; /* 7.9:1 on ink — body copy on the ink band */
+  --hl-ink-border: #3a3028; /* decorative divider on the ink band (non-text) */
+  --hl-paper-dark: #d9d2c2; /* capacity-bar track on the paper surface */
   --hl-rule: var(--hl-ink);
 }
 

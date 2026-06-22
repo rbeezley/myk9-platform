@@ -22,6 +22,7 @@ import type { CheckInStatus } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import { rowToEntry, type EntryRow, type ReplicatedEntry } from './ReplicatedEntriesTable.mapper';
+import { buildRingsideRpcFields, RINGSIDE_RPC_FUNCTION } from './ringsideEntryRpc';
 
 export { rowToEntry };
 export type { ReplicatedEntry };
@@ -124,13 +125,13 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     const adapter: SyncReplicatedTableAdapter<EntryRow, ReplicatedEntry> = {
       fetchRemoteRows: async ({ scope, since }) => {
         // Filter by show_id if provided. In myK9Show this scope value is the Show ID.
-        // Embed the dog's display fields (call_name/breed) so entry cards can
-        // show the dog without a separate per-row dogs lookup. `entries.dog_id`
-        // is a to-one FK, so `dogs(...)` returns a single object. These land on
-        // the replica as `dog_call_name` / `dog_breed` (see rowToEntry).
+        // Read through the authenticated result view instead of public.entries:
+        // managers receive raw scored fields, while exhibitors only receive
+        // their own entries with result columns nulled by the release cascade.
+        // The view flattens dog display fields as dog_call_name/dog_breed.
         let query = supabase
-          .from('entries')
-          .select('*, dogs(call_name, breed)')
+          .from('view_authenticated_entry_results')
+          .select('*')
           .gt('updated_at', new Date(since).toISOString())
           .order('updated_at', { ascending: true });
 
@@ -144,7 +145,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
           throw new Error(`Supabase query failed: ${error.message}`);
         }
 
-        return data ?? [];
+        return (data ?? []) as unknown as EntryRow[];
       },
       getRemoteId: remote => {
         return String(remote.id);
@@ -288,11 +289,19 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     };
 
     await this.set(entryId, updated, true);
-    const mutationId = await this.queueMutation('UPDATE', entryId, {
-      id: entryId,
-      check_in_status: status,
-      updated_at: new Date().toISOString(),
-    });
+    const mutationId = await this.queueMutation(
+      'UPDATE',
+      entryId,
+      {
+        id: entryId,
+        check_in_status: status,
+        updated_at: new Date().toISOString(),
+      },
+      undefined,
+      // check_in_status is ringside-whitelisted; route through the RPC so judges/
+      // stewards can persist check-ins (updated_at is auto-managed, not intent).
+      { name: RINGSIDE_RPC_FUNCTION, fields: { check_in_status: status } }
+    );
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated entry ${entryId} check-in status to ${status}`);
     return mutationId;
@@ -316,7 +325,20 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     };
 
     await this.set(entryId, updated, true);
-    const mutationId = await this.queueMutation('UPDATE', entryId, this.toSupabaseRow(updated));
+    const supabaseRow = this.toSupabaseRow(updated);
+    // Auto-route ringside-only writes (scoring/run-order/check-in/placement)
+    // through the SECURITY DEFINER RPC so assigned judges / stewards — who are
+    // denied by the entries UPDATE RLS policy — can persist. Writes that touch
+    // any non-ringside column fall through to the direct UPDATE. See
+    // ./ringsideEntryRpc.ts.
+    const rpcFields = buildRingsideRpcFields(Object.keys(updates), supabaseRow);
+    const mutationId = await this.queueMutation(
+      'UPDATE',
+      entryId,
+      supabaseRow,
+      undefined,
+      rpcFields ? { name: RINGSIDE_RPC_FUNCTION, fields: rpcFields } : undefined
+    );
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated entry ${entryId}`);
     return mutationId;

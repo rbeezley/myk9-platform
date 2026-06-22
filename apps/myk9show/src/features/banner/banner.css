@@ -24,6 +24,8 @@
   --bn-flag-bright: #1a7679;
   --bn-warn: #d97742;
   --bn-text-on-flag: #ffffff;
+  --bn-footer-soft: rgba(250, 250, 248, 0.7);
+  --bn-footer-mute: rgba(250, 250, 248, 0.55);
 
   background: var(--bn-paper);
   color: var(--bn-ink);

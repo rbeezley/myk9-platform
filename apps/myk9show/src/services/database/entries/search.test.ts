@@ -57,13 +57,26 @@ vi.mock('@/services/mappers/entryMappers', () => ({
   mapReplicatedEntryToDbRow: mocks.mapReplicatedEntryToDbRow,
 }));
 
-import { USER_ENTRIES_SELECT, getUserEntries } from './search';
+import { USER_ENTRIES_SELECT, getUserEntries, searchEntries } from './search';
 import { findMissingReplicatedUserEntryRelations } from './userEntriesReplication';
 
 function makeViewEntriesQuery(data: Array<Record<string, unknown>>, error: Error | null = null) {
   const query = {
     select: vi.fn(() => query),
+    is: vi.fn(() => query),
+    eq: vi.fn(() => query),
     order: vi.fn(() => Promise.resolve({ data, error })),
+  };
+  return query;
+}
+
+function makeSearchEntriesQuery(data: Array<Record<string, unknown>>, error: Error | null = null) {
+  const query = {
+    select: vi.fn(() => query),
+    or: vi.fn(() => query),
+    is: vi.fn(() => query),
+    order: vi.fn(() => query),
+    limit: vi.fn(() => Promise.resolve({ data, error })),
   };
   return query;
 }
@@ -88,7 +101,7 @@ function mockSupabaseTables(options: {
   const enrollmentsQuery = makeEnrollmentsQuery(options.enrollmentRows ?? []);
 
   mocks.supabaseFrom.mockImplementation((table: string) => {
-    if (table === 'view_own_entry_results') return viewQuery;
+    if (table === 'view_authenticated_entry_results') return viewQuery;
     if (table === 'enrollments') return enrollmentsQuery;
     throw new Error(`Unexpected table: ${table}`);
   });
@@ -226,10 +239,12 @@ describe('getUserEntries replicated relation completeness', () => {
   const replicatedShow = { id: 'show-1' };
   const replicatedTrial = { id: 'trial-1', trialType: 'Scent Work' };
 
-  function mockReplicatedStores(options: {
-    classes?: Array<Record<string, unknown>>;
-    entriesThrows?: boolean;
-  } = {}) {
+  function mockReplicatedStores(
+    options: {
+      classes?: Array<Record<string, unknown>>;
+      entriesThrows?: boolean;
+    } = {}
+  ) {
     if (options.entriesThrows) {
       mocks.replicatedEntriesGetAll.mockRejectedValue(new Error('replication unavailable'));
     } else {
@@ -279,14 +294,15 @@ describe('getUserEntries replicated relation completeness', () => {
   it('prefers the complete PostgREST result when replicated relation rows are missing', async () => {
     mockReplicatedStores({ classes: [] });
     const onlineRows = [{ id: 'online-entry', class: { id: 'class-1', name: 'Container' } }];
-    mockSupabaseTables({
+    const { viewQuery } = mockSupabaseTables({
       viewEntryRows: onlineRows,
     });
 
     const result = await getUserEntries('user-1');
 
     expect(result).toEqual({ data: onlineRows, error: null });
-    expect(mocks.supabaseFrom).toHaveBeenCalledWith('view_own_entry_results');
+    expect(mocks.supabaseFrom).toHaveBeenCalledWith('view_authenticated_entry_results');
+    expect(viewQuery.is).toHaveBeenCalledWith('deleted_at', null);
     expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('entries');
     expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('dogs');
     expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('enrollments');
@@ -309,7 +325,7 @@ describe('getUserEntries replicated relation completeness', () => {
       dog: replicatedDog,
       show: replicatedShow,
     });
-    expect(mocks.supabaseFrom).toHaveBeenCalledWith('view_own_entry_results');
+    expect(mocks.supabaseFrom).toHaveBeenCalledWith('view_authenticated_entry_results');
     expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('entries');
     expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('dogs');
     expect(mocks.supabaseFrom).toHaveBeenCalledWith('enrollments');
@@ -330,8 +346,67 @@ describe('getUserEntries replicated relation completeness', () => {
     const result = await getUserEntries('user-1');
 
     expect(result).toEqual({ data: onlineRows, error: null });
-    expect(mocks.supabaseFrom).toHaveBeenCalledWith('view_own_entry_results');
+    expect(mocks.supabaseFrom).toHaveBeenCalledWith('view_authenticated_entry_results');
     expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('entries');
     expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('dogs');
+  });
+});
+
+describe('searchEntries PostgREST fallback', () => {
+  it('uses the authenticated result view without raw entries select-star access', async () => {
+    mocks.replicatedEntriesGetAll.mockRejectedValue(new Error('replication unavailable'));
+    const searchQuery = makeSearchEntriesQuery([
+      {
+        id: 'entry-1',
+        dog_id: 'dog-1',
+        show_id: 'show-1',
+        class_id: 'class-1',
+        armband: '101',
+        handler: 'Robin Handler',
+        result_status: 'qualified',
+        dog_name: 'Full Name',
+        dog_call_name: 'Beacon',
+        dog_breed: 'Border Collie',
+        class_name: 'Novice Containers',
+        show_name: 'June Trial',
+        show_start_date: '2026-06-20',
+      },
+    ]);
+
+    mocks.supabaseFrom.mockImplementation((table: string) => {
+      if (table === 'view_authenticated_entry_results') return searchQuery;
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    const result = await searchEntries('101');
+
+    expect(mocks.supabaseFrom).toHaveBeenCalledWith('view_authenticated_entry_results');
+    expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('entries');
+    expect(searchQuery.select).toHaveBeenCalledWith(expect.stringContaining('result_status'));
+    expect(searchQuery.select).not.toHaveBeenCalledWith('*');
+    expect(result).toMatchObject({
+      data: [
+        {
+          id: 'entry-1',
+          result_status: 'qualified',
+          dog: {
+            id: 'dog-1',
+            name: 'Full Name',
+            call_name: 'Beacon',
+            breed: 'Border Collie',
+          },
+          class: {
+            id: 'class-1',
+            name: 'Novice Containers',
+          },
+          show: {
+            id: 'show-1',
+            name: 'June Trial',
+            start_date: '2026-06-20',
+          },
+        },
+      ],
+      error: null,
+    });
   });
 });

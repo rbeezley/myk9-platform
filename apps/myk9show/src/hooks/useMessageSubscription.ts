@@ -5,6 +5,7 @@ import { useShowDayData } from '@/hooks/queries/useShowDayData';
 import { useShowStore } from '@/store/showStore';
 import { useEntryStore } from '@/store/entryStore';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
+import { selectOwnedDogIds } from '@/utils/dogOwnership';
 
 /**
  * Manages message store subscription lifecycle.
@@ -41,7 +42,7 @@ export function useMessageSubscription() {
   const databaseUserId = userWithRoles?.databaseUserId;
   const exhibitorEnteredShowIds = useMemo(() => {
     if (!databaseUserId) return [];
-    const ownedDogIds = new Set(dogs.filter(dog => dog.ownerId === databaseUserId).map(dog => dog.id));
+    const ownedDogIds = selectOwnedDogIds(dogs, databaseUserId);
     const showIds = new Set<string>();
     for (const entry of storeEntries) {
       if (ownedDogIds.has(entry.dogId) && entry.showId) {

@@ -23,10 +23,12 @@ const hoisted = vi.hoisted(() => {
     armbands: makeSyncSpy(),
     waitlist_entries: makeSyncSpy(),
   };
-  return { authState, unsubscribeSpy, syncSpies };
+  const clearEntriesCache = vi.fn().mockResolvedValue(undefined);
+  const getPendingCount = vi.fn().mockResolvedValue(0);
+  return { authState, unsubscribeSpy, syncSpies, clearEntriesCache, getPendingCount };
 });
 
-const { authState, unsubscribeSpy, syncSpies } = hoisted;
+const { authState, unsubscribeSpy, syncSpies, clearEntriesCache, getPendingCount } = hoisted;
 
 vi.mock('@/lib/notifications', () => ({
   notifications: {
@@ -51,7 +53,11 @@ vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
   replicatedClassesTable: { setMutationManager: vi.fn(), sync: hoisted.syncSpies.classes },
 }));
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
-  replicatedEntriesTable: { setMutationManager: vi.fn(), sync: hoisted.syncSpies.entries },
+  replicatedEntriesTable: {
+    setMutationManager: vi.fn(),
+    sync: hoisted.syncSpies.entries,
+    clearCache: hoisted.clearEntriesCache,
+  },
 }));
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
   replicatedDogsTable: { setMutationManager: vi.fn(), sync: hoisted.syncSpies.dogs },
@@ -96,7 +102,7 @@ vi.mock(import('@myk9/replication'), async importOriginal => {
     ...actual,
     MutationManager: class {
       uploadPendingMutations = vi.fn().mockResolvedValue([]);
-      getPendingCount = vi.fn().mockResolvedValue(0);
+      getPendingCount = hoisted.getPendingCount;
       restoreMutationsFromLocalStorage = vi.fn().mockResolvedValue(undefined);
     } as unknown as typeof actual.MutationManager,
   };
@@ -134,6 +140,10 @@ describe('ReplicationSyncProvider — auth guard', () => {
   beforeEach(() => {
     authState.callback = null;
     unsubscribeSpy.mockClear();
+    clearEntriesCache.mockClear();
+    getPendingCount.mockReset();
+    getPendingCount.mockResolvedValue(0);
+    window.localStorage.clear();
     for (const spy of Object.values(syncSpies)) spy.mockClear();
   });
 
@@ -175,6 +185,45 @@ describe('ReplicationSyncProvider — auth guard', () => {
 
     expect(syncSpies.shows).toHaveBeenCalledTimes(1);
     expect(syncSpies.clubs).toHaveBeenCalledTimes(1);
+  });
+
+  it('refreshes the entries cache before the first authenticated sync for the result-view version', async () => {
+    renderProvider();
+
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    await act(async () => {
+      authState.callback?.('INITIAL_SESSION', fakeSession());
+    });
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    expect(clearEntriesCache).toHaveBeenCalledTimes(1);
+    expect(window.localStorage.getItem('myk9:entry-result-replica-version')).toBe(
+      '20260620-authenticated-entry-results-view-v2'
+    );
+    expect(syncSpies.entries).toHaveBeenCalledTimes(1);
+  });
+
+  it('defers the entries cache refresh while offline mutations are still pending', async () => {
+    getPendingCount.mockResolvedValueOnce(0).mockResolvedValueOnce(1);
+    renderProvider();
+
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    await act(async () => {
+      authState.callback?.('INITIAL_SESSION', fakeSession());
+    });
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    expect(clearEntriesCache).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem('myk9:entry-result-replica-version')).toBeNull();
+    expect(syncSpies.entries).toHaveBeenCalledTimes(1);
   });
 
   it('does not fire sync on session change when autoSync is false', async () => {

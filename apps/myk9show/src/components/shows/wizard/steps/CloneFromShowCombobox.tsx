@@ -129,7 +129,7 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
   }
 
   return (
-    <div className="group relative bg-gradient-to-br from-primary/5 to-primary/3 border border-primary/20 rounded-2xl p-5 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-md hover:border-primary/30">
+    <div className="relative bg-primary/5 border border-primary/20 rounded-2xl p-5">
       <div className="flex items-start gap-3">
         <div className="flex-shrink-0 mt-0.5 w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
           <Copy className="h-4 w-4 text-primary" />

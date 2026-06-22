@@ -83,6 +83,12 @@ Do not auto-fix; log a finding instead:
 | Secretary golden path checklist | Manual secretary journey reference     | Read `docs/testing/secretary-golden-path-checklist.md`           | Manual checklist        | Secretary journey QA      | Needs pairing with automated proof where possible |
 | Secretary walk seed             | Seed-data reference for secretary walk | Read `docs/testing/secretary-walk-seed.md`                       | Data setup notes        | Secretary journey QA      | Depends on current local/dev DB state             |
 
+## Durable Evidence Bundles
+
+| Asset                                 | Use When                                                   | Contents                                                                    | Source Finding |
+| ------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------- | -------------- |
+| `docs/qa/assets/mobile-2026-06-21/`   | Replaying or fixing the 2026-06-21 mobile responsiveness audit findings | `route-summary.json` plus the flagged-route screenshots cited by the findings registry | `QA-MOBILE-LAYOUT-BREAK-028` through `031` |
+
 ## Phase 0 Verification
 
 For documentation-only Phase 0 changes, verify the inventory and formatting before closing the sprint:

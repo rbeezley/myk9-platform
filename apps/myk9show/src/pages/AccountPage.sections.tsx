@@ -37,7 +37,7 @@ export function ProfileSection() {
           <CardTitle className="text-base">Profile photo</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <Avatar className="h-16 w-16">
               {form.person?.profileImage && (
                 <AvatarImage src={form.person.profileImage} alt={fullName} />
@@ -84,7 +84,7 @@ export function ProfileSection() {
           <CardTitle className="text-base">Personal information</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="firstName">First name</Label>
               <Input
@@ -126,7 +126,7 @@ export function ProfileSection() {
               <MapPin className="inline h-3.5 w-3.5 mr-1 opacity-60" />
               Location
             </Label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid gap-2 sm:grid-cols-3">
               <Input
                 placeholder="City"
                 value={form.values.city}
@@ -145,7 +145,7 @@ export function ProfileSection() {
             </div>
           </div>
           {form.isDirty && (
-            <div className="flex gap-2 pt-2">
+            <div className="flex flex-col gap-2 pt-2 sm:flex-row">
               <Button onClick={form.save} disabled={form.saving} size="sm">
                 {form.saving ? (
                   <>
@@ -183,12 +183,12 @@ export function DogsSection() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Linked dogs</CardTitle>
+        <CardTitle className="text-base">My dogs</CardTitle>
       </CardHeader>
       <CardContent>
         {dogs.length === 0 ? (
           <div className="py-4 text-center space-y-3">
-            <p className="text-sm text-muted-foreground">No dogs linked to your account.</p>
+            <p className="text-sm text-muted-foreground">You don't have any dogs yet.</p>
             <Button variant="outline" size="sm" asChild>
               <Link to="/dogs">Browse or add dogs</Link>
             </Button>
@@ -248,7 +248,7 @@ export function DeleteSection() {
             <p className="text-sm font-medium text-destructive">
               Are you sure? This cannot be undone.
             </p>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Button variant="destructive" size="sm" onClick={() => signOut()}>
                 Yes, delete account
               </Button>

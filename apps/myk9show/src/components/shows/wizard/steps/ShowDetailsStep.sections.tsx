@@ -10,14 +10,12 @@ import type { Club } from '@/types/club-types';
 /*  Shared card wrapper used by every section                         */
 /* ------------------------------------------------------------------ */
 
-const CARD_CLASS =
-  'group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg hover:-translate-y-0.5';
-const OVERLAY_CLASS =
-  'absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500';
-const HEADING_CLASS =
-  'text-lg font-semibold mb-4 pl-3 border-l-2 border-primary text-primary transition-colors duration-300';
-const CREATE_BTN_CLASS =
-  'w-full border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300 shadow-sm';
+// Flat section wrappers — no gradient/glow/blur card chrome and no side-stripe
+// headings (DESIGN.md: flat by default, never nested, no colored side-stripes).
+const CARD_CLASS = '';
+const OVERLAY_CLASS = 'hidden';
+const HEADING_CLASS = 'text-lg font-semibold mb-4 text-foreground';
+const CREATE_BTN_CLASS = 'w-full border-primary/20 text-primary hover:bg-primary/5';
 
 /* ------------------------------------------------------------------ */
 /*  ClubSection                                                        */
@@ -85,8 +83,8 @@ export const ClubSection: React.FC<ClubSectionProps> = ({
       <div className={OVERLAY_CLASS} />
       <div className="relative">
         <h3 className={HEADING_CLASS}>Club Information</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2 col-span-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="space-y-2 md:col-span-2">
             <Label htmlFor="show-host-club">
               Host Club <span className="text-destructive">*</span>
             </Label>
@@ -164,8 +162,14 @@ export const ClubSection: React.FC<ClubSectionProps> = ({
                     />
                   </div>
                   {saveError && <p className="text-xs text-destructive">{saveError}</p>}
-                  <div className="flex gap-2">
-                    <Button type="button" variant="outline" size="sm" onClick={handleCancelCreate}>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCancelCreate}
+                      className="w-full sm:w-auto"
+                    >
                       Cancel
                     </Button>
                     <Button
@@ -173,6 +177,7 @@ export const ClubSection: React.FC<ClubSectionProps> = ({
                       size="sm"
                       disabled={!canSave || saving}
                       onClick={handleSaveCreate}
+                      className="w-full sm:w-auto"
                     >
                       Add Club
                     </Button>

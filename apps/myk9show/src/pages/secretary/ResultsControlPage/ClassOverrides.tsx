@@ -163,7 +163,7 @@ export function ClassOverrides({
                           handleClassPreset(cls.id, trial.id, v as VisibilityPreset)
                         }
                       >
-                        <SelectTrigger className="w-32">
+                        <SelectTrigger className="min-h-[44px] w-32">
                           <SelectValue placeholder="Inherit" />
                         </SelectTrigger>
                         <SelectContent>
@@ -177,7 +177,7 @@ export function ClassOverrides({
                       {hasOverride && (
                         <Button
                           variant="ghost"
-                          size="icon"
+                          size="icon-lg"
                           title="Reset to inherited settings"
                           onClick={() => handleResetClass(cls.id)}
                           disabled={resetOverride.isPending}

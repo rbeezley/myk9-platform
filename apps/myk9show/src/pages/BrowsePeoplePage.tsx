@@ -7,6 +7,7 @@ import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { ListControls } from '@/components/common/ListControls';
 import type { FilterDefinition as ChipFilterDefinition } from '@/components/common/FilterChips';
 import { ErrorState } from '@/components/common/ErrorState';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useViewPreference } from '@/hooks/useViewPreference';
 import { useRBAC } from '@/hooks/useRBAC';
 import { PERMISSIONS } from '@/services/auth/rbacService';
@@ -25,6 +26,7 @@ const BrowsePeoplePage: React.FC = () => {
   const navigate = useNavigate();
 
   const [viewMode, setViewMode] = useViewPreference('people', 'table');
+  const isMobileViewport = useMediaQuery('(max-width: 767px)');
   const [showCreatePersonDialog, setShowCreatePersonDialog] = useState(
     () => searchParams.get('add') === 'true'
   );
@@ -187,7 +189,11 @@ const BrowsePeoplePage: React.FC = () => {
 
     switch (viewMode) {
       case 'table':
-        return <PeopleTableView people={filteredPeople} />;
+        return isMobileViewport ? (
+          <PeopleGridView people={filteredPeople} />
+        ) : (
+          <PeopleTableView people={filteredPeople} />
+        );
       case 'cards':
       default:
         return <PeopleGridView people={filteredPeople} />;
@@ -196,7 +202,7 @@ const BrowsePeoplePage: React.FC = () => {
 
   return (
     <div className="bg-background">
-      <div className="container mx-auto px-6 py-6 max-w-7xl">
+      <div className="container mx-auto max-w-7xl px-4 py-6 sm:px-6">
         <div className="space-y-8">
           {/* Error state */}
           {error && !isLoading && <ErrorState message="We couldn't load people." />}
@@ -210,7 +216,7 @@ const BrowsePeoplePage: React.FC = () => {
           {(!isLoading || people.length > 0) && (
             <>
               <h1 className="sr-only">People</h1>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <Breadcrumb
                   items={breadcrumbItems}
                   showHomeIcon={true}
@@ -218,7 +224,7 @@ const BrowsePeoplePage: React.FC = () => {
                 />
 
                 {canCreatePeople && (
-                  <Button onClick={openCreatePersonDialog}>
+                  <Button onClick={openCreatePersonDialog} className="w-full sm:w-auto">
                     <Plus className="h-4 w-4 mr-2" />
                     New Person
                   </Button>

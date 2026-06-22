@@ -73,7 +73,7 @@ export function StickyNav({ clubName, entryWizardUrl, canEnterOnline = true }: S
               key={s.id}
               href={`#${s.id}`}
               className={cn(
-                'text-xs tracking-widest transition-colors',
+                'inline-flex min-h-[44px] items-center text-xs tracking-widest transition-colors',
                 'font-["EB_Garamond",Georgia,serif] uppercase'
               )}
               style={{
@@ -94,7 +94,7 @@ export function StickyNav({ clubName, entryWizardUrl, canEnterOnline = true }: S
         <div className="flex items-center gap-3">
           <button
             onClick={handleShare}
-            className="hidden text-xs tracking-wide md:block"
+            className="hidden min-h-[44px] items-center text-xs tracking-wide md:inline-flex"
             style={{ color: 'var(--hl-quill)', fontFamily: "'EB Garamond', Georgia, serif" }}
           >
             share {heritageOrnaments.diamond}
@@ -102,7 +102,7 @@ export function StickyNav({ clubName, entryWizardUrl, canEnterOnline = true }: S
           {canEnterOnline ? (
             <a
               href={entryWizardUrl}
-              className="border px-4 py-1.5 text-xs uppercase tracking-widest transition-colors hover:bg-[var(--hl-ink)] hover:text-[var(--hl-paper)]"
+              className="inline-flex min-h-[44px] items-center justify-center border px-4 py-1.5 text-xs uppercase tracking-widest transition-colors hover:bg-[var(--hl-ink)] hover:text-[var(--hl-paper)]"
               style={{
                 borderColor: 'var(--hl-claret)',
                 color: 'var(--hl-claret)',

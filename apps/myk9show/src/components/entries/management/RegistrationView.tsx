@@ -1,12 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
-import { MoveUpRequestsTab } from '@/components/entries/MoveUpRequestsTab';
-import { PullManagementTab } from '@/components/entries/PullManagementTab';
 import { toast } from 'sonner';
 import { useEmailStatus } from '@/hooks/useEmailStatus';
 import { supabase } from '@/lib/supabase';
 import { ListControls } from '@/components/common/ListControls';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 import { EntryStatsCards } from './EntryStatsCards';
 import { EnrollmentCard } from './EnrollmentCard';
@@ -83,8 +81,6 @@ interface RegistrationViewProps {
   onOpenCompDialog: (entry: EntryManagementEntry) => void;
   onUncompEntry: (entryId: string) => void;
   onRemoveEntry: (entryId: string) => void;
-  /** Show ID for move-ups / pulled entries tabs */
-  showId: string;
   /** Reload entries callback */
   onRefresh: () => void;
   /** Entries grouped by enrollment/order for the list view */
@@ -124,7 +120,6 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   onOpenCompDialog,
   onUncompEntry,
   onRemoveEntry,
-  showId,
   onRefresh,
   enrollmentGroups,
   onSendDecisionEmail,
@@ -184,6 +179,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
     [entries]
   );
   const { data: emailStatusMap } = useEmailStatus(registrationIds);
+  const isMobileViewport = useMediaQuery('(max-width: 767px)');
 
   // Resend cooldown state (registrationId -> cooldown expiry timestamp)
   const [resendCooldowns, setResendCooldowns] = useState<Record<string, number>>({});
@@ -214,6 +210,42 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
     hasSearch: hasSearchFilter,
     payment: paymentFilter,
   });
+  const enrollmentCardList = (
+    <div className="space-y-3">
+      {enrollmentGroups.length > 0 ? (
+        enrollmentGroups.map(group => (
+          <EnrollmentCard
+            key={group.groupKey}
+            group={group}
+            onStatusChange={onStatusChange}
+            onEntryRefunded={onRefresh}
+            onCheckInStatusChange={onCheckInStatusChange}
+            onOpenArmbandDialog={onOpenArmbandDialog}
+            onCompEntry={(entryId: string) => {
+              const entry = group.entries.find(e => e.id === entryId);
+              if (entry) onOpenCompDialog(entry);
+            }}
+            onUncompEntry={onUncompEntry}
+            onRemoveEntry={onRemoveEntry}
+            onBulkStatusChange={onBulkStatusChange}
+            onBulkCheckIn={onBulkCheckIn}
+            onPaymentStatusChange={onPaymentStatusChange}
+            emailStatusMap={emailStatusMap}
+            onResendEmail={handleResendEmail}
+            isResendDisabled={isResendDisabled}
+            onSendDecisionEmail={onSendDecisionEmail}
+            lastDecisionEmailedAt={
+              group.enrollmentId ? lastEmailedMap[group.enrollmentId] : undefined
+            }
+          />
+        ))
+      ) : (
+        <div className="rounded-lg border border-dashed border-border/70 bg-card/60 px-4 py-8 text-center text-sm text-muted-foreground">
+          {emptyStateMessage}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -257,18 +289,8 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
         entityName="entries"
       />
 
-      {attentionFilter === 'move-ups' ? (
-        <Card>
-          <CardContent className="pt-6">
-            <MoveUpRequestsTab showId={showId} onRefresh={onRefresh} />
-          </CardContent>
-        </Card>
-      ) : attentionFilter === 'pulled' ? (
-        <Card>
-          <CardContent className="pt-6">
-            <PullManagementTab showId={showId} onRefresh={onRefresh} />
-          </CardContent>
-        </Card>
+      {entryViewMode === 'table' && isMobileViewport ? (
+        enrollmentCardList
       ) : entryViewMode === 'table' ? (
         <EntriesTableView
           entries={filteredEntries}
@@ -281,56 +303,22 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
           onOpenCompDialog={onOpenCompDialog}
           onUncompEntry={onUncompEntry}
           onRemoveEntry={onRemoveEntry}
+          onEntryRefunded={onRefresh}
           selection={tableSelection}
           emptyState={emptyStateMessage}
         />
       ) : (
-        <div className="space-y-3">
-          {enrollmentGroups.length > 0 ? (
-            enrollmentGroups.map(group => (
-              <EnrollmentCard
-                key={group.groupKey}
-                group={group}
-                onStatusChange={onStatusChange}
-                onEntryRefunded={onRefresh}
-                onCheckInStatusChange={onCheckInStatusChange}
-                onOpenArmbandDialog={onOpenArmbandDialog}
-                onCompEntry={(entryId: string) => {
-                  const entry = group.entries.find(e => e.id === entryId);
-                  if (entry) onOpenCompDialog(entry);
-                }}
-                onUncompEntry={onUncompEntry}
-                onRemoveEntry={onRemoveEntry}
-                onBulkStatusChange={onBulkStatusChange}
-                onBulkCheckIn={onBulkCheckIn}
-                onPaymentStatusChange={onPaymentStatusChange}
-                emailStatusMap={emailStatusMap}
-                onResendEmail={handleResendEmail}
-                isResendDisabled={isResendDisabled}
-                onSendDecisionEmail={onSendDecisionEmail}
-                lastDecisionEmailedAt={
-                  group.enrollmentId ? lastEmailedMap[group.enrollmentId] : undefined
-                }
-              />
-            ))
-          ) : (
-            <div className="rounded-lg border border-dashed border-border/70 bg-card/60 px-4 py-8 text-center text-sm text-muted-foreground">
-              {emptyStateMessage}
-            </div>
-          )}
-        </div>
+        enrollmentCardList
       )}
 
-      {entryViewMode === 'table' &&
-        attentionFilter !== 'move-ups' &&
-        attentionFilter !== 'pulled' && (
-          <EntryBulkActionsBar
-            selectedEntries={selection.selectedItems}
-            onBulkStatusChange={onBulkStatusChange}
-            onBulkCheckIn={onBulkCheckIn}
-            onClear={selection.clearSelection}
-          />
-        )}
+      {entryViewMode === 'table' && (
+        <EntryBulkActionsBar
+          selectedEntries={selection.selectedItems}
+          onBulkStatusChange={onBulkStatusChange}
+          onBulkCheckIn={onBulkCheckIn}
+          onClear={selection.clearSelection}
+        />
+      )}
     </div>
   );
 };

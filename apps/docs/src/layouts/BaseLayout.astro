@@ -1,0 +1,60 @@
+---
+import '../styles/global.css';
+interface Props {
+  title: string;
+  description?: string;
+  active?: string;
+  draft?: boolean;
+}
+const { title, description = 'Step-by-step guides for running and entering dog shows on myK9Show.', active, draft = true } = Astro.props;
+const nav = [
+  { href: '/guides/exhibitor-guide', label: 'Exhibitors', key: 'exhibitor' },
+  { href: '/guides/secretary-guide', label: 'Secretaries', key: 'secretary' },
+  { href: '/guides/club-admin-guide', label: 'Clubs', key: 'club' },
+];
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>{title}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="nav">
+        <a class="brand" href="/">
+          <img class="logo" src="/logo.png" alt="" width="48" height="48" />
+          <span class="divider"></span>
+          <span class="wordmark">myK9<span class="accent">Show</span></span>
+          <span class="sub">Help</span>
+        </a>
+        <nav class="nav-links">
+          {nav.map(n => <a href={n.href} class={active === n.key ? 'active' : ''}>{n.label}</a>)}
+        </nav>
+        <a class="nav-cta" href="https://myk9-platform-myk9show.vercel.app">Open the app</a>
+      </div>
+    </header>
+    {draft && (
+      <div class="draft-bar">
+        <span class="dot">●</span>
+        <span><strong>Draft preview</strong> — these guides are under review and not yet final. Content and screenshots may change.</span>
+      </div>
+    )}
+    <slot />
+    <footer class="site-footer">
+      <div class="wrap">
+        <span>© 2026 myK9Show</span>
+        <span>Help · Support · Release notes</span>
+      </div>
+    </footer>
+  </body>
+</html>

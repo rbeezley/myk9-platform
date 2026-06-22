@@ -5,8 +5,6 @@ export { default as ClassSelectionStep } from './steps/ClassSelectionStep';
 export { default as ReviewStep } from './steps/ReviewStep';
 
 // Wizard Components
-export { default as ProgressIndicator } from './components/ProgressIndicator';
-export { default as VerticalProgressIndicator } from './components/VerticalProgressIndicator';
 export { default as WizardNavigation } from './components/WizardNavigation';
 
 // Store

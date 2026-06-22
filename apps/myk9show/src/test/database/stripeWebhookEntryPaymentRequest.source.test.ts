@@ -55,6 +55,13 @@ describe('stripe-webhook entry_payment_request branch', () => {
     expect(source).toContain("status: 'paid'");
   });
 
+  it('latches successful expired promotion claims to paid so Stripe retries do not refund them', () => {
+    expect(source).toContain(
+      "link.status === 'expired' && paidIds.length > 0 ? 'expired' : 'open'"
+    );
+    expect(source).toContain(".eq('status', linkCloseStatus)");
+  });
+
   it('records payment history in stripe_orders so the charge is visible + payout-eligible', () => {
     expect(source).toContain('stripe_orders');
     expect(source).toContain('stripe_payment_intent_id: paymentIntentId');

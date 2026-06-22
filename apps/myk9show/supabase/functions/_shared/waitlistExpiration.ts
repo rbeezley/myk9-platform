@@ -59,7 +59,7 @@ export function shouldAbortPaymentLinkExpiration(input: {
   status: string | null;
   paymentStatus: string | null;
 }): boolean {
-  return input.status === 'complete' || input.paymentStatus === 'paid';
+  return input.paymentStatus === 'paid';
 }
 
 export async function expireWaitlistOffer(input: {
@@ -183,6 +183,11 @@ async function expireOpenPaymentLinksForEntry(input: {
       return 'paid';
     }
 
+    if (sessionStatus && sessionStatus !== 'open') {
+      await expireAppPaymentLink(supabase, link.id, nowIso);
+      continue;
+    }
+
     try {
       await stripe.checkout.sessions.expire(link.stripe_checkout_session_id);
     } catch (err) {
@@ -203,6 +208,10 @@ async function expireOpenPaymentLinksForEntry(input: {
       ) {
         return 'paid';
       }
+      if (recheckStatus && recheckStatus !== 'open') {
+        await expireAppPaymentLink(supabase, link.id, nowIso);
+        continue;
+      }
       console.log(
         `Could not expire waitlist payment session ${link.stripe_checkout_session_id}; leaving link open:`,
         err
@@ -210,11 +219,19 @@ async function expireOpenPaymentLinksForEntry(input: {
       continue;
     }
 
-    await supabase
-      .from('entry_payment_links')
-      .update({ status: 'expired', updated_at: nowIso })
-      .eq('id', link.id);
+    await expireAppPaymentLink(supabase, link.id, nowIso);
   }
 
   return 'expired';
+}
+
+async function expireAppPaymentLink(
+  supabase: WaitlistExpirationSupabase,
+  linkId: string,
+  nowIso: string
+): Promise<void> {
+  await supabase
+    .from('entry_payment_links')
+    .update({ status: 'expired', updated_at: nowIso })
+    .eq('id', linkId);
 }

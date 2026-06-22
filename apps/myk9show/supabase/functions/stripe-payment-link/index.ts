@@ -275,40 +275,57 @@ Deno.serve(async req => {
       .overlaps('entry_ids', entry_ids);
     for (const prior of priorLinks ?? []) {
       // A prior link that was JUST paid (webhook not yet processed) still reads
-      // 'open'. Expiring it would throw (can't expire a completed session) AND
-      // marking it 'expired' here would make the webhook skip it → the real
-      // payment never reconciles (orphaned charge). Inspect first: if it's
-      // already complete, abort this re-request rather than double-issue/orphan.
+      // 'open'. Inspect first: only payment_status='paid' blocks re-request.
+      // A completed-but-unpaid async session should be closed locally so the
+      // secretary can issue a fresh card-only link.
       let priorStatus: string | null = null;
+      let priorPaymentStatus: string | null = null;
       try {
         const priorSession = await stripe.checkout.sessions.retrieve(
           prior.stripe_checkout_session_id
         );
         priorStatus = priorSession.status ?? null;
+        priorPaymentStatus = priorSession.payment_status ?? null;
       } catch (err) {
         console.log(`Could not inspect prior session ${prior.stripe_checkout_session_id}:`, err);
       }
       const justCompleted =
         'A payment for one of these entries just completed — refresh to see it before requesting again.';
-      if (priorStatus === 'complete') {
+      if (priorPaymentStatus === 'paid') {
         return corsResponse({ error: justCompleted }, 409);
+      }
+      if (priorStatus && priorStatus !== 'open') {
+        await supabase
+          .from('entry_payment_links')
+          .update({ status: 'expired', updated_at: nowIso })
+          .eq('id', prior.id);
+        continue;
       }
       try {
         await stripe.checkout.sessions.expire(prior.stripe_checkout_session_id);
       } catch (err) {
         // expire() can fail because the session was paid in the gap between our
-        // retrieve and now. Re-check: if it's complete, abort (let the webhook
-        // reconcile the real payment) — and crucially do NOT mark the row
-        // 'expired', which would make the webhook skip the charge (orphan).
-        let recheck: string | null = null;
+        // retrieve and now. Re-check payment_status: if paid, abort and let the
+        // webhook reconcile the real payment; if it completed unpaid, close the
+        // app-side link so this re-request can proceed.
+        let recheckStatus: string | null = null;
+        let recheckPaymentStatus: string | null = null;
         try {
-          recheck = (await stripe.checkout.sessions.retrieve(prior.stripe_checkout_session_id))
-            .status;
+          const recheck = await stripe.checkout.sessions.retrieve(prior.stripe_checkout_session_id);
+          recheckStatus = recheck.status ?? null;
+          recheckPaymentStatus = recheck.payment_status ?? null;
         } catch {
           // ignore — fall through to leaving the row 'open'
         }
-        if (recheck === 'complete') {
+        if (recheckPaymentStatus === 'paid') {
           return corsResponse({ error: justCompleted }, 409);
+        }
+        if (recheckStatus && recheckStatus !== 'open') {
+          await supabase
+            .from('entry_payment_links')
+            .update({ status: 'expired', updated_at: nowIso })
+            .eq('id', prior.id);
+          continue;
         }
         console.log(
           `Could not expire prior session ${prior.stripe_checkout_session_id} — leaving link open:`,

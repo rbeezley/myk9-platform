@@ -122,11 +122,14 @@ describe('resolveWaitlistPaymentDeadlineHours', () => {
 });
 
 describe('shouldAbortPaymentLinkExpiration', () => {
-  it('aborts if Stripe already considers the session complete or paid', () => {
+  it('aborts only when Stripe says the payment is paid', () => {
     expect(shouldAbortPaymentLinkExpiration({ status: 'complete', paymentStatus: 'paid' })).toBe(
       true
     );
     expect(shouldAbortPaymentLinkExpiration({ status: 'open', paymentStatus: 'paid' })).toBe(true);
+    expect(
+      shouldAbortPaymentLinkExpiration({ status: 'complete', paymentStatus: 'unpaid' })
+    ).toBe(false);
   });
 
   it('allows open or already-expired unpaid sessions to be closed locally', () => {
@@ -186,5 +189,35 @@ describe('expireWaitlistOffer', () => {
     expect(result).toBe('paid');
     expect(stripe.checkout.sessions.expire).not.toHaveBeenCalled();
     expect(calls).toHaveLength(1);
+  });
+
+  it('expires the app-side link and releases the offer when Stripe completed without payment', async () => {
+    const { supabase, calls } = createSupabaseMock([
+      { data: [{ id: 'link-1', stripe_checkout_session_id: 'cs_failed_async' }], error: null },
+      { data: null, error: null },
+      { data: [{ id: 'entry-1' }], error: null },
+      { data: null, error: null },
+    ]);
+    const stripe = createStripeMock({ status: 'complete', payment_status: 'unpaid' });
+
+    const result = await expireWaitlistOffer({
+      supabase,
+      stripe,
+      offer: { id: 'wl-1', promoted_entry_id: 'entry-1' },
+      nowIso: '2026-06-21T12:00:00.000Z',
+    });
+
+    expect(result).toBe('expired');
+    expect(stripe.checkout.sessions.expire).not.toHaveBeenCalled();
+    expect(calls.map(call => [call.table, call.action, call.update])).toEqual([
+      ['entry_payment_links', 'select', null],
+      [
+        'entry_payment_links',
+        'update',
+        { status: 'expired', updated_at: '2026-06-21T12:00:00.000Z' },
+      ],
+      ['entries', 'update', { entry_status: 'promotion-expired' }],
+      ['waitlist_entries', 'update', { status: 'expired', updated_at: '2026-06-21T12:00:00.000Z' }],
+    ]);
   });
 });

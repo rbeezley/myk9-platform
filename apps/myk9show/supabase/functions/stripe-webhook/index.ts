@@ -985,17 +985,19 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     entryFeesById,
   });
 
-  // Close the link (idempotency latch); guard on still-open so a racing
-  // delivery can't double-close.
+  // Payment history. Idempotent via the UNIQUE stripe_payment_intent_id /
+  // stripe_checkout_session_id; a benign retry hits 23505 and is ignored.
+  const paidIds = updateOutcome.paidEntryIds;
+  // Close the link (idempotency latch). Expired promotion claims are allowed to
+  // revive only when at least one entry was actually stamped paid; then the
+  // expired link must also latch to paid so Stripe retries cannot refund it.
+  const linkCloseStatus = link.status === 'expired' && paidIds.length > 0 ? 'expired' : 'open';
   await supabase
     .from('entry_payment_links')
     .update({ status: 'paid', updated_at: new Date().toISOString() })
     .eq('id', link.id)
-    .eq('status', 'open');
+    .eq('status', linkCloseStatus);
 
-  // Payment history. Idempotent via the UNIQUE stripe_payment_intent_id /
-  // stripe_checkout_session_id; a benign retry hits 23505 and is ignored.
-  const paidIds = updateOutcome.paidEntryIds;
   await resolvePaidWaitlistOffers(paidIds, session.id);
 
   const { error: orderError } = await supabase.from('stripe_orders').insert({

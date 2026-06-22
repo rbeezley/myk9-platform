@@ -34,4 +34,13 @@ describe('stripe-payment-link internal waitlist path', () => {
     );
     expect(source).not.toContain('const INACTIVE_ENTRY_STATUSES = new Set');
   });
+
+  it('blocks re-request only on an actually-paid prior Checkout session', () => {
+    expect(source).toContain('priorPaymentStatus');
+    expect(source).toContain("priorPaymentStatus === 'paid'");
+    expect(source).toContain('recheckPaymentStatus');
+    expect(source).toContain("recheckPaymentStatus === 'paid'");
+    expect(source).not.toContain("priorStatus === 'complete'");
+    expect(source).not.toContain("recheck === 'complete'");
+  });
 });

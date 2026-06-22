@@ -7,7 +7,7 @@
 > duplicate row, plus a recommended fix-or-no-fix. Do **not** change production
 > replication code in this plan — a wrong change here corrupts offline data for
 > every entity. If your verdict is "fix needed," scope the fix as a follow-up
-> plan; do not execute it. When done, update `plans/README.md`.
+> plan; do not execute it. When done, update `docs/improve-audit-2026-06/README.md`.
 >
 > **Drift check (run first)**: `git diff --stat deb820e35..HEAD -- packages/replication/src apps/myk9show/src/services/replication`
 > If these changed since this plan was written, re-read the cited code at HEAD.
@@ -157,7 +157,7 @@ ALL must hold:
       (Step 3).
 - [ ] The doc has `> **Status:** Active` and a `docs/README.md` row.
 - [ ] No production code changed (`git status`).
-- [ ] `plans/README.md` status row for 006 updated.
+- [ ] `docs/improve-audit-2026-06/README.md` status row for 006 updated.
 
 ## STOP conditions
 

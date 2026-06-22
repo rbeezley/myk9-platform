@@ -7,7 +7,7 @@
 > only** — it must not change production scoring code. If you discover a real
 > scoring bug while writing the test, STOP and report it as a separate finding;
 > do not fix it inside this plan. When done, update the status row in
-> `plans/README.md`.
+> `docs/improve-audit-2026-06/README.md`.
 >
 > **Drift check (run first)**: `git diff --stat deb820e35..HEAD -- apps/myk9show/src/services/scoring apps/myk9show/src/pages/scoring`
 > If the scoring service changed since this plan was written, re-read the current
@@ -147,7 +147,7 @@ ALL must hold:
       with ≥ 4 cases.
 - [ ] `cd apps/myk9show && pnpm typecheck` exits 0.
 - [ ] No production file modified (`git status` shows only the new test file).
-- [ ] `plans/README.md` status row for 005 updated.
+- [ ] `docs/improve-audit-2026-06/README.md` status row for 005 updated.
 
 ## STOP conditions
 

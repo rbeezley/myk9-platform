@@ -6,7 +6,7 @@
 > refactor. Your deliverable is a written findings document plus a concrete,
 > reviewed refactor proposal — you must NOT move or merge production modules in
 > this plan. Follow the steps, and if a STOP condition occurs, stop and report.
-> When done, update the status row for this plan in `plans/README.md` and leave
+> When done, update the status row for this plan in `docs/improve-audit-2026-06/README.md` and leave
 > your findings doc at the path in Step 5.
 >
 > **Drift check (run first)**: `git diff --stat deb820e35..HEAD -- apps/myk9show/src/services/database/entries`
@@ -173,7 +173,7 @@ ALL must hold:
       (Step 4), and a follow-up refactor outline (Step 5).
 - [ ] The doc has `> **Status:** Active` under its title and a row in `docs/README.md`.
 - [ ] `git status` shows only the two docs files changed (no production code).
-- [ ] `plans/README.md` status row for 004 updated.
+- [ ] `docs/improve-audit-2026-06/README.md` status row for 004 updated.
 
 ## STOP conditions
 

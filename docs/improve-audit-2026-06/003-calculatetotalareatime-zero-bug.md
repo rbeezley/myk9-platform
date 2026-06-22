@@ -6,7 +6,7 @@
 > verification command and confirm the expected result before moving to the
 > next step. If anything in the "STOP conditions" section occurs, stop and
 > report — do not improvise. When done, update the status row for this plan
-> in `plans/README.md`.
+> in `docs/improve-audit-2026-06/README.md`.
 >
 > **Drift check (run first)**: `git diff --stat deb820e35..HEAD -- packages/scoring/src/utils/calculationUtils.ts`
 > If the file changed since this plan was written, compare the "Current state"
@@ -175,7 +175,7 @@ ALL must hold:
       present)
 - [ ] `pnpm --filter @myk9/scoring build` exits 0
 - [ ] `git status` shows only the two in-scope files modified/created
-- [ ] `plans/README.md` status row for 003 updated
+- [ ] `docs/improve-audit-2026-06/README.md` status row for 003 updated
 
 ## STOP conditions
 

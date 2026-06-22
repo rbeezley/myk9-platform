@@ -78,7 +78,10 @@ export function FinalFlagBand({
           <a
             href={entryWizardUrl}
             style={{
-              display: 'inline-block',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 44,
               padding: '18px 36px',
               background: bannerColors.paper,
               color: bannerColors.ink,

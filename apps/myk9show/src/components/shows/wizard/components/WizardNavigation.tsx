@@ -70,12 +70,9 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
         </div>
       </div>
 
-      {/* Right side - Next/Create button with ready state indicator */}
+      {/* Right side - Next/Create button. Enabled/disabled state alone signals
+          readiness; no decorative glow (DESIGN.md: motion is purposeful, not decorative). */}
       <div className="relative">
-        {/* Glow effect when step is valid */}
-        {canGoNext && !isLoading && (
-          <div className="absolute inset-0 bg-primary/30 rounded-md blur-md animate-pulse" />
-        )}
         <Button
           onClick={onNext}
           disabled={!canGoNext || isLoading}

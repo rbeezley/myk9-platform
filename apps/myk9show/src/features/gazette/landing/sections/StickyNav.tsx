@@ -74,7 +74,9 @@ export function StickyNav({
           <a
             key={s.id}
             href={`#${s.id}`}
-            className={cn('text-[10.5px] uppercase transition-colors')}
+            className={cn(
+              'inline-flex min-h-[44px] items-center justify-center text-[10.5px] uppercase transition-colors'
+            )}
             style={{
               letterSpacing: '0.18em',
               color: activeId === s.id ? 'var(--gz-ink)' : 'var(--gz-mute)',
@@ -93,7 +95,7 @@ export function StickyNav({
       <div className="flex items-center gap-3">
         <button
           onClick={handleShare}
-          className="hidden text-[10.5px] uppercase md:block"
+          className="hidden min-h-[44px] items-center justify-center text-[10.5px] uppercase md:inline-flex"
           style={{
             letterSpacing: '0.18em',
             color: 'var(--gz-brown)',
@@ -105,7 +107,7 @@ export function StickyNav({
         {canEnterOnline ? (
           <a
             href={entryWizardUrl}
-            className="border px-3 py-1 text-[10.5px] uppercase transition-colors"
+            className="inline-flex min-h-[44px] items-center justify-center border px-3 py-1 text-[10.5px] uppercase transition-colors"
             style={{
               letterSpacing: '0.18em',
               borderColor: 'var(--gz-ink)',

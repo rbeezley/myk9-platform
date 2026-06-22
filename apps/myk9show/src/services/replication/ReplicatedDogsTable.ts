@@ -20,6 +20,7 @@ import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import type { Database } from '@/types/supabase';
+import { selectOwnedDogs } from '@/utils/dogOwnership';
 
 /**
  * Database row type from Supabase schema
@@ -276,7 +277,7 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
    */
   async getDogsByOwner(ownerId: string): Promise<ReplicatedDog[]> {
     const allDogs = await this.getAll();
-    return allDogs.filter(dog => dog.ownerId === ownerId);
+    return selectOwnedDogs(allDogs, ownerId);
   }
 
   /**

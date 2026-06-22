@@ -108,7 +108,9 @@ export function StickyNav({
             <a
               key={s.id}
               href={`#${s.id}`}
-              className={cn('text-xs uppercase transition-colors')}
+              className={cn(
+                'inline-flex min-h-[44px] items-center justify-center text-xs uppercase transition-colors'
+              )}
               style={{
                 color: active ? 'var(--mz-gold-3)' : 'var(--mz-mute)',
                 fontFamily: 'var(--mz-meta)',
@@ -134,7 +136,7 @@ export function StickyNav({
       {canEnterOnline ? (
         <a
           href={entryWizardUrl}
-          className="border px-5 py-2 text-sm italic transition-colors hover:bg-[var(--mz-ink)] hover:text-[var(--mz-paper)]"
+          className="inline-flex min-h-[44px] items-center justify-center border px-5 py-2 text-sm italic transition-colors hover:bg-[var(--mz-ink)] hover:text-[var(--mz-paper)]"
           style={{
             borderColor: 'var(--mz-ink)',
             color: 'var(--mz-ink)',

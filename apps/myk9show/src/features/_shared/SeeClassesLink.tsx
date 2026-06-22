@@ -29,6 +29,13 @@ export function SeeClassesLink({
       data-testid="see-classes-link"
       className={className}
       style={{
+        // Tap target: keep this shared CTA above the 44px exhibitor touch floor
+        // on every themed landing. Defaults precede `...style` so per-theme
+        // callers can still override color/font/etc.
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: 44,
         color: 'currentColor',
         textDecoration: 'underline',
         textUnderlineOffset: '4px',

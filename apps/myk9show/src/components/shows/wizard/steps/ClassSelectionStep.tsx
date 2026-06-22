@@ -326,7 +326,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
         <div className="max-w-5xl mx-auto space-y-6 px-4">
           {/* Classes Header */}
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold pl-3 border-l-2 border-primary text-primary">
+            <h3 className="text-lg font-semibold text-foreground">
               Classes ({totalClasses})
             </h3>
           </div>
@@ -344,7 +344,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
           )}
 
           {trials.length === 0 ? (
-            <div className="relative rounded-2xl border-2 border-dashed border-warning/30 bg-gradient-to-br from-amber-500/5 dark:from-amber-400/5 to-transparent p-12 text-center overflow-hidden">
+            <div className="relative rounded-2xl border-2 border-dashed border-warning/30 bg-warning/5 p-12 text-center overflow-hidden">
               <div className="relative">
                 <div className="mx-auto w-16 h-16 rounded-2xl bg-warning/10 flex items-center justify-center mb-5 shadow-sm">
                   <ArrowLeft className="h-8 w-8 text-warning " />
@@ -478,7 +478,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                       </CardContent>
                     </Card>
                   ) : activeTemplates.length > 0 ? (
-                    <div className="relative rounded-2xl border-2 border-dashed border-primary/20 bg-gradient-to-br from-primary/5 to-transparent p-10 text-center overflow-hidden">
+                    <div className="relative rounded-2xl border-2 border-dashed border-primary/20 bg-primary/5 p-10 text-center overflow-hidden">
                       <div className="relative">
                         <div className="mx-auto w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mb-4 shadow-sm">
                           <Layers className="h-7 w-7 text-primary" />

@@ -119,7 +119,17 @@ export function PlanSection({ accommodations }: PlanSectionProps) {
                     color: fieldGuideColors.soft,
                   }}
                 >
-                  <a href={acc.url} target="_blank" rel="noreferrer">
+                  <a
+                    href={acc.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minHeight: 44,
+                    }}
+                  >
                     {acc.url}
                   </a>
                 </p>

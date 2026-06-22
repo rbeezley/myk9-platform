@@ -4,6 +4,7 @@ import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { getDogDisplayName } from '@/types/dog-types';
+import { selectOwnedDogIds } from '@/utils/dogOwnership';
 import type { CheckInStatus } from '@myk9/core';
 import type { SyncableShowEntry } from '@/store/entry-store-types';
 
@@ -66,7 +67,7 @@ export function useMyEntries(showId: string | undefined): UseMyEntriesResult {
       dogs.map(d => [d.id, { callName: d.callName, name: d.name, ownerId: d.ownerId }])
     );
 
-    const myDogIds = new Set(dogs.filter(d => d.ownerId === databaseUserId).map(d => d.id));
+    const myDogIds = selectOwnedDogIds(dogs, databaseUserId);
     const filteredEntries = allShowEntries.filter(e => myDogIds.has(e.dogId));
 
     // Build entries list

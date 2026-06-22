@@ -15,10 +15,14 @@ import { Zap, Clock, Lock } from 'lucide-react';
 import { type VisibilityPreset, type VisibilityTiming } from '@myk9/secretary';
 import { TIMING_LABELS } from '@/components/secretary/settingsConstants';
 
+// Preset icons speak the semantic status tokens (each carries a dark-mode
+// value) rather than raw Tailwind palette colors, which had no dark variant and
+// sat outside the status vocabulary: open = success (live now), standard = info
+// (scheduled), review = warning (held for review).
 export const PRESET_ICONS: Record<VisibilityPreset, ReactNode> = {
-  open: <Zap className="h-5 w-5 text-green-500" />,
-  standard: <Clock className="h-5 w-5 text-blue-500" />,
-  review: <Lock className="h-5 w-5 text-orange-500" />,
+  open: <Zap className="h-5 w-5 text-success" />,
+  standard: <Clock className="h-5 w-5 text-info" />,
+  review: <Lock className="h-5 w-5 text-warning" />,
 };
 
 export const ALL_TIMINGS: VisibilityTiming[] = ['immediate', 'class_complete', 'manual_release'];

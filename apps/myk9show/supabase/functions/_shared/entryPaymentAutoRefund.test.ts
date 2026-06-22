@@ -49,6 +49,21 @@ describe('decideEntryPaymentAutoRefund', () => {
     });
   });
 
+  it('caps partial refunds to the invalid entries share of the actual collected total', () => {
+    expect(
+      decideEntryPaymentAutoRefund({
+        ...base,
+        sessionAmountTotalCents: 10_000,
+        validPaidEntryIds: ['fresh'],
+        invalidEntryIds: ['duplicate'],
+      })
+    ).toEqual({
+      action: 'refund',
+      amountCents: 5_455,
+      reason: 'partial_invalid_entries',
+    });
+  });
+
   it('alerts instead of guessing a partial amount when an invalid entry fee is unavailable', () => {
     expect(
       decideEntryPaymentAutoRefund({

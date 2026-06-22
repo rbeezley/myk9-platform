@@ -47,13 +47,12 @@ export function decideEntryPaymentAutoRefund(
     return { action: 'needs_manual_amount', missingFeeEntryIds: input.invalidEntryIds };
   }
 
-  const chargedPlatformFeeCents = Math.max(0, input.sessionAmountTotalCents - subtotalCents);
-  const invalidPlatformFeeCents = Math.round(
-    (chargedPlatformFeeCents * invalidSubtotalCents) / subtotalCents
+  const invalidCollectedShareCents = Math.round(
+    (input.sessionAmountTotalCents * invalidSubtotalCents) / subtotalCents
   );
   return {
     action: 'refund',
-    amountCents: invalidSubtotalCents + invalidPlatformFeeCents,
+    amountCents: invalidCollectedShareCents,
     reason: 'partial_invalid_entries',
   };
 }

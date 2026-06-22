@@ -29,6 +29,8 @@ export async function loadEntryPaymentLineItemFeesFromStripe(
   client: EntryPaymentLineItemClient,
   sessionId: string
 ): Promise<Map<string, number>> {
+  // Stripe caps this single-page read at 100 line items. Missing entries degrade
+  // to the webhook's manual-refund alert path instead of guessing an amount.
   const lineItems = await client.listLineItems(sessionId, {
     limit: 100,
     expand: ['data.price.product'],

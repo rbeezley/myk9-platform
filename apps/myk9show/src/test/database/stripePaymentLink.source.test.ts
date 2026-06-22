@@ -10,7 +10,9 @@ const source = readFileSync(
 describe('stripe-payment-link internal waitlist path', () => {
   it('accepts the cron secret header for trusted waitlist-cascade calls', () => {
     expect(source).toContain("req.headers.get('x-function-secret')");
-    expect(source).toContain('internalSecret === cronSecret');
+    expect(source).toContain('async function secretMatches');
+    expect(source).toContain("crypto.subtle.digest('SHA-256'");
+    expect(source).toContain("await secretMatches(req.headers.get('x-function-secret'))");
     expect(source).toContain('if (!isInternalCall)');
   });
 

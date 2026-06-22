@@ -61,6 +61,21 @@ function corsResponse(body: string | object | null, status = 200) {
   });
 }
 
+async function secretMatches(provided: string | null): Promise<boolean> {
+  if (!provided || !cronSecret) return false;
+
+  const enc = new TextEncoder();
+  const [a, b] = await Promise.all([
+    crypto.subtle.digest('SHA-256', enc.encode(provided)),
+    crypto.subtle.digest('SHA-256', enc.encode(cronSecret)),
+  ]);
+  const av = new Uint8Array(a);
+  const bv = new Uint8Array(b);
+  let diff = 0;
+  for (let i = 0; i < av.length; i++) diff |= av[i] ^ bv[i];
+  return diff === 0;
+}
+
 /** Prevent open-redirect: success/cancel must point at one of our origins. */
 function isAllowedRedirectUrl(url: string): boolean {
   try {
@@ -99,8 +114,7 @@ Deno.serve(async req => {
     if (req.method === 'OPTIONS') return corsResponse({}, 204);
     if (req.method !== 'POST') return corsResponse({ error: 'Method not allowed' }, 405);
 
-    const internalSecret = req.headers.get('x-function-secret');
-    const isInternalCall = Boolean(cronSecret && internalSecret === cronSecret);
+    const isInternalCall = await secretMatches(req.headers.get('x-function-secret'));
 
     // Authenticate the caller (the secretary/admin issuing the link). Cron may
     // call with x-function-secret after it creates a waitlist promotion.

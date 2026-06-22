@@ -35,15 +35,13 @@ export function decideEntryPaymentAutoRefund(
     };
   }
 
-  const missingFeeEntryIds = input.invalidEntryIds.filter(id => !input.entryFeesById.has(id));
+  const paidForEntryIds = [...input.validPaidEntryIds, ...input.invalidEntryIds];
+  const missingFeeEntryIds = paidForEntryIds.filter(id => !input.entryFeesById.has(id));
   if (missingFeeEntryIds.length > 0) {
     return { action: 'needs_manual_amount', missingFeeEntryIds };
   }
 
-  const subtotalCents = sumEntryFees(input.entryFeesById, [
-    ...input.validPaidEntryIds,
-    ...input.invalidEntryIds,
-  ]);
+  const subtotalCents = sumEntryFees(input.entryFeesById, paidForEntryIds);
   const invalidSubtotalCents = sumEntryFees(input.entryFeesById, input.invalidEntryIds);
   if (subtotalCents <= 0 || invalidSubtotalCents <= 0) {
     return { action: 'needs_manual_amount', missingFeeEntryIds: input.invalidEntryIds };

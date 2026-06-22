@@ -445,6 +445,14 @@ async function processClassesWithOpenSpots(results: {
       continue;
     }
 
+    if (nextInLine.joined_via === 'mail_in') {
+      console.log(
+        `Next waitlist row ${nextInLine.id} for class ${classId} is mail-in; leaving it for secretary handling`
+      );
+      results.skippedMailInOffers++;
+      continue;
+    }
+
     // Offer spot
     const offered = await offerSpot(nextInLine as WaitlistEntry);
     if (offered) {

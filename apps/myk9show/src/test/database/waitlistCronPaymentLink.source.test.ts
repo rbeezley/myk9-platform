@@ -27,6 +27,8 @@ describe('waitlist expiration cron payment-link offer wiring', () => {
 
   it('does not use the online expiry/payment-link path for mail-in waitlist rows', () => {
     expect(cronSource).toContain("offer.joined_via === 'mail_in'");
+    expect(cronSource).toContain("nextInLine.joined_via === 'mail_in'");
+    expect(cronSource).toContain('leaving it for secretary handling');
     expect(cronSource).toContain('skippedMailInOffers');
     expect(cronSource).toContain("entry.joined_via !== 'mail_in'");
   });

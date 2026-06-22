@@ -62,6 +62,19 @@ describe('decideEntryPaymentAutoRefund', () => {
     });
   });
 
+  it('alerts instead of prorating when a valid paid entry fee is unavailable', () => {
+    expect(
+      decideEntryPaymentAutoRefund({
+        ...base,
+        validPaidEntryIds: ['missing-valid'],
+        invalidEntryIds: ['duplicate'],
+      })
+    ).toEqual({
+      action: 'needs_manual_amount',
+      missingFeeEntryIds: ['missing-valid'],
+    });
+  });
+
   it('cannot refund without a payment intent or positive captured amount', () => {
     expect(
       decideEntryPaymentAutoRefund({

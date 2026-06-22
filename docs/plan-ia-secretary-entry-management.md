@@ -80,6 +80,7 @@ These three were the genuine IA decisions gating this plan. Per `CLAUDE.md` ("st
 
 ## Phase C — De-disguise Move-ups & Pulled into an "Exceptions" surface
 
+**Status:** ✅ Implemented (pending PR). Decision: a **third top-level tab** `Entries | Exceptions | Waitlist` with a Move-ups/Pulls sub-switch (`ExceptionsView`, synced to `?tab=exceptions&queue=…`). Status chips reverted to pure filters (`move-ups`/`pulled` removed from the attention enum, options, and `useEntryManagementFilters`). Legacy `?attention=move-ups|pulled` and `?entryTab=move-ups|scratches` bookmarks migrate to the Exceptions tab via the `normalizeEntryManagementSearchParams` rewrite (idempotent; unit-tested). `RegistrationView` no longer renders the surface-swap branches; its `showId` prop was dropped.
 **Finding:** F2. **Risk:** medium (moves two surfaces out of the filter row). **Est:** 1–2 PRs.
 
 **Entry trigger:** Phase A merged. Independent of B and D.

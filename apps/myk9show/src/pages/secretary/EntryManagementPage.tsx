@@ -26,11 +26,13 @@ import {
   TrialRosterView,
   ScoringModeWrapper,
   RegistrationView,
+  ExceptionsView,
 } from '@/components/entries/management';
 import { groupEntriesByEnrollment, type EnrollmentGroup } from '@/utils/enrollmentGrouping';
 
 const PAGE_TABS: PrimaryTabDef[] = [
   { id: 'entries', label: 'Entries' },
+  { id: 'exceptions', label: 'Exceptions' },
   { id: 'waitlist', label: 'Waitlist' },
 ];
 
@@ -43,21 +45,24 @@ const EntryManagementPage: React.FC = () => {
   const params = useParams<{ showId?: string; id?: string }>();
   const urlShowId = params.showId ?? params.id;
   const navigate = useNavigate();
-  const [activePageTab] = useUrlTab(['entries', 'waitlist'] as const, 'entries');
+  const [activePageTab] = useUrlTab(['entries', 'exceptions', 'waitlist'] as const, 'entries');
   const [, setSearchParams] = useSearchParams();
 
-  // Combined tab + filter reset: switching to waitlist clears trial/class params
-  // so returning to entries doesn't unexpectedly re-enter scoring mode.
+  // Combined tab + filter reset: leaving Entries clears trial/class params so
+  // returning doesn't unexpectedly re-enter scoring mode; the Exceptions queue
+  // (`queue`) only survives while the Exceptions tab is active.
   const handlePageTabChange = (tab: string) => {
     setSearchParams(
       prev => {
         const next = new URLSearchParams(prev);
         if (tab === 'entries') {
           next.delete('tab');
+          next.delete('queue');
         } else {
           next.set('tab', tab);
           next.delete('trial');
           next.delete('class');
+          if (tab !== 'exceptions') next.delete('queue');
         }
         return next;
       },
@@ -401,7 +406,6 @@ const EntryManagementPage: React.FC = () => {
                   }
                   onUncompEntry={handleUncompEntry}
                   onRemoveEntry={handleRemoveEntry}
-                  showId={selectedShowId}
                   onRefresh={() => loadEntries(selectedShowId)}
                   enrollmentGroups={enrollmentGroups}
                   lastEmailedMap={lastEmailedMap}
@@ -431,6 +435,15 @@ const EntryManagementPage: React.FC = () => {
                 />
               )}
             </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="exceptions">
+          {selectedShowId && (
+            <ExceptionsView
+              showId={selectedShowId}
+              onRefresh={() => loadEntries(selectedShowId)}
+            />
           )}
         </TabsContent>
 

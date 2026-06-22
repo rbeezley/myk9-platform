@@ -16,12 +16,6 @@ vi.mock('../EntriesTableView', () => ({
 vi.mock('../EnrollmentCard', () => ({
   EnrollmentCard: () => <div data-testid="enrollment-card" />,
 }));
-vi.mock('@/components/entries/MoveUpRequestsTab', () => ({
-  MoveUpRequestsTab: () => <div data-testid="move-up-requests" />,
-}));
-vi.mock('@/components/entries/PullManagementTab', () => ({
-  PullManagementTab: () => <div data-testid="pull-management" />,
-}));
 vi.mock('@/hooks/useEmailStatus', () => ({
   useEmailStatus: () => ({ data: {} }),
 }));
@@ -48,7 +42,7 @@ function mockViewport(matches: boolean) {
 }
 
 function renderView(
-  attentionFilter: 'all' | 'pending' | 'accepted' | 'waitlist' | 'move-ups' | 'pulled' | 'issues',
+  attentionFilter: 'all' | 'pending' | 'accepted' | 'waitlist' | 'issues',
   entryViewMode: 'table' | 'cards' = 'table',
   overrides: Partial<{
     workMode: EntryWorkMode;
@@ -78,7 +72,6 @@ function renderView(
     onOpenCompDialog: vi.fn(),
     onUncompEntry: vi.fn(),
     onRemoveEntry: vi.fn(),
-    showId: 'show-1',
     onRefresh: vi.fn(),
     enrollmentGroups,
     onSendDecisionEmail: vi.fn().mockResolvedValue(undefined),
@@ -146,20 +139,9 @@ describe('RegistrationView filter content routing', () => {
   it('shows enrollment cards in card view', () => {
     renderView('all', 'cards');
     expect(screen.getByTestId('enrollment-card')).toBeInTheDocument();
-    expect(screen.queryByTestId('move-up-requests')).not.toBeInTheDocument();
   });
 
-  it('shows ONLY the focused queue for the Move-Up Requested filter', () => {
-    renderView('move-ups');
-    expect(screen.getByTestId('move-up-requests')).toBeInTheDocument();
-    expect(screen.queryByTestId('enrollment-card')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('entries-table')).not.toBeInTheDocument();
-  });
-
-  it('shows ONLY the focused queue for the Pulled filter', () => {
-    renderView('pulled');
-    expect(screen.getByTestId('pull-management')).toBeInTheDocument();
-    expect(screen.queryByTestId('enrollment-card')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('entries-table')).not.toBeInTheDocument();
-  });
+  // Move-ups / pulled are no longer rendered here — Phase C moved those queues
+  // onto the dedicated Exceptions tab (see ExceptionsView). RegistrationView now
+  // only ever renders the entry list (table or cards).
 });

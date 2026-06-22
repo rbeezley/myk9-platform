@@ -10,7 +10,7 @@ async function fetchMyLifetimeEntries(
   if (dogIds.length === 0) return [];
 
   const { data, error } = await supabase
-    .from('view_entry_with_results')
+    .from('view_authenticated_entry_results')
     .select(
       `
       id,
@@ -25,12 +25,9 @@ async function fetchMyLifetimeEntries(
       search_time_seconds,
       total_faults,
       final_placement,
-      show:show_id (
-        id,
-        name,
-        start_date,
-        organization
-      )
+      show_name,
+      show_start_date,
+      show_organization
     `
     )
     .in('dog_id', dogIds)
@@ -44,11 +41,8 @@ async function fetchMyLifetimeEntries(
       dogId: row.dog_id as string,
       dogCallName: (row.dog_call_name as string) || '',
       showId: row.show_id as string,
-      showName:
-        ((row.show as Record<string, unknown>)?.name as string) ||
-        'Unknown Show',
-      showDate:
-        ((row.show as Record<string, unknown>)?.start_date as string) || '',
+      showName: (row.show_name as string) || 'Unknown Show',
+      showDate: (row.show_start_date as string) || '',
       classId: row.class_id as string,
       className: (row.class_name as string) || 'Unknown Class',
       classElement: row.class_element as string | null,
@@ -58,9 +52,7 @@ async function fetchMyLifetimeEntries(
       searchTimeSeconds: row.search_time_seconds as number | null,
       totalFaults: row.total_faults as number | null,
       finalPlacement: row.final_placement as number | null,
-      organization:
-        ((row.show as Record<string, unknown>)?.organization as string) ||
-        undefined,
+      organization: (row.show_organization as string) || undefined,
     })
   );
 }

@@ -19,7 +19,7 @@
  * - In-ring protection: Prevents moving entries before in-ring dogs
  */
 
-import { useRef, useCallback, useState } from 'react';
+import { useRef, useCallback, useState, useEffect } from 'react';
 import {
   KeyboardSensor,
   PointerSensor,
@@ -104,6 +104,24 @@ export function useDragAndDropEntries({
 
   const [isUpdatingOrder, setIsUpdatingOrder] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+
+  // Tracks the post-drag grace-period timer so it can be cancelled on unmount.
+  // Without this, a drag immediately followed by navigation would fire the
+  // timer's setState + window.scrollTo on an unmounted hook, scrolling the
+  // *next* page to the top ~1.5s after the user has already left.
+  const graceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Distinguishes "timer already scheduled, then unmount" (cleared below) from
+  // the async-unmount race: if the component unmounts while updateExhibitorOrder
+  // is still awaiting, cleanup runs before any timer exists, then the `finally`
+  // resolves later and must NOT schedule a timer onto a dead component.
+  const isMountedRef = useRef(true);
+  useEffect(
+    () => () => {
+      isMountedRef.current = false;
+      if (graceTimerRef.current) clearTimeout(graceTimerRef.current);
+    },
+    []
+  );
 
   // Configure DnD-kit sensors
   const sensors = useSensors(
@@ -211,15 +229,27 @@ export function useDragAndDropEntries({
       // If offline, the sync will happen later
     } finally {
       setIsUpdatingOrder(false);
-      // IMPORTANT: Add a grace period before accepting new sync data
-      // The updateExhibitorOrder triggers triggerImmediateEntrySync which can
-      // arrive after we return here. Delay clearing the flag to let syncs settle.
-      setTimeout(() => {
+      if (!isMountedRef.current) {
+        // Unmounted while updateExhibitorOrder was awaiting: do NOT schedule the
+        // grace-period timer — it would fire setState + window.scrollTo on the
+        // next page. The drag flag is moot post-unmount, but clear it for any
+        // externally-shared ref.
         isDraggingRef.current = false;
-        setIsDragging(false);
-        // Scroll back to top after drag completes for better UX
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }, gracePeriodMs);
+      } else {
+        // IMPORTANT: Add a grace period before accepting new sync data.
+        // updateExhibitorOrder triggers triggerImmediateEntrySync which can
+        // arrive after we return here; delay clearing the flag to let syncs
+        // settle. The timer id is tracked so an unmount mid-grace-period
+        // cancels it (see graceTimerRef above) — otherwise it fires post-unmount.
+        if (graceTimerRef.current) clearTimeout(graceTimerRef.current);
+        graceTimerRef.current = setTimeout(() => {
+          graceTimerRef.current = null;
+          isDraggingRef.current = false;
+          setIsDragging(false);
+          // Scroll back to top after drag completes for better UX
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }, gracePeriodMs);
+      }
     }
   }, [localEntries, setLocalEntries, setManualOrder, isDraggingRef, gracePeriodMs, updateExhibitorOrder]);
 

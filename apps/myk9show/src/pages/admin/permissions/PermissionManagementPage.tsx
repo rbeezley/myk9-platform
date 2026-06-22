@@ -160,8 +160,8 @@ const PermissionManagementPage: React.FC = () => {
           <div className="container mx-auto px-6 pt-8 pb-8 max-w-7xl">
             <div className="space-y-8">
               {/* Header */}
-              <div className="flex items-center justify-between mb-8">
-                <div>
+              <div className="flex flex-col gap-4 mb-8 md:flex-row md:items-center md:justify-between">
+                <div className="min-w-0">
                   <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-3">
                     <Database className="h-8 w-8 text-primary" />
                     Permission Management
@@ -170,21 +170,18 @@ const PermissionManagementPage: React.FC = () => {
                     Manage roles, permissions, and user access across the system
                   </p>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap md:w-auto md:justify-end">
                   <Button
                     asChild
                     variant="outline"
-                    className="border-primary/20 text-primary 
-                                                      hover:bg-primary/5 hover:border-primary/40 
-                                                      hover:-translate-y-0.5 transition-all duration-300 
-                                                      shadow-sm"
+                    className="w-full border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300 shadow-sm sm:w-auto"
                   >
                     <Link to="/admin/rbac-test">
                       <Activity className="h-4 w-4 mr-2" />
                       Test Permissions
                     </Link>
                   </Button>
-                  <Button asChild>
+                  <Button asChild className="w-full sm:w-auto">
                     <Link to="/admin/permissions/roles">
                       <Plus className="h-4 w-4 mr-2" />
                       Manage Roles

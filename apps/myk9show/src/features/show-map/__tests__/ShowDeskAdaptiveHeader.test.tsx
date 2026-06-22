@@ -65,6 +65,18 @@ describe('ShowDeskAdaptiveHeader', () => {
     expect(getByTestId('show-desk-status-pill').textContent).toBe(label);
   });
 
+  it('tones the closed status pill with the warm stone chip token, not cool slate', () => {
+    const { getByTestId } = render(
+      <ShowDeskAdaptiveHeader {...baseProps} showStatus="closed" />
+    );
+    const pill = getByTestId('show-desk-status-pill');
+    // DESIGN.md: "Closed" is an inactive state — warm stone chip token, never
+    // a cool slate (no cool blue-grays outside the status vocabulary).
+    expect(pill.className).toContain('var(--chip-stone-bg)');
+    expect(pill.className).toContain('var(--chip-stone-fg)');
+    expect(pill.className).not.toContain('slate');
+  });
+
   it('omits the guidance card when no guidance action is provided', () => {
     const { container } = render(<ShowDeskAdaptiveHeader {...baseProps} />);
     expect(container.querySelector('[aria-label="Next best action"]')).toBeNull();

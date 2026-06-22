@@ -22,6 +22,8 @@ interface RegistrationCartCheckoutDeps {
 interface RegistrationCartCheckoutParams {
   showId: string;
   ownerResolution: SelectedDogsOwnerResult;
+  /** exhibitor_profiles.id for the cart owner. Required — entry_carts.exhibitor_id references exhibitor_profiles, not people. */
+  exhibitorProfileId: string;
   classSelections: ClassSelectionData[];
   handlerAssignments: Record<string, HandlerInfo>;
   classes: ClassLike[];
@@ -32,6 +34,7 @@ interface RegistrationCartCheckoutParams {
 export async function submitRegistrationCartCheckout({
   showId,
   ownerResolution,
+  exhibitorProfileId,
   classSelections,
   handlerAssignments,
   classes,
@@ -41,8 +44,11 @@ export async function submitRegistrationCartCheckout({
   if (!ownerResolution.ok) {
     throw new Error('Cannot determine exhibitor for this entry.');
   }
+  if (!exhibitorProfileId) {
+    throw new Error('Cannot determine exhibitor profile for this entry.');
+  }
 
-  const exhibitorId = ownerResolution.ownerId;
+  const exhibitorId = exhibitorProfileId;
   const existingCart = await deps.loadCart(showId, exhibitorId);
   if (existingCart) {
     const cleared = await deps.clearCart();

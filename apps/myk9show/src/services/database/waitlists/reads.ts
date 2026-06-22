@@ -14,6 +14,7 @@ import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable'
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { mapWaitlistEntry, mapClassWithWaitlistCount } from '@/services/mappers/waitlistMappers';
 import { buildMapFromArray } from '../_shared/maps';
+import { AUTHENTICATED_ENTRY_READ_COLUMNS } from '../entries/entrySelects';
 
 export interface WaitlistEntry {
   id: string;
@@ -553,7 +554,7 @@ export const acceptWaitlistOffer = async (waitlistEntryId: string) => {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .select()
+      .select(AUTHENTICATED_ENTRY_READ_COLUMNS)
       .single();
 
     if (insertError) {

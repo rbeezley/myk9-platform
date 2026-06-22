@@ -38,11 +38,36 @@ describe('PaymentMethodSelector — acceptedMethods filtering', () => {
     expect(screen.getByText('Cash (pay at show)')).toBeInTheDocument();
   });
 
-  it('always shows Credit/Debit Card regardless of acceptedMethods', () => {
+  it('shows Credit/Debit Card regardless of acceptedMethods (default allowCardCheckout)', () => {
     render(
       <PaymentMethodSelector {...baseProps} acceptedMethods={{ check: false, cash: false }} />
     );
     expect(screen.getByText('Credit/Debit Card (Online Payment)')).toBeInTheDocument();
+  });
+
+  it('shows Credit/Debit Card when allowCardCheckout is true (exhibitor self-service)', () => {
+    render(<PaymentMethodSelector {...baseProps} allowCardCheckout={true} />);
+    expect(screen.getByText('Credit/Debit Card (Online Payment)')).toBeInTheDocument();
+  });
+
+  it('hides Credit/Debit Card when allowCardCheckout is false (on-behalf modes)', () => {
+    // stripe-checkout 403s a cart the logged-in organizer doesn't own, so card
+    // checkout must not be offered for secretary/admin on-behalf entries.
+    render(<PaymentMethodSelector {...baseProps} allowCardCheckout={false} />);
+    expect(screen.queryByText('Credit/Debit Card (Online Payment)')).not.toBeInTheDocument();
+  });
+
+  it('hides the secure-checkout redirect notice when allowCardCheckout is false', () => {
+    render(
+      <PaymentMethodSelector
+        {...baseProps}
+        paymentMethod="credit_card"
+        allowCardCheckout={false}
+      />
+    );
+    expect(
+      screen.queryByText(/You'll be taken to our secure checkout to complete payment/)
+    ).not.toBeInTheDocument();
   });
 
   it('tells card payers they will continue to secure checkout', () => {

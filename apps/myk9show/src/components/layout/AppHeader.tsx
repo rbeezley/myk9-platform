@@ -2,30 +2,8 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { UserRole } from '@/types/auth-types';
-import {
-  LogOut,
-  User as UserIcon,
-  ChevronDown,
-  Search,
-  Settings,
-  CreditCard,
-  Heart,
-  Wifi,
-  WifiOff,
-  RefreshCw,
-  ShoppingCart,
-  Info,
-  MessageSquare,
-  Menu,
-} from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { ChevronDown, Search, ShoppingCart, MessageSquare, Menu } from 'lucide-react';
+import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { CommandPalette } from '@/components/common/CommandPalette';
 import { KeyboardShortcutsOverlay } from '@/components/common/KeyboardShortcutsOverlay';
@@ -34,13 +12,10 @@ import {
   getShortcutDisplays,
   type ShortcutDefinition,
 } from '@/hooks/useKeyboardShortcuts';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { ResetDataButton } from '@/components/common/ResetDataButton';
-import { ClearCacheButton } from '@/components/common/ClearCacheButton';
-import { useGlobalSyncStatus } from '@/hooks/useGlobalSyncStatus';
 import { buildClasses } from '@/utils/designTokens';
 import { useCartItemCount } from '@/store/cartStore';
 import { AboutDialog } from '@/components/common/AboutDialog';
+import { AccountMenuContent } from '@/components/layout/AccountMenuContent';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 import { useCurrentUserPerson } from '@/hooks/useProfileForm';
@@ -72,10 +47,8 @@ function useIsMobileSidebarViewport() {
 
 const AppHeader: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
-  const { user, signOut, userWithRoles, getUserRoles, hasRole } = useAuthContext();
+  const { user } = useAuthContext();
   const { data: currentPerson } = useCurrentUserPerson(user?.id);
-  const globalSync = useGlobalSyncStatus();
-  const networkStatus = useNetworkStatus();
   const navigate = useNavigate();
   const location = useLocation();
   const { isMobileNavOpen, openMobileNav } = useAppShellMobileNav();
@@ -318,136 +291,7 @@ const AppHeader: React.FC = () => {
                       <ChevronDown className="h-3 w-3 text-muted-foreground hidden sm:block" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-64">
-                    {/* User Info */}
-                    <div className="px-3 py-2 border-b">
-                      <p className="text-sm font-medium">{user.email}</p>
-                      {userWithRoles && (
-                        <div className="flex items-center gap-2 mt-1">
-                          <UserIcon className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-xs text-muted-foreground">
-                            {getUserRoles()
-                              .map(role =>
-                                role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
-                              )
-                              .join(', ')}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Status Section */}
-                    <div className="px-3 py-2 border-b">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground flex items-center gap-1.5">
-                          {networkStatus.isOnline ? (
-                            <Wifi className="h-3 w-3 text-green-500" />
-                          ) : (
-                            <WifiOff className="h-3 w-3 text-red-500" />
-                          )}
-                          {networkStatus.isOnline ? 'Online' : 'Offline'}
-                        </span>
-                        <span className="text-muted-foreground flex items-center gap-1.5">
-                          <RefreshCw
-                            className={`h-3 w-3 ${globalSync.status === 'pending' ? 'animate-spin text-blue-500' : 'text-green-500'}`}
-                          />
-                          {globalSync.status === 'pending' ? 'Syncing...' : 'Synced'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Common menu items */}
-                    <DropdownMenuItem asChild>
-                      <Link to="/account" className="w-full flex items-center gap-2">
-                        <UserIcon className="h-4 w-4" />
-                        Account
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to="/subscription" className="w-full flex items-center gap-2">
-                        <CreditCard className="h-4 w-4" />
-                        Subscription
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to="/pricing-page" className="w-full flex items-center gap-2">
-                        <Heart className="h-4 w-4" />
-                        Pricing
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={toggleAskQ}
-                      className="w-full flex items-center gap-2 cursor-pointer"
-                    >
-                      <MessageSquare className="h-4 w-4" />
-                      AskQ Assistant
-                    </DropdownMenuItem>
-
-                    {/* Role-specific menu items */}
-                    {(hasRole(UserRole.SECRETARY) ||
-                      hasRole(UserRole.CLUB_ADMIN) ||
-                      hasRole(UserRole.SITE_ADMIN)) && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem asChild>
-                          <Link to="/judge-scoring" className="w-full flex items-center gap-2">
-                            <Settings className="h-4 w-4" />
-                            Judge Scoring
-                          </Link>
-                        </DropdownMenuItem>
-                      </>
-                    )}
-
-                    {hasRole(UserRole.SITE_ADMIN) && (
-                      <>
-                        <DropdownMenuItem asChild>
-                          <Link to="/analytics" className="w-full flex items-center gap-2">
-                            <Settings className="h-4 w-4" />
-                            Analytics
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link to="/admin/templates" className="w-full flex items-center gap-2">
-                            <Settings className="h-4 w-4" />
-                            Template Management
-                          </Link>
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                    <DropdownMenuSeparator />
-
-                    {/* Development Tools */}
-                    {process.env.NODE_ENV === 'development' && (
-                      <>
-                        <div className="px-3 py-1">
-                          <p className="text-xs font-medium text-muted-foreground">
-                            Development Tools
-                          </p>
-                        </div>
-                        <div className="px-3 py-1">
-                          <ResetDataButton />
-                        </div>
-                        <div className="px-3 py-1">
-                          <ClearCacheButton />
-                        </div>
-                      </>
-                    )}
-
-                    <DropdownMenuItem onClick={() => setAboutOpen(true)} className="cursor-pointer">
-                      <Info className="h-4 w-4 mr-2" />
-                      About
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => {
-                        signOut();
-                      }}
-                      className="text-destructive "
-                    >
-                      <LogOut className="h-4 w-4 mr-2" />
-                      Sign Out
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
+                  <AccountMenuContent onAbout={() => setAboutOpen(true)} />
                 </DropdownMenu>
               </>
             ) : (

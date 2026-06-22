@@ -364,7 +364,10 @@ describe('ReplicatedEntriesTable', () => {
           id: 'entry-1',
           check_in_status: 'checked-in',
           updated_at: expect.any(String),
-        })
+        }),
+        undefined,
+        // check_in_status is ringside-whitelisted → routes through the RPC.
+        { name: 'ringside_update_entry', fields: { check_in_status: 'checked-in' } }
       );
       expect(payload).not.toHaveProperty('result_status');
       expect(payload).not.toHaveProperty('handler');
@@ -665,7 +668,10 @@ describe('ReplicatedEntriesTable', () => {
         expect.objectContaining({
           result_status: 'pending',
           final_placement: null,
-        })
+        }),
+        undefined,
+        // result_status + final_placement are ringside-whitelisted → routes via RPC.
+        { name: 'ringside_update_entry', fields: { result_status: 'pending', final_placement: null } }
       );
     });
 
@@ -716,7 +722,10 @@ describe('ReplicatedEntriesTable', () => {
           check_in_status: 'pulled',
           withdrawal_reason: 'Dog absent',
           special_requests: 'Dog absent',
-        })
+        }),
+        undefined,
+        // entry_status is a management column → NOT routed through the ringside RPC.
+        undefined
       );
     });
 
@@ -749,7 +758,10 @@ describe('ReplicatedEntriesTable', () => {
         'entry-1',
         expect.objectContaining({
           deleted_at: deletedAt,
-        })
+        }),
+        undefined,
+        // deleted_at is not a ringside column → NOT routed through the RPC.
+        undefined
       );
     });
 
@@ -900,6 +912,8 @@ describe('ReplicatedEntriesTable', () => {
       expect(result.tableName).toBe('entries');
       expect(result.rowsAffected).toBe(0);
       expect(result.operation).toBe('full-sync');
+      expect(supabaseMock.from).toHaveBeenCalledWith('view_authenticated_entry_results');
+      expect(mockSelect).toHaveBeenCalledWith('*');
     });
 
     it('should sync new entries from remote', async () => {
@@ -1039,10 +1053,10 @@ describe('ReplicatedEntriesTable', () => {
 
       await table.sync(TEST_LICENSE_KEY);
 
-      // Verify query construction. The select embeds the to-one dog so entry
-      // cards can show call name / breed (see ReplicatedEntriesTable.sync).
-      expect(supabaseMock.from).toHaveBeenCalledWith('entries');
-      expect(mockSelect).toHaveBeenCalledWith('*, dogs(call_name, breed)');
+      // Verify query construction. The authenticated view keeps raw result
+      // fields manager-only and cascade-masks own-entry exhibitor reads.
+      expect(supabaseMock.from).toHaveBeenCalledWith('view_authenticated_entry_results');
+      expect(mockSelect).toHaveBeenCalledWith('*');
       // ...and the sync scopes to the show (the behavior this test is named for).
       expect(mockEq).toHaveBeenCalledWith('show_id', expect.anything());
     });

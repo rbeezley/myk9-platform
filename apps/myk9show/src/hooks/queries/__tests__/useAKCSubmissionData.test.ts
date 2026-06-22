@@ -112,7 +112,7 @@ describe('useAKCSubmissionData', () => {
           }),
         };
       }
-      if (table === 'entries') {
+      if (table === 'view_authenticated_entry_results') {
         return {
           select: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
@@ -241,7 +241,7 @@ describe('useAKCSubmissionData', () => {
             error: null,
           }),
         };
-      if (table === 'entries')
+      if (table === 'view_authenticated_entry_results')
         return {
           select: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
@@ -339,7 +339,7 @@ describe('useAKCSubmissionData', () => {
             error: null,
           }),
         };
-      if (table === 'entries')
+      if (table === 'view_authenticated_entry_results')
         return {
           select: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),

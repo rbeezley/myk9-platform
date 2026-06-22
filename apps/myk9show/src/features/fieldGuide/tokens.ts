@@ -15,6 +15,10 @@
 export const fieldGuideColors = {
   /** Page background — pale parchment. */
   paper: '#f6f1e6',
+  /** Paper at 70% — muted text/links on the dark band (top strip). */
+  paperTranslucent: 'rgba(246,241,230,0.7)',
+  /** Paper at 75% — body copy on the dark CTA band. */
+  paperTranslucentStrong: 'rgba(246,241,230,0.75)',
   /** Alternating row, header cell, mini-card background. */
   paperWarm: '#ebe4cf',
   /** Dark band (top strip, footer, mail-to). Same hex as ink. */

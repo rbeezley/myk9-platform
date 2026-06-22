@@ -51,7 +51,7 @@ export function PrimaryTabs({
     <Tabs value={value} onValueChange={onValueChange} {...classNameProps}>
       <TabsList
         className={cn(
-          'flex overflow-x-auto no-scrollbar border-b border-border bg-transparent p-0 gap-0'
+          'flex w-full max-w-full overflow-x-auto no-scrollbar border-b border-border bg-transparent p-0 gap-0'
         )}
       >
         {tabs.map(tab => {
@@ -61,7 +61,7 @@ export function PrimaryTabs({
               key={tab.id}
               value={tab.id}
               className={cn(
-                'inline-flex items-center gap-1.5 min-h-[48px] px-4 py-2 text-sm font-medium',
+                'inline-flex min-w-max items-center gap-1.5 min-h-[48px] px-4 py-2 text-sm font-medium',
                 'text-muted-foreground border-b-2 border-transparent rounded-none bg-transparent',
                 'aria-selected:text-primary aria-selected:border-primary',
                 'hover:text-foreground transition-colors whitespace-nowrap'

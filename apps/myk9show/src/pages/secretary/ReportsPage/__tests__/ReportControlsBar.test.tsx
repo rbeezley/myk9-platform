@@ -50,6 +50,15 @@ describe('ReportControlsBar', () => {
     expect(screen.getByRole('button', { name: /print/i })).toBeInTheDocument();
   });
 
+  it('uses phone-width controls with desktop fixed widths restored at sm', () => {
+    render(<ReportControlsBar {...defaultProps} />);
+
+    const reportTrigger = screen.getByRole('combobox', { name: /select report/i });
+    expect(reportTrigger.className).toContain('w-full');
+    expect(reportTrigger.className).toContain('sm:w-[200px]');
+    expect(screen.getByRole('button', { name: /print/i }).className).toContain('w-full');
+  });
+
   it('does not render the official PDF action for regular reports', () => {
     render(<ReportControlsBar {...defaultProps} />);
     expect(screen.queryByRole('button', { name: /official pdf/i })).not.toBeInTheDocument();

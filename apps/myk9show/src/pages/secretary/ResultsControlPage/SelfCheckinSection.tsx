@@ -114,11 +114,20 @@ export function SelfCheckinSection({
                 </CardDescription>
               </div>
             </div>
-            <Switch
-              checked={settings.selfCheckinEnabled}
-              onCheckedChange={handleShowToggle}
-              disabled={updateCheckin.isPending}
-            />
+            {/* 44px tap row: the label wrapper enlarges the hit area around the
+                ~20px switch without resizing the control (PRODUCT.md touch floor). */}
+            <label
+              htmlFor="checkin-show"
+              className="flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center"
+            >
+              <Switch
+                id="checkin-show"
+                aria-label="Allow self check-in for show"
+                checked={settings.selfCheckinEnabled}
+                onCheckedChange={handleShowToggle}
+                disabled={updateCheckin.isPending}
+              />
+            </label>
           </div>
         </CardHeader>
       </Card>
@@ -146,15 +155,22 @@ export function SelfCheckinSection({
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Switch
-                    checked={effective}
-                    onCheckedChange={v => handleTrialToggle(trial.id, v)}
-                    disabled={updateTrialOverride.isPending}
-                  />
+                  <label
+                    htmlFor={`checkin-trial-${trial.id}`}
+                    className="flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center"
+                  >
+                    <Switch
+                      id={`checkin-trial-${trial.id}`}
+                      aria-label={`Self check-in for ${trial.name}`}
+                      checked={effective}
+                      onCheckedChange={v => handleTrialToggle(trial.id, v)}
+                      disabled={updateTrialOverride.isPending}
+                    />
+                  </label>
                   {hasOverride && (
                     <Button
                       variant="ghost"
-                      size="icon"
+                      size="icon-lg"
                       title="Reset to show defaults"
                       onClick={() => handleResetTrial(trial.id)}
                       disabled={resetOverride.isPending}
@@ -223,15 +239,22 @@ export function SelfCheckinSection({
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Switch
-                            checked={effective}
-                            onCheckedChange={v => handleClassCheckinToggle(cls.id, trial.id, v)}
-                            disabled={updateClassOverride.isPending}
-                          />
+                          <label
+                            htmlFor={`checkin-class-${cls.id}`}
+                            className="flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center"
+                          >
+                            <Switch
+                              id={`checkin-class-${cls.id}`}
+                              aria-label={`Self check-in for ${getClassName(cls)}`}
+                              checked={effective}
+                              onCheckedChange={v => handleClassCheckinToggle(cls.id, trial.id, v)}
+                              disabled={updateClassOverride.isPending}
+                            />
+                          </label>
                           {hasOverride && (
                             <Button
                               variant="ghost"
-                              size="icon"
+                              size="icon-lg"
                               title="Reset to inherited settings"
                               onClick={() => handleResetClass(cls.id)}
                               disabled={resetOverride.isPending}

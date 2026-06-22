@@ -170,20 +170,24 @@ const SyncMonitoringDashboard: React.FC = () => {
 
       {/* Detailed Tabs */}
       <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-4">
-        <TabsList className={cn('grid w-full grid-cols-4')}>
-          <TabsTrigger value="overview">
+        <TabsList
+          className={cn(
+            'flex w-full max-w-full overflow-x-auto no-scrollbar md:grid md:grid-cols-4'
+          )}
+        >
+          <TabsTrigger value="overview" className="min-w-max gap-2 whitespace-nowrap md:min-w-0">
             <LayoutDashboard className="h-4 w-4" />
             Overview
           </TabsTrigger>
-          <TabsTrigger value="performance">
+          <TabsTrigger value="performance" className="min-w-max gap-2 whitespace-nowrap md:min-w-0">
             <Gauge className="h-4 w-4" />
             Performance
           </TabsTrigger>
-          <TabsTrigger value="conflicts">
+          <TabsTrigger value="conflicts" className="min-w-max gap-2 whitespace-nowrap md:min-w-0">
             <AlertTriangle className="h-4 w-4" />
             Conflicts
           </TabsTrigger>
-          <TabsTrigger value="network">
+          <TabsTrigger value="network" className="min-w-max gap-2 whitespace-nowrap md:min-w-0">
             <Wifi className="h-4 w-4" />
             Network
           </TabsTrigger>

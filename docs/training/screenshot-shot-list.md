@@ -79,12 +79,12 @@ Every screenshot and diagram in final documentation and training materials must 
 | E-05 | Add Dog form | `/dogs` (Add Dog dialog) | `e2e-exhibitor@test.myk9.com` | Desktop | Add Dog form open with required fields visible | § 3 | `ready` |
 | E-06 | Registration wizard — Step 1 (class selection) | `/shows/:showId/register` | `e2e-exhibitor@test.myk9.com` | Desktop | Class selection step; dog chip visible at top; classes grouped by element/level | § 4 Enter a Show | `ready` |
 | E-07 | Registration wizard — Step 1 with class selected + cart toast | `/shows/:showId/register` | `e2e-exhibitor@test.myk9.com` | Desktop | Class selection step; class chip checked; "Added to cart" toast visible | § 4 | `ready` |
-| E-08 | Confirmation receipt | `/checkout/success` | `e2e-exhibitor@test.myk9.com` | Desktop | Success screen with entry confirmed | § 4 | `blocked: seed` (needs a Stripe checkout completion) |
+| E-08 | Confirmation receipt | `/checkout/success` | `e2e-exhibitor@test.myk9.com` | Desktop | Success screen with entry confirmed | § 4 | `ready` (captured 2026-06-20 from the end-to-end sandbox payment) |
 | E-09 | My Entries — Pending tab with entry card | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | At least one entry card in Pending status | § 5 Track Your Entry | `ready` |
 | E-10 | My Entries — Accepted tab with entry card | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | At least one entry card in Accepted status | § 5 | `ready` |
 | E-11 | My Entries — show card (unexpanded) | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | Show card with date, club, and entry status | § 5 | `ready` |
 | E-12 | Class detail page — run order entry with dog name and armband number | `/shows/:showId/trials/:trialId/classes/:classId` | `e2e-exhibitor@test.myk9.com` | Mobile | Class detail view; run order entry showing dog name, armband number, and position | § 6 View Run Order | `ready` |
-| E-13 | My Entries — Show Today banner | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | "Show Today" banner visible at top (requires a show scheduled for today's date) | § 7 Check In | `blocked: date` |
+| E-13 | My Entries — Show Today banner | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | "Show Today" banner visible at top (requires a show scheduled for today's date) | § 7 Check In | `ready` (captured 2026-06-20 by temporarily dating the demo show to today, then restoring) |
 | E-14 | My Entries — entry card with "Not Checked In" status pill | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | Entry card showing "Not Checked In" status label; check-in must be open for the class | § 7 | `ready` |
 | E-15 | My Entries — entry card "Checked In" state | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | Entry card with green Checked In badge | § 7 | `ready` |
 | E-16 | My Entries — Q result badge on entry card | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | Entry card with Q result badge and placement pill visible | § 8 View Results | `ready` |
@@ -114,8 +114,8 @@ All shots in this section are **blocked by `unified_ringside_enabled` flag** —
 | C-01 | Club Admin sidebar + Club Settings form | Club settings page | `club@myk9t.com` | Desktop | Club name, AKC number, address, and contact fields visible | § 2 Club Profile | `ready` |
 | C-02 | Club Admin → Shows list | Club admin shows page | `club@myk9t.com` | Desktop | Heritage show listed; secretary assignment visible | § 3 Show Access | `ready` |
 | C-03 | Grant show access | Club admin members page | `club@myk9t.com` | Desktop | Member row with Show Manager badge (access confirmed) | § 3 | `ready` |
-| C-04 | Club Admin → Payments — pre-onboarding | `/club-admin/payments` | `club@myk9t.com` | Desktop | "Set Up Payment Account" button; no Stripe account connected | § 4 Stripe Onboarding | `blocked: stripe` |
-| C-05 | Club Admin → Payments — connected with payout history | `/club-admin/payments` | `club@myk9t.com` | Desktop | Stripe account connected; per-show payout table with gross/fee/net | § 5 Payout History | `blocked: stripe` |
+| C-04 | Club Admin → Payments — pre-onboarding | `/club-admin/payments` | `club@myk9t.com` | Desktop | "Connect payment account" button; no Stripe account connected | § 4 Stripe Onboarding | `ready` (captured 2026-06-20 by temporarily removing the seeded account row, then restoring) |
+| C-05 | Club Admin → Payments — connected with payout history | `/club-admin/payments` | `club@myk9t.com` | Desktop | "Payouts enabled" + Show payouts row (show name, date, amount, Paid). NOTE: this club page shows amount + status, not gross/fee/net — that breakdown is on the admin ledger `/admin/payouts` | § 5 Payout History | `ready` (captured 2026-06-20 with a seeded show_payouts fixture, since removed) |
 
 ---
 

@@ -1,8 +1,9 @@
 /**
  * Tests for useAtShowEntryListActions — the real check-in-status mutation core.
- * Assertion-first (CLAUDE.md): prove each status maps to the exact
- * shared replicated check-in writer, and that the spike-stubbed reset does
- * NOT touch the DB.
+ * Assertion-first (CLAUDE.md): prove each status maps to the exact shared
+ * replicated check-in writer, and that reset clears the scored fields back to
+ * pending (the cleared columns are ringside-whitelisted so the write
+ * auto-routes through ringside_update_entry).
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -92,12 +93,26 @@ describe('useAtShowEntryListActions', () => {
     expect(updateEntry).toHaveBeenCalledWith('b', { checkInStatus: 'pulled', check_in_status: 'pulled' });
   });
 
-  it('handleResetScore is a spike stub — no DB write', async () => {
+  it('handleResetScore clears the scored fields back to pending, then refreshes', async () => {
     const { result } = render();
     await act(async () => {
       await result.current.handleResetScore('entry-uuid-5');
     });
-    expect(updateEntry).not.toHaveBeenCalled();
+    expect(updateEntry).toHaveBeenCalledWith('entry-uuid-5', {
+      isScored: false,
+      is_scored: false,
+      resultStatus: 'pending',
+      result_status: 'pending',
+      searchTimeSeconds: 0,
+      search_time_seconds: 0,
+      totalFaults: 0,
+      total_faults: 0,
+      finalPlacement: null,
+      scoringCompletedAt: null,
+      scoring_completed_at: null,
+      disqualification_reason: null,
+    });
+    expect(refresh).toHaveBeenCalledTimes(1);
   });
 
   it('surfaces hasError when a mutation throws', async () => {

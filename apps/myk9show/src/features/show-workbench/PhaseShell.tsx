@@ -12,12 +12,15 @@ interface PhaseShellProps {
 // straight into same-weight boxes.
 export function PhaseShell({ title, kicker, actions }: PhaseShellProps) {
   return (
-    <section className="flex items-end justify-between gap-3 pt-6" aria-label={title}>
-      <div>
+    <section
+      className="flex flex-col gap-3 pt-6 sm:flex-row sm:items-end sm:justify-between"
+      aria-label={title}
+    >
+      <div className="min-w-0">
         <p className="text-sm font-medium text-muted-foreground">{kicker}</p>
-        <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
+        <h2 className="break-words text-xl font-semibold tracking-tight">{title}</h2>
       </div>
-      {actions && <div className="shrink-0">{actions}</div>}
+      {actions && <div className="w-full sm:w-auto sm:shrink-0">{actions}</div>}
     </section>
   );
 }

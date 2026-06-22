@@ -82,7 +82,7 @@ describe('useShowStats', () => {
     expect(result.current.data![0].dogCallName).toBe('Rex');
     expect(result.current.data![0].trialDate).toBe('2026-04-01');
     expect(result.current.data![0].trialNumber).toBe('1');
-    expect(mockFrom).toHaveBeenCalledWith('view_entry_with_results');
+    expect(mockFrom).toHaveBeenCalledWith('view_authenticated_entry_results');
     expect(mockFrom).toHaveBeenCalledWith('classes');
   });
 });

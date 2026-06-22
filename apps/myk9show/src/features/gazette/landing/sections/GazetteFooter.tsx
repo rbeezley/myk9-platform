@@ -76,6 +76,7 @@ export function GazetteFooter({
             {secretaryEmail && (
               <a
                 href={`mailto:${secretaryEmail}`}
+                className="inline-flex min-h-[44px] items-center"
                 style={{
                   fontFamily: "'Source Serif 4', Georgia, serif",
                   fontSize: 13,
@@ -88,11 +89,11 @@ export function GazetteFooter({
             {secretaryPhone && (
               <a
                 href={`tel:${secretaryPhone.replace(/\s/g, '')}`}
+                className="flex min-h-[44px] items-center"
                 style={{
                   fontFamily: "'Source Serif 4', Georgia, serif",
                   fontSize: 13,
                   color: 'var(--gz-soft)',
-                  display: 'block',
                 }}
               >
                 {secretaryPhone}

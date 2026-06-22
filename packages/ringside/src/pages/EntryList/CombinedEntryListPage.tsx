@@ -253,7 +253,7 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
         showSectionsBadge={true}
         actionsMenu={{
           showRunOrder: hasPermission('canChangeRunOrder'),
-          showPrintOptions: Boolean(role && role !== 'exhibitor'),
+          showPrintOptions: Boolean(role && role !== 'exhibitor') && !context.hidePrintOptions,
           onRunOrderClick: () => setRunOrderDialogOpen(true),
           printOptions: [
             {

@@ -91,4 +91,16 @@ describe('ListControls', () => {
     setup({ filters: [] });
     expect(screen.queryByRole('button', { name: 'Role' })).not.toBeInTheDocument();
   });
+
+  it('uses mobile-safe wrapping for search and view controls', () => {
+    setup();
+
+    const searchWrapper = screen.getByPlaceholderText('Search people…').parentElement;
+    expect(searchWrapper?.className).toContain('w-full');
+    expect(searchWrapper?.className).toContain('sm:w-52');
+
+    const tableToggle = screen.getByLabelText('Table view').parentElement;
+    expect(tableToggle?.className).toContain('self-end');
+    expect(tableToggle?.className).toContain('sm:ml-auto');
+  });
 });

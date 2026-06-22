@@ -5,6 +5,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { getDogDisplayName } from '@/types/dog-types';
 import { entryIsScored } from '@/utils/entryPredicates';
 import { dbSecondsToInputFormat } from '@/utils/scoringMappings';
+import { selectOwnedDogIds } from '@/utils/dogOwnership';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 
 export interface MyClassEntry {
@@ -32,7 +33,7 @@ export interface UseMyEntriesInClassResult {
 export function useMyEntriesInClass(
   classId: string | undefined,
   /**
-   * Released results read directly from `view_entry_with_results` (see
+   * Released results read directly from `view_public_entry_results` (see
    * `useClassReleasedResults`). When provided, scoring/result values are
    * sourced from these rows instead of the replication store, which is cold
    * or stale for a post-show exhibitor/guest. Run-order/position (pre-class
@@ -51,7 +52,7 @@ export function useMyEntriesInClass(
 
     const releasedById = new Map((releasedRows ?? []).map(r => [r.id, r]));
 
-    const myDogIds = new Set(dogs.filter(d => d.ownerId === databaseUserId).map(d => d.id));
+    const myDogIds = selectOwnedDogIds(dogs, databaseUserId);
     if (myDogIds.size === 0) return { myEntries: [], isAfterClass: false };
 
     const dogNameMap = new Map(

@@ -156,7 +156,12 @@ export default function CartPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="default" onClick={() => navigate(-1)} className="gap-1">
+            <Button
+              variant="ghost"
+              size="default"
+              onClick={() => navigate(cart.show_id ? `/shows/${cart.show_id}` : '/shows')}
+              className="gap-1"
+            >
               <ArrowLeft className="h-4 w-4" />
               Back
             </Button>

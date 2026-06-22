@@ -32,7 +32,7 @@ export function useAKCSubmissionData(showId: string) {
           .is('deleted_at', null)
           .order('date'),
         supabase
-          .from('entries')
+          .from('view_authenticated_entry_results')
           .select(
             'id, dog_id, class_id, trial_id, armband, search_time_seconds, final_placement, result_status, entry_status, check_in_status, run_order'
           )

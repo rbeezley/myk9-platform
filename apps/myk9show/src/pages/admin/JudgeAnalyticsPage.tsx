@@ -213,8 +213,13 @@ const JudgeAnalyticsPage: React.FC = () => {
               <p className="text-sm mt-1">Assign judges to shows to see analytics here.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <div
+              className="max-w-full overflow-x-auto rounded-lg border border-border"
+              aria-label="Judge utilization table scroll area"
+              role="region"
+              tabIndex={0}
+            >
+              <table className="min-w-[720px] w-full text-sm">
                 <thead>
                   <tr className="border-b border-border/50">
                     {(

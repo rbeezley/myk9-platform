@@ -222,7 +222,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
           showRunOrder: hasPermission('canChangeRunOrder'),
           showRecalculatePlacements: hasPermission('canManageClasses'),
           showClassSettings: hasPermission('canManageClasses'),
-          showPrintOptions: Boolean(role && role !== 'exhibitor'),
+          showPrintOptions: Boolean(role && role !== 'exhibitor') && !context.hidePrintOptions,
           isRecalculatingPlacements,
           onRunOrderClick: () => setRunOrderDialogOpen(true),
           onRecalculatePlacements: handlers.handleRecalculatePlacements,

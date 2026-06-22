@@ -37,7 +37,7 @@ async function fetchJudgeShowEntries(judgeId: string, showId: string): Promise<S
   }
 
   const { data, error } = await supabase
-    .from('view_entry_with_results')
+    .from('view_authenticated_entry_results')
     .select(STATS_ENTRY_SELECT)
     .eq('show_id', showId)
     .in('class_id', classIds);

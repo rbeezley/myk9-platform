@@ -40,8 +40,7 @@ import {
   type EntryListDataDependencies,
   type RingsideShowContext,
 } from '@myk9/ringside';
-import { replicatedShowsTable } from '@/services/replication';
-import { logger } from '@/utils/logger';
+import { replicatedShowsTable, replicatedEntriesTable } from '@/services/replication';
 import { buildRingsideContextValue, buildRingsideReplication } from './ringsideCapabilities';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { createAtShowDataDependencies } from './atShowDataAdapter';
@@ -154,11 +153,18 @@ export const AtShowEntryListPage: React.FC = () => {
   const currentEntries = activeTab === 'pending' ? pendingEntries : completedEntries;
 
   // ── Drag-and-drop (pure ringside hook) ─────────────────────────────────
-  const updateExhibitorOrder = useCallback(async (): Promise<unknown> => {
-    // INTENT (spike): run-order persistence is deferred — matches the
-    // handlers' `handleApplyRunOrder` stub. The optimistic local reorder
-    // still happens inside the drag hook; only the DB write is skipped.
-    logger.warn('[at-show] drag run-order persist is stubbed for the spike', 'at-show');
+  const updateExhibitorOrder = useCallback(async (reordered: Entry[]): Promise<unknown> => {
+    // Persist each entry's new run order. run_order is ringside-whitelisted, so
+    // updateEntry auto-routes through ringside_update_entry (assigned judges and
+    // stewards may set run order, not just managers). The drag hook owns the
+    // optimistic local reorder + grace period, so we only queue the writes here.
+    await Promise.all(
+      reordered.map((entry, index) =>
+        replicatedEntriesTable.updateEntry(entry.id, {
+          runOrder: entry.exhibitorOrder ?? index + 1,
+        })
+      )
+    );
     return undefined;
   }, []);
 
@@ -290,6 +296,10 @@ export const AtShowEntryListPage: React.FC = () => {
             // (mirroring myK9Q's hasRuleDefinedMaxTimes) lands in the UI sprint.
             hideMaxTimeOption: !canManageClasses,
             hideSettingsOption: !canManageClasses,
+            // Reports live on the secretary Reports page, not at ringside — the
+            // at-show surface offers no printing (a myK9Q-era affordance from
+            // the Access-upload workflow that doesn't belong here).
+            hidePrintOptions: true,
           }}
         />
       </div>

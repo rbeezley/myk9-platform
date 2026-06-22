@@ -17,6 +17,8 @@ const reviewStep = read(path.join(stepsDir, 'ReviewStep.tsx'));
 const showDetailsStep = read(path.join(stepsDir, 'ShowDetailsStep.tsx'));
 const trialConfigStep = read(path.join(stepsDir, 'TrialConfigurationStep.tsx'));
 const classSelectionStep = read(path.join(stepsDir, 'ClassSelectionStep.tsx'));
+const judgesPicker = read(path.join(stepsDir, 'JudgesPicker.tsx'));
+const officialPicker = read(path.join(stepsDir, 'OfficialPicker.tsx'));
 // The validation-banner disclosure was extracted out of ShowCreationWizardPage
 // into its own sibling component; the a11y guard follows the markup to its new
 // home. The pinned aria string-literals stay byte-identical.
@@ -51,6 +53,24 @@ describe('Show creation wizard — dark-mode theming guards', () => {
     expect(classSelectionStep).toContain('text-warning');
     expect(classSelectionStep).toContain('bg-warning/10');
   });
+
+  it('JudgesPicker qualified badge uses the success token (AA-legible), not raw emerald-400', () => {
+    expect(judgesPicker).toContain('text-success border-success/30');
+    expect(judgesPicker).not.toContain('emerald-400');
+    expect(judgesPicker).not.toContain('text-[10px]');
+  });
+
+  it('OfficialPicker auto-fill badge uses the info token, not raw indigo-400', () => {
+    expect(officialPicker).toContain('text-info border-info/30');
+    expect(officialPicker).not.toContain('indigo-400');
+    expect(officialPicker).not.toContain('text-[10px]');
+  });
+
+  it('Validation banner uses a flat warning tint, not a raw amber gradient + blur', () => {
+    expect(validationBanner).toContain('bg-warning/10');
+    expect(validationBanner).not.toContain('from-amber-');
+    expect(validationBanner).not.toContain('backdrop-blur');
+  });
 });
 
 describe('Show creation wizard — a11y guards', () => {
@@ -66,5 +86,11 @@ describe('Show creation wizard — a11y guards', () => {
     expect(validationBanner).toContain('aria-expanded={expanded}');
     expect(validationBanner).toContain('aria-controls="wizard-validation-details"');
     expect(validationBanner).toContain('id="wizard-validation-details"');
+  });
+
+  it('Wizard validation banner announces on appearance (role="alert")', () => {
+    // The banner is conditionally mounted when Next fails validation; role=alert
+    // makes screen readers announce the summary instead of silently appearing.
+    expect(validationBanner).toContain('role="alert"');
   });
 });

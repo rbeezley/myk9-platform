@@ -1,9 +1,10 @@
 /**
- * Tests for Issue 17: step state desync across workflow mode flips.
+ * Tests for the workflow-mode-change reset effect.
  *
- * The fix adds a useEffect that resets stepCompletionState and currentStep
- * when currentWorkflowMode changes mid-session. This test verifies that
- * behavior using renderHook to isolate the logic.
+ * A useEffect resets stepCompletionState and currentStep — and re-applies the
+ * per-mode payment default (exhibitor → online card, on-behalf → unset) — when
+ * currentWorkflowMode changes mid-session (RBAC resolving async). These tests
+ * verify that behavior using renderHook to isolate the logic.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -14,9 +15,18 @@ import { useState, useRef, useEffect } from 'react';
 // We extract the exact pattern used in RegistrationWizardPage so the test
 // is decoupled from the massive mocking burden of the full page component.
 
+// Mirrors RegistrationWizardPage: exhibitor self-service defaults to online
+// card; on-behalf modes (secretary/admin/club) can't use card checkout, so they
+// start with no method selected.
+const defaultPaymentForMode = (mode: string): 'credit_card' | undefined =>
+  mode === 'exhibitor' ? 'credit_card' : undefined;
+
 function useModeChangeReset(currentWorkflowMode: string) {
   const [stepCompletionState, setStepCompletionState] = useState<Record<string, boolean>>({});
   const [currentStep, setCurrentStep] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState<'credit_card' | undefined>(
+    defaultPaymentForMode(currentWorkflowMode)
+  );
 
   const prevWorkflowMode = useRef(currentWorkflowMode);
   useEffect(() => {
@@ -25,11 +35,19 @@ function useModeChangeReset(currentWorkflowMode: string) {
       /* eslint-disable react-hooks/set-state-in-effect */
       setStepCompletionState({});
       setCurrentStep(0);
+      setPaymentMethod(defaultPaymentForMode(currentWorkflowMode));
       /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [currentWorkflowMode]);
 
-  return { stepCompletionState, currentStep, setStepCompletionState, setCurrentStep };
+  return {
+    stepCompletionState,
+    currentStep,
+    paymentMethod,
+    setStepCompletionState,
+    setCurrentStep,
+    setPaymentMethod,
+  };
 }
 
 // ─── Tests ─────────────────────────────────────────────────────────────────────
@@ -100,6 +118,48 @@ describe('RegistrationWizardPage — step state reset on mode change', () => {
 
     expect(result.current.stepCompletionState).toEqual({ payment: true });
     expect(result.current.currentStep).toBe(4);
+  });
+
+  it('defaults paymentMethod to online card for exhibitor self-service', () => {
+    const { result } = renderHook(() => useModeChangeReset('exhibitor'));
+    expect(result.current.paymentMethod).toBe('credit_card');
+  });
+
+  it('starts with no paymentMethod for on-behalf modes (card checkout unavailable)', () => {
+    expect(renderHook(() => useModeChangeReset('secretary_new')).result.current.paymentMethod).toBe(
+      undefined
+    );
+    expect(renderHook(() => useModeChangeReset('club_admin')).result.current.paymentMethod).toBe(
+      undefined
+    );
+    expect(renderHook(() => useModeChangeReset('site_admin')).result.current.paymentMethod).toBe(
+      undefined
+    );
+  });
+
+  it('clears the card default when RBAC flips exhibitor → on-behalf mid-session', () => {
+    let mode = 'exhibitor';
+    const { result, rerender } = renderHook(() => useModeChangeReset(mode));
+    expect(result.current.paymentMethod).toBe('credit_card');
+
+    // Permissions resolve and the mode flips to an on-behalf flow.
+    mode = 'secretary_new';
+    rerender();
+
+    expect(result.current.paymentMethod).toBeUndefined();
+  });
+
+  it('does NOT clobber a payment choice made within the same mode', () => {
+    const mode = 'exhibitor';
+    const { result, rerender } = renderHook(() => useModeChangeReset(mode));
+
+    // Exhibitor switches from the card default to pay by check at the show.
+    act(() => {
+      result.current.setPaymentMethod(undefined);
+    });
+    rerender();
+
+    expect(result.current.paymentMethod).toBeUndefined();
   });
 
   it('resets again if mode changes a second time', () => {

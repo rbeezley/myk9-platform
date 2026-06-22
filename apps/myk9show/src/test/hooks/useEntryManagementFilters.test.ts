@@ -101,39 +101,10 @@ describe('useEntryManagementFilters — trial/class filters', () => {
     expect(params.get('entryTab')).toBeNull();
   });
 
-  it('setSelectedTab("move-ups") preserves the special tab and syncs attention to the URL', () => {
-    let latestSearch = '';
-    const { result } = renderHook(
-      () => useEntryManagementFilters({ entries: [], tabCounts: emptyTabCounts }),
-      { wrapper: createWrapper('/', search => (latestSearch = search)) }
-    );
-
-    act(() => {
-      result.current.setSelectedTab('move-ups');
-    });
-
-    expect(result.current.selectedTab).toBe('move-ups');
-    const params = new URLSearchParams(latestSearch);
-    expect(params.get('attention')).toBe('move-ups');
-    expect(params.get('entryTab')).toBeNull();
-  });
-
-  it('setSelectedTab("pulled") preserves the special tab and syncs attention to the URL', () => {
-    let latestSearch = '';
-    const { result } = renderHook(
-      () => useEntryManagementFilters({ entries: [], tabCounts: emptyTabCounts }),
-      { wrapper: createWrapper('/', search => (latestSearch = search)) }
-    );
-
-    act(() => {
-      result.current.setSelectedTab('pulled');
-    });
-
-    expect(result.current.selectedTab).toBe('pulled');
-    const params = new URLSearchParams(latestSearch);
-    expect(params.get('attention')).toBe('pulled');
-    expect(params.get('entryTab')).toBeNull();
-  });
+  // move-ups / pulled are no longer attention filters (Phase C moved them to the
+  // dedicated Exceptions tab), so setSelectedTab no longer accepts them. The
+  // legacy-URL migration onto `?tab=exceptions&queue=…` is covered by
+  // entryManagementFilters.test.ts.
 
   it('setSelectedTab("all") removes legacy tab params and preserves unrelated params', () => {
     let latestSearch = '';

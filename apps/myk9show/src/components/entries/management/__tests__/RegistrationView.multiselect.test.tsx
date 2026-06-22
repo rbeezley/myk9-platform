@@ -11,12 +11,6 @@ vi.mock('../EntryStatsCards', () => ({ EntryStatsCards: () => <div data-testid="
 vi.mock('../EnrollmentCard', () => ({
   EnrollmentCard: () => <div data-testid="enrollment-card" />,
 }));
-vi.mock('@/components/entries/MoveUpRequestsTab', () => ({
-  MoveUpRequestsTab: () => <div data-testid="move-up-requests" />,
-}));
-vi.mock('@/components/entries/PullManagementTab', () => ({
-  PullManagementTab: () => <div data-testid="pull-management" />,
-}));
 vi.mock('@/hooks/useEmailStatus', () => ({ useEmailStatus: () => ({ data: {} }) }));
 
 const aClass: EntryClass = { id: 'c1', name: 'Novice A', number: '1', fee: 25, status: 'entered' };
@@ -73,7 +67,6 @@ function renderView(overrides: Record<string, unknown> = {}) {
     onOpenCompDialog: vi.fn(),
     onUncompEntry: vi.fn(),
     onRemoveEntry: vi.fn(),
-    showId: 'show-1',
     onRefresh: vi.fn(),
     enrollmentGroups,
     onSendDecisionEmail: vi.fn().mockResolvedValue(undefined),

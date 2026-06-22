@@ -77,7 +77,10 @@ export function FlagMasthead({
           <a
             href={entryWizardUrl}
             style={{
-              display: 'inline-block',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 44,
               padding: '10px 22px',
               border: `1.5px solid ${brandColors.textOnFlag}`,
               fontFamily: BANNER_BODY_FAMILY,

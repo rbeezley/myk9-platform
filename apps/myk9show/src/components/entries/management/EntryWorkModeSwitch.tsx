@@ -24,8 +24,15 @@ export function EntryWorkModeSwitch({ value, onChange, className }: EntryWorkMod
     <div
       className={cn('flex flex-wrap items-center gap-2', className)}
       role="group"
-      aria-label="Entry work mode"
+      aria-label="Quick view presets"
     >
+      {/*
+        Labeled as a preset, not a fourth mode axis: each button is a shortcut
+        that sets the attention + payment + view filters together. Naming it
+        "Quick views" keeps the secretary from reading it as independent state
+        that fights the filter row below.
+      */}
+      <span className="text-xs font-medium text-muted-foreground">Quick views</span>
       {MODES.map(mode => {
         const active = mode.value === value;
         return (

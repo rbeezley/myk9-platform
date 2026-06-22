@@ -5,6 +5,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { getDogDisplayName } from '@/types/dog-types';
 import { entryIsScored } from '@/utils/entryPredicates';
 import { dbSecondsToInputFormat } from '@/utils/scoringMappings';
+import { selectOwnedDogIds } from '@/utils/dogOwnership';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 
 export interface MyClassEntry {
@@ -51,7 +52,7 @@ export function useMyEntriesInClass(
 
     const releasedById = new Map((releasedRows ?? []).map(r => [r.id, r]));
 
-    const myDogIds = new Set(dogs.filter(d => d.ownerId === databaseUserId).map(d => d.id));
+    const myDogIds = selectOwnedDogIds(dogs, databaseUserId);
     if (myDogIds.size === 0) return { myEntries: [], isAfterClass: false };
 
     const dogNameMap = new Map(

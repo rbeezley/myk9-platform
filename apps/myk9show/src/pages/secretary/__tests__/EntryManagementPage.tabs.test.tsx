@@ -92,14 +92,23 @@ vi.mock('@/services/AuditService', () => ({
 }));
 
 describe('EntryManagementPage tab consolidation', () => {
-  it('shows Entries tab by default', () => {
+  it('shows Entries, Exceptions, and Waitlist tabs by default', () => {
     render(<EntryManagementPage />, { initialRoute: '/secretary/entries' });
     expect(screen.getByRole('tab', { name: 'Entries' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Exceptions' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Waitlist' })).toBeInTheDocument();
   });
 
   it('shows Waitlist content when ?tab=waitlist', () => {
     render(<EntryManagementPage />, { initialRoute: '/secretary/entries?tab=waitlist' });
     expect(screen.getByText('Waitlist Content')).toBeInTheDocument();
+  });
+
+  it('selects the Exceptions tab when ?tab=exceptions', () => {
+    render(<EntryManagementPage />, { initialRoute: '/secretary/entries?tab=exceptions' });
+    expect(screen.getByRole('tab', { name: 'Exceptions' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
   });
 });

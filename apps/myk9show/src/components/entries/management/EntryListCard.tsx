@@ -5,7 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -21,7 +23,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { CheckInStatusIndicator } from '@/components/common/CheckInStatusIndicator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Users, Hash, MessageSquare, Gift, ChevronDown, Trash2 } from 'lucide-react';
+import { Users, Hash, MessageSquare, Gift, ChevronDown, Trash2, CreditCard } from 'lucide-react';
 import { EntryStatus } from '@/types/show-registration-types';
 import {
   getEffectivePaymentStatus,
@@ -284,24 +286,36 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                         >
                           Pulled
                         </DropdownMenuItem>
-                        {isPaymentRequestable(entry) && (
+                        {/* Money group — payment actions live under their own
+                            quiet header so they read as a distinct concern from
+                            the lifecycle (status) items above and the destructive
+                            action below. Each item is individually gated, so the
+                            header only renders when at least one money action is
+                            available. */}
+                        {(isPaymentRequestable(entry) || isStripeRefundable(entry)) && (
                           <>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => setRequestPaymentDialog({ open: true, entry })}
-                            >
-                              Request payment…
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                        {isStripeRefundable(entry) && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => setRefundDialog({ open: true, entry })}
-                            >
-                              Refund payment…
-                            </DropdownMenuItem>
+                            <DropdownMenuGroup>
+                              <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
+                                Payment
+                              </DropdownMenuLabel>
+                              {isPaymentRequestable(entry) && (
+                                <DropdownMenuItem
+                                  onClick={() => setRequestPaymentDialog({ open: true, entry })}
+                                >
+                                  <CreditCard className="h-4 w-4 mr-2" />
+                                  Request payment…
+                                </DropdownMenuItem>
+                              )}
+                              {isStripeRefundable(entry) && (
+                                <DropdownMenuItem
+                                  onClick={() => setRefundDialog({ open: true, entry })}
+                                >
+                                  <CreditCard className="h-4 w-4 mr-2" />
+                                  Refund payment…
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuGroup>
                           </>
                         )}
                         <DropdownMenuSeparator />

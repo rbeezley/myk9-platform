@@ -34,8 +34,8 @@ interface DetailHeroProps {
 }
 
 const badgeStyles: Record<string, string> = {
-  success: 'bg-green-500/10 text-green-600 border-green-500/20',
-  warning: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
+  success: 'bg-success/10 text-success border-success/20',
+  warning: 'bg-warning/10 text-warning border-warning/20',
   destructive: 'bg-destructive/10 text-destructive border-destructive/20',
   default: 'bg-muted text-muted-foreground border-border',
 };

@@ -132,6 +132,8 @@ export function FinalCtaSection({
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: 44,
                 gap: 14,
                 padding: '22px 44px',
                 background: posterColors.ink,

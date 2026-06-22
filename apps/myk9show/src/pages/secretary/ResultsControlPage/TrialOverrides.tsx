@@ -92,7 +92,7 @@ export function TrialOverrides({ showId, trials, trialOverrides }: TrialOverride
                 value={currentPreset ?? ''}
                 onValueChange={v => handleTrialPreset(trial.id, v as VisibilityPreset)}
               >
-                <SelectTrigger className="w-32">
+                <SelectTrigger className="min-h-[44px] w-32">
                   <SelectValue placeholder="Inherit" />
                 </SelectTrigger>
                 <SelectContent>
@@ -106,7 +106,7 @@ export function TrialOverrides({ showId, trials, trialOverrides }: TrialOverride
               {hasOverride && (
                 <Button
                   variant="ghost"
-                  size="icon"
+                  size="icon-lg"
                   title="Reset to show defaults"
                   onClick={() => handleResetTrial(trial.id)}
                   disabled={resetOverride.isPending}

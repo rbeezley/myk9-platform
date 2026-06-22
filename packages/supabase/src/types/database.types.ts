@@ -7993,9 +7993,11 @@ export type Database = {
           exhibitor_id: string
           handler_id: string | null
           id: string
+          joined_via: string | null
           offer_expires_at: string | null
           offered_at: string | null
           position: number
+          promoted_entry_id: string | null
           status: string | null
           updated_at: string | null
           version: number
@@ -8007,9 +8009,11 @@ export type Database = {
           exhibitor_id: string
           handler_id?: string | null
           id?: string
+          joined_via?: string | null
           offer_expires_at?: string | null
           offered_at?: string | null
           position: number
+          promoted_entry_id?: string | null
           status?: string | null
           updated_at?: string | null
           version?: number
@@ -8021,9 +8025,11 @@ export type Database = {
           exhibitor_id?: string
           handler_id?: string | null
           id?: string
+          joined_via?: string | null
           offer_expires_at?: string | null
           offered_at?: string | null
           position?: number
+          promoted_entry_id?: string | null
           status?: string | null
           updated_at?: string | null
           version?: number

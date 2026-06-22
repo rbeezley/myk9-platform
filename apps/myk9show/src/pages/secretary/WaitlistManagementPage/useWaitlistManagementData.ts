@@ -204,7 +204,7 @@ export function useWaitlistManagementData(showId?: string) {
         const body = buildWaitlistOfferMessage({
           dogName: entry.dog?.call_name ?? entry.dog?.name ?? null,
           className: entry.class?.name ?? null,
-          paymentLinkUrl,
+          paymentLinkUrl: paymentLinkUrl ?? null,
         });
         await sendMessage(thread.id, offerShowId, body);
       } catch (err) {

@@ -25,19 +25,19 @@ export function HeritageFooter({
         </p>
         <p
           className="text-xs italic"
-          style={{ color: '#8a7a6a', fontFamily: "'EB Garamond', Georgia, serif" }}
+          style={{ color: 'var(--hl-paper-muted)', fontFamily: "'EB Garamond', Georgia, serif" }}
         >
           {memberClubLanguage}
         </p>
 
-        <div className="my-2 w-16 border-t" style={{ borderColor: '#3a3028' }} />
+        <div className="my-2 w-16 border-t" style={{ borderColor: 'var(--hl-ink-border)' }} />
 
         {(secretaryName || secretaryEmail) && (
           <div className="flex flex-col items-center gap-1">
             {secretaryName && (
               <p
                 className="text-xs uppercase tracking-widest"
-                style={{ color: '#8a7a6a', fontFamily: "'EB Garamond', Georgia, serif" }}
+                style={{ color: 'var(--hl-paper-muted)', fontFamily: "'EB Garamond', Georgia, serif" }}
               >
                 Trial Secretary — {secretaryName}
               </p>
@@ -45,8 +45,8 @@ export function HeritageFooter({
             {secretaryEmail && (
               <a
                 href={`mailto:${secretaryEmail}`}
-                className="text-xs underline"
-                style={{ color: '#8a7a6a', fontFamily: "'EB Garamond', Georgia, serif" }}
+                className="inline-flex min-h-[44px] items-center text-xs underline"
+                style={{ color: 'var(--hl-paper-muted)', fontFamily: "'EB Garamond', Georgia, serif" }}
               >
                 {secretaryEmail}
               </a>
@@ -56,7 +56,7 @@ export function HeritageFooter({
 
         <p
           className="mt-4 text-xs"
-          style={{ color: '#5a4a3a', fontFamily: "'EB Garamond', Georgia, serif" }}
+          style={{ color: 'var(--hl-paper-muted)', fontFamily: "'EB Garamond', Georgia, serif" }}
         >
           © {new Date().getFullYear()} {clubName}. Powered by myK9Show.
         </p>

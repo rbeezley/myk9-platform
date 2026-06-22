@@ -96,7 +96,7 @@ export function FinalCtaSection({
               fontFamily: FIELD_GUIDE_BODY_FAMILY,
               fontSize: 15,
               lineHeight: 1.6,
-              color: 'rgba(246,241,230,0.75)',
+              color: fieldGuideColors.paperTranslucentStrong,
               maxWidth: 540,
             }}
           >
@@ -147,7 +147,10 @@ export function FinalCtaSection({
           <a
             href={entryWizardUrl}
             style={{
-              display: 'block',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 44,
               width: '100%',
               textAlign: 'center',
               padding: 14,
@@ -166,7 +169,14 @@ export function FinalCtaSection({
           <div style={{ marginTop: 10, textAlign: 'center' }}>
             <SeeClassesLink
               href={classesHref}
-              style={{ color: fieldGuideColors.paper, fontFamily: FIELD_GUIDE_BODY_FAMILY }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: 44,
+                color: fieldGuideColors.paper,
+                fontFamily: FIELD_GUIDE_BODY_FAMILY,
+              }}
             />
           </div>
           <div

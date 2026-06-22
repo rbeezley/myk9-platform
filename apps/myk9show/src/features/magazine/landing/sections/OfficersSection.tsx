@@ -97,7 +97,7 @@ export function OfficersSection({
         <p className="mt-8 text-center">
           <a
             href={`mailto:${secretaryEmail}`}
-            className="italic underline"
+            className="inline-flex min-h-[44px] items-center justify-center italic underline"
             style={{
               color: 'var(--mz-quill)',
               fontFamily: 'var(--mz-display)',

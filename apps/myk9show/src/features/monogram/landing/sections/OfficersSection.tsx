@@ -105,7 +105,17 @@ export function OfficersSection({ officers, secretaryName, secretaryEmail }: Off
                   marginTop: 4,
                 }}
               >
-                <a href={`mailto:${officer.email}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                <a
+                  href={`mailto:${officer.email}`}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: 44,
+                    color: 'inherit',
+                    textDecoration: 'none',
+                  }}
+                >
                   {officer.email}
                 </a>
               </div>

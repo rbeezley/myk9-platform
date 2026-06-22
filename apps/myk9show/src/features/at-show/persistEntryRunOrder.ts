@@ -11,8 +11,11 @@
  * via the replication mutation queue. The drag hook owns the optimistic local
  * reorder + grace period; this only queues the writes.
  *
- * The hook leaves entries outside the dragged view untouched, so each write
- * targets a single entry id and never disturbs the other section's order.
+ * Writes are scoped to the entries in the dragged view; the hook leaves
+ * everything outside it untouched. For the single-class list that is one class.
+ * For the combined list it is the MERGED A/B queue — which shares one ring run
+ * order by design, so a combined drag renumbers across both sections (Section A
+ * run_order values do change). That is the intended behavior, not a leak.
  */
 
 import { replicatedEntriesTable } from '@/services/replication';

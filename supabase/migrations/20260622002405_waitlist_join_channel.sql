@@ -24,9 +24,27 @@ AS $$
 DECLARE
   next_position integer;
   new_entry public.waitlist_entries;
+  v_show_id uuid;
+  v_club_id uuid;
 BEGIN
   IF p_joined_via NOT IN ('online', 'mail_in') THEN
     RAISE EXCEPTION 'Invalid waitlist join channel';
+  END IF;
+
+  SELECT t.show_id, s.club_id
+  INTO v_show_id, v_club_id
+  FROM public.classes c
+  JOIN public.trials t ON t.id = c.trial_id
+  JOIN public.shows s ON s.id = t.show_id
+  WHERE c.id = p_class_id;
+
+  IF p_joined_via = 'mail_in'
+     AND NOT (
+       public.is_show_secretary(v_show_id)
+       OR public.is_club_admin(v_club_id)
+       OR public.is_site_admin()
+     ) THEN
+    RAISE EXCEPTION 'Only show managers may create mail-in waitlist rows';
   END IF;
 
   PERFORM pg_advisory_xact_lock(hashtext(p_class_id::text));

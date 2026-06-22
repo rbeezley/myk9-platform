@@ -42,6 +42,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [codex-review-playbook.md](codex-review-playbook.md)                                       | Reference | Codex review playbook                                                 |
 | [feature-audit-2026.md](feature-audit-2026.md)                                             | Reference | Feature Audit — Fall 2026                                             |
 | [ia-review-entry-status-surfaces.md](ia-review-entry-status-surfaces.md)                   | Active    | IA Review: Entry-Status Surfaces (cross-role)                         |
+| [improve-audit-2026-06/README.md](improve-audit-2026-06/README.md)                         | Active    | Improve Audit — June 2026 (remaining plans 003–006)                  |
 | [launch-milestone-qa-checklist.md](launch-milestone-qa-checklist.md)                       | Reference | Launch-Milestone QA Checklist                                         |
 | [navigation-ia.md](navigation-ia.md)                                                       | Reference | Navigation & IA Sketch — Fall 2026                                    |
 | [plan-active-docs-triage-2026-06-14.md](plan-active-docs-triage-2026-06-14.md)             | Active    | Active-Docs Triage — 2026-06-14                                       |

@@ -11,8 +11,12 @@ interface WizardSuccessOverlayProps {
 
 /**
  * Full-screen confirmation shown after a show is created, before navigating
- * away. The confetti burst is owned by the page (it keys off `createdShow`);
- * this component renders only the static overlay content.
+ * away. Intentionally calm: a static success overlay with no confetti.
+ *
+ * INTENT: Show creation is the secretary's admin task, not a dog's earned
+ * moment, so it stays in the working register — the celebration register
+ * (confetti, Fraunces) is reserved for placements/titles per DESIGN.md and
+ * docs/INTENT.md. Do not re-add a confetti burst here. (Removed in PR #912.)
  */
 export const WizardSuccessOverlay: React.FC<WizardSuccessOverlayProps> = ({
   createdShow,

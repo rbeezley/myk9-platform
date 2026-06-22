@@ -48,6 +48,7 @@ type PrintDialogState = CombinedEntryListUiState['printDialogState'];
 import { replicatedShowsTable } from '@/services/replication';
 import { logger } from '@/utils/logger';
 import { applyCombinedRunOrder } from './applyCombinedRunOrder';
+import { notifyRunOrderPersistError } from './runOrderErrorToast';
 import { persistEntryRunOrder } from './persistEntryRunOrder';
 import { buildRingsideContextValue } from './ringsideCapabilities';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
@@ -224,7 +225,18 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
         setIsDragMode(true);
         return;
       }
-      await applyCombinedRunOrder(localEntries, preset, scope, renumberMode);
+      try {
+        await applyCombinedRunOrder(localEntries, preset, scope, renumberMode);
+      } catch (error) {
+        // Surface the failure, then re-throw: the ringside CombinedEntryListPage
+        // wrapper catches it to close the dialog WITHOUT flashing the success
+        // banner. Swallowing here would let that banner show on a failed write.
+        notifyRunOrderPersistError(error);
+        throw error;
+      }
+      // The write landed — re-pull is best-effort reconciliation, kept OUT of the
+      // try so a refresh hiccup can't read as a failed apply (false error toast +
+      // suppressed success banner). The persist outcome alone decides success.
       await refresh();
     },
     [localEntries, refresh]

@@ -83,11 +83,25 @@ describe('getClassStatusTier', () => {
     expect(getClassStatusTier('mystery')).toBe('info');
   });
 
-  it('maps in-progress to success and offline to destructive', () => {
-    expect(getClassStatusTier('in_progress')).toBe('success');
+  it('maps in-progress to the Ring Green live tier (not success), matching the class-list card', () => {
+    // DESIGN.md "Ring Green Rule": a live class is Ring Green here too, so the
+    // popover "Status:" row agrees with the class-list pill (PR #925 follow-up).
+    expect(getClassStatusTier('in_progress')).toBe('live');
+    expect(getClassStatusTier('in_progress')).not.toBe('success');
+  });
+
+  it('keeps the non-live status mappings intact', () => {
     expect(getClassStatusTier('offline')).toBe('destructive');
     expect(getClassStatusTier('briefing')).toBe('warning');
+    expect(getClassStatusTier('setup')).toBe('warning');
+    expect(getClassStatusTier('none')).toBe('info');
+    expect(getClassStatusTier('break')).toBe('info');
     expect(getClassStatusTier('completed')).toBe('neutral');
+  });
+
+  it('renders the live tier through var(--live), never text-success', () => {
+    expect(badgeClass(getClassStatusTier('in_progress'))).toContain('var(--live)');
+    expect(badgeClass(getClassStatusTier('in_progress'))).not.toContain('text-success');
   });
 });
 

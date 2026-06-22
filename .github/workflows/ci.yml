@@ -34,7 +34,7 @@ jobs:
     if: github.event_name == 'push' || github.event.pull_request.draft == false
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v6
 
@@ -67,7 +67,7 @@ jobs:
     if: github.event_name == 'push' || github.event.pull_request.draft == false
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v6
 
@@ -102,7 +102,7 @@ jobs:
         shard: [1, 2, 3]
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v6
 
@@ -153,7 +153,7 @@ jobs:
     if: github.event_name == 'push'
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v6
 
@@ -181,7 +181,7 @@ jobs:
     needs: [test]
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v6
 
@@ -220,7 +220,7 @@ jobs:
     if: github.event_name == 'push' || github.event.pull_request.draft == false
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v6
 
@@ -260,7 +260,7 @@ jobs:
 
       - name: Upload a11y report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: myk9show-a11y-report
           path: apps/myk9show/playwright-report-ci/
@@ -278,7 +278,7 @@ jobs:
     if: github.event_name == 'push' || github.event.pull_request.draft == false
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v6
 
@@ -312,7 +312,7 @@ jobs:
 
       - name: Upload E2E results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: myk9show-e2e-results
           path: apps/myk9show/playwright-report-ci/

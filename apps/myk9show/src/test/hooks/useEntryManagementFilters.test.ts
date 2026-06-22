@@ -203,22 +203,87 @@ describe('useEntryManagementFilters — trial/class filters', () => {
     expect(result.current.viewMode).toBe('registration');
   });
 
-  it('derives viewMode "roster" when trial is set but class is not', () => {
+  it('stays in registration when a trial is selected without the roster toggle (Phase D)', () => {
     const { result } = renderHook(
       () => useEntryManagementFilters({ entries: [], tabCounts: emptyTabCounts }),
       { wrapper: createWrapper('/?trial=trial-1') }
     );
 
-    expect(result.current.viewMode).toBe('roster');
+    // Selecting a trial no longer silently morphs the page into a roster.
+    expect(result.current.viewMode).toBe('registration');
+    expect(result.current.rosterView).toBe(false);
   });
 
-  it('derives viewMode "scoring" when both trial and class are set', () => {
+  it('derives viewMode "roster" only with an explicit ?roster=1 toggle on a trial', () => {
+    const { result } = renderHook(
+      () => useEntryManagementFilters({ entries: [], tabCounts: emptyTabCounts }),
+      { wrapper: createWrapper('/?trial=trial-1&roster=1') }
+    );
+
+    expect(result.current.viewMode).toBe('roster');
+    expect(result.current.rosterView).toBe(true);
+  });
+
+  it('never derives a "scoring" view — selecting a class stays in registration (Phase D)', () => {
     const { result } = renderHook(
       () => useEntryManagementFilters({ entries: [], tabCounts: emptyTabCounts }),
       { wrapper: createWrapper('/?trial=trial-1&class=class-1') }
     );
 
-    expect(result.current.viewMode).toBe('scoring');
+    // Scoring is a deep-link out now, not a view of this page.
+    expect(result.current.viewMode).toBe('registration');
+  });
+
+  it('setRosterView toggles the roster param and view mode', () => {
+    let latestSearch = '';
+    const { result } = renderHook(
+      () => useEntryManagementFilters({ entries: [], tabCounts: emptyTabCounts }),
+      { wrapper: createWrapper('/?trial=trial-1', search => (latestSearch = search)) }
+    );
+
+    act(() => result.current.setRosterView(true));
+    expect(result.current.viewMode).toBe('roster');
+    expect(new URLSearchParams(latestSearch).get('roster')).toBe('1');
+
+    act(() => result.current.setRosterView(false));
+    expect(result.current.viewMode).toBe('registration');
+    expect(new URLSearchParams(latestSearch).has('roster')).toBe(false);
+  });
+
+  it('drops the roster toggle when the trial is cleared', () => {
+    let latestSearch = '';
+    const { result } = renderHook(
+      () => useEntryManagementFilters({ entries: [], tabCounts: emptyTabCounts }),
+      { wrapper: createWrapper('/?trial=trial-1&roster=1', search => (latestSearch = search)) }
+    );
+
+    act(() => result.current.setTrialFilter(null));
+
+    expect(result.current.viewMode).toBe('registration');
+    expect(new URLSearchParams(latestSearch).has('roster')).toBe(false);
+  });
+
+  it('filters the entry list in place by class, and by trial when class ids are supplied', () => {
+    const klass = (id: string) => ({ id }) as EntryManagementEntry['classes'][number];
+    const entries = [
+      makeEntry({ id: 'in-class', classes: [klass('class-1')] }),
+      makeEntry({ id: 'other-class', classes: [klass('class-2')] }),
+    ] as EntryManagementEntry[];
+    const tabCounts = { all: 2, pending: 0, accepted: 2, waitlist: 0, issues: 0 };
+
+    // Class filter matches an entry's class directly (no trial class set needed).
+    const byClass = renderHook(
+      () => useEntryManagementFilters({ entries, tabCounts }),
+      { wrapper: createWrapper('/?class=class-1') }
+    );
+    expect(byClass.result.current.filteredEntries.map(e => e.id)).toEqual(['in-class']);
+
+    // Trial filter narrows to entries whose class is in the trial's class set.
+    const byTrial = renderHook(
+      () => useEntryManagementFilters({ entries, tabCounts, trialClassIds: ['class-2'] }),
+      { wrapper: createWrapper('/?trial=trial-1') }
+    );
+    expect(byTrial.result.current.filteredEntries.map(e => e.id)).toEqual(['other-class']);
   });
 
   it('clears classFilter when trialFilter changes', () => {
@@ -362,7 +427,8 @@ describe('useEntryManagementFilters — trial/class filters', () => {
     act(() => result.current.setClassFilter('class-1'));
 
     expect(result.current.classFilter).toBe('class-1');
-    expect(result.current.viewMode).toBe('scoring');
+    // Phase D: a class selection filters in place; it no longer enters scoring.
+    expect(result.current.viewMode).toBe('registration');
   });
 
   it('setClassFilter(null) removes class but preserves trial', () => {
@@ -378,7 +444,8 @@ describe('useEntryManagementFilters — trial/class filters', () => {
 
     expect(result.current.classFilter).toBeNull();
     expect(result.current.trialFilter).toBe('trial-1');
-    expect(result.current.viewMode).toBe('roster');
+    // Without an explicit roster toggle, clearing the class stays in registration.
+    expect(result.current.viewMode).toBe('registration');
   });
 
   it('preserves existing hook functionality (search, status, payment filters)', () => {

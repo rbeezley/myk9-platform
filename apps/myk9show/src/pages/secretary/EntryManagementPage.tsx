@@ -24,7 +24,7 @@ import {
   FilterBreadcrumb,
   TrialClassFilters,
   TrialRosterView,
-  ScoringModeWrapper,
+  TrialScopeBar,
   RegistrationView,
   ExceptionsView,
 } from '@/components/entries/management';
@@ -46,7 +46,11 @@ const EntryManagementPage: React.FC = () => {
   const urlShowId = params.showId ?? params.id;
   const navigate = useNavigate();
   const [activePageTab] = useUrlTab(['entries', 'exceptions', 'waitlist'] as const, 'entries');
-  const [, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Read the trial param directly so the trial's class list can be fetched
+  // before useEntryManagementFilters (which consumes the class ids to filter the
+  // entry list in place).
+  const trialParam = searchParams.get('trial');
 
   // Combined tab + filter reset: leaving Entries clears trial/class params so
   // returning doesn't unexpectedly re-enter scoring mode; the Exceptions queue
@@ -89,6 +93,15 @@ const EntryManagementPage: React.FC = () => {
     refreshEmailLog,
   } = useEntryManagementData(urlShowId);
 
+  // Classes for the selected trial — fetched before useEntryManagementFilters so
+  // their ids can scope the (show-wide) entry list to the chosen trial.
+  const { data: rawTrialClasses = [], isLoading: isLoadingClasses } = useClassesByTrialQuery(
+    trialParam || '',
+    !!trialParam
+  );
+  const trialClasses = rawTrialClasses as Array<{ id: string; name: string | null }>;
+  const trialClassIds = useMemo(() => trialClasses.map(c => c.id), [trialClasses]);
+
   const {
     searchTerm,
     setSearchTerm,
@@ -103,10 +116,12 @@ const EntryManagementPage: React.FC = () => {
     trialFilter,
     classFilter,
     viewMode,
+    rosterView,
+    setRosterView,
     setTrialFilter,
     setClassFilter,
     filteredEntries,
-  } = useEntryManagementFilters({ entries, tabCounts, showId: selectedShowId });
+  } = useEntryManagementFilters({ entries, tabCounts, showId: selectedShowId, trialClassIds });
 
   const enrollmentGroups: EnrollmentGroup[] = useMemo(
     () => groupEntriesByEnrollment(filteredEntries),
@@ -146,14 +161,18 @@ const EntryManagementPage: React.FC = () => {
     date: string | null;
     trial_number: string | number | null;
   }>;
-  const { data: rawTrialClasses = [], isLoading: isLoadingClasses } = useClassesByTrialQuery(
-    trialFilter || '',
-    !!trialFilter
-  );
-  const trialClasses = rawTrialClasses as Array<{ id: string; name: string | null }>;
   const { data: trialEntryRows = [], isLoading: isLoadingTrialEntries } = useTrialEntries(
     trialFilter || ''
   );
+
+  // Breadcrumb display names for the active trial/class filters.
+  const breadcrumbTrial = trialFilter ? trials.find(tr => tr.id === trialFilter) : null;
+  const breadcrumbTrialName = breadcrumbTrial
+    ? breadcrumbTrial.name || `Trial ${breadcrumbTrial.trial_number}`
+    : null;
+  const breadcrumbClassName = classFilter
+    ? (trialClasses.find(cl => cl.id === classFilter)?.name ?? null)
+    : null;
 
   const rosterEntries = useMemo(() => {
     if (!trialEntryRows.length) return [];
@@ -347,25 +366,23 @@ const EntryManagementPage: React.FC = () => {
 
               {/* Filter Breadcrumb */}
               <FilterBreadcrumb
-                trialName={
-                  trialFilter
-                    ? (() => {
-                        const t = trials.find(tr => tr.id === trialFilter);
-                        return t ? t.name || `Trial ${t.trial_number}` : null;
-                      })()
-                    : null
-                }
-                className={
-                  classFilter
-                    ? (() => {
-                        const c = trialClasses.find(cl => cl.id === classFilter);
-                        return c?.name || null;
-                      })()
-                    : null
-                }
+                trialName={breadcrumbTrialName}
+                className={breadcrumbClassName}
                 onClearTrial={() => setTrialFilter(null)}
                 onClearClass={() => setClassFilter(null)}
               />
+
+              {/* Trial scope controls (List/Roster toggle + "Score this class"
+                  deep-link) — only once a trial is selected. Replaces the old
+                  silent mode-switch; nothing changes shape or navigates without
+                  a deliberate click. */}
+              {trialFilter && (
+                <TrialScopeBar
+                  rosterView={rosterView}
+                  onRosterViewChange={setRosterView}
+                  classId={classFilter}
+                />
+              )}
 
               {/* Registration view: stats, filters, bulk actions, and entries */}
               {viewMode === 'registration' && (
@@ -417,21 +434,12 @@ const EntryManagementPage: React.FC = () => {
                 />
               )}
 
-              {/* Roster view: trial entries grouped by class */}
+              {/* Roster view: trial entries grouped by class (explicit toggle) */}
               {viewMode === 'roster' && (
                 <TrialRosterView
                   entries={rosterEntries}
                   onClassClick={classId => setClassFilter(classId)}
                   isLoading={isLoadingTrialEntries}
-                />
-              )}
-
-              {viewMode === 'scoring' && classFilter && (
-                <ScoringModeWrapper
-                  classId={classFilter}
-                  showId={selectedShowId}
-                  trialId={trialFilter || ''}
-                  onBack={() => setClassFilter(null)}
                 />
               )}
             </div>

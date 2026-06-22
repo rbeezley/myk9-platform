@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { describe, it, expect } from 'vitest';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import {
@@ -6,8 +7,13 @@ import {
   mapStatusToDb,
   mapClassEntryStatus,
   getEntryStatusClasses,
+  getEntryStatusBadge,
+  getPaymentStatusBadge,
   getEntryPaidAmount,
 } from './entryManagementUtils';
+
+const badgeClass = (node: ReturnType<typeof getEntryStatusBadge>): string =>
+  ((node as ReactElement<{ className?: string }>).props.className ?? '');
 
 describe('mapEntryStatus', () => {
   it("maps 'confirmed' to ACCEPTED", () => {
@@ -124,6 +130,53 @@ describe('getEntryStatusClasses — colour via the shared classifier KIND', () =
     expect(getEntryStatusClasses('paid')).toContain('text-warning');
     expect(getEntryStatusClasses('paid')).not.toContain('text-success');
     expect(getEntryStatusClasses('promotion-expired')).toContain('text-warning');
+  });
+});
+
+describe('getEntryStatusBadge / getPaymentStatusBadge — warm --chip-* token vocabulary', () => {
+  // Regression guard: these badges must use the --chip-* token pairs (which ship
+  // matched dark values), never raw Tailwind palette classes (no dark: variant →
+  // light chip on a dark card) and never cool grays outside the status vocabulary.
+  it('tints entry-status chips with chip tokens, never raw palette classes', () => {
+    expect(badgeClass(getEntryStatusBadge(EntryStatus.ACCEPTED))).toContain('var(--chip-teal-bg)');
+    expect(badgeClass(getEntryStatusBadge(EntryStatus.WAITLIST))).toContain('var(--chip-amber-bg)');
+    expect(badgeClass(getEntryStatusBadge(EntryStatus.COMPLETED))).toContain('var(--chip-blue-bg)');
+  });
+
+  it('moves "Pulled"/"Moved" off cool gray onto the warm stone (inactive) token', () => {
+    expect(badgeClass(getEntryStatusBadge(EntryStatus.SCRATCHED))).toContain('var(--chip-stone-bg)');
+    expect(badgeClass(getEntryStatusBadge(EntryStatus.MOVED))).toContain('var(--chip-stone-bg)');
+    expect(badgeClass(getEntryStatusBadge(EntryStatus.SCRATCHED))).not.toContain('gray');
+  });
+
+  it('overrides the Badge default hover so filled chips do not flip to the accent', () => {
+    // Regression guard: Badge's default variant carries hover:bg-primary/80, so a
+    // tokenized chip without its own hover override flips to the user's accent on
+    // hover. Each filled chip must re-assert its token bg on hover.
+    expect(badgeClass(getEntryStatusBadge(EntryStatus.ACCEPTED))).toContain(
+      'hover:bg-[color:var(--chip-teal-bg)]'
+    );
+    expect(badgeClass(getEntryStatusBadge(EntryStatus.SCRATCHED))).toContain(
+      'hover:bg-[color:var(--chip-stone-bg)]'
+    );
+    expect(badgeClass(getEntryStatusBadge(EntryStatus.WAITLIST))).not.toContain('hover:bg-primary');
+  });
+
+  it('tints payment chips with chip tokens', () => {
+    expect(badgeClass(getPaymentStatusBadge(PaymentStatus.PAID_ONLINE))).toContain(
+      'var(--chip-teal-bg)'
+    );
+    expect(badgeClass(getPaymentStatusBadge(PaymentStatus.PENDING))).toContain('var(--chip-red-bg)');
+    expect(badgeClass(getPaymentStatusBadge(PaymentStatus.REFUNDED))).toContain(
+      'var(--chip-blue-fg)'
+    );
+  });
+
+  it('leaves no raw Tailwind palette class on any entry-status chip', () => {
+    const rawPalette = /bg-(teal|amber|gray|blue|red|green|slate|zinc)-\d{2,3}/;
+    for (const status of Object.values(EntryStatus)) {
+      expect(badgeClass(getEntryStatusBadge(status))).not.toMatch(rawPalette);
+    }
   });
 });
 

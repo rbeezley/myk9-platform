@@ -151,39 +151,52 @@ export const mapStatusToDb = (status: EntryStatus): CanonicalEntryStatus => {
   }
 };
 
+// Status/payment chips speak the warm `--chip-*` token vocabulary (each pair
+// ships matched light + dark values) instead of raw Tailwind palette classes,
+// which had no `dark:` variant (light chip on a dark card) and used cool grays
+// banned outside the status vocabulary. Hues are preserved; "Pulled"/"Moved"
+// move from cool gray to the warm `stone=inactive` token.
+// Each filled chip overrides the Badge default variant's hover:bg-primary/80
+// (badgeVariants.ts) with its own token, otherwise a tokenized chip flips to the
+// user's accent on hover. The outline-variant CHIP_BLUE_FG needs no hover (the
+// outline variant has no hover background).
+const CHIP_TEAL =
+  'bg-[color:var(--chip-teal-bg)] text-[color:var(--chip-teal-fg)] hover:bg-[color:var(--chip-teal-bg)]';
+const CHIP_AMBER =
+  'bg-[color:var(--chip-amber-bg)] text-[color:var(--chip-amber-fg)] hover:bg-[color:var(--chip-amber-bg)]';
+const CHIP_STONE =
+  'bg-[color:var(--chip-stone-bg)] text-[color:var(--chip-stone-fg)] hover:bg-[color:var(--chip-stone-bg)]';
+const CHIP_BLUE =
+  'bg-[color:var(--chip-blue-bg)] text-[color:var(--chip-blue-fg)] hover:bg-[color:var(--chip-blue-bg)]';
+const CHIP_RED =
+  'bg-[color:var(--chip-red-bg)] text-[color:var(--chip-red-fg)] hover:bg-[color:var(--chip-red-bg)]';
+const CHIP_BLUE_FG = 'text-[color:var(--chip-blue-fg)]';
+
 /**
  * Get badge component for entry status
  */
 export function getEntryStatusBadge(status: EntryStatus): React.ReactNode {
   switch (status) {
     case EntryStatus.ACCEPTED:
-      return React.createElement(Badge, { className: 'bg-teal-100 text-teal-800' }, 'Accepted');
+      return React.createElement(Badge, { className: CHIP_TEAL }, 'Accepted');
     case EntryStatus.PENDING:
       return React.createElement(Badge, { variant: 'secondary' }, 'Pending');
     case EntryStatus.WAITLIST:
-      return React.createElement(Badge, { className: 'bg-amber-100 text-amber-800' }, 'Waitlist');
+      return React.createElement(Badge, { className: CHIP_AMBER }, 'Waitlist');
     case EntryStatus.REJECTED:
       return React.createElement(Badge, { variant: 'destructive' }, 'Not Accepted');
     case EntryStatus.CANCELLED:
       return React.createElement(Badge, { variant: 'outline' }, 'Withdrawn');
     case EntryStatus.MISSING_INFO:
-      return React.createElement(
-        Badge,
-        { className: 'bg-amber-100 text-amber-800' },
-        'Missing Info'
-      );
+      return React.createElement(Badge, { className: CHIP_AMBER }, 'Missing Info');
     case EntryStatus.SCRATCHED:
-      return React.createElement(Badge, { className: 'bg-gray-100 text-gray-700' }, 'Pulled');
+      return React.createElement(Badge, { className: CHIP_STONE }, 'Pulled');
     case EntryStatus.MOVED:
-      return React.createElement(Badge, { className: 'bg-gray-100 text-gray-700' }, 'Moved');
+      return React.createElement(Badge, { className: CHIP_STONE }, 'Moved');
     case EntryStatus.COMPLETED:
-      return React.createElement(Badge, { className: 'bg-blue-100 text-blue-800' }, 'Scored');
+      return React.createElement(Badge, { className: CHIP_BLUE }, 'Scored');
     case EntryStatus.MOVE_UP_REQUESTED:
-      return React.createElement(
-        Badge,
-        { className: 'bg-amber-100 text-amber-800' },
-        'Move-Up Requested'
-      );
+      return React.createElement(Badge, { className: CHIP_AMBER }, 'Move-Up Requested');
     default:
       return React.createElement(Badge, { variant: 'outline' }, 'Unknown');
   }
@@ -197,19 +210,19 @@ export function getPaymentStatusBadge(status: PaymentStatus): React.ReactNode {
     case PaymentStatus.PAID_ONLINE:
     case PaymentStatus.PAID_BY_CHECK:
     case PaymentStatus.PAID_BY_CASH:
-      return React.createElement(Badge, { className: 'bg-teal-100 text-teal-800' }, 'Paid');
+      return React.createElement(Badge, { className: CHIP_TEAL }, 'Paid');
     case PaymentStatus.PENDING:
-      return React.createElement(Badge, { className: 'bg-red-100 text-red-800' }, 'Payment Due');
+      return React.createElement(Badge, { className: CHIP_RED }, 'Payment Due');
     case PaymentStatus.REFUNDED:
       return React.createElement(
         Badge,
-        { variant: 'outline', className: 'text-blue-600' },
+        { variant: 'outline', className: CHIP_BLUE_FG },
         'Refunded'
       );
     case PaymentStatus.PARTIAL_REFUND:
       return React.createElement(
         Badge,
-        { variant: 'outline', className: 'text-blue-600' },
+        { variant: 'outline', className: CHIP_BLUE_FG },
         'Partial Refund'
       );
     default:

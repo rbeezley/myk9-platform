@@ -5,10 +5,8 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useWaitlistManagementData } from '../useWaitlistManagementData';
 import { createTestQueryClient } from '@/test/utils/testUtils';
-import {
-  getWaitlistOfferMessageTarget,
-  promoteWaitlistEntry,
-} from '@/services/database/waitlists';
+import { supabase } from '@/lib/supabase';
+import { getWaitlistOfferMessageTarget, promoteWaitlistEntry } from '@/services/database/waitlists';
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ user: { id: 'user-1' } }),
@@ -16,6 +14,14 @@ vi.mock('@/hooks/useAuthContext', () => ({
 
 vi.mock('@/services/LoggingService', () => ({
   logger: { error: vi.fn(), debug: vi.fn() },
+}));
+
+vi.mock('@/lib/supabase', () => ({
+  supabase: {
+    functions: {
+      invoke: vi.fn(),
+    },
+  },
 }));
 
 vi.mock('sonner', () => ({
@@ -149,6 +155,10 @@ describe('useWaitlistManagementData — offer notification', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(promoteWaitlistEntry).mockResolvedValue('pending-payment-entry-1');
+    vi.mocked(supabase.functions.invoke).mockResolvedValue({
+      data: { url: 'https://checkout.stripe.com/c/pay/cs_waitlist_1' },
+      error: null,
+    });
     vi.mocked(getWaitlistOfferMessageTarget).mockResolvedValue({
       data: { participantAuthUserId: 'auth-user-9', exhibitorName: 'Jane Doe' },
       error: null,
@@ -179,11 +189,18 @@ describe('useWaitlistManagementData — offer notification', () => {
     expect(mockGetOrCreateThread).toHaveBeenCalledWith('show-77', 'auth-user-9');
 
     // Posts the offer message to that thread for the same show.
+    expect(supabase.functions.invoke).toHaveBeenCalledWith('stripe-payment-link', {
+      body: {
+        entry_ids: ['pending-payment-entry-1'],
+        success_url: 'http://localhost:3000/shows/show-77?payment=success',
+        cancel_url: 'http://localhost:3000/shows/show-77?payment=cancelled',
+      },
+    });
     expect(mockSendMessage).toHaveBeenCalledWith(
       'thread-1',
       'show-77',
       'A waitlist spot in Novice A just opened up for Rex! ' +
-        'Open My Entries to accept the offer before it expires.'
+        'Complete payment to claim it: https://checkout.stripe.com/c/pay/cs_waitlist_1'
     );
 
     // A successful in-app delivery must NOT raise the "couldn't reach" warning.
@@ -208,7 +225,39 @@ describe('useWaitlistManagementData — offer notification', () => {
     });
 
     expect(getWaitlistOfferMessageTarget).not.toHaveBeenCalled();
+    expect(supabase.functions.invoke).not.toHaveBeenCalled();
     expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the existing message when payment link creation fails', async () => {
+    vi.mocked(supabase.functions.invoke).mockResolvedValue({
+      data: null,
+      error: new Error('link failed'),
+    });
+
+    const { result } = renderHook(() => useWaitlistManagementData('show-77'), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+
+    act(() => {
+      result.current.setActionDialog({ open: true, action: 'offer', entry: sampleEntry });
+    });
+
+    await act(async () => {
+      await result.current.handleOfferSpot();
+    });
+
+    expect(toast.warning).toHaveBeenCalledWith(
+      'Spot offered, but the payment link could not be created. Request payment from the entry list.'
+    );
+    expect(mockSendMessage).toHaveBeenCalledWith(
+      'thread-1',
+      'show-77',
+      'A waitlist spot in Novice A just opened up for Rex! ' +
+        'Open My Entries to accept the offer before it expires.'
+    );
   });
 
   it('skips messaging when the exhibitor has no auth account', async () => {
@@ -236,9 +285,7 @@ describe('useWaitlistManagementData — offer notification', () => {
 
     // The offer is time-boxed, so the secretary must be told the exhibitor
     // could not be reached in-app — named, so they know who to contact directly.
-    expect(vi.mocked(toast.warning)).toHaveBeenCalledWith(
-      expect.stringContaining('Jane Doe')
-    );
+    expect(vi.mocked(toast.warning)).toHaveBeenCalledWith(expect.stringContaining('Jane Doe'));
   });
 
   it('warns (but does not message) when the inbox thread cannot be opened', async () => {
@@ -259,8 +306,6 @@ describe('useWaitlistManagementData — offer notification', () => {
     });
 
     expect(mockSendMessage).not.toHaveBeenCalled();
-    expect(vi.mocked(toast.warning)).toHaveBeenCalledWith(
-      expect.stringContaining('Jane Doe')
-    );
+    expect(vi.mocked(toast.warning)).toHaveBeenCalledWith(expect.stringContaining('Jane Doe'));
   });
 });

@@ -9,6 +9,7 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
+const cronSecret = Deno.env.get('CRON_SECRET');
 
 if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey || !stripeSecret) {
   throw new Error('Missing required environment variables');
@@ -42,7 +43,8 @@ function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
   return {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Headers':
+      'authorization, x-client-info, apikey, content-type, x-function-secret',
   };
 }
 
@@ -107,17 +109,25 @@ Deno.serve(async req => {
     if (req.method === 'OPTIONS') return corsResponse({}, 204);
     if (req.method !== 'POST') return corsResponse({ error: 'Method not allowed' }, 405);
 
-    // Authenticate the caller (the secretary/admin issuing the link).
+    const internalSecret = req.headers.get('x-function-secret');
+    const isInternalCall = Boolean(cronSecret && internalSecret === cronSecret);
+
+    // Authenticate the caller (the secretary/admin issuing the link). Cron may
+    // call with x-function-secret after it creates a waitlist promotion.
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) return corsResponse({ error: 'Missing Authorization header' }, 401);
-    const token = authHeader.replace('Bearer ', '');
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(token);
-    if (authError || !user) {
-      console.error('Authentication failed:', authError);
-      return corsResponse({ error: 'Authentication failed' }, 401);
+    let userId: string | null = null;
+    if (!isInternalCall) {
+      if (!authHeader) return corsResponse({ error: 'Missing Authorization header' }, 401);
+      const token = authHeader.replace('Bearer ', '');
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser(token);
+      if (authError || !user) {
+        console.error('Authentication failed:', authError);
+        return corsResponse({ error: 'Authentication failed' }, 401);
+      }
+      userId = user.id;
     }
 
     const body: PaymentLinkRequest = await req.json();
@@ -165,23 +175,25 @@ Deno.serve(async req => {
     }
     const show = entries[0].show;
 
-    // Authorize AS THE CALLER via the canonical SQL predicates (mirror
-    // stripe-refund-entry): show-scoped secretary, the club's admin, or site
-    // admin. No club → no club-admin path (is_club_admin(NULL) = any club).
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const [secretaryRes, clubAdminRes, siteAdminRes] = await Promise.all([
-      userClient.rpc('is_show_secretary', { check_show_id: show.id }),
-      show.club_id
-        ? userClient.rpc('is_club_admin', { check_club_id: show.club_id })
-        : Promise.resolve({ data: false }),
-      userClient.rpc('is_site_admin'),
-    ]);
-    const authorized =
-      secretaryRes.data === true || clubAdminRes.data === true || siteAdminRes.data === true;
-    if (!authorized) {
-      return corsResponse({ error: 'Not authorized to request payment for this show' }, 403);
+    if (!isInternalCall) {
+      // Authorize AS THE CALLER via the canonical SQL predicates (mirror
+      // stripe-refund-entry): show-scoped secretary, the club's admin, or site
+      // admin. No club → no club-admin path (is_club_admin(NULL) = any club).
+      const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const [secretaryRes, clubAdminRes, siteAdminRes] = await Promise.all([
+        userClient.rpc('is_show_secretary', { check_show_id: show.id }),
+        show.club_id
+          ? userClient.rpc('is_club_admin', { check_club_id: show.club_id })
+          : Promise.resolve({ data: false }),
+        userClient.rpc('is_site_admin'),
+      ]);
+      const authorized =
+        secretaryRes.data === true || clubAdminRes.data === true || siteAdminRes.data === true;
+      if (!authorized) {
+        return corsResponse({ error: 'Not authorized to request payment for this show' }, 403);
+      }
     }
 
     // The club must be able to receive online entry fees (the charge lands in
@@ -327,7 +339,7 @@ Deno.serve(async req => {
       stripe_checkout_session_id: session.id,
       status: 'open',
       amount_cents: amountCents,
-      created_by: user.id,
+      created_by: userId,
     });
     if (insertError) {
       // Without the persisted row the webhook can still reconcile from session
@@ -345,7 +357,7 @@ Deno.serve(async req => {
     console.log(
       `Created entry payment link ${session.id} for ${entry_ids.length} entr${
         entry_ids.length === 1 ? 'y' : 'ies'
-      } (show ${show.id}) by ${user.id}`
+      } (show ${show.id}) by ${userId ?? 'cron'}`
     );
     // Return the exact breakdown so the dialog can disclose entry fee + platform
     // fee = total (fee-on-top) without re-deriving fee math on the client.

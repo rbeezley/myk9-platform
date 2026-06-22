@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
 import {
   getClassesWithWaitlistCounts,
@@ -151,7 +152,8 @@ export function useWaitlistManagementData(showId?: string) {
     async (
       offer: { exhibitor_id?: string | null } | null | undefined,
       entry: WaitlistEntry,
-      offerShowId: string
+      offerShowId: string,
+      paymentLinkUrl?: string | null
     ) => {
       const exhibitorId = offer?.exhibitor_id;
       if (!exhibitorId || !offerShowId) return;
@@ -202,6 +204,7 @@ export function useWaitlistManagementData(showId?: string) {
         const body = buildWaitlistOfferMessage({
           dogName: entry.dog?.call_name ?? entry.dog?.name ?? null,
           className: entry.class?.name ?? null,
+          paymentLinkUrl,
         });
         await sendMessage(thread.id, offerShowId, body);
       } catch (err) {
@@ -217,6 +220,29 @@ export function useWaitlistManagementData(showId?: string) {
     [getOrCreateThread, sendMessage]
   );
 
+  const createWaitlistPaymentLink = useCallback(
+    async (entryId: string, offerShowId: string): Promise<string> => {
+      const origin = window.location.origin;
+      const { data, error: invokeError } = await supabase.functions.invoke('stripe-payment-link', {
+        body: {
+          entry_ids: [entryId],
+          success_url: `${origin}/shows/${offerShowId}?payment=success`,
+          cancel_url: `${origin}/shows/${offerShowId}?payment=cancelled`,
+        },
+      });
+
+      if (invokeError) {
+        throw invokeError;
+      }
+      if (!data?.url || typeof data.url !== 'string') {
+        throw new Error('Payment link response did not include a URL');
+      }
+
+      return data.url;
+    },
+    []
+  );
+
   const handleOfferSpot = useCallback(async () => {
     if (!actionDialog.entry) return;
 
@@ -224,7 +250,22 @@ export function useWaitlistManagementData(showId?: string) {
     setError(null);
 
     try {
-      await promoteWaitlistEntry(actionDialog.entry.id);
+      const promotedEntryId = await promoteWaitlistEntry(actionDialog.entry.id);
+
+      let paymentLinkUrl: string | null = null;
+      try {
+        paymentLinkUrl = await createWaitlistPaymentLink(promotedEntryId, selectedShowId);
+      } catch (err) {
+        logger.error(
+          'Waitlist offer: failed to create payment link',
+          'secretary',
+          { waitlistEntryId: actionDialog.entry.id, promotedEntryId },
+          err as Error
+        );
+        toast.warning(
+          'Spot offered, but the payment link could not be created. Request payment from the entry list.'
+        );
+      }
 
       // Notify the offered exhibitor via the show-messaging system. This
       // writes an inbox thread + message (push fires via push-trigger-chat-
@@ -233,7 +274,8 @@ export function useWaitlistManagementData(showId?: string) {
       await notifyOfferedExhibitor(
         { exhibitor_id: actionDialog.entry.exhibitor_id },
         actionDialog.entry,
-        selectedShowId
+        selectedShowId,
+        paymentLinkUrl
       );
 
       // Refresh the waitlist and class counts
@@ -257,6 +299,7 @@ export function useWaitlistManagementData(showId?: string) {
     loadWaitlist,
     loadClasses,
     notifyOfferedExhibitor,
+    createWaitlistPaymentLink,
   ]);
 
   const handleRemoveFromWaitlist = useCallback(async () => {

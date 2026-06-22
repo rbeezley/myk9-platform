@@ -84,6 +84,7 @@ interface WaitlistOfferData {
   className: string;
   dogName: string;
   expiresAt: string;
+  paymentUrl?: string | null;
 }
 
 type EmailData = EntryConfirmationData | PaymentReceiptData | WelcomeEmailData | WaitlistOfferData;
@@ -534,13 +535,17 @@ function generateWaitlistOfferEmail(data: WaitlistOfferData): string {
         </div>
 
         <div style="text-align: center; margin: 32px 0;">
-          <a href="https://myk9show.com/my-entries" style="display: inline-block; background-color: #059669; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
-            Accept This Spot
+          <a href="${escapeHtml(data.paymentUrl || 'https://myk9show.com/my-entries')}" style="display: inline-block; background-color: #059669; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
+            ${data.paymentUrl ? 'Pay to Claim This Spot' : 'Accept This Spot'}
           </a>
         </div>
 
         <p style="color: #6b7280; font-size: 14px;">
-          Click the button above to log in and accept your spot. You'll be prompted to complete payment if you haven't already.
+          ${
+            data.paymentUrl
+              ? 'Click the button above to complete payment and claim your spot.'
+              : "Click the button above to log in and accept your spot. You'll be prompted to complete payment if you haven't already."
+          }
         </p>
 
         <p style="margin-top: 24px; color: #6b7280; font-size: 14px;">

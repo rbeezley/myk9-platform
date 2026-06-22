@@ -313,10 +313,15 @@ async function sendOfferNotification(entry: WaitlistEntry): Promise<void> {
 
   const dogName = dog?.call_name || dog?.name || 'your dog';
   const showName = classInfo.trial?.show?.name || 'the show';
+  const showId = classInfo.trial?.show?.id || '';
   const className = classInfo.name || 'the class';
   const expiresAt = entry.offer_expires_at
     ? new Date(entry.offer_expires_at)
     : new Date(new Date().getTime() + DEFAULT_WAITLIST_PAYMENT_DEADLINE_HOURS * 60 * 60 * 1000);
+  const paymentUrl =
+    entry.promoted_entry_id && showId
+      ? await createWaitlistPaymentLink(entry.promoted_entry_id, showId)
+      : null;
 
   // Call send-email function
   const emailResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-email`, {
@@ -333,12 +338,43 @@ async function sendOfferNotification(entry: WaitlistEntry): Promise<void> {
       className,
       dogName,
       expiresAt: expiresAt.toLocaleString(),
+      paymentUrl,
     }),
   });
 
   if (!emailResponse.ok) {
     console.error('Email send failed:', await emailResponse.text());
   }
+}
+
+async function createWaitlistPaymentLink(entryId: string, showId: string): Promise<string | null> {
+  if (!cronSecret) {
+    console.error('CRON_SECRET is missing; cannot create waitlist payment link');
+    return null;
+  }
+
+  const body = {
+    entry_ids: [entryId],
+    success_url: `https://myk9show.com/shows/${showId}?payment=success`,
+    cancel_url: `https://myk9show.com/shows/${showId}?payment=cancelled`,
+  };
+
+  const response = await fetch(`${supabaseUrl}/functions/v1/stripe-payment-link`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-function-secret': cronSecret,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    console.error('Waitlist payment link creation failed:', await response.text());
+    return null;
+  }
+
+  const data = await response.json();
+  return typeof data?.url === 'string' ? data.url : null;
 }
 
 /**

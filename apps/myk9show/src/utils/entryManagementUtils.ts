@@ -156,11 +156,20 @@ export const mapStatusToDb = (status: EntryStatus): CanonicalEntryStatus => {
 // which had no `dark:` variant (light chip on a dark card) and used cool grays
 // banned outside the status vocabulary. Hues are preserved; "Pulled"/"Moved"
 // move from cool gray to the warm `stone=inactive` token.
-const CHIP_TEAL = 'bg-[color:var(--chip-teal-bg)] text-[color:var(--chip-teal-fg)]';
-const CHIP_AMBER = 'bg-[color:var(--chip-amber-bg)] text-[color:var(--chip-amber-fg)]';
-const CHIP_STONE = 'bg-[color:var(--chip-stone-bg)] text-[color:var(--chip-stone-fg)]';
-const CHIP_BLUE = 'bg-[color:var(--chip-blue-bg)] text-[color:var(--chip-blue-fg)]';
-const CHIP_RED = 'bg-[color:var(--chip-red-bg)] text-[color:var(--chip-red-fg)]';
+// Each filled chip overrides the Badge default variant's hover:bg-primary/80
+// (badgeVariants.ts) with its own token, otherwise a tokenized chip flips to the
+// user's accent on hover. The outline-variant CHIP_BLUE_FG needs no hover (the
+// outline variant has no hover background).
+const CHIP_TEAL =
+  'bg-[color:var(--chip-teal-bg)] text-[color:var(--chip-teal-fg)] hover:bg-[color:var(--chip-teal-bg)]';
+const CHIP_AMBER =
+  'bg-[color:var(--chip-amber-bg)] text-[color:var(--chip-amber-fg)] hover:bg-[color:var(--chip-amber-bg)]';
+const CHIP_STONE =
+  'bg-[color:var(--chip-stone-bg)] text-[color:var(--chip-stone-fg)] hover:bg-[color:var(--chip-stone-bg)]';
+const CHIP_BLUE =
+  'bg-[color:var(--chip-blue-bg)] text-[color:var(--chip-blue-fg)] hover:bg-[color:var(--chip-blue-bg)]';
+const CHIP_RED =
+  'bg-[color:var(--chip-red-bg)] text-[color:var(--chip-red-fg)] hover:bg-[color:var(--chip-red-bg)]';
 const CHIP_BLUE_FG = 'text-[color:var(--chip-blue-fg)]';
 
 /**

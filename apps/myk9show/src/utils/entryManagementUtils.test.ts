@@ -149,6 +149,19 @@ describe('getEntryStatusBadge / getPaymentStatusBadge — warm --chip-* token vo
     expect(badgeClass(getEntryStatusBadge(EntryStatus.SCRATCHED))).not.toContain('gray');
   });
 
+  it('overrides the Badge default hover so filled chips do not flip to the accent', () => {
+    // Regression guard: Badge's default variant carries hover:bg-primary/80, so a
+    // tokenized chip without its own hover override flips to the user's accent on
+    // hover. Each filled chip must re-assert its token bg on hover.
+    expect(badgeClass(getEntryStatusBadge(EntryStatus.ACCEPTED))).toContain(
+      'hover:bg-[color:var(--chip-teal-bg)]'
+    );
+    expect(badgeClass(getEntryStatusBadge(EntryStatus.SCRATCHED))).toContain(
+      'hover:bg-[color:var(--chip-stone-bg)]'
+    );
+    expect(badgeClass(getEntryStatusBadge(EntryStatus.WAITLIST))).not.toContain('hover:bg-primary');
+  });
+
   it('tints payment chips with chip tokens', () => {
     expect(badgeClass(getPaymentStatusBadge(PaymentStatus.PAID_ONLINE))).toContain(
       'var(--chip-teal-bg)'

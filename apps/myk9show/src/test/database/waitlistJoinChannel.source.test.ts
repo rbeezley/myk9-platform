@@ -34,5 +34,8 @@ describe('waitlist joined_via channel contract', () => {
     expect(migration).toContain('Only show secretaries may create mail-in waitlist rows');
     expect(migration).toContain('p_joined_via');
     expect(migration).toContain('add_to_waitlist(uuid, uuid, uuid, uuid, text)');
+    expect(migration).toContain(
+      'REVOKE ALL ON FUNCTION public.add_to_waitlist(uuid, uuid, uuid, uuid, text) FROM PUBLIC, anon, authenticated'
+    );
   });
 });

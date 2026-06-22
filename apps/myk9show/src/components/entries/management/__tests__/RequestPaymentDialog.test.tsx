@@ -109,4 +109,14 @@ describe('isPaymentRequestable', () => {
     expect(isPaymentRequestable({ ...active, entryStatus: EntryStatus.SCRATCHED })).toBe(false);
     expect(isPaymentRequestable({ ...active, entryStatus: EntryStatus.REJECTED })).toBe(false);
   });
+
+  it('matches the server inactive list for database-only lifecycle states', () => {
+    const inactiveStatuses = ['absent', 'promotion-expired', 'cancelled'] as Array<
+      EntryManagementEntry['entryStatus']
+    >;
+
+    for (const entryStatus of inactiveStatuses) {
+      expect(isPaymentRequestable({ ...active, entryStatus })).toBe(false);
+    }
+  });
 });

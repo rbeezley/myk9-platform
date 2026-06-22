@@ -25,4 +25,11 @@ describe('stripe-payment-link internal waitlist path', () => {
     expect(source).toContain('created_by: userId');
     expect(source).toContain("userId ?? 'cron'");
   });
+
+  it('shares inactive entry statuses with payment reconciliation', () => {
+    expect(source).toContain(
+      "import { INACTIVE_ENTRY_STATUSES } from '../_shared/entryPaymentReconcile.ts'"
+    );
+    expect(source).not.toContain('const INACTIVE_ENTRY_STATUSES = new Set');
+  });
 });

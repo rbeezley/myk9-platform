@@ -4,6 +4,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { calculatePlatformFeeCents, resolvePlatformFeePercent } from '../_shared/platformFee.ts';
 import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
 import { buildEntryPaymentLinkSession } from '../_shared/entryPaymentLink.ts';
+import { INACTIVE_ENTRY_STATUSES } from '../_shared/entryPaymentReconcile.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -74,17 +75,6 @@ interface PaymentLinkRequest {
   success_url: string;
   cancel_url: string;
 }
-
-// Entry lifecycle states that must NOT be charged even if still payment-pending:
-// a withdrawn/scratched/rejected/expired entry isn't in the show.
-const INACTIVE_ENTRY_STATUSES = new Set([
-  'withdrawn',
-  'scratched',
-  'not_accepted',
-  'absent',
-  'promotion-expired',
-  'cancelled',
-]);
 
 interface EntryRow {
   id: string;

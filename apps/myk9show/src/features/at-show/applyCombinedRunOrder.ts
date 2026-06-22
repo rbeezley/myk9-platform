@@ -10,17 +10,16 @@
  * myK9Show's supported set, compute the new order with the section-aware
  * `calculateCombinedRunOrder`, then persist each entry's `run_order`.
  *
- * `run_order` is ringside-whitelisted, so `updateEntry` auto-routes through the
- * `ringside_update_entry` SECURITY DEFINER RPC — assigned judges and stewards
- * (denied by the entries UPDATE RLS policy) can persist run order, offline-first
- * via the replication mutation queue. The manual drag path lives separately in
- * `persistEntryRunOrder` (it receives an already-reordered slice); this owns the
+ * Persistence (`run_order` → `ringside_update_entry` SECURITY DEFINER RPC,
+ * offline-first, allowed for assigned judges/stewards) is shared with the
+ * single-class preset path via `persistRunOrderResults`. The manual drag path
+ * lives separately (it receives an already-reordered slice); this owns the
  * preset path only.
  */
 
 import type { Entry, RunOrderPreset, RunOrderScope, RenumberMode } from '@myk9/ringside';
-import { replicatedEntriesTable } from '@/services/replication';
 import { calculateCombinedRunOrder, toMyK9ShowRunOrderPreset } from '@/lib/runOrderUtils';
+import { persistRunOrderResults } from './persistRunOrderResults';
 
 export async function applyCombinedRunOrder(
   entries: Entry[],
@@ -42,7 +41,5 @@ export async function applyCombinedRunOrder(
     renumberMode
   );
 
-  await Promise.all(
-    results.map(r => replicatedEntriesTable.updateEntry(r.id, { runOrder: r.runOrder }))
-  );
+  await persistRunOrderResults(results);
 }

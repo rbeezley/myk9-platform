@@ -26,9 +26,9 @@ import type {
 } from '@myk9/ringside';
 import { toast } from 'sonner';
 import { logger } from '@/utils/logger';
-import { replicatedEntriesTable } from '@/services/replication';
 import { supabase } from '@/services/database/supabaseClient';
 import { calculateRunOrder, toMyK9ShowRunOrderPreset } from '@/lib/runOrderUtils';
+import { persistRunOrderResults } from './persistRunOrderResults';
 
 type ResetConfirmState = { show: boolean; entry: Entry | null };
 
@@ -267,9 +267,7 @@ export function useAtShowEntryListHandlers(
         // fall through to deterministic armband order.
         toMyK9ShowRunOrderPreset(preset)
       );
-      await Promise.all(
-        results.map(r => replicatedEntriesTable.updateEntry(r.id, { runOrder: r.runOrder }))
-      );
+      await persistRunOrderResults(results);
       await refresh();
     },
     [localEntries, refresh, setIsDragMode]

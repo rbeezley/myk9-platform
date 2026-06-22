@@ -1,4 +1,4 @@
-import type { RunOrderPreset as RingsideRunOrderPreset } from '@myk9/ringside';
+import type { RunOrderPreset as RingsideRunOrderPreset, RunOrderScope } from '@myk9/ringside';
 
 /**
  * myK9Show exposes a deliberately narrower run-order preset surface than
@@ -229,9 +229,10 @@ export function calculateRunOrderScoped(
   }
 }
 
-/** Which section a combined run-order preset applies to. Mirrors ringside's
- * `RunOrderScope` (`'all'` ignores sections). */
-export type RunOrderScope = 'all' | 'A' | 'B';
+// `RunOrderScope` ('all' | 'A' | 'B') is single-sourced from `@myk9/ringside`
+// (re-exported here for the calculators' callers) — same DRY discipline as
+// `RunOrderPreset` above, so a future ringside scope can't drift silently.
+export type { RunOrderScope };
 
 /**
  * Combined (Section A/B) run-order dispatcher — the section-aware sibling of

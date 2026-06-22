@@ -54,6 +54,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-class-status-auto-derivation.md](plan-class-status-auto-derivation.md)               | Active    | Plan — Class Status Auto-Derivation (Stub)                            |
 | [plan-data-access-module-drift.md](plan-data-access-module-drift.md)                       | Active    | Data Access Module Drift Plan                                         |
 | [plan-dynamic-qa-infrastructure.md](plan-dynamic-qa-infrastructure.md)                     | Complete  | Plan: Dynamic QA Infrastructure (follow-on to the Code-Quality Audit) |
+| [plan-entries-read-consolidation.md](plan-entries-read-consolidation.md)                   | Active    | Entry-Read Module Consolidation (findings from Plan 004 spike)        |
 | [plan-entry-management-layout.md](plan-entry-management-layout.md)                         | Active    | Entry Management Layout Plan                                          |
 | [plan-entry-draw-lottery.md](plan-entry-draw-lottery.md)                                   | Active    | Entry Draw / Lottery — random-draw intake (depends on payment plan)   |
 | [plan-entry-payment-request.md](plan-entry-payment-request.md)                             | Active    | Entry Payment, Waitlist & Capacity (links, pay-to-claim, judge-day)   |

@@ -64,7 +64,7 @@ export function DetailHero({
       )}
     >
       {headerActions && (
-        <div className="absolute right-4 top-4 z-10 flex flex-wrap items-center justify-end gap-2 sm:right-6 sm:top-6">
+        <div className="absolute right-4 top-4 z-10 hidden sm:flex flex-wrap items-center justify-end gap-2 sm:right-6 sm:top-6">
           {headerActions}
         </div>
       )}
@@ -84,13 +84,8 @@ export function DetailHero({
               {eyebrow}
             </p>
           )}
-          <div
-            className={cn(
-              'flex min-w-0 flex-wrap items-center gap-3',
-              headerActions && 'pr-28 sm:pr-44'
-            )}
-          >
-            <h2 className="text-2xl font-bold tracking-tight">{name}</h2>
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
+            <h2 className="text-2xl font-bold tracking-tight break-words">{name}</h2>
             {badges?.map((badge, i) => (
               <span
                 key={i}
@@ -112,6 +107,11 @@ export function DetailHero({
                   {item.label}
                 </span>
               ))}
+            </div>
+          )}
+          {headerActions && (
+            <div className="sm:hidden flex flex-wrap items-center gap-2 pt-1">
+              {headerActions}
             </div>
           )}
         </div>

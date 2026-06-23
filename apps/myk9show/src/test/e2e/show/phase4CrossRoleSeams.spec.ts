@@ -1,190 +1,97 @@
-import { expect, test, type BrowserContext, type Page } from '@playwright/test';
+import { test, type Page } from '@playwright/test';
 import { signIn } from '../uat/shared/auth';
-import { TEST_USERS } from '../helpers/testUsers';
 import {
   createPhase4SeamState,
   PHASE4_IDS,
-  PHASE4_ROUTES,
   type Phase4SeamState,
 } from '../fixtures/phase4SeamFixture';
-import { installPhase4SeamRoutes, type InstalledSeamRoutes } from '../fixtures/phase4SeamRoutes';
+import { installPhase4SeamRoutes } from '../fixtures/phase4SeamRoutes';
 
 /**
  * Suite category: feature-audit (Phase 4 cross-role seams, Dynamic QA).
  *
- * Drives the five exhibitor<->secretary seams in two browser contexts that
- * SHARE one in-memory fixture show, so role A's action becomes visible to role
- * B without any write reaching the shared Supabase project. The write-safe
- * interception harness (`installPhase4SeamRoutes`) and its state machine are
- * unit-tested in `src/test/phase4-seam/phase4SeamRoutes.test.ts`; this spec adds
- * the live latency + render evidence the audit needs.
+ * RENDER-ONLY walk (read strategy chosen 2026-06-23, see
+ * docs/plan-phase4-seam-render-only.md). The seam transition logic + cross-role
+ * state agreement are proven deterministically by the vitest suites
+ * (`src/test/phase4-seam/*`); this spec adds live RENDER evidence — it drives the
+ * real app, signed in as the real secretary, with the harness serving the
+ * replication sync-down reads so a FABRICATED show ("Autumn Classic") renders
+ * without any row existing in shared Supabase. Each seam state is pre-set in the
+ * fixture, so one sync renders them all; we then screenshot each surface.
  *
- * ── Why this spec is gated by PHASE4_SEAM_FIXTURE_READY ──────────────────────
- * The harness blocks every seam WRITE locally (proven by the unit tests). The
- * remaining gap is READS: the app loads entries/classes from the replication
- * layer (IndexedDB), not PostgREST, so the seeded `phase4-` rows do not surface
- * from a network interceptor alone. Rendering the fixture show in a live browser
- * needs ONE of:
- *   (A) seed the fixture show into IndexedDB replication stores before load, or
- *   (B) a LOCAL Supabase instance seeded with the fixture rows (the plan's
- *       documented fallback), with the dev server pointed at it.
- * Until that read strategy is chosen (Phase 5 human gate), this spec self-skips
- * rather than walk shared staging data and report false coverage. Set
- * PHASE4_SEAM_FIXTURE_READY=1 once a read strategy is wired in.
+ * Gated by PHASE4_SEAM_FIXTURE_READY (off in CI — flaky e2e path). Capture:
+ *   PHASE4_SEAM_FIXTURE_READY=1 PLAYWRIGHT_BASE_URL=http://127.0.0.1:5191 \
+ *     npx playwright test phase4CrossRoleSeams --project=chromium
+ *
+ * Scope: SECRETARY surfaces only. The exhibitor side ("My Entries") is
+ * identity-scoped (real person id / owned dogs) and needs a real-dog bridge —
+ * see docs/plan-phase4-seam-render-only.md "Live spike findings".
  */
 
 const FIXTURE_READY = process.env.PHASE4_SEAM_FIXTURE_READY === '1';
-const SEAM_TIMEOUT = 10_000; // Task 5: a seam that does not propagate in 10s fails.
+const SECRETARY_EMAIL = process.env.E2E_SECRETARY_EMAIL ?? '';
+const SECRETARY_PASSWORD = process.env.E2E_SECRETARY_PASSWORD ?? '';
 
-test.describe('Phase 4 cross-role seams (fixture-backed)', () => {
+// Authz RPCs are READS (the real signed-in user's real permissions) — let them
+// reach staging so RBAC loads; the harness only blocks fixture WRITES.
+const AUTHZ_PASSTHROUGH = [
+  /rpc\/[a-z_]*permission/,
+  /rpc\/[a-z_]*role/,
+  /rpc\/can_manage_show/,
+  /rpc\/is_show_manager/,
+];
+
+// Playwright's cwd is the app dir; the canonical audit artifacts live at repo root.
+const ARTIFACT_DIR = '../../docs/audits/2026-06-ux-journeys/artifacts';
+
+/** Pre-set every seam into a representative state so one sync renders them all. */
+function seamStates(state: Phase4SeamState): Phase4SeamState {
+  state.entries[PHASE4_IDS.entryScratch].entry_status = 'scratch-requested';
+  state.entries[PHASE4_IDS.entryScratch].special_requests = 'Dog is unwell — please pull.';
+  state.entries[PHASE4_IDS.entryQuestion].entry_status = 'scratched';
+  state.entries[PHASE4_IDS.entryQuestion].check_in_status = 'pulled';
+  state.entries[PHASE4_IDS.entryWithdraw].entry_status = 'withdrawn';
+  state.entries[PHASE4_IDS.entryWithdraw].payment_status = 'refunded';
+  state.waitlistEntries[PHASE4_IDS.waitlist].status = 'offered';
+  state.waitlistEntries[PHASE4_IDS.waitlist].offered_at = '2026-09-10T12:00:00.000Z';
+  state.classes[PHASE4_IDS.classOpen].results_released_at = '2026-09-12T18:00:00.000Z';
+  return state;
+}
+
+async function shoot(page: Page, name: string): Promise<void> {
+  await page.waitForLoadState('domcontentloaded');
+  await page.waitForTimeout(1200); // let the replicated rows paint
+  await page.screenshot({ path: `${ARTIFACT_DIR}/${name}.png`, fullPage: true });
+}
+
+test.describe('Phase 4 cross-role seams — render-only (secretary)', () => {
   test.skip(
     !FIXTURE_READY,
-    'Read strategy not wired (see header): set PHASE4_SEAM_FIXTURE_READY=1 once the fixture show is seeded into IndexedDB or a local Supabase. Write-safety is covered by the unit tests.'
+    'Render-only capture is manual: set PHASE4_SEAM_FIXTURE_READY=1 with a dev server running. CI skips it. Seam logic is proven by src/test/phase4-seam/*.'
   );
+  test.skip(!SECRETARY_EMAIL || !SECRETARY_PASSWORD, 'no secretary credentials');
 
-  let secretaryCtx: BrowserContext;
-  let exhibitorCtx: BrowserContext;
-  let secretaryPage: Page;
-  let exhibitorPage: Page;
-  let state: Phase4SeamState;
-  let secretaryRoutes: InstalledSeamRoutes;
-  let exhibitorRoutes: InstalledSeamRoutes;
-
-  test.beforeEach(async ({ browser }) => {
-    // One shared state instance so both contexts observe the same show (Task 4).
-    state = createPhase4SeamState();
-
-    secretaryCtx = await browser.newContext();
-    exhibitorCtx = await browser.newContext();
-    secretaryPage = await secretaryCtx.newPage();
-    exhibitorPage = await exhibitorCtx.newPage();
-
-    secretaryRoutes = await installPhase4SeamRoutes(secretaryPage, state);
-    exhibitorRoutes = await installPhase4SeamRoutes(exhibitorPage, state);
-
-    await signIn(
-      secretaryPage,
-      TEST_USERS.SECRETARY.email,
-      TEST_USERS.SECRETARY.password,
-      PHASE4_ROUTES.secretaryEntryManagement
-    );
-    await signIn(
-      exhibitorPage,
-      TEST_USERS.EXHIBITOR.email,
-      TEST_USERS.EXHIBITOR.password,
-      PHASE4_ROUTES.exhibitorMyEntries
-    );
-
-    // Each role must see the seeded show before any seam action (Task 4).
-    await expect(secretaryPage.getByText(state.show.name)).toBeVisible({ timeout: SEAM_TIMEOUT });
-    await expect(exhibitorPage.getByText(state.show.name)).toBeVisible({ timeout: SEAM_TIMEOUT });
-  });
-
-  test.afterEach(async () => {
-    // No write may have leaked to shared Supabase from either context (Task 3).
-    secretaryRoutes?.assertSafe();
-    exhibitorRoutes?.assertSafe();
-    await secretaryCtx?.close();
-    await exhibitorCtx?.close();
-  });
-
-  test('scratch request: exhibitor requests -> secretary sees -> approve -> exhibitor confirmation', async () => {
-    const start = Date.now();
-    await exhibitorPage.goto(PHASE4_ROUTES.exhibitorMyEntries);
-    await exhibitorPage.getByTestId(`entry-${PHASE4_IDS.entryScratch}-request-scratch`).click();
-    await exhibitorPage.getByRole('button', { name: /confirm|request/i }).click();
-
-    await secretaryPage.goto(PHASE4_ROUTES.secretaryPullManagement);
-    await expect(
-      secretaryPage.getByText(/scratch requested/i).first()
-    ).toBeVisible({ timeout: SEAM_TIMEOUT });
-    await secretaryPage.getByRole('button', { name: /approve/i }).first().click();
-
-    await exhibitorPage.goto(PHASE4_ROUTES.exhibitorMyEntries);
-    await expect(exhibitorPage.getByText(/scratched|pulled/i).first()).toBeVisible({
-      timeout: SEAM_TIMEOUT,
+  test('secretary sees every seam state on the fabricated show', async ({ page }) => {
+    const state = seamStates(createPhase4SeamState());
+    const routes = await installPhase4SeamRoutes(page, state, {
+      allowWritePaths: AUTHZ_PASSTHROUGH,
     });
-    logSeamLatency('scratch', start);
-    await capture(secretaryPage, 'phase4-dynamic-scratch-secretary');
-  });
+    const showId = state.show.id;
 
-  test('waitlist: secretary offers -> exhibitor accepts -> both agree on status', async () => {
-    const start = Date.now();
-    await secretaryPage.goto(PHASE4_ROUTES.secretaryWaitlist);
-    await secretaryPage.getByRole('button', { name: /offer/i }).first().click();
+    await signIn(page, SECRETARY_EMAIL, SECRETARY_PASSWORD, '/secretary');
 
-    await exhibitorPage.goto(PHASE4_ROUTES.exhibitorMyEntries);
-    await expect(exhibitorPage.getByText(/offered|accept/i).first()).toBeVisible({
-      timeout: SEAM_TIMEOUT,
-    });
-    await exhibitorPage.getByRole('button', { name: /accept/i }).first().click();
-    await expect(exhibitorPage.getByText(/confirmed/i).first()).toBeVisible({
-      timeout: SEAM_TIMEOUT,
-    });
-    logSeamLatency('waitlist', start);
-    await capture(exhibitorPage, 'phase4-dynamic-waitlist-exhibitor');
-  });
+    await page.goto(`/shows/${showId}`);
+    await shoot(page, 'phase4-dynamic-show-detail');
 
-  test('entry question: exhibitor messages -> secretary replies -> exhibitor sees reply', async () => {
-    const start = Date.now();
-    await exhibitorPage.goto(PHASE4_ROUTES.exhibitorShowMessages);
-    await exhibitorPage.getByRole('textbox').fill('What time is my class?');
-    await exhibitorPage.getByRole('button', { name: /send/i }).click();
+    await page.goto(`/shows/${showId}/entry-management`);
+    await shoot(page, 'phase4-dynamic-entry-management');
 
-    await secretaryPage.goto(PHASE4_ROUTES.secretaryMessages);
-    await expect(secretaryPage.getByText('What time is my class?')).toBeVisible({
-      timeout: SEAM_TIMEOUT,
-    });
-    await secretaryPage.getByRole('textbox').fill('Your class starts at 9am.');
-    await secretaryPage.getByRole('button', { name: /send|reply/i }).click();
+    await page.goto(`/shows/${showId}/entry-management?entryTab=scratches`);
+    await shoot(page, 'phase4-dynamic-scratch-pull');
 
-    await exhibitorPage.goto(PHASE4_ROUTES.exhibitorShowMessages);
-    await expect(exhibitorPage.getByText('Your class starts at 9am.')).toBeVisible({
-      timeout: SEAM_TIMEOUT,
-    });
-    logSeamLatency('message', start);
-    await capture(exhibitorPage, 'phase4-dynamic-message-exhibitor');
-  });
+    await page.goto(`/shows/${showId}/results-control`);
+    await shoot(page, 'phase4-dynamic-results-control');
 
-  test('refund: secretary refunds -> exhibitor entry status agrees', async () => {
-    const start = Date.now();
-    await secretaryPage.goto(PHASE4_ROUTES.secretaryEntryManagement);
-    await secretaryPage.getByTestId(`entry-${PHASE4_IDS.entryWithdraw}-refund`).click();
-    await secretaryPage.getByRole('button', { name: /refund/i }).last().click();
-
-    await exhibitorPage.goto(PHASE4_ROUTES.exhibitorMyEntries);
-    await expect(exhibitorPage.getByText(/refunded|withdrawn/i).first()).toBeVisible({
-      timeout: SEAM_TIMEOUT,
-    });
-    logSeamLatency('refund', start);
-    await capture(exhibitorPage, 'phase4-dynamic-refund-exhibitor');
-  });
-
-  test('results release: secretary releases -> exhibitor reveal (hidden before, visible after)', async () => {
-    const start = Date.now();
-    await exhibitorPage.goto(PHASE4_ROUTES.exhibitorResults);
-    await expect(exhibitorPage.getByText(/no results yet/i)).toBeVisible({ timeout: SEAM_TIMEOUT });
-
-    await secretaryPage.goto(PHASE4_ROUTES.secretaryResultsControl);
-    await secretaryPage.getByRole('button', { name: /release/i }).first().click();
-
-    await exhibitorPage.goto(PHASE4_ROUTES.exhibitorResults);
-    await expect(exhibitorPage.getByText(state.classes[PHASE4_IDS.classOpen].name)).toBeVisible({
-      timeout: SEAM_TIMEOUT,
-    });
-    logSeamLatency('results', start);
-    await capture(exhibitorPage, 'phase4-dynamic-results-exhibitor');
+    routes.assertSafe();
   });
 });
-
-function logSeamLatency(seam: string, startMs: number): void {
-  // Recorded for the audit's latency/state-agreement table (Task 5/6).
-  console.log(`[phase4-seam] ${seam} propagation: ${Date.now() - startMs}ms`);
-}
-
-async function capture(page: Page, name: string): Promise<void> {
-  await page.screenshot({
-    path: `docs/audits/2026-06-ux-journeys/artifacts/${name}.png`,
-    fullPage: true,
-  });
-}

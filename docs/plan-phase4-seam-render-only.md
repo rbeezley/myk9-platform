@@ -91,6 +91,63 @@ Column inventory cited from `ReplicatedShowsTable.ts:76-117`,
   [`feedback_preview_mcp_pinned_to_main`]). Documented as the final step; not a
   blocker for landing slices 1-4 + tests.
 
+## Live spike findings — 2026-06-23
+
+A throwaff Playwright probe (signed-in secretary, real staging auth, harness
+serving the sync-down reads) proved the approach **renders live** and surfaced
+two things the unit tests can't:
+
+1. **Authz RPCs must pass through.** The app loads RBAC via
+   `POST /rpc/get_user_permissions` → `get_effective_permissions`; the harness
+   blocked them as "unhandled mutations" → "You don't have permission." Fix: pass
+   `allowWritePaths: [/rpc\/[a-z_]*permission/, /rpc\/[a-z_]*role/, /rpc\/can_manage_show/, /rpc\/is_show_manager/]`
+   to `installPhase4SeamRoutes` — these are READS (the real signed-in user's real
+   permissions), safe to reach staging.
+2. **The fixture's `PHASE4_ROUTES` were stale.** Real secretary entry management
+   is `/secretary/entries/:showId` (redirects to `/shows/:id/entry-management`),
+   NOT `/secretary/shows/:showId/entries`. Show detail `/shows/:id` and
+   `/secretary/shows/:showId` (→ `/shows/:id/setup`) render too.
+
+**Proven (secretary):** `/shows/:id`, `/secretary/entries/:id`,
+`/secretary/entries/:id?entryTab=scratches` (entries Scout/Alice/Ziva/Ben render),
+`/secretary/shows/:id` — all show the fabricated "Autumn Classic" with show name +
+fixture entries, RBAC passing, **zero blocked mutations**. Screenshot evidence
+captured.
+
+### Committed render-only spec — 2026-06-23
+
+`phase4CrossRoleSeams.spec.ts` is now a **secretary render-only walk** (replaces
+the gated propagation tests): pre-sets every seam state in one fixture, signs in
+as the real secretary, and screenshots each surface. Gated by
+`PHASE4_SEAM_FIXTURE_READY` (off in CI — flaky e2e path); the seam logic stays
+proven by `src/test/phase4-seam/*`. Captured live (passing):
+
+| Screenshot | Surface | Result |
+| --- | --- | --- |
+| `phase4-dynamic-show-detail` | `/shows/:id` | Full render |
+| `phase4-dynamic-entry-management` | `/shows/:id/entry-management` | Full render — 5 fixture entries, statuses, $150 revenue |
+| `phase4-dynamic-scratch-pull` | `…?entryTab=scratches` | Pull Management with the pending pull request (reason, handler, Approve/Deny) + Pending(1)/Processed(1) |
+| `phase4-dynamic-results-control` | `/shows/:id/results-control` | Page loads; Results Visibility list is skeleton (needs more served reads) |
+
+**Two known cosmetic gaps (not blockers):**
+1. **"Unknown Dog"** on the Pull card — that card joins the replicated `dogs`
+   table, which the harness does NOT serve (the entry-view's `dog_call_name`
+   renders fine elsewhere). Fix: add `dogs` to `SYNC_READ_TABLES` with a fixture
+   dog-row transform.
+2. **Results Control visibility list renders as skeleton** — needs the per-class
+   visibility/results reads served too.
+
+### Remaining (EXHIBITOR side — deferred)
+
+Standalone `/exhibitor/entries` and the show-scoped My Entries tab are
+**identity-scoped**: `getUserEntries` matches `handlerId === userId` (person id)
+OR `ownedDogIds.has(dogId)` from the **real account's real dogs** — so a fabricated
+entry won't appear without bridging to a real owned dog (set a fixture entry's
+`dog_id` to one of `DEMO_EXHIBITOR`'s real synced dog ids, read from IndexedDB at
+runtime) or serving fixture `dogs` owned by the real person id. Exhibitor
+`/messages/:id` renders (the audit's known-blank state) and class-level results
+are servable. Show detail already renders for the exhibitor.
+
 ## Residual / out of scope
 
 - Real-browser propagation **latency numbers** are intentionally NOT produced

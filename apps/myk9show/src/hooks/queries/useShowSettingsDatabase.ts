@@ -113,12 +113,20 @@ export function getDefaultShowSettings(): ShowSettings {
 
 /**
  * Bound retries on visibility reads. The global query retry only short-circuits
- * errors carrying a numeric `.status` 4xx, but PostgREST errors (e.g. a 400 on a
- * malformed UUID) carry a `code` string instead — so without this they would
- * retry twice with backoff, prolonging the loading skeleton on a hard error.
- * One retry covers a transient blip; anything worse settles quickly.
+ * errors carrying a numeric `.status` 4xx, but PostgREST/Postgres errors (e.g. a
+ * 400 on a malformed UUID, or an RLS `42501`) carry a string `code` instead — so
+ * the global predicate retries them twice with backoff, prolonging the loading
+ * skeleton on a hard, deterministic error.
+ *
+ * These errors won't change on retry, so settle immediately and surface them;
+ * everything else (a transient network blip with no `code`) gets one bounded
+ * retry. Using a predicate rather than a constant also means a caller that opts
+ * out via `retry: false` still gets no retry for `code`-bearing errors.
  */
-const VISIBILITY_QUERY_RETRY = 1;
+function visibilityQueryRetry(failureCount: number, error: unknown): boolean {
+  if (error && typeof error === 'object' && 'code' in error) return false;
+  return failureCount < 1;
+}
 
 async function fetchShowSettings(showId: string): Promise<ShowSettings> {
   const { data, error } = await untypedSupabase
@@ -146,7 +154,7 @@ export function useShowSettings(showId: string | null) {
     queryKey: settingsQueryKeys.show(showId!),
     queryFn: () => fetchShowSettings(showId!),
     enabled: !!showId,
-    retry: VISIBILITY_QUERY_RETRY,
+    retry: visibilityQueryRetry,
     ...cacheStrategies.moderate,
   });
 }
@@ -188,7 +196,7 @@ export function useTrialOverrides(showId: string | null) {
     queryKey: settingsQueryKeys.trials(showId!),
     queryFn: () => fetchTrialOverrides(showId!),
     enabled: !!showId,
-    retry: VISIBILITY_QUERY_RETRY,
+    retry: visibilityQueryRetry,
     ...cacheStrategies.moderate,
   });
 }
@@ -235,7 +243,7 @@ export function useClassOverrides(showId: string | null) {
     queryKey: settingsQueryKeys.classOverrides(showId!),
     queryFn: () => fetchClassOverrides(showId!),
     enabled: !!showId,
-    retry: VISIBILITY_QUERY_RETRY,
+    retry: visibilityQueryRetry,
     ...cacheStrategies.moderate,
   });
 }
@@ -302,7 +310,7 @@ export function useClassEffectiveSettings(
     queryKey: [...settingsQueryKeys.classOverride(classId!), trialId!, showId!],
     queryFn: () => fetchClassEffectiveSettings(classId!, trialId!, showId!),
     enabled: !!classId && !!trialId && !!showId,
-    retry: VISIBILITY_QUERY_RETRY,
+    retry: visibilityQueryRetry,
     ...cacheStrategies.moderate,
   });
 }

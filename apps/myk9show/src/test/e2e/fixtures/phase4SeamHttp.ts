@@ -47,6 +47,12 @@ export interface HandleOptions {
   now?: () => Date;
   /** Extra app-data write paths allowed to pass through (rare). */
   allowWritePaths?: RegExp[];
+  /**
+   * Render-only identity remap: rewrite served exhibitor-A-owned rows to the
+   * REAL signed-in exhibitor's ids so client-side "my entries" filters don't drop
+   * the fixture rows. Off by default (unit tests run without it).
+   */
+  identity?: { exhibitorUserId?: string; exhibitorPersonId?: string };
 }
 
 export const JSON_CT = 'application/json';
@@ -61,6 +67,21 @@ export const FIXTURE_TABLES = new Set([
   'view_entry_with_results',
 ]);
 export const FIXTURE_FUNCTIONS = new Set(['stripe-refund-entry']);
+
+/**
+ * Replication sync-down endpoints served READ-ONLY from fixture state so the
+ * app's own sync populates IndexedDB with the fixture show (render-only walk).
+ * Deliberately separate from FIXTURE_TABLES: a WRITE to one of these is still an
+ * unmodeled mutation and must trip assertNoUnhandledAppDataMutations, never be
+ * silently served. `entries` syncs through the `view_authenticated_entry_results`
+ * view, NOT the base table. See docs/plan-phase4-seam-render-only.md.
+ */
+export const SYNC_READ_TABLES = new Set([
+  'shows',
+  'trials',
+  'classes',
+  'view_authenticated_entry_results',
+]);
 
 export const CONTINUE: SeamResponse = {
   action: 'continue',
@@ -107,6 +128,25 @@ export function extractEqFilter(url: string, column: string): string | null {
   const raw = params.get(column);
   if (!raw) return null;
   return raw.startsWith('eq.') ? raw.slice(3) : raw;
+}
+
+/**
+ * Extract a PostgREST `column=gt.<value>` filter (the replication sync watermark
+ * `updated_at=gt.<iso>`). Returns the raw value (ISO string) or null when absent
+ * — a full sync (`since=0`) omits the filter, so null means "return everything".
+ */
+export function extractGtFilter(url: string, column: string): string | null {
+  let search: string;
+  try {
+    search = new URL(url, 'http://local.test').search;
+  } catch {
+    const idx = url.indexOf('?');
+    search = idx >= 0 ? url.slice(idx) : '';
+  }
+  const params = new URLSearchParams(search);
+  const raw = params.get(column);
+  if (!raw) return null;
+  return raw.startsWith('gt.') ? raw.slice(3) : null;
 }
 
 function wantsSingleObject(req: SeamRequest): boolean {

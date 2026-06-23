@@ -339,6 +339,28 @@ This choice is the Phase 5 human-gate decision. Real-browser latency and the
 `phase4-dynamic-*` screenshots land after a strategy is chosen and
 `PHASE4_SEAM_FIXTURE_READY=1` is set.
 
+### Read-strategy decision — 2026-06-23
+
+**Chosen: render-only via REST read-interception (Option A-lite).** Owner accepted
+the 18-case unit suite as the propagation/state-agreement proof, so the remaining
+gap is per-role render evidence, not real-browser latency. Real-browser
+**latency numbers are intentionally not produced.** Plan + rationale (incl. why
+local Supabase and direct IndexedDB seeding were rejected):
+[`docs/plan-phase4-seam-render-only.md`](../../plan-phase4-seam-render-only.md).
+
+**Wired + unit-proven 2026-06-23:** the harness now serves the replication
+sync-down GETs (`shows` / `trials` / `classes` / `view_authenticated_entry_results`)
+from fixture state in the exact snake_case shape each replication mapper reads,
+honoring the `eq` scope filter and the `updated_at=gt.<iso>` watermark — so the
+app's own sync writes the fixture show into IndexedDB and renders it. 15 new
+assertion-first vitest cases (`src/test/phase4-seam/phase4SeamSyncReads.test.ts`)
+pin the served shapes/scoping/watermark + the read-only-table write-safety guard;
+the 18-case write-safety suite stays green. **Remaining:** flip
+`phase4CrossRoleSeams.spec.ts` to render+screenshot per role (drop the now
+unit-owned propagation asserts), wire the identity remap to the real signed-in
+exhibitor, set `PHASE4_SEAM_FIXTURE_READY=1`, and capture `phase4-dynamic-*` shots
+where a dev server runs reliably (not a worktree session — Preview serves `main`).
+
 ## Refund / Withdrawal — live two-context walk — 2026-06-18
 
 **Outcome: PASS.** The withdrawn/refunded entry renders the same terminal state

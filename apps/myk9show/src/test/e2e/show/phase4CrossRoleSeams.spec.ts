@@ -1,4 +1,4 @@
-import { test, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { signIn } from '../uat/shared/auth';
 import {
   createPhase4SeamState,
@@ -60,7 +60,10 @@ function seamStates(state: Phase4SeamState): Phase4SeamState {
 
 async function shoot(page: Page, name: string): Promise<void> {
   await page.waitForLoadState('domcontentloaded');
-  await page.waitForTimeout(1200); // let the replicated rows paint
+  // Self-validating: every captured surface must render the fabricated show, so a
+  // screenshot can never silently be an error boundary or empty shell.
+  await expect(page.getByText(/Autumn Classic/i).first()).toBeVisible({ timeout: 9000 });
+  await page.waitForTimeout(800); // let the replicated rows finish painting
   await page.screenshot({ path: `${ARTIFACT_DIR}/${name}.png`, fullPage: true });
 }
 

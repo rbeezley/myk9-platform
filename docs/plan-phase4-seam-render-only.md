@@ -93,7 +93,7 @@ Column inventory cited from `ReplicatedShowsTable.ts:76-117`,
 
 ## Live spike findings — 2026-06-23
 
-A throwaff Playwright probe (signed-in secretary, real staging auth, harness
+A throwaway Playwright probe (signed-in secretary, real staging auth, harness
 serving the sync-down reads) proved the approach **renders live** and surfaced
 two things the unit tests can't:
 

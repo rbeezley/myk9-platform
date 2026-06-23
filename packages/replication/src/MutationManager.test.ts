@@ -450,6 +450,31 @@ describe('MutationManager', () => {
       expect(failed).toHaveLength(0);
     });
 
+    it('does NOT treat a 23505 on UPDATE as success — still permanently fails', async () => {
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({ id: 'mut-upd-dup', tableName: 'entries', operation: 'UPDATE' })
+      );
+
+      const dupKeyError = { code: '23505', message: 'duplicate key value violates unique constraint' };
+      vi.mocked(mockSupabase.from).mockReturnValueOnce({
+        update: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            select: vi.fn(() => Promise.resolve({ data: null, error: dupKeyError })),
+          })),
+        })),
+      } as unknown as ReturnType<typeof mockSupabase.from>);
+
+      const results = await manager.uploadPendingMutations();
+
+      expect(results).toHaveLength(1);
+      expect(results[0]!.success).toBe(false);
+
+      // 23505 on UPDATE is a real constraint failure, not an idempotent retry
+      const failed = await mockDb.getAll(REPLICATION_STORES.FAILED_MUTATIONS);
+      expect(failed).toHaveLength(1);
+    });
+
     it('should handle DELETE operation', async () => {
       await mockDb.put(
         REPLICATION_STORES.PENDING_MUTATIONS,

@@ -149,7 +149,14 @@ export const CheckInManagementOverlay: React.FC<CheckInManagementOverlayProps> =
               <div className="space-y-3">
                 {pendingEntries.map(entry => {
                   const currentStatus = getCurrentStatus(entry);
-                  const StatusIcon = STATUS_ICONS[currentStatus];
+                  // Defensive: currentStatus can be an unmapped DB string (legacy
+                  // row / future status) that escapes the CheckInStatus union —
+                  // getCurrentStatus's `?? 'no-status'` only catches null/undefined.
+                  // STATUS_ICONS[rogue] is undefined, and rendering <undefined /> at
+                  // line ~184 throws "Element type is invalid", crashing the tree.
+                  const StatusIcon = STATUS_ICONS[currentStatus] ?? STATUS_ICONS['no-status'];
+                  const badgeColors =
+                    STATUS_BADGE_COLORS[currentStatus] ?? STATUS_BADGE_COLORS['no-status'];
 
                   return (
                     <div
@@ -179,7 +186,7 @@ export const CheckInManagementOverlay: React.FC<CheckInManagementOverlayProps> =
                         <div className="flex-shrink-0">
                           <Badge
                             variant="outline"
-                            className={cn('font-medium border', STATUS_BADGE_COLORS[currentStatus])}
+                            className={cn('font-medium border', badgeColors)}
                           >
                             <StatusIcon className="h-3.5 w-3.5 mr-1.5" />
                             {getStatusDisplayName(currentStatus)}

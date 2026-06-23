@@ -573,6 +573,20 @@ describe('ShowDetailsPage', () => {
     );
   });
 
+  it('management nav tab container is horizontally scrollable and has no fixed minimum width', () => {
+    mockAuthContext.isSecretary = true;
+
+    renderPage();
+
+    const nav = screen.getByTestId('canonical-show-management-nav');
+    const container = nav.firstElementChild;
+    expect(container?.className).toContain('overflow-x-auto');
+    expect(container?.className).toContain('max-w-full');
+    // No min-w-* or fixed pixel widths that force desktop layout on phones
+    expect(container?.className).not.toMatch(/min-w-\[/);
+    expect(container?.className).not.toMatch(/w-\[\d/);
+  });
+
   it('hides canonical management nav from exhibitors', () => {
     renderPage();
 

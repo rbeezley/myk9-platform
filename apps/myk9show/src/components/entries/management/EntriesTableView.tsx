@@ -292,7 +292,7 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
   return (
     <>
       <div
-        className="max-w-full overflow-x-auto rounded-lg border border-border"
+        className="max-w-full overflow-x-auto rounded-lg"
         aria-label="Entry table scroll area"
         role="region"
         tabIndex={0}

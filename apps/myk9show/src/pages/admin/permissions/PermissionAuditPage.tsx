@@ -76,7 +76,7 @@ const columns: ColumnDef<PermissionAuditLog, unknown>[] = [
       <div className="flex items-center gap-2">
         {getActionIcon(row.original.action)}
         <Badge variant={getActionBadgeVariant(row.original.action) as 'default'}>
-          {row.original.action.replace('_', ' ').toUpperCase()}
+          {row.original.action.replace(/_/g, ' ').toUpperCase()}
         </Badge>
       </div>
     ),
@@ -430,7 +430,7 @@ const PermissionAuditPage: React.FC = () => {
 
           {/* Audit Log DataTable */}
           <div
-            className="max-w-full overflow-x-auto rounded-lg border border-border"
+            className="max-w-full overflow-x-auto rounded-lg"
             aria-label="Permission audit log table scroll area"
             role="region"
             tabIndex={0}
@@ -472,7 +472,7 @@ const PermissionAuditPage: React.FC = () => {
                         <SelectItem value="all">All Actions</SelectItem>
                         {actionTypes.map(actionType => (
                           <SelectItem key={actionType} value={actionType}>
-                            {actionType.replace('_', ' ').toUpperCase()}
+                            {actionType.replace(/_/g, ' ').toUpperCase()}
                           </SelectItem>
                         ))}
                       </SelectContent>

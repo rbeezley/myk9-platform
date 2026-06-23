@@ -16,7 +16,7 @@
 import type { ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Radio } from 'lucide-react';
+import { ArrowLeft, SearchX } from 'lucide-react';
 import { replicatedShowsTable } from '@/services/replication';
 import { EmptyState, ErrorEmptyState, LoadingEmptyState } from '@/components/common/EmptyState';
 
@@ -60,7 +60,7 @@ export function RingsideShowBoundary({ children }: { children: ReactNode }) {
     return (
       <FullScreen>
         <EmptyState
-          icon={Radio}
+          icon={SearchX}
           title="Show not found"
           description="We couldn't find this show. It may have been removed, or the link may be out of date. Head back to your dashboard to find it."
           action={{ label: 'Back to dashboard', onClick: () => navigate('/'), icon: ArrowLeft }}

@@ -158,8 +158,28 @@ export interface FixtureMessage {
   created_at: string;
 }
 
+export interface FixtureShow {
+  id: string;
+  name: string;
+  entry_close_at: string;
+  /** Mapper-required columns for the shows replication sync (rowToShow). */
+  organization: string;
+  start_date: string;
+  end_date: string;
+  club_id: string;
+}
+
+export interface FixtureTrial {
+  id: string;
+  show_id: string;
+  name: string;
+  date: string;
+}
+
 export interface Phase4SeamState {
-  show: { id: string; name: string; entry_close_at: string };
+  show: FixtureShow;
+  /** The single trial all fixture classes hang off (trials replication sync). */
+  trial: FixtureTrial;
   users: { secretary: FixtureUser; exhibitorA: FixtureUser; exhibitorB: FixtureUser };
   dogs: Record<string, FixtureDog>;
   classes: Record<string, FixtureClass>;
@@ -175,6 +195,10 @@ export interface Phase4SeamState {
 const SEED_TS = '2026-06-01T12:00:00.000Z';
 // Entry close in the past so the show models a post-deadline state (Task 2).
 const ENTRY_CLOSE_TS = '2026-06-05T23:59:59.000Z';
+// Show runs in the future so it models an upcoming (pre-results) state.
+const SHOW_START_DATE = '2026-09-12';
+const SHOW_END_DATE = '2026-09-13';
+const PHASE4_CLUB_ID = 'phase4-club-autumn';
 
 function seedState(): Phase4SeamState {
   const secretary: FixtureUser = {
@@ -204,6 +228,16 @@ function seedState(): Phase4SeamState {
       id: PHASE4_IDS.show,
       name: 'Autumn Classic Scent Work Trial',
       entry_close_at: ENTRY_CLOSE_TS,
+      organization: 'AKC',
+      start_date: SHOW_START_DATE,
+      end_date: SHOW_END_DATE,
+      club_id: PHASE4_CLUB_ID,
+    },
+    trial: {
+      id: PHASE4_IDS.trial,
+      show_id: PHASE4_IDS.show,
+      name: 'Day 1 — Saturday',
+      date: SHOW_START_DATE,
     },
     users: { secretary, exhibitorA, exhibitorB },
     dogs: {

@@ -31,6 +31,7 @@
 
 import {
   PHASE4_IDS,
+  type FixtureClass,
   type FixtureEntry,
   type FixtureMessage,
   type FixtureMessageThread,
@@ -41,6 +42,7 @@ import {
   clock,
   error,
   extractEqFilter,
+  extractGtFilter,
   fulfilled,
   noRow,
   singleOrArray,
@@ -49,6 +51,14 @@ import {
   type SeamRequest,
   type SeamResponse,
 } from './phase4SeamHttp';
+
+/**
+ * Synthetic last-sync timestamp for rows the fixture doesn't otherwise version
+ * (show/trial/class). Newer than the entry SEED_TS so a watermarked incremental
+ * sync still surfaces the show scaffold; on a full sync (no `gt` filter) it is
+ * returned unconditionally.
+ */
+const SYNC_UPDATED_AT = '2026-06-06T00:00:00.000Z';
 
 // --- Write dispatch -------------------------------------------------------
 
@@ -469,6 +479,141 @@ export function handleFixtureRead(
       // let them continue rather than racing the IndexedDB layer.
       return null;
   }
+}
+
+// --- Replication sync-down reads (render-only) ----------------------------
+
+/**
+ * Serves the replication sync-down GETs (shows / trials / classes / entries-view)
+ * from fixture state so the app's own sync writes the fixture show into IndexedDB
+ * and renders it — the render-only read strategy
+ * (docs/plan-phase4-seam-render-only.md). Honors the PostgREST `eq` scope filter
+ * and the `updated_at=gt.<iso>` watermark; a full sync omits the watermark, so a
+ * null `since` returns everything. Returns null for an unrecognized table so the
+ * dispatcher continues the request to the network.
+ */
+export function handleSyncRead(
+  state: Phase4SeamState,
+  table: string,
+  req: SeamRequest,
+  options?: HandleOptions
+): { response: SeamResponse; seam: SeamName } | null {
+  const since = extractGtFilter(req.url, 'updated_at');
+  const fresh = (updatedAt: string): boolean => since === null || updatedAt > since;
+
+  switch (table) {
+    case 'shows': {
+      const id = extractEqFilter(req.url, 'id');
+      const clubId = extractEqFilter(req.url, 'club_id');
+      const match =
+        (!id || id === state.show.id) &&
+        (!clubId || clubId === state.show.club_id) &&
+        fresh(SYNC_UPDATED_AT);
+      return { response: fulfilled(200, match ? [showRow(state)] : []), seam: 'read' };
+    }
+    case 'trials': {
+      const showId = extractEqFilter(req.url, 'show_id');
+      const id = extractEqFilter(req.url, 'id');
+      const match =
+        (!showId || showId === state.trial.show_id) &&
+        (!id || id === state.trial.id) &&
+        fresh(SYNC_UPDATED_AT);
+      return { response: fulfilled(200, match ? [trialRow(state)] : []), seam: 'read' };
+    }
+    case 'classes': {
+      const trialId = extractEqFilter(req.url, 'trial_id');
+      const id = extractEqFilter(req.url, 'id');
+      const rows = Object.values(state.classes)
+        .filter(c => (!trialId || c.trial_id === trialId) && (!id || c.id === id))
+        .filter(() => fresh(SYNC_UPDATED_AT))
+        .map(classRow);
+      return { response: fulfilled(200, rows), seam: 'read' };
+    }
+    case 'view_authenticated_entry_results': {
+      const showId = extractEqFilter(req.url, 'show_id');
+      const classId = extractEqFilter(req.url, 'class_id');
+      const rows = Object.values(state.entries)
+        .filter(e => (!showId || e.show_id === showId) && (!classId || e.class_id === classId))
+        .filter(e => fresh(e.updated_at))
+        .map(e => entryViewRow(state, e, options));
+      return { response: fulfilled(200, rows), seam: 'read' };
+    }
+    default:
+      return null;
+  }
+}
+
+function showRow(state: Phase4SeamState): Record<string, unknown> {
+  const s = state.show;
+  return {
+    id: s.id,
+    name: s.name,
+    organization: s.organization,
+    start_date: s.start_date,
+    end_date: s.end_date,
+    club_id: s.club_id,
+    status: 'published',
+    entry_close_date: s.entry_close_at,
+    updated_at: SYNC_UPDATED_AT,
+  };
+}
+
+function trialRow(state: Phase4SeamState): Record<string, unknown> {
+  const t = state.trial;
+  return {
+    id: t.id,
+    show_id: t.show_id,
+    name: t.name,
+    date: t.date,
+    status: 'scheduled',
+    updated_at: SYNC_UPDATED_AT,
+  };
+}
+
+function classRow(cls: FixtureClass): Record<string, unknown> {
+  return {
+    id: cls.id,
+    trial_id: cls.trial_id,
+    name: cls.name,
+    class_number: cls.class_number,
+    max_entries: cls.max_entries,
+    entry_fee: cls.entry_fee,
+    results_released_at: cls.results_released_at,
+    results_released_by: cls.results_released_by,
+    status: cls.results_released_at ? 'completed' : 'scheduled',
+    updated_at: SYNC_UPDATED_AT,
+  };
+}
+
+function entryViewRow(
+  state: Phase4SeamState,
+  entry: FixtureEntry,
+  options?: HandleOptions
+): Record<string, unknown> {
+  const isExhibitorA = entry.exhibitor_user_id === PHASE4_IDS.exhibitorA;
+  const personId = options?.identity?.exhibitorPersonId;
+  // Render-only ownership remap: exhibitor-A rows adopt the real signed-in
+  // exhibitor's person id so client-side "my entries" filters keep them.
+  const handlerId = isExhibitorA && personId ? personId : entry.handler_id;
+  return {
+    id: entry.id,
+    show_id: entry.show_id,
+    trial_id: entry.trial_id,
+    class_id: entry.class_id,
+    dog_id: entry.dog_id,
+    handler_id: handlerId,
+    handler: entry.handler,
+    armband: entry.armband,
+    entry_status: entry.entry_status,
+    check_in_status: entry.check_in_status,
+    entry_fee: entry.entry_fee,
+    payment_status: entry.payment_status,
+    special_requests: entry.special_requests,
+    is_scored: entry.is_scored,
+    final_placement: entry.final_placement,
+    dog_call_name: state.dogs[entry.dog_id]?.call_name ?? null,
+    updated_at: entry.updated_at,
+  };
 }
 
 function resultViewRow(state: Phase4SeamState, entry: FixtureEntry) {

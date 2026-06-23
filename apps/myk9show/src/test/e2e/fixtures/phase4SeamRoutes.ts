@@ -23,6 +23,7 @@ import {
   error,
   FIXTURE_FUNCTIONS,
   FIXTURE_TABLES,
+  SYNC_READ_TABLES,
   WRITE_METHODS,
   type AuditEntry,
   type HandleOptions,
@@ -35,6 +36,7 @@ import {
   handleFixtureRpc,
   handleFixtureWrite,
   handleRefundFunction,
+  handleSyncRead,
 } from './phase4SeamHandlers';
 
 // Re-export the public surface so tests/specs import from one entry point.
@@ -107,6 +109,15 @@ export function handleSeamRequest(
   // --- READS --------------------------------------------------------------
   if (isFixtureTable) {
     const resp = handleFixtureRead(state, name as string, req);
+    if (resp) {
+      return record(req, name, resp.response, resp.seam, false, false, start, options);
+    }
+  }
+  // Replication sync-down reads (shows/trials/classes/entries-view): served from
+  // fixture state so the app populates IndexedDB with the fixture show. `classes`
+  // is in both sets — handleFixtureRead returns null for it, falling through here.
+  if (kind === 'rest' && name !== null && SYNC_READ_TABLES.has(name)) {
+    const resp = handleSyncRead(state, name, req, options);
     if (resp) {
       return record(req, name, resp.response, resp.seam, false, false, start, options);
     }

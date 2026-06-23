@@ -291,16 +291,25 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
 
   return (
     <>
-      <DataTable<EntryManagementEntry>
-        tableId="entriesManagement"
-        data={entries}
-        columns={columns}
-        getRowId={entry => entry.id}
-        showSearch={false}
-        emptyState={emptyState}
-        noResultsMessage={emptyState}
-        {...(onEntryClick !== undefined ? { onRowClick: onEntryClick } : {})}
-      />
+      <div
+        className="max-w-full overflow-x-auto rounded-lg"
+        aria-label="Entry table scroll area"
+        role="region"
+        tabIndex={0}
+      >
+        <div className="min-w-[720px]">
+          <DataTable<EntryManagementEntry>
+            tableId="entriesManagement"
+            data={entries}
+            columns={columns}
+            getRowId={entry => entry.id}
+            showSearch={false}
+            emptyState={emptyState}
+            noResultsMessage={emptyState}
+            {...(onEntryClick !== undefined ? { onRowClick: onEntryClick } : {})}
+          />
+        </div>
+      </div>
       <RequestPaymentDialog
         open={requestPaymentEntry !== null}
         onOpenChange={open => {

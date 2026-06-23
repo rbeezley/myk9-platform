@@ -21,8 +21,8 @@ const AlertsPage: React.FC = () => {
       <div className="container mx-auto px-6 pt-8 pb-8 max-w-7xl">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="min-w-0">
               <h1
                 className="text-3xl font-bold tracking-tight flex items-center"
                 style={{ fontWeight: 650 }}
@@ -35,7 +35,7 @@ const AlertsPage: React.FC = () => {
               </p>
             </div>
 
-            <div className="flex items-center space-x-4">
+            <div className="flex w-full flex-wrap items-center gap-3 md:w-auto md:justify-end">
               {/* Connection Status */}
               <div className="flex items-center space-x-2">
                 <div

@@ -89,15 +89,24 @@ export const PeopleTableView: React.FC<PeopleTableViewProps> = ({ people }) => {
   const navigate = useNavigate();
 
   return (
-    <DataTable
-      tableId="peopleBrowse"
-      columns={columns}
-      data={people}
-      // Page-level ListControls owns search; table keeps only its Columns control.
-      showSearch={false}
-      onRowClick={person => navigate(`/people/${person.id}`)}
-      getRowId={person => person.id}
-    />
+    <div
+      className="max-w-full overflow-x-auto rounded-lg"
+      aria-label="People table scroll area"
+      role="region"
+      tabIndex={0}
+    >
+      <div className="min-w-[720px]">
+        <DataTable
+          tableId="peopleBrowse"
+          columns={columns}
+          data={people}
+          // Page-level ListControls owns search; table keeps only its Columns control.
+          showSearch={false}
+          onRowClick={person => navigate(`/people/${person.id}`)}
+          getRowId={person => person.id}
+        />
+      </div>
+    </div>
   );
 };
 

@@ -429,55 +429,64 @@ const PermissionAuditPage: React.FC = () => {
           </div>
 
           {/* Audit Log DataTable */}
-          <DataTable
-            tableId="permissionAudit"
-            columns={columns}
-            data={filteredLogs}
-            initialSorting={[{ id: 'created_at', desc: true }]}
-            emptyState={
-              <div className="text-center py-8">
-                <History className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">No audit events found</h3>
-                <p className="text-muted-foreground">No audit events in the selected time range</p>
-              </div>
-            }
-            toolbar={({ table }) => (
-              <DataTableToolbar table={table}>
-                <DataTableSearch placeholder="Search audit logs..." />
-                <Select value={dateRange} onValueChange={setDateRange}>
-                  <SelectTrigger className="w-40 h-8 text-xs" aria-label="Date range">
-                    <Calendar className="h-3.5 w-3.5 mr-1" />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1d">Last 24 hours</SelectItem>
-                    <SelectItem value="7d">Last 7 days</SelectItem>
-                    <SelectItem value="30d">Last 30 days</SelectItem>
-                    <SelectItem value="90d">Last 90 days</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={actionFilter} onValueChange={setActionFilter}>
-                  <SelectTrigger className="w-44 h-8 text-xs" aria-label="Action filter">
-                    <Filter className="h-3.5 w-3.5 mr-1" />
-                    <SelectValue placeholder="Filter by action" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Actions</SelectItem>
-                    {actionTypes.map(actionType => (
-                      <SelectItem key={actionType} value={actionType}>
-                        {actionType.replace('_', ' ').toUpperCase()}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <DataTableColumnToggle />
-                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={handleExport}>
-                  <Download className="h-3.5 w-3.5 mr-1" />
-                  Export
-                </Button>
-              </DataTableToolbar>
-            )}
-          />
+          <div
+            className="max-w-full overflow-x-auto rounded-lg border border-border"
+            aria-label="Permission audit log table scroll area"
+            role="region"
+            tabIndex={0}
+          >
+            <div className="min-w-[720px]">
+              <DataTable
+                tableId="permissionAudit"
+                columns={columns}
+                data={filteredLogs}
+                initialSorting={[{ id: 'created_at', desc: true }]}
+                emptyState={
+                  <div className="text-center py-8">
+                    <History className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-medium mb-2">No audit events found</h3>
+                    <p className="text-muted-foreground">No audit events in the selected time range</p>
+                  </div>
+                }
+                toolbar={({ table }) => (
+                  <DataTableToolbar table={table}>
+                    <DataTableSearch placeholder="Search audit logs..." />
+                    <Select value={dateRange} onValueChange={setDateRange}>
+                      <SelectTrigger className="w-40 h-8 text-xs" aria-label="Date range">
+                        <Calendar className="h-3.5 w-3.5 mr-1" />
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1d">Last 24 hours</SelectItem>
+                        <SelectItem value="7d">Last 7 days</SelectItem>
+                        <SelectItem value="30d">Last 30 days</SelectItem>
+                        <SelectItem value="90d">Last 90 days</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select value={actionFilter} onValueChange={setActionFilter}>
+                      <SelectTrigger className="w-44 h-8 text-xs" aria-label="Action filter">
+                        <Filter className="h-3.5 w-3.5 mr-1" />
+                        <SelectValue placeholder="Filter by action" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Actions</SelectItem>
+                        {actionTypes.map(actionType => (
+                          <SelectItem key={actionType} value={actionType}>
+                            {actionType.replace('_', ' ').toUpperCase()}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <DataTableColumnToggle />
+                    <Button variant="outline" size="sm" className="h-8 text-xs" onClick={handleExport}>
+                      <Download className="h-3.5 w-3.5 mr-1" />
+                      Export
+                    </Button>
+                  </DataTableToolbar>
+                )}
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>

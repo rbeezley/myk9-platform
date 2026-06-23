@@ -18,6 +18,7 @@ import {
   useShowSettings,
   useTrialOverrides,
   useClassOverrides,
+  getDefaultShowSettings,
 } from '@/hooks/queries/useShowSettingsDatabase';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { PresetSelector } from './PresetSelector';
@@ -27,6 +28,21 @@ import { BulkOperationsBar } from './BulkOperationsBar';
 import { SelfCheckinSection } from './SelfCheckinSection';
 
 const getClassId = (c: { id: string }) => c.id;
+
+/**
+ * Inline body shown inside a card when the visibility queries error.
+ * Deliberately compact: the page-level banner above carries the Retry action,
+ * so this only needs to explain why the panel is empty rather than re-offer it.
+ * Critically, this is NOT a skeleton — an errored query must visibly settle.
+ */
+function CardLoadError() {
+  return (
+    <p className="text-sm text-muted-foreground">
+      Couldn&apos;t load these settings. Use <span className="font-medium">Retry</span> above to try
+      again.
+    </p>
+  );
+}
 
 export default function ResultsControlPage() {
   const params = useParams<{ showId?: string; id?: string }>();
@@ -70,6 +86,15 @@ export default function ResultsControlPage() {
 
   const isLoading = settingsLoading || overridesLoading || classOverridesLoading;
   const isError = settingsError || trialOverridesError || classOverridesError;
+
+  // `settings` is undefined whenever the query hasn't produced data: on a
+  // resolved fetch it's always defined, but the queries are `enabled: !!showId`,
+  // so an empty showId leaves them idle (isLoading=false, isError=false,
+  // data=undefined) and we still land in the content branch. Falling back to
+  // defaults keeps the panel usable there, and lets the content branch gate on
+  // isError alone rather than `!settings` (which previously collapsed the
+  // errored state back into the loading skeleton).
+  const effectiveSettings = settings ?? getDefaultShowSettings();
 
   const retryAll = useCallback(() => {
     void refetchSettings();
@@ -169,14 +194,16 @@ export default function ResultsControlPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {isLoading || !settings ? (
+          {isLoading ? (
             <div className="space-y-3">
               <Skeleton className="h-24 w-full" />
               <Skeleton className="h-24 w-full" />
             </div>
+          ) : isError ? (
+            <CardLoadError />
           ) : (
             <div className="space-y-6">
-              <PresetSelector showId={showId} settings={settings} />
+              <PresetSelector showId={showId} settings={effectiveSettings} />
               <TrialOverrides showId={showId} trials={showTrials} trialOverrides={trialOverrides} />
               <ClassOverrides
                 showId={showId}
@@ -202,14 +229,16 @@ export default function ResultsControlPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {isLoading || !settings ? (
+          {isLoading ? (
             <div className="space-y-3">
               <Skeleton className="h-16 w-full" />
             </div>
+          ) : isError ? (
+            <CardLoadError />
           ) : (
             <SelfCheckinSection
               showId={showId}
-              settings={settings}
+              settings={effectiveSettings}
               trialOverrides={trialOverrides}
               classOverrides={classOverrides}
               trials={showTrials}

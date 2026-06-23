@@ -1,6 +1,8 @@
 # Edge Function Deploy Drift — 2026-06-23
 
-> **Status:** Active
+> **Status:** Complete
+
+> **Resolved 2026-06-23.** All 13 flagged functions reconciled — deployed bundle now byte-matches `main` for every one (verified by re-download + diff). The 10-function batch below was proven behavior-neutral (the pre-envelope handlers already returned the bare object, so the envelope's success contract is identical; only error statuses improved) and deployed. `send-confirmation-email` deploy also activated the merged Heritage email layouts. Remaining manual check: trigger one real signup/recovery email to smoke-test the `send-auth-email` GoTrue hook.
 
 Audit of deployed edge functions vs `main` source, run 2026-06-23 after the cleanup skill's check #8 was strengthened to verify deploy state (PRs #938/#939). Every entry below was **proven** by downloading the deployed bundle (`supabase functions download <name> --use-api --workdir <tmp>`) and diffing against repo source — not by timestamp heuristic.
 

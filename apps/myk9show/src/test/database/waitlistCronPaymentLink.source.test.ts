@@ -7,8 +7,10 @@ const cronSource = readFileSync(
   'utf8'
 );
 
+// Canonical send-email lives at the repo root (the deployed slug), not apps/myk9show.
+// The apps/myk9show fork was deleted; this asserts the payment-link CTA on the live copy.
 const emailSource = readFileSync(
-  resolve(__dirname, '../../../supabase/functions/send-email/index.ts'),
+  resolve(__dirname, '../../../../../supabase/functions/send-email/index.ts'),
   'utf8'
 );
 

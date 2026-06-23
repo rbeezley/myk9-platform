@@ -142,7 +142,7 @@ Do NOT add individual guides to `docs/README.md` (the main index) — that track
 | `docs/user-guides/secretary-guide.md` | `secretary-guide-outline.md` | `qa-draft` | Phase 0 gate met; screenshots pending |
 | `docs/user-guides/exhibitor-guide.md` | `exhibitor-guide-outline.md` | `qa-draft` | Phase 0 gate met; § 10 stub |
 | `docs/user-guides/club-admin-guide.md` | `club-admin-guide-outline.md` | `qa-draft` | C-04/C-05 blocked: stripe |
-| `docs/user-guides/judge-steward-quickstart.md` | `judge-steward-quickstart-outline.md` | `planned` | **Gated on `unified_ringside_enabled` flag removal** |
+| `docs/user-guides/judge-steward-quickstart.md` | `judge-steward-quickstart-outline.md` | `planned` | No longer flag-blocked; screenshots capturable after staging redeploy (Updated 2026-06-23: `unified_ringside_enabled` flag removed — see [`../../../../docs/plan-remove-unified-ringside-flag.md`](../../../../docs/plan-remove-unified-ringside-flag.md)) |
 
 ---
 
@@ -152,8 +152,8 @@ The outline is at `docs/user-guides/judge-steward-quickstart-outline.md`. Key co
 
 - **Target format:** printable on one A5/half-letter page — numbered steps only, no prose paragraphs
 - **Canonical route:** `/at-show/:showId` (the unified ringside surface — never reference old myK9Q app)
-- **All J-01–J-06 screenshots are `blocked: flag`** until `unified_ringside_enabled` is promoted out of DEV-only
-- **Write the prose skeleton now** — you can author the full guide with blocked placeholders; screenshots drop in once the flag ships
+- **J-01–J-06 screenshots are no longer flag-blocked** — capturable against staging once the removal PR redeploys (Updated 2026-06-23: `unified_ringside_enabled` flag removed — see [`../../../../docs/plan-remove-unified-ringside-flag.md`](../../../../docs/plan-remove-unified-ringside-flag.md); at-show surface renders for every show, gated only by `AtShowAccessGate`)
+- **Write the prose skeleton now** — you can author the full guide with placeholders; screenshots drop in once captured against staging
 - **Offline section is required** — judges lose signal at most venues; the guide must describe offline behavior explicitly
 - **Two access paths to document:** staff account (sign in normally) and show passcode/QR code (no account needed)
 

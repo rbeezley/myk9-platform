@@ -51,6 +51,6 @@ Confirm the dev server is running before capturing: `pnpm dev:show` from the pro
 | `ready` | Can be captured now |
 | `blocked: stripe` | Needs a live Stripe sandbox onboarding walkthrough |
 | `blocked: seed` | Needs specific seed data not yet in staging |
-| `blocked: flag` | Gated on `unified_ringside_enabled` flag (DEV-only as of 2026-06-19) |
+| `blocked: flag` | _(retired 2026-06-23)_ formerly gated on `unified_ringside_enabled`; flag removed, shots now `ready` |
 | `blocked: not-built` | Feature is not yet built |
 | `blocked: date` | Only renders on show day |

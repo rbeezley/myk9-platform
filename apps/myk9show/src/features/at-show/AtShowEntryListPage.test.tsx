@@ -8,8 +8,10 @@
  * value-sensitive bit (the in-ring enum lands at the shared replicated
  * check-in status writer), per CLAUDE.md.
  *
- * Also pins Phase 1d: `AtShowRoutes()` now registers its routes unconditionally
- * (per-show enablement moved into `UnifiedRingsideGate`, tested separately).
+ * Also pins that `AtShowRoutes()` registers its routes unconditionally. The
+ * surface is available for every show — the old `unified_ringside_enabled`
+ * feature flag was removed pre-launch; only `RingsideShowBoundary` (loading /
+ * retry / missing-show) and `AtShowAccessGate` (access) wrap the pages now.
  */
 
 import { Routes, Route } from 'react-router-dom';
@@ -133,10 +135,10 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     expect(JSON.parse(localStorage.getItem('dog_favorites_show-1') ?? '[]')).toEqual([]);
   });
 
-  it('registers the /at-show routes unconditionally (per-show gating moved to UnifiedRingsideGate)', () => {
-    // Phase 1d: route registration no longer depends on a global flag; the
-    // per-show enablement check lives in UnifiedRingsideGate (tested in
-    // UnifiedRingsideGate.test.tsx).
+  it('registers the /at-show routes unconditionally (no feature-flag gate)', () => {
+    // Route registration depends on no flag, and the per-show
+    // `unified_ringside_enabled` gate was removed pre-launch; resilience now
+    // lives in RingsideShowBoundary (tested in RingsideShowBoundary.test.tsx).
     expect(AtShowRoutes()).not.toBeNull();
   });
 });

@@ -26,16 +26,11 @@ Choose one of two approaches:
 - Create your own accounts via the sign-up flow, or use a site-admin account
 - Walk all parts in order from Part 1
 
-### At-show feature flag [ADDED]
+### At-show availability [UPDATED 2026-06-23]
 
-Part 6 (At-Show / Ringside) requires `shows.unified_ringside_enabled = true` on the test show.
+Part 6 (At-Show / Ringside) is available for **every** show — no feature flag or SQL flip is needed. The `unified_ringside_enabled` flag was removed (see [`../plan-remove-unified-ringside-flag.md`](../plan-remove-unified-ringside-flag.md)); access is now gated solely by `AtShowAccessGate` (RBAC staff role or a valid show-scoped passcode grant).
 
-To enable it for a specific show, run from the Supabase dashboard (SQL editor):
-```sql
-UPDATE public.shows SET unified_ringside_enabled = true WHERE id = '<your-show-id>';
-```
-
-If you cannot set the flag, skip Part 6 and note it in the issue log.
+To reach the at-show surface, just open `/at-show/:showId` for the test show as a user who clears `AtShowAccessGate`.
 
 ### Environment
 
@@ -405,15 +400,13 @@ If you cannot set the flag, skip Part 6 and note it in the issue log.
 
 ## Part 6 — At-Show / Ringside (NEW)
 
-> The `/at-show/:showId` routes are a full-screen ringside experience for judges and scorers. Access is gated by `shows.unified_ringside_enabled` (currently DEV-only feature flag) and admits either RBAC staff or a valid show-scoped passcode grant.
+> The `/at-show/:showId` routes are a full-screen ringside experience for judges and scorers. The surface is available for every show; access is gated solely by `AtShowAccessGate`, which admits either RBAC staff or a valid show-scoped passcode grant. (Updated 2026-06-23: the `unified_ringside_enabled` feature flag was removed — see [`../plan-remove-unified-ringside-flag.md`](../plan-remove-unified-ringside-flag.md).)
 
-### 6.1 — Confirm Feature Flag is Enabled [EXPANDED]
+### 6.1 — Confirm At-Show Surface is Reachable [UPDATED]
 
-- [ ] Verify the test show has `unified_ringside_enabled = true`
-  - Option A: confirm it was set in Pre-Flight (see SQL above)
-  - Option B: open the Supabase SQL editor and run `SELECT unified_ringside_enabled FROM public.shows WHERE id = '<show-id>';`
-- [ ] If the flag is `false`, the `/at-show/:showId` route will show an inline "not enabled" notice — that is expected gating behavior. Confirm the notice text is legible, then **stop Part 6** and note in the issue log that the flag was not set.
-- [ ] If the flag is `true`, proceed with 6.2+
+- [ ] Open `/at-show/:showId` for the test show — no feature flag or SQL flip is needed; the at-show surface renders for every show
+- [ ] Confirm access is governed by `AtShowAccessGate` only (RBAC staff role or a valid show-scoped passcode grant)
+- [ ] Proceed with 6.2+
 
 **Issue:** ______________________________________________________________________
 
@@ -548,7 +541,7 @@ Use this section to list every issue found during the walk. Bring this back to C
 
 | Step | Item | Reason |
 | ---- | ---- | ------ |
-| 6.1  | At-show feature flag | `unified_ringside_enabled` is DEV-only. If testing against staging without the flag set, the inline gate notice is expected. |
+| 6.1  | At-show access | The at-show surface is available for every show — no feature flag. Access is gated only by `AtShowAccessGate`; without a qualifying RBAC role or passcode grant the access gate (not a feature-flag notice) is expected. (Updated 2026-06-23: `unified_ringside_enabled` flag removed — see [`../plan-remove-unified-ringside-flag.md`](../plan-remove-unified-ringside-flag.md).) |
 | 4.9  | Ring number display | Ring numbers are not yet persisted. `Ring 0` or absent ring labels are expected behavior until the ring-number contract is implemented. |
 
 ---

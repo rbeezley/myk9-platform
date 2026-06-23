@@ -92,7 +92,7 @@ Investigation cookbook: `docs/support/investigation-cookbook.md#entry-visibility
 
 - Confirm which surface is being used for scoring: ringside tablet via `/at-show/:showId` or secretary entry
 - If score entered but not visible: sync delay, not data loss — wait for sync
-- If scoring is completely blocked: check whether `unified_ringside_enabled` flag is active for this show (shows with the flag disabled use old ringside path)
+- If scoring is completely blocked: the at-show surface is available for every show, so check **access** rather than a feature flag — confirm the user has a valid RBAC role or show-scoped passcode grant that clears `AtShowAccessGate` (Updated 2026-06-23: the `unified_ringside_enabled` flag was removed — see [`../plan-remove-unified-ringside-flag.md`](../plan-remove-unified-ringside-flag.md))
 - Results not released to exhibitors: secretary releases from Results Control after show, not during
 - Scoresheet not printing: Reports page → select trial → select report type
 

@@ -147,7 +147,9 @@ source supabase/.env && supabase functions list --project-ref sojmvhhwsjxmfistvz
 
 Step 3 — reason over the two lists and flag:
 
-- **Stale deploy:** a function whose source last-commit (Step 1) is *newer* than its deployed `UPDATED_AT` (Step 2) → its deployed bundle predates its current source. This is the class a commit-window diff misses.
+- **Stale deploy:** a function whose source last-commit (Step 1) is *newer* than its deployed `UPDATED_AT` (Step 2) → its deployed bundle predates its current source. This is the class a commit-window diff misses. Two calibration rules before you act on a flag:
+  - **Flags are candidates, not proof.** `git log -- <dir>` dates any file touch in the dir — a comment, a sibling test, a formatting sweep — not just deployable change. Confirm a real behavioral diff before deploying: `git show <last-commit> -- <dir>/index.ts` (did the entry file substantively change?), or `supabase functions download <name>` into a temp dir and diff against source.
+  - **Sub-day gaps are usually false positives.** A squash-merge stamps its commit time at *merge*, which can land minutes *after* a deploy that ran from the feature branch — so source-newer-by-an-hour usually means the deploy already contains it. Treat weeks/months gaps as real drift; treat sub-day gaps as ordering noise unless a diff proves otherwise.
 - **Never deployed:** a source function absent from the deployed list.
 - **Dual-location fork:** the *same* function name appears in BOTH source dirs. Only one is the deployed slug — do NOT guess. Determine canonical by which copy handles a type/route the app actually invokes (e.g. `send-email`'s `entry_decision` case → root is canonical; the `apps/myk9show` copy was a drift-magnet fork, deleted in PR #937). Editing or deploying the wrong copy ships nothing.
 

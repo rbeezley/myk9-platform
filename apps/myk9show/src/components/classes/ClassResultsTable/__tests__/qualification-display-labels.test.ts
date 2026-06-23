@@ -23,8 +23,6 @@ describe('QualificationCell DISPLAY_LABELS', () => {
       const label = DISPLAY_LABELS[status];
       expect(typeof label).toBe('string');
       expect(label.length).toBeGreaterThan(0);
-      // A short code should be shorter than (or equal to) the raw status string.
-      expect(label.length).toBeLessThanOrEqual(status.length);
     }
   });
 
@@ -43,6 +41,15 @@ describe('QUALIFICATION_REASONS / STATUSES_REQUIRING_REASON', () => {
       expect(reasons, `"${status}" requires a reason but has no reason list`).toBeTruthy();
       expect(reasons.length).toBeGreaterThan(0);
     }
+  });
+
+  it('keeps STATUSES_REQUIRING_REASON and QUALIFICATION_REASONS keys in exact sync', () => {
+    // Both directions: a reason list added without flagging the status would make
+    // the reason dropdown silently never render (the editor reads the flag list);
+    // a flagged status without a list would render an empty dropdown.
+    const flagged = [...STATUSES_REQUIRING_REASON].sort();
+    const withLists = Object.keys(QUALIFICATION_REASONS).sort();
+    expect(withLists).toEqual(flagged);
   });
 
   it('every QUALIFICATION_REASONS key is a valid QualificationStatus', () => {

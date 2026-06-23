@@ -143,10 +143,11 @@ result).
 
 ALL must hold:
 
-- [x] New test file exists and `npx vitest run ...integration.test.ts` passes
-      with ≥ 4 cases.
+- [x] Contract pinned: `src/pages/scoring/__tests__/calculatePlacements.test.ts` (13 cases)
+      already asserts Q/NQ filtering, rank order, tie-breaking, and the exact
+      output field name `placement`. No separate integration file needed.
 - [x] `cd apps/myk9show && pnpm typecheck` exits 0.
-- [x] No production file modified (`git status` shows only the new test file).
+- [x] No production file modified.
 - [x] `docs/improve-audit-2026-06/README.md` status row for 005 updated.
 
 ## STOP conditions

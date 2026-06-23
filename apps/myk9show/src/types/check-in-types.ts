@@ -112,7 +112,12 @@ export interface CheckInInfo {
 
 // Helper functions
 export function getCheckInStatusConfig(status: CheckInStatus): CheckInStatusConfig {
-  return CHECK_IN_STATUS_CONFIG[status];
+  // Defensive: any status outside the union (legacy DB rows, a future/added
+  // status, or a null/empty value coerced to string) would otherwise return
+  // undefined and crash every consumer that dereferences the config. Fall back
+  // to the neutral 'no-status' entry so the declared non-undefined return type
+  // is honest. See CheckInStatusIndicator, which reads config.backgroundColor.
+  return CHECK_IN_STATUS_CONFIG[status] ?? CHECK_IN_STATUS_CONFIG['no-status'];
 }
 
 export function isActiveStatus(status: CheckInStatus): boolean {

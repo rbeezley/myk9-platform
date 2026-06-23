@@ -171,6 +171,39 @@ describe('phase4 sync-down reads (render-only)', () => {
     });
   });
 
+  describe('dogs (owner-scoped, echoed)', () => {
+    it('echoes the requested owner_id onto fixture dogs so they appear owned by the caller', () => {
+      const state = createPhase4SeamState();
+      const rows = body(state, `${REST}/dogs?owner_id=eq.real-person-xyz`);
+      expect(rows.length).toBeGreaterThanOrEqual(2);
+      // Every dog adopts the caller's owner so the owner-scoped sync keeps them.
+      expect(rows.every(r => r.owner_id === 'real-person-xyz')).toBe(true);
+      const scout = rows.find(r => r.id === PHASE4_IDS.dogA)!;
+      expect(scout).toMatchObject({ call_name: 'Scout', owner_id: 'real-person-xyz' });
+    });
+
+    it('falls back to the fixture owner when no owner_id filter is present', () => {
+      const state = createPhase4SeamState();
+      const rows = body(state, `${REST}/dogs?id=eq.${PHASE4_IDS.dogA}`);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ id: PHASE4_IDS.dogA, owner_id: PHASE4_IDS.personA });
+    });
+  });
+
+  describe('visibility settings (served empty)', () => {
+    it('serves the visibility tables as empty so Results Control resolves to defaults', () => {
+      const state = createPhase4SeamState();
+      for (const table of [
+        'show_visibility_settings',
+        'trial_visibility_overrides',
+        'class_visibility_overrides',
+      ]) {
+        const rows = body(state, `${REST}/${table}?show_id=eq.${PHASE4_IDS.show}`);
+        expect(rows).toEqual([]);
+      }
+    });
+  });
+
   describe('write-safety of read-only sync tables', () => {
     it('flags a stray WRITE to a sync-read-only table as an unhandled mutation', () => {
       const state = createPhase4SeamState();

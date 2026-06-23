@@ -81,6 +81,13 @@ export const SYNC_READ_TABLES = new Set([
   'trials',
   'classes',
   'view_authenticated_entry_results',
+  'dogs',
+  // Visibility settings: served EMPTY so Results Control resolves to defaults
+  // instead of erroring on the non-UUID fixture show_id (which leaves the panel
+  // stuck in a skeleton). The fixture never toggles them.
+  'show_visibility_settings',
+  'trial_visibility_overrides',
+  'class_visibility_overrides',
 ]);
 
 export const CONTINUE: SeamResponse = {

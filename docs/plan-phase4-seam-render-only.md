@@ -129,24 +129,31 @@ proven by `src/test/phase4-seam/*`. Captured live (passing):
 | `phase4-dynamic-scratch-pull` | `…?entryTab=scratches` | Pull Management with the pending pull request (reason, handler, Approve/Deny) + Pending(1)/Processed(1) |
 | `phase4-dynamic-results-control` | `/shows/:id/results-control` | Page loads; Results Visibility list is skeleton (needs more served reads) |
 
-**Two known cosmetic gaps (not blockers):**
-1. **"Unknown Dog"** on the Pull card — that card joins the replicated `dogs`
-   table, which the harness does NOT serve (the entry-view's `dog_call_name`
-   renders fine elsewhere). Fix: add `dogs` to `SYNC_READ_TABLES` with a fixture
-   dog-row transform.
-2. **Results Control visibility list renders as skeleton** — needs the per-class
-   visibility/results reads served too.
+### Follow-ups — all three SHIPPED 2026-06-23
 
-### Remaining (EXHIBITOR side — deferred)
+1. **Exhibitor render (was deferred) — DONE.** Added a render-only exhibitor walk
+   (`/exhibitor/entries`) that captures `phase4-dynamic-exhibitor-my-entries`.
+   My Entries is identity-scoped (`getUserEntries` filters by `databaseUserId` =
+   `people.id where auth_user_id = session user`, OR the account's owned dogs), so
+   the spec discovers that person id at runtime (people response listener in a
+   throwaway context) and owns the fixture dogs to it before the capture. The
+   exhibitor sees their entries in the seam states (Scratched, Withdrawn ·
+   Refunded, Pending Review, Accepted). One residual cosmetic: the card show/dog
+   **names** read "Unknown" because the scored-entry path uses
+   `postgrestGetUserEntries`, which bypasses the replication name join (the
+   un-scored path crashes on a missing theme field — not worth chasing). The seam
+   STATUSES are the cross-role evidence.
+2. **"Unknown Dog" — DONE.** `dogs` is now served (echoing the requested
+   `owner_id`, or the fixture owner when unscoped). The secretary pull card reads
+   "Scout (Scout) #12" instead of "Unknown Dog".
+3. **Results Control skeleton — DONE.** Root cause: the non-UUID fixture
+   `show_id` made the direct `show_visibility_settings` /
+   `*_visibility_overrides` reads error on the uuid column, so the panel never
+   resolved. Served empty → it now renders the visibility presets + trial/class
+   overrides + Self Check-In.
 
-Standalone `/exhibitor/entries` and the show-scoped My Entries tab are
-**identity-scoped**: `getUserEntries` matches `handlerId === userId` (person id)
-OR `ownedDogIds.has(dogId)` from the **real account's real dogs** — so a fabricated
-entry won't appear without bridging to a real owned dog (set a fixture entry's
-`dog_id` to one of `DEMO_EXHIBITOR`'s real synced dog ids, read from IndexedDB at
-runtime) or serving fixture `dogs` owned by the real person id. Exhibitor
-`/messages/:id` renders (the audit's known-blank state) and class-level results
-are servable. Show detail already renders for the exhibitor.
+Also added `get_account_today_entries` to the authz pass-through (the exhibitor
+"Show Today" banner read). New vitest cases cover dogs-echo + visibility-empty.
 
 ## Residual / out of scope
 

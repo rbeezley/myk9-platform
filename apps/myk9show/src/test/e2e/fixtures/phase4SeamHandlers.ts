@@ -32,6 +32,7 @@
 import {
   PHASE4_IDS,
   type FixtureClass,
+  type FixtureDog,
   type FixtureEntry,
   type FixtureMessage,
   type FixtureMessageThread,
@@ -538,9 +539,40 @@ export function handleSyncRead(
         .map(e => entryViewRow(state, e, options));
       return { response: fulfilled(200, rows), seam: 'read' };
     }
+    case 'show_visibility_settings':
+    case 'trial_visibility_overrides':
+    case 'class_visibility_overrides':
+      // Empty → Results Control resolves to default visibility instead of
+      // erroring on the non-UUID fixture show_id (which leaves it skeleton).
+      return { response: fulfilled(200, []), seam: 'read' };
+    case 'dogs': {
+      // The dogs sync is owner-scoped (`owner_id=eq.<person>`) and the app
+      // post-filters by owner. Echo the requested owner_id onto the fixture dogs
+      // so they appear owned by whoever asks: the signed-in exhibitor's My
+      // Entries ownership filter then keeps the fixture entries, and the
+      // secretary's pull card resolves dog names instead of "Unknown Dog".
+      const ownerId = extractEqFilter(req.url, 'owner_id');
+      const id = extractEqFilter(req.url, 'id');
+      const rows = Object.values(state.dogs)
+        .filter(d => !id || d.id === id)
+        .map(d => dogRow(d, ownerId));
+      return { response: fulfilled(200, rows), seam: 'read' };
+    }
     default:
       return null;
   }
+}
+
+function dogRow(dog: FixtureDog, ownerId: string | null): Record<string, unknown> {
+  return {
+    id: dog.id,
+    name: dog.name,
+    call_name: dog.call_name,
+    owner_id: ownerId ?? dog.owner_person_id,
+    breed: null,
+    deleted_at: null,
+    updated_at: SYNC_UPDATED_AT,
+  };
 }
 
 function showRow(state: Phase4SeamState): Record<string, unknown> {

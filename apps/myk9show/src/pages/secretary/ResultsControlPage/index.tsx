@@ -87,9 +87,13 @@ export default function ResultsControlPage() {
   const isLoading = settingsLoading || overridesLoading || classOverridesLoading;
   const isError = settingsError || trialOverridesError || classOverridesError;
 
-  // On success `settings` is always defined; this fallback is purely defensive
-  // so the content branch never has to gate on `!settings` (which previously
-  // collapsed the errored state back into the loading skeleton).
+  // `settings` is undefined whenever the query hasn't produced data: on a
+  // resolved fetch it's always defined, but the queries are `enabled: !!showId`,
+  // so an empty showId leaves them idle (isLoading=false, isError=false,
+  // data=undefined) and we still land in the content branch. Falling back to
+  // defaults keeps the panel usable there, and lets the content branch gate on
+  // isError alone rather than `!settings` (which previously collapsed the
+  // errored state back into the loading skeleton).
   const effectiveSettings = settings ?? getDefaultShowSettings();
 
   const retryAll = useCallback(() => {

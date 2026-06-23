@@ -279,4 +279,22 @@ describe('ResultsControlPage', () => {
     expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
     expect(screen.queryByText(/Couldn't load these settings/i)).not.toBeInTheDocument();
   });
+
+  it('falls back to default settings when the query is idle (no data, no error)', () => {
+    // The queries are `enabled: !!showId`, so an empty showId leaves them idle:
+    // isLoading=false, isError=false, data=undefined. The content branch must
+    // render with default settings (via `settings ?? getDefaultShowSettings()`)
+    // rather than the skeleton or the error state.
+    mockQueryState.settings = undefined;
+    mockQueryState.isLoading = false;
+    mockQueryState.isError = false;
+
+    const { container } = renderPage();
+
+    // Content branch is active: preset cards render, no skeleton, no error.
+    expect(screen.getByText('Immediately')).toBeInTheDocument();
+    expect(screen.getByText('After Class')).toBeInTheDocument();
+    expect(container.querySelectorAll('.animate-pulse').length).toBe(0);
+    expect(screen.queryByText(/Couldn't load these settings/i)).not.toBeInTheDocument();
+  });
 });

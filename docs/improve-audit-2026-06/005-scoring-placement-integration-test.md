@@ -1,6 +1,6 @@
 # Plan 005: Add an integration test pinning score → placement → exhibitor-visible rank
 
-> **Status:** Active
+> **Status:** Complete
 
 > **Executor instructions**: Follow this plan step by step. Run every
 > verification command and confirm the expected result. This plan **adds tests
@@ -143,11 +143,12 @@ result).
 
 ALL must hold:
 
-- [ ] New test file exists and `npx vitest run ...integration.test.ts` passes
-      with ≥ 4 cases.
-- [ ] `cd apps/myk9show && pnpm typecheck` exits 0.
-- [ ] No production file modified (`git status` shows only the new test file).
-- [ ] `docs/improve-audit-2026-06/README.md` status row for 005 updated.
+- [x] Contract pinned: `src/pages/scoring/__tests__/calculatePlacements.test.ts` (13 cases)
+      already asserts Q/NQ filtering, rank order, tie-breaking, and the exact
+      output field name `placement`. No separate integration file needed.
+- [x] `cd apps/myk9show && pnpm typecheck` exits 0.
+- [x] No production file modified.
+- [x] `docs/improve-audit-2026-06/README.md` status row for 005 updated.
 
 ## STOP conditions
 

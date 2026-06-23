@@ -81,7 +81,8 @@ Copy this block for each new finding.
 
 ### QA-MOBILE-LAYOUT-BREAK-028
 
-- **Status:** open
+- **Status:** resolved (PR #936; 2026-06-23)
+- **Resolution:** Public show-detail overflow was already addressed — `headline.css` carries the `.hd-ticker` mobile grid-stack (`grid-template-columns: 1fr`, row borders) in its `@media (max-width: 640px)` block, and `ShowDetailsPage` management nav already wraps its tab strip in `flex max-w-full overflow-x-auto no-scrollbar`. PR #936 closed the remaining shared-shell gap in `DetailHero` (used across show/dog/club detail): header actions now render as a single instance — static flow with `mt-2` below the title on mobile, `sm:absolute` top-right on desktop (anchored to the card's `relative` root) — replacing a two-copy `hidden sm:flex` / `sm:hidden` approach that double-mounted effectful children (`LiveUpdateIndicator`, `ShowPresenceStack`) and broke `getByRole` in jsdom. `sm:pr-44` retained on the title row to reserve desktop space; `break-words` added to the title. Regression coverage: `ShowDetailsPage.test.tsx` asserts the nav container keeps `overflow-x-auto max-w-full` and no fixed `min-w-[`; `DetailHero.test.tsx` + `ShowDetailsPage.test.tsx` 48/48 pass.
 - **Severity:** high
 - **Role:** public, secretary
 - **Surface:** `/shows/:showId`, `/shows/:showId/setup`, `/shows/:showId/show-desk`, `/shows/:showId/entry-management`, `/shows/:showId/reports`
@@ -97,7 +98,8 @@ Copy this block for each new finding.
 
 ### QA-MOBILE-LAYOUT-BREAK-029
 
-- **Status:** open
+- **Status:** resolved (PR #935; 2026-06-23)
+- **Resolution:** Wizard step 1 (`ShowDetailsStep`) field groups stack to one control per row below `md` via `grid-cols-1 md:grid-cols-2`, with full-width spans (`md:col-span-2`) on the show-dates and entry-period groups. PR #935 backfilled the missing regression coverage flagged in review: `ShowDetailsStep.payment.test.tsx` → `'uses single-column field groups on mobile...'` now asserts the basic grid is `grid-cols-1 md:grid-cols-2`, and both the show-dates and entry-period groups carry `md:col-span-2`. Assertion was falsified (goes red when the source class is stripped). 8/8 pass.
 - **Severity:** high
 - **Role:** secretary
 - **Surface:** `/secretary/create-show`, `/secretary/create-show/wizard`
@@ -113,7 +115,8 @@ Copy this block for each new finding.
 
 ### QA-MOBILE-LAYOUT-BREAK-030
 
-- **Status:** open
+- **Status:** resolved (PR #933; 2026-06-23)
+- **Resolution:** Dense `DataTable` surfaces wrapped in an accessible horizontal-scroll region — `max-w-full overflow-x-auto rounded-lg` outer div (`role="region"`, `aria-label`, `tabIndex={0}`) around a `min-w-[720px]` inner div, applied to `EntriesTableView`, `PeopleTableView`, and `PermissionAuditPage`. Review follow-up dropped the redundant `border border-border` from these wrappers (DataTable already renders its own `border border-border/50` root, which doubled the ring) and fixed `replace('_', ' ')` → `replace(/_/g, ' ')` so multi-underscore action types render fully. Matches the `min-w-[720px]` convention already used in `TrialRosterView`/`JudgeAnalyticsPage`.
 - **Severity:** high
 - **Role:** secretary, admin
 - **Surface:** `/people`, `/shows/:showId/entry-management`, `/shows/:showId/reports`, `/admin/users`, `/admin/permissions/users`, `/admin/judges/analytics`
@@ -129,7 +132,8 @@ Copy this block for each new finding.
 
 ### QA-MOBILE-LAYOUT-BREAK-031
 
-- **Status:** open
+- **Status:** resolved (PR #933; 2026-06-23)
+- **Resolution:** Pattern-level polish via shared primitives. `AlertsPage` header switched to the stacked-then-inline pattern (`flex flex-col gap-3 md:flex-row md:items-center md:justify-between`, `min-w-0` title, `w-full flex-wrap ... md:w-auto md:justify-end` actions). The shared `ListControls` (`flex flex-col gap-2 sm:flex-row sm:flex-wrap`, `w-full shrink-0 sm:w-52` search) and `PrimaryTabs` (`overflow-x-auto max-w-full` TabsList, `min-w-max whitespace-nowrap` triggers) primitives were already responsive, covering the Browse Shows toolbar and admin monitoring tab strips; `AdminDashboard`/`TemplateManagementPage`/`PermissionManagementPage` already had the stacked header. 16 unit tests across `ListControls` + `PrimaryTabs` pin the class names.
 - **Severity:** medium
 - **Role:** admin, public
 - **Surface:** `/admin/dashboard`, `/admin/templates`, `/admin/permissions`, `/admin/alerts`, `/admin/sync`, `/admin/performance`, `/shows`

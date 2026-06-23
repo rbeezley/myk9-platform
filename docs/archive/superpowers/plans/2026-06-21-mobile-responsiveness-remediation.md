@@ -1,5 +1,9 @@
 # Mobile Responsiveness Remediation Implementation Plan
 
+> **Status:** Complete
+
+> **Completed 2026-06-23.** All four findings shipped: QA-028 (PR #936 — DetailHero single-instance header actions + show shell nav scroll), QA-029 (PR #935 — wizard step 1 single-column layout + entry-period assertion), QA-030 & QA-031 (PR #933 — DataTable scroll wrappers, AlertsPage stacked header, ListControls/PrimaryTabs responsive primitives). See `docs/qa/findings.md` for per-finding resolutions.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Fix the mobile layout defects found in the 2026-06-21 route sweep without adding new pages or duplicating existing workflows.

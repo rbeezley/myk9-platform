@@ -97,6 +97,29 @@ export interface ShowSettings {
   hasExplicitSettings: boolean;
 }
 
+/**
+ * Sensible default settings for when no explicit row exists OR a read fails.
+ * `hasExplicitSettings: false` signals callers that these are fallbacks, not
+ * saved values — the page uses this both for the no-row case and as a defensive
+ * fallback so an errored query never leaves the panel frozen on a skeleton.
+ */
+export function getDefaultShowSettings(): ShowSettings {
+  return {
+    visibility: resolvePreset('standard', 'show'),
+    selfCheckinEnabled: true,
+    hasExplicitSettings: false,
+  };
+}
+
+/**
+ * Bound retries on visibility reads. The global query retry only short-circuits
+ * errors carrying a numeric `.status` 4xx, but PostgREST errors (e.g. a 400 on a
+ * malformed UUID) carry a `code` string instead — so without this they would
+ * retry twice with backoff, prolonging the loading skeleton on a hard error.
+ * One retry covers a transient blip; anything worse settles quickly.
+ */
+const VISIBILITY_QUERY_RETRY = 1;
+
 async function fetchShowSettings(showId: string): Promise<ShowSettings> {
   const { data, error } = await untypedSupabase
     .from('show_visibility_settings')
@@ -107,11 +130,7 @@ async function fetchShowSettings(showId: string): Promise<ShowSettings> {
   if (error) throw error;
 
   if (!data) {
-    return {
-      visibility: resolvePreset('standard', 'show'),
-      selfCheckinEnabled: true,
-      hasExplicitSettings: false,
-    };
+    return getDefaultShowSettings();
   }
 
   const row = data as ShowSettingsRow;
@@ -127,6 +146,7 @@ export function useShowSettings(showId: string | null) {
     queryKey: settingsQueryKeys.show(showId!),
     queryFn: () => fetchShowSettings(showId!),
     enabled: !!showId,
+    retry: VISIBILITY_QUERY_RETRY,
     ...cacheStrategies.moderate,
   });
 }
@@ -168,6 +188,7 @@ export function useTrialOverrides(showId: string | null) {
     queryKey: settingsQueryKeys.trials(showId!),
     queryFn: () => fetchTrialOverrides(showId!),
     enabled: !!showId,
+    retry: VISIBILITY_QUERY_RETRY,
     ...cacheStrategies.moderate,
   });
 }
@@ -214,6 +235,7 @@ export function useClassOverrides(showId: string | null) {
     queryKey: settingsQueryKeys.classOverrides(showId!),
     queryFn: () => fetchClassOverrides(showId!),
     enabled: !!showId,
+    retry: VISIBILITY_QUERY_RETRY,
     ...cacheStrategies.moderate,
   });
 }
@@ -280,6 +302,7 @@ export function useClassEffectiveSettings(
     queryKey: [...settingsQueryKeys.classOverride(classId!), trialId!, showId!],
     queryFn: () => fetchClassEffectiveSettings(classId!, trialId!, showId!),
     enabled: !!classId && !!trialId && !!showId,
+    retry: VISIBILITY_QUERY_RETRY,
     ...cacheStrategies.moderate,
   });
 }

@@ -65,10 +65,48 @@ const defaultSettings: ShowSettings = {
   hasExplicitSettings: true,
 };
 
+const fallbackSettings: ShowSettings = {
+  visibility: {
+    placement: 'class_complete',
+    qualification: 'class_complete',
+    time: 'class_complete',
+    faults: 'class_complete',
+    inheritedFrom: 'show',
+    preset: 'standard',
+  },
+  selfCheckinEnabled: true,
+  hasExplicitSettings: false,
+};
+
+// Mutable query state so individual tests can flip the hooks into a loading or
+// error state. Reset in beforeEach to the success defaults.
+const mockRefetch = vi.fn();
+const mockQueryState = vi.hoisted(() => ({
+  settings: undefined as ShowSettings | undefined,
+  isLoading: false,
+  isError: false,
+}));
+
 vi.mock('@/hooks/queries/useShowSettingsDatabase', () => ({
-  useShowSettings: () => ({ data: defaultSettings, isLoading: false }),
-  useTrialOverrides: () => ({ data: [], isLoading: false }),
-  useClassOverrides: () => ({ data: [], isLoading: false }),
+  useShowSettings: () => ({
+    data: mockQueryState.settings,
+    isLoading: mockQueryState.isLoading,
+    isError: mockQueryState.isError,
+    refetch: mockRefetch,
+  }),
+  useTrialOverrides: () => ({
+    data: [],
+    isLoading: mockQueryState.isLoading,
+    isError: mockQueryState.isError,
+    refetch: mockRefetch,
+  }),
+  useClassOverrides: () => ({
+    data: [],
+    isLoading: mockQueryState.isLoading,
+    isError: mockQueryState.isError,
+    refetch: mockRefetch,
+  }),
+  getDefaultShowSettings: () => fallbackSettings,
   settingsQueryKeys: {
     all: ['showSettings'],
     show: (id: string) => ['showSettings', 'show', id],
@@ -117,6 +155,10 @@ function renderPage(initialRoute = '/shows/show-1/results-control') {
 describe('ResultsControlPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Restore default seeded query state (success)
+    mockQueryState.settings = defaultSettings;
+    mockQueryState.isLoading = false;
+    mockQueryState.isError = false;
     // Restore default seeded state
     mockTrialStoreState.trials = [
       {
@@ -194,5 +236,47 @@ describe('ResultsControlPage', () => {
     expect(screen.getByText('After Class')).toBeInTheDocument();
     expect(screen.getByText('After Review')).toBeInTheDocument();
     expect(screen.getByText('Self Check-In')).toBeInTheDocument();
+  });
+
+  it('shows the error state (not a perpetual skeleton) when the settings query errors', () => {
+    // Regression: on error `isLoading` is false but `data` is undefined, so the
+    // old `isLoading || !settings` gate fell into the skeleton forever. The gate
+    // must distinguish error from loading.
+    mockQueryState.settings = undefined;
+    mockQueryState.isLoading = false;
+    mockQueryState.isError = true;
+
+    const { container } = renderPage();
+
+    // Page-level error banner with a Retry affordance is shown.
+    expect(screen.getByText('Failed to load results settings')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+
+    // The cards surface an inline error, not the loading skeleton.
+    expect(screen.getAllByText(/Couldn't load these settings/i).length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('.animate-pulse').length).toBe(0);
+  });
+
+  it('clicking Retry refetches the errored queries', async () => {
+    mockQueryState.settings = undefined;
+    mockQueryState.isLoading = false;
+    mockQueryState.isError = true;
+
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(mockRefetch).toHaveBeenCalled();
+  });
+
+  it('shows the loading skeleton while queries are in flight', () => {
+    mockQueryState.settings = undefined;
+    mockQueryState.isLoading = true;
+    mockQueryState.isError = false;
+
+    const { container } = renderPage();
+
+    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Couldn't load these settings/i)).not.toBeInTheDocument();
   });
 });

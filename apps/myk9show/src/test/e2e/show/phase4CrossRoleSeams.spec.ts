@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Browser, type Page } from '@playwright/test';
 import { signIn } from '../uat/shared/auth';
 import {
   createPhase4SeamState,
@@ -31,6 +31,8 @@ import { installPhase4SeamRoutes } from '../fixtures/phase4SeamRoutes';
 const FIXTURE_READY = process.env.PHASE4_SEAM_FIXTURE_READY === '1';
 const SECRETARY_EMAIL = process.env.E2E_SECRETARY_EMAIL ?? '';
 const SECRETARY_PASSWORD = process.env.E2E_SECRETARY_PASSWORD ?? '';
+const EXHIBITOR_EMAIL = process.env.E2E_DEMO_EXHIBITOR_EMAIL ?? '';
+const EXHIBITOR_PASSWORD = process.env.E2E_DEMO_EXHIBITOR_PASSWORD ?? '';
 
 // Authz RPCs are READS (the real signed-in user's real permissions) — let them
 // reach staging so RBAC loads; the harness only blocks fixture WRITES.
@@ -39,6 +41,7 @@ const AUTHZ_PASSTHROUGH = [
   /rpc\/[a-z_]*role/,
   /rpc\/can_manage_show/,
   /rpc\/is_show_manager/,
+  /rpc\/get_account_today_entries/, // read RPC the exhibitor "Show Today" banner fires
 ];
 
 // Playwright's cwd is the app dir; the canonical audit artifacts live at repo root.
@@ -98,3 +101,72 @@ test.describe('Phase 4 cross-role seams — render-only (secretary)', () => {
     routes.assertSafe();
   });
 });
+
+test.describe('Phase 4 cross-role seams — render-only (exhibitor)', () => {
+  test.skip(
+    !FIXTURE_READY,
+    'Render-only capture is manual: set PHASE4_SEAM_FIXTURE_READY=1 with a dev server running. CI skips it.'
+  );
+  test.skip(!EXHIBITOR_EMAIL || !EXHIBITOR_PASSWORD, 'no demo-exhibitor credentials');
+
+  test('exhibitor sees their seam entries on the fabricated show', async ({ browser }) => {
+    // My Entries is identity-scoped (getUserEntries filters by the person id and
+    // the account's OWNED dogs), so the fixture entries only surface once the
+    // fixture dogs are owned by the REAL signed-in exhibitor. Discover that
+    // person id (people.id where auth_user_id = the session user) in a throwaway
+    // context, then own the fixture dogs to it for the capture.
+    const personId = await discoverExhibitorPersonId(browser);
+
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    const state = seamStates(createPhase4SeamState());
+    if (personId) {
+      for (const dog of Object.values(state.dogs)) dog.owner_person_id = personId;
+    }
+    const routes = await installPhase4SeamRoutes(page, state, {
+      allowWritePaths: AUTHZ_PASSTHROUGH,
+    });
+
+    await signIn(page, EXHIBITOR_EMAIL, EXHIBITOR_PASSWORD, '/exhibitor');
+    await page.goto('/exhibitor/entries');
+    await page.waitForLoadState('domcontentloaded');
+    // Self-validating: a fixture entry in a seam state must actually render,
+    // proving the ownership bridge worked — not just that the page loaded.
+    // (Show/dog NAMES read "Unknown" here — the scored-entry path bypasses the
+    // replication name join; documented cosmetic gap, same as the secretary
+    // pull card. The seam STATUSES below are the cross-role evidence.)
+    await expect(page.getByText(/Withdrawn|Scratched|Pending Review/i).first()).toBeVisible({
+      timeout: 9000,
+    });
+    await page.waitForTimeout(800);
+    await page.screenshot({
+      path: `${ARTIFACT_DIR}/phase4-dynamic-exhibitor-my-entries.png`,
+      fullPage: true,
+    });
+
+    routes.assertSafe();
+    await ctx.close();
+  });
+});
+
+/** people.id for the signed-in demo exhibitor — the id My Entries filters by. */
+async function discoverExhibitorPersonId(browser: Browser): Promise<string | null> {
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  let personId: string | null = null;
+  page.on('response', async resp => {
+    if (personId) return;
+    if (/\/rest\/v1\/people\?.*auth_user_id=eq/.test(resp.url())) {
+      try {
+        const rows = await resp.json();
+        if (Array.isArray(rows) && rows[0]?.id) personId = rows[0].id as string;
+      } catch {
+        /* non-json */
+      }
+    }
+  });
+  await signIn(page, EXHIBITOR_EMAIL, EXHIBITOR_PASSWORD, '/exhibitor');
+  await page.waitForTimeout(2500);
+  await ctx.close();
+  return personId;
+}

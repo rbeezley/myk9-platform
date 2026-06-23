@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { ScoringRow } from './types';
-import { QUALIFICATION_REASONS, STATUSES_REQUIRING_REASON } from './constants';
+import { DISPLAY_LABELS, QUALIFICATION_REASONS, STATUSES_REQUIRING_REASON } from './constants';
 import { PendingCell } from './PendingCell';
 
 interface QualificationCellProps {
@@ -20,14 +20,6 @@ interface QualificationCellProps {
   visible: boolean;
   onUpdate: (entryId: string, field: string, value: string) => void;
 }
-
-const DISPLAY_LABELS: Record<string, string> = {
-  Qualified: 'Q',
-  'Not Qualified': 'NQ',
-  Absent: 'ABS',
-  Excused: 'EXC',
-  Withdrawn: 'WD',
-};
 
 export const QualificationCell: React.FC<QualificationCellProps> = ({
   item,

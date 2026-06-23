@@ -9,8 +9,19 @@ import type { ShowEntry } from './entry-lifecycle';
 import type { Registration } from './dog-types';
 import type { CheckInStatus } from './check-in-types';
 
-// Base qualification status
-export type QualificationStatus = 'Qualified' | 'Not Qualified' | 'Absent' | 'Excused' | 'Withdrawn' | 'Eliminated';
+// Base qualification status.
+// The const tuple is the single source of truth; the union type is derived from
+// it so config maps and tests can iterate every member without drifting.
+export const QUALIFICATION_STATUSES = [
+  'Qualified',
+  'Not Qualified',
+  'Absent',
+  'Excused',
+  'Withdrawn',
+  'Eliminated',
+] as const;
+
+export type QualificationStatus = (typeof QUALIFICATION_STATUSES)[number];
 
 // NQ reasons specific to Scent Work
 export type NQReason = 

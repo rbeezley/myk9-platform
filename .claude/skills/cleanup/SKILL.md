@@ -119,14 +119,46 @@ git branch --merged main | grep -v '^\*\|main' | head -10
 
 ### 8. Edge Function Deploys
 
-Check if any edge functions were modified but not deployed:
+**Verify actual deploy state — do not just diff recent commits.** Merging a PR never deploys functions (see the `feedback_merge_is_not_deploy` memory). A `git diff HEAD~N` window misses functions committed long ago but never deployed, and a root-only path glob misses the second function location entirely. Compare each function's source last-commit date against its *deployed* `UPDATED_AT`.
+
+**Functions live in TWO directories** — check both:
+
+- `supabase/functions/` (root) — e.g. `send-email`, `validate-passcode`, `push-trigger-*`, `admin-*`
+- `apps/myk9show/supabase/functions/` (Stripe/cron) — e.g. `stripe-*`, `cron-*`
+
+Step 1 — list every source function with its last-commit date (both dirs, excluding `_shared`):
 
 ```bash
-git diff HEAD~3 --name-only -- supabase/functions/ 2>/dev/null
+for dir in supabase/functions apps/myk9show/supabase/functions; do
+  [ -d "$dir" ] || continue
+  for fn in "$dir"/*/; do
+    name=$(basename "$fn")
+    case "$name" in _*) continue;; esac
+    echo "$name | $(git log -1 --format=%cI -- "$fn" 2>/dev/null) | $dir"
+  done
+done | sort
 ```
 
-- If edge function files changed in recent commits, remind user to deploy them
-- Include the deploy command: `supabase functions deploy <function-name> --no-verify-jwt`
+Step 2 — list deployed functions with their `UPDATED_AT`:
+
+```bash
+source supabase/.env && supabase functions list --project-ref sojmvhhwsjxmfistvzbe 2>/dev/null
+```
+
+Step 3 — reason over the two lists and flag:
+
+- **Stale deploy:** a function whose source last-commit (Step 1) is *newer* than its deployed `UPDATED_AT` (Step 2) → its deployed bundle predates its current source. This is the class a commit-window diff misses.
+- **Never deployed:** a source function absent from the deployed list.
+- **Dual-location fork:** the *same* function name appears in BOTH source dirs. Only one is the deployed slug — do NOT guess. Determine canonical by which copy handles a type/route the app actually invokes (e.g. `send-email`'s `entry_decision` case → root is canonical; the `apps/myk9show` copy was a drift-magnet fork, deleted in PR #937). Editing or deploying the wrong copy ships nothing.
+
+- For each stale/never-deployed function, report it and include the deploy command. Root functions deploy from the repo root; Stripe/cron functions need `--workdir apps/myk9show`:
+  ```bash
+  # root function
+  supabase functions deploy <name> --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
+  # apps/myk9show function
+  supabase functions deploy <name> --workdir apps/myk9show --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
+  ```
+- **Deploying is a shared-system write — always ask before running it** (never auto-deploy). Editing a `_shared/*` helper restales every function that imports it; redeploy those importers, not just directly-changed function dirs.
 
 ## Output Format
 
@@ -137,10 +169,10 @@ Session Cleanup Report
 Worktrees:     2 stale worktrees cleaned up
 Dev servers:   1 orphan killed (PID 83484, was bound to :5173 from removed worktree zealous-carson-15859a)
 Git:           Working tree clean, all pushed
-Migrations:    109_restrict_subscription_columns.sql already applied
+Migrations:    dry-run clean — remote up to date
 TO-DOS:        3 items marked done, all consistent
 Branches:      1 merged branch deleted (worktree-agent-abc123)
-Edge Functions: No changes detected
+Edge Functions: deploy state verified — all current
 
 All clean.
 ```
@@ -151,6 +183,7 @@ If issues need user input, list them at the end:
 Action needed:
   1. 2 uncommitted files -- commit or discard?
   2. Migration 110 not yet pushed -- push now?
+  3. send-email source (06-23) newer than deployed (05-03) -- deploy now?
 ```
 
 ## Rules
@@ -160,5 +193,6 @@ Action needed:
 - NEVER auto-kill dev servers whose worktree still exists — ask first (another agent may be using it). Auto-killing IS allowed when both the worktree directory is gone AND its name is absent from `git worktree list`.
 - **Reap dev servers before removing their worktree** — `git worktree remove` does not kill child processes, so dev servers outlive their source tree and become 404-serving zombies
 - Always ask before: committing, pushing, deploying, deleting unmerged branches
+- **Verify deploy state, don't infer it from git** — for migrations and edge functions, the authoritative signal is the remote (`db push --dry-run`, `functions list` UPDATED_AT), not a commit diff. A merged PR is not a deployed PR.
 - **Worktree removal goes last** — if the current session CWD is a stale worktree, defer its removal to the final Bash call after all other checks are done
 - Be concise -- one line per check in the report unless action is needed

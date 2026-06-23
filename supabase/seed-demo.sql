@@ -227,7 +227,7 @@ INSERT INTO public.shows (
   cc_secretary_on_exhibitor_emails,
   chairman, secretary, chief_steward,
   style, experience_is_published, experience_published_content,
-  brand_color, unified_ringside_enabled, version, is_nationals
+  brand_color, version, is_nationals
 )
 VALUES (
   'dededede-0000-0000-0000-000000000010',
@@ -257,7 +257,7 @@ VALUES (
   --     label for reports; the relational truth is the grant.
   'Test Club', 'Test Secretary', 'Test Steward',
   'headline', false, '{}'::jsonb,
-  '#0d4d4f', true, 3, false
+  '#0d4d4f', 3, false
 );
 
 -- Visibility settings: 'open' preset => scored results immediately public to anon.

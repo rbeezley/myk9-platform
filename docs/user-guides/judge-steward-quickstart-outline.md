@@ -1,6 +1,6 @@
 # Judge and Steward Ringside Quickstart Outline
 
-**Status:** `qa-draft` — outline phase; final quickstart gated on `unified_ringside_enabled` being out of DEV-only flag status.
+**Status:** `qa-draft` — outline phase. No longer flag-blocked; ready to advance once the at-show screenshots are captured. (Updated 2026-06-23: the `unified_ringside_enabled` flag was removed — see [`../plan-remove-unified-ringside-flag.md`](../plan-remove-unified-ringside-flag.md). The at-show surface now renders for every show, gated only by `AtShowAccessGate`.)
 
 **Audience:** Judges and gate stewards. Role intent: "Invisible technology." Minimal words. Written for people whose eyes are on the dog, not the screen.
 
@@ -16,13 +16,13 @@
 
 | Gate | Status |
 |---|---|
-| `unified_ringside_enabled` flag is DEV-only | **BLOCKS final publication** |
+| At-show surface open to all shows | Yes — `unified_ringside_enabled` flag removed 2026-06-23; access gated only by `AtShowAccessGate` |
 | At-show route and scoresheet are stable | Yes (golden path § Part 6 confirms) |
 | Passcode access path works | Yes (golden path § 6.10) |
 | Combined A/B section view works | Yes (golden path § 6.9) |
 | Results persist to secretary view | Yes (golden path § 6.7) |
 
-**Do not publish the final quickstart until the feature flag is removed and the at-show flow is open to all shows.**
+**No longer flag-blocked.** (Updated 2026-06-23: flag removed — see [`../plan-remove-unified-ringside-flag.md`](../plan-remove-unified-ringside-flag.md).) Publish once the at-show screenshots are captured against staging post-redeploy.
 
 ---
 
@@ -151,7 +151,7 @@ Show Desk → Tools panel → **Show Access Codes** → share the QR code or the
 
 | Finding | Section | Backlog action |
 |---|---|---|
-| `unified_ringside_enabled` is DEV-only | All | Gates entire quickstart; track flag removal |
+| ~~`unified_ringside_enabled` is DEV-only~~ | All | Resolved 2026-06-23 — flag removed; surface open to all shows (see [`../plan-remove-unified-ringside-flag.md`](../plan-remove-unified-ringside-flag.md)) |
 | No nav link to `/at-show/:showId` — entry is only via ShowTodayBanner or direct link | § 1 | Describe passcode/QR path as the primary access for non-staff |
 | Timer reset behavior is unclear — scores are only saved on explicit Save, not on timer stop | § 4 | Confirm save behavior during live walk; add to quickstart explicitly |
 | Combined A/B section URL shape (`/:classIdA/:classIdB`) needs confirmation | § 3 | Verify routing during live walk before publishing |

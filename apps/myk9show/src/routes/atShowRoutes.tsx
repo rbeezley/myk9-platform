@@ -7,12 +7,14 @@
  *  - `/at-show/:showId/class/:classIdA/:classIdB` → combined Section A/B list (1h)
  *  - `/at-show/:showId/class/:classId/score/:entryId` → live scoresheet
  * Mounted OUTSIDE UnifiedAppLayout (full-screen ringside — no host sidebar or
- * header; see App.tsx), which is why the gate's states use a full-screen wrapper.
+ * header; see App.tsx), which is why the boundary's states use a full-screen
+ * wrapper.
  *
- * Enablement is per-show and asynchronous (Phase 1d): routes are registered
- * unconditionally, and `UnifiedRingsideGate` reads `shows.unified_ringside_enabled`
- * for the `:showId` in the URL, rendering an inline notice when off — never a
- * 404. `AtShowAccessGate` admits either account staff or a matching show-scoped
+ * The surface is available for every show — the old per-show
+ * `unified_ringside_enabled` feature flag was removed pre-launch (see
+ * `docs/plan-remove-unified-ringside-flag.md`). `RingsideShowBoundary` keeps the
+ * resilience the gate provided (loading / retry / missing-show notice — never a
+ * 404). `AtShowAccessGate` admits either account staff or a matching show-scoped
  * passcode grant, so QR/passcode ringside access works without account RBAC.
  */
 
@@ -23,7 +25,7 @@ import { PageTransition } from '@/components/common/PageTransition';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
 import { RoleSurfaceErrorBoundary } from '@/components/common/RoleSurfaceErrorBoundary';
 import { createEnhancedLazy, RouteLazyPresets } from '@/utils/enhancedLazyLoading';
-import { UnifiedRingsideGate } from '@/features/at-show/UnifiedRingsideGate';
+import { RingsideShowBoundary } from '@/features/at-show/RingsideShowBoundary';
 import { AtShowAccessGate } from '@/features/at-show/AtShowAccessGate';
 import { RingsideSessionHeartbeat } from '@/features/at-show/RingsideSessionHeartbeat';
 
@@ -59,7 +61,7 @@ function AtShowPresenceBoundary({ children }: { children: ReactNode }) {
 
 /**
  * Wrap an at-show page in the shared guard stack: access gate → suspense →
- * per-show enablement gate → presence boundary → page transition.
+ * show-resilience boundary → presence boundary → page transition.
  */
 function atShowElement(page: ReactNode): ReactNode {
   return (
@@ -67,11 +69,11 @@ function atShowElement(page: ReactNode): ReactNode {
       <RoleSurfaceErrorBoundary surface="ringside">
         <RingsideSessionHeartbeat>
           <SuspenseWrapper>
-            <UnifiedRingsideGate>
+            <RingsideShowBoundary>
               <AtShowPresenceBoundary>
                 <PageTransition>{page}</PageTransition>
               </AtShowPresenceBoundary>
-            </UnifiedRingsideGate>
+            </RingsideShowBoundary>
           </SuspenseWrapper>
         </RingsideSessionHeartbeat>
       </RoleSurfaceErrorBoundary>

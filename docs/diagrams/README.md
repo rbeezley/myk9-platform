@@ -47,7 +47,7 @@ Status values match the plan: `qa-draft` (disposable, drawn during development),
 | Secretary setup flow | Secretary | Secretary Guide § 2–3; Overview Deck slide 5; Secretary Deck slide 3 | `secretary-setup-flow.drawio` | `qa-draft` — candidate |
 | Secretary show-day flow | Secretary | Secretary Guide § 7; Overview Deck slide 8; Secretary Deck slides 5–6 | `secretary-show-day-flow.drawio` | `qa-draft` — candidate |
 | Payment flow | Exhibitor, Club | Club Admin Guide § 4–5; KB: payout-timing; Overview Deck slides 14–15; Club Deck slides 5–6 | `payment-flow.drawio` | `blocked: Stripe live-mode pending` |
-| At-show access paths | Judge, Steward | Quickstart § 1; Overview Deck slide 12; Judge/Steward Deck slide 2 | `at-show-access-paths.drawio` | `blocked: unified_ringside_enabled flag` |
+| At-show access paths | Judge, Steward | Quickstart § 1; Overview Deck slide 12; Judge/Steward Deck slide 2 | `at-show-access-paths.drawio` | `qa-draft` — candidate (unblocked 2026-06-23: `unified_ringside_enabled` flag removed — see [`../plan-remove-unified-ringside-flag.md`](../plan-remove-unified-ringside-flag.md)) |
 | Support triage flow | Support operator | Show-day triage outline; investigation cookbook | `support-triage-flow.drawio` | `qa-draft` — candidate |
 
 ## Rules (summary — full detail in `diagram-conventions.md`)

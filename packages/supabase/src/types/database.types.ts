@@ -6014,7 +6014,6 @@ export type Database = {
           state: string | null
           status: string | null
           style: string
-          unified_ringside_enabled: boolean
           updated_at: string | null
           venue_name: string | null
           venue_wifi_network: string | null
@@ -6073,7 +6072,6 @@ export type Database = {
           state?: string | null
           status?: string | null
           style?: string
-          unified_ringside_enabled?: boolean
           updated_at?: string | null
           venue_name?: string | null
           venue_wifi_network?: string | null
@@ -6132,7 +6130,6 @@ export type Database = {
           state?: string | null
           status?: string | null
           style?: string
-          unified_ringside_enabled?: boolean
           updated_at?: string | null
           venue_name?: string | null
           venue_wifi_network?: string | null
@@ -7230,80 +7227,6 @@ export type Database = {
           },
           {
             foreignKeyName: "trials_show_id_fkey"
-            columns: ["show_id"]
-            isOneToOne: false
-            referencedRelation: "view_stats_summary"
-            referencedColumns: ["show_id"]
-          },
-        ]
-      }
-      unified_ringside_overrides: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          enabled: boolean
-          show_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          enabled?: boolean
-          show_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          enabled?: boolean
-          show_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "unified_ringside_overrides_show_id_fkey"
-            columns: ["show_id"]
-            isOneToOne: false
-            referencedRelation: "shows"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "unified_ringside_overrides_show_id_fkey"
-            columns: ["show_id"]
-            isOneToOne: false
-            referencedRelation: "view_breed_stats"
-            referencedColumns: ["show_id"]
-          },
-          {
-            foreignKeyName: "unified_ringside_overrides_show_id_fkey"
-            columns: ["show_id"]
-            isOneToOne: false
-            referencedRelation: "view_clean_sweep_dogs"
-            referencedColumns: ["show_id"]
-          },
-          {
-            foreignKeyName: "unified_ringside_overrides_show_id_fkey"
-            columns: ["show_id"]
-            isOneToOne: false
-            referencedRelation: "view_fastest_times"
-            referencedColumns: ["show_id"]
-          },
-          {
-            foreignKeyName: "unified_ringside_overrides_show_id_fkey"
-            columns: ["show_id"]
-            isOneToOne: false
-            referencedRelation: "view_judge_stats"
-            referencedColumns: ["show_id"]
-          },
-          {
-            foreignKeyName: "unified_ringside_overrides_show_id_fkey"
-            columns: ["show_id"]
-            isOneToOne: false
-            referencedRelation: "view_myk9q_entries"
-            referencedColumns: ["show_id"]
-          },
-          {
-            foreignKeyName: "unified_ringside_overrides_show_id_fkey"
             columns: ["show_id"]
             isOneToOne: false
             referencedRelation: "view_stats_summary"

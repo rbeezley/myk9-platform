@@ -187,7 +187,7 @@
 - Class list → entry list in run order → tap to open scoresheet → timer → Q/NQ → Save
 - Scores go to the secretary's results view when signal returns
 
-🖼️ **Screenshots needed:** Blocked — gated on `unified_ringside_enabled` flag removal (shots J-01 through J-06). Use diagram `at-show-access-paths.drawio` as placeholder.
+🖼️ **Screenshots needed:** J-01 through J-06 — no longer flag-blocked; capturable against staging once the removal PR redeploys. (Updated 2026-06-23: `unified_ringside_enabled` flag removed — see [`../plan-remove-unified-ringside-flag.md`](../plan-remove-unified-ringside-flag.md).) Use diagram `at-show-access-paths.drawio` as placeholder until shots land.
 
 *Reused in:* Judge/Steward Deck (slides 2–5)
 
@@ -300,5 +300,5 @@
 | E-08 | 10 | Confirmation receipt | ready |
 | E-12 | 11 | My Entries → Classes tab with run order | ready |
 | E-14 | 11 | My Entries — check-in button | ready |
-| J-01–J-06 | 12 | At-show passcode + scoring flow | **blocked: `unified_ringside_enabled` flag** |
+| J-01–J-06 | 12 | At-show passcode + scoring flow | ready to capture (flag removed 2026-06-23; capture after staging redeploy) |
 | C-05 | 14–15 | Payments — connected state with payout history | **blocked: Stripe sandbox walkthrough** |

@@ -6,7 +6,7 @@ Every screenshot and diagram in final documentation and training materials must 
 
 **Status values:**
 - `ready` — UI is stable; this shot can be taken now
-- `blocked: flag` — gated on `unified_ringside_enabled` flag removal
+- `blocked: flag` — _(retired 2026-06-23)_ formerly gated on `unified_ringside_enabled`; that flag was removed, so these shots are now `ready`. See [`docs/plan-remove-unified-ringside-flag.md`](../plan-remove-unified-ringside-flag.md).
 - `blocked: stripe` — needs a fresh sandbox Stripe onboarding walkthrough
 - `blocked: seed` — needs a specific seed fixture not yet in staging
 - `blocked: not-built` — the feature is not yet built
@@ -94,16 +94,16 @@ Every screenshot and diagram in final documentation and training materials must 
 
 ## Part 3 — Judge and Steward Quickstart Screenshots
 
-All shots in this section are **blocked by `unified_ringside_enabled` flag** — the flag is DEV-only as of 2026-06-19. Do not attempt these shots until the flag is promoted.
+**Unblocked 2026-06-23:** the `unified_ringside_enabled` flag was removed (see [`docs/plan-remove-unified-ringside-flag.md`](../plan-remove-unified-ringside-flag.md)) — the at-show surface renders for every show, gated only by `AtShowAccessGate` (role / passcode). Capture these against staging once the removal PR merges + redeploys (no DB push required for capture). Note: the seed accounts below (`judge@myk9t.com`) are stale — staging named accounts have no `auth.users`; use the `e2e-*@test.myk9.com` accounts or a passcode grant.
 
 | Shot ID | Description | Route | Account | Viewport | Expected state | Quickstart section | Status |
 |---|---|---|---|---|---|---|---|
-| J-01 | SmartSignInPage — passcode entry field | `/at-show` | none (passcode flow) | Mobile | Passcode input visible; "Enter Passcode" CTA | § 1 Getting Access | `blocked: flag` |
-| J-02 | At-show class list | `/at-show/:showId` | passcode or `judge@myk9t.com` | Tablet | All classes listed by trial; each row shows class name, entry count | § 2 Class List | `blocked: flag` |
-| J-03 | At-show entry list (run order) | `/at-show/:showId/class/:classId` | passcode or `judge@myk9t.com` | Tablet | Entries in run order with armband numbers and dog names | § 3 Entry List | `blocked: flag` |
-| J-04 | Scoresheet — timer active | `/at-show/:showId/class/:classId/score/:entryId` | `judge@myk9t.com` | Tablet | Timer counting; no result selected yet | § 4 Scoring | `blocked: flag` |
-| J-05 | Scoresheet — Q/NQ/Absent buttons | same | `judge@myk9t.com` | Tablet | Q, NQ, and Absent buttons visible; timer stopped | § 4 | `blocked: flag` |
-| J-06 | Entry list — saved result visible | `/at-show/:showId/class/:classId` | `judge@myk9t.com` | Tablet | Entry list showing at least one entry with a saved Q or NQ badge | § 4 | `blocked: flag` |
+| J-01 | SmartSignInPage — passcode entry field | `/at-show` | none (passcode flow) | Mobile | Passcode input visible; "Enter Passcode" CTA | § 1 Getting Access | `ready` |
+| J-02 | At-show class list | `/at-show/:showId` | passcode or `judge@myk9t.com` | Tablet | All classes listed by trial; each row shows class name, entry count | § 2 Class List | `ready` |
+| J-03 | At-show entry list (run order) | `/at-show/:showId/class/:classId` | passcode or `judge@myk9t.com` | Tablet | Entries in run order with armband numbers and dog names | § 3 Entry List | `ready` |
+| J-04 | Scoresheet — timer active | `/at-show/:showId/class/:classId/score/:entryId` | `judge@myk9t.com` | Tablet | Timer counting; no result selected yet | § 4 Scoring | `ready` |
+| J-05 | Scoresheet — Q/NQ/Absent buttons | same | `judge@myk9t.com` | Tablet | Q, NQ, and Absent buttons visible; timer stopped | § 4 | `ready` |
+| J-06 | Entry list — saved result visible | `/at-show/:showId/class/:classId` | `judge@myk9t.com` | Tablet | Entry list showing at least one entry with a saved Q or NQ badge | § 4 | `ready` |
 
 ---
 
@@ -130,7 +130,7 @@ Diagram sources and exports live in `docs/diagrams/`. Each diagram is a separate
 | `secretary-setup-flow.drawio` | Overview Deck slide 5; Secretary Deck | `qa-draft` — candidate |
 | `secretary-show-day-flow.drawio` | Overview Deck slide 8; Secretary Deck slides 5–6 | `qa-draft` — candidate |
 | `payment-flow.drawio` | Club Admin Guide § 4–5; Overview Deck slides 14–15 | `blocked: stripe` |
-| `at-show-access-paths.drawio` | Quickstart § 1; Overview Deck slide 12 | `blocked: flag` |
+| `at-show-access-paths.drawio` | Quickstart § 1; Overview Deck slide 12 | `ready` |
 | `support-triage-flow.drawio` | Triage outline; investigation cookbook | `qa-draft` — candidate |
 
 ---

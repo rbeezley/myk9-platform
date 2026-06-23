@@ -58,19 +58,6 @@ vi.mock('../CloneFromShowCombobox', () => ({
 
 import { ShowDetailsStep } from '../ShowDetailsStep';
 
-describe('ShowDetailsStep — mobile layout (QA-MOBILE-LAYOUT-BREAK-029)', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('renders all step one controls for mobile layout', () => {
-    render(<ShowDetailsStep />);
-    expect(screen.getByLabelText(/show name/i)).toBeInTheDocument();
-    expect(screen.getByText(/show dates/i)).toBeInTheDocument();
-    expect(screen.getByText(/entry period/i)).toBeInTheDocument();
-  });
-});
-
 describe('ShowDetailsStep — Payment Methods section', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -129,6 +116,9 @@ describe('ShowDetailsStep — Payment Methods section', () => {
 
     const showDatesGroup = screen.getByText(/show dates/i).closest('div');
     expect(showDatesGroup?.className).toContain('md:col-span-2');
+
+    const entryPeriodGroup = screen.getByText(/entry period/i).closest('div');
+    expect(entryPeriodGroup?.className).toContain('md:col-span-2');
 
     const officialsSection = screen.getByText('Show Officials').closest('div');
     const officialsGrid = officialsSection?.querySelector('[class*="grid"]');

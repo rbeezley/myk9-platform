@@ -510,7 +510,7 @@ Sends transactional emails via the Resend API. Only accepts requests authenticat
 
 | Detail     | Value                                                                                   |
 | ---------- | --------------------------------------------------------------------------------------- |
-| **Source** | `apps/myk9show/supabase/functions/send-email/index.ts`                                  |
+| **Source** | `supabase/functions/send-email/index.ts`                                                |
 | **Method** | `POST`                                                                                  |
 | **Auth**   | Bearer token must be the `SUPABASE_SERVICE_ROLE_KEY` (internal service-to-service auth) |
 

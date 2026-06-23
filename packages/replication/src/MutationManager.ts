@@ -593,6 +593,16 @@ export class MutationManager {
           TIMEOUT_PRESETS.standard,
           `${tableName} insert`
         );
+        if (error?.code === '23505') {
+          // Row already exists — retry hit a duplicate-key on a client-generated UUID.
+          // The INSERT succeeded on a prior attempt; treat this as success.
+          // INVARIANT: all offline-INSERT entities use client-generated UUIDs (verified Plan 006).
+          // If a future table uses a server-generated PK, 23505 here would mask a real collision.
+          this.logger.log(
+            `[MutationManager] 23505 on INSERT ${tableName}/${mutation.rowId} — prior attempt committed, treating as success`
+          );
+          return {};
+        }
         if (error) throw error;
         if (!rows || rows.length === 0) {
           throw new Error(

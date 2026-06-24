@@ -1,131 +1,120 @@
-# Plan: Ringside Entry-Read Authorization
+# Plan: Passcode Ringside Identity — judge/steward/timer read + score without an account
 
 > **Status:** Active
 
-**Created:** 2026-06-24. Closes the open RLS/data-path question flagged by the 2026-06-17
-show-day walk (S2.2/S3) in [`docs/audits/2026-06-ux-journeys/05-showday-walk-2026-06-17.md`](audits/2026-06-ux-journeys/05-showday-walk-2026-06-17.md):
-**a judge or passcode/steward session is admitted to `/at-show/:showId` but reads zero entries**, so
-the entry list, run order, and scoresheet are empty for every non-managing ringside role.
+**Created:** 2026-06-24. **Goal (user, 2026-06-24):** a judge or timer who signs in with a **show
+passcode** (no account) must be able to read the run order and **score** at `/at-show/:showId`,
+offline-capable — because passcode is the *primary* real-world ringside sign-in.
 
-This blocks: the judge/steward golden path (scorecard row stays Yellow), the J-02…J-06 documentation
-shots (Ringside Quickstart 4b), and any real ringside scoring by a non-secretary.
-
----
-
-## Root cause (code-confirmed 2026-06-24)
-
-1. **`entries_select` (migration `129_fix_entries_rls_and_armband_ordering.sql`) is `TO authenticated`
-   and admits only:** `can_manage_show(show_id)` OR handler-of-entry OR owner-of-dog. A `judge` /
-   `steward` role is **not** `can_manage_show` (that excludes those roles), so an assigned judge reads
-   0 rows. An anon passcode holder has no `auth.uid()` at all and is not `authenticated`, so reads 0 rows.
-2. **The at-show entry list reads through the replication layer** (`replicatedEntriesTable` →
-   PostgREST `select` on `entries`), under the caller's own RLS context. No special ringside read path
-   exists. So the empty result is RLS, not a client bug.
-3. **Payment/PII protection on `entries` is WRITE-only** (`trg_entries_protect_payment_fields`,
-   `20260611240000`). There is **no column-level READ restriction**. Any row `entries_select` admits
-   exposes `entry_fee`, `payment_method`, `payment_status`, `stripe_payment_intent_id`,
-   `refund_amount`, and handler PII.
-
-**Consequence:** simply adding a judge/passcode branch to `entries_select` would make ringside work
-**but re-introduce the withheld-column leak that PR #779 closed for anon** (see
-[[project_public_results_release_gate]]). The fix must follow #779's shape: a **column-allowlisted
-ringside read path**, not a broadened table policy.
-
-## Two identity models (the fork)
-
-| Identity | Has `auth.uid()`? | Authorization signal | Difficulty |
-|---|---|---|---|
-| **Signed-in assigned judge/steward** (account + `judge`/`steward` RBAC role) | Yes | `judge_assignments` row for the show (seeded in `seed-demo.sql` §11) | Tractable |
-| **Passcode holder** (steward/guest judge, no account) | **No** (anon key) | Valid `show_passcodes` row → `ringside_session`; no RLS-visible binding to a show | Hard |
-
-The passcode flow validates server-side (`validate_passcode`, service-role-only behind the rate-limited
-`validate-passcode` edge fn) and drives **client-side** role via `useRingsideGrantRole` /
-`resolveRingsideAccess`. The DB has **no** per-request proof that an anon caller holds a passcode for a
-given show — so an anon RLS policy on `entries` cannot be written safely without a session-bound token.
+> **Correction (2026-06-24):** an earlier draft of this plan misdiagnosed the root cause as
+> `entries_select` on the `entries` table. The at-show **read** path actually goes through the
+> column-gated view **`view_authenticated_entry_results`**, not the raw table. See "What already
+> exists" — the *account*-judge path is already built; the real gap is the *passcode* identity.
 
 ---
 
-## Design decision (proposed — confirm before building)
+## What already exists (verified in code 2026-06-24 — do NOT rebuild)
 
-**A dedicated ringside read path with a column allowlist, mirroring `publicReads.ts` / the #779
-cascade.** Not a broadened `entries_select`.
+- **Read (account roles):** migration `20260621190000_ringside_entry_read_for_staff.sql` extends
+  `view_authenticated_entry_results` with ringside-staff access flags:
+  - `is_assigned_judge` — `judge_assignments` (status `confirmed|invited`, class-level) → `can_view_scores`.
+  - `is_show_steward` — `user_roles` steward scoped to show/club → **rows only**, scored columns stay gated.
+  - Payment/PII columns gated by `can_view_admin` = managers + entry owner only. This is the #779
+    per-field cascade done correctly — judges/stewards do **not** see payment/refund/Stripe/comp/email.
+  - Client reads it via `useClassEntries.ts`; e2e spec `atShowJudgeScoring.spec.ts` exists.
+- **Write (account roles):** migration `20260621171500_ringside_update_entry.sql` —
+  `ringside_update_entry(p_entry_id, p_fields, p_expected_version)` SECURITY DEFINER RPC authorizing
+  manager / assigned-judge / show-steward, writing only whitelisted ringside columns, OCC via `version`.
+  Client routing via per-mutation `viaRpc` tag (see [`plan-atshow-ringside-writes.md`](plan-atshow-ringside-writes.md)).
 
-Column allowlist for ringside (the steward/judge legitimately need these; everything else is withheld):
-`id, show_id, trial_id, class_id, dog_id, handler_id, armband_number, run_order, entry_status,
-check_in_status, score fields (result, time, faults, placement), dog call name + breed, handler name`.
-**Excluded:** `entry_fee, payment_method, payment_status, stripe_payment_intent_id, refund_amount,
-confirmation_email_*`, and any other payment/PII-beyond-name column.
+**Net:** a **signed-in** assigned judge can already read + score (modulo: seed `§11` applied to
+staging + client RPC routing merged/deployed). The column-gating + write whitelist infra is solid and
+is the foundation this plan extends — additively.
 
-Two candidate mechanisms (decide in Task 1):
-- **(a) `SECURITY DEFINER` RPC** `get_ringside_entries(p_show_id, p_class_id)` returning the allowlist,
-  authorizing internally (authenticated: `judge_assignments`/`can_manage_show`; passcode: a
-  session-token argument validated against `ringside_sessions`). Mirrors `validate_passcode`'s
-  service-definer discipline. Offline: not replication-cached — see Offline note.
-- **(b) A view + grant** (`view_ringside_entries`) with RLS/`security_invoker` — simpler but cannot
-  authorize an anon passcode caller without the same token problem, so likely RPC for anon regardless.
+## The actual gap: passcode sessions have no server identity
 
-**Recommendation:** RPC for the anon/passcode path; for the authenticated path, prefer extending the
-existing replication read with a column-restricted view so offline-first still holds for signed-in
-judges (the role most likely to score for real). Resolve in Task 1.
+Both the view and the RPC authorize on `auth.uid()`. A passcode user has none:
+- `validate-passcode` (edge fn, service role) verifies the code and returns `{show_id, role, showData}`;
+  the grant is stored **client-side only** (`useRingsideGrantRole`). The DB never sees it again.
+- The view `REVOKE`s `anon`; an anon PostgREST read returns nothing. The RPC's authz tiers are all
+  `auth.uid()`-based. So a passcode judge/timer reads 0 entries and cannot score.
 
-### Offline note (do not skip — [[feedback_offline_first]])
+## Decision (locked with user 2026-06-24): mint an anonymous session with claims
 
-Ringside scoring is offline-first. A signed-in judge's entry reads should stay on the replication
-layer so they survive signal loss; that argues for the **authenticated** path being a column-restricted
-view the replication mapper can target, not an RPC. The **passcode/anon** path is harder to make
-offline-safe and may ship online-only first (documented limitation), since anon ringside is the
-lower-frequency case. Confirm the offline bar per identity in Task 1.
+`validate-passcode` mints a **short-lived Supabase anonymous session** stamped with
+`app_metadata = { show_id, ringside_role }`. Anonymous users authenticate as the `authenticated`
+Postgres role (with `is_anonymous=true`), so they inherit the existing view GRANT and flow through the
+**same offline replication read + `ringside_update_entry` write** paths as accounts. Authorization adds
+one claim-based tier alongside the existing `auth.uid()` tiers.
 
----
-
-## Phasing
-
-### Phase 1 — Signed-in assigned judge/steward (read)  *(highest value, lowest risk)*
-- Define the ringside column allowlist as a DB view (`view_ringside_entries`) or restricted select.
-- Authorize: `can_manage_show(show_id)` OR `EXISTS judge_assignments ja (ja.show_id = e.show_id AND
-  ja.person_id = person_for(auth.uid()))`. (Steward: confirm whether stewards get `judge_assignments`
-  rows or a separate signal; if not, Phase 1 covers judge accounts only and steward rides Phase 2.)
-- Route the at-show entry list / scoresheet reads for non-`can_manage_show` authenticated roles to the
-  restricted path; keep `can_manage_show` on the existing full path.
-- **Verifies:** `judge@` / `e2e-judge@` (with §11 assignment) sees the run order + scoresheet with data.
-
-### Phase 2 — Passcode/anon ringside (read)
-- Mint a session-bound proof at passcode validation (extend `validate-passcode` to return a signed
-  `ringside_session` token, or use Supabase anonymous auth with a show/role claim) so the DB can
-  authorize an otherwise-anon caller.
-- `get_ringside_entries` RPC validates the token → returns the allowlist for that show only.
-- Decide offline posture (likely online-only first; document it).
-
-### Phase 3 — Write authz (separate, tracked elsewhere)
-- Ringside score WRITES for judge/steward are the [[project_atshow_judge_write_rls_gap]] gap
-  (`entries_update` is `can_manage_show`-only → writes silently RLS-fail on sync). Out of scope for
-  this read-focused plan; cross-link and sequence after Phase 1/2 reads land.
+Why this over a token-RPC: keeps passcode users on the offline-first replication layer (a venue loses
+signal), and reuses the column-gated view + write RPC instead of a parallel bespoke path.
 
 ---
+
+## Phases
+
+### Phase A — DB: claim-based read tier on `view_authenticated_entry_results`
+`CREATE OR REPLACE VIEW` re-emitting the current column list (from `20260621190000`) plus a new access flag:
+- `is_ringside_claim_judge` = `(SELECT auth.jwt())->'app_metadata'->>'show_id' = e.show_id::text AND
+  ...->>'ringside_role' = 'judge'` → folds into `can_view_scores` (judge claim scores).
+- `is_ringside_claim_staff` = same show match with `ringside_role IN ('steward','admin')` → rows only
+  (admin claim may also get `can_view_admin`? **decide**: keep admin passcode to rows+scores, not
+  payment, unless the user wants full admin parity).
+- Add both to the `WHERE`. Claims are show-scoped (a passcode is per-show), so this is show-level, not
+  class-level (unlike the account judge's class-level assignment).
+- `NOTIFY pgrst`. Test: claim JWT reads the show's entries; wrong-show claim reads 0; payment columns
+  null for claim users.
+
+### Phase B — DB: claim tier on `ringside_update_entry`
+- Add to the RPC's authz: judge claim (show match) → full ringside whitelist; steward claim → run-order
+  + check-in only (mirror the account steward tier); reject if claim `show_id` ≠ entry's show.
+- Resolve claim from `(SELECT auth.jwt())->'app_metadata'` (works inside SECURITY DEFINER — JWT GUC is
+  request-scoped). Keep OCC + whitelist intact. Hand-add nothing to `database.types.ts` (signature
+  unchanged). Test: judge-claim writes score OK; steward-claim score rejected; cross-show claim denied.
+
+### Phase C — Edge fn: `validate-passcode` mints the session  *(security-critical)*
+- After a successful `{show_id, role}`: `supabase.auth.admin.createUser({ ... , app_metadata: { show_id,
+  ringside_role: role, kind: 'ringside_passcode' }, ... })` (or reuse a per-(show,role) anon user), then
+  issue a session (admin generate / sign-in) and return tokens. Short TTL; never put the passcode or
+  pepper in the token. Rate-limiting already exists. Scope app_metadata to exactly the validated
+  (show, role) — never client-supplied.
+- **Security review required** (CLAUDE.md high-stakes + `security-audit` skill): an edge fn minting
+  authenticated sessions is a new surface. Confirm: claims unforgeable (app_metadata, service-role
+  only), TTL bounded, anonymous user cleanup/reuse policy, no privilege beyond the one show/role.
+
+### Phase D — Client: adopt the minted session
+- On passcode success, `supabase.auth.setSession(tokens)` so replication reads + the write RPC carry the
+  JWT. Reconcile with `useRingsideGrantRole` (the client grant becomes a *consequence* of the session,
+  or is kept as UI-role source while the session supplies DB identity). On ringside exit / sign-out,
+  end the anonymous session. Verify offline: reads come from the replicated store under the minted JWT.
+
+### Phase E — Project config + verification
+- **Enable anonymous sign-ins** in Supabase Auth settings (operator; prerequisite — currently unused).
+- Apply seed `§11`/`§12` to staging (judge_assignments + passcodes `jh3k9`/`s7m2p`).
+- Live verify on staging (cold session): enter `jh3k9` → land at `/at-show/:showId` → see run order →
+  score → reload → score persists. Repeat steward `s7m2p` → run-order/check-in only, scoring blocked.
+- Re-walk the 05 show-day judge/steward phases; flip the scorecard ringside row toward Green.
 
 ## Testing phase (required)
+- RLS contract test mirroring `apps/myk9show/src/test/database/authenticatedEntryResultsRlsContract.test.ts`:
+  claim JWT reads the show's entries, payment columns null, wrong-show claim 0 rows.
+- RPC authz tests: judge-claim score OK; steward-claim score rejected, run-order OK; cross-show denied;
+  OCC stale rejected.
+- Client: passcode-success sets a session; exit clears it; offline read served from replicated store.
+- Verify in a cold anon session ([[feedback_verify_anon_in_cold_session]]).
 
-- **RLS unit tests** (pgTAP or the repo's RLS test harness): as `judge@`/`e2e-judge@` with a §11
-  assignment, the ringside read returns the seeded Heartland entries; **without** an assignment it
-  returns 0; payment/PII columns are **absent** from the allowlist result.
-- **Column-set regression test** pinning the exact allowlist (extract the select to a const + a
-  column-set test, per [[feedback_replication_fallback_dual_path]]) so a future column add can't
-  silently leak payment/PII.
-- **Negative test:** a passcode/anon caller without a valid token reads 0 (Phase 2).
-- **Client routing test:** non-`can_manage_show` role uses the restricted read path; `can_manage_show`
-  uses the full path. Don't regress the secretary ringside view.
-- **Verify in a cold anon session** for the passcode path ([[feedback_verify_anon_in_cold_session]]).
-
-## Review gate
-
-RLS + read-authz diff → run `/review` **and** `/codex:review` (CLAUDE.md high-stakes rule). Do not push
-to staging without confirmation (Auto Mode shared-system rule).
+## Gates (CLAUDE.md)
+- `/review` + `/codex:review` on the migrations and the edge fn (RLS + session minting = high-stakes).
+- `supabase db push`, `supabase functions deploy`, the anonymous-sign-in project setting, and seed
+  application are **shared-system** — confirm before each (Auto Mode).
+- Each phase = its own PR (mixed DB+code → PR, not direct-to-main).
 
 ## Cross-references
-
-- Open question source: show-day walk S2.2/S3 (doc `05`).
-- Precedent to mirror: PR #779 per-field visibility cascade + `publicReads.ts` ([[project_public_results_release_gate]]).
-- Write-side sibling gap: [[project_atshow_judge_write_rls_gap]].
-- Fixtures already authored: `seed-demo.sql` §11 (judge_assignments), §12 (passcodes `jh3k9`/`s7m2p`) —
-  applying them to staging is a prerequisite to *verifying* this, but does not by itself fix the RLS.
-- Unblocks: Ringside Quickstart 4b (J-02…J-06) once a judge identity can render entries.
+- Existing read view: `20260621190000_ringside_entry_read_for_staff.sql`. Existing write RPC +
+  client routing: `20260621171500_ringside_update_entry.sql` + [`plan-atshow-ringside-writes.md`](plan-atshow-ringside-writes.md).
+- Passcode model: `20260525180000_show_passcodes.sql` (`validate_passcode`, HMAC+Vault pepper).
+- Fixtures: `seed-demo.sql` §11 (judge_assignments) / §12 (passcodes `jh3k9`/`s7m2p`).
+- Memory: [[project_ringside_entries_read_rls]], [[project_atshow_judge_write_rls_gap]],
+  [[project_atshow_gating_map]].
+- Source of the gap: show-day walk S2/S3 ([`docs/audits/2026-06-ux-journeys/05-showday-walk-2026-06-17.md`](audits/2026-06-ux-journeys/05-showday-walk-2026-06-17.md)).

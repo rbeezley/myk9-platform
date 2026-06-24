@@ -93,6 +93,26 @@ signal), and reuses the column-gated view + write RPC instead of a parallel besp
   request-scoped). Keep OCC + whitelist intact. Hand-add nothing to `database.types.ts` (signature
   unchanged). Test: judge-claim writes score OK; steward-claim score rejected; cross-show claim denied.
 
+### Confirmed mechanism (investigated 2026-06-24)
+
+`supabase-js ^2.108.2` cannot mint a session *with* custom claims in one call. The flow is three
+coordinated steps (Option 2):
+
+1. **Client** (`pages/validatePasscode.ts`): `supabase.auth.signInAnonymously()` → anon session (so
+   `auth.uid()` exists). **Requires anonymous sign-ins enabled** (Phase E — currently OFF).
+2. **Edge fn** (`validate-passcode`, deployed `--no-verify-jwt`): parse the caller's anon JWT, confirm
+   `is_anonymous = true` (NEVER stamp a real account), validate the passcode (existing path), then
+   `admin.updateUserById(anonUserId, { app_metadata: { ...existing, kind: 'ringside_passcode',
+   show_id, ringside_role: role } })`. Merge (don't clobber) existing app_metadata. Rate-limit exists.
+3. **Client**: `supabase.auth.refreshSession()` so the reissued JWT carries the stamped app_metadata,
+   then proceed to `/at-show/:showId`. Store the grant in `ringsideGrantStore` as today (UI role), but
+   DB identity now comes from the session.
+
+**Prerequisite ordering:** Phase E's *enable anonymous sign-ins* must happen FIRST, or C/D cannot be
+tested. Enabling it is an auth/security setting — an OPERATOR action (Claude cannot change security
+settings). Anonymous users count toward MAU + add abuse surface; pair with a cleanup policy for stale
+ringside anon users.
+
 ### Phase C — Edge fn: `validate-passcode` mints the session  *(security-critical)*
 - **MUST stamp `kind: 'ringside_passcode'`** in app_metadata — Phases A+B (shipped in PR #951)
   honor the claim ONLY when that marker is present (review Finding 1, 2026-06-24). show_id/ringside_role

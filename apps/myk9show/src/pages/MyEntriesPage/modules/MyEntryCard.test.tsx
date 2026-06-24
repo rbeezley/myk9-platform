@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { MyEntryCard } from './MyEntryCard';
 import { groupEntriesByShowAndDog } from './useMyEntriesData';
@@ -688,5 +688,45 @@ describe('MyEntryCard class detail display', () => {
     expect(screen.getByText('Sep 2')).toBeInTheDocument();
     expect(screen.getByText('Trial 2')).toBeInTheDocument();
     expect(screen.queryByText('$25')).not.toBeInTheDocument();
+  });
+});
+
+describe('MyEntryCard self-check-in gating', () => {
+  function renderWithMap(entry: MyEntry, map: Record<string, boolean>, onCheckInClick = vi.fn()) {
+    render(
+      <MemoryRouter>
+        <MyEntryCard
+          entry={entry}
+          selfCheckinByClassId={map}
+          onCheckInClick={onCheckInClick}
+          onEditClick={vi.fn()}
+          onReceiptClick={vi.fn()}
+        />
+      </MemoryRouter>
+    );
+    return onCheckInClick;
+  }
+
+  const unscored = makeClass({ id: 'entry-1', classId: 'class-1', checkInStatus: 'no-status' });
+
+  it('renders an interactive check-in control when self-check-in is enabled', () => {
+    const onCheckInClick = renderWithMap(makeEntry({ classes: [unscored] }), { 'class-1': true });
+    const btn = screen.getByRole('button', { name: /not checked in/i });
+    fireEvent.click(btn);
+    expect(onCheckInClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('defaults to enabled when the class id is missing from the map', () => {
+    renderWithMap(makeEntry({ classes: [unscored] }), {});
+    expect(screen.getByRole('button', { name: /not checked in/i })).toBeInTheDocument();
+  });
+
+  it('disables the check-in control with a reason when self-check-in is off', () => {
+    const onCheckInClick = renderWithMap(makeEntry({ classes: [unscored] }), { 'class-1': false });
+    // No interactive button…
+    expect(screen.queryByRole('button', { name: /not checked in/i })).not.toBeInTheDocument();
+    // …a non-interactive indicator with an explanatory label instead.
+    expect(screen.getByLabelText('Check-in not open yet')).toBeInTheDocument();
+    expect(onCheckInClick).not.toHaveBeenCalled();
   });
 });

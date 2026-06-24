@@ -11,7 +11,10 @@ import type { ResultStatus } from '@/components/common/ResultBadge';
  * Represents a class entry within a show registration
  */
 export interface EntryClass {
+  /** Entry row id (one dog in one class) — used as `p_entry_id` for check-in. */
   id: string;
+  /** The class being entered. Distinct from `id`; drives the self-check-in cascade. */
+  classId?: string | undefined;
   name: string;
   number: string;
   fee: number;

@@ -68,6 +68,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-replication-insert-idempotency.md](plan-replication-insert-idempotency.md)           | Active    | Replication INSERT retry idempotency — investigation verdict (B)      |
 | [plan-restore-ui-remediation.md](plan-restore-ui-remediation.md)                           | Active    | Plan: Fix the Deleted Entities (restore) UI                           |
 | [plan-result-reveal-share-card.md](plan-result-reveal-share-card.md)                       | Active    | Plan: Result Reveal + Share Card                                      |
+| [plan-ringside-entries-read-authz.md](plan-ringside-entries-read-authz.md)                 | Active    | Ringside entry-read authz — judge/steward/passcode see entries (RLS)  |
 | [plan-ringside-navigation.md](plan-ringside-navigation.md)                                 | Active    | Ringside navigation — permanent sidebar entry + smart /at-show landing |
 | [plan-show-day-sequencing.md](plan-show-day-sequencing.md)                                 | Active    | Plan — Show-Day Workflow Sequencing                                   |
 | [plan-soft-delete-person-rpc.md](plan-soft-delete-person-rpc.md)                           | Active    | Plan: Fix person soft-delete (RLS WITH-CHECK block)                   |

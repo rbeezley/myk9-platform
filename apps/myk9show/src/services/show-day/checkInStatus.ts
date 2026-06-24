@@ -8,6 +8,15 @@ export interface ReplicatedDayOfScratchOptions {
   fromStatus?: string | null | undefined;
 }
 
+/**
+ * Which authorization path a check-in write takes:
+ *  - `'replicated'`     → `ringside_update_entry` / direct UPDATE, authorized by
+ *                         staff role (manager / judge / steward). Offline-first.
+ *  - `'self-checkin-rpc'` → `self_checkin_entry`, authorized by dog ownership
+ *                         (handler / owner / co-owner). Online-only by design.
+ */
+export type CheckInWriter = 'replicated' | 'self-checkin-rpc';
+
 export async function updateReplicatedCheckInStatus(
   entryId: string,
   status: CheckInStatus,

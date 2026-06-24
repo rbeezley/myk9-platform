@@ -12,6 +12,7 @@ import { queryKeys } from '@/lib/queryClient';
 import {
   updateReplicatedCheckInStatus,
   updateSelfCheckInStatus,
+  type CheckInWriter,
 } from '@/services/show-day/checkInStatus';
 import type { ShowDayDetailRow } from '@/types/show-day-types';
 
@@ -27,7 +28,7 @@ interface CheckInMutationContext {
   previousClassEntries: [readonly unknown[], unknown][];
 }
 
-export type CheckInWriter = 'replicated' | 'self-checkin-rpc';
+export type { CheckInWriter };
 
 interface UseCheckInMutationOptions {
   writer?: CheckInWriter | undefined;

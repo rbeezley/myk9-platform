@@ -2,8 +2,10 @@
 
 > **Status:** Active
 
-**Created:** 2026-06-24. **Goal (user, 2026-06-24):** a judge or timer who signs in with a **show
-passcode** (no account) must be able to read the run order and **score** at `/at-show/:showId`,
+**Created:** 2026-06-24. **Goal (user, 2026-06-24):** a judge or steward (the "timer" signs in with
+the **steward** passcode — there is no separate `timer` role; passcode roles are
+admin/judge/steward/exhibitor) who signs in with a **show passcode** (no account) must be able to read
+the run order and **score** (judge) / manage run-order + check-in (steward) at `/at-show/:showId`,
 offline-capable — because passcode is the *primary* real-world ringside sign-in.
 
 > **Correction (2026-06-24):** an earlier draft of this plan misdiagnosed the root cause as
@@ -52,6 +54,24 @@ signal), and reuses the column-gated view + write RPC instead of a parallel besp
 
 ---
 
+## Review findings folded in (2026-06-24, independent review of PR #951)
+
+- **F1 (Medium, DONE in PR #951):** the claim is now gated on an explicit
+  `kind: 'ringside_passcode'` marker in app_metadata, not just generic `show_id`/`ringside_role` keys.
+  Closes the only surviving forge vector (a future internal flow writing those generic keys into a
+  real account's app_metadata cannot gain ringside access). Verified live: an unmarked claim reads 0
+  rows + write rejected. Phase C MUST set the marker (see Phase C).
+- **F2 (Low, decision):** an **exhibitor** passcode claim reads **0 rows** from
+  `view_authenticated_entry_results` — `is_ringside_claim` admits only judge/steward/admin (scoring
+  staff), by design. This is not a regression (anon reads 0 today). **Decision:** exhibitor at-show
+  (run-order viewing without an account) is intentionally OUT of this scoring-staff read path; if
+  exhibitors need a passcode run-order view, it rides a separate public/anon read path. Phase C/D must
+  confirm the exhibitor at-show entry point (account `is_own_entry` path or a public path) — do not
+  rely on the exhibitor passcode reaching this view.
+- **F3 (Nit, docs):** "timer" is not a role — the passcode roles are admin/judge/steward/exhibitor.
+  The person running the stopwatch ("the timer") signs in with the **steward** passcode. Wording
+  aligned here and in the PR.
+
 ## Phases
 
 ### Phase A — DB: claim-based read tier on `view_authenticated_entry_results`
@@ -74,6 +94,9 @@ signal), and reuses the column-gated view + write RPC instead of a parallel besp
   unchanged). Test: judge-claim writes score OK; steward-claim score rejected; cross-show claim denied.
 
 ### Phase C — Edge fn: `validate-passcode` mints the session  *(security-critical)*
+- **MUST stamp `kind: 'ringside_passcode'`** in app_metadata — Phases A+B (shipped in PR #951)
+  honor the claim ONLY when that marker is present (review Finding 1, 2026-06-24). show_id/ringside_role
+  alone are inert without it. This is a hard cross-PR contract.
 - After a successful `{show_id, role}`: `supabase.auth.admin.createUser({ ... , app_metadata: { show_id,
   ringside_role: role, kind: 'ringside_passcode' }, ... })` (or reuse a per-(show,role) anon user), then
   issue a session (admin generate / sign-in) and return tokens. Short TTL; never put the passcode or

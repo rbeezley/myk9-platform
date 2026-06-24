@@ -19,21 +19,57 @@ import { useCallback, useRef, useState } from 'react';
 import type { EntryListActions } from '@myk9/ringside';
 import type { EntryStatus } from '@myk9/core';
 import { logger } from '@/utils/logger';
-import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
+import {
+  updateReplicatedCheckInStatus,
+  updateSelfCheckInStatus,
+  type CheckInWriter,
+} from '@/services/show-day/checkInStatus';
 import { replicatedEntriesTable } from '@/services/replication';
 
 export interface UseAtShowEntryListActionsDeps {
   /** Refresh callback from the data hook; awaited after a successful mutation. */
   refresh: (forceSync?: boolean) => Promise<void>;
+  /**
+   * Which authorization path check-in writes take. Staff (admin / judge /
+   * steward) use the `'replicated'` writer (`ringside_update_entry`, authorized
+   * by staff role). An exhibitor-role account — including an admin who entered
+   * an exhibitor passcode — must use `'self-checkin-rpc'` (`self_checkin_entry`,
+   * authorized by dog ownership), because the replicated path's RLS admits only
+   * managers/judges/stewards and would silently reject an exhibitor's write on
+   * sync. Defaults to `'replicated'` to preserve staff behavior.
+   */
+  writer?: CheckInWriter | undefined;
 }
 
-/** Write a check-in status to an entry through the replicated writer. */
-async function writeCheckInStatus(entryId: string, status: EntryStatus): Promise<void> {
+/**
+ * Write a check-in status to an entry through the writer that matches the
+ * caller's authority. Exhibitor self-check-in is online-only by design (the
+ * `self_checkin_entry` RPC has no offline queue), consistent with every other
+ * exhibitor self-check-in surface.
+ *
+ * Coupling note: the `'self-checkin-rpc'` path only accepts the ownership-
+ * allowed statuses (`checked-in | conflict | pulled | at-gate | no-status`).
+ * The `in-ring` / `completed` statuses emitted by handleMark{InRing,Completed}
+ * / handleToggleInRing are staff-only — `self_checkin_entry` RAISEs on them.
+ * That's unreachable for exhibitors today (`canScore=false` hides those
+ * affordances), and if it ever leaks the RPC fails loud → `hasError`, never a
+ * silent stuck optimistic update (the exact regression this writer-branch fixed).
+ */
+async function writeCheckInStatus(
+  entryId: string,
+  status: EntryStatus,
+  writer: CheckInWriter
+): Promise<void> {
+  if (writer === 'self-checkin-rpc') {
+    await updateSelfCheckInStatus(entryId, status);
+    return;
+  }
   await updateReplicatedCheckInStatus(entryId, status);
 }
 
 export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): EntryListActions {
   const { refresh } = deps;
+  const writer: CheckInWriter = deps.writer ?? 'replicated';
   const [isSyncing, setIsSyncing] = useState(false);
   const [hasError, setHasError] = useState(false);
   // Tracks concurrent in-flight mutations so `isSyncing` only clears when the
@@ -62,51 +98,51 @@ export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): 
   const handleStatusChange = useCallback<EntryListActions['handleStatusChange']>(
     async (entryId, newStatus) => {
       await runMutation(async () => {
-        await writeCheckInStatus(entryId, newStatus);
+        await writeCheckInStatus(entryId, newStatus, writer);
         await refresh();
       });
     },
-    [runMutation, refresh]
+    [runMutation, refresh, writer]
   );
 
   const handleToggleInRing = useCallback<EntryListActions['handleToggleInRing']>(
     async (entryId, currentInRing) => {
       await runMutation(async () => {
-        await writeCheckInStatus(entryId, currentInRing ? 'no-status' : 'in-ring');
+        await writeCheckInStatus(entryId, currentInRing ? 'no-status' : 'in-ring', writer);
         await refresh();
       });
     },
-    [runMutation, refresh]
+    [runMutation, refresh, writer]
   );
 
   const handleMarkInRing = useCallback<EntryListActions['handleMarkInRing']>(
     async entryId => {
       await runMutation(async () => {
-        await writeCheckInStatus(entryId, 'in-ring');
+        await writeCheckInStatus(entryId, 'in-ring', writer);
         await refresh();
       });
     },
-    [runMutation, refresh]
+    [runMutation, refresh, writer]
   );
 
   const handleMarkCompleted = useCallback<EntryListActions['handleMarkCompleted']>(
     async entryId => {
       await runMutation(async () => {
-        await writeCheckInStatus(entryId, 'completed');
+        await writeCheckInStatus(entryId, 'completed', writer);
         await refresh();
       });
     },
-    [runMutation, refresh]
+    [runMutation, refresh, writer]
   );
 
   const handleBatchStatusUpdate = useCallback<EntryListActions['handleBatchStatusUpdate']>(
     async (entryIds, newStatus) => {
       await runMutation(async () => {
-        await Promise.all(entryIds.map(id => writeCheckInStatus(id, newStatus)));
+        await Promise.all(entryIds.map(id => writeCheckInStatus(id, newStatus, writer)));
         await refresh();
       });
     },
-    [runMutation, refresh]
+    [runMutation, refresh, writer]
   );
 
   const handleResetScore = useCallback<EntryListActions['handleResetScore']>(

@@ -209,8 +209,15 @@ CROSS JOIN LATERAL (
     -- Ringside passcode claim (Phase A). app_metadata is service-role/admin set
     -- only (forge-proof). Claims are show-scoped: a passcode is one code per
     -- show/role, so a matching claim authorizes every class in that show.
+    -- REQUIRES the explicit kind='ringside_passcode' marker: show_id/ringside_role
+    -- are generic key names, so the marker is what makes "this claim came from a
+    -- ringside passcode" unambiguous and collision-proof. A future flow that
+    -- happens to write show_id/ringside_role into some account's app_metadata
+    -- does NOT gain ringside access unless it also stamps this marker. Phase C
+    -- (validate-passcode) MUST set kind='ringside_passcode' or the claim is inert.
     (
-      nullif((auth.jwt() -> 'app_metadata' ->> 'show_id'), '') = e.show_id::text
+      (auth.jwt() -> 'app_metadata' ->> 'kind') = 'ringside_passcode'
+      AND nullif((auth.jwt() -> 'app_metadata' ->> 'show_id'), '') = e.show_id::text
     ) AS claim_show_match,
     (auth.jwt() -> 'app_metadata' ->> 'ringside_role') AS claim_role
 ) AS flags
@@ -273,7 +280,9 @@ DECLARE
   v_is_assigned_judge boolean;
   v_is_steward boolean;
   -- Ringside passcode claim (Phase B). app_metadata is service-role/admin set
-  -- only (forge-proof); read it EXCLUSIVELY, never user_metadata.
+  -- only (forge-proof); read it EXCLUSIVELY, never user_metadata. The claim is
+  -- honored ONLY when stamped kind='ringside_passcode' (collision-proof marker).
+  v_claim_kind text;
   v_claim_show_id text;
   v_claim_role text;
   v_has_judge_claim boolean;
@@ -356,16 +365,20 @@ BEGIN
             OR (ur.show_id IS NULL AND ur.club_id = v_club_id))
   );
 
-  -- Passcode claim, matched to THIS entry's show. A claim for another show
-  -- does not authorize this write.
+  -- Passcode claim, matched to THIS entry's show and gated on the explicit
+  -- kind='ringside_passcode' marker (collision-proof — see the view comment).
+  -- A claim for another show, or without the marker, does not authorize.
+  v_claim_kind := (SELECT auth.jwt()) -> 'app_metadata' ->> 'kind';
   v_claim_show_id := nullif(((SELECT auth.jwt()) -> 'app_metadata' ->> 'show_id'), '');
   v_claim_role := (SELECT auth.jwt()) -> 'app_metadata' ->> 'ringside_role';
   v_has_judge_claim :=
-    v_claim_show_id IS NOT NULL
+    v_claim_kind = 'ringside_passcode'
+    AND v_claim_show_id IS NOT NULL
     AND v_claim_show_id = v_show_id::text
     AND v_claim_role IN ('judge', 'admin');
   v_has_steward_claim :=
-    v_claim_show_id IS NOT NULL
+    v_claim_kind = 'ringside_passcode'
+    AND v_claim_show_id IS NOT NULL
     AND v_claim_show_id = v_show_id::text
     AND v_claim_role = 'steward';
 

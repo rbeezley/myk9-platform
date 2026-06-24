@@ -46,6 +46,12 @@ describe('ringside passcode-claim authz — RLS/RPC contract', () => {
       expect(view).toContain("'app_metadata' ->> 'show_id'), '') = e.show_id::text");
     });
 
+    it('honors the claim ONLY when stamped kind=ringside_passcode (collision-proof marker)', () => {
+      // show_id/ringside_role are generic keys; the marker is what makes a claim
+      // unambiguously "from a ringside passcode". Without it the claim is inert.
+      expect(view).toContain("(auth.jwt() -> 'app_metadata' ->> 'kind') = 'ringside_passcode'");
+    });
+
     it('grants raw scores to judge/admin claims (steward claim excluded)', () => {
       // The judge/admin claim expression feeds can_view_scores...
       expect(view).toMatch(/IN \('judge', 'admin'\)\)\s*\)\s*AS can_view_scores/);
@@ -85,6 +91,11 @@ describe('ringside passcode-claim authz — RLS/RPC contract', () => {
 
     it('matches the write claim to the entry’s show (v_show_id)', () => {
       expect(fn).toContain('v_claim_show_id = v_show_id::text');
+    });
+
+    it('requires the kind=ringside_passcode marker for write claims', () => {
+      expect(fn).toContain("v_claim_kind := (SELECT auth.jwt()) -> 'app_metadata' ->> 'kind'");
+      expect(fn).toContain("v_claim_kind = 'ringside_passcode'");
     });
 
     it('judge/admin claim writes the full ringside set; steward claim does not', () => {

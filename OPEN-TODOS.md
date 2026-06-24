@@ -22,14 +22,6 @@ Deferred Phase 4 from the public-landing brand/a11y pass (PR [#916](https://gith
 
 ---
 
-## At-Show Combined Run-Order — preset path — 2026-06-22
-
-Surfaced during PR [#924](https://github.com/rbeezley/myk9-platform/pull/924) (which fixed the combined **drag** run-order, previously a silent-discard stub). The drag and preset paths now diverge: a steward who reorders via drag (persists) then tweaks via the run-order preset dialog (silently discards) gets inconsistent feedback. Documented in the `AtShowCombinedEntryListPage.tsx` header docstring; tracking here so it doesn't rot.
-
-- [ ] **Wire combined preset run-order apply (`onApplyRunOrder`)** — `AtShowCombinedEntryListPage.tsx` still stubs the preset dialog apply. Unlike the single-class page (`useAtShowEntryListHandlers.ts` `handleApplyRunOrder` → `calculateRunOrder` → `replicatedEntriesTable.updateEntry({ runOrder })`), the combined contract is section-aware (`preset, scope, renumberMode`) and needs a section-aware run-order calculator myK9Show doesn't have yet. Persist offline-first through the replication layer (`run_order` routes through `ringside_update_entry`); reuse `persistEntryRunOrder` for the writes. Assertion-first tests on the section-aware calculator. Update the file header docstring once shipped.
-
----
-
 ## Active-Docs Triage — net-new backlog — 2026-06-14
 
 Source: [`docs/plan-active-docs-triage-2026-06-14.md`](docs/plan-active-docs-triage-2026-06-14.md). Items below were genuinely untracked elsewhere. Plan-backed features link to their plan instead of duplicating sub-tasks.

@@ -289,4 +289,13 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     const hrefs = config.groups.flatMap(g => g.items.map(i => i.href));
     expect(hrefs).toContain('/at-show');
   });
+
+  // The exhibitor-block item and the multi-role "Show Day" group are gated by
+  // mutually-exclusive branches (isExhibitorOnly), so no user should ever see
+  // two Ringside entries. Pin that for the exhibitor-with-another-role case.
+  it('secretary+exhibitor sidebar has exactly one Ringside item', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY, UserRole.EXHIBITOR]);
+    const ringside = config.groups.flatMap(g => g.items).filter(i => i.href === '/at-show');
+    expect(ringside).toHaveLength(1);
+  });
 });

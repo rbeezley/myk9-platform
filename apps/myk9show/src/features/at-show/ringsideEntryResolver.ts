@@ -18,6 +18,13 @@
  * show auto-jumps (no name shown), and a judge simultaneously live at 2+
  * different shows is not physically possible, so the nameless-chooser case is
  * vanishingly rare. The exhibitor/manager sources always carry names.
+ *
+ * Note on dates: `todayISO` is the viewer's local date, while a judge's
+ * `trialDate` is in the trial's local zone. For a judge viewing from a different
+ * timezone near midnight, the `trialDate === todayISO` branch could mis-bucket a
+ * today/tomorrow boundary — but `status === 'in-progress'` independently catches
+ * any actually-live ring, so the only effect is a today-vs-upcoming label slip
+ * on a not-yet-started class. Acceptable for an entry-point chooser.
  */
 
 /** A judge class assignment, narrowed to the fields the resolver needs. */

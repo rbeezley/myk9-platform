@@ -29,6 +29,10 @@ export function useRingsideEntryShows(): RingsideEntryShows {
   const judge = useJudgeAssignments();
   const banner = useShowTodayBanner();
   const shows = useShowStore(s => s.shows);
+  // The manager source (useMyShows over the store) has no loading flag of its
+  // own; fold in the store's so a secretary doesn't flash the "no live show"
+  // home before the store hydrates and the auto-jump resolves.
+  const showsLoading = useShowStore(s => s.isLoading);
   const { today, upcoming } = useMyShows(shows);
 
   return useMemo(() => {
@@ -66,7 +70,16 @@ export function useRingsideEntryShows(): RingsideEntryShows {
     return {
       liveShows: resolved.liveShows.map(enrich),
       upcomingShows: resolved.upcomingShows.map(enrich),
-      isLoading: judge.isLoading || banner.isLoading,
+      isLoading: judge.isLoading || banner.isLoading || showsLoading,
     };
-  }, [judge.assignments, judge.isLoading, banner.items, banner.isLoading, today, upcoming, shows]);
+  }, [
+    judge.assignments,
+    judge.isLoading,
+    banner.items,
+    banner.isLoading,
+    today,
+    upcoming,
+    shows,
+    showsLoading,
+  ]);
 }

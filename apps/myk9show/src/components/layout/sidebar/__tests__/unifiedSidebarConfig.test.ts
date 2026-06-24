@@ -154,10 +154,17 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
   });
 
   // ── Exhibitor-only ───────────────────────────────────────────────────────
-  it('exhibitor-only sidebar has exactly My Shows, My Dogs, My Stats, My Payments, Find Shows', () => {
+  it('exhibitor-only sidebar has exactly My Shows, My Dogs, My Stats, My Payments, Ringside, Find Shows', () => {
     const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
     const allTitles = config.groups.flatMap(g => g.items.map(i => i.title));
-    expect(allTitles).toEqual(['My Shows', 'My Dogs', 'My Stats', 'My Payments', 'Find Shows']);
+    expect(allTitles).toEqual([
+      'My Shows',
+      'My Dogs',
+      'My Stats',
+      'My Payments',
+      'Ringside',
+      'Find Shows',
+    ]);
   });
 
   it('exhibitor-only My Stats href points to /exhibitor/analytics', () => {
@@ -166,14 +173,14 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     expect(item?.href).toBe('/exhibitor/analytics');
   });
 
-  // Regression: the "Show Day" item linked to the retired /exhibitor/show-day
-  // route, which (with no ?showId=) redirected to /exhibitor/entries — the same
-  // page "My Shows" opens. The canonical at-show entry point is the
-  // context-aware <ShowTodayBanner> on MyEntriesPage, not a static nav link.
-  it('exhibitor-only sidebar omits a standalone Show Day item', () => {
+  // The permanent Ringside entry targets the bare /at-show route, which resolves
+  // the showId at the destination (RingsideEntryPage) — so a static link is safe
+  // for an exhibitor with several shows. It replaces the old retired
+  // /exhibitor/show-day link (still asserted absent below).
+  it('exhibitor-only sidebar includes a Ringside item pointing at /at-show', () => {
     const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
-    const allTitles = config.groups.flatMap(g => g.items.map(i => i.title));
-    expect(allTitles).not.toContain('Show Day');
+    const item = config.groups.flatMap(g => g.items).find(i => i.title === 'Ringside');
+    expect(item?.href).toBe('/at-show');
   });
 
   it('exhibitor-only sidebar never links to the retired /exhibitor/show-day route', () => {
@@ -256,5 +263,39 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY, UserRole.EXHIBITOR]);
     const oldSection = config.groups.find(g => g.title === 'My Shows');
     expect(oldSection).toBeUndefined();
+  });
+
+  // ── Ringside (Show Day) — permanent, every role ──────────────────────────
+  it.each([
+    ['admin', [UserRole.SITE_ADMIN]],
+    ['secretary', [UserRole.SECRETARY]],
+    ['judge', [UserRole.JUDGE]],
+    ['club admin', [UserRole.CLUB_ADMIN]],
+  ] as const)('multi-role sidebar (%s) has a Show Day group with Ringside → /at-show', (_label, roles) => {
+    const config = buildUnifiedSidebarConfig([...roles]);
+    const group = config.groups.find(g => g.title === 'Show Day');
+    expect(group?.items.map(i => i.title)).toEqual(['Ringside']);
+    expect(group?.items[0]?.href).toBe('/at-show');
+  });
+
+  it('Show Day group appears immediately after Manage for a secretary', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
+    const titles = config.groups.map(g => g.title);
+    expect(titles.indexOf('Show Day')).toBe(titles.indexOf('Manage') + 1);
+  });
+
+  it('judge-only sidebar surfaces Ringside even though it has no Manage section', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.JUDGE]);
+    const hrefs = config.groups.flatMap(g => g.items.map(i => i.href));
+    expect(hrefs).toContain('/at-show');
+  });
+
+  // The exhibitor-block item and the multi-role "Show Day" group are gated by
+  // mutually-exclusive branches (isExhibitorOnly), so no user should ever see
+  // two Ringside entries. Pin that for the exhibitor-with-another-role case.
+  it('secretary+exhibitor sidebar has exactly one Ringside item', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY, UserRole.EXHIBITOR]);
+    const ringside = config.groups.flatMap(g => g.items).filter(i => i.href === '/at-show');
+    expect(ringside).toHaveLength(1);
   });
 });

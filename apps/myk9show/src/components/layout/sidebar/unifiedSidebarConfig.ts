@@ -34,6 +34,7 @@ import {
   BarChart3,
   Landmark,
   Wallet,
+  Radio,
 } from 'lucide-react';
 import { UserRole } from '@/types/auth-types';
 import { isWizardSurface, isPathInWizardAllowlist } from '@/config/surface';
@@ -49,6 +50,19 @@ export interface NextShowContext {
   name: string;
   phase: 'today' | 'upcoming' | 'draft';
 }
+
+/**
+ * The permanent "Ringside" entry point, shown for every role. It targets the
+ * bare `/at-show` route, which resolves the user's live show and either
+ * auto-jumps into it or offers a chooser (see RingsideEntryPage). A static link
+ * works precisely because the destination — not the link — supplies the showId.
+ */
+const RINGSIDE_NAV_ITEM: NavItem = {
+  title: 'Ringside',
+  href: '/at-show',
+  icon: Radio,
+  description: 'Step into the ring on show day',
+};
 
 function hasAnyRole(userRoles: UserRole[], required: UserRole[]): boolean {
   return required.some(r => userRoles.includes(r));
@@ -105,13 +119,10 @@ export function buildUnifiedSidebarConfig(
           icon: Wallet,
           description: 'Your online entry payments and receipts',
         },
-        // NOTE: No standalone "Show Day" item. The at-show/ringside experience
-        // (`/at-show/:showId`) is inherently per-show, and an exhibitor may be
-        // entered in several shows — a static link can't supply the right
-        // showId. The canonical, context-aware entry point is <ShowTodayBanner>
-        // on MyEntriesPage (the "My Shows" page), which appears on show day and
-        // deep-links to the correct show. A prior link to the retired
-        // `/exhibitor/show-day` route was removed for this reason.
+        // Ringside resolves the right showId at the destination (RingsideEntryPage),
+        // so a static link is safe even though an exhibitor may have several
+        // shows. Complements the context-aware <ShowTodayBanner> on MyEntriesPage.
+        RINGSIDE_NAV_ITEM,
         {
           title: 'Find Shows',
           href: '/shows',
@@ -191,6 +202,11 @@ export function buildUnifiedSidebarConfig(
 
       groups.push({ title: 'Manage', items: manageItems });
     }
+
+    // 2b. Show Day — the always-available Ringside entry. Placed high (right
+    // after Manage) because for a judge it may be the only section that matters,
+    // and on show day it's the primary destination for every staff role.
+    groups.push({ title: 'Show Day', items: [RINGSIDE_NAV_ITEM] });
 
     // 3. As Exhibitor section (exhibitor with other roles)
     if (hasAnyRole(userRoles, [UserRole.EXHIBITOR])) {

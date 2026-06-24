@@ -122,7 +122,14 @@ export const AtShowEntryListPage: React.FC = () => {
     dependencies,
   });
 
-  const actions = useAtShowEntryListActions({ refresh });
+  // An exhibitor-role account (including an admin who entered an exhibitor
+  // passcode) lacks the staff RLS authority the replicated writer needs, so its
+  // check-in writes must route through the ownership-scoped `self_checkin_entry`
+  // RPC — otherwise the optimistic update sticks locally but never syncs.
+  const actions = useAtShowEntryListActions({
+    refresh,
+    writer: ringsideRole === 'exhibitor' ? 'self-checkin-rpc' : 'replicated',
+  });
 
   // ── Realtime: scoring/check-in changes elsewhere re-sync this list ─────
   useAtShowRealtimeRefresh(showId, refresh);

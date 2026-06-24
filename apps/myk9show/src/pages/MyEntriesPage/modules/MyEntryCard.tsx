@@ -43,6 +43,12 @@ import { isPastShowEntry } from './myEntriesStats.helpers';
 
 interface MyEntryCardProps {
   entry: MyEntry;
+  /**
+   * Resolved self-check-in cascade by class id (class ?? trial ?? show ?? true).
+   * Missing/absent entries default to enabled. Gates the check-in control so the
+   * secretary's "self-check-in" toggle is honored, not just `!isScored`.
+   */
+  selfCheckinByClassId?: Record<string, boolean>;
   onCheckInClick: (entry: MyEntry, classEntry: EntryClass) => void;
   onEditClick: (entry: MyEntry) => void;
   onReceiptClick: (entry: MyEntry) => void;
@@ -64,6 +70,7 @@ function buildEntryPaymentHref(entry: MyEntry): string {
  */
 export const MyEntryCard: React.FC<MyEntryCardProps> = ({
   entry,
+  selfCheckinByClassId = {},
   onCheckInClick,
   onEditClick,
   onReceiptClick,
@@ -303,20 +310,37 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
                     </Button>
                   )}
 
-                  {/* Check-in Status Controls */}
-                  {!cls.isScored && (
-                    <button
-                      onClick={() => onCheckInClick(entry, cls)}
-                      className="hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded transition-transform"
-                    >
-                      <CheckInStatusIndicator
-                        status={cls.checkInStatus || 'no-status'}
-                        size="sm"
-                        showLabel={true}
-                        showTooltip={true}
-                      />
-                    </button>
-                  )}
+                  {/* Check-in Status Controls — gated by the secretary's
+                      self-check-in toggle (cascade resolved per class; defaults
+                      open). When off, show a non-interactive indicator with a
+                      reason instead of a tappable button the RPC would reject. */}
+                  {!cls.isScored &&
+                    ((cls.classId ? (selfCheckinByClassId[cls.classId] ?? true) : true) ? (
+                      <button
+                        onClick={() => onCheckInClick(entry, cls)}
+                        className="hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded transition-transform"
+                      >
+                        <CheckInStatusIndicator
+                          status={cls.checkInStatus || 'no-status'}
+                          size="sm"
+                          showLabel={true}
+                          showTooltip={true}
+                        />
+                      </button>
+                    ) : (
+                      <span
+                        className="cursor-not-allowed opacity-60"
+                        title="Self check-in isn't available for this class right now."
+                        aria-label="Self check-in not available"
+                      >
+                        <CheckInStatusIndicator
+                          status={cls.checkInStatus || 'no-status'}
+                          size="sm"
+                          showLabel={true}
+                          showTooltip={false}
+                        />
+                      </span>
+                    ))}
                 </div>
                 <div className="flex items-center gap-2">
                   {cls.isScored && cls.searchTimeSeconds != null && (

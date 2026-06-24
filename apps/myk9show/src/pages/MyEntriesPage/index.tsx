@@ -57,6 +57,7 @@ const ENTRY_TAB_DEFS = [
 import { DashboardGreeting } from '@/components/ui/DashboardGreeting';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { useMyWaitlistEntries } from '@/hooks/queries/useMyWaitlistEntries';
+import { useSelfCheckinMap } from '@/hooks/queries/useSelfCheckinEnabled';
 import type { WaitListEntry } from '@/types/waitlist-types';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -84,6 +85,27 @@ const MyEntriesPage: React.FC = () => {
   const { filteredEntries, selectedTab, setSelectedTab, entryStats } = useMyEntriesFilters({
     entries,
   });
+
+  // Resolve the secretary's self-check-in cascade (class ?? trial ?? show ?? true)
+  // for every entered class. The check-in control should reflect whether the
+  // secretary has opened self-check-in — not merely whether the entry is unscored.
+  const selfCheckinClassIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          // Only unscored classes render the gated control, so resolving the
+          // cascade for scored/past classes would be wasted DB reads (4 per class).
+          entries.flatMap(e =>
+            e.classes
+              .filter(c => !c.isScored)
+              .map(c => c.classId)
+              .filter((id): id is string => !!id)
+          )
+        )
+      ),
+    [entries]
+  );
+  const selfCheckinByClassId = useSelfCheckinMap(selfCheckinClassIds);
 
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -368,6 +390,7 @@ const MyEntriesPage: React.FC = () => {
                   <MyEntryCard
                     key={entry.id}
                     entry={entry}
+                    selfCheckinByClassId={selfCheckinByClassId}
                     onCheckInClick={handleCheckInClick}
                     onEditClick={handleEditClick}
                     onReceiptClick={handleReceiptClick}

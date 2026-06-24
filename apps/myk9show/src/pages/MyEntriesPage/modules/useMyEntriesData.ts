@@ -153,6 +153,7 @@ export function useMyEntriesData({
       ? [
           {
             id: entry.id as string,
+            classId: classData.id,
             name: classData.name || 'Unknown Class',
             number: classData.class_number || '',
             fee: (entry.entry_fee as number) || 0,

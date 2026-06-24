@@ -330,8 +330,8 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
                     ) : (
                       <span
                         className="cursor-not-allowed opacity-60"
-                        title="Check-in isn't open yet — the show team will enable it."
-                        aria-label="Check-in not open yet"
+                        title="Self check-in isn't available for this class right now."
+                        aria-label="Self check-in not available"
                       >
                         <CheckInStatusIndicator
                           status={cls.checkInStatus || 'no-status'}

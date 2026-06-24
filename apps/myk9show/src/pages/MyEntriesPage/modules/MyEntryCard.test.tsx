@@ -726,7 +726,7 @@ describe('MyEntryCard self-check-in gating', () => {
     // No interactive button…
     expect(screen.queryByRole('button', { name: /not checked in/i })).not.toBeInTheDocument();
     // …a non-interactive indicator with an explanatory label instead.
-    expect(screen.getByLabelText('Check-in not open yet')).toBeInTheDocument();
+    expect(screen.getByLabelText('Self check-in not available')).toBeInTheDocument();
     expect(onCheckInClick).not.toHaveBeenCalled();
   });
 });

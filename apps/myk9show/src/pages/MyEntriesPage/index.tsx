@@ -93,8 +93,13 @@ const MyEntriesPage: React.FC = () => {
     () =>
       Array.from(
         new Set(
+          // Only unscored classes render the gated control, so resolving the
+          // cascade for scored/past classes would be wasted DB reads (4 per class).
           entries.flatMap(e =>
-            e.classes.map(c => c.classId).filter((id): id is string => !!id)
+            e.classes
+              .filter(c => !c.isScored)
+              .map(c => c.classId)
+              .filter((id): id is string => !!id)
           )
         )
       ),

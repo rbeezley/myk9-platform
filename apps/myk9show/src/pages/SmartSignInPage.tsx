@@ -8,6 +8,7 @@ import { classifyCredential, normalizeCredential } from './SmartSignInPage.helpe
 import { PasswordSubForm } from './PasswordSubForm';
 import { JoinShowConfirmation } from './JoinShowConfirmation';
 import { validatePasscode } from './validatePasscode';
+import { startAnonymousRingsideSession } from './ringsideAnonSession';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
 import type { UserRole as RingsideRole } from '@myk9/ringside';
 
@@ -102,13 +103,15 @@ const SmartSignInPage: React.FC = () => {
     setLoading(true);
     try {
       const normalizedCredential = normalizeCredential(credential);
-      const result = await validatePasscode(normalizedCredential);
-      if (!result.ok) {
-        setError(result.message);
-        return;
-      }
       if (user) {
-        // Signed-in account: confirm before expanding role (Phase 1c §2.2).
+        // Signed-in account: validate only (no anon session — Locked Decision #8
+        // keeps the account session untouched), then confirm before expanding
+        // role (Phase 1c §2.2). DB access stays auth.uid()-based.
+        const result = await validatePasscode(normalizedCredential);
+        if (!result.ok) {
+          setError(result.message);
+          return;
+        }
         setPending({
           showId: result.showId,
           showName: result.showName,
@@ -116,10 +119,14 @@ const SmartSignInPage: React.FC = () => {
           passcode: normalizedCredential,
         });
       } else {
-        // Anonymous: the passcode itself is the show-scoped grant. Keep it in
-        // memory before routing so `/at-show/:showId` can admit this device
-        // without account RBAC. The optional name + a minted session id give this
-        // device a presence identity (anon users have no account user.id).
+        // Account-less: mint an anonymous session stamped with the ringside
+        // claim (Phase C/D) so the DB admits this device's offline reads/writes,
+        // then keep the UI role + presence identity in the client grant.
+        const result = await startAnonymousRingsideSession(normalizedCredential);
+        if (!result.ok) {
+          setError(result.message);
+          return;
+        }
         const typedName = displayName.trim();
         setGrant({
           showId: result.showId,

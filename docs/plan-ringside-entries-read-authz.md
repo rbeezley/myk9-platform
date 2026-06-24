@@ -123,28 +123,50 @@ tested. Enabling it is an auth/security setting — an OPERATOR action (Claude c
 settings). Anonymous users count toward MAU + add abuse surface; pair with a cleanup policy for stale
 ringside anon users.
 
-### Phase C — Edge fn: `validate-passcode` mints the session  *(security-critical)*
+### Phase C — Edge fn: `validate-passcode` mints the session  *(security-critical)* — DONE (2026-06-24, deployed to staging)
 - **MUST stamp `kind: 'ringside_passcode'`** in app_metadata — Phases A+B (shipped in PR #951)
   honor the claim ONLY when that marker is present (review Finding 1, 2026-06-24). show_id/ringside_role
-  alone are inert without it. This is a hard cross-PR contract.
-- After a successful `{show_id, role}`: `supabase.auth.admin.createUser({ ... , app_metadata: { show_id,
-  ringside_role: role, kind: 'ringside_passcode' }, ... })` (or reuse a per-(show,role) anon user), then
-  issue a session (admin generate / sign-in) and return tokens. Short TTL; never put the passcode or
-  pepper in the token. Rate-limiting already exists. Scope app_metadata to exactly the validated
-  (show, role) — never client-supplied.
-- **Security review required** (CLAUDE.md high-stakes + `security-audit` skill): an edge fn minting
-  authenticated sessions is a new surface. Confirm: claims unforgeable (app_metadata, service-role
-  only), TTL bounded, anonymous user cleanup/reuse policy, no privilege beyond the one show/role.
+  alone are inert without it. This is a hard cross-PR contract. ✅ Implemented.
+- **Implemented mechanism (differs from the createUser sketch below):** the CLIENT signs in anonymously
+  first (Phase D step 1), so the request carries the anon user's JWT. The edge fn `getUser(bearer)`s the
+  caller, and ONLY if `is_anonymous === true` calls `admin.updateUserById(callerId, { app_metadata: {
+  ...existing, kind:'ringside_passcode', show_id: matchedShow.id, ringside_role: matchedRole } })` —
+  merge, not clobber. `show_id`/`role` come from the server-validated passcode, never the request body.
+  A real account (is_anonymous false) is never stamped. Fail-closed: a stamp error returns 500. Response
+  gains `sessionStamped: boolean`. (The earlier `createUser` + token-return sketch was dropped: supabase-js
+  can't mint a session with claims in one call — see "Confirmed mechanism".)
+- **Security review: DONE.** `docs/security-review-2026-06-24-ringside-passcode-phase-c.md` — 0
+  critical/high/medium, 2 LOW (both Phase E): anon-user TTL/cleanup + CAPTCHA. Positive controls verified
+  live: no scope widening from client input, real accounts never stamped (getUser gate), no cross-user
+  stamp, forge-proof storage, fail-closed, no key leakage.
+- **Verified end-to-end through the deployed fn (staging, 2026-06-24):** anon sign-in → invoke
+  `validate-passcode` (`jh3k9`/`s7m2p`) → `sessionStamped:true` → `refreshSession()` → JWT carries the
+  claim → 18 rows (payment NULL) → RPC write OK. Invalid passcode → 401 → anon session stays claimless.
 
-### Phase D — Client: adopt the minted session
-- On passcode success, `supabase.auth.setSession(tokens)` so replication reads + the write RPC carry the
-  JWT. Reconcile with `useRingsideGrantRole` (the client grant becomes a *consequence* of the session,
-  or is kept as UI-role source while the session supplies DB identity). On ringside exit / sign-out,
-  end the anonymous session. Verify offline: reads come from the replicated store under the minted JWT.
+### Phase D — Client: adopt the minted session — DONE (2026-06-24)
+- New orchestrator `apps/myk9show/src/pages/ringsideAnonSession.ts`:
+  `startAnonymousRingsideSession(passcode)` = signInAnonymously (reuse existing anon session, don't mint
+  a second orphan) → `validatePasscode` (edge fn stamps) → `refreshSession`. Drops the dangling anon
+  session via `signOut` on invalid-passcode or refresh failure. `endAnonymousRingsideSession()` ends the
+  session on exit (no-op for a real account) — ready for the leave-show affordance (which, like
+  `clearGrant`, has no UI caller yet).
+- `SmartSignInPage` account-less branch now calls the orchestrator; the signed-in branch is UNCHANGED
+  (validate only, client-only grant, account session untouched — Locked Decision #8). The client grant
+  still supplies the UI role + presence; the session supplies DB identity (both from the same passcode).
+- Tests: `ringsideAnonSession.test.ts` (8) + updated `SmartSignInPage.test.tsx` (anon path → orchestrator).
+- **Offline replay** verified by construction (session JWT carries claim; view read + RPC write honor it
+  — the exact paths replication syncs through). Full offline browser walk needs the client merged
+  (Vercel auto-deploys from `main`; Preview MCP serves main, not this worktree) → folds into Phase E.
 
 ### Phase E — Project config + verification
-- **Enable anonymous sign-ins** in Supabase Auth settings (operator; prerequisite — currently unused).
-- Apply seed `§11`/`§12` to staging (judge_assignments + passcodes `jh3k9`/`s7m2p`).
+- **Enable anonymous sign-ins** in Supabase Auth settings (operator). ✅ DONE 2026-06-24.
+- Apply seed `§11`/`§12` to staging (judge_assignments + passcodes `jh3k9`/`s7m2p`). ✅ §12 passcodes
+  applied 2026-06-24 (table was empty; pepper Vault secret confirmed set). §11 judge_assignments: verify.
+- **Stale-anon cleanup job (TODO):** delete ringside anon users after their show. **Hard constraint
+  (verified live 2026-06-24):** `auth.admin.deleteUser(id)` (soft delete, the default) returns HTTP 500
+  for anonymous users; the job MUST call `deleteUser(id, true)` (hard delete), which succeeds.
+- **CAPTCHA on anonymous sign-in (TODO, operator):** Supabase Auth → Attack Protection. Recommended to
+  bound the anon-user abuse surface; not a launch blocker (claimless anon users read 0 rows).
 - Live verify on staging (cold session): enter `jh3k9` → land at `/at-show/:showId` → see run order →
   score → reload → score persists. Repeat steward `s7m2p` → run-order/check-in only, scoring blocked.
 - Re-walk the 05 show-day judge/steward phases; flip the scorecard ringside row toward Green.

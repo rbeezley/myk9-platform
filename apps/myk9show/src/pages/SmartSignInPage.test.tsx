@@ -28,6 +28,14 @@ vi.mock('./validatePasscode', () => ({
   validatePasscode: (...args: unknown[]) => validatePasscodeMock(...args),
 }));
 
+// The account-less branch routes through the anon-session orchestrator (Phase D);
+// signed-in tests still drive validatePasscode directly.
+const startAnonymousRingsideSessionMock = vi.fn();
+vi.mock('./ringsideAnonSession', () => ({
+  startAnonymousRingsideSession: (...args: unknown[]) =>
+    startAnonymousRingsideSessionMock(...args),
+}));
+
 let mockUser: { id: string } | null = null;
 const signInMock = vi.fn();
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -84,7 +92,7 @@ describe('SmartSignInPage', () => {
   });
 
   it('anonymous passcode validates and routes straight to ringside', async () => {
-    validatePasscodeMock.mockResolvedValue({
+    startAnonymousRingsideSessionMock.mockResolvedValue({
       ok: true,
       role: 'judge',
       showId: 'show-x',
@@ -96,7 +104,9 @@ describe('SmartSignInPage', () => {
     await user.type(screen.getByTestId('credential-input'), 'j9f3b');
     await user.click(screen.getByTestId('continue-button'));
 
-    await waitFor(() => expect(validatePasscodeMock).toHaveBeenCalledWith('j9f3b'));
+    await waitFor(() =>
+      expect(startAnonymousRingsideSessionMock).toHaveBeenCalledWith('j9f3b')
+    );
     // No name typed → grant carries a minted sessionId but no name.
     expect(setGrantSpy).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -112,7 +122,7 @@ describe('SmartSignInPage', () => {
   });
 
   it('passes the optional typed name into the anonymous grant', async () => {
-    validatePasscodeMock.mockResolvedValue({
+    startAnonymousRingsideSessionMock.mockResolvedValue({
       ok: true,
       role: 'judge',
       showId: 'show-x',
@@ -242,7 +252,7 @@ describe('SmartSignInPage', () => {
   });
 
   it('shows a calm error when the passcode is rejected', async () => {
-    validatePasscodeMock.mockResolvedValue({
+    startAnonymousRingsideSessionMock.mockResolvedValue({
       ok: false,
       kind: 'invalid',
       message: "That credential wasn't recognized.",

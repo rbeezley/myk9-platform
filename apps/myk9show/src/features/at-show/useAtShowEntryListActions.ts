@@ -46,6 +46,14 @@ export interface UseAtShowEntryListActionsDeps {
  * caller's authority. Exhibitor self-check-in is online-only by design (the
  * `self_checkin_entry` RPC has no offline queue), consistent with every other
  * exhibitor self-check-in surface.
+ *
+ * Coupling note: the `'self-checkin-rpc'` path only accepts the ownership-
+ * allowed statuses (`checked-in | conflict | pulled | at-gate | no-status`).
+ * The `in-ring` / `completed` statuses emitted by handleMark{InRing,Completed}
+ * / handleToggleInRing are staff-only — `self_checkin_entry` RAISEs on them.
+ * That's unreachable for exhibitors today (`canScore=false` hides those
+ * affordances), and if it ever leaks the RPC fails loud → `hasError`, never a
+ * silent stuck optimistic update (the exact regression this writer-branch fixed).
  */
 async function writeCheckInStatus(
   entryId: string,

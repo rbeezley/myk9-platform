@@ -52,6 +52,16 @@ one claim-based tier alongside the existing `auth.uid()` tiers.
 Why this over a token-RPC: keeps passcode users on the offline-first replication layer (a venue loses
 signal), and reuses the column-gated view + write RPC instead of a parallel bespoke path.
 
+**Decision re-confirmed 2026-06-24 (offline is critical):** offline-first for account-LESS users
+structurally requires an authenticated session — the replication layer (the offline cache + write
+queue) authenticates every sync through a Supabase session, so no session ⟹ RLS denies ⟹ nothing
+caches. Anonymous auth is therefore the ONLY way to put passcode users on the offline path; the
+token-RPC alternative (reads bypass replication) is ruled out because it loses offline. **Consequence
+accepted:** anonymous sign-ins stay ENABLED permanently (a standing MAU + abuse-surface cost, NOT a
+temporary bootstrap). Bounded blast radius: a claimless anon user (no valid passcode) gets no ringside
+claim and is denied by the shipped A+B gate (verified: unmarked claim → 0 rows). Phase E manages the
+cost (stale-anon cleanup + optional CAPTCHA on anon sign-in); it does not remove the enabled state.
+
 ---
 
 ## Review findings folded in (2026-06-24, independent review of PR #951)

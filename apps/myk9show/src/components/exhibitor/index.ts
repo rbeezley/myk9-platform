@@ -1,7 +1,5 @@
 export { ExhibitorOnboardingModal } from './ExhibitorOnboardingModal';
 export { ExhibitorOnboardingChecker } from './ExhibitorOnboardingChecker';
-export { NextUpCard } from './NextUpCard';
-export { ClassTimelineCard } from './ClassTimelineCard';
 export { CompactStatsRow } from './CompactStatsRow';
 export { CheckInStatusBadge } from './CheckInStatusBadge';
 export { CheckInStatusMenu } from './CheckInStatusMenu';

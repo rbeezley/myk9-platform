@@ -1,6 +1,6 @@
 # Judge and Steward Ringside Quickstart Outline
 
-**Status:** `qa-draft` — outline phase. No longer flag-blocked; ready to advance once the at-show screenshots are captured. (Updated 2026-06-23: the `unified_ringside_enabled` flag was removed — see [`../plan-remove-unified-ringside-flag.md`](../plan-remove-unified-ringside-flag.md). The at-show surface now renders for every show, gated only by `AtShowAccessGate`.)
+**Status:** `qa-draft` — **drafted 2026-06-24.** The guide now exists at [`judge-steward-quickstart.md`](judge-steward-quickstart.md); this outline is the source it was written from. Remaining to reach `verified`: capture J-01…J-06 + the `at-show-access-paths` diagram against staging post-redeploy, then run the author walkthrough. (Updated 2026-06-23: the `unified_ringside_enabled` flag was removed — see [`../plan-remove-unified-ringside-flag.md`](../plan-remove-unified-ringside-flag.md). The at-show surface now renders for every show, gated only by `AtShowAccessGate`.)
 
 **Audience:** Judges and gate stewards. Role intent: "Invisible technology." Minimal words. Written for people whose eyes are on the dog, not the screen.
 

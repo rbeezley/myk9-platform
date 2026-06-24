@@ -72,8 +72,8 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 
 ### 6. Check in on show day
 **Outcome:** Exhibitor marks themselves present for a class.
-**Canonical route:** `/at-show/:showId` (via ShowTodayBanner on `/exhibitor/entries`) → `/exhibitor/check-in/:entryId`
-**Note:** No static nav link to `/at-show/:showId` — entry point is the ShowTodayBanner on My Shows, which is context-aware and only appears on show day.
+**Canonical route:** `/at-show` (permanent "Ringside" sidebar entry, all roles) **or** `/at-show/:showId` (via ShowTodayBanner on `/exhibitor/entries`) → `/exhibitor/check-in/:entryId`
+**Note:** Two entry points as of #948 — a permanent "Ringside" sidebar link to bare `/at-show` (resolves the live show at the destination via `RingsideEntryPage`), plus the context-aware ShowTodayBanner on My Shows that appears only on show day. As of #949/#950, exhibitor self-check-in is gated on a secretary toggle and routed through the `self_checkin_entry` RPC — guides must not promise self-check-in unconditionally.
 **Docs target:** Exhibitor Guide § Show Day, KB: `check-in.md`
 
 ### 7. View results

@@ -58,6 +58,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-entry-management-layout.md](plan-entry-management-layout.md)                         | Active    | Entry Management Layout Plan                                          |
 | [plan-entry-draw-lottery.md](plan-entry-draw-lottery.md)                                   | Active    | Entry Draw / Lottery — random-draw intake (depends on payment plan)   |
 | [plan-entry-payment-request.md](plan-entry-payment-request.md)                             | Active    | Entry Payment, Waitlist & Capacity (links, pay-to-claim, judge-day)   |
+| [plan-exhibitor-early-checkin.md](plan-exhibitor-early-checkin.md)                         | Active    | Exhibitor early check-in — toggle gate (P1 done) + /at-show fix (P2)  |
 | [plan-landing-hero-lcp-prerender.md](plan-landing-hero-lcp-prerender.md)                   | Active    | Landing-page mobile LCP — prerender + hydrate the hero                |
 | [plan-lane-2-2-entry-multiselect.md](plan-lane-2-2-entry-multiselect.md)                   | Active    | Plan: Lane 2.2 — Entry Management checkbox multi-select               |
 | [plan-launch-execution-lanes.md](plan-launch-execution-lanes.md)                           | Active    | Plan: Fall Launch — Execution Lanes (canonical to-do)                 |

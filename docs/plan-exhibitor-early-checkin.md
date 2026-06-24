@@ -43,29 +43,36 @@ reverted after. Confirms: early self-check-in works, via the correct RPC.
 
 ## Phases
 
-### Phase 1 — Honor the secretary toggle (client + server)
-- [ ] Add `classId?: string` to `EntryClass` (`my-entries-types.ts`); set it from
+### Phase 1 — Honor the secretary toggle (client) — DONE
+Shipped as a focused PR (client gate only; server enforcement split out below).
+- [x] Add `classId` to `EntryClass` (`my-entries-types.ts`); set it from
       `classData.id` in `useMyEntriesData.ts`.
-- [ ] In `MyEntriesPage`, collect class ids across entries and call
-      `useSelfCheckinMap`; pass a `selfCheckinEnabledByClassId` map (or per-class
-      flag) into `MyEntryCard`.
-- [ ] `MyEntryCard`: when self-check-in is off for a class, render the check-in
-      control disabled with a reason (no dead tap); enabled otherwise.
-- [ ] **Server enforcement:** migration adding a cascade check to
-      `self_checkin_entry` — resolve class ?? trial ?? show ?? true from the
-      visibility tables; raise if disabled. Assertion-first SQL-shaped tests where
-      feasible; unit-test the cascade helper.
+- [x] `MyEntriesPage`: collect class ids, call `useSelfCheckinMap`, pass
+      `selfCheckinByClassId` into `MyEntryCard`.
+- [x] `MyEntryCard`: when self-check-in is off, render a non-interactive check-in
+      indicator with a reason; enabled (and default) otherwise.
+- [x] 3 gating tests. typecheck + lint clean; MyEntryCard suite 50 green.
 
-### Phase 2 — Stop stranding exhibitors on /at-show check-in
-- [ ] Route the "Show today" banner / exhibitor entry to their My Entries
-      check-in instead of `/at-show` (owner decision: own view). Verify no other
-      exhibitor-only reliance on the `/at-show` landing breaks.
+### Phase 1b — Server enforcement (FOLLOW-UP, deferred)
+- [ ] Migration adding a cascade check to `self_checkin_entry` — resolve class
+      ?? trial ?? show ?? true from the visibility tables; raise if disabled.
+      Defense-in-depth: the client gate covers UI users; a direct RPC call could
+      still bypass. Lower priority — an exhibitor's own check-in is not a security
+      boundary. Unit-test the cascade helper.
 
-### Phase 3 — Cleanup + verify
-- [ ] Delete dead `ShowDayHero` (+ `StickyShowBar` if orphaned).
-- [ ] `pnpm typecheck`, lint, unit tests green. Live re-verify on staging after
-      merge: toggle off → control disabled; toggle on → check-in persists; banner
-      no longer lands exhibitors on a failing /at-show check-in.
+### Phase 2 — Fix the broken /at-show exhibitor check-in (FOLLOW-UP, deferred)
+**Corrected approach (the plan's original banner-redirect was wrong — it would
+strip exhibitors' show-day awareness features that live on `/at-show`).** The
+at-show check-in writer (`updateReplicatedCheckInStatus` → replication →
+`ringside_update_entry`) rejects exhibitors. Mirror `ClassResultsTable`'s
+`isStaff ? 'replicated' : 'self-checkin-rpc'`: branch the at-show check-in by
+effective role so an exhibitor-role user writes through `self_checkin_entry`.
+- [ ] Investigate how the at-show surface presents check-in to an exhibitor-role
+      user (does it reach `useAtShowEntryListActions.writeCheckInStatus`?).
+- [ ] Role-branch the writer; exhibitor → `self_checkin_entry` (online-only, like
+      every other exhibitor self-check-in — not a regression vs the current
+      silent failure).
+- [ ] Delete dead `ShowDayHero` (+ `StickyShowBar` if orphaned) — never mounted.
 
 ## Out of scope
 - Letting exhibitors into the staff `/at-show` ringside surface.

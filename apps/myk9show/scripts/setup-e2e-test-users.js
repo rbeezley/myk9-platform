@@ -45,8 +45,10 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
   }
 });
 
-// Simple shared password for all test accounts
-const TEST_PASSWORD = 'Test1234!';
+// Shared password for all test accounts. Must pass length + complexity +
+// HaveIBeenPwned (leaked-password) checks — GoTrue rejects weak/pwned values
+// like the old 'Test1234!' on any new password set.
+const TEST_PASSWORD = 'Myk9-E2E-Test!2026';
 
 // Test users to create
 const TEST_USERS = [

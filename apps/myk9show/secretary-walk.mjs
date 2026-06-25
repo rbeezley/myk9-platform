@@ -24,11 +24,12 @@ import { chromium } from '@playwright/test';
 
 const BASE_URL = process.env.BASE_URL ?? 'http://127.0.0.1:5173';
 // Prefer the canonical E2E_SECRETARY_* vars (CI secrets / .env.local); fall back
-// to the legacy SECRETARY_* names, then the seeded canonical account.
+// to the legacy SECRETARY_* names. The email is just an account identifier; the
+// password is a live shared-staging secret, so it is env-only — never a literal
+// default. Source it from apps/myk9show/.env.local (gitignored) or CI secrets.
 const SECRETARY_EMAIL =
   process.env.E2E_SECRETARY_EMAIL ?? process.env.SECRETARY_EMAIL ?? 'e2e-secretary@test.myk9.com';
-const SECRETARY_PASS =
-  process.env.E2E_SECRETARY_PASSWORD ?? process.env.SECRETARY_PASS ?? 'Myk9-E2E-Test!2026';
+const SECRETARY_PASS = process.env.E2E_SECRETARY_PASSWORD ?? process.env.SECRETARY_PASS ?? '';
 const SHOW_ID = process.env.SHOW_ID ?? '';
 const HEADED = process.env.HEADED === '1';
 
@@ -42,6 +43,12 @@ function fail(code, msg) {
 }
 
 async function signIn(page) {
+  if (!SECRETARY_PASS) {
+    fail(
+      2,
+      'Missing E2E_SECRETARY_PASSWORD (or legacy SECRETARY_PASS). Set it from apps/myk9show/.env.local before running the walk.'
+    );
+  }
   await page.goto(`${BASE_URL}/sign-in`);
   await page.waitForSelector('input[type="email"]', { timeout: 15000 });
   await page.locator('input[type="email"]').first().fill(SECRETARY_EMAIL);

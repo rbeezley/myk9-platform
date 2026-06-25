@@ -7,8 +7,8 @@ secretary's Accept / Waitlist / Bulk-email flows.
 
 | Role      | Email                       | Password           |
 | --------- | --------------------------- | ------------------ |
-| Exhibitor | e2e-exhibitor@test.myk9.com | Myk9-E2E-Test!2026 |
-| Secretary | e2e-secretary@test.myk9.com | Myk9-E2E-Test!2026 |
+| Exhibitor | e2e-exhibitor@test.myk9.com | see `.env.local`   |
+| Secretary | e2e-secretary@test.myk9.com | see `.env.local`   |
 
 ## Seeded Show
 
@@ -31,7 +31,7 @@ secretary's Accept / Waitlist / Bulk-email flows.
 
 ## How to Walk the Secretary Accept/Waitlist/Bulk-Email Flows
 
-1. Sign in as `e2e-secretary@test.myk9.com` / `Myk9-E2E-Test!2026`
+1. Sign in as `e2e-secretary@test.myk9.com` (password in `apps/myk9show/.env.local`)
 2. Go to **Secretary → Entry Management** (`/secretary/entries`)
 3. Select **QA Walk Show 1777260779 (May 14, 2026)** from the show picker
 4. All 3 entries appear under the **Pending (3)** tab

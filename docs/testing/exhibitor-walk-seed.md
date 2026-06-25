@@ -7,7 +7,7 @@ golden path (find → enter → add dog → check in → view results).
 
 | Role      | Email                       | Password           | Name         |
 | --------- | --------------------------- | ------------------ | ------------ |
-| Exhibitor | e2e-exhibitor@test.myk9.com | Myk9-E2E-Test!2026 | Alice Martin |
+| Exhibitor | e2e-exhibitor@test.myk9.com | see `.env.local`   | Alice Martin |
 
 Other exhibitor accounts: `exhibitor2..5@myk9t.com` (legacy seed; nightly only).
 

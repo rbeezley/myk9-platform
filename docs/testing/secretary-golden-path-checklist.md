@@ -17,8 +17,8 @@
 Choose one of two approaches:
 
 **Option A — Use seeded fixtures** (faster; see `docs/testing/secretary-walk-seed.md` for credentials and show IDs):
-- Secretary: `e2e-secretary@test.myk9.com` / `Myk9-E2E-Test!2026`
-- Exhibitor: `e2e-exhibitor@test.myk9.com` / `Myk9-E2E-Test!2026`
+- Secretary: `e2e-secretary@test.myk9.com` (password in `apps/myk9show/.env.local`)
+- Exhibitor: `e2e-exhibitor@test.myk9.com` (password in `apps/myk9show/.env.local`)
 - Seeded show: **QA Walk Show** (ID `a0505c45-64d0-4b04-b2b3-cb213ed738a6`)
 - Skip Parts 1–2; start at Part 3 using the seeded entries
 

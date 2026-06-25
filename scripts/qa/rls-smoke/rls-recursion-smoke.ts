@@ -12,8 +12,9 @@
  *
  * Run: pnpm qa:rls-smoke [showId]
  * Credentials: VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY from the environment,
- * falling back to apps/myk9show/.env. User overridable via E2E_SECRETARY_EMAIL /
- * E2E_SECRETARY_PASSWORD (defaults match src/test/e2e/helpers/testUsers.ts).
+ * falling back to apps/myk9show/.env. Auth via E2E_SECRETARY_EMAIL (defaults to
+ * the canonical secretary) / E2E_SECRETARY_PASSWORD (required — no literal
+ * default; source it from apps/myk9show/.env.local or CI secrets).
  */
 
 import { existsSync, readFileSync } from 'node:fs';
@@ -126,7 +127,14 @@ function fetchWithTimeout(url: string, init?: RequestInit): Promise<Response> {
 
 async function signIn(url: string, anonKey: string): Promise<string> {
   const email = process.env.E2E_SECRETARY_EMAIL ?? 'e2e-secretary@test.myk9.com';
-  const password = process.env.E2E_SECRETARY_PASSWORD ?? 'Myk9-E2E-Test!2026';
+  // Live shared-staging secret — env only, never a literal default. Source from
+  // apps/myk9show/.env.local (gitignored) or CI secrets.
+  const password = process.env.E2E_SECRETARY_PASSWORD;
+  if (!password) {
+    throw new Error(
+      'Missing E2E_SECRETARY_PASSWORD — set it from apps/myk9show/.env.local before running the RLS smoke.'
+    );
+  }
   const res = await fetchWithTimeout(`${url}/auth/v1/token?grant_type=password`, {
     method: 'POST',
     headers: { apikey: anonKey, 'Content-Type': 'application/json' },

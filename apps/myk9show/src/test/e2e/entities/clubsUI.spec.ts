@@ -143,18 +143,22 @@ test.describe('Clubs UI — Browse Page', () => {
     await gotoClubsBrowse(page);
     await expect(page.getByRole('button', { name: 'New Club' })).toBeVisible();
     await expect(page.getByRole('textbox', { name: /Search clubs by name/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Club Type/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Cards' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Table' })).toBeVisible();
+    // Scope the chip to the FilterChips region; target view toggles by exact
+    // aria-label ("Table view" not "Table", which also matches "Reset table view").
+    await expect(
+      page.getByTestId('filter-chips').getByRole('button', { name: /Club Type/ })
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Cards view', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Table view', exact: true })).toBeVisible();
   });
 
   test('view toggle switches between cards and table', async ({ page }) => {
     await gotoClubsBrowse(page);
-    await page.getByRole('button', { name: 'Table' }).click();
-    // In table mode, Table button should be active (has aria-pressed or visual variant)
-    await expect(page.getByRole('button', { name: 'Cards' })).toBeVisible();
-    await page.getByRole('button', { name: 'Cards' }).click();
-    await expect(page.getByRole('button', { name: 'Table' })).toBeVisible();
+    await page.getByRole('button', { name: 'Table view', exact: true }).click();
+    // In table mode, the Cards toggle should still be present to switch back.
+    await expect(page.getByRole('button', { name: 'Cards view', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Cards view', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Table view', exact: true })).toBeVisible();
   });
 
   test('search input filters list', async ({ page }) => {

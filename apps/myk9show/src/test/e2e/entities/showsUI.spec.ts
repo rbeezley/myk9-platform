@@ -33,14 +33,17 @@ test.describe('Shows UI — Browse (secretary)', () => {
     await expect(page.getByRole('button', { name: 'New Show' })).toBeVisible();
     await expect(page.getByPlaceholder('Search shows by name, location, or club...')).toBeVisible();
 
-    // Filter chips
+    // Filter chips — scope to the FilterChips region so a chip label (e.g.
+    // "Club") doesn't collide with a table column-header button ("Host Club").
+    const filterChips = page.getByTestId('filter-chips');
     for (const label of ['Discipline', 'Entry Status', 'Date Range', 'Club']) {
-      await expect(page.getByRole('button', { name: label })).toBeVisible();
+      await expect(filterChips.getByRole('button', { name: label })).toBeVisible();
     }
 
-    // View toggles
+    // View toggles — target the exact aria-label ("<Mode> view") so "Table"
+    // doesn't also match the "Reset table view" button.
     for (const view of ['Cards', 'Table', 'Calendar']) {
-      await expect(page.getByRole('button', { name: view, exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: `${view} view`, exact: true })).toBeVisible();
     }
 
     // Tabs

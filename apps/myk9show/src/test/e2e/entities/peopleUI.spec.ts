@@ -51,9 +51,13 @@ test.describe('People UI — Browse (secretary)', () => {
     await gotoPeopleBrowse(page);
     await expect(page.getByRole('button', { name: 'New Person' })).toBeVisible();
     await expect(page.getByPlaceholder('Search people by name or email...')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Filter' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Grid' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Table' })).toBeVisible();
+    // The toolbar renders a "Role" FilterChip and the standard Cards/Table view
+    // toggle (BrowsePeoplePage uses the default CARD_TABLE_MODES). Scope the chip
+    // and target the toggles by exact aria-label ("Table view" not "Table", which
+    // also matches "Reset table view").
+    await expect(page.getByTestId('filter-chips').getByRole('button', { name: 'Role' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Cards view', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Table view', exact: true })).toBeVisible();
     await expect(page.getByText(/of \d+ (people|person)/)).toBeVisible();
   });
 
@@ -93,7 +97,7 @@ test.describe('People UI — Browse (secretary)', () => {
 
   test('table view renders columns', async ({ page }) => {
     await gotoPeopleBrowse(page);
-    await page.getByRole('button', { name: 'Table' }).click();
+    await page.getByRole('button', { name: 'Table view', exact: true }).click();
     await expect(page.getByRole('columnheader', { name: /Name/i })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: /Email/i })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: /Roles/i })).toBeVisible();

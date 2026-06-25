@@ -37,7 +37,7 @@ export function FilterChips({ filters, values, onChange, className }: FilterChip
   }, [openKey]);
 
   return (
-    <div ref={containerRef} className={cn('flex flex-wrap gap-2', className)}>
+    <div ref={containerRef} data-testid="filter-chips" className={cn('flex flex-wrap gap-2', className)}>
       {filters.map(filter => {
         const activeValue = values[filter.key];
         const activeOption = filter.options.find(o => o.value === activeValue);

@@ -152,13 +152,15 @@ test.describe('Dogs UI — Browse (secretary)', () => {
     // "New Dog" button visible for secretary
     await expect(page.getByRole('button', { name: 'New Dog' })).toBeVisible();
 
-    // Filter chips visible
-    await expect(page.getByRole('button', { name: /Breed/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Gender/i })).toBeVisible();
+    // Filter chips visible — scope to the FilterChips region so a chip label
+    // (e.g. "Breed") doesn't collide with the table's "Breed" column header.
+    const filterChips = page.getByTestId('filter-chips');
+    await expect(filterChips.getByRole('button', { name: /Breed/i })).toBeVisible();
+    await expect(filterChips.getByRole('button', { name: /Gender/i })).toBeVisible();
 
-    // View toggle
-    await expect(page.getByRole('button', { name: 'Cards' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Table' })).toBeVisible();
+    // View toggle — exact aria-label avoids matching "Reset table view".
+    await expect(page.getByRole('button', { name: 'Cards view', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Table view', exact: true })).toBeVisible();
   });
 
   test('search filters the dog list', async ({ page }) => {
@@ -172,15 +174,17 @@ test.describe('Dogs UI — Browse (secretary)', () => {
 
   test('breed filter chip applies and shows filtered count', async ({ page }) => {
     await gotoDogsBrowse(page);
-    // FilterChips renders plain button elements in its dropdown (no ARIA role="option")
-    await page.getByRole('button', { name: /Breed/i }).click();
+    // FilterChips renders plain button elements in its dropdown (no ARIA role="option").
+    // Scope the chip to the FilterChips region so "Breed" doesn't also match the
+    // table's "Breed" column header.
+    await page.getByTestId('filter-chips').getByRole('button', { name: /Breed/i }).click();
     await page.getByRole('button', { name: 'Golden Retriever', exact: true }).click();
     await expect(page.getByText(/of \d+ dogs \(filtered\)/)).toBeVisible();
   });
 
   test('table view renders dog columns', async ({ page }) => {
     await gotoDogsBrowse(page);
-    await page.getByRole('button', { name: 'Table' }).click();
+    await page.getByRole('button', { name: 'Table view', exact: true }).click();
     await expect(page.getByRole('columnheader', { name: /Name/i })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: /Breed/i })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: /Owner/i })).toBeVisible();

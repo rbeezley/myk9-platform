@@ -66,7 +66,6 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-public-results-release-gate.md](plan-public-results-release-gate.md)                 | Active    | Plan: Server-side gate for public/anon scored results                 |
 | [plan-remove-unified-ringside-flag.md](plan-remove-unified-ringside-flag.md)               | Active    | Remove the `unified_ringside_enabled` feature flag (unblocks docs)    |
 | [plan-replication-insert-idempotency.md](plan-replication-insert-idempotency.md)           | Active    | Replication INSERT retry idempotency — investigation verdict (B)      |
-| [plan-replication-stale-occ-token-sync.md](plan-replication-stale-occ-token-sync.md)       | Active    | Dirty rows never refresh their OCC token on sync-down (stale-version root cause) |
 | [plan-restore-ui-remediation.md](plan-restore-ui-remediation.md)                           | Active    | Plan: Fix the Deleted Entities (restore) UI                           |
 | [plan-result-reveal-share-card.md](plan-result-reveal-share-card.md)                       | Active    | Plan: Result Reveal + Share Card                                      |
 | [plan-ringside-entries-read-authz.md](plan-ringside-entries-read-authz.md)                 | Active    | Ringside entry-read authz — judge/steward/passcode see entries (RLS)  |

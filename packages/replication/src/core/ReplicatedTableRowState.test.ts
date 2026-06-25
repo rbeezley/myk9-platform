@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ReplicatedRow, ReplicationConflictSnapshot } from '../types';
 import {
+  buildReconciledDirtyRow,
   buildReplicatedRowForSet,
   buildSyncedReplicatedRow,
   collectFreshLocalIds,
@@ -157,6 +158,65 @@ describe('ReplicatedTableRowState', () => {
       expect(result).not.toHaveProperty('baseData');
       expect(result).not.toHaveProperty('baseVersion');
       expect(result.conflict).toBeUndefined();
+    });
+  });
+
+  describe('buildReconciledDirtyRow', () => {
+    const dirtyRow = () =>
+      row({
+        version: 4,
+        data: { id: 'entry-1', status: 'checked-in' },
+        isDirty: true,
+        syncStatus: 'pending',
+        baseData: { id: 'entry-1', status: 'ready' },
+        baseVersion: 3,
+        serverVersion: 5,
+      });
+
+    it('advances serverVersion and merge base while preserving the dirty edit and version', () => {
+      const result = buildReconciledDirtyRow({
+        existingRow: dirtyRow(),
+        mergedData: { id: 'entry-1', status: 'checked-in' },
+        newBaseData: { id: 'entry-1', status: 'scored' },
+        serverVersion: 8,
+        now,
+      });
+
+      expect(result).toMatchObject({
+        data: { id: 'entry-1', status: 'checked-in' }, // local edit preserved
+        baseData: { id: 'entry-1', status: 'scored' }, // base advanced to server snapshot
+        serverVersion: 8, // OCC token advanced
+        version: 4, // NOT bumped — this is not a new user edit
+        isDirty: true,
+        syncStatus: 'pending',
+        lastSyncedAt: now,
+      });
+      expect(result.conflict).toBeUndefined();
+    });
+
+    it('normalizes the id on both data and baseData', () => {
+      const result = buildReconciledDirtyRow({
+        existingRow: dirtyRow(),
+        mergedData: { id: 'wrong', status: 'checked-in' },
+        newBaseData: { id: 'also-wrong', status: 'scored' },
+        serverVersion: 8,
+        now,
+      });
+
+      expect(result.data.id).toBe('entry-1');
+      expect(result.baseData?.id).toBe('entry-1');
+    });
+
+    it('leaves serverVersion unchanged when none is supplied', () => {
+      const result = buildReconciledDirtyRow({
+        existingRow: dirtyRow(),
+        mergedData: { id: 'entry-1', status: 'checked-in' },
+        newBaseData: { id: 'entry-1', status: 'scored' },
+        serverVersion: undefined,
+        now,
+      });
+
+      expect(result.serverVersion).toBe(5);
     });
   });
 

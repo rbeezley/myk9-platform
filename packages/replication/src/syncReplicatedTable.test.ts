@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReplicatedTable } from './core/ReplicatedTable';
 import { syncReplicatedTable, type SyncReplicatedTableAdapter } from './syncReplicatedTable';
 import { parseUpdatedAtMs } from './parseUpdatedAt';
+import type { MutationManager } from './MutationManager';
 import type { SyncOptions, SyncResult } from './types';
 
 interface LocalEntry {
@@ -399,6 +400,226 @@ describe('syncReplicatedTable', () => {
         remoteData: expect.objectContaining({ status: 'scratched' }),
       });
       expect(result.conflictsResolved).toBe(1);
+    });
+  });
+
+  describe('dirty-row OCC token reconciliation (stale-token root-cause fix)', () => {
+    type RemoteWithVersion = RemoteEntry & { version: number };
+
+    function makeVersionedAdapter(
+      remoteRows: RemoteWithVersion[]
+    ): SyncReplicatedTableAdapter<RemoteWithVersion, LocalEntry> {
+      return {
+        fetchRemoteRows: vi.fn(async () => remoteRows),
+        getRemoteId: r => String(r.id),
+        toLocalRow: r => ({
+          id: String(r.id),
+          name: r.name,
+          status: r.status,
+          resultStatus: r.result_status,
+          finalPlacement: r.final_placement,
+        }),
+      };
+    }
+
+    /** Dirty a row with a clean base first so baseData is captured. */
+    async function seedDirty(clean: LocalEntry, dirty: LocalEntry, serverVersion: number) {
+      await table.set(clean.id, clean, false, undefined, serverVersion);
+      await table.set(dirty.id, dirty, true);
+    }
+
+    it('does NOT clobber a server-changed untouched field, and advances the OCC token', async () => {
+      // THE key case. Client edited `status`; the server's placement-recalc trigger
+      // set `finalPlacement` (a field the client never touched) and bumped version
+      // 3 → 8. Pre-fix the dirty row was skipped: finalPlacement stayed null and the
+      // token stayed 3, so the next full-row write would regress finalPlacement AND
+      // re-trigger a 40001. The fix merges the untouched server field and advances
+      // the token while preserving the local edit.
+      await seedDirty(
+        { id: '1', name: 'Rex', status: 'scored', finalPlacement: null },
+        { id: '1', name: 'Rex', status: 'done', finalPlacement: null },
+        3
+      );
+
+      const adapter = makeVersionedAdapter([
+        { id: 1, name: 'Rex', status: 'scored', final_placement: 2, version: 8 },
+      ]);
+
+      await syncReplicatedTable(table, adapter, {}, { conflictSurfacingEnabled: true });
+
+      const row = await table.getReplicatedRow('1');
+      // Untouched server field merged in (NOT the stale null) — proves no clobber.
+      expect(row?.data.finalPlacement).toBe(2);
+      // Local edit preserved.
+      expect(row?.data.status).toBe('done');
+      // OCC token advanced so the next write's precondition matches the server.
+      expect(row?.serverVersion).toBe(8);
+      // Still dirty — the pending edit has not been discarded.
+      expect(row?.isDirty).toBe(true);
+      // Merge base advanced to the current server snapshot so a later server change
+      // to finalPlacement won't be mistaken for a local edit (false conflict).
+      expect(row?.baseData).toMatchObject({ status: 'scored', finalPlacement: 2 });
+    });
+
+    it('advances the token even when the server bumped version without changing a client field', async () => {
+      await seedDirty(
+        { id: '1', name: 'Rex', status: 'scored' },
+        { id: '1', name: 'Rex', status: 'done' },
+        3
+      );
+
+      // Server row is identical to base except the version moved (e.g. a no-op
+      // trigger touched the row). The token must still advance to stop the storm.
+      const adapter = makeVersionedAdapter([
+        { id: 1, name: 'Rex', status: 'scored', version: 9 },
+      ]);
+
+      await syncReplicatedTable(table, adapter, {}, { conflictSurfacingEnabled: true });
+
+      const row = await table.getReplicatedRow('1');
+      expect(row?.serverVersion).toBe(9);
+      expect(row?.data.status).toBe('done');
+      expect(row?.isDirty).toBe(true);
+    });
+
+    it('never regresses the token when a backdated server version arrives', async () => {
+      await seedDirty(
+        { id: '1', name: 'Rex', status: 'scored', finalPlacement: null },
+        { id: '1', name: 'Rex', status: 'done', finalPlacement: null },
+        10
+      );
+
+      // A late/duplicate row carrying an OLDER version must not pull the token back.
+      const adapter = makeVersionedAdapter([
+        { id: 1, name: 'Rex', status: 'scored', final_placement: 2, version: 6 },
+      ]);
+
+      await syncReplicatedTable(table, adapter, {}, { conflictSurfacingEnabled: true });
+
+      const row = await table.getReplicatedRow('1');
+      expect(row?.serverVersion).toBe(10); // forward-only, not 6
+      expect(row?.data.status).toBe('done');
+    });
+
+    it('leaves a genuine same-field conflict to the surfacing path (does not silently merge)', async () => {
+      const events: CustomEvent[] = [];
+      const handler = (e: Event) => events.push(e as CustomEvent);
+      window.addEventListener('replication:conflict', handler);
+
+      await seedDirty(
+        { id: '1', name: 'Rex', status: 'scored' },
+        { id: '1', name: 'Rex', status: 'done' },
+        3
+      );
+
+      // Server changed the SAME field the client edited → must surface, not reconcile.
+      const adapter = makeVersionedAdapter([
+        { id: 1, name: 'Rex', status: 'scratched', version: 8 },
+      ]);
+
+      await syncReplicatedTable(table, adapter, {}, { conflictSurfacingEnabled: true });
+      window.removeEventListener('replication:conflict', handler);
+
+      expect(events).toHaveLength(1);
+      const row = await table.getReplicatedRow('1');
+      expect(row?.syncStatus).toBe('conflict');
+      // Token advance is deferred to resolution; the local edit is untouched.
+      expect(row?.data.status).toBe('done');
+    });
+
+    it('is inert when conflict surfacing is OFF (no token, no merge — legacy LWW preserved)', async () => {
+      await seedDirty(
+        { id: '1', name: 'Rex', status: 'scored', finalPlacement: null },
+        { id: '1', name: 'Rex', status: 'done', finalPlacement: null },
+        3
+      );
+
+      const adapter = makeVersionedAdapter([
+        { id: 1, name: 'Rex', status: 'scored', final_placement: 2, version: 8 },
+      ]);
+
+      // Flag off → the dirty row is preserved exactly as today; no merge, no advance.
+      await syncReplicatedTable(table, adapter, {}, { conflictSurfacingEnabled: false });
+
+      const row = await table.getReplicatedRow('1');
+      expect(row?.data.finalPlacement).toBeNull(); // not merged
+      expect(row?.serverVersion).toBe(3); // not advanced
+      expect(row?.data.status).toBe('done');
+    });
+
+    it('skips reconciliation when the dirty row has no baseData (cannot 3-way merge safely)', async () => {
+      // Dirtied without a prior clean snapshot → no base → we cannot tell which fields
+      // are the client's edits, so we must NOT advance the token or merge (would risk
+      // clobbering). The reactive #961 net handles the stale token on the next conflict.
+      await table.set('1', { id: '1', name: 'Rex', status: 'done', finalPlacement: null }, true);
+
+      const adapter = makeVersionedAdapter([
+        { id: 1, name: 'Rex', status: 'scored', final_placement: 2, version: 8 },
+      ]);
+
+      await syncReplicatedTable(table, adapter, {}, { conflictSurfacingEnabled: true });
+
+      const row = await table.getReplicatedRow('1');
+      expect(row?.data.finalPlacement).toBeNull();
+      expect(row?.serverVersion).toBeUndefined();
+      expect(row?.data.status).toBe('done');
+    });
+
+    it('reconciles the QUEUED mutations too (not just the IDB row) so the storm actually stops', async () => {
+      // The upload reads serverVersion/data from the queued mutation, so reconciling
+      // only the row would leave the stuck mutation uploading the stale token forever.
+      const reconcileQueue = vi.fn(async () => {});
+      table.setMutationManager({
+        reconcilePendingMutationsForRow: reconcileQueue,
+      } as unknown as MutationManager);
+
+      await seedDirty(
+        { id: '1', name: 'Rex', status: 'scored', finalPlacement: null },
+        { id: '1', name: 'Rex', status: 'done', finalPlacement: null },
+        3
+      );
+
+      const adapter = makeVersionedAdapter([
+        { id: 1, name: 'Rex', status: 'scored', final_placement: 2, version: 8 },
+      ]);
+      // Full-row UPDATE table → must hand a rebuilt payload down so the queue refresh
+      // can avoid a clobber.
+      adapter.rebuildUpdatePayload = local => ({
+        id: local.id,
+        status: local.status,
+        final_placement: local.finalPlacement ?? null,
+      });
+
+      await syncReplicatedTable(table, adapter, {}, { conflictSurfacingEnabled: true });
+
+      expect(reconcileQueue).toHaveBeenCalledTimes(1);
+      expect(reconcileQueue).toHaveBeenCalledWith(table.getTableName(), '1', 8, {
+        id: '1',
+        status: 'done', // local edit preserved
+        final_placement: 2, // server field merged into the rebuilt payload (no clobber)
+      });
+    });
+
+    it('does not reconcile the queue when the token did not advance', async () => {
+      const reconcileQueue = vi.fn(async () => {});
+      table.setMutationManager({
+        reconcilePendingMutationsForRow: reconcileQueue,
+      } as unknown as MutationManager);
+
+      await seedDirty(
+        { id: '1', name: 'Rex', status: 'scored', finalPlacement: null },
+        { id: '1', name: 'Rex', status: 'done', finalPlacement: null },
+        10
+      );
+
+      // Backdated server version → no forward advance → nothing to reconcile on the queue.
+      const adapter = makeVersionedAdapter([
+        { id: 1, name: 'Rex', status: 'scored', final_placement: 2, version: 6 },
+      ]);
+
+      await syncReplicatedTable(table, adapter, {}, { conflictSurfacingEnabled: true });
+
+      expect(reconcileQueue).not.toHaveBeenCalled();
     });
   });
 

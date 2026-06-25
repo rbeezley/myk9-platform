@@ -42,11 +42,13 @@ import {
   getConflictSnapshots,
 } from './ReplicatedTableConflict';
 import {
+  buildReconciledDirtyRow,
   buildReplicatedRowForSet,
   buildSyncedReplicatedRow,
   collectFreshLocalIds,
   selectStaleCleanRows,
 } from './ReplicatedTableRowState';
+import { mergeNonConflictingServerFields } from '../conflict/detectDirtyRowConflict';
 import { isConflictSurfacingEnabled } from '../conflictConfig';
 
 // Re-export REPLICATION_STORES for backward compatibility
@@ -442,6 +444,112 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     this.logger.log(`[${this.tableName}] Marked row ${normalizedId} as synced (was dirty)`);
 
     this.notifyListeners();
+  }
+
+  /**
+   * Reconcile a locally-dirty row against a freshly-synced server snapshot WITHOUT
+   * discarding the pending local edit. Used by syncReplicatedTable's dirty branch
+   * when there is NO same-field conflict, to fix the root cause of the ringside OCC
+   * conflict storm: a dirty row's `serverVersion` token never advanced on sync-down,
+   * so every subsequent write carried a stale OCC precondition and 40001'd forever.
+   *
+   * Two things happen atomically:
+   *  1. Server-changed fields the client never touched are merged into the row's
+   *     data (3-way merge against `base`), so the next FULL-row write doesn't
+   *     regress them to their stale optimistic values (silent data loss). A caller
+   *     with a custom merge can pass `mergedData` to override the generic merge.
+   *  2. The OCC `serverVersion` token advances forward-only to `remoteServerVersion`,
+   *     and the merge base advances to the server snapshot.
+   *
+   * No-op (returns false, no write) when: the row vanished or went clean under us,
+   * the row is in `conflict` state (left for the user to resolve), or nothing would
+   * change — neither a field merged nor the token advanced (the Performance guard
+   * against per-sync write churn).
+   *
+   * @returns true if the row was written, false on any no-op path above.
+   */
+  async reconcileDirtyRow(
+    id: string,
+    params: {
+      base: T;
+      remote: T;
+      remoteServerVersion: number | undefined;
+      /** Pre-merged data from an adapter's mergeDirtyRow; omit for a generic 3-way merge. */
+      mergedData?: T;
+      /** Rebuild a full Supabase UPDATE payload from the reconciled row, so a queued
+       *  full-row UPDATE can be refreshed (not just the IDB row) and won't clobber. */
+      rebuildPayload?: (local: T) => Record<string, unknown>;
+    }
+  ): Promise<boolean> {
+    const db = await this.init();
+    const normalizedId = String(id);
+
+    // Single readwrite tx: a concurrent set(..., true) must not slip a fresh dirty
+    // mutation between our read and write (same race markAsSynced guards against).
+    const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
+    const existingRow = (await tx.store.get([this.tableName, normalizedId])) as
+      | ReplicatedRow<T>
+      | undefined;
+
+    // Only reconcile a still-dirty, non-conflicted row.
+    if (!existingRow || !existingRow.isDirty || existingRow.syncStatus === 'conflict') {
+      await tx.done;
+      return false;
+    }
+
+    const mergedData =
+      params.mergedData ??
+      mergeNonConflictingServerFields({
+        base: params.base,
+        local: existingRow.data,
+        remote: params.remote,
+      }).merged;
+    const normalizedMerged = { ...mergedData, id: normalizedId } as T;
+
+    // Forward-only token advance: never pull the token back on a late/backdated row.
+    const advanceToken =
+      params.remoteServerVersion !== undefined &&
+      params.remoteServerVersion > (existingRow.serverVersion ?? -Infinity);
+    const nextServerVersion = advanceToken ? params.remoteServerVersion : existingRow.serverVersion;
+
+    // Churn guard: skip the IDB write when neither the data nor the token changed.
+    const dataChanged = JSON.stringify(normalizedMerged) !== JSON.stringify(existingRow.data);
+    if (!advanceToken && !dataChanged) {
+      await tx.done;
+      return false;
+    }
+
+    const row = buildReconciledDirtyRow({
+      existingRow,
+      mergedData: normalizedMerged,
+      newBaseData: params.remote,
+      serverVersion: nextServerVersion,
+      now: Date.now(),
+    });
+
+    await tx.store.put(row);
+    await tx.done;
+
+    // The upload reads serverVersion/data from the QUEUED mutation, not this row —
+    // so reconcile the queue too, or the stuck mutation keeps uploading the stale
+    // token forever (storm) and, for full-row UPDATEs, the stale payload (clobber).
+    if (advanceToken && this.mutationManager && params.remoteServerVersion !== undefined) {
+      const rebuiltData = params.rebuildPayload?.(normalizedMerged);
+      await this.mutationManager.reconcilePendingMutationsForRow(
+        this.tableName,
+        normalizedId,
+        params.remoteServerVersion,
+        rebuiltData
+      );
+    }
+
+    this.logger.log(
+      `[${this.tableName}] Reconciled dirty row ${normalizedId} ` +
+        `(serverVersion: ${nextServerVersion}, merged: ${dataChanged})`
+    );
+
+    this.notifyListeners();
+    return true;
   }
 
   /**

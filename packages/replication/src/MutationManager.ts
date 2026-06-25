@@ -289,6 +289,73 @@ export class MutationManager {
     await this.writeCurrentMutationsBackup();
   }
 
+  /**
+   * Reconcile the QUEUED mutations for a row after a non-conflicting dirty
+   * sync-down advanced the row's OCC token (syncReplicatedTable → reconcileDirtyRow).
+   *
+   * This is what actually stops the stale-token storm: the upload reads
+   * `mutation.serverVersion` / `mutation.data` from the queued snapshot, NOT the
+   * IndexedDB replicated row — so reconciling only the row leaves the queued
+   * mutation uploading the stale token forever. Per UPDATE mutation on the row:
+   *
+   *  - **RPC delta mutation** (`mutation.rpc` set): advance `serverVersion`
+   *    forward-only. The payload is the touched-field delta (`rpc.fields`), which
+   *    never clobbers server-changed untouched fields, so the token advance alone
+   *    is correct. This is the ringside incident path.
+   *  - **Full-row direct UPDATE** (no `rpc`): the upload sends the entire
+   *    `mutation.data`, so advancing the token without refreshing the payload would
+   *    regress server-changed untouched fields (silent clobber). Only advance — and
+   *    replace `data` with `rebuiltData` — when the caller supplied a rebuilt
+   *    payload (from the reconciled row). With no rebuild available the mutation is
+   *    LEFT UNTOUCHED (stays throttled by the #961 backoff) rather than clobber.
+   *
+   * INSERT/DELETE carry no OCC token and are ignored.
+   */
+  async reconcilePendingMutationsForRow(
+    tableName: string,
+    rowId: string,
+    newServerVersion: number,
+    rebuiltData?: Record<string, unknown>
+  ): Promise<void> {
+    const db = await databaseManager.getDatabase('MutationManager');
+    const all = await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
+    const candidates = all.filter(
+      m => m.tableName === tableName && m.rowId === rowId && m.operation === 'UPDATE'
+    );
+    if (candidates.length === 0) return;
+
+    const tx = db.transaction(REPLICATION_STORES.PENDING_MUTATIONS, 'readwrite');
+    let changed = 0;
+    for (const mutation of candidates) {
+      const isRpc = mutation.rpc !== undefined;
+      // A full-row UPDATE can only be advanced if we can also refresh its payload;
+      // otherwise advancing the token would trade a 40001 for a silent clobber.
+      if (!isRpc && rebuiltData === undefined) continue;
+
+      const nextServerVersion =
+        mutation.serverVersion === undefined || newServerVersion > mutation.serverVersion
+          ? newServerVersion
+          : mutation.serverVersion;
+
+      const next: PendingMutation = {
+        ...mutation,
+        serverVersion: nextServerVersion,
+        ...(!isRpc && rebuiltData !== undefined ? { data: rebuiltData } : {}),
+      };
+      await tx.store.put(next);
+      changed++;
+    }
+    await tx.done;
+
+    if (changed > 0) {
+      this.logger.log(
+        `[MutationManager] Reconciled ${changed} queued mutation(s) for ${tableName}/${rowId} ` +
+          `→ serverVersion ${newServerVersion}`
+      );
+      await this.writeCurrentMutationsBackup();
+    }
+  }
+
   // ========================================
   // MUTATION UPLOAD
   // ========================================

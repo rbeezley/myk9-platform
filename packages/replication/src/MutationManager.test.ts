@@ -1458,4 +1458,98 @@ describe('MutationManager', () => {
       expect(countScheduleLogs()).toBe(1);
     });
   });
+
+  describe('reconcilePendingMutationsForRow', () => {
+    it('advances the OCC token on a queued RPC mutation (delta payload, no clobber risk)', async () => {
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({
+          id: 'rpc-1',
+          rowId: 'entry-1',
+          serverVersion: 3,
+          data: { id: 'entry-1' },
+          rpc: { name: 'ringside_update_entry', fields: { check_in_status: 'checked-in' } },
+        })
+      );
+
+      await manager.reconcilePendingMutationsForRow('entries', 'entry-1', 8);
+
+      const stored = await mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, 'rpc-1');
+      expect(stored?.serverVersion).toBe(8); // advanced → next upload won't 40001
+      // The delta is untouched (it is the client's intended write).
+      expect(stored?.rpc?.fields).toEqual({ check_in_status: 'checked-in' });
+    });
+
+    it('advances the token AND refreshes data on a full-row UPDATE when a rebuilt payload is given', async () => {
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({
+          id: 'full-1',
+          rowId: 'entry-1',
+          serverVersion: 3,
+          // Stale full-row snapshot: final_placement is the pre-recalc null.
+          data: { id: 'entry-1', entry_status: 'scored', final_placement: null },
+        })
+      );
+
+      const rebuilt = { id: 'entry-1', entry_status: 'scored', final_placement: 2 };
+      await manager.reconcilePendingMutationsForRow('entries', 'entry-1', 8, rebuilt);
+
+      const stored = await mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, 'full-1');
+      expect(stored?.serverVersion).toBe(8);
+      // Payload refreshed so the full-row write won't regress final_placement → 2, not null.
+      expect(stored?.data).toEqual(rebuilt);
+    });
+
+    it('leaves a full-row UPDATE untouched when no rebuilt payload is available (avoid clobber)', async () => {
+      const original = makeMutation({
+        id: 'full-2',
+        rowId: 'entry-1',
+        serverVersion: 3,
+        data: { id: 'entry-1', entry_status: 'scored', final_placement: null },
+      });
+      await mockDb.put(REPLICATION_STORES.PENDING_MUTATIONS, original);
+
+      await manager.reconcilePendingMutationsForRow('entries', 'entry-1', 8);
+
+      const stored = await mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, 'full-2');
+      // Token NOT advanced and data NOT changed — advancing without a refresh would
+      // trade a 40001 for a silent clobber, so the mutation stays as-is (throttled).
+      expect(stored?.serverVersion).toBe(3);
+      expect(stored?.data).toEqual(original.data);
+    });
+
+    it('never regresses a queued token that is already fresher (forward-only)', async () => {
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({
+          id: 'rpc-fresh',
+          rowId: 'entry-1',
+          serverVersion: 10,
+          rpc: { name: 'ringside_update_entry', fields: { check_in_status: 'checked-in' } },
+        })
+      );
+
+      await manager.reconcilePendingMutationsForRow('entries', 'entry-1', 6);
+
+      const stored = await mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, 'rpc-fresh');
+      expect(stored?.serverVersion).toBe(10); // max(10, 6), not 6
+    });
+
+    it('only touches UPDATE mutations for the target row', async () => {
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({ id: 'other-row', rowId: 'entry-2', serverVersion: 3, rpc: { name: 'r', fields: {} } })
+      );
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({ id: 'an-insert', rowId: 'entry-1', operation: 'INSERT', serverVersion: 3 })
+      );
+
+      await manager.reconcilePendingMutationsForRow('entries', 'entry-1', 8);
+
+      expect((await mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, 'other-row'))?.serverVersion).toBe(3);
+      expect((await mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, 'an-insert'))?.serverVersion).toBe(3);
+    });
+  });
 });

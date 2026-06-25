@@ -59,6 +59,48 @@ export function buildReplicatedRowForSet<T extends { id: string }>({
   };
 }
 
+interface BuildReconciledDirtyRowOptions<T extends { id: string }> {
+  existingRow: ReplicatedRow<T>;
+  /** Local data with server-authoritative untouched fields merged in. */
+  mergedData: T;
+  /** New merge base — the current server snapshot the dirty edit now sits on top of. */
+  newBaseData: T;
+  /** Forward-advanced OCC token (server `version`); undefined leaves it unchanged. */
+  serverVersion: number | undefined;
+  now: number;
+}
+
+/**
+ * Rebuild a locally-dirty row after a non-conflicting sync-down reconciliation:
+ * adopt server-changed untouched fields, advance the merge base, and advance the
+ * OCC `serverVersion` token — WITHOUT discarding the pending local edit.
+ *
+ * Deliberately preserves `version` (this is not a new user edit, so the local
+ * optimistic counter must not bump and trip an in-flight optimisticUpdate's
+ * expectedVersion check) and `baseVersion`, and keeps `isDirty: true` so the
+ * queued mutation still uploads. Only callable for a row that is dirty and not in
+ * `conflict` state — the caller guards that.
+ */
+export function buildReconciledDirtyRow<T extends { id: string }>({
+  existingRow,
+  mergedData,
+  newBaseData,
+  serverVersion,
+  now,
+}: BuildReconciledDirtyRowOptions<T>): ReplicatedRow<T> {
+  return {
+    ...existingRow,
+    data: { ...mergedData, id: existingRow.id },
+    baseData: { ...newBaseData, id: existingRow.id },
+    lastSyncedAt: now,
+    lastModifiedAt: now,
+    isDirty: true,
+    syncStatus: 'pending',
+    conflict: undefined,
+    ...(serverVersion !== undefined && { serverVersion }),
+  };
+}
+
 export function buildSyncedReplicatedRow<T>(row: ReplicatedRow<T>, now: number): ReplicatedRow<T> {
   return {
     ...row,

@@ -1,4 +1,5 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import { signInAsSecretary } from '../helpers/testUsers';
 
 /**
  * UI-driven e2e tests for the Shows section — secretary role.
@@ -10,29 +11,12 @@ import { test, expect, Page } from '@playwright/test';
  *     classCreationStore → Supabase fix: the page used to render "0 classes"
  *     against any trial not created in the same browser session.
  *
- * Auth: secretary@myk9t.com / TestPass4567! (matches clubsUI / dogsUI / peopleUI).
+ * Auth: env-backed canonical secretary (see helpers/testUsers signInAsSecretary).
  */
 
 test.describe.configure({ mode: 'serial' });
 
-const SECRETARY_EMAIL = 'secretary@myk9t.com';
-const SECRETARY_PASSWORD = 'TestPass4567!';
 const QA_PREMIUM_MONOGRAM_SHOW_ID = '5d8bfe56-a48d-48dd-ae75-7f90c2e02c4f';
-
-async function signIn(page: Page, email: string, password: string) {
-  await page.goto('/sign-in', { waitUntil: 'networkidle' });
-  await page.getByTestId('email-input').fill(email);
-  await page.getByTestId('password-input').fill(password);
-  await page.getByTestId('sign-in-button').click();
-  await page.waitForURL(url => !url.pathname.includes('/sign-in'), {
-    timeout: 15000,
-  });
-  await page.waitForLoadState('networkidle');
-}
-
-async function signInAsSecretary(page: Page) {
-  await signIn(page, SECRETARY_EMAIL, SECRETARY_PASSWORD);
-}
 
 // ---------------------------------------------------------------------------
 // Browse

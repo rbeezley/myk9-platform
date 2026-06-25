@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { TEST_USERS } from './helpers/testUsers';
 
 /**
  * Debug Authentication Test
@@ -19,20 +20,24 @@ test.describe('Debug Authentication', () => {
     // Take screenshot before
     await page.screenshot({ path: 'debug-before-login.png' });
 
-    // Check what elements are available
+    // Check what elements are available. SmartSignInPage's first step shows
+    // only the single credential field + Continue.
     console.log('2. Checking form elements...');
-    const emailInput = page.locator('[data-testid="email-input"]');
+    const credentialInput = page.locator('[data-testid="credential-input"]');
+    const continueButton = page.locator('[data-testid="continue-button"]');
+
+    await expect(credentialInput).toBeVisible({ timeout: 10000 });
+    await expect(continueButton).toBeVisible();
+
+    // Fill the credential (email) and continue to reveal the password step.
+    console.log('3. Filling credential and continuing to password step...');
+    await credentialInput.fill(TEST_USERS.SITE_ADMIN.email);
+    await continueButton.click();
+
     const passwordInput = page.locator('[data-testid="password-input"]');
     const signInButton = page.locator('[data-testid="sign-in-button"]');
-
-    await expect(emailInput).toBeVisible({ timeout: 10000 });
-    await expect(passwordInput).toBeVisible();
-    await expect(signInButton).toBeVisible();
-
-    // Fill form
-    console.log('3. Filling form with test credentials...');
-    await emailInput.fill('admin@myk9t.com');
-    await passwordInput.fill('TestPass4567!');
+    await expect(passwordInput).toBeVisible({ timeout: 10000 });
+    await passwordInput.fill(TEST_USERS.SITE_ADMIN.password);
 
     // Take screenshot after filling
     await page.screenshot({ path: 'debug-after-filling.png' });

@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { TEST_USERS } from '../helpers/testUsers';
+import { TEST_USERS, signInAsSecretary, signInAsAdmin } from '../helpers/testUsers';
 
 /**
  * UI-driven e2e tests for the People section — secretary role.
@@ -27,27 +27,9 @@ const ADMIN_PERSON_LAST = `Adminperson ${RUN_ID}`;
 const ADMIN_PERSON_EMAIL = `e2e.admin.${RUN_ID}@example.com`;
 const DOG_NAME = `E2E PeopleDog ${RUN_ID}`;
 
-const SECRETARY_EMAIL = TEST_USERS.SECRETARY.email;
-const SECRETARY_PASSWORD = TEST_USERS.SECRETARY.password;
+// Admin lifecycle coverage is gated on the env-backed admin account being set.
 const ADMIN_EMAIL = TEST_USERS.SITE_ADMIN.email;
 const ADMIN_PASSWORD = TEST_USERS.SITE_ADMIN.password;
-
-async function signIn(page: Page, email: string, password: string) {
-  await page.goto('/sign-in', { waitUntil: 'networkidle' });
-  await page.getByTestId('email-input').fill(email);
-  await page.getByTestId('password-input').fill(password);
-  await page.getByTestId('sign-in-button').click();
-  await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
-  await page.waitForLoadState('networkidle');
-}
-
-async function signInAsSecretary(page: Page) {
-  await signIn(page, SECRETARY_EMAIL, SECRETARY_PASSWORD);
-}
-
-async function signInAsAdmin(page: Page) {
-  await signIn(page, ADMIN_EMAIL, ADMIN_PASSWORD);
-}
 
 async function gotoPeopleBrowse(page: Page) {
   await page.goto('/people', { waitUntil: 'networkidle' });

@@ -22,21 +22,14 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
-import { TEST_USERS, type TestUser } from './helpers/testUsers';
+import { TEST_USERS, signIn as performSignIn, type TestUser } from './helpers/testUsers';
 
 const RUN = process.env.RUN_LIVE_SYNC_E2E === '1';
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL ?? '';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
 
 async function signIn(page: Page, user: TestUser) {
-  await page.goto('/sign-in', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByTestId('credential-input')).toBeVisible({ timeout: 15000 });
-  await page.getByTestId('credential-input').fill(user.email);
-  await page.getByTestId('continue-button').click();
-  await expect(page.getByTestId('password-input')).toBeVisible({ timeout: 15000 });
-  await page.getByTestId('password-input').fill(user.password);
-  await page.getByTestId('sign-in-button').click();
-  await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
+  await performSignIn(page, user.email, user.password);
 }
 
 test.describe('Show live-sync — live Realtime', () => {

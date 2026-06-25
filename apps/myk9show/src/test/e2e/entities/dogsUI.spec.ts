@@ -1,5 +1,5 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
-import { TEST_USERS } from '../helpers/testUsers';
+import { signInAsSecretary, signInAsExhibitor } from '../helpers/testUsers';
 
 /**
  * UI-driven e2e tests for the Dogs section — secretary role.
@@ -36,33 +36,11 @@ const RUN_ID = Date.now();
 const DOG_A_NAME = `E2E Dog A ${RUN_ID}`;
 const DOG_B_NAME = `E2E Dog B ${RUN_ID}`;
 
-const SECRETARY_EMAIL = TEST_USERS.SECRETARY.email;
-const SECRETARY_PASSWORD = TEST_USERS.SECRETARY.password;
-const EXHIBITOR_EMAIL = TEST_USERS.EXHIBITOR.email;
-const EXHIBITOR_PASSWORD = TEST_USERS.EXHIBITOR.password;
-
 // Test Secretary's person ID in the DB — used to select owner in the Create form.
 // This is the person linked to secretary@myk9t.com.
 const TEST_SECRETARY_PERSON_NAME = 'Test Secretary';
 // Alice Martin (exhibitor1@myk9t.com) — used as a non-self owner.
 const ALICE_MARTIN_NAME = 'Alice Martin';
-
-async function signIn(page: Page, email: string, password: string) {
-  await page.goto('/sign-in', { waitUntil: 'networkidle' });
-  await page.getByTestId('email-input').fill(email);
-  await page.getByTestId('password-input').fill(password);
-  await page.getByTestId('sign-in-button').click();
-  await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
-  await page.waitForLoadState('networkidle');
-}
-
-async function signInAsSecretary(page: Page) {
-  await signIn(page, SECRETARY_EMAIL, SECRETARY_PASSWORD);
-}
-
-async function signInAsExhibitor(page: Page) {
-  await signIn(page, EXHIBITOR_EMAIL, EXHIBITOR_PASSWORD);
-}
 
 async function clickVisibleOption(page: Page, trigger: Locator, optionText: RegExp | string) {
   const listId = await trigger.getAttribute('aria-controls');

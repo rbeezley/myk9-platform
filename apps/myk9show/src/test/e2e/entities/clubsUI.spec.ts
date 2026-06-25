@@ -1,4 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
+import { signInAsAdmin, signInAsExhibitor } from '../helpers/testUsers';
 
 /**
  * Comprehensive UI test for the Clubs section.
@@ -29,25 +30,6 @@ const CLUB_C_NAME = `E2E Club C ${RUN_ID}`;
 // Tests skip automatically via skipWithoutAdminCredentials() when env vars are absent.
 const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? '';
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? '';
-const EXHIBITOR_EMAIL = process.env.E2E_EXHIBITOR_EMAIL ?? 'exhibitor1@myk9t.com';
-const EXHIBITOR_PASSWORD = process.env.E2E_EXHIBITOR_PASSWORD ?? '';
-
-async function signIn(page: Page, email: string, password: string) {
-  await page.goto('/sign-in', { waitUntil: 'networkidle' });
-  await page.getByTestId('email-input').fill(email);
-  await page.getByTestId('password-input').fill(password);
-  await page.getByTestId('sign-in-button').click();
-  await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
-  await page.waitForLoadState('networkidle');
-}
-
-async function signInAsAdmin(page: Page) {
-  await signIn(page, ADMIN_EMAIL, ADMIN_PASSWORD);
-}
-
-async function signInAsExhibitor(page: Page) {
-  await signIn(page, EXHIBITOR_EMAIL, EXHIBITOR_PASSWORD);
-}
 
 function skipWithoutAdminCredentials() {
   test.skip(

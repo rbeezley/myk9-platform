@@ -85,11 +85,14 @@ test.describe('Phase 2: Authentication Validation', () => {
     // Navigate to sign-in page
     await page.goto('/sign-in');
     
-    // Try to sign in with invalid credentials
-    await page.fill('[data-testid="email-input"]', 'invalid@example.com');
+    // Try to sign in with invalid credentials. An email reveals the password
+    // step in place (SmartSignInPage two-step flow), then submitting fails.
+    await page.fill('[data-testid="credential-input"]', 'invalid@example.com');
+    await page.click('[data-testid="continue-button"]');
+    await expect(page.locator('[data-testid="password-input"]')).toBeVisible();
     await page.fill('[data-testid="password-input"]', 'wrongpassword');
     await page.click('[data-testid="sign-in-button"]');
-    
+
     // Verify we stay on sign-in page and see an error
     await expect(page).toHaveURL(/.*sign-in/);
     
@@ -105,10 +108,11 @@ test.describe('Phase 2: Authentication Validation', () => {
     // Should be redirected to sign-in
     await expect(page).toHaveURL(/.*sign-in/);
     
-    // Verify sign-in form is visible
-    await expect(page.locator('[data-testid="email-input"]')).toBeVisible();
-    await expect(page.locator('[data-testid="password-input"]')).toBeVisible();
-    await expect(page.locator('[data-testid="sign-in-button"]')).toBeVisible();
+    // Verify the sign-in form is visible. SmartSignInPage's first step shows
+    // only the single credential field + Continue; the password field is
+    // revealed after Continue, so it does not exist yet here.
+    await expect(page.locator('[data-testid="credential-input"]')).toBeVisible();
+    await expect(page.locator('[data-testid="continue-button"]')).toBeVisible();
   });
 
   test('should maintain session across page refreshes', async ({ page }) => {

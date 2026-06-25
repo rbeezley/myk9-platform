@@ -538,22 +538,15 @@ const ShowDetailsPage: React.FC = () => {
   // Authenticated exhibitors with entries bypass the marketing landing and see
   // the tabbed details UI (classes, my entries, run order) instead.
   //
-  // We gate on an *explicit* style being set, not the `getShowStyle()` fallback
-  // value ('monogram'). Otherwise legacy shows with `style = null` would
-  // unexpectedly render the Monogram landing — those shows historically
-  // rendered the management UI and we preserve that behavior. Checks both
-  // post-migration `style` and pre-migration `landing_style` columns.
-  const rawShowStyle =
-    publicLandingShow.style ??
-    (publicLandingShow as { landing_style?: string | null }).landing_style;
-  const hasExplicitStyle = !!rawShowStyle && rawShowStyle !== 'default';
+  // INTENT: null/default style uses the product's committed Monogram default
+  // for public visitors. That keeps the shareable show URL on a brand landing
+  // without adding another default surface; management users still get the
+  // tabbed product UI where show operations live.
   const publicShowStyle = getShowStyle(publicLandingShow);
   // The registry is exhaustive over every ShowStyle value (typecheck
-  // enforces it), so any explicit style is guaranteed to resolve to a
-  // component. The `hasExplicitStyle` gate skips the styled path
-  // entirely when no style is set.
+  // enforces it), and getShowStyle() falls back to the committed
+  // Monogram default for null/default/unknown values.
   if (
-    hasExplicitStyle &&
     !isManagementSection &&
     !isSecretary &&
     !isAdmin &&

@@ -14,14 +14,6 @@ Four steps toward the fall launch, in dependency order. Detailed phase checklist
 
 ---
 
-## Public Default Landing — Brand Decision — 2026-06-22
-
-Deferred Phase 4 from the public-landing brand/a11y pass (PR [#916](https://github.com/rbeezley/myk9-platform/pull/916)). The touch-target, heritage-AA, tokenize, and `DetailHero` badge-token sub-items already shipped; this is the **design decision only**.
-
-- [ ] **Decide committed default landing for `/shows/:id`** — the default (non-`style`) public show landing reuses the shared product `DetailHero` (product-template chrome on a brand-register slot), unlike the 7 bespoke styled themes. Decide: build a committed default landing vs. extend one of the existing themes as the default. Needs a design pass before any build — do **not** build blind. Full context in TO-DOS.md § "Public default landing — DetailHero vs. brand register — 2026-06-22".
-
----
-
 ## OCC Conflict-Storm Follow-ups — 2026-06-25
 
 Two follow-ups from the ringside OCC conflict-storm incident (PR [#961](https://github.com/rbeezley/myk9-platform/pull/961), which fixed the storm itself). A since-fixed unthrottled OCC-conflict bug let repeated/concurrent E2E runs against shared staging drive a sustained high-CPU write storm (Supabase >80% CPU alert, 2026-06-25).

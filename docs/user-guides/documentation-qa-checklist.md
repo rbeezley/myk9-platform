@@ -198,3 +198,14 @@ A `verified` guide must be re-verified (at minimum the author walkthrough) when 
 | A migration changes the visible state for the guide's role | Any section dependent on that data |
 
 Set a calendar reminder to re-verify all `verified` guides 30 days before any planned launch milestone.
+
+### Automated route-staleness check
+
+The first two triggers (route renamed/removed, and — partially — label changes) are now scriptable. Run, on any branch that touches route or sidebar/nav source:
+
+```bash
+pnpm qa:doc-staleness          # advisory: diffs route sources vs origin/main, lists guides to re-verify
+pnpm qa:doc-staleness --strict # exit 1 if a documented route changed (CI gate)
+```
+
+It reads [`workflow-source-map.md`](./workflow-source-map.md), matches changed routes param-name-insensitively (`/shows/:id` ≡ `/shows/:showId`), and prints each affected guide section + docs target. It also flags when a label-bearing file (`unifiedSidebarConfig.ts`, `pageDirectory.ts`) changed, but does **not** diff label *text* — confirm label-change triggers manually. Source: [`scripts/check-doc-staleness.js`](../../scripts/check-doc-staleness.js).

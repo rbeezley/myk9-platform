@@ -1,6 +1,6 @@
 # Replication: dirty rows never refresh their OCC token on sync-down
 
-> **Status:** Active
+> **Status:** Complete — shipped in PR [#963](https://github.com/rbeezley/myk9-platform/pull/963) (squash `882c1a8dd`, 2026-06-25). Implemented the recommended three-way-merge approach plus the review-caught queued-mutation reconciliation (the upload reads the queued `PendingMutation` snapshot, not the IDB row, so the row reconcile alone was insufficient).
 
 ## Why this exists
 

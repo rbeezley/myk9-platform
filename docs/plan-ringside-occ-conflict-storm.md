@@ -41,6 +41,7 @@ The OCC token never advances on conflict, so the loop is self-sustaining:
 ### #1 — Stop the live storm (operational, owner action)
 
 The new code only takes effect once the stale clients reload. Immediate relief:
+
 - Close the demo-show ringside browser tabs / kill the test process driving the writes.
 - Optional stopgap (shared-DB mutation, owner consent): `pg_terminate_backend(pid)` for the
   `ringside_update_entry` backends — temporary; clients respawn until closed.
@@ -64,14 +65,29 @@ The new code only takes effect once the stale clients reload. Immediate relief:
 > re-read). So the re-read returned 0 rows and the token never advanced for ringside roles. Fix:
 > the SECURITY DEFINER RPC — which already authorized the write and holds the version — returns
 > it in the conflict `DETAIL`, role-agnostic and with no second round-trip. **Lesson:** any
-> "re-read the row" recovery must go through the *same authz boundary as the write*.
+> "re-read the row" recovery must go through the _same authz boundary as the write_.
 
 ### #3 — Cut redundant Realtime load (owner decision + SQL)
 
 `supabase_realtime` publishes `classes/entries/shows` — the same tables the offline-first
-layer already delta-polls (`updated_at > $1`). Evaluate narrowing the publication (push *and*
+layer already delta-polls (`updated_at > $1`). Evaluate narrowing the publication (push _and_
 pull on the same data is redundant) to drop the 65% steady-state WAL-decode floor. SQL
 (`ALTER PUBLICATION …`) is a shared-DB mutation requiring owner consent.
+
+### #4 — Isolate write-heavy E2E from shared staging (code, follow-up)
+
+Ringside/scoring E2E specs now share a `sharedStagingWriteGuard` helper that intercepts
+write-heavy shared-staging calls before they reach `sojmvhhwsjxmfistvzbe`:
+
+- `POST /rest/v1/rpc/ringside_update_entry` returns a fixture version integer and records the
+  payload for assertions.
+- `PATCH /rest/v1/entries` returns an empty fixture result for paper-scoring writes.
+- Read traffic and writes to any non-shared Supabase project are allowed through, so the same
+  specs can run against an isolated/ephemeral project without fixture interception.
+
+The at-show live/offline scoring specs and the paper-scoring workflow spec use the shared guard.
+This keeps the storm-prone writes off shared staging while preserving the existing fixture-backed
+browser coverage.
 
 ## Testing
 
@@ -79,3 +95,7 @@ pull on the same data is redundant) to drop the 65% steady-state WAL-decode floo
   `serverVersion`; sets `nextRetryAt` (backoff) and does not hammer; queued mutation stays
   dirty. `mutation-occ.test.ts`: `isVersionConflictError` classification.
 - `pnpm --filter @myk9/replication build` then app tests (app vitest runs against built dist).
+- `sharedStagingWriteGuard.test.ts`: shared-staging write classification for ringside RPC and
+  paper-scoring entry patches, plus read/isolated-project pass-through.
+- `playwright test ... --list`: changed scoring specs load under Chromium (2 paper-scoring tests,
+  1 at-show offline test, 1 known-fixme at-show judge test).

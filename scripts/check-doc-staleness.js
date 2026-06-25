@@ -1,0 +1,330 @@
+#!/usr/bin/env node
+//
+// check-doc-staleness.js
+//
+// Flags user guides that may have gone stale because a route they document
+// changed in this branch's diff. Implements the OPEN-TODOS "[docs] Staleness
+// check" item: "compare changed routes against the guide source maps and flag
+// any guide that depends on the changed route."
+//
+// The guide source map (docs/user-guides/workflow-source-map.md) intentionally
+// references routes by path only, "so staleness is greppable" — this script is
+// that grep, made param-name-insensitive and diff-aware.
+//
+// Usage:
+//   node scripts/check-doc-staleness.js [baseRef] [--strict] [--routes /a,/b]
+//
+//   baseRef        git ref to diff against (default: origin/main, then main).
+//                  Uses three-dot (base...HEAD) so it sees only this branch's
+//                  changes since the merge-base, the way a PR diff does.
+//   --strict       exit 1 when any documented route changed (for CI gating).
+//                  Default is advisory: always exit 0 and print the report.
+//   --routes a,b   skip git and treat this comma-separated list as the changed
+//                  routes (used by tests and for manual "what guides cover /x?").
+//
+// Exit codes: 0 = ok / advisory; 1 = --strict and documented routes changed;
+//             2 = usage or environment error.
+
+const fs = require('fs');
+const path = require('path');
+const { execFileSync } = require('child_process');
+
+const repoRoot = path.resolve(__dirname, '..');
+const SOURCE_MAP_REL = 'docs/user-guides/workflow-source-map.md';
+
+// Files where route paths and nav labels are defined. The diff is restricted to
+// these so unrelated changes that merely mention a "/foo" string don't trip the
+// check. Add to this list when a new route-registry or sidebar file appears.
+const ROUTE_SOURCE_PATHS = [
+  'apps/myk9show/src/routes',
+  'apps/myk9show/src/App.tsx',
+  'apps/myk9show/src/features/show-map/showMapRoutes.ts',
+  'apps/myk9show/src/pages/scoring/scoringRoutes.ts',
+  'apps/myk9show/src/pages/RegistrationWizardPage.routes.ts',
+  'apps/myk9show/src/components/layout/sidebar/unifiedSidebarConfig.ts',
+  'apps/myk9show/src/features/admin-help/data/pageDirectory.ts',
+];
+
+// Files whose changes imply a possible *label* change (button/tab/menu text),
+// which the QA re-verification trigger table treats as its own staleness cause.
+const LABEL_SOURCE_PATHS = [
+  'apps/myk9show/src/components/layout/sidebar/unifiedSidebarConfig.ts',
+  'apps/myk9show/src/features/admin-help/data/pageDirectory.ts',
+];
+
+// ---------------------------------------------------------------------------
+// Pure helpers (exported for tests — no git, no fs, no process side effects).
+// ---------------------------------------------------------------------------
+
+/**
+ * Collapse a route to a param-name-insensitive canonical form so that
+ * `/shows/:id` and `/shows/:showId` (both appear in this repo) compare equal.
+ * Strips a trailing `/*` splat and trailing slash. Returns null for non-routes.
+ */
+function normalizeRoute(raw) {
+  if (typeof raw !== 'string') return null;
+  let route = raw.trim().replace(/^[`'"]|[`'"]$/g, '').trim();
+  if (!route.startsWith('/')) return null;
+  route = route.replace(/\/\*+$/, ''); // drop trailing splat: /shows/:showId/* -> /shows/:showId
+  route = route.replace(/\/:[A-Za-z0-9_]+/g, '/:'); // param names -> placeholder
+  if (route.length > 1) route = route.replace(/\/+$/, ''); // trailing slash
+  return route === '' ? '/' : route;
+}
+
+/** Extract backtick-quoted route tokens (`/...`) from markdown. */
+function extractRoutesFromMarkdown(md) {
+  return Array.from(md.matchAll(/`(\/[^`]*)`/g), (m) => m[1]);
+}
+
+/**
+ * Extract route literals from a line of source (or a diff hunk line). Catches
+ * `path="/x"`, `to='/x'`, `navigate("/x")`, and bare quoted "/x" forms.
+ */
+function extractRoutesFromSource(text) {
+  const routes = [];
+  for (const m of text.matchAll(/["'`](\/[A-Za-z0-9_:*\-/]*)["'`]/g)) {
+    routes.push(m[1]);
+  }
+  return routes;
+}
+
+/**
+ * Parse the source map into an index: normalizedRoute -> [{ section, docsTarget, raw }].
+ * Workflow blocks (### headings) carry a real "Docs target:" line; table-only
+ * sections (## headings) are indexed too, tagged "(table)".
+ */
+function parseSourceMap(md) {
+  const lines = md.split(/\r?\n/);
+  const index = new Map();
+
+  let currentH2 = null;
+  let currentH3 = null;
+  // Collect blocks so we can attach the Docs target line, which follows routes.
+  // Strategy: buffer the current ### block; flush on the next heading.
+  let block = { section: null, lines: [] };
+
+  const flush = () => {
+    if (!block.section) {
+      block = { section: null, lines: [] };
+      return;
+    }
+    const text = block.lines.join('\n');
+    const docsMatch = text.match(/\*\*Docs target:\*\*\s*(.+)/);
+    const docsTarget = docsMatch ? docsMatch[1].trim() : '(no docs target)';
+    for (const raw of extractRoutesFromMarkdown(text)) {
+      const norm = normalizeRoute(raw);
+      if (!norm) continue;
+      if (!index.has(norm)) index.set(norm, []);
+      index.get(norm).push({ section: block.section, docsTarget, raw });
+    }
+    block = { section: null, lines: [] };
+  };
+
+  for (const line of lines) {
+    const h2 = line.match(/^##\s+(.*)/);
+    const h3 = line.match(/^###\s+(.*)/);
+    if (h2 && !line.startsWith('###')) {
+      flush();
+      currentH2 = h2[1].trim();
+      currentH3 = null;
+      block = { section: currentH2, lines: [line] };
+      continue;
+    }
+    if (h3) {
+      flush();
+      currentH3 = h3[1].trim();
+      block = { section: currentH3, lines: [line] };
+      continue;
+    }
+    if (block.section) block.lines.push(line);
+    else if (currentH2 || currentH3) {
+      block = { section: currentH3 || currentH2, lines: [line] };
+    }
+  }
+  flush();
+  return index;
+}
+
+/**
+ * Match a set of changed route strings against the source-map index.
+ * Returns { flagged: [{ route, normalized, refs }], undocumented: [route] }.
+ */
+function matchChangedRoutes(changedRoutes, index) {
+  const flagged = [];
+  const undocumented = [];
+  const seen = new Set();
+  for (const raw of changedRoutes) {
+    const norm = normalizeRoute(raw);
+    if (!norm || norm === '/') continue;
+    if (seen.has(norm)) continue;
+    seen.add(norm);
+    if (index.has(norm)) {
+      flagged.push({ route: raw, normalized: norm, refs: index.get(norm) });
+    } else {
+      undocumented.push(raw);
+    }
+  }
+  return { flagged, undocumented };
+}
+
+// ---------------------------------------------------------------------------
+// Git + CLI (side-effecting; skipped when this file is require()'d).
+// ---------------------------------------------------------------------------
+
+function git(args) {
+  return execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8' });
+}
+
+function resolveBaseRef(preferred) {
+  const candidates = preferred ? [preferred] : ['origin/main', 'main'];
+  for (const ref of candidates) {
+    try {
+      git(['rev-parse', '--verify', '--quiet', ref]);
+      return ref;
+    } catch {
+      /* try next */
+    }
+  }
+  return null;
+}
+
+function changedFiles(baseRef) {
+  const out = git(['diff', '--name-only', `${baseRef}...HEAD`, '--', ...ROUTE_SOURCE_PATHS]);
+  return out.split('\n').filter(Boolean);
+}
+
+function changedRoutesFromGit(baseRef) {
+  // --unified=0 so only added/removed lines appear; collect route literals from
+  // both sides (a renamed/removed path shows as a '-' line, a new one as '+').
+  const out = git(['diff', '--unified=0', `${baseRef}...HEAD`, '--', ...ROUTE_SOURCE_PATHS]);
+  const routes = new Set();
+  for (const line of out.split('\n')) {
+    if (!/^[+-]/.test(line) || /^(\+\+\+|---)/.test(line)) continue;
+    for (const r of extractRoutesFromSource(line.slice(1))) routes.add(r);
+  }
+  return [...routes];
+}
+
+function labelFilesChanged(baseRef) {
+  try {
+    const out = git(['diff', '--name-only', `${baseRef}...HEAD`, '--', ...LABEL_SOURCE_PATHS]);
+    return out.split('\n').filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function sourceMapChanged(baseRef) {
+  try {
+    const out = git(['diff', '--name-only', `${baseRef}...HEAD`, '--', SOURCE_MAP_REL]);
+    return out.split('\n').filter(Boolean).length > 0;
+  } catch {
+    return false;
+  }
+}
+
+function main(argv) {
+  const args = argv.slice(2);
+  if (args.includes('--help') || args.includes('-h')) {
+    console.log(
+      'Usage: node scripts/check-doc-staleness.js [baseRef] [--strict] [--routes /a,/b]'
+    );
+    return 0;
+  }
+  const strict = args.includes('--strict');
+  const routesFlagIdx = args.indexOf('--routes');
+  const explicitRoutes =
+    routesFlagIdx !== -1 && args[routesFlagIdx + 1]
+      ? args[routesFlagIdx + 1].split(',').map((s) => s.trim()).filter(Boolean)
+      : null;
+  const baseArg = args.find((a, i) => !a.startsWith('-') && args[i - 1] !== '--routes');
+
+  const mapPath = path.join(repoRoot, SOURCE_MAP_REL);
+  if (!fs.existsSync(mapPath)) {
+    console.error(`Source map not found: ${SOURCE_MAP_REL}`);
+    return 2;
+  }
+  const index = parseSourceMap(fs.readFileSync(mapPath, 'utf8'));
+
+  let changed;
+  let labelChanges = [];
+  let mapAlsoChanged = false;
+
+  if (explicitRoutes) {
+    changed = explicitRoutes;
+  } else {
+    const baseRef = resolveBaseRef(baseArg);
+    if (!baseRef) {
+      console.error(
+        'Could not resolve a base ref (tried origin/main, main). Pass one explicitly,'
+      );
+      console.error('or use --routes /a,/b to check specific routes without git.');
+      return 2;
+    }
+    try {
+      changed = changedRoutesFromGit(baseRef);
+      labelChanges = labelFilesChanged(baseRef);
+      mapAlsoChanged = sourceMapChanged(baseRef);
+    } catch (err) {
+      console.error(`git diff failed against ${baseRef}: ${err.message}`);
+      return 2;
+    }
+    console.log(`Diffing route sources against ${baseRef}...HEAD`);
+  }
+
+  const { flagged, undocumented } = matchChangedRoutes(changed, index);
+
+  if (flagged.length === 0 && undocumented.length === 0 && labelChanges.length === 0) {
+    console.log('No documented routes changed — no guide re-verification triggered.');
+    return 0;
+  }
+
+  if (flagged.length > 0) {
+    console.log('\n⚠  Guides to RE-VERIFY (a documented route changed):');
+    for (const { route, refs } of flagged) {
+      console.log(`\n  ${route}`);
+      const printed = new Set();
+      for (const ref of refs) {
+        const key = `${ref.section} :: ${ref.docsTarget}`;
+        if (printed.has(key)) continue;
+        printed.add(key);
+        console.log(`    • ${ref.section}`);
+        console.log(`      → ${ref.docsTarget}`);
+      }
+    }
+  }
+
+  if (labelChanges.length > 0) {
+    console.log('\nℹ  Label-bearing files changed (check button/tab/menu text in guides):');
+    for (const f of labelChanges) console.log(`    • ${f}`);
+  }
+
+  if (undocumented.length > 0) {
+    console.log('\nℹ  Changed routes NOT in the source map (new route to document, or internal):');
+    for (const r of undocumented) console.log(`    • ${r}`);
+  }
+
+  if (mapAlsoChanged) {
+    console.log(
+      `\nNote: ${SOURCE_MAP_REL} also changed in this diff — the map may already be reconciled.`
+    );
+  }
+
+  console.log(
+    '\nThis is advisory. Re-verify flagged guides per docs/user-guides/documentation-qa-checklist.md.'
+  );
+
+  return strict && flagged.length > 0 ? 1 : 0;
+}
+
+module.exports = {
+  normalizeRoute,
+  extractRoutesFromMarkdown,
+  extractRoutesFromSource,
+  parseSourceMap,
+  matchChangedRoutes,
+};
+
+if (require.main === module) {
+  process.exit(main(process.argv));
+}

@@ -47,12 +47,24 @@ The new code only takes effect once the stale clients reload. Immediate relief:
 
 ### #2 — Make conflicts self-correct and back off (code, this PR)
 
-1. **RPC path:** on a version-conflict error, re-read the authoritative `version` and throw
-   `OccRejectionError(fresh)` — routing it to the OCC handler instead of dead-lettering.
-2. **OCC handler:** advance the **replicated row's** `serverVersion` to the fresh value so the
+1. **RPC surfaces the version (migration `20260625190000`):** `ringside_update_entry` now
+   raises its `40001` with the authoritative current version in the Postgres `DETAIL` field.
+   The client reads it from `error.details`.
+2. **Client conflict recovery:** on a version conflict, throw `OccRejectionError(fresh)` carrying
+   that version → routed to the OCC handler instead of dead-lettering.
+3. **OCC handler:** advance the **replicated row's** `serverVersion` to the fresh value so the
    app stops minting stale writes (regeneration fix), and apply **exponential backoff**
    (`occRetries` counter, capped at 30s) so an unresolved conflict can't hammer the server.
    The queued mutation stays dirty for user reconciliation — conflict semantics unchanged.
+
+> **Review fix (PR #961, Codex):** the first cut re-read `entries.version` via a **direct table
+> read**. But assigned-judge / steward / passcode sessions — the exact roles this RPC exists for
+> — are denied a direct `entries` read (reads go through `view_authenticated_entry_results`,
+> which REVOKEs anon and keys on `auth.uid()`; it does **not** admit the passcode claim for a
+> re-read). So the re-read returned 0 rows and the token never advanced for ringside roles. Fix:
+> the SECURITY DEFINER RPC — which already authorized the write and holds the version — returns
+> it in the conflict `DETAIL`, role-agnostic and with no second round-trip. **Lesson:** any
+> "re-read the row" recovery must go through the *same authz boundary as the write*.
 
 ### #3 — Cut redundant Realtime load (owner decision + SQL)
 

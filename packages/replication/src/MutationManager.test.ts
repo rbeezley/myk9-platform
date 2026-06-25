@@ -562,21 +562,20 @@ describe('MutationManager', () => {
   // ========================================
 
   describe('RPC version-conflict handling', () => {
-    /** Mock the post-conflict `from(table).select('version').eq('id', id).maybeSingle()` re-read. */
-    function mockVersionReread(version: number) {
-      vi.mocked(mockSupabase.from).mockReturnValue({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            maybeSingle: vi.fn(() => Promise.resolve({ data: { version }, error: null })),
-          })),
-        })),
-      } as unknown as ReturnType<typeof mockSupabase.from>);
-    }
-
-    function mockRpcVersionConflict(rowId: string, expected: number) {
+    /**
+     * Mock the RPC raising a `40001` version conflict that carries the current
+     * server version in `details` (PostgREST surfaces the function's DETAIL
+     * there). No direct entries re-read happens — the ringside caller's role may
+     * be denied one, which is exactly why the RPC hands the version back.
+     */
+    function mockRpcVersionConflict(rowId: string, expected: number, current: number) {
       vi.mocked(mockSupabase.rpc).mockResolvedValue({
         data: null,
-        error: { message: `Version conflict updating entry ${rowId} (expected ${expected})`, code: '40001' },
+        error: {
+          message: `Version conflict updating entry ${rowId} (expected ${expected})`,
+          code: '40001',
+          details: String(current),
+        },
       } as unknown as Awaited<ReturnType<typeof mockSupabase.rpc>>);
     }
 
@@ -603,8 +602,7 @@ describe('MutationManager', () => {
           rpc: { name: 'ringside_update_entry', fields: { run_order: 3 } },
         })
       );
-      mockRpcVersionConflict('entry-occ', 3);
-      mockVersionReread(8);
+      mockRpcVersionConflict('entry-occ', 3, 8);
 
       const results = await manager.uploadPendingMutations();
 
@@ -612,10 +610,14 @@ describe('MutationManager', () => {
       const row = (await mockDb.get(REPLICATION_STORES.REPLICATED_TABLES, ['entries', 'entry-occ'])) as
         | ReplicatedRow<{ id: string }>
         | undefined;
-      // Token advanced so the NEXT app write isn't stale (stops regeneration).
+      // Token advanced (from the RPC's error DETAIL, not a table re-read) so the
+      // NEXT app write isn't stale — stops regeneration for ringside roles that
+      // are denied a direct entries read.
       expect(row?.serverVersion).toBe(8);
       // Dirty edit preserved for user reconciliation — not silently synced away.
       expect(row?.isDirty).toBe(true);
+      // The conflict recovery must NOT fall back to a direct entries table read.
+      expect(vi.mocked(mockSupabase.from)).not.toHaveBeenCalled();
     });
 
     it('throttles the conflicting mutation with backoff instead of dead-lettering it', async () => {
@@ -640,8 +642,7 @@ describe('MutationManager', () => {
           rpc: { name: 'ringside_update_entry', fields: { run_order: 5 } },
         })
       );
-      mockRpcVersionConflict('entry-occ2', 3);
-      mockVersionReread(8);
+      mockRpcVersionConflict('entry-occ2', 3, 8);
 
       // Capture before the call: under shouldAdvanceTime, Date.now() drifts past
       // the ~1s backoff during the async RPC + re-read, so compare to the start.

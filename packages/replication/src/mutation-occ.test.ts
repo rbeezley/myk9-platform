@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   classifyEmptyUpdateResult,
+  getConflictServerVersion,
   getReturnedServerVersion,
   isVersionConflictError,
   OccRejectionError,
@@ -41,6 +42,24 @@ describe('isVersionConflictError', () => {
     expect(isVersionConflictError(new Error('RLS policy blocked'))).toBe(false);
     expect(isVersionConflictError(null)).toBe(false);
     expect(isVersionConflictError(undefined)).toBe(false);
+  });
+});
+
+describe('getConflictServerVersion', () => {
+  it('reads the current server version the RPC puts in error.details', () => {
+    expect(getConflictServerVersion({ code: '40001', details: '8' })).toBe(8);
+    expect(getConflictServerVersion({ code: '40001', details: ' 12 ' })).toBe(12);
+  });
+
+  it('reads currentServerVersion off an OccRejectionError', () => {
+    expect(getConflictServerVersion(new OccRejectionError('entries', 'e', 3, 9))).toBe(9);
+  });
+
+  it('returns undefined when no usable version is present', () => {
+    // Function version predating the DETAIL change — no version to advance to.
+    expect(getConflictServerVersion({ code: '40001', message: 'conflict' })).toBeUndefined();
+    expect(getConflictServerVersion({ code: '40001', details: 'not-a-number' })).toBeUndefined();
+    expect(getConflictServerVersion(null)).toBeUndefined();
   });
 });
 

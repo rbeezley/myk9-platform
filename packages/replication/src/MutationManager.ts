@@ -26,6 +26,7 @@ import {
 import { classifyMutationFailure } from './mutation-retry';
 import {
   classifyEmptyUpdateResult,
+  getConflictServerVersion,
   getReturnedServerVersion,
   isVersionConflictError,
   OccRejectionError,
@@ -666,13 +667,16 @@ export class MutationManager {
             `${tableName} rpc ${mutation.rpc.name}`
           );
           if (error) {
-            // A version-conflict raise (`40001`) carries no fresh token, and the
-            // raw error would dead-letter — leaving the local OCC token stale so
-            // the app regenerates the same conflicting write forever (CPU storm).
-            // Re-read the authoritative version and re-throw as an OccRejectionError
-            // so the conflict handler advances the token and backs off.
+            // A version-conflict raise (`40001`) would otherwise dead-letter,
+            // leaving the local OCC token stale so the app regenerates the same
+            // conflicting write forever (CPU storm). The RPC surfaces the current
+            // server version in the error DETAIL (error.details) — read it from
+            // there rather than a direct entries re-read, which the ringside
+            // caller's role (assigned judge / steward / passcode) may be denied.
+            // Re-throw as an OccRejectionError so the conflict handler advances
+            // the token and backs off.
             if (isVersionConflictError(error)) {
-              const fresh = await this.readServerVersion(tableName, data.id as string);
+              const fresh = getConflictServerVersion(error);
               throw new OccRejectionError(
                 tableName,
                 mutation.rowId,
@@ -782,30 +786,6 @@ export class MutationManager {
       // offline edit to the same row would carry a stale version and spuriously reject.
       ...(newServerVersion !== undefined && { serverVersion: newServerVersion }),
     });
-  }
-
-  /**
-   * Re-read the authoritative `version` for a row after a conflict, so a
-   * version-conflict RPC rejection (which raises rather than returning a token)
-   * can be re-thrown with a fresh OCC version. Bounded single read; returns
-   * undefined if the row is gone or the read fails.
-   */
-  private async readServerVersion(
-    tableName: string,
-    id: string
-  ): Promise<number | undefined> {
-    try {
-      const { data } = await withTimeout(
-        this.supabase.from(tableName).select('version').eq('id', id).maybeSingle(),
-        TIMEOUT_PRESETS.standard,
-        `${tableName} occ-check`
-      );
-      const version = (data as { version?: number } | null | undefined)?.version;
-      return typeof version === 'number' ? version : undefined;
-    } catch (err) {
-      this.logger.warn(`[MutationManager] readServerVersion failed for ${tableName}/${id}:`, err);
-      return undefined;
-    }
   }
 
   /**

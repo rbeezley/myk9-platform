@@ -41,6 +41,25 @@ export function isVersionConflictError(error: unknown): boolean {
   return false;
 }
 
+/**
+ * The authoritative current server version a conflict carries, if known. The
+ * `ringside_update_entry` RPC raises its `40001` with the current version in the
+ * Postgres DETAIL field (PostgREST surfaces it as `error.details`), because the
+ * ringside caller's own role may be denied a direct entries read and so cannot
+ * re-read the version itself. Returns undefined when no version is available
+ * (e.g. a function version predating that change), in which case the OCC token
+ * simply isn't advanced this round.
+ */
+export function getConflictServerVersion(error: unknown): number | undefined {
+  if (error instanceof OccRejectionError) return error.currentServerVersion;
+  if (typeof error !== 'object' || error === null) return undefined;
+  const candidate = error as { details?: unknown; detail?: unknown };
+  const raw = typeof candidate.details === 'string' ? candidate.details : candidate.detail;
+  if (typeof raw !== 'string') return undefined;
+  const parsed = Number(raw.trim());
+  return Number.isInteger(parsed) ? parsed : undefined;
+}
+
 export interface EmptyUpdateClassificationOptions {
   tableName: string;
   rowId: string;

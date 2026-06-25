@@ -19,24 +19,10 @@
  *    fixed to skip payment-method check for free entries
  */
 import { test, expect } from '@playwright/test';
-import { TEST_USERS } from '../helpers/testUsers';
+import { signInAsSecretary } from '../helpers/testUsers';
 
-// Auth: E2E_SECRETARY_EMAIL / E2E_SECRETARY_PASSWORD — matches clubsUI / trialsUI pattern
-const SECRETARY_EMAIL = TEST_USERS.SECRETARY.email;
-const SECRETARY_PASSWORD = TEST_USERS.SECRETARY.password;
+// Auth: shared SmartSignInPage helper (env-backed E2E_SECRETARY_* credentials).
 const TEST_SHOW_ID = '4ad95cdc-2c04-4386-8e0b-07b9111fcac3';
-
-async function signInAsSecretary(page: import('@playwright/test').Page) {
-  await page.goto('/sign-in');
-  await page.waitForSelector('input[type="email"]');
-  await page.locator('input[type="email"]').first().fill(SECRETARY_EMAIL);
-  await page.locator('input[type="password"]').first().fill(SECRETARY_PASSWORD);
-  await Promise.all([
-    page.waitForURL(url => !url.href.includes('/sign-in'), { timeout: 15000 }),
-    page.locator('button[type="submit"]').first().click(),
-  ]);
-  await page.waitForLoadState('networkidle');
-}
 
 test.describe('Secretary Entry Creation', () => {
   // Serial mode: the full-flow test writes a DB entry; parallel execution causes

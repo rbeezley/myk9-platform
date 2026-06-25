@@ -78,7 +78,7 @@ Launch requires:
 | Reports and official forms | Required AKC/UKC/ASCA scent-work reports/forms print correctly on representative hardware. | Report fixture tests; PDF/form verification; venue printer test. | Yellow — Reports render in-app and were exercised live 2026-06-18 (Check-in Sheet preview auto-renders; full report inventory with human labels — F5; Armband Labels, Score Sheet, Results Sheet, etc.). Submit Results electronic-submission (AKC XML) gated + previewable (F4-XML). **Gap:** "Print testing on venue hardware" still OPEN in `OPEN-TODOS.md` (label printer + laser margin/scaling) — not yet verified on representative hardware. |
 | UX clarity | Non-technical users know what to do next, can recover from mistakes, and do not need developer explanation. | Silent task-based user testing; confusion log; resolved P1/P2 UX findings. | Yellow — UX Journey Audit complete (recon + exhibitor + secretary + seams + synthesis, docs [`00`–`05`](../audits/2026-06-ux-journeys/) + [`SUMMARY.md`](../audits/2026-06-ux-journeys/SUMMARY.md)): all 23 findings remediated as link/tighten/repair (no new surfaces), gate APPROVED, Phase 6 time-to-task re-measure shows numbers moved with no regression. **Gap:** the actual silent task-based real-user testing + confusion log is **Lane 1.7** (not yet run) — this is the dimension's primary missing evidence. |
 | Operational readiness | Deploys, migrations, environment config, monitoring, rollback, and support paths are documented enough for launch. | Deployment checklist; migration history; staging smoke; support/runbook docs. | Yellow — Error observability live in production (Sentry SDK + PII scrubber + role-surface boundaries, [#723](https://github.com/rbeezley/myk9-platform/pull/723); end-to-end verified); launch-milestone QA checklist codified ([`launch-milestone-qa-checklist.md`](../launch-milestone-qa-checklist.md)); monthly dependency-audit cron; migration lineage tracked. **Gaps:** Stripe go-live runbook + treasurer onboarding guide open (Lane 4); CI-gated Vercel deploys + E2E-blocking not yet enabled (Lane 3); rollback path not yet rehearsed. |
-| Admin minimum | The platform owner can manage users, inspect shows, troubleshoot access, and recover from common operational issues. | Admin walkthrough; role/RLS checks; support scenarios. | Unknown — Not yet walked. The admin golden path has a lighter bar (support actions available or documented; not part of the UX journey audit) and its functional walkthrough is the QA-Program **step 4** close-out item, still pending. RLS hardening evidence exists (dogs/people tightening, restore RPCs, public-results gate) but no end-to-end admin support-scenario walk. |
+| Admin minimum | The platform owner can manage users, inspect shows, troubleshoot access, and recover from common operational issues. | Admin walkthrough; role/RLS checks; support scenarios. | Green (gated on live spot-check) — **Code+docs walkthrough done 2026-06-25** against the lighter bar (available **or** documented). All 5 capabilities clear it: (1) shows/users + (2) access/role fixes are full in-app SITE_ADMIN surfaces (`/admin/dashboard`, `/admin/users`, `/admin/permissions/*`, `/admin/role-requests`); (3) payments/sync/onboarding in-app (`/admin/payouts`, `/admin/sync`, `/admin/onboarding`) with failed-charge detail documented to the Stripe dashboard; (4) deploy/migration health documented in [`docs/operations/`](../operations/) + `/admin/performance`/`/admin/alerts`; (5) soft-delete restore in-app (`/admin/data-lifecycle`, SECURITY DEFINER RPCs / #790). The two SQL-only gaps — **user impersonation** (no UI; scaffolding only) and **arbitrary field repair** — are **explicitly accepted for fall** and documented in the new [`admin-support-runbook.md`](../operations/admin-support-runbook.md). **Residual:** a live happy-path click-through is still recommended but is blocked on a working SITE_ADMIN staging login (the named `admin@myk9t.com` account has no auth row). |
 | Test and CI health | Relevant tests pass consistently, `main` is deployable, and known flaky/hanging tests are documented. | `pnpm typecheck`; focused unit/e2e tests; CI status; known-issues list. | **Green** — Dynamic QA Phase 7 final regression green on a clean worktree (typecheck ✅, lint ✅, packages 11/11, app suite ~927 files / ~9061 tests, 0 fail); test-isolation campaign complete and `--sequence.shuffle` enabled in CI ([#749](https://github.com/rbeezley/myk9-platform/pull/749)/[#752](https://github.com/rbeezley/myk9-platform/pull/752)/[#755](https://github.com/rbeezley/myk9-platform/pull/755)/[#761](https://github.com/rbeezley/myk9-platform/pull/761), 18-seed sweep SHUFFLE-CLEAN); bundle-budget + a11y-smoke CI gates ([#738](https://github.com/rbeezley/myk9-platform/pull/738)/[#750](https://github.com/rbeezley/myk9-platform/pull/750), A11y smoke now a required check); code-quality ratchet baselines. Known watch-item: ~30 wall-clock perf asserts (reactive only). |
 
 ## Golden Path Criteria
@@ -222,19 +222,23 @@ Post-remediation status after the Lane 1.5 time-to-task re-measure:
 
 | Status | Dimensions |
 | --- | --- |
-| **Green** | Secretary golden path*, Exhibitor golden path*, Test and CI health |
+| **Green** | Secretary golden path*, Exhibitor golden path*, Test and CI health, Admin minimum† |
 | **Yellow** | Show-day reliability, Offline-first behavior, Data correctness, Reports and official forms, UX clarity, Operational readiness |
-| **Unknown** | Admin minimum |
+| **Unknown** | _(none)_ |
 | **Red** | _(none)_ |
 
 *Both golden paths are Green on walkthrough + audit evidence with no open P0/P1; they remain
 **gated on real-user testing (Lane 1.7)** before the overall launch gate ("real-user testing
 completed with no confusion-level findings") can close.
 
-**No Red dimensions and no open P0/P1.** The launch gate (all Primary Green + no Red + no P0/P1 +
-real-user testing done) is **not yet met** — the remaining work is the Yellow gaps plus the Admin
-walkthrough, all already tracked in `OPEN-TODOS.md` / the lane plan. The single biggest remaining
-launch gate is **real-user testing (Lane 1.7)**, which also supplies the missing UX-clarity evidence.
+†Admin minimum is Green on a **code+docs walkthrough** (2026-06-25) against its lighter bar, with the
+two SQL-only gaps accepted for fall + documented in [`admin-support-runbook.md`](../operations/admin-support-runbook.md);
+a live happy-path spot-check is still recommended, blocked only on a working SITE_ADMIN staging login.
+
+**No Red dimensions, no Unknown dimensions, and no open P0/P1.** The launch gate (all Primary Green +
+no Red + no P0/P1 + real-user testing done) is **not yet met** — the remaining work is the Yellow gaps,
+all already tracked in `OPEN-TODOS.md` / the lane plan. The single biggest remaining launch gate is
+**real-user testing (Lane 1.7)**, which also supplies the missing UX-clarity evidence.
 
 ### Next steps (in launch order)
 
@@ -245,7 +249,8 @@ The golden-path rows stay Green-gated-on-real-user-test until then.
 1. Close the Yellow gaps via the lanes: Secretary Operational UX (Lane 2), Pre-Launch Hardening
    (Lane 3 — `--success` token, E2E stability/blocking, CI-deploys, judge directory), Payments
    Go-Live (Lane 4), Architecture/Data (Lane 5).
-2. Run the **Admin** functional walkthrough (QA-Program step 4) to clear the last Unknown — not gated
-   on the lanes, can run any time.
+2. ~~Run the **Admin** functional walkthrough (QA-Program step 4) to clear the last Unknown~~ — **DONE
+   2026-06-25** (code+docs walk; row now Green†). Optional fast-follow: a live happy-path spot-check
+   once a SITE_ADMIN staging login exists.
 3. **Final gate — real-user testing** (2–3 non-technical users): closes the overall launch criterion
    + the UX-clarity dimension. Run after #1.

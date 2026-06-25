@@ -95,12 +95,19 @@ export async function startAnonymousRingsideSession(
   // empty result gets cached with nothing re-triggering a sync. Without this,
   // /at-show shows "No Entries Yet" for a passcode judge. Re-sync the per-show
   // tables now, under the stamped session, so the run order + entries load.
-  // Offline-tolerant: allSettled swallows failures (the page falls back to cache
-  // and re-syncs when back online). `sync()` scopes by show_id (= showId here).
+  //
+  // Scope differs per table: trials and entries sync by show_id (so showId works
+  // directly), but classes sync by TRIAL_ID — so sync trials first, then sync
+  // classes per trial (passing showId to classes.sync is a no-op). Offline-
+  // tolerant: allSettled swallows failures (the page falls back to cache and
+  // re-syncs when back online).
   await Promise.allSettled([
-    replicatedTrialsTable.sync(result.showId),
-    replicatedClassesTable.sync(result.showId),
     replicatedEntriesTable.sync(result.showId),
+    (async () => {
+      await replicatedTrialsTable.sync(result.showId);
+      const trials = await replicatedTrialsTable.getTrialsByShow(result.showId);
+      await Promise.allSettled(trials.map(trial => replicatedClassesTable.sync(trial.id)));
+    })(),
   ]);
 
   return result;

@@ -38,8 +38,12 @@ vi.mock('./validatePasscode', () => ({
 const trialsSync = vi.fn();
 const classesSync = vi.fn();
 const entriesSync = vi.fn();
+const getTrialsByShow = vi.fn();
 vi.mock('@/services/replication', () => ({
-  replicatedTrialsTable: { sync: (...a: unknown[]) => trialsSync(...a) },
+  replicatedTrialsTable: {
+    sync: (...a: unknown[]) => trialsSync(...a),
+    getTrialsByShow: (...a: unknown[]) => getTrialsByShow(...a),
+  },
   replicatedClassesTable: { sync: (...a: unknown[]) => classesSync(...a) },
   replicatedEntriesTable: { sync: (...a: unknown[]) => entriesSync(...a) },
 }));
@@ -71,6 +75,7 @@ describe('startAnonymousRingsideSession', () => {
     trialsSync.mockResolvedValue({});
     classesSync.mockResolvedValue({});
     entriesSync.mockResolvedValue({});
+    getTrialsByShow.mockResolvedValue([{ id: 'trial-1' }, { id: 'trial-2' }]);
   });
 
   it('signs in anonymously, validates, then refreshes so the JWT carries the claim', async () => {
@@ -92,9 +97,13 @@ describe('startAnonymousRingsideSession', () => {
 
     await startAnonymousRingsideSession('jh3k9');
 
+    // Trials + entries scope by show_id; classes scope by TRIAL_id, so classes
+    // must be synced per trial (passing showId would be a no-op).
     expect(entriesSync).toHaveBeenCalledWith('show-x');
-    expect(classesSync).toHaveBeenCalledWith('show-x');
     expect(trialsSync).toHaveBeenCalledWith('show-x');
+    expect(classesSync).toHaveBeenCalledWith('trial-1');
+    expect(classesSync).toHaveBeenCalledWith('trial-2');
+    expect(classesSync).not.toHaveBeenCalledWith('show-x');
   });
 
   it('does NOT re-sync when the session is never stamped (fails closed first)', async () => {

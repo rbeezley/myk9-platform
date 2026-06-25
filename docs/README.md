@@ -63,6 +63,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-lane-2-2-entry-multiselect.md](plan-lane-2-2-entry-multiselect.md)                   | Active    | Plan: Lane 2.2 — Entry Management checkbox multi-select               |
 | [plan-launch-execution-lanes.md](plan-launch-execution-lanes.md)                           | Active    | Plan: Fall Launch — Execution Lanes (canonical to-do)                 |
 | [plan-phase4-seam-render-only.md](plan-phase4-seam-render-only.md)                         | Active    | Plan: Phase 4 seam render-only read strategy                          |
+| [plan-public-default-landing.md](plan-public-default-landing.md)                           | Active    | Plan: Public Default Landing                                          |
 | [plan-public-results-release-gate.md](plan-public-results-release-gate.md)                 | Active    | Plan: Server-side gate for public/anon scored results                 |
 | [plan-remove-unified-ringside-flag.md](plan-remove-unified-ringside-flag.md)               | Active    | Remove the `unified_ringside_enabled` feature flag (unblocks docs)    |
 | [plan-replication-insert-idempotency.md](plan-replication-insert-idempotency.md)           | Active    | Replication INSERT retry idempotency — investigation verdict (B)      |

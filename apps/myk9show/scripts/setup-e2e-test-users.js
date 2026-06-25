@@ -45,8 +45,20 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
   }
 });
 
-// Simple shared password for all test accounts
-const TEST_PASSWORD = 'Test1234!';
+// Shared password for all test accounts — env-only; never spell a live shared
+// credential into source (the last literal here was leaked + rotated 2026-06-25).
+// Set E2E_TEST_PASSWORD (or any E2E_*_PASSWORD) before running; the value must
+// pass length + complexity + HaveIBeenPwned checks GoTrue enforces.
+const TEST_PASSWORD =
+  process.env.E2E_TEST_PASSWORD ||
+  process.env.E2E_SECRETARY_PASSWORD ||
+  process.env.E2E_DEMO_EXHIBITOR_PASSWORD;
+if (!TEST_PASSWORD) {
+  console.error(
+    'Refusing to run: set E2E_TEST_PASSWORD (or E2E_SECRETARY_PASSWORD) first — see apps/myk9show/.env.local'
+  );
+  process.exit(1);
+}
 
 // Test users to create
 const TEST_USERS = [
@@ -162,6 +174,24 @@ async function createTestUser(user) {
     if (existingUser) {
       console.log(`  Auth user exists: ${existingUser.id}`);
       userId = existingUser.id;
+
+      // Reset the password so re-running this script actually converges existing
+      // accounts onto TEST_PASSWORD — otherwise it prints the new password but
+      // leaves the auth user on its prior one.
+      const { error: updateError } = await supabase.auth.admin.updateUserById(userId, {
+        password: TEST_PASSWORD,
+        email_confirm: true,
+        user_metadata: {
+          first_name: firstName,
+          last_name: lastName
+        }
+      });
+
+      if (updateError) {
+        throw new Error(`Auth password update failed: ${updateError.message}`);
+      }
+
+      console.log(`  Auth password reset to TEST_PASSWORD`);
     } else {
       // Create new auth user
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({

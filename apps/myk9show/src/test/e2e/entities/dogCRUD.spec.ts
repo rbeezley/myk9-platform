@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { TEST_USERS } from '../helpers/testUsers';
+import { TEST_USERS, signInAsSecretary } from '../helpers/testUsers';
 
 /**
  * feature-audit: authenticated dog service CRUD through the browser bundle.
@@ -10,23 +10,9 @@ import { TEST_USERS } from '../helpers/testUsers';
  * - soft_delete_dog RPC enforces the same ownership/elevated-role trust model.
  */
 
-const SECRETARY_EMAIL = TEST_USERS.SECRETARY.email;
-const SECRETARY_PASSWORD = TEST_USERS.SECRETARY.password;
-// People-table lookup key — must be the same account we authenticate as.
+// Look up the person row for the account we actually sign in as, so the owner
+// id used below matches the signed-in secretary's RLS identity.
 const TEST_SECRETARY_EMAIL = TEST_USERS.SECRETARY.email;
-
-async function signIn(page: Page, email: string, password: string) {
-  await page.goto('/sign-in', { waitUntil: 'networkidle' });
-  await page.getByTestId('email-input').fill(email);
-  await page.getByTestId('password-input').fill(password);
-  await page.getByTestId('sign-in-button').click();
-  await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
-  await page.waitForLoadState('networkidle');
-}
-
-async function signInAsSecretary(page: Page) {
-  await signIn(page, SECRETARY_EMAIL, SECRETARY_PASSWORD);
-}
 
 async function getSecretaryPersonId(page: Page): Promise<string> {
   const personId = await page.evaluate(async email => {

@@ -1,5 +1,5 @@
-import { test, expect, Page } from '@playwright/test';
-import { TEST_USERS } from '../helpers/testUsers';
+import { test, expect } from '@playwright/test';
+import { signInAsSecretary } from '../helpers/testUsers';
 
 /**
  * UI-driven e2e walk through the secretary's Show Creation Wizard.
@@ -13,26 +13,11 @@ import { TEST_USERS } from '../helpers/testUsers';
  *     used to be parsed as local time in west-of-UTC zones and shifted the
  *     visible day forward (Apr 26, 2026).
  *
- * Auth: E2E_SECRETARY_EMAIL / E2E_SECRETARY_PASSWORD (CI secrets / .env.local).
+ * Auth: secretary@myk9t.com / TestPass4567! (matches showsUI.spec.ts).
  */
 
 test.describe.configure({ mode: 'serial' });
 
-const SECRETARY_EMAIL = TEST_USERS.SECRETARY.email;
-const SECRETARY_PASSWORD = TEST_USERS.SECRETARY.password;
-
-async function signIn(page: Page, email: string, password: string) {
-  await page.goto('/sign-in', { waitUntil: 'networkidle' });
-  await page.getByTestId('email-input').fill(email);
-  await page.getByTestId('password-input').fill(password);
-  await page.getByTestId('sign-in-button').click();
-  await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
-  await page.waitForLoadState('networkidle');
-}
-
-async function signInAsSecretary(page: Page) {
-  await signIn(page, SECRETARY_EMAIL, SECRETARY_PASSWORD);
-}
 
 // ---------------------------------------------------------------------------
 // Step 1 — Show Details

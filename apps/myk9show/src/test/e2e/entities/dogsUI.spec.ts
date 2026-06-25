@@ -1,5 +1,5 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
-import { TEST_USERS } from '../helpers/testUsers';
+import { signInAsSecretary, signInAsExhibitor } from '../helpers/testUsers';
 
 /**
  * UI-driven e2e tests for the Dogs section — secretary role.
@@ -36,33 +36,11 @@ const RUN_ID = Date.now();
 const DOG_A_NAME = `E2E Dog A ${RUN_ID}`;
 const DOG_B_NAME = `E2E Dog B ${RUN_ID}`;
 
-const SECRETARY_EMAIL = TEST_USERS.SECRETARY.email;
-const SECRETARY_PASSWORD = TEST_USERS.SECRETARY.password;
-const EXHIBITOR_EMAIL = TEST_USERS.EXHIBITOR.email;
-const EXHIBITOR_PASSWORD = TEST_USERS.EXHIBITOR.password;
-
 // Test Secretary's person ID in the DB — used to select owner in the Create form.
 // This is the person linked to the secretary fixture (E2E_SECRETARY_EMAIL).
 const TEST_SECRETARY_PERSON_NAME = 'Test Secretary';
 // Alice Martin (exhibitor fixture) — used as a non-self owner.
 const ALICE_MARTIN_NAME = 'Alice Martin';
-
-async function signIn(page: Page, email: string, password: string) {
-  await page.goto('/sign-in', { waitUntil: 'networkidle' });
-  await page.getByTestId('email-input').fill(email);
-  await page.getByTestId('password-input').fill(password);
-  await page.getByTestId('sign-in-button').click();
-  await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
-  await page.waitForLoadState('networkidle');
-}
-
-async function signInAsSecretary(page: Page) {
-  await signIn(page, SECRETARY_EMAIL, SECRETARY_PASSWORD);
-}
-
-async function signInAsExhibitor(page: Page) {
-  await signIn(page, EXHIBITOR_EMAIL, EXHIBITOR_PASSWORD);
-}
 
 async function clickVisibleOption(page: Page, trigger: Locator, optionText: RegExp | string) {
   const listId = await trigger.getAttribute('aria-controls');
@@ -174,13 +152,15 @@ test.describe('Dogs UI — Browse (secretary)', () => {
     // "New Dog" button visible for secretary
     await expect(page.getByRole('button', { name: 'New Dog' })).toBeVisible();
 
-    // Filter chips visible
-    await expect(page.getByRole('button', { name: /Breed/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Gender/i })).toBeVisible();
+    // Filter chips visible — scope to the FilterChips region so a chip label
+    // (e.g. "Breed") doesn't collide with the table's "Breed" column header.
+    const filterChips = page.getByTestId('filter-chips');
+    await expect(filterChips.getByRole('button', { name: /Breed/i })).toBeVisible();
+    await expect(filterChips.getByRole('button', { name: /Gender/i })).toBeVisible();
 
-    // View toggle
-    await expect(page.getByRole('button', { name: 'Cards' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Table' })).toBeVisible();
+    // View toggle — exact aria-label avoids matching "Reset table view".
+    await expect(page.getByRole('button', { name: 'Cards view', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Table view', exact: true })).toBeVisible();
   });
 
   test('search filters the dog list', async ({ page }) => {
@@ -194,15 +174,17 @@ test.describe('Dogs UI — Browse (secretary)', () => {
 
   test('breed filter chip applies and shows filtered count', async ({ page }) => {
     await gotoDogsBrowse(page);
-    // FilterChips renders plain button elements in its dropdown (no ARIA role="option")
-    await page.getByRole('button', { name: /Breed/i }).click();
+    // FilterChips renders plain button elements in its dropdown (no ARIA role="option").
+    // Scope the chip to the FilterChips region so "Breed" doesn't also match the
+    // table's "Breed" column header.
+    await page.getByTestId('filter-chips').getByRole('button', { name: /Breed/i }).click();
     await page.getByRole('button', { name: 'Golden Retriever', exact: true }).click();
     await expect(page.getByText(/of \d+ dogs \(filtered\)/)).toBeVisible();
   });
 
   test('table view renders dog columns', async ({ page }) => {
     await gotoDogsBrowse(page);
-    await page.getByRole('button', { name: 'Table' }).click();
+    await page.getByRole('button', { name: 'Table view', exact: true }).click();
     await expect(page.getByRole('columnheader', { name: /Name/i })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: /Breed/i })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: /Owner/i })).toBeVisible();

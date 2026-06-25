@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { TEST_USERS } from '../helpers/testUsers';
+import { TEST_USERS, signInAsSecretary, signInAsAdmin } from '../helpers/testUsers';
 
 /**
  * UI-driven e2e tests for the People section — secretary role.
@@ -27,27 +27,9 @@ const ADMIN_PERSON_LAST = `Adminperson ${RUN_ID}`;
 const ADMIN_PERSON_EMAIL = `e2e.admin.${RUN_ID}@example.com`;
 const DOG_NAME = `E2E PeopleDog ${RUN_ID}`;
 
-const SECRETARY_EMAIL = TEST_USERS.SECRETARY.email;
-const SECRETARY_PASSWORD = TEST_USERS.SECRETARY.password;
+// Admin lifecycle coverage is gated on the env-backed admin account being set.
 const ADMIN_EMAIL = TEST_USERS.SITE_ADMIN.email;
 const ADMIN_PASSWORD = TEST_USERS.SITE_ADMIN.password;
-
-async function signIn(page: Page, email: string, password: string) {
-  await page.goto('/sign-in', { waitUntil: 'networkidle' });
-  await page.getByTestId('email-input').fill(email);
-  await page.getByTestId('password-input').fill(password);
-  await page.getByTestId('sign-in-button').click();
-  await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
-  await page.waitForLoadState('networkidle');
-}
-
-async function signInAsSecretary(page: Page) {
-  await signIn(page, SECRETARY_EMAIL, SECRETARY_PASSWORD);
-}
-
-async function signInAsAdmin(page: Page) {
-  await signIn(page, ADMIN_EMAIL, ADMIN_PASSWORD);
-}
 
 async function gotoPeopleBrowse(page: Page) {
   await page.goto('/people', { waitUntil: 'networkidle' });
@@ -69,9 +51,13 @@ test.describe('People UI — Browse (secretary)', () => {
     await gotoPeopleBrowse(page);
     await expect(page.getByRole('button', { name: 'New Person' })).toBeVisible();
     await expect(page.getByPlaceholder('Search people by name or email...')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Filter' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Grid' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Table' })).toBeVisible();
+    // The toolbar renders a "Role" FilterChip and the standard Cards/Table view
+    // toggle (BrowsePeoplePage uses the default CARD_TABLE_MODES). Scope the chip
+    // and target the toggles by exact aria-label ("Table view" not "Table", which
+    // also matches "Reset table view").
+    await expect(page.getByTestId('filter-chips').getByRole('button', { name: 'Role' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Cards view', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Table view', exact: true })).toBeVisible();
     await expect(page.getByText(/of \d+ (people|person)/)).toBeVisible();
   });
 
@@ -111,7 +97,7 @@ test.describe('People UI — Browse (secretary)', () => {
 
   test('table view renders columns', async ({ page }) => {
     await gotoPeopleBrowse(page);
-    await page.getByRole('button', { name: 'Table' }).click();
+    await page.getByRole('button', { name: 'Table view', exact: true }).click();
     await expect(page.getByRole('columnheader', { name: /Name/i })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: /Email/i })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: /Roles/i })).toBeVisible();

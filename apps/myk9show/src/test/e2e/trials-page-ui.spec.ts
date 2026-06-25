@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { TEST_USERS } from './helpers/testUsers';
+import { signInAsSecretary } from './helpers/testUsers';
 
 /**
  * E2E Tests for Trials Page UI/UX Improvements
@@ -13,27 +13,11 @@ import { TEST_USERS } from './helpers/testUsers';
  * - Empty state shows icon and improved messaging
  * - Search has shortened placeholder
  * - In Progress status badge has animation
- *
- * Auth: E2E_DEMO_EXHIBITOR_* (seeded exhibitor; CI secrets / .env.local).
  */
 
-// Test user credentials — sourced from env via the shared TEST_USERS helper.
-const testUser = {
-  email: TEST_USERS.DEMO_EXHIBITOR.email,
-  password: TEST_USERS.DEMO_EXHIBITOR.password,
-};
-
-// Helper function to login
+// Helper function to login — delegates to the shared SmartSignInPage flow.
 async function login(page: Page) {
-  await page.goto('/sign-in', { waitUntil: 'networkidle' });
-
-  await page.waitForSelector('[data-testid="email-input"]', { state: 'visible', timeout: 10000 });
-  await page.fill('[data-testid="email-input"]', testUser.email);
-  await page.fill('[data-testid="password-input"]', testUser.password);
-  await page.click('[data-testid="sign-in-button"]');
-
-  await page.waitForURL('/', { timeout: 15000 });
-  await page.waitForLoadState('networkidle');
+  await signInAsSecretary(page);
 }
 
 // Helper to navigate to a trial page

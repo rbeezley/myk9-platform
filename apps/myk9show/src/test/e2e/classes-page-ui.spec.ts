@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { TEST_USERS } from './helpers/testUsers';
+import { TEST_USERS, signIn } from './helpers/testUsers';
 
 /**
  * E2E Tests for Classes Page UI Improvements
@@ -11,35 +11,16 @@ import { TEST_USERS } from './helpers/testUsers';
  * - Status changes functionality
  * - Progress indicators display
  * - Mobile responsiveness
- *
- * Auth: E2E_DEMO_EXHIBITOR_* (seeded exhibitor) + E2E_ADMIN_* (CI secrets / .env.local).
  */
 
-// Test user credentials — sourced from env via the shared TEST_USERS helper.
-const testUser = {
-  email: TEST_USERS.DEMO_EXHIBITOR.email,
-  password: TEST_USERS.DEMO_EXHIBITOR.password,
-};
+// Canonical env-backed test accounts (the *@myk9t.com accounts have no
+// auth.users row and cannot authenticate).
+const testUser = TEST_USERS.DEMO_EXHIBITOR;
+const adminUser = TEST_USERS.SITE_ADMIN;
 
-const adminUser = {
-  email: TEST_USERS.SITE_ADMIN.email,
-  password: TEST_USERS.SITE_ADMIN.password,
-};
-
-// Helper function to login
+// Helper function to login — delegates to the shared SmartSignInPage flow.
 async function login(page: Page, user = testUser) {
-  await page.goto('/sign-in', { waitUntil: 'networkidle' });
-
-  await page.waitForSelector('[data-testid="email-input"]', {
-    state: 'visible',
-    timeout: 10000,
-  });
-  await page.fill('[data-testid="email-input"]', user.email);
-  await page.fill('[data-testid="password-input"]', user.password);
-  await page.click('[data-testid="sign-in-button"]');
-
-  await page.waitForURL('/', { timeout: 15000 });
-  await page.waitForLoadState('networkidle');
+  await signIn(page, user.email, user.password);
 }
 
 // Helper to navigate to a class details page

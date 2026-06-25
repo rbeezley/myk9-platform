@@ -1,4 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
+import { signInAsAdmin, signInAsExhibitor } from '../helpers/testUsers';
 
 /**
  * Comprehensive UI test for the Clubs section.
@@ -29,25 +30,6 @@ const CLUB_C_NAME = `E2E Club C ${RUN_ID}`;
 // Tests skip automatically via skipWithoutAdminCredentials() when env vars are absent.
 const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? '';
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? '';
-const EXHIBITOR_EMAIL = process.env.E2E_EXHIBITOR_EMAIL ?? 'e2e-exhibitor@test.myk9.com';
-const EXHIBITOR_PASSWORD = process.env.E2E_EXHIBITOR_PASSWORD ?? '';
-
-async function signIn(page: Page, email: string, password: string) {
-  await page.goto('/sign-in', { waitUntil: 'networkidle' });
-  await page.getByTestId('email-input').fill(email);
-  await page.getByTestId('password-input').fill(password);
-  await page.getByTestId('sign-in-button').click();
-  await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
-  await page.waitForLoadState('networkidle');
-}
-
-async function signInAsAdmin(page: Page) {
-  await signIn(page, ADMIN_EMAIL, ADMIN_PASSWORD);
-}
-
-async function signInAsExhibitor(page: Page) {
-  await signIn(page, EXHIBITOR_EMAIL, EXHIBITOR_PASSWORD);
-}
 
 function skipWithoutAdminCredentials() {
   test.skip(
@@ -161,18 +143,22 @@ test.describe('Clubs UI — Browse Page', () => {
     await gotoClubsBrowse(page);
     await expect(page.getByRole('button', { name: 'New Club' })).toBeVisible();
     await expect(page.getByRole('textbox', { name: /Search clubs by name/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Club Type/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Cards' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Table' })).toBeVisible();
+    // Scope the chip to the FilterChips region; target view toggles by exact
+    // aria-label ("Table view" not "Table", which also matches "Reset table view").
+    await expect(
+      page.getByTestId('filter-chips').getByRole('button', { name: /Club Type/ })
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Cards view', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Table view', exact: true })).toBeVisible();
   });
 
   test('view toggle switches between cards and table', async ({ page }) => {
     await gotoClubsBrowse(page);
-    await page.getByRole('button', { name: 'Table' }).click();
-    // In table mode, Table button should be active (has aria-pressed or visual variant)
-    await expect(page.getByRole('button', { name: 'Cards' })).toBeVisible();
-    await page.getByRole('button', { name: 'Cards' }).click();
-    await expect(page.getByRole('button', { name: 'Table' })).toBeVisible();
+    await page.getByRole('button', { name: 'Table view', exact: true }).click();
+    // In table mode, the Cards toggle should still be present to switch back.
+    await expect(page.getByRole('button', { name: 'Cards view', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Cards view', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Table view', exact: true })).toBeVisible();
   });
 
   test('search input filters list', async ({ page }) => {

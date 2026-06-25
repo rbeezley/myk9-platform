@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { TEST_USERS } from '../helpers/testUsers';
+import { TEST_USERS, signInAsSecretary } from '../helpers/testUsers';
 
 /**
  * UI test for the secretary mail-in registration wizard.
@@ -15,7 +15,7 @@ import { TEST_USERS } from '../helpers/testUsers';
  *     enrollment filed under the dog's owner (not the secretary).
  *   - DB verification that the entry carries a non-zero entry_fee (PR #75).
  *
- * Auth: E2E_SECRETARY_EMAIL / E2E_SECRETARY_PASSWORD (CI secrets / .env.local).
+ * Auth: secretary@myk9t.com / TestPass4567!
  *
  * Out of scope (require multi-user / role-swap fixtures):
  *   - currentWorkflowMode reset on role change
@@ -24,6 +24,8 @@ import { TEST_USERS } from '../helpers/testUsers';
 
 test.describe.configure({ mode: 'serial' });
 
+// Token fetch (self-healing cleanup below) needs a real authenticating account;
+// the canonical secretary fixture's credentials are env-backed.
 const SECRETARY_EMAIL = TEST_USERS.SECRETARY.email;
 const SECRETARY_PASSWORD = TEST_USERS.SECRETARY.password;
 
@@ -43,19 +45,6 @@ const BRAVO_DOG_ID = '601fd260-6dc5-479e-acd5-29533814797a';
 const SUPABASE_URL = 'https://sojmvhhwsjxmfistvzbe.supabase.co';
 const SUPABASE_ANON_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNvam12aGh3c2p4bWZpc3R2emJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc0NzQ2MTIsImV4cCI6MjA4MzA1MDYxMn0.pvp1GntQfar0aGdTDl4-4aFoEjQkdmK2kDvxLI6oxHA';
-
-async function signIn(page: Page, email: string, password: string) {
-  await page.goto('/sign-in', { waitUntil: 'networkidle' });
-  await page.getByTestId('email-input').fill(email);
-  await page.getByTestId('password-input').fill(password);
-  await page.getByTestId('sign-in-button').click();
-  await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
-  await page.waitForLoadState('networkidle');
-}
-
-async function signInAsSecretary(page: Page) {
-  await signIn(page, SECRETARY_EMAIL, SECRETARY_PASSWORD);
-}
 
 async function gotoRegistrationWizard(page: Page) {
   await page.goto(`/secretary/register/${SHOW_ID}`, { waitUntil: 'networkidle' });

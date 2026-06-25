@@ -1,5 +1,5 @@
-import { test, expect, Page } from '@playwright/test';
-import { TEST_USERS } from '../helpers/testUsers';
+import { test, expect } from '@playwright/test';
+import { signInAsSecretary } from '../helpers/testUsers';
 
 /**
  * UI-driven e2e tests for the Shows section — secretary role.
@@ -11,29 +11,12 @@ import { TEST_USERS } from '../helpers/testUsers';
  *     classCreationStore → Supabase fix: the page used to render "0 classes"
  *     against any trial not created in the same browser session.
  *
- * Auth: E2E_SECRETARY_EMAIL / E2E_SECRETARY_PASSWORD (CI secrets / .env.local).
+ * Auth: env-backed canonical secretary (see helpers/testUsers signInAsSecretary).
  */
 
 test.describe.configure({ mode: 'serial' });
 
-const SECRETARY_EMAIL = TEST_USERS.SECRETARY.email;
-const SECRETARY_PASSWORD = TEST_USERS.SECRETARY.password;
 const QA_PREMIUM_MONOGRAM_SHOW_ID = '5d8bfe56-a48d-48dd-ae75-7f90c2e02c4f';
-
-async function signIn(page: Page, email: string, password: string) {
-  await page.goto('/sign-in', { waitUntil: 'networkidle' });
-  await page.getByTestId('email-input').fill(email);
-  await page.getByTestId('password-input').fill(password);
-  await page.getByTestId('sign-in-button').click();
-  await page.waitForURL(url => !url.pathname.includes('/sign-in'), {
-    timeout: 15000,
-  });
-  await page.waitForLoadState('networkidle');
-}
-
-async function signInAsSecretary(page: Page) {
-  await signIn(page, SECRETARY_EMAIL, SECRETARY_PASSWORD);
-}
 
 // ---------------------------------------------------------------------------
 // Browse
@@ -50,14 +33,17 @@ test.describe('Shows UI — Browse (secretary)', () => {
     await expect(page.getByRole('button', { name: 'New Show' })).toBeVisible();
     await expect(page.getByPlaceholder('Search shows by name, location, or club...')).toBeVisible();
 
-    // Filter chips
+    // Filter chips — scope to the FilterChips region so a chip label (e.g.
+    // "Club") doesn't collide with a table column-header button ("Host Club").
+    const filterChips = page.getByTestId('filter-chips');
     for (const label of ['Discipline', 'Entry Status', 'Date Range', 'Club']) {
-      await expect(page.getByRole('button', { name: label })).toBeVisible();
+      await expect(filterChips.getByRole('button', { name: label })).toBeVisible();
     }
 
-    // View toggles
+    // View toggles — target the exact aria-label ("<Mode> view") so "Table"
+    // doesn't also match the "Reset table view" button.
     for (const view of ['Cards', 'Table', 'Calendar']) {
-      await expect(page.getByRole('button', { name: view, exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: `${view} view`, exact: true })).toBeVisible();
     }
 
     // Tabs

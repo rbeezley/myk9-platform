@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { TEST_USERS } from '../helpers/testUsers';
+import { signInAsSecretary } from '../helpers/testUsers';
 
 /**
  * UI tests for the Trials feature (secretary role).
@@ -26,28 +26,12 @@ import { TEST_USERS } from '../helpers/testUsers';
  *   - All cleanup runs in afterEach so the parent show stays tidy even if a
  *     UI flow aborts mid-test.
  *
- * Auth: E2E_SECRETARY_EMAIL / E2E_SECRETARY_PASSWORD (CI secrets / .env.local).
+ * Auth: secretary@myk9t.com / TestPass4567! (matches clubsUI / dogsUI / peopleUI).
  */
 
 test.describe.configure({ mode: 'serial' });
 
-const SECRETARY_EMAIL = TEST_USERS.SECRETARY.email;
-const SECRETARY_PASSWORD = TEST_USERS.SECRETARY.password;
-
 const RUN_ID = Date.now();
-
-async function signIn(page: Page, email: string, password: string) {
-  await page.goto('/sign-in', { waitUntil: 'networkidle' });
-  await page.getByTestId('email-input').fill(email);
-  await page.getByTestId('password-input').fill(password);
-  await page.getByTestId('sign-in-button').click();
-  await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
-  await page.waitForLoadState('networkidle');
-}
-
-async function signInAsSecretary(page: Page) {
-  return signIn(page, SECRETARY_EMAIL, SECRETARY_PASSWORD);
-}
 
 interface SeededTrial {
   showId: string;

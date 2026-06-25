@@ -1,6 +1,6 @@
 import { test } from '@playwright/test';
 import { ShowTestHelper } from './helpers/showTestHelper';
-import { TEST_USERS } from './helpers/testUsers';
+import { signInAsSecretary } from './helpers/testUsers';
 
 test.describe('Phase 2: Quick Show Management Test', () => {
   let showHelper: ShowTestHelper;
@@ -14,32 +14,9 @@ test.describe('Phase 2: Quick Show Management Test', () => {
   test('should load sign-in page and authenticate', async ({ page }) => {
     console.log('Starting authentication test...');
 
-    // Navigate directly to sign-in page
-    console.log('Navigating to sign-in page...');
-    await page.goto('/sign-in', {
-      waitUntil: 'domcontentloaded',
-      timeout: 30000,
-    });
-
-    // Wait for the page to load
-    console.log('Waiting for sign-in form...');
-    await page.waitForSelector('[data-testid="email-input"]', {
-      state: 'visible',
-      timeout: 15000,
-    });
-
-    // Fill in credentials
-    console.log('Filling credentials...');
-    await page.fill('[data-testid="email-input"]', TEST_USERS.SECRETARY.email);
-    await page.fill('[data-testid="password-input"]', TEST_USERS.SECRETARY.password);
-
-    // Submit form
-    console.log('Clicking sign in...');
-    await page.click('[data-testid="sign-in-button"]');
-
-    // Wait for navigation
-    console.log('Waiting for navigation...');
-    await page.waitForURL('/', { timeout: 15000 });
+    // Drive the shared SmartSignInPage sign-in flow as the secretary fixture.
+    console.log('Signing in...');
+    await signInAsSecretary(page);
 
     console.log('Authentication successful!');
 

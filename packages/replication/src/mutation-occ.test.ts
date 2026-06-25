@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   classifyEmptyUpdateResult,
   getReturnedServerVersion,
+  isVersionConflictError,
   OccRejectionError,
 } from './mutation-occ';
 
@@ -15,6 +16,31 @@ describe('OccRejectionError', () => {
     expect(error.tableName).toBe('entries');
     expect(error.rowId).toBe('entry-1');
     expect(error.expectedVersion).toBe(7);
+  });
+
+  it('carries the freshly re-read server version for token advancement', () => {
+    const error = new OccRejectionError('entries', 'entry-1', 3, 8);
+    expect(error.currentServerVersion).toBe(8);
+  });
+});
+
+describe('isVersionConflictError', () => {
+  it('matches the raw 40001 the ringside RPC raises (by code or message)', () => {
+    expect(isVersionConflictError({ code: '40001', message: 'whatever' })).toBe(true);
+    expect(
+      isVersionConflictError({ message: 'Version conflict updating entry e (expected 3)' })
+    ).toBe(true);
+  });
+
+  it('matches an already-classified OccRejectionError', () => {
+    expect(isVersionConflictError(new OccRejectionError('entries', 'e', 3, 8))).toBe(true);
+  });
+
+  it('does not match unrelated errors (RLS denial, nullish)', () => {
+    expect(isVersionConflictError({ code: '42501', message: 'Not authorized' })).toBe(false);
+    expect(isVersionConflictError(new Error('RLS policy blocked'))).toBe(false);
+    expect(isVersionConflictError(null)).toBe(false);
+    expect(isVersionConflictError(undefined)).toBe(false);
   });
 });
 

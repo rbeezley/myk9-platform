@@ -129,6 +129,12 @@ export interface PendingMutation {
   /** @internal Set by MutationManager; do not read or mutate externally. */
   nextRetryAt?: number;
 
+  /** @internal Count of OCC (version-conflict) rejections for this mutation.
+   *  Drives exponential backoff on the conflict path so an unresolved conflict
+   *  is throttled (not dead-lettered — it stays queued for user reconciliation).
+   *  Distinct from `retries`, which governs the dead-lettering retry cap. */
+  occRetries?: number;
+
   /** When the mutation was moved to the failed_mutations store (permanent failure) */
   failedAt?: number;
 

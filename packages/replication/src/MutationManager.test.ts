@@ -558,6 +558,109 @@ describe('MutationManager', () => {
   });
 
   // ========================================
+  // RPC VERSION-CONFLICT STORM
+  // ========================================
+
+  describe('RPC version-conflict handling', () => {
+    /** Mock the post-conflict `from(table).select('version').eq('id', id).maybeSingle()` re-read. */
+    function mockVersionReread(version: number) {
+      vi.mocked(mockSupabase.from).mockReturnValue({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            maybeSingle: vi.fn(() => Promise.resolve({ data: { version }, error: null })),
+          })),
+        })),
+      } as unknown as ReturnType<typeof mockSupabase.from>);
+    }
+
+    function mockRpcVersionConflict(rowId: string, expected: number) {
+      vi.mocked(mockSupabase.rpc).mockResolvedValue({
+        data: null,
+        error: { message: `Version conflict updating entry ${rowId} (expected ${expected})`, code: '40001' },
+      } as unknown as Awaited<ReturnType<typeof mockSupabase.rpc>>);
+    }
+
+    it('advances the replicated row OCC token to the fresh server version on an RPC conflict', async () => {
+      // Stale local token (3) while the server is at 8 — the storm precondition.
+      await mockDb.put(REPLICATION_STORES.REPLICATED_TABLES, {
+        tableName: 'entries',
+        id: 'entry-occ',
+        data: { id: 'entry-occ' },
+        version: 4,
+        serverVersion: 3,
+        lastSyncedAt: 0,
+        lastAccessedAt: 0,
+        isDirty: true,
+        syncStatus: 'pending',
+      } as ReplicatedRow<{ id: string }>);
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({
+          id: 'mut-occ',
+          rowId: 'entry-occ',
+          data: { id: 'entry-occ', run_order: 3 },
+          serverVersion: 3,
+          rpc: { name: 'ringside_update_entry', fields: { run_order: 3 } },
+        })
+      );
+      mockRpcVersionConflict('entry-occ', 3);
+      mockVersionReread(8);
+
+      const results = await manager.uploadPendingMutations();
+
+      expect(results[0]!.success).toBe(false);
+      const row = (await mockDb.get(REPLICATION_STORES.REPLICATED_TABLES, ['entries', 'entry-occ'])) as
+        | ReplicatedRow<{ id: string }>
+        | undefined;
+      // Token advanced so the NEXT app write isn't stale (stops regeneration).
+      expect(row?.serverVersion).toBe(8);
+      // Dirty edit preserved for user reconciliation — not silently synced away.
+      expect(row?.isDirty).toBe(true);
+    });
+
+    it('throttles the conflicting mutation with backoff instead of dead-lettering it', async () => {
+      await mockDb.put(REPLICATION_STORES.REPLICATED_TABLES, {
+        tableName: 'entries',
+        id: 'entry-occ2',
+        data: { id: 'entry-occ2' },
+        version: 4,
+        serverVersion: 3,
+        lastSyncedAt: 0,
+        lastAccessedAt: 0,
+        isDirty: true,
+        syncStatus: 'pending',
+      } as ReplicatedRow<{ id: string }>);
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({
+          id: 'mut-occ2',
+          rowId: 'entry-occ2',
+          data: { id: 'entry-occ2', run_order: 5 },
+          serverVersion: 3,
+          rpc: { name: 'ringside_update_entry', fields: { run_order: 5 } },
+        })
+      );
+      mockRpcVersionConflict('entry-occ2', 3);
+      mockVersionReread(8);
+
+      // Capture before the call: under shouldAdvanceTime, Date.now() drifts past
+      // the ~1s backoff during the async RPC + re-read, so compare to the start.
+      const beforeUpload = Date.now();
+      await manager.uploadPendingMutations();
+
+      // Still queued (NOT moved to failed_mutations — the offline edit survives).
+      const pending = await mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
+      expect(pending).toHaveLength(1);
+      expect(pending[0]!.id).toBe('mut-occ2');
+      expect(pending[0]!.occRetries).toBe(1);
+      // Backoff scheduled — nextRetryAt is now + an exponential delay.
+      expect(pending[0]!.nextRetryAt).toBeGreaterThan(beforeUpload);
+      const failed = await mockDb.getAll(REPLICATION_STORES.FAILED_MUTATIONS);
+      expect(failed).toHaveLength(0);
+    });
+  });
+
+  // ========================================
   // CONFLICT HOLD
   // ========================================
 

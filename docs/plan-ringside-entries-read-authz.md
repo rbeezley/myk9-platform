@@ -160,16 +160,64 @@ ringside anon users.
 
 ### Phase E — Project config + verification
 - **Enable anonymous sign-ins** in Supabase Auth settings (operator). ✅ DONE 2026-06-24.
-- Apply seed `§11`/`§12` to staging (judge_assignments + passcodes `jh3k9`/`s7m2p`). ✅ §12 passcodes
-  applied 2026-06-24 (table was empty; pepper Vault secret confirmed set). §11 judge_assignments: verify.
-- **Stale-anon cleanup job (TODO):** delete ringside anon users after their show. **Hard constraint
-  (verified live 2026-06-24):** `auth.admin.deleteUser(id)` (soft delete, the default) returns HTTP 500
-  for anonymous users; the job MUST call `deleteUser(id, true)` (hard delete), which succeeds.
-- **CAPTCHA on anonymous sign-in (TODO, operator):** Supabase Auth → Attack Protection. Recommended to
-  bound the anon-user abuse surface; not a launch blocker (claimless anon users read 0 rows).
+- Apply seed `§11`/`§12` to staging. ✅ §12 passcodes applied 2026-06-24 (table was empty; pepper Vault
+  secret confirmed set). ✅ §11 judge_assignments VERIFIED present (e2e-judge has 5 assignments in
+  Heartland; 10 total / 5 classes).
+
+- **ROOT CAUSE found 2026-06-24 — anon sign-ins pollute core tables (reshaped this phase).** Every
+  anonymous sign-in fired `handle_new_user()` (AFTER INSERT on auth.users), creating a `people` (email
+  NULL, "Unknown User"), `exhibitor_profiles`, and `user_roles` row — 4 rows per anon user, not 1. Those
+  `people`/`exhibitor_profiles` NO-ACTION FK children are ALSO why a GoTrue hard-delete 500s (it cannot
+  remove the auth row while they exist). **Correction to an earlier note:** supabase-js is
+  `deleteUser(id, shouldSoftDelete=false)` — `deleteUser(id)` is the HARD delete (500s on anon due to the
+  children) and `deleteUser(id, true)` is the SOFT delete (sets deleted_at, leaves the row). Neither
+  admin-API path cleanly removes an anon user while the trigger makes those children.
+
+- **Part 1 — trigger guard (migration `20260625000000`). ✅ DONE.** `handle_new_user()` +
+  `materialize_club_access_request_from_auth_user()` re-emitted verbatim with an
+  `IF NEW.is_anonymous THEN RETURN NEW` early-return at the top. Anon users now create ZERO core-table
+  rows; the non-anon path is byte-for-byte unchanged. Safe because the at-show authz never needs an anon
+  person row (`ringside_update_entry` treats the caller-person as NULL for passcode claims; the read
+  view's claim tier is JWT-based; presence uses the client grant's sessionId). Verified live in a
+  rolled-back txn: anon insert → 0 people/profiles/roles; anon row then DELETEs cleanly (cascade); normal
+  insert → 1 person + 1 profile (regression intact).
+
+- **Part 3 — recurring cleanup (migration `20260625000100`). ✅ DONE.** SECURITY DEFINER
+  `cleanup_stale_ringside_anon_users(claimless_ttl, ended_grace, max_age)` + a daily 04:00 UTC pg_cron
+  job. Deletes an anon user (and, defensively, any pre-fix children) when: already soft-deleted, OR
+  claimless past the TTL (default 1d), OR a ringside claim whose show ended (+2d grace) / is gone / older
+  than 14d. Pure SQL (no edge fn) — a direct `DELETE FROM auth.users` cascades cleanly post-Part-1.
+  Every delete is scoped to `is_anonymous` anon ids ONLY; the final auth delete re-asserts
+  `is_anonymous = true`. Verified live in a rolled-back txn: purged exactly the 9 staging orphans + their
+  children; the 15 real auth-linked people were untouched. migration-auditor: PUSH WITH CAUTION (2 low
+  WARNs — BEGIN/COMMIT added; re-emit fidelity confirmed via verbatim sourcing + the live regression test,
+  since `db diff` needs Docker). Contract test:
+  `apps/myk9show/src/test/database/anonUserTriggerCleanupContract.test.ts` (12).
+
+- **Part 3 hardening — migration `20260625000200` (PR #953 review):** the original `v_ids` query cast
+  `show_id::uuid` inside the LEFT JOIN, evaluated across ALL auth.users rows — a single malformed
+  `show_id` in any account's app_metadata would raise and silently abort the unwatched cron forever.
+  Re-emit the function with a CTE that filters `is_anonymous` FIRST and a UUID-regex-guarded safe cast
+  (bad value → NULL → treated as "show gone"). Verified live (rolled-back): a non-anon account with
+  `{"show_id":"not-a-uuid"}` no longer aborts the run; the stale anon is still cleaned.
+
+> **Re-emit reconciliation note:** `handle_new_user` and `cleanup_stale_ringside_anon_users` are now
+> defined by the TAIL `CREATE OR REPLACE` in the latest migration (`…000000` / `…000200`). A future edit
+> to either body must reconcile with that latest definition, not an older one — on a fresh DB, migrations
+> replay in order and the last definition wins.
+
+- **Part 2 — one-time purge of the 9 existing orphans:** run `SELECT cleanup_stale_ringside_anon_users()`
+  once after `db push` (the 9 are soft-deleted → caught by criterion (a)). TODO at deploy.
+
+- **CAPTCHA on anonymous sign-in (TODO, operator):** Supabase Auth → Attack Protection. Bounds the
+  anon-user abuse surface; not a launch blocker (claimless anon users read 0 rows + the cron purges them).
 - Live verify on staging (cold session): enter `jh3k9` → land at `/at-show/:showId` → see run order →
   score → reload → score persists. Repeat steward `s7m2p` → run-order/check-in only, scoring blocked.
 - Re-walk the 05 show-day judge/steward phases; flip the scorecard ringside row toward Green.
+
+> **SA-001 correction (this PR):** `docs/security-review-2026-06-24-ringside-passcode-phase-c.md` SA-001
+> says `deleteUser(id, true)` "works (hard delete)." That is backwards — see the root-cause note above.
+> The cleanup mechanism is a direct SQL delete after the Part-1 trigger guard, NOT the admin API.
 
 ## Testing phase (required)
 - RLS contract test mirroring `apps/myk9show/src/test/database/authenticatedEntryResultsRlsContract.test.ts`:

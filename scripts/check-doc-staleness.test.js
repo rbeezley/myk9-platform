@@ -15,6 +15,8 @@ const {
   normalizeRoute,
   extractRoutesFromMarkdown,
   extractRoutesFromSource,
+  extractComposedRoutes,
+  parseDiffForRoutes,
   parseSourceMap,
   matchChangedRoutes,
 } = require('./check-doc-staleness.js');
@@ -56,6 +58,68 @@ test('extractRoutesFromSource handles path=, to=, and navigate() forms', () => {
   assert.ok(got.includes('/at-show/:showId'));
   assert.ok(got.includes('/dogs/:id'));
   assert.ok(got.includes('/checkout/success'));
+});
+
+test('extractRoutesFromSource ignores bare (non-/) slugs', () => {
+  // The gap the composed-route handling fixes: a relative slug is NOT a route here.
+  assert.deepEqual(extractRoutesFromSource("{ path: 'entry-management' }"), []);
+});
+
+test('extractComposedRoutes prefixes bare slugs with the mount base', () => {
+  const src = "{ label: 'Entry Management', path: 'entry-management' },";
+  assert.deepEqual(extractComposedRoutes(src, '/shows/:showId'), [
+    '/shows/:showId/entry-management',
+  ]);
+});
+
+test('extractComposedRoutes leaves already-absolute paths unprefixed', () => {
+  assert.deepEqual(extractComposedRoutes("path: '/admin/sync'", '/shows/:showId'), [
+    '/admin/sync',
+  ]);
+});
+
+test('parseDiffForRoutes composes slug changes only for the composed-base file', () => {
+  // Simulate the reviewer's scenario: renaming the entry-management slug. Without
+  // file-aware composition --strict would falsely pass on this secretary route.
+  const diff = [
+    'diff --git a/apps/myk9show/src/routes/showManagementSections.ts b/apps/myk9show/src/routes/showManagementSections.ts',
+    '--- a/apps/myk9show/src/routes/showManagementSections.ts',
+    '+++ b/apps/myk9show/src/routes/showManagementSections.ts',
+    '@@ -4 +4 @@',
+    "-  { label: 'Entry Management', path: 'entry-management' },",
+    "+  { label: 'Entry Management', path: 'entries' },",
+  ].join('\n');
+  const routes = parseDiffForRoutes(diff);
+  assert.ok(routes.includes('/shows/:showId/entry-management'), 'old slug composed');
+  assert.ok(routes.includes('/shows/:showId/entries'), 'new slug composed');
+});
+
+test('parseDiffForRoutes does NOT compose slugs from unrelated files', () => {
+  const diff = [
+    '+++ b/apps/myk9show/src/components/Foo.tsx',
+    '@@ -1 +1 @@',
+    "+  const x = { path: 'entry-management' };", // not a composed-base file
+    '+  <Route path="/shows/:id/setup" />', // absolute literal still caught
+  ].join('\n');
+  const routes = parseDiffForRoutes(diff);
+  assert.ok(!routes.includes('/shows/:showId/entry-management'), 'no false composition');
+  assert.ok(routes.includes('/shows/:id/setup'), 'absolute literal still extracted');
+});
+
+test('the entry-management slug rename actually flags a documented guide', () => {
+  // End-to-end: composed route -> normalized -> matched against a source map that
+  // documents /shows/:showId/entry-management (workflow 15).
+  const map = `## Secretary Workflows
+
+### 15. Review and approve entries
+**Canonical route:** \`/shows/:showId/entry-management\`
+**Docs target:** Secretary Guide § Entry Management
+`;
+  const index = parseSourceMap(map);
+  const changed = extractComposedRoutes("path: 'entry-management'", '/shows/:showId');
+  const { flagged } = matchChangedRoutes(changed, index);
+  assert.equal(flagged.length, 1);
+  assert.match(flagged[0].refs[0].docsTarget, /Entry Management/);
 });
 
 const SAMPLE_MAP = `# Workflow Source Map

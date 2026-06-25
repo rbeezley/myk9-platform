@@ -52,6 +52,15 @@ const LABEL_SOURCE_PATHS = [
   'apps/myk9show/src/features/admin-help/data/pageDirectory.ts',
 ];
 
+// Files that define routes as RELATIVE slugs composed under a parent mount,
+// e.g. showManagementSections.ts lists `path: 'entry-management'`, mounted under
+// `<Route path="/shows/:id">`. A bare slug carries no leading `/`, so the
+// absolute-literal extractor misses it; here we map the defining file to its
+// base prefix so a slug change composes to the full documented route.
+const COMPOSED_ROUTE_BASES = [
+  { fileMatch: 'routes/showManagementSections.ts', base: '/shows/:showId' },
+];
+
 // ---------------------------------------------------------------------------
 // Pure helpers (exported for tests — no git, no fs, no process side effects).
 // ---------------------------------------------------------------------------
@@ -86,6 +95,49 @@ function extractRoutesFromSource(text) {
     routes.push(m[1]);
   }
   return routes;
+}
+
+/**
+ * Compose relative `path: '<slug>'` declarations onto a base prefix. Used for
+ * files whose routes are nested slugs (see COMPOSED_ROUTE_BASES). Slugs that are
+ * already absolute (start with `/`) are returned as-is, not double-prefixed.
+ */
+function extractComposedRoutes(text, base) {
+  const routes = [];
+  for (const m of text.matchAll(/\bpath:\s*["'`]([^"'`]+)["'`]/g)) {
+    const slug = m[1];
+    if (slug.startsWith('/')) routes.push(slug);
+    else routes.push(`${base.replace(/\/$/, '')}/${slug}`);
+  }
+  return routes;
+}
+
+/**
+ * Parse `git diff` text into the set of route literals that changed. Tracks the
+ * current file from `+++ b/<path>` headers so composed-slug files contribute
+ * their full routes, and only added/removed content lines are scanned.
+ */
+function parseDiffForRoutes(diffText) {
+  const routes = new Set();
+  let currentFile = null;
+  for (const line of diffText.split('\n')) {
+    const fileHeader = line.match(/^\+\+\+ b\/(.+)/);
+    if (fileHeader) {
+      currentFile = fileHeader[1];
+      continue;
+    }
+    if (line.startsWith('---')) continue; // old-file header, not content
+    if (!/^[+-]/.test(line)) continue; // context / hunk meta
+    const content = line.slice(1);
+    for (const r of extractRoutesFromSource(content)) routes.add(r);
+    if (currentFile) {
+      const composed = COMPOSED_ROUTE_BASES.find((c) => currentFile.includes(c.fileMatch));
+      if (composed) {
+        for (const r of extractComposedRoutes(content, composed.base)) routes.add(r);
+      }
+    }
+  }
+  return [...routes];
 }
 
 /**
@@ -196,13 +248,9 @@ function changedFiles(baseRef) {
 function changedRoutesFromGit(baseRef) {
   // --unified=0 so only added/removed lines appear; collect route literals from
   // both sides (a renamed/removed path shows as a '-' line, a new one as '+').
+  // parseDiffForRoutes also composes relative-slug files onto their base mount.
   const out = git(['diff', '--unified=0', `${baseRef}...HEAD`, '--', ...ROUTE_SOURCE_PATHS]);
-  const routes = new Set();
-  for (const line of out.split('\n')) {
-    if (!/^[+-]/.test(line) || /^(\+\+\+|---)/.test(line)) continue;
-    for (const r of extractRoutesFromSource(line.slice(1))) routes.add(r);
-  }
-  return [...routes];
+  return parseDiffForRoutes(out);
 }
 
 function labelFilesChanged(baseRef) {
@@ -321,6 +369,8 @@ module.exports = {
   normalizeRoute,
   extractRoutesFromMarkdown,
   extractRoutesFromSource,
+  extractComposedRoutes,
+  parseDiffForRoutes,
   parseSourceMap,
   matchChangedRoutes,
 };

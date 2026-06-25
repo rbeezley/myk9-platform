@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { TEST_USERS } from '../helpers/testUsers';
+import { signInAsExhibitor } from '../helpers/testUsers';
 import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
 
 test.describe.configure({ mode: 'serial', timeout: 90000 });
@@ -9,18 +9,6 @@ const MOCK_CART_ID = 'e2e-mocked-entry-cart';
 
 interface CapturedWrites {
   cartItem?: Record<string, unknown>;
-}
-
-async function signInAsExhibitor(page: Page) {
-  const params = new URLSearchParams({ returnTo: `/shows/${SHOW_ID}/register` });
-  await page.goto(`/sign-in?${params.toString()}`, { waitUntil: 'domcontentloaded' });
-  await page.getByTestId('credential-input').fill(TEST_USERS.DEMO_EXHIBITOR.email);
-  await page.getByTestId('continue-button').click();
-  await expect(page.getByTestId('password-input')).toBeVisible({ timeout: 15000 });
-  await page.getByTestId('password-input').fill(TEST_USERS.DEMO_EXHIBITOR.password);
-  await page.getByTestId('sign-in-button').click();
-  await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
-  await page.waitForLoadState('domcontentloaded');
 }
 
 async function preventSharedEntryWrites(page: Page, captured: CapturedWrites) {
@@ -137,7 +125,7 @@ test('exhibitor card entry hands off to cart checkout without enrollment writes'
 }) => {
   const captured: CapturedWrites = {};
   await preventSharedEntryWrites(page, captured);
-  await signInAsExhibitor(page);
+  await signInAsExhibitor(page, `/shows/${SHOW_ID}/register`);
 
   await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}/register`));
   await expect(page.getByRole('heading', { name: 'Register for Show' })).toBeVisible({

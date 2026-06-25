@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { signInAsSecretary } from './helpers/testUsers';
 
 /**
  * E2E Tests for Trials Page UI/UX Improvements
@@ -14,23 +15,9 @@ import type { Page } from '@playwright/test';
  * - In Progress status badge has animation
  */
 
-// Test user credentials
-const testUser = {
-  email: 'exhibitor1@myk9t.com',
-  password: 'TestPass4567!',
-};
-
-// Helper function to login
+// Helper function to login — delegates to the shared SmartSignInPage flow.
 async function login(page: Page) {
-  await page.goto('/sign-in', { waitUntil: 'networkidle' });
-
-  await page.waitForSelector('[data-testid="email-input"]', { state: 'visible', timeout: 10000 });
-  await page.fill('[data-testid="email-input"]', testUser.email);
-  await page.fill('[data-testid="password-input"]', testUser.password);
-  await page.click('[data-testid="sign-in-button"]');
-
-  await page.waitForURL('/', { timeout: 15000 });
-  await page.waitForLoadState('networkidle');
+  await signInAsSecretary(page);
 }
 
 // Helper to navigate to a trial page

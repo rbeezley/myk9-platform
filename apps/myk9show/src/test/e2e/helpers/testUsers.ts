@@ -14,6 +14,8 @@
  *   Others use env vars or are skipped when absent.
  */
 
+import { expect, type Page } from '@playwright/test';
+
 export interface TestUser {
   email: string;
   password: string;
@@ -100,24 +102,95 @@ export const TEST_USERS: Record<string, TestUser> = {
 };
 
 /**
- * Sign in as a test user and wait for navigation away from the sign-in page.
+ * Navigate to `/sign-in` and wait for the credential field to render, retrying
+ * once if the SPA shell is still booting (the dev server's first paint can lag
+ * past the goto, leaving a "Loading…" body with no form yet).
  */
-export async function signInAsTestUser(
-  page: import('@playwright/test').Page,
-  userType: keyof typeof TEST_USERS
-) {
-  const user = TEST_USERS[userType];
+async function gotoSignIn(page: Page, signInPath: string): Promise<void> {
+  const input = page.getByTestId('credential-input');
 
-  await page.goto('/sign-in');
-  await page.fill('input[type="email"]', user.email);
-  await page.fill('input[type="password"]', user.password);
-  await page.click('button[type="submit"]');
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await page.goto(signInPath, { waitUntil: 'commit' });
 
-  // Wait for redirect away from the sign-in page (role-specific dashboards vary)
+    try {
+      await expect(input).toBeVisible({ timeout: 30000 });
+      return;
+    } catch (error) {
+      const bodyText = await page
+        .locator('body')
+        .innerText({ timeout: 1000 })
+        .catch(() => '');
+      const shellStillBooting =
+        bodyText.trim().length === 0 || /Loading page|Loading\.\.\./i.test(bodyText);
+
+      if (attempt === 1 || !shellStillBooting) {
+        throw error;
+      }
+    }
+  }
+}
+
+/**
+ * Drive the real SmartSignInPage (Phase 1b "single email-or-passcode front
+ * door") two-step flow:
+ *   1. fill the single credential field (`credential-input`) with the email
+ *   2. Continue — this reveals the password step *in place* (the password field
+ *      does not exist in the DOM until this transition)
+ *   3. fill `password-input` and submit (`sign-in-button`)
+ *   4. wait for navigation off `/sign-in`
+ *
+ * This is the one canonical sign-in helper; every spec's local `signIn` and the
+ * role wrappers below delegate here so the flow lives in exactly one place.
+ */
+export async function signIn(
+  page: Page,
+  email: string,
+  password: string,
+  returnTo = '/'
+): Promise<void> {
+  const params = new URLSearchParams({ returnTo });
+  await gotoSignIn(page, `/sign-in?${params.toString()}`);
+
+  await page.getByTestId('credential-input').fill(email);
+  await page.getByTestId('continue-button').click();
+
+  // The email branch reveals the password sub-form ("we'll ask for your
+  // password next"); wait for it before filling.
+  await expect(page.getByTestId('password-input')).toBeVisible({ timeout: 15000 });
+  await page.getByTestId('password-input').fill(password);
+
+  await page.getByTestId('sign-in-button').click();
   await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
+  await page.waitForLoadState('domcontentloaded');
+  await expect(page).not.toHaveURL(/\/sign-in/);
+}
 
+/**
+ * Sign in as a named test user (env-backed credentials) and wait for navigation
+ * away from the sign-in page.
+ */
+export async function signInAsTestUser(page: Page, userType: keyof typeof TEST_USERS) {
+  const user = TEST_USERS[userType];
+  await signIn(page, user.email, user.password);
   return user;
 }
+
+/**
+ * Role convenience wrappers — use the env-backed canonical accounts (the
+ * `*@myk9t.com` accounts have no `auth.users` row and cannot authenticate).
+ */
+export const signInAsSecretary = (page: Page, returnTo = '/') =>
+  signIn(page, TEST_USERS.SECRETARY.email, TEST_USERS.SECRETARY.password, returnTo);
+
+export const signInAsAdmin = (page: Page, returnTo = '/') =>
+  signIn(page, TEST_USERS.SITE_ADMIN.email, TEST_USERS.SITE_ADMIN.password, returnTo);
+
+export const signInAsJudge = (page: Page, returnTo = '/') =>
+  signIn(page, TEST_USERS.JUDGE.email, TEST_USERS.JUDGE.password, returnTo);
+
+/** Exhibitor wrapper uses the protected demo account with seeded dogs. */
+export const signInAsExhibitor = (page: Page, returnTo = '/') =>
+  signIn(page, TEST_USERS.DEMO_EXHIBITOR.email, TEST_USERS.DEMO_EXHIBITOR.password, returnTo);
 
 /**
  * Sign out the current user.

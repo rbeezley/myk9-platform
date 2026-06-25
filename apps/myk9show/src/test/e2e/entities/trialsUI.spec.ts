@@ -1,4 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
+import { signInAsSecretary } from '../helpers/testUsers';
 
 /**
  * UI tests for the Trials feature (secretary role).
@@ -30,23 +31,7 @@ import { test, expect, Page } from '@playwright/test';
 
 test.describe.configure({ mode: 'serial' });
 
-const SECRETARY_EMAIL = 'secretary@myk9t.com';
-const SECRETARY_PASSWORD = 'TestPass4567!';
-
 const RUN_ID = Date.now();
-
-async function signIn(page: Page, email: string, password: string) {
-  await page.goto('/sign-in', { waitUntil: 'networkidle' });
-  await page.getByTestId('email-input').fill(email);
-  await page.getByTestId('password-input').fill(password);
-  await page.getByTestId('sign-in-button').click();
-  await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
-  await page.waitForLoadState('networkidle');
-}
-
-async function signInAsSecretary(page: Page) {
-  return signIn(page, SECRETARY_EMAIL, SECRETARY_PASSWORD);
-}
 
 interface SeededTrial {
   showId: string;

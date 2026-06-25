@@ -1,13 +1,16 @@
 import { Page, expect } from '@playwright/test';
 import { logger } from '@/services/LoggingService';
-import { TEST_USERS, type TestUser } from './testUsers';
+import { TEST_USERS, type TestUser, signIn as performSignIn } from './testUsers';
 
 type TestRole = 'admin' | 'secretary' | 'user' | 'judge';
 
 const ROLE_USERS: Record<TestRole, TestUser> = {
   admin: TEST_USERS.SITE_ADMIN,
   secretary: TEST_USERS.SECRETARY,
-  user: TEST_USERS.EXHIBITOR,
+  // DEMO_EXHIBITOR (env-backed e2e-exhibitor@test.myk9.com), not EXHIBITOR —
+  // the latter falls back to the dead exhibitor1@myk9t.com fixture with no
+  // password and cannot authenticate.
+  user: TEST_USERS.DEMO_EXHIBITOR,
   judge: TEST_USERS.JUDGE,
 };
 
@@ -20,12 +23,6 @@ export class TestSetup {
   async signIn(role: TestRole = 'admin', returnTo = '/') {
     logger.debug(`Signing in as ${role}...`, 'app', {});
 
-    const params = new URLSearchParams({ returnTo });
-    await this.page.goto(`/sign-in?${params.toString()}`, {
-      waitUntil: 'domcontentloaded',
-      timeout: 15000,
-    });
-
     const creds = ROLE_USERS[role];
     if (!creds.password) {
       throw new Error(`Missing password for ${role} test user ${creds.email}`);
@@ -33,14 +30,9 @@ export class TestSetup {
 
     logger.debug(`Using credentials: ${creds.email}`, 'app', {});
 
-    await expect(this.page.getByTestId('email-input')).toBeVisible({ timeout: 15000 });
-    await this.page.getByTestId('email-input').fill(creds.email);
-    await this.page.getByTestId('password-input').fill(creds.password);
-
-    logger.debug('Clicking sign in button...', 'app', {});
-    await this.page.getByTestId('sign-in-button').click();
-    await this.page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
-    await this.page.waitForLoadState('domcontentloaded');
+    // Drive the real SmartSignInPage flow via the shared helper (credential →
+    // Continue → password → submit → wait off /sign-in).
+    await performSignIn(this.page, creds.email, creds.password, returnTo);
 
     await expect
       .poll(

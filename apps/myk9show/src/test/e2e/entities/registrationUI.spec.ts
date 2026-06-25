@@ -1,4 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
+import { TEST_USERS, signInAsSecretary } from '../helpers/testUsers';
 
 /**
  * UI test for the secretary mail-in registration wizard.
@@ -23,8 +24,10 @@ import { test, expect, Page } from '@playwright/test';
 
 test.describe.configure({ mode: 'serial' });
 
-const SECRETARY_EMAIL = 'secretary@myk9t.com';
-const SECRETARY_PASSWORD = 'TestPass4567!';
+// Token fetch (self-healing cleanup below) needs a real authenticating account;
+// the canonical secretary fixture's credentials are env-backed.
+const SECRETARY_EMAIL = TEST_USERS.SECRETARY.email;
+const SECRETARY_PASSWORD = TEST_USERS.SECRETARY.password;
 
 // Seeded "June 2026" AKC Scent Work show — entry close 2026-06-13.
 // Trial "Saturday Trial 1" with Interior element classes ($30 each).
@@ -42,19 +45,6 @@ const BRAVO_DOG_ID = '601fd260-6dc5-479e-acd5-29533814797a';
 const SUPABASE_URL = 'https://sojmvhhwsjxmfistvzbe.supabase.co';
 const SUPABASE_ANON_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNvam12aGh3c2p4bWZpc3R2emJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc0NzQ2MTIsImV4cCI6MjA4MzA1MDYxMn0.pvp1GntQfar0aGdTDl4-4aFoEjQkdmK2kDvxLI6oxHA';
-
-async function signIn(page: Page, email: string, password: string) {
-  await page.goto('/sign-in', { waitUntil: 'networkidle' });
-  await page.getByTestId('email-input').fill(email);
-  await page.getByTestId('password-input').fill(password);
-  await page.getByTestId('sign-in-button').click();
-  await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
-  await page.waitForLoadState('networkidle');
-}
-
-async function signInAsSecretary(page: Page) {
-  await signIn(page, SECRETARY_EMAIL, SECRETARY_PASSWORD);
-}
 
 async function gotoRegistrationWizard(page: Page) {
   await page.goto(`/secretary/register/${SHOW_ID}`, { waitUntil: 'networkidle' });

@@ -239,6 +239,60 @@ serve(async req => {
       );
     }
 
+    // ---------------------------------------------------------------------
+    // Phase C — mint the ringside claim onto an ANONYMOUS caller's session.
+    //
+    // A passcode user (no account) signs in anonymously client-side first, so
+    // this request carries that anon user's JWT as the Authorization bearer.
+    // We stamp the SERVER-VALIDATED (show, role) into their app_metadata; the
+    // client then refreshes its session so the reissued JWT carries the claim,
+    // which the A+B DB tier (view + ringside_update_entry) authorizes on.
+    //
+    // SECURITY:
+    //  * app_metadata is settable ONLY by the service role — forge-proof. The
+    //    user cannot set it themselves; the DB reads app_metadata exclusively.
+    //  * show_id / ringside_role come from `matchedShow`/`matchedRole` (the RPC
+    //    result), NEVER from the request body — a caller cannot widen scope.
+    //  * We stamp ONLY anonymous callers. A real account that enters a passcode
+    //    keeps its account session untouched (its access is auth.uid()-based +
+    //    a client-only UI grant) — we must NEVER write ringside claims into a
+    //    real account's app_metadata.
+    //  * Merge (don't clobber) existing app_metadata; set the explicit
+    //    kind='ringside_passcode' marker the DB tier requires.
+    // ---------------------------------------------------------------------
+    let sessionStamped = false;
+    const authHeader = req.headers.get('Authorization');
+    const bearer = authHeader?.startsWith('Bearer ')
+      ? authHeader.slice('Bearer '.length).trim()
+      : null;
+    // The anon publishable key is also a (user-less) JWT sent on unauthenticated
+    // calls; getUser returns no user for it, so we simply skip stamping then.
+    if (bearer) {
+      const { data: userData, error: userErr } = await supabaseClient.auth.getUser(bearer);
+      const caller = userData?.user;
+      if (!userErr && caller?.is_anonymous === true) {
+        const { error: stampErr } = await supabaseClient.auth.admin.updateUserById(caller.id, {
+          app_metadata: {
+            ...(caller.app_metadata ?? {}),
+            kind: 'ringside_passcode',
+            show_id: matchedShow.id,
+            ringside_role: matchedRole,
+          },
+        });
+        if (stampErr) {
+          // Fail closed for the anon path: without the claim the user can read
+          // nothing and score nothing, so surfacing success would be a lie.
+          console.error('[Auth] Failed to stamp ringside claim on anon session:', stampErr);
+          return new Response(JSON.stringify({ error: 'session_error' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        sessionStamped = true;
+        console.log(`[Auth] Stamped ringside_passcode claim (role=${matchedRole}) on anon session`);
+      }
+    }
+
     // Success! Return show data
     console.log(`[Auth] Successful login for show: ${matchedShow.id.substring(0, 8)}...`);
 
@@ -261,6 +315,10 @@ serve(async req => {
         success: true,
         role: matchedRole,
         showData,
+        // True iff this request carried an anonymous session that we stamped
+        // with the ringside claim. The client uses it to decide whether to
+        // refresh the session before routing to /at-show.
+        sessionStamped,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

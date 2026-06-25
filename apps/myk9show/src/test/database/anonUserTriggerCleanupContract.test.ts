@@ -23,6 +23,10 @@ const cleanupMigration = readFileSync(
   resolve(migrationsDir, '20260625000100_cleanup_stale_ringside_anon_users.sql'),
   'utf8'
 );
+const safeCastMigration = readFileSync(
+  resolve(migrationsDir, '20260625000200_cleanup_anon_safe_show_id_cast.sql'),
+  'utf8'
+);
 
 describe('anon-user trigger guard — 20260625000000', () => {
   it('skips anonymous users in handle_new_user BEFORE creating any person row', () => {
@@ -94,5 +98,31 @@ describe('stale-anon cleanup — 20260625000100', () => {
   it('schedules a daily pg_cron cleanup job', () => {
     expect(cleanupMigration).toContain("cron.schedule(\n  'cleanup-ringside-anon'");
     expect(cleanupMigration).toContain("'0 4 * * *'");
+  });
+});
+
+describe('cleanup show_id cast hardening — 20260625000200', () => {
+  it('safe-casts show_id via a UUID regex guard (a bad value can never abort the cron)', () => {
+    // The cast must be gated by a UUID-shape regex so a malformed app_metadata
+    // show_id yields NULL instead of raising and aborting the whole run.
+    expect(safeCastMigration).toMatch(
+      /~\*\s*'\^\[0-9a-f\]\{8\}-\[0-9a-f\]\{4\}-\[0-9a-f\]\{4\}-\[0-9a-f\]\{4\}-\[0-9a-f\]\{12\}\$'/
+    );
+    expect(safeCastMigration).toContain('CASE');
+  });
+
+  it('filters to anonymous rows BEFORE casting (cast never runs over real accounts)', () => {
+    const cte = safeCastMigration.indexOf('WITH stale AS');
+    const anonFilter = safeCastMigration.indexOf('WHERE u.is_anonymous = true');
+    const arrayAgg = safeCastMigration.indexOf('array_agg(st.id)');
+    expect(cte).toBeGreaterThanOrEqual(0);
+    expect(anonFilter).toBeGreaterThan(cte);
+    expect(arrayAgg).toBeGreaterThan(anonFilter); // selection happens after the anon-only CTE
+  });
+
+  it('keeps the belt-and-suspenders is_anonymous re-assert on the final delete', () => {
+    expect(safeCastMigration).toMatch(
+      /DELETE FROM auth\.users WHERE id = ANY\(v_ids\) AND is_anonymous = true/
+    );
   });
 });

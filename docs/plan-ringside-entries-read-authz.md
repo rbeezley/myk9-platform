@@ -190,8 +190,21 @@ ringside anon users.
   Every delete is scoped to `is_anonymous` anon ids ONLY; the final auth delete re-asserts
   `is_anonymous = true`. Verified live in a rolled-back txn: purged exactly the 9 staging orphans + their
   children; the 15 real auth-linked people were untouched. migration-auditor: PUSH WITH CAUTION (2 low
-  WARNs — BEGIN/COMMIT added; run `db diff` after push to confirm trigger re-emit fidelity).
-  Contract test: `apps/myk9show/src/test/database/anonUserTriggerCleanupContract.test.ts` (9).
+  WARNs — BEGIN/COMMIT added; re-emit fidelity confirmed via verbatim sourcing + the live regression test,
+  since `db diff` needs Docker). Contract test:
+  `apps/myk9show/src/test/database/anonUserTriggerCleanupContract.test.ts` (12).
+
+- **Part 3 hardening — migration `20260625000200` (PR #953 review):** the original `v_ids` query cast
+  `show_id::uuid` inside the LEFT JOIN, evaluated across ALL auth.users rows — a single malformed
+  `show_id` in any account's app_metadata would raise and silently abort the unwatched cron forever.
+  Re-emit the function with a CTE that filters `is_anonymous` FIRST and a UUID-regex-guarded safe cast
+  (bad value → NULL → treated as "show gone"). Verified live (rolled-back): a non-anon account with
+  `{"show_id":"not-a-uuid"}` no longer aborts the run; the stale anon is still cleaned.
+
+> **Re-emit reconciliation note:** `handle_new_user` and `cleanup_stale_ringside_anon_users` are now
+> defined by the TAIL `CREATE OR REPLACE` in the latest migration (`…000000` / `…000200`). A future edit
+> to either body must reconcile with that latest definition, not an older one — on a fresh DB, migrations
+> replay in order and the last definition wins.
 
 - **Part 2 — one-time purge of the 9 existing orphans:** run `SELECT cleanup_stale_ringside_anon_users()`
   once after `db push` (the 9 are soft-deleted → caught by criterion (a)). TODO at deploy.

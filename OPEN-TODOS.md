@@ -22,6 +22,14 @@ Deferred Phase 4 from the public-landing brand/a11y pass (PR [#916](https://gith
 
 ---
 
+## Test Isolation — E2E vs shared staging — 2026-06-25
+
+Follow-up from the ringside OCC conflict-storm incident (PR [#961](https://github.com/rbeezley/myk9-platform/pull/961)). The E2E suite runs against the shared staging Supabase and exercises the at-show ringside scoring flow on the demo seed show (`dededede-0000-0000-0000-000000000010`); with a since-fixed unthrottled OCC-conflict bug, repeated/concurrent runs drove a sustained high-CPU write storm (Supabase >80% CPU alert, 2026-06-25). The root cause is fixed, but pointing **write-heavy** E2E at shared staging is a structural smell — it churns the demo show, races real/other-agent sessions, and can re-surface load spikes on every run.
+
+- [ ] **Isolate write-heavy E2E from shared staging** — route ringside/scoring E2E specs at an isolated/ephemeral Supabase (or fixture-intercepted writes, like the Phase 4 seam harness) instead of the shared `sojmvhhwsjxmfistvzbe` project. Mirrors the nightly-QA isolation principle (memory `project_nightly_qa_isolation`). Context + incident write-up: [`docs/plan-ringside-occ-conflict-storm.md`](docs/plan-ringside-occ-conflict-storm.md).
+
+---
+
 ## Active-Docs Triage — net-new backlog — 2026-06-14
 
 Source: [`docs/plan-active-docs-triage-2026-06-14.md`](docs/plan-active-docs-triage-2026-06-14.md). Items below were genuinely untracked elsewhere. Plan-backed features link to their plan instead of duplicating sub-tasks.

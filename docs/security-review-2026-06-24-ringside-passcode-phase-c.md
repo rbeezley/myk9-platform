@@ -39,12 +39,18 @@ exploit: a stale claim only ever grants the one show/role it was minted for, and
 financial/PII columns are never exposed to any claim (verified A+B). The blast
 radius of a leaked anon refresh token is one show's run-order/scoring — show-day
 operational data, shareable by passcode design.
-**Fix:** Phase E (already planned): scheduled job deleting ringside anon users after
-their show ends. **Implementation note (verified live 2026-06-24):**
-`auth.admin.deleteUser(id)` (default soft delete) returns **HTTP 500 for anonymous
-users**; the cleanup job MUST call `deleteUser(id, true)` (hard delete,
-`shouldSoftDelete=false`), which succeeds.
-**Auto-fixable:** No (requires the Phase E job + schedule).
+**Fix:** Phase E (DONE — migrations `20260625000000` + `20260625000100`): a daily pg_cron
+job deletes stale ringside anon users.
+**CORRECTION (2026-06-25):** an earlier version of this note had the supabase-js
+semantics backwards. The signature is `deleteUser(id, shouldSoftDelete = false)`, so
+`deleteUser(id)` is the HARD delete and `deleteUser(id, true)` is the SOFT delete. The
+hard delete **500s** on anon users — not because of the API, but because the
+`handle_new_user()` trigger created `people` + `exhibitor_profiles` rows (NO-ACTION FK
+children of auth.users) for every anon sign-in, blocking removal. The real fix is
+two-part: (1) migration `20260625000000` stops the trigger from creating those children
+for `is_anonymous` users; (2) migration `20260625000100` deletes stale anon users via a
+direct SQL `DELETE FROM auth.users` (cascade-clean post-fix), NOT the admin API.
+**Auto-fixable:** No (shipped as the Phase E migrations).
 
 ### [LOW] SA-002: No CAPTCHA / bot mitigation on the anonymous sign-in surface
 

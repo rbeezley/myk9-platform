@@ -88,7 +88,10 @@ const SmartSignInPage: React.FC = () => {
     e.preventDefault();
     // A disabled button doesn't block Enter from the text input — guard against
     // a double-submit firing validatePasscode twice (burns a rate-limit attempt).
-    if (loading) return;
+    // Also wait out `authLoading`: until auth restore resolves, `user` is null
+    // even for a returning account, which would misroute a passcode into the
+    // account-less anon-session branch and clobber the real session.
+    if (isLoading) return;
     setError('');
 
     if (kind === 'email') {

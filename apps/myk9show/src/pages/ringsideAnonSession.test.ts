@@ -42,7 +42,13 @@ const accountSession = {
   data: { session: { user: { id: 'user-1', is_anonymous: false } } },
   error: null,
 };
-const okResult = { ok: true as const, role: 'judge', showId: 'show-x', showName: 'Spring Trial' };
+const okResult = {
+  ok: true as const,
+  role: 'judge',
+  showId: 'show-x',
+  showName: 'Spring Trial',
+  sessionStamped: true,
+};
 
 describe('startAnonymousRingsideSession', () => {
   beforeEach(() => {
@@ -72,6 +78,30 @@ describe('startAnonymousRingsideSession', () => {
 
     expect(signInAnonymously).not.toHaveBeenCalled();
     expect(refreshSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses to clobber a real account session (auth-restore race guard)', async () => {
+    // A returning account whose session is mid-restore: useAuthContext.user is
+    // still null, so a passcode could misroute here with a real session present.
+    getSession.mockResolvedValue(accountSession);
+
+    const result = await startAnonymousRingsideSession('jh3k9');
+
+    expect(signInAnonymously).not.toHaveBeenCalled();
+    expect(validatePasscode).not.toHaveBeenCalled();
+    expect(signOut).not.toHaveBeenCalled();
+    expect(result).toEqual({ ok: false, kind: 'session', message: expect.any(String) });
+  });
+
+  it('fails closed when the passcode validated but the session was not stamped', async () => {
+    getSession.mockResolvedValue(noSession);
+    validatePasscode.mockResolvedValue({ ...okResult, sessionStamped: false });
+
+    const result = await startAnonymousRingsideSession('jh3k9');
+
+    expect(refreshSession).toHaveBeenCalledTimes(1);
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ ok: false, kind: 'session', message: expect.any(String) });
   });
 
   it('returns a session error and never validates when anon sign-in fails', async () => {

@@ -11,7 +11,19 @@ import { supabase } from '@/services/database/supabaseClient';
 import type { UserRole as RingsideRole } from '@myk9/ringside';
 
 export type ValidatePasscodeResult =
-  | { ok: true; role: RingsideRole; showId: string; showName: string }
+  | {
+      ok: true;
+      role: RingsideRole;
+      showId: string;
+      showName: string;
+      /**
+       * True iff the edge fn stamped the ringside claim onto an anonymous
+       * caller's session (Phase C). False for a signed-in account (never
+       * stamped) AND for an anon caller the fn validated but couldn't stamp.
+       * The anon-session orchestrator treats `false` in its flow as a failure.
+       */
+      sessionStamped: boolean;
+    }
   | { ok: false; kind: 'invalid' | 'rate_limited' | 'error'; message: string };
 
 /** Calm, enumeration-resistant copy — never leak which part failed. */
@@ -33,6 +45,7 @@ export async function validatePasscode(passcode: string): Promise<ValidatePassco
       role: data.role as RingsideRole,
       showId: String(data.showData.showId),
       showName: String(data.showData.showName ?? ''),
+      sessionStamped: data.sessionStamped === true,
     };
   }
 

@@ -41,7 +41,19 @@ export async function startAnonymousRingsideSession(
   // 1. Ensure an anonymous session exists. Reuse one if the device already has
   //    it (e.g. after a reload) rather than minting another orphan anon user.
   const { data: existing } = await supabase.auth.getSession();
-  if (!existing.session?.user?.is_anonymous) {
+  const current = existing.session?.user;
+
+  // ENFORCE the precondition rather than trusting it: never replace a REAL
+  // account session with an anonymous one. `useAuthContext.user` is null during
+  // the getSession() auth-restore window even when a persisted account session
+  // exists, so a passcode submitted in that window could reach here with a real
+  // session present — signInAnonymously() would silently sign the account out.
+  // Refuse instead (the caller re-submits once auth resolves, hitting the
+  // signed-in branch). Symmetric with endAnonymousRingsideSession's guard.
+  if (current && current.is_anonymous !== true) {
+    return { ok: false, kind: 'session', message: SESSION_ERROR };
+  }
+  if (!current?.is_anonymous) {
     const { error } = await supabase.auth.signInAnonymously();
     if (error) return { ok: false, kind: 'session', message: SESSION_ERROR };
   }
@@ -59,6 +71,15 @@ export async function startAnonymousRingsideSession(
   //    caller routes to /at-show and the replication layer starts syncing.
   const { error: refreshErr } = await supabase.auth.refreshSession();
   if (refreshErr) {
+    await supabase.auth.signOut();
+    return { ok: false, kind: 'session', message: SESSION_ERROR };
+  }
+
+  // The anon flow ALWAYS expects a stamp. If the edge fn validated the passcode
+  // but skipped stamping (e.g. a transient getUser failure → success:true,
+  // sessionStamped:false), the refreshed JWT carries no claim — the user would
+  // land in the ring and silently read 0 rows. Fail closed instead.
+  if (!result.sessionStamped) {
     await supabase.auth.signOut();
     return { ok: false, kind: 'session', message: SESSION_ERROR };
   }

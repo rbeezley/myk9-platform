@@ -1,4 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
+import { TEST_USERS } from '../helpers/testUsers';
 
 /**
  * UI-driven e2e for the Reports page — secretary role.
@@ -14,13 +15,13 @@ import { test, expect, Page } from '@playwright/test';
  *     (2026-04-26): financial + statistics categories were silently hidden
  *     by the dropdown's category filter.
  *
- * Auth: secretary@myk9t.com / TestPass4567!.
+ * Auth: E2E_SECRETARY_EMAIL / E2E_SECRETARY_PASSWORD (CI secrets / .env.local).
  */
 
 test.describe.configure({ mode: 'serial' });
 
-const SECRETARY_EMAIL = 'secretary@myk9t.com';
-const SECRETARY_PASSWORD = 'TestPass4567!';
+const SECRETARY_EMAIL = TEST_USERS.SECRETARY.email;
+const SECRETARY_PASSWORD = TEST_USERS.SECRETARY.password;
 // Reports now live under the show-scoped workbench route; the standalone
 // /secretary/reports redirects to the dashboard (no show context).
 const SHOW_ID = '4584f257-19b5-4016-aae6-5e7827b769cb';

@@ -1,18 +1,21 @@
 import { test, expect, Page } from '@playwright/test';
+import { TEST_USERS } from '../helpers/testUsers';
 
 /**
  * UI tests for the Entry Management page (secretary role).
  *
- * Walks /secretary/entries/:showId as secretary@myk9t.com against the seeded
+ * Walks /secretary/entries/:showId as the secretary fixture against the seeded
  * June 2026 AKC Scent Work show. Tests are stateless w.r.t. DB content — they
  * verify UI flows (browse, bulk dialogs, armband, comp) regardless of what
  * status the seeded entries currently have.
+ *
+ * Auth: E2E_SECRETARY_EMAIL / E2E_SECRETARY_PASSWORD (CI secrets / .env.local).
  */
 
 test.describe.configure({ mode: 'serial' });
 
-const SECRETARY_EMAIL = 'secretary@myk9t.com';
-const SECRETARY_PASSWORD = 'TestPass4567!';
+const SECRETARY_EMAIL = TEST_USERS.SECRETARY.email;
+const SECRETARY_PASSWORD = TEST_USERS.SECRETARY.password;
 
 // Seeded "June 2026" AKC Scent Work show.
 const SHOW_ID = '4584f257-19b5-4016-aae6-5e7827b769cb';

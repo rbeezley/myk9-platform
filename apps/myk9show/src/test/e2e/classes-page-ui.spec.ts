@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { TEST_USERS } from './helpers/testUsers';
 
 /**
  * E2E Tests for Classes Page UI Improvements
@@ -10,17 +11,19 @@ import type { Page } from '@playwright/test';
  * - Status changes functionality
  * - Progress indicators display
  * - Mobile responsiveness
+ *
+ * Auth: E2E_DEMO_EXHIBITOR_* (seeded exhibitor) + E2E_ADMIN_* (CI secrets / .env.local).
  */
 
-// Test user credentials
+// Test user credentials — sourced from env via the shared TEST_USERS helper.
 const testUser = {
-  email: 'exhibitor1@myk9t.com',
-  password: 'TestPass4567!',
+  email: TEST_USERS.DEMO_EXHIBITOR.email,
+  password: TEST_USERS.DEMO_EXHIBITOR.password,
 };
 
 const adminUser = {
-  email: 'admin@myk9t.com',
-  password: 'TestPass4567!',
+  email: TEST_USERS.SITE_ADMIN.email,
+  password: TEST_USERS.SITE_ADMIN.password,
 };
 
 // Helper function to login

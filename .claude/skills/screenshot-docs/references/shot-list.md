@@ -4,11 +4,11 @@
 
 | Role | Email | Password |
 |---|---|---|
-| Secretary | `e2e-secretary@test.myk9.com` | `E2eSecretary@2026x!` |
-| Club admin | `club@myk9t.com` | `TestPass4567!` |
-| Site admin | `admin@myk9t.com` | `TestPass4567!` |
-| Exhibitor | `e2e-exhibitor@test.myk9.com` | `TestPass4567!` |
-| Judge | `judge@myk9t.com` | `TestPass4567!` |
+| Secretary | `e2e-secretary@test.myk9.com` | `Myk9-E2E-Test!2026` |
+| Club admin | `e2e-clubadmin@test.myk9.com` | `Myk9-E2E-Test!2026` |
+| Site admin | `e2e-admin@test.myk9.com` | `Myk9-E2E-Test!2026` |
+| Exhibitor | `e2e-exhibitor@test.myk9.com` | `Myk9-E2E-Test!2026` |
+| Judge | `e2e-judge@test.myk9.com` | `Myk9-E2E-Test!2026` |
 | Unauthenticated | (no sign-in) | — |
 
 ## Canonical seed show

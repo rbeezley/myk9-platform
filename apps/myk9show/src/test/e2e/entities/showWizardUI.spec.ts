@@ -1,4 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
+import { TEST_USERS } from '../helpers/testUsers';
 
 /**
  * UI-driven e2e walk through the secretary's Show Creation Wizard.
@@ -12,13 +13,13 @@ import { test, expect, Page } from '@playwright/test';
  *     used to be parsed as local time in west-of-UTC zones and shifted the
  *     visible day forward (Apr 26, 2026).
  *
- * Auth: secretary@myk9t.com / TestPass4567! (matches showsUI.spec.ts).
+ * Auth: E2E_SECRETARY_EMAIL / E2E_SECRETARY_PASSWORD (CI secrets / .env.local).
  */
 
 test.describe.configure({ mode: 'serial' });
 
-const SECRETARY_EMAIL = 'secretary@myk9t.com';
-const SECRETARY_PASSWORD = 'TestPass4567!';
+const SECRETARY_EMAIL = TEST_USERS.SECRETARY.email;
+const SECRETARY_PASSWORD = TEST_USERS.SECRETARY.password;
 
 async function signIn(page: Page, email: string, password: string) {
   await page.goto('/sign-in', { waitUntil: 'networkidle' });

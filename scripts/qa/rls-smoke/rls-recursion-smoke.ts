@@ -125,8 +125,8 @@ function fetchWithTimeout(url: string, init?: RequestInit): Promise<Response> {
 }
 
 async function signIn(url: string, anonKey: string): Promise<string> {
-  const email = process.env.E2E_SECRETARY_EMAIL ?? 'secretary@myk9t.com';
-  const password = process.env.E2E_SECRETARY_PASSWORD ?? 'TestPass4567!';
+  const email = process.env.E2E_SECRETARY_EMAIL ?? 'e2e-secretary@test.myk9.com';
+  const password = process.env.E2E_SECRETARY_PASSWORD ?? 'Myk9-E2E-Test!2026';
   const res = await fetchWithTimeout(`${url}/auth/v1/token?grant_type=password`, {
     method: 'POST',
     headers: { apikey: anonKey, 'Content-Type': 'application/json' },

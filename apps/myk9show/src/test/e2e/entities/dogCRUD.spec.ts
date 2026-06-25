@@ -12,7 +12,8 @@ import { TEST_USERS } from '../helpers/testUsers';
 
 const SECRETARY_EMAIL = TEST_USERS.SECRETARY.email;
 const SECRETARY_PASSWORD = TEST_USERS.SECRETARY.password;
-const TEST_SECRETARY_EMAIL = 'secretary@myk9t.com';
+// People-table lookup key — must be the same account we authenticate as.
+const TEST_SECRETARY_EMAIL = TEST_USERS.SECRETARY.email;
 
 async function signIn(page: Page, email: string, password: string) {
   await page.goto('/sign-in', { waitUntil: 'networkidle' });

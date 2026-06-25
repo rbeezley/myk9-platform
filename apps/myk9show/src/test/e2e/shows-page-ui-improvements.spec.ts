@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { TEST_USERS } from './helpers/testUsers';
 
 /**
  * E2E Tests for Shows Page UI/UX Improvements
@@ -10,12 +11,14 @@ import type { Page } from '@playwright/test';
  * - View mode toggle tooltips
  * - Urgency ribbons for closing soon shows
  * - Visual status cues (opacity, borders)
+ *
+ * Auth: E2E_DEMO_EXHIBITOR_* (seeded exhibitor; CI secrets / .env.local).
  */
 
-// Test user credentials
+// Test user credentials — sourced from env via the shared TEST_USERS helper.
 const testUser = {
-  email: 'exhibitor1@myk9t.com',
-  password: 'TestPass4567!',
+  email: TEST_USERS.DEMO_EXHIBITOR.email,
+  password: TEST_USERS.DEMO_EXHIBITOR.password,
 };
 
 // Helper function to login

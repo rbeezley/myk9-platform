@@ -42,9 +42,9 @@ const EXHIBITOR_EMAIL = TEST_USERS.EXHIBITOR.email;
 const EXHIBITOR_PASSWORD = TEST_USERS.EXHIBITOR.password;
 
 // Test Secretary's person ID in the DB — used to select owner in the Create form.
-// This is the person linked to secretary@myk9t.com.
+// This is the person linked to the secretary fixture (E2E_SECRETARY_EMAIL).
 const TEST_SECRETARY_PERSON_NAME = 'Test Secretary';
-// Alice Martin (exhibitor1@myk9t.com) — used as a non-self owner.
+// Alice Martin (exhibitor fixture) — used as a non-self owner.
 const ALICE_MARTIN_NAME = 'Alice Martin';
 
 async function signIn(page: Page, email: string, password: string) {

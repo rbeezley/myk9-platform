@@ -29,7 +29,7 @@ const CLUB_C_NAME = `E2E Club C ${RUN_ID}`;
 // Tests skip automatically via skipWithoutAdminCredentials() when env vars are absent.
 const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? '';
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? '';
-const EXHIBITOR_EMAIL = process.env.E2E_EXHIBITOR_EMAIL ?? 'exhibitor1@myk9t.com';
+const EXHIBITOR_EMAIL = process.env.E2E_EXHIBITOR_EMAIL ?? 'e2e-exhibitor@test.myk9.com';
 const EXHIBITOR_PASSWORD = process.env.E2E_EXHIBITOR_PASSWORD ?? '';
 
 async function signIn(page: Page, email: string, password: string) {

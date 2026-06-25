@@ -44,17 +44,17 @@ export const TEST_USERS: Record<string, TestUser> = {
   },
 
   CLUB_ADMIN: {
-    email: process.env.E2E_CLUB_EMAIL ?? 'club@myk9t.com',
+    email: process.env.E2E_CLUB_EMAIL ?? 'e2e-clubadmin@test.myk9.com',
     password: process.env.E2E_CLUB_PASSWORD ?? '',
     role: 'club_admin',
-    description: 'Club administrator — nightly only',
+    description: 'Club administrator — e2e-clubadmin@test.myk9.com, nightly only',
   },
 
   EXHIBITOR: {
-    email: process.env.E2E_EXHIBITOR_EMAIL ?? 'exhibitor1@myk9t.com',
+    email: process.env.E2E_EXHIBITOR_EMAIL ?? 'e2e-exhibitor@test.myk9.com',
     password: process.env.E2E_EXHIBITOR_PASSWORD ?? '',
     role: 'exhibitor',
-    description: 'Exhibitor (Alice Martin) — nightly only',
+    description: 'Exhibitor (Alice Martin) — e2e-exhibitor@test.myk9.com, nightly only',
   },
 
   // Primary demo exhibitor with seeded dogs (Willow, Ranger, Juniper).

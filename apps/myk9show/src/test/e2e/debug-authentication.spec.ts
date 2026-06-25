@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { TEST_USERS } from './helpers/testUsers';
 
 /**
  * Debug Authentication Test
@@ -31,8 +32,8 @@ test.describe('Debug Authentication', () => {
 
     // Fill form
     console.log('3. Filling form with test credentials...');
-    await emailInput.fill('admin@myk9t.com');
-    await passwordInput.fill('TestPass4567!');
+    await emailInput.fill(TEST_USERS.SITE_ADMIN.email);
+    await passwordInput.fill(TEST_USERS.SITE_ADMIN.password);
 
     // Take screenshot after filling
     await page.screenshot({ path: 'debug-after-filling.png' });

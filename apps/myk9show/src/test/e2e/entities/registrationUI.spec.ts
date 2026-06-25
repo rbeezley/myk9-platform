@@ -1,4 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
+import { TEST_USERS } from '../helpers/testUsers';
 
 /**
  * UI test for the secretary mail-in registration wizard.
@@ -14,7 +15,7 @@ import { test, expect, Page } from '@playwright/test';
  *     enrollment filed under the dog's owner (not the secretary).
  *   - DB verification that the entry carries a non-zero entry_fee (PR #75).
  *
- * Auth: secretary@myk9t.com / TestPass4567!
+ * Auth: E2E_SECRETARY_EMAIL / E2E_SECRETARY_PASSWORD (CI secrets / .env.local).
  *
  * Out of scope (require multi-user / role-swap fixtures):
  *   - currentWorkflowMode reset on role change
@@ -23,8 +24,8 @@ import { test, expect, Page } from '@playwright/test';
 
 test.describe.configure({ mode: 'serial' });
 
-const SECRETARY_EMAIL = 'secretary@myk9t.com';
-const SECRETARY_PASSWORD = 'TestPass4567!';
+const SECRETARY_EMAIL = TEST_USERS.SECRETARY.email;
+const SECRETARY_PASSWORD = TEST_USERS.SECRETARY.password;
 
 // Seeded "June 2026" AKC Scent Work show — entry close 2026-06-13.
 // Trial "Saturday Trial 1" with Interior element classes ($30 each).

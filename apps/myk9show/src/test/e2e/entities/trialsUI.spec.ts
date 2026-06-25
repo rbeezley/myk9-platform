@@ -1,4 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
+import { TEST_USERS } from '../helpers/testUsers';
 
 /**
  * UI tests for the Trials feature (secretary role).
@@ -25,13 +26,13 @@ import { test, expect, Page } from '@playwright/test';
  *   - All cleanup runs in afterEach so the parent show stays tidy even if a
  *     UI flow aborts mid-test.
  *
- * Auth: secretary@myk9t.com / TestPass4567! (matches clubsUI / dogsUI / peopleUI).
+ * Auth: E2E_SECRETARY_EMAIL / E2E_SECRETARY_PASSWORD (CI secrets / .env.local).
  */
 
 test.describe.configure({ mode: 'serial' });
 
-const SECRETARY_EMAIL = 'secretary@myk9t.com';
-const SECRETARY_PASSWORD = 'TestPass4567!';
+const SECRETARY_EMAIL = TEST_USERS.SECRETARY.email;
+const SECRETARY_PASSWORD = TEST_USERS.SECRETARY.password;
 
 const RUN_ID = Date.now();
 

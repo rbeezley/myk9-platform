@@ -1,4 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
+import { TEST_USERS } from '../helpers/testUsers';
 
 /**
  * UI-driven e2e tests for the Shows section — secretary role.
@@ -10,13 +11,13 @@ import { test, expect, Page } from '@playwright/test';
  *     classCreationStore → Supabase fix: the page used to render "0 classes"
  *     against any trial not created in the same browser session.
  *
- * Auth: secretary@myk9t.com / TestPass4567! (matches clubsUI / dogsUI / peopleUI).
+ * Auth: E2E_SECRETARY_EMAIL / E2E_SECRETARY_PASSWORD (CI secrets / .env.local).
  */
 
 test.describe.configure({ mode: 'serial' });
 
-const SECRETARY_EMAIL = 'secretary@myk9t.com';
-const SECRETARY_PASSWORD = 'TestPass4567!';
+const SECRETARY_EMAIL = TEST_USERS.SECRETARY.email;
+const SECRETARY_PASSWORD = TEST_USERS.SECRETARY.password;
 const QA_PREMIUM_MONOGRAM_SHOW_ID = '5d8bfe56-a48d-48dd-ae75-7f90c2e02c4f';
 
 async function signIn(page: Page, email: string, password: string) {

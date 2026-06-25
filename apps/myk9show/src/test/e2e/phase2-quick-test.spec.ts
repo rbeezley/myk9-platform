@@ -1,5 +1,6 @@
 import { test } from '@playwright/test';
 import { ShowTestHelper } from './helpers/showTestHelper';
+import { TEST_USERS } from './helpers/testUsers';
 
 test.describe('Phase 2: Quick Show Management Test', () => {
   let showHelper: ShowTestHelper;
@@ -29,8 +30,8 @@ test.describe('Phase 2: Quick Show Management Test', () => {
 
     // Fill in credentials
     console.log('Filling credentials...');
-    await page.fill('[data-testid="email-input"]', 'secretary@myk9t.com');
-    await page.fill('[data-testid="password-input"]', 'TestPass4567!');
+    await page.fill('[data-testid="email-input"]', TEST_USERS.SECRETARY.email);
+    await page.fill('[data-testid="password-input"]', TEST_USERS.SECRETARY.password);
 
     // Submit form
     console.log('Clicking sign in...');

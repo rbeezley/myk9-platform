@@ -327,6 +327,7 @@ describe('ShowDetailsPage', () => {
   });
 
   it('renders DetailHero with show name', () => {
+    mockUserEntries = [{ id: 'e1', showId: 'show-1' }];
     renderPage();
     expect(screen.getByText('Bluegrass Classic')).toBeInTheDocument();
   });
@@ -359,11 +360,10 @@ describe('ShowDetailsPage', () => {
     expect(document.querySelector('[class*="animate-pulse"]')).toBeInTheDocument();
   });
 
-  it('defaults to Overview tab when user has no entries', () => {
-    mockUserEntries = [];
+  it('renders the default Monogram landing when user has no entries', () => {
     renderPage();
-    const tab = screen.getByText('Overview');
-    expect(tab.closest('[data-state="active"], [aria-selected="true"]')).toBeTruthy();
+    expect(screen.getByTestId('monogram-landing')).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /Overview/ })).toBeNull();
   });
 
   it('shows Manage Entry when an owned dog has an active entry', () => {
@@ -373,7 +373,7 @@ describe('ShowDetailsPage', () => {
     expect(screen.getByRole('button', { name: 'Manage Entry' })).toBeInTheDocument();
   });
 
-  it('shows Enter This Show when owned dog entries are all pulled or scratched', () => {
+  it('renders the public landing when owned dog entries are all pulled or scratched', () => {
     mockDogs = [{ id: 'dog-1', ownerId: 'person-1' }];
     mockShowEntries = [
       {
@@ -392,17 +392,14 @@ describe('ShowDetailsPage', () => {
       },
     ];
     renderPage();
-    expect(screen.getByRole('button', { name: 'Enter This Show' })).toBeInTheDocument();
+    expect(screen.getByTestId('monogram-landing')).toBeInTheDocument();
   });
 
-  it('hides Show Map, My Entries and My Stats tabs for unauthenticated users', () => {
+  it('renders the default public landing for unauthenticated users', () => {
     mockAuthContext.user = null;
     renderPage();
-    expect(screen.getByRole('tab', { name: /Overview/ })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Classes/ })).toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: /My Entries/ })).toBeNull();
-    // Results tab is now visible to all users (including unauthenticated)
-    expect(screen.getByRole('tab', { name: /Results/ })).toBeInTheDocument();
+    expect(screen.getByTestId('monogram-landing')).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /Overview/ })).toBeNull();
     expect(screen.queryByRole('tab', { name: /Show Map/ })).toBeNull();
     expect(screen.queryByRole('tab', { name: /My Entries/ })).toBeNull();
     expect(screen.queryByRole('tab', { name: /My Stats/ })).toBeNull();
@@ -420,14 +417,13 @@ describe('ShowDetailsPage', () => {
     expect(container.querySelector('[class*="animate-pulse"]')).toBeInTheDocument();
   });
 
-  it('shows "Enter This Show" button when user has no entries and entries are open', () => {
-    mockUserEntries = [];
+  it('does not show the product-detail entry button for public users with no entries', () => {
     renderPage();
-    expect(screen.getByRole('button', { name: 'Enter This Show' })).toBeInTheDocument();
+    expect(screen.getByTestId('monogram-landing')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Enter This Show' })).not.toBeInTheDocument();
   });
 
-  it('hides the enter action when loaded trials have no classes', () => {
-    mockUserEntries = [];
+  it('renders the public landing when loaded trials have no classes', () => {
     mockTrials = [
       {
         id: 'trial-1',
@@ -441,12 +437,12 @@ describe('ShowDetailsPage', () => {
 
     renderPage();
 
-    expect(screen.queryByRole('button', { name: 'Enter This Show' })).not.toBeInTheDocument();
-    expect(screen.getByTestId('detail-hero')).toHaveTextContent(/no classes assigned/i);
+    expect(screen.getByTestId('monogram-landing')).toBeInTheDocument();
+    expect(screen.queryByTestId('detail-hero')).not.toBeInTheDocument();
   });
 
   it('surfaces a "See classes" deep-link in the hero when the show has classes (UX-P2-04)', () => {
-    mockUserEntries = [];
+    mockUserEntries = [{ id: 'e1', showId: 'show-1' }];
     mockTrials = [
       {
         id: 'trial-1',
@@ -462,12 +458,12 @@ describe('ShowDetailsPage', () => {
 
     const secondary = screen.getByTestId('hero-secondary-actions');
     expect(within(secondary).getByRole('button', { name: /see classes/i })).toBeInTheDocument();
-    // Still alongside the primary enter action — the deep-link is additive.
-    expect(within(secondary).getByRole('button', { name: 'Enter This Show' })).toBeInTheDocument();
+    // Still alongside the primary entry action — the deep-link is additive.
+    expect(within(secondary).getByRole('button', { name: 'Manage Entry' })).toBeInTheDocument();
   });
 
   it('omits the "See classes" link when the show has no classes assigned', () => {
-    mockUserEntries = [];
+    mockUserEntries = [{ id: 'e1', showId: 'show-1' }];
     mockTrials = [
       {
         id: 'trial-1',
@@ -507,8 +503,8 @@ describe('ShowDetailsPage', () => {
       entryOpenDate: '2020-01-01',
       entryCloseDate: '2020-12-31',
     };
-    mockUserEntries = [];
     renderPage();
+    expect(screen.getByTestId('monogram-landing')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Enter This Show' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Manage Entry' })).not.toBeInTheDocument();
   });
@@ -587,7 +583,8 @@ describe('ShowDetailsPage', () => {
     expect(container?.className).not.toMatch(/w-\[\d/);
   });
 
-  it('hides canonical management nav from exhibitors', () => {
+  it('hides canonical management nav from exhibitors with entries', () => {
+    mockUserEntries = [{ id: 'e1', showId: 'show-1' }];
     renderPage();
 
     expect(screen.queryByTestId('canonical-show-management-nav')).not.toBeInTheDocument();
@@ -724,7 +721,7 @@ describe('ShowDetailsPage', () => {
     expect(screen.queryByTestId('monogram-landing')).toBeNull();
   });
 
-  it('does not render any styled landing for shows with style=null (preserves legacy behavior)', () => {
+  it('renders the Monogram public landing for shows with style=null', () => {
     mockShow = {
       ...mockShow,
       style: null,
@@ -733,12 +730,12 @@ describe('ShowDetailsPage', () => {
 
     renderPage();
 
-    expect(screen.queryByTestId('monogram-landing')).toBeNull();
+    expect(screen.getByTestId('monogram-landing')).toHaveTextContent('');
     expect(screen.queryByTestId('heritage-landing')).toBeNull();
     expect(screen.queryByTestId('headline-landing')).toBeNull();
   });
 
-  it('does not render any styled landing for shows with style="default"', () => {
+  it('renders the Monogram public landing for shows with style="default"', () => {
     mockShow = {
       ...mockShow,
       style: 'default',
@@ -746,7 +743,7 @@ describe('ShowDetailsPage', () => {
 
     renderPage();
 
-    expect(screen.queryByTestId('monogram-landing')).toBeNull();
+    expect(screen.getByTestId('monogram-landing')).toHaveTextContent('default');
   });
 
   it('renders the tabbed UI for an authenticated exhibitor with entries, even on a styled show', () => {
@@ -759,6 +756,20 @@ describe('ShowDetailsPage', () => {
     renderPage();
 
     expect(screen.queryByTestId('headline-landing')).toBeNull();
+    expect(screen.getByTestId('detail-hero')).toBeInTheDocument();
+  });
+
+  it('renders the tabbed UI for an authenticated exhibitor with entries on a default-style show', () => {
+    mockShow = {
+      ...mockShow,
+      style: null,
+      landing_style: null,
+    };
+    mockUserEntries = [{ id: 'entry-1', showId: 'show-1' }];
+
+    renderPage();
+
+    expect(screen.queryByTestId('monogram-landing')).toBeNull();
     expect(screen.getByTestId('detail-hero')).toBeInTheDocument();
   });
 

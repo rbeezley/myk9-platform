@@ -2,11 +2,9 @@
 
 ## Seeded accounts (staging)
 
-All e2e role accounts share **one** password, verified working against staging auth on 2026-06-25:
-
-```
-Myk9-E2E-Test!2026
-```
+All e2e role accounts share **one** password. It is **not** spelled out here —
+read it from `apps/myk9show/.env.local` (`E2E_*_PASSWORD`) or the GitHub Actions
+secrets.
 
 | Role | Email |
 |---|---|
@@ -21,8 +19,8 @@ Myk9-E2E-Test!2026
 > **Notes**
 > - `admin@myk9t.com` and `judge@myk9t.com` do **not** exist in `auth.users` — use the `e2e-admin@` / `e2e-judge@` accounts above.
 > - The duplicate `club@myk9t.com` login was **removed** 2026-06-25; its `people` row remains as a seeded demo official but can no longer sign in. Use `e2e-clubadmin@`.
-> - Password source of truth: GitHub Actions secrets (`E2E_*_PASSWORD`) + `apps/myk9show/.env.local`, mirrored by the `Myk9-E2E-Test!2026` constant in `src/test/e2e/fixtures/test-users.ts` and `scripts/setup-e2e-test-users.js`.
-> - Staging has **HaveIBeenPwned leaked-password protection ON** — GoTrue rejects weak/pwned values (e.g. the former `Test1234!`) on any new password set. Re-provisioning must use a policy-passing password like the one above.
+> - Password source of truth: GitHub Actions secrets (`E2E_*_PASSWORD`) + `apps/myk9show/.env.local`. The shared password was **rotated 2026-06-25** — never spell it out in code or docs; read it from those env sources.
+> - Staging has **HaveIBeenPwned leaked-password protection ON** — GoTrue rejects weak/pwned values (e.g. the former `Test1234!`) on any new password set. Re-provisioning must use a policy-passing password.
 
 ## Canonical seed show
 

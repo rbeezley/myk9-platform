@@ -5,11 +5,11 @@ golden path (find → enter → add dog → check in → view results).
 
 ## Test Account
 
-| Role      | Email                | Password      | Name        |
-| --------- | -------------------- | ------------- | ----------- |
-| Exhibitor | exhibitor1@myk9t.com | TestPass4567! | Alice Martin |
+| Role      | Email                       | Password           | Name         |
+| --------- | --------------------------- | ------------------ | ------------ |
+| Exhibitor | e2e-exhibitor@test.myk9.com | see `.env.local`   | Alice Martin |
 
-Other exhibitor accounts: `exhibitor2..5@myk9t.com` (same password).
+Other exhibitor accounts: `exhibitor2..5@myk9t.com` (legacy seed; nightly only).
 
 ## Sign-in note (unified SmartSignInPage)
 

@@ -10,10 +10,13 @@
  * Or create them manually in Supabase Auth dashboard.
  */
 
-// Shared password for all e2e role accounts (staging).
-// Must pass length + complexity + HaveIBeenPwned (leaked-password) checks —
-// GoTrue now rejects weak/pwned values like the old 'Test1234!'.
-export const TEST_PASSWORD = 'Myk9-E2E-Test!2026';
+// Shared password for all e2e role accounts (staging). Env-only — never spell a
+// live shared credential into source (the value is rotated periodically; the
+// last literal here was leaked + rotated 2026-06-25). All accounts share one
+// password, so any E2E_*_PASSWORD works; source it from apps/myk9show/.env.local
+// or CI secrets. Empty string when unset → dependent specs skip / fail loud.
+export const TEST_PASSWORD =
+  process.env.E2E_SECRETARY_PASSWORD ?? process.env.E2E_DEMO_EXHIBITOR_PASSWORD ?? '';
 
 // Test user definitions by role
 export const TEST_USERS = {

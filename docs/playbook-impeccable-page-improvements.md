@@ -20,7 +20,7 @@ Route:       <e.g. /shows/:showId/entries>
 Entry file:  <e.g. apps/myk9show/src/pages/secretary/EntriesManagementPage.tsx>
 Role:        <secretary | exhibitor | judge | steward | club admin>
 Quality bar: <MVP | flagship>   (most secretary pages: flagship)
-Login:       secretary@myk9t.com / TestPass4567!  (dev server: pnpm dev:show)
+Login:       e2e-secretary@test.myk9.com / password in apps/myk9show/.env.local  (dev server: pnpm dev:show)
 ```
 
 **[ADDED] Minimum input is the page name; the agent derives the rest.** Only

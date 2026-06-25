@@ -5,7 +5,7 @@
  * (Select Dogs → Classes → Handlers → Payment → Confirmation).
  *
  * Prerequisites (seeded in staging DB):
- *  - secretary@myk9t.com / TestPass4567! (agreed_to_tos_at set)
+ *  - Secretary fixture (E2E_SECRETARY_EMAIL, agreed_to_tos_at set)
  *  - Dog "Ace" (id: 074d56ff-a42f-4259-a2f6-030183a13f55) owned by Test Secretary,
  *    AKC registration on file, DOB 2022-03-15 (eligible: 6+ months, has registration)
  *  - Show "Test Golden Path Show" (id: 4ad95cdc-2c04-4386-8e0b-07b9111fcac3) org=AKC,
@@ -19,23 +19,10 @@
  *    fixed to skip payment-method check for free entries
  */
 import { test, expect } from '@playwright/test';
+import { signInAsSecretary } from '../helpers/testUsers';
 
-// Auth: secretary@myk9t.com / TestPass4567! — matches clubsUI / trialsUI pattern
-const SECRETARY_EMAIL = 'secretary@myk9t.com';
-const SECRETARY_PASSWORD = 'TestPass4567!';
+// Auth: shared SmartSignInPage helper (env-backed E2E_SECRETARY_* credentials).
 const TEST_SHOW_ID = '4ad95cdc-2c04-4386-8e0b-07b9111fcac3';
-
-async function signInAsSecretary(page: import('@playwright/test').Page) {
-  await page.goto('/sign-in');
-  await page.waitForSelector('input[type="email"]');
-  await page.locator('input[type="email"]').first().fill(SECRETARY_EMAIL);
-  await page.locator('input[type="password"]').first().fill(SECRETARY_PASSWORD);
-  await Promise.all([
-    page.waitForURL(url => !url.href.includes('/sign-in'), { timeout: 15000 }),
-    page.locator('button[type="submit"]').first().click(),
-  ]);
-  await page.waitForLoadState('networkidle');
-}
 
 test.describe('Secretary Entry Creation', () => {
   // Serial mode: the full-flow test writes a DB entry; parallel execution causes

@@ -45,10 +45,20 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
   }
 });
 
-// Shared password for all test accounts. Must pass length + complexity +
-// HaveIBeenPwned (leaked-password) checks — GoTrue rejects weak/pwned values
-// like the old 'Test1234!' on any new password set.
-const TEST_PASSWORD = 'Myk9-E2E-Test!2026';
+// Shared password for all test accounts — env-only; never spell a live shared
+// credential into source (the last literal here was leaked + rotated 2026-06-25).
+// Set E2E_TEST_PASSWORD (or any E2E_*_PASSWORD) before running; the value must
+// pass length + complexity + HaveIBeenPwned checks GoTrue enforces.
+const TEST_PASSWORD =
+  process.env.E2E_TEST_PASSWORD ||
+  process.env.E2E_SECRETARY_PASSWORD ||
+  process.env.E2E_DEMO_EXHIBITOR_PASSWORD;
+if (!TEST_PASSWORD) {
+  console.error(
+    'Refusing to run: set E2E_TEST_PASSWORD (or E2E_SECRETARY_PASSWORD) first — see apps/myk9show/.env.local'
+  );
+  process.exit(1);
+}
 
 // Test users to create
 const TEST_USERS = [

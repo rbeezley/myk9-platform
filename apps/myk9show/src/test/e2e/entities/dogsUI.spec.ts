@@ -37,9 +37,9 @@ const DOG_A_NAME = `E2E Dog A ${RUN_ID}`;
 const DOG_B_NAME = `E2E Dog B ${RUN_ID}`;
 
 // Test Secretary's person ID in the DB — used to select owner in the Create form.
-// This is the person linked to secretary@myk9t.com.
+// This is the person linked to the secretary fixture (E2E_SECRETARY_EMAIL).
 const TEST_SECRETARY_PERSON_NAME = 'Test Secretary';
-// Alice Martin (exhibitor1@myk9t.com) — used as a non-self owner.
+// Alice Martin (exhibitor fixture) — used as a non-self owner.
 const ALICE_MARTIN_NAME = 'Alice Martin';
 
 async function clickVisibleOption(page: Page, trigger: Locator, optionText: RegExp | string) {

@@ -27,7 +27,8 @@ The expensive judgment (what's actually wrong inside a file, and the fix) is del
 
    ```bash
    git log --since="<N> months ago" --name-only --format= -- \
-     'apps/myk9show/src/**/*.ts' 'apps/myk9show/src/**/*.tsx' 'packages/**/*.ts' \
+     'apps/myk9show/src/**/*.ts' 'apps/myk9show/src/**/*.tsx' \
+     'packages/**/*.ts' 'packages/**/*.tsx' \
      | grep -E '\.(ts|tsx)$' | grep -v test \
      | sort | uniq -c | sort -rn | head -20
    ```
@@ -39,7 +40,7 @@ The expensive judgment (what's actually wrong inside a file, and the fix) is del
 4. **Normalize and rank.** Map each axis to 1–5 by relative position within the result set (top file ≈ 5, bottom ≈ 1). Present a table: `Rank | File (clickable path) | Churn | LOC | Impact×Opp | Note`.
 
 5. **Apply judgment — this is the part git can't do:**
-   - Flag any file over **500 LOC** — it's already failing `qa:code-quality-ratchet`, so its "opportunity" score is pre-validated, not a guess.
+   - Flag any file over **500 LOC** — it's tracked as known debt by `qa:code-quality-ratchet` (the ratchet fails *regressions* past the baseline, not every existing oversized file), so its "opportunity" score is grounded in a real metric, not a guess.
    - Look for **clustering**: do the top files share a surface/feature (e.g. the secretary show-detail pages)? A cluster usually means the real fix is *consolidation*, not N point-fixes — surface that explicitly. This aligns with the repo's "consolidate, don't duplicate" rule in `CLAUDE.md`.
    - For any UI/page finding, answer: "Does this duplicate an existing page? If so, why is duplication justified instead of a link?"
 

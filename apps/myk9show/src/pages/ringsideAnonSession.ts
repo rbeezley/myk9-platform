@@ -25,6 +25,11 @@
  */
 
 import { supabase } from '@/services/database/supabaseClient';
+import {
+  replicatedTrialsTable,
+  replicatedClassesTable,
+  replicatedEntriesTable,
+} from '@/services/replication';
 import { validatePasscode, type ValidatePasscodeResult } from './validatePasscode';
 
 const SESSION_ERROR =
@@ -83,6 +88,27 @@ export async function startAnonymousRingsideSession(
     await supabase.auth.signOut();
     return { ok: false, kind: 'session', message: SESSION_ERROR };
   }
+
+  // The ringside claim is only live AFTER the refresh above. But signInAnonymously
+  // already emitted SIGNED_IN, which kicks off a replication sync with the bare
+  // anon JWT (empty app_metadata) — the claim-gated view returns 0 rows, and that
+  // empty result gets cached with nothing re-triggering a sync. Without this,
+  // /at-show shows "No Entries Yet" for a passcode judge. Re-sync the per-show
+  // tables now, under the stamped session, so the run order + entries load.
+  //
+  // Scope differs per table: trials and entries sync by show_id (so showId works
+  // directly), but classes sync by TRIAL_ID — so sync trials first, then sync
+  // classes per trial (passing showId to classes.sync is a no-op). Offline-
+  // tolerant: allSettled swallows failures (the page falls back to cache and
+  // re-syncs when back online).
+  await Promise.allSettled([
+    replicatedEntriesTable.sync(result.showId),
+    (async () => {
+      await replicatedTrialsTable.sync(result.showId);
+      const trials = await replicatedTrialsTable.getTrialsByShow(result.showId);
+      await Promise.allSettled(trials.map(trial => replicatedClassesTable.sync(trial.id)));
+    })(),
+  ]);
 
   return result;
 }

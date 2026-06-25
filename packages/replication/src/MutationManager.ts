@@ -21,11 +21,14 @@ import { markPerf, measurePerf } from './perf';
 import {
   withTimeout,
   TIMEOUT_PRESETS,
+  calculateBackoffDelay,
 } from './mutation-utils';
 import { classifyMutationFailure } from './mutation-retry';
 import {
   classifyEmptyUpdateResult,
+  getConflictServerVersion,
   getReturnedServerVersion,
+  isVersionConflictError,
   OccRejectionError,
 } from './mutation-occ';
 import { sortMutationsByDependencies } from './mutation-ordering';
@@ -469,10 +472,44 @@ export class MutationManager {
             // Do NOT delete the mutation and do NOT clear isDirty — the row
             // stays dirty so the download loop can detect the same-field conflict
             // and prompt the user to reconcile.
+            //
+            // Advance the replicated row's OCC token to the authoritative server
+            // version so the app stops minting NEW writes with the stale version
+            // (queueMutation stamps serverVersion from this row). Without this the
+            // client regenerates the same conflicting write indefinitely — the
+            // ringside high-CPU conflict storm. We advance the row token only, not
+            // this queued mutation's, so the dirty offline edit still awaits user
+            // reconciliation rather than auto-overwriting the server.
+            const freshServerVersion = error.currentServerVersion ?? error.expectedVersion;
+            if (typeof freshServerVersion === 'number') {
+              await this.advanceReplicatedRowServerVersion(
+                db,
+                error.tableName,
+                error.rowId,
+                freshServerVersion
+              );
+            }
+
+            // Throttle re-upload of an unresolved conflict (exponential backoff,
+            // capped) so it cannot hammer the server every flush cycle. This is a
+            // separate counter from `retries` so the conflict is never dead-lettered
+            // (which would destroy the offline edit) — it just slows down.
+            const occRetries = (mutation.occRetries ?? 0) + 1;
+            const occBackoff: PendingMutation = {
+              ...mutation,
+              occRetries,
+              nextRetryAt: now + calculateBackoffDelay(occRetries - 1, this.retryBackoffBase),
+            };
+            await db.put(REPLICATION_STORES.PENDING_MUTATIONS, occBackoff);
+            if (earliestBackoff === null || occBackoff.nextRetryAt! < earliestBackoff) {
+              earliestBackoff = occBackoff.nextRetryAt!;
+            }
+
             this.logger.warn(
               `[MutationManager] OCC rejection for ${error.tableName}/${error.rowId} ` +
-                `(expected server version ${error.expectedVersion}). ` +
-                `Row stays dirty for conflict detection.`
+                `(server version ${freshServerVersion}, attempt ${occRetries}). ` +
+                `Row token advanced; mutation stays dirty, next retry after ` +
+                `${new Date(occBackoff.nextRetryAt!).toISOString()}.`
             );
             results.push({
               success: false,
@@ -629,7 +666,26 @@ export class MutationManager {
             TIMEOUT_PRESETS.standard,
             `${tableName} rpc ${mutation.rpc.name}`
           );
-          if (error) throw error;
+          if (error) {
+            // A version-conflict raise (`40001`) would otherwise dead-letter,
+            // leaving the local OCC token stale so the app regenerates the same
+            // conflicting write forever (CPU storm). The RPC surfaces the current
+            // server version in the error DETAIL (error.details) — read it from
+            // there rather than a direct entries re-read, which the ringside
+            // caller's role (assigned judge / steward / passcode) may be denied.
+            // Re-throw as an OccRejectionError so the conflict handler advances
+            // the token and backs off.
+            if (isVersionConflictError(error)) {
+              const fresh = getConflictServerVersion(error);
+              throw new OccRejectionError(
+                tableName,
+                mutation.rowId,
+                mutation.serverVersion ?? fresh ?? 0,
+                fresh
+              );
+            }
+            throw error;
+          }
           // The RPC returns the new integer version (or null if the function
           // signals a no-op). Surface it so the local row's OCC token stays fresh.
           const newServerVersion =
@@ -729,6 +785,33 @@ export class MutationManager {
       // version (trigger incremented it on the server). Without this, a second
       // offline edit to the same row would carry a stale version and spuriously reject.
       ...(newServerVersion !== undefined && { serverVersion: newServerVersion }),
+    });
+  }
+
+  /**
+   * Advance a replicated row's OCC token to the authoritative server version
+   * after a conflict, WITHOUT clearing its dirty/conflict state. New mutations
+   * stamp `serverVersion` from this row (see ReplicatedTable.queueMutation), so
+   * advancing it stops the app from regenerating writes that carry the stale
+   * version — the engine behind the ringside conflict storm. The unsynced
+   * optimistic edit is preserved for the user to reconcile.
+   */
+  private async advanceReplicatedRowServerVersion(
+    db: Awaited<ReturnType<typeof databaseManager.getDatabase>>,
+    tableName: string,
+    rowId: string,
+    serverVersion: number
+  ): Promise<void> {
+    const key = [tableName, String(rowId)];
+    const existingRow = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, key)) as
+      | ReplicatedRow<unknown>
+      | undefined;
+    if (!existingRow) return;
+    if (existingRow.serverVersion === serverVersion) return;
+
+    await db.put(REPLICATION_STORES.REPLICATED_TABLES, {
+      ...existingRow,
+      serverVersion,
     });
   }
 

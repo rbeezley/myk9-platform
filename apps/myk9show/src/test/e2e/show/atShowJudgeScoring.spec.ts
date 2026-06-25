@@ -1,5 +1,9 @@
-import { expect, test, type Page, type Route } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { signInAsJudge } from '../uat/shared/auth';
+import {
+  installSharedStagingWriteGuard,
+  type GuardedRingsideRpcCall,
+} from '../helpers/sharedStagingWriteGuard';
 
 /**
  * Suite category: feature-audit.
@@ -30,8 +34,6 @@ const CLASS_PATH = `/at-show/${SHOW_ID}/class/${CLASS_ID}`;
 const REPLICATION_DB_NAME = 'myK9_Replication';
 const REPLICATED_TABLES_STORE = 'replicated_tables';
 
-type RpcCall = { p_entry_id?: string; p_fields?: Record<string, unknown> };
-
 test.describe('At-show judge scoring authorization', () => {
   // KNOWN-BLOCKED (fixme): PR #886 fixed the judge WRITE path (ringside_update_entry
   // authorizes class-assigned judges), but judge ringside is still blocked on the
@@ -40,11 +42,11 @@ test.describe('At-show judge scoring authorization', () => {
   // reaches scoring. This spec passes once a read path admits assigned judges /
   // ringside-session passcodes (follow-up RLS work). Kept as the regression guard
   // for that fix. See docs/plan-atshow-ringside-writes.md.
-  test.fixme(
-    'routes a judge score through ringside_update_entry and persists it',
-    async ({ page }) => {
-    const rpcCalls: RpcCall[] = [];
-    await interceptRingsideRpc(page, rpcCalls);
+  test.fixme('routes a judge score through ringside_update_entry and persists it', async ({
+    page,
+  }) => {
+    const rpcCalls: GuardedRingsideRpcCall[] = [];
+    await installSharedStagingWriteGuard(page, { ringsideRpcCalls: rpcCalls });
 
     await signInAsJudge(page, SCORE_PATH);
     await expect(page).toHaveURL(new RegExp(escapeRegExp(SCORE_PATH)));
@@ -82,27 +84,6 @@ test.describe('At-show judge scoring authorization', () => {
       });
   });
 });
-
-/**
- * Intercept the ringside write RPC so the test never mutates shared staging.
- * Collects each call's args and returns a bumped version integer (the RPC's
- * real return shape), letting the client treat the sync as successful.
- */
-async function interceptRingsideRpc(page: Page, rpcCalls: RpcCall[]) {
-  await page.route('**/rest/v1/rpc/ringside_update_entry', async (route: Route) => {
-    const request = route.request();
-    if (request.method() !== 'POST') {
-      await route.continue();
-      return;
-    }
-    rpcCalls.push((request.postDataJSON() ?? {}) as RpcCall);
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(100 + rpcCalls.length),
-    });
-  });
-}
 
 async function readEntryReplica(page: Page) {
   return page.evaluate(

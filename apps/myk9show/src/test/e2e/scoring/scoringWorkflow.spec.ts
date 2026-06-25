@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { DB_NAME, DB_VERSION } from '@myk9/replication';
 import { signInAsSecretary } from '../uat/shared/auth';
+import { installSharedStagingWriteGuard } from '../helpers/sharedStagingWriteGuard';
 
 const CLASS_ID = 'e2e-paper-scoring-class';
 const TRIAL_ID = 'e2e-paper-scoring-trial';
@@ -21,26 +22,14 @@ function resultButton(page: Page, code: 'Q' | 'NQ') {
 }
 
 async function preventSharedScoringWrites(page: Page) {
+  await installSharedStagingWriteGuard(page);
+
   await page.route('**/rest/v1/dog_registrations**', async route => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify([]),
     });
-  });
-
-  await page.route('**/rest/v1/entries**', async route => {
-    const request = route.request();
-    if (request.method() === 'PATCH') {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify([]),
-      });
-      return;
-    }
-
-    await route.fallback();
   });
 }
 

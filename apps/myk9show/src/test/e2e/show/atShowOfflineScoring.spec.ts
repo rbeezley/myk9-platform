@@ -1,5 +1,9 @@
-import { expect, test, type Page, type Route } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { signInAsSecretary } from '../uat/shared/auth';
+import {
+  installSharedStagingWriteGuard,
+  type GuardedRingsideRpcCall,
+} from '../helpers/sharedStagingWriteGuard';
 
 /**
  * Suite category: feature-audit.
@@ -27,15 +31,13 @@ const REPLICATION_DB_NAME = 'myK9_Replication';
 const REPLICATED_TABLES_STORE = 'replicated_tables';
 const PENDING_MUTATIONS_STORE = 'pending_mutations';
 
-type RpcCall = { p_entry_id?: string; p_fields?: Record<string, unknown> };
-
 test.describe('At-show offline scoring', () => {
   test('scores offline, queues the entry update, and flushes it after reconnect', async ({
     page,
     context,
   }) => {
-    const rpcCalls: RpcCall[] = [];
-    await interceptRingsideRpc(page, rpcCalls);
+    const rpcCalls: GuardedRingsideRpcCall[] = [];
+    await installSharedStagingWriteGuard(page, { ringsideRpcCalls: rpcCalls });
 
     await signInAsSecretary(page, SCORE_PATH);
     await expect(page).toHaveURL(new RegExp(escapeRegExp(SCORE_PATH)));
@@ -78,26 +80,6 @@ test.describe('At-show offline scoring', () => {
     await expect.poll(() => readPendingMutationCount(page), { timeout: 20_000 }).toBe(0);
   });
 });
-
-async function interceptRingsideRpc(page: Page, rpcCalls: RpcCall[]) {
-  // Ringside-column writes (scoring/check-in/etc.) now sync through the
-  // ringside_update_entry RPC, not a direct entries PATCH (PR #886). Capture the
-  // flushed call and return a bumped version integer (the RPC's real return)
-  // so the client treats the sync as successful without touching staging.
-  await page.route('**/rest/v1/rpc/ringside_update_entry', async (route: Route) => {
-    const request = route.request();
-    if (request.method() !== 'POST') {
-      await route.continue();
-      return;
-    }
-    rpcCalls.push((request.postDataJSON() ?? {}) as RpcCall);
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(100 + rpcCalls.length),
-    });
-  });
-}
 
 async function readEntryReplica(page: Page) {
   return page.evaluate(

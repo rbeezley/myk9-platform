@@ -19,7 +19,6 @@ Four steps toward the fall launch, in dependency order. Detailed phase checklist
 Two follow-ups from the ringside OCC conflict-storm incident (PR [#961](https://github.com/rbeezley/myk9-platform/pull/961), which fixed the storm itself). A since-fixed unthrottled OCC-conflict bug let repeated/concurrent E2E runs against shared staging drive a sustained high-CPU write storm (Supabase >80% CPU alert, 2026-06-25).
 
 - [ ] **Fix the stale-OCC-token root cause (replication sync-down)** — the deeper bug behind the storm: a locally-**dirty** replicated row never refreshes its `serverVersion` (OCC token) on sync-down, so a server-side `version` bump to an untouched field (e.g. placement recalc) pins the client's token stale → perpetual false version conflicts. #961 only mitigates this *reactively* (advance-on-conflict + backoff); this is the proactive source fix. Root cause verified against source. Plan + testing phase: [`docs/plan-replication-stale-occ-token-sync.md`](docs/plan-replication-stale-occ-token-sync.md).
-- [ ] **Isolate write-heavy E2E from shared staging** — route ringside/scoring E2E specs at an isolated/ephemeral Supabase (or fixture-intercepted writes, like the Phase 4 seam harness) instead of the shared `sojmvhhwsjxmfistvzbe` project. Mirrors the nightly-QA isolation principle (memory `project_nightly_qa_isolation`). Context + incident write-up: [`docs/plan-ringside-occ-conflict-storm.md`](docs/plan-ringside-occ-conflict-storm.md).
 
 ---
 

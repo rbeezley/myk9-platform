@@ -1,6 +1,6 @@
 # Plan: Public Default Landing
 
-> **Status:** Active
+> **Status:** Complete
 
 ## Decision
 

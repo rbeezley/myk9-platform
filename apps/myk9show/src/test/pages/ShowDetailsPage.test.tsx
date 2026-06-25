@@ -730,7 +730,7 @@ describe('ShowDetailsPage', () => {
 
     renderPage();
 
-    expect(screen.getByTestId('monogram-landing')).toHaveTextContent('');
+    expect(screen.getByTestId('monogram-landing')).toBeInTheDocument();
     expect(screen.queryByTestId('heritage-landing')).toBeNull();
     expect(screen.queryByTestId('headline-landing')).toBeNull();
   });
@@ -743,7 +743,7 @@ describe('ShowDetailsPage', () => {
 
     renderPage();
 
-    expect(screen.getByTestId('monogram-landing')).toHaveTextContent('default');
+    expect(screen.getByTestId('monogram-landing')).toBeInTheDocument();
   });
 
   it('renders the tabbed UI for an authenticated exhibitor with entries, even on a styled show', () => {

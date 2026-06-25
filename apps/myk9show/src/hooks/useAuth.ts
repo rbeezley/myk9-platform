@@ -116,7 +116,13 @@ export function useAuth() {
       // Create people + exhibitor_profiles for first-time OAuth users
       // Run in background (not awaited) so signOut doesn't hang
       if (_event === 'SIGNED_IN' && session?.user) {
-        const isOAuth = session.user.app_metadata?.provider !== 'email';
+        // Anonymous (passcode ringside) sessions have no `provider`, so the
+        // `!== 'email'` heuristic misclassifies them as OAuth and tries to INSERT
+        // a people row — which the trigger intentionally no longer creates
+        // (migration 20260625000000) and which 409s on the unique email. Anon
+        // users are not people/exhibitors; skip them.
+        const isAnonymous = session.user.is_anonymous === true;
+        const isOAuth = !isAnonymous && session.user.app_metadata?.provider !== 'email';
         if (isOAuth) {
           createOAuthPeopleRecord(session.user.id, session.user).catch(err => {
             console.error('Error creating people record for OAuth user:', err);

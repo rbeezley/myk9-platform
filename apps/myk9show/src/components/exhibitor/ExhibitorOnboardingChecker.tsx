@@ -48,6 +48,14 @@ export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingChec
     if (!user) return;
     if (isExemptPath(location.pathname)) return;
 
+    // Anonymous (passcode ringside) sessions are NOT exhibitors. As of migration
+    // 20260625000000 they have no exhibitor_profiles row by design, so
+    // `needsOnboarding` is true for them — but routing a passcode judge/steward to
+    // exhibitor onboarding is wrong (it bounces them out of /at-show). They carry
+    // their ringside role in the client grant, not RBAC, so the hasRole() checks
+    // below never match. Exempt them explicitly.
+    if (user.is_anonymous) return;
+
     // Secretaries, site admins, judges, and club admins don't have exhibitor_profiles
     // rows — they are staff roles, not exhibitors. Never route them to exhibitor onboarding.
     if (isSecretary || hasRole('site_admin') || hasRole('judge') || hasRole('club_admin')) return;

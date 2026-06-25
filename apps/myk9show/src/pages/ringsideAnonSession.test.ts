@@ -33,6 +33,17 @@ vi.mock('./validatePasscode', () => ({
   validatePasscode: (...a: unknown[]) => validatePasscode(...a),
 }));
 
+// The orchestrator force-resyncs per-show tables after the claim is stamped (an
+// earlier SIGNED_IN sync ran with the bare anon JWT and got 0 rows).
+const trialsSync = vi.fn();
+const classesSync = vi.fn();
+const entriesSync = vi.fn();
+vi.mock('@/services/replication', () => ({
+  replicatedTrialsTable: { sync: (...a: unknown[]) => trialsSync(...a) },
+  replicatedClassesTable: { sync: (...a: unknown[]) => classesSync(...a) },
+  replicatedEntriesTable: { sync: (...a: unknown[]) => entriesSync(...a) },
+}));
+
 const noSession = { data: { session: null }, error: null };
 const anonSession = {
   data: { session: { user: { id: 'anon-1', is_anonymous: true } } },
@@ -57,6 +68,9 @@ describe('startAnonymousRingsideSession', () => {
     refreshSession.mockResolvedValue({ error: null });
     signOut.mockResolvedValue({ error: null });
     validatePasscode.mockResolvedValue(okResult);
+    trialsSync.mockResolvedValue({});
+    classesSync.mockResolvedValue({});
+    entriesSync.mockResolvedValue({});
   });
 
   it('signs in anonymously, validates, then refreshes so the JWT carries the claim', async () => {
@@ -69,6 +83,27 @@ describe('startAnonymousRingsideSession', () => {
     expect(refreshSession).toHaveBeenCalledTimes(1);
     expect(signOut).not.toHaveBeenCalled();
     expect(result).toEqual(okResult);
+  });
+
+  it('re-syncs the per-show tables under the stamped claim before resolving', async () => {
+    // Regression guard: an earlier SIGNED_IN sync ran with the bare anon JWT
+    // (0 rows); without this re-sync /at-show shows "No Entries Yet".
+    getSession.mockResolvedValue(noSession);
+
+    await startAnonymousRingsideSession('jh3k9');
+
+    expect(entriesSync).toHaveBeenCalledWith('show-x');
+    expect(classesSync).toHaveBeenCalledWith('show-x');
+    expect(trialsSync).toHaveBeenCalledWith('show-x');
+  });
+
+  it('does NOT re-sync when the session is never stamped (fails closed first)', async () => {
+    getSession.mockResolvedValue(noSession);
+    validatePasscode.mockResolvedValue({ ...okResult, sessionStamped: false });
+
+    await startAnonymousRingsideSession('jh3k9');
+
+    expect(entriesSync).not.toHaveBeenCalled();
   });
 
   it('reuses an existing anonymous session instead of minting another', async () => {

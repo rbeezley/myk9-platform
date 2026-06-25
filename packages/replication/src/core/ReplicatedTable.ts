@@ -476,6 +476,9 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       remoteServerVersion: number | undefined;
       /** Pre-merged data from an adapter's mergeDirtyRow; omit for a generic 3-way merge. */
       mergedData?: T;
+      /** Rebuild a full Supabase UPDATE payload from the reconciled row, so a queued
+       *  full-row UPDATE can be refreshed (not just the IDB row) and won't clobber. */
+      rebuildPayload?: (local: T) => Record<string, unknown>;
     }
   ): Promise<boolean> {
     const db = await this.init();
@@ -526,6 +529,19 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
     await tx.store.put(row);
     await tx.done;
+
+    // The upload reads serverVersion/data from the QUEUED mutation, not this row —
+    // so reconcile the queue too, or the stuck mutation keeps uploading the stale
+    // token forever (storm) and, for full-row UPDATEs, the stale payload (clobber).
+    if (advanceToken && this.mutationManager && params.remoteServerVersion !== undefined) {
+      const rebuiltData = params.rebuildPayload?.(normalizedMerged);
+      await this.mutationManager.reconcilePendingMutationsForRow(
+        this.tableName,
+        normalizedId,
+        params.remoteServerVersion,
+        rebuiltData
+      );
+    }
 
     this.logger.log(
       `[${this.tableName}] Reconciled dirty row ${normalizedId} ` +

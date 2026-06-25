@@ -50,6 +50,16 @@ export interface SyncReplicatedTableAdapter<TRemote, TLocal extends { id: string
    */
   mergeDirtyRow?: (local: TLocal, remote: TLocal) => TLocal;
 
+  /**
+   * Rebuild the full Supabase UPDATE payload from a (reconciled) local row.
+   * Typically `row => this.toSupabaseRow(row)`. Used after a non-conflicting dirty
+   * sync-down reconciliation so a QUEUED full-row direct UPDATE can be refreshed to
+   * the merged payload — otherwise advancing its OCC token would let the stale
+   * full-row write clobber server-changed untouched fields. Adapters whose UPDATEs
+   * always route through a delta RPC don't need this (the RPC delta never clobbers).
+   */
+  rebuildUpdatePayload?: (local: TLocal) => Record<string, unknown>;
+
   shouldSkipRemoteRow?: (remote: TRemote, context: { local: TLocal | null }) => boolean;
   shouldCleanupStaleRows?: boolean;
   afterSuccessfulSync?: (context: {
@@ -262,6 +272,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
             mergedData: adapter.mergeDirtyRow
               ? ({ ...adapter.mergeDirtyRow(existing.data, remoteLocal), id } as TLocal)
               : undefined,
+            rebuildPayload: adapter.rebuildUpdatePayload,
           });
           if (reconciled) {
             rowsAffected++;

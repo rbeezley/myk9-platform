@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReplicatedTable } from './core/ReplicatedTable';
 import { syncReplicatedTable, type SyncReplicatedTableAdapter } from './syncReplicatedTable';
 import { parseUpdatedAtMs } from './parseUpdatedAt';
+import type { MutationManager } from './MutationManager';
 import type { SyncOptions, SyncResult } from './types';
 
 interface LocalEntry {
@@ -562,6 +563,63 @@ describe('syncReplicatedTable', () => {
       expect(row?.data.finalPlacement).toBeNull();
       expect(row?.serverVersion).toBeUndefined();
       expect(row?.data.status).toBe('done');
+    });
+
+    it('reconciles the QUEUED mutations too (not just the IDB row) so the storm actually stops', async () => {
+      // The upload reads serverVersion/data from the queued mutation, so reconciling
+      // only the row would leave the stuck mutation uploading the stale token forever.
+      const reconcileQueue = vi.fn(async () => {});
+      table.setMutationManager({
+        reconcilePendingMutationsForRow: reconcileQueue,
+      } as unknown as MutationManager);
+
+      await seedDirty(
+        { id: '1', name: 'Rex', status: 'scored', finalPlacement: null },
+        { id: '1', name: 'Rex', status: 'done', finalPlacement: null },
+        3
+      );
+
+      const adapter = makeVersionedAdapter([
+        { id: 1, name: 'Rex', status: 'scored', final_placement: 2, version: 8 },
+      ]);
+      // Full-row UPDATE table → must hand a rebuilt payload down so the queue refresh
+      // can avoid a clobber.
+      adapter.rebuildUpdatePayload = local => ({
+        id: local.id,
+        status: local.status,
+        final_placement: local.finalPlacement ?? null,
+      });
+
+      await syncReplicatedTable(table, adapter, {}, { conflictSurfacingEnabled: true });
+
+      expect(reconcileQueue).toHaveBeenCalledTimes(1);
+      expect(reconcileQueue).toHaveBeenCalledWith(table.getTableName(), '1', 8, {
+        id: '1',
+        status: 'done', // local edit preserved
+        final_placement: 2, // server field merged into the rebuilt payload (no clobber)
+      });
+    });
+
+    it('does not reconcile the queue when the token did not advance', async () => {
+      const reconcileQueue = vi.fn(async () => {});
+      table.setMutationManager({
+        reconcilePendingMutationsForRow: reconcileQueue,
+      } as unknown as MutationManager);
+
+      await seedDirty(
+        { id: '1', name: 'Rex', status: 'scored', finalPlacement: null },
+        { id: '1', name: 'Rex', status: 'done', finalPlacement: null },
+        10
+      );
+
+      // Backdated server version → no forward advance → nothing to reconcile on the queue.
+      const adapter = makeVersionedAdapter([
+        { id: 1, name: 'Rex', status: 'scored', final_placement: 2, version: 6 },
+      ]);
+
+      await syncReplicatedTable(table, adapter, {}, { conflictSurfacingEnabled: true });
+
+      expect(reconcileQueue).not.toHaveBeenCalled();
     });
   });
 

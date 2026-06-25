@@ -152,6 +152,12 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       },
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
       toLocalRow: rowToEntry,
+      // After a non-conflicting dirty sync-down reconciles a row, a queued full-row
+      // direct UPDATE (updateStatus/updateEntry) must be refreshed to the merged
+      // payload so advancing its OCC token doesn't clobber server-changed untouched
+      // fields (e.g. final_placement bumped by the recalc trigger). RPC writes carry
+      // a delta and don't need this.
+      rebuildUpdatePayload: entry => this.toSupabaseRow(entry),
       filterLocalRows: (rows, scope) =>
         scope.value ? rows.filter(row => row.showId === scope.value) : rows,
       resolveConflict: (local, remote) => this.resolveConflict(local, remote),

@@ -213,7 +213,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
         // Phase 4: detect same-field collisions when the flag is on and we have a
         // clean base snapshot to diff against. If fields overlap → surface the
         // conflict; the row is held dirty and the user must reconcile. Non-overlapping
-        // fields fall through to mergeDirtyRow as before.
+        // fields are reconciled below (merge untouched server fields + advance token).
         const surfaceConflicts = options.conflictSurfacingEnabled ?? isConflictSurfacingEnabled();
         if (surfaceConflicts && existing.baseData !== undefined) {
           const detection = detectDirtyRowConflict({
@@ -246,8 +246,35 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
             rowsAffected++;
             continue;
           }
+
+          // No same-field conflict → reconcile server-authoritative fields the
+          // client never touched into the dirty row, and advance the OCC token so
+          // the next upload's precondition matches the server. Root-cause fix for
+          // the stale-token storm (docs/plan-replication-stale-occ-token-sync.md):
+          // previously the dirty row was skipped, pinning serverVersion stale until
+          // a server bump to an untouched field produced a false 40001. When an
+          // adapter defines mergeDirtyRow it owns the data merge; otherwise a generic
+          // 3-way merge adopts only the fields the client never changed.
+          const reconciled = await table.reconcileDirtyRow(id, {
+            base: existing.baseData,
+            remote: remoteLocal,
+            remoteServerVersion,
+            mergedData: adapter.mergeDirtyRow
+              ? ({ ...adapter.mergeDirtyRow(existing.data, remoteLocal), id } as TLocal)
+              : undefined,
+          });
+          if (reconciled) {
+            rowsAffected++;
+            conflictsResolved++;
+          }
+          continue;
         }
 
+        // Flag off OR no base snapshot to diff against: legacy behavior. Let an
+        // adapter merge server-authoritative fields (last-write-wins); otherwise the
+        // dirty row is preserved untouched until its pending mutation uploads. No OCC
+        // token exists in this path (it is only captured when surfacing is on), so
+        // there is nothing to advance.
         if (adapter.mergeDirtyRow) {
           const merged = adapter.mergeDirtyRow(existing.data, remoteLocal);
           await table.set(id, { ...merged, id } as TLocal, true);

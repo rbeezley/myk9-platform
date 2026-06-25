@@ -45,7 +45,7 @@ export async function installSharedStagingWriteGuard(
   page: Page,
   options: SharedStagingWriteGuardOptions = {}
 ) {
-  const ringsideRpcCalls = options.ringsideRpcCalls;
+  const ringsideRpcCalls = options.ringsideRpcCalls ?? [];
   const versionBase = options.versionBase ?? 100;
 
   await page.route('**/rest/v1/rpc/ringside_update_entry', async route => {
@@ -56,17 +56,17 @@ export async function installSharedStagingWriteGuard(
     });
 
     if (guardedWrite?.kind !== 'ringside-update-entry-rpc') {
-      await continueRoute(route);
+      await fallbackRoute(route);
       return;
     }
 
     const payload = (request.postDataJSON() ?? {}) as GuardedRingsideRpcCall;
-    ringsideRpcCalls?.push(payload);
+    ringsideRpcCalls.push(payload);
 
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(versionBase + (ringsideRpcCalls?.length ?? 1)),
+      body: JSON.stringify(versionBase + ringsideRpcCalls.length),
     });
   });
 
@@ -78,7 +78,7 @@ export async function installSharedStagingWriteGuard(
     });
 
     if (guardedWrite?.kind !== 'entries-patch') {
-      await continueRoute(route);
+      await fallbackRoute(route);
       return;
     }
 
@@ -102,6 +102,6 @@ function isSharedStagingHost(hostname: string) {
   return hostname === `${SHARED_STAGING_PROJECT_REF}.supabase.co`;
 }
 
-async function continueRoute(route: Route) {
+async function fallbackRoute(route: Route) {
   await route.fallback();
 }

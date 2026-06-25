@@ -10,8 +10,10 @@
  * Or create them manually in Supabase Auth dashboard.
  */
 
-// Simple shared password for all test accounts
-export const TEST_PASSWORD = 'Test1234!';
+// Shared password for all e2e role accounts (staging).
+// Must pass length + complexity + HaveIBeenPwned (leaked-password) checks —
+// GoTrue now rejects weak/pwned values like the old 'Test1234!'.
+export const TEST_PASSWORD = 'Myk9-E2E-Test!2026';
 
 // Test user definitions by role
 export const TEST_USERS = {

@@ -44,8 +44,12 @@ export const TEST_USERS: Record<string, TestUser> = {
   },
 
   CLUB_ADMIN: {
-    email: process.env.E2E_CLUB_EMAIL ?? 'club@myk9t.com',
-    password: process.env.E2E_CLUB_PASSWORD ?? '',
+    // Canonical club-admin login. The old duplicate `club@myk9t.com` auth user
+    // was removed 2026-06-25 — its `people` row remains as a seeded demo official
+    // but can no longer sign in. All e2e accounts share one password, so fall
+    // back to the demo-exhibitor secret when E2E_CLUB_PASSWORD is unset.
+    email: process.env.E2E_CLUB_EMAIL ?? 'e2e-clubadmin@test.myk9.com',
+    password: process.env.E2E_CLUB_PASSWORD ?? process.env.E2E_DEMO_EXHIBITOR_PASSWORD ?? '',
     role: 'club_admin',
     description: 'Club administrator — nightly only',
   },

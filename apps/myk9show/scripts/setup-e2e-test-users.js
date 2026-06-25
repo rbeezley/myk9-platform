@@ -45,8 +45,10 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
   }
 });
 
-// Simple shared password for all test accounts
-const TEST_PASSWORD = 'Test1234!';
+// Shared password for all test accounts. Must pass length + complexity +
+// HaveIBeenPwned (leaked-password) checks — GoTrue rejects weak/pwned values
+// like the old 'Test1234!' on any new password set.
+const TEST_PASSWORD = 'Myk9-E2E-Test!2026';
 
 // Test users to create
 const TEST_USERS = [
@@ -162,6 +164,24 @@ async function createTestUser(user) {
     if (existingUser) {
       console.log(`  Auth user exists: ${existingUser.id}`);
       userId = existingUser.id;
+
+      // Reset the password so re-running this script actually converges existing
+      // accounts onto TEST_PASSWORD — otherwise it prints the new password but
+      // leaves the auth user on its prior one.
+      const { error: updateError } = await supabase.auth.admin.updateUserById(userId, {
+        password: TEST_PASSWORD,
+        email_confirm: true,
+        user_metadata: {
+          first_name: firstName,
+          last_name: lastName
+        }
+      });
+
+      if (updateError) {
+        throw new Error(`Auth password update failed: ${updateError.message}`);
+      }
+
+      console.log(`  Auth password reset to TEST_PASSWORD`);
     } else {
       // Create new auth user
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({

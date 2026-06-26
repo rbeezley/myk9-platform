@@ -27,36 +27,67 @@ ALTER TABLE public.shows
   ADD COLUMN IF NOT EXISTS withdrawal_retention_value INTEGER,
   ADD COLUMN IF NOT EXISTS withdrawal_policy_notes TEXT;
 
--- Constrain the enum-ish + non-negative fields. Guarded so re-running the
--- migration (or a partial prior apply) does not error on a duplicate constraint.
+-- Constrain the enum-ish + bounded-value fields. Guarded (scoped by both
+-- conname AND conrelid so a same-named constraint on another table can't make
+-- the guard skip the intended ADD) so re-running the migration is a no-op.
+--
+-- Value bounds are TYPE-AWARE: a flat retention is any non-negative cents, but
+-- a percent must be 0..100 — rejecting a "250%" typo at the schema instead of
+-- letting the app clamp it silently to a $0 refund (money-policy data).
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'clubs_default_withdrawal_retention_type_check') THEN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'clubs_default_withdrawal_retention_type_check'
+      AND conrelid = 'public.clubs'::regclass
+  ) THEN
     ALTER TABLE public.clubs
       ADD CONSTRAINT clubs_default_withdrawal_retention_type_check
       CHECK (default_withdrawal_retention_type IS NULL
              OR default_withdrawal_retention_type IN ('flat', 'percent'));
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'clubs_default_withdrawal_retention_value_check') THEN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'clubs_default_withdrawal_retention_value_check'
+      AND conrelid = 'public.clubs'::regclass
+  ) THEN
     ALTER TABLE public.clubs
       ADD CONSTRAINT clubs_default_withdrawal_retention_value_check
-      CHECK (default_withdrawal_retention_value IS NULL
-             OR default_withdrawal_retention_value >= 0);
+      CHECK (
+        default_withdrawal_retention_value IS NULL
+        OR (default_withdrawal_retention_type = 'percent'
+            AND default_withdrawal_retention_value BETWEEN 0 AND 100)
+        OR (default_withdrawal_retention_type IS DISTINCT FROM 'percent'
+            AND default_withdrawal_retention_value >= 0)
+      );
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'shows_withdrawal_retention_type_check') THEN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'shows_withdrawal_retention_type_check'
+      AND conrelid = 'public.shows'::regclass
+  ) THEN
     ALTER TABLE public.shows
       ADD CONSTRAINT shows_withdrawal_retention_type_check
       CHECK (withdrawal_retention_type IS NULL
              OR withdrawal_retention_type IN ('flat', 'percent'));
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'shows_withdrawal_retention_value_check') THEN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'shows_withdrawal_retention_value_check'
+      AND conrelid = 'public.shows'::regclass
+  ) THEN
     ALTER TABLE public.shows
       ADD CONSTRAINT shows_withdrawal_retention_value_check
-      CHECK (withdrawal_retention_value IS NULL
-             OR withdrawal_retention_value >= 0);
+      CHECK (
+        withdrawal_retention_value IS NULL
+        OR (withdrawal_retention_type = 'percent'
+            AND withdrawal_retention_value BETWEEN 0 AND 100)
+        OR (withdrawal_retention_type IS DISTINCT FROM 'percent'
+            AND withdrawal_retention_value >= 0)
+      );
   END IF;
 END $$;
 

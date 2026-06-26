@@ -130,7 +130,7 @@ Diagram sources and exports live in `docs/diagrams/`. Each diagram is a separate
 | `secretary-setup-flow.drawio` | Overview Deck slide 5; Secretary Deck | `qa-draft` — candidate |
 | `secretary-show-day-flow.drawio` | Overview Deck slide 8; Secretary Deck slides 5–6 | `qa-draft` — candidate |
 | `payment-flow.drawio` | Club Admin Guide § 4–5; Overview Deck slides 14–15 | `blocked: stripe` |
-| `at-show-access-paths.drawio` | Quickstart § 1; Overview Deck slide 12 | `ready` |
+| `at-show-access-paths.drawio` | Quickstart § 1; Overview Deck slide 12 | `ready (drawn 2026-06-25 — hand-authored SVG; drawio source pending)` |
 | `support-triage-flow.drawio` | Triage outline; investigation cookbook | `qa-draft` — candidate |
 
 ---

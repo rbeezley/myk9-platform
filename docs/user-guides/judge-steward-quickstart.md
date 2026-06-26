@@ -2,8 +2,8 @@
 
 **Status:** `qa-draft`
 **Audience:** Judges and ring stewards
-**Last verified:** 2026-06-25 — screenshots J-01…J-06 captured against staging; `at-show-access-paths` diagram and non-author reviewer still pending
-**Verified by:** draft against outline (`docs/user-guides/judge-steward-quickstart-outline.md`); screenshots captured against staging 2026-06-25
+**Last verified:** 2026-06-25 — screenshots J-01…J-06 and `at-show-access-paths` diagram complete; non-author reviewer still pending
+**Verified by:** draft against outline (`docs/user-guides/judge-steward-quickstart-outline.md`); screenshots and diagram captured against staging 2026-06-25
 
 > **Note:** This is a QA-draft guide written as a testing instrument. The screenshots (J-01…J-06) and the access-paths diagram are **pending capture** — see the checklist at the end. Do not publish to customers until status is `verified`.
 
@@ -26,7 +26,7 @@ There are three ways in. Use whichever fits you.
 
 ![Passcode entry screen — "Email or show passcode" field with Continue button (mobile)](../screenshots/J-01.png)
 
-> _Diagram pending — `at-show-access-paths`: the two ways into ringside._
+![Two access paths into ringside: account holders tap Ringside in the sidebar; guests enter a passcode or scan a QR code](../diagrams/at-show-access-paths.svg)
 
 **Don't have a passcode?** Ask the trial secretary before the show starts. They share it from the show desk under **Show Access Codes**.
 
@@ -122,4 +122,4 @@ Shots from `docs/training/screenshot-shot-list.md`. All **pending capture** — 
 | J-04 | Score a dog | Scoresheet — timer running | Tablet | captured 2026-06-25 |
 | J-05 | Score a dog | Q / NQ / Absent buttons | Tablet | captured 2026-06-25 |
 | J-06 | Score a dog | Entry list with a saved result | Tablet | captured 2026-06-25 |
-| `at-show-access-paths` (diagram) | Get into ringside | The two ways into ringside | — | pending |
+| `at-show-access-paths` (diagram) | Get into ringside | The two ways into ringside | — | drawn 2026-06-25 |

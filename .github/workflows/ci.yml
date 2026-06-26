@@ -55,6 +55,9 @@ jobs:
       - name: Code-quality ratchets
         run: pnpm qa:code-quality-ratchet
 
+      - name: Fetch origin/main for doc staleness diff
+        run: git fetch --depth=1 origin main
+
       - name: Doc staleness check
         run: pnpm qa:doc-staleness:strict
 

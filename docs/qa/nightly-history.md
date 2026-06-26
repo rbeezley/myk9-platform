@@ -18,6 +18,16 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-06-26
+
+- **Playwright command:** skipped full Phase 2 replay after focused repair proof hit a credential blocker. Focused four-surface replay for `QA-TEST-FLAKE-027` failed before route assertions because env-backed E2E accounts were rejected at sign-in.
+- **Route sweep:** partial/fail in focused replay. Public, judge, and admin route-health groups passed; exhibitor, secretary, and club-admin failed during shared sign-in with `Invalid login credentials`.
+- **Active specs:** focused replay `3 passed, 6 failed, 4 did not run`; full active Nightly not run because credentials/data were not available for authenticated proof.
+- **Failures:** `QA-TEST-FLAKE-027` remains open. `simple-connectivity.spec.ts --grep "sign in with secretary credentials"` now fails fast with `E2E sign-in rejected credentials for e2e-secretary@test.myk9.com`, confirming the blocker is test-account auth state rather than the original route assertions.
+- **Fixes made:** test helper + docs. `src/test/e2e/helpers/testUsers.ts` now throws immediately on missing E2E credentials or visible `Invalid login credentials`, preventing 15-90 minute timeout waste. `docs/qa/findings.md` was deduplicated to a single `QA-TEST-FLAKE-027` block and updated with the credential blocker.
+- **Demotions/promotions:** none.
+- **Notes:** Ran from linked repair worktree `codex/fix-qa-test-flake-027` on `origin/main` `0a4195182`, using focused ports `6237` and `6243`. Do not close `QA-TEST-FLAKE-027` until the linked test environment's E2E account credentials are repaired/reset and the required focused + full Nightly proof passes.
+
 ### 2026-06-21
 
 - **Playwright command:** fail. Phase 1 promoted Vitest passed (`18/18`). Phase 2 exact active Playwright command failed with `40 passed, 4 failed, 2 skipped, 4 did not run (49.1m, --retries=0)`, exceeding the 30-minute global Nightly budget.

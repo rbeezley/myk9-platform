@@ -2,7 +2,8 @@
  * Pull Management Tab
  *
  * Displays and manages pull requests from exhibitors.
- * Allows secretary to approve, deny, and process refunds.
+ * Secretary can approve or deny requests here.
+ * Refund reconciliation lives in Entry Management (filter: Pulled).
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -35,21 +36,16 @@ import {
   Dog,
   Trophy,
   DollarSign,
-  CreditCard,
 } from 'lucide-react';
 import {
-  getPendingScratchRequests as getPendingPullRequests,
-  getScratchedEntries as getPulledEntries,
-  type ScratchRequest as PullRequest,
+  getPendingPullRequests,
+  getPulledEntries,
+  type PullRecord,
 } from '@/services/database/day-of-operations';
 import {
   approvePullRequestReplicated,
   denyPullRequestReplicated,
 } from '@/services/show-day/requestManagement';
-import {
-  RefundEntryDialog,
-  type RefundableEntry,
-} from '@/components/entries/management/RefundEntryDialog';
 
 interface PullManagementTabProps {
   showId: string;
@@ -57,19 +53,17 @@ interface PullManagementTabProps {
 }
 
 export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, onRefresh }) => {
-  const [pendingRequests, setPendingRequests] = useState<PullRequest[]>([]);
-  const [processedPulls, setProcessedPulls] = useState<PullRequest[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<PullRecord[]>([]);
+  const [processedPulls, setProcessedPulls] = useState<PullRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('pending');
 
-  // Dialog state
-  const [selectedRequest, setSelectedRequest] = useState<PullRequest | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<PullRecord | null>(null);
   const [dialogAction, setDialogAction] = useState<'approve' | 'deny' | null>(null);
   const [denyReason, setDenyReason] = useState('');
-  const [refundDialogEntry, setRefundDialogEntry] = useState<RefundableEntry | null>(null);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -84,11 +78,11 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
       if (pendingResult.error) {
         setError('Failed to load pull requests');
       } else {
-        setPendingRequests(pendingResult.data as PullRequest[]);
+        setPendingRequests(pendingResult.data as PullRecord[]);
       }
 
       if (!processedResult.error) {
-        setProcessedPulls(processedResult.data as PullRequest[]);
+        setProcessedPulls(processedResult.data as PullRecord[]);
       }
     } catch (_err) {
       setError('An unexpected error occurred');
@@ -149,23 +143,15 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
     }
   };
 
-  const openApproveDialog = (request: PullRequest) => {
+  const openApproveDialog = (request: PullRecord) => {
     setSelectedRequest(request);
     setDialogAction('approve');
   };
 
-  const openDenyDialog = (request: PullRequest) => {
+  const openDenyDialog = (request: PullRecord) => {
     setSelectedRequest(request);
     setDialogAction('deny');
     setDenyReason('');
-  };
-
-  const openRefundDialog = (request: PullRequest) => {
-    setRefundDialogEntry({
-      id: request.id,
-      totalFee: (request.entry_fee ?? 0) / 100,
-      dogName: request.dog?.name ?? '',
-    });
   };
 
   const closeDialog = () => {
@@ -174,8 +160,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
     setDenyReason('');
   };
 
-  // Filter requests by search term
-  const filterRequests = (items: PullRequest[]) => {
+  const filterRequests = (items: PullRecord[]) => {
     if (!searchTerm) return items;
     const search = searchTerm.toLowerCase();
     return items.filter(
@@ -204,36 +189,24 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
     return `$${(cents / 100).toFixed(2)}`;
   };
 
-  const getRefundStatusBadge = (status: string | null) => {
-    switch (status) {
-      case 'eligible':
-        return (
-          <Badge variant="outline" className="bg-yellow-50 text-yellow-700">
-            Refund Eligible
-          </Badge>
-        );
-      case 'processed':
+  const getPullTimingBadge = (timing: 'before_close' | 'after_close' | null) => {
+    switch (timing) {
+      case 'before_close':
         return (
           <Badge variant="outline" className="bg-green-50 text-green-700">
-            Refunded
+            Before close
           </Badge>
         );
-      case 'denied':
+      case 'after_close':
         return (
-          <Badge variant="outline" className="bg-red-50 text-red-700">
-            No Refund
-          </Badge>
-        );
-      case 'pending':
-        return (
-          <Badge variant="outline" className="bg-blue-50 text-blue-700">
-            Pending
+          <Badge variant="outline" className="bg-orange-50 text-orange-700">
+            After close
           </Badge>
         );
       default:
         return (
           <Badge variant="outline" className="bg-gray-50 text-gray-500">
-            N/A
+            Timing unknown
           </Badge>
         );
     }
@@ -256,7 +229,9 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
             <XCircle className="h-5 w-5" />
             Pull Management
           </h3>
-          <p className="text-sm text-muted-foreground">Review pull requests and process refunds</p>
+          <p className="text-sm text-muted-foreground">
+            Review and approve pull requests. Refund decisions are made in Entry Management.
+          </p>
         </div>
         <Button variant="outline" size="sm" onClick={loadData}>
           <RefreshCw className="h-4 w-4 mr-2" />
@@ -287,7 +262,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="pending">Pending ({filteredPending.length})</TabsTrigger>
-          <TabsTrigger value="processed">Processed ({filteredProcessed.length})</TabsTrigger>
+          <TabsTrigger value="processed">Pulled ({filteredProcessed.length})</TabsTrigger>
         </TabsList>
 
         {/* Pending Requests */}
@@ -329,9 +304,9 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
                           <div className="text-sm text-muted-foreground">
                             Handler: {request.handler || 'Not specified'}
                           </div>
-                          {request.special_requests && (
+                          {request.pull_reason && (
                             <div className="text-sm text-muted-foreground italic">
-                              Reason: {request.special_requests}
+                              Reason: {request.pull_reason}
                             </div>
                           )}
                         </div>
@@ -381,17 +356,17 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
           )}
         </TabsContent>
 
-        {/* Processed Pulls */}
+        {/* Pulled entries */}
         <TabsContent value="processed" className="mt-4">
           {filteredProcessed.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
                 <XCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <p className="text-lg font-medium">No Processed Pulls</p>
+                <p className="text-lg font-medium">No Pulled Entries</p>
                 <p className="text-sm text-muted-foreground">
                   {searchTerm
                     ? 'No pulls match your search'
-                    : 'There are no processed pulls for this show'}
+                    : 'There are no pulled entries for this show'}
                 </p>
               </CardContent>
             </Card>
@@ -414,38 +389,20 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
                             {pull.class?.class_number && `#${pull.class.class_number} - `}
                             {pull.class?.name}
                           </div>
-                          {pull.scratch_reason && (
+                          {pull.pull_reason && (
                             <div className="text-xs text-muted-foreground italic">
-                              {pull.scratch_reason}
+                              {pull.pull_reason}
                             </div>
                           )}
                         </div>
                       </div>
 
                       <div className="flex items-center gap-6">
-                        <div className="text-center">
-                          {getRefundStatusBadge(pull.refund_status ?? null)}
-                          {pull.refund_amount && pull.refund_status === 'processed' && (
-                            <div className="text-sm text-green-600 mt-1">
-                              {formatCurrency(pull.refund_amount)}
-                            </div>
-                          )}
-                        </div>
+                        {getPullTimingBadge(pull.pull_timing)}
 
                         <div className="text-sm text-muted-foreground">
-                          Pulled: {formatDate(pull.scratched_at ?? pull.updated_at)}
+                          Pulled: {formatDate(pull.pulled_at ?? pull.updated_at)}
                         </div>
-
-                        {pull.payment_status === 'paid' && pull.stripe_payment_intent_id && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openRefundDialog(pull)}
-                          >
-                            <CreditCard className="h-4 w-4 mr-1" />
-                            Process Refund
-                          </Button>
-                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -469,8 +426,8 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
 
           <div className="space-y-4 py-4">
             <p className="text-sm text-muted-foreground">
-              The entry will be marked as withdrawn. To issue a refund for a paid entry, use the
-              "Process Refund" button after approving.
+              The entry will be marked as pulled. To issue a refund, go to Entry Management and
+              filter by Pulled.
             </p>
           </div>
 
@@ -539,13 +496,6 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <RefundEntryDialog
-        open={refundDialogEntry !== null}
-        onOpenChange={open => { if (!open) setRefundDialogEntry(null); }}
-        entry={refundDialogEntry}
-        onRefunded={loadData}
-      />
     </div>
   );
 };

@@ -6,7 +6,7 @@ export type {
   DayOfEntryDogResult,
   MoveUpRequest,
   ClassWithCapacity,
-  ScratchRequest,
+  PullRecord,
   CreateDayOfEntryDogInput,
 } from './types';
 
@@ -22,12 +22,12 @@ export {
 } from './move-up';
 
 export {
-  scratchEntry,
-  getScratchableEntries,
-  getScratchedEntries,
-  requestScratch,
-  getPendingScratchRequests,
-  approveScratchRequest,
-  denyScratchRequest,
+  pullEntry,
+  getPullableEntries,
+  getPulledEntries,
+  requestPull,
+  getPendingPullRequests,
+  approvePullRequest,
+  denyPullRequest,
   updateRefundStatus,
 } from './scratch';

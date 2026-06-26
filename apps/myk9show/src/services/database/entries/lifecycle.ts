@@ -26,7 +26,7 @@ import { updateEntryStatus } from './secretary';
 import type { SecretaryStatusEntrySeed } from './secretary';
 import { AUTHENTICATED_ENTRY_READ_COLUMNS } from './entrySelects';
 
-export type EntryLifecycleAction = 'accept' | 'reject' | 'scratch' | 'waitlist';
+export type EntryLifecycleAction = 'accept' | 'reject' | 'pull' | 'waitlist';
 
 export interface EntryLifecycleTransitionParams {
   entryId: string;
@@ -66,7 +66,7 @@ export interface SecretaryEntryStatusDependencies {
 const ENTRY_LIFECYCLE_STATUS: Record<EntryLifecycleAction, EntryStatus> = {
   accept: 'confirmed',
   reject: 'withdrawn',
-  scratch: 'scratched',
+  pull: 'scratched',
   // Wait List membership is represented by waitlist_entries today. Until
   // promotion is unified, this preserves the existing pending-entry decision
   // behavior behind a named Entry transition.
@@ -134,14 +134,14 @@ export const rejectEntry = async (entryId: string, reason?: string) => {
 };
 
 /**
- * Pre-show scratch — withdrawal before day-of. Writes `entry_status='scratched'`
+ * Pre-show pull — withdrawal before day-of. Writes `entry_status='scratched'`
  * via the secretary transition (which also sets `check_in_status='pulled'` per
  * the `buildEntryStatusUpdate` helper) and `withdrawal_reason`. Does NOT touch
  * `special_requests`. For day-of pulls that need to overwrite `special_requests`
- * with the pull reason, use `scratchEntryDayOf` instead.
+ * with the pull reason, use `pullEntryDayOf` instead.
  */
-export const scratchEntry = async (entryId: string, reason?: string) => {
-  const result = await transitionEntryLifecycle({ entryId, action: 'scratch', reason });
+export const pullEntry = async (entryId: string, reason?: string) => {
+  const result = await transitionEntryLifecycle({ entryId, action: 'pull', reason });
   await logEntryStatusChange({
     entryId,
     fromStatus: undefined,
@@ -168,11 +168,10 @@ export const waitlistEntry = async (entryId: string) => {
  * `withdrawal_reason`, and `special_requests` (the last two carry the pull
  * reason so the ringside team sees why the entry was pulled).
  *
- * This is the replacement for the legacy `day-of-operations/scratch.ts:scratchEntry`
- * function. Pre-show withdrawals that should not overwrite `special_requests`
- * use `scratchEntry` (the secretary path) instead.
+ * Pre-show withdrawals that should not overwrite `special_requests`
+ * use `pullEntry` (the secretary path) instead.
  */
-export const scratchEntryDayOf = async (entryId: string, reason?: string) => {
+export const pullEntryDayOf = async (entryId: string, reason?: string) => {
   const startTime = Date.now();
   const fallbackReason = reason || 'Pulled day-of';
 
@@ -208,7 +207,7 @@ export const scratchEntryDayOf = async (entryId: string, reason?: string) => {
       .single();
 
     const duration = Date.now() - startTime;
-    logQuery('entries', 'scratch_entry_day_of', duration, error?.message);
+    logQuery('entries', 'pull_entry_day_of', duration, error?.message);
 
     if (error) {
       throw createDatabaseError(error, 'entries', 'scratch_entry_day_of');
@@ -227,17 +226,17 @@ export const scratchEntryDayOf = async (entryId: string, reason?: string) => {
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'entries', 'scratch_entry_day_of');
-    logQuery('entries', 'scratch_entry_day_of', duration, dbError.message);
+    logQuery('entries', 'pull_entry_day_of', duration, dbError.message);
     return { data: null, error: dbError };
   }
 };
 
 /**
- * Exhibitor-initiated scratch request — sets `entry_status='scratch-requested'`
+ * Exhibitor-initiated pull request — sets `entry_status='scratch-requested'`
  * so the secretary can approve or deny. Stores the reason in
  * `special_requests` so it's visible in the queue UI.
  */
-export const requestScratch = async (entryId: string, reason?: string) => {
+export const requestPull = async (entryId: string, reason?: string) => {
   const startTime = Date.now();
 
   try {
@@ -272,7 +271,7 @@ export const requestScratch = async (entryId: string, reason?: string) => {
       .single();
 
     const duration = Date.now() - startTime;
-    logQuery('entries', 'request_scratch', duration, error?.message);
+    logQuery('entries', 'request_pull', duration, error?.message);
 
     if (error) {
       throw createDatabaseError(error, 'entries', 'request_scratch');
@@ -290,17 +289,17 @@ export const requestScratch = async (entryId: string, reason?: string) => {
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'entries', 'request_scratch');
-    logQuery('entries', 'request_scratch', duration, dbError.message);
+    logQuery('entries', 'request_pull', duration, dbError.message);
     return { data: null, error: dbError };
   }
 };
 
 /**
- * Secretary approves a pending scratch request — guarded by
+ * Secretary approves a pending pull request — guarded by
  * `entry_status='scratch-requested'` so a race that already approved or denied
  * the request returns no row instead of stomping a different state.
  */
-export const approveScratchRequest = async (entryId: string) => {
+export const approvePullRequest = async (entryId: string) => {
   const startTime = Date.now();
 
   try {
@@ -336,7 +335,7 @@ export const approveScratchRequest = async (entryId: string) => {
       .single();
 
     const duration = Date.now() - startTime;
-    logQuery('entries', 'approve_scratch_request', duration, error?.message);
+    logQuery('entries', 'approve_pull_request', duration, error?.message);
 
     if (error) {
       throw createDatabaseError(error, 'entries', 'approve_scratch_request');
@@ -360,11 +359,11 @@ export const approveScratchRequest = async (entryId: string) => {
 };
 
 /**
- * Secretary denies a pending scratch request — restores
+ * Secretary denies a pending pull request — restores
  * `entry_status='confirmed'` and records the denial reason in
  * `special_requests`. Guarded by `entry_status='scratch-requested'`.
  */
-export const denyScratchRequest = async (entryId: string, reason?: string) => {
+export const denyPullRequest = async (entryId: string, reason?: string) => {
   const startTime = Date.now();
   const note = reason ? `Pull denied: ${reason}` : 'Pull request denied';
 
@@ -382,7 +381,7 @@ export const denyScratchRequest = async (entryId: string, reason?: string) => {
       .single();
 
     const duration = Date.now() - startTime;
-    logQuery('entries', 'deny_scratch_request', duration, error?.message);
+    logQuery('entries', 'deny_pull_request', duration, error?.message);
 
     if (error) {
       throw createDatabaseError(error, 'entries', 'deny_scratch_request');

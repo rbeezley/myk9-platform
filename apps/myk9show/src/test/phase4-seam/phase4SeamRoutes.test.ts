@@ -77,7 +77,7 @@ describe('Seam 1: scratch / pull request', () => {
     const audit: AuditEntry[] = [];
     const id = PHASE4_IDS.entryScratch;
 
-    // Exhibitor requests scratch (requestScratch uses `.single()`).
+    // Exhibitor requests a pull (requestPull uses `.single()`).
     const reqResp = run(state, audit, {
       method: 'PATCH',
       url: `${REST}/entries?id=eq.${id}`,
@@ -112,9 +112,9 @@ describe('Seam 1: scratch / pull request', () => {
       method: 'PATCH',
       url: `${REST}/entries?id=eq.${id}&entry_status=eq.scratch-requested`,
       postData: { entry_status: 'scratched', check_in_status: 'pulled' },
-      headers: OBJ, // approveScratchRequest reads back with `.single()`
+      headers: OBJ, // approvePullRequest reads back with `.single()`
     });
-    // `.single()` + zero rows -> 406 PGRST116, which approveScratchRequest THROWS
+    // `.single()` + zero rows -> 406 PGRST116, which approvePullRequest THROWS
     // on (race loser sees an error, not a silent success).
     expect(resp.status).toBe(406);
     expect((resp.body as { code: string }).code).toBe('PGRST116');

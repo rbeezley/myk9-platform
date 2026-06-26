@@ -1,13 +1,13 @@
 /**
- * Scratch Queries
+ * Pull Queries
  *
- * Database queries for scratch and refund operations during day-of-show:
- * - Finding scratchable entries (eligibility)
- * - Getting scratched entries with refund info
- * - Pending scratch request queues
+ * Database queries for pull operations during day-of-show:
+ * - Finding pullable entries (eligibility)
+ * - Getting pulled entries
+ * - Pending pull request queues
  * - Updating refund status
  *
- * Status transitions (day-of pull, scratch-request approve/deny) live in
+ * Status transitions (day-of pull, pull-request approve/deny) live in
  * `entries/lifecycle.ts` — this module re-exports them so existing callers
  * (`components/entries/PullManagementTab`, `components/entries/MoveUpRequestsTab`)
  * keep their import paths.
@@ -21,96 +21,92 @@ import { getReplicatedDayOfEntries } from './replicatedReadAdapter';
  * Day-of pull — re-exported from the canonical lifecycle seam. The lifecycle
  * version writes `entry_status='scratched'`, `check_in_status='pulled'`,
  * `withdrawal_reason`, and `special_requests`, and emits an audit log entry.
- *
- * Re-exported under the existing `scratchEntry` name so day-of callers
- * (`components/entries/PullManagementTab.tsx` and the Show Map / Show Desk
- * pull surfaces) keep their imports.
  */
-export { scratchEntryDayOf as scratchEntry } from '../entries/lifecycle';
+export { pullEntryDayOf as pullEntry } from '../entries/lifecycle';
 
 /**
- * Get entries eligible for scratching (accepted but not yet run)
+ * Get entries eligible for pulling (accepted but not yet run)
  */
-export const getScratchableEntries = async (showId: string) => {
+export const getPullableEntries = async (showId: string) => {
   const startTime = Date.now();
 
   try {
     const data = await getReplicatedDayOfEntries(showId, ['confirmed', 'checked-in'], 'run-order');
 
     const duration = Date.now() - startTime;
-    logQuery('entries', 'get_scratchable_entries', duration);
+    logQuery('entries', 'get_pullable_entries', duration);
 
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'get_scratchable_entries');
-    logQuery('entries', 'get_scratchable_entries', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'get_pullable_entries');
+    logQuery('entries', 'get_pullable_entries', duration, dbError.message);
     return { data: [], error: dbError };
   }
 };
 
 /**
- * Get scratched entries for a show with refund eligibility
+ * Get pulled entries for a show
  */
-export const getScratchedEntries = async (showId: string) => {
+export const getPulledEntries = async (showId: string) => {
   const startTime = Date.now();
 
   try {
     const data = await getReplicatedDayOfEntries(showId, ['scratched'], 'updated-desc');
 
     const duration = Date.now() - startTime;
-    logQuery('entries', 'get_scratched_entries', duration);
+    logQuery('entries', 'get_pulled_entries', duration);
 
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'get_scratched_entries');
-    logQuery('entries', 'get_scratched_entries', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'get_pulled_entries');
+    logQuery('entries', 'get_pulled_entries', duration, dbError.message);
     return { data: [], error: dbError };
   }
 };
 
 /**
- * Exhibitor-initiated scratch request — re-exported from the lifecycle seam.
+ * Exhibitor-initiated pull request — re-exported from the lifecycle seam.
  * Writes `entry_status='scratch-requested'` and stores the reason in
  * `special_requests` so it's visible in the secretary's pull queue UI.
  */
-export { requestScratch } from '../entries/lifecycle';
+export { requestPull } from '../entries/lifecycle';
 
 /**
- * Get pending scratch requests (entries requesting to scratch)
+ * Get pending pull requests (entries requesting to be pulled)
  */
-export const getPendingScratchRequests = async (showId: string) => {
+export const getPendingPullRequests = async (showId: string) => {
   const startTime = Date.now();
 
   try {
     const data = await getReplicatedDayOfEntries(showId, ['scratch-requested'], 'created-asc');
 
     const duration = Date.now() - startTime;
-    logQuery('entries', 'get_pending_scratch_requests', duration);
+    logQuery('entries', 'get_pending_pull_requests', duration);
 
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'get_pending_scratch_requests');
-    logQuery('entries', 'get_pending_scratch_requests', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'get_pending_pull_requests');
+    logQuery('entries', 'get_pending_pull_requests', duration, dbError.message);
     return { data: [], error: dbError };
   }
 };
 
 /**
- * Approve a scratch request — re-exported from the lifecycle seam. Refund
- * processing is handled separately by the payment service.
+ * Approve a pull request — re-exported from the lifecycle seam. Refund
+ * processing is handled separately post-show via Entry Management.
  */
-export { approveScratchRequest } from '../entries/lifecycle';
+export { approvePullRequest } from '../entries/lifecycle';
 
 /**
- * Deny a scratch request — re-exported from the lifecycle seam.
+ * Deny a pull request — re-exported from the lifecycle seam.
  */
-export { denyScratchRequest } from '../entries/lifecycle';
+export { denyPullRequest } from '../entries/lifecycle';
 
 /**
- * Update refund status for a scratched entry
+ * Update refund status for a pulled entry
  */
 export const updateRefundStatus = async (
   entryId: string,

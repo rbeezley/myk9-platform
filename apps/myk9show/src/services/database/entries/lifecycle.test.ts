@@ -1,16 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   acceptEntry,
-  approveScratchRequest,
+  approvePullRequest,
   denyMoveUpRequest,
-  denyScratchRequest,
+  denyPullRequest,
   markEntryMoved,
   rejectEntry,
-  requestScratch,
+  requestPull,
   restoreEntryStatus,
   rollbackEntryMove,
-  scratchEntry,
-  scratchEntryDayOf,
+  pullEntry,
+  pullEntryDayOf,
   setEntryLifecycleStatus,
   transitionEntryLifecycle,
   waitlistEntry,
@@ -114,8 +114,8 @@ describe('Entry lifecycle transitions', () => {
     );
   });
 
-  it('scratches an Entry and preserves the reason', async () => {
-    await scratchEntry('entry-1', 'Dog is absent');
+  it('pulls an Entry and preserves the reason', async () => {
+    await pullEntry('entry-1', 'Dog is absent');
 
     expect(updateEntryStatus).toHaveBeenCalledWith(
       'entry-1',
@@ -142,14 +142,14 @@ describe('Entry lifecycle transitions', () => {
   });
 
   it('routes transition actions through the same explicit status seam', async () => {
-    await transitionEntryLifecycle({ entryId: 'entry-1', action: 'scratch', reason: 'Absent' });
+    await transitionEntryLifecycle({ entryId: 'entry-1', action: 'pull', reason: 'Absent' });
 
     expect(updateEntryStatus).toHaveBeenCalledWith('entry-1', 'scratched', 'Absent', undefined);
   });
 
   describe('scratch-request workflow', () => {
-    it('scratchEntryDayOf writes pulled side-effects and logs the transition', async () => {
-      await scratchEntryDayOf('entry-1', 'Handler injury');
+    it('pullEntryDayOf writes pulled side-effects and logs the transition', async () => {
+      await pullEntryDayOf('entry-1', 'Handler injury');
 
       const write = supabaseUpdates[0];
       expect(write).toBeDefined();
@@ -172,8 +172,8 @@ describe('Entry lifecycle transitions', () => {
       );
     });
 
-    it('scratchEntryDayOf falls back to "Pulled day-of" when no reason is supplied', async () => {
-      await scratchEntryDayOf('entry-1');
+    it('pullEntryDayOf falls back to "Pulled day-of" when no reason is supplied', async () => {
+      await pullEntryDayOf('entry-1');
 
       expect(supabaseUpdates[0]!.payload).toEqual(
         expect.objectContaining({
@@ -183,8 +183,8 @@ describe('Entry lifecycle transitions', () => {
       );
     });
 
-    it('requestScratch sets scratch-requested status and stores reason in special_requests', async () => {
-      await requestScratch('entry-1', 'Dog injured');
+    it('requestPull sets scratch-requested status and stores reason in special_requests', async () => {
+      await requestPull('entry-1', 'Dog injured');
 
       expect(supabaseUpdates[0]!.payload).toEqual(
         expect.objectContaining({
@@ -202,8 +202,8 @@ describe('Entry lifecycle transitions', () => {
       );
     });
 
-    it('approveScratchRequest transitions to scratched + pulled with audit log', async () => {
-      await approveScratchRequest('entry-1');
+    it('approvePullRequest transitions to scratched + pulled with audit log', async () => {
+      await approvePullRequest('entry-1');
 
       expect(supabaseUpdates[0]!.payload).toEqual(
         expect.objectContaining({
@@ -219,8 +219,8 @@ describe('Entry lifecycle transitions', () => {
       );
     });
 
-    it('denyScratchRequest restores confirmed status and records denial reason', async () => {
-      await denyScratchRequest('entry-1', 'Late notice');
+    it('denyPullRequest restores confirmed status and records denial reason', async () => {
+      await denyPullRequest('entry-1', 'Late notice');
 
       expect(supabaseUpdates[0]!.payload).toEqual(
         expect.objectContaining({

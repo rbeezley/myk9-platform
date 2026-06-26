@@ -173,7 +173,7 @@ export function error(status: number, message: string): SeamResponse {
  * PostgREST `.single()` semantics: a request with the object accept header that
  * matches 0 (or >1) rows returns HTTP 406 with a PGRST116 error, which
  * supabase-js surfaces as `{ data: null, error }`. App code that branches on a
- * falsy `data` (getOrCreateThread) or throws on the error (approveScratchRequest)
+ * falsy `data` (getOrCreateThread) or throws on the error (approvePullRequest)
  * depends on this exact shape — returning `200 []` would be truthy and break it.
  */
 export function pgrstNoRow(): SeamResponse {

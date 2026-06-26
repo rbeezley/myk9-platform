@@ -24,7 +24,7 @@ vi.mock('@/services/database/day-of-operations', () => ({
 
 vi.mock('@/services/database/entries/lifecycle', () => ({
   restoreEntryStatus: vi.fn(),
-  scratchEntryDayOf: vi.fn(),
+  pullEntryDayOf: vi.fn(),
 }));
 
 vi.mock('@/services/replication', () => ({

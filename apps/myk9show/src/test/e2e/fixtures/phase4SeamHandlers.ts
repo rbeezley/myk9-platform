@@ -198,7 +198,7 @@ function handleEntriesWrite(
 
   // Secretary approve is guarded by entry_status=eq.scratch-requested in the URL
   // and reads back with `.single()`. A guard miss returns zero rows, which under
-  // `.single()` is a PGRST116 error (data:null) — approveScratchRequest THROWS
+  // `.single()` is a PGRST116 error (data:null) — approvePullRequest THROWS
   // on it, so the race-loser sees an error, not a silent success.
   const guard = extractEqFilter(req.url, 'entry_status');
   if (guard && entry.entry_status !== guard) {

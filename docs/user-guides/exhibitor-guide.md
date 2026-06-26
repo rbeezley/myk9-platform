@@ -2,8 +2,8 @@
 
 **Status:** `qa-draft`
 **Audience:** Dog sport exhibitors
-**Last verified:** 2026-06-19
-**Verified by:** walkthrough against outline (`docs/user-guides/exhibitor-guide-outline.md`)
+**Last verified:** 2026-06-25 — all E-01…E-17 screenshots confirmed captured; non-author reviewer still pending
+**Verified by:** walkthrough against outline (`docs/user-guides/exhibitor-guide-outline.md`); screenshots captured against staging 2026-06-19/20
 
 > **Note:** This is a QA-draft guide — written against the live app as a testing instrument. Ready screenshots are embedded; shots marked `blocked:` in the checklist below require specific seed data or conditions before they can be captured. Do not publish to customers until status is `verified`.
 
@@ -250,20 +250,20 @@ All shots from `docs/training/screenshot-shot-list.md`. Status as of 2026-06-19:
 
 | Shot ID | Section | Description | Status |
 |---|---|---|---|
-| E-01 | § 1 | Shows list with entry status badges | ready |
-| E-02 | § 1 | Show detail — "Enter This Show" CTA | ready |
-| E-03 | § 2 | Sign-up form | ready |
-| E-04 | § 3 | My Dogs list | ready |
-| E-05 | § 3 | Add Dog form | ready |
-| E-06 | § 4 | Registration wizard — Step 1 (class selection) | ready |
-| E-07 | § 4 | Registration wizard — Step 1 with class selected + cart toast | ready |
-| E-08 | § 4 | Confirmation receipt | ready |
-| E-09 | § 5 | My Shows — Pending entry card | ready |
-| E-10 | § 5 | My Shows — Accepted entry card | ready |
-| E-11 | § 5 | My Shows — show card | ready |
-| E-12 | § 6 | Class detail — run order with armband number | ready |
-| E-13 | § 7 | Show Today banner | ready |
-| E-14 | § 7 | Entry card — "Not Checked In" status pill | ready |
-| E-15 | § 7 | Entry card — Checked In state | ready |
-| E-16 | § 8 | Entry card — Q result badge | ready |
-| E-17 | § 8 | Class results page | ready |
+| E-01 | § 1 | Shows list with entry status badges | captured 2026-06-19 |
+| E-02 | § 1 | Show detail — "Enter This Show" CTA | captured 2026-06-19 |
+| E-03 | § 2 | Sign-up form | captured 2026-06-19 |
+| E-04 | § 3 | My Dogs list | captured 2026-06-19 |
+| E-05 | § 3 | Add Dog form | captured 2026-06-19 |
+| E-06 | § 4 | Registration wizard — Step 1 (class selection) | captured 2026-06-19 |
+| E-07 | § 4 | Registration wizard — Step 1 with class selected + cart toast | captured 2026-06-19 |
+| E-08 | § 4 | Confirmation receipt | captured 2026-06-20 |
+| E-09 | § 5 | My Shows — Pending entry card | captured 2026-06-19 |
+| E-10 | § 5 | My Shows — Accepted entry card | captured 2026-06-19 |
+| E-11 | § 5 | My Shows — show card | captured 2026-06-19 |
+| E-12 | § 6 | Class detail — run order with armband number | captured 2026-06-19 |
+| E-13 | § 7 | Show Today banner | captured 2026-06-20 |
+| E-14 | § 7 | Entry card — "Not Checked In" status pill | captured 2026-06-19 |
+| E-15 | § 7 | Entry card — Checked In state | captured 2026-06-19 |
+| E-16 | § 8 | Entry card — Q result badge | captured 2026-06-19 |
+| E-17 | § 8 | Class results page | captured 2026-06-19 |

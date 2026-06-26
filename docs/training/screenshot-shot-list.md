@@ -72,23 +72,23 @@ Every screenshot and diagram in final documentation and training materials must 
 
 | Shot ID | Description | Route | Account | Viewport | Expected state | Guide section | Status |
 |---|---|---|---|---|---|---|---|
-| E-01 | Shows list — upcoming shows with entry status badges | `/shows` | none (unauthenticated) | Desktop | At least one show with "Accepting Entries" badge; one with "Closing Soon" | § 1 Find a Show | `ready` |
-| E-02 | Show detail page — hero with "Enter This Show" CTA | `/shows/:showId` | none | Desktop | Heritage show detail; "Enter This Show" button prominent | § 1 | `ready` |
-| E-03 | Sign-up form | `/sign-up` | none | Desktop | Empty sign-up form | § 2 Create an Account | `ready` |
-| E-04 | My Dogs page — at least one dog card | `/dogs` | `e2e-exhibitor@test.myk9.com` | Desktop | Dog list with at least one entry | § 3 Add a Dog | `ready` |
-| E-05 | Add Dog form | `/dogs` (Add Dog dialog) | `e2e-exhibitor@test.myk9.com` | Desktop | Add Dog form open with required fields visible | § 3 | `ready` |
-| E-06 | Registration wizard — Step 1 (class selection) | `/shows/:showId/register` | `e2e-exhibitor@test.myk9.com` | Desktop | Class selection step; dog chip visible at top; classes grouped by element/level | § 4 Enter a Show | `ready` |
-| E-07 | Registration wizard — Step 1 with class selected + cart toast | `/shows/:showId/register` | `e2e-exhibitor@test.myk9.com` | Desktop | Class selection step; class chip checked; "Added to cart" toast visible | § 4 | `ready` |
-| E-08 | Confirmation receipt | `/checkout/success` | `e2e-exhibitor@test.myk9.com` | Desktop | Success screen with entry confirmed | § 4 | `ready` (captured 2026-06-20 from the end-to-end sandbox payment) |
-| E-09 | My Entries — Pending tab with entry card | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | At least one entry card in Pending status | § 5 Track Your Entry | `ready` |
-| E-10 | My Entries — Accepted tab with entry card | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | At least one entry card in Accepted status | § 5 | `ready` |
-| E-11 | My Entries — show card (unexpanded) | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | Show card with date, club, and entry status | § 5 | `ready` |
-| E-12 | Class detail page — run order entry with dog name and armband number | `/shows/:showId/trials/:trialId/classes/:classId` | `e2e-exhibitor@test.myk9.com` | Mobile | Class detail view; run order entry showing dog name, armband number, and position | § 6 View Run Order | `ready` |
-| E-13 | My Entries — Show Today banner | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | "Show Today" banner visible at top (requires a show scheduled for today's date) | § 7 Check In | `ready` (captured 2026-06-20 by temporarily dating the demo show to today, then restoring) |
-| E-14 | My Entries — entry card with "Not Checked In" status pill | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | Entry card showing "Not Checked In" status label; check-in must be open for the class | § 7 | `ready` |
-| E-15 | My Entries — entry card "Checked In" state | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | Entry card with green Checked In badge | § 7 | `ready` |
-| E-16 | My Entries — Q result badge on entry card | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | Entry card with Q result badge and placement pill visible | § 8 View Results | `ready` |
-| E-17 | Class results page — placement table | `/shows/:showId/trials/:trialId/classes/:classId/results` | `e2e-exhibitor@test.myk9.com` | Mobile | Full results table with placements, times, Q/NQ | § 8 | `ready` |
+| E-01 | Shows list — upcoming shows with entry status badges | `/shows` | none (unauthenticated) | Desktop | At least one show with "Accepting Entries" badge; one with "Closing Soon" | § 1 Find a Show | `ready (captured 2026-06-19 — staging, unauthenticated)` |
+| E-02 | Show detail page — hero with "Enter This Show" CTA | `/shows/:showId` | none | Desktop | Heritage show detail; "Enter This Show" button prominent | § 1 | `ready (captured 2026-06-19 — staging, unauthenticated)` |
+| E-03 | Sign-up form | `/sign-up` | none | Desktop | Empty sign-up form | § 2 Create an Account | `ready (captured 2026-06-19 — staging, unauthenticated)` |
+| E-04 | My Dogs page — at least one dog card | `/dogs` | `e2e-exhibitor@test.myk9.com` | Desktop | Dog list with at least one entry | § 3 Add a Dog | `ready (captured 2026-06-19 — staging, e2e-exhibitor@test.myk9.com)` |
+| E-05 | Add Dog form | `/dogs` (Add Dog dialog) | `e2e-exhibitor@test.myk9.com` | Desktop | Add Dog form open with required fields visible | § 3 | `ready (captured 2026-06-19 — staging, e2e-exhibitor@test.myk9.com)` |
+| E-06 | Registration wizard — Step 1 (class selection) | `/shows/:showId/register` | `e2e-exhibitor@test.myk9.com` | Desktop | Class selection step; dog chip visible at top; classes grouped by element/level | § 4 Enter a Show | `ready (captured 2026-06-19 — staging, e2e-exhibitor@test.myk9.com)` |
+| E-07 | Registration wizard — Step 1 with class selected + cart toast | `/shows/:showId/register` | `e2e-exhibitor@test.myk9.com` | Desktop | Class selection step; class chip checked; "Added to cart" toast visible | § 4 | `ready (captured 2026-06-19 — staging, e2e-exhibitor@test.myk9.com)` |
+| E-08 | Confirmation receipt | `/checkout/success` | `e2e-exhibitor@test.myk9.com` | Desktop | Success screen with entry confirmed | § 4 | `ready (captured 2026-06-20 — staging, end-to-end sandbox payment)` |
+| E-09 | My Entries — Pending tab with entry card | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | At least one entry card in Pending status | § 5 Track Your Entry | `ready (captured 2026-06-19 — staging, e2e-exhibitor@test.myk9.com)` |
+| E-10 | My Entries — Accepted tab with entry card | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | At least one entry card in Accepted status | § 5 | `ready (captured 2026-06-19 — staging, e2e-exhibitor@test.myk9.com)` |
+| E-11 | My Entries — show card (unexpanded) | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | Show card with date, club, and entry status | § 5 | `ready (captured 2026-06-19 — staging, e2e-exhibitor@test.myk9.com)` |
+| E-12 | Class detail page — run order entry with dog name and armband number | `/shows/:showId/trials/:trialId/classes/:classId` | `e2e-exhibitor@test.myk9.com` | Mobile | Class detail view; run order entry showing dog name, armband number, and position | § 6 View Run Order | `ready (captured 2026-06-19 — staging, e2e-exhibitor@test.myk9.com)` |
+| E-13 | My Entries — Show Today banner | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | "Show Today" banner visible at top (requires a show scheduled for today's date) | § 7 Check In | `ready (captured 2026-06-20 — staging, demo show temporarily dated to today)` |
+| E-14 | My Entries — entry card with "Not Checked In" status pill | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | Entry card showing "Not Checked In" status label; check-in must be open for the class | § 7 | `ready (captured 2026-06-19 — staging, e2e-exhibitor@test.myk9.com)` |
+| E-15 | My Entries — entry card "Checked In" state | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | Entry card with green Checked In badge | § 7 | `ready (captured 2026-06-19 — staging, e2e-exhibitor@test.myk9.com)` |
+| E-16 | My Entries — Q result badge on entry card | `/exhibitor/entries` | `e2e-exhibitor@test.myk9.com` | Mobile | Entry card with Q result badge and placement pill visible | § 8 View Results | `ready (captured 2026-06-19 — staging, e2e-exhibitor@test.myk9.com)` |
+| E-17 | Class results page — placement table | `/shows/:showId/trials/:trialId/classes/:classId/results` | `e2e-exhibitor@test.myk9.com` | Mobile | Full results table with placements, times, Q/NQ | § 8 | `ready (captured 2026-06-19 — staging, e2e-exhibitor@test.myk9.com)` |
 
 ---
 

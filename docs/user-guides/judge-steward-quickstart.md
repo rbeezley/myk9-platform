@@ -2,8 +2,8 @@
 
 **Status:** `qa-draft`
 **Audience:** Judges and ring stewards
-**Last verified:** Not yet — drafted 2026-06-24 against the outline and workflow source map; live walk + screenshots pending
-**Verified by:** draft against outline (`docs/user-guides/judge-steward-quickstart-outline.md`)
+**Last verified:** 2026-06-25 — screenshots J-01…J-06 captured against staging; `at-show-access-paths` diagram and non-author reviewer still pending
+**Verified by:** draft against outline (`docs/user-guides/judge-steward-quickstart-outline.md`); screenshots captured against staging 2026-06-25
 
 > **Note:** This is a QA-draft guide written as a testing instrument. The screenshots (J-01…J-06) and the access-paths diagram are **pending capture** — see the checklist at the end. Do not publish to customers until status is `verified`.
 
@@ -24,7 +24,7 @@ There are three ways in. Use whichever fits you.
 2. Enter the **show passcode**, or scan the **QR code**.
 3. You're in. No account needed.
 
-> _Screenshot pending capture — J-01: passcode entry screen (mobile)._
+![Passcode entry screen — "Email or show passcode" field with Continue button (mobile)](../screenshots/J-01.png)
 
 > _Diagram pending — `at-show-access-paths`: the two ways into ringside._
 
@@ -39,7 +39,7 @@ After you're in, you land on the **Class List** — every trial and class for to
 1. Each row shows the **class name**, **level**, **judge**, and **entry count**.
 2. Tap a class to open it.
 
-> _Screenshot pending capture — J-02: class list (tablet)._
+![Class list — trials grouped by day, each row shows class name, judge, entry count, and status (tablet)](../screenshots/J-02.png)
 
 **Classes that run two sections together** (for example, Novice A and Novice B) appear as **one combined list** — all the dogs are in a single run order.
 
@@ -53,7 +53,7 @@ Tapping a class opens its **Entry List** — the dogs in run order.
 2. Tap the **star** on an entry to pin it to the top. It stays pinned even if the page reloads.
 3. Tap an entry to open its **Scoresheet**.
 
-> _Screenshot pending capture — J-03: entry list in run order (tablet)._
+![Entry list — dogs in run order with armband number, call name, breed, and handler; Pending and Completed tabs (tablet)](../screenshots/J-03.png)
 
 ---
 
@@ -69,9 +69,11 @@ Record the result as soon as the dog finishes — it reaches the secretary insta
 
 The entry list updates to show the saved result. The secretary sees it right away — they don't re-enter anything.
 
-> _Screenshot pending capture — J-04: scoresheet with the timer running (tablet)._
-> _Screenshot pending capture — J-05: the Q / NQ / Absent buttons (tablet)._
-> _Screenshot pending capture — J-06: entry list with a saved result (tablet)._
+![Scoresheet — timer counting up with Stop button; Qualified / NQ / Absent / Excused buttons below (tablet)](../screenshots/J-04.png)
+
+![Scoresheet — timer stopped, time locked in; Qualified / NQ / Absent / Excused buttons ready to select (tablet)](../screenshots/J-05.png)
+
+![Entry list Completed tab — three entries each showing placement pill, Q badge, and time (tablet)](../screenshots/J-06.png)
 
 > **The timer is not the score.** Stopping the timer does not save anything. The result is only recorded when you tap **Save**.
 
@@ -114,10 +116,10 @@ Shots from `docs/training/screenshot-shot-list.md`. All **pending capture** — 
 
 | Shot ID | Section | Description | Viewport | Status |
 |---|---|---|---|---|
-| J-01 | Get into ringside | Passcode entry screen | Mobile | pending capture |
-| J-02 | Find your class | Class list by trial | Tablet | pending capture |
-| J-03 | See the run order | Entry list in run order | Tablet | pending capture |
-| J-04 | Score a dog | Scoresheet — timer running | Tablet | pending capture |
-| J-05 | Score a dog | Q / NQ / Absent buttons | Tablet | pending capture |
-| J-06 | Score a dog | Entry list with a saved result | Tablet | pending capture |
-| `at-show-access-paths` (diagram) | Get into ringside | The two ways into ringside | — | pending capture |
+| J-01 | Get into ringside | Passcode entry screen | Mobile | captured 2026-06-25 |
+| J-02 | Find your class | Class list by trial | Tablet | captured 2026-06-25 |
+| J-03 | See the run order | Entry list in run order | Tablet | captured 2026-06-25 |
+| J-04 | Score a dog | Scoresheet — timer running | Tablet | captured 2026-06-25 |
+| J-05 | Score a dog | Q / NQ / Absent buttons | Tablet | captured 2026-06-25 |
+| J-06 | Score a dog | Entry list with a saved result | Tablet | captured 2026-06-25 |
+| `at-show-access-paths` (diagram) | Get into ringside | The two ways into ringside | — | pending |

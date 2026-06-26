@@ -98,12 +98,12 @@ Every screenshot and diagram in final documentation and training materials must 
 
 | Shot ID | Description | Route | Account | Viewport | Expected state | Quickstart section | Status |
 |---|---|---|---|---|---|---|---|
-| J-01 | SmartSignInPage — passcode entry field | `/at-show` | none (passcode flow) | Mobile | Passcode input visible; "Enter Passcode" CTA | § 1 Getting Access | `ready` |
-| J-02 | At-show class list | `/at-show/:showId` | passcode or `judge@myk9t.com` | Tablet | All classes listed by trial; each row shows class name, entry count | § 2 Class List | `ready` |
-| J-03 | At-show entry list (run order) | `/at-show/:showId/class/:classId` | passcode or `judge@myk9t.com` | Tablet | Entries in run order with armband numbers and dog names | § 3 Entry List | `ready` |
-| J-04 | Scoresheet — timer active | `/at-show/:showId/class/:classId/score/:entryId` | `judge@myk9t.com` | Tablet | Timer counting; no result selected yet | § 4 Scoring | `ready` |
-| J-05 | Scoresheet — Q/NQ/Absent buttons | same | `judge@myk9t.com` | Tablet | Q, NQ, and Absent buttons visible; timer stopped | § 4 | `ready` |
-| J-06 | Entry list — saved result visible | `/at-show/:showId/class/:classId` | `judge@myk9t.com` | Tablet | Entry list showing at least one entry with a saved Q or NQ badge | § 4 | `ready` |
+| J-01 | SmartSignInPage — passcode entry field | `/at-show` | none (passcode flow) | Mobile | Passcode input visible; "Enter Passcode" CTA | § 1 Getting Access | `ready (captured 2026-06-25 — staging, unauthenticated mobile)` |
+| J-02 | At-show class list | `/at-show/:showId` | `e2e-judge@test.myk9.com` | Tablet | All classes listed by trial; each row shows class name, entry count | § 2 Class List | `ready (captured 2026-06-25 — staging, tablet)` |
+| J-03 | At-show entry list (run order) | `/at-show/:showId/class/:classId` | `e2e-judge@test.myk9.com` | Tablet | Entries in run order with armband numbers and dog names | § 3 Entry List | `ready (captured 2026-06-25 — staging, tablet)` |
+| J-04 | Scoresheet — timer active | `/at-show/:showId/class/:classId/score/:entryId` | `e2e-judge@test.myk9.com` | Tablet | Timer counting; Stop button; result buttons visible below | § 4 Scoring | `ready (captured 2026-06-25 — staging, tablet)` |
+| J-05 | Scoresheet — Q/NQ/Absent buttons | same | `e2e-judge@test.myk9.com` | Tablet | Timer stopped (Resume); Q/NQ/Absent/Excused buttons ready; time filled in | § 4 | `ready (captured 2026-06-25 — staging, tablet)` |
+| J-06 | Entry list — saved result visible | `/at-show/:showId/class/:classId` (Completed tab) | `e2e-judge@test.myk9.com` | Tablet | Completed tab showing entries with Q badge, placement pill, and time | § 4 | `ready (captured 2026-06-25 — staging, tablet)` |
 
 ---
 

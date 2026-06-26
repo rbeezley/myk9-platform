@@ -20,6 +20,9 @@ type DayOfReadEntry = {
   payment_status?: string | null;
   stripe_payment_intent_id?: string | null;
   special_requests?: string | null;
+  pull_reason?: string | null;
+  pulled_at?: string | null;
+  pull_timing: 'before_close' | 'after_close' | null;
   created_at?: string | null;
   updated_at?: string | null;
   dog: {
@@ -146,6 +149,9 @@ async function enrichDayOfEntry(
         dogCache.set(dogId, replicatedDogsTable.getDogById(dogId)).get(dogId)!);
   const [cls, dog] = await Promise.all([classPromise, dogPromise]);
 
+  const specialRequests = entry.specialRequests ?? entry.special_requests ?? null;
+  const updatedAt = getEntryUpdatedAt(entry);
+
   return {
     id: entry.id,
     class_id: classId,
@@ -158,9 +164,12 @@ async function enrichDayOfEntry(
     entry_fee: entry.entryFee ?? null,
     payment_status: entry.paymentStatus ?? null,
     stripe_payment_intent_id: entry.stripePaymentIntentId ?? null,
-    special_requests: entry.specialRequests ?? entry.special_requests ?? null,
+    special_requests: specialRequests,
+    pull_reason: specialRequests,
+    pulled_at: updatedAt,
+    pull_timing: null,
     created_at: getEntryCreatedAt(entry),
-    updated_at: getEntryUpdatedAt(entry),
+    updated_at: updatedAt,
     dog: toDogPayload(dog, entry),
     class: toClassPayload(cls, entry),
   };

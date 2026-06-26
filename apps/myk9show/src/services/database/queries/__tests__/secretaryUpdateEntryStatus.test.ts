@@ -10,7 +10,7 @@ import {
   acceptEntry,
   bulkUpdateEntryStatus,
   rejectEntry,
-  scratchEntry,
+  pullEntry,
   updateEntryStatus,
   waitlistEntry,
 } from '../../entries';
@@ -157,8 +157,8 @@ describe('secretaryEntryQueries — entry_status updates', () => {
       );
     });
 
-    it('scratchEntry writes scratched and preserves the reason', async () => {
-      await scratchEntry('entry-1', 'Dog is absent');
+    it('pullEntry writes scratched and preserves the reason', async () => {
+      await pullEntry('entry-1', 'Dog is absent');
 
       expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenCalledWith(
         'entry-1',

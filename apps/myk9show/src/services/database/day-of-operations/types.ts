@@ -4,7 +4,7 @@
  * Shared interfaces for day-of-show operations:
  * - Day-of entries (walk-in registrations)
  * - Move-up requests
- * - Scratch handling with refunds
+ * - Pull records (show-day pulls — offline-first, no refund state)
  * - Class capacity tracking
  */
 
@@ -84,7 +84,7 @@ export interface ClassWithCapacity {
   section: string | null;
 }
 
-export interface ScratchRequest {
+export interface PullRecord {
   id: string;
   class_id: string | null;
   trial_id: string | null;
@@ -96,12 +96,9 @@ export interface ScratchRequest {
   armband: string | null;
   payment_status: string | null;
   updated_at: string | null;
-  // Fields that may exist after scratch processing
-  scratched_at?: string | null;
-  scratch_reason?: string | null;
-  refund_status?: 'pending' | 'eligible' | 'processed' | 'denied' | 'not_applicable' | null;
-  refund_amount?: number | null;
-  stripe_payment_intent_id?: string | null;
+  pull_reason?: string | null;
+  pulled_at?: string | null;
+  pull_timing: 'before_close' | 'after_close' | null;
   dog: {
     id: string;
     name: string;

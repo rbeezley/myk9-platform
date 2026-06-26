@@ -66,9 +66,9 @@ export function ShowMapScratchNoShowDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="scratch-reason">Reason</Label>
+            <Label htmlFor="pull-reason">Reason</Label>
             <Textarea
-              id="scratch-reason"
+              id="pull-reason"
               value={reason}
               onChange={event => setReason(event.target.value)}
               placeholder="No-show, handler withdrew, dog absent..."

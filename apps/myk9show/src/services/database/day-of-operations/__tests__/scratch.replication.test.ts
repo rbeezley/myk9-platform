@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockSupabase } from '@/test/mocks/supabase';
 import {
-  getPendingScratchRequests,
-  getScratchableEntries,
-  getScratchedEntries,
+  getPendingPullRequests,
+  getPullableEntries,
+  getPulledEntries,
 } from '../scratch';
 
 const replicationMocks = vi.hoisted(() => ({
@@ -133,7 +133,7 @@ describe('scratch day-of read queries', () => {
   });
 
   it('loads scratchable entries from replicated entries/classes/dogs in run order', async () => {
-    const result = await getScratchableEntries('show-1');
+    const result = await getPullableEntries('show-1');
 
     expect(replicationMocks.getEntriesByShow).toHaveBeenCalledWith('show-1');
     expect(replicationMocks.getClassById).toHaveBeenCalledWith('class-1');
@@ -149,7 +149,7 @@ describe('scratch day-of read queries', () => {
   });
 
   it('loads scratched entries from the replica with newest updates first', async () => {
-    const result = await getScratchedEntries('show-1');
+    const result = await getPulledEntries('show-1');
 
     expect(replicationMocks.getEntriesByShow).toHaveBeenCalledWith('show-1');
     expect(mockSupabase.from).not.toHaveBeenCalled();
@@ -164,7 +164,7 @@ describe('scratch day-of read queries', () => {
   });
 
   it('loads pending scratch requests from the replica oldest first', async () => {
-    const result = await getPendingScratchRequests('show-1');
+    const result = await getPendingPullRequests('show-1');
 
     expect(replicationMocks.getEntriesByShow).toHaveBeenCalledWith('show-1');
     expect(mockSupabase.from).not.toHaveBeenCalled();
@@ -191,7 +191,7 @@ describe('scratch day-of read queries', () => {
       )
     );
 
-    const result = await getScratchableEntries('show-1');
+    const result = await getPullableEntries('show-1');
 
     expect(result.data[0].dog).toEqual({
       id: 'dog-2',
@@ -201,7 +201,7 @@ describe('scratch day-of read queries', () => {
   });
 
   it('requires canonical entry status fields instead of loose status fallback', async () => {
-    const result = await getScratchableEntries('show-1');
+    const result = await getPullableEntries('show-1');
 
     expect(result.data.map(entry => entry.id)).not.toContain('status-only-entry');
   });

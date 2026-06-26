@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { FormField } from '@/components/common/FormField';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { WithdrawalPolicyCard } from '@/components/shows/WithdrawalPolicyCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -329,6 +330,9 @@ const ClubEditForm: React.FC<{ clubId: string; onClose?: () => void }> = ({ club
               </div>
             </CardContent>
           </Card>
+
+          {/* Club-wide default withdrawal refund policy (shows can override) */}
+          <WithdrawalPolicyCard scope="club" entityId={clubId} />
         </TabsContent>
 
         {/* Contact Information Tab */}

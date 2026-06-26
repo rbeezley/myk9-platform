@@ -1242,6 +1242,10 @@ export type Database = {
           club_number: string | null
           cover_image_url: string | null
           created_at: string | null
+          default_withdrawal_cutoff_date: string | null
+          default_withdrawal_policy_notes: string | null
+          default_withdrawal_retention_type: string | null
+          default_withdrawal_retention_value: number | null
           deleted_at: string | null
           deleted_by: string | null
           description: string | null
@@ -1264,6 +1268,10 @@ export type Database = {
           club_number?: string | null
           cover_image_url?: string | null
           created_at?: string | null
+          default_withdrawal_cutoff_date?: string | null
+          default_withdrawal_policy_notes?: string | null
+          default_withdrawal_retention_type?: string | null
+          default_withdrawal_retention_value?: number | null
           deleted_at?: string | null
           deleted_by?: string | null
           description?: string | null
@@ -1286,6 +1294,10 @@ export type Database = {
           club_number?: string | null
           cover_image_url?: string | null
           created_at?: string | null
+          default_withdrawal_cutoff_date?: string | null
+          default_withdrawal_policy_notes?: string | null
+          default_withdrawal_retention_type?: string | null
+          default_withdrawal_retention_value?: number | null
           deleted_at?: string | null
           deleted_by?: string | null
           description?: string | null
@@ -5968,6 +5980,10 @@ export type Database = {
           accent_color: string | null
           accept_cash_payments: boolean
           accept_check_payments: boolean
+          withdrawal_cutoff_date: string | null
+          withdrawal_policy_notes: string | null
+          withdrawal_retention_type: string | null
+          withdrawal_retention_value: number | null
           address: string | null
           allow_non_owner_handlers: boolean | null
           brand_color: string
@@ -6026,6 +6042,10 @@ export type Database = {
           accent_color?: string | null
           accept_cash_payments?: boolean
           accept_check_payments?: boolean
+          withdrawal_cutoff_date?: string | null
+          withdrawal_policy_notes?: string | null
+          withdrawal_retention_type?: string | null
+          withdrawal_retention_value?: number | null
           address?: string | null
           allow_non_owner_handlers?: boolean | null
           brand_color?: string
@@ -6084,6 +6104,10 @@ export type Database = {
           accent_color?: string | null
           accept_cash_payments?: boolean
           accept_check_payments?: boolean
+          withdrawal_cutoff_date?: string | null
+          withdrawal_policy_notes?: string | null
+          withdrawal_retention_type?: string | null
+          withdrawal_retention_value?: number | null
           address?: string | null
           allow_non_owner_handlers?: boolean | null
           brand_color?: string

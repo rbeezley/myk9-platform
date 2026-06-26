@@ -13,6 +13,7 @@ import { useShowStore } from '@/store/showStore';
 import { useShowSettings } from '@/hooks/queries/useShowSettingsDatabase';
 import { PRESET_INFO, type VisibilityPreset } from '@myk9/secretary';
 import { WaitListSettingsCard } from '@/components/shows/WaitListSettingsCard';
+import { WithdrawalPolicyCard } from '@/components/shows/WithdrawalPolicyCard';
 import { ShowAccessCodesCard } from '@/components/secretary/ShowAccessCodesCard';
 import { VenueWifiCard } from '@/components/secretary/VenueWifiCard';
 import { useVenueWifiMutation } from '@/hooks/mutations/useVenueWifiMutation';
@@ -105,6 +106,9 @@ export default function ShowSettingsPage() {
 
       {/* Wait List Settings */}
       {selectedShowId && <WaitListSettingsCard showId={selectedShowId} />}
+
+      {/* Withdrawal Refund Policy (per-show override of the club default) */}
+      {selectedShowId && <WithdrawalPolicyCard scope="show" entityId={selectedShowId} />}
 
       {/* Show Access Codes */}
       {selectedShowId && (

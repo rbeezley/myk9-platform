@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
+import { WithdrawalPolicyDisclosure } from '@/features/payments/WithdrawalPolicyDisclosure';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 
 /** Minimal shape required by RequestPaymentDialog. */
@@ -138,6 +139,9 @@ export function RequestPaymentDialog({
               Entry fee {entry ? dollars(Math.round((entry.totalFee ?? 0) * 100)) : ''} + a card
               processing fee, shown on the next screen before you send.
             </p>
+            {entry?.showId && (
+              <WithdrawalPolicyDisclosure showId={entry.showId} className="rounded-md border p-2" />
+            )}
             {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
         ) : (

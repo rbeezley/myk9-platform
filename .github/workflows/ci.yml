@@ -35,6 +35,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # needed for git diff origin/main...HEAD merge-base in doc-staleness check
 
       - uses: pnpm/action-setup@v6
 
@@ -54,6 +56,9 @@ jobs:
 
       - name: Code-quality ratchets
         run: pnpm qa:code-quality-ratchet
+
+      - name: Doc staleness check
+        run: pnpm qa:doc-staleness:strict
 
   # Packages run through turbo so the remote cache provides affected-only
   # behaviour: a PR touching only myK9Show turns these into cache hits.

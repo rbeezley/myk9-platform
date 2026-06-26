@@ -43,9 +43,9 @@ Every screenshot and diagram in final documentation and training materials must 
 |---|---|---|---|---|---|---|---|
 | S-01 | Secretary dashboard — one active show | `/secretary/dashboard` | `secretary@myk9t.com` | Desktop | Heritage show listed with entry count badge | § 1 Dashboard | `ready` |
 | S-02 | Create Show wizard — Step 1 (show details) | `/secretary/create-show/wizard` | `secretary@myk9t.com` | Desktop | Form with name, org, dates, entry fee, entry window | § 2 Create a Show | `ready` |
-| S-03 | Create Show wizard — Step 2 (trial config) | `/secretary/create-show/wizard` | `secretary@myk9t.com` | Desktop | At least one trial with date and event number | § 2 | `ready` |
+| S-03 | Create Show wizard — Step 2 (trial config) | `/secretary/create-show/wizard` | `e2e-secretary@test.myk9.com` | Desktop | At least one trial with date and event number | § 2 | `captured 2026-06-25` |
 | S-04 | Create Show wizard — Step 3 (class selection) | `/secretary/create-show/wizard` | `secretary@myk9t.com` | Desktop | Classes listed with judge assignment dropdowns | § 2 | `ready` |
-| S-05 | Create Show wizard — Step 4 (review) | `/secretary/create-show/wizard` | `secretary@myk9t.com` | Desktop | Full review of show + trials + classes | § 2 | `ready` |
+| S-05 | Create Show wizard — Step 4 (review) | `/secretary/create-show/wizard` | `e2e-secretary@test.myk9.com` | Desktop | Full review of show + trials + classes | § 2 | `captured 2026-06-25` |
 | S-06 | Show Workbench — Setup tab | `/shows/:showId` (Setup tab) | `secretary@myk9t.com` | Desktop | Show details visible; readiness signals | § 3 Show Setup | `ready` |
 | S-07 | Entry Management — Pending tab | `/shows/:showId/entry-management` | `secretary@myk9t.com` | Desktop | At least one entry card in Pending tab | § 4 Entry Management | `ready` |
 | S-08 | Entry Management — entry card with Accept / Reject / Waitlist actions visible | `/shows/:showId/entry-management` | `secretary@myk9t.com` | Desktop | Three-dot menu open on an entry card | § 4 | `ready` |

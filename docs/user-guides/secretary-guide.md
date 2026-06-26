@@ -2,8 +2,8 @@
 
 **Status:** `qa-draft`
 **Audience:** Trial secretaries
-**Last verified:** 2026-06-19
-**Verified by:** walkthrough against outline (`docs/user-guides/secretary-guide-outline.md`)
+**Last verified:** 2026-06-25 — S-03 and S-05 screenshots added; non-author reviewer still pending
+**Verified by:** walkthrough against outline (`docs/user-guides/secretary-guide-outline.md`); S-03/S-05 captured against staging 2026-06-25
 
 > **Note:** This is a QA-draft guide — written against the live app as a testing instrument. Ready screenshots are embedded; shots marked `blocked:` in the checklist below require specific seed data or conditions before they can be captured. Do not publish to customers until status is `verified`.
 
@@ -51,11 +51,15 @@ The wizard walks you through four steps: show details, trial configuration, clas
 
 3. **Step 2 — Trial Configuration.** Add each trial with its date/time and AKC event number. Click **Add Trial** for each additional trial. Click **Next**.
 
+   ![S-03: Create Show wizard — Step 2 (trial configuration)](../screenshots/S-03.png)
+
 4. **Step 3 — Class Selection.** For each trial, choose which classes to offer and assign a judge to each class. Click **Next**.
 
    ![S-04: Create Show wizard — Step 3 (class selection)](../screenshots/S-04.png)
 
 5. **Step 4 — Review.** Scan the full structure. If anything looks wrong, click **Back** to correct it. When everything is correct, click **Create and Publish**.
+
+   ![S-05: Create Show wizard — Step 4 (review)](../screenshots/S-05.png)
 
 6. Your show is now live and accepting entries. Exhibitors can find it on the Shows page immediately.
 
@@ -351,13 +355,15 @@ After the show closes, generate the official reports for judges, the club chairm
 
 ## Screenshot Checklist
 
-All shots from `docs/training/screenshot-shot-list.md`. Status as of 2026-06-19:
+All shots from `docs/training/screenshot-shot-list.md`. Status as of 2026-06-25:
 
 | Shot ID | Section | Description | Status |
 |---|---|---|---|
 | S-01 | § 1 | Dashboard — one active show | ready |
 | S-02 | § 2 | Wizard Step 1 (show details) | ready |
+| S-03 | § 2 | Wizard Step 2 (trial configuration) | captured 2026-06-25 |
 | S-04 | § 2 | Wizard Step 3 (class selection) | ready |
+| S-05 | § 2 | Wizard Step 4 (review) | captured 2026-06-25 |
 | S-06 | § 3 | Show Workbench — Setup tab | ready |
 | S-07 | § 4 | Entry Management — Pending tab | ready |
 | S-08 | § 4 | Three-dot menu on entry card | ready |

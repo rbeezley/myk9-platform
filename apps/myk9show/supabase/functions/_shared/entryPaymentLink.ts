@@ -24,6 +24,9 @@ export interface BuildEntryPaymentLinkInput {
   cancelUrl: string;
   /** Unix epoch seconds; Stripe's minimum is now + 30 min. */
   expiresAtEpoch: number;
+  /** Withdrawal-policy disclosure shown to the PAYER on the Stripe page
+   *  (custom_text.submit). Omitted → no custom_text. Stripe caps it at 1200 chars. */
+  withdrawalPolicyText?: string;
 }
 
 interface LineItem {
@@ -48,7 +51,13 @@ export interface EntryPaymentLinkSessionParams {
   cancel_url: string;
   metadata: { type: 'entry_payment_request'; entry_ids: string; platform_fee_percent: string };
   payment_intent_data: { metadata: { type: 'entry_payment_request'; entry_ids: string } };
+  /** Present only when a disclosure string is supplied — Stripe shows it above
+   *  the Pay button, so the payer sees the policy before paying. */
+  custom_text?: { submit: { message: string } };
 }
+
+/** Stripe caps custom_text.submit.message at 1200 chars. */
+const CUSTOM_TEXT_MAX = 1200;
 
 export function buildEntryPaymentLinkSession(
   input: BuildEntryPaymentLinkInput
@@ -95,6 +104,8 @@ export function buildEntryPaymentLinkSession(
   // reconciles the exact entries this link was built for (anti-tamper carrier).
   const entryIdsJson = JSON.stringify(input.entries.map(e => e.entryId));
 
+  const disclosure = input.withdrawalPolicyText?.trim();
+
   return {
     mode: 'payment',
     payment_method_types: ['card'],
@@ -112,5 +123,8 @@ export function buildEntryPaymentLinkSession(
     payment_intent_data: {
       metadata: { type: 'entry_payment_request', entry_ids: entryIdsJson },
     },
+    ...(disclosure
+      ? { custom_text: { submit: { message: disclosure.slice(0, CUSTOM_TEXT_MAX) } } }
+      : {}),
   };
 }

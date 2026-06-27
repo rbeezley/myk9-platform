@@ -95,4 +95,29 @@ describe('buildEntryPaymentLinkSession', () => {
   it('throws rather than create an empty (chargeless) session', () => {
     expect(() => buildEntryPaymentLinkSession({ ...base, entries: [] })).toThrow();
   });
+
+  it('shows the withdrawal policy to the payer via custom_text when provided', () => {
+    const s = buildEntryPaymentLinkSession({
+      ...base,
+      withdrawalPolicyText: 'Full refund until June 1, 2026. Service fees are non-refundable.',
+    });
+    expect(s.custom_text?.submit.message).toBe(
+      'Full refund until June 1, 2026. Service fees are non-refundable.'
+    );
+  });
+
+  it('omits custom_text when no disclosure is supplied (or it is blank)', () => {
+    expect(buildEntryPaymentLinkSession(base).custom_text).toBeUndefined();
+    expect(
+      buildEntryPaymentLinkSession({ ...base, withdrawalPolicyText: '   ' }).custom_text
+    ).toBeUndefined();
+  });
+
+  it('clamps custom_text to Stripe’s 1200-char limit', () => {
+    const s = buildEntryPaymentLinkSession({
+      ...base,
+      withdrawalPolicyText: 'x'.repeat(2000),
+    });
+    expect(s.custom_text?.submit.message.length).toBe(1200);
+  });
 });

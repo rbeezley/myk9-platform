@@ -4,6 +4,12 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { calculatePlatformFeeCents, resolvePlatformFeePercent } from '../_shared/platformFee.ts';
 import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
 import { buildEntryPaymentLinkSession } from '../_shared/entryPaymentLink.ts';
+import {
+  resolveEffectiveWithdrawalPolicy,
+  describeWithdrawalPolicyText,
+  type ShowWithdrawalColumns,
+  type ClubWithdrawalColumns,
+} from '../_shared/withdrawalPolicyText.ts';
 import { INACTIVE_ENTRY_STATUSES } from '../_shared/entryPaymentReconcile.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -341,12 +347,40 @@ Deno.serve(async req => {
         .eq('id', prior.id);
     }
 
+    // Best-effort: resolve the show's effective withdrawal policy so the PAYER
+    // sees it on the Stripe page (custom_text) — the secretary dialog disclosure
+    // never reaches the mail-in/waitlist payer. A failure here (incl. columns
+    // not yet migrated) must not block link generation, so it's try/caught.
+    let withdrawalPolicyText: string | undefined;
+    try {
+      const { data: policyRow } = await supabase
+        .from('shows')
+        .select(
+          'withdrawal_cutoff_date, withdrawal_retention_type, withdrawal_retention_value, withdrawal_policy_notes, clubs(default_withdrawal_cutoff_date, default_withdrawal_retention_type, default_withdrawal_retention_value, default_withdrawal_policy_notes)'
+        )
+        .eq('id', show.id)
+        .single();
+      if (policyRow) {
+        const rawClub = (policyRow as Record<string, unknown>).clubs;
+        const club = (Array.isArray(rawClub) ? rawClub[0] : rawClub) ?? null;
+        withdrawalPolicyText = describeWithdrawalPolicyText(
+          resolveEffectiveWithdrawalPolicy(
+            policyRow as ShowWithdrawalColumns,
+            club as ClubWithdrawalColumns | null
+          )
+        );
+      }
+    } catch (err) {
+      console.log('Could not resolve withdrawal policy for custom_text — skipping disclosure:', err);
+    }
+
     const sessionParams = buildEntryPaymentLinkSession({
       entries: linkEntries,
       platformFeePercent,
       successUrl: success_url,
       cancelUrl: cancel_url,
       expiresAtEpoch: Math.floor(Date.now() / 1000) + LINK_LIFETIME_SECONDS,
+      ...(withdrawalPolicyText ? { withdrawalPolicyText } : {}),
     });
 
     const session = await stripe.checkout.sessions.create(

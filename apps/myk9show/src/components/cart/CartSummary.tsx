@@ -16,6 +16,7 @@ import { useCartStore } from '@/store/cartStore';
 import { calculatePlatformFeeCents, formatPlatformFeeLabel } from '@/store/cartStore.helpers';
 import { usePlatformFeePercent } from '@/hooks/queries/usePlatformFeePercent';
 import { useCartExpirationTimer } from '@/hooks/useCartExpirationTimer';
+import { WithdrawalPolicyDisclosure } from '@/features/payments/WithdrawalPolicyDisclosure';
 
 interface CartSummaryProps {
   onCheckout?: () => void;
@@ -165,6 +166,11 @@ export function CartSummary({
               Entering: <span className="font-medium text-foreground">{cart.show.name}</span>
             </p>
           </div>
+        )}
+
+        {/* Withdrawal refund policy — disclosed before payment */}
+        {cart.show?.id && (
+          <WithdrawalPolicyDisclosure showId={cart.show.id} className="pt-1" />
         )}
       </CardContent>
 

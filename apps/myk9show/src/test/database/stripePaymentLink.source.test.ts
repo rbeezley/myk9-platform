@@ -43,4 +43,15 @@ describe('stripe-payment-link internal waitlist path', () => {
     expect(source).not.toContain("priorStatus === 'complete'");
     expect(source).not.toContain("recheck === 'complete'");
   });
+
+  it('discloses the withdrawal policy to the payer via Stripe custom_text (best-effort)', () => {
+    // The payer (mail-in/waitlist) never sees the myK9 cart disclosure, so the
+    // policy is resolved here and passed into the Checkout Session custom_text.
+    expect(source).toContain('describeWithdrawalPolicyText');
+    expect(source).toContain('resolveEffectiveWithdrawalPolicy');
+    expect(source).toContain('withdrawalPolicyText');
+    // Best-effort: a resolution failure (incl. columns not yet migrated) must not
+    // block link generation.
+    expect(source).toContain('skipping disclosure');
+  });
 });

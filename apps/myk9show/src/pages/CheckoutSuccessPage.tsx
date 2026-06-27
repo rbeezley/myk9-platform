@@ -23,12 +23,16 @@ import { Separator } from '@/components/ui/separator';
 import { verifyCheckoutSession } from '@/lib/stripe';
 import { useCartStore } from '@/store/cartStore';
 import { supabase } from '@/lib/supabase';
+import { getArmbandMapForShow } from '@/services/database/armbands';
 
 interface EntryDetails {
   id: string;
   dog_name: string;
   class_name: string;
   class_level: string | null;
+  // Armband is claimed at registration (per dog, per show), so it is usually
+  // already known here. Null only when the claim failed or hasn't run yet.
+  armband_number: string | null;
 }
 
 export default function CheckoutSuccessPage() {
@@ -88,6 +92,7 @@ export default function CheckoutSuccessPage() {
               .select(
                 `
                 id,
+                dog_id,
                 dogs:dog_id (name, call_name),
                 classes:class_id (name, level)
               `
@@ -95,6 +100,13 @@ export default function CheckoutSuccessPage() {
               .in('id', result.entryIds);
 
             if (data) {
+              // Armbands are keyed by show + dog (not entry) and are claimed at
+              // registration — so surface the already-assigned number here rather
+              // than telling the exhibitor it happens later.
+              const armbandByDogId = result.showId
+                ? await getArmbandMapForShow(result.showId)
+                : new Map<string, string>();
+
               setEntries(
                 data.map(e => ({
                   id: e.id,
@@ -104,6 +116,7 @@ export default function CheckoutSuccessPage() {
                     'Unknown',
                   class_name: (e.classes as { name: string })?.name || 'Unknown',
                   class_level: (e.classes as { level?: string })?.level || null,
+                  armband_number: armbandByDogId.get(e.dog_id ?? '') ?? null,
                 }))
               );
             }
@@ -276,7 +289,14 @@ export default function CheckoutSuccessPage() {
                         {entry.class_level && ` - ${entry.class_level}`}
                       </p>
                     </div>
-                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <div className="flex items-center gap-2">
+                      {entry.armband_number && (
+                        <span className="rounded-md bg-primary/10 px-2 py-0.5 text-sm font-semibold text-primary">
+                          Armband #{entry.armband_number}
+                        </span>
+                      )}
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -290,7 +310,13 @@ export default function CheckoutSuccessPage() {
               <ul className="list-disc list-inside space-y-1">
                 <li>You'll receive a confirmation email shortly</li>
                 <li>Check in at the venue on the day of the show</li>
-                <li>Your armband number will be assigned at check-in</li>
+                {entries.some(e => !e.armband_number) ? (
+                  <li>
+                    Your armband number will be confirmed by the show secretary before show day
+                  </li>
+                ) : (
+                  <li>Bring your armband number(s) shown above when you check in</li>
+                )}
               </ul>
             </div>
           </CardContent>

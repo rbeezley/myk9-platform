@@ -6,6 +6,8 @@
  *   - verifyCheckoutSession returns success without confirmationNumber when no enrollment yet
  *   - CheckoutSuccessPage renders MK9-XXXXXX when present
  *   - CheckoutSuccessPage renders without confirmation block when absent
+ *   - CheckoutSuccessPage shows the already-assigned armband number + accurate copy
+ *   - CheckoutSuccessPage falls back to secretary-confirmation copy when armband missing
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -18,22 +20,35 @@ import { createTestQueryClient } from '@/test/utils/testUtils';
 // Hoisted mock refs (must be hoisted so vi.mock factory can reference them)
 // ---------------------------------------------------------------------------
 
-const { mockSingle, mockGetSession } = vi.hoisted(() => ({
+const { mockSingle, mockGetSession, mockEntries, mockGetArmbandMap } = vi.hoisted(() => ({
   mockSingle: vi.fn(),
   mockGetSession: vi.fn(),
+  // Rows returned from the entries fetch (`.select().in('id', ...)`).
+  mockEntries: { rows: [] as unknown[] },
+  mockGetArmbandMap: vi.fn(),
 }));
 
 vi.mock('@/lib/supabase', () => {
-  const mockEq = vi.fn(() => ({ single: mockSingle }));
-  const mockSelect = vi.fn(() => ({ eq: mockEq }));
-  const mockFrom = vi.fn(() => ({ select: mockSelect }));
+  // Chainable builder: supports `.select().eq().single()` (verifyCheckoutSession)
+  // and `.select().in()` (the entries fetch on the page).
+  const builder: Record<string, unknown> = {
+    select: vi.fn(() => builder),
+    eq: vi.fn(() => builder),
+    in: vi.fn(() => Promise.resolve({ data: mockEntries.rows, error: null })),
+    single: mockSingle,
+  };
   return {
     supabase: {
-      from: mockFrom,
+      from: vi.fn(() => builder),
       auth: { getSession: mockGetSession },
     },
   };
 });
+
+// Armband lookup goes through the armbands service (offline-first), not raw supabase.
+vi.mock('@/services/database/armbands', () => ({
+  getArmbandMapForShow: mockGetArmbandMap,
+}));
 
 import { verifyCheckoutSession } from '@/lib/stripe';
 import CheckoutSuccessPage from '@/pages/CheckoutSuccessPage';
@@ -65,6 +80,8 @@ function mockAuthSession() {
 describe('verifyCheckoutSession', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockEntries.rows = [];
+    mockGetArmbandMap.mockResolvedValue(new Map());
     mockAuthSession();
   });
 
@@ -172,6 +189,8 @@ describe('verifyCheckoutSession', () => {
 describe('CheckoutSuccessPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockEntries.rows = [];
+    mockGetArmbandMap.mockResolvedValue(new Map());
     mockAuthSession();
   });
 
@@ -220,6 +239,74 @@ describe('CheckoutSuccessPage', () => {
       expect(screen.getByText('pi_3TgoK2AIej2Q9UtX3HSHZh3M')).toBeInTheDocument();
     });
     expect(screen.getByText('Confirmation Number')).toBeInTheDocument();
+  });
+
+  it('shows the already-assigned armband number and accurate next-step copy', async () => {
+    mockSingle.mockResolvedValue({
+      data: {
+        id: 'order-uuid',
+        status: 'succeeded',
+        amount_cents: 7500,
+        entry_ids: ['entry-1'],
+        show_id: 'show-uuid',
+        paid_at: '2026-04-13T10:00:00Z',
+        shows: { name: 'Spring Invitational' },
+        enrollment: { confirmation_number: 'MK9-000042' },
+      },
+      error: null,
+    });
+    mockEntries.rows = [
+      {
+        id: 'entry-1',
+        dog_id: 'dog-1',
+        dogs: { name: 'Scout', call_name: 'Scout' },
+        classes: { name: 'Container', level: 'Novice' },
+      },
+    ];
+    mockGetArmbandMap.mockResolvedValue(new Map([['dog-1', '142']]));
+
+    renderSuccessPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Armband #142')).toBeInTheDocument();
+    });
+    // Copy must NOT claim the number is assigned later; it already exists.
+    expect(screen.queryByText(/will be assigned at check-in/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Bring your armband number/i)).toBeInTheDocument();
+  });
+
+  it('falls back to secretary-confirmation copy when an armband is missing', async () => {
+    mockSingle.mockResolvedValue({
+      data: {
+        id: 'order-uuid',
+        status: 'succeeded',
+        amount_cents: 7500,
+        entry_ids: ['entry-1'],
+        show_id: 'show-uuid',
+        paid_at: '2026-04-13T10:00:00Z',
+        shows: { name: 'Spring Invitational' },
+        enrollment: { confirmation_number: 'MK9-000042' },
+      },
+      error: null,
+    });
+    mockEntries.rows = [
+      {
+        id: 'entry-1',
+        dog_id: 'dog-1',
+        dogs: { name: 'Scout', call_name: 'Scout' },
+        classes: { name: 'Container', level: 'Novice' },
+      },
+    ];
+    // No armband for this dog — claim failed or not yet allocated.
+    mockGetArmbandMap.mockResolvedValue(new Map());
+
+    renderSuccessPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Scout')).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/Armband #/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/confirmed by the show secretary/i)).toBeInTheDocument();
   });
 
   it('does not render the confirmation block when neither source exists', async () => {

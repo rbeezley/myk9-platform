@@ -73,6 +73,7 @@ import {
   autoAssignArmbands,
   getEntryArmbandById,
   getArmbandCountForShow,
+  getArmbandMapForShow,
   getNextArmbandForShow,
   lookupDogByArmband,
   setEntryArmband,
@@ -511,6 +512,56 @@ describe('armbandQueries (replication)', () => {
       expect(result.data!.entries).toHaveLength(1);
       expect(result.data!.entries[0].class_name).toBe('');
       expect(result.data!.entries[0].class_level).toBeNull();
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // getArmbandMapForShow
+  // -----------------------------------------------------------------------
+  describe('getArmbandMapForShow', () => {
+    it('builds a dogId→armbandNumber map from replicated armbands, skipping rows without a dog', async () => {
+      mockArmbandsTable.getByShow.mockResolvedValue([
+        makeArmband({ id: 'a1', dogId: 'dog-1', armbandNumber: '101' }),
+        makeArmband({ id: 'a2', dogId: 'dog-2', armbandNumber: '102' }),
+        makeArmband({ id: 'a3', dogId: undefined, armbandNumber: '103' }),
+      ]);
+
+      const map = await getArmbandMapForShow('show-1');
+
+      expect(map.get('dog-1')).toBe('101');
+      expect(map.get('dog-2')).toBe('102');
+      expect(map.size).toBe(2);
+      expect(mockArmbandsTable.getByShow).toHaveBeenCalledWith('show-1');
+      // Replication path served the read — no PostgREST fallback.
+      expect(mockSupabase.from).not.toHaveBeenCalledWith('armbands');
+    });
+
+    it('falls back to PostgREST when the replication store throws (coercing numbers to strings)', async () => {
+      mockArmbandsTable.getByShow.mockRejectedValue(new Error('idb down'));
+      const eq = vi.fn().mockResolvedValue({
+        data: [
+          { dog_id: 'dog-9', armband_number: 305 },
+          { dog_id: null, armband_number: 306 },
+        ],
+        error: null,
+      });
+      mockSupabase.from.mockReturnValue({ select: vi.fn().mockReturnValue({ eq }) });
+
+      const map = await getArmbandMapForShow('show-1');
+
+      expect(map.get('dog-9')).toBe('305');
+      expect(map.size).toBe(1);
+      expect(mockSupabase.from).toHaveBeenCalledWith('armbands');
+    });
+
+    it('returns an empty map when both replication and PostgREST fail', async () => {
+      mockArmbandsTable.getByShow.mockRejectedValue(new Error('idb down'));
+      const eq = vi.fn().mockResolvedValue({ data: null, error: { message: 'pg down' } });
+      mockSupabase.from.mockReturnValue({ select: vi.fn().mockReturnValue({ eq }) });
+
+      const map = await getArmbandMapForShow('show-1');
+
+      expect(map.size).toBe(0);
     });
   });
 });

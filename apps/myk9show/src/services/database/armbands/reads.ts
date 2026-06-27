@@ -156,6 +156,45 @@ export const getArmbandCountForShow = async (showId: string) => {
 };
 
 /**
+ * Build a `dogId → armbandNumber` lookup for every assigned armband in a show.
+ * Offline-first via the replication store (PostgREST fallback). Used by surfaces
+ * that display a dog's already-claimed number — e.g. the checkout confirmation,
+ * where armbands are claimed at registration, not at check-in.
+ */
+export const getArmbandMapForShow = async (showId: string): Promise<Map<string, string>> => {
+  const buildMap = (rows: { dogId?: string | undefined; armbandNumber: string }[]) => {
+    const map = new Map<string, string>();
+    for (const row of rows) {
+      if (row.dogId) map.set(row.dogId, row.armbandNumber);
+    }
+    return map;
+  };
+
+  try {
+    return await withReplicationFallback(
+      async () => buildMap(await replicatedArmbandsTable.getByShow(showId)),
+      async () => {
+        const { data, error } = await supabase
+          .from('armbands')
+          .select('dog_id, armband_number')
+          .eq('show_id', showId);
+        if (error) throw error;
+        return buildMap(
+          (data ?? []).map(r => ({
+            dogId: r.dog_id ?? undefined,
+            armbandNumber: String(r.armband_number),
+          }))
+        );
+      },
+      'armbands',
+      'map_for_show'
+    );
+  } catch {
+    return new Map();
+  }
+};
+
+/**
  * Claim the next available armband for a dog at a show. The number is chosen
  * server-side by the assign_armband RPC; callers do not pick it.
  *

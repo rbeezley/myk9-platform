@@ -23,7 +23,6 @@ import { Separator } from '@/components/ui/separator';
 import { verifyCheckoutSession } from '@/lib/stripe';
 import { useCartStore } from '@/store/cartStore';
 import { supabase } from '@/lib/supabase';
-import { getArmbandMapForShow } from '@/services/database/armbands';
 
 interface EntryDetails {
   id: string;
@@ -92,7 +91,7 @@ export default function CheckoutSuccessPage() {
               .select(
                 `
                 id,
-                dog_id,
+                armband,
                 dogs:dog_id (name, call_name),
                 classes:class_id (name, level)
               `
@@ -100,13 +99,11 @@ export default function CheckoutSuccessPage() {
               .in('id', result.entryIds);
 
             if (data) {
-              // Armbands are keyed by show + dog (not entry) and are claimed at
-              // registration — so surface the already-assigned number here rather
-              // than telling the exhibitor it happens later.
-              const armbandByDogId = result.showId
-                ? await getArmbandMapForShow(result.showId)
-                : new Map<string, string>();
-
+              // Armbands are claimed at registration and denormalized onto the
+              // entry row, so read the already-assigned number straight from this
+              // authoritative DB query rather than telling the exhibitor it
+              // happens later. (A replication-cache read could be stale on the
+              // Stripe return and falsely report "not yet assigned".)
               setEntries(
                 data.map(e => ({
                   id: e.id,
@@ -116,7 +113,7 @@ export default function CheckoutSuccessPage() {
                     'Unknown',
                   class_name: (e.classes as { name: string })?.name || 'Unknown',
                   class_level: (e.classes as { level?: string })?.level || null,
-                  armband_number: armbandByDogId.get(e.dog_id ?? '') ?? null,
+                  armband_number: (e.armband as string | null) ?? null,
                 }))
               );
             }
@@ -310,12 +307,12 @@ export default function CheckoutSuccessPage() {
               <ul className="list-disc list-inside space-y-1">
                 <li>You'll receive a confirmation email shortly</li>
                 <li>Check in at the venue on the day of the show</li>
-                {entries.some(e => !e.armband_number) ? (
+                {entries.length > 0 && entries.every(e => e.armband_number) ? (
+                  <li>Bring your armband number(s) shown above when you check in</li>
+                ) : (
                   <li>
                     Your armband number will be confirmed by the show secretary before show day
                   </li>
-                ) : (
-                  <li>Bring your armband number(s) shown above when you check in</li>
                 )}
               </ul>
             </div>

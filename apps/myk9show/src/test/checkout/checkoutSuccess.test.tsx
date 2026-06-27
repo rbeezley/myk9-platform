@@ -20,12 +20,12 @@ import { createTestQueryClient } from '@/test/utils/testUtils';
 // Hoisted mock refs (must be hoisted so vi.mock factory can reference them)
 // ---------------------------------------------------------------------------
 
-const { mockSingle, mockGetSession, mockEntries, mockGetArmbandMap } = vi.hoisted(() => ({
+const { mockSingle, mockGetSession, mockEntries } = vi.hoisted(() => ({
   mockSingle: vi.fn(),
   mockGetSession: vi.fn(),
-  // Rows returned from the entries fetch (`.select().in('id', ...)`).
+  // Rows returned from the entries fetch (`.select().in('id', ...)`). The
+  // armband is read straight off the entry row (denormalized column).
   mockEntries: { rows: [] as unknown[] },
-  mockGetArmbandMap: vi.fn(),
 }));
 
 vi.mock('@/lib/supabase', () => {
@@ -44,11 +44,6 @@ vi.mock('@/lib/supabase', () => {
     },
   };
 });
-
-// Armband lookup goes through the armbands service (offline-first), not raw supabase.
-vi.mock('@/services/database/armbands', () => ({
-  getArmbandMapForShow: mockGetArmbandMap,
-}));
 
 import { verifyCheckoutSession } from '@/lib/stripe';
 import CheckoutSuccessPage from '@/pages/CheckoutSuccessPage';
@@ -81,7 +76,6 @@ describe('verifyCheckoutSession', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockEntries.rows = [];
-    mockGetArmbandMap.mockResolvedValue(new Map());
     mockAuthSession();
   });
 
@@ -190,7 +184,6 @@ describe('CheckoutSuccessPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockEntries.rows = [];
-    mockGetArmbandMap.mockResolvedValue(new Map());
     mockAuthSession();
   });
 
@@ -258,12 +251,11 @@ describe('CheckoutSuccessPage', () => {
     mockEntries.rows = [
       {
         id: 'entry-1',
-        dog_id: 'dog-1',
+        armband: '142',
         dogs: { name: 'Scout', call_name: 'Scout' },
         classes: { name: 'Container', level: 'Novice' },
       },
     ];
-    mockGetArmbandMap.mockResolvedValue(new Map([['dog-1', '142']]));
 
     renderSuccessPage();
 
@@ -292,13 +284,12 @@ describe('CheckoutSuccessPage', () => {
     mockEntries.rows = [
       {
         id: 'entry-1',
-        dog_id: 'dog-1',
+        armband: null,
         dogs: { name: 'Scout', call_name: 'Scout' },
         classes: { name: 'Container', level: 'Novice' },
       },
     ];
-    // No armband for this dog — claim failed or not yet allocated.
-    mockGetArmbandMap.mockResolvedValue(new Map());
+    // No armband on the entry — claim failed or not yet denormalized.
 
     renderSuccessPage();
 
@@ -306,6 +297,34 @@ describe('CheckoutSuccessPage', () => {
       expect(screen.getByText('Scout')).toBeInTheDocument();
     });
     expect(screen.queryByText(/Armband #/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/confirmed by the show secretary/i)).toBeInTheDocument();
+  });
+
+  it('does not claim armbands are ready when no entry rows loaded', async () => {
+    // Order succeeded but the entry rows did not load (entries.length === 0).
+    // The "bring your armband number(s)" copy must NOT show — there is nothing
+    // to bring — so we fall back to the secretary-confirmation copy.
+    mockSingle.mockResolvedValue({
+      data: {
+        id: 'order-uuid',
+        status: 'succeeded',
+        amount_cents: 7500,
+        entry_ids: ['entry-1'],
+        show_id: 'show-uuid',
+        paid_at: '2026-04-13T10:00:00Z',
+        shows: { name: 'Spring Invitational' },
+        enrollment: { confirmation_number: 'MK9-000042' },
+      },
+      error: null,
+    });
+    mockEntries.rows = [];
+
+    renderSuccessPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Entry Submitted Successfully!')).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/Bring your armband number/i)).not.toBeInTheDocument();
     expect(screen.getByText(/confirmed by the show secretary/i)).toBeInTheDocument();
   });
 

@@ -9,7 +9,6 @@
 
 export {
   getArmbandCountForShow,
-  getArmbandMapForShow,
   claimNextArmband,
   lookupDogByArmband,
 } from './reads';

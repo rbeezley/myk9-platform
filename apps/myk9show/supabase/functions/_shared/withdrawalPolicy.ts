@@ -1,19 +1,24 @@
-// Resolve + render the effective withdrawal policy as a single disclosure
-// STRING, for the Stripe Checkout `custom_text` shown to the actual payer on a
-// secretary-generated / waitlist-offer payment link (they never see the myK9
-// cart disclosure). Deno-free (colocated vitest).
+// Server-side (Deno) resolution + disclosure rendering of the effective
+// withdrawal policy. ONE module for both server uses:
+//   - the webhook SNAPSHOTS resolveWithdrawalPolicy(show, club) onto an entry at
+//     payment time (Phase 3b, D3);
+//   - the payment-link function renders describeWithdrawalPolicyText(...) into
+//     the Stripe Checkout custom_text the payer sees (Phase 3a, D4/D8).
 //
-// Mirrors the app-side getEffectiveWithdrawalPolicy + describeWithdrawalPolicy
-// (src/features/payments/*). Duplicated across the Deno/app boundary by
-// necessity; kept tiny.
+// Both used to live in two near-identical files (withdrawalSnapshot.ts +
+// withdrawalPolicyText.ts) with the same shape under two names; consolidated
+// here so there is one give-up-policy contract on the server. Mirrors the
+// app-side getEffectiveWithdrawalPolicy + describeWithdrawalPolicy
+// (src/features/payments/*) — still duplicated across the Deno/app boundary by
+// necessity (Deno can't import app `src`), but kept to a single server copy.
 //
-// See docs/plan-refund-policy-withdrawal.md (Phase 3, D4/D8).
+// See docs/plan-refund-policy-withdrawal.md (Phase 3, D3/D4/D8).
 
-export interface EffectiveWithdrawalPolicy {
+export interface WithdrawalPolicy {
   cutoffDate: string | null;
   retentionType: 'flat' | 'percent';
-  // Required number (0 when unset), mirroring the app contract
-  // (getEffectiveWithdrawalPolicy) and the snapshot — one policy shape everywhere.
+  // Normalized to a required number (0 when unset) so the server policy mirrors
+  // the app policy contract exactly — readers must not special-case null vs 0.
   retentionValue: number;
   notes: string | null;
 }
@@ -43,7 +48,7 @@ function build(
   type: string | null | undefined,
   value: number | null | undefined,
   notes: string | null | undefined
-): EffectiveWithdrawalPolicy {
+): WithdrawalPolicy {
   return {
     cutoffDate: cutoff ?? null,
     retentionType: type === 'percent' ? 'percent' : 'flat',
@@ -52,10 +57,15 @@ function build(
   };
 }
 
-export function resolveEffectiveWithdrawalPolicy(
+/**
+ * Resolve the effective policy from a show row (override) + its club row
+ * (default): a show override (any field set) wins over the club default;
+ * neither declared → null.
+ */
+export function resolveWithdrawalPolicy(
   show: ShowWithdrawalColumns | null | undefined,
   club: ClubWithdrawalColumns | null | undefined
-): EffectiveWithdrawalPolicy | null {
+): WithdrawalPolicy | null {
   if (
     show &&
     hasAny(
@@ -72,6 +82,7 @@ export function resolveEffectiveWithdrawalPolicy(
       show.withdrawal_policy_notes
     );
   }
+
   if (
     club &&
     hasAny(
@@ -88,6 +99,7 @@ export function resolveEffectiveWithdrawalPolicy(
       club.default_withdrawal_policy_notes
     );
   }
+
   return null;
 }
 
@@ -102,14 +114,14 @@ function formatCutoff(date: string): string {
   }).format(d);
 }
 
-function formatRetained(policy: EffectiveWithdrawalPolicy): string | null {
+function formatRetained(policy: WithdrawalPolicy): string | null {
   const v = policy.retentionValue;
   if (v === null || v === undefined || v <= 0) return null;
   return policy.retentionType === 'percent' ? `${v}%` : `$${(v / 100).toFixed(2)}`;
 }
 
 /** A single disclosure string (line + any prose) suitable for Stripe custom_text. */
-export function describeWithdrawalPolicyText(policy: EffectiveWithdrawalPolicy | null): string {
+export function describeWithdrawalPolicyText(policy: WithdrawalPolicy | null): string {
   if (!policy) {
     return `Refund policy: contact the club. ${SERVICE_FEE_SENTENCE}`;
   }

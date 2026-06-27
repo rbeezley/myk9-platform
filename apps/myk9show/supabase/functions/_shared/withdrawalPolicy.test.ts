@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  resolveEffectiveWithdrawalPolicy,
-  describeWithdrawalPolicyText,
-} from './withdrawalPolicyText.ts';
+import { resolveWithdrawalPolicy, describeWithdrawalPolicyText } from './withdrawalPolicy.ts';
 
 const club = {
   default_withdrawal_cutoff_date: '2026-05-01',
@@ -11,21 +8,64 @@ const club = {
   default_withdrawal_policy_notes: null,
 };
 
-describe('resolveEffectiveWithdrawalPolicy', () => {
-  it('prefers the show override, falls back to the club default, else null', () => {
-    expect(
-      resolveEffectiveWithdrawalPolicy(
-        { withdrawal_retention_type: 'percent', withdrawal_retention_value: 20 },
-        club
-      )
-    ).toMatchObject({ retentionType: 'percent', retentionValue: 20 });
-
-    expect(resolveEffectiveWithdrawalPolicy({}, club)).toMatchObject({
-      cutoffDate: '2026-05-01',
-      retentionValue: 500,
+describe('resolveWithdrawalPolicy', () => {
+  it('uses the show override when any override field is set', () => {
+    const policy = resolveWithdrawalPolicy(
+      {
+        withdrawal_cutoff_date: '2026-06-01',
+        withdrawal_retention_type: 'percent',
+        withdrawal_retention_value: 20,
+        withdrawal_policy_notes: null,
+      },
+      club
+    );
+    expect(policy).toEqual({
+      cutoffDate: '2026-06-01',
+      retentionType: 'percent',
+      retentionValue: 20,
+      notes: null,
     });
+  });
 
-    expect(resolveEffectiveWithdrawalPolicy(null, null)).toBeNull();
+  it('falls back to the club default when the show declares nothing', () => {
+    const policy = resolveWithdrawalPolicy(
+      {
+        withdrawal_cutoff_date: null,
+        withdrawal_retention_type: null,
+        withdrawal_retention_value: null,
+        withdrawal_policy_notes: null,
+      },
+      club
+    );
+    expect(policy).toEqual({
+      cutoffDate: '2026-05-01',
+      retentionType: 'flat',
+      retentionValue: 500,
+      notes: null,
+    });
+  });
+
+  it('returns null when neither show nor club declares a policy', () => {
+    expect(resolveWithdrawalPolicy(null, null)).toBeNull();
+    expect(resolveWithdrawalPolicy({}, {})).toBeNull();
+  });
+
+  it('treats a show with only prose notes as an override (cutoff null)', () => {
+    const policy = resolveWithdrawalPolicy({ withdrawal_policy_notes: 'See premium.' }, club);
+    expect(policy?.notes).toBe('See premium.');
+    expect(policy?.cutoffDate).toBeNull();
+    expect(policy?.retentionType).toBe('flat');
+    // Normalized like the app contract: an unset retention is 0, never null.
+    expect(policy?.retentionValue).toBe(0);
+  });
+
+  it('defaults an unknown retention type to flat', () => {
+    const policy = resolveWithdrawalPolicy(
+      { withdrawal_retention_type: 'weird', withdrawal_retention_value: 100 },
+      null
+    );
+    expect(policy?.retentionType).toBe('flat');
+    expect(policy?.retentionValue).toBe(100);
   });
 });
 

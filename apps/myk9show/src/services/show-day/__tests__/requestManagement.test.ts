@@ -107,6 +107,17 @@ describe('show-day request management replication actions', () => {
     });
   });
 
+  it('falls back to a generic reason when approving a pull request without a reason', async () => {
+    getEntryById.mockResolvedValueOnce({ entryStatus: 'scratch-requested' });
+
+    await expect(approvePullRequestReplicated('pull-entry')).resolves.toEqual({ error: null });
+
+    expect(updateReplicatedDayOfScratch).toHaveBeenCalledWith('pull-entry', 'Pull approved', {
+      auditAction: 'approve_scratch_request',
+      fromStatus: 'scratch-requested',
+    });
+  });
+
   it('denies pull requests through replicated entry status updates', async () => {
     await expect(denyPullRequestReplicated('pull-entry', 'Too late')).resolves.toEqual({
       error: null,

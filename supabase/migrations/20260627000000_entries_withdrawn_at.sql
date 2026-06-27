@@ -7,13 +7,22 @@
 -- the cutoff and later touched after it would wrongly look "after cutoff" and
 -- retain a fee.
 --
--- A BEFORE UPDATE trigger stamps withdrawn_at the moment entry_status first
--- transitions INTO 'scratched' — capturing every withdrawal path (secretary
--- status change, day-of pull, approved pull request) at the DB level, not just
--- one app code path. Re-withdrawal (scratched → confirmed → scratched) restamps
--- to the latest withdrawal, which is the one the refund is about.
+-- "Gave up the spot" is one domain concept split across TWO entry_status
+-- values: 'withdrawn' (EntryStatus.CANCELLED — the voluntary withdrawal that
+-- chains into the refund dialog) and 'scratched' (EntryStatus.SCRATCHED — the
+-- day-of ringside pull). The refund cutoff applies to both, so the trigger keys
+-- on the SET {withdrawn, scratched}, not either value alone — stamping on the
+-- main withdrawal path was the bug this migration originally missed.
 --
--- The trigger is ALSO the only writer: outside the scratched transition it
+-- A BEFORE UPDATE trigger stamps withdrawn_at the moment entry_status first
+-- transitions INTO that set from an active status — capturing every path
+-- (secretary status change, day-of pull, approved pull request) at the DB
+-- level, not just one app code path. A move WITHIN the set (e.g. withdrawn →
+-- scratched) freezes the original time, which is the give-up the refund is
+-- about. Re-withdrawal (withdrawn → accepted → withdrawn) restamps to the
+-- latest, since the spot was re-held and given up again.
+--
+-- The trigger is ALSO the only writer: outside an into-the-set transition it
 -- forces withdrawn_at back to its prior value, so a manager cannot backdate or
 -- clear this money-authoritative timestamp through a direct PostgREST UPDATE
 -- (the same spirit as the refund-column write guard, mig 20260609220000).
@@ -30,7 +39,12 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 BEGIN
-  IF new.entry_status = 'scratched' AND old.entry_status IS DISTINCT FROM 'scratched' THEN
+  -- Stamp only on the FIRST transition into a give-up status from outside the
+  -- set; a move within the set ({withdrawn, scratched}) or any other update
+  -- falls through to the freeze branch and keeps the original give-up time.
+  IF new.entry_status IN ('withdrawn', 'scratched')
+     AND (old.entry_status IS NULL
+          OR old.entry_status NOT IN ('withdrawn', 'scratched')) THEN
     new.withdrawn_at := now();
   ELSE
     -- Freeze: ignore any caller-supplied change to withdrawn_at.

@@ -6,9 +6,10 @@
  *
  * Reference time ("before or after the refund cutoff?") = the entry's actual
  * withdrawal time (entries.withdrawn_at, stamped by a DB trigger when the entry
- * transitions to 'scratched'), falling back to now when unavailable (e.g. a
- * legacy entry withdrawn before that column existed). NOT updated_at — that is
- * bumped on every write and would misjudge the cutoff.
+ * first transitions into a give-up status — 'withdrawn' (the voluntary
+ * withdrawal path) or 'scratched' (the day-of pull)), falling back to now when
+ * unavailable (e.g. a legacy entry withdrawn before that column existed). NOT
+ * updated_at — that is bumped on every write and would misjudge the cutoff.
  *
  * See docs/plan-refund-policy-withdrawal.md (Phase 4, D5).
  */

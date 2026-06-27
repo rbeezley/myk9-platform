@@ -148,6 +148,10 @@ export async function signIn(
   password: string,
   returnTo = '/'
 ): Promise<void> {
+  if (!email || !password) {
+    throw new Error(`Missing E2E credentials for ${email || 'unknown test user'}`);
+  }
+
   const params = new URLSearchParams({ returnTo });
   await gotoSignIn(page, `/sign-in?${params.toString()}`);
 
@@ -160,7 +164,26 @@ export async function signIn(
   await page.getByTestId('password-input').fill(password);
 
   await page.getByTestId('sign-in-button').click();
-  await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
+  const signInResult = await Promise.race([
+    page
+      .waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 })
+      .then(() => 'signed-in' as const)
+      .catch((error: unknown) => ({ error })),
+    page
+      .getByText(/invalid login credentials/i)
+      .waitFor({ state: 'visible', timeout: 15000 })
+      .then(() => 'invalid-credentials' as const)
+      .catch(() => new Promise<never>(() => undefined)),
+  ]);
+
+  if (signInResult === 'invalid-credentials') {
+    throw new Error(`E2E sign-in rejected credentials for ${email}`);
+  }
+
+  if (typeof signInResult === 'object' && 'error' in signInResult) {
+    throw signInResult.error;
+  }
+
   await page.waitForLoadState('domcontentloaded');
   await expect(page).not.toHaveURL(/\/sign-in/);
 }

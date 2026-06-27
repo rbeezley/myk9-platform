@@ -49,7 +49,12 @@ describe('show-day request management replication actions', () => {
     auditLog.mockResolvedValue();
     getEntryById.mockImplementation((entryId: string) => {
       if (entryId === 'move-up-entry') return Promise.resolve({ entryStatus: 'move-up-requested' });
-      if (entryId === 'pull-entry') return Promise.resolve({ entryStatus: 'scratch-requested' });
+      if (entryId === 'pull-entry') {
+        return Promise.resolve({
+          entryStatus: 'scratch-requested',
+          specialRequests: 'Handler injury',
+        });
+      }
       return Promise.resolve({ entryStatus: 'move-up-requested' });
     });
   });
@@ -94,6 +99,17 @@ describe('show-day request management replication actions', () => {
   });
 
   it('approves pull requests through replicated day-of scratch updates', async () => {
+    await expect(approvePullRequestReplicated('pull-entry')).resolves.toEqual({ error: null });
+
+    expect(updateReplicatedDayOfScratch).toHaveBeenCalledWith('pull-entry', 'Handler injury', {
+      auditAction: 'approve_scratch_request',
+      fromStatus: 'scratch-requested',
+    });
+  });
+
+  it('falls back to a generic reason when approving a pull request without a reason', async () => {
+    getEntryById.mockResolvedValueOnce({ entryStatus: 'scratch-requested' });
+
     await expect(approvePullRequestReplicated('pull-entry')).resolves.toEqual({ error: null });
 
     expect(updateReplicatedDayOfScratch).toHaveBeenCalledWith('pull-entry', 'Pull approved', {

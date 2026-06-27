@@ -16,7 +16,10 @@ function readEntryStatus(entry: ReplicatedEntry): string | null {
   return entry.entryStatus ?? entry.entry_status ?? entry.status ?? null;
 }
 
-async function requireRequestStatus(entryId: string, expectedStatus: string): Promise<void> {
+async function requireRequestStatus(
+  entryId: string,
+  expectedStatus: string
+): Promise<ReplicatedEntry> {
   const entry = await replicatedEntriesTable.getEntryById(entryId);
   if (!entry) {
     throw new Error(`Entry ${entryId} not found`);
@@ -28,6 +31,12 @@ async function requireRequestStatus(entryId: string, expectedStatus: string): Pr
       `Cannot process request for entry ${entryId}; expected ${expectedStatus}, got ${status ?? 'unknown'}`
     );
   }
+
+  return entry;
+}
+
+function readPullReason(entry: ReplicatedEntry): string {
+  return entry.specialRequests ?? entry.special_requests ?? 'Pull approved';
 }
 
 export async function approveMoveUpRequestReplicated(
@@ -75,8 +84,8 @@ export async function denyMoveUpRequestReplicated(
 
 export async function approvePullRequestReplicated(entryId: string): Promise<ActionResult> {
   try {
-    await requireRequestStatus(entryId, 'scratch-requested');
-    await updateReplicatedDayOfScratch(entryId, 'Pull approved', {
+    const entry = await requireRequestStatus(entryId, 'scratch-requested');
+    await updateReplicatedDayOfScratch(entryId, readPullReason(entry), {
       auditAction: 'approve_scratch_request',
       fromStatus: 'scratch-requested',
     });

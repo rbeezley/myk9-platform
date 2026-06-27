@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Ban } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,19 +17,37 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useShowRefundAll, type ShowRefundAllResult } from '@/features/payments/useShowRefundAll';
 
-// INTENT: This is a destructive, irreversible MONEY action (refunds every paid
-// exhibitor). The live count + explicit confirm dialog + per-result summary are
-// deliberate friction — do not collapse into a one-click button.
+// INTENT: A bulk make-whole refund is a SHOW-CANCELLATION action and irreversible
+// money movement. It is deliberately TWO steps — mark the show cancelled, THEN
+// refund — so an active/upcoming show's paid entries can never be refunded by a
+// single misclick. The server independently requires shows.status = 'cancelled'.
+// Do not collapse into one click.
 
 interface RefundAllEntriesCardProps {
   showId: string;
 }
 
+function useShowStatus(showId: string) {
+  return useQuery({
+    queryKey: ['show-status', showId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('shows')
+        .select('status')
+        .eq('id', showId)
+        .single();
+      if (error) throw error;
+      return (data?.status ?? null) as string | null;
+    },
+  });
+}
+
 /** Count of entries this bulk refund could touch (online-paid). An upper bound —
  * the server still skips already-refunded / cross-show intents. */
-function useRefundableEntryCount(showId: string) {
+function useRefundableEntryCount(showId: string, enabled: boolean) {
   return useQuery({
     queryKey: ['refundable-entry-count', showId],
+    enabled,
     queryFn: async () => {
       const { count, error } = await supabase
         .from('entries')
@@ -43,10 +61,29 @@ function useRefundableEntryCount(showId: string) {
   });
 }
 
+function useMarkShowCancelled(showId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from('shows').update({ status: 'cancelled' }).eq('id', showId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['show-status', showId] });
+      toast.success('Show marked cancelled. You can now refund all entries.');
+    },
+    onError: err => toast.error(err instanceof Error ? err.message : 'Could not cancel the show'),
+  });
+}
+
 export function RefundAllEntriesCard({ showId }: RefundAllEntriesCardProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [result, setResult] = useState<ShowRefundAllResult | null>(null);
-  const { data: count } = useRefundableEntryCount(showId);
+
+  const { data: status } = useShowStatus(showId);
+  const isCancelled = status === 'cancelled';
+  const { data: count } = useRefundableEntryCount(showId, isCancelled);
+  const markCancelled = useMarkShowCancelled(showId);
   const refundAll = useShowRefundAll();
 
   const handleConfirm = () => {
@@ -88,43 +125,64 @@ export function RefundAllEntriesCard({ showId }: RefundAllEntriesCardProps) {
           manually. This cannot be undone.
         </CardDescription>
       </CardHeader>
+
       <CardContent className="space-y-3">
-        <p className="text-sm text-muted-foreground">
-          {count === undefined
-            ? 'Checking paid entries…'
-            : hasNothingToRefund
-              ? 'No online-paid entries to refund.'
-              : `${count} online-paid entr${count === 1 ? 'y' : 'ies'} can be refunded.`}
-        </p>
-
-        <Button
-          variant="destructive"
-          disabled={hasNothingToRefund || refundAll.isPending}
-          onClick={() => setConfirmOpen(true)}
-        >
-          {refundAll.isPending ? 'Refunding…' : 'Refund all entries…'}
-        </Button>
-
-        {result && (
-          <div className="rounded-md border bg-muted/40 p-3 text-sm" role="status">
-            <p className="font-medium">
-              Refunded {result.summary.entriesRefunded} entr
-              {result.summary.entriesRefunded === 1 ? 'y' : 'ies'} across{' '}
-              {result.summary.intentsRefunded} payment
-              {result.summary.intentsRefunded === 1 ? '' : 's'}.
+        {!isCancelled ? (
+          // Step 1 — the show must be cancelled before any money moves.
+          <>
+            <p className="text-sm text-muted-foreground">
+              This show is still active. To refund every exhibitor, mark it cancelled first.
             </p>
-            {result.summary.skipped > 0 && (
-              <p className="text-muted-foreground">
-                {result.summary.skipped} skipped (cash/check, already refunded, or shared payment) —
-                handle manually.
-              </p>
+            <Button
+              variant="outline"
+              disabled={status === undefined || markCancelled.isPending}
+              onClick={() => markCancelled.mutate()}
+            >
+              <Ban className="mr-2 h-4 w-4" />
+              {markCancelled.isPending ? 'Marking cancelled…' : 'Mark show as cancelled'}
+            </Button>
+          </>
+        ) : (
+          // Step 2 — the show is cancelled; refunds are now allowed.
+          <>
+            <p className="text-sm text-muted-foreground">
+              {count === undefined
+                ? 'Checking paid entries…'
+                : hasNothingToRefund
+                  ? 'No online-paid entries to refund.'
+                  : `${count} online-paid entr${count === 1 ? 'y' : 'ies'} can be refunded.`}
+            </p>
+
+            <Button
+              variant="destructive"
+              disabled={hasNothingToRefund || refundAll.isPending}
+              onClick={() => setConfirmOpen(true)}
+            >
+              {refundAll.isPending ? 'Refunding…' : 'Refund all entries…'}
+            </Button>
+
+            {result && (
+              <div className="rounded-md border bg-muted/40 p-3 text-sm" role="status">
+                <p className="font-medium">
+                  Refunded {result.summary.entriesRefunded} entr
+                  {result.summary.entriesRefunded === 1 ? 'y' : 'ies'} across{' '}
+                  {result.summary.intentsRefunded} payment
+                  {result.summary.intentsRefunded === 1 ? '' : 's'}.
+                </p>
+                {result.summary.skipped > 0 && (
+                  <p className="text-muted-foreground">
+                    {result.summary.skipped} skipped (cash/check, already refunded, or shared
+                    payment) — handle manually.
+                  </p>
+                )}
+                {result.summary.failed > 0 && (
+                  <p className="text-destructive">
+                    {result.summary.failed} failed — retry is safe (refunds are not duplicated).
+                  </p>
+                )}
+              </div>
             )}
-            {result.summary.failed > 0 && (
-              <p className="text-destructive">
-                {result.summary.failed} failed — retry is safe (refunds are not duplicated).
-              </p>
-            )}
-          </div>
+          </>
         )}
       </CardContent>
 
@@ -133,9 +191,9 @@ export function RefundAllEntriesCard({ showId }: RefundAllEntriesCardProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Refund all online-paid entries?</AlertDialogTitle>
             <AlertDialogDescription>
-              This refunds {count ?? 0} online-paid entr{count === 1 ? 'y' : 'ies'} for this show in
-              full, including service fees, back to each exhibitor’s card. It cannot be undone. Cash
-              and check payments are not touched — refund those manually.
+              This refunds {count ?? 0} online-paid entr{count === 1 ? 'y' : 'ies'} for this
+              cancelled show in full, including service fees, back to each exhibitor’s card. It
+              cannot be undone. Cash and check payments are not touched — refund those manually.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

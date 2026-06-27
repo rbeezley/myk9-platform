@@ -1,7 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
-import { buildEntryRefundStamp } from '../_shared/refundReuse.ts';
 import {
   buildShowRefundPlan,
   type ShowRefundEntry,
@@ -225,39 +224,37 @@ async function refundIntent(
       }
     }
 
-    // Stamp each entry with its OWN fee (not the intent total): the payout cron
-    // deducts refund_amount per entry, zeroing only what the club was owed.
-    const nowIso = new Date().toISOString();
-    for (const entryId of group.entryIds) {
-      const feeCents = Math.round((group.stampByEntry[entryId] ?? 0) * 100);
-      const { error: stampError } = await supabase
-        .from('entries')
-        .update(buildEntryRefundStamp(feeCents, notes ?? 'Show cancelled — full refund', nowIso))
-        .eq('id', entryId);
-      if (stampError) {
-        // The Stripe refund DID happen; an unstamped entry makes the payout cron
-        // overpay the club. Alert, and report the intent as failed so the UI
-        // surfaces it (a re-run reuses the refund and only re-stamps).
-        console.error(
-          `CRITICAL: show refund for intent ${intentId} succeeded but stamping entry ${entryId} failed:`,
-          stampError
-        );
-        await alertAdmin(
-          'Show refund issued but an entry was not recorded — payout may overpay',
-          `<p>A make-whole refund for show <code>${showId}</code> (intent <code>${intentId}</code>)
-           succeeded, but stamping entry <code>${entryId}</code> failed:</p>
-           <pre>${stampError.message}</pre>
-           <p>Re-run the show refund (it reuses the existing Stripe refund — no double
-           refund) or stamp the entry manually.</p>`
-        );
-        return {
-          failed: {
-            paymentIntentId: intentId,
-            entryIds: group.entryIds,
-            error: `recorded refund but entry ${entryId} stamp failed`,
-          },
-        };
-      }
+    // Stamp ALL of the intent's entries ATOMICALLY (single statement) so a
+    // partial stamp can never half-complete and strand a sibling on a re-run
+    // (review #974, P1b). Each entry's refund_amount is set to its OWN
+    // entry_fee inside the RPC; the payout cron deducts that per entry.
+    const { error: stampError } = await supabase.rpc('stamp_show_refund_entries', {
+      p_entry_ids: group.entryIds,
+      p_notes: notes ?? null,
+    });
+    if (stampError) {
+      // The Stripe refund DID happen; until the entries are stamped the payout
+      // cron overpays the club. Alert; a re-run reuses the refund (no double
+      // refund) and re-stamps atomically.
+      console.error(
+        `CRITICAL: show refund for intent ${intentId} succeeded but stamping failed:`,
+        stampError
+      );
+      await alertAdmin(
+        'Show refund issued but entries were not recorded — payout may overpay',
+        `<p>A make-whole refund for show <code>${showId}</code> (intent <code>${intentId}</code>)
+         succeeded, but stamping its ${group.entryIds.length} entr${group.entryIds.length === 1 ? 'y' : 'ies'} failed:</p>
+         <pre>${stampError.message}</pre>
+         <p>Re-run the show refund (it reuses the existing Stripe refund — no double
+         refund) or stamp the entries manually.</p>`
+      );
+      return {
+        failed: {
+          paymentIntentId: intentId,
+          entryIds: group.entryIds,
+          error: 'recorded refund but entry stamping failed',
+        },
+      };
     }
 
     return { refunded: { paymentIntentId: intentId, amountCents, entryIds: group.entryIds } };
@@ -289,11 +286,12 @@ Deno.serve(async req => {
 
     const { data: show, error: showError } = await supabase
       .from('shows')
-      .select('id, club_id')
+      .select('id, club_id, status')
       .eq('id', show_id)
       .single();
     if (showError || !show) return corsResponse({ error: 'Show not found' }, 404);
     const club_id = (show as { club_id: string | null }).club_id;
+    const status = (show as { status: string | null }).status;
 
     // Authorize AS THE CALLER via the canonical SQL predicates (same set as
     // stripe-refund-entry). No club → no club-admin path (a clubless show must
@@ -310,6 +308,14 @@ Deno.serve(async req => {
     ]);
     if (!(secretaryRes.data === true || clubAdminRes.data === true || siteAdminRes.data === true)) {
       return corsResponse({ error: 'Not authorized to refund entries for this show' }, 403);
+    }
+
+    // Cancellation gate: a bulk make-whole refund is a SHOW-CANCELLATION action.
+    // Requiring shows.status = 'cancelled' (set deliberately first) stops an
+    // authorized manager from refunding every paid entry of a live/upcoming show
+    // by accident or abuse (PR #974 review, finding P1a).
+    if (status !== 'cancelled') {
+      return corsResponse({ error: 'show_not_cancelled' }, 422);
     }
 
     // Payout guard: once the club has been (or is being) paid, refunds can't be

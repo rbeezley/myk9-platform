@@ -40,9 +40,16 @@ describe('stripe-refund-show wiring', () => {
     expect(source).not.toMatch(/refunds\.create\(\s*\{[^}]*amount/);
   });
 
-  it('stamps each entry with its OWN fee so the payout cron zeroes the club share', () => {
-    expect(source).toContain('group.stampByEntry[entryId]');
-    expect(source).toContain('buildEntryRefundStamp(feeCents');
+  it('requires the show to be cancelled before any money moves (review #974 #1a)', () => {
+    expect(source).toContain("status !== 'cancelled'");
+    expect(source).toContain('show_not_cancelled');
+  });
+
+  it('stamps the intent ATOMICALLY via an RPC (no partial-stamp half-state) — review #974 #1b', () => {
+    expect(source).toContain("supabase.rpc('stamp_show_refund_entries'");
+    expect(source).toContain('p_entry_ids: group.entryIds');
+    // The old non-atomic per-entry loop must be gone.
+    expect(source).not.toContain('buildEntryRefundStamp');
   });
 
   it('skips intents that also paid for other shows (no over-refund)', () => {

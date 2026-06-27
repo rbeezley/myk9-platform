@@ -14,6 +14,7 @@ import { useShowSettings } from '@/hooks/queries/useShowSettingsDatabase';
 import { PRESET_INFO, type VisibilityPreset } from '@myk9/secretary';
 import { WaitListSettingsCard } from '@/components/shows/WaitListSettingsCard';
 import { WithdrawalPolicyCard } from '@/components/shows/WithdrawalPolicyCard';
+import { RefundAllEntriesCard } from '@/components/shows/RefundAllEntriesCard';
 import { ShowAccessCodesCard } from '@/components/secretary/ShowAccessCodesCard';
 import { VenueWifiCard } from '@/components/secretary/VenueWifiCard';
 import { useVenueWifiMutation } from '@/hooks/mutations/useVenueWifiMutation';
@@ -109,6 +110,9 @@ export default function ShowSettingsPage() {
 
       {/* Withdrawal Refund Policy (per-show override of the club default) */}
       {selectedShowId && <WithdrawalPolicyCard scope="show" entityId={selectedShowId} />}
+
+      {/* Bulk make-whole refund for a cancelled show */}
+      {selectedShowId && <RefundAllEntriesCard showId={selectedShowId} />}
 
       {/* Show Access Codes */}
       {selectedShowId && (

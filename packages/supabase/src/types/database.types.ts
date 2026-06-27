@@ -1656,6 +1656,7 @@ export type Database = {
       }
       entries: {
         Row: {
+          withdrawal_policy_snapshot: Json | null
           area1_correct: number | null
           area1_faults: number | null
           area1_incorrect: number | null
@@ -1740,6 +1741,7 @@ export type Database = {
           withdrawal_reason: string | null
         }
         Insert: {
+          withdrawal_policy_snapshot?: Json | null
           area1_correct?: number | null
           area1_faults?: number | null
           area1_incorrect?: number | null
@@ -1824,6 +1826,7 @@ export type Database = {
           withdrawal_reason?: string | null
         }
         Update: {
+          withdrawal_policy_snapshot?: Json | null
           area1_correct?: number | null
           area1_faults?: number | null
           area1_incorrect?: number | null

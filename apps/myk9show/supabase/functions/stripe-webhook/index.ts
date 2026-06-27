@@ -14,6 +14,11 @@ import { alertAdmin } from '../_shared/alertAdmin.ts';
 import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
 import { calculatePlatformFeeCents, resolvePlatformFeePercent } from '../_shared/platformFee.ts';
 import { loadEntryPaymentLineItemFeesFromStripe } from '../_shared/entryPaymentLineItems.ts';
+import {
+  resolveWithdrawalSnapshot,
+  type ShowWithdrawalColumns,
+  type ClubWithdrawalColumns,
+} from '../_shared/withdrawalSnapshot.ts';
 
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
@@ -325,6 +330,43 @@ async function handleAccountDeauthorized(accountId: string | undefined) {
  * Handle checkout.session.completed
  * Routes to appropriate handler based on checkout type
  */
+// Best-effort: freeze the show's effective withdrawal policy onto freshly-paid
+// entries (D3). Runs AFTER the payment write and NEVER throws — a failure here
+// (including the policy columns not existing yet, before the migration deploys)
+// must not disturb a committed payment. A NULL snapshot leaves the entry's
+// column NULL, which the refund flow treats as fully-manual.
+async function stampWithdrawalSnapshot(entryIds: string[], showId: string | null) {
+  if (!showId || entryIds.length === 0) return;
+  try {
+    const { data: show, error } = await supabase
+      .from('shows')
+      .select(
+        'withdrawal_cutoff_date, withdrawal_retention_type, withdrawal_retention_value, withdrawal_policy_notes, clubs(default_withdrawal_cutoff_date, default_withdrawal_retention_type, default_withdrawal_retention_value, default_withdrawal_policy_notes)'
+      )
+      .eq('id', showId)
+      .single();
+    if (error || !show) return;
+
+    const rawClub = (show as Record<string, unknown>).clubs;
+    const club = (Array.isArray(rawClub) ? rawClub[0] : rawClub) ?? null;
+    const snapshot = resolveWithdrawalSnapshot(
+      show as ShowWithdrawalColumns,
+      club as ClubWithdrawalColumns | null
+    );
+    if (!snapshot) return;
+
+    const { error: stampError } = await supabase
+      .from('entries')
+      .update({ withdrawal_policy_snapshot: snapshot })
+      .in('id', entryIds);
+    if (stampError) {
+      console.error('withdrawal snapshot stamp failed (non-fatal):', stampError.message);
+    }
+  } catch (e) {
+    console.error('withdrawal snapshot stamp threw (non-fatal):', e);
+  }
+}
+
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const checkoutType = session.metadata?.type;
   console.log(`Checkout completed: ${session.id}, type: ${checkoutType}`);
@@ -675,6 +717,9 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     }
   }
 
+  // Freeze the withdrawal policy these entries were paid under (best-effort).
+  await stampWithdrawalSnapshot(entryIds, cart.show_id);
+
   if (entryIds.length !== cart.items.length) {
     // Stripe already received its 200, so it will NOT retry this event: the
     // exhibitor has paid for entries that do not exist. Surface loudly.
@@ -934,6 +979,9 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     }
     updatedEntryIds.push(...((updatedRows ?? []) as { id: string }[]).map(row => row.id));
   }
+
+  // Freeze the withdrawal policy these entries were paid under (best-effort).
+  await stampWithdrawalSnapshot(updatedEntryIds, link.show_id as string | null);
 
   const noOpPatchIds = plannedPatchIds.filter(id => !updatedEntryIds.includes(id));
   let rereadNoOpEntries: {

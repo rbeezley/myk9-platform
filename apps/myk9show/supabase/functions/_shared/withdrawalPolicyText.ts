@@ -12,7 +12,9 @@
 export interface EffectiveWithdrawalPolicy {
   cutoffDate: string | null;
   retentionType: 'flat' | 'percent';
-  retentionValue: number | null;
+  // Required number (0 when unset), mirroring the app contract
+  // (getEffectiveWithdrawalPolicy) and the snapshot — one policy shape everywhere.
+  retentionValue: number;
   notes: string | null;
 }
 
@@ -45,7 +47,7 @@ function build(
   return {
     cutoffDate: cutoff ?? null,
     retentionType: type === 'percent' ? 'percent' : 'flat',
-    retentionValue: value ?? null,
+    retentionValue: value ?? 0,
     notes: notes ?? null,
   };
 }

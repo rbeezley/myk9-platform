@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
  * Regression contract for the withdrawal-policy SNAPSHOT wiring in stripe-webhook.
  *
  * The precedence rule lives in (and is unit-tested via) the pure helper
- * _shared/withdrawalSnapshot.ts. These source assertions pin the WIRING a pure
+ * _shared/withdrawalPolicy.ts. These source assertions pin the WIRING a pure
  * helper can't: that BOTH paid-entry paths stamp the snapshot, that the stamp is
  * decoupled from the payment write (best-effort, never throws), and that it runs
  * with the correct show id per path.
@@ -18,8 +18,8 @@ const source = readFileSync(
 
 describe('stripe-webhook withdrawal snapshot wiring', () => {
   it('decides the snapshot via the pure helper (the precedence rule is unit-tested there)', () => {
-    expect(source).toContain('resolveWithdrawalSnapshot');
-    expect(source).toContain("from '../_shared/withdrawalSnapshot.ts'");
+    expect(source).toContain('resolveWithdrawalPolicy');
+    expect(source).toContain("from '../_shared/withdrawalPolicy.ts'");
   });
 
   it('stamps freshly-created cart entries with the show they were paid under', () => {

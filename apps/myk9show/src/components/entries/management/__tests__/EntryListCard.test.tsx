@@ -1,7 +1,10 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+// Custom render wraps QueryClient/Auth/Router — EntryListCard always mounts
+// RefundEntryDialog, which now reads the policy snapshot via React Query.
+import { render } from '@/test/utils/testUtils';
 import { EntryListCard } from '../EntryListCard';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry, EntryClass } from '@/types/entry-management-types';

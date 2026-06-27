@@ -48,7 +48,7 @@ describe('stripe-payment-link internal waitlist path', () => {
     // The payer (mail-in/waitlist) never sees the myK9 cart disclosure, so the
     // policy is resolved here and passed into the Checkout Session custom_text.
     expect(source).toContain('describeWithdrawalPolicyText');
-    expect(source).toContain('resolveEffectiveWithdrawalPolicy');
+    expect(source).toContain('resolveWithdrawalPolicy');
     expect(source).toContain('withdrawalPolicyText');
     // Best-effort: a resolution failure (incl. columns not yet migrated) must not
     // block link generation.

@@ -5,11 +5,11 @@ import { calculatePlatformFeeCents, resolvePlatformFeePercent } from '../_shared
 import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
 import { buildEntryPaymentLinkSession } from '../_shared/entryPaymentLink.ts';
 import {
-  resolveEffectiveWithdrawalPolicy,
+  resolveWithdrawalPolicy,
   describeWithdrawalPolicyText,
   type ShowWithdrawalColumns,
   type ClubWithdrawalColumns,
-} from '../_shared/withdrawalPolicyText.ts';
+} from '../_shared/withdrawalPolicy.ts';
 import { INACTIVE_ENTRY_STATUSES } from '../_shared/entryPaymentReconcile.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -364,7 +364,7 @@ Deno.serve(async req => {
         const rawClub = (policyRow as Record<string, unknown>).clubs;
         const club = (Array.isArray(rawClub) ? rawClub[0] : rawClub) ?? null;
         withdrawalPolicyText = describeWithdrawalPolicyText(
-          resolveEffectiveWithdrawalPolicy(
+          resolveWithdrawalPolicy(
             policyRow as ShowWithdrawalColumns,
             club as ClubWithdrawalColumns | null
           )

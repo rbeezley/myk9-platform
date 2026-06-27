@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/lib/supabase';
+import { useWithdrawalRefundSuggestion } from '@/features/payments/useWithdrawalRefundSuggestion';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 
 // Server validation is authoritative; these map its error codes to language a
@@ -49,6 +50,35 @@ export function RefundEntryDialog({ open, onOpenChange, entry, onRefunded }: Ref
   const inFlightRef = useRef(false);
 
   const fee = entry?.totalFee ?? 0;
+  const feeCents = Math.round(fee * 100);
+
+  // Suggested refund from the policy snapshotted at payment (Phase 3b) — advisory.
+  const { data: suggestion } = useWithdrawalRefundSuggestion(entry?.id, feeCents, open);
+  const prefilledRef = useRef(false);
+
+  // Pre-fill the suggested amount once per open. Never clobber in-progress edits,
+  // and never auto-select for a prose-only/unset policy (requiresManual) — there
+  // the secretary makes the call.
+  useEffect(() => {
+    if (!open) {
+      prefilledRef.current = false;
+      return;
+    }
+    if (prefilledRef.current || !suggestion?.hasPolicy || suggestion.requiresManual) return;
+    prefilledRef.current = true;
+    if (suggestion.refundCents < feeCents) {
+      setMode('partial');
+      setPartialAmount((suggestion.refundCents / 100).toFixed(2));
+    }
+  }, [open, suggestion, feeCents]);
+
+  const policyMessage = !suggestion?.hasPolicy
+    ? null
+    : suggestion.reason === 'after_cutoff'
+      ? `Withdrawal policy: past the refund cutoff — $${(suggestion.retainedCents / 100).toFixed(2)} is retained. Suggested refund $${(suggestion.refundCents / 100).toFixed(2)} (override below if needed).`
+      : suggestion.reason === 'before_cutoff'
+        ? 'Withdrawal policy: within the full-refund window — full refund suggested.'
+        : 'A withdrawal policy was recorded at payment, but the amount needs your judgment — set it below.';
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
@@ -130,6 +160,12 @@ export function RefundEntryDialog({ open, onOpenChange, entry, onRefunded }: Ref
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          {policyMessage && (
+            <p className="rounded-md border bg-muted/40 p-2 text-xs text-muted-foreground">
+              {policyMessage}
+            </p>
+          )}
+
           <RadioGroup value={mode} onValueChange={value => setMode(value as 'full' | 'partial')}>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="full" id="refund-full" />

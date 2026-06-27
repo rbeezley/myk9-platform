@@ -15,10 +15,10 @@ import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
 import { calculatePlatformFeeCents, resolvePlatformFeePercent } from '../_shared/platformFee.ts';
 import { loadEntryPaymentLineItemFeesFromStripe } from '../_shared/entryPaymentLineItems.ts';
 import {
-  resolveWithdrawalSnapshot,
+  resolveWithdrawalPolicy,
   type ShowWithdrawalColumns,
   type ClubWithdrawalColumns,
-} from '../_shared/withdrawalSnapshot.ts';
+} from '../_shared/withdrawalPolicy.ts';
 
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
@@ -349,7 +349,7 @@ async function stampWithdrawalSnapshot(entryIds: string[], showId: string | null
 
     const rawClub = (show as Record<string, unknown>).clubs;
     const club = (Array.isArray(rawClub) ? rawClub[0] : rawClub) ?? null;
-    const snapshot = resolveWithdrawalSnapshot(
+    const snapshot = resolveWithdrawalPolicy(
       show as ShowWithdrawalColumns,
       club as ClubWithdrawalColumns | null
     );

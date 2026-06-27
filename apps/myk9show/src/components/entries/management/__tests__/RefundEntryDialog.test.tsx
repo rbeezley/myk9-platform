@@ -19,6 +19,11 @@ vi.mock('@/lib/supabase', async importOriginal => {
   };
 });
 
+const suggestionMock = vi.hoisted(() => vi.fn());
+vi.mock('@/features/payments/useWithdrawalRefundSuggestion', () => ({
+  useWithdrawalRefundSuggestion: () => suggestionMock(),
+}));
+
 const mockedInvoke = vi.mocked(supabase.functions.invoke);
 
 const entry = {
@@ -39,6 +44,8 @@ function renderDialog(onRefunded = vi.fn()) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Default: no snapshot policy → dialog behaves exactly as before.
+  suggestionMock.mockReturnValue({ data: undefined });
 });
 
 describe('RefundEntryDialog', () => {
@@ -104,6 +111,75 @@ describe('RefundEntryDialog', () => {
   it('states the one-refund-per-entry rule up front', () => {
     renderDialog();
     expect(screen.getByText(/refunds can only be issued once per entry/i)).toBeInTheDocument();
+  });
+});
+
+describe('RefundEntryDialog — withdrawal policy pre-fill', () => {
+  it('pre-fills the partial amount from an after-cutoff snapshot and shows the retained fee', async () => {
+    suggestionMock.mockReturnValue({
+      data: {
+        hasPolicy: true,
+        refundCents: 4000, // $50 fee − $10 retained
+        retainedCents: 1000,
+        requiresManual: false,
+        reason: 'after_cutoff',
+        policy: null,
+      },
+    });
+    mockedInvoke.mockResolvedValue({ data: { amount_cents: 4000 }, error: null });
+    renderDialog();
+    const user = userEvent.setup();
+
+    // Partial mode is pre-selected with the suggested amount filled in.
+    expect(await screen.findByText(/\$10\.00 is retained/i)).toBeInTheDocument();
+    expect((screen.getByLabelText(/amount \(max/i) as HTMLInputElement).value).toBe('40.00');
+
+    // Submitting as-is sends the suggested cents — the secretary accepted it.
+    await user.click(screen.getByRole('button', { name: /issue refund/i }));
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith('stripe-refund-entry', {
+        body: { entry_id: 'entry-1', amount_cents: 4000, notes: undefined },
+      });
+    });
+  });
+
+  it('keeps full refund for a before-cutoff snapshot and shows the window message', () => {
+    suggestionMock.mockReturnValue({
+      data: {
+        hasPolicy: true,
+        refundCents: 5000,
+        retainedCents: 0,
+        requiresManual: false,
+        reason: 'before_cutoff',
+        policy: null,
+      },
+    });
+    renderDialog();
+    expect(screen.getByText(/within the full-refund window/i)).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /full refund/i })).toBeChecked();
+  });
+
+  it('does NOT auto-select for a prose-only/unset policy (requiresManual) but still shows guidance', () => {
+    suggestionMock.mockReturnValue({
+      data: {
+        hasPolicy: true,
+        refundCents: 5000,
+        retainedCents: 0,
+        requiresManual: true,
+        reason: 'no_cutoff',
+        policy: null,
+      },
+    });
+    renderDialog();
+    expect(screen.getByText(/needs your judgment/i)).toBeInTheDocument();
+    // No partial pre-fill — the secretary decides from the default full.
+    expect(screen.getByRole('radio', { name: /full refund/i })).toBeChecked();
+  });
+
+  it('shows no policy message when the entry has no snapshot', () => {
+    suggestionMock.mockReturnValue({ data: { hasPolicy: false, refundCents: 5000, retainedCents: 0, requiresManual: true, reason: 'no_policy', policy: null } });
+    renderDialog();
+    expect(screen.queryByText(/withdrawal policy/i)).not.toBeInTheDocument();
   });
 });
 

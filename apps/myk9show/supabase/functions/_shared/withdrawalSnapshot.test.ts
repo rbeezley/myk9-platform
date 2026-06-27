@@ -55,6 +55,8 @@ describe('resolveWithdrawalSnapshot', () => {
     expect(snap?.notes).toBe('See premium.');
     expect(snap?.cutoffDate).toBeNull();
     expect(snap?.retentionType).toBe('flat');
+    // Normalized like the app contract: an unset retention is 0, never null.
+    expect(snap?.retentionValue).toBe(0);
   });
 
   it('defaults an unknown retention type to flat', () => {

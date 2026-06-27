@@ -13,7 +13,10 @@
 export interface WithdrawalPolicySnapshot {
   cutoffDate: string | null;
   retentionType: 'flat' | 'percent';
-  retentionValue: number | null;
+  // Normalized to a required number (0 when unset) so the snapshot mirrors the
+  // app policy contract (getEffectiveWithdrawalPolicy) exactly — Phase 4 reads
+  // this JSON as the policy and must not special-case a null vs 0 retention.
+  retentionValue: number;
   notes: string | null;
 }
 
@@ -44,7 +47,7 @@ function build(
   return {
     cutoffDate: cutoff ?? null,
     retentionType: type === 'percent' ? 'percent' : 'flat',
-    retentionValue: value ?? null,
+    retentionValue: value ?? 0,
     notes: notes ?? null,
   };
 }

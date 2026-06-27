@@ -30,3 +30,10 @@ COMMENT ON COLUMN public.entries.withdrawal_policy_snapshot IS
 -- to `anon` (public results don't surface refund policy). service_role already
 -- holds a table-level grant (the webhook write is unaffected either way).
 GRANT SELECT (withdrawal_policy_snapshot) ON public.entries TO authenticated;
+
+-- Force PostgREST to refresh its schema cache immediately. The webhook writes
+-- this column through the Data API; without the reload, a freshly deployed
+-- webhook can hit a stale cache and — because the snapshot stamp is best-effort
+-- (swallows errors) — SILENTLY miss snapshots for every entry paid during the
+-- cache window, with no retry. Belt-and-suspenders over Supabase's own reload.
+NOTIFY pgrst, 'reload schema';

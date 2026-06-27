@@ -4,9 +4,11 @@
  * club/show policy, so a later policy edit can't change what the exhibitor
  * agreed to. The suggestion is advisory; the secretary always overrides (D5).
  *
- * Reference time ("before or after the refund cutoff?") = the entry's
- * withdrawal time, proxied by entries.updated_at (≈ when it was pulled), falling
- * back to now when unavailable.
+ * Reference time ("before or after the refund cutoff?") = the entry's actual
+ * withdrawal time (entries.withdrawn_at, stamped by a DB trigger when the entry
+ * transitions to 'scratched'), falling back to now when unavailable (e.g. a
+ * legacy entry withdrawn before that column existed). NOT updated_at — that is
+ * bumped on every write and would misjudge the cutoff.
  *
  * See docs/plan-refund-policy-withdrawal.md (Phase 4, D5).
  */
@@ -43,7 +45,7 @@ export function useWithdrawalRefundSuggestion(
     queryFn: async () => {
       const { data, error } = await supabase
         .from('entries')
-        .select('withdrawal_policy_snapshot, updated_at, trials(timezone)')
+        .select('withdrawal_policy_snapshot, withdrawn_at, trials(timezone)')
         .eq('id', entryId as string)
         .single();
       if (error) throw error;
@@ -57,8 +59,8 @@ export function useWithdrawalRefundSuggestion(
       } | null;
       const timeZone = trial?.timezone || DEFAULT_TIMEZONE;
 
-      const updatedAt = (row.updated_at as string | null) ?? null;
-      const asOf = updatedAt ? new Date(updatedAt) : new Date();
+      const withdrawnAt = (row.withdrawn_at as string | null) ?? null;
+      const asOf = withdrawnAt ? new Date(withdrawnAt) : new Date();
 
       const result = resolveWithdrawalRefundCents(snapshot, entryFeeCents, asOf, timeZone);
       return {

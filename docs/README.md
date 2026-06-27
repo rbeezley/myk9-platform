@@ -65,7 +65,6 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-phase4-seam-render-only.md](plan-phase4-seam-render-only.md)                         | Active    | Plan: Phase 4 seam render-only read strategy                          |
 | [plan-pull-management-split.md](plan-pull-management-split.md)                             | Active    | Pull Management — separate show-day pull state from refund accounting  |
 | [plan-public-results-release-gate.md](plan-public-results-release-gate.md)                 | Active    | Plan: Server-side gate for public/anon scored results                 |
-| [plan-refund-policy-withdrawal.md](plan-refund-policy-withdrawal.md)                       | Active    | Withdrawal refund policy — club-declared, disclosed, manually executed |
 | [plan-remove-unified-ringside-flag.md](plan-remove-unified-ringside-flag.md)               | Active    | Remove the `unified_ringside_enabled` feature flag (unblocks docs)    |
 | [plan-replication-insert-idempotency.md](plan-replication-insert-idempotency.md)           | Active    | Replication INSERT retry idempotency — investigation verdict (B)      |
 | [plan-restore-ui-remediation.md](plan-restore-ui-remediation.md)                           | Active    | Plan: Fix the Deleted Entities (restore) UI                           |

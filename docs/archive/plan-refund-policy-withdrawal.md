@@ -1,6 +1,6 @@
 # Withdrawal Refund Policy — club-declared, exhibitor-disclosed, manually executed
 
-> **Status:** Active
+> **Status:** Complete — shipped + deployed 2026-06-27 (Phases 1–4: #967/#969/#970/#973 voluntary-withdrawal path; #974/#975 bulk make-whole `stripe-refund-show`). Deferred: live Stripe test-mode end-to-end smoke (rollout note).
 
 > **Sibling to** [`plan-entry-payment-request.md`](plan-entry-payment-request.md), which deliberately scopes ONLY system-caused **make-whole** refunds (overbook→deny / duplicate / expired / deleted-entry — full refund incl. platform fee). This plan covers the **club-policy** refunds it deferred: voluntary withdrawal, show cancellation, judge change. **Adjacent to** [`plan-pull-management-split.md`](plan-pull-management-split.md) — a pulled entry that is also a voluntary withdrawal resolves through *this* policy at the reconciliation surface that plan's Phase 2 builds.
 

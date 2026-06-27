@@ -1,0 +1,151 @@
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { AlertTriangle } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { supabase } from '@/lib/supabase';
+import { useShowRefundAll, type ShowRefundAllResult } from '@/features/payments/useShowRefundAll';
+
+// INTENT: This is a destructive, irreversible MONEY action (refunds every paid
+// exhibitor). The live count + explicit confirm dialog + per-result summary are
+// deliberate friction — do not collapse into a one-click button.
+
+interface RefundAllEntriesCardProps {
+  showId: string;
+}
+
+/** Count of entries this bulk refund could touch (online-paid). An upper bound —
+ * the server still skips already-refunded / cross-show intents. */
+function useRefundableEntryCount(showId: string) {
+  return useQuery({
+    queryKey: ['refundable-entry-count', showId],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('entries')
+        .select('id', { count: 'exact', head: true })
+        .eq('show_id', showId)
+        .eq('payment_method', 'online')
+        .eq('payment_status', 'paid');
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+}
+
+export function RefundAllEntriesCard({ showId }: RefundAllEntriesCardProps) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [result, setResult] = useState<ShowRefundAllResult | null>(null);
+  const { data: count } = useRefundableEntryCount(showId);
+  const refundAll = useShowRefundAll();
+
+  const handleConfirm = () => {
+    setConfirmOpen(false);
+    setResult(null);
+    refundAll.mutate(showId, {
+      onSuccess: data => {
+        setResult(data);
+        const { entriesRefunded, failed } = data.summary;
+        if (failed > 0) {
+          toast.warning(
+            `Refunded ${entriesRefunded} entr${entriesRefunded === 1 ? 'y' : 'ies'}, ${failed} failed — see details.`
+          );
+        } else {
+          toast.success(
+            `Refunded ${entriesRefunded} entr${entriesRefunded === 1 ? 'y' : 'ies'} in full.`
+          );
+        }
+      },
+      onError: err => toast.error(err.message),
+    });
+  };
+
+  const hasNothingToRefund = count === 0;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-destructive" />
+          Refund all entries
+        </CardTitle>
+        <CardDescription>
+          Cancelling the show? Refund every online-paid exhibitor in full — entry fee{' '}
+          <strong>and</strong> service fees. Cash/check payments are listed for you to handle
+          manually. This cannot be undone.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-sm text-muted-foreground">
+          {count === undefined
+            ? 'Checking paid entries…'
+            : hasNothingToRefund
+              ? 'No online-paid entries to refund.'
+              : `${count} online-paid entr${count === 1 ? 'y' : 'ies'} can be refunded.`}
+        </p>
+
+        <Button
+          variant="destructive"
+          disabled={hasNothingToRefund || refundAll.isPending}
+          onClick={() => setConfirmOpen(true)}
+        >
+          {refundAll.isPending ? 'Refunding…' : 'Refund all entries…'}
+        </Button>
+
+        {result && (
+          <div className="rounded-md border bg-muted/40 p-3 text-sm" role="status">
+            <p className="font-medium">
+              Refunded {result.summary.entriesRefunded} entr
+              {result.summary.entriesRefunded === 1 ? 'y' : 'ies'} across{' '}
+              {result.summary.intentsRefunded} payment
+              {result.summary.intentsRefunded === 1 ? '' : 's'}.
+            </p>
+            {result.summary.skipped > 0 && (
+              <p className="text-muted-foreground">
+                {result.summary.skipped} skipped (cash/check, already refunded, or shared payment) —
+                handle manually.
+              </p>
+            )}
+            {result.summary.failed > 0 && (
+              <p className="text-destructive">
+                {result.summary.failed} failed — retry is safe (refunds are not duplicated).
+              </p>
+            )}
+          </div>
+        )}
+      </CardContent>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Refund all online-paid entries?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This refunds {count ?? 0} online-paid entr{count === 1 ? 'y' : 'ies'} for this show in
+              full, including service fees, back to each exhibitor’s card. It cannot be undone. Cash
+              and check payments are not touched — refund those manually.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Yes, refund {count ?? 0} entr{count === 1 ? 'y' : 'ies'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Card>
+  );
+}

@@ -29,6 +29,9 @@ interface EntryDetails {
   dog_name: string;
   class_name: string;
   class_level: string | null;
+  // Armband is claimed at registration (per dog, per show), so it is usually
+  // already known here. Null only when the claim failed or hasn't run yet.
+  armband_number: string | null;
 }
 
 export default function CheckoutSuccessPage() {
@@ -88,6 +91,7 @@ export default function CheckoutSuccessPage() {
               .select(
                 `
                 id,
+                armband,
                 dogs:dog_id (name, call_name),
                 classes:class_id (name, level)
               `
@@ -95,6 +99,11 @@ export default function CheckoutSuccessPage() {
               .in('id', result.entryIds);
 
             if (data) {
+              // Armbands are claimed at registration and denormalized onto the
+              // entry row, so read the already-assigned number straight from this
+              // authoritative DB query rather than telling the exhibitor it
+              // happens later. (A replication-cache read could be stale on the
+              // Stripe return and falsely report "not yet assigned".)
               setEntries(
                 data.map(e => ({
                   id: e.id,
@@ -104,6 +113,7 @@ export default function CheckoutSuccessPage() {
                     'Unknown',
                   class_name: (e.classes as { name: string })?.name || 'Unknown',
                   class_level: (e.classes as { level?: string })?.level || null,
+                  armband_number: (e.armband as string | null) ?? null,
                 }))
               );
             }
@@ -276,7 +286,14 @@ export default function CheckoutSuccessPage() {
                         {entry.class_level && ` - ${entry.class_level}`}
                       </p>
                     </div>
-                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <div className="flex items-center gap-2">
+                      {entry.armband_number && (
+                        <span className="rounded-md bg-primary/10 px-2 py-0.5 text-sm font-semibold text-primary">
+                          Armband #{entry.armband_number}
+                        </span>
+                      )}
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -290,7 +307,13 @@ export default function CheckoutSuccessPage() {
               <ul className="list-disc list-inside space-y-1">
                 <li>You'll receive a confirmation email shortly</li>
                 <li>Check in at the venue on the day of the show</li>
-                <li>Your armband number will be assigned at check-in</li>
+                {entries.length > 0 && entries.every(e => e.armband_number) ? (
+                  <li>Bring your armband number(s) shown above when you check in</li>
+                ) : (
+                  <li>
+                    Your armband number will be confirmed by the show secretary before show day
+                  </li>
+                )}
               </ul>
             </div>
           </CardContent>

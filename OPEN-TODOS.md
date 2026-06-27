@@ -22,6 +22,12 @@ Two follow-ups from the ringside OCC conflict-storm incident (PR [#961](https://
 
 ---
 
+## Exhibitor Confirmation Screen — 2026-06-27
+
+- [~] **Fix checkout confirmation armband copy + show the real number** — **Code written + tested 2026-06-27 (pending commit/PR).** [CheckoutSuccessPage.tsx](apps/myk9show/src/pages/CheckoutSuccessPage.tsx) now fetches each entry's armband (show_id+dog_id lookup against `armbands`), renders an "Armband #N" badge per entry row, and replaces the false *"assigned at check-in"* copy with accurate, conditional next-step text (shows "Bring your armband number(s)…" when known; falls back to "confirmed by the show secretary" when a claim is missing). 2 new tests in `src/test/checkout/checkoutSuccess.test.tsx` (10/10 green); typecheck + lint clean. Full context in TO-DOS.md § "Checkout Confirmation Armband Copy + Display".
+
+---
+
 ## Active-Docs Triage — net-new backlog — 2026-06-14
 
 Source: [`docs/plan-active-docs-triage-2026-06-14.md`](docs/plan-active-docs-triage-2026-06-14.md). Items below were genuinely untracked elsewhere. Plan-backed features link to their plan instead of duplicating sub-tasks.

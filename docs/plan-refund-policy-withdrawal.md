@@ -149,7 +149,7 @@ Most clubs won't configure a policy on day one. When `getEffectiveWithdrawalPoli
 - [ ] Disclosure render: `CartSummary` + `RequestPaymentDialog` show the effective policy line; prose-only path renders prose; "service fees non-refundable" always present.
 - [ ] Refund dialog pre-fill: snapshot before-cutoff → suggests full; after → suggests full − retained; secretary override changes the amount sent to `stripe-refund-entry`.
 - [ ] Fee-bucket amounts: voluntary withdrawal refund = entry-fee-per-policy only (asserts platform fee NOT included); cancellation/make-whole = full incl. platform fee. Assert the cents (per `feedback_db_constraint_review` / assertion-first money rule).
-- [x] Bulk cancellation: `buildShowRefundPlan` groups by intent + classifies skips; `showRefundReuse` idempotency; `stripeRefundShow.source` pins authz (3 predicates), payout guard, full-intent (no-amount) make-whole, per-entry fee stamp, cross-show guard, bounded concurrency; `RefundAllEntriesCard` confirm + per-result summary. (23 tests.)
+- [x] Bulk cancellation: `buildShowRefundPlan` groups by intent + classifies skips + **taints intents with an already-refunded member** (no club overpay); `showRefundReuse` idempotency; `stripeRefundShow.source` pins authz (3 predicates), payout guard (+ per-intent re-check), full-intent (no-amount) make-whole, per-entry fee stamp, paginated cross-show guard, bounded concurrency; `RefundAllEntriesCard` confirm + per-result summary + no-success-on-zero toast. (27 tests; review #974 findings 1/2/3 fixed.)
 - [ ] Migration: `migration-auditor` pass (GRANTs/RLS) before `db push`.
 - [ ] `cd apps/myk9show && pnpm test` + `pnpm typecheck` green.
 

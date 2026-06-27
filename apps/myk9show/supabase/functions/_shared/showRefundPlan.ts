@@ -31,7 +31,13 @@ export type ShowRefundSkipReason =
   | 'already_refunded'
   | 'not_paid'
   | 'no_payment_intent'
-  | 'zero_fee';
+  | 'zero_fee'
+  // An otherwise-refundable entry whose PaymentIntent ALSO paid for an entry
+  // that was already (partially or fully) refunded. Refunding the full intent
+  // here would be correct for the customer but the already-refunded sibling's
+  // stamp can't be safely reconciled in bulk — hand the whole intent to the
+  // secretary so the club is never overpaid. (Review #974, finding 1.)
+  | 'intent_partially_refunded';
 
 export interface ShowRefundIntentGroup {
   paymentIntentId: string;
@@ -47,15 +53,18 @@ export interface ShowRefundPlan {
   skipped: Array<{ entryId: string; reason: ShowRefundSkipReason }>;
 }
 
+function isAlreadyRefunded(entry: ShowRefundEntry): boolean {
+  return entry.payment_status === 'refunded' || (entry.refund_amount ?? 0) > 0;
+}
+
 /**
- * Classify a single entry: a skip reason (clearest-first), or null when it is
- * refundable and should be grouped by its intent.
+ * Per-entry base classification: a skip reason (clearest-first), or null when
+ * the entry is a clean refund CANDIDATE (online, paid, has an intent, fee > 0,
+ * not itself refunded). Intent-level tainting is applied afterward.
  */
 function classify(entry: ShowRefundEntry): ShowRefundSkipReason | null {
   if (entry.payment_method !== 'online') return 'offline_paid';
-  if (entry.payment_status === 'refunded' || (entry.refund_amount ?? 0) > 0) {
-    return 'already_refunded';
-  }
+  if (isAlreadyRefunded(entry)) return 'already_refunded';
   if (entry.payment_status !== 'paid') return 'not_paid';
   if (!entry.stripe_payment_intent_id) return 'no_payment_intent';
   if ((entry.entry_fee ?? 0) <= 0) return 'zero_fee';
@@ -63,6 +72,20 @@ function classify(entry: ShowRefundEntry): ShowRefundSkipReason | null {
 }
 
 export function buildShowRefundPlan(entries: ShowRefundEntry[]): ShowRefundPlan {
+  // First pass: which intents already have a (partially/fully) refunded entry?
+  // A full-intent make-whole refund on such an intent can't be reconciled in
+  // bulk without overpaying the club, so the whole intent is handed off.
+  const taintedIntents = new Set<string>();
+  for (const entry of entries) {
+    if (
+      entry.payment_method === 'online' &&
+      entry.stripe_payment_intent_id &&
+      isAlreadyRefunded(entry)
+    ) {
+      taintedIntents.add(entry.stripe_payment_intent_id);
+    }
+  }
+
   const groups = new Map<string, ShowRefundIntentGroup>();
   const skipped: ShowRefundPlan['skipped'] = [];
 
@@ -75,6 +98,11 @@ export function buildShowRefundPlan(entries: ShowRefundEntry[]): ShowRefundPlan 
 
     // classify() guarantees a non-null intent id and a positive fee here.
     const intentId = entry.stripe_payment_intent_id as string;
+    if (taintedIntents.has(intentId)) {
+      skipped.push({ entryId: entry.id, reason: 'intent_partially_refunded' });
+      continue;
+    }
+
     const fee = entry.entry_fee as number;
     let group = groups.get(intentId);
     if (!group) {

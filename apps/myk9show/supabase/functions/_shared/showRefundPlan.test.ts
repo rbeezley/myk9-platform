@@ -104,6 +104,24 @@ describe('buildShowRefundPlan', () => {
     ]);
   });
 
+  it('taints the whole intent when a sibling on it is already refunded (review #974 #1)', () => {
+    // A refundable entry sharing a PaymentIntent with an already-refunded entry
+    // must NOT be refunded in bulk — refunding the full intent then stamping
+    // only the sibling would leave the club overpaid for the refunded one.
+    const plan = buildShowRefundPlan([
+      entry({ id: 'refunded', stripe_payment_intent_id: 'pi_shared', refund_amount: 30 }),
+      entry({ id: 'sibling', stripe_payment_intent_id: 'pi_shared', entry_fee: 50 }),
+      entry({ id: 'clean', stripe_payment_intent_id: 'pi_solo', entry_fee: 40 }),
+    ]);
+    // Only the untainted intent is refundable.
+    expect(plan.intents).toHaveLength(1);
+    expect(plan.intents[0].paymentIntentId).toBe('pi_solo');
+    expect(plan.intents[0].entryIds).toEqual(['clean']);
+    // The refunded entry and its tainted sibling are both skipped (distinct reasons).
+    expect(plan.skipped).toContainEqual({ entryId: 'refunded', reason: 'already_refunded' });
+    expect(plan.skipped).toContainEqual({ entryId: 'sibling', reason: 'intent_partially_refunded' });
+  });
+
   it('handles an empty entry list', () => {
     expect(buildShowRefundPlan([])).toEqual({ intents: [], skipped: [] });
   });

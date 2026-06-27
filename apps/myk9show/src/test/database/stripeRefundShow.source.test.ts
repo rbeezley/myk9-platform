@@ -55,4 +55,15 @@ describe('stripe-refund-show wiring', () => {
     expect(source).toContain('const CONCURRENCY');
     expect(source).toContain('alertAdmin');
   });
+
+  it('re-checks the payout state per intent (mid-run race) — review #974 #3', () => {
+    expect(source).toContain('readPayoutBlock');
+    // The re-check lives INSIDE refundIntent, before issuing money.
+    expect(source).toContain('Re-check the payout state just before issuing money');
+  });
+
+  it('paginates the cross-show check so a >1000-row truncation cannot hide it — #974 #2', () => {
+    expect(source).toContain('INTENT_IN_BATCH');
+    expect(source).toContain('.range(from, from + ENTRY_PAGE - 1)');
+  });
 });

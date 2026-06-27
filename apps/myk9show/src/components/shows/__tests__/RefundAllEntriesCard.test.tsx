@@ -5,6 +5,11 @@ import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { RefundAllEntriesCard } from '../RefundAllEntriesCard';
 import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
+
+vi.mock('sonner', () => ({
+  toast: { success: vi.fn(), warning: vi.fn(), error: vi.fn(), info: vi.fn() },
+}));
 
 // The count query chains .select(...).eq().eq().eq() and is awaited as
 // { count, error }. A self-returning thenable models that.
@@ -100,5 +105,29 @@ describe('RefundAllEntriesCard', () => {
     await user.click(screen.getByRole('button', { name: /yes, refund/i }));
 
     expect(await screen.findByText(/1 failed — retry is safe/i)).toBeInTheDocument();
+  });
+
+  it('does NOT show a success toast when nothing was actually refunded (review #974 #3)', async () => {
+    mockedInvoke.mockResolvedValue({
+      data: {
+        refunded: [],
+        skipped: [
+          { entryId: 'a', reason: 'offline_paid' },
+          { entryId: 'b', reason: 'intent_partially_refunded' },
+        ],
+        failed: [],
+        summary: { intentsRefunded: 0, entriesRefunded: 0, skipped: 2, failed: 0 },
+      },
+      error: null,
+    });
+    const user = userEvent.setup();
+    render(<RefundAllEntriesCard showId="show-1" />);
+
+    await user.click(await screen.findByRole('button', { name: /refund all entries/i }));
+    await user.click(screen.getByRole('button', { name: /yes, refund/i }));
+
+    await waitFor(() => expect(toast.warning).toHaveBeenCalled());
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(vi.mocked(toast.warning).mock.calls[0][0]).toMatch(/no refunds issued/i);
   });
 });

@@ -55,15 +55,18 @@ export function RefundAllEntriesCard({ showId }: RefundAllEntriesCardProps) {
     refundAll.mutate(showId, {
       onSuccess: data => {
         setResult(data);
-        const { entriesRefunded, failed } = data.summary;
-        if (failed > 0) {
-          toast.warning(
-            `Refunded ${entriesRefunded} entr${entriesRefunded === 1 ? 'y' : 'ies'}, ${failed} failed — see details.`
-          );
+        const { entriesRefunded, skipped, failed } = data.summary;
+        const noun = (n: number) => `entr${n === 1 ? 'y' : 'ies'}`;
+        if (entriesRefunded === 0) {
+          // Nothing was actually refunded — never a success toast.
+          if (failed > 0) toast.error(`No refunds issued — ${failed} failed.`);
+          else if (skipped > 0)
+            toast.warning(`No refunds issued — ${skipped} skipped, handle manually.`);
+          else toast.info('Nothing to refund.');
+        } else if (failed > 0) {
+          toast.warning(`Refunded ${entriesRefunded} ${noun(entriesRefunded)}, ${failed} failed — see details.`);
         } else {
-          toast.success(
-            `Refunded ${entriesRefunded} entr${entriesRefunded === 1 ? 'y' : 'ies'} in full.`
-          );
+          toast.success(`Refunded ${entriesRefunded} ${noun(entriesRefunded)} in full.`);
         }
       },
       onError: err => toast.error(err.message),

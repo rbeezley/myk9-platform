@@ -122,28 +122,63 @@ async function fetchShowEntries(showId: string): Promise<ShowRefundEntry[] | nul
  * show's entries too, so those are skipped for manual handling rather than
  * over-refunded. Returns the set of cross-show intent ids.
  */
+const INTENT_IN_BATCH = 200;
+
 async function findCrossShowIntents(intentIds: string[], showId: string): Promise<Set<string>> {
   const cross = new Set<string>();
-  for (let from = 0; from < intentIds.length; from += ENTRY_PAGE) {
-    const batch = intentIds.slice(from, from + ENTRY_PAGE);
-    const { data, error } = await supabase
-      .from('entries')
-      .select('stripe_payment_intent_id, show_id')
-      .in('stripe_payment_intent_id', batch)
-      .neq('show_id', showId);
-    if (error) {
-      // Fail safe: if we can't prove an intent is single-show, treat ALL of this
-      // batch as cross-show (skip) rather than risk an over-refund.
-      console.error('Cross-show intent check failed:', error);
-      batch.forEach(id => cross.add(id));
-      continue;
+  for (let i = 0; i < intentIds.length; i += INTENT_IN_BATCH) {
+    const batch = intentIds.slice(i, i + INTENT_IN_BATCH);
+    let failed = false;
+    // Paginate the RESULT: an intent can have many other-show entries, and a
+    // single unpaginated select silently truncates at PostgREST's 1000-row cap
+    // — a truncated cross-show row would leave its intent un-flagged and get it
+    // refunded in full, over-refunding the other show (review #974, finding 2).
+    for (let from = 0; ; from += ENTRY_PAGE) {
+      const { data, error } = await supabase
+        .from('entries')
+        .select('stripe_payment_intent_id')
+        .in('stripe_payment_intent_id', batch)
+        .neq('show_id', showId)
+        .order('stripe_payment_intent_id')
+        .range(from, from + ENTRY_PAGE - 1);
+      if (error) {
+        console.error('Cross-show intent check failed:', error);
+        failed = true;
+        break;
+      }
+      for (const row of data ?? []) {
+        const id = (row as { stripe_payment_intent_id: string | null }).stripe_payment_intent_id;
+        if (id) cross.add(id);
+      }
+      if ((data?.length ?? 0) < ENTRY_PAGE) break;
     }
-    for (const row of data ?? []) {
-      const id = (row as { stripe_payment_intent_id: string | null }).stripe_payment_intent_id;
-      if (id) cross.add(id);
-    }
+    // Fail safe: if we couldn't fully verify this batch, treat ALL of it as
+    // cross-show (skip) rather than risk an over-refund.
+    if (failed) batch.forEach(id => cross.add(id));
   }
   return cross;
+}
+
+/** Read the show's live payout state; returns a blocking 422 code or null.
+ * Re-used at request start AND before each intent's refund (the bulk run spans
+ * many seconds, so a single up-front check leaves a wide race vs the payout
+ * cron claiming the show — review #974, finding 3). */
+async function readPayoutBlock(
+  showId: string
+): Promise<{ code: 'payout_already_sent' | 'payout_in_progress' } | { error: true } | null> {
+  const { data: payout, error } = await supabase
+    .from('show_payouts')
+    .select('status')
+    .eq('show_id', showId)
+    .neq('status', 'failed')
+    .maybeSingle();
+  if (error) {
+    console.error(`Payout state read failed for show ${showId}:`, error);
+    return { error: true };
+  }
+  if (payout?.status === 'completed') return { code: 'payout_already_sent' };
+  if (payout?.status === 'processing') return { code: 'payout_in_progress' };
+  return null;
 }
 
 async function refundIntent(
@@ -153,6 +188,14 @@ async function refundIntent(
 ): Promise<{ refunded?: RefundedResult; failed?: FailedResult }> {
   const intentId = group.paymentIntentId;
   try {
+    // Re-check the payout state just before issuing money: if the cron claimed
+    // this show mid-run, stop refunding (the club is being/has been paid).
+    const block = await readPayoutBlock(showId);
+    if (block) {
+      const reason = 'error' in block ? 'payout state unverifiable' : block.code;
+      return { failed: { paymentIntentId: intentId, entryIds: group.entryIds, error: reason } };
+    }
+
     const prior = await stripe.refunds.list({ payment_intent: intentId, limit: 100 });
     const existing = findReusableShowRefund(prior.data, showId);
 
@@ -168,13 +211,17 @@ async function refundIntent(
         amountCents = refund.amount;
       } catch (err) {
         // Already fully refunded elsewhere (e.g. a per-entry refund covered it):
-        // not a failure — the customer has their money. Fall through to stamping
-        // so the payout cron still zeroes the club's share.
+        // not a failure — the customer has their money. Report the dollars that
+        // ARE already refunded on the intent (not 0), and fall through to
+        // stamping so the payout cron still zeroes the club's share.
         const code = (err as { code?: string })?.code;
         if (code !== 'charge_already_refunded') {
           const message = err instanceof Error ? err.message : 'Refund failed';
           return { failed: { paymentIntentId: intentId, entryIds: group.entryIds, error: message } };
         }
+        amountCents = prior.data
+          .filter(r => r.status !== 'failed' && r.status !== 'canceled')
+          .reduce((sum, r) => sum + r.amount, 0);
       }
     }
 
@@ -266,22 +313,16 @@ Deno.serve(async req => {
     }
 
     // Payout guard: once the club has been (or is being) paid, refunds can't be
-    // clawed back automatically — settle with the club directly.
-    const { data: payout, error: payoutError } = await supabase
-      .from('show_payouts')
-      .select('status')
-      .eq('show_id', show_id)
-      .neq('status', 'failed')
-      .maybeSingle();
-    if (payoutError) {
-      console.error(`Payout state read failed for show ${show_id}:`, payoutError);
+    // clawed back automatically — settle with the club directly. (Re-checked
+    // per-intent in refundIntent for the mid-run race.)
+    const block = await readPayoutBlock(show_id);
+    if (block && 'error' in block) {
       return corsResponse(
         { error: 'Could not verify the show’s payout state — try again in a moment.' },
         500
       );
     }
-    if (payout?.status === 'completed') return corsResponse({ error: 'payout_already_sent' }, 422);
-    if (payout?.status === 'processing') return corsResponse({ error: 'payout_in_progress' }, 422);
+    if (block) return corsResponse({ error: block.code }, 422);
 
     const entries = await fetchShowEntries(show_id);
     if (entries === null) {

@@ -138,7 +138,7 @@ export const FilterTriggerButton: React.FC<FilterTriggerButtonProps> = ({
   >
     <SlidersHorizontal size={20} />
     {hasActiveFilters && (
-      <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-[var(--primary,#14b8a6)]" />
+      <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-primary" />
     )}
   </Button>
 );
@@ -191,7 +191,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                 value={option.value}
                 checked={sortOrder === option.value}
                 onChange={() => onSortChange(option.value)}
-                className="h-5 w-5 shrink-0 accent-[var(--primary,#14b8a6)]"
+                className="h-5 w-5 shrink-0 accent-primary"
               />
               {option.icon}
               <span>{option.label}</span>

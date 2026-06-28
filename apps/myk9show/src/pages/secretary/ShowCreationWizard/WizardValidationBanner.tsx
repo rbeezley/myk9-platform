@@ -35,18 +35,18 @@ export const WizardValidationBanner: React.FC<WizardValidationBannerProps> = ({
     >
       <div className="flex items-center gap-3">
         <AlertTriangle className="h-4 w-4 text-warning flex-shrink-0" />
-        <span className="text-sm font-medium text-warning ">
+        <span className="text-sm font-medium text-warning">
           {messages.length} required field
           {messages.length !== 1 ? 's' : ''} need
           {messages.length === 1 ? 's' : ''} attention
         </span>
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-xs text-warning ">{expanded ? 'Hide' : 'Show'} details</span>
+        <span className="text-xs text-warning">{expanded ? 'Hide' : 'Show'} details</span>
         {expanded ? (
-          <ChevronUp className="h-4 w-4 text-warning " />
+          <ChevronUp className="h-4 w-4 text-warning" />
         ) : (
-          <ChevronDown className="h-4 w-4 text-warning " />
+          <ChevronDown className="h-4 w-4 text-warning" />
         )}
       </div>
     </button>

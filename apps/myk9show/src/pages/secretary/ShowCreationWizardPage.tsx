@@ -394,7 +394,7 @@ const ShowCreationWizardPage: React.FC = () => {
             <AlertDialogCancel>Keep Editing</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmClose}
-              className="bg-amber-500 hover:bg-amber-600"
+              className="bg-warning text-warning-foreground hover:bg-warning/90"
             >
               Leave Wizard
             </AlertDialogAction>

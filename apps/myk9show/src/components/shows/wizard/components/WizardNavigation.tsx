@@ -81,7 +81,7 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
           {isLoading ? (
             <>
               <span>Processing...</span>
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
             </>
           ) : (
             <>

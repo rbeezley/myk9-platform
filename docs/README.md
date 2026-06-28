@@ -69,7 +69,6 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-replication-insert-idempotency.md](plan-replication-insert-idempotency.md)           | Active    | Replication INSERT retry idempotency — investigation verdict (B)      |
 | [plan-restore-ui-remediation.md](plan-restore-ui-remediation.md)                           | Active    | Plan: Fix the Deleted Entities (restore) UI                           |
 | [plan-result-reveal-share-card.md](plan-result-reveal-share-card.md)                       | Active    | Plan: Result Reveal + Share Card                                      |
-| [plan-results-control-override-tree-merge.md](plan-results-control-override-tree-merge.md)  | Active    | Results Control — merge duplicated visibility + check-in override trees |
 | [plan-ringside-entries-read-authz.md](plan-ringside-entries-read-authz.md)                 | Active    | Ringside entry-read authz — judge/steward/passcode see entries (RLS)  |
 | [plan-ringside-occ-conflict-storm.md](plan-ringside-occ-conflict-storm.md)                 | Active    | Ringside OCC conflict storm — high-CPU remediation (token advance + backoff) |
 | [plan-ringside-navigation.md](plan-ringside-navigation.md)                                 | Active    | Ringside navigation — permanent sidebar entry + smart /at-show landing |

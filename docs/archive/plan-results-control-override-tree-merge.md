@@ -1,6 +1,6 @@
 # Results Control — Merge the duplicated override trees into one hierarchy
 
-> **Status:** Active
+> **Status:** Complete — shipped in [#996](https://github.com/rbeezley/myk9-platform/pull/996) (squash `ce6df5f51`). The merge resolution also folded in #986's inherited-preset display (`overrideTreeUtils.inheritedPresetLabel`).
 
 ## Problem
 

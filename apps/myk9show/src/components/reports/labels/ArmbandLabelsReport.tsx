@@ -19,6 +19,14 @@ import { ArmbandLabelCell } from './ArmbandLabelCell';
 import { generatePasscodesFromShowId } from '@myk9/core';
 import { useLabelPreferences } from '@/hooks/useLabelPreferences';
 import { useArmbandLabelData } from '@/hooks/queries/useArmbandLabelData';
+import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Slider } from '@/components/ui/slider';
+import { Input } from '@/components/ui/input';
+
+// A full-width, 44px-tall tappable row keeps native-sized controls but gives
+// each option a mobile-friendly hit area (WCAG 2.5.5 / 44px touch floor).
+const TAP_ROW = 'flex items-center gap-2 min-h-[44px] text-sm cursor-pointer';
 
 interface ArmbandLabelsReportProps {
   showId: string | undefined;
@@ -144,24 +152,21 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
           <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
             Label Size
           </div>
-          <div className="flex flex-col gap-1.5">
+          <RadioGroup
+            value={templateId}
+            onValueChange={(id: string) =>
+              setPrefs((p) => ({ ...p, templateId: id }))
+            }
+          >
             {templates.map((t) => (
-              <label
-                key={t.id}
-                className="flex items-center gap-2 text-sm cursor-pointer"
-              >
-                <input
-                  type="radio"
-                  name="labelTemplate"
-                  checked={templateId === t.id}
-                  onChange={() =>
-                    setPrefs((p) => ({ ...p, templateId: t.id }))
-                  }
-                />
-                {t.name} — {t.labelsPerSheet}/sheet
+              <label key={t.id} htmlFor={`armband-tpl-${t.id}`} className={TAP_ROW}>
+                <RadioGroupItem value={t.id} id={`armband-tpl-${t.id}`} />
+                <span>
+                  {t.name} — {t.labelsPerSheet}/sheet
+                </span>
               </label>
             ))}
-          </div>
+          </RadioGroup>
         </div>
 
         {/* Entry Filter */}
@@ -169,51 +174,61 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
           <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
             Select Armbands to Print
           </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
+          <div className="flex flex-col">
+            <label htmlFor="armband-early" className={TAP_ROW}>
+              <Checkbox
+                id="armband-early"
                 checked={filter.earlyEntries}
-                onChange={(e) =>
-                  setFilter((f) => ({ ...f, earlyEntries: e.target.checked }))
+                onCheckedChange={(checked) =>
+                  setFilter((f) => ({ ...f, earlyEntries: checked === true }))
                 }
               />
-              Early Entries
+              <span>Early Entries</span>
             </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
+            <label htmlFor="armband-day" className={TAP_ROW}>
+              <Checkbox
+                id="armband-day"
                 checked={filter.dayOfShowEntries}
-                onChange={(e) =>
+                onCheckedChange={(checked) =>
                   setFilter((f) => ({
                     ...f,
-                    dayOfShowEntries: e.target.checked,
+                    dayOfShowEntries: checked === true,
                   }))
                 }
               />
-              Day of Show Entries
+              <span>Day of Show Entries</span>
             </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={showSpecific}
-                onChange={(e) => {
-                  setShowSpecific(e.target.checked);
-                  if (!e.target.checked) setSpecificArmband('');
-                }}
-              />
-              Specific Armband Number
+            {/* The number input is a SIBLING of the checkbox's label — never
+                nested inside it — so tapping the field cannot toggle the
+                checkbox. */}
+            <div className="flex items-center gap-2 min-h-[44px]">
+              <label
+                htmlFor="armband-specific"
+                className="flex items-center gap-2 text-sm cursor-pointer min-h-[44px]"
+              >
+                <Checkbox
+                  id="armband-specific"
+                  checked={showSpecific}
+                  onCheckedChange={(checked) => {
+                    const next = checked === true;
+                    setShowSpecific(next);
+                    if (!next) setSpecificArmband('');
+                  }}
+                />
+                <span>Specific Armband Number</span>
+              </label>
               {showSpecific && (
-                <input
+                <Input
                   type="number"
+                  inputMode="numeric"
                   value={specificArmband}
                   onChange={(e) => setSpecificArmband(e.target.value)}
-                  className="w-20 ml-2 px-2 py-0.5 border rounded text-sm"
+                  className="w-20 ml-2 h-11"
                   placeholder="#"
                   aria-label="Armband number"
                 />
               )}
-            </label>
+            </div>
           </div>
         </div>
 
@@ -222,63 +237,81 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
           <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
             Include on Label
           </div>
-          <div className="grid grid-cols-2 gap-1.5">
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
+          <div className="grid grid-cols-2 gap-x-3">
+            <label htmlFor="cfg-callName" className={TAP_ROW}>
+              <Checkbox
+                id="cfg-callName"
                 checked={config.callName}
-                onChange={(e) => updateConfig('callName', e.target.checked)}
+                onCheckedChange={(checked) =>
+                  updateConfig('callName', checked === true)
+                }
               />
-              Dog&apos;s Call Name
+              <span>Dog&apos;s Call Name</span>
             </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
+            <label htmlFor="cfg-trialDate" className={TAP_ROW}>
+              <Checkbox
+                id="cfg-trialDate"
                 checked={config.trialDate}
-                onChange={(e) => updateConfig('trialDate', e.target.checked)}
+                onCheckedChange={(checked) =>
+                  updateConfig('trialDate', checked === true)
+                }
               />
-              Trial Date
+              <span>Trial Date</span>
             </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
+            <label htmlFor="cfg-handlerName" className={TAP_ROW}>
+              <Checkbox
+                id="cfg-handlerName"
                 checked={config.handlerName}
-                onChange={(e) => updateConfig('handlerName', e.target.checked)}
+                onCheckedChange={(checked) =>
+                  updateConfig('handlerName', checked === true)
+                }
               />
-              Handler&apos;s Name
-            </label>
-            <label className="flex items-center gap-2 text-sm text-muted-foreground">
-              <input type="checkbox" disabled />
-              Club Logo (coming soon)
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={config.showAccessCode}
-                onChange={(e) => updateConfig('showAccessCode', e.target.checked)}
-              />
-              Show Access Code
+              <span>Handler&apos;s Name</span>
             </label>
             <label
-              className={`flex items-center gap-2 text-sm ${!wifiAvailable ? 'text-muted-foreground' : ''}`}
+              className={`${TAP_ROW} cursor-not-allowed text-muted-foreground`}
             >
-              <input
-                type="checkbox"
+              <Checkbox disabled />
+              <span>Club Logo (coming soon)</span>
+            </label>
+            <label htmlFor="cfg-showAccessCode" className={TAP_ROW}>
+              <Checkbox
+                id="cfg-showAccessCode"
+                checked={config.showAccessCode}
+                onCheckedChange={(checked) =>
+                  updateConfig('showAccessCode', checked === true)
+                }
+              />
+              <span>Show Access Code</span>
+            </label>
+            <label
+              htmlFor="cfg-venueWifi"
+              className={`${TAP_ROW} ${!wifiAvailable ? 'cursor-not-allowed text-muted-foreground' : ''}`}
+            >
+              <Checkbox
+                id="cfg-venueWifi"
                 checked={config.venueWifi}
-                onChange={(e) => updateConfig('venueWifi', e.target.checked)}
+                onCheckedChange={(checked) =>
+                  updateConfig('venueWifi', checked === true)
+                }
                 disabled={!wifiAvailable}
               />
-              Venue WiFi {!wifiAvailable && '(not configured)'}
+              <span>Venue WiFi {!wifiAvailable && '(not configured)'}</span>
             </label>
           </div>
         </div>
 
         {/* Skip + Summary */}
-        <div className="flex items-center justify-between text-sm">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-2 flex-wrap text-sm">
+          <label
+            htmlFor="armband-skip"
+            className="flex items-center gap-2 min-h-[44px] cursor-pointer"
+          >
             <span>Labels to skip on first page:</span>
-            <input
+            <Input
+              id="armband-skip"
               type="number"
+              inputMode="numeric"
               min={0}
               max={template.labelsPerSheet - 1}
               value={skip}
@@ -288,9 +321,9 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
                   skip: Math.max(0, Number(e.target.value)),
                 }))
               }
-              className="w-16 px-2 py-0.5 border rounded text-sm"
+              className="w-16 h-11"
             />
-          </div>
+          </label>
           <span className="text-xs text-muted-foreground">
             {items.length} label{items.length !== 1 ? 's' : ''} on{' '}
             {pages.length} page{pages.length !== 1 ? 's' : ''}
@@ -302,7 +335,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
           <button
             type="button"
             onClick={() => setShowAdvanced(!showAdvanced)}
-            className="text-xs text-muted-foreground hover:text-foreground underline"
+            className="text-xs text-muted-foreground hover:text-foreground underline min-h-[44px]"
           >
             {showAdvanced ? 'Hide' : 'Show'} Advanced
           </button>
@@ -316,19 +349,17 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
                 adjust this value. Positive = more space between rows, negative =
                 less. Saved per browser.
               </p>
-              <div className="flex items-center gap-3">
-                <input
-                  type="range"
+              <div className="flex items-center gap-3 min-h-[44px]">
+                <Slider
                   min={-20}
                   max={20}
-                  value={pitchAdjustment}
-                  onChange={(e) =>
-                    setPrefs((p) => ({
-                      ...p,
-                      pitchAdjustment: Number(e.target.value),
-                    }))
+                  step={1}
+                  value={[pitchAdjustment]}
+                  onValueChange={([v]) =>
+                    setPrefs((p) => ({ ...p, pitchAdjustment: v ?? 0 }))
                   }
                   className="w-48"
+                  aria-label="Vertical pitch adjustment"
                 />
                 <span className="text-sm font-mono w-20">
                   {pitchAdjustment > 0 ? '+' : ''}
@@ -340,7 +371,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
                     onClick={() =>
                       setPrefs((p) => ({ ...p, pitchAdjustment: 0 }))
                     }
-                    className="text-xs text-muted-foreground hover:text-foreground underline"
+                    className="text-xs text-muted-foreground hover:text-foreground underline min-h-[44px]"
                   >
                     Reset
                   </button>

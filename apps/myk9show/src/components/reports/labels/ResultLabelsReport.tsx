@@ -8,6 +8,13 @@ import { mapScopedReportEntries } from '@/pages/secretary/ReportsPage/reportData
 import type { DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
 import { ResultLabelCell } from './ResultLabelCell';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Slider } from '@/components/ui/slider';
+import { Input } from '@/components/ui/input';
+
+// A full-width, 44px-tall tappable row keeps native-sized controls but gives
+// each option a mobile-friendly hit area (WCAG 2.5.5 / 44px touch floor).
+const TAP_ROW = 'flex items-center gap-2 min-h-[44px] text-sm cursor-pointer';
 
 // 4" × 2" (Avery #18163, 10/sheet) is the natural fit for result content
 // (armband+name, handler, club, show/class, place/time/faults).
@@ -112,35 +119,37 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
           <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
             Label Size
           </div>
-          <div className="flex flex-col gap-1.5">
+          <RadioGroup value={templateId} onValueChange={(id: string) => setTemplateId(id)}>
             {templates.map(t => (
-              <label key={t.id} className="flex items-center gap-2 text-sm cursor-pointer">
-                <input
-                  type="radio"
-                  name="resultLabelTemplate"
-                  checked={templateId === t.id}
-                  onChange={() => setTemplateId(t.id)}
-                />
-                {t.name} — {t.labelsPerSheet}/sheet
+              <label key={t.id} htmlFor={`result-tpl-${t.id}`} className={TAP_ROW}>
+                <RadioGroupItem value={t.id} id={`result-tpl-${t.id}`} />
+                <span>
+                  {t.name} — {t.labelsPerSheet}/sheet
+                </span>
               </label>
             ))}
-          </div>
+          </RadioGroup>
         </div>
 
         {/* Skip + summary */}
-        <div className="flex items-center justify-between text-sm">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-2 flex-wrap text-sm">
+          <label
+            htmlFor="result-skip"
+            className="flex items-center gap-2 min-h-[44px] cursor-pointer"
+          >
             <span>Labels to skip on first page:</span>
-            <input
+            <Input
+              id="result-skip"
               type="number"
+              inputMode="numeric"
               min={0}
               max={template.labelsPerSheet - 1}
               value={skip}
               onChange={e => setSkip(Math.max(0, Number(e.target.value)))}
-              className="w-16 px-2 py-0.5 border rounded text-sm"
+              className="w-16 h-11"
               aria-label="Labels to skip on first page"
             />
-          </div>
+          </label>
           <span className="text-xs text-muted-foreground">
             {items.length} label{items.length !== 1 ? 's' : ''} on {pages.length} page
             {pages.length !== 1 ? 's' : ''}
@@ -156,14 +165,13 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
             If labels drift out of alignment toward the bottom of the page, nudge this. Positive =
             more space between rows, negative = less.
           </p>
-          <div className="flex items-center gap-3">
-            <input
-              type="range"
+          <div className="flex items-center gap-3 min-h-[44px]">
+            <Slider
               min={-20}
               max={20}
               step={1}
-              value={pitch}
-              onChange={e => setPitch(Number(e.target.value))}
+              value={[pitch]}
+              onValueChange={([v]) => setPitch(v ?? 0)}
               className="w-48"
               aria-label="Vertical pitch adjustment"
             />
@@ -175,7 +183,7 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
               <button
                 type="button"
                 onClick={() => setPitch(0)}
-                className="text-xs text-muted-foreground hover:text-foreground underline"
+                className="text-xs text-muted-foreground hover:text-foreground underline min-h-[44px]"
               >
                 Reset
               </button>

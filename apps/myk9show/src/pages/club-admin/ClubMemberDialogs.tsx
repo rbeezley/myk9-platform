@@ -25,12 +25,15 @@ import {
 
 // --- Badge color constants ---
 
+// Membership-type badges use semantic theme tokens (not raw palette) so they
+// stay WCAG-AA legible in both light and dark mode. info uses text-info-strong,
+// the AA-safe text shade for the bg-info/10 tint pattern.
 // eslint-disable-next-line react-refresh/only-export-components
 export const TYPE_BADGE_CLASSES: Record<MembershipType, string> = {
-  full: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  associate: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-  junior: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  honorary: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+  full: 'bg-primary/10 text-primary border-primary/20',
+  associate: 'bg-info/10 text-info-strong border-info/20',
+  junior: 'bg-warning/10 text-warning border-warning/20',
+  honorary: 'bg-success/10 text-success border-success/20',
 };
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -66,14 +69,20 @@ export const MemberActionMenu: React.FC<ActionMenuProps> = ({
     <div className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label={`Actions for ${member.personName || 'member'}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
       >
         <MoreVertical className="h-4 w-4" />
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full mt-1 z-50 w-56 rounded-lg border border-border/50 bg-card shadow-xl backdrop-blur-xl py-1">
+          <div
+            role="menu"
+            className="absolute right-0 top-full mt-1 z-50 w-56 rounded-lg border border-border/50 bg-card shadow-xl backdrop-blur-xl py-1"
+          >
             {/* Change Type submenu */}
             <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Change Type
@@ -86,8 +95,9 @@ export const MemberActionMenu: React.FC<ActionMenuProps> = ({
                     onChangeType(member.id, type);
                     setOpen(false);
                   }}
+                  role="menuitem"
                   disabled={member.membershipType === type}
-                  className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${
+                  className={`w-full text-left px-3 py-2.5 text-sm transition-colors ${
                     member.membershipType === type
                       ? 'text-muted-foreground/50 cursor-default'
                       : 'hover:bg-muted/50 text-foreground'
@@ -115,8 +125,9 @@ export const MemberActionMenu: React.FC<ActionMenuProps> = ({
                     onChangeStatus(member.id, status);
                     setOpen(false);
                   }}
+                  role="menuitem"
                   disabled={member.membershipStatus === status}
-                  className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${
+                  className={`w-full text-left px-3 py-2.5 text-sm transition-colors ${
                     member.membershipStatus === status
                       ? 'text-muted-foreground/50 cursor-default'
                       : 'hover:bg-muted/50 text-foreground'
@@ -137,11 +148,12 @@ export const MemberActionMenu: React.FC<ActionMenuProps> = ({
               Show Access
             </div>
             <button
+              role="menuitem"
               onClick={() => {
                 onToggleShowAccess(member.personId, !hasShowAccess);
                 setOpen(false);
               }}
-              className={`w-full text-left px-3 py-1.5 text-sm transition-colors flex items-center gap-2 ${
+              className={`w-full text-left px-3 py-2.5 text-sm transition-colors flex items-center gap-2 ${
                 hasShowAccess
                   ? 'text-warning hover:bg-warning/10'
                   : 'text-success hover:bg-success/10'
@@ -154,11 +166,12 @@ export const MemberActionMenu: React.FC<ActionMenuProps> = ({
             <div className="my-1 border-t border-border/30" />
 
             <button
+              role="menuitem"
               onClick={() => {
                 onRemove(member.id);
                 setOpen(false);
               }}
-              className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-2"
+              className="w-full text-left px-3 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-2"
             >
               <Trash2 className="h-3.5 w-3.5" />
               Remove Member
@@ -234,7 +247,8 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
           </div>
           <button
             onClick={handleClose}
-            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            aria-label="Close dialog"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <X className="h-5 w-5" />
           </button>
@@ -379,7 +393,8 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
           </div>
           <button
             onClick={handleClose}
-            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            aria-label="Close dialog"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <X className="h-5 w-5" />
           </button>

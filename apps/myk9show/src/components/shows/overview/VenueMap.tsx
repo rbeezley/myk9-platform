@@ -26,7 +26,7 @@ function MapLinks({
         href={directionsUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-2 h-12 px-4 text-sm font-medium rounded-lg border border-border bg-background hover:bg-accent transition-colors"
+        className="inline-flex items-center gap-2 h-12 px-4 text-sm font-medium rounded-lg border border-border bg-background hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Navigation className="h-4 w-4" />
         Get Directions
@@ -35,7 +35,7 @@ function MapLinks({
         href={viewOnMapsUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-2 h-12 px-4 text-sm font-medium rounded-lg border border-border bg-background hover:bg-accent transition-colors"
+        className="inline-flex items-center gap-2 h-12 px-4 text-sm font-medium rounded-lg border border-border bg-background hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <ExternalLink className="h-4 w-4" />
         View on Google Maps

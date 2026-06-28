@@ -148,7 +148,7 @@ describe('ShowDeskAdaptiveHeader', () => {
     expect(getByTestId('up-next-group-count').textContent).toBe('×3');
     // Context appears on the summary line.
     expect(
-      getByText(/#100 · Bravo · Test Secretary — across 3 classes/)
+      getByText(/#100 · Bravo · Test Secretary, across 3 classes/)
     ).toBeInTheDocument();
     // Children are collapsed: no class-label disambiguators visible yet.
     expect(queryByText('Container Novice')).toBeNull();

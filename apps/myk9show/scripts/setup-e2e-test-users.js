@@ -2,7 +2,7 @@
  * Setup E2E Test Users in Supabase
  *
  * Creates test users for each role needed in E2E testing.
- * All users share a simple password: Test1234!
+ * All users share an env-provided password; never print or commit it.
  *
  * Roles are stored in user_roles, not people.roles. The people row stores the
  * auth/profile link, and secretary/club_admin role rows are scoped to a club_id
@@ -313,7 +313,9 @@ async function main() {
   console.log('========================================');
   console.log('E2E Test User Setup');
   console.log('========================================');
-  console.log(`Password for all accounts: ${TEST_PASSWORD}`);
+  console.log(
+    'Password for all accounts: loaded from E2E_TEST_PASSWORD or E2E_*_PASSWORD env'
+  );
 
   // First, list available roles
   console.log('\nFetching available roles...');
@@ -356,7 +358,7 @@ async function main() {
   console.log('\n========================================');
   console.log('Test Credentials');
   console.log('========================================');
-  console.log(`Password: ${TEST_PASSWORD}`);
+  console.log('Password: loaded from local/CI env; not printed');
   console.log('\nAccounts:');
   TEST_USERS.forEach(u => {
     console.log(`  ${u.roles[0].padEnd(12)} : ${u.email}`);

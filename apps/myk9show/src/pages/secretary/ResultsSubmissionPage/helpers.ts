@@ -6,7 +6,10 @@
 import type { ResultSubmissionRow } from '@/hooks/mutations/useResultSubmission';
 
 export function buildFilename(showName: string): string {
-  const slug = showName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '');
+  const rawSlug = showName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '');
+  // A name made entirely of non-ASCII characters (CJK, emoji) slugs to empty,
+  // which would yield a leading-dash "-Results_..." filename; fall back instead.
+  const slug = rawSlug.slice(0, 80) || 'Show';
   const ts = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
   return `${slug}-Results_${ts}.xml`;
 }

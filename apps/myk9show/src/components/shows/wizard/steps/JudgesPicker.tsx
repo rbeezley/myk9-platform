@@ -220,7 +220,7 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
           onOpenChange={setOpen}
           triggerLabel={
             selectedJudges.length > 0
-              ? `${selectedJudges.length} judge${selectedJudges.length !== 1 ? 's' : ''} selected — add more`
+              ? `${selectedJudges.length} judge${selectedJudges.length !== 1 ? 's' : ''} selected (add more)`
               : 'Search and add judges'
           }
           searchPlaceholder="Search by name or judge number…"
@@ -229,10 +229,10 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
           groups={[
             {
               groupKey: GROUP_QUALIFIED,
-              label: 'Qualified Judges — Credentials on File',
+              label: 'Qualified Judges: Credentials on File',
               items: qualified,
             },
-            { groupKey: GROUP_OTHERS, label: 'All People — No Credentials Yet', items: others },
+            { groupKey: GROUP_OTHERS, label: 'All People: No Credentials Yet', items: others },
           ]}
           renderItem={renderJudgeRow}
           onSelect={handleSelect}
@@ -257,7 +257,7 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
         <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-3">
           <div>
             <p className="text-sm font-semibold">
-              Add Judge Credentials — {credPerson.firstName} {credPerson.lastName}
+              Add Judge Credentials: {credPerson.firstName} {credPerson.lastName}
             </p>
             <p className="text-xs text-success mt-1">
               Adding credentials to {credPerson.firstName}&apos;s existing profile. No duplicate

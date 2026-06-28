@@ -110,6 +110,7 @@ describe('getVisibilityLabel / getVisibilityTier', () => {
     expect(getVisibilityLabel('open')).toBe('Open');
     expect(getVisibilityLabel('standard')).toBe('Standard');
     expect(getVisibilityLabel('review')).toBe('Review');
+    expect(getVisibilityLabel('custom')).toBe('Custom');
     expect(getVisibilityLabel(undefined)).toBeNull();
     expect(getVisibilityLabel('other')).toBe('other');
   });

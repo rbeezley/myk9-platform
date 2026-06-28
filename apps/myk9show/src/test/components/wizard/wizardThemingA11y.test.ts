@@ -28,6 +28,49 @@ const validationBanner = read(
     '../../../pages/secretary/ShowCreationWizard/WizardValidationBanner.tsx'
   )
 );
+const wizardPage = read(
+  path.join(__dirname, '../../../pages/secretary/ShowCreationWizardPage.tsx')
+);
+const wizardNavigation = read(
+  path.join(__dirname, '../../../components/shows/wizard/components/WizardNavigation.tsx')
+);
+const indexCss = read(path.join(__dirname, '../../../index.css'));
+
+const parseRgbToken = (css: string, token: string): [number, number, number] => {
+  const match = css.match(new RegExp(`--${token}:\\s*([\\d\\s]+);`));
+
+  if (!match) {
+    throw new Error(`Missing CSS token --${token}`);
+  }
+
+  const channels = match[1].trim().split(/\s+/).map(Number);
+
+  if (channels.length !== 3 || channels.some(channel => Number.isNaN(channel))) {
+    throw new Error(`Invalid RGB token --${token}: ${match[1]}`);
+  }
+
+  return channels as [number, number, number];
+};
+
+const relativeLuminance = ([red, green, blue]: [number, number, number]) => {
+  const [r, g, b] = [red, green, blue].map(channel => {
+    const normalized = channel / 255;
+    return normalized <= 0.03928
+      ? normalized / 12.92
+      : Math.pow((normalized + 0.055) / 1.055, 2.4);
+  });
+
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+
+const contrastRatio = (foreground: [number, number, number], background: [number, number, number]) => {
+  const foregroundLuminance = relativeLuminance(foreground);
+  const backgroundLuminance = relativeLuminance(background);
+  const lighter = Math.max(foregroundLuminance, backgroundLuminance);
+  const darker = Math.min(foregroundLuminance, backgroundLuminance);
+
+  return (lighter + 0.05) / (darker + 0.05);
+};
 
 describe('Show creation wizard — dark-mode theming guards', () => {
   it('ReviewStep error card and stats use semantic tokens (no hand-paired dark: variants)', () => {
@@ -70,6 +113,31 @@ describe('Show creation wizard — dark-mode theming guards', () => {
     expect(validationBanner).toContain('bg-warning/10');
     expect(validationBanner).not.toContain('from-amber-');
     expect(validationBanner).not.toContain('backdrop-blur');
+  });
+
+  it('"Leave Wizard" confirm action uses the semantic warning token, not raw amber palette', () => {
+    // A caution action (discarding unsaved work) — the --warning token is
+    // AA-verified in both modes; raw bg-amber-500 had no dark counterpart and a
+    // weaker tint-contrast (DESIGN.md index.css line 230).
+    expect(wizardPage).toContain('bg-warning text-warning-foreground hover:bg-warning/90');
+    expect(wizardPage).not.toContain('bg-amber-500');
+  });
+
+  it('"Leave Wizard" warning button foreground clears AA contrast in dark mode', () => {
+    const darkBlock = indexCss.match(/\.dark\s*\{[\s\S]*?\n {2}\}/)?.[0];
+
+    if (!darkBlock) {
+      throw new Error('Missing .dark token block');
+    }
+
+    const warning = parseRgbToken(darkBlock, 'warning');
+    const warningForeground = parseRgbToken(darkBlock, 'warning-foreground');
+
+    expect(contrastRatio(warningForeground, warning)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('Wizard nav loading spinner uses an adaptive token, not raw border-white', () => {
+    expect(wizardNavigation).not.toContain('border-white');
   });
 });
 

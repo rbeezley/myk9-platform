@@ -5,27 +5,23 @@ import { screen, waitFor, fireEvent } from '@testing-library/react';
 import { Routes, Route } from 'react-router-dom';
 import { render } from '@/test/utils/testUtils';
 import ResultsSubmissionPage from '../ResultsSubmissionPage';
+import {
+  makeAKCSubmissionData,
+  makeHistoryRow,
+  type SubmissionHistoryRow,
+} from './ResultsSubmissionPage.test.fixtures';
+import type { AKCSubmissionData } from '@myk9/secretary';
 
 // ---------------------------------------------------------------------------
 // Hoisted mock state
 // ---------------------------------------------------------------------------
 
 const mockHistoryData = vi.hoisted(() => ({
-  rows: [] as {
-    id: string;
-    show_id: string;
-    trial_id: string | null;
-    organization: string;
-    sport_type: string;
-    submitted_at: string;
-    submitted_by: string | null;
-    xml_payload: string | null;
-    status: 'pending' | 'sent' | 'submitted' | 'failed';
-  }[],
+  rows: [] as SubmissionHistoryRow[],
 }));
 
 const mockAKCData = vi.hoisted(() => ({
-  data: null as import('@myk9/secretary').AKCSubmissionData | null,
+  data: null as AKCSubmissionData | null,
   isLoading: false,
   isError: false,
   isSuccess: true,
@@ -147,90 +143,14 @@ describe('ResultsSubmissionPage', () => {
   });
 
   it('shows no pre-flight warning when no entries are missing AKC numbers', async () => {
-    mockAKCData.data = {
-      show: {
-        id: 'show-1',
-        name: 'T',
-        clubName: null,
-        date: null,
-        clubLicenseNumber: null,
-        secretaryName: 'Jane',
-        secretaryEmail: 'jane@example.com',
-      },
-      trials: [],
-      entries: [
-        {
-          dogName: 'Fluffy',
-          breed: 'X',
-          registrationNumber: 'HP123',
-          handlerName: '',
-          className: 'N',
-          element: 'Container',
-          level: 'Novice',
-          section: 'A',
-          resultCode: null,
-          searchTimeSeconds: null,
-          totalFaults: null,
-          finalPlacement: null,
-          armbandNumber: 101,
-          trialId: 't1',
-          classId: 'c1',
-          dogRegisteredName: null,
-          dogGender: 'B',
-          ownerName: null,
-          ownerAddress: null,
-          timeLimitSeconds: null,
-          entryStatus: 'accepted',
-          checkInStatus: 'present',
-          resultStatus: null,
-        },
-      ],
-    } as import('@myk9/secretary').AKCSubmissionData;
+    mockAKCData.data = makeAKCSubmissionData();
 
     renderPage();
     await waitFor(() => expect(screen.queryByTestId('preflight-warning')).not.toBeInTheDocument());
   });
 
   it('shows pre-flight warning when entries are missing AKC registration numbers', async () => {
-    mockAKCData.data = {
-      show: {
-        id: 'show-1',
-        name: 'T',
-        clubName: null,
-        date: null,
-        clubLicenseNumber: null,
-        secretaryName: 'Jane',
-        secretaryEmail: 'jane@example.com',
-      },
-      trials: [],
-      entries: [
-        {
-          dogName: 'Fluffy',
-          breed: 'X',
-          registrationNumber: null,
-          handlerName: '',
-          className: 'N',
-          element: 'Container',
-          level: 'Novice',
-          section: 'A',
-          resultCode: null,
-          searchTimeSeconds: null,
-          totalFaults: null,
-          finalPlacement: null,
-          armbandNumber: 101,
-          trialId: 't1',
-          classId: 'c1',
-          dogRegisteredName: null,
-          dogGender: 'B',
-          ownerName: null,
-          ownerAddress: null,
-          timeLimitSeconds: null,
-          entryStatus: 'accepted',
-          checkInStatus: 'present',
-          resultStatus: null,
-        },
-      ],
-    } as import('@myk9/secretary').AKCSubmissionData;
+    mockAKCData.data = makeAKCSubmissionData({ entries: [{ registrationNumber: null }] });
 
     renderPage();
     await waitFor(() => expect(screen.getByTestId('preflight-warning')).toBeInTheDocument());
@@ -243,45 +163,7 @@ describe('ResultsSubmissionPage', () => {
   });
 
   it('blocks sending to AKC when entries are missing registration numbers', async () => {
-    mockAKCData.data = {
-      show: {
-        id: 'show-1',
-        name: 'Spring',
-        clubName: 'Club',
-        date: null,
-        clubLicenseNumber: null,
-        secretaryName: 'Jane',
-        secretaryEmail: 'jane@example.com',
-      },
-      trials: [],
-      entries: [
-        {
-          dogName: 'Fluffy',
-          breed: 'X',
-          registrationNumber: null,
-          handlerName: '',
-          className: 'N',
-          element: 'Container',
-          level: 'Novice',
-          section: 'A',
-          resultCode: null,
-          searchTimeSeconds: null,
-          totalFaults: null,
-          finalPlacement: null,
-          armbandNumber: 101,
-          trialId: 't1',
-          classId: 'c1',
-          dogRegisteredName: null,
-          dogGender: 'B',
-          ownerName: null,
-          ownerAddress: null,
-          timeLimitSeconds: null,
-          entryStatus: 'accepted',
-          checkInStatus: 'present',
-          resultStatus: null,
-        },
-      ],
-    } as import('@myk9/secretary').AKCSubmissionData;
+    mockAKCData.data = makeAKCSubmissionData({ entries: [{ registrationNumber: null }] });
 
     renderPage();
 
@@ -294,19 +176,7 @@ describe('ResultsSubmissionPage', () => {
   });
 
   it('"Send to AKC" calls supabase.functions.invoke with send-results', async () => {
-    mockAKCData.data = {
-      show: {
-        id: 'show-1',
-        name: 'Spring',
-        clubName: 'Club',
-        date: null,
-        clubLicenseNumber: null,
-        secretaryName: 'Jane',
-        secretaryEmail: 'jane@example.com',
-      },
-      trials: [],
-      entries: [],
-    } as import('@myk9/secretary').AKCSubmissionData;
+    mockAKCData.data = makeAKCSubmissionData({ entries: [] });
 
     renderPage();
     const sendBtn = await screen.findByTestId('send-btn');
@@ -338,38 +208,29 @@ describe('ResultsSubmissionPage', () => {
   });
 
   it('renders submission history table when rows exist', async () => {
-    mockHistoryData.rows = [
-      {
-        id: 'sub-1',
-        show_id: 'show-1',
-        trial_id: null,
-        organization: 'AKC',
-        sport_type: 'scent_work',
-        submitted_at: '2026-05-10T12:00:00Z',
-        submitted_by: null,
-        xml_payload: null,
-        status: 'sent',
-      },
-    ];
+    mockHistoryData.rows = [makeHistoryRow()];
 
     renderPage();
     await waitFor(() => expect(screen.getByTestId('history-table')).toBeInTheDocument());
   });
 
+  it('presents sent history as an honest emailed badge', async () => {
+    mockHistoryData.rows = [makeHistoryRow()];
+
+    renderPage();
+    expect(await screen.findByText('Emailed')).toBeInTheDocument();
+  });
+
+  it('wraps the history table so it can scroll horizontally on narrow screens', async () => {
+    mockHistoryData.rows = [makeHistoryRow()];
+
+    renderPage();
+    const table = await screen.findByTestId('history-table');
+    expect(table.closest('.overflow-x-auto')).not.toBeNull();
+  });
+
   it('shows confirmation dialog before sending', async () => {
-    mockAKCData.data = {
-      show: {
-        id: 'show-1',
-        name: 'Spring',
-        clubName: 'Club',
-        date: null,
-        clubLicenseNumber: null,
-        secretaryName: 'Jane',
-        secretaryEmail: 'jane@example.com',
-      },
-      trials: [],
-      entries: [],
-    } as import('@myk9/secretary').AKCSubmissionData;
+    mockAKCData.data = makeAKCSubmissionData({ entries: [] });
 
     renderPage();
     const sendBtn = await screen.findByTestId('send-btn');
@@ -381,19 +242,7 @@ describe('ResultsSubmissionPage', () => {
   });
 
   it('sends only after confirmation', async () => {
-    mockAKCData.data = {
-      show: {
-        id: 'show-1',
-        name: 'Spring',
-        clubName: 'Club',
-        date: null,
-        clubLicenseNumber: null,
-        secretaryName: 'Jane',
-        secretaryEmail: 'jane@example.com',
-      },
-      trials: [],
-      entries: [],
-    } as import('@myk9/secretary').AKCSubmissionData;
+    mockAKCData.data = makeAKCSubmissionData({ entries: [] });
 
     renderPage();
     const sendBtn = await screen.findByTestId('send-btn');
@@ -551,45 +400,7 @@ describe('ResultsSubmissionPage', () => {
   // leads with a plain-English readiness checklist and keeps the XML behind a
   // "View electronic-submission details" disclosure.
   describe('Submission summary leads; raw XML is behind a disclosure (F4-XML)', () => {
-    const akcDataWithRegNumbers = {
-      show: {
-        id: 'show-1',
-        name: 'Spring',
-        clubName: 'Club',
-        date: null,
-        clubLicenseNumber: null,
-        secretaryName: 'Jane',
-        secretaryEmail: 'jane@example.com',
-      },
-      trials: [],
-      entries: [
-        {
-          dogName: 'Fluffy',
-          breed: 'X',
-          registrationNumber: 'HP123',
-          handlerName: '',
-          className: 'N',
-          element: 'Container',
-          level: 'Novice',
-          section: 'A',
-          resultCode: null,
-          searchTimeSeconds: null,
-          totalFaults: null,
-          finalPlacement: null,
-          armbandNumber: 101,
-          trialId: 't1',
-          classId: 'c1',
-          dogRegisteredName: null,
-          dogGender: 'B',
-          ownerName: null,
-          ownerAddress: null,
-          timeLimitSeconds: null,
-          entryStatus: 'accepted',
-          checkInStatus: 'present',
-          resultStatus: null,
-        },
-      ],
-    } as import('@myk9/secretary').AKCSubmissionData;
+    const akcDataWithRegNumbers = makeAKCSubmissionData();
 
     it('renders the human checklist and the disclosure (XML not the lead)', async () => {
       mockAKCData.data = akcDataWithRegNumbers;
@@ -607,10 +418,7 @@ describe('ResultsSubmissionPage', () => {
     });
 
     it('flags missing registration numbers in the checklist', async () => {
-      mockAKCData.data = {
-        ...akcDataWithRegNumbers,
-        entries: [{ ...akcDataWithRegNumbers.entries[0], registrationNumber: null }],
-      } as import('@myk9/secretary').AKCSubmissionData;
+      mockAKCData.data = makeAKCSubmissionData({ entries: [{ registrationNumber: null }] });
       renderPage();
 
       const checklist = await screen.findByTestId('submission-checklist');

@@ -1,6 +1,6 @@
 # Admin Payout Ledger + Platform Fee Setting
 
-> **Status:** Active
+> **Status:** Complete
 
 Wave 4 item #48 — Richard's explicit pre-launch requirement (2026-06-10). One
 page, two halves: a read-only cross-club payout *ledger* and a site-admin

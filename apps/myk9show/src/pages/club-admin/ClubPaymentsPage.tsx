@@ -40,7 +40,7 @@ const ClubPaymentsPage: React.FC = () => {
       ) : (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
-            No club is associated with your account. Payments are managed by a club admin.
+            No club is linked to your account yet. A club admin manages payments for the club.
           </CardContent>
         </Card>
       )}

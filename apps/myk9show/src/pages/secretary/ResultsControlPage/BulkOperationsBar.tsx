@@ -112,18 +112,32 @@ export function BulkOperationsBar({
         // succeeded so only the failed ones stay selected, making retry re-release just
         // those (no re-stamping resultsReleasedAt on already-released classes). Total
         // failure → keep the whole selection (every class is a failed class).
+        // Every branch toasts so the bulk action never resolves silently.
         onSuccess: ({ released, failed }) => {
           if (failed.length === 0) {
+            toast.success(
+              `Released results for ${released.length} class${released.length === 1 ? '' : 'es'}`
+            );
             onClearSelection();
           } else if (released.length > 0) {
+            toast.warning(
+              `Released ${released.length}, but ${failed.length} failed. The failed class${failed.length === 1 ? '' : 'es'} stayed selected so you can retry.`
+            );
             onDeselectClasses(released);
+          } else {
+            toast.error('Could not release the selected results. Try again.');
           }
         },
+        onError: () => toast.error('Could not release the selected results. Try again.'),
       }
     );
   }
 
   const count = selectedClasses.size;
+
+  // Surface why Release is disabled instead of leaving a silently greyed
+  // primary action: nothing in the selection is held for manual review.
+  const showReleaseHint = !hasManualReleaseClasses;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background p-3 shadow-lg">
@@ -187,8 +201,8 @@ export function BulkOperationsBar({
                   Release results for {count} class{count === 1 ? '' : 'es'}?
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                  This makes results publicly visible to exhibitors and spectators right away.
-                  It can&apos;t be undone.
+                  Results become visible to exhibitors and spectators right away. You can&apos;t
+                  hide them again from here once released.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -201,6 +215,11 @@ export function BulkOperationsBar({
           </AlertDialog>
         </div>
       </div>
+      {showReleaseHint && (
+        <p className="container mx-auto mt-2 text-xs text-muted-foreground">
+          Only classes set to hold for review can be released here.
+        </p>
+      )}
     </div>
   );
 }

@@ -124,7 +124,7 @@ export function ClassOverrides({
               <Button
                 variant="ghost"
                 size="sm"
-                className="flex w-full items-center justify-between px-3 py-2"
+                className="flex min-h-[44px] w-full items-center justify-between px-3 py-2"
               >
                 <span className="text-sm font-medium">{trial.name}</span>
                 <span className="text-xs text-muted-foreground">

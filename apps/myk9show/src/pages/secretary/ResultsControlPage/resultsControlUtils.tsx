@@ -55,7 +55,7 @@ export function TimingSelect({
 }: TimingSelectProps) {
   return (
     <Select value={value} onValueChange={v => onChange(v as VisibilityTiming)} disabled={disabled}>
-      <SelectTrigger className="w-40" aria-label={ariaLabel}>
+      <SelectTrigger className="min-h-[44px] w-40" aria-label={ariaLabel}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

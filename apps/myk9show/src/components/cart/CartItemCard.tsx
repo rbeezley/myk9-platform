@@ -6,7 +6,7 @@
  */
 
 
-import { Trash2, Dog, Users, Ruler } from 'lucide-react';
+import { Trash2, Dog, Users, Ruler, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -99,10 +99,14 @@ export function CartItemCard({
               size="sm"
               onClick={onRemove}
               disabled={isRemoving}
-              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              className="min-h-[44px] text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             >
-              <Trash2 className="h-4 w-4 mr-1" />
-              Remove
+              {isRemoving ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-1" />
+              )}
+              {isRemoving ? 'Removing' : 'Remove'}
             </Button>
           </div>
         </div>

@@ -688,24 +688,31 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   const paymentIntentId = extractPaymentIntentId(session.payment_intent);
   const entryIds: string[] = [];
   for (const item of cart.items) {
+    const entryInsert = buildEntryInsert(
+      {
+        ...item,
+        entry_fee_cents: authoritativeByClass.get(item.class_id) ?? item.entry_fee_cents,
+      },
+      paymentIntentId,
+      new Date().toISOString(),
+      {
+        showId: cart.show_id,
+        trialId: trialByClass.get(item.class_id) ?? null,
+      }
+    );
     const { data: entry, error: entryError } = await supabase
-      .from('entries')
-      .insert(
-        buildEntryInsert(
-          {
-            ...item,
-            entry_fee_cents: authoritativeByClass.get(item.class_id) ?? item.entry_fee_cents,
-          },
-          paymentIntentId,
-          new Date().toISOString(),
-          {
-            showId: cart.show_id,
-            trialId: trialByClass.get(item.class_id) ?? null,
-          }
-        )
-      )
-      .select('id')
-      .single();
+      .rpc('create_online_paid_entry', {
+        p_dog_id: entryInsert.dog_id,
+        p_class_id: entryInsert.class_id,
+        p_handler_id: entryInsert.handler_id,
+        p_entry_fee: entryInsert.entry_fee,
+        p_jump_height: entryInsert.jump_height,
+        p_special_requests: entryInsert.special_requests,
+        p_payment_intent_id: entryInsert.stripe_payment_intent_id,
+        p_submitted_at: entryInsert.submitted_at,
+        p_show_id: entryInsert.show_id,
+        p_trial_id: entryInsert.trial_id,
+      });
 
     if (entryError) {
       console.error(`Error creating entry for cart item ${item.id}:`, entryError);

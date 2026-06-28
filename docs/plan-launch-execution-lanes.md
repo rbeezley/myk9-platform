@@ -140,15 +140,15 @@ Establishes what's actually broken before more UI changes land.
 1. **Treasurer guide** — **DONE 2026-06-18.**
    [`docs/operations/stripe-treasurer-guide.md`](operations/stripe-treasurer-guide.md) — written for
    club treasurers (non-technical); covers Express onboarding, payout timing, FAQ.
-2. **Sandbox pre-flight** — fix `STRIPE_WEBHOOK_SECRET` on the unified project (`sojmvhhwsjxmfistvzbe`).
-   Per the operator runbook (Step 0 note, 2026-06-09): the webhook 500s on every event because this
-   secret is missing. Set it in Supabase dashboard secrets → redeploy `stripe-webhook` function →
-   confirm events arrive in the Stripe dashboard log.
-3. **Sandbox end-to-end walkthrough** — full loop in test mode: entry payment (card `4242…`) →
-   webhook fires and entry flips to `paid` → secretary issues a refund → manual `curl` of
-   `cron-process-payouts` with the test `PAYOUT_CRON_SECRET` → transfer appears in Stripe Connect
-   sandbox → payout row in `show_payouts` marked `completed`. Screenshot each step (becomes evidence
-   for #5 and backup reference for the treasurer guide). Do not proceed to live mode without this proof.
+2. **Sandbox pre-flight** — **DONE 2026-06-27.** `STRIPE_WEBHOOK_SECRET` + the Connect webhook
+   secret are set and `stripe-webhook` processes events — proven by the live sandbox entry payment
+   in #3 (the 2026-06-09 "secret missing, webhook 500s" note is stale).
+3. **Sandbox end-to-end walkthrough** — **DONE 2026-06-27 (except the refund step).** Heartland club
+   onboarded to `payouts_enabled` (Connect `account.updated` webhook verified) → real entry payment
+   (card `4242…`, $32.10) → `checkout.session.completed` webhook flipped the entry to `paid` + wrote
+   `stripe_orders` → manual run of `cron-process-payouts` → `show_payouts` row `completed`, real
+   transfer `tr_1Tn6rZAIej2Q9UtXrzfsggkS`. **Still pending:** the secretary *refund* step (would prove
+   the payout deduction $90→$60). Do not proceed to live mode without that final piece.
 4. **Go-live live-mode tasks** — *after #3 passes.* Dashboard toggle: live mode ON. Three things:
    (a) Enable Connect in live mode (may require a short Stripe review — plan a few days of buffer);
    (b) live webhook endpoint + `supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_<live>`;
@@ -156,11 +156,19 @@ Establishes what's actually broken before more UI changes land.
    (`stripe_customers`, `exhibitor_profiles.stripe_customer_id`, `club_stripe_accounts`).
    Full click-by-click in [`docs/operations/stripe-platform-setup.md`](operations/stripe-platform-setup.md)
    under "Go-live — Task 6.3."
-5. **Verified manual payout run** — real low-value entry payment + refund + confirm payout transfer
-   lands in the connected club's bank. This is the last proof before the cron takes over.
-6. **`cron.schedule` migration for payouts** — **migration written 2026-06-18**
-   ([`supabase/migrations/20260618130000_payout_cron_schedule.sql`](../supabase/migrations/20260618130000_payout_cron_schedule.sql)).
-   Fill in `REPLACE_WITH_PAYOUT_CRON_SECRET` from `supabase secrets list`, then push. *After* #5.
+5. **Verified manual payout run** — *live mode.* Real low-value entry payment + refund + confirm
+   payout transfer lands in the connected club's bank. **Sandbox equivalent fully proven 2026-06-27
+   (see #3)** — `show_payouts` `completed` + real transfer; this is the same loop in LIVE mode, the
+   last proof before the cron takes over.
+6. **`cron.schedule` migration for payouts** — **DONE + VERIFIED 2026-06-27.** The placeholder
+   migration `20260618130000` was *superseded* by the Vault-backed `20260619130000_payout_cron_vault_secret`
+   (both applied). The real bug was not the migration but 2 missing Vault secrets (`service_role_key`,
+   `payout_cron_secret`) — `nightly-show-payouts` had failed every night since ≥Jun 23. Fixed (rotated
+   the edge-fn `PAYOUT_CRON_SECRET` + set the two Vault secrets) and verified end-to-end (cron's
+   Vault-reading request → HTTP 200, then a real `show_payouts` transfer). Runbook updated:
+   [`stripe-platform-setup.md`](operations/stripe-platform-setup.md) "Payout cron operations." The old
+   "fill the placeholder and push" instruction is obsolete. (Live mode still needs the same Vault
+   secrets set in the live project before #5.)
 
 ## Lane 5 — Architecture / Data Model  *(parallel, below show-day launch work)*
 1. **Architecture Phase 6** (flatten `judges/reads.ts` per ADR-008).

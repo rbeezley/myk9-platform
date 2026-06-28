@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Eye, UserCheck, AlertCircle } from 'lucide-react';
+import { SlidersHorizontal, AlertCircle } from 'lucide-react';
 import { useTrialStore } from '@/store/trialStore';
 import { useClassStore } from '@/store/classStore';
 import {
@@ -22,10 +22,9 @@ import {
 } from '@/hooks/queries/useShowSettingsDatabase';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { PresetSelector } from './PresetSelector';
-import { TrialOverrides } from './TrialOverrides';
-import { ClassOverrides } from './ClassOverrides';
+import { ShowCheckinToggle } from './ShowCheckinToggle';
+import { OverrideTree } from './OverrideTree';
 import { BulkOperationsBar } from './BulkOperationsBar';
-import { SelfCheckinSection } from './SelfCheckinSection';
 
 const getClassId = (c: { id: string }) => c.id;
 
@@ -185,65 +184,47 @@ export default function ResultsControlPage() {
         </Alert>
       )}
 
-      {/* Results Visibility */}
+      {/* Results visibility + self check-in — one hierarchy, two controls per row */}
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
-            <Eye className="h-5 w-5 text-muted-foreground" />
-            <CardTitle>Results Visibility</CardTitle>
+            <SlidersHorizontal className="h-5 w-5 text-muted-foreground" />
+            <CardTitle>Results &amp; Self Check-In</CardTitle>
           </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="space-y-3">
               <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-16 w-full" />
               <Skeleton className="h-24 w-full" />
             </div>
           ) : isError ? (
             <CardLoadError />
           ) : (
             <div className="space-y-6">
-              <PresetSelector showId={showId} settings={effectiveSettings} />
-              <TrialOverrides showId={showId} trials={showTrials} trialOverrides={trialOverrides} />
-              <ClassOverrides
+              {/* Show defaults — the cascade root for both facets */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold">Show defaults</h3>
+                <PresetSelector showId={showId} settings={effectiveSettings} />
+                <ShowCheckinToggle
+                  showId={showId}
+                  enabled={effectiveSettings.selfCheckinEnabled}
+                />
+              </div>
+              {/* Per-trial / per-class overrides — one tree carrying both facets */}
+              <OverrideTree
                 showId={showId}
+                settings={effectiveSettings}
                 trials={showTrials}
                 classes={showClasses}
-                classOverrides={classOverrides}
                 trialOverrides={trialOverrides}
+                classOverrides={classOverrides}
                 selectedClasses={bulkOps.selectedIds}
                 onToggleClass={toggleClassById}
                 onToggleAllInTrial={toggleAllInTrial}
               />
             </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Self Check-In */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <UserCheck className="h-5 w-5 text-muted-foreground" />
-            <CardTitle>Self Check-In</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="space-y-3">
-              <Skeleton className="h-16 w-full" />
-            </div>
-          ) : isError ? (
-            <CardLoadError />
-          ) : (
-            <SelfCheckinSection
-              showId={showId}
-              settings={effectiveSettings}
-              trialOverrides={trialOverrides}
-              classOverrides={classOverrides}
-              trials={showTrials}
-              classes={showClasses}
-            />
           )}
         </CardContent>
       </Card>

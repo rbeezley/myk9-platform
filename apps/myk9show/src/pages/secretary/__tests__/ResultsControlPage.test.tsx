@@ -207,9 +207,13 @@ describe('ResultsControlPage', () => {
     expect(screen.getByText('After Review')).toBeInTheDocument();
   });
 
-  it('renders self check-in section', () => {
+  it('renders the show-level self check-in control', () => {
     renderPage();
-    expect(screen.getByText('Self Check-In')).toBeInTheDocument();
+    // The dedicated "Self Check-In" card was merged into the unified Results & Self
+    // Check-In card; the show-level toggle now lives under "Show defaults".
+    expect(
+      screen.getByRole('switch', { name: 'Allow self check-in for show' })
+    ).toBeInTheDocument();
   });
 
   it('clicking a preset calls the visibility mutation', async () => {
@@ -235,7 +239,10 @@ describe('ResultsControlPage', () => {
     expect(screen.getByText('Immediately')).toBeInTheDocument();
     expect(screen.getByText('After Class')).toBeInTheDocument();
     expect(screen.getByText('After Review')).toBeInTheDocument();
-    expect(screen.getByText('Self Check-In')).toBeInTheDocument();
+    // Show-level check-in toggle renders even with no trials (independent of the tree).
+    expect(
+      screen.getByRole('switch', { name: 'Allow self check-in for show' })
+    ).toBeInTheDocument();
   });
 
   it('shows the error state (not a perpetual skeleton) when the settings query errors', () => {

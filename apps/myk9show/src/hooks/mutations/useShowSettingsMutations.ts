@@ -53,10 +53,60 @@ interface ClassOverrideUpdate {
   selfCheckinEnabled?: boolean | null;
 }
 
+/**
+ * Which facet of an override row a reset should clear.
+ * - `'visibility'` nulls only the preset + timing columns (preserves check-in).
+ * - `'checkin'` nulls only `self_checkin_enabled` (preserves visibility).
+ * - `'all'` nulls everything — the historical behavior, and the default so existing
+ *   callers (SettingsOverrideCard, ShowSettingsPage) are unchanged.
+ *
+ * Independence relies on OMITTING the other facet's columns from the upsert payload,
+ * not setting them to null: PostgREST upsert only writes the columns present, so on
+ * conflict the omitted columns keep their stored value.
+ */
+export type ResetFacet = 'visibility' | 'checkin' | 'all';
+
 interface OverrideReset {
   entityId: string;
   showId: string;
   level: 'trial' | 'class';
+  facet?: ResetFacet;
+}
+
+const VISIBILITY_NULL_COLUMNS = {
+  preset: null,
+  placement_timing: null,
+  qualification_timing: null,
+  time_timing: null,
+  faults_timing: null,
+} as const;
+
+/**
+ * Build the upsert payload for a reset. Pure so the column set per facet can be
+ * pinned by an assertion-first test — an accidental `self_checkin_enabled: null`
+ * in a visibility reset would silently re-couple the two facets.
+ */
+export function buildResetPayload(params: {
+  level: 'trial' | 'class';
+  entityId: string;
+  facet: ResetFacet;
+  userId: string | null;
+  timestamp: string;
+}): Record<string, unknown> {
+  const { level, entityId, facet, userId, timestamp } = params;
+  const idColumn = level === 'trial' ? 'trial_id' : 'class_id';
+  const payload: Record<string, unknown> = {
+    [idColumn]: entityId,
+    updated_by: userId,
+    updated_at: timestamp,
+  };
+  if (facet === 'all' || facet === 'visibility') {
+    Object.assign(payload, VISIBILITY_NULL_COLUMNS);
+  }
+  if (facet === 'all' || facet === 'checkin') {
+    payload.self_checkin_enabled = null;
+  }
+  return payload;
 }
 
 export function useUpdateShowVisibility() {
@@ -280,9 +330,10 @@ export function useBulkUpdateClassOverrides() {
 }
 
 /**
- * Reset an override row by setting all nullable columns to NULL (not DELETE).
+ * Reset an override row by setting its nullable columns to NULL (not DELETE).
  * Spec: "No DELETE — rows are upserted, not removed (reset = set columns to NULL)."
- * Works for both trial and class overrides.
+ * Works for both trial and class overrides. `facet` (default `'all'`) scopes the
+ * reset so a visibility reset preserves an existing check-in override and vice versa.
  */
 export function useResetOverride() {
   const queryClient = useQueryClient();
@@ -292,18 +343,14 @@ export function useResetOverride() {
     mutationFn: async (reset: OverrideReset) => {
       const table =
         reset.level === 'trial' ? 'trial_visibility_overrides' : 'class_visibility_overrides';
-      const idColumn = reset.level === 'trial' ? 'trial_id' : 'class_id';
-      const { error } = await untypedSupabase.from(table).upsert({
-        [idColumn]: reset.entityId,
-        preset: null,
-        placement_timing: null,
-        qualification_timing: null,
-        time_timing: null,
-        faults_timing: null,
-        self_checkin_enabled: null,
-        updated_by: user?.id ?? null,
-        updated_at: new Date().toISOString(),
+      const payload = buildResetPayload({
+        level: reset.level,
+        entityId: reset.entityId,
+        facet: reset.facet ?? 'all',
+        userId: user?.id ?? null,
+        timestamp: new Date().toISOString(),
       });
+      const { error } = await untypedSupabase.from(table).upsert(payload);
       if (error) throw error;
     },
     onSuccess: (_, variables) => {

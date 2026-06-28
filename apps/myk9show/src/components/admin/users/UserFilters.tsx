@@ -317,12 +317,12 @@ export const UserFilters: React.FC<UserFiltersProps> = ({
           )}
           
           {filters.status !== 'all' && (
-            <Badge variant="secondary" className="gap-2 px-3 py-2 rounded-full bg-green-500/10 text-green-700 border-0 font-[500]">
+            <Badge variant="secondary" className="gap-2 px-3 py-2 rounded-full bg-success/10 text-success border-0 font-[500]">
               Status: {STATUS_OPTIONS.find(s => s.value === filters.status)?.label}
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-5 w-5 p-0 hover:bg-green-500/20 rounded-full transition-colors duration-200"
+                className="h-5 w-5 p-0 hover:bg-success/20 rounded-full transition-colors duration-200"
                 onClick={() => updateFilter('status', 'all')}
               >
                 <X className="h-3 w-3" />
@@ -331,12 +331,12 @@ export const UserFilters: React.FC<UserFiltersProps> = ({
           )}
           
           {filters.clubAffiliation && (
-            <Badge variant="secondary" className="gap-2 px-3 py-2 rounded-full bg-purple-500/10 text-purple-700 border-0 font-[500]">
+            <Badge variant="secondary" className="gap-2 px-3 py-2 rounded-full bg-primary/10 text-primary border-0 font-[500]">
               Club: {filters.clubAffiliation}
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-5 w-5 p-0 hover:bg-purple-500/20 rounded-full transition-colors duration-200"
+                className="h-5 w-5 p-0 hover:bg-primary/20 rounded-full transition-colors duration-200"
                 onClick={() => updateFilter('clubAffiliation', '')}
               >
                 <X className="h-3 w-3" />
@@ -345,12 +345,12 @@ export const UserFilters: React.FC<UserFiltersProps> = ({
           )}
           
           {filters.dateRange.start && (
-            <Badge variant="secondary" className="gap-2 px-3 py-2 rounded-full bg-blue-500/10 text-blue-700 border-0 font-[500]">
+            <Badge variant="secondary" className="gap-2 px-3 py-2 rounded-full bg-info/10 text-info-strong border-0 font-[500]">
               From: {format(filters.dateRange.start, "MMM d, yyyy")}
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-5 w-5 p-0 hover:bg-blue-500/20 rounded-full transition-colors duration-200"
+                className="h-5 w-5 p-0 hover:bg-info/20 rounded-full transition-colors duration-200"
                 onClick={() => handleStartDateChange(undefined)}
               >
                 <X className="h-3 w-3" />
@@ -359,12 +359,12 @@ export const UserFilters: React.FC<UserFiltersProps> = ({
           )}
           
           {filters.dateRange.end && (
-            <Badge variant="secondary" className="gap-2 px-3 py-2 rounded-full bg-orange-500/10 text-orange-700 border-0 font-[500]">
+            <Badge variant="secondary" className="gap-2 px-3 py-2 rounded-full bg-warning/10 text-warning border-0 font-[500]">
               To: {format(filters.dateRange.end, "MMM d, yyyy")}
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-5 w-5 p-0 hover:bg-orange-500/20 rounded-full transition-colors duration-200"
+                className="h-5 w-5 p-0 hover:bg-warning/20 rounded-full transition-colors duration-200"
                 onClick={() => handleEndDateChange(undefined)}
               >
                 <X className="h-3 w-3" />

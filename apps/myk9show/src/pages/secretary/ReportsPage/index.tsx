@@ -69,7 +69,7 @@ export default function ReportsPage() {
   const [isDownloadingOfficialPdf, setIsDownloadingOfficialPdf] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const { show, trials, classes, entries, isLoading, isError } = useReportData({
+  const { show, trials, classes, entries, isLoading, isError, refetch } = useReportData({
     show: currentShow,
     trialId,
     classId,
@@ -222,6 +222,10 @@ export default function ReportsPage() {
       {/* Page header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Print check-in sheets, catalogs, official forms, and labels. Pick a report, narrow it to
+          a trial or class, then print or download.
+        </p>
       </div>
 
       {/* Controls */}
@@ -264,6 +268,7 @@ export default function ReportsPage() {
               trialId={trialId}
               classId={classId}
               sortOrder={sortOrder}
+              isLoading={isLoading}
               iframeRef={iframeRef}
             />
             <iframe ref={iframeRef} title="Label Print" style={{ display: 'none' }} />
@@ -282,6 +287,7 @@ export default function ReportsPage() {
               sortOrder={sortOrder}
               isLoading={isLoading}
               isError={isError}
+              onRetry={refetch}
               iframeRef={iframeRef}
             />
           </div>

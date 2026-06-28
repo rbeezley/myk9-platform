@@ -21,6 +21,7 @@ interface ResultLabelsReportProps {
   trialId: string;
   classId: string;
   sortOrder: string;
+  isLoading?: boolean;
   iframeRef?: React.RefObject<HTMLIFrameElement | null>;
 }
 
@@ -32,6 +33,7 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
   trialId,
   classId,
   sortOrder,
+  isLoading = false,
   iframeRef,
 }) => {
   const [templateId, setTemplateId] = useState(DEFAULT_RESULT_TEMPLATE_ID);
@@ -121,7 +123,7 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
                   checked={templateId === t.id}
                   onChange={() => setTemplateId(t.id)}
                 />
-                {t.name} — {t.labelsPerSheet}/sheet
+                {t.name} · {t.labelsPerSheet}/sheet
               </label>
             ))}
           </div>
@@ -184,10 +186,26 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
         </div>
       </div>
 
+      {/* Loading state — render before the empty state so the preview doesn't
+          flash "No entries" while the parent query is still resolving. */}
+      {isLoading && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex items-center justify-center p-8 text-muted-foreground"
+        >
+          Loading entry data...
+        </div>
+      )}
+
       {/* Empty state */}
-      {items.length === 0 && (
-        <div className="flex items-center justify-center p-8 text-muted-foreground">
-          No entries to print labels for in this selection.
+      {!isLoading && items.length === 0 && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex items-center justify-center p-8 text-muted-foreground"
+        >
+          No entries to print labels for in this selection
         </div>
       )}
 
@@ -201,7 +219,7 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
             columnGap: `${template.gapX}in`,
             rowGap: `${template.gapY}in`,
             margin: '0 auto 16px',
-            border: '1px dashed #ddd',
+            border: '1px dashed var(--border)',
             padding: '8px',
           }}
         >
@@ -211,7 +229,8 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
               style={{
                 width: `${template.labelWidth}in`,
                 height: `${template.labelHeight}in`,
-                border: cell.type === 'item' ? '1px solid #eee' : '1px dashed #f0f0f0',
+                border:
+                  cell.type === 'item' ? '1px solid var(--border)' : '1px dashed var(--border)',
                 boxSizing: 'border-box',
                 overflow: 'hidden',
                 padding: '0.08in 0.12in',

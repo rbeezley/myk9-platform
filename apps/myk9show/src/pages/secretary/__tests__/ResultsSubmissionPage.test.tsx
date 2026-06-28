@@ -355,6 +355,47 @@ describe('ResultsSubmissionPage', () => {
     await waitFor(() => expect(screen.getByTestId('history-table')).toBeInTheDocument());
   });
 
+  it('presents the raw status enum as a capitalized badge, not lowercase', async () => {
+    mockHistoryData.rows = [
+      {
+        id: 'sub-1',
+        show_id: 'show-1',
+        trial_id: null,
+        organization: 'AKC',
+        sport_type: 'scent_work',
+        submitted_at: '2026-05-10T12:00:00Z',
+        submitted_by: null,
+        xml_payload: null,
+        status: 'sent',
+      },
+    ];
+
+    renderPage();
+    // The cell still carries the raw enum text; `capitalize` renders it "Sent".
+    const badge = await screen.findByText('sent');
+    expect(badge).toHaveClass('capitalize');
+  });
+
+  it('wraps the history table so it can scroll horizontally on narrow screens', async () => {
+    mockHistoryData.rows = [
+      {
+        id: 'sub-1',
+        show_id: 'show-1',
+        trial_id: null,
+        organization: 'AKC',
+        sport_type: 'scent_work',
+        submitted_at: '2026-05-10T12:00:00Z',
+        submitted_by: null,
+        xml_payload: null,
+        status: 'sent',
+      },
+    ];
+
+    renderPage();
+    const table = await screen.findByTestId('history-table');
+    expect(table.closest('.overflow-x-auto')).not.toBeNull();
+  });
+
   it('shows confirmation dialog before sending', async () => {
     mockAKCData.data = {
       show: {

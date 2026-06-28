@@ -51,6 +51,9 @@ export function PresetSelector({ showId, settings }: PresetSelectorProps) {
   }
 
   function applyPreset(preset: VisibilityPreset) {
+    // Guard against a double-fire: the cards are click + Enter/Space activated,
+    // so a quick repeat (or Enter-while-pending) could queue a second mutation.
+    if (updateVisibility.isPending) return;
     const cfg = PRESET_CONFIGS[preset];
     updateVisibility.mutate(
       {
@@ -96,14 +99,16 @@ export function PresetSelector({ showId, settings }: PresetSelectorProps) {
         {(Object.keys(PRESET_INFO) as VisibilityPreset[]).map(preset => {
           const info = PRESET_INFO[preset];
           const isActive = activePreset === preset;
+          const isPending = updateVisibility.isPending;
           return (
             <Card
               key={preset}
               role="button"
               tabIndex={0}
               aria-pressed={isActive}
+              aria-disabled={isPending}
               aria-label={`Apply "${info.title}" preset`}
-              className={`cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${isActive ? 'ring-2 ring-primary' : 'hover:border-primary/50'}`}
+              className={`transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${isPending ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} ${isActive ? 'ring-2 ring-primary' : 'hover:border-primary/50'}`}
               onClick={() => applyPreset(preset)}
               onKeyDown={e => {
                 if (e.key === 'Enter' || e.key === ' ') {
@@ -130,7 +135,11 @@ export function PresetSelector({ showId, settings }: PresetSelectorProps) {
       {/* Advanced accordion */}
       <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
         <CollapsibleTrigger asChild>
-          <Button variant="outline" size="sm" className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex min-h-[44px] items-center gap-1"
+          >
             <ChevronDown
               className={`h-4 w-4 transition-transform ${advancedOpen ? 'rotate-180' : ''}`}
             />
@@ -158,7 +167,12 @@ export function PresetSelector({ showId, settings }: PresetSelectorProps) {
                   />
                 </div>
               ))}
-              <Button size="sm" onClick={applyCustomTimings} disabled={updateVisibility.isPending}>
+              <Button
+                size="sm"
+                className="min-h-[44px]"
+                onClick={applyCustomTimings}
+                disabled={updateVisibility.isPending}
+              >
                 Save Custom Timings
               </Button>
             </CardContent>

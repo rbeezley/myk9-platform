@@ -43,7 +43,10 @@ import type { ResultSubmissionRow } from '@/hooks/mutations/useResultSubmission'
 // ---------------------------------------------------------------------------
 
 function buildFilename(showName: string): string {
-  const slug = showName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '');
+  const rawSlug = showName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '');
+  // A name made entirely of non-ASCII characters (CJK, emoji) slugs to empty,
+  // which would yield a leading-dash "-Results_…" filename; fall back instead.
+  const slug = rawSlug.slice(0, 80) || 'Show';
   const ts = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
   return `${slug}-Results_${ts}.xml`;
 }
@@ -205,7 +208,11 @@ export default function ResultsSubmissionPage() {
             Organization
           </label>
           <Select value={formatterKey} onValueChange={setFormatterKey}>
-            <SelectTrigger id="org-select" className="w-[220px]" data-testid="org-selector">
+            <SelectTrigger
+              id="org-select"
+              className="min-h-[44px] w-[220px]"
+              data-testid="org-selector"
+            >
               <SelectValue placeholder="Select organization">{selectedOrgLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -221,10 +228,11 @@ export default function ResultsSubmissionPage() {
           </Select>
         </div>
 
-        <div className="flex gap-2 pb-0.5">
+        <div className="flex flex-wrap gap-2 pb-0.5">
           {activeFormatter?.submissionEmail && (
             <>
               <Button
+                className="min-h-[44px]"
                 onClick={() => setShowConfirm(true)}
                 disabled={!xmlPreview || isSending || hasBlockingAKCPreflightIssue}
                 data-testid="send-btn"
@@ -238,8 +246,8 @@ export default function ResultsSubmissionPage() {
                       Send results to {activeFormatter.organization}?
                     </AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will email the XML file to {activeFormatter.organization} and CC your
-                      secretary address. This action cannot be undone.
+                      This emails the XML file to {activeFormatter.organization} and CCs your
+                      secretary address, so you keep a copy.
                       {akcData && akcData.entries.length > 0 && (
                         <> {akcData.entries.length} entries will be included.</>
                       )}
@@ -257,6 +265,7 @@ export default function ResultsSubmissionPage() {
           )}
           <Button
             variant="outline"
+            className="min-h-[44px]"
             onClick={handleDownload}
             disabled={!xmlPreview}
             data-testid="download-btn"
@@ -265,6 +274,7 @@ export default function ResultsSubmissionPage() {
           </Button>
           <Button
             variant="outline"
+            className="min-h-[44px]"
             onClick={handleMarkSubmitted}
             disabled={!showId || !activeFormatter}
             data-testid="mark-submitted-btn"
@@ -393,28 +403,36 @@ export default function ResultsSubmissionPage() {
         ) : history.length === 0 ? (
           <p className="text-sm text-muted-foreground">No submissions recorded for this show.</p>
         ) : (
-          <Table data-testid="history-table">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Organization</TableHead>
-                <TableHead>Sport</TableHead>
-                <TableHead>Submitted At</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {history.map(row => (
-                <TableRow key={row.id}>
-                  <TableCell>{row.organization}</TableCell>
-                  <TableCell>{row.sport_type.replace(/_/g, ' ')}</TableCell>
-                  <TableCell>{formatDate(row.submitted_at)}</TableCell>
-                  <TableCell>
-                    <Badge variant={statusVariant(row.status)}>{row.status}</Badge>
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table data-testid="history-table">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Organization</TableHead>
+                  <TableHead>Sport</TableHead>
+                  <TableHead>Submitted At</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {history.map(row => (
+                  <TableRow key={row.id}>
+                    <TableCell>{row.organization}</TableCell>
+                    <TableCell className="capitalize">
+                      {row.sport_type.replace(/_/g, ' ')}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {formatDate(row.submitted_at)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={statusVariant(row.status)} className="capitalize">
+                        {row.status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </div>
     </div>

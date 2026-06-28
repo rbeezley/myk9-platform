@@ -25,6 +25,24 @@
   --hl-rule: var(--hl-ink);
 }
 
+/* ─── Keyboard focus ──────────────────────────────────────────────────── */
+/*
+ * The page strips link underlines and paints its own borders, so the UA
+ * focus outline is easy to lose against the warm paper. Pin a deliberate
+ * claret ring; on the dark ink band switch to the paper tone for contrast.
+ */
+[data-heritage] a:focus-visible,
+[data-heritage] button:focus-visible {
+  outline: 2px solid var(--hl-claret);
+  outline-offset: 3px;
+  border-radius: 1px;
+}
+
+[data-heritage] .hl-on-ink a:focus-visible,
+[data-heritage] .hl-on-ink button:focus-visible {
+  outline-color: var(--hl-paper-soft);
+}
+
 /* ─── HeritageOrnamentRule ────────────────────────────────────────────── */
 
 [data-heritage] .hl-rule-orn {

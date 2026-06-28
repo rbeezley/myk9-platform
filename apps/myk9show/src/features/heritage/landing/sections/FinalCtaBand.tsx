@@ -10,7 +10,7 @@ export function FinalCtaBand({ entryWizardUrl, canEnterOnline = true }: FinalCta
   return (
     <section
       id="enter"
-      className="px-6 py-20 text-center"
+      className="hl-on-ink px-6 py-20 text-center"
       style={{ background: 'var(--hl-ink)', color: 'var(--hl-paper)' }}
     >
       <div className="mx-auto flex max-w-xl flex-col items-center gap-6">

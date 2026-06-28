@@ -474,16 +474,6 @@ export const pageDirectory: readonly PageEntry[] = [
     linksTo: ['/dogs/:id'],
   },
   {
-    path: '/exhibitor/payments',
-    title: 'My Payments',
-    description: 'Review personal entry payment history and payment status.',
-    roles: [UserRole.EXHIBITOR],
-    classification: 'critical-path',
-    category: 'Exhibitor',
-    status: 'working',
-    linksTo: ['/exhibitor/entries'],
-  },
-  {
     path: '/dogs',
     title: 'Browse Dogs',
     description: 'Directory of dogs registered with the platform.',
@@ -602,30 +592,6 @@ export const pageDirectory: readonly PageEntry[] = [
     category: 'Shows',
     status: 'working',
     linksTo: [],
-  },
-
-  // =========================
-  // CLUB ADMIN
-  // =========================
-  {
-    path: '/club-admin/members',
-    title: 'Club Members',
-    description: 'Manage club members and member roles.',
-    roles: [UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN],
-    classification: 'critical-path',
-    category: 'Club Admin',
-    status: 'working',
-    linksTo: [],
-  },
-  {
-    path: '/club-admin/payments',
-    title: 'Club Payments',
-    description: 'Review club payment and Stripe onboarding status.',
-    roles: [UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN],
-    classification: 'critical-path',
-    category: 'Club Admin',
-    status: 'working',
-    linksTo: ['/club-admin/members'],
   },
 
   // =========================

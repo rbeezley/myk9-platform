@@ -11,7 +11,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ChevronDown, ChevronUp, Receipt, MoreHorizontal, Mail, Loader2 } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Receipt,
+  MoreHorizontal,
+  Mail,
+  Loader2,
+  CheckCircle2,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/utils/format';
 import { EntryListCard } from './EntryListCard';
@@ -255,15 +263,15 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                           handlePayment(PaymentStatus.PAID_BY_CASH, null, totalDollars)
                         }
                       >
-                        Paid in Full — Cash
+                        Paid in Full: Cash
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => setCheckDialog({ open: true, checkNumber: '' })}
                       >
-                        Paid in Full — Check…
+                        Paid in Full: Check…
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handlePayment(PaymentStatus.PAID_ONLINE)}>
-                        Paid in Full — Online
+                        Paid in Full: Online
                       </DropdownMenuItem>
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />
@@ -558,11 +566,14 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
             {(() => {
               const amt = parseFloat(partialDialog.amountPaid);
               if (!partialDialog.amountPaid || isNaN(amt)) return null;
-              return (
+              return amt >= totalDollars ? (
+                <p className="flex items-center gap-1.5 text-xs text-success">
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  Covers full balance. Will mark as paid.
+                </p>
+              ) : (
                 <p className="text-xs text-muted-foreground">
-                  {amt >= totalDollars
-                    ? '✓ Covers full balance — will mark as paid'
-                    : `Remaining after payment: $${Math.max(0, totalDollars - amt).toFixed(2)}`}
+                  Remaining after payment: ${Math.max(0, totalDollars - amt).toFixed(2)}
                 </p>
               );
             })()}

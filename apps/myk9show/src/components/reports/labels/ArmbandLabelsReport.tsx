@@ -128,7 +128,11 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-8 text-muted-foreground">
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex items-center justify-center p-8 text-muted-foreground"
+      >
         Loading entry data...
       </div>
     );
@@ -159,7 +163,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
                     setPrefs((p) => ({ ...p, templateId: t.id }))
                   }
                 />
-                {t.name} — {t.labelsPerSheet}/sheet
+                {t.name} · {t.labelsPerSheet}/sheet
               </label>
             ))}
           </div>
@@ -354,7 +358,11 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
 
       {/* Empty state */}
       {items.length === 0 && !isLoading && (
-        <div className="flex items-center justify-center p-8 text-muted-foreground">
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex items-center justify-center p-8 text-muted-foreground"
+        >
           {allEntries.length === 0
             ? 'No entries with armbands assigned for this show'
             : showSpecific && specificArmband
@@ -374,7 +382,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
             rowGap: `${template.gapY}in`,
             margin: '0 auto',
             marginBottom: '16px',
-            border: '1px dashed #ddd',
+            border: '1px dashed var(--border)',
             padding: '8px',
           }}
         >
@@ -386,8 +394,8 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
                 height: `${template.labelHeight}in`,
                 border:
                   cell.type === 'item'
-                    ? '1px solid #eee'
-                    : '1px dashed #f0f0f0',
+                    ? '1px solid var(--border)'
+                    : '1px dashed var(--border)',
                 boxSizing: 'border-box',
                 overflow: 'hidden',
                 padding: '0.08in 0.12in',

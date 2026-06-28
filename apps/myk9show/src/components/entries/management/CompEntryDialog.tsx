@@ -58,7 +58,7 @@ export const CompEntryDialog: React.FC<CompEntryDialogProps> = ({
             {className ? (
               <>
                 {' '}
-                — <strong>{className}</strong>
+                in <strong>{className}</strong>
               </>
             ) : null}{' '}
             as comped. This waives all fees.

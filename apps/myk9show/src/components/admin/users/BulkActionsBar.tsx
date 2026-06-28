@@ -169,7 +169,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
                       setStatusData({ action: 'activate' });
                       setCurrentDialog('status');
                     }}
-                    className="rounded-lg font-[500] text-sm py-3 focus:bg-green-50 focus:text-green-700 dark:focus:bg-green-950/20"
+                    className="rounded-lg font-[500] text-sm py-3 focus:bg-green-50 focus:text-green-700 dark:focus:bg-green-950/20 dark:focus:text-green-400"
                   >
                     <UserCheck className="h-4 w-4 mr-3" />
                     Activate Users
@@ -179,7 +179,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
                       setStatusData({ action: 'deactivate' });
                       setCurrentDialog('status');
                     }}
-                    className="rounded-lg font-[500] text-sm py-3 focus:bg-orange-50 focus:text-orange-700 dark:focus:bg-orange-950/20"
+                    className="rounded-lg font-[500] text-sm py-3 focus:bg-orange-50 focus:text-orange-700 dark:focus:bg-orange-950/20 dark:focus:text-orange-400"
                   >
                     <UserX className="h-4 w-4 mr-3" />
                     Deactivate Users
@@ -189,7 +189,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
                       setStatusData({ action: 'suspend' });
                       setCurrentDialog('status');
                     }}
-                    className="rounded-lg font-[500] text-sm py-3 focus:bg-red-50 focus:text-red-700 dark:focus:bg-red-950/20"
+                    className="rounded-lg font-[500] text-sm py-3 focus:bg-red-50 focus:text-red-700 dark:focus:bg-red-950/20 dark:focus:text-red-400"
                   >
                     <UserMinus className="h-4 w-4 mr-3" />
                     Suspend Users
@@ -202,9 +202,8 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
                 variant="outline"
                 size="sm"
                 onClick={() => setCurrentDialog('delete')}
-                className="h-10 px-4 rounded-xl border-red-200/50 bg-red-50/50 text-red-600 font-[590]
-                           hover:bg-red-100/50 hover:text-red-700 transition-all duration-300
-                             "
+                className="h-10 px-4 rounded-xl border-destructive/30 bg-destructive/10 text-destructive font-[590]
+                           hover:bg-destructive/20 hover:text-destructive transition-all duration-300"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete

@@ -226,9 +226,15 @@ export default function ResultsControlPage() {
           ) : (
             <div className="space-y-6">
               <PresetSelector showId={showId} settings={effectiveSettings} />
-              <TrialOverrides showId={showId} trials={showTrials} trialOverrides={trialOverrides} />
+              <TrialOverrides
+                showId={showId}
+                settings={effectiveSettings}
+                trials={showTrials}
+                trialOverrides={trialOverrides}
+              />
               <ClassOverrides
                 showId={showId}
+                settings={effectiveSettings}
                 trials={showTrials}
                 classes={showClasses}
                 classOverrides={classOverrides}

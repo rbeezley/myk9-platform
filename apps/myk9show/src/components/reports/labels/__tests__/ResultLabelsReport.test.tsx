@@ -30,9 +30,12 @@ describe('ResultLabelsReport', () => {
       />
     );
 
-    const status = screen.getByRole('status');
-    expect(status).toHaveTextContent('Loading entry data');
-    expect(status).toHaveAttribute('aria-live', 'polite');
+    const statuses = screen.getAllByRole('status');
+    expect(statuses).toHaveLength(2);
+    for (const status of statuses) {
+      expect(status).toHaveTextContent('Loading entry data');
+      expect(status).toHaveAttribute('aria-live', 'polite');
+    }
     expect(screen.queryByText(/No entries to print labels/i)).not.toBeInTheDocument();
   });
 

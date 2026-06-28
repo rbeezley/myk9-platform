@@ -183,14 +183,11 @@ Notes:
 
 ### Connecting via `psql` (session pooler)
 
-```bash
-set -a; . supabase/.env; set +a   # provides SUPABASE_DB_PASSWORD
-PGPASSWORD="$SUPABASE_DB_PASSWORD" psql \
-  "postgresql://postgres.sojmvhhwsjxmfistvzbe@aws-1-us-east-2.pooler.supabase.com:5432/postgres?sslmode=require"
-```
-
-`PGPASSWORD` + `sslmode=require` keeps the secret out of the process list and
-shell history.
+Use the **Session pooler** connection string from the Supabase Dashboard → **Project
+Settings → Database** (copy the exact host from there). Load the password from `supabase/.env`
+and pass it via `PGPASSWORD` with `sslmode=require` to keep the secret out of the process
+list and shell history. The exact working connection string is in the **private operator
+notes** (kept out of this public repo).
 
 ---
 

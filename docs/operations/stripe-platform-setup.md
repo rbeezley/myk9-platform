@@ -307,10 +307,11 @@ from show_payouts where show_id = '<show-id>';   -- want status='completed' + a 
 ```
 
 **psql access gotcha.** Writes (backdating, Vault, firing `net.http_post`) need a direct
-connection — the MCP SQL tool is read-only and can't even decrypt Vault. The correct
-Supavisor tenant host is **`aws-1-us-east-2.pooler.supabase.com:5432`**, user
-`postgres.sojmvhhwsjxmfistvzbe` (the `db.<ref>.supabase.co` CNAME misleadingly resolves to
-us-east-1, which rejects the tenant). Password: `supabase/.env` → `SUPABASE_DB_PASSWORD`.
+connection — the MCP SQL tool is read-only and can't even decrypt Vault. Use the **Session
+pooler** connection string from the Supabase Dashboard → **Project Settings → Database**, and
+copy the exact pooler host from there (the `db.<ref>.supabase.co` CNAME can resolve to the
+wrong region and reject the tenant). Password: `supabase/.env` → `SUPABASE_DB_PASSWORD`. The
+exact working host/user is in the **private operator notes** (kept out of this public repo).
 
 **Where to see results.** The completed payout appears in your **Payout Ledger at
 `/admin/payouts`** (Paid badge + transfer id) and in the club's own **My Club → Payments**.
@@ -322,32 +323,12 @@ A database trigger (migrations `20260609220000` + `20260611090000`) rejects any 
 service role — that's what stops a forged refund from shrinking a club's payout. The
 side effect: when an alert email tells you to "stamp the entry manually" or "clear the
 entry's refund columns" (refund issued but not recorded, or a refund that later
-**failed**), a plain SQL-editor UPDATE will hit `permission denied`. Wrap it:
-
-```sql
-begin;
-set local role service_role;
-
--- Record a refund that Stripe issued but the function failed to stamp:
-update public.entries
-set refund_amount = 30.00,            -- dollars, from the Stripe refund
-    refunded_at   = now(),
-    refund_notes  = 'manual reconcile: re_xxx',
-    payment_status = 'refunded'
-where id = '<entry-id>';
-
--- Or clear a stamp whose refund later FAILED (customer never paid):
--- update public.entries
--- set refund_amount = null, refunded_at = null, refund_notes = null,
---     payment_status = 'paid'
--- where id = '<entry-id>';
-
-commit;
-```
-
-`set local` scopes the role to the transaction — nothing to undo afterward. The same
-wrapper works for any other service-role-guarded column (e.g. `people.early_adopter_until`
-when granting founding members by SQL).
+**failed**), a plain SQL-editor UPDATE will hit `permission denied`. The exact reconciliation
+`UPDATE` statements and the privileged role-elevation wrapper they require are kept in the
+**private operator notes** (out of this public repo) — they only run with the service-role
+credential, so the recipe is useless without that key. The same wrapper applies to any other
+service-role-guarded column (e.g. `people.early_adopter_until` when granting founding members
+by SQL).
 
 ## Granting a founding member (12-month free premium)
 

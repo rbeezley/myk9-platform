@@ -107,7 +107,7 @@ export const TEST_USERS: Record<string, TestUser> = {
  * past the goto, leaving a "Loading…" body with no form yet).
  */
 async function gotoSignIn(page: Page, signInPath: string): Promise<void> {
-  const input = page.getByTestId('credential-input');
+  const input = credentialInput(page);
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     await page.goto(signInPath, { waitUntil: 'commit' });
@@ -155,8 +155,8 @@ export async function signIn(
   const params = new URLSearchParams({ returnTo });
   await gotoSignIn(page, `/sign-in?${params.toString()}`);
 
-  await page.getByTestId('credential-input').fill(email);
-  await page.getByTestId('continue-button').click();
+  await credentialInput(page).fill(email);
+  await continueButton(page).click();
 
   // The email branch reveals the password sub-form ("we'll ask for your
   // password next"); wait for it before filling.
@@ -214,6 +214,20 @@ export const signInAsJudge = (page: Page, returnTo = '/') =>
 /** Exhibitor wrapper uses the protected demo account with seeded dogs. */
 export const signInAsExhibitor = (page: Page, returnTo = '/') =>
   signIn(page, TEST_USERS.DEMO_EXHIBITOR.email, TEST_USERS.DEMO_EXHIBITOR.password, returnTo);
+
+function credentialInput(page: Page) {
+  return page
+    .getByTestId('credential-input')
+    .or(page.getByRole('textbox', { name: /Email or show passcode/i }))
+    .first();
+}
+
+function continueButton(page: Page) {
+  return page
+    .getByTestId('continue-button')
+    .or(page.getByRole('button', { name: 'Continue', exact: true }))
+    .first();
+}
 
 /**
  * Sign out the current user.

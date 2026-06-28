@@ -143,12 +143,14 @@ Establishes what's actually broken before more UI changes land.
 2. **Sandbox pre-flight** — **DONE 2026-06-27.** `STRIPE_WEBHOOK_SECRET` + the Connect webhook
    secret are set and `stripe-webhook` processes events — proven by the live sandbox entry payment
    in #3 (the 2026-06-09 "secret missing, webhook 500s" note is stale).
-3. **Sandbox end-to-end walkthrough** — **DONE 2026-06-27 (except the refund step).** Heartland club
-   onboarded to `payouts_enabled` (Connect `account.updated` webhook verified) → real entry payment
-   (card `4242…`, $32.10) → `checkout.session.completed` webhook flipped the entry to `paid` + wrote
-   `stripe_orders` → manual run of `cron-process-payouts` → `show_payouts` row `completed`, real
-   transfer `tr_1Tn6rZAIej2Q9UtXrzfsggkS`. **Still pending:** the secretary *refund* step (would prove
-   the payout deduction $90→$60). Do not proceed to live mode without that final piece.
+3. **Sandbox end-to-end walkthrough** — **DONE 2026-06-27 (full loop).** Heartland club onboarded to
+   `payouts_enabled` (Connect `account.updated` webhook verified) → real entry payment (card `4242…`,
+   $32.10) → `checkout.session.completed` webhook flipped the entry to `paid` + wrote `stripe_orders` →
+   manual run of `cron-process-payouts` → `show_payouts` row `completed`, real transfer
+   `tr_1Tn6rZAIej2Q9UtXrzfsggkS`. **Secretary refund verified too:** while the payout exists the refund
+   is correctly blocked (`422 payout_already_sent`); after clearing the payout row the refund succeeds
+   (Stripe `re_3Tmyb…`, $30) and stamps the entry `refunded`, and the payout math recomputes $90→$60
+   (deduction confirmed). Whole sandbox loop proven end-to-end.
 4. **Go-live live-mode tasks** — *after #3 passes.* Dashboard toggle: live mode ON. Three things:
    (a) Enable Connect in live mode (may require a short Stripe review — plan a few days of buffer);
    (b) live webhook endpoint + `supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_<live>`;

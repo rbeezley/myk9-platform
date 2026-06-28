@@ -28,6 +28,12 @@ const validationBanner = read(
     '../../../pages/secretary/ShowCreationWizard/WizardValidationBanner.tsx'
   )
 );
+const wizardPage = read(
+  path.join(__dirname, '../../../pages/secretary/ShowCreationWizardPage.tsx')
+);
+const wizardNavigation = read(
+  path.join(__dirname, '../../../components/shows/wizard/components/WizardNavigation.tsx')
+);
 
 describe('Show creation wizard — dark-mode theming guards', () => {
   it('ReviewStep error card and stats use semantic tokens (no hand-paired dark: variants)', () => {
@@ -70,6 +76,18 @@ describe('Show creation wizard — dark-mode theming guards', () => {
     expect(validationBanner).toContain('bg-warning/10');
     expect(validationBanner).not.toContain('from-amber-');
     expect(validationBanner).not.toContain('backdrop-blur');
+  });
+
+  it('"Leave Wizard" confirm action uses the semantic warning token, not raw amber palette', () => {
+    // A caution action (discarding unsaved work) — the --warning token is
+    // AA-verified in both modes; raw bg-amber-500 had no dark counterpart and a
+    // weaker tint-contrast (DESIGN.md index.css line 230).
+    expect(wizardPage).toContain('bg-warning text-warning-foreground hover:bg-warning/90');
+    expect(wizardPage).not.toContain('bg-amber-500');
+  });
+
+  it('Wizard nav loading spinner uses an adaptive token, not raw border-white', () => {
+    expect(wizardNavigation).not.toContain('border-white');
   });
 });
 

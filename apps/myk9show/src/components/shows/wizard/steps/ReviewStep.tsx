@@ -472,7 +472,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                           <div className="text-xs text-muted-foreground">Classes</div>
                         </div>
                         <div>
-                          <div className="text-lg font-semibold text-success ">
+                          <div className="text-lg font-semibold text-success">
                             {
                               trial.classes.filter(cls => cls.judgeId && judgeDetails[cls.judgeId])
                                 .length

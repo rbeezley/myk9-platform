@@ -21,10 +21,10 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
 // secretary can act on.
 const ERROR_MESSAGES: Record<string, string> = {
   payout_already_sent:
-    'This show’s entry fees have already been paid out to the club — settle this refund directly with the club.',
-  payout_in_progress: 'A payout to the club is in flight — try again after it completes.',
+    'This show’s entry fees have already been paid out to the club. Settle this refund directly with the club.',
+  payout_in_progress: 'A payout to the club is in flight. Try again after it completes.',
   not_refundable: 'This entry has no refundable payment (it may already be refunded).',
-  not_online_payment: 'This entry wasn’t paid online — refund it the way it was paid.',
+  not_online_payment: 'This entry wasn’t paid online. Refund it the way it was paid.',
   missing_payment_intent: 'This entry predates online payments and can’t be refunded through Stripe.',
   amount_exceeds_fee: 'The refund can’t exceed the entry fee.',
   invalid_amount: 'Enter a refund amount greater than zero.',
@@ -75,10 +75,10 @@ export function RefundEntryDialog({ open, onOpenChange, entry, onRefunded }: Ref
   const policyMessage = !suggestion?.hasPolicy
     ? null
     : suggestion.reason === 'after_cutoff'
-      ? `Withdrawal policy: past the refund cutoff — $${(suggestion.retainedCents / 100).toFixed(2)} is retained. Suggested refund $${(suggestion.refundCents / 100).toFixed(2)} (override below if needed).`
+      ? `Withdrawal policy: past the refund cutoff. $${(suggestion.retainedCents / 100).toFixed(2)} is retained. Suggested refund $${(suggestion.refundCents / 100).toFixed(2)} (override below if needed).`
       : suggestion.reason === 'before_cutoff'
-        ? 'Withdrawal policy: within the full-refund window — full refund suggested.'
-        : 'A withdrawal policy was recorded at payment, but the amount needs your judgment — set it below.';
+        ? 'Withdrawal policy: within the full-refund window. Full refund suggested.'
+        : 'A withdrawal policy was recorded at payment, but the amount needs your judgment. Set it below.';
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
@@ -154,7 +154,7 @@ export function RefundEntryDialog({ open, onOpenChange, entry, onRefunded }: Ref
           <DialogTitle>Refund entry payment</DialogTitle>
           <DialogDescription>
             {entry
-              ? `${entry.dogName ?? 'This entry'} — $${fee.toFixed(2)} paid online. The platform fee is not refunded. Refunds can only be issued once per entry.`
+              ? `${entry.dogName ?? 'This entry'}: $${fee.toFixed(2)} paid online. The platform fee is not refunded. Refunds can only be issued once per entry.`
               : ''}
           </DialogDescription>
         </DialogHeader>
@@ -169,7 +169,7 @@ export function RefundEntryDialog({ open, onOpenChange, entry, onRefunded }: Ref
           <RadioGroup value={mode} onValueChange={value => setMode(value as 'full' | 'partial')}>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="full" id="refund-full" />
-              <Label htmlFor="refund-full">Full refund — ${fee.toFixed(2)}</Label>
+              <Label htmlFor="refund-full">Full refund: ${fee.toFixed(2)}</Label>
             </div>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="partial" id="refund-partial" />

@@ -36,58 +36,14 @@ import { supabase } from '@/services/database/supabaseClient';
 import { listFormatters, AKCScentWorkFormatter } from '@myk9/secretary';
 import { useAKCSubmissionData } from '@/hooks/queries/useAKCSubmissionData';
 import { useResultSubmission, useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
-import type { ResultSubmissionRow } from '@/hooks/mutations/useResultSubmission';
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function buildFilename(showName: string): string {
-  const rawSlug = showName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '');
-  // A name made entirely of non-ASCII characters (CJK, emoji) slugs to empty,
-  // which would yield a leading-dash "-Results_…" filename; fall back instead.
-  const slug = rawSlug.slice(0, 80) || 'Show';
-  const ts = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
-  return `${slug}-Results_${ts}.xml`;
-}
-
-function downloadXml(xml: string, filename: string): void {
-  const blob = new Blob([xml], { type: 'application/xml' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function statusVariant(
-  status: ResultSubmissionRow['status']
-): 'default' | 'secondary' | 'destructive' {
-  if (status === 'sent') return 'default';
-  if (status === 'failed') return 'destructive';
-  return 'secondary';
-}
-
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString();
-  } catch {
-    return iso;
-  }
-}
-
-// Human label for a formatter — e.g. { organization: 'AKC', sportType: 'scent_work' }
-// renders "AKC Scent Work". Used for both the option list and the collapsed
-// trigger so they never diverge; without an explicit label the Base UI trigger
-// echoes the raw `organization:sportType` value verbatim ("AKC:scent_work").
-function formatFormatterLabel(f: { organization: string; sportType: string }): string {
-  const sport = f.sportType
-    .split('_')
-    .map(word => (word ? word[0].toUpperCase() + word.slice(1) : word))
-    .join(' ');
-  return `${f.organization} ${sport}`.trim();
-}
+import {
+  buildFilename,
+  downloadXml,
+  statusVariant,
+  statusLabel,
+  formatDate,
+  formatFormatterLabel,
+} from './helpers';
 
 // ---------------------------------------------------------------------------
 // Component
@@ -106,6 +62,8 @@ export default function ResultsSubmissionPage() {
   const [sendSuccess, setSendSuccess] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showMarkConfirm, setShowMarkConfirm] = useState(false);
+  const [markSuccess, setMarkSuccess] = useState(false);
 
   const activeFormatter = formatters.find(f => `${f.organization}:${f.sportType}` === formatterKey);
   const selectedOrgLabel = activeFormatter ? formatFormatterLabel(activeFormatter) : undefined;
@@ -126,6 +84,19 @@ export default function ResultsSubmissionPage() {
 
   const filename = show ? buildFilename(show.name) : 'results.xml';
 
+  // "Mark as submitted" records a submission the secretary made elsewhere (the
+  // org's portal, etc.) — it emails nothing. Block it when we *know* there's
+  // nothing to record: for AKC scent work we have the entry data on hand, so
+  // require a finished load with at least one entry. This closes the phantom
+  // log where the auto-selected formatter satisfied the old showId+formatter
+  // gate and one stray click recorded a zero-entry submission on page load.
+  // Other orgs don't fetch entries here, so the confirmation dialog is the
+  // guard against an accidental record.
+  const markSubmittedDisabled =
+    !showId ||
+    !activeFormatter ||
+    (isAKCScentWork && (isAKCLoading || !akcData || akcData.entries.length === 0));
+
   const { mutate: recordSubmission } = useResultSubmission(showId);
 
   const { data: history = [], isLoading: historyLoading } = useResultSubmissions(showId ?? '');
@@ -145,6 +116,7 @@ export default function ResultsSubmissionPage() {
 
     setSendError(null);
     setSendSuccess(false);
+    setMarkSuccess(false);
     setIsSending(true);
     setShowConfirm(false);
 
@@ -181,14 +153,35 @@ export default function ResultsSubmissionPage() {
   };
 
   const handleMarkSubmitted = () => {
-    if (!showId || !activeFormatter) return;
-    recordSubmission({
-      show_id: showId,
-      organization: activeFormatter.organization,
-      sport_type: activeFormatter.sportType,
-      xml_payload: xmlPreview || null,
-      status: 'sent',
-    });
+    if (markSubmittedDisabled || !showId || !activeFormatter) return;
+    setSendSuccess(false);
+    setSendError(null);
+    setMarkSuccess(false);
+    recordSubmission(
+      {
+        show_id: showId,
+        organization: activeFormatter.organization,
+        sport_type: activeFormatter.sportType,
+        // Distinct from a `sent` email so the history reads honestly and the
+        // record isn't mistaken for an electronic submission from the app.
+        xml_payload: xmlPreview || null,
+        status: 'submitted',
+      },
+      {
+        onSuccess: () => {
+          setShowMarkConfirm(false);
+          setMarkSuccess(true);
+        },
+        onError: err => {
+          const message = err instanceof Error ? err.message : 'Please try again.';
+          setSendError(
+            message.startsWith('Failed to record submission')
+              ? message
+              : `Failed to record submission. ${message}`
+          );
+        },
+      }
+    );
   };
 
   return (
@@ -228,7 +221,12 @@ export default function ResultsSubmissionPage() {
           </Select>
         </div>
 
-        <div className="flex flex-wrap gap-2 pb-0.5">
+        {/* Two distinct intents live here, so the layout separates them rather
+            than rendering three peer buttons. Left group = "deliver the file
+            from here" (email now / save a copy). After a divider, the lone
+            "Mark as submitted" = "I already filed these elsewhere; just log
+            it." The helper line below names the difference in words. */}
+        <div className="flex flex-wrap items-center gap-2 pb-0.5">
           {activeFormatter?.submissionEmail && (
             <>
               <Button
@@ -272,22 +270,78 @@ export default function ResultsSubmissionPage() {
           >
             Download XML
           </Button>
+
+          {/* Divider sets the record-keeping action apart from the deliver-the-
+              file actions so it never reads as another way to "send". */}
+          <div
+            aria-hidden="true"
+            className="mx-1 hidden h-8 w-px self-center bg-border sm:block"
+          />
+
           <Button
             variant="outline"
             className="min-h-[44px]"
-            onClick={handleMarkSubmitted}
-            disabled={!showId || !activeFormatter}
+            onClick={() => setShowMarkConfirm(true)}
+            disabled={markSubmittedDisabled}
             data-testid="mark-submitted-btn"
           >
-            Mark as Submitted
+            Mark as submitted
           </Button>
+          <AlertDialog open={showMarkConfirm} onOpenChange={setShowMarkConfirm}>
+            <AlertDialogContent data-testid="mark-confirm-dialog">
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  Mark results as submitted to {activeFormatter?.organization}?
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  This records that you already submitted these results to{' '}
+                  {activeFormatter?.organization} through their portal or another method.{' '}
+                  <span className="font-medium">It does not email anything.</span>
+                  {isAKCScentWork && akcData && akcData.entries.length > 0 && (
+                    <> {akcData.entries.length} entries will be logged with this record.</>
+                  )}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleMarkSubmitted} data-testid="mark-confirm-btn">
+                  Mark as submitted
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
+
+        {/* Plain-language contrast between the two intents, branched on whether
+            the org accepts an in-app email submission at all. */}
+        {activeFormatter && (
+          <p className="w-full text-xs text-muted-foreground" data-testid="action-help">
+            {activeFormatter.submissionEmail ? (
+              <>
+                <span className="font-medium">Send to {activeFormatter.organization}</span> emails
+                the file now. Already filed these results through{' '}
+                {activeFormatter.organization}&apos;s portal?{' '}
+                <span className="font-medium">Mark as submitted</span> just logs it here.
+              </>
+            ) : (
+              <>
+                Download the file and submit it through {activeFormatter.organization}&apos;s portal,
+                then use <span className="font-medium">Mark as submitted</span> to log it here.
+              </>
+            )}
+          </p>
+        )}
       </div>
 
       {/* Send feedback */}
       {sendSuccess && (
         <p className="text-sm text-success " role="status" data-testid="send-success">
           Results sent successfully. A copy was CC&apos;d to your email.
+        </p>
+      )}
+      {markSuccess && (
+        <p className="text-sm text-success" role="status" data-testid="mark-success">
+          Recorded as submitted. It appears in your submission history below.
         </p>
       )}
       {sendError && (
@@ -424,9 +478,7 @@ export default function ResultsSubmissionPage() {
                       {formatDate(row.submitted_at)}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={statusVariant(row.status)} className="capitalize">
-                        {row.status}
-                      </Badge>
+                      <Badge variant={statusVariant(row.status)}>{statusLabel(row.status)}</Badge>
                     </TableCell>
                   </TableRow>
                 ))}

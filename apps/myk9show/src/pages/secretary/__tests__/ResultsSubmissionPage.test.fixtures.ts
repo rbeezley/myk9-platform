@@ -9,7 +9,7 @@ export type SubmissionHistoryRow = {
   submitted_at: string;
   submitted_by: string | null;
   xml_payload: string | null;
-  status: 'pending' | 'sent' | 'failed';
+  status: 'pending' | 'sent' | 'submitted' | 'failed';
 };
 
 export function makeHistoryRow(

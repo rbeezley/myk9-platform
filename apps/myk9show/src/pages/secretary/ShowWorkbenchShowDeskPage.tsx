@@ -142,7 +142,12 @@ export function ShowWorkbenchShowDeskPage() {
   );
 
   const showMapTrials = useMemo(() => {
-    const sentSubmissions = resultSubmissions.filter(row => row.status === 'sent');
+    // Both an emailed submission (`sent`) and a manually-recorded one
+    // (`submitted`, filed through the org's portal) mean results are in to the
+    // org — count either as "submitted" for the show-map readiness stamp.
+    const sentSubmissions = resultSubmissions.filter(
+      row => row.status === 'sent' || row.status === 'submitted'
+    );
     const showSubmittedAt = sentSubmissions.find(row => !row.trial_id)?.submitted_at;
 
     return associatedTrials.map(trial => ({

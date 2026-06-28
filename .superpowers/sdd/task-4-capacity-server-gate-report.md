@@ -62,3 +62,42 @@ Commit-gate checks:
 - The schema does not expose an existing online overflow policy that chooses waitlist vs deny. I did not invent `overflow_policy` or `judge_day_entry_limit` columns.
 - When a paid cart item is blocked by the server capacity gate, the webhook now prevents the overbooked entry insert and falls into the existing paid-but-missing-entry alert/reconciliation path. That path asks an operator to verify and refund or manually reconcile; it is not an automatic line-item refund.
 - This slice is source-tested rather than DB-executed locally; no local Supabase database was pushed or mutated.
+
+---
+
+# P1 Review Fix — Overflow Outcomes + Paid-Only Orders
+
+Status: DONE
+
+## Implementation
+
+- Updated `create_online_paid_entry(...)` to return an explicit outcome: `created_entry`, `waitlisted`, or `denied`.
+- Kept the judge-day advisory-lock gate and existing `get_judge_day_capacity(...)` semantics, so online self-service still cannot consume the mail-in reserve.
+- Used `classes.allow_waitlist` as the overflow policy:
+  - `allow_waitlist=true` inserts a `waitlist_entries` row with `joined_via='online'`.
+  - `allow_waitlist=false` returns `denied` without inserting a paid entry.
+- Added `cartOverflowRefund` pure refund policy for no-service cart lines, including each denied/waitlisted/failed line's prorated platform-fee share.
+- Updated `stripe-webhook` cart handling to:
+  - auto-refund denied/waitlisted/no-service overflow lines when the amount is derivable,
+  - record only paid-entry IDs in `stripe_orders.entry_ids`,
+  - set `stripe_orders.amount_cents` to the paid-entry service amount rather than the full collected amount,
+  - store explicit overflow metadata (`collected_amount_cents`, `overflow_refund`, waitlisted/denied/failed cart item IDs),
+  - skip false duplicate-charge alerts for valid zero-paid-entry overflow orders.
+
+## Tests / Verification
+
+- `pnpm exec vitest run src/test/database/stripeWebhookCapacityGate.source.test.ts supabase/functions/_shared/cartOverflowRefund.test.ts`
+  - Result: 2 files passed, 11 tests passed.
+- `pnpm exec vitest run src/test/database/stripeWebhookCapacityGate.source.test.ts src/test/database/stripeWebhookEntryClaim.source.test.ts src/test/database/stripeWebhookWithdrawalSnapshot.source.test.ts src/test/database/stripeWebhookEntryPaymentRequest.source.test.ts supabase/functions/_shared/cartOverflowRefund.test.ts`
+  - Result: 5 files passed, 30 tests passed.
+- `pnpm typecheck`
+  - Result: passed.
+- `pnpm lint`
+  - Result: passed.
+- `git diff --check`
+  - Result: clean.
+
+## Concerns / Limits
+
+- This was verified with source/pure tests only; no Supabase DB push or shared-system mutation was run.
+- The waitlist insert intentionally mirrors the existing `add_to_waitlist` positioning/channel semantics inside the service-role-only capacity RPC so the waitlist write shares the capacity decision path.

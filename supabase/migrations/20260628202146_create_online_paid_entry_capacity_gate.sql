@@ -7,6 +7,10 @@
 -- same judge-day advisory lock used by waitlist promotion, checking
 -- available_spots, and inserting the entry in one transaction.
 
+DROP FUNCTION IF EXISTS public.create_online_paid_entry(
+  uuid, uuid, uuid, numeric, text, text, text, timestamptz, uuid, uuid
+);
+
 CREATE OR REPLACE FUNCTION public.create_online_paid_entry(
   p_dog_id uuid,
   p_class_id uuid,
@@ -17,9 +21,14 @@ CREATE OR REPLACE FUNCTION public.create_online_paid_entry(
   p_payment_intent_id text,
   p_submitted_at timestamptz,
   p_show_id uuid,
-  p_trial_id uuid
+  p_trial_id uuid,
+  p_exhibitor_id uuid
 )
-RETURNS public.entries
+RETURNS TABLE (
+  outcome text,
+  entry_id uuid,
+  waitlist_entry_id uuid
+)
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
@@ -28,12 +37,15 @@ DECLARE
   v_show_id uuid;
   v_trial_id uuid;
   v_trial_date date;
+  v_allow_waitlist boolean;
   v_judge_id uuid;
   v_judge_capacity record;
   v_entry public.entries;
+  v_waitlist_entry public.waitlist_entries;
+  v_waitlist_position integer;
 BEGIN
-  SELECT c.trial_id, t.show_id, t.date
-  INTO v_trial_id, v_show_id, v_trial_date
+  SELECT c.trial_id, t.show_id, t.date, COALESCE(c.allow_waitlist, false)
+  INTO v_trial_id, v_show_id, v_trial_date, v_allow_waitlist
   FROM public.classes c
   JOIN public.trials t ON t.id = c.trial_id
   WHERE c.id = p_class_id;
@@ -72,8 +84,45 @@ BEGIN
     LIMIT 1;
 
     IF COALESCE(v_judge_capacity.available_spots, 0) <= 0 THEN
-      RAISE EXCEPTION 'Judge-day capacity is full'
-        USING errcode = '23514';
+      IF NOT v_allow_waitlist THEN
+        outcome := 'denied';
+        entry_id := NULL;
+        waitlist_entry_id := NULL;
+        RETURN NEXT;
+        RETURN;
+      END IF;
+
+      PERFORM pg_advisory_xact_lock(hashtext(p_class_id::text));
+
+      SELECT COALESCE(MAX(position), 0) + 1
+      INTO v_waitlist_position
+      FROM public.waitlist_entries
+      WHERE class_id = p_class_id
+        AND status = 'waiting';
+
+      INSERT INTO public.waitlist_entries (
+        class_id,
+        exhibitor_id,
+        dog_id,
+        handler_id,
+        position,
+        joined_via
+      )
+      VALUES (
+        p_class_id,
+        p_exhibitor_id,
+        p_dog_id,
+        p_handler_id,
+        v_waitlist_position,
+        'online'
+      )
+      RETURNING * INTO v_waitlist_entry;
+
+      outcome := 'waitlisted';
+      entry_id := NULL;
+      waitlist_entry_id := v_waitlist_entry.id;
+      RETURN NEXT;
+      RETURN;
     END IF;
   END LOOP;
 
@@ -109,15 +158,18 @@ BEGIN
   )
   RETURNING * INTO v_entry;
 
-  RETURN v_entry;
+  outcome := 'created_entry';
+  entry_id := v_entry.id;
+  waitlist_entry_id := NULL;
+  RETURN NEXT;
 END;
 $$;
 
 REVOKE ALL ON FUNCTION public.create_online_paid_entry(
-  uuid, uuid, uuid, numeric, text, text, text, timestamptz, uuid, uuid
+  uuid, uuid, uuid, numeric, text, text, text, timestamptz, uuid, uuid, uuid
 ) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.create_online_paid_entry(
-  uuid, uuid, uuid, numeric, text, text, text, timestamptz, uuid, uuid
+  uuid, uuid, uuid, numeric, text, text, text, timestamptz, uuid, uuid, uuid
 ) TO service_role;
 
 NOTIFY pgrst, 'reload schema';

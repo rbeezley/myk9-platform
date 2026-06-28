@@ -19,6 +19,10 @@ import {
   type ShowWithdrawalColumns,
   type ClubWithdrawalColumns,
 } from '../_shared/withdrawalPolicy.ts';
+import {
+  decideCartOverflowRefund,
+  type CartOverflowRefundDecision,
+} from '../_shared/cartOverflowRefund.ts';
 
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
@@ -40,6 +44,20 @@ const stripe = new Stripe(stripeSecret, {
 });
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+type OnlinePaidEntryCapacityOutcome = {
+  outcome: 'created_entry' | 'waitlisted' | 'denied';
+  entry_id: string | null;
+  waitlist_entry_id: string | null;
+};
+
+type CartOverflowLine = {
+  cartItemId: string;
+  classId: string;
+  dogId: string;
+  waitlistEntryId?: string;
+  errorMessage?: string;
+};
 
 Deno.serve(async req => {
   try {
@@ -232,7 +250,10 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
   const allFromAppRefund =
     refunds.length > 0 &&
     refunds.every(
-      r => r.metadata?.entry_id || r.metadata?.type === 'entry_payment_request_auto_refund'
+      r =>
+        r.metadata?.entry_id ||
+        r.metadata?.type === 'entry_payment_request_auto_refund' ||
+        r.metadata?.type === 'entry_cart_overflow_auto_refund'
     );
   if (allFromAppRefund) {
     console.log(
@@ -636,6 +657,15 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     // cart is a real duplicate CHARGE with nothing to show for it (Codex P1).
     // Distinguish them by whether this intent created any entries.
     const dupIntentId = extractPaymentIntentId(session.payment_intent);
+    const { data: existingOrder } = await supabase
+      .from('stripe_orders')
+      .select('id')
+      .eq('stripe_checkout_session_id', session.id)
+      .maybeSingle();
+    if (existingOrder) {
+      console.log(`Cart ${cartId} already processed with order ${existingOrder.id} — skipping`);
+      return;
+    }
     if (dupIntentId) {
       const { data: intentEntries } = await supabase
         .from('entries')
@@ -687,11 +717,18 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   // the owner-writable item rows.
   const paymentIntentId = extractPaymentIntentId(session.payment_intent);
   const entryIds: string[] = [];
+  const paidLineIds: string[] = [];
+  const noServiceLineIds: string[] = [];
+  const lineAmountsById = new Map<string, number>();
+  const waitlistedLines: CartOverflowLine[] = [];
+  const deniedLines: CartOverflowLine[] = [];
+  const failedLines: CartOverflowLine[] = [];
   for (const item of cart.items) {
+    const lineAmountCents = authoritativeByClass.get(item.class_id) ?? item.entry_fee_cents;
     const entryInsert = buildEntryInsert(
       {
         ...item,
-        entry_fee_cents: authoritativeByClass.get(item.class_id) ?? item.entry_fee_cents,
+        entry_fee_cents: lineAmountCents,
       },
       paymentIntentId,
       new Date().toISOString(),
@@ -700,49 +737,98 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
         trialId: trialByClass.get(item.class_id) ?? null,
       }
     );
-    const { data: entry, error: entryError } = await supabase
-      .rpc('create_online_paid_entry', {
-        p_dog_id: entryInsert.dog_id,
-        p_class_id: entryInsert.class_id,
-        p_handler_id: entryInsert.handler_id,
-        p_entry_fee: entryInsert.entry_fee,
-        p_jump_height: entryInsert.jump_height,
-        p_special_requests: entryInsert.special_requests,
-        p_payment_intent_id: entryInsert.stripe_payment_intent_id,
-        p_submitted_at: entryInsert.submitted_at,
-        p_show_id: entryInsert.show_id,
-        p_trial_id: entryInsert.trial_id,
-      });
+    const { data: entry, error: entryError } = await supabase.rpc('create_online_paid_entry', {
+      p_dog_id: entryInsert.dog_id,
+      p_class_id: entryInsert.class_id,
+      p_handler_id: entryInsert.handler_id,
+      p_entry_fee: entryInsert.entry_fee,
+      p_jump_height: entryInsert.jump_height,
+      p_special_requests: entryInsert.special_requests,
+      p_payment_intent_id: entryInsert.stripe_payment_intent_id,
+      p_submitted_at: entryInsert.submitted_at,
+      p_show_id: entryInsert.show_id,
+      p_trial_id: entryInsert.trial_id,
+      p_exhibitor_id: cart.exhibitor.id,
+    });
 
     if (entryError) {
       console.error(`Error creating entry for cart item ${item.id}:`, entryError);
+      noServiceLineIds.push(item.id);
+      lineAmountsById.set(item.id, lineAmountCents);
+      failedLines.push({
+        cartItemId: item.id,
+        classId: item.class_id,
+        dogId: item.dog_id,
+        errorMessage: entryError.message,
+      });
       continue;
     }
 
-    if (entry) {
-      entryIds.push(entry.id);
+    const outcome = normalizeCapacityOutcome(entry);
+    if (!outcome) {
+      console.error(`Capacity RPC returned no outcome for cart item ${item.id}`);
+      noServiceLineIds.push(item.id);
+      lineAmountsById.set(item.id, lineAmountCents);
+      failedLines.push({
+        cartItemId: item.id,
+        classId: item.class_id,
+        dogId: item.dog_id,
+        errorMessage: 'Capacity RPC returned no outcome',
+      });
+    } else if (outcome.outcome === 'created_entry' && outcome.entry_id) {
+      entryIds.push(outcome.entry_id);
+      paidLineIds.push(outcome.entry_id);
+      lineAmountsById.set(outcome.entry_id, lineAmountCents);
+    } else if (outcome.outcome === 'waitlisted' && outcome.waitlist_entry_id) {
+      noServiceLineIds.push(item.id);
+      lineAmountsById.set(item.id, lineAmountCents);
+      waitlistedLines.push({
+        cartItemId: item.id,
+        classId: item.class_id,
+        dogId: item.dog_id,
+        waitlistEntryId: outcome.waitlist_entry_id,
+      });
+    } else {
+      noServiceLineIds.push(item.id);
+      lineAmountsById.set(item.id, lineAmountCents);
+      deniedLines.push({ cartItemId: item.id, classId: item.class_id, dogId: item.dog_id });
     }
   }
 
   // Freeze the withdrawal policy these entries were paid under (best-effort).
   await stampWithdrawalSnapshot(entryIds, cart.show_id);
 
-  if (entryIds.length !== cart.items.length) {
-    // Stripe already received its 200, so it will NOT retry this event: the
-    // exhibitor has paid for entries that do not exist. Surface loudly.
+  const overflowRefundDecision = decideCartOverflowRefund({
+    paymentIntentId,
+    sessionAmountTotalCents: freshTotalCents,
+    paidLineIds,
+    noServiceLineIds,
+    lineAmountsById,
+  });
+  const paidOrderAmountCents =
+    overflowRefundDecision.paidAmountCents ??
+    paidLineIds.reduce((sum, id) => sum + (lineAmountsById.get(id) ?? 0), 0);
+  const paidEntrySubtotalCents = paidLineIds.reduce(
+    (sum, id) => sum + (lineAmountsById.get(id) ?? 0),
+    0
+  );
+
+  if (noServiceLineIds.length > 0) {
     console.error(
-      `CRITICAL: cart ${cartId} paid (${paymentIntentId ?? 'no intent'}) but only ` +
-        `${entryIds.length}/${cart.items.length} entries were created — manual reconciliation required`
+      `Cart ${cartId} paid (${paymentIntentId ?? 'no intent'}) with ` +
+        `${entryIds.length}/${cart.items.length} paid entries, ` +
+        `${waitlistedLines.length} waitlisted, ${deniedLines.length} denied, ` +
+        `${failedLines.length} failed`
     );
     await alertAdmin(
-      'Paid entries missing — manual reconciliation needed',
+      'Paid cart had overflow lines',
       `<p>Cart <code>${cartId}</code> was PAID (payment intent
-       <code>${paymentIntentId ?? 'unknown'}</code>), but only
-       ${entryIds.length} of ${cart.items.length} entries were created. Stripe will
-       not retry this event.</p>
-       <p>Recovery: compare the cart's items against the show's entries and create
-       the missing ones manually, or refund the difference from the Stripe
-       dashboard (Payments → search the intent id → Refund).</p>`
+       <code>${paymentIntentId ?? 'unknown'}</code>) and the server capacity gate
+       created ${entryIds.length} paid entries, ${waitlistedLines.length} waitlist rows,
+       and ${deniedLines.length} denied lines. Failed no-service lines:
+       ${failedLines.length}.</p>
+       <p>The webhook will auto-refund the denied/waitlisted/no-service share when
+       it can derive the amount.</p>`
     );
   }
 
@@ -753,16 +839,26 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     customer_id: stripeCustomer?.id || null,
     stripe_payment_intent_id: paymentIntentId,
     stripe_checkout_session_id: session.id,
-    // freshTotalCents was verified against both the Stripe API and
-    // authoritative pricing above — use it as the source of record.
-    // cart.total_cents is owner-writable and must not drive payment history.
-    amount_cents: freshTotalCents ?? 0,
+    // Record only the paid-entry service amount. Denied/waitlisted/no-service
+    // cart lines are explicit metadata and never masquerade as paid entry_ids.
+    amount_cents: paidOrderAmountCents,
     currency: session.currency || 'usd',
     status: 'succeeded',
     order_type: 'entry',
     metadata: {
       cart_id: cartId,
       entry_count: entryIds.length,
+      paid_entry_count: entryIds.length,
+      collected_amount_cents: freshTotalCents ?? 0,
+      paid_amount_cents: paidOrderAmountCents,
+      paid_entry_subtotal_cents: paidEntrySubtotalCents,
+      overflow_refund: serializeCartOverflowRefundDecision(overflowRefundDecision),
+      waitlisted_cart_item_ids: waitlistedLines.map(line => line.cartItemId),
+      waitlist_entry_ids: waitlistedLines
+        .map(line => line.waitlistEntryId)
+        .filter((id): id is string => Boolean(id)),
+      denied_cart_item_ids: deniedLines.map(line => line.cartItemId),
+      failed_cart_item_ids: failedLines.map(line => line.cartItemId),
     },
     show_id: cart.show_id,
     entry_ids: entryIds,
@@ -829,14 +925,26 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     );
   }
 
+  if (noServiceLineIds.length > 0) {
+    await issueCartOverflowAutoRefund({
+      session,
+      paymentIntentId,
+      decision: overflowRefundDecision,
+      invalidCartItemIds: noServiceLineIds,
+      waitlistedCartItemIds: waitlistedLines.map(line => line.cartItemId),
+      deniedCartItemIds: deniedLines.map(line => line.cartItemId),
+      failedCartItemIds: failedLines.map(line => line.cartItemId),
+    });
+  }
+
   console.log(`Entry payment completed for cart ${cartId}, created order`);
 
   // Send confirmation email. Pass authoritative totals — cart snapshot totals
   // are owner-writable and must not appear on a payment receipt.
   await sendEntryConfirmationEmail(cart, entryIds, session, {
-    subtotalCents: authoritativeSubtotal,
-    platformFeeCents: authoritativeTotal - authoritativeSubtotal,
-    totalCents: authoritativeTotal,
+    subtotalCents: paidEntrySubtotalCents,
+    platformFeeCents: Math.max(0, paidOrderAmountCents - paidEntrySubtotalCents),
+    totalCents: paidOrderAmountCents,
   });
 }
 
@@ -1322,6 +1430,157 @@ async function issueEntryPaymentAutoRefund(input: {
        ${(input.amountCents / 100).toFixed(2)} USD, but Stripe refund creation failed:</p>
        <pre>${message}</pre>
        <p>Recovery: refund payment intent <code>${input.paymentIntentId}</code> manually.</p>`
+    );
+  }
+}
+
+function normalizeCapacityOutcome(data: unknown): OnlinePaidEntryCapacityOutcome | null {
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row || typeof row !== 'object') return null;
+
+  const candidate = row as {
+    outcome?: unknown;
+    entry_id?: unknown;
+    waitlist_entry_id?: unknown;
+  };
+  if (
+    candidate.outcome !== 'created_entry' &&
+    candidate.outcome !== 'waitlisted' &&
+    candidate.outcome !== 'denied'
+  ) {
+    return null;
+  }
+
+  return {
+    outcome: candidate.outcome,
+    entry_id: typeof candidate.entry_id === 'string' ? candidate.entry_id : null,
+    waitlist_entry_id:
+      typeof candidate.waitlist_entry_id === 'string' ? candidate.waitlist_entry_id : null,
+  };
+}
+
+function serializeCartOverflowRefundDecision(decision: CartOverflowRefundDecision) {
+  if (decision.action === 'none') {
+    return {
+      action: decision.action,
+      paid_amount_cents: decision.paidAmountCents,
+    };
+  }
+  if (decision.action === 'refund') {
+    return {
+      action: decision.action,
+      amount_cents: decision.amountCents,
+      paid_amount_cents: decision.paidAmountCents,
+      reason: decision.reason,
+    };
+  }
+  if (decision.action === 'needs_manual_amount') {
+    return {
+      action: decision.action,
+      missing_line_ids: decision.missingLineIds,
+      paid_amount_cents: decision.paidAmountCents,
+    };
+  }
+  return {
+    action: decision.action,
+    reason: decision.reason,
+    paid_amount_cents: decision.paidAmountCents,
+  };
+}
+
+async function issueCartOverflowAutoRefund(input: {
+  session: Stripe.Checkout.Session;
+  paymentIntentId: string | null;
+  decision: CartOverflowRefundDecision;
+  invalidCartItemIds: string[];
+  waitlistedCartItemIds: string[];
+  deniedCartItemIds: string[];
+  failedCartItemIds: string[];
+}) {
+  if (input.decision.action === 'none') return;
+
+  if (input.decision.action === 'needs_manual_amount') {
+    await alertAdmin(
+      'Cart overflow auto-refund needs manual amount',
+      `<p>Session <code>${input.session.id}</code> has no-service cart items
+       <code>${input.invalidCartItemIds.join(', ')}</code>, but the webhook could not
+       derive collected line amounts for:
+       <code>${input.decision.missingLineIds.join(', ')}</code>.</p>
+       <p>Recovery: refund the no-service portion from Stripe, including the matching
+       platform fee share.</p>`
+    );
+    return;
+  }
+
+  if (input.decision.action === 'cannot_refund') {
+    await alertAdmin(
+      'Cart overflow auto-refund could not be created',
+      `<p>Session <code>${input.session.id}</code> has no-service cart items
+       <code>${input.invalidCartItemIds.join(', ')}</code>, but auto-refund could not
+       run: <code>${input.decision.reason}</code>.</p>`
+    );
+    return;
+  }
+
+  try {
+    const refund = await stripe.refunds.create(
+      {
+        payment_intent: input.paymentIntentId!,
+        amount: input.decision.amountCents,
+        metadata: {
+          type: 'entry_cart_overflow_auto_refund',
+          checkout_session_id: input.session.id,
+          reason: input.decision.reason,
+          invalid_cart_item_ids: JSON.stringify(input.invalidCartItemIds),
+          waitlisted_cart_item_ids: JSON.stringify(input.waitlistedCartItemIds),
+          denied_cart_item_ids: JSON.stringify(input.deniedCartItemIds),
+          failed_cart_item_ids: JSON.stringify(input.failedCartItemIds),
+        },
+      },
+      {
+        idempotencyKey: `entry-cart-overflow-auto-refund-${input.session.id}-${input.decision.reason}`,
+      }
+    );
+    console.error(
+      `AUTO-REFUND: ${refund.id} refunded ${refund.amount}¢ for cart overflow session ${input.session.id} (${input.decision.reason})`
+    );
+    await alertAdmin(
+      'Cart overflow charge auto-refunded',
+      `<p>Auto-refund <code>${refund.id}</code> refunded
+       ${(refund.amount / 100).toFixed(2)} USD for Checkout Session
+       <code>${input.session.id}</code>.</p>
+       <p>Reason: <code>${input.decision.reason}</code>; no-service cart items:
+       <code>${input.invalidCartItemIds.join(', ')}</code>.</p>`
+    );
+
+    if (input.decision.reason === 'full_make_whole') {
+      const { error: orderUpdateError } = await supabase
+        .from('stripe_orders')
+        .update({ status: 'refunded', refunded_at: new Date().toISOString() })
+        .eq('stripe_checkout_session_id', input.session.id);
+      if (orderUpdateError) {
+        console.error(
+          `CRITICAL: cart overflow refund ${refund.id} succeeded but stripe_orders update failed:`,
+          orderUpdateError
+        );
+        await alertAdmin(
+          'Cart overflow auto-refund issued but order not marked refunded',
+          `<p>Auto-refund <code>${refund.id}</code> succeeded for session
+           <code>${input.session.id}</code>, but updating <code>stripe_orders</code>
+           failed:</p><pre>${orderUpdateError.message}</pre>`
+        );
+      }
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`CRITICAL: cart overflow auto-refund failed for ${input.session.id}:`, err);
+    await alertAdmin(
+      'Cart overflow auto-refund FAILED',
+      `<p>Session <code>${input.session.id}</code> needs an auto-refund of
+       ${(input.decision.amountCents / 100).toFixed(2)} USD, but Stripe refund
+       creation failed:</p><pre>${message}</pre>
+       <p>Recovery: refund payment intent <code>${input.paymentIntentId}</code>
+       manually.</p>`
     );
   }
 }

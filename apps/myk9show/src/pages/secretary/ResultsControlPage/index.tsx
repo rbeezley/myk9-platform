@@ -162,7 +162,7 @@ export default function ResultsControlPage() {
 
   return (
     <div className="container mx-auto py-6 space-y-8 pb-24">
-      <h1 className="text-3xl font-bold tracking-tight">Results Control</h1>
+      <h1 className="text-3xl font-bold tracking-tight">Results &amp; Check-In</h1>
 
       {/* Query error state */}
       {isError && (

@@ -197,7 +197,7 @@ describe('ResultsControlPage', () => {
 
   it('renders page title', () => {
     renderPage();
-    expect(screen.getByText('Results Control')).toBeInTheDocument();
+    expect(screen.getByText('Results & Check-In')).toBeInTheDocument();
   });
 
   it('renders all three preset cards', () => {
@@ -231,7 +231,7 @@ describe('ResultsControlPage', () => {
 
     renderPage();
 
-    expect(screen.getByText('Results Control')).toBeInTheDocument();
+    expect(screen.getByText('Results & Check-In')).toBeInTheDocument();
     expect(screen.getByText('Immediately')).toBeInTheDocument();
     expect(screen.getByText('After Class')).toBeInTheDocument();
     expect(screen.getByText('After Review')).toBeInTheDocument();

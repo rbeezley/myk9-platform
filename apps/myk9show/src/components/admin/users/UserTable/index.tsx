@@ -173,9 +173,9 @@ function buildColumns(
         return (
           <div className="space-y-2">
             {user.email && (
-              <div className={`flex items-center ${density.spacing} text-sm`}>
-                <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-blue-500/10 to-blue-500/5 flex items-center justify-center border border-blue-500/20">
-                  <Mail className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+              <div className={`flex items-center ${density.spacing} text-sm min-w-0`}>
+                <div className="h-6 w-6 shrink-0 rounded-lg bg-gradient-to-br from-blue-500/10 to-blue-500/5 flex items-center justify-center border border-blue-500/20">
+                  <Mail className="h-3 w-3 text-blue-500" />
                 </div>
                 <span className="truncate font-[500] text-foreground">
                   {highlightSearchTerm(user.email, searchTerm)}
@@ -185,7 +185,7 @@ function buildColumns(
             {user.phone && (
               <div className={`flex items-center ${density.spacing} text-sm text-muted-foreground`}>
                 <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-green-500/10 to-green-500/5 flex items-center justify-center border border-green-500/20">
-                  <Phone className="h-3 w-3 text-green-600 dark:text-green-400" />
+                  <Phone className="h-3 w-3 text-green-500" />
                 </div>
                 <span className="font-[500]">{highlightSearchTerm(user.phone, searchTerm)}</span>
               </div>
@@ -193,7 +193,7 @@ function buildColumns(
             {(user.city || user.state) && (
               <div className={`flex items-center ${density.spacing} text-sm text-muted-foreground`}>
                 <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-orange-500/10 to-orange-500/5 flex items-center justify-center border border-orange-500/20">
-                  <MapPin className="h-3 w-3 text-orange-600 dark:text-orange-400" />
+                  <MapPin className="h-3 w-3 text-orange-500" />
                 </div>
                 <span className="font-[500]">
                   {highlightSearchTerm(
@@ -245,9 +245,9 @@ function buildColumns(
             </div>
 
             {user.clubAffiliations && user.clubAffiliations.length > 0 && (
-              <div className={`flex items-center ${density.spacing} text-xs text-muted-foreground`}>
-                <div className="h-5 w-5 rounded-md bg-gradient-to-br from-purple-500/10 to-purple-500/5 flex items-center justify-center border border-purple-500/20">
-                  <Building2 className="h-3 w-3 text-purple-600 dark:text-purple-400" />
+              <div className={`flex items-center ${density.spacing} text-xs text-muted-foreground min-w-0`}>
+                <div className="h-5 w-5 shrink-0 rounded-md bg-gradient-to-br from-purple-500/10 to-purple-500/5 flex items-center justify-center border border-purple-500/20">
+                  <Building2 className="h-3 w-3 text-purple-500" />
                 </div>
                 <span className="truncate font-[500]">
                   {user.clubAffiliations.length === 1
@@ -272,7 +272,7 @@ function buildColumns(
         return (
           <div className={`flex items-center ${density.spacing} text-sm text-muted-foreground`}>
             <div className="h-5 w-5 rounded-md bg-gradient-to-br from-gray-500/10 to-gray-500/5 flex items-center justify-center border border-gray-500/20">
-              <Calendar className="h-3 w-3 text-gray-600 dark:text-gray-400" />
+              <Calendar className="h-3 w-3 text-gray-500" />
             </div>
             <span className={`font-[500] ${stale ? 'text-destructive' : ''}`}>
               {formatLastLogin(user.lastSignInAt)}

@@ -169,7 +169,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
                       setStatusData({ action: 'activate' });
                       setCurrentDialog('status');
                     }}
-                    className="rounded-lg font-[500] text-sm py-3 focus:bg-green-50 focus:text-green-700 dark:focus:bg-green-950/20 dark:focus:text-green-400"
+                    className="rounded-lg font-[500] text-sm py-3 focus:bg-success/10 focus:text-success"
                   >
                     <UserCheck className="h-4 w-4 mr-3" />
                     Activate Users
@@ -179,7 +179,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
                       setStatusData({ action: 'deactivate' });
                       setCurrentDialog('status');
                     }}
-                    className="rounded-lg font-[500] text-sm py-3 focus:bg-orange-50 focus:text-orange-700 dark:focus:bg-orange-950/20 dark:focus:text-orange-400"
+                    className="rounded-lg font-[500] text-sm py-3 focus:bg-warning/10 focus:text-warning"
                   >
                     <UserX className="h-4 w-4 mr-3" />
                     Deactivate Users
@@ -189,7 +189,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
                       setStatusData({ action: 'suspend' });
                       setCurrentDialog('status');
                     }}
-                    className="rounded-lg font-[500] text-sm py-3 focus:bg-red-50 focus:text-red-700 dark:focus:bg-red-950/20 dark:focus:text-red-400"
+                    className="rounded-lg font-[500] text-sm py-3 focus:bg-destructive/10 focus:text-destructive"
                   >
                     <UserMinus className="h-4 w-4 mr-3" />
                     Suspend Users

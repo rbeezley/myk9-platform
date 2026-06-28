@@ -207,18 +207,6 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
         </div>
       )}
 
-      {/* Loading state — render before the empty state so the preview doesn't
-          flash "No entries" while the parent query is still resolving. */}
-      {isLoading && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="flex items-center justify-center p-8 text-muted-foreground"
-        >
-          Loading entry data...
-        </div>
-      )}
-
       {/* Empty state */}
       {!isLoading && items.length === 0 && (
         <div

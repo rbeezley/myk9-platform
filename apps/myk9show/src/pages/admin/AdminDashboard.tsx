@@ -20,23 +20,18 @@ import {
   PlatformStatisticsSection,
 } from './AdminDashboard/index';
 
-const APPLE_FONT_FAMILY =
-  '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif';
-
 /**
  * Error state display component
  */
 function DashboardError() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="text-center" style={{ fontFamily: APPLE_FONT_FAMILY }}>
-        <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-          <AlertCircle className="h-8 w-8 text-red-500" />
+      <div className="text-center">
+        <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-6">
+          <AlertCircle className="h-8 w-8 text-destructive" />
         </div>
-        <h2 className="text-xl mb-3" style={{ fontWeight: 590, lineHeight: '1.3' }}>
-          Error Loading Dashboard
-        </h2>
-        <p className="text-muted-foreground" style={{ fontWeight: 500 }}>
+        <h2 className="text-xl font-semibold mb-3">Error Loading Dashboard</h2>
+        <p className="font-medium text-muted-foreground">
           Unable to load dashboard data. Please try again later.
         </p>
       </div>
@@ -49,10 +44,7 @@ function DashboardError() {
  */
 function DashboardHeader({ firstName }: { firstName: string | null }) {
   return (
-    <div
-      className="flex flex-col md:flex-row md:items-center md:justify-between mb-12"
-      style={{ fontFamily: APPLE_FONT_FAMILY }}
-    >
+    <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-12">
       <div>
         <DashboardGreeting
           firstName={firstName}
@@ -61,29 +53,13 @@ function DashboardHeader({ firstName }: { firstName: string | null }) {
         />
       </div>
       <div className="flex w-full flex-col gap-3 mt-6 sm:flex-row sm:flex-wrap md:mt-0 md:w-auto md:justify-end">
-        <Button
-          variant="outline"
-          className="w-full border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 sm:w-auto
-                     hover:-translate-y-0.5 transition-all duration-300 shadow-sm rounded-xl px-6 py-2.5"
-          style={{
-            fontWeight: 500,
-            transitionTimingFunction: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-          }}
-          asChild
-        >
+        <Button variant="outline" className="w-full sm:w-auto" asChild>
           <Link to="/admin/users">
             <Users className="h-4 w-4 mr-2" />
             Manage Users
           </Link>
         </Button>
-        <Button
-          className="w-full px-6 py-2.5 sm:w-auto"
-          style={{
-            fontWeight: 500,
-            transitionTimingFunction: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-          }}
-          asChild
-        >
+        <Button className="w-full sm:w-auto" asChild>
           <Link to="/admin/permissions">
             <Settings className="h-4 w-4 mr-2" />
             Permissions

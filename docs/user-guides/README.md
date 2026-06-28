@@ -15,7 +15,7 @@ Index of all customer-facing guides and their current status. Every guide listed
 | Title                                               | Audience                | Status     | Priority | Notes                                                                                                     |
 | --------------------------------------------------- | ----------------------- | ---------- | -------- | --------------------------------------------------------------------------------------------------------- |
 | [Secretary Guide](secretary-guide.md)               | Trial secretaries       | `qa-draft` | high     | Phase 0 gate met (2026-06-19); screenshot list partially captured; § 11 Closeout stub (feature not built) |
-| [Exhibitor Guide](exhibitor-guide.md)               | Dog exhibitors          | `qa-draft` | high     | Phase 0 gate met (2026-06-19); E-01–E-17 captured; § 10 stub (route not in pageDirectory)                 |
+| [Exhibitor Guide](exhibitor-guide.md)               | Dog exhibitors          | `qa-draft` | high     | Phase 0 gate met (2026-06-19); E-01–E-17 captured; § 10 stub (payments page not yet in nav)               |
 | [Ringside Quickstart](judge-steward-quickstart.md)  | Judges, stewards        | `qa-draft` | medium   | Drafted 2026-06-24; J-01–J-06 captured; access-paths diagram drawn; live walk pending                     |
 | [Club Admin & Treasurer Guide](club-admin-guide.md) | Club admins, treasurers | `qa-draft` | medium   | Sections 1–7 written; C-01–C-07 screenshots blocked: seed/stripe                                          |
 

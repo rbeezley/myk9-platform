@@ -111,7 +111,7 @@ export function ShowAccessCodesCard({
         steward: row.steward,
         exhibitor: row.exhibitor,
       });
-      notifications.success('New codes generated — copy or print them now.');
+      notifications.success('New codes generated. Copy or print them now.');
     } finally {
       setIsRegenerating(false);
       setConfirmOpen(false);
@@ -125,7 +125,7 @@ export function ShowAccessCodesCard({
     win.document.write(`<!DOCTYPE html>
 <html>
 <head>
-  <title>Show Access — ${showName ?? 'Show'}</title>
+  <title>Show Access: ${showName ?? 'Show'}</title>
   <style>
     body{font-family:sans-serif;display:flex;justify-content:center;padding:32px}
     .slip{border:2px dashed #ccc;border-radius:12px;padding:24px;width:280px;text-align:center}
@@ -172,7 +172,7 @@ export function ShowAccessCodesCard({
           <CardTitle>Show Access Codes</CardTitle>
           <CardDescription>
             Codes for this show were generated server-side and aren't displayed again for security.
-            Generate a fresh set below — the old codes will stop working.
+            Generate a fresh set below. The old codes will stop working.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -236,7 +236,7 @@ export function ShowAccessCodesCard({
         <CardTitle>Show Access Codes</CardTitle>
         <CardDescription>
           Share these with your team. Enter a code at myk9show.com/at-show to open this show on any
-          device — no separate app or download. Codes won't be shown again, so copy or print them
+          device, no separate app or download. Codes won't be shown again, so copy or print them
           now.
         </CardDescription>
       </CardHeader>

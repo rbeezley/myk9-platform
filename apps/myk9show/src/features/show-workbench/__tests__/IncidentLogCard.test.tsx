@@ -202,7 +202,7 @@ describe('IncidentLogCard', () => {
     await user.click(screen.getByRole('button', { name: 'Save incident' }));
 
     await waitFor(() => {
-      expect(mockToastError).toHaveBeenCalledWith('Hang on — still loading your account');
+      expect(mockToastError).toHaveBeenCalledWith('Hang on, still loading your account');
     });
     expect(consoleErrorSpy).not.toHaveBeenCalled();
   });

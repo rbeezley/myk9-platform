@@ -1,13 +1,15 @@
 ---
-description: Unattended sweep — run the impeccable playbook (mechanical-only) across the secretary page queue, sequentially, opening one PR per page
+description: Unattended sweep — run the impeccable playbook (mechanical-only) across the page queue (secretary + site-admin + exhibitor + club-admin surfaces), sequentially, opening one PR per page
 argument-hint: [page list, or empty for the full queue] [--merge to auto-merge after CI]
 ---
 
 # Impeccable sweep (autonomous)
 
 Run **Autonomous sweep mode** of the impeccable page-improvement playbook over
-the secretary page queue, unattended. This is the overnight variant: no human
-checkpoints, one PR per page, reviewed in the morning.
+the full page queue, unattended. The queue now spans four role surfaces
+(secretary, site-admin, exhibitor, club-admin) — each group carries its own
+`e2e-*` login. This is the overnight variant: no human checkpoints, one PR per
+page, reviewed in the morning.
 
 This command is the **dispatcher**. The rules live in
 `docs/playbook-impeccable-page-improvements.md` → "Autonomous sweep mode (unattended)".

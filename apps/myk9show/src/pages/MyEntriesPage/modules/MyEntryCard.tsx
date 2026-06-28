@@ -66,9 +66,13 @@ function buildEntryPaymentHref(entry: MyEntry): string {
 }
 
 /**
- * Card component displaying a single entry's details
+ * Card component displaying a single entry's details.
+ *
+ * Memoized: the page maps this over `filteredEntries`, so without memoization
+ * every dialog open or tab change would re-render (and rebuild result-card
+ * models for) every card. Parent passes stable callbacks for this to bite.
  */
-export const MyEntryCard: React.FC<MyEntryCardProps> = ({
+const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
   entry,
   selfCheckinByClassId = {},
   onCheckInClick,
@@ -318,7 +322,7 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
                     ((cls.classId ? (selfCheckinByClassId[cls.classId] ?? true) : true) ? (
                       <button
                         onClick={() => onCheckInClick(entry, cls)}
-                        className="hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded transition-transform"
+                        className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded px-1 hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 transition-transform"
                       >
                         <CheckInStatusIndicator
                           status={cls.checkInStatus || 'no-status'}
@@ -436,3 +440,6 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
     </div>
   );
 };
+
+export const MyEntryCard = React.memo(MyEntryCardComponent);
+MyEntryCard.displayName = 'MyEntryCard';

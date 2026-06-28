@@ -292,7 +292,7 @@ describe('ShowDeskToolsSheet', () => {
         p_show_id: '63165809-e025-25c6-6cf9-979f63165809',
       });
     });
-    expect(notifications.success).toHaveBeenCalledWith('New codes generated — copy or print them now.');
+    expect(notifications.success).toHaveBeenCalledWith('New codes generated. Copy or print them now.');
     expect(await screen.findByText('e4444')).toBeInTheDocument();
   });
 });

@@ -126,7 +126,7 @@ describe('EnrollmentCard', () => {
   it('payment badge is a manual-edit dropdown for enrollment (mail-in) groups', () => {
     render(<EnrollmentCard {...defaultProps} group={makeGroup({ enrollmentId: 'enroll-1' })} />);
     fireEvent.click(screen.getByText('Paid'));
-    expect(screen.getByText('Paid in Full — Cash')).toBeTruthy();
+    expect(screen.getByText('Paid in Full: Cash')).toBeTruthy();
   });
 
   it('payment badge is NOT editable for online-checkout groups (no enrollment record)', () => {
@@ -141,7 +141,7 @@ describe('EnrollmentCard', () => {
     );
     const badge = screen.getByText('Paid');
     fireEvent.click(badge);
-    expect(screen.queryByText('Paid in Full — Cash')).toBeNull();
+    expect(screen.queryByText('Paid in Full: Cash')).toBeNull();
     expect(badge.closest('button')).toBeNull();
   });
 
@@ -169,7 +169,7 @@ describe('EnrollmentCard', () => {
       />
     );
     fireEvent.click(screen.getByText('Paid'));
-    fireEvent.click(screen.getByText('Paid in Full — Cash'));
+    fireEvent.click(screen.getByText('Paid in Full: Cash'));
 
     expect(onPaymentStatusChange).toHaveBeenCalledTimes(1);
     const [enrollmentId, status] = onPaymentStatusChange.mock.calls[0];

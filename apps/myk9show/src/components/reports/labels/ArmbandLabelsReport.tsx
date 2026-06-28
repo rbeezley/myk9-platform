@@ -1,21 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import ReactDOMServer from 'react-dom/server';
-import {
-  LABEL_TEMPLATES,
-  DEFAULT_TEMPLATE_ID,
-  getAllTemplates,
-} from '@/lib/labels/labelTemplates';
+import { LABEL_TEMPLATES, DEFAULT_TEMPLATE_ID, getAllTemplates } from '@/lib/labels/labelTemplates';
 import { buildLabelPages } from '@/lib/labels/labelLayout';
 import { buildLabelStylesheet } from '@/lib/labels/labelStyles';
-import {
-  prepareArmbandLabelItems,
-  filterEntries,
-} from '@/lib/labels/armbandLabelData';
-import type {
-  LabelContentConfig,
-  LabelFilterConfig,
-} from '@/lib/labels/armbandLabelTypes';
+import { prepareArmbandLabelItems, filterEntries } from '@/lib/labels/armbandLabelData';
+import type { LabelContentConfig, LabelFilterConfig } from '@/lib/labels/armbandLabelTypes';
 import { ArmbandLabelCell } from './ArmbandLabelCell';
+import { LabelSetupSection, SetupEyebrow } from './LabelModeChrome';
 import { generatePasscodesFromShowId } from '@myk9/core';
 import { useLabelPreferences } from '@/hooks/useLabelPreferences';
 import { useArmbandLabelData } from '@/hooks/queries/useArmbandLabelData';
@@ -52,23 +43,14 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
   const skip = prefs.skip;
   const pitchAdjustment = prefs.pitchAdjustment;
 
-  const {
-    entries: allEntries,
-    wifiNetwork,
-    wifiPassword,
-    isLoading,
-  } = useArmbandLabelData(showId);
+  const { entries: allEntries, wifiNetwork, wifiPassword, isLoading } = useArmbandLabelData(showId);
   const template = LABEL_TEMPLATES[templateId];
-  const passcodes = useMemo(
-    () => (showId ? generatePasscodesFromShowId(showId) : null),
-    [showId]
-  );
+  const passcodes = useMemo(() => (showId ? generatePasscodesFromShowId(showId) : null), [showId]);
 
   const filterConfig: LabelFilterConfig = useMemo(
     () => ({
       ...filter,
-      specificArmband:
-        showSpecific && specificArmband ? Number(specificArmband) : null,
+      specificArmband: showSpecific && specificArmband ? Number(specificArmband) : null,
     }),
     [filter, showSpecific, specificArmband]
   );
@@ -77,14 +59,8 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
     () => filterEntries(allEntries, filterConfig),
     [allEntries, filterConfig]
   );
-  const items = useMemo(
-    () => prepareArmbandLabelItems(filtered),
-    [filtered]
-  );
-  const pages = useMemo(
-    () => buildLabelPages(template, items, skip),
-    [template, items, skip]
-  );
+  const items = useMemo(() => prepareArmbandLabelItems(filtered), [filtered]);
+  const pages = useMemo(() => buildLabelPages(template, items, skip), [template, items, skip]);
 
   const sharedCellProps = useMemo(
     () => ({
@@ -102,9 +78,9 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
     if (!iframe || pages.length === 0) return;
 
     const sheetsHtml = pages
-      .map((page) => {
+      .map(page => {
         const cellsHtml = page.cells
-          .map((cell) => {
+          .map(cell => {
             if (cell.type !== 'item' || !cell.item) {
               return `<div class="label-cell label-cell--${cell.type}"></div>`;
             }
@@ -127,7 +103,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
   }, [pages, sharedCellProps, template, pitchAdjustment, externalIframeRef]);
 
   const updateConfig = (key: keyof LabelContentConfig, value: boolean) => {
-    setPrefs((p) => ({
+    setPrefs(p => ({
       ...p,
       contentConfig: { ...p.contentConfig, [key]: value },
     }));
@@ -135,7 +111,11 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-8 text-muted-foreground">
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex items-center justify-center p-8 text-muted-foreground"
+      >
         Loading entry data...
       </div>
     );
@@ -146,19 +126,15 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
 
   return (
     <div className="w-full max-w-[8.5in] mx-auto">
-      <div className="border rounded-lg bg-muted/30 p-4 mb-6 space-y-4">
+      <LabelSetupSection>
         {/* Label Size */}
         <div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-            Label Size
-          </div>
+          <SetupEyebrow className="mb-2">Label Size</SetupEyebrow>
           <RadioGroup
             value={templateId}
-            onValueChange={(id: string) =>
-              setPrefs((p) => ({ ...p, templateId: id }))
-            }
+            onValueChange={(id: string) => setPrefs(p => ({ ...p, templateId: id }))}
           >
-            {templates.map((t) => (
+            {templates.map(t => (
               <label key={t.id} htmlFor={`armband-tpl-${t.id}`} className={TAP_ROW}>
                 <RadioGroupItem value={t.id} id={`armband-tpl-${t.id}`} />
                 <span>
@@ -171,16 +147,14 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
 
         {/* Entry Filter */}
         <div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-            Select Armbands to Print
-          </div>
+          <SetupEyebrow className="mb-2">Select Armbands to Print</SetupEyebrow>
           <div className="flex flex-col">
             <label htmlFor="armband-early" className={TAP_ROW}>
               <Checkbox
                 id="armband-early"
                 checked={filter.earlyEntries}
-                onCheckedChange={(checked) =>
-                  setFilter((f) => ({ ...f, earlyEntries: checked === true }))
+                onCheckedChange={checked =>
+                  setFilter(f => ({ ...f, earlyEntries: checked === true }))
                 }
               />
               <span>Early Entries</span>
@@ -189,8 +163,8 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
               <Checkbox
                 id="armband-day"
                 checked={filter.dayOfShowEntries}
-                onCheckedChange={(checked) =>
-                  setFilter((f) => ({
+                onCheckedChange={checked =>
+                  setFilter(f => ({
                     ...f,
                     dayOfShowEntries: checked === true,
                   }))
@@ -209,7 +183,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
                 <Checkbox
                   id="armband-specific"
                   checked={showSpecific}
-                  onCheckedChange={(checked) => {
+                  onCheckedChange={checked => {
                     const next = checked === true;
                     setShowSpecific(next);
                     if (!next) setSpecificArmband('');
@@ -222,7 +196,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
                   type="number"
                   inputMode="numeric"
                   value={specificArmband}
-                  onChange={(e) => setSpecificArmband(e.target.value)}
+                  onChange={e => setSpecificArmband(e.target.value)}
                   className="w-20 ml-2 h-11"
                   placeholder="#"
                   aria-label="Armband number"
@@ -234,17 +208,13 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
 
         {/* Content Config */}
         <div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-            Include on Label
-          </div>
+          <SetupEyebrow className="mb-2">Include on Label</SetupEyebrow>
           <div className="grid grid-cols-2 gap-x-3">
             <label htmlFor="cfg-callName" className={TAP_ROW}>
               <Checkbox
                 id="cfg-callName"
                 checked={config.callName}
-                onCheckedChange={(checked) =>
-                  updateConfig('callName', checked === true)
-                }
+                onCheckedChange={checked => updateConfig('callName', checked === true)}
               />
               <span>Dog&apos;s Call Name</span>
             </label>
@@ -252,9 +222,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
               <Checkbox
                 id="cfg-trialDate"
                 checked={config.trialDate}
-                onCheckedChange={(checked) =>
-                  updateConfig('trialDate', checked === true)
-                }
+                onCheckedChange={checked => updateConfig('trialDate', checked === true)}
               />
               <span>Trial Date</span>
             </label>
@@ -262,15 +230,11 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
               <Checkbox
                 id="cfg-handlerName"
                 checked={config.handlerName}
-                onCheckedChange={(checked) =>
-                  updateConfig('handlerName', checked === true)
-                }
+                onCheckedChange={checked => updateConfig('handlerName', checked === true)}
               />
               <span>Handler&apos;s Name</span>
             </label>
-            <label
-              className={`${TAP_ROW} cursor-not-allowed text-muted-foreground`}
-            >
+            <label className={`${TAP_ROW} cursor-not-allowed text-muted-foreground`}>
               <Checkbox disabled />
               <span>Club Logo (coming soon)</span>
             </label>
@@ -278,9 +242,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
               <Checkbox
                 id="cfg-showAccessCode"
                 checked={config.showAccessCode}
-                onCheckedChange={(checked) =>
-                  updateConfig('showAccessCode', checked === true)
-                }
+                onCheckedChange={checked => updateConfig('showAccessCode', checked === true)}
               />
               <span>Show Access Code</span>
             </label>
@@ -291,9 +253,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
               <Checkbox
                 id="cfg-venueWifi"
                 checked={config.venueWifi}
-                onCheckedChange={(checked) =>
-                  updateConfig('venueWifi', checked === true)
-                }
+                onCheckedChange={checked => updateConfig('venueWifi', checked === true)}
                 disabled={!wifiAvailable}
               />
               <span>Venue WiFi {!wifiAvailable && '(not configured)'}</span>
@@ -315,8 +275,8 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
               min={0}
               max={template.labelsPerSheet - 1}
               value={skip}
-              onChange={(e) =>
-                setPrefs((p) => ({
+              onChange={e =>
+                setPrefs(p => ({
                   ...p,
                   skip: Math.max(0, Number(e.target.value)),
                 }))
@@ -325,8 +285,8 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
             />
           </label>
           <span className="text-xs text-muted-foreground">
-            {items.length} label{items.length !== 1 ? 's' : ''} on{' '}
-            {pages.length} page{pages.length !== 1 ? 's' : ''}
+            {items.length} label{items.length !== 1 ? 's' : ''} on {pages.length} page
+            {pages.length !== 1 ? 's' : ''}
           </span>
         </div>
 
@@ -341,13 +301,10 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
           </button>
           {showAdvanced && (
             <div className="mt-2 p-3 border rounded bg-background space-y-2">
-              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Vertical Pitch Adjustment
-              </div>
+              <SetupEyebrow>Vertical Pitch Adjustment</SetupEyebrow>
               <p className="text-xs text-muted-foreground">
-                If labels drift out of alignment toward the bottom of the page,
-                adjust this value. Positive = more space between rows, negative =
-                less. Saved per browser.
+                If labels drift out of alignment toward the bottom of the page, adjust this value.
+                Positive = more space between rows, negative = less. Saved per browser.
               </p>
               <div className="flex items-center gap-3 min-h-[44px]">
                 <Slider
@@ -355,9 +312,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
                   max={20}
                   step={1}
                   value={[pitchAdjustment]}
-                  onValueChange={([v]) =>
-                    setPrefs((p) => ({ ...p, pitchAdjustment: v ?? 0 }))
-                  }
+                  onValueChange={([v]) => setPrefs(p => ({ ...p, pitchAdjustment: v ?? 0 }))}
                   className="w-48"
                   aria-label="Vertical pitch adjustment"
                 />
@@ -368,9 +323,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
                 {pitchAdjustment !== 0 && (
                   <button
                     type="button"
-                    onClick={() =>
-                      setPrefs((p) => ({ ...p, pitchAdjustment: 0 }))
-                    }
+                    onClick={() => setPrefs(p => ({ ...p, pitchAdjustment: 0 }))}
                     className="text-xs text-muted-foreground hover:text-foreground underline min-h-[44px]"
                   >
                     Reset
@@ -380,11 +333,15 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
             </div>
           )}
         </div>
-      </div>
+      </LabelSetupSection>
 
       {/* Empty state */}
       {items.length === 0 && !isLoading && (
-        <div className="flex items-center justify-center p-8 text-muted-foreground">
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex items-center justify-center p-8 text-muted-foreground"
+        >
           {allEntries.length === 0
             ? 'No entries with armbands assigned for this show'
             : showSpecific && specificArmband
@@ -394,7 +351,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
       )}
 
       {/* Live label preview */}
-      {pages.map((page) => (
+      {pages.map(page => (
         <div
           key={page.pageNumber}
           style={{
@@ -404,7 +361,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
             rowGap: `${template.gapY}in`,
             margin: '0 auto',
             marginBottom: '16px',
-            border: '1px dashed #ddd',
+            border: '1px dashed var(--border)',
             padding: '8px',
           }}
         >
@@ -415,9 +372,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
                 width: `${template.labelWidth}in`,
                 height: `${template.labelHeight}in`,
                 border:
-                  cell.type === 'item'
-                    ? '1px solid #eee'
-                    : '1px dashed #f0f0f0',
+                  cell.type === 'item' ? '1px solid var(--border)' : '1px dashed var(--border)',
                 boxSizing: 'border-box',
                 overflow: 'hidden',
                 padding: '0.08in 0.12in',

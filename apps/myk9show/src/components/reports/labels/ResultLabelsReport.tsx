@@ -8,6 +8,7 @@ import { mapScopedReportEntries } from '@/pages/secretary/ReportsPage/reportData
 import type { DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
 import { ResultLabelCell } from './ResultLabelCell';
+import { LabelSetupSection, SetupEyebrow } from './LabelModeChrome';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
@@ -28,6 +29,7 @@ interface ResultLabelsReportProps {
   trialId: string;
   classId: string;
   sortOrder: string;
+  isLoading?: boolean;
   iframeRef?: React.RefObject<HTMLIFrameElement | null>;
 }
 
@@ -39,6 +41,7 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
   trialId,
   classId,
   sortOrder,
+  isLoading = false,
   iframeRef,
 }) => {
   const [templateId, setTemplateId] = useState(DEFAULT_RESULT_TEMPLATE_ID);
@@ -113,12 +116,10 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
 
   return (
     <div className="w-full max-w-[8.5in] mx-auto">
-      <div className="border rounded-lg bg-muted/30 p-4 mb-6 space-y-4">
+      <LabelSetupSection>
         {/* Label size */}
         <div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-            Label Size
-          </div>
+          <SetupEyebrow className="mb-2">Label Size</SetupEyebrow>
           <RadioGroup value={templateId} onValueChange={(id: string) => setTemplateId(id)}>
             {templates.map(t => (
               <label key={t.id} htmlFor={`result-tpl-${t.id}`} className={TAP_ROW}>
@@ -158,9 +159,7 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
 
         {/* Pitch adjustment — corrects printer drift toward the bottom of the sheet */}
         <div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-            Vertical Pitch Adjustment
-          </div>
+          <SetupEyebrow className="mb-1">Vertical Pitch Adjustment</SetupEyebrow>
           <p className="text-xs text-muted-foreground mb-2">
             If labels drift out of alignment toward the bottom of the page, nudge this. Positive =
             more space between rows, negative = less.
@@ -190,12 +189,28 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
             )}
           </div>
         </div>
-      </div>
+      </LabelSetupSection>
+
+      {/* Loading state — render before the empty state so the preview doesn't
+          flash "No entries" while the parent query is still resolving. */}
+      {isLoading && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex items-center justify-center p-8 text-muted-foreground"
+        >
+          Loading entry data...
+        </div>
+      )}
 
       {/* Empty state */}
-      {items.length === 0 && (
-        <div className="flex items-center justify-center p-8 text-muted-foreground">
-          No entries to print labels for in this selection.
+      {!isLoading && items.length === 0 && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex items-center justify-center p-8 text-muted-foreground"
+        >
+          No entries to print labels for in this selection
         </div>
       )}
 
@@ -209,7 +224,7 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
             columnGap: `${template.gapX}in`,
             rowGap: `${template.gapY}in`,
             margin: '0 auto 16px',
-            border: '1px dashed #ddd',
+            border: '1px dashed var(--border)',
             padding: '8px',
           }}
         >
@@ -219,7 +234,8 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
               style={{
                 width: `${template.labelWidth}in`,
                 height: `${template.labelHeight}in`,
-                border: cell.type === 'item' ? '1px solid #eee' : '1px dashed #f0f0f0',
+                border:
+                  cell.type === 'item' ? '1px solid var(--border)' : '1px dashed var(--border)',
                 boxSizing: 'border-box',
                 overflow: 'hidden',
                 padding: '0.08in 0.12in',

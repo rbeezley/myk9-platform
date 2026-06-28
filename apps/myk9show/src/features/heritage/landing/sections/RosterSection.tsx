@@ -2,6 +2,7 @@ import { HeritageSectionFolio } from '../../components/HeritageSectionFolio';
 import { HeritageHeading } from '../../components/HeritageHeading';
 import { HeritageOrnamentRule } from '../../components/HeritageOrnamentRule';
 import { useRevealOnScroll } from '../../hooks/useRevealOnScroll';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { formatJourneyDate } from '../utils/dateFormat';
 import type { HeritageJourneyStep } from '../types';
 
@@ -68,6 +69,10 @@ const DOT_COLOR: Record<HeritageJourneyStep['status'], string> = {
 
 function JourneyTimeline({ steps, timezone }: { steps: HeritageJourneyStep[]; timezone: string }) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
+  // The active-step dot animates with an infinite pulse. It is set inline, so
+  // the heritage.css prefers-reduced-motion block (CSS) cannot override it —
+  // gate it here instead so reduced-motion users get a static dot.
+  const reducedMotion = useReducedMotion();
 
   return (
     <div ref={ref} className={`hl-journey flex flex-col gap-0 ${revealed ? 'in' : ''}`}>
@@ -96,7 +101,7 @@ function JourneyTimeline({ steps, timezone }: { steps: HeritageJourneyStep[]; ti
                 outline: step.status === 'active' ? '3px solid var(--hl-claret)' : 'none',
                 outlineOffset: '3px',
                 animation:
-                  step.status === 'active' && revealed
+                  step.status === 'active' && revealed && !reducedMotion
                     ? 'hlPulse 2.4s ease-in-out infinite 900ms'
                     : 'none',
               }}

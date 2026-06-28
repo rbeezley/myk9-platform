@@ -62,6 +62,6 @@ test.describe('Cross-role workflow smoke', () => {
     await expect(
       page.getByRole('heading', { name: 'Judging Assignments', exact: true })
     ).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'No Judging Assignments Yet' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'No Classes Today' })).toBeVisible();
   });
 });

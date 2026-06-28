@@ -141,7 +141,9 @@ export function FinalCtaBand({
         ) : (
           <p
             style={{
-              color: monogramColors.soft,
+              // On the dark ink band, `soft` (#3a342c) is 1.43:1 — unreadable.
+              // `paper` matches the band's body color (15.25:1).
+              color: monogramColors.paper,
               fontFamily: MONOGRAM_BODY_FAMILY,
               fontSize: 15,
               lineHeight: 1.6,

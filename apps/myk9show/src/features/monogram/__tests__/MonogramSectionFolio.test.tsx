@@ -20,7 +20,7 @@ describe('MonogramSectionFolio', () => {
   it('uses bronze color from the token palette', () => {
     const { container } = render(<MonogramSectionFolio numeral="ii" />);
     const span = container.querySelector('.mg-section-folio') as HTMLElement;
-    expect(span.style.color).toBe('rgb(138, 105, 56)');
+    expect(span.style.color).toBe('rgb(125, 95, 48)'); // bronze (#7d5f30, AA-darkened)
   });
 
   it('honors a custom size', () => {

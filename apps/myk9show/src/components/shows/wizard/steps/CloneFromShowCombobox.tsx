@@ -137,7 +137,7 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-foreground mb-1">Clone from a previous show</p>
           <p className="text-xs text-muted-foreground mb-3">
-            Prefill this form from an existing show — dates are always left blank for you to set
+            Prefill this form from an existing show. Dates are always left blank for you to set
             fresh.
           </p>
 
@@ -221,7 +221,7 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
       {/* Subtle note that dates are excluded */}
       {clonedShowName && (
         <p className="text-xs text-muted-foreground mt-3 pl-11">
-          Show dates and entry period dates were left blank — fill them in below.
+          Show dates and entry period dates were left blank. Fill them in below.
         </p>
       )}
     </div>

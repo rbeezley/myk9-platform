@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import ReactDOMServer from 'react-dom/server';
+import { Button } from '@/components/ui/button';
 import { renderReportToHtml } from '@/lib/reports/reportRenderer';
 import { getReportById } from '@/lib/reports/reportRegistry';
 import type { ReportProps } from '@/lib/reports/types';
@@ -20,6 +21,7 @@ export interface ReportPreviewProps {
   sortOrder: string;
   isLoading: boolean;
   isError: boolean;
+  onRetry?: () => void;
   iframeRef?: React.RefObject<HTMLIFrameElement | null>;
 }
 
@@ -80,6 +82,7 @@ export function ReportPreview({
   sortOrder,
   isLoading,
   isError,
+  onRetry,
   iframeRef: externalIframeRef,
 }: ReportPreviewProps) {
   const internalIframeRef = useRef<HTMLIFrameElement>(null);
@@ -236,7 +239,11 @@ export function ReportPreview({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-8 text-muted-foreground">
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex items-center justify-center p-8 text-muted-foreground"
+      >
         Loading report data...
       </div>
     );
@@ -244,15 +251,28 @@ export function ReportPreview({
 
   if (isError) {
     return (
-      <div className="flex items-center justify-center p-8 text-destructive">
-        Failed to load report data. Please try again.
+      <div
+        role="status"
+        aria-live="assertive"
+        className="flex flex-col items-center justify-center gap-3 p-8 text-center text-destructive"
+      >
+        <p>We could not load the report data.</p>
+        {onRetry && (
+          <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+            Try again
+          </Button>
+        )}
       </div>
     );
   }
 
   if (!show) {
     return (
-      <div className="flex items-center justify-center p-8 text-muted-foreground">
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex items-center justify-center p-8 text-muted-foreground"
+      >
         Select a show to generate reports
       </div>
     );
@@ -295,7 +315,11 @@ export function ReportPreview({
 
   if (!isLoading && !hasEntries) {
     return (
-      <div className="flex items-center justify-center p-8 text-muted-foreground">
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex items-center justify-center p-8 text-muted-foreground"
+      >
         No entries found for this selection
       </div>
     );

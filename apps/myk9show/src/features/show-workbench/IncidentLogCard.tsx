@@ -99,7 +99,7 @@ export function IncidentLogCard({ entries, judges, showId }: IncidentLogCardProp
       }
       toast.error(
         error instanceof Error && error.message === 'account-loading'
-          ? 'Hang on — still loading your account'
+          ? 'Hang on, still loading your account'
           : 'Could not log incident'
       );
     },

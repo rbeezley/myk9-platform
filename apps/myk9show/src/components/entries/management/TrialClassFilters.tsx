@@ -25,7 +25,7 @@ function formatTrialLabel(trial: TrialClassFiltersProps['trials'][number]): stri
       day: 'numeric',
       year: 'numeric',
     });
-    return `${label} — ${formatted}`;
+    return `${label} · ${formatted}`;
   }
   return label;
 }

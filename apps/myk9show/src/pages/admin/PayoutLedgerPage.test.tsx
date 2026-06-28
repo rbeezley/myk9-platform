@@ -33,6 +33,8 @@ describe('PayoutLedgerPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     ledgerState.data = [row];
+    ledgerState.isLoading = false;
+    ledgerState.isError = false;
   });
 
   it('renders the platform fee card with the current rate', () => {
@@ -56,5 +58,29 @@ describe('PayoutLedgerPage', () => {
     ledgerState.data = [];
     render(<PayoutLedgerPage />);
     expect(screen.getByText(/No online payments yet/i)).toBeInTheDocument();
+  });
+
+  it('renders an error state, not a zero ledger, when the load fails', () => {
+    ledgerState.data = [];
+    ledgerState.isError = true;
+    render(<PayoutLedgerPage />);
+    expect(screen.getByText(/Could not load the payout ledger/i)).toBeInTheDocument();
+    // The error must not masquerade as "no payments / zero owed".
+    expect(screen.queryByText(/No online payments yet/i)).not.toBeInTheDocument();
+    ledgerState.isError = false;
+  });
+
+  it('renders a refund as a signed deduction', () => {
+    ledgerState.data = [{ ...row, refundedCents: 1500 }];
+    render(<PayoutLedgerPage />);
+    expect(screen.getByText('-$15.00')).toBeInTheDocument();
+  });
+
+  it('labels a missing club and unscheduled settle date without an em dash', () => {
+    ledgerState.data = [{ ...row, clubName: null, settleDate: null }];
+    render(<PayoutLedgerPage />);
+    expect(screen.getByText('Unknown club')).toBeInTheDocument();
+    expect(screen.getByText('Not scheduled')).toBeInTheDocument();
+    expect(screen.queryByText('—')).not.toBeInTheDocument();
   });
 });

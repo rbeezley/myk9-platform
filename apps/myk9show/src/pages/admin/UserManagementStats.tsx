@@ -30,8 +30,8 @@ export const UserManagementStats: React.FC<UserManagementStatsProps> = ({
   const roleTypeCount = Object.keys(roleStats).length;
 
   return (
-    <div className="mb-16">
-      <div className="flex items-center gap-4 mb-8" style={{ fontFamily: SF_FONT_FAMILY }}>
+    <div>
+      <div className="flex items-center gap-4 mb-6" style={{ fontFamily: SF_FONT_FAMILY }}>
         <div className="p-3 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl shadow-sm">
           <Users className="h-6 w-6 text-primary" />
         </div>

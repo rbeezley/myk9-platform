@@ -73,11 +73,14 @@ export function PresetSelector({ showId, settings }: PresetSelectorProps) {
   }
 
   function applyCustomTimings() {
+    // Persist the true preset — or null when the combination matches no named
+    // preset. Coercing an unmatched combo to 'standard' would silently mislabel
+    // system state; null is read back as "Custom".
     const matched = detectPreset(customTimings);
     updateVisibility.mutate(
       {
         showId,
-        preset: matched ?? 'standard',
+        preset: matched,
         placementTiming: customTimings.placement,
         qualificationTiming: customTimings.qualification,
         timeTiming: customTimings.time,
@@ -131,6 +134,14 @@ export function PresetSelector({ showId, settings }: PresetSelectorProps) {
           );
         })}
       </div>
+
+      {/* Custom-state indicator: timings match no named preset (honest "Custom"
+          label rather than a silently unhighlighted set of cards). */}
+      {activePreset === null && (
+        <p className="text-xs text-muted-foreground" role="status">
+          Custom timings active — no preset selected. Adjust per-field timings under Advanced.
+        </p>
+      )}
 
       {/* Advanced accordion */}
       <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>

@@ -54,7 +54,7 @@ export interface ClassEntry {
   last_result_at?: string;
   pairedClassId?: string;
   self_checkin_enabled?: boolean;
-  visibility_preset?: 'open' | 'standard' | 'review';
+  visibility_preset?: 'open' | 'standard' | 'review' | 'custom';
   dogs: {
     id: string;
     armband: number;

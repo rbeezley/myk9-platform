@@ -16,6 +16,7 @@ import type {
   LabelFilterConfig,
 } from '@/lib/labels/armbandLabelTypes';
 import { ArmbandLabelCell } from './ArmbandLabelCell';
+import { LabelSetupSection } from './LabelModeChrome';
 import { generatePasscodesFromShowId } from '@myk9/core';
 import { useLabelPreferences } from '@/hooks/useLabelPreferences';
 import { useArmbandLabelData } from '@/hooks/queries/useArmbandLabelData';
@@ -142,7 +143,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
 
   return (
     <div className="w-full max-w-[8.5in] mx-auto">
-      <div className="border rounded-lg bg-muted/30 p-4 mb-6 space-y-4">
+      <LabelSetupSection>
         {/* Label Size */}
         <div>
           <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
@@ -353,7 +354,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
             </div>
           )}
         </div>
-      </div>
+      </LabelSetupSection>
 
       {/* Empty state */}
       {items.length === 0 && !isLoading && (

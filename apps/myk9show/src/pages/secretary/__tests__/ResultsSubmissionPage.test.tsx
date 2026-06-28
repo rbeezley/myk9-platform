@@ -472,6 +472,9 @@ describe('ResultsSubmissionPage', () => {
 
     it('confirms first, then records a distinct `submitted` status (no email)', async () => {
       mockAKCData.data = oneEntry;
+      mockMutate.mockImplementationOnce((_input, options) => {
+        options?.onSuccess?.();
+      });
       renderPage();
 
       const markBtn = await screen.findByTestId('mark-submitted-btn');
@@ -485,10 +488,33 @@ describe('ResultsSubmissionPage', () => {
       fireEvent.click(screen.getByTestId('mark-confirm-btn'));
 
       await waitFor(() =>
-        expect(mockMutate).toHaveBeenCalledWith(expect.objectContaining({ status: 'submitted' }))
+        expect(mockMutate).toHaveBeenCalledWith(
+          expect.objectContaining({ status: 'submitted' }),
+          expect.objectContaining({
+            onError: expect.any(Function),
+            onSuccess: expect.any(Function),
+          })
+        )
       );
       // It records, it does not email.
       expect(mockInvoke).not.toHaveBeenCalled();
+      expect(screen.getByTestId('mark-success')).toBeInTheDocument();
+    });
+
+    it('does not show success when recording the manual submission fails', async () => {
+      mockAKCData.data = oneEntry;
+      mockMutate.mockImplementationOnce((_input, options) => {
+        options?.onError?.(new Error('insert failed'));
+      });
+
+      renderPage();
+
+      fireEvent.click(await screen.findByTestId('mark-submitted-btn'));
+      fireEvent.click(await screen.findByTestId('mark-confirm-btn'));
+
+      await waitFor(() => expect(mockMutate).toHaveBeenCalled());
+      expect(screen.queryByTestId('mark-success')).not.toBeInTheDocument();
+      expect(screen.getByRole('alert')).toHaveTextContent(/failed to record/i);
     });
 
     it('renders a manual record in history as "Marked submitted"', async () => {

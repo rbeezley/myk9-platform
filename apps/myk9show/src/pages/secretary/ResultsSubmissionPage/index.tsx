@@ -156,17 +156,32 @@ export default function ResultsSubmissionPage() {
     if (markSubmittedDisabled || !showId || !activeFormatter) return;
     setSendSuccess(false);
     setSendError(null);
-    recordSubmission({
-      show_id: showId,
-      organization: activeFormatter.organization,
-      sport_type: activeFormatter.sportType,
-      // Distinct from a `sent` email so the history reads honestly and the
-      // record isn't mistaken for an electronic submission from the app.
-      xml_payload: xmlPreview || null,
-      status: 'submitted',
-    });
-    setShowMarkConfirm(false);
-    setMarkSuccess(true);
+    setMarkSuccess(false);
+    recordSubmission(
+      {
+        show_id: showId,
+        organization: activeFormatter.organization,
+        sport_type: activeFormatter.sportType,
+        // Distinct from a `sent` email so the history reads honestly and the
+        // record isn't mistaken for an electronic submission from the app.
+        xml_payload: xmlPreview || null,
+        status: 'submitted',
+      },
+      {
+        onSuccess: () => {
+          setShowMarkConfirm(false);
+          setMarkSuccess(true);
+        },
+        onError: err => {
+          const message = err instanceof Error ? err.message : 'Please try again.';
+          setSendError(
+            message.startsWith('Failed to record submission')
+              ? message
+              : `Failed to record submission. ${message}`
+          );
+        },
+      }
+    );
   };
 
   return (

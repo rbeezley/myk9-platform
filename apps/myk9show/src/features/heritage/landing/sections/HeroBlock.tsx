@@ -114,7 +114,7 @@ export function HeroBlock({
     .join(' – ');
 
   return (
-    <section id="overview" className="px-6 py-16 text-center md:px-18 md:py-24">
+    <header id="overview" className="px-6 py-16 text-center md:px-18 md:py-24">
       <HeritageEngravedFrame className="mx-auto max-w-3xl">
         <div
           ref={ref}
@@ -240,6 +240,6 @@ export function HeroBlock({
           />
         </div>
       </HeritageEngravedFrame>
-    </section>
+    </header>
   );
 }

@@ -94,7 +94,10 @@ function OverrideControls({
         value={visibility.preset ?? ''}
         onValueChange={v => onVisibilityPreset(v as VisibilityPreset)}
       >
-        <SelectTrigger className="min-h-[44px] w-28 sm:w-32" aria-label={`Results visibility for ${name}`}>
+        <SelectTrigger
+          className="min-h-[44px] w-28 sm:w-32"
+          aria-label={`Results visibility for ${name}`}
+        >
           <SelectValue placeholder="Inherit" />
         </SelectTrigger>
         <SelectContent>
@@ -146,7 +149,13 @@ function OverrideControls({
 }
 
 /** Two-facet status line shown under a trial/class name. */
-function FacetStatus({ visibility, checkin }: { visibility: VisibilityFacet; checkin: CheckinFacet }) {
+function FacetStatus({
+  visibility,
+  checkin,
+}: {
+  visibility: VisibilityFacet;
+  checkin: CheckinFacet;
+}) {
   return (
     <p className="text-xs text-muted-foreground">
       <span>Visibility: {visibility.label}</span>
@@ -277,7 +286,7 @@ export function OverrideTree({
       {trials.map(trial => {
         const trialClasses = classes.filter(c => c.trialId === trial.id);
         const trialOverride = trialOverrideById.get(trial.id);
-        const trialVis = resolveTrialVisibility(trialOverride);
+        const trialVis = resolveTrialVisibility(settings, trialOverride);
         const trialCheckin = resolveTrialCheckin(settings, trialOverride);
         const trialClassIds = trialClasses.map(c => c.id);
         const allSelected =
@@ -332,7 +341,7 @@ export function OverrideTree({
                 {trialClasses.map(cls => {
                   const className = getClassName(cls);
                   const classOverride = classOverrideById.get(cls.id);
-                  const classVis = resolveClassVisibility(classOverride, trialOverride);
+                  const classVis = resolveClassVisibility(settings, classOverride, trialOverride);
                   const classCheckin = resolveClassCheckin(settings, classOverride, trialOverride);
 
                   return (

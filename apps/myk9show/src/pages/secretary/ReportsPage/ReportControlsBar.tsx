@@ -27,7 +27,7 @@ function formatTrialOptionLabel(trial: {
   date: string;
 }): string {
   const base = trial.name?.trim() || `Trial ${trial.trial_number}`;
-  return trial.date ? `${base} — ${trial.date}` : base;
+  return trial.date ? `${base} · ${trial.date}` : base;
 }
 
 function formatClassOptionLabel(cls: {
@@ -45,7 +45,7 @@ function formatDogOptionLabel(dog: {
   armband: number | null;
 }): string {
   const registered = dog.registeredName ? ` (${dog.registeredName})` : '';
-  const armband = dog.armband != null ? ` — #${dog.armband}` : '';
+  const armband = dog.armband != null ? ` · #${dog.armband}` : '';
   return `${dog.callName}${registered}${armband}`;
 }
 
@@ -174,9 +174,15 @@ export function ReportControlsBar({
     <div className="flex flex-col items-stretch gap-3 border-b px-4 py-3 sm:flex-row sm:flex-wrap sm:items-end">
       {/* Report Type */}
       <div className="flex min-w-0 flex-col gap-1 sm:w-auto">
-        <label className="text-xs font-medium text-muted-foreground">Report</label>
+        <label htmlFor="report-type-select" className="text-xs font-medium text-muted-foreground">
+          Report
+        </label>
         <Select value={reportType} onValueChange={onReportTypeChange}>
-          <SelectTrigger className="w-full sm:w-[200px]" aria-label="Select report">
+          <SelectTrigger
+            id="report-type-select"
+            className="w-full sm:w-[200px]"
+            aria-label="Select report"
+          >
             <SelectValue placeholder="Select report">{selectedReportLabel}</SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -198,9 +204,11 @@ export function ReportControlsBar({
       {/* Trial dropdown — hidden if report doesn't have trial/class scope */}
       {(hasTrialScope || hasClassScope) && (
         <div className="flex min-w-0 flex-col gap-1 sm:w-auto">
-          <label className="text-xs font-medium text-muted-foreground">Trial</label>
+          <label htmlFor="trial-select" className="text-xs font-medium text-muted-foreground">
+            Trial
+          </label>
           <Select value={trialId} onValueChange={onTrialChange}>
-            <SelectTrigger className="w-full sm:w-[160px]" aria-label="Select trial">
+            <SelectTrigger id="trial-select" className="w-full sm:w-[160px]" aria-label="Select trial">
               <SelectValue placeholder="All Trials">{selectedTrialLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -218,9 +226,11 @@ export function ReportControlsBar({
       {/* Class dropdown — hidden if report doesn't have class scope */}
       {hasClassScope && (
         <div className="flex min-w-0 flex-col gap-1 sm:w-auto">
-          <label className="text-xs font-medium text-muted-foreground">Class</label>
+          <label htmlFor="class-select" className="text-xs font-medium text-muted-foreground">
+            Class
+          </label>
           <Select value={classId} onValueChange={onClassChange} disabled={trialId === 'all'}>
-            <SelectTrigger className="w-full sm:w-[200px]" aria-label="Select class">
+            <SelectTrigger id="class-select" className="w-full sm:w-[200px]" aria-label="Select class">
               <SelectValue placeholder="All Classes">{selectedClassLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -238,9 +248,11 @@ export function ReportControlsBar({
       {/* Dog dropdown — hidden if report doesn't support dog filter */}
       {hasDogFilter && (
         <div className="flex min-w-0 flex-col gap-1 sm:w-auto">
-          <label className="text-xs font-medium text-muted-foreground">Dog</label>
+          <label htmlFor="dog-select" className="text-xs font-medium text-muted-foreground">
+            Dog
+          </label>
           <Select value={dogId} onValueChange={onDogChange}>
-            <SelectTrigger className="w-full sm:w-[240px]" aria-label="Select dog">
+            <SelectTrigger id="dog-select" className="w-full sm:w-[240px]" aria-label="Select dog">
               <SelectValue placeholder="All Dogs">{selectedDogLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -258,9 +270,11 @@ export function ReportControlsBar({
       {/* Sort dropdown — hidden if report has no sortOptions */}
       {hasSortOptions && selectedReport && (
         <div className="flex min-w-0 flex-col gap-1 sm:w-auto">
-          <label className="text-xs font-medium text-muted-foreground">Sort</label>
+          <label htmlFor="sort-select" className="text-xs font-medium text-muted-foreground">
+            Sort
+          </label>
           <Select value={sortOrder} onValueChange={onSortChange}>
-            <SelectTrigger className="w-full sm:w-[160px]" aria-label="Select sort">
+            <SelectTrigger id="sort-select" className="w-full sm:w-[160px]" aria-label="Select sort">
               <SelectValue placeholder="Sort by">{selectedSortLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -274,21 +288,27 @@ export function ReportControlsBar({
         </div>
       )}
 
-      <Button onClick={onPrint} className="mb-0 w-full sm:w-auto">
-        Print
-      </Button>
-      {officialPdfAction && (
-        <Button
-          type="button"
-          variant="outline"
-          onClick={officialPdfAction.onClick}
-          disabled={officialPdfAction.disabled || officialPdfAction.isLoading}
-          className="mb-0 w-full sm:w-auto"
-        >
-          <Download className="h-4 w-4" aria-hidden="true" />
-          {officialPdfAction.isLoading ? 'Preparing PDF' : officialPdfAction.label}
+      {/* Action group — separated from the filter dropdowns above. On mobile the
+          controls stack into one column, so a top border keeps "what to print"
+          (filters) visually distinct from "print it" (actions). On desktop the
+          group sits inline at the end of the wrapped row. */}
+      <div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-end sm:border-t-0 sm:pt-0 sm:ml-auto">
+        <Button onClick={onPrint} className="w-full sm:w-auto">
+          Print
         </Button>
-      )}
+        {officialPdfAction && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={officialPdfAction.onClick}
+            disabled={officialPdfAction.disabled || officialPdfAction.isLoading}
+            className="w-full sm:w-auto"
+          >
+            <Download className="h-4 w-4" aria-hidden="true" />
+            {officialPdfAction.isLoading ? 'Preparing PDF' : officialPdfAction.label}
+          </Button>
+        )}
+      </div>
       {officialPdfAction?.missingFieldLabels?.length ? (
         <Alert
           role="status"

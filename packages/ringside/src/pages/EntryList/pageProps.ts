@@ -284,7 +284,7 @@ export interface ClassDetailsData {
   timeLimitArea2Seconds?: number;
   timeLimitArea3Seconds?: number;
   areaCount?: number;
-  visibilityPreset?: 'open' | 'standard' | 'review';
+  visibilityPreset?: 'open' | 'standard' | 'review' | 'custom';
   selfCheckinEnabled?: boolean;
 }
 

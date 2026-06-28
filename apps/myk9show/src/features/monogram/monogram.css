@@ -15,8 +15,8 @@
   --mg-ink: #1c1815;
   --mg-soft: #3a342c;
   --mg-quill: #5a4f3e;
-  --mg-mute: #7a6f5e;
-  --mg-bronze: #8a6938;
+  --mg-mute: #6e6452;
+  --mg-bronze: #7d5f30;
   --mg-bronze-light: #b08948;
   --mg-leaf: #c9a14b;
 
@@ -44,6 +44,44 @@
   padding: 80px 56px;
   max-width: 1200px;
   margin: 0 auto;
+}
+
+/* Hero fact grid. Lives in CSS (not inline) so the media queries below can
+   collapse the four cells 4 → 2 → 1 as the viewport narrows; an inline
+   grid-template-columns would shadow them and overflow at phone widths. */
+[data-monogram] .mg-hero__meta {
+  grid-template-columns: repeat(4, 1fr);
+}
+@media (max-width: 768px) {
+  [data-monogram] .mg-hero__meta {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  /* On two rows the right border of the second cell sits at the row edge. */
+  [data-monogram] .mg-hero__meta-cell:nth-child(2n) {
+    border-right: none !important;
+  }
+}
+@media (max-width: 420px) {
+  [data-monogram] .mg-hero__meta {
+    grid-template-columns: 1fr;
+  }
+  [data-monogram] .mg-hero__meta-cell {
+    border-right: none !important;
+  }
+}
+
+/* Visible keyboard focus on the paper surface. The page strips link
+   underlines and styles its own borders, so the UA outline alone is easy to
+   lose against the warm paper — pin a deliberate bronze ring. */
+[data-monogram] a:focus-visible,
+[data-monogram] button:focus-visible {
+  outline: 2px solid var(--mg-bronze);
+  outline-offset: 3px;
+  border-radius: 1px;
+}
+/* On the dark final band the bronze ring lacks contrast; use paper there. */
+[data-monogram] .mg-final a:focus-visible {
+  outline-color: var(--mg-paper);
 }
 
 [data-monogram] .mg-nav__cta:hover {

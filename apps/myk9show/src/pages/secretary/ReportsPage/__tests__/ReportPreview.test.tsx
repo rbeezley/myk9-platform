@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
 import { ReportPreview } from '../ReportPreview';
 import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
@@ -135,5 +136,74 @@ describe('ReportPreview', () => {
       expect(text).toContain('Scout');
       expect(text).toContain('Riley');
     });
+  });
+
+  it('announces the loading state via role=status', () => {
+    render(
+      <ReportPreview
+        reportType="result-catalog"
+        show={show}
+        trials={trials}
+        classes={classes}
+        entries={entries}
+        trialId="all"
+        classId="all"
+        dogId="all"
+        sortOrder="armband"
+        isLoading={true}
+        isError={false}
+      />
+    );
+
+    const status = screen.getByRole('status');
+    expect(status).toHaveTextContent('Loading report data');
+    expect(status).toHaveAttribute('aria-live', 'polite');
+  });
+
+  it('renders a retry affordance on error and calls onRetry when clicked', async () => {
+    const onRetry = vi.fn();
+    render(
+      <ReportPreview
+        reportType="result-catalog"
+        show={show}
+        trials={trials}
+        classes={classes}
+        entries={entries}
+        trialId="all"
+        classId="all"
+        dogId="all"
+        sortOrder="armband"
+        isLoading={false}
+        isError={true}
+        onRetry={onRetry}
+      />
+    );
+
+    const status = screen.getByRole('status');
+    expect(status).toHaveAttribute('aria-live', 'assertive');
+
+    const retry = screen.getByRole('button', { name: 'Try again' });
+    await userEvent.click(retry);
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('omits the retry button when no onRetry handler is provided', () => {
+    render(
+      <ReportPreview
+        reportType="result-catalog"
+        show={show}
+        trials={trials}
+        classes={classes}
+        entries={entries}
+        trialId="all"
+        classId="all"
+        dogId="all"
+        sortOrder="armband"
+        isLoading={false}
+        isError={true}
+      />
+    );
+
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
   });
 });

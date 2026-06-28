@@ -136,12 +136,25 @@ export default function ResultsControlPage() {
     [showClasses, bulkOps]
   );
 
+  // Entity lookup maps depend only on the override/class data, not the
+  // selection — hoist them out of the selection-keyed memo below so a checkbox
+  // toggle re-runs only the `.some()` scan, not three Map rebuilds.
+  const classOverrideMap = useMemo(
+    () => new Map(classOverrides.map(o => [o.classId, o])),
+    [classOverrides]
+  );
+  const trialOverrideMap = useMemo(
+    () => new Map(trialOverrides.map(o => [o.trialId, o])),
+    [trialOverrides]
+  );
+  const classTrialMap = useMemo(
+    () => new Map(showClasses.map(c => [c.id, c.trialId])),
+    [showClasses]
+  );
+
   // Check if any selected class uses manual_release timing on any field
   const hasManualReleaseClasses = useMemo(() => {
     if (!settings) return false;
-    const classOverrideMap = new Map(classOverrides.map(o => [o.classId, o]));
-    const trialOverrideMap = new Map(trialOverrides.map(o => [o.trialId, o]));
-    const classTrialMap = new Map(showClasses.map(c => [c.id, c.trialId]));
 
     return Array.from(bulkOps.selectedIds).some(classId => {
       const classOverride = classOverrideMap.get(classId);
@@ -157,10 +170,12 @@ export default function ResultsControlPage() {
         return effective === 'manual_release';
       });
     });
-  }, [bulkOps.selectedIds, classOverrides, trialOverrides, showClasses, settings]);
+  }, [bulkOps.selectedIds, classOverrideMap, trialOverrideMap, classTrialMap, settings]);
 
+  // pb-44/sm:pb-28: extra bottom clearance for the fixed BulkOperationsBar,
+  // which wraps to several rows on narrow screens.
   return (
-    <div className="container mx-auto py-6 space-y-8 pb-24">
+    <div className="container mx-auto py-6 space-y-8 pb-44 sm:pb-28">
       <h1 className="text-3xl font-bold tracking-tight">Results Control</h1>
 
       {/* Query error state */}
@@ -194,10 +209,16 @@ export default function ResultsControlPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="space-y-3">
-              <Skeleton className="h-24 w-full" />
-              <Skeleton className="h-16 w-full" />
-              <Skeleton className="h-24 w-full" />
+            // Mirror the settled layout (3 preset cards + override rows) so the
+            // panel doesn't jump shape when data arrives.
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-24 w-full" />
+              </div>
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
             </div>
           ) : isError ? (
             <CardLoadError />
@@ -207,10 +228,7 @@ export default function ResultsControlPage() {
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold">Show defaults</h3>
                 <PresetSelector showId={showId} settings={effectiveSettings} />
-                <ShowCheckinToggle
-                  showId={showId}
-                  enabled={effectiveSettings.selfCheckinEnabled}
-                />
+                <ShowCheckinToggle showId={showId} enabled={effectiveSettings.selfCheckinEnabled} />
               </div>
               {/* Per-trial / per-class overrides — one tree carrying both facets */}
               <OverrideTree

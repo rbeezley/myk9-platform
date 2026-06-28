@@ -120,6 +120,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 
 | Doc                                                                                                              | Status    | Title                              |
 | ---------------------------------------------------------------------------------------------------------------- | --------- | ---------------------------------- |
+| [audits/2026-06-28-overnight-launch-readiness-sweep.md](audits/2026-06-28-overnight-launch-readiness-sweep.md)   | Active    | Overnight Launch-Readiness Sweep   |
 | [audits/2026-06-code-quality/08-config-flag-debt.md](audits/2026-06-code-quality/08-config-flag-debt.md)         | Active    | 08 Config And Flag Debt            |
 | [audits/2026-06-code-quality/09-phase-2-verification.md](audits/2026-06-code-quality/09-phase-2-verification.md) | Active    | 09 Phase 2 Verification            |
 | [audits/2026-06-code-quality/README.md](audits/2026-06-code-quality/README.md)                                   | Reference | Code-Quality Audit Run             |

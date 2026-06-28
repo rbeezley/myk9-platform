@@ -198,6 +198,8 @@ const UserManagementPage: React.FC = () => {
                   variant={showFilters ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setShowFilters(!showFilters)}
+                  aria-expanded={showFilters}
+                  aria-controls="user-filters-panel"
                   className="h-10 px-4 rounded-xl"
                 >
                   <Filter className="h-4 w-4 mr-2" />
@@ -207,6 +209,7 @@ const UserManagementPage: React.FC = () => {
                     !!filters.clubAffiliation) && (
                     <Badge
                       variant="secondary"
+                      aria-hidden="true"
                       className="ml-2 h-5 w-5 p-0 flex items-center justify-center rounded-full"
                     >
                       !
@@ -227,7 +230,7 @@ const UserManagementPage: React.FC = () => {
             </div>
 
             {showFilters && (
-              <div className="pt-3 border-t border-border/30">
+              <div id="user-filters-panel" className="pt-3 border-t border-border/30">
                 <UserFilters filters={filters} onFiltersChange={setFilters} roleStats={roleStats} />
               </div>
             )}

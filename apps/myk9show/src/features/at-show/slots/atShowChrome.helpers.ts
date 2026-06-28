@@ -121,6 +121,7 @@ const VISIBILITY_LABELS: Record<string, string> = {
   open: 'Open',
   standard: 'Standard',
   review: 'Review',
+  custom: 'Custom',
 };
 
 const VISIBILITY_TIERS: Record<string, BadgeTier> = {

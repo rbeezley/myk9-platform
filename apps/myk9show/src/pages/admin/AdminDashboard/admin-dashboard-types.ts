@@ -7,19 +7,6 @@
 import { Show } from '@/types/show-types';
 import { User } from '@/types/user-types';
 
-// Stats card props
-export interface StatsCardProps {
-  title: string;
-  value: string;
-  subtitle?: string;
-  icon: React.ComponentType<{ className?: string }>;
-  trend?: 'up' | 'down' | 'neutral';
-  trendValue?: string;
-  priority?: 'urgent' | 'high' | 'normal';
-  actionable?: boolean;
-  onClick?: () => void;
-}
-
 // Props for PlatformAdministrationSection component
 export interface PlatformAdministrationSectionProps {
   userCount: number;

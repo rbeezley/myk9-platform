@@ -62,7 +62,7 @@ export function ScheduleTimeline({ showId }: ScheduleTimelineProps) {
           <button
             type="button"
             onClick={() => refetch()}
-            className="text-sm text-primary underline"
+            className="rounded text-sm text-primary underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Try again
           </button>

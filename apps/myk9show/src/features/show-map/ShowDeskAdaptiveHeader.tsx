@@ -269,7 +269,7 @@ function MultiItemRow({
           </div>
           <div className="text-xs text-muted-foreground">
             {context}
-            {context && ' — '}across {group.count} classes
+            {context && ', '}across {group.count} classes
           </div>
         </div>
         {expanded ? (

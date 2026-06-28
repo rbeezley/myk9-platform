@@ -27,11 +27,11 @@ const settings: ShowSettings = {
 
 describe('overrideTreeUtils — visibility cascade', () => {
   it('trial inherits from show when no override', () => {
-    const f = resolveTrialVisibility(undefined);
+    const f = resolveTrialVisibility(settings, undefined);
     expect(f.hasOverride).toBe(false);
     expect(f.source).toBe('show');
     expect(f.preset).toBeNull();
-    expect(f.label).toBe('Inheriting from show');
+    expect(f.label).toBe('Inheriting from show · After Class');
   });
 
   it('trial reports its own override and preset', () => {
@@ -40,7 +40,7 @@ describe('overrideTreeUtils — visibility cascade', () => {
       override: { preset: 'review', placement: 'manual_release' },
       selfCheckinEnabled: null,
     };
-    const f = resolveTrialVisibility(trial);
+    const f = resolveTrialVisibility(settings, trial);
     expect(f.hasOverride).toBe(true);
     expect(f.source).toBe('trial');
     expect(f.preset).toBe('review');
@@ -53,9 +53,20 @@ describe('overrideTreeUtils — visibility cascade', () => {
       override: { preset: 'open', qualification: 'immediate' },
       selfCheckinEnabled: null,
     };
-    const f = resolveClassVisibility(undefined, trial);
+    const f = resolveClassVisibility(settings, undefined, trial);
     expect(f.source).toBe('trial');
-    expect(f.label).toBe('Inheriting from trial');
+    expect(f.label).toBe('Inheriting from trial · Immediately');
+  });
+
+  it('class inherits from show when the trial row has only a check-in override', () => {
+    const trial: TrialOverrideEntry = {
+      trialId: 't1',
+      override: {},
+      selfCheckinEnabled: false,
+    };
+    const f = resolveClassVisibility(settings, undefined, trial);
+    expect(f.source).toBe('show');
+    expect(f.label).toBe('Inheriting from show · After Class');
   });
 
   it('class override wins over trial override', () => {
@@ -70,7 +81,7 @@ describe('overrideTreeUtils — visibility cascade', () => {
       override: { preset: 'review', placement: 'manual_release' },
       selfCheckinEnabled: null,
     };
-    const f = resolveClassVisibility(cls, trial);
+    const f = resolveClassVisibility(settings, cls, trial);
     expect(f.source).toBe('class');
     expect(f.preset).toBe('review');
   });
@@ -125,7 +136,7 @@ describe('overrideTreeUtils — check-in cascade (independent of visibility)', (
       override: { preset: 'review' }, // visibility overridden at class
       selfCheckinEnabled: null, // check-in inherits
     };
-    expect(resolveClassVisibility(cls, trial).source).toBe('class');
+    expect(resolveClassVisibility(settings, cls, trial).source).toBe('class');
     expect(resolveClassCheckin(settings, cls, trial).source).toBe('trial');
   });
 });

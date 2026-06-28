@@ -13,7 +13,7 @@ export function HeritageFooter({
 }: HeritageFooterProps) {
   return (
     <footer
-      className="px-6 py-12 text-center"
+      className="hl-on-ink px-6 py-12 text-center"
       style={{ background: 'var(--hl-ink)', color: 'var(--hl-paper)' }}
     >
       <div className="mx-auto flex max-w-3xl flex-col items-center gap-4">

@@ -16,6 +16,7 @@ import type {
   LabelFilterConfig,
 } from '@/lib/labels/armbandLabelTypes';
 import { ArmbandLabelCell } from './ArmbandLabelCell';
+import { LabelSetupSection, SetupEyebrow } from './LabelModeChrome';
 import { generatePasscodesFromShowId } from '@myk9/core';
 import { useLabelPreferences } from '@/hooks/useLabelPreferences';
 import { useArmbandLabelData } from '@/hooks/queries/useArmbandLabelData';
@@ -127,7 +128,11 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-8 text-muted-foreground">
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex items-center justify-center p-8 text-muted-foreground"
+      >
         Loading entry data...
       </div>
     );
@@ -138,12 +143,10 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
 
   return (
     <div className="w-full max-w-[8.5in] mx-auto">
-      <div className="border rounded-lg bg-muted/30 p-4 mb-6 space-y-4">
+      <LabelSetupSection>
         {/* Label Size */}
         <div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-            Label Size
-          </div>
+          <SetupEyebrow className="mb-2">Label Size</SetupEyebrow>
           <div className="flex flex-col gap-1.5">
             {templates.map((t) => (
               <label
@@ -158,7 +161,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
                     setPrefs((p) => ({ ...p, templateId: t.id }))
                   }
                 />
-                {t.name} — {t.labelsPerSheet}/sheet
+                {t.name} · {t.labelsPerSheet}/sheet
               </label>
             ))}
           </div>
@@ -166,9 +169,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
 
         {/* Entry Filter */}
         <div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-            Select Armbands to Print
-          </div>
+          <SetupEyebrow className="mb-2">Select Armbands to Print</SetupEyebrow>
           <div className="flex flex-col gap-1.5">
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -219,9 +220,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
 
         {/* Content Config */}
         <div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-            Include on Label
-          </div>
+          <SetupEyebrow className="mb-2">Include on Label</SetupEyebrow>
           <div className="grid grid-cols-2 gap-1.5">
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -308,9 +307,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
           </button>
           {showAdvanced && (
             <div className="mt-2 p-3 border rounded bg-background space-y-2">
-              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Vertical Pitch Adjustment
-              </div>
+              <SetupEyebrow>Vertical Pitch Adjustment</SetupEyebrow>
               <p className="text-xs text-muted-foreground">
                 If labels drift out of alignment toward the bottom of the page,
                 adjust this value. Positive = more space between rows, negative =
@@ -349,11 +346,15 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
             </div>
           )}
         </div>
-      </div>
+      </LabelSetupSection>
 
       {/* Empty state */}
       {items.length === 0 && !isLoading && (
-        <div className="flex items-center justify-center p-8 text-muted-foreground">
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex items-center justify-center p-8 text-muted-foreground"
+        >
           {allEntries.length === 0
             ? 'No entries with armbands assigned for this show'
             : showSpecific && specificArmband
@@ -373,7 +374,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
             rowGap: `${template.gapY}in`,
             margin: '0 auto',
             marginBottom: '16px',
-            border: '1px dashed #ddd',
+            border: '1px dashed var(--border)',
             padding: '8px',
           }}
         >
@@ -385,8 +386,8 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
                 height: `${template.labelHeight}in`,
                 border:
                   cell.type === 'item'
-                    ? '1px solid #eee'
-                    : '1px dashed #f0f0f0',
+                    ? '1px solid var(--border)'
+                    : '1px dashed var(--border)',
                 boxSizing: 'border-box',
                 overflow: 'hidden',
                 padding: '0.08in 0.12in',

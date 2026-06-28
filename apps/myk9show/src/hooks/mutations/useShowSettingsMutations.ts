@@ -18,7 +18,8 @@ const untypedSupabase = supabase as any;
 
 interface ShowVisibilityUpdate {
   showId: string;
-  preset: VisibilityPreset;
+  /** null = custom timings that match no named preset (stored honestly, not coerced) */
+  preset: VisibilityPreset | null;
   placementTiming: VisibilityTiming;
   qualificationTiming: VisibilityTiming;
   timeTiming: VisibilityTiming;
@@ -143,7 +144,9 @@ export function useUpdateShowVisibility() {
               qualification: variables.qualificationTiming,
               time: variables.timeTiming,
               faults: variables.faultsTiming,
-              preset: variables.preset,
+              // null (custom) maps to undefined so VisibilitySettings.preset stays
+              // optional-not-null and readers render it as "Custom".
+              preset: variables.preset ?? undefined,
               inheritedFrom: 'show' as const,
             },
             hasExplicitSettings: true,
@@ -182,7 +185,10 @@ export function useUpdateShowCheckin() {
 
       const { error } = await untypedSupabase.from('show_visibility_settings').upsert({
         show_id: update.showId,
-        preset: existing?.preset ?? 'standard',
+        // Preserve an existing row's preset verbatim — including NULL (custom
+        // timings). Only a brand-new row, written alongside the default timings
+        // below, gets the 'standard' label.
+        preset: existing ? existing.preset : 'standard',
         placement_timing: existing?.placement_timing ?? 'class_complete',
         qualification_timing: existing?.qualification_timing ?? 'immediate',
         time_timing: existing?.time_timing ?? 'class_complete',

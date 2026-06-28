@@ -29,11 +29,7 @@ function makeQuery(data: unknown) {
   return q;
 }
 
-function mockTables(rows: {
-  show?: unknown;
-  trial?: unknown;
-  classRows?: unknown[];
-}) {
+function mockTables(rows: { show?: unknown; trial?: unknown; classRows?: unknown[] }) {
   vi.mocked(supabase.from).mockImplementation((table: string) => {
     switch (table) {
       case 'trials':
@@ -87,6 +83,24 @@ describe('resolveClassVisibilityForTrial', () => {
     mockTables({ classRows: [] }); // nothing configured at any level
     const bare = await resolveClassVisibilityForTrial('trial-1', ['c1']);
     expect(bare.get('c1')).toEqual({ visibilityPreset: 'open', selfCheckinEnabled: true });
+  });
+
+  it('reports custom when show timings do not match a named preset', async () => {
+    mockTables({
+      show: {
+        preset: null,
+        placement_timing: 'manual_release',
+        qualification_timing: 'immediate',
+        time_timing: 'immediate',
+        faults_timing: 'immediate',
+        self_checkin_enabled: true,
+      },
+      classRows: [],
+    });
+
+    const result = await resolveClassVisibilityForTrial('trial-1', ['c1']);
+
+    expect(result.get('c1')).toEqual({ visibilityPreset: 'custom', selfCheckinEnabled: true });
   });
 });
 

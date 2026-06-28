@@ -71,7 +71,9 @@ describe('OverrideTree', () => {
 
   it('renders one trial row with both a visibility Select and a check-in Switch', () => {
     renderTree();
-    expect(screen.getByRole('combobox', { name: 'Results visibility for Trial A' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('combobox', { name: 'Results visibility for Trial A' })
+    ).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Self check-in for Trial A' })).toBeInTheDocument();
   });
 
@@ -93,6 +95,17 @@ describe('OverrideTree', () => {
     });
     expect(screen.getByText(/Visibility: Override: review/)).toBeInTheDocument();
     expect(screen.getByText(/Check-in: Inheriting from show/)).toBeInTheDocument();
+  });
+
+  it('shows the inherited preset label for visibility inherited from the show', async () => {
+    const { user } = renderTree({
+      trialOverrides: [{ trialId: 'trial-1', override: {}, selfCheckinEnabled: false }],
+    });
+
+    expect(screen.getByText(/Visibility: Inheriting from show · After Class/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Trial A.*classes/ }));
+    expect(screen.getAllByText(/Visibility: Inheriting from show · After Class/)).toHaveLength(3);
   });
 
   it('reset buttons dispatch the matching facet independently', async () => {
@@ -159,6 +172,8 @@ describe('OverrideTree', () => {
 
     // Class-level switches are also named.
     await user.click(screen.getByRole('button', { name: /Trial A.*classes/ }));
-    expect(within(document.body).getAllByRole('switch', { name: /^Self check-in for /i }).length).toBeGreaterThan(1);
+    expect(
+      within(document.body).getAllByRole('switch', { name: /^Self check-in for /i }).length
+    ).toBeGreaterThan(1);
   });
 });

@@ -11,7 +11,16 @@
  *   checkin           = class.selfCheckin     ?? trial.selfCheckin     ?? show.selfCheckin
  */
 
-import { hasVisibilityOverride, type VisibilityPreset } from '@myk9/secretary';
+import {
+  PRESET_INFO,
+  detectPreset,
+  fieldTimingsFromVisibility,
+  hasVisibilityOverride,
+  resolveVisibilityCascade,
+  type VisibilityOverride,
+  type VisibilityPreset,
+  type VisibilitySettings,
+} from '@myk9/secretary';
 import type {
   ShowSettings,
   TrialOverrideEntry,
@@ -46,14 +55,27 @@ export interface CheckinFacet {
  * This is why "trial" can mean either "this trial's override" (on a trial row) or
  * "inheriting from the trial" (on a class row).
  */
-function visibilityLabel(
-  ownLevel: InheritSource,
-  source: InheritSource,
-  preset: VisibilityPreset | null
+function inheritedPresetLabel(
+  show: VisibilitySettings,
+  trialOverride?: VisibilityOverride
 ): string {
+  const resolved = resolveVisibilityCascade(show, trialOverride);
+  const preset = detectPreset(fieldTimingsFromVisibility(resolved));
+  return preset ? PRESET_INFO[preset].title : 'Custom';
+}
+
+function visibilityLabel(params: {
+  ownLevel: InheritSource;
+  source: InheritSource;
+  preset: VisibilityPreset | null;
+  settings: ShowSettings;
+  trialOverride?: VisibilityOverride | undefined;
+}): string {
+  const { ownLevel, source, preset, settings, trialOverride } = params;
   if (source === ownLevel) return `Override: ${preset ?? 'custom'}`;
-  if (source === 'show') return 'Inheriting from show';
-  return 'Inheriting from trial';
+  if (source === 'show')
+    return `Inheriting from show · ${inheritedPresetLabel(settings.visibility)}`;
+  return `Inheriting from trial · ${inheritedPresetLabel(settings.visibility, trialOverride)}`;
 }
 
 function checkinLabel(ownLevel: InheritSource, source: InheritSource): string {
@@ -64,11 +86,25 @@ function checkinLabel(ownLevel: InheritSource, source: InheritSource): string {
 
 // ── Trial level ──────────────────────────────────────────────────────────────
 
-export function resolveTrialVisibility(override?: TrialOverrideEntry): VisibilityFacet {
+export function resolveTrialVisibility(
+  settings: ShowSettings,
+  override?: TrialOverrideEntry
+): VisibilityFacet {
   const hasOverride = !!override && hasVisibilityOverride(override.override);
   const preset = override?.override.preset ?? null;
   const source: InheritSource = hasOverride ? 'trial' : 'show';
-  return { hasOverride, preset, source, label: visibilityLabel('trial', source, preset) };
+  return {
+    hasOverride,
+    preset,
+    source,
+    label: visibilityLabel({
+      ownLevel: 'trial',
+      source,
+      preset,
+      settings,
+      trialOverride: override?.override,
+    }),
+  };
 }
 
 export function resolveTrialCheckin(
@@ -89,6 +125,7 @@ export function resolveTrialCheckin(
 // ── Class level ──────────────────────────────────────────────────────────────
 
 export function resolveClassVisibility(
+  settings: ShowSettings,
   classOverride: ClassOverrideEntry | undefined,
   trialOverride: TrialOverrideEntry | undefined
 ): VisibilityFacet {
@@ -96,7 +133,18 @@ export function resolveClassVisibility(
   const preset = classOverride?.override.preset ?? null;
   const trialHasOverride = !!trialOverride && hasVisibilityOverride(trialOverride.override);
   const source: InheritSource = hasOverride ? 'class' : trialHasOverride ? 'trial' : 'show';
-  return { hasOverride, preset, source, label: visibilityLabel('class', source, preset) };
+  return {
+    hasOverride,
+    preset,
+    source,
+    label: visibilityLabel({
+      ownLevel: 'class',
+      source,
+      preset,
+      settings,
+      trialOverride: trialOverride?.override,
+    }),
+  };
 }
 
 export function resolveClassCheckin(

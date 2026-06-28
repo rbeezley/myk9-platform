@@ -26,7 +26,7 @@ describe('MonogramHeading', () => {
     );
     const h = container.querySelector('h2')!;
     expect(h.style.fontStyle).toBe('italic');
-    expect(h.style.color).toBe('rgb(138, 105, 56)'); // bronze
+    expect(h.style.color).toBe('rgb(125, 95, 48)'); // bronze (#7d5f30, AA-darkened)
   });
 
   it('uses ink color (not italic) by default', () => {
@@ -73,6 +73,6 @@ describe('MonogramHeading', () => {
   // Sanity reference so the token + literal assertions stay aligned.
   it('imported tokens still expose ink and bronze', () => {
     expect(monogramColors.ink).toBe('#1c1815');
-    expect(monogramColors.bronze).toBe('#8a6938');
+    expect(monogramColors.bronze).toBe('#7d5f30');
   });
 });

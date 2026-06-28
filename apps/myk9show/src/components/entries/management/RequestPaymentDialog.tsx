@@ -114,10 +114,10 @@ export function RequestPaymentDialog({
     try {
       await navigator.clipboard.writeText(result.url);
       setCopied(true);
-      toast.success('Payment link copied — send it to the exhibitor.');
+      toast.success('Payment link copied. Send it to the exhibitor.');
     } catch {
       // Clipboard can fail (permissions); the link is still visible to copy by hand.
-      toast.error('Could not copy automatically — select and copy the link below.');
+      toast.error('Could not copy automatically. Select and copy the link below.');
     }
   };
 
@@ -128,7 +128,7 @@ export function RequestPaymentDialog({
           <DialogTitle>Request payment</DialogTitle>
           <DialogDescription>
             {entry
-              ? `Generate a secure Stripe payment link for ${entry.dogName ?? 'this entry'}. A card processing fee is added on top of the entry fee — the exhibitor pays the total shown.`
+              ? `Generate a secure Stripe payment link for ${entry.dogName ?? 'this entry'}. A card processing fee is added on top of the entry fee, so the exhibitor pays the total shown.`
               : ''}
           </DialogDescription>
         </DialogHeader>
@@ -170,7 +170,7 @@ export function RequestPaymentDialog({
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Send this link to the exhibitor. It expires in 24 hours — generate a new one if it
+                Send this link to the exhibitor. It expires in 24 hours, so generate a new one if it
                 lapses. Paying it marks the entry paid automatically.
               </p>
             </div>

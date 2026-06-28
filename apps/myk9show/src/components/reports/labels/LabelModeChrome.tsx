@@ -1,4 +1,5 @@
 import type React from 'react';
+import { cn } from '@/lib/utils';
 
 /**
  * Label printing is routed through the secretary Reports page via the report-type
@@ -25,6 +26,33 @@ export function LabelModeHeader({ title, subtitle }: LabelModeHeaderProps) {
   );
 }
 
+interface SetupEyebrowProps {
+  children: React.ReactNode;
+  /** Per-site spacing to the following control (e.g. "mb-2", "mb-1"). */
+  className?: string;
+}
+
+/**
+ * Small uppercase "eyebrow" heading that names a group of label-setup controls.
+ * Centralizes the repeated config-panel typography (previously copied ~7×
+ * across LabelSetupSection + the Armband/Result label reports) so the headings
+ * stay visually consistent. The gap to the following control varies per group,
+ * so callers pass spacing (`mb-2`, `mb-1`, none) via `className` rather than
+ * baking one margin into the helper.
+ */
+export function SetupEyebrow({ children, className }: SetupEyebrowProps) {
+  return (
+    <div
+      className={cn(
+        'text-xs font-semibold uppercase tracking-wide text-muted-foreground',
+        className
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
 interface LabelSetupSectionProps {
   children: React.ReactNode;
 }
@@ -40,9 +68,7 @@ export function LabelSetupSection({ children }: LabelSetupSectionProps) {
       aria-label="Label setup"
       className="mb-6 space-y-4 rounded-lg border bg-muted/30 p-4"
     >
-      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Label setup
-      </div>
+      <SetupEyebrow>Label setup</SetupEyebrow>
       {children}
     </section>
   );

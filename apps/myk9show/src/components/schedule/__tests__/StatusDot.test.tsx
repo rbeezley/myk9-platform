@@ -14,15 +14,37 @@ const ALL_STATUSES: ClassStatusValue[] = [
 
 describe('StatusDot', () => {
   // Guards the dark-mode-adaption regression (the ShowStatusPill #666 class of
-  // bug): every status fill must adapt in dark mode — either via a semantic
-  // token (bg-warning, bg-success) or an explicit dark: variant.
+  // bug): every status fill must adapt in dark mode, either via a self-theming
+  // semantic token (bg-warning/bg-success for active states,
+  // bg-muted-foreground for neutral ones) or an explicit dark: variant. Raw
+  // palette fills with no dark counterpart (bg-slate-500) are what render
+  // near-black in light mode and are disallowed.
   it('gives every status a dark-mode-aware colour', () => {
     for (const status of ALL_STATUSES) {
       const { container, unmount } = render(<StatusDot status={status} />);
       const dot = container.querySelector('[aria-label]') as HTMLElement;
-      const hasSemanticToken = /bg-(warning|success|destructive|info)/.test(dot.className);
+      const hasSemanticToken = /bg-(warning|success|destructive|info|muted-foreground)/.test(
+        dot.className
+      );
       const hasDarkVariant = /dark:bg-/.test(dot.className);
       expect(hasSemanticToken || hasDarkVariant).toBe(true);
+      unmount();
+    }
+  });
+
+  // Neutral states use the self-theming --muted-foreground token rather than a
+  // raw palette fill, so they read correctly in both modes without a dark:
+  // variant and never render near-black in light mode.
+  it('uses the muted-foreground token (not raw slate) for neutral statuses', () => {
+    for (const status of [
+      CLASS_STATUS.SCHEDULED,
+      CLASS_STATUS.UPCOMING,
+      CLASS_STATUS.CANCELLED,
+    ]) {
+      const { container, unmount } = render(<StatusDot status={status} />);
+      const className = (container.querySelector('[aria-label]') as HTMLElement).className;
+      expect(className).toContain('bg-muted-foreground');
+      expect(className).not.toMatch(/slate/);
       unmount();
     }
   });

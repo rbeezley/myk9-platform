@@ -65,4 +65,15 @@ describe('SetupAdaptiveHeader', () => {
     );
     expect(screen.getByText(/2 items left/i)).toBeInTheDocument();
   });
+
+  it('uses plain UI copy with no em dash', () => {
+    render(
+      <SetupAdaptiveHeader
+        signals={[{ id: 'no-trials', label: 'No trials yet', href: '/shows/s1?tab=trials' }]}
+      />
+    );
+    const copy = screen.getByText(/item left/i);
+    expect(copy).toHaveTextContent('1 item left. Tap one to fix it.');
+    expect(copy.textContent).not.toContain('—');
+  });
 });

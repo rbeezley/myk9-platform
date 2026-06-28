@@ -136,7 +136,8 @@ describe('Show creation wizard — dark-mode theming guards', () => {
     expect(contrastRatio(warningForeground, warning)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it('Wizard nav loading spinner uses an adaptive token, not raw border-white', () => {
+  it('Wizard nav loading spinner uses border-current (adapts to button fg), not raw border-white', () => {
+    expect(wizardNavigation).toContain('border-current');
     expect(wizardNavigation).not.toContain('border-white');
   });
 });

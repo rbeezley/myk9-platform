@@ -36,6 +36,11 @@ function formatCents(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
+/** A refund reduces what the club is owed, so show it as a signed deduction. */
+function formatRefundCents(cents: number): string {
+  return cents > 0 ? `-${formatCents(cents)}` : formatCents(0);
+}
+
 const STATUS_LABEL: Record<PayoutStatus, string> = {
   pending: 'Pending',
   processing: 'Processing',
@@ -121,10 +126,12 @@ function LedgerSummary({ rows }: { rows: LedgerRow[] }) {
   const { outstandingCents, paidOutCents } = summarizeLedger(rows);
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <Card>
+      <Card className="border-primary/40">
         <CardHeader className="pb-2">
           <CardDescription>Outstanding to clubs</CardDescription>
-          <CardTitle className="text-2xl">{formatCents(outstandingCents)}</CardTitle>
+          <CardTitle className="text-2xl tabular-nums text-primary">
+            {formatCents(outstandingCents)}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
@@ -135,13 +142,26 @@ function LedgerSummary({ rows }: { rows: LedgerRow[] }) {
       <Card>
         <CardHeader className="pb-2">
           <CardDescription>Paid out to date</CardDescription>
-          <CardTitle className="text-2xl">{formatCents(paidOutCents)}</CardTitle>
+          <CardTitle className="text-2xl tabular-nums">{formatCents(paidOutCents)}</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">Completed Stripe transfers.</p>
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function LedgerError() {
+  return (
+    <Card>
+      <CardContent className="py-10 text-center">
+        <p className="font-medium">Could not load the payout ledger.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Amounts are unavailable right now, not zero. Refresh to try again.
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -173,19 +193,30 @@ function LedgerTable({ rows }: { rows: LedgerRow[] }) {
           <TableBody>
             {rows.map(row => (
               <TableRow key={row.showId}>
-                <TableCell className="font-medium">{row.clubName ?? '—'}</TableCell>
+                <TableCell className="font-medium">
+                  {row.clubName ?? <span className="text-muted-foreground">Unknown club</span>}
+                </TableCell>
                 <TableCell>{row.showName}</TableCell>
-                <TableCell className="text-right">{formatCents(row.onlineCollectedCents)}</TableCell>
-                <TableCell className="text-right">{formatCents(row.refundedCents)}</TableCell>
-                <TableCell className="text-right font-medium">
+                <TableCell className="text-right tabular-nums">
+                  {formatCents(row.onlineCollectedCents)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums text-muted-foreground">
+                  {formatRefundCents(row.refundedCents)}
+                </TableCell>
+                <TableCell className="text-right font-medium tabular-nums">
                   {formatCents(row.netOwedCents)}
                 </TableCell>
-                <TableCell>{row.settleDate ?? '—'}</TableCell>
+                <TableCell className="tabular-nums">
+                  {row.settleDate ?? <span className="text-muted-foreground">Not scheduled</span>}
+                </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     {statusBadge(row.payoutStatus)}
                     {row.stripeTransferId && (
-                      <span className="text-xs text-muted-foreground font-mono">
+                      <span
+                        className="max-w-[10rem] truncate font-mono text-xs text-muted-foreground"
+                        title={`Stripe transfer ${row.stripeTransferId}`}
+                      >
                         {row.stripeTransferId}
                       </span>
                     )}
@@ -230,6 +261,8 @@ export default function PayoutLedgerPage() {
             <Skeleton className="h-24 w-full" />
             <Skeleton className="h-64 w-full" />
           </div>
+        ) : isError ? (
+          <LedgerError />
         ) : (
           <>
             <LedgerSummary rows={rows ?? []} />

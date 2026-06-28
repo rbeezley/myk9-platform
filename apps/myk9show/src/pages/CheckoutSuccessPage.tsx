@@ -23,6 +23,7 @@ import { Separator } from '@/components/ui/separator';
 import { verifyCheckoutSession } from '@/lib/stripe';
 import { useCartStore } from '@/store/cartStore';
 import { supabase } from '@/lib/supabase';
+import { readCartSplitCheckoutSummary } from '@/features/payments/cartSplitCheckoutStorage';
 
 interface EntryDetails {
   id: string;
@@ -38,6 +39,8 @@ export default function CheckoutSuccessPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const sessionId = searchParams.get('session_id');
+  const isWaitlistOnly = searchParams.get('waitlist') === '1';
+  const [splitSummary, setSplitSummary] = useState(() => readCartSplitCheckoutSummary());
 
   const [isLoading, setIsLoading] = useState(true);
   const [_isVerified, setIsVerified] = useState(false);
@@ -58,6 +61,17 @@ export default function CheckoutSuccessPage() {
   useEffect(() => {
     const verifyPayment = async () => {
       if (!sessionId) {
+        const pendingSummary = readCartSplitCheckoutSummary();
+        if (isWaitlistOnly && pendingSummary && pendingSummary.confirmedEntryCount === 0) {
+          setOrderDetails({
+            showId: pendingSummary.showId,
+          });
+          setSplitSummary(pendingSummary);
+          setIsVerified(true);
+          resetCart();
+          setIsLoading(false);
+          return;
+        }
         setError('No checkout session found. Please try again.');
         setIsLoading(false);
         return;
@@ -72,6 +86,7 @@ export default function CheckoutSuccessPage() {
         const result = await verifyCheckoutSession(sessionId);
 
         if (result.success) {
+          const nextSplitSummary = readCartSplitCheckoutSummary();
           setOrderDetails({
             ...(result.orderId !== undefined && { orderId: result.orderId }),
             ...(result.showName !== undefined && { showName: result.showName }),
@@ -82,6 +97,15 @@ export default function CheckoutSuccessPage() {
               confirmationNumber: result.confirmationNumber,
             }),
           });
+          if (
+            nextSplitSummary &&
+            nextSplitSummary.showId === result.showId &&
+            nextSplitSummary.confirmedEntryCount === (result.entryIds?.length ?? 0)
+          ) {
+            setSplitSummary(nextSplitSummary);
+          } else {
+            setSplitSummary(null);
+          }
           setIsVerified(true);
 
           // Fetch entry details
@@ -157,11 +181,20 @@ export default function CheckoutSuccessPage() {
     };
 
     verifyPayment();
-  }, [sessionId, resetCart]);
+  }, [isWaitlistOnly, resetCart, sessionId]);
 
   const formatCurrency = (cents: number) => {
     return `$${(cents / 100).toFixed(2)}`;
   };
+  const confirmedEntryCount = splitSummary?.confirmedEntryCount ?? entries.length;
+  const waitlistEntries = splitSummary?.waitlistEntries ?? [];
+  const isWaitlistOnlySuccess = confirmedEntryCount === 0 && waitlistEntries.length > 0;
+  const pageTitle = isWaitlistOnlySuccess
+    ? 'Added to Wait List'
+    : 'Entry Submitted Successfully!';
+  const pageDescription = isWaitlistOnlySuccess
+    ? 'Your wait list request has been recorded for the full classes in this cart.'
+    : 'Your payment has been processed and your entries are confirmed.';
 
   // Loading state
   if (isLoading) {
@@ -216,10 +249,8 @@ export default function CheckoutSuccessPage() {
             <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="h-8 w-8 text-success " />
             </div>
-            <CardTitle className="text-2xl">Entry Submitted Successfully!</CardTitle>
-            <p className="text-muted-foreground mt-2">
-              Your payment has been processed and your entries are confirmed.
-            </p>
+            <CardTitle className="text-2xl">{pageTitle}</CardTitle>
+            <p className="text-muted-foreground mt-2">{pageDescription}</p>
           </CardHeader>
 
           <CardContent className="space-y-6">
@@ -240,7 +271,7 @@ export default function CheckoutSuccessPage() {
             )}
 
             {/* Order Summary */}
-            {orderDetails && (
+            {orderDetails?.totalAmount !== undefined && (
               <Alert className="bg-muted/50">
                 <Receipt className="h-4 w-4" />
                 <AlertDescription>
@@ -250,6 +281,34 @@ export default function CheckoutSuccessPage() {
                       {orderDetails.totalAmount ? formatCurrency(orderDetails.totalAmount) : '—'}
                     </span>
                   </div>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {splitSummary && (confirmedEntryCount > 0 || waitlistEntries.length > 0) && (
+              <Alert>
+                <CheckCircle className="h-4 w-4" />
+                <AlertDescription>
+                  <span className="font-semibold">Entry Summary: </span>
+                  <span>
+                    Paid: {confirmedEntryCount} {confirmedEntryCount === 1 ? 'entry' : 'entries'}
+                  </span>
+                  <span>{' · '}</span>
+                  <span>
+                    Waitlisted: {waitlistEntries.length}{' '}
+                    {waitlistEntries.length === 1 ? 'entry' : 'entries'}
+                  </span>
+                  {waitlistEntries.length > 0 && (
+                    <>
+                      <span>{'. Positions: '}</span>
+                      {waitlistEntries.map((entry, index) => (
+                        <span key={entry.id}>
+                          {`${entry.className ?? ''} #${entry.position}`.trimStart()}
+                          {index < waitlistEntries.length - 1 ? ', ' : '.'}
+                        </span>
+                      ))}
+                    </>
+                  )}
                 </AlertDescription>
               </Alert>
             )}
@@ -268,11 +327,12 @@ export default function CheckoutSuccessPage() {
             <Separator />
 
             {/* Entry Details */}
-            <div>
-              <h3 className="font-semibold mb-3 flex items-center gap-2">
-                <Dog className="h-4 w-4" />
-                Your Entries ({entries.length})
-              </h3>
+            {entries.length > 0 && (
+              <div>
+                <h3 className="font-semibold mb-3 flex items-center gap-2">
+                  <Dog className="h-4 w-4" />
+                  Your Entries ({entries.length})
+                </h3>
               <div className="space-y-2">
                 {entries.map(entry => (
                   <div
@@ -297,7 +357,8 @@ export default function CheckoutSuccessPage() {
                   </div>
                 ))}
               </div>
-            </div>
+              </div>
+            )}
 
             <Separator />
 
@@ -305,14 +366,16 @@ export default function CheckoutSuccessPage() {
             <div className="text-sm text-muted-foreground">
               <p className="font-medium text-foreground mb-2">What happens next?</p>
               <ul className="list-disc list-inside space-y-1">
-                <li>You'll receive a confirmation email shortly</li>
-                <li>Check in at the venue on the day of the show</li>
-                {entries.length > 0 && entries.every(e => e.armband_number) ? (
+                {!isWaitlistOnlySuccess && <li>You'll receive a confirmation email shortly</li>}
+                {confirmedEntryCount > 0 && <li>Check in at the venue on the day of the show</li>}
+                {confirmedEntryCount > 0 && entries.length > 0 && entries.every(e => e.armband_number) ? (
                   <li>Bring your armband number(s) shown above when you check in</li>
-                ) : (
+                ) : confirmedEntryCount > 0 ? (
                   <li>
                     Your armband number will be confirmed by the show secretary before show day
                   </li>
+                ) : (
+                  <li>We&apos;ll notify you if a spot opens up from the wait list.</li>
                 )}
               </ul>
             </div>

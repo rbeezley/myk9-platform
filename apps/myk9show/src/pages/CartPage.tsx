@@ -26,6 +26,8 @@ import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { CartItemCard } from '@/components/cart/CartItemCard';
 import { CartSummary } from '@/components/cart/CartSummary';
 import { createEntryCheckoutSession } from '@/lib/stripe';
+import { useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
+import { writeCartSplitCheckoutSummary } from '@/features/payments/cartSplitCheckoutStorage';
 
 export default function CartPage() {
   const navigate = useNavigate();
@@ -39,6 +41,10 @@ export default function CartPage() {
   const clearCart = useCartStore(state => state.clearCart);
   const setError = useCartStore(state => state.setError);
   const loadActiveCart = useCartStore(state => state.loadActiveCart);
+  const checkoutWithWaitlist = useCartStore(state => state.checkoutWithWaitlist);
+  const { judgeDays, isLoading: isCapacityLoading, error: capacityError } = useJudgeDayCapacity(
+    cart?.show_id
+  );
 
   const [removingItemId, setRemovingItemId] = useState<string | null>(null);
   const [showClearDialog, setShowClearDialog] = useState(false);
@@ -105,12 +111,91 @@ export default function CartPage() {
       setError('No cart found. Please add items to your cart.');
       return;
     }
+    if (!profile?.id) {
+      setError('Could not verify your exhibitor profile. Please sign in again.');
+      return;
+    }
+    if (isCapacityLoading) {
+      setError('Class availability is still loading. Please try checkout again in a moment.');
+      return;
+    }
+    if (capacityError) {
+      setError('Could not verify class availability right now. Please try again.');
+      return;
+    }
 
     setIsCheckingOut(true);
     setError(null);
 
     try {
-      // This will redirect to Stripe Checkout
+      const fullClassIds = new Set(
+        judgeDays.filter(day => day.availableSpots <= 0).flatMap(day => day.classIds)
+      );
+      const blockedItems = items.filter(
+        item => item.class_id && fullClassIds.has(item.class_id) && item.class?.allow_waitlist === false
+      );
+
+      if (blockedItems.length > 0) {
+        setError(
+          `${blockedItems.map(item => item.class?.name || 'A class').join(', ')} ${
+            blockedItems.length === 1 ? 'is' : 'are'
+          } full and not accepting wait list entries. Remove ${
+            blockedItems.length === 1 ? 'it' : 'them'
+          } to continue.`
+        );
+        setIsCheckingOut(false);
+        return;
+      }
+
+      const waitlistEligibleClassIds = new Set(
+        items
+          .filter(
+            item =>
+              item.class_id &&
+              fullClassIds.has(item.class_id) &&
+              item.class?.allow_waitlist !== false
+          )
+          .map(item => item.class_id)
+      );
+      const splitResult = await checkoutWithWaitlist(profile.id, waitlistEligibleClassIds);
+
+      if (!splitResult) {
+        setIsCheckingOut(false);
+        return;
+      }
+
+      const waitlistedItemIds = items
+        .filter(
+          item =>
+            item.class_id &&
+            waitlistEligibleClassIds.has(item.class_id) &&
+            item.class?.allow_waitlist !== false
+        )
+        .map(item => item.id);
+
+      for (const itemId of waitlistedItemIds) {
+        const removed = await removeItem(itemId);
+        if (!removed) {
+          setError(
+            'Your wait list request was saved, but we could not refresh the cart for payment. Please reload the cart before trying again.'
+          );
+          setIsCheckingOut(false);
+          return;
+        }
+      }
+
+      writeCartSplitCheckoutSummary({
+        showId: cart.show_id,
+        confirmedEntryCount: splitResult.confirmed.length,
+        waitlistEntries: splitResult.waitlisted,
+      });
+
+      if (splitResult.confirmed.length === 0) {
+        navigate('/checkout/success?waitlist=1');
+        return;
+      }
+
+      // This will redirect to Stripe Checkout for the remaining confirmed entries.
       await createEntryCheckoutSession(cart.id);
       // If we get here, the redirect didn't happen (shouldn't normally occur)
     } catch (_err) {

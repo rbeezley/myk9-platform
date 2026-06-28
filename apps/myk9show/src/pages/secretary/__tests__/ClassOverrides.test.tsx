@@ -218,6 +218,7 @@ function renderClassOverridesComponent(overrides?: {
   return render(
     <ClassOverrides
       showId="show-1"
+      settings={mockSettings}
       trials={newTrials}
       classes={newClasses}
       classOverrides={[]}
@@ -240,6 +241,14 @@ describe('ClassOverrides', () => {
     await user.click(screen.getByRole('button', { name: /trial a/i }));
     expect(screen.getByText(/novice/i)).toBeInTheDocument();
     expect(screen.getByText(/open/i)).toBeInTheDocument();
+  });
+
+  it('names the resolved preset an inheriting class picks up from the show', async () => {
+    // Visibility-of-system-status: each inheriting class shows the effective
+    // preset (standard → "After Class") resolved through the class ?? trial ?? show chain.
+    const { user } = renderClassOverridesComponent();
+    await user.click(screen.getByRole('button', { name: /trial a/i }));
+    expect(screen.getAllByText('Inheriting from show · After Class')).toHaveLength(2);
   });
 
   it('calls onToggleClass when checkbox is clicked', async () => {

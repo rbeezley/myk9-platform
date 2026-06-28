@@ -12,7 +12,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Zap, Clock, Lock } from 'lucide-react';
-import { type VisibilityPreset, type VisibilityTiming } from '@myk9/secretary';
+import {
+  PRESET_INFO,
+  detectPreset,
+  fieldTimingsFromVisibility,
+  resolveVisibilityCascade,
+  type VisibilityPreset,
+  type VisibilityTiming,
+  type VisibilityOverride,
+  type VisibilitySettings,
+} from '@myk9/secretary';
 import { TIMING_LABELS } from '@/components/secretary/settingsConstants';
 
 // Preset icons speak the semantic status tokens (each carries a dark-mode
@@ -58,4 +67,24 @@ export function TimingSelect({
       </SelectContent>
     </Select>
   );
+}
+
+/**
+ * Human-readable label for the preset an *inheriting* trial or class currently
+ * resolves to, walking the show → trial cascade — the same resolution the page
+ * uses for `hasManualReleaseClasses`. Pass the parent trial's override to
+ * resolve a class's inherited value; omit it for a trial inheriting straight
+ * from the show. An empty/undefined override contributes nothing, so the result
+ * falls through to the show preset.
+ *
+ * Returns the preset title (e.g. "After Class"), or "Custom" when the resolved
+ * timings match no named preset (a per-field show configuration).
+ */
+export function resolveInheritedPresetLabel(
+  show: VisibilitySettings,
+  trialOverride?: VisibilityOverride
+): string {
+  const resolved = resolveVisibilityCascade(show, trialOverride);
+  const preset = detectPreset(fieldTimingsFromVisibility(resolved));
+  return preset ? PRESET_INFO[preset].title : 'Custom';
 }

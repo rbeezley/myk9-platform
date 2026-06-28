@@ -12,29 +12,29 @@ Index of all customer-facing guides and their current status. Every guide listed
 
 ## Planned Guides
 
-| Title | Audience | Status | Priority | Notes |
-|---|---|---|---|---|
-| [Secretary Guide](secretary-guide.md) | Trial secretaries | `qa-draft` | high | Phase 0 gate met (2026-06-19); screenshots pending; § 11 Closeout stub (feature not built) |
-| [Exhibitor Guide](exhibitor-guide.md) | Dog exhibitors | `qa-draft` | high | Phase 0 gate met (2026-06-19); § 10 stub (route not in pageDirectory); screenshots pending |
-| [Ringside Quickstart](judge-steward-quickstart.md) | Judges, stewards | `qa-draft` | medium | Drafted 2026-06-24 (flag removed, surface unblocked); printable single page; J-01–J-06 + access-paths diagram pending capture; live walk pending |
-| [Club Admin & Treasurer Guide](club-admin-guide.md) | Club admins, treasurers | `qa-draft` | medium | Sections 1–7 written; C-01–C-07 screenshots blocked: seed/stripe |
+| Title                                               | Audience                | Status     | Priority | Notes                                                                                                     |
+| --------------------------------------------------- | ----------------------- | ---------- | -------- | --------------------------------------------------------------------------------------------------------- |
+| [Secretary Guide](secretary-guide.md)               | Trial secretaries       | `qa-draft` | high     | Phase 0 gate met (2026-06-19); screenshot list partially captured; § 11 Closeout stub (feature not built) |
+| [Exhibitor Guide](exhibitor-guide.md)               | Dog exhibitors          | `qa-draft` | high     | Phase 0 gate met (2026-06-19); E-01–E-17 captured; § 10 stub (route not in pageDirectory)                 |
+| [Ringside Quickstart](judge-steward-quickstart.md)  | Judges, stewards        | `qa-draft` | medium   | Drafted 2026-06-24; J-01–J-06 captured; access-paths diagram drawn; live walk pending                     |
+| [Club Admin & Treasurer Guide](club-admin-guide.md) | Club admins, treasurers | `qa-draft` | medium   | Sections 1–7 written; C-01–C-07 screenshots blocked: seed/stripe                                          |
 
 ## Planned Outlines (safe to draft now — gate only blocks publication with screenshots)
 
-| Title | Status | Source file |
-|---|---|---|
-| [Secretary Guide Outline](secretary-guide-outline.md) | `qa-draft` | `docs/journeys/secretary.md`, golden path checklist |
-| [Exhibitor Guide Outline](exhibitor-guide-outline.md) | `qa-draft` | `docs/journeys/exhibitor.md`, golden path checklist |
+| Title                                                              | Status     | Source file                                           |
+| ------------------------------------------------------------------ | ---------- | ----------------------------------------------------- |
+| [Secretary Guide Outline](secretary-guide-outline.md)              | `qa-draft` | `docs/journeys/secretary.md`, golden path checklist   |
+| [Exhibitor Guide Outline](exhibitor-guide-outline.md)              | `qa-draft` | `docs/journeys/exhibitor.md`, golden path checklist   |
 | [Ringside Quickstart Outline](judge-steward-quickstart-outline.md) | `qa-draft` | Secretary golden path § Part 6; gated on flag removal |
-| [Club Admin Guide Outline](club-admin-guide-outline.md) | `qa-draft` | `docs/roles/club-admin.md`, stripe-treasurer-guide.md |
+| [Club Admin Guide Outline](club-admin-guide-outline.md)            | `qa-draft` | `docs/roles/club-admin.md`, stripe-treasurer-guide.md |
 
 ## Supporting Files
 
-| File | Purpose |
-|---|---|
-| [workflow-source-map.md](workflow-source-map.md) | Maps user workflows → canonical routes (layered on `pageDirectory.ts`) |
-| [writing-style.md](writing-style.md) | Style, tone, and structure rules for all customer-facing docs |
-| [documentation-qa-checklist.md](documentation-qa-checklist.md) | Verification checklist for final guides before `verified` status |
+| File                                                           | Purpose                                                                |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| [workflow-source-map.md](workflow-source-map.md)               | Maps user workflows → canonical routes (layered on `pageDirectory.ts`) |
+| [writing-style.md](writing-style.md)                           | Style, tone, and structure rules for all customer-facing docs          |
+| [documentation-qa-checklist.md](documentation-qa-checklist.md) | Verification checklist for final guides before `verified` status       |
 
 ---
 
@@ -42,12 +42,12 @@ Index of all customer-facing guides and their current status. Every guide listed
 
 Workflows that are unstable, ungated, or not ready for customer-facing documentation. Do not write final guides for these until they pass the Phase 0 gate.
 
-| Workflow | Reason |
-|---|---|
-| Stripe live-mode onboarding | Sandbox only; live mode not yet activated |
-| Judge scoring / ringside (myK9Show `/at-show`) | At-show exhibitor flow is stable; judge/steward scoring still maturing |
-| Public results release (pre-release visibility) | RLS fix for exhibitor self-read of withheld results still open |
-| AKC/UKC judge pre-load | Directory not yet imported |
+| Workflow                                        | Reason                                                                 |
+| ----------------------------------------------- | ---------------------------------------------------------------------- |
+| Stripe live-mode onboarding                     | Sandbox only; live mode not yet activated                              |
+| Judge scoring / ringside (myK9Show `/at-show`)  | At-show exhibitor flow is stable; judge/steward scoring still maturing |
+| Public results release (pre-release visibility) | RLS fix for exhibitor self-read of withheld results still open         |
+| AKC/UKC judge pre-load                          | Directory not yet imported                                             |
 
 ---
 

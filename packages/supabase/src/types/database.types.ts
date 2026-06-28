@@ -5899,7 +5899,7 @@ export type Database = {
         Row: {
           faults_timing: string
           placement_timing: string
-          preset: string
+          preset: string | null
           qualification_timing: string
           self_checkin_enabled: boolean
           show_id: string
@@ -5910,7 +5910,7 @@ export type Database = {
         Insert: {
           faults_timing?: string
           placement_timing?: string
-          preset?: string
+          preset?: string | null
           qualification_timing?: string
           self_checkin_enabled?: boolean
           show_id: string
@@ -5921,7 +5921,7 @@ export type Database = {
         Update: {
           faults_timing?: string
           placement_timing?: string
-          preset?: string
+          preset?: string | null
           qualification_timing?: string
           self_checkin_enabled?: boolean
           show_id?: string

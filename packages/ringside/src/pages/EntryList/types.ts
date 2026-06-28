@@ -71,7 +71,7 @@ export interface ClassInfo {
   timeLimit2?: string;
   timeLimit3?: string;
   areas?: number;
-  visibilityPreset?: 'open' | 'standard' | 'review';
+  visibilityPreset?: 'open' | 'standard' | 'review' | 'custom';
 }
 
 /** The pair `useEntryListData` returns and React Query caches. */

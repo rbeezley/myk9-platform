@@ -23,20 +23,26 @@ import {
   useUpdateTrialOverride,
   useResetOverride,
 } from '@/hooks/mutations/useShowSettingsMutations';
-import type { TrialOverrideEntry } from '@/hooks/queries/useShowSettingsDatabase';
+import type { TrialOverrideEntry, ShowSettings } from '@/hooks/queries/useShowSettingsDatabase';
 import type { SyncableTrial } from '@/store/trial-store-types';
+import { resolveInheritedPresetLabel } from './resultsControlUtils';
 
 interface TrialOverridesProps {
   showId: string;
+  settings: ShowSettings;
   trials: SyncableTrial[];
   trialOverrides: TrialOverrideEntry[];
 }
 
-export function TrialOverrides({ showId, trials, trialOverrides }: TrialOverridesProps) {
+export function TrialOverrides({ showId, settings, trials, trialOverrides }: TrialOverridesProps) {
   const updateTrialOverride = useUpdateTrialOverride();
   const resetOverride = useResetOverride();
 
   if (trials.length === 0) return null;
+
+  // Every trial inherits straight from the show, so the inherited preset label
+  // is the same for all of them — resolve it once.
+  const inheritedLabel = resolveInheritedPresetLabel(settings.visibility);
 
   function handleTrialPreset(trialId: string, preset: VisibilityPreset) {
     const cfg = PRESET_CONFIGS[preset];
@@ -84,7 +90,9 @@ export function TrialOverrides({ showId, trials, trialOverrides }: TrialOverride
             <div>
               <p className="text-sm font-medium">{trial.name}</p>
               <p className="text-xs text-muted-foreground">
-                {hasOverride ? `Override: ${currentPreset ?? 'custom'}` : 'Inheriting from show'}
+                {hasOverride
+                  ? `Override: ${currentPreset ?? 'custom'}`
+                  : `Inheriting from show · ${inheritedLabel}`}
               </p>
             </div>
             <div className="flex items-center gap-2">

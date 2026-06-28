@@ -11,6 +11,7 @@ import { ReportPreview } from './ReportPreview';
 import { printIframe } from './reportPreviewUtils';
 import { ArmbandLabelsReport } from '@/components/reports/labels/ArmbandLabelsReport';
 import { ResultLabelsReport } from '@/components/reports/labels/ResultLabelsReport';
+import { LabelModeHeader } from '@/components/reports/labels/LabelModeChrome';
 import { buildTrialReportProps } from './reportDataMapping';
 import { downloadPdfBytes } from '@/features/organization-forms/downloadPdf';
 import {
@@ -255,11 +256,19 @@ export default function ReportsPage() {
       <div className="mt-6 overflow-x-auto">
         {reportType === 'armband-labels' ? (
           <div className="w-full">
+            <LabelModeHeader
+              title="Print Labels — Armband"
+              subtitle="Choose a label size, pick which armbands to print, then Print."
+            />
             <ArmbandLabelsReport showId={showId} iframeRef={iframeRef} />
             <iframe ref={iframeRef} title="Label Print" style={{ display: 'none' }} />
           </div>
         ) : reportType === 'result-labels' ? (
           <div className="w-full">
+            <LabelModeHeader
+              title="Print Labels — Results"
+              subtitle="Pick a trial and class, set the sort, then Print the result labels."
+            />
             <ResultLabelsReport
               show={show}
               trials={trials as Parameters<typeof ResultLabelsReport>[0]['trials']}

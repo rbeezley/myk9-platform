@@ -8,6 +8,7 @@ import { mapScopedReportEntries } from '@/pages/secretary/ReportsPage/reportData
 import type { DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
 import { ResultLabelCell } from './ResultLabelCell';
+import { LabelSetupSection, SetupEyebrow } from './LabelModeChrome';
 
 // 4" × 2" (Avery #18163, 10/sheet) is the natural fit for result content
 // (armband+name, handler, club, show/class, place/time/faults).
@@ -108,12 +109,10 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
 
   return (
     <div className="w-full max-w-[8.5in] mx-auto">
-      <div className="border rounded-lg bg-muted/30 p-4 mb-6 space-y-4">
+      <LabelSetupSection>
         {/* Label size */}
         <div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-            Label Size
-          </div>
+          <SetupEyebrow className="mb-2">Label Size</SetupEyebrow>
           <div className="flex flex-col gap-1.5">
             {templates.map(t => (
               <label key={t.id} className="flex items-center gap-2 text-sm cursor-pointer">
@@ -151,9 +150,7 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
 
         {/* Pitch adjustment — corrects printer drift toward the bottom of the sheet */}
         <div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-            Vertical Pitch Adjustment
-          </div>
+          <SetupEyebrow className="mb-1">Vertical Pitch Adjustment</SetupEyebrow>
           <p className="text-xs text-muted-foreground mb-2">
             If labels drift out of alignment toward the bottom of the page, nudge this. Positive =
             more space between rows, negative = less.
@@ -184,7 +181,31 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
             )}
           </div>
         </div>
-      </div>
+      </LabelSetupSection>
+
+      {/* Loading state — render before the empty state so the preview doesn't
+          flash "No entries" while the parent query is still resolving. */}
+      {isLoading && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex items-center justify-center p-8 text-muted-foreground"
+        >
+          Loading entry data...
+        </div>
+      )}
+
+      {/* Loading state — render before the empty state so the preview doesn't
+          flash "No entries" while the parent query is still resolving. */}
+      {isLoading && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex items-center justify-center p-8 text-muted-foreground"
+        >
+          Loading entry data...
+        </div>
+      )}
 
       {/* Loading state — render before the empty state so the preview doesn't
           flash "No entries" while the parent query is still resolving. */}

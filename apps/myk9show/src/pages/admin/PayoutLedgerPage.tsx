@@ -214,7 +214,7 @@ function LedgerTable({ rows }: { rows: LedgerRow[] }) {
                     {statusBadge(row.payoutStatus)}
                     {row.stripeTransferId && (
                       <span
-                        className="max-w-[10rem] truncate font-mono text-xs text-muted-foreground"
+                        className="inline-block max-w-[10rem] truncate font-mono text-xs text-muted-foreground"
                         title={`Stripe transfer ${row.stripeTransferId}`}
                       >
                         {row.stripeTransferId}

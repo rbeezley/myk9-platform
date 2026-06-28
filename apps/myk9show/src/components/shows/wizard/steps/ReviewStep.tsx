@@ -67,11 +67,11 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
   // inverting that was a gap reachable via stale drafts/back-nav).
   const handleCreateAndPublish = () => {
     if (!show.clubId) {
-      toast.error('Select a club before publishing — entry fees are paid out to the club.');
+      toast.error('Select a club before publishing. Entry fees are paid out to the club.');
       return;
     }
     if (clubAccountQuery.isLoading) {
-      toast.info('Checking the club’s payment account — try again in a moment.');
+      toast.info('Checking the club’s payment account. Try again in a moment.');
       return;
     }
     if (clubAccountQuery.isError) {
@@ -185,7 +185,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                     <p className="text-sm text-muted-foreground mb-2">
                       {unassignedPoolJudgeNames.join(', ')} won’t see this show on their judge
                       dashboard until assigned to a class. Go back to Classes to assign them, or
-                      continue — you can assign judges later.
+                      continue and assign judges later.
                     </p>
                     <Button variant="outline" size="sm" onClick={() => setCurrentStep(2)}>
                       <Edit className="h-4 w-4 mr-1" />

@@ -61,8 +61,10 @@ Stripe shows a single number with no per-club breakdown; the per-show ledger liv
 app's database (every entry row knows its fee, refund, and show), and each transfer is
 tagged with its show id (`transfer_group`) so everything reconciles one-to-one afterward.
 Clubs see their own payouts on their Payments page. Your operator-side view ("whose money
-is in my balance right now?") is the **pre-launch admin payout ledger** (OPEN-TODOS) —
-until it ships, that question is a database query.
+is in my balance right now?") is the **site-admin Payout Ledger at `/admin/payouts`**
+(Admin → Payments) — a cross-club table of Collected / Refunds / Net owed / Settle date /
+Status / Stripe transfer id per show, plus "Outstanding to clubs" and "Paid out to date"
+summary cards and the editable platform-fee %. SITE_ADMIN-gated (route guard + RLS).
 
 **Float rule of thumb.** Refunds and payouts draw from *available* balance. The clubs'
 money pooled in the balance naturally covers this — just don't sweep your own revenue out
@@ -244,6 +246,74 @@ by phone.
   micro-deposits; in-flight payouts still go to the old account. (A *club* changing theirs
   does it in their own Stripe Express dashboard → payout settings — never through myK9Show
   or your dashboard.)
+
+## Payout cron operations (the nightly transfer job)
+
+*Written 2026-06-27 after finding the cron had failed silently for 5+ nights.*
+
+**How it's wired.** The nightly job `nightly-show-payouts` (pg_cron, `0 2 * * *`) is a
+small SQL `DO` block that reads three secrets from **Supabase Vault**, then `net.http_post`s
+to the `cron-process-payouts` edge function. It is **Vault-backed**, not the old
+literal-in-migration approach — migration `20260618130000` (placeholder literal) was
+superseded by `20260619130000_payout_cron_vault_secret`. Do not re-introduce the placeholder.
+
+**The three Vault secrets it needs** (exact lowercase names — the cron does `where name = …`):
+
+| Vault secret | Value |
+| --- | --- |
+| `edge_function_base_url` | `https://sojmvhhwsjxmfistvzbe.supabase.co/functions/v1` (NO trailing slash) |
+| `service_role_key` | the project service-role key (Settings → API → `service_role`) |
+| `payout_cron_secret` | **must byte-match** the edge-fn `PAYOUT_CRON_SECRET` env secret |
+
+Set/rotate them in the dashboard **Project Settings → Vault**. Because edge-fn secrets are
+write-only (a lost value can't be read back), the way to make the two `*_cron_secret` ends
+match is to **rotate both together**: `supabase secrets set PAYOUT_CRON_SECRET=$(openssl rand -hex 32)`,
+then paste that same value into the Vault `payout_cron_secret`. Rotating is safe — the only
+consumer is this cron.
+
+**Diagnose (is it actually running?).** The job reporting `succeeded` is NOT proof a payout
+happened — `net.http_post` is fire-and-forget, so a typo'd `payout_cron_secret` makes the
+job green while the function silently 403s and nothing transfers. Check the real history:
+
+```sql
+-- via the read-only MCP, or psql; jobid from: select jobid from cron.job where jobname='nightly-show-payouts';
+select status, return_message, start_time
+from cron.job_run_details
+where jobid = (select jobid from cron.job where jobname = 'nightly-show-payouts')
+order by start_time desc limit 5;
+```
+
+`Missing Vault secret: …` = a secret isn't set. All `succeeded` but clubs report no money =
+suspect a `payout_cron_secret` mismatch; confirm by firing the cron's exact request and
+reading the HTTP response (below) — want `status_code = 200`, not 403.
+
+**Manually trigger / verify a payout** (e.g. to confirm a fix, or pay a show early):
+
+```bash
+# Direct function call (safe no-op if no show is eligible). Secret = the PAYOUT_CRON_SECRET value.
+curl -s -X POST https://sojmvhhwsjxmfistvzbe.supabase.co/functions/v1/cron-process-payouts \
+  -H "Content-Type: application/json" -H "x-function-secret: <PAYOUT_CRON_SECRET>" -d '{}'
+# → {"eligible_shows":N,"completed":N,"failed":0,...}
+```
+
+A show is eligible only when `end_date <= now() - 3 days` and status ∉ (draft, cancelled).
+To test before a real show closes, temporarily backdate `shows.end_date` (service-role
+write — MCP SQL is **read-only**; use the REST API or psql), run the curl, verify the row,
+then **restore the date**:
+
+```sql
+select status, amount_cents, stripe_transfer_id, completed_at, failure_reason
+from show_payouts where show_id = '<show-id>';   -- want status='completed' + a tr_… id
+```
+
+**psql access gotcha.** Writes (backdating, Vault, firing `net.http_post`) need a direct
+connection — the MCP SQL tool is read-only and can't even decrypt Vault. The correct
+Supavisor tenant host is **`aws-1-us-east-2.pooler.supabase.com:5432`**, user
+`postgres.sojmvhhwsjxmfistvzbe` (the `db.<ref>.supabase.co` CNAME misleadingly resolves to
+us-east-1, which rejects the tenant). Password: `supabase/.env` → `SUPABASE_DB_PASSWORD`.
+
+**Where to see results.** The completed payout appears in your **Payout Ledger at
+`/admin/payouts`** (Paid badge + transfer id) and in the club's own **My Club → Payments**.
 
 ## Manual reconciliation (refund columns are service-role-only)
 

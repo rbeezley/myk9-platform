@@ -329,7 +329,7 @@ export function ShowWorkbenchShowDeskPage() {
                 <Link to={`/shows/${currentShow.id}/results-control`}>
                   <ListChecks className="h-5 w-5" />
                   <span className="text-left">
-                    <span className="block font-medium">Results Control</span>
+                    <span className="block font-medium">Results &amp; Check-In</span>
                     <span className="block text-xs text-muted-foreground">Verify results</span>
                   </span>
                 </Link>

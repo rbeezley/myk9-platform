@@ -131,11 +131,11 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     expect(item?.description).toBe('Draft · finish setup');
   });
 
-  it('manage sidebar omits standalone Entries, Reports, Results Control, and Submit Results', () => {
+  it('manage sidebar omits standalone Entries, Reports, Results & Check-In, and Submit Results', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
     const group = config.groups.find(g => g.title === 'Manage');
     const titles = group?.items.map(i => i.title) ?? [];
-    for (const removed of ['Entries', 'Reports', 'Results Control', 'Submit Results']) {
+    for (const removed of ['Entries', 'Reports', 'Results & Check-In', 'Submit Results']) {
       expect(titles, `"${removed}" should be absent from sidebar`).not.toContain(removed);
     }
   });

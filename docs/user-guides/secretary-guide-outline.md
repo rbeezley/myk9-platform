@@ -22,7 +22,7 @@
 | Communications | `/secretary/messages` | yes | mostly stable | Email delivery P-01 gap |
 | Reports (pre-show) | `/shows/:showId/reports` | yes | stable | Golden path § 4.3 |
 | Show Desk | `/shows/:showId?phase=show-desk` | yes | stable | Golden path § 4.1–4.11 |
-| Results Control | `/shows/:showId/results-control` | yes | stable | Golden path § 5.3–5.4 |
+| Results & Check-In | `/shows/:showId/results-control` | yes | stable | Golden path § 5.3–5.4 |
 | Submit to AKC | `/shows/:showId/submit-results` | yes | stable | Golden path § 5.6 |
 | Closeout | Show Desk → Closeout section | yes | **partial** | Close Out Show action not yet built |
 | At-Show / Ringside | `/at-show/:showId` | yes | stable | Open to all shows; access gated by `AtShowAccessGate`. (Updated 2026-06-23: `unified_ringside_enabled` flag removed — see [`../plan-remove-unified-ringside-flag.md`](../plan-remove-unified-ringside-flag.md)) |
@@ -230,21 +230,21 @@ Available from the Tools panel: Quick Broadcast, Class Broadcast, Schedule Slip 
 
 ---
 
-## Section 8 — Results Control
+## Section 8 — Results & Check-In
 
 **User outcome:** Secretary verifies all results are complete and releases them to exhibitors.
 
 **Canonical route:** `/shows/:showId/results-control`
 
-**Entry point:** Show Desk → Closeout section → **Results Control** button
+**Entry point:** Show Desk → Closeout section → **Results & Check-In** button
 
 **Rough steps (qa-draft):**
 1. From the Show Desk, scroll to the **Closeout** section at the bottom.
-2. Click **Results Control**.
+2. Click **Results & Check-In**.
 3. Review: confirm every class shows all entries with a result (Pass / NQ / Absent). No blanks.
 4. Toggle **Release Results** → results are now visible to exhibitors in their accounts.
 
-**Screenshots:** Results Control with all classes showing complete results; release toggle.
+**Screenshots:** Results & Check-In with all classes showing complete results; release toggle.
 
 **KB articles this section generates:**
 - None (secretary-only task; exhibitor side covered in `view-results.md`)

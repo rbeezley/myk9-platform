@@ -94,6 +94,18 @@ test('parseDiffForRoutes composes slug changes only for the composed-base file',
   assert.ok(routes.includes('/shows/:showId/entries'), 'new slug composed');
 });
 
+test('parseDiffForRoutes ignores label-only edits where the route is unchanged', () => {
+  const diff = [
+    'diff --git a/apps/myk9show/src/routes/showManagementSections.ts b/apps/myk9show/src/routes/showManagementSections.ts',
+    '--- a/apps/myk9show/src/routes/showManagementSections.ts',
+    '+++ b/apps/myk9show/src/routes/showManagementSections.ts',
+    '@@ -4 +4 @@',
+    "-  { label: 'Results Control', path: 'results-control' },",
+    "+  { label: 'Results & Check-In', path: 'results-control' },",
+  ].join('\n');
+  assert.deepEqual(parseDiffForRoutes(diff), []);
+});
+
 test('parseDiffForRoutes does NOT compose slugs from unrelated files', () => {
   const diff = [
     '+++ b/apps/myk9show/src/components/Foo.tsx',

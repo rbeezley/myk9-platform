@@ -47,7 +47,7 @@ Write headings as user actions, not feature names.
 | Approve an entry | Entry Management |
 | Handle a scratch | ScratchDialog |
 | Print scoresheets | ReportsPage |
-| Release results | Results Control |
+| Release results | Results & Check-In |
 | Connect your club's bank account | Stripe Express Onboarding |
 
 ### Keep sentences short

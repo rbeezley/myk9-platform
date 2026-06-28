@@ -21,7 +21,7 @@ describe('ShowContextNav', () => {
       'Show Desk',
       'Entry Management',
       'Reports',
-      'Results Control',
+      'Results & Check-In',
       'Submit Results',
     ];
     for (const label of labels) {

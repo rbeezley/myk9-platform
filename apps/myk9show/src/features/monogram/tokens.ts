@@ -20,16 +20,19 @@ export const monogramColors = {
   ink: '#1c1815',
   /** Body prose — slightly softer than ink so long copy reads less aggressive. */
   soft: '#3a342c',
-  /** Accent / italic highlights / monogram on dark bands. */
-  bronze: '#8a6938',
+  /** Accent / italic highlights / monogram on paper. 5.11:1 on paper,
+   *  4.71:1 on paperDeep — passes WCAG AA for the 11px small-caps labels and
+   *  credentials it drives (was #8a6938 = 4.37/4.02, sub-AA). */
+  bronze: '#7d5f30',
   /** Brighter bronze used on hover/active states and gradient stops. */
   bronzeLight: '#b08948',
   /** Warm gold accent used on the dark Final CTA band where bronze loses contrast. */
   leaf: '#c9a14b',
   /** Italic muted text, captions, labels — slightly cooler than bronze. */
   quill: '#5a4f3e',
-  /** Subtle dividers, dotted underlines. */
-  mute: '#7a6f5e',
+  /** Subtle dividers, dotted underlines, small-caps meta labels. 5.03:1 on
+   *  paper, 4.64:1 on paperDeep — passes AA (was #7a6f5e = 4.26/3.92, sub-AA). */
+  mute: '#6e6452',
   /** Off-page background — preview-only. */
   paperDark: '#d4ccba',
 } as const;

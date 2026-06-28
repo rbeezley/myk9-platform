@@ -210,6 +210,8 @@ const newClasses: SyncableClassData[] = [
 ];
 
 function renderClassOverridesComponent(overrides?: {
+  trialOverrides?: TrialOverrideEntry[];
+  classOverrides?: ClassOverrideEntry[];
   selectedClasses?: Set<string>;
   onToggleClass?: (id: string) => void;
   onToggleAllInTrial?: (trialId: string, classIds: string[]) => void;
@@ -221,8 +223,8 @@ function renderClassOverridesComponent(overrides?: {
       settings={mockSettings}
       trials={newTrials}
       classes={newClasses}
-      classOverrides={[]}
-      trialOverrides={[]}
+      classOverrides={overrides?.classOverrides ?? []}
+      trialOverrides={overrides?.trialOverrides ?? []}
       selectedClasses={selectedClasses}
       onToggleClass={overrides?.onToggleClass ?? vi.fn()}
       onToggleAllInTrial={overrides?.onToggleAllInTrial ?? vi.fn()}
@@ -249,6 +251,15 @@ describe('ClassOverrides', () => {
     const { user } = renderClassOverridesComponent();
     await user.click(screen.getByRole('button', { name: /trial a/i }));
     expect(screen.getAllByText('Inheriting from show · After Class')).toHaveLength(2);
+  });
+
+  it('keeps class inheritance sourced from the show when a trial row has no visibility override', async () => {
+    const { user } = renderClassOverridesComponent({
+      trialOverrides: [{ trialId: 'trial-1', override: {}, selfCheckinEnabled: false }],
+    });
+    await user.click(screen.getByRole('button', { name: /trial a/i }));
+    expect(screen.getAllByText('Inheriting from show · After Class')).toHaveLength(2);
+    expect(screen.queryByText(/Inheriting from trial/)).not.toBeInTheDocument();
   });
 
   it('calls onToggleClass when checkbox is clicked', async () => {

@@ -102,12 +102,15 @@ export function ClassOverrides({
         if (trialClasses.length === 0) return null;
 
         const trialOverride = trialOverrides.find(o => o.trialId === trial.id);
-        const trialHasOverride = !!trialOverride;
+        const trialVisibilityOverride =
+          trialOverride && hasVisibilityOverride(trialOverride.override)
+            ? trialOverride.override
+            : undefined;
         // Classes in this trial that inherit resolve through trial → show; the
         // effective preset label is the same for all of them, so resolve once.
         const inheritedLabel = resolveInheritedPresetLabel(
           settings.visibility,
-          trialOverride?.override
+          trialVisibilityOverride
         );
         const overrideCount = trialClasses.filter(c =>
           classOverrides.some(o => o.classId === c.id && hasVisibilityOverride(o.override))
@@ -161,7 +164,7 @@ export function ClassOverrides({
                         <p className="text-xs text-muted-foreground">
                           {hasOverride
                             ? `Override: ${currentPreset ?? 'custom'}`
-                            : trialHasOverride
+                            : trialVisibilityOverride
                               ? `Inheriting from trial · ${inheritedLabel}`
                               : `Inheriting from show · ${inheritedLabel}`}
                         </p>

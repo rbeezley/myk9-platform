@@ -363,7 +363,7 @@ export function useShowCreationWizardActions({
         queryClient.invalidateQueries({ queryKey: ['shows', realShowId, 'officials'] });
         if (grantFailures.length > 0) {
           throw new Error(
-            `Failed to assign ${grantFailures.length} official role${grantFailures.length === 1 ? '' : 's'}. The show was created but officials could not be set — please retry or assign them manually via the Officials tab.`
+            `Failed to assign ${grantFailures.length} official role${grantFailures.length === 1 ? '' : 's'}. The show was created but officials could not be set. Please retry or assign them manually via the Officials tab.`
           );
         }
 

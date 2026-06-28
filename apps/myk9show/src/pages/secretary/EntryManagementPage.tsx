@@ -293,7 +293,7 @@ const EntryManagementPage: React.FC = () => {
         </Alert>
       )}
 
-      {/* Page-level tabs: Entries | Waitlist */}
+      {/* Page-level tabs: Entries | Exceptions | Waitlist */}
       <PrimaryTabs tabs={PAGE_TABS} value={activePageTab} onValueChange={handlePageTabChange}>
         <TabsContent value="entries">
           {/* No Show Selected — kept as loading guard while useEntryManagementData resolves the show */}

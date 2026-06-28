@@ -158,8 +158,10 @@ export function HeroBlock({
         <div
           className="mg-hero__meta"
           style={{
+            // grid-template-columns lives in monogram.css (.mg-hero__meta) so the
+            // <900px / <560px media queries can collapse 4 → 2 → 1 columns; an
+            // inline value here would shadow them and overflow at 375px.
             display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
             maxWidth: 880,
             margin: '0 auto 44px',
             borderTop: `1px solid ${monogramColors.ink}`,
@@ -226,7 +228,7 @@ export function HeroBlock({
         )}
 
         {canEnterOnline ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 12 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
             <a
               href={entryWizardUrl}
               className="mg-hero__cta"
@@ -247,7 +249,7 @@ export function HeroBlock({
                 transition: 'all 280ms ease',
               }}
             >
-              Enter your dog
+              Enter this show
               <span aria-hidden style={{ fontFamily: MONOGRAM_MONOGRAM_FAMILY, fontSize: 22 }}>
                 →
               </span>

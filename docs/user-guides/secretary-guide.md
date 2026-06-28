@@ -261,9 +261,9 @@ Open the Tools panel from the Show Desk for:
 
 ---
 
-## Section 8 — Results Control
+## Section 8 — Results & Check-In
 
-Results Control lets you choose when exhibitors can see their results. Open it from the **Results Control** tab on the show workbench.
+Results & Check-In lets you choose when exhibitors can see their results. Open it from the **Results & Check-In** tab on the show workbench.
 
 There are three visibility settings — pick the one that fits your show:
 
@@ -275,14 +275,14 @@ There are three visibility settings — pick the one that fits your show:
 
 Click the card for the setting you want. It applies to all classes at once.
 
-![Results Control — three visibility preset cards; "After Class" is the active selection](../screenshots/S-20.png)
+![Results & Check-In — three visibility preset cards; "After Class" is the active selection](../screenshots/S-20.png)
 
 **To release results when using "After Review":**
 
 1. Check the box next to each class you are ready to release — or click **Select All**.
 2. In the bar that appears at the bottom of the screen, click **Release Results**.
 
-![Results Control — classes selected; sticky action bar with "Release Results" button visible](../screenshots/S-21.png)
+![Results & Check-In — classes selected; sticky action bar with "Release Results" button visible](../screenshots/S-21.png)
 
 Once released, exhibitors can see their results in **My Shows** immediately.
 
@@ -378,8 +378,8 @@ All shots from `docs/training/screenshot-shot-list.md`. Status as of 2026-06-25:
 | S-17 | § 7 | Move-up dialog | ready |
 | S-18 | § 7 | Late Entry wizard (Step 1: Select Dogs) | ready |
 | S-19 | § 7 | Tools panel | ready |
-| S-20 | § 8 | Results Control — three preset cards, "After Class" active | ready |
-| S-21 | § 8 | Results Control — classes selected, sticky "Release Results" action bar visible | ready |
+| S-20 | § 8 | Results & Check-In — three preset cards, "After Class" active | ready |
+| S-21 | § 8 | Results & Check-In — classes selected, sticky "Release Results" action bar visible | ready |
 | S-22 | § 9 | Submit Results — preflight summary | ready |
 | S-23 | § 9 | XML download button | ready |
 | S-24 | § 9 | Preflight warning — missing AKC numbers | ready |

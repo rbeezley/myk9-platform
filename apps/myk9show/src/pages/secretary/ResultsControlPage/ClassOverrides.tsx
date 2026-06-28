@@ -28,13 +28,16 @@ import {
 import type {
   TrialOverrideEntry,
   ClassOverrideEntry,
+  ShowSettings,
 } from '@/hooks/queries/useShowSettingsDatabase';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import type { SyncableClassData } from '@/store/classStore';
 import { getClassName } from '@/components/classes/types/classTypes';
+import { resolveInheritedPresetLabel } from './resultsControlUtils';
 
 interface ClassOverridesProps {
   showId: string;
+  settings: ShowSettings;
   trials: SyncableTrial[];
   classes: SyncableClassData[];
   classOverrides: ClassOverrideEntry[];
@@ -46,6 +49,7 @@ interface ClassOverridesProps {
 
 export function ClassOverrides({
   showId,
+  settings,
   trials,
   classes,
   classOverrides,
@@ -97,7 +101,17 @@ export function ClassOverrides({
         const trialClasses = classes.filter(c => c.trialId === trial.id);
         if (trialClasses.length === 0) return null;
 
-        const trialHasOverride = trialOverrides.some(o => o.trialId === trial.id);
+        const trialOverride = trialOverrides.find(o => o.trialId === trial.id);
+        const trialVisibilityOverride =
+          trialOverride && hasVisibilityOverride(trialOverride.override)
+            ? trialOverride.override
+            : undefined;
+        // Classes in this trial that inherit resolve through trial → show; the
+        // effective preset label is the same for all of them, so resolve once.
+        const inheritedLabel = resolveInheritedPresetLabel(
+          settings.visibility,
+          trialVisibilityOverride
+        );
         const overrideCount = trialClasses.filter(c =>
           classOverrides.some(o => o.classId === c.id && hasVisibilityOverride(o.override))
         ).length;
@@ -110,7 +124,7 @@ export function ClassOverrides({
               <Button
                 variant="ghost"
                 size="sm"
-                className="flex w-full items-center justify-between px-3 py-2"
+                className="flex min-h-[44px] w-full items-center justify-between px-3 py-2"
               >
                 <span className="text-sm font-medium">{trial.name}</span>
                 <span className="text-xs text-muted-foreground">
@@ -150,9 +164,9 @@ export function ClassOverrides({
                         <p className="text-xs text-muted-foreground">
                           {hasOverride
                             ? `Override: ${currentPreset ?? 'custom'}`
-                            : trialHasOverride
-                              ? 'Inheriting from trial'
-                              : 'Inheriting from show'}
+                            : trialVisibilityOverride
+                              ? `Inheriting from trial · ${inheritedLabel}`
+                              : `Inheriting from show · ${inheritedLabel}`}
                         </p>
                       </div>
                     </div>

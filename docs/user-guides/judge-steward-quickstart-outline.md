@@ -110,7 +110,7 @@ Show Desk → Tools panel → **Show Access Codes** → share the QR code or the
 
 **Stability notes:**
 - Scoresheet is stable (golden path § 6.5–6.6).
-- Results saved here persist to the secretary's Results Control page immediately — the secretary does not need to re-enter them.
+- Results saved here persist to the secretary's Results & Check-In page immediately — the secretary does not need to re-enter them.
 
 ---
 

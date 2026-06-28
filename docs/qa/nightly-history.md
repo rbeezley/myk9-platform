@@ -18,6 +18,16 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-06-28
+
+- **Playwright command:** fail/stopped. Phase 1 promoted Vitest passed (`18/18`). Phase 2 exact active Playwright command from `docs/qa/e2e-suite-map.md` was stopped after exceeding the 30-minute global Nightly budget: `36 passed, 3 failed, 1 interrupted, 1 skipped, 9 did not run (33.6m, --retries=0)`.
+- **Route sweep:** fail/partial. The committed `route-health-by-role.spec.ts` ran inside Phase 2. Public, exhibitor, secretary, judge, and club-admin route groups passed; admin timed out after consuming the route-health file budget. Standalone Phase 3 was skipped because Phase 2 had already exceeded the global budget.
+- **Active specs:** Vitest `18/18`; active Playwright `36/50` before the budget stop.
+- **Failures:** `QA-TEST-FLAKE-027` remains open. Initial failures were `cross-role-workflows.spec.ts:65` stale judge empty-state assertion (`No Judging Assignments Yet` while the current dashboard renders `No Classes Today`), `registration/singleDogSingleClass.spec.ts:190` sign-in helper timeout waiting for `credential-input` even though the accessible `Email or show passcode` field rendered, and `route-health-by-role.spec.ts:319` admin group timeout in `sweepRoutes`. `uat/secretary/critical-path.spec.ts:33` was interrupted by the budget stop. Evidence paths: `apps/myk9show/test-results/cross-role-workflows-Cross-cd7fa-t-myK9Show-scoring-controls-chromium/error-context.md`, `apps/myk9show/test-results/registration-singleDogSing-28b55--dog-and-one-selected-class-chromium/error-context.md`, and `apps/myk9show/test-results/route-health-by-role-Route-b0cad-n-admin-routes-render-clean-chromium/error-context.md`.
+- **Fixes made:** test-only. `helpers/testUsers.ts` now falls back to the accessible credential textbox and an exact `Continue` button when `data-testid` lookup is unavailable, without matching `Continue with Google`. `cross-role-workflows.spec.ts` now asserts the current judge empty-state heading. Focused proof passed with `--retries=0`: `cross-role-workflows.spec.ts` + `registration/singleDogSingleClass.spec.ts` `5 passed (19.9s)`.
+- **Demotions/promotions:** none.
+- **Notes:** Ran from isolated detached worktree `.worktrees/nightly-qa-2026-06-28-025457` on `origin/main` `85705f81ed744001cfb5e7e68de4b85d88a9f54d`, using `PLAYWRIGHT_PORT=5943`, `PLAYWRIGHT_BASE_URL=http://127.0.0.1:5943`, and `PLAYWRIGHT_HMR_PORT=25943`. The primary checkout was dirty with unrelated wizard WIP, but the isolated baseline was clean except for generated `.qa-nightly.env`. The requested plan file `docs/plans/qa/2026-05-11-qa-regression-proof.md` was still absent on this baseline. Next repair should isolate the admin route-health group/route and then rerun the exact Phase 2 command plus standalone Phase 3.
+
 ### 2026-06-26
 
 - **Playwright command:** skipped full Phase 2 replay after focused repair proof hit a credential blocker. Focused four-surface replay for `QA-TEST-FLAKE-027` failed before route assertions because env-backed E2E accounts were rejected at sign-in.

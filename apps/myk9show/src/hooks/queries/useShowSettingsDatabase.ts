@@ -37,7 +37,7 @@ export const settingsQueryKeys = {
 /** DB row shape for show_visibility_settings */
 interface ShowSettingsRow {
   show_id: string;
-  preset: string;
+  preset: string | null;
   placement_timing: string;
   qualification_timing: string;
   time_timing: string;

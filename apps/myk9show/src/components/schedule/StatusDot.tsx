@@ -2,12 +2,15 @@ import { CLASS_STATUS } from '@myk9/core';
 import type { ClassStatusValue } from '@myk9/core';
 import { cn } from '@/lib/utils';
 
+// Neutral states (scheduled/upcoming/cancelled) use the semantic
+// --muted-foreground token, which themes itself in light and dark; only the
+// active states carry status hue (warning = in progress, success = completed).
 const STATUS_DOT_COLORS: Record<ClassStatusValue, string> = {
-  [CLASS_STATUS.SCHEDULED]: 'bg-slate-500 dark:bg-slate-400',
-  [CLASS_STATUS.UPCOMING]: 'bg-slate-500 dark:bg-slate-400',
-  [CLASS_STATUS.IN_PROGRESS]: 'bg-warning ',
-  [CLASS_STATUS.COMPLETED]: 'bg-success ',
-  [CLASS_STATUS.CANCELLED]: 'bg-slate-500 dark:bg-slate-400',
+  [CLASS_STATUS.SCHEDULED]: 'bg-muted-foreground',
+  [CLASS_STATUS.UPCOMING]: 'bg-muted-foreground',
+  [CLASS_STATUS.IN_PROGRESS]: 'bg-warning',
+  [CLASS_STATUS.COMPLETED]: 'bg-success',
+  [CLASS_STATUS.CANCELLED]: 'bg-muted-foreground',
 };
 
 interface StatusDotProps {

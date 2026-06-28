@@ -504,6 +504,7 @@ select:hover {
     --success: 74 222 128;             /* green-400 — passes as text on dark bg (~10:1); keep bright for readability */
     --success-foreground: 20 83 45;    /* green-900 — 5.2:1 on green-400 solid bg; white would be 1.75:1 */
     --warning: 251 191 36;             /* amber-400 */
+    --warning-foreground: 69 26 3;     /* amber-950 — 8.97:1 on amber-400 solid bg; white would be 1.67:1 */
     --info: 96 165 250;                /* blue-400 */
     --info-strong: 147 197 253;        /* blue-300 — readable on dark bg-info/10 tint */
     --border: #2e2b27;

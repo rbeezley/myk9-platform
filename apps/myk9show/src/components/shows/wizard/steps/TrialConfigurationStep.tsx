@@ -163,7 +163,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
               <span className="font-medium text-foreground">
                 {existingTrialCount} existing {existingTrialCount === 1 ? 'trial' : 'trials'}
               </span>{' '}
-              — use Edit Trial on the trial detail page to make changes to them.
+              already exist. Use Edit Trial on the trial detail page to make changes to them.
             </div>
           )}
 
@@ -273,7 +273,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                             <TooltipContent side="top" className="max-w-xs">
                               <p>
                                 {show.organization === 'AKC'
-                                  ? 'Required for AKC events — needed for the AKC XML results submission. Assigned by AKC when you apply for the event.'
+                                  ? 'Required for AKC events. Needed for the AKC XML results submission. Assigned by AKC when you apply for the event.'
                                   : 'The number assigned to this trial by the sanctioning organization. Optional for non-AKC events.'}
                               </p>
                             </TooltipContent>

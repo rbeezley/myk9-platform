@@ -116,10 +116,21 @@ function extractComposedRoutes(text, base) {
  * Parse `git diff` text into the set of route literals that changed. Tracks the
  * current file from `+++ b/<path>` headers so composed-slug files contribute
  * their full routes, and only added/removed content lines are scanned.
+ *
+ * Unchanged route literals can still appear on edited lines, such as a nav label
+ * rename where `{ label, path }` live together. Keep only the symmetric
+ * difference so label-only edits do not masquerade as route changes.
  */
 function parseDiffForRoutes(diffText) {
-  const routes = new Set();
+  const added = new Map();
+  const removed = new Map();
   let currentFile = null;
+  const record = (target, route) => {
+    const norm = normalizeRoute(route);
+    if (!norm || norm === '/') return;
+    target.set(norm, route);
+  };
+
   for (const line of diffText.split('\n')) {
     const fileHeader = line.match(/^\+\+\+ b\/(.+)/);
     if (fileHeader) {
@@ -128,16 +139,21 @@ function parseDiffForRoutes(diffText) {
     }
     if (line.startsWith('---')) continue; // old-file header, not content
     if (!/^[+-]/.test(line)) continue; // context / hunk meta
+    const target = line.startsWith('+') ? added : removed;
     const content = line.slice(1);
-    for (const r of extractRoutesFromSource(content)) routes.add(r);
+    for (const r of extractRoutesFromSource(content)) record(target, r);
     if (currentFile) {
       const composed = COMPOSED_ROUTE_BASES.find((c) => currentFile.includes(c.fileMatch));
       if (composed) {
-        for (const r of extractComposedRoutes(content, composed.base)) routes.add(r);
+        for (const r of extractComposedRoutes(content, composed.base)) record(target, r);
       }
     }
   }
-  return [...routes];
+
+  return [
+    ...[...removed].filter(([norm]) => !added.has(norm)).map(([, route]) => route),
+    ...[...added].filter(([norm]) => !removed.has(norm)).map(([, route]) => route),
+  ];
 }
 
 /**

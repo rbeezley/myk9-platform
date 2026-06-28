@@ -10,7 +10,14 @@
  * same pattern as `useSelfCheckinEnabled`.
  */
 
-import { resolveCheckinCascade } from '@myk9/secretary';
+import {
+  detectPreset,
+  PRESET_CONFIGS,
+  resolveCheckinCascade,
+  type FieldTimings,
+  type VisibilityPreset,
+  type VisibilityTiming,
+} from '@myk9/secretary';
 import { supabase } from '@/services/database/supabaseClient';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- tables absent from codegen
@@ -18,8 +25,17 @@ const untypedSupabase = supabase as any;
 
 export interface ResolvedClassVisibility {
   selfCheckinEnabled: boolean;
-  visibilityPreset: string;
+  visibilityPreset: VisibilityPreset | 'custom';
 }
+
+type VisRow = {
+  preset: VisibilityPreset | null;
+  placement_timing?: VisibilityTiming | null;
+  qualification_timing?: VisibilityTiming | null;
+  time_timing?: VisibilityTiming | null;
+  faults_timing?: VisibilityTiming | null;
+  self_checkin_enabled: boolean | null;
+};
 
 /**
  * Resolve the cascade for a batch of classes that all belong to `trialId`.
@@ -46,31 +62,38 @@ export async function resolveClassVisibilityForTrial(
     showId
       ? untypedSupabase
           .from('show_visibility_settings')
-          .select('preset, self_checkin_enabled')
+          .select(
+            'preset, placement_timing, qualification_timing, time_timing, faults_timing, self_checkin_enabled'
+          )
           .eq('show_id', showId)
           .maybeSingle()
       : Promise.resolve({ data: null }),
     untypedSupabase
       .from('trial_visibility_overrides')
-      .select('preset, self_checkin_enabled')
+      .select(
+        'preset, placement_timing, qualification_timing, time_timing, faults_timing, self_checkin_enabled'
+      )
       .eq('trial_id', trialId)
       .maybeSingle(),
     untypedSupabase
       .from('class_visibility_overrides')
-      .select('class_id, preset, self_checkin_enabled')
+      .select(
+        'class_id, preset, placement_timing, qualification_timing, time_timing, faults_timing, self_checkin_enabled'
+      )
       .in('class_id', classIds),
   ]);
 
-  type VisRow = { preset: string | null; self_checkin_enabled: boolean | null };
   const show = showRes.data as VisRow | null;
   const trial = trialRes.data as VisRow | null;
   const classRows = (classRes.data ?? []) as Array<VisRow & { class_id: string }>;
   const classById = new Map(classRows.map(r => [r.class_id, r]));
+  const showTimings = resolveTimingBase(show);
 
   for (const classId of classIds) {
     const cls = classById.get(classId);
+    const timings = applyTimingOverride(applyTimingOverride(showTimings, trial), cls);
     result.set(classId, {
-      visibilityPreset: cls?.preset ?? trial?.preset ?? show?.preset ?? 'open',
+      visibilityPreset: detectPreset(timings) ?? 'custom',
       selfCheckinEnabled: resolveCheckinCascade(
         show?.self_checkin_enabled ?? null,
         trial?.self_checkin_enabled ?? null,
@@ -79,6 +102,23 @@ export async function resolveClassVisibilityForTrial(
     });
   }
   return result;
+}
+
+function resolveTimingBase(row: VisRow | null): FieldTimings {
+  if (!row) return { ...PRESET_CONFIGS.open };
+  return applyTimingOverride({ ...PRESET_CONFIGS[row.preset ?? 'open'] }, row);
+}
+
+function applyTimingOverride(base: FieldTimings, row: VisRow | null | undefined): FieldTimings {
+  if (!row) return base;
+
+  const fromPreset = row.preset ? { ...PRESET_CONFIGS[row.preset] } : { ...base };
+  return {
+    placement: row.placement_timing ?? fromPreset.placement,
+    qualification: row.qualification_timing ?? fromPreset.qualification,
+    time: row.time_timing ?? fromPreset.time,
+    faults: row.faults_timing ?? fromPreset.faults,
+  };
 }
 
 /**

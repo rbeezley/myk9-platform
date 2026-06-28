@@ -5,6 +5,13 @@ import { BulkOperationsBar } from '../BulkOperationsBar';
 
 const mockBulkMutate = vi.hoisted(() => vi.fn());
 const mockReleaseMutate = vi.hoisted(() => vi.fn());
+const mockToast = vi.hoisted(() => ({
+  success: vi.fn(),
+  warning: vi.fn(),
+  error: vi.fn(),
+}));
+
+vi.mock('sonner', () => ({ toast: mockToast }));
 
 vi.mock('@/hooks/mutations/useShowSettingsMutations', () => ({
   useBulkUpdateClassOverrides: () => ({ mutate: mockBulkMutate, isPending: false }),
@@ -45,7 +52,7 @@ describe('BulkOperationsBar', () => {
 
     // The irreversible-exposure warning is shown before any release happens.
     expect(
-      await screen.findByText(/makes results publicly visible/i)
+      await screen.findByText(/Results become visible to exhibitors/i)
     ).toBeInTheDocument();
 
     // Confirming in the dialog fires the release for the valid selected classes.
@@ -118,6 +125,66 @@ describe('BulkOperationsBar', () => {
   it('disables Release when no selected class uses manual release', () => {
     renderBar({ hasManualReleaseClasses: false });
     expect(screen.getByRole('button', { name: 'Release Results' })).toBeDisabled();
+  });
+
+  it('explains why Release is disabled instead of leaving it silently greyed', () => {
+    renderBar({ hasManualReleaseClasses: false });
+    expect(
+      screen.getByText(/Only classes set to hold for review can be released here/i)
+    ).toBeInTheDocument();
+  });
+
+  it('shows no release hint when Release is available', () => {
+    renderBar({ hasManualReleaseClasses: true });
+    expect(
+      screen.queryByText(/Only classes set to hold for review/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it('toasts success on a clean release', async () => {
+    mockReleaseMutate.mockImplementation((_vars, opts) =>
+      opts?.onSuccess?.({ released: ['a', 'b'], failed: [] })
+    );
+    const { user } = renderBar();
+    await user.click(screen.getByRole('button', { name: 'Release Results' }));
+    const confirm = screen.getByRole('alertdialog').querySelector('button:last-of-type');
+    await user.click(confirm as HTMLElement);
+
+    expect(mockToast.success).toHaveBeenCalledWith(expect.stringMatching(/Released results for 2/i));
+  });
+
+  it('warns on a partial release so it never resolves silently', async () => {
+    mockReleaseMutate.mockImplementation((_vars, opts) =>
+      opts?.onSuccess?.({ released: ['a'], failed: ['b'] })
+    );
+    const { user } = renderBar();
+    await user.click(screen.getByRole('button', { name: 'Release Results' }));
+    const confirm = screen.getByRole('alertdialog').querySelector('button:last-of-type');
+    await user.click(confirm as HTMLElement);
+
+    expect(mockToast.warning).toHaveBeenCalledWith(expect.stringMatching(/1 failed/i));
+  });
+
+  it('errors on a total release failure', async () => {
+    mockReleaseMutate.mockImplementation((_vars, opts) =>
+      opts?.onSuccess?.({ released: [], failed: ['a', 'b'] })
+    );
+    const { user } = renderBar();
+    await user.click(screen.getByRole('button', { name: 'Release Results' }));
+    const confirm = screen.getByRole('alertdialog').querySelector('button:last-of-type');
+    await user.click(confirm as HTMLElement);
+
+    expect(mockToast.error).toHaveBeenCalledWith(expect.stringMatching(/Could not release/i));
+  });
+
+  it('errors when the release mutation rejects', async () => {
+    mockReleaseMutate.mockImplementation((_vars, opts) => opts?.onError?.());
+    const { user } = renderBar();
+    await user.click(screen.getByRole('button', { name: 'Release Results' }));
+    const confirm = screen.getByRole('alertdialog').querySelector('button:last-of-type');
+    await user.click(confirm as HTMLElement);
+
+    expect(mockToast.error).toHaveBeenCalledWith(expect.stringMatching(/Could not release/i));
   });
 
   it('gives every action button a 44px minimum touch height', () => {

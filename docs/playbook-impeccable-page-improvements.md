@@ -20,7 +20,7 @@ Route:       <e.g. /shows/:showId/entries>
 Entry file:  <e.g. apps/myk9show/src/pages/secretary/EntriesManagementPage.tsx>
 Role:        <secretary | exhibitor | judge | steward | club admin>
 Quality bar: <MVP | flagship>   (most secretary pages: flagship)
-Login:       e2e-secretary@test.myk9.com / password in apps/myk9show/.env.local  (dev server: pnpm dev:show)
+Login:       role-dependent e2e-* account (see the queue group for this page's role) / password in apps/myk9show/.env.local  (dev server: pnpm dev:show)
 ```
 
 **[ADDED] Minimum input is the page name; the agent derives the rest.** Only
@@ -353,7 +353,20 @@ them explicitly:
 
 ---
 
-## Suggested page queue (secretary workflow order)
+## Suggested page queue
+
+Pages are grouped by **role surface**. The sweep runs **top to bottom across all
+groups**, strictly sequential, each branch stacked on the previous page's tip —
+the collision rule below applies across groups too. Cross-role pages share fewer
+components, so stacking across groups is merely conservative, never harmful.
+
+**Each group names the e2e login the sweep must use for its pages** — these
+routes are RBAC-gated, so loading an `/admin` page as a secretary parks it on
+the guard. All accounts share the password in `apps/myk9show/.env.local`.
+Phase 0 still resolves each page's real route/role against the router; the
+routes here are the known-canonical ones.
+
+### Secretary workflow — login `e2e-secretary@test.myk9.com`
 
 | # | Page | Route | Notes |
 |---|---|---|---|
@@ -365,6 +378,32 @@ them explicitly:
 | 6 | Show creation wizard | /shows/new | Has a real first-run state → `onboard` eligible |
 | 7 | Public show landing (default + heritage) | /shows/:id | **Brand register**, exhibitor-facing |
 | 8 | At-Show (ringside surfaces) | /at-show/:showId | Offline-first constraints dominate; keep calm, no motion |
+
+### Site admin — login `e2e-admin@test.myk9.com` (role: `SITE_ADMIN`)
+
+| # | Page | Route | Entry file | Notes |
+|---|---|---|---|---|
+| 9 | Admin Dashboard | /admin/dashboard | src/pages/admin/AdminDashboard.tsx | Landing; `/admin` redirects here |
+| 10 | User Management | /admin/users | src/pages/admin/UserManagementPage.tsx | High table/density surface |
+| 11 | Payout Ledger | /admin/payouts | src/pages/admin/PayoutLedgerPage.tsx | Money UI — `clarify`/`harden` sensitive |
+| 12 | Permission Management | /admin/permissions | src/pages/admin/permissions/PermissionManagementPage.tsx | RBAC config surface |
+| 13 | Role Requests | /admin/role-requests | src/pages/admin/RoleRequestsPage.tsx | Review-queue workflow |
+
+### Exhibitor — login `e2e-exhibitor@test.myk9.com` (seeded dogs: Willow, Ranger, Juniper)
+
+| # | Page | Route | Entry file | Notes |
+|---|---|---|---|---|
+| 14 | My Entries / My Shows | /exhibitor/entries | src/pages/MyEntriesPage.tsx | Exhibitor home; **flagship** bar |
+| 15 | Show Registration wizard | /shows/:showId/register | src/pages/RegistrationWizardPage.tsx | Multi-step, first-run state → `onboard` eligible |
+| 16 | Exhibitor Payments | /exhibitor/payments | src/pages/exhibitor/ExhibitorPaymentsPage.tsx | Money UI — `clarify`/`harden` sensitive |
+| 17 | Cart | /cart | src/pages/CartPage.tsx | Checkout flow; conversion-critical |
+
+### Club admin — login `e2e-clubadmin@test.myk9.com` (role: `CLUB_ADMIN`)
+
+| # | Page | Route | Entry file | Notes |
+|---|---|---|---|---|
+| 18 | Club Members | /club-admin/members | src/pages/club-admin/ClubMembersPage.tsx | Roster management |
+| 19 | Club Payments | /club-admin/payments | src/pages/club-admin/ClubPaymentsPage.tsx | Money UI — `clarify`/`harden` sensitive |
 
 One page = one worktree = one PR. Do not batch pages; findings tables stay
 reviewable and reverts stay cheap.

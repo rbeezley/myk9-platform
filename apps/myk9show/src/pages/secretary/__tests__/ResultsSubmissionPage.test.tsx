@@ -20,7 +20,7 @@ const mockHistoryData = vi.hoisted(() => ({
     submitted_at: string;
     submitted_by: string | null;
     xml_payload: string | null;
-    status: 'pending' | 'sent' | 'failed';
+    status: 'pending' | 'sent' | 'submitted' | 'failed';
   }[],
 }));
 
@@ -66,9 +66,10 @@ vi.mock('@/hooks/queries/useAKCSubmissionData', () => ({
   useAKCSubmissionData: () => mockAKCData,
 }));
 
+const mockMutate = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/mutations/useResultSubmission', () => ({
   useResultSubmission: () => ({
-    mutate: vi.fn(),
+    mutate: mockMutate,
     isPending: false,
     isError: false,
   }),
@@ -402,6 +403,111 @@ describe('ResultsSubmissionPage', () => {
     fireEvent.click(confirmBtn);
 
     await waitFor(() => expect(mockInvoke).toHaveBeenCalledWith('send-results', expect.anything()));
+  });
+
+  // "Mark as submitted" records a submission filed elsewhere (the org portal).
+  // It must read as distinct from "Send", be guarded against a phantom log on
+  // the auto-selected formatter, and persist a distinct `submitted` status.
+  describe('Mark as submitted (manual record, distinct from Send)', () => {
+    const oneEntry = {
+      show: {
+        id: 'show-1',
+        name: 'Spring',
+        clubName: 'Club',
+        date: null,
+        clubLicenseNumber: null,
+        secretaryName: 'Jane',
+        secretaryEmail: 'jane@example.com',
+      },
+      trials: [],
+      entries: [
+        {
+          dogName: 'Fluffy',
+          breed: 'X',
+          registrationNumber: 'HP123',
+          handlerName: '',
+          className: 'N',
+          element: 'Container',
+          level: 'Novice',
+          section: 'A',
+          resultCode: null,
+          searchTimeSeconds: null,
+          totalFaults: null,
+          finalPlacement: null,
+          armbandNumber: 101,
+          trialId: 't1',
+          classId: 'c1',
+          dogRegisteredName: null,
+          dogGender: 'B',
+          ownerName: null,
+          ownerAddress: null,
+          timeLimitSeconds: null,
+          entryStatus: 'accepted',
+          checkInStatus: 'present',
+          resultStatus: null,
+        },
+      ],
+    } as import('@myk9/secretary').AKCSubmissionData;
+
+    it('contrasts Send vs Mark as submitted in the helper copy', async () => {
+      renderPage();
+      const help = await screen.findByTestId('action-help');
+      expect(help.textContent).toMatch(/emails the file now/i);
+      expect(help.textContent).toMatch(/just logs it here/i);
+    });
+
+    it('disables Mark as submitted for AKC scent work when no entry data is loaded', async () => {
+      mockAKCData.data = null;
+      renderPage();
+      const markBtn = await screen.findByTestId('mark-submitted-btn');
+      expect(markBtn).toBeDisabled();
+    });
+
+    it('disables Mark as submitted when AKC scent work has zero entries', async () => {
+      mockAKCData.data = { ...oneEntry, entries: [] } as import('@myk9/secretary').AKCSubmissionData;
+      renderPage();
+      const markBtn = await screen.findByTestId('mark-submitted-btn');
+      expect(markBtn).toBeDisabled();
+    });
+
+    it('confirms first, then records a distinct `submitted` status (no email)', async () => {
+      mockAKCData.data = oneEntry;
+      renderPage();
+
+      const markBtn = await screen.findByTestId('mark-submitted-btn');
+      expect(markBtn).not.toBeDisabled();
+      fireEvent.click(markBtn);
+
+      // Confirmation gates the write — nothing recorded yet.
+      expect(await screen.findByTestId('mark-confirm-dialog')).toBeInTheDocument();
+      expect(mockMutate).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByTestId('mark-confirm-btn'));
+
+      await waitFor(() =>
+        expect(mockMutate).toHaveBeenCalledWith(expect.objectContaining({ status: 'submitted' }))
+      );
+      // It records, it does not email.
+      expect(mockInvoke).not.toHaveBeenCalled();
+    });
+
+    it('renders a manual record in history as "Marked submitted"', async () => {
+      mockHistoryData.rows = [
+        {
+          id: 'sub-2',
+          show_id: 'show-1',
+          trial_id: null,
+          organization: 'AKC',
+          sport_type: 'scent_work',
+          submitted_at: '2026-05-11T12:00:00Z',
+          submitted_by: null,
+          xml_payload: null,
+          status: 'submitted',
+        },
+      ];
+      renderPage();
+      await waitFor(() => expect(screen.getByText('Marked submitted')).toBeInTheDocument());
+    });
   });
 
   // F6a (Lane 1.2 re-walk): the Organization trigger echoed the raw

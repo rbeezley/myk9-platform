@@ -10,13 +10,21 @@ import { supabase } from '@/services/database/supabaseClient';
 // Types
 // ---------------------------------------------------------------------------
 
+// Submission status. `sent` = emailed from the app via the send-results edge
+// function; `submitted` = the secretary filed results through the org's portal
+// (or another method) and is recording it here — no email is sent and the XML
+// payload may be absent. Both mean "results are in to the org" for readiness
+// rollups. The DB column is a bare TEXT with no CHECK constraint (migration
+// 126), so this union is the only contract — keep it the source of truth.
+export type ResultSubmissionStatus = 'pending' | 'sent' | 'submitted' | 'failed';
+
 export interface ResultSubmissionInsert {
   show_id: string;
   trial_id?: string | null;
   organization: string;
   sport_type: string;
   xml_payload?: string | null;
-  status?: 'pending' | 'sent' | 'failed';
+  status?: ResultSubmissionStatus;
 }
 
 export interface ResultSubmissionRow {
@@ -28,7 +36,7 @@ export interface ResultSubmissionRow {
   submitted_at: string;
   submitted_by: string | null;
   xml_payload: string | null;
-  status: 'pending' | 'sent' | 'failed';
+  status: ResultSubmissionStatus;
 }
 
 // ---------------------------------------------------------------------------

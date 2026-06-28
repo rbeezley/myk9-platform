@@ -8,6 +8,10 @@ ALTER TABLE public.waitlist_entries
 COMMENT ON COLUMN public.waitlist_entries.joined_via IS
   'Channel that created the waitlist row. online rows use pay-to-claim expiry; mail_in rows are held for secretary/offline handling.';
 
+CREATE UNIQUE INDEX IF NOT EXISTS waitlist_entries_active_class_dog_key
+  ON public.waitlist_entries (class_id, dog_id)
+  WHERE status IN ('waiting', 'offered');
+
 DROP FUNCTION IF EXISTS public.add_to_waitlist(uuid, uuid, uuid, uuid);
 
 CREATE OR REPLACE FUNCTION public.add_to_waitlist(
@@ -66,6 +70,19 @@ BEGIN
 
   PERFORM pg_advisory_xact_lock(hashtext(p_class_id::text));
 
+  SELECT *
+  INTO new_entry
+  FROM public.waitlist_entries
+  WHERE class_id = p_class_id
+    AND dog_id = p_dog_id
+    AND status IN ('waiting', 'offered')
+  ORDER BY position NULLS LAST, created_at
+  LIMIT 1;
+
+  IF FOUND THEN
+    RETURN new_entry;
+  END IF;
+
   SELECT COALESCE(MAX(position), 0) + 1
   INTO next_position
   FROM public.waitlist_entries
@@ -95,7 +112,7 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.add_to_waitlist(uuid, uuid, uuid, uuid, text) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.add_to_waitlist(uuid, uuid, uuid, uuid, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.add_to_waitlist(uuid, uuid, uuid, uuid, text) TO authenticated, service_role;
 
 DROP POLICY IF EXISTS "waitlist_entries_insert" ON public.waitlist_entries;
 

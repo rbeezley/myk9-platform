@@ -28,6 +28,7 @@ import { CartSummary } from '@/components/cart/CartSummary';
 import { createEntryCheckoutSession } from '@/lib/stripe';
 import { useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
 import { writeCartSplitCheckoutSummary } from '@/features/payments/cartSplitCheckoutStorage';
+import { splitCartItemsByJudgeDayCapacity } from '@/features/payments/cartCapacitySplit';
 
 function createSplitCheckoutCorrelationId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -50,9 +51,11 @@ export default function CartPage() {
   const setError = useCartStore(state => state.setError);
   const loadActiveCart = useCartStore(state => state.loadActiveCart);
   const checkoutWithWaitlist = useCartStore(state => state.checkoutWithWaitlist);
-  const { judgeDays, isLoading: isCapacityLoading, error: capacityError } = useJudgeDayCapacity(
-    cart?.show_id
-  );
+  const {
+    judgeDays,
+    isLoading: isCapacityLoading,
+    error: capacityError,
+  } = useJudgeDayCapacity(cart?.show_id);
 
   const [removingItemId, setRemovingItemId] = useState<string | null>(null);
   const [showClearDialog, setShowClearDialog] = useState(false);
@@ -136,12 +139,8 @@ export default function CartPage() {
     setError(null);
 
     try {
-      const fullClassIds = new Set(
-        judgeDays.filter(day => day.availableSpots <= 0).flatMap(day => day.classIds)
-      );
-      const blockedItems = items.filter(
-        item => item.class_id && fullClassIds.has(item.class_id) && item.class?.allow_waitlist === false
-      );
+      const splitDecision = splitCartItemsByJudgeDayCapacity(items, judgeDays);
+      const blockedItems = splitDecision.blockedItems;
 
       if (blockedItems.length > 0) {
         setError(
@@ -155,31 +154,14 @@ export default function CartPage() {
         return;
       }
 
-      const waitlistEligibleClassIds = new Set(
-        items
-          .filter(
-            item =>
-              item.class_id &&
-              fullClassIds.has(item.class_id) &&
-              item.class?.allow_waitlist !== false
-          )
-          .map(item => item.class_id)
-      );
-      const splitResult = await checkoutWithWaitlist(profile.id, waitlistEligibleClassIds);
+      const splitResult = await checkoutWithWaitlist(profile.id, splitDecision.waitlistItemIds);
 
       if (!splitResult) {
         setIsCheckingOut(false);
         return;
       }
 
-      const waitlistedItemIds = items
-        .filter(
-          item =>
-            item.class_id &&
-            waitlistEligibleClassIds.has(item.class_id) &&
-            item.class?.allow_waitlist !== false
-        )
-        .map(item => item.id);
+      const waitlistedItemIds = Array.from(splitDecision.waitlistItemIds);
 
       for (const itemId of waitlistedItemIds) {
         const removed = await removeItem(itemId);
@@ -192,21 +174,29 @@ export default function CartPage() {
         }
       }
 
-      const splitCheckoutId = createSplitCheckoutCorrelationId();
-      writeCartSplitCheckoutSummary({
-        correlationId: splitCheckoutId,
-        showId: cart.show_id,
-        confirmedEntryCount: splitResult.confirmed.length,
-        waitlistEntries: splitResult.waitlisted,
-      });
+      const splitCheckoutId =
+        splitResult.waitlisted.length > 0 ? createSplitCheckoutCorrelationId() : null;
+
+      if (splitCheckoutId) {
+        writeCartSplitCheckoutSummary({
+          correlationId: splitCheckoutId,
+          showId: cart.show_id,
+          confirmedEntryCount: splitResult.confirmed.length,
+          waitlistEntries: splitResult.waitlisted,
+        });
+      }
 
       if (splitResult.confirmed.length === 0) {
-        navigate(`/checkout/success?waitlist=1&split=${encodeURIComponent(splitCheckoutId)}`);
+        navigate(
+          splitCheckoutId
+            ? `/checkout/success?waitlist=1&split=${encodeURIComponent(splitCheckoutId)}`
+            : '/checkout/success?waitlist=1'
+        );
         return;
       }
 
       // This will redirect to Stripe Checkout for the remaining confirmed entries.
-      await createEntryCheckoutSession(cart.id, { splitCheckoutId });
+      await createEntryCheckoutSession(cart.id, splitCheckoutId ? { splitCheckoutId } : undefined);
       // If we get here, the redirect didn't happen (shouldn't normally occur)
     } catch (_err) {
       setError('Something went wrong starting checkout. Please try again.');

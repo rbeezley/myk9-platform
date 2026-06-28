@@ -13,7 +13,11 @@ const migrationSql = readdirSync(resolve(root, 'supabase/migrations'))
   .sort()
   .map(file => readFileSync(resolve(root, 'supabase/migrations', file), 'utf8'))
   .join('\n');
-const compactMigrationSql = migrationSql.replace(/\s+/g, ' ');
+const capacityGateMigration = readFileSync(
+  resolve(root, 'supabase/migrations/20260628202146_create_online_paid_entry_capacity_gate.sql'),
+  'utf8'
+);
+const compactCapacityGateMigration = capacityGateMigration.replace(/\s+/g, ' ');
 
 describe('stripe webhook online cart capacity gate', () => {
   it('routes paid cart entry creation through the atomic capacity RPC', () => {
@@ -24,17 +28,19 @@ describe('stripe webhook online cart capacity gate', () => {
   });
 
   it('locks each judge-day before reading capacity and inserting the online entry', () => {
-    expect(migrationSql).toContain('CREATE OR REPLACE FUNCTION public.create_online_paid_entry');
-    expect(migrationSql).toContain('RETURNS TABLE');
-    expect(migrationSql).toContain('outcome text');
-    expect(compactMigrationSql).toContain(
+    expect(capacityGateMigration).toContain(
+      'CREATE OR REPLACE FUNCTION public.create_online_paid_entry'
+    );
+    expect(capacityGateMigration).toContain('RETURNS TABLE');
+    expect(capacityGateMigration).toContain('outcome text');
+    expect(capacityGateMigration).toContain('VOLATILE');
+    expect(compactCapacityGateMigration).toContain(
       "hashtext('judgeday:' || v_judge_id::text || ':' || v_trial_date::text)"
     );
-    expect(migrationSql).toContain(
-      'FROM public.get_judge_day_capacity(v_judge_id, v_show_id, v_trial_date)'
-    );
-    expect(migrationSql).toContain('COALESCE(v_judge_capacity.available_spots, 0) <= 0');
-    expect(migrationSql).toContain('INSERT INTO public.entries');
+    expect(capacityGateMigration).not.toContain('FROM public.get_judge_day_capacity');
+    expect(capacityGateMigration).toContain('SELECT COUNT(*)');
+    expect(capacityGateMigration).toContain('v_capacity - v_confirmed - v_reserved');
+    expect(capacityGateMigration).toContain('INSERT INTO public.entries');
   });
 
   it('routes paid overflow through existing class waitlist policy', () => {
@@ -44,6 +50,14 @@ describe('stripe webhook online cart capacity gate', () => {
     expect(migrationSql).toContain('joined_via');
     expect(migrationSql).toContain("'online'");
     expect(migrationSql).toContain("outcome := 'waitlisted'");
+  });
+
+  it('makes waitlist overflow idempotent for an active dog/class row', () => {
+    expect(migrationSql).toContain('waitlist_entries_active_class_dog_key');
+    expect(migrationSql).toContain("WHERE status IN ('waiting', 'offered')");
+    expect(capacityGateMigration).toContain('AND dog_id = p_dog_id');
+    expect(capacityGateMigration).toContain('IF FOUND THEN');
+    expect(capacityGateMigration).toContain('waitlist_entry_id := v_waitlist_entry.id');
   });
 
   it('refunds no-service overflow lines instead of leaving paid missing entries', () => {

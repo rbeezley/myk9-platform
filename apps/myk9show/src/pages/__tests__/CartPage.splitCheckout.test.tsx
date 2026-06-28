@@ -222,7 +222,7 @@ describe('CartPage split checkout wiring', () => {
     await user.click(screen.getByRole('button', { name: 'Checkout' }));
 
     await waitFor(() =>
-      expect(checkoutWithWaitlistMock).toHaveBeenCalledWith('exhibitor-1', new Set(['class-full']))
+      expect(checkoutWithWaitlistMock).toHaveBeenCalledWith('exhibitor-1', new Set(['item-full']))
     );
     await waitFor(() => expect(removeItemMock).toHaveBeenCalledWith('item-full'));
     await waitFor(() =>
@@ -232,7 +232,9 @@ describe('CartPage split checkout wiring', () => {
       )
     );
 
-    const storedSummary = JSON.parse(sessionStorage.getItem(STORAGE_KEYS.CART_SPLIT_CHECKOUT) ?? '{}');
+    const storedSummary = JSON.parse(
+      sessionStorage.getItem(STORAGE_KEYS.CART_SPLIT_CHECKOUT) ?? '{}'
+    );
     expect(storedSummary).toMatchObject({
       correlationId: expect.any(String),
       showId: 'show-1',
@@ -267,10 +269,12 @@ describe('CartPage split checkout wiring', () => {
     await user.click(screen.getByRole('button', { name: 'Checkout' }));
 
     await waitFor(() =>
-      expect(checkoutWithWaitlistMock).toHaveBeenCalledWith('exhibitor-1', new Set(['class-full']))
+      expect(checkoutWithWaitlistMock).toHaveBeenCalledWith('exhibitor-1', new Set(['item-full']))
     );
     expect(createEntryCheckoutSessionMock).not.toHaveBeenCalled();
-    const storedSummary = JSON.parse(sessionStorage.getItem(STORAGE_KEYS.CART_SPLIT_CHECKOUT) ?? '{}');
+    const storedSummary = JSON.parse(
+      sessionStorage.getItem(STORAGE_KEYS.CART_SPLIT_CHECKOUT) ?? '{}'
+    );
     expect(navigateMock).toHaveBeenCalledWith(
       `/checkout/success?waitlist=1&split=${encodeURIComponent(storedSummary.correlationId)}`
     );
@@ -301,5 +305,61 @@ describe('CartPage split checkout wiring', () => {
     );
     expect(checkoutWithWaitlistMock).not.toHaveBeenCalled();
     expect(createEntryCheckoutSessionMock).not.toHaveBeenCalled();
+  });
+
+  it('spends remaining judge-day capacity on earlier cart items before waitlisting later items', async () => {
+    judgeDayCapacityState.judgeDays = [
+      {
+        judgeId: 'judge-1',
+        judgeName: 'Judge Judy',
+        showDate: '2026-09-01',
+        capacity: 10,
+        confirmedCount: 9,
+        waitlistCount: 1,
+        mailInReserved: 0,
+        availableSpots: 1,
+        classIds: ['class-open', 'class-full'],
+        classNames: ['Open Class', 'Full Class'],
+      },
+    ];
+
+    const { user } = render(<CartPage />, { initialRoute: '/cart' });
+
+    await user.click(screen.getByRole('button', { name: 'Checkout' }));
+
+    await waitFor(() =>
+      expect(checkoutWithWaitlistMock).toHaveBeenCalledWith('exhibitor-1', new Set(['item-full']))
+    );
+  });
+
+  it('does not carry a split token when checkout has no waitlisted lines', async () => {
+    judgeDayCapacityState.judgeDays = [
+      {
+        judgeId: 'judge-1',
+        judgeName: 'Judge Judy',
+        showDate: '2026-09-01',
+        capacity: 10,
+        confirmedCount: 8,
+        waitlistCount: 1,
+        mailInReserved: 0,
+        availableSpots: 2,
+        classIds: ['class-open', 'class-full'],
+        classNames: ['Open Class', 'Full Class'],
+      },
+    ];
+    checkoutWithWaitlistMock.mockResolvedValue({
+      confirmed: ['class-open', 'class-full'],
+      waitlisted: [],
+    });
+
+    const { user } = render(<CartPage />, { initialRoute: '/cart' });
+
+    await user.click(screen.getByRole('button', { name: 'Checkout' }));
+
+    await waitFor(() =>
+      expect(checkoutWithWaitlistMock).toHaveBeenCalledWith('exhibitor-1', new Set())
+    );
+    expect(createEntryCheckoutSessionMock).toHaveBeenCalledWith('cart-1', undefined);
+    expect(sessionStorage.getItem(STORAGE_KEYS.CART_SPLIT_CHECKOUT)).toBeNull();
   });
 });

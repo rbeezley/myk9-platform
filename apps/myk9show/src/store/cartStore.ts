@@ -727,10 +727,10 @@ export const useCartStore = create<CartState>()(
           return timeRemaining !== null && timeRemaining <= 0;
         },
 
-        // Checkout routing full-class items to waitlist RPC
+        // Checkout routing overflow cart items to waitlist RPC
         checkoutWithWaitlist: async (
           exhibitorId: string,
-          fullClassIds: Set<string>
+          waitlistCartItemIds: Set<string>
         ): Promise<CheckoutResult | null> => {
           const { cart } = get();
           if (!cart) {
@@ -745,7 +745,7 @@ export const useCartStore = create<CartState>()(
             for (const item of cart.items) {
               if (!item.class_id || !item.dog_id) continue;
 
-              if (fullClassIds.has(item.class_id)) {
+              if (waitlistCartItemIds.has(item.id)) {
                 // Add to waitlist instead of creating a normal entry
                 const rpcArgs: {
                   p_class_id: string;

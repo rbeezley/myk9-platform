@@ -25,7 +25,9 @@ describe('waitlist joined_via channel contract', () => {
   });
 
   it('limits mail-in waitlist rows to trusted show managers through the RPC', () => {
-    expect(migration).toContain('DROP FUNCTION IF EXISTS public.add_to_waitlist(uuid, uuid, uuid, uuid)');
+    expect(migration).toContain(
+      'DROP FUNCTION IF EXISTS public.add_to_waitlist(uuid, uuid, uuid, uuid)'
+    );
     expect(migration).toContain("p_joined_via text DEFAULT 'online'");
     expect(migration).toContain("p_joined_via NOT IN ('online', 'mail_in')");
     expect(migration).toContain("p_joined_via = 'mail_in'");
@@ -40,6 +42,18 @@ describe('waitlist joined_via channel contract', () => {
     expect(migration).toContain(
       'REVOKE ALL ON FUNCTION public.add_to_waitlist(uuid, uuid, uuid, uuid, text) FROM PUBLIC, anon, authenticated'
     );
+    expect(migration).toContain(
+      'GRANT EXECUTE ON FUNCTION public.add_to_waitlist(uuid, uuid, uuid, uuid, text) TO authenticated, service_role'
+    );
+  });
+
+  it('returns an existing active dog/class waitlist row instead of duplicating it', () => {
+    expect(migration).toContain('waitlist_entries_active_class_dog_key');
+    expect(migration).toContain('ON public.waitlist_entries (class_id, dog_id)');
+    expect(migration).toContain("WHERE status IN ('waiting', 'offered')");
+    expect(migration).toContain('AND dog_id = p_dog_id');
+    expect(migration).toContain('IF FOUND THEN');
+    expect(migration).toContain('RETURN new_entry');
   });
 
   it('requires exhibitor-owned dogs for direct waitlist inserts', () => {

@@ -57,6 +57,15 @@ describe('UserFilters / BulkActionsBar status semantics', () => {
     expect(filtersSrc).toContain('bg-success/10 text-success');
   });
 
+  it('active categorical chips use AA semantic tokens, not low-contrast -500 text', () => {
+    expect(filtersSrc).toContain('bg-primary/10 text-primary');
+    expect(filtersSrc).toContain('bg-info/10 text-info-strong');
+    expect(filtersSrc).toContain('bg-warning/10 text-warning');
+    expect(filtersSrc).not.toContain('text-purple-500');
+    expect(filtersSrc).not.toContain('text-blue-500');
+    expect(filtersSrc).not.toContain('text-orange-500');
+  });
+
   it('bulk status dropdown focus states use semantic tokens', () => {
     expect(bulkSrc).toContain('focus:bg-success/10 focus:text-success');
     expect(bulkSrc).toContain('focus:bg-warning/10 focus:text-warning');

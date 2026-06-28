@@ -16,7 +16,7 @@ import type {
   LabelFilterConfig,
 } from '@/lib/labels/armbandLabelTypes';
 import { ArmbandLabelCell } from './ArmbandLabelCell';
-import { LabelSetupSection } from './LabelModeChrome';
+import { LabelSetupSection, SetupEyebrow } from './LabelModeChrome';
 import { generatePasscodesFromShowId } from '@myk9/core';
 import { useLabelPreferences } from '@/hooks/useLabelPreferences';
 import { useArmbandLabelData } from '@/hooks/queries/useArmbandLabelData';
@@ -142,9 +142,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
       <LabelSetupSection>
         {/* Label Size */}
         <div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-            Label Size
-          </div>
+          <SetupEyebrow className="mb-2">Label Size</SetupEyebrow>
           <div className="flex flex-col gap-1.5">
             {templates.map((t) => (
               <label
@@ -167,9 +165,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
 
         {/* Entry Filter */}
         <div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-            Select Armbands to Print
-          </div>
+          <SetupEyebrow className="mb-2">Select Armbands to Print</SetupEyebrow>
           <div className="flex flex-col gap-1.5">
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -220,9 +216,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
 
         {/* Content Config */}
         <div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-            Include on Label
-          </div>
+          <SetupEyebrow className="mb-2">Include on Label</SetupEyebrow>
           <div className="grid grid-cols-2 gap-1.5">
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -309,9 +303,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
           </button>
           {showAdvanced && (
             <div className="mt-2 p-3 border rounded bg-background space-y-2">
-              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Vertical Pitch Adjustment
-              </div>
+              <SetupEyebrow>Vertical Pitch Adjustment</SetupEyebrow>
               <p className="text-xs text-muted-foreground">
                 If labels drift out of alignment toward the bottom of the page,
                 adjust this value. Positive = more space between rows, negative =

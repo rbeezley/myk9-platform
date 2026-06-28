@@ -42,16 +42,26 @@ export async function createCheckoutSession(priceId: string, mode: 'payment' | '
  * @param cartId - The ID of the entry cart to checkout
  * @returns Promise that resolves when redirect happens, or throws on error
  */
-export async function createEntryCheckoutSession(cartId: string): Promise<void> {
+export async function createEntryCheckoutSession(
+  cartId: string,
+  options?: { splitCheckoutId?: string }
+): Promise<void> {
   if (!cartId) {
     throw new Error('Cart ID is required');
+  }
+
+  const successUrl = new URL(`${window.location.origin}/checkout/success`);
+  successUrl.searchParams.set('session_id', '{CHECKOUT_SESSION_ID}');
+
+  if (options?.splitCheckoutId) {
+    successUrl.searchParams.set('split', options.splitCheckoutId);
   }
 
   const { data, error } = await supabase.functions.invoke('stripe-checkout', {
     body: {
       mode: 'entry',
       cart_id: cartId,
-      success_url: `${window.location.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: successUrl.toString(),
       cancel_url: `${window.location.origin}/checkout/cancel`,
     },
   });

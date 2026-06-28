@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
+import { STORAGE_KEYS } from '@/constants/storageKeys';
 
 const navigateMock = vi.hoisted(() => vi.fn());
 const createEntryCheckoutSessionMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
@@ -224,12 +225,22 @@ describe('CartPage split checkout wiring', () => {
       expect(checkoutWithWaitlistMock).toHaveBeenCalledWith('exhibitor-1', new Set(['class-full']))
     );
     await waitFor(() => expect(removeItemMock).toHaveBeenCalledWith('item-full'));
-    await waitFor(() => expect(createEntryCheckoutSessionMock).toHaveBeenCalledWith('cart-1'));
+    await waitFor(() =>
+      expect(createEntryCheckoutSessionMock).toHaveBeenCalledWith(
+        'cart-1',
+        expect.objectContaining({ splitCheckoutId: expect.any(String) })
+      )
+    );
 
-    expect(JSON.parse(sessionStorage.getItem('cart-split-checkout') ?? '{}')).toMatchObject({
+    const storedSummary = JSON.parse(sessionStorage.getItem(STORAGE_KEYS.CART_SPLIT_CHECKOUT) ?? '{}');
+    expect(storedSummary).toMatchObject({
+      correlationId: expect.any(String),
       showId: 'show-1',
       confirmedEntryCount: 1,
       waitlistEntries: [{ id: 'wait-1', position: 2, className: 'Full Class' }],
+    });
+    expect(createEntryCheckoutSessionMock).toHaveBeenCalledWith('cart-1', {
+      splitCheckoutId: storedSummary.correlationId,
     });
   });
 
@@ -259,7 +270,10 @@ describe('CartPage split checkout wiring', () => {
       expect(checkoutWithWaitlistMock).toHaveBeenCalledWith('exhibitor-1', new Set(['class-full']))
     );
     expect(createEntryCheckoutSessionMock).not.toHaveBeenCalled();
-    expect(navigateMock).toHaveBeenCalledWith('/checkout/success?waitlist=1');
+    const storedSummary = JSON.parse(sessionStorage.getItem(STORAGE_KEYS.CART_SPLIT_CHECKOUT) ?? '{}');
+    expect(navigateMock).toHaveBeenCalledWith(
+      `/checkout/success?waitlist=1&split=${encodeURIComponent(storedSummary.correlationId)}`
+    );
   });
 
   it('blocks checkout for full classes that do not accept the wait list', async () => {

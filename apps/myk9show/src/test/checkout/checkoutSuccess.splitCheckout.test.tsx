@@ -50,6 +50,7 @@ describe('CheckoutSuccessPage split checkout summary', () => {
     sessionStorage.setItem(
       STORAGE_KEYS.CART_SPLIT_CHECKOUT,
       JSON.stringify({
+        correlationId: 'split-1',
         showId: 'show-1',
         confirmedEntryCount: 1,
         waitlistEntries: [
@@ -85,7 +86,7 @@ describe('CheckoutSuccessPage split checkout summary', () => {
     ];
 
     render(<CheckoutSuccessPage />, {
-      initialRoute: '/checkout/success?session_id=cs_test_123',
+      initialRoute: '/checkout/success?session_id=cs_test_123&split=split-1',
     });
 
     await waitFor(() => expect(screen.getByText('pi_123')).toBeInTheDocument());
@@ -93,12 +94,14 @@ describe('CheckoutSuccessPage split checkout summary', () => {
     expect(screen.getByText(/Waitlisted: 1 entry/i)).toBeInTheDocument();
     expect(screen.getByText(/Full Class #2/i)).toBeInTheDocument();
     expect(resetCartMock).toHaveBeenCalled();
+    expect(sessionStorage.getItem(STORAGE_KEYS.CART_SPLIT_CHECKOUT)).toBeNull();
   });
 
   it('renders the existing success page as a waitlist-only confirmation', async () => {
     sessionStorage.setItem(
       STORAGE_KEYS.CART_SPLIT_CHECKOUT,
       JSON.stringify({
+        correlationId: 'split-2',
         showId: 'show-1',
         confirmedEntryCount: 0,
         waitlistEntries: [
@@ -117,7 +120,7 @@ describe('CheckoutSuccessPage split checkout summary', () => {
     );
 
     render(<CheckoutSuccessPage />, {
-      initialRoute: '/checkout/success?waitlist=1',
+      initialRoute: '/checkout/success?waitlist=1&split=split-2',
     });
 
     await waitFor(() => expect(screen.getByText('Added to Wait List')).toBeInTheDocument());
@@ -126,5 +129,55 @@ describe('CheckoutSuccessPage split checkout summary', () => {
     ).toBeInTheDocument();
     expect(screen.queryByText('Order Total')).not.toBeInTheDocument();
     expect(verifyCheckoutSessionMock).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem(STORAGE_KEYS.CART_SPLIT_CHECKOUT)).toBeNull();
+  });
+
+  it('does not render stale same-show same-count waitlist data for a later Stripe return', async () => {
+    sessionStorage.setItem(
+      STORAGE_KEYS.CART_SPLIT_CHECKOUT,
+      JSON.stringify({
+        correlationId: 'split-stale',
+        showId: 'show-1',
+        confirmedEntryCount: 1,
+        waitlistEntries: [
+          {
+            id: 'wait-stale',
+            class_id: 'class-full',
+            dog_id: 'dog-1',
+            exhibitor_id: 'exhibitor-1',
+            handler_id: null,
+            position: 9,
+            status: 'waiting',
+            className: 'Old Full Class',
+          },
+        ],
+      })
+    );
+    verifyCheckoutSessionMock.mockResolvedValue({
+      success: true,
+      orderId: 'order-2',
+      showId: 'show-1',
+      showName: 'Summer Show',
+      totalAmount: 2500,
+      entryIds: ['entry-1'],
+      confirmationNumber: 'pi_456',
+    });
+    entriesRows.value = [
+      {
+        id: 'entry-1',
+        armband: '102',
+        dogs: { name: 'Scout', call_name: 'Scout' },
+        classes: { name: 'Open Class', level: 'Novice' },
+      },
+    ];
+
+    render(<CheckoutSuccessPage />, {
+      initialRoute: '/checkout/success?session_id=cs_test_456&split=split-current',
+    });
+
+    await waitFor(() => expect(screen.getByText('pi_456')).toBeInTheDocument());
+    expect(screen.queryByText(/Entry Summary:/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Old Full Class #9/i)).not.toBeInTheDocument();
+    expect(sessionStorage.getItem(STORAGE_KEYS.CART_SPLIT_CHECKOUT)).toBeNull();
   });
 });

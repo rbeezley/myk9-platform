@@ -29,6 +29,14 @@ import { createEntryCheckoutSession } from '@/lib/stripe';
 import { useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
 import { writeCartSplitCheckoutSummary } from '@/features/payments/cartSplitCheckoutStorage';
 
+function createSplitCheckoutCorrelationId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+
+  return `split-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export default function CartPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -184,19 +192,21 @@ export default function CartPage() {
         }
       }
 
+      const splitCheckoutId = createSplitCheckoutCorrelationId();
       writeCartSplitCheckoutSummary({
+        correlationId: splitCheckoutId,
         showId: cart.show_id,
         confirmedEntryCount: splitResult.confirmed.length,
         waitlistEntries: splitResult.waitlisted,
       });
 
       if (splitResult.confirmed.length === 0) {
-        navigate('/checkout/success?waitlist=1');
+        navigate(`/checkout/success?waitlist=1&split=${encodeURIComponent(splitCheckoutId)}`);
         return;
       }
 
       // This will redirect to Stripe Checkout for the remaining confirmed entries.
-      await createEntryCheckoutSession(cart.id);
+      await createEntryCheckoutSession(cart.id, { splitCheckoutId });
       // If we get here, the redirect didn't happen (shouldn't normally occur)
     } catch (_err) {
       setError('Something went wrong starting checkout. Please try again.');

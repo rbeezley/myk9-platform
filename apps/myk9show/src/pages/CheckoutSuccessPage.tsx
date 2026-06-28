@@ -23,7 +23,11 @@ import { Separator } from '@/components/ui/separator';
 import { verifyCheckoutSession } from '@/lib/stripe';
 import { useCartStore } from '@/store/cartStore';
 import { supabase } from '@/lib/supabase';
-import { readCartSplitCheckoutSummary } from '@/features/payments/cartSplitCheckoutStorage';
+import {
+  type CartSplitCheckoutSummary,
+  clearCartSplitCheckoutSummary,
+  consumeCartSplitCheckoutSummary,
+} from '@/features/payments/cartSplitCheckoutStorage';
 
 interface EntryDetails {
   id: string;
@@ -40,7 +44,8 @@ export default function CheckoutSuccessPage() {
   const navigate = useNavigate();
   const sessionId = searchParams.get('session_id');
   const isWaitlistOnly = searchParams.get('waitlist') === '1';
-  const [splitSummary, setSplitSummary] = useState(() => readCartSplitCheckoutSummary());
+  const splitCheckoutId = searchParams.get('split');
+  const [splitSummary, setSplitSummary] = useState<CartSplitCheckoutSummary | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [_isVerified, setIsVerified] = useState(false);
@@ -61,7 +66,9 @@ export default function CheckoutSuccessPage() {
   useEffect(() => {
     const verifyPayment = async () => {
       if (!sessionId) {
-        const pendingSummary = readCartSplitCheckoutSummary();
+        const pendingSummary = splitCheckoutId
+          ? consumeCartSplitCheckoutSummary(splitCheckoutId)
+          : null;
         if (isWaitlistOnly && pendingSummary && pendingSummary.confirmedEntryCount === 0) {
           setOrderDetails({
             showId: pendingSummary.showId,
@@ -72,6 +79,7 @@ export default function CheckoutSuccessPage() {
           setIsLoading(false);
           return;
         }
+        clearCartSplitCheckoutSummary();
         setError('No checkout session found. Please try again.');
         setIsLoading(false);
         return;
@@ -86,7 +94,9 @@ export default function CheckoutSuccessPage() {
         const result = await verifyCheckoutSession(sessionId);
 
         if (result.success) {
-          const nextSplitSummary = readCartSplitCheckoutSummary();
+          const nextSplitSummary = splitCheckoutId
+            ? consumeCartSplitCheckoutSummary(splitCheckoutId)
+            : null;
           setOrderDetails({
             ...(result.orderId !== undefined && { orderId: result.orderId }),
             ...(result.showName !== undefined && { showName: result.showName }),
@@ -104,6 +114,7 @@ export default function CheckoutSuccessPage() {
           ) {
             setSplitSummary(nextSplitSummary);
           } else {
+            clearCartSplitCheckoutSummary();
             setSplitSummary(null);
           }
           setIsVerified(true);
@@ -181,7 +192,7 @@ export default function CheckoutSuccessPage() {
     };
 
     verifyPayment();
-  }, [isWaitlistOnly, resetCart, sessionId]);
+  }, [isWaitlistOnly, resetCart, sessionId, splitCheckoutId]);
 
   const formatCurrency = (cents: number) => {
     return `$${(cents / 100).toFixed(2)}`;

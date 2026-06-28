@@ -87,16 +87,16 @@ describe('TrialClassFilters', () => {
     expect(screen.getByRole('option', { name: 'No trials' })).toBeInTheDocument();
   });
 
-  it('formats trial options as "Trial N — Mon D, YYYY"', () => {
+  it('formats trial options as "Trial N · Mon D, YYYY"', () => {
     render(<TrialClassFilters {...defaultProps} />);
 
-    expect(screen.getByRole('option', { name: 'Trial 1 — Apr 15, 2026' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Trial 1 · Apr 15, 2026' })).toBeInTheDocument();
   });
 
   it('uses trial name when available', () => {
     render(<TrialClassFilters {...defaultProps} />);
 
-    expect(screen.getByRole('option', { name: 'Specialty Trial — Apr 16, 2026' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Specialty Trial · Apr 16, 2026' })).toBeInTheDocument();
   });
 
   it('shows "Loading classes..." when isLoadingClasses is true', () => {

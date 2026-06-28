@@ -204,15 +204,15 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                           handlePayment(PaymentStatus.PAID_BY_CASH, null, totalDollars)
                         }
                       >
-                        Paid in Full — Cash
+                        Paid in Full: Cash
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => setCheckDialog({ open: true, checkNumber: '' })}
                       >
-                        Paid in Full — Check…
+                        Paid in Full: Check…
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handlePayment(PaymentStatus.PAID_ONLINE)}>
-                        Paid in Full — Online
+                        Paid in Full: Online
                       </DropdownMenuItem>
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />

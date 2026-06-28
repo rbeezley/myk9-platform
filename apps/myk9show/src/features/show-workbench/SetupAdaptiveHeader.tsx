@@ -23,7 +23,7 @@ export function SetupAdaptiveHeader({ signals }: SetupAdaptiveHeaderProps) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
           {ready ? (
-            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success " aria-hidden="true" />
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" aria-hidden="true" />
           ) : (
             <ClipboardCheck
               className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground"
@@ -37,7 +37,7 @@ export function SetupAdaptiveHeader({ signals }: SetupAdaptiveHeaderProps) {
             <p className="mt-0.5 text-xs text-muted-foreground">
               {ready
                 ? 'Show details, trials, classes, judges, and the premium list are in place.'
-                : `${signals.length} ${signals.length === 1 ? 'item' : 'items'} left — tap one to fix it.`}
+                : `${signals.length} ${signals.length === 1 ? 'item' : 'items'} left. Tap one to fix it.`}
             </p>
           </div>
         </div>

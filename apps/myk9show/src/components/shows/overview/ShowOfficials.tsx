@@ -29,7 +29,7 @@ function OfficialCard({ official, role }: OfficialCardProps) {
         <div className="flex flex-col gap-1 text-xs text-muted-foreground">
           <a
             href={`mailto:${official.email}`}
-            className="flex items-center gap-1.5 hover:text-foreground"
+            className="flex items-center gap-1.5 rounded hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Mail className="h-3 w-3" />
             {official.email}

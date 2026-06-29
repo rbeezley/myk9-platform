@@ -37,4 +37,21 @@ describe('PermissionManagementPage tab consolidation', () => {
     render(<PermissionManagementPage />, { initialRoute: '/admin/permissions?tab=audit' });
     expect(await screen.findByText('Audit Content')).toBeInTheDocument();
   });
+
+  it('renders the quick-action labels on the overview tab', () => {
+    render(<PermissionManagementPage />, { initialRoute: '/admin/permissions' });
+    expect(screen.getByRole('heading', { name: 'Manage Roles' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Assign User Roles' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'View Audit Log' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Test Permissions' })).toBeInTheDocument();
+  });
+
+  it('uses an en dash (not an em dash) for empty stat counts before they load', () => {
+    render(<PermissionManagementPage />, { initialRoute: '/admin/permissions' });
+    // Counts resolve to [] async; on first paint the placeholder is shown.
+    // The UI-copy ban forbids em dashes — assert the en dash glyph is used.
+    const placeholders = screen.getAllByText('–');
+    expect(placeholders.length).toBeGreaterThan(0);
+    expect(screen.queryByText('—')).not.toBeInTheDocument();
+  });
 });

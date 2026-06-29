@@ -37,8 +37,48 @@ describe('ExhibitorPaymentsPage', () => {
     expect(screen.getByText('$53.00')).toBeInTheDocument();
     expect(screen.getByText('Paid')).toBeInTheDocument();
     expect(screen.getByText('pi_abc123')).toBeInTheDocument();
-    const receipt = screen.getByRole('link', { name: /my shows/i });
+    const receipt = screen.getByRole('link', { name: /find the receipt/i });
     expect(receipt).toHaveAttribute('href', '/exhibitor/entries');
+  });
+
+  it('renders a refunded amount as a signed deduction, distinct from a charge', () => {
+    state.data = [{ ...payment, status: 'refunded' }];
+    render(<ExhibitorPaymentsPage />);
+    // Money-clarity bar: a refund must not read identically to a $53 charge.
+    expect(screen.getByText('-$53.00')).toBeInTheDocument();
+    expect(screen.queryByText('$53.00')).not.toBeInTheDocument();
+    expect(screen.getByText('Refunded')).toBeInTheDocument();
+  });
+
+  it('labels failed and pending statuses humanely (no raw lowercase tokens)', () => {
+    state.data = [
+      { ...payment, id: 'f1', status: 'failed' },
+      { ...payment, id: 'p1', status: 'pending' },
+    ];
+    render(<ExhibitorPaymentsPage />);
+    expect(screen.getByText('Failed')).toBeInTheDocument();
+    expect(screen.getByText('Pending')).toBeInTheDocument();
+    expect(screen.queryByText('failed')).not.toBeInTheDocument();
+  });
+
+  it('formats the date unambiguously with a month name', () => {
+    // Derive the expected string the same way the component does so the
+    // assertion is timezone-independent (CI may run in any TZ).
+    const expected = new Date(payment.date as string).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+    expect(expected).toMatch(/2026/);
+    render(<ExhibitorPaymentsPage />);
+    expect(screen.getByText(expected)).toBeInTheDocument();
+  });
+
+  it('gives the receipt link a distinguishable accessible name per show', () => {
+    render(<ExhibitorPaymentsPage />);
+    expect(
+      screen.getByRole('link', { name: /find the receipt for spring trial/i })
+    ).toBeInTheDocument();
   });
 
   it('shows the empty state when there are no payments', () => {

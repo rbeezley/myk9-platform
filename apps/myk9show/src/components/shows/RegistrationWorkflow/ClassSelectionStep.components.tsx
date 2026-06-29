@@ -50,7 +50,7 @@ export const DogTabTrigger: React.FC<DogTabTriggerProps> = ({
       {existingEntryCount > 0 && (
         <Badge
           variant="default"
-          className="h-5 px-1.5 text-xs bg-teal-600"
+          className="h-5 px-1.5 text-xs bg-success text-success-foreground hover:bg-success/80"
           title={`Already entered in ${existingEntryCount} class${existingEntryCount !== 1 ? 'es' : ''}`}
         >
           <CheckCircle2 className="h-3 w-3 mr-0.5" />
@@ -155,19 +155,24 @@ export const ElementCard: React.FC<ElementCardProps> = ({
               id={`single-${cls.classId}`}
               checked={cls.isSelected || cls.isAlreadyEntered}
               disabled={cls.isAlreadyEntered}
+              aria-label={
+                cls.isAlreadyEntered
+                  ? `${element} (already entered)`
+                  : `Select ${element}`
+              }
               onCheckedChange={() => !cls.isAlreadyEntered && onToggle(cls.classId)}
             />
             <Label
               htmlFor={`single-${cls.classId}`}
               className={cn(
                 'font-semibold text-sm cursor-pointer',
-                cls.isAlreadyEntered && 'text-teal-600 dark:text-teal-400'
+                cls.isAlreadyEntered && 'text-success'
               )}
             >
               <span className="sr-only">Select</span> {element}
             </Label>
             {cls.isAlreadyEntered && (
-              <CheckCircle2 className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+              <CheckCircle2 className="h-3.5 w-3.5 text-success" />
             )}
             {cls.isJudgeDayFull && !cls.isAlreadyEntered && (
               <WaitlistBadge waitlistCount={cls.waitlistCount} />
@@ -211,7 +216,7 @@ interface WaitlistBadgeProps {
 
 const WaitlistBadge: React.FC<WaitlistBadgeProps> = ({ waitlistCount }) => (
   <Badge variant="secondary" className="text-xs h-5 px-1.5">
-    Full — Join Wait List
+    Full: join wait list
     {waitlistCount !== undefined && waitlistCount > 0 && (
       <span className="ml-1 text-muted-foreground">({waitlistCount} waiting)</span>
     )}
@@ -257,7 +262,11 @@ const LevelChip: React.FC<LevelChipProps> = ({
           onCheckedChange={() => !isAlreadyEntered && onToggle(classId)}
           className="h-3.5 w-3.5"
         />
-        <span className="sr-only">Select</span> <span className="text-xs">{displayLabel}</span>
+        {/* The wrapping <label> is the checkbox's single naming source. Do NOT add
+            an aria-label here too — it stacks with the label text and doubles the
+            accessible name (e.g. "Select Advanced Select Advanced"). */}
+        <span className="sr-only">{isAlreadyEntered ? 'Already entered:' : 'Select'}</span>{' '}
+        <span className="text-xs">{displayLabel}</span>
       </label>
       {isJudgeDayFull && !isAlreadyEntered && <WaitlistBadge waitlistCount={waitlistCount} />}
     </div>

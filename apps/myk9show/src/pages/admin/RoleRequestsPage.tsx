@@ -29,9 +29,9 @@ const roleLabels: Record<RoleRequest['requestedRole'], string> = {
 
 function StatusBadge({ status }: { status: RoleRequestStatus }) {
   const styles: Record<RoleRequestStatus, string> = {
-    pending: 'border-amber-500/30 bg-amber-500/10 text-warning ',
-    approved: 'border-green-500/30 bg-green-500/10 text-success ',
-    denied: 'border-red-500/30 bg-red-500/10 text-destructive ',
+    pending: 'border-warning/30 bg-warning/10 text-warning',
+    approved: 'border-success/30 bg-success/10 text-success',
+    denied: 'border-destructive/30 bg-destructive/10 text-destructive',
   };
 
   return (
@@ -149,7 +149,7 @@ export default function RoleRequestsPage() {
       />
 
       <div className="mb-6 mt-4">
-        <h1 className="text-2xl font-semibold text-foreground">Role Requests</h1>
+        <h2 className="text-2xl font-semibold text-foreground">Role Requests</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Review new signup requests for elevated club access.
         </p>
@@ -160,11 +160,12 @@ export default function RoleRequestsPage() {
           <button
             key={status}
             type="button"
+            aria-pressed={filter === status}
             onClick={() => setFilter(status)}
-            className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+            className={`rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
               filter === status
                 ? 'bg-primary text-primary-foreground'
-                : 'bg-card text-muted-foreground hover:bg-accent hover:text-foreground'
+                : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground'
             }`}
           >
             {statusLabels[status]} ({status === 'all' ? requests.length : (counts[status] ?? 0)})
@@ -205,9 +206,9 @@ export default function RoleRequestsPage() {
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="text-base font-semibold text-foreground">
+                      <h3 className="text-base font-semibold text-foreground">
                         {request.requesterName}
-                      </h2>
+                      </h3>
                       <StatusBadge status={request.status} />
                       <span className="text-sm text-muted-foreground">
                         {roleLabels[request.requestedRole]}
@@ -216,6 +217,7 @@ export default function RoleRequestsPage() {
                     <div className="mt-1 text-sm text-muted-foreground">
                       {request.requesterEmail ?? 'No email'} · Requested{' '}
                       {formatDate(request.createdAt)}
+                      {request.clubName ? ` · ${request.clubName}` : ''}
                     </div>
                     {request.requesterNote && (
                       <p className="mt-3 rounded-md border border-border bg-background px-3 py-2 text-sm">
@@ -224,19 +226,19 @@ export default function RoleRequestsPage() {
                     )}
                   </div>
                   {request.status === 'approved' && (
-                    <div className="inline-flex items-center gap-2 text-sm text-success ">
+                    <div className="inline-flex items-center gap-2 text-sm text-success">
                       <CheckCircle2 className="h-4 w-4" />
                       Approved {request.reviewedAt ? formatDate(request.reviewedAt) : ''}
                     </div>
                   )}
                   {request.status === 'denied' && (
-                    <div className="inline-flex items-center gap-2 text-sm text-destructive ">
+                    <div className="inline-flex items-center gap-2 text-sm text-destructive">
                       <XCircle className="h-4 w-4" />
                       Denied {request.reviewedAt ? formatDate(request.reviewedAt) : ''}
                     </div>
                   )}
                   {request.status === 'pending' && (
-                    <div className="inline-flex items-center gap-2 text-sm text-warning ">
+                    <div className="inline-flex items-center gap-2 text-sm text-warning">
                       <Clock className="h-4 w-4" />
                       Needs review
                     </div>
@@ -255,7 +257,7 @@ export default function RoleRequestsPage() {
                             [request.id]: event.target.value,
                           }))
                         }
-                        className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary/15"
                       >
                         <option value="">Choose a club...</option>
                         {clubs.map(club => (
@@ -277,7 +279,7 @@ export default function RoleRequestsPage() {
                           }))
                         }
                         placeholder="Optional note"
-                        className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary/15"
                       />
                     </label>
                     <div className="flex gap-2">

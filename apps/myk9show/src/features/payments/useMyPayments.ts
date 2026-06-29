@@ -6,6 +6,8 @@ export interface MyPayment {
   id: string;
   /** Best display date: when paid, else created. ISO string or null. */
   date: string | null;
+  /** show FK — scopes the cart-recovery deep-link for failed/cancelled orders. */
+  showId: string | null;
   showName: string | null;
   amountCents: number;
   currency: string;
@@ -29,7 +31,7 @@ export function useMyPayments() {
       const { data, error } = await supabase
         .from('stripe_orders')
         .select(
-          'id, amount_cents, currency, status, paid_at, created_at, stripe_payment_intent_id, entry_ids, show:show_id(name)'
+          'id, amount_cents, currency, status, paid_at, created_at, stripe_payment_intent_id, entry_ids, show_id, show:show_id(name)'
         )
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -37,6 +39,7 @@ export function useMyPayments() {
       return (data ?? []).map(o => ({
         id: o.id,
         date: o.paid_at ?? o.created_at,
+        showId: o.show_id ?? null,
         showName: (o.show as { name: string } | null)?.name ?? null,
         amountCents: o.amount_cents,
         currency: o.currency ?? 'usd',

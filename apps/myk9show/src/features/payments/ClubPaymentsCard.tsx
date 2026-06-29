@@ -11,13 +11,7 @@ import {
   useClubPayoutHistory,
   startConnectOnboarding,
 } from './useClubStripeAccount';
-
-const PAYOUT_STATUS_LABELS: Record<string, { label: string; className: string }> = {
-  completed: { label: 'Paid', className: 'bg-green-600 text-white hover:bg-green-600' },
-  processing: { label: 'Sending', className: '' },
-  pending: { label: 'Waiting for account', className: '' },
-  failed: { label: 'Retrying', className: '' },
-};
+import { resolvePayoutBadge } from './payoutBadge';
 
 const RETURN_PATH = '/club-admin/payments';
 
@@ -153,10 +147,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
                 <h4 className="text-sm font-medium">Show payouts</h4>
                 <ul className="divide-y rounded-lg border">
                   {payoutHistory.data!.map(payout => {
-                    const status = PAYOUT_STATUS_LABELS[payout.status] ?? {
-                      label: payout.status,
-                      className: '',
-                    };
+                    const badge = resolvePayoutBadge(payout, enabled);
                     return (
                       <li key={payout.id} className="flex items-center justify-between px-3 py-2">
                         <div className="min-w-0">
@@ -171,11 +162,8 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
                           <span className="text-sm font-semibold">
                             ${(payout.amount_cents / 100).toFixed(2)}
                           </span>
-                          <Badge
-                            variant={payout.status === 'completed' ? 'default' : 'secondary'}
-                            className={status.className}
-                          >
-                            {status.label}
+                          <Badge variant={badge.variant} className={badge.className}>
+                            {badge.label}
                           </Badge>
                         </div>
                       </li>

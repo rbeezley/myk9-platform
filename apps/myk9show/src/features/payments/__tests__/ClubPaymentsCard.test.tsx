@@ -173,6 +173,7 @@ describe('ClubPaymentsCard', () => {
           id: 'p1',
           amount_cents: 12450,
           status: 'completed',
+          failure_reason: null,
           completed_at: '2026-06-09T10:00:00Z',
           created_at: '2026-06-09T09:00:00Z',
           show: { name: 'Cedar Valley Classic' },
@@ -181,6 +182,7 @@ describe('ClubPaymentsCard', () => {
           id: 'p2',
           amount_cents: 8000,
           status: 'pending',
+          failure_reason: null,
           completed_at: null,
           created_at: '2026-06-08T09:00:00Z',
           show: { name: 'Spring Trial' },
@@ -196,7 +198,67 @@ describe('ClubPaymentsCard', () => {
     expect(screen.getByText('Paid')).toBeInTheDocument();
     expect(screen.getByText('Spring Trial')).toBeInTheDocument();
     expect(screen.getByText('$80.00')).toBeInTheDocument();
-    expect(screen.getByText('Waiting for account')).toBeInTheDocument();
+    // Account is payouts_enabled, so a pending row is queued for the next run,
+    // not blocked on a bank account → "Scheduled", not "Waiting for account".
+    expect(screen.getByText('Scheduled')).toBeInTheDocument();
+    expect(screen.queryByText('Waiting for account')).not.toBeInTheDocument();
+  });
+
+  it('does not render payout history rows before payouts are enabled', () => {
+    mockAccountState(null); // no Stripe account -> payouts not enabled
+    mockedUsePayoutHistory.mockReturnValue({
+      data: [
+        {
+          id: 'p3',
+          amount_cents: 5000,
+          status: 'pending',
+          failure_reason: null,
+          completed_at: null,
+          created_at: '2026-06-08T09:00:00Z',
+          show: { name: 'Autumn Trial' },
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof accountModule.useClubPayoutHistory>);
+    render(<ClubPaymentsCard clubId="club-1" />);
+
+    expect(mockedUsePayoutHistory).toHaveBeenCalledWith(undefined);
+    expect(screen.queryByText('Autumn Trial')).not.toBeInTheDocument();
+    expect(screen.queryByText('Waiting for account')).not.toBeInTheDocument();
+    expect(screen.queryByText('Scheduled')).not.toBeInTheDocument();
+  });
+
+  it('a benign failure self-heals → "Retrying"; a hard failure → "Needs attention"', () => {
+    mockAccountState(connectedAccount({ onboarding_complete: true, payouts_enabled: true }));
+    mockedUsePayoutHistory.mockReturnValue({
+      data: [
+        {
+          id: 'p4',
+          amount_cents: 3000,
+          status: 'failed',
+          failure_reason: 'insufficient_balance: balance too low',
+          completed_at: null,
+          created_at: '2026-06-08T09:00:00Z',
+          show: { name: 'Benign Show' },
+        },
+        {
+          id: 'p5',
+          amount_cents: 4000,
+          status: 'failed',
+          failure_reason: 'No such external account; the bank account is closed',
+          completed_at: null,
+          created_at: '2026-06-07T09:00:00Z',
+          show: { name: 'Hard Fail Show' },
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof accountModule.useClubPayoutHistory>);
+    render(<ClubPaymentsCard clubId="club-1" />);
+
+    expect(screen.getByText('Retrying')).toBeInTheDocument();
+    expect(screen.getByText('Needs attention')).toBeInTheDocument();
   });
 
   it('labels amounts as deposited and distinguishes paid vs started dates', () => {

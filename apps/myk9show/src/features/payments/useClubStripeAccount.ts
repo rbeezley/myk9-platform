@@ -36,6 +36,11 @@ export interface ShowPayoutRow {
   id: string;
   amount_cents: number;
   status: 'pending' | 'processing' | 'completed' | 'failed';
+  // Set by cron-process-payouts on every 'failed' row. Benign markers
+  // (insufficient_balance / stale_processing / entries_load_failed_post_claim)
+  // self-heal on the next daily run; any other reason needs a human. Drives the
+  // "Retrying" vs "Needs attention" split in resolvePayoutBadge.
+  failure_reason: string | null;
   completed_at: string | null;
   created_at: string;
   show: { name: string; club_id: string } | null;
@@ -50,7 +55,7 @@ export function useClubPayoutHistory(clubId: string | undefined) {
       // embedded show shape to ShowPayoutRow['show'].
       const { data, error } = await supabase
         .from('show_payouts')
-        .select('id, amount_cents, status, completed_at, created_at, show:show_id!inner(name, club_id)')
+        .select('id, amount_cents, status, failure_reason, completed_at, created_at, show:show_id!inner(name, club_id)')
         .eq('show.club_id', clubId!)
         .order('created_at', { ascending: false });
       if (error) throw error;

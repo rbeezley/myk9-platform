@@ -11,6 +11,7 @@ import {
   useClubPayoutHistory,
   startConnectOnboarding,
 } from './useClubStripeAccount';
+import { resolvePayoutBadge } from './payoutBadge';
 
 const currencyFormatter = new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -21,13 +22,6 @@ const currencyFormatter = new Intl.NumberFormat('en-US', {
 function formatPayoutAmount(amountCents: number): string {
   return currencyFormatter.format(amountCents / 100);
 }
-
-const PAYOUT_STATUS_LABELS: Record<string, { label: string; className: string }> = {
-  completed: { label: 'Paid', className: 'bg-success text-success-foreground hover:bg-success' },
-  processing: { label: 'Sending', className: '' },
-  pending: { label: 'Waiting for account', className: '' },
-  failed: { label: 'Retrying', className: '' },
-};
 
 const RETURN_PATH = '/club-admin/payments';
 
@@ -196,10 +190,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
                 </p>
                 <ul className="divide-y rounded-lg border">
                   {payoutHistory.data!.map(payout => {
-                    const status = PAYOUT_STATUS_LABELS[payout.status] ?? {
-                      label: payout.status,
-                      className: '',
-                    };
+                    const badge = resolvePayoutBadge(payout, enabled);
                     const isPaid = !!payout.completed_at;
                     const dateLabel = isPaid ? 'Paid' : 'Started';
                     const dateValue = new Date(
@@ -219,11 +210,8 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
                           <span className="text-sm font-semibold tabular-nums">
                             {formatPayoutAmount(payout.amount_cents)}
                           </span>
-                          <Badge
-                            variant={payout.status === 'completed' ? 'default' : 'secondary'}
-                            className={status.className}
-                          >
-                            {status.label}
+                          <Badge variant={badge.variant} className={badge.className}>
+                            {badge.label}
                           </Badge>
                         </div>
                       </li>

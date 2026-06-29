@@ -32,6 +32,13 @@ const { execFileSync } = require('child_process');
 const repoRoot = path.resolve(__dirname, '..');
 const SOURCE_MAP_REL = 'docs/user-guides/workflow-source-map.md';
 
+// Sentinel used when a source-map block names no `**Docs target:**` line. A
+// changed route whose ONLY references carry this sentinel lives in an
+// internal/excluded section (e.g. "Admin Workflows", "Routes Excluded from
+// Customer Docs") — there is no customer guide that could go stale, so such a
+// route is advisory-only and must NOT fail strict mode.
+const NO_DOCS_TARGET = '(no docs target)';
+
 // Files where route paths and nav labels are defined. The diff is restricted to
 // these so unrelated changes that merely mention a "/foo" string don't trip the
 // check. Add to this list when a new route-registry or sidebar file appears.
@@ -72,7 +79,10 @@ const COMPOSED_ROUTE_BASES = [
  */
 function normalizeRoute(raw) {
   if (typeof raw !== 'string') return null;
-  let route = raw.trim().replace(/^[`'"]|[`'"]$/g, '').trim();
+  let route = raw
+    .trim()
+    .replace(/^[`'"]|[`'"]$/g, '')
+    .trim();
   if (!route.startsWith('/')) return null;
   route = route.replace(/\/\*+$/, ''); // drop trailing splat: /shows/:showId/* -> /shows/:showId
   route = route.replace(/\/:[A-Za-z0-9_]+/g, '/:'); // param names -> placeholder
@@ -82,7 +92,7 @@ function normalizeRoute(raw) {
 
 /** Extract backtick-quoted route tokens (`/...`) from markdown. */
 function extractRoutesFromMarkdown(md) {
-  return Array.from(md.matchAll(/`(\/[^`]*)`/g), (m) => m[1]);
+  return Array.from(md.matchAll(/`(\/[^`]*)`/g), m => m[1]);
 }
 
 /**
@@ -143,7 +153,7 @@ function parseDiffForRoutes(diffText) {
     const content = line.slice(1);
     for (const r of extractRoutesFromSource(content)) record(target, r);
     if (currentFile) {
-      const composed = COMPOSED_ROUTE_BASES.find((c) => currentFile.includes(c.fileMatch));
+      const composed = COMPOSED_ROUTE_BASES.find(c => currentFile.includes(c.fileMatch));
       if (composed) {
         for (const r of extractComposedRoutes(content, composed.base)) record(target, r);
       }
@@ -178,7 +188,7 @@ function parseSourceMap(md) {
     }
     const text = block.lines.join('\n');
     const docsMatch = text.match(/\*\*Docs target:\*\*\s*(.+)/);
-    const docsTarget = docsMatch ? docsMatch[1].trim() : '(no docs target)';
+    const docsTarget = docsMatch ? docsMatch[1].trim() : NO_DOCS_TARGET;
     for (const raw of extractRoutesFromMarkdown(text)) {
       const norm = normalizeRoute(raw);
       if (!norm) continue;
@@ -233,6 +243,17 @@ function matchChangedRoutes(changedRoutes, index) {
     }
   }
   return { flagged, undocumented };
+}
+
+/**
+ * Of the flagged routes, the subset that should BLOCK strict mode. A changed
+ * route only risks a stale *customer guide* if at least one of its source-map
+ * references names a real Docs target. Routes whose references are all
+ * `NO_DOCS_TARGET` live in internal/excluded sections — advisory-only, never a
+ * CI failure. (Advisory mode still reports every flagged route.)
+ */
+function selectBlockingFlags(flagged) {
+  return flagged.filter(f => f.refs.some(r => r.docsTarget !== NO_DOCS_TARGET));
 }
 
 // ---------------------------------------------------------------------------
@@ -290,16 +311,17 @@ function sourceMapChanged(baseRef) {
 function main(argv) {
   const args = argv.slice(2);
   if (args.includes('--help') || args.includes('-h')) {
-    console.log(
-      'Usage: node scripts/check-doc-staleness.js [baseRef] [--strict] [--routes /a,/b]'
-    );
+    console.log('Usage: node scripts/check-doc-staleness.js [baseRef] [--strict] [--routes /a,/b]');
     return 0;
   }
   const strict = args.includes('--strict');
   const routesFlagIdx = args.indexOf('--routes');
   const explicitRoutes =
     routesFlagIdx !== -1 && args[routesFlagIdx + 1]
-      ? args[routesFlagIdx + 1].split(',').map((s) => s.trim()).filter(Boolean)
+      ? args[routesFlagIdx + 1]
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean)
       : null;
   const baseArg = args.find((a, i) => !a.startsWith('-') && args[i - 1] !== '--routes');
 
@@ -319,9 +341,7 @@ function main(argv) {
   } else {
     const baseRef = resolveBaseRef(baseArg);
     if (!baseRef) {
-      console.error(
-        'Could not resolve a base ref (tried origin/main, main). Pass one explicitly,'
-      );
+      console.error('Could not resolve a base ref (tried origin/main, main). Pass one explicitly,');
       console.error('or use --routes /a,/b to check specific routes without git.');
       return 2;
     }
@@ -337,6 +357,7 @@ function main(argv) {
   }
 
   const { flagged, undocumented } = matchChangedRoutes(changed, index);
+  const blocking = selectBlockingFlags(flagged);
 
   if (flagged.length === 0 && undocumented.length === 0 && labelChanges.length === 0) {
     console.log('No documented routes changed — no guide re-verification triggered.');
@@ -344,9 +365,11 @@ function main(argv) {
   }
 
   if (flagged.length > 0) {
+    const blockingSet = new Set(blocking.map(f => f.normalized));
     console.log('\n⚠  Guides to RE-VERIFY (a documented route changed):');
-    for (const { route, refs } of flagged) {
-      console.log(`\n  ${route}`);
+    for (const { route, normalized, refs } of flagged) {
+      const tag = blockingSet.has(normalized) ? '' : '  (advisory only — no customer Docs target)';
+      console.log(`\n  ${route}${tag}`);
       const printed = new Set();
       for (const ref of refs) {
         const key = `${ref.section} :: ${ref.docsTarget}`;
@@ -378,7 +401,15 @@ function main(argv) {
     '\nThis is advisory. Re-verify flagged guides per docs/user-guides/documentation-qa-checklist.md.'
   );
 
-  return strict && flagged.length > 0 ? 1 : 0;
+  if (strict && flagged.length > 0 && blocking.length === 0) {
+    console.log(
+      '\nStrict mode: flagged routes are all internal/excluded (no customer Docs target), so this does not fail.'
+    );
+  }
+
+  // Strict mode fails only when a route tied to a real customer guide changed —
+  // internal/excluded routes are advisory-only (see selectBlockingFlags).
+  return strict && blocking.length > 0 ? 1 : 0;
 }
 
 module.exports = {
@@ -389,6 +420,7 @@ module.exports = {
   parseDiffForRoutes,
   parseSourceMap,
   matchChangedRoutes,
+  selectBlockingFlags,
 };
 
 if (require.main === module) {

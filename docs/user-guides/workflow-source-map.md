@@ -10,7 +10,7 @@ Maps user workflows to their canonical routes in myK9Show. The per-route invento
 
 Routes visible in the sidebar (`unifiedSidebarConfig.ts`) that are **not yet in `pageDirectory.ts`**. These are gaps — add them to `pageDirectory.ts` before they can be documented.
 
-The admin user-management, role-requests, payout-ledger, and people surfaces are now cataloged in `pageDirectory.ts`. The remaining gaps are the payment surfaces below, deferred until their customer guide sections are re-verified and the pages are reachable from navigation:
+The admin user-management, role-requests, payout-ledger, and people surfaces are now cataloged in `pageDirectory.ts`. The remaining gaps are the payment surfaces below; they are already sidebar links, so navigation is not the blocker — they are deferred pending re-verification of their customer guide sections (Exhibitor Guide § Payments; Club Admin Guide § Members / § Payments) before cataloging:
 
 | Route                  | Sidebar label | Role(s)    |
 | ---------------------- | ------------- | ---------- |
@@ -219,15 +219,15 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 
 These exist in `pageDirectory.ts` for the Help page and are documented here for completeness, but they do not feed customer-facing guides.
 
-| Workflow                     | Route(s)                                                      |
-| ---------------------------- | ------------------------------------------------------------- |
-| System overview              | `/admin/dashboard`                                            |
-| User management              | /admin/users (internal; cataloged, no customer guide)         |
-| Role assignment              | `/admin/permissions` → `/admin/permissions/users`             |
-| Role requests                | /admin/role-requests (internal; cataloged, no customer guide) |
-| Payout ledger + platform fee | /admin/payouts (internal; cataloged, no customer guide)       |
-| Templates                    | `/admin/templates`                                            |
-| System alerts                | `/admin/alerts`                                               |
+| Workflow                     | Route(s)                                          |
+| ---------------------------- | ------------------------------------------------- |
+| System overview              | `/admin/dashboard`                                |
+| User management              | `/admin/users`                                    |
+| Role assignment              | `/admin/permissions` → `/admin/permissions/users` |
+| Role requests                | `/admin/role-requests`                            |
+| Payout ledger + platform fee | `/admin/payouts`                                  |
+| Templates                    | `/admin/templates`                                |
+| System alerts                | `/admin/alerts`                                   |
 
 ---
 

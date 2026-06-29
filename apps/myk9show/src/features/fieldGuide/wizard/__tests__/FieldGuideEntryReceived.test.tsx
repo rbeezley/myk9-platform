@@ -23,9 +23,9 @@ const BASE_PROPS = {
 };
 
 describe('FieldGuideEntryReceived', () => {
-  it('renders the ready-to-submit heading', () => {
+  it('renders the submitted heading', () => {
     render(<FieldGuideEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByRole('heading', { name: /entry ready to submit/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /entry submitted/i })).toBeTruthy();
   });
 
   it('renders the byline with show, club, and date range', () => {
@@ -47,11 +47,11 @@ describe('FieldGuideEntryReceived', () => {
     expect(container.textContent).not.toContain('ENTRY');
   });
 
-  it('renders the ready-to-submit orange chip in the header', () => {
+  it('renders the submitted orange chip in the header', () => {
     const { container } = render(<FieldGuideEntryReceived {...BASE_PROPS} />);
     const chip = container.querySelector('[data-variant="orange"]') as HTMLElement;
     expect(chip).not.toBeNull();
-    expect(chip.textContent).toBe('READY TO SUBMIT');
+    expect(chip.textContent).toBe('SUBMITTED');
   });
 
   it('derives a "3 RUNS" chip from the leading run-count in classSummary', () => {

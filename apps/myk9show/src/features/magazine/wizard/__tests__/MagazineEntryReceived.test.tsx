@@ -29,19 +29,19 @@ const BASE_PROPS = {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('MagazineEntryReceived', () => {
-  it('renders the ready heading', () => {
+  it('renders the submitted heading', () => {
     render(<MagazineEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByRole('heading', { name: /ready/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /submitted/i })).toBeTruthy();
   });
 
-  it('renders the ready-to-submit kicker when registrationNumber present', () => {
+  it('renders the submitted kicker when registrationNumber present', () => {
     render(<MagazineEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/Ready to submit · Entry 2026-0137/)).toBeTruthy();
+    expect(screen.getByText(/Submitted · Entry 2026-0137/)).toBeTruthy();
   });
 
-  it('renders bare ready-to-submit kicker when registrationNumber is null', () => {
+  it('renders bare submitted kicker when registrationNumber is null', () => {
     render(<MagazineEntryReceived {...BASE_PROPS} registrationNumber={null} />);
-    expect(screen.getByText('Ready to submit')).toBeTruthy();
+    expect(screen.getByText('Submitted')).toBeTruthy();
   });
 
   it('renders club + show + date range in the byline', () => {
@@ -121,6 +121,6 @@ describe('MagazineEntryReceived', () => {
     render(<MagazineEntryReceived {...BASE_PROPS} confirmationDateLabel={null} />);
     expect(screen.queryByText(/A formal confirmation will be emailed/)).toBeNull();
     // Header still renders.
-    expect(screen.getByRole('heading', { name: /ready/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /submitted/i })).toBeTruthy();
   });
 });

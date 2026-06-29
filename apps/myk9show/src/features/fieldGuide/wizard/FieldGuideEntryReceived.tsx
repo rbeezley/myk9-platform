@@ -93,7 +93,7 @@ export function FieldGuideEntryReceived({
         }}
       >
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-          <FieldGuideChip variant="orange">READY TO SUBMIT</FieldGuideChip>
+          <FieldGuideChip variant="orange">SUBMITTED</FieldGuideChip>
           {runsLabel && <FieldGuideChip>{runsLabel}</FieldGuideChip>}
           {registrationNumber && (
             <FieldGuideChip>ENTRY {registrationNumber}</FieldGuideChip>
@@ -110,7 +110,7 @@ export function FieldGuideEntryReceived({
             color: fieldGuideColors.ink,
           }}
         >
-          Entry ready to submit.
+          Entry submitted.
         </h2>
         <p
           style={{

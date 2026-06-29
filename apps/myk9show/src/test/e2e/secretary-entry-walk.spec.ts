@@ -233,7 +233,7 @@ test.describe('Secretary Entry Walk', () => {
     await expect(nextBtn4).toBeEnabled();
     await nextBtn4.click();
 
-    await expect(page.getByRole('heading', { name: /^Ready to submit\./i })).toBeVisible({
+    await expect(page.getByRole('heading', { name: /^Entry submitted\./i })).toBeVisible({
       timeout: 10000,
     });
 

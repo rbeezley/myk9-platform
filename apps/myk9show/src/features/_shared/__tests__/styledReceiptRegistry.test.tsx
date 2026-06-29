@@ -52,15 +52,19 @@ describe('STYLED_RECEIPT_BY_STYLE', () => {
     const element = STYLED_RECEIPT_BY_STYLE.fieldGuide(BASE_PROPS, { brandColor: null });
     const { container } = render(element);
     expect(container.querySelector('[data-field-guide]')).not.toBeNull();
-    expect(container.textContent).toContain('READY TO SUBMIT');
+    expect(container.textContent).toContain('SUBMITTED');
   });
 
-  it('uses pre-submit language across styled receipts', () => {
+  it('does not overclaim confirmation/payment across styled receipts', () => {
+    // These receipts render after submit but before the draw — a formal
+    // confirmation is emailed later. They must say "submitted", never claim the
+    // entry is "confirmed" or that fees were "received".
     for (const style of ALL_STYLES) {
       const element = STYLED_RECEIPT_BY_STYLE[style](BASE_PROPS, { brandColor: '#7a1f1f' });
       const { container } = render(element);
       const text = container.textContent?.toLowerCase() ?? '';
 
+      expect(text).toContain('submitted');
       expect(text).not.toContain('confirmed');
       expect(text).not.toContain('fees received');
     }

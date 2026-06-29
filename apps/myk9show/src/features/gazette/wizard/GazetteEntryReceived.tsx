@@ -76,7 +76,7 @@ export function GazetteEntryReceived({
           className="m-0 mb-3 text-[10px] font-semibold uppercase"
           style={{ color: BROWN, letterSpacing: '0.28em', fontFamily: META }}
         >
-          {registrationNumber ? `Entry ${registrationNumber} · Ready to submit` : 'Ready to submit'}
+          {registrationNumber ? `Entry ${registrationNumber} · Submitted` : 'Submitted'}
         </p>
         <h2
           className="m-0 mb-3"
@@ -90,7 +90,7 @@ export function GazetteEntryReceived({
           }}
         >
           Your entry is{' '}
-          <span style={{ fontStyle: 'italic', fontWeight: 400, color: BROWN }}>ready</span>.
+          <span style={{ fontStyle: 'italic', fontWeight: 400, color: BROWN }}>submitted</span>.
         </h2>
         <p
           className="m-0 text-[10px] uppercase"

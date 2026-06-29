@@ -23,9 +23,9 @@ const BASE_PROPS = {
 };
 
 describe('MonogramEntryReceived', () => {
-  it('renders the ready heading', () => {
+  it('renders the submitted heading', () => {
     render(<MonogramEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByRole('heading', { name: /ready/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /submitted/i })).toBeTruthy();
   });
 
   it('displays the club name', () => {

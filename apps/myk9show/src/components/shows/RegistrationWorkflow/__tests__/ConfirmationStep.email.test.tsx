@@ -57,12 +57,9 @@ vi.mock('@/hooks/useClassStoreCompat', () => ({
   useClassStoreCompat: () => ({ classes: [] }),
 }));
 
-// Stub the two heavy child panels — they aren't under test here.
+// Stub the heavy child panel — it isn't under test here.
 vi.mock('../RegistrationManagementPanel', () => ({
   RegistrationManagementPanel: () => null,
-}));
-vi.mock('../NotificationPreferencesCard', () => ({
-  NotificationPreferencesCard: () => null,
 }));
 
 const baseProps = {

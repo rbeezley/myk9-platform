@@ -23,7 +23,6 @@ import {
 import type { PaymentMethod, PaymentDetails } from '@/types/show-registration-types';
 import { getErrorMessage } from '@myk9/core';
 import { notifications } from '@/lib/notifications';
-import { logger } from '@/services/LoggingService';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info } from 'lucide-react';
 import type { WorkflowConfig } from './RegistrationWorkflow.types';
@@ -320,9 +319,6 @@ export function WorkflowStepContent({
                   notifications.error(getErrorMessage(error));
                 }
               }
-            }}
-            onNotificationToggle={(type, enabled) => {
-              logger.debug(`Notification ${type}: ${enabled}`, 'shows', {});
             }}
           />
         ))}

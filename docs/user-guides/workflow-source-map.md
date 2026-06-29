@@ -208,6 +208,13 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 **Note:** Cataloged in `pageDirectory.ts`; reachable from the sidebar as **Members**.
 **Docs target:** Club Admin Guide § Members
 
+### 24. Review and update the club profile
+
+**Outcome:** Club admin reviews and updates club name, AKC/UKC numbers, address, and contacts.
+**Canonical route:** `/clubs/:id`
+**Note:** Cataloged in `pageDirectory.ts` as Club Detail; reachable from the sidebar as **Club Profile**.
+**Docs target:** Club Admin Guide § Club Profile Setup
+
 ---
 
 ## Admin Workflows (internal; not customer-facing)

@@ -238,6 +238,8 @@ No new Critical product issue was confirmed. The public route-health sample pass
    - Fix the waitlist route row in shot list and guide outline.
    - No app tests needed beyond `pnpm qa:e2e-map:check`, `pnpm qa:doc-staleness:strict`, and markdown formatting.
 
+   **Remediation status:** Pending until PR 1 removes the stale suite-map entry and reconciles guide screenshot status.
+
 2. **Second task:** Rerun authenticated route-health after E2E credential repair.
    - E2E Auth users were reset after the audit; focused secretary route-health now passes.
    - Rerun full `route-health-by-role.spec.ts` to restore broad authenticated route evidence.
@@ -246,9 +248,15 @@ No new Critical product issue was confirmed. The public route-health sample pass
    - Duplication question: does this duplicate the Entry lifecycle module? If yes, why is duplication justified instead of an offline-first lifecycle adapter?
    - Start with tests around move-up audit, rollback, and cross-surface status agreement before changing behavior.
 
+   **Remediation decision:** Show Map move-up remains a replicated offline-first adapter. The online day-of move-up path uses `entries/lifecycle.ts`; Show Map mirrors that transition locally and audit-logs it. Follow-up tests lock rollback, undo, and audit behavior.
+
 4. **Fourth task:** Decide the volunteer and waitlist canonical surfaces.
    - If folded into existing pages, update redirects/docs.
    - If standalone, add show context and page-directory entries.
+
+   **Remediation decision (recorded via PR #1002):** Canonical surfaces are recorded in `docs/user-guides/workflow-source-map.md` under "Secretary Canonical Surface Decisions". That source-map reconciliation ships in **PR #1002**, not this docs PR — the `qa:doc-staleness:strict` CI gate couples source-map edits to the pageDirectory route change, so they must travel on the same branch. The waitlist/volunteer decisions themselves are summarized below.
+   - **Waitlist:** `/secretary/waitlist` remains a legacy redirect to `/secretary/dashboard`; customer docs now point waitlist work to `/shows/:showId/entry-management`. No code change taken this run — the redirect is left as-is and the optional deep-link redirect is deferred.
+   - **Volunteers:** `/secretary/volunteers` stays canonical through launch. Show Setup already deep-links to it without context loss via `VolunteersCard` (`apps/myk9show/src/features/show-workbench/VolunteersCard.tsx`, which appends `?showId=`), so no new Setup link or implementation plan is needed.
 
 ## Open Questions
 

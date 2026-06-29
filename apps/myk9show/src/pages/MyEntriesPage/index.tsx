@@ -335,7 +335,12 @@ const MyEntriesPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-6 py-6 max-w-7xl">
-        <div className="space-y-8">
+        {/* Flex stack (not space-y) so the dog strip and the entries section can
+            swap order on phones. On mobile the schedule (entries) sits directly
+            under the collapsed stats; the dog strip drops below the first fold.
+            Desktop keeps source order (dog strip above entries) — INTENT.md
+            Exhibitor: "this respects my time". gap-8 == the prior space-y-8. */}
+        <div className="flex flex-col gap-8">
           <div className="rounded-2xl bg-gradient-to-br from-primary/8 via-primary/4 to-transparent border border-primary/10 p-5 sm:p-6">
             <h1 className="sr-only">My Shows</h1>
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -381,58 +386,68 @@ const MyEntriesPage: React.FC = () => {
                 onNavigate={navigate}
               />
 
-              <DogStrip
-                dogs={
-                  (dogs ?? []) as {
-                    id: string;
-                    call_name?: string;
-                    name?: string;
-                    registrations?: { breed?: string; organization?: string; status?: string }[];
-                  }[]
-                }
-                upcomingClassCountByDog={upcomingClassCountByDog}
-                onAddDog={() => setAddDogOpen(true)}
-              />
+              {/* order-2 on mobile pushes the dog strip below the entries section
+                  (which is order-1). On desktop both are order-0, so source order
+                  keeps the dog strip above the entries. */}
+              <div className="max-[720px]:order-2">
+                <DogStrip
+                  dogs={
+                    (dogs ?? []) as {
+                      id: string;
+                      call_name?: string;
+                      name?: string;
+                      registrations?: { breed?: string; organization?: string; status?: string }[];
+                    }[]
+                  }
+                  upcomingClassCountByDog={upcomingClassCountByDog}
+                  onAddDog={() => setAddDogOpen(true)}
+                />
+              </div>
 
-              {/* This branch only renders when entries.length > 0, so the count
-                  badge is always shown here. aria-hidden keeps it decorative —
-                  the tab counts already convey the number to assistive tech. */}
-              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                My Entries
-                <span
-                  aria-hidden="true"
-                  className="inline-flex items-center justify-center rounded-full bg-muted text-muted-foreground text-xs font-medium w-5 h-5"
+              {/* Entries section — order-1 on mobile lifts the schedule above the dog
+                  strip. Label + tabs move as one unit; space-y-8 preserves the prior
+                  spacing between them. */}
+              <div className="space-y-8 max-[720px]:order-1">
+                {/* This branch only renders when entries.length > 0, so the count
+                    badge is always shown here. aria-hidden keeps it decorative —
+                    the tab counts already convey the number to assistive tech. */}
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                  My Entries
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex items-center justify-center rounded-full bg-muted text-muted-foreground text-xs font-medium w-5 h-5"
+                  >
+                    {entries.length}
+                  </span>
+                </p>
+
+                {/* Entries List */}
+                <PrimaryTabs
+                  tabs={entryTabs}
+                  value={selectedTab}
+                  onValueChange={value => setSelectedTab(value as EntryTabFilter)}
+                  className="space-y-6"
                 >
-                  {entries.length}
-                </span>
-              </p>
-
-              {/* Entries List */}
-              <PrimaryTabs
-                tabs={entryTabs}
-                value={selectedTab}
-                onValueChange={value => setSelectedTab(value as EntryTabFilter)}
-                className="space-y-6"
-              >
-                <TabsContent value={selectedTab} className="space-y-4">
-                  {filteredEntries.length === 0 ? (
-                    <EmptyState selectedTab={selectedTab} />
-                  ) : (
-                    filteredEntries.map(entry => (
-                      <MyEntryCard
-                        key={entry.id}
-                        entry={entry}
-                        selfCheckinByClassId={selfCheckinByClassId}
-                        onCheckInClick={handleCheckInClick}
-                        onEditClick={handleEditClick}
-                        onReceiptClick={handleReceiptClick}
-                        onResultRevealClick={setResultRevealModel}
-                        seenResultReleaseKeys={seenResultReleaseKeys}
-                      />
-                    ))
-                  )}
-                </TabsContent>
-              </PrimaryTabs>
+                  <TabsContent value={selectedTab} className="space-y-4">
+                    {filteredEntries.length === 0 ? (
+                      <EmptyState selectedTab={selectedTab} />
+                    ) : (
+                      filteredEntries.map(entry => (
+                        <MyEntryCard
+                          key={entry.id}
+                          entry={entry}
+                          selfCheckinByClassId={selfCheckinByClassId}
+                          onCheckInClick={handleCheckInClick}
+                          onEditClick={handleEditClick}
+                          onReceiptClick={handleReceiptClick}
+                          onResultRevealClick={setResultRevealModel}
+                          seenResultReleaseKeys={seenResultReleaseKeys}
+                        />
+                      ))
+                    )}
+                  </TabsContent>
+                </PrimaryTabs>
+              </div>
             </>
           )}
         </div>

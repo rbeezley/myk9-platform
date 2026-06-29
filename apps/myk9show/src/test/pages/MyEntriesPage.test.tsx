@@ -292,6 +292,28 @@ describe('MyEntriesPage UI Improvements', () => {
     });
   });
 
+  describe('Mobile information density', () => {
+    it('orders the entries section above the dog strip on phones via flex order', async () => {
+      seedLoadedEntry();
+      renderWithProviders(<MyEntriesPage />);
+
+      await screen.findByRole('tablist');
+
+      // The "My Entries" label anchors the entries section wrapper.
+      const entriesWrapper = screen.getByText('My Entries').closest('div');
+      expect(entriesWrapper).not.toBeNull();
+      expect(entriesWrapper).toHaveClass('max-[720px]:order-1');
+
+      // The dog strip lives in a sibling wrapper that drops below on mobile.
+      const stack = entriesWrapper!.parentElement!;
+      expect(stack).toHaveClass('flex', 'flex-col', 'gap-8');
+      const dogWrapper = Array.from(stack.children).find(child =>
+        child.className.includes('max-[720px]:order-2')
+      );
+      expect(dogWrapper).toBeTruthy();
+    });
+  });
+
   describe('Zero State (no entries)', () => {
     it('renders FirstRunZeroState instead of the stat/tab stack', async () => {
       renderWithProviders(<MyEntriesPage />);
@@ -329,9 +351,7 @@ describe('MyEntriesPage UI Improvements', () => {
       renderWithProviders(<MyEntriesPage />);
 
       expect(await screen.findByText(/find a show/i)).toBeInTheDocument();
-      expect(
-        screen.queryByRole('button', { name: /add your first dog/i })
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /add your first dog/i })).not.toBeInTheDocument();
     });
 
     it('stays dog-neutral while dog ownership is still resolving', async () => {
@@ -343,12 +363,8 @@ describe('MyEntriesPage UI Improvements', () => {
 
       expect(await screen.findByRole('link', { name: /browse shows/i })).toBeInTheDocument();
       expect(screen.queryByText(/Welcome!/i)).not.toBeInTheDocument();
-      expect(
-        screen.queryByRole('button', { name: /add your first dog/i })
-      ).not.toBeInTheDocument();
-      expect(
-        screen.queryByRole('button', { name: /add another dog/i })
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /add your first dog/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /add another dog/i })).not.toBeInTheDocument();
     });
 
     it('enables the dog query off the legacy person id when databaseUserId is absent', async () => {
@@ -364,9 +380,7 @@ describe('MyEntriesPage UI Improvements', () => {
 
       // hasDogs resolves true → leads with browsing, no first-dog CTA.
       expect(await screen.findByText(/find a show/i)).toBeInTheDocument();
-      expect(
-        screen.queryByRole('button', { name: /add your first dog/i })
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /add your first dog/i })).not.toBeInTheDocument();
       // The query was enabled with the legacy id (second arg = enabled flag).
       expect(mockUseDogsByOwnerQuery).toHaveBeenCalledWith('legacy-person-1', true);
     });

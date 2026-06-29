@@ -86,6 +86,9 @@ export const STORAGE_KEYS = {
   /** Persistent log storage */
   LOGS: 'myk9show_logs',
 
+  /** Pending split-checkout summary for the existing cart success page */
+  CART_SPLIT_CHECKOUT: 'cart-split-checkout',
+
   // ==========================================================================
   // Security (Handled by SecureStorage, not direct localStorage)
   // ==========================================================================

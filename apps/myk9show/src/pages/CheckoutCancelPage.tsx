@@ -57,28 +57,33 @@ export default function CheckoutCancelPage() {
           </CardContent>
 
           <CardFooter className="flex-col gap-2">
-            {itemCount > 0 ? (
-              <>
-                <Button
-                  className="w-full"
-                  onClick={() => navigate('/cart?checkout=cancelled')}
-                >
-                  <ShoppingCart className="h-4 w-4 mr-2" />
-                  Return to Cart
-                </Button>
-                {cart?.show_id && (
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => navigate(`/shows/${cart.show_id}`)}
-                  >
-                    <ArrowRight className="h-4 w-4 mr-2" />
-                    Continue Shopping
-                  </Button>
-                )}
-              </>
+            {/*
+              INTENT: Always offer Return to Cart, even when itemCount === 0.
+              After a real Stripe cancel the browser does a full-page return, and the
+              cart store only persists cartRecoveryInfo (ids) — not cart.items — so
+              itemCount is 0 here. CartPage re-hydrates items via loadActiveCart on
+              mount, so /cart?checkout=cancelled lands on a populated cart and shows
+              the calm "checkout cancelled, your cart is saved" banner. Gating this
+              button on itemCount made that banner unreachable in the normal flow.
+            */}
+            <Button
+              className="w-full"
+              onClick={() => navigate('/cart?checkout=cancelled')}
+            >
+              <ShoppingCart className="h-4 w-4 mr-2" />
+              Return to Cart
+            </Button>
+            {cart?.show_id ? (
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => navigate(`/shows/${cart.show_id}`)}
+              >
+                <ArrowRight className="h-4 w-4 mr-2" />
+                Continue Shopping
+              </Button>
             ) : (
-              <Button className="w-full" onClick={() => navigate('/shows')}>
+              <Button variant="outline" className="w-full" onClick={() => navigate('/shows')}>
                 <Eye className="h-4 w-4 mr-2" />
                 Browse Shows
               </Button>

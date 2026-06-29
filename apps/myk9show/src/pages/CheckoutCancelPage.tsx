@@ -59,7 +59,10 @@ export default function CheckoutCancelPage() {
           <CardFooter className="flex-col gap-2">
             {itemCount > 0 ? (
               <>
-                <Button className="w-full" onClick={() => navigate('/cart')}>
+                <Button
+                  className="w-full"
+                  onClick={() => navigate('/cart?checkout=cancelled')}
+                >
                   <ShoppingCart className="h-4 w-4 mr-2" />
                   Return to Cart
                 </Button>

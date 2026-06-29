@@ -1,17 +1,20 @@
 /**
  * ExhibitorPaymentsPage — the logged-in exhibitor's own online payment history.
  *
- * Read-only list of stripe_orders (RLS-scoped to the caller): date, show, amount,
- * status, Stripe reference, and a link to the entries the payment covers (where
- * the printable per-entry receipt lives — receipts are entry-scoped, not stored
- * on the order). Complements MyEntriesPage's per-entry Receipt / Finish Payment
- * actions with a single chronological money view.
+ * Mostly read-only list of stripe_orders (RLS-scoped to the caller): date, show,
+ * amount, status, Stripe reference, and a per-row action. For settled orders the
+ * action links to the entries the payment covers (where the printable per-entry
+ * receipt lives — receipts are entry-scoped, not stored on the order). For
+ * failed/cancelled orders it instead deep-links to the cart-recovery / "Finish
+ * Payment" flow (`/cart`, scoped by the order's show + entry ids) so the
+ * exhibitor can retry without hunting through My Shows. Complements MyEntriesPage's
+ * per-entry Receipt / Finish Payment actions with a single chronological money view.
  */
 
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Receipt as ReceiptIcon } from 'lucide-react';
+import { Receipt as ReceiptIcon, CreditCard } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -24,6 +27,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useMyPayments, type MyPayment } from '@/features/payments/useMyPayments';
+import { buildFinishPaymentHref } from '@/features/payments/finishPaymentHref';
+
+function isRetryable(status: string): boolean {
+  const s = status.toLowerCase();
+  return s === 'failed' || s === 'cancelled';
+}
 
 /** Placeholder for a missing cell value. Hyphen-minus, never an em dash (UI-copy rule). */
 const EMPTY = '-';
@@ -109,7 +118,19 @@ function PaymentRow({ payment }: { payment: MyPayment }) {
         {payment.reference ?? EMPTY}
       </TableCell>
       <TableCell>
-        {payment.entryIds.length > 0 ? (
+        {isRetryable(payment.status) && payment.showId && payment.entryIds.length > 0 ? (
+          // Failed/cancelled: deep-link straight to the cart-recovery flow,
+          // scoped to this order's show + entries, so the exhibitor can retry the
+          // exact payment rather than rebuilding it from scratch under My Shows.
+          <Link
+            to={buildFinishPaymentHref(payment.showId, payment.entryIds)}
+            className="inline-flex min-h-11 items-center gap-1.5 text-sm text-primary hover:underline focus-visible:underline"
+          >
+            <CreditCard className="h-4 w-4 shrink-0" aria-hidden="true" />
+            Finish payment
+          </Link>
+        ) : payment.entryIds.length > 0 ? (
+          // Settled orders: the per-entry printable receipt lives on My Shows.
           // My Entries has no inbound entry/show filter, so this is a plain link
           // to that page (where the per-entry printable receipt lives), not a
           // row-scoped filter. The accessible name names the show so each link
@@ -186,7 +207,7 @@ export default function ExhibitorPaymentsPage() {
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Reference</TableHead>
-                  <TableHead>Receipt</TableHead>
+                  <TableHead>Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

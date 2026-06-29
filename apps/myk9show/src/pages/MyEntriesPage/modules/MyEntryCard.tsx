@@ -32,6 +32,7 @@ import {
   type ResultCardModel,
 } from '@/features/result-card';
 import { buildVenueMapsUrls, formatVenueAddress } from '@/utils/venueMaps';
+import { buildFinishPaymentHref } from '@/features/payments/finishPaymentHref';
 import type { MyEntry, EntryClass } from './my-entries-types';
 import {
   getEntryStatusBadge,
@@ -59,10 +60,7 @@ interface MyEntryCardProps {
 function buildEntryPaymentHref(entry: MyEntry): string {
   // EntryClass.id is the underlying entries-row id in useMyEntriesData.
   const entryIds = entry.classes.map(cls => cls.id).filter(Boolean);
-  const params = new URLSearchParams();
-  params.set('showId', entry.showId);
-  params.set('entryIds', entryIds.length > 0 ? entryIds.join(',') : entry.id);
-  return `/cart?${params.toString()}`;
+  return buildFinishPaymentHref(entry.showId, entryIds.length > 0 ? entryIds : [entry.id]);
 }
 
 /**

@@ -84,7 +84,7 @@ export const useCartStore = create<CartState>()(
             const { data: itemsData, error: itemsError } = await supabase
               .from('entry_cart_items')
               .select(
-                `*, dog:dogs(id, name, call_name, breed), class:classes(id, name, level, trial_id), handler:people(id, first_name, last_name)`
+                `*, dog:dogs(id, name, call_name, breed), class:classes(id, name, level, trial_id, allow_waitlist), handler:people(id, first_name, last_name)`
               )
               .eq('cart_id', cartData.id);
 
@@ -338,7 +338,7 @@ export const useCartStore = create<CartState>()(
               .from('entry_cart_items')
               .insert(itemInsert)
               .select(
-                `*, dog:dogs(id, name, call_name, breed), class:classes(id, name, level, trial_id), handler:people(id, first_name, last_name)`
+                `*, dog:dogs(id, name, call_name, breed), class:classes(id, name, level, trial_id, allow_waitlist), handler:people(id, first_name, last_name)`
               )
               .single();
 
@@ -727,10 +727,10 @@ export const useCartStore = create<CartState>()(
           return timeRemaining !== null && timeRemaining <= 0;
         },
 
-        // Checkout routing full-class items to waitlist RPC
+        // Checkout routing overflow cart items to waitlist RPC
         checkoutWithWaitlist: async (
           exhibitorId: string,
-          fullClassIds: Set<string>
+          waitlistCartItemIds: Set<string>
         ): Promise<CheckoutResult | null> => {
           const { cart } = get();
           if (!cart) {
@@ -745,7 +745,7 @@ export const useCartStore = create<CartState>()(
             for (const item of cart.items) {
               if (!item.class_id || !item.dog_id) continue;
 
-              if (fullClassIds.has(item.class_id)) {
+              if (waitlistCartItemIds.has(item.id)) {
                 // Add to waitlist instead of creating a normal entry
                 const rpcArgs: {
                   p_class_id: string;

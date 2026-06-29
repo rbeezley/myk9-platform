@@ -23,6 +23,11 @@ import { Separator } from '@/components/ui/separator';
 import { verifyCheckoutSession } from '@/lib/stripe';
 import { useCartStore } from '@/store/cartStore';
 import { supabase } from '@/lib/supabase';
+import {
+  type CartSplitCheckoutSummary,
+  clearCartSplitCheckoutSummary,
+  consumeCartSplitCheckoutSummary,
+} from '@/features/payments/cartSplitCheckoutStorage';
 
 interface EntryDetails {
   id: string;
@@ -38,6 +43,9 @@ export default function CheckoutSuccessPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const sessionId = searchParams.get('session_id');
+  const isWaitlistOnly = searchParams.get('waitlist') === '1';
+  const splitCheckoutId = searchParams.get('split');
+  const [splitSummary, setSplitSummary] = useState<CartSplitCheckoutSummary | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [_isVerified, setIsVerified] = useState(false);
@@ -48,6 +56,9 @@ export default function CheckoutSuccessPage() {
     showId?: string;
     totalAmount?: number;
     entryIds?: string[];
+    checkoutOutcome?: 'paid_entries' | 'full_overflow_refund';
+    refundAmount?: number;
+    refundStatus?: 'issued' | 'processing';
     confirmationNumber?: string;
   } | null>(null);
   const [entries, setEntries] = useState<EntryDetails[]>([]);
@@ -58,6 +69,20 @@ export default function CheckoutSuccessPage() {
   useEffect(() => {
     const verifyPayment = async () => {
       if (!sessionId) {
+        const pendingSummary = splitCheckoutId
+          ? consumeCartSplitCheckoutSummary(splitCheckoutId)
+          : null;
+        if (isWaitlistOnly && pendingSummary && pendingSummary.confirmedEntryCount === 0) {
+          setOrderDetails({
+            showId: pendingSummary.showId,
+          });
+          setSplitSummary(pendingSummary);
+          setIsVerified(true);
+          resetCart();
+          setIsLoading(false);
+          return;
+        }
+        clearCartSplitCheckoutSummary();
         setError('No checkout session found. Please try again.');
         setIsLoading(false);
         return;
@@ -72,16 +97,34 @@ export default function CheckoutSuccessPage() {
         const result = await verifyCheckoutSession(sessionId);
 
         if (result.success) {
+          const nextSplitSummary = splitCheckoutId
+            ? consumeCartSplitCheckoutSummary(splitCheckoutId)
+            : null;
           setOrderDetails({
             ...(result.orderId !== undefined && { orderId: result.orderId }),
             ...(result.showName !== undefined && { showName: result.showName }),
             ...(result.showId !== undefined && { showId: result.showId }),
             ...(result.totalAmount !== undefined && { totalAmount: result.totalAmount }),
             ...(result.entryIds !== undefined && { entryIds: result.entryIds }),
+            ...(result.checkoutOutcome !== undefined && {
+              checkoutOutcome: result.checkoutOutcome,
+            }),
+            ...(result.refundAmount !== undefined && { refundAmount: result.refundAmount }),
+            ...(result.refundStatus !== undefined && { refundStatus: result.refundStatus }),
             ...(result.confirmationNumber !== undefined && {
               confirmationNumber: result.confirmationNumber,
             }),
           });
+          if (
+            nextSplitSummary &&
+            nextSplitSummary.showId === result.showId &&
+            nextSplitSummary.confirmedEntryCount === (result.entryIds?.length ?? 0)
+          ) {
+            setSplitSummary(nextSplitSummary);
+          } else {
+            clearCartSplitCheckoutSummary();
+            setSplitSummary(null);
+          }
           setIsVerified(true);
 
           // Fetch entry details
@@ -157,11 +200,26 @@ export default function CheckoutSuccessPage() {
     };
 
     verifyPayment();
-  }, [sessionId, resetCart]);
+  }, [isWaitlistOnly, resetCart, sessionId, splitCheckoutId]);
 
   const formatCurrency = (cents: number) => {
     return `$${(cents / 100).toFixed(2)}`;
   };
+  const paidEntryCount = orderDetails?.entryIds?.length ?? entries.length;
+  const confirmedEntryCount = splitSummary?.confirmedEntryCount ?? paidEntryCount;
+  const waitlistEntries = splitSummary?.waitlistEntries ?? [];
+  const isWaitlistOnlySuccess = confirmedEntryCount === 0 && waitlistEntries.length > 0;
+  const isFullOverflowRefund = orderDetails?.checkoutOutcome === 'full_overflow_refund';
+  const pageTitle = isWaitlistOnlySuccess
+    ? 'Added to Wait List'
+    : isFullOverflowRefund
+      ? 'Payment Refunded'
+      : 'Entry Submitted Successfully!';
+  const pageDescription = isWaitlistOnlySuccess
+    ? 'Your wait list request has been recorded for the full classes in this cart.'
+    : isFullOverflowRefund
+      ? 'The remaining spots filled before your paid entries could be created.'
+      : 'Your payment has been processed and your entries are confirmed.';
 
   // Loading state
   if (isLoading) {
@@ -216,10 +274,8 @@ export default function CheckoutSuccessPage() {
             <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="h-8 w-8 text-success " />
             </div>
-            <CardTitle className="text-2xl">Entry Submitted Successfully!</CardTitle>
-            <p className="text-muted-foreground mt-2">
-              Your payment has been processed and your entries are confirmed.
-            </p>
+            <CardTitle className="text-2xl">{pageTitle}</CardTitle>
+            <p className="text-muted-foreground mt-2">{pageDescription}</p>
           </CardHeader>
 
           <CardContent className="space-y-6">
@@ -240,7 +296,7 @@ export default function CheckoutSuccessPage() {
             )}
 
             {/* Order Summary */}
-            {orderDetails && (
+            {orderDetails?.totalAmount !== undefined && (
               <Alert className="bg-muted/50">
                 <Receipt className="h-4 w-4" />
                 <AlertDescription>
@@ -250,6 +306,57 @@ export default function CheckoutSuccessPage() {
                       {orderDetails.totalAmount ? formatCurrency(orderDetails.totalAmount) : '—'}
                     </span>
                   </div>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {isFullOverflowRefund && (
+              <Alert className="bg-muted/50">
+                <Receipt className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center gap-3">
+                      <span>Full Refund</span>
+                      <span className="font-semibold">
+                        {orderDetails?.refundAmount
+                          ? formatCurrency(orderDetails.refundAmount)
+                          : 'Processing'}
+                      </span>
+                    </div>
+                    <p className="text-muted-foreground">
+                      {orderDetails?.refundStatus === 'issued'
+                        ? 'Your payment has been fully refunded.'
+                        : 'Your full refund is being issued.'}
+                    </p>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {splitSummary && (confirmedEntryCount > 0 || waitlistEntries.length > 0) && (
+              <Alert>
+                <CheckCircle className="h-4 w-4" />
+                <AlertDescription>
+                  <span className="font-semibold">Entry Summary: </span>
+                  <span>
+                    Paid: {confirmedEntryCount} {confirmedEntryCount === 1 ? 'entry' : 'entries'}
+                  </span>
+                  <span>{' · '}</span>
+                  <span>
+                    Waitlisted: {waitlistEntries.length}{' '}
+                    {waitlistEntries.length === 1 ? 'entry' : 'entries'}
+                  </span>
+                  {waitlistEntries.length > 0 && (
+                    <>
+                      <span>{'. Positions: '}</span>
+                      {waitlistEntries.map((entry, index) => (
+                        <span key={entry.id}>
+                          {`${entry.className ?? ''} #${entry.position}`.trimStart()}
+                          {index < waitlistEntries.length - 1 ? ', ' : '.'}
+                        </span>
+                      ))}
+                    </>
+                  )}
                 </AlertDescription>
               </Alert>
             )}
@@ -268,36 +375,38 @@ export default function CheckoutSuccessPage() {
             <Separator />
 
             {/* Entry Details */}
-            <div>
-              <h3 className="font-semibold mb-3 flex items-center gap-2">
-                <Dog className="h-4 w-4" />
-                Your Entries ({entries.length})
-              </h3>
-              <div className="space-y-2">
-                {entries.map(entry => (
-                  <div
-                    key={entry.id}
-                    className="flex justify-between items-center p-3 rounded-lg bg-muted/30"
-                  >
-                    <div>
-                      <p className="font-medium">{entry.dog_name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {entry.class_name}
-                        {entry.class_level && ` - ${entry.class_level}`}
-                      </p>
+            {entries.length > 0 && (
+              <div>
+                <h3 className="font-semibold mb-3 flex items-center gap-2">
+                  <Dog className="h-4 w-4" />
+                  Your Entries ({entries.length})
+                </h3>
+                <div className="space-y-2">
+                  {entries.map(entry => (
+                    <div
+                      key={entry.id}
+                      className="flex justify-between items-center p-3 rounded-lg bg-muted/30"
+                    >
+                      <div>
+                        <p className="font-medium">{entry.dog_name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {entry.class_name}
+                          {entry.class_level && ` - ${entry.class_level}`}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {entry.armband_number && (
+                          <span className="rounded-md bg-primary/10 px-2 py-0.5 text-sm font-semibold text-primary">
+                            Armband #{entry.armband_number}
+                          </span>
+                        )}
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {entry.armband_number && (
-                        <span className="rounded-md bg-primary/10 px-2 py-0.5 text-sm font-semibold text-primary">
-                          Armband #{entry.armband_number}
-                        </span>
-                      )}
-                      <CheckCircle className="h-4 w-4 text-green-600" />
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             <Separator />
 
@@ -305,15 +414,32 @@ export default function CheckoutSuccessPage() {
             <div className="text-sm text-muted-foreground">
               <p className="font-medium text-foreground mb-2">What happens next?</p>
               <ul className="list-disc list-inside space-y-1">
-                <li>You'll receive a confirmation email shortly</li>
-                <li>Check in at the venue on the day of the show</li>
-                {entries.length > 0 && entries.every(e => e.armband_number) ? (
+                {!isWaitlistOnlySuccess && !isFullOverflowRefund && (
+                  <li>You'll receive a confirmation email shortly</li>
+                )}
+                {isFullOverflowRefund && <li>No paid entries were created for this checkout.</li>}
+                {isFullOverflowRefund && (
+                  <li>
+                    {orderDetails?.refundStatus === 'issued'
+                      ? 'The full refund has been issued to your original payment method.'
+                      : 'The full refund is being issued to your original payment method.'}
+                  </li>
+                )}
+                {confirmedEntryCount > 0 && !isFullOverflowRefund && (
+                  <li>Check in at the venue on the day of the show</li>
+                )}
+                {confirmedEntryCount > 0 &&
+                !isFullOverflowRefund &&
+                entries.length > 0 &&
+                entries.every(e => e.armband_number) ? (
                   <li>Bring your armband number(s) shown above when you check in</li>
-                ) : (
+                ) : confirmedEntryCount > 0 && !isFullOverflowRefund ? (
                   <li>
                     Your armband number will be confirmed by the show secretary before show day
                   </li>
-                )}
+                ) : !isFullOverflowRefund ? (
+                  <li>We&apos;ll notify you if a spot opens up from the wait list.</li>
+                ) : null}
               </ul>
             </div>
           </CardContent>

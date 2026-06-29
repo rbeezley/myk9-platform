@@ -40,6 +40,13 @@ describe('summarizeMyPayments', () => {
     expect(result).toEqual([]);
   });
 
+  it('yields no spend when a succeeded order was fully refunded through entries', () => {
+    const result = summarizeMyPayments([
+      row({ amountCents: 4000, netPaidCents: 0, status: 'succeeded' }),
+    ]);
+    expect(result).toEqual([]);
+  });
+
   it('ignores non-settled rows (failed, cancelled, pending, unknown)', () => {
     const result = summarizeMyPayments([
       row({ amountCents: 2500, status: 'succeeded' }),

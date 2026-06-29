@@ -8,22 +8,17 @@
  * mix yields two totals rather than one meaningless sum. The page renders the
  * single-currency case plainly and degrades to per-currency rows otherwise.
  *
- * Refund handling — read carefully. useMyPayments reads one stripe_orders row
- * per order whose `status` mutates in place; on refund the row's `amountCents`
- * stays the ORIGINAL charge — there is no separate refund-delta field (unlike
- * the admin entries table's `refund_amount`, which is why payoutLedger can do
- * real net math and we can't). So a refunded order's amount tells us nothing
- * about how much came back. The only honest figure here is money currently paid
- * and NOT refunded: refunded orders are excluded entirely (a fully refunded
- * order = zero net spend, the dominant real case — entry withdrawn → full
- * refund). This understates the rare partial refund, but with no delta column
- * available that's unrecoverable; we do not pretend otherwise by subtracting a
- * full charge that was only partly returned.
+ * Refund handling — read carefully. stripe_orders.amount_cents is the gross
+ * charge. App-originated entry refunds are recorded on entries.refund_amount and
+ * may leave stripe_orders.status as `succeeded`, so useMyPayments supplies
+ * netPaidCents for summary math. Legacy/dashboard refunded order rows without a
+ * net value are excluded by status.
  */
 
 /** The minimal MyPayment fields the summary needs (structural subset). */
 export interface PaymentSummaryRow {
   amountCents: number;
+  netPaidCents?: number;
   currency: string;
   status: string;
 }
@@ -46,7 +41,7 @@ const PAID_STATUSES = new Set(['succeeded', 'paid']);
 /**
  * Group paid, non-refunded orders by currency and total spend per currency.
  * Returns one bucket per currency, sorted by currency code. Empty input — or
- * input with no paid orders (e.g. all refunded) — yields [].
+ * input with no paid net amount (e.g. all refunded) — yields [].
  */
 export function summarizeMyPayments(rows: PaymentSummaryRow[]): CurrencyTotal[] {
   const byCurrency = new Map<string, CurrencyTotal>();
@@ -54,9 +49,12 @@ export function summarizeMyPayments(rows: PaymentSummaryRow[]): CurrencyTotal[] 
   for (const row of rows) {
     if (!PAID_STATUSES.has(row.status.toLowerCase())) continue;
 
+    const netPaidCents = row.netPaidCents ?? row.amountCents;
+    if (netPaidCents <= 0) continue;
+
     const currency = (row.currency || 'usd').toLowerCase();
     const acc = byCurrency.get(currency) ?? { currency, totalPaidCents: 0, paymentCount: 0 };
-    acc.totalPaidCents += row.amountCents;
+    acc.totalPaidCents += netPaidCents;
     acc.paymentCount += 1;
     byCurrency.set(currency, acc);
   }

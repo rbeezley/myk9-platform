@@ -22,6 +22,11 @@ import {
   Zap
 } from 'lucide-react';
 import { Role, Permission } from '@/types/rbac-types';
+import {
+  getPermissionResource as getResource,
+  getPermissionAction as getAction,
+  getPermissionDisplayName as getDisplayName,
+} from './permissionDisplay';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface RolePermissionsEditorProps {
@@ -40,10 +45,6 @@ export const RolePermissionsEditor: React.FC<RolePermissionsEditorProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedResources, setExpandedResources] = useState<Set<string>>(new Set(['show', 'entry', 'dog']));
 
-  // Helper to get resource/action from permission (from code or field)
-  const getResource = (p: Permission) => p.resource || p.code?.split(':')[0] || 'other';
-  const getAction = (p: Permission) => p.action || p.code?.split(':')[1] || '';
-  const getDisplayName = (p: Permission) => p.display_name || p.name;
 
   // Group permissions by resource
   const permissionsByResource = useMemo(() => {

@@ -15,6 +15,7 @@ import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs
 
 const PERMISSION_TABS: PrimaryTabDef[] = [
   { id: 'overview', label: 'Overview' },
+  { id: 'permissions', label: 'Permissions' },
   { id: 'audit', label: 'Permission Audit' },
 ];
 import {
@@ -32,29 +33,44 @@ import {
 import { useRBAC } from '@/hooks/useRBAC';
 import { rbacService } from '@/services/rbac/RBACService';
 import { RBACMigrationStatus } from '@/components/rbac/RBACMigrationStatus';
+import { PermissionInventory } from '@/components/admin/permissions/PermissionInventory';
+import type { Permission } from '@/types/rbac-types';
 import PermissionAuditPage from './PermissionAuditPage';
 
 const PermissionManagementPage: React.FC = () => {
   const { userRoles, userPermissions, effectivePermissions, isLoading } = useRBAC();
   const [roleCount, setRoleCount] = useState<number | null>(null);
-  const [permissionCount, setPermissionCount] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useUrlTab(['overview', 'audit'] as const, 'overview');
+  const [permissions, setPermissions] = useState<Permission[] | null>(null);
+  const [permissionsError, setPermissionsError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useUrlTab(
+    ['overview', 'permissions', 'audit'] as const,
+    'overview'
+  );
 
   useEffect(() => {
     async function loadCounts() {
       try {
-        const [roles, permissions] = await Promise.all([
+        const [roles, allPermissions] = await Promise.all([
           rbacService.getAllRoles(),
           rbacService.getAllPermissions(),
         ]);
         setRoleCount(roles.length);
-        setPermissionCount(permissions.length);
-      } catch {
-        // Fall back to showing the empty placeholder via null state
+        setPermissions(allPermissions);
+      } catch (err) {
+        // Counts fall back to the placeholder; the inventory tab surfaces the
+        // error explicitly instead of a false "no permissions" empty state.
+        setPermissionsError(
+          err instanceof Error ? err.message : 'Failed to load permissions'
+        );
       }
     }
     loadCounts();
   }, []);
+
+  const permissionCount = permissions?.length ?? null;
+  // Distinguish "still fetching" from "genuinely empty" so the inventory tab
+  // doesn't flash a false "No permissions defined" during a direct deep-load.
+  const permissionsLoading = permissions === null && !permissionsError;
 
   // Quick stats for dashboard
   const stats = [
@@ -70,7 +86,7 @@ const PermissionManagementPage: React.FC = () => {
       value: permissionCount?.toString() ?? '–',
       description: 'Available permissions',
       icon: Settings,
-      link: '/admin/permissions/roles',
+      link: '/admin/permissions?tab=permissions',
     },
     {
       title: 'Active Users',
@@ -331,6 +347,29 @@ const PermissionManagementPage: React.FC = () => {
                   </CardContent>
                 </Card>
               </div>
+            </div>
+          </div>
+        </div>
+      </TabsContent>
+
+      <TabsContent value="permissions">
+        <div className="min-h-screen bg-background">
+          <div className="container mx-auto px-6 pt-8 pb-8 max-w-7xl">
+            <div className="space-y-8">
+              <div className="min-w-0">
+                <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-3">
+                  <Settings className="h-8 w-8 text-primary" />
+                  Permission Inventory
+                </h1>
+                <p className="text-muted-foreground mt-2">
+                  Every permission defined in the system, grouped by resource
+                </p>
+              </div>
+              <PermissionInventory
+                permissions={permissions ?? []}
+                isLoading={permissionsLoading}
+                error={permissionsError}
+              />
             </div>
           </div>
         </div>

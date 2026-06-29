@@ -31,7 +31,6 @@ export interface ConfirmationStepProps {
   onSendEmail?: (() => void) | undefined;
   onStatusChange?: ((dogId: string, status: EntryStatus) => void) | undefined;
   onArmbandAssign?: ((dogId: string, armband: string) => void) | undefined;
-  onNotificationToggle?: ((type: string, enabled: boolean) => void) | undefined;
 }
 
 export interface ArmbandAssignment {
@@ -44,16 +43,6 @@ export interface HandlerAssignment {
   dogId: string;
   handlerName: string;
   isOwner: boolean;
-}
-
-export interface NotificationPreferences {
-  email: boolean;
-  sms: boolean;
-  statusChanges: boolean;
-  paymentReceipts: boolean;
-  remindersBefore: number;
-  ringCallReminders: boolean;
-  scheduleChanges: boolean;
 }
 
 export interface DogClassDetails {

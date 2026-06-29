@@ -23,9 +23,9 @@ const BASE_PROPS = {
 };
 
 describe('BannerEntryReceived', () => {
-  it('renders the ready-to-submit heading', () => {
+  it('renders the submitted heading', () => {
     render(<BannerEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByRole('heading', { name: /ready to submit/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /entry submitted/i })).toBeTruthy();
   });
 
   it('renders the byline with show name, club name, and date range', () => {
@@ -37,13 +37,13 @@ describe('BannerEntryReceived', () => {
 
   it('renders the entry number in the kicker when provided', () => {
     render(<BannerEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/Ready to submit · Entry 2026-0137/)).toBeInTheDocument();
+    expect(screen.getByText(/Submitted · Entry 2026-0137/)).toBeInTheDocument();
   });
 
   it('omits the entry suffix when registration number is null', () => {
     render(<BannerEntryReceived {...BASE_PROPS} registrationNumber={null} />);
     expect(screen.queryByText(/Entry 2026/)).toBeNull();
-    expect(screen.getByRole('heading', { name: /Ready to submit/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Entry submitted/ })).toBeInTheDocument();
   });
 
   it('renders the dog registered name', () => {

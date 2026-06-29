@@ -56,7 +56,7 @@ export function HeadlineEntryReceived({
               textTransform: 'uppercase',
             }}
           >
-            Ready
+            Submitted
           </span>
           <span
             style={{
@@ -96,14 +96,14 @@ export function HeadlineEntryReceived({
             color: INK,
           }}
         >
-          Ready to{' '}
+          Entry{' '}
           <span
             style={{
               background: MARKER,
               padding: '0 6px',
             }}
           >
-            submit.
+            submitted.
           </span>
         </h2>
 

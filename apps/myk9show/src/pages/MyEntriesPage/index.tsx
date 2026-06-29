@@ -16,6 +16,7 @@ import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
 import { ShowTodayBanner } from '@/features/show-today/ShowTodayBanner';
 import { CompactStatsRow } from '@/components/exhibitor/CompactStatsRow';
 import { DogStrip } from '@/components/exhibitor/DogStrip';
+import { FirstRunZeroState } from '@/components/exhibitor/FirstRunZeroState';
 import { AddDogPanel } from '@/components/panels/edit';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { PaymentStatus } from '@/types/show-registration-types';
@@ -109,9 +110,26 @@ const MyEntriesPage: React.FC = () => {
 
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const ownerId = userWithRoles?.databaseUserId ?? '';
 
-  const { data: dogs = [] } = useDogsByOwnerQuery(ownerId, !!ownerId);
+  // Resolve the exhibitor's person id from the same source entry loading and the
+  // AddDogPanel use (legacy lookup first, then the auth record). Deriving dog
+  // ownership from only userWithRoles.databaseUserId would disable the dog query
+  // for exhibitors whose id comes from the legacy lookup, making the zero-state
+  // wrongly treat them as having no dogs. See useMyEntriesData's personId.
+  const currentUserPersonId = useCurrentUserPersonId();
+  const ownerId = currentUserPersonId ?? userWithRoles?.databaseUserId ?? '';
+
+  const { data: dogs = [], isLoading: dogsLoading } = useDogsByOwnerQuery(ownerId, !!ownerId);
+
+  // Tri-state dog ownership for the first-run zero-state. Resolving it eagerly
+  // off `dogs.length` flashes "Add Your First Dog" at an exhibitor who *does*
+  // own dogs while the query is still in flight. So:
+  //   - no ownerId  → the query is disabled and there can be no dogs on file → false
+  //   - still loading → ownership unknown → undefined (the CTA stays dog-neutral)
+  //   - settled     → the real answer
+  // `undefined` is deliberately distinct from `false` so FirstRunZeroState never
+  // commits to the no-dogs branch before ownership is known.
+  const hasDogs: boolean | undefined = !ownerId ? false : dogsLoading ? undefined : dogs.length > 0;
 
   // Note: Date-range-aware summary counts live in useMyEntriesFilters
   // (entryStats) so the top cards and filters never drift. Only tab counts
@@ -190,7 +208,6 @@ const MyEntriesPage: React.FC = () => {
   });
 
   const [addDogOpen, setAddDogOpen] = useState(false);
-  const currentUserPersonId = useCurrentUserPersonId();
 
   // Waitlist
   const { profile: exhibitorProfile } = useExhibitorProfile();
@@ -200,18 +217,19 @@ const MyEntriesPage: React.FC = () => {
     withdraw,
   } = useMyWaitlistEntries(exhibitorProfile?.id);
 
-  // Handlers
-  const handleCheckInClick = (entry: MyEntry, classEntry: EntryClass) => {
+  // Handlers — stable identities so the memoized MyEntryCard list doesn't
+  // re-render every card when an unrelated dialog opens or a tab changes.
+  const handleCheckInClick = useCallback((entry: MyEntry, classEntry: EntryClass) => {
     setCheckInDialog({ open: true, entry, classEntry });
-  };
+  }, []);
 
-  const handleEditClick = (entry: MyEntry) => {
+  const handleEditClick = useCallback((entry: MyEntry) => {
     setEditDialog({ open: true, entry });
-  };
+  }, []);
 
-  const handleReceiptClick = (entry: MyEntry) => {
+  const handleReceiptClick = useCallback((entry: MyEntry) => {
     setReceiptDialog({ open: true, entry });
-  };
+  }, []);
 
   React.useEffect(() => {
     const keys = new Set<string>();
@@ -317,7 +335,12 @@ const MyEntriesPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-6 py-6 max-w-7xl">
-        <div className="space-y-8">
+        {/* Flex stack (not space-y) so the dog strip and the entries section can
+            swap order on phones. On mobile the schedule (entries) sits directly
+            under the collapsed stats; the dog strip drops below the first fold.
+            Desktop keeps source order (dog strip above entries) — INTENT.md
+            Exhibitor: "this respects my time". gap-8 == the prior space-y-8. */}
+        <div className="flex flex-col gap-8">
           <div className="rounded-2xl bg-gradient-to-br from-primary/8 via-primary/4 to-transparent border border-primary/10 p-5 sm:p-6">
             <h1 className="sr-only">My Shows</h1>
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -342,65 +365,91 @@ const MyEntriesPage: React.FC = () => {
               since HomeRedirect keeps them off Home (where the banner also mounts). */}
           <ShowTodayBanner />
 
-          <CompactStatsRow
-            acceptedEntries={entryStats.currentAcceptedEntries}
-            pendingEntries={entryStats.currentPendingEntries}
-            upcomingShows={entryStats.upcomingShows}
-            pastShows={entryStats.pastShows}
-            currentFees={entryStats.currentFees}
-            amountDue={entryStats.currentAmountDue}
-            currentFeesHref={currentFeesHref}
-            onNavigate={navigate}
-          />
+          {/* First-run zero-state: a brand-new exhibitor with no entries would
+              otherwise see all-zero stat cards, an empty dog-strip gap, and an
+              empty tab — noise that reads as a data-entry chore. Suppress the
+              whole stack and present one calm, adaptive call-to-action instead.
+              INTENT: Exhibitor first run must feel frictionless ("respects my
+              time"), never like a form to fill. */}
+          {entries.length === 0 ? (
+            <FirstRunZeroState hasDogs={hasDogs} onAddDog={() => setAddDogOpen(true)} />
+          ) : (
+            <>
+              <CompactStatsRow
+                acceptedEntries={entryStats.currentAcceptedEntries}
+                pendingEntries={entryStats.currentPendingEntries}
+                upcomingShows={entryStats.upcomingShows}
+                pastShows={entryStats.pastShows}
+                currentFees={entryStats.currentFees}
+                amountDue={entryStats.currentAmountDue}
+                currentFeesHref={currentFeesHref}
+                onNavigate={navigate}
+              />
 
-          <DogStrip
-            dogs={
-              (dogs ?? []) as {
-                id: string;
-                call_name?: string;
-                name?: string;
-                registrations?: { breed?: string; organization?: string; status?: string }[];
-              }[]
-            }
-            upcomingClassCountByDog={upcomingClassCountByDog}
-            onAddDog={() => setAddDogOpen(true)}
-          />
+              {/* order-2 on mobile pushes the dog strip below the entries section
+                  (which is order-1). On desktop both are order-0, so source order
+                  keeps the dog strip above the entries. */}
+              <div className="max-[720px]:order-2">
+                <DogStrip
+                  dogs={
+                    (dogs ?? []) as {
+                      id: string;
+                      call_name?: string;
+                      name?: string;
+                      registrations?: { breed?: string; organization?: string; status?: string }[];
+                    }[]
+                  }
+                  upcomingClassCountByDog={upcomingClassCountByDog}
+                  onAddDog={() => setAddDogOpen(true)}
+                />
+              </div>
 
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-            My Entries
-            {entries.length > 0 && (
-              <span className="inline-flex items-center justify-center rounded-full bg-muted text-muted-foreground text-xs font-medium w-5 h-5">
-                {entries.length}
-              </span>
-            )}
-          </p>
+              {/* Entries section — order-1 on mobile lifts the schedule above the dog
+                  strip. Label + tabs move as one unit; space-y-8 preserves the prior
+                  spacing between them. */}
+              <div className="space-y-8 max-[720px]:order-1">
+                {/* This branch only renders when entries.length > 0, so the count
+                    badge is always shown here. aria-hidden keeps it decorative —
+                    the tab counts already convey the number to assistive tech. */}
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                  My Entries
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex items-center justify-center rounded-full bg-muted text-muted-foreground text-xs font-medium w-5 h-5"
+                  >
+                    {entries.length}
+                  </span>
+                </p>
 
-          {/* Entries List */}
-          <PrimaryTabs
-            tabs={entryTabs}
-            value={selectedTab}
-            onValueChange={value => setSelectedTab(value as EntryTabFilter)}
-            className="space-y-6"
-          >
-            <TabsContent value={selectedTab} className="space-y-4">
-              {filteredEntries.length === 0 ? (
-                <EmptyState selectedTab={selectedTab} />
-              ) : (
-                filteredEntries.map(entry => (
-                  <MyEntryCard
-                    key={entry.id}
-                    entry={entry}
-                    selfCheckinByClassId={selfCheckinByClassId}
-                    onCheckInClick={handleCheckInClick}
-                    onEditClick={handleEditClick}
-                    onReceiptClick={handleReceiptClick}
-                    onResultRevealClick={setResultRevealModel}
-                    seenResultReleaseKeys={seenResultReleaseKeys}
-                  />
-                ))
-              )}
-            </TabsContent>
-          </PrimaryTabs>
+                {/* Entries List */}
+                <PrimaryTabs
+                  tabs={entryTabs}
+                  value={selectedTab}
+                  onValueChange={value => setSelectedTab(value as EntryTabFilter)}
+                  className="space-y-6"
+                >
+                  <TabsContent value={selectedTab} className="space-y-4">
+                    {filteredEntries.length === 0 ? (
+                      <EmptyState selectedTab={selectedTab} />
+                    ) : (
+                      filteredEntries.map(entry => (
+                        <MyEntryCard
+                          key={entry.id}
+                          entry={entry}
+                          selfCheckinByClassId={selfCheckinByClassId}
+                          onCheckInClick={handleCheckInClick}
+                          onEditClick={handleEditClick}
+                          onReceiptClick={handleReceiptClick}
+                          onResultRevealClick={setResultRevealModel}
+                          seenResultReleaseKeys={seenResultReleaseKeys}
+                        />
+                      ))
+                    )}
+                  </TabsContent>
+                </PrimaryTabs>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -462,6 +511,9 @@ interface EmptyStateProps {
   selectedTab: string;
 }
 
+// Per-tab empty state. The whole-page zero-state (no entries at all) is handled
+// upstream by FirstRunZeroState, so by the time this renders the exhibitor has
+// entries — just none matching the active filter (e.g. an empty Waitlist tab).
 const EmptyState: React.FC<EmptyStateProps> = ({ selectedTab }) => (
   <div className="myk9-entries-card text-center">
     <div className="bg-muted/50 rounded-full p-6 mb-4 inline-block">
@@ -469,9 +521,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({ selectedTab }) => (
     </div>
     <h3 className="text-lg font-semibold mb-2">No entries found</h3>
     <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-      {selectedTab === 'all'
-        ? "You haven't entered any shows yet"
-        : `No entries match the ${selectedTab} filter`}
+      No entries match the {selectedTab} filter
     </p>
     <Button
       asChild
@@ -651,20 +701,20 @@ const WaitListSection: React.FC<WaitListSectionProps> = ({
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{entry.dogName}</p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {entry.className} — {entry.showName}
+                      {entry.className} <span aria-hidden="true">·</span> {entry.showName}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {entry.status === 'offered' && (
-                    <Badge variant="outline" className="border-green-500/50 text-success text-xs">
+                    <Badge variant="outline" className="border-success/50 text-success text-xs">
                       Spot Offered
                     </Badge>
                   )}
                   <button
                     onClick={() => onWithdraw(entry.id)}
                     disabled={isWithdrawing}
-                    className="text-xs text-muted-foreground hover:text-destructive transition-colors duration-150 disabled:opacity-50"
+                    className="inline-flex min-h-[44px] items-center rounded px-2 text-xs text-muted-foreground transition-colors duration-150 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50"
                   >
                     Withdraw
                   </button>

@@ -103,7 +103,7 @@ export function MonogramEntryReceived({
           }}
         >
           Your entry is{' '}
-          <span style={{ fontStyle: 'italic', color: BRONZE }}>ready</span>.
+          <span style={{ fontStyle: 'italic', color: BRONZE }}>submitted</span>.
         </h2>
         <p
           style={{

@@ -113,7 +113,7 @@ export function HeritageEntryReceived({
             margin: '0 0 6px',
           }}
         >
-          Your entry is <em style={{ color: CLARET, fontStyle: 'italic' }}>ready</em>.
+          Your entry is <em style={{ color: CLARET, fontStyle: 'italic' }}>submitted</em>.
         </h2>
 
         <p

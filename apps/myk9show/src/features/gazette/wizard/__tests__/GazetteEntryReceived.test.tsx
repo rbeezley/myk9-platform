@@ -35,9 +35,9 @@ const BASE_PROPS = {
 };
 
 describe('GazetteEntryReceived', () => {
-  it('renders the ready heading', () => {
+  it('renders the submitted heading', () => {
     render(<GazetteEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByRole('heading', { name: /ready/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /submitted/i })).toBeTruthy();
   });
 
   it('renders the club name in the mini-masthead (auto-italic split)', () => {

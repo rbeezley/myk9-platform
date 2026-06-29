@@ -114,8 +114,8 @@ export function CartPreviewPanel({
             className={cn(
               'flex items-center gap-2 p-2 rounded-md mt-2',
               showUrgentWarning
-                ? 'bg-red-50 text-red-700 border border-red-200'
-                : 'bg-amber-50 text-amber-700 border border-amber-200'
+                ? 'bg-destructive/10 text-destructive border border-destructive/30'
+                : 'bg-warning/10 text-warning border border-warning/30'
             )}
           >
             <AlertTriangle className="h-4 w-4 flex-shrink-0" />

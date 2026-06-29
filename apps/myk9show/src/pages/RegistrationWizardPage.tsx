@@ -789,7 +789,7 @@ function RegistrationWizardContent() {
                 canGoNext={canProceed()}
                 onBack={handleBack}
                 onNext={handleNext}
-                nextLabel={isLastStep ? 'Complete Registration' : 'Next'}
+                nextLabel={isLastStep ? 'Finish' : 'Next'}
                 backLabel={currentStep === 0 ? 'Cancel' : 'Back'}
                 isLoading={isSubmitting}
               />

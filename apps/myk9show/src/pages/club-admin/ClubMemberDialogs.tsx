@@ -25,12 +25,15 @@ import {
 
 // --- Badge color constants ---
 
+// Membership-type badges use semantic theme tokens (not raw palette) so they
+// stay WCAG-AA legible in both light and dark mode. info uses text-info-strong,
+// the AA-safe text shade for the bg-info/10 tint pattern.
 // eslint-disable-next-line react-refresh/only-export-components
 export const TYPE_BADGE_CLASSES: Record<MembershipType, string> = {
-  full: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  associate: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-  junior: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  honorary: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+  full: 'bg-primary/10 text-primary border-primary/20',
+  associate: 'bg-info/10 text-info-strong border-info/20',
+  junior: 'bg-warning/10 text-warning border-warning/20',
+  honorary: 'bg-success/10 text-success border-success/20',
 };
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -42,6 +45,14 @@ export const STATUS_BADGE_CLASSES: Record<MembershipStatus, string> = {
 };
 
 // --- Member Action Menu ---
+
+// The action rows are plain buttons in a disclosure popup, NOT an ARIA menu:
+// we deliberately don't claim role="menu"/"menuitem" because the roving-focus
+// keyboard contract (Arrow/Home/End) isn't implemented here. Tab still reaches
+// every button and click-outside closes the popup. min-h-11 holds each row at
+// the 44px touch-target floor (text-sm + py-2.5 alone is only 40px).
+const MENU_ITEM_BASE =
+  'flex min-h-11 w-full items-center px-3 py-2.5 text-left text-sm transition-colors';
 
 interface ActionMenuProps {
   member: ClubMember;
@@ -66,7 +77,9 @@ export const MemberActionMenu: React.FC<ActionMenuProps> = ({
     <div className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label={`Actions for ${member.personName || 'member'}`}
+        aria-expanded={open}
       >
         <MoreVertical className="h-4 w-4" />
       </button>
@@ -87,7 +100,7 @@ export const MemberActionMenu: React.FC<ActionMenuProps> = ({
                     setOpen(false);
                   }}
                   disabled={member.membershipType === type}
-                  className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${
+                  className={`${MENU_ITEM_BASE} ${
                     member.membershipType === type
                       ? 'text-muted-foreground/50 cursor-default'
                       : 'hover:bg-muted/50 text-foreground'
@@ -116,7 +129,7 @@ export const MemberActionMenu: React.FC<ActionMenuProps> = ({
                     setOpen(false);
                   }}
                   disabled={member.membershipStatus === status}
-                  className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${
+                  className={`${MENU_ITEM_BASE} ${
                     member.membershipStatus === status
                       ? 'text-muted-foreground/50 cursor-default'
                       : 'hover:bg-muted/50 text-foreground'
@@ -141,7 +154,7 @@ export const MemberActionMenu: React.FC<ActionMenuProps> = ({
                 onToggleShowAccess(member.personId, !hasShowAccess);
                 setOpen(false);
               }}
-              className={`w-full text-left px-3 py-1.5 text-sm transition-colors flex items-center gap-2 ${
+              className={`${MENU_ITEM_BASE} gap-2 ${
                 hasShowAccess
                   ? 'text-warning hover:bg-warning/10'
                   : 'text-success hover:bg-success/10'
@@ -158,7 +171,7 @@ export const MemberActionMenu: React.FC<ActionMenuProps> = ({
                 onRemove(member.id);
                 setOpen(false);
               }}
-              className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-2"
+              className={`${MENU_ITEM_BASE} gap-2 text-destructive hover:bg-destructive/10`}
             >
               <Trash2 className="h-3.5 w-3.5" />
               Remove Member
@@ -234,7 +247,8 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
           </div>
           <button
             onClick={handleClose}
-            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            aria-label="Close dialog"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <X className="h-5 w-5" />
           </button>
@@ -379,7 +393,8 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
           </div>
           <button
             onClick={handleClose}
-            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            aria-label="Close dialog"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <X className="h-5 w-5" />
           </button>

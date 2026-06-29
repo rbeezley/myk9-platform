@@ -15,15 +15,12 @@ import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { PageTransition } from '@/components/common/PageTransition';
-import { Users, Plus, Shield, Search, Trash2, KeyRound } from 'lucide-react';
+import { Users, Plus, Shield, Search, AlertTriangle } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
 import { ScopeType, UserRole } from '@/types/auth-types';
 import {
-  MEMBERSHIP_TYPE_LABELS,
-  MEMBERSHIP_STATUS_LABELS,
-  OFFICER_POSITION_LABELS,
   OFFICER_POSITION_ORDER,
   type MembershipType,
   type MembershipStatus,
@@ -41,14 +38,8 @@ import {
 } from '@/services/database/club-memberships';
 import { rbacService } from '@/services/rbac/RBACService';
 import { logger } from '@/services/LoggingService';
-import {
-  AddMemberDialog,
-  AssignOfficerDialog,
-  MemberActionMenu,
-  TYPE_BADGE_CLASSES,
-  STATUS_BADGE_CLASSES,
-} from './ClubMemberDialogs';
-import { format } from 'date-fns';
+import { AddMemberDialog, AssignOfficerDialog } from './ClubMemberDialogs';
+import { MembersTable, OfficersTable } from './ClubMemberTables';
 
 const CLUB_MEMBERS_TABS: PrimaryTabDef[] = [
   { id: 'members', label: 'Members', icon: Users },
@@ -244,7 +235,36 @@ const ClubMembersPage: React.FC = () => {
     return (
       <PageTransition>
         <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+          <div
+            className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"
+            role="status"
+            aria-label="Loading members"
+          />
+        </div>
+      </PageTransition>
+    );
+  }
+
+  // Error state — distinguish a failed load from a genuinely empty roster, so an
+  // admin never mistakes "couldn't load" for "no members yet".
+  if (membersQuery.isError) {
+    return (
+      <PageTransition>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Card className="bg-gradient-to-br from-card to-card/80 border-border/50 backdrop-blur-xl">
+            <CardContent className="pt-6 flex flex-col items-center text-center max-w-sm">
+              <div className="bg-destructive/10 rounded-full p-4 mb-4">
+                <AlertTriangle className="h-8 w-8 text-destructive" />
+              </div>
+              <h2 className="text-lg font-semibold text-foreground mb-1">
+                We couldn&apos;t load your members
+              </h2>
+              <p className="text-muted-foreground mb-4">
+                Something went wrong reaching the roster. Check your connection and try again.
+              </p>
+              <Button onClick={() => membersQuery.refetch()}>Try again</Button>
+            </CardContent>
+          </Card>
         </div>
       </PageTransition>
     );
@@ -313,103 +333,16 @@ const ClubMembersPage: React.FC = () => {
                 </div>
 
                 {/* Members Table */}
-                <div className="overflow-x-auto rounded-xl border border-border/30">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border/30 bg-muted/20">
-                        <th className="text-left px-4 py-3 font-semibold text-muted-foreground">
-                          Name
-                        </th>
-                        <th className="text-left px-4 py-3 font-semibold text-muted-foreground hidden sm:table-cell">
-                          Email
-                        </th>
-                        <th className="text-left px-4 py-3 font-semibold text-muted-foreground">
-                          Type
-                        </th>
-                        <th className="text-left px-4 py-3 font-semibold text-muted-foreground">
-                          Status
-                        </th>
-                        <th className="text-left px-4 py-3 font-semibold text-muted-foreground hidden md:table-cell">
-                          Joined
-                        </th>
-                        <th className="text-right px-4 py-3 font-semibold text-muted-foreground">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredMembers.map(member => (
-                        <tr
-                          key={member.id}
-                          className="border-b border-border/20 hover:bg-muted/30 transition-colors"
-                        >
-                          <td className="px-4 py-3 font-medium text-foreground">
-                            <span className="flex items-center gap-2">
-                              {member.personName || 'Unknown'}
-                              {showManagerIds.has(member.personId) && (
-                                <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-xs">
-                                  <KeyRound className="h-3 w-3 mr-1" />
-                                  Show Manager
-                                </Badge>
-                              )}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-muted-foreground hidden sm:table-cell">
-                            {member.personEmail || '—'}
-                          </td>
-                          <td className="px-4 py-3">
-                            <Badge className={TYPE_BADGE_CLASSES[member.membershipType]}>
-                              {MEMBERSHIP_TYPE_LABELS[member.membershipType]}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3">
-                            <Badge className={STATUS_BADGE_CLASSES[member.membershipStatus]}>
-                              {MEMBERSHIP_STATUS_LABELS[member.membershipStatus]}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
-                            {member.joinedDate
-                              ? format(new Date(member.joinedDate), 'MMM d, yyyy')
-                              : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <MemberActionMenu
-                              member={member}
-                              hasShowAccess={showManagerIds.has(member.personId)}
-                              onChangeType={handleChangeType}
-                              onChangeStatus={handleChangeStatus}
-                              onRemove={handleRemoveMember}
-                              onToggleShowAccess={handleToggleShowAccess}
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-
-                  {/* Empty state */}
-                  {filteredMembers.length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-12">
-                      <div className="bg-muted/50 rounded-full p-6 mb-4">
-                        <Users className="h-12 w-12 text-muted-foreground" />
-                      </div>
-                      <h3 className="text-lg font-semibold mb-2 text-foreground">
-                        {searchQuery ? 'No Members Found' : 'No Members Yet'}
-                      </h3>
-                      <p className="text-muted-foreground mb-4 text-center max-w-sm">
-                        {searchQuery
-                          ? 'Try adjusting your search terms.'
-                          : 'Add your first club member to get started.'}
-                      </p>
-                      {!searchQuery && (
-                        <Button onClick={() => setShowAddMember(true)}>
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Member
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </div>
+                <MembersTable
+                  members={filteredMembers}
+                  showManagerIds={showManagerIds}
+                  searchQuery={searchQuery}
+                  onAddMember={() => setShowAddMember(true)}
+                  onChangeType={handleChangeType}
+                  onChangeStatus={handleChangeStatus}
+                  onRemove={handleRemoveMember}
+                  onToggleShowAccess={handleToggleShowAccess}
+                />
               </TabsContent>
 
               {/* Officers Tab */}
@@ -421,84 +354,11 @@ const ClubMembersPage: React.FC = () => {
                   </Button>
                 </div>
 
-                <div className="overflow-x-auto rounded-xl border border-border/30">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border/30 bg-muted/20">
-                        <th className="text-left px-4 py-3 font-semibold text-muted-foreground">
-                          Position
-                        </th>
-                        <th className="text-left px-4 py-3 font-semibold text-muted-foreground">
-                          Name
-                        </th>
-                        <th className="text-left px-4 py-3 font-semibold text-muted-foreground hidden sm:table-cell">
-                          Email
-                        </th>
-                        <th className="text-left px-4 py-3 font-semibold text-muted-foreground hidden md:table-cell">
-                          Term
-                        </th>
-                        <th className="text-right px-4 py-3 font-semibold text-muted-foreground">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sortedOfficers.map(officer => (
-                        <tr
-                          key={officer.id}
-                          className="border-b border-border/20 hover:bg-muted/30 transition-colors"
-                        >
-                          <td className="px-4 py-3">
-                            <Badge className="bg-primary/10 text-primary border-primary/20">
-                              {OFFICER_POSITION_LABELS[officer.position]}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3 font-medium text-foreground">
-                            {officer.personName || 'Unknown'}
-                          </td>
-                          <td className="px-4 py-3 text-muted-foreground hidden sm:table-cell">
-                            {officer.personEmail || '—'}
-                          </td>
-                          <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
-                            {officer.termStart && officer.termEnd
-                              ? `${format(new Date(officer.termStart), 'MMM yyyy')} - ${format(new Date(officer.termEnd), 'MMM yyyy')}`
-                              : officer.termStart
-                                ? `From ${format(new Date(officer.termStart), 'MMM yyyy')}`
-                                : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <button
-                              onClick={() => removeOfficerMutation.mutate(officer.id)}
-                              className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                              title="Remove from position"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-
-                  {/* Empty state */}
-                  {sortedOfficers.length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-12">
-                      <div className="bg-muted/50 rounded-full p-6 mb-4">
-                        <Shield className="h-12 w-12 text-muted-foreground" />
-                      </div>
-                      <h3 className="text-lg font-semibold mb-2 text-foreground">
-                        No Officers Assigned
-                      </h3>
-                      <p className="text-muted-foreground mb-4 text-center max-w-sm">
-                        Assign officers to manage club positions.
-                      </p>
-                      <Button onClick={() => setShowAssignOfficer(true)}>
-                        <Shield className="h-4 w-4 mr-2" />
-                        Assign Officer
-                      </Button>
-                    </div>
-                  )}
-                </div>
+                <OfficersTable
+                  officers={sortedOfficers}
+                  onAssignOfficer={() => setShowAssignOfficer(true)}
+                  onRemoveOfficer={officerId => removeOfficerMutation.mutate(officerId)}
+                />
               </TabsContent>
             </PrimaryTabs>
           </CardContent>

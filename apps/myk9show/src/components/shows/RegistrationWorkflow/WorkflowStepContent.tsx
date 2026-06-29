@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { DogSelectionStep } from './DogSelectionStep';
 import { DogSelectionStepEnhanced } from './DogSelectionStepEnhanced';
 import { ClassSelectionStep } from './ClassSelectionStep';
@@ -22,7 +23,6 @@ import {
 import type { PaymentMethod, PaymentDetails } from '@/types/show-registration-types';
 import { getErrorMessage } from '@myk9/core';
 import { notifications } from '@/lib/notifications';
-import { logger } from '@/services/LoggingService';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info } from 'lucide-react';
 import type { WorkflowConfig } from './RegistrationWorkflow.types';
@@ -223,9 +223,9 @@ export function WorkflowStepContent({
               <Info className="h-4 w-4" />
               <AlertDescription>
                 No dogs registered yet. Please{' '}
-                <a href="/dogs" className="underline font-medium text-primary">
+                <Link to="/dogs" className="underline font-medium text-primary">
                   register a dog
-                </a>{' '}
+                </Link>{' '}
                 before entering a show.
               </AlertDescription>
             </Alert>
@@ -319,9 +319,6 @@ export function WorkflowStepContent({
                   notifications.error(getErrorMessage(error));
                 }
               }
-            }}
-            onNotificationToggle={(type, enabled) => {
-              logger.debug(`Notification ${type}: ${enabled}`, 'shows', {});
             }}
           />
         ))}

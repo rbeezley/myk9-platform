@@ -31,8 +31,12 @@ describe('registration steps — dark-mode theming guards', () => {
     expect(dogStep).toContain('text-warning'); // warnings
   });
 
-  it('ClassSelectionStep status colors carry dark variants and use bg-muted', () => {
-    expect(classComponents).toContain('dark:text-teal-400');
+  it('ClassSelectionStep status colors use dark-aware semantic tokens, not bg-muted', () => {
+    // The "already entered" state uses the theme-aware --success token (light
+    // green-800 / dark green-400) instead of a hardcoded teal palette class, so
+    // it adapts to the in-app dark toggle without a dark: variant.
+    expect(classComponents).toContain('text-success');
+    expect(classComponents).not.toContain('text-teal-');
     expect(classComponents).not.toContain('bg-gray-50');
   });
 

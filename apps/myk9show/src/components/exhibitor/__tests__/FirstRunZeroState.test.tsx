@@ -52,4 +52,16 @@ describe('FirstRunZeroState', () => {
       expect(screen.queryByText(/Add Your First Dog/i)).not.toBeInTheDocument();
     });
   });
+
+  describe('dog ownership still resolving (hasDogs undefined)', () => {
+    it('keeps the call-to-action dog-neutral with only Browse Shows', () => {
+      render(<FirstRunZeroState hasDogs={undefined} onAddDog={vi.fn()} />);
+      const browse = screen.getByRole('link', { name: /Browse Shows/i });
+      expect(browse).toHaveAttribute('href', '/shows');
+      // No dog button either way — we must not guess "first dog" vs "another dog"
+      // before the query settles (avoids the wrong-CTA flash).
+      expect(screen.queryByRole('button', { name: /Add Your First Dog/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Add Another Dog/i })).not.toBeInTheDocument();
+    });
+  });
 });

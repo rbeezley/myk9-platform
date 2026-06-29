@@ -17,13 +17,22 @@ import { PawPrint, CalendarPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface FirstRunZeroStateProps {
-  /** Whether the exhibitor already has at least one dog on file. */
-  hasDogs: boolean;
+  /**
+   * Whether the exhibitor already has at least one dog on file.
+   * `undefined` means dog ownership is still resolving — in that case we keep the
+   * call-to-action dog-neutral (Browse Shows only) so we never flash the wrong
+   * "Add Your First Dog" / "Add Another Dog" copy before the answer is known.
+   */
+  hasDogs: boolean | undefined;
   /** Opens the Add Dog panel (shown as the primary action when hasDogs is false). */
   onAddDog: () => void;
 }
 
 export const FirstRunZeroState: React.FC<FirstRunZeroStateProps> = ({ hasDogs, onAddDog }) => {
+  // While ownership is unknown, lead with the universally-safe "Browse Shows"
+  // and withhold any dog-specific button until the query settles.
+  const dogOwnershipKnown = hasDogs !== undefined;
+
   return (
     <div className="rounded-2xl border border-border/60 bg-card p-8 text-center sm:p-12">
       <div className="mx-auto mb-5 inline-flex items-center justify-center rounded-full border border-primary/15 bg-primary/8 p-5">
@@ -59,11 +68,20 @@ export const FirstRunZeroState: React.FC<FirstRunZeroStateProps> = ({ hasDogs, o
           </>
         ) : (
           <>
-            <Button size="lg" onClick={onAddDog}>
-              <PawPrint className="mr-2 h-4 w-4" />
-              Add Your First Dog
-            </Button>
-            <Button asChild variant="outline" size="lg">
+            {/* hasDogs === false → lead with Add Your First Dog. hasDogs ===
+                undefined (still resolving) → omit the dog button entirely and
+                let Browse Shows stand alone until ownership is known. */}
+            {dogOwnershipKnown && (
+              <Button size="lg" onClick={onAddDog}>
+                <PawPrint className="mr-2 h-4 w-4" />
+                Add Your First Dog
+              </Button>
+            )}
+            <Button
+              asChild
+              variant={dogOwnershipKnown ? 'outline' : 'default'}
+              size="lg"
+            >
               <Link to="/shows">
                 <CalendarPlus className="mr-2 h-4 w-4" />
                 Browse Shows

@@ -112,7 +112,17 @@ const MyEntriesPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const ownerId = userWithRoles?.databaseUserId ?? '';
 
-  const { data: dogs = [] } = useDogsByOwnerQuery(ownerId, !!ownerId);
+  const { data: dogs = [], isLoading: dogsLoading } = useDogsByOwnerQuery(ownerId, !!ownerId);
+
+  // Tri-state dog ownership for the first-run zero-state. Resolving it eagerly
+  // off `dogs.length` flashes "Add Your First Dog" at an exhibitor who *does*
+  // own dogs while the query is still in flight. So:
+  //   - no ownerId  → the query is disabled and there can be no dogs on file → false
+  //   - still loading → ownership unknown → undefined (the CTA stays dog-neutral)
+  //   - settled     → the real answer
+  // `undefined` is deliberately distinct from `false` so FirstRunZeroState never
+  // commits to the no-dogs branch before ownership is known.
+  const hasDogs: boolean | undefined = !ownerId ? false : dogsLoading ? undefined : dogs.length > 0;
 
   // Note: Date-range-aware summary counts live in useMyEntriesFilters
   // (entryStats) so the top cards and filters never drift. Only tab counts
@@ -201,18 +211,19 @@ const MyEntriesPage: React.FC = () => {
     withdraw,
   } = useMyWaitlistEntries(exhibitorProfile?.id);
 
-  // Handlers
-  const handleCheckInClick = (entry: MyEntry, classEntry: EntryClass) => {
+  // Handlers — stable identities so the memoized MyEntryCard list doesn't
+  // re-render every card when an unrelated dialog opens or a tab changes.
+  const handleCheckInClick = useCallback((entry: MyEntry, classEntry: EntryClass) => {
     setCheckInDialog({ open: true, entry, classEntry });
-  };
+  }, []);
 
-  const handleEditClick = (entry: MyEntry) => {
+  const handleEditClick = useCallback((entry: MyEntry) => {
     setEditDialog({ open: true, entry });
-  };
+  }, []);
 
-  const handleReceiptClick = (entry: MyEntry) => {
+  const handleReceiptClick = useCallback((entry: MyEntry) => {
     setReceiptDialog({ open: true, entry });
-  };
+  }, []);
 
   React.useEffect(() => {
     const keys = new Set<string>();
@@ -350,10 +361,7 @@ const MyEntriesPage: React.FC = () => {
               INTENT: Exhibitor first run must feel frictionless ("respects my
               time"), never like a form to fill. */}
           {entries.length === 0 ? (
-            <FirstRunZeroState
-              hasDogs={(dogs ?? []).length > 0}
-              onAddDog={() => setAddDogOpen(true)}
-            />
+            <FirstRunZeroState hasDogs={hasDogs} onAddDog={() => setAddDogOpen(true)} />
           ) : (
             <>
               <CompactStatsRow
@@ -380,9 +388,15 @@ const MyEntriesPage: React.FC = () => {
                 onAddDog={() => setAddDogOpen(true)}
               />
 
+              {/* This branch only renders when entries.length > 0, so the count
+                  badge is always shown here. aria-hidden keeps it decorative —
+                  the tab counts already convey the number to assistive tech. */}
               <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                 My Entries
-                <span className="inline-flex items-center justify-center rounded-full bg-muted text-muted-foreground text-xs font-medium w-5 h-5">
+                <span
+                  aria-hidden="true"
+                  className="inline-flex items-center justify-center rounded-full bg-muted text-muted-foreground text-xs font-medium w-5 h-5"
+                >
                   {entries.length}
                 </span>
               </p>
@@ -666,20 +680,20 @@ const WaitListSection: React.FC<WaitListSectionProps> = ({
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{entry.dogName}</p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {entry.className} — {entry.showName}
+                      {entry.className} <span aria-hidden="true">·</span> {entry.showName}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {entry.status === 'offered' && (
-                    <Badge variant="outline" className="border-green-500/50 text-success text-xs">
+                    <Badge variant="outline" className="border-success/50 text-success text-xs">
                       Spot Offered
                     </Badge>
                   )}
                   <button
                     onClick={() => onWithdraw(entry.id)}
                     disabled={isWithdrawing}
-                    className="text-xs text-muted-foreground hover:text-destructive transition-colors duration-150 disabled:opacity-50"
+                    className="inline-flex min-h-[44px] items-center rounded px-2 text-xs text-muted-foreground transition-colors duration-150 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50"
                   >
                     Withdraw
                   </button>

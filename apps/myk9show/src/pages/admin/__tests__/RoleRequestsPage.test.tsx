@@ -87,4 +87,46 @@ describe('RoleRequestsPage', () => {
       expect(denyRoleRequest).toHaveBeenCalledWith('request-1', 'Need club confirmation.');
     });
   });
+
+  it('shows the granted club name so the admin can tell which club the request maps to', async () => {
+    getAllRoleRequests.mockResolvedValueOnce([
+      {
+        id: 'request-2',
+        authUserId: 'auth-2',
+        personId: 'person-2',
+        requestedRole: 'secretary',
+        requestedScope: 'club',
+        clubId: 'club-1',
+        clubName: 'Best Club',
+        showId: null,
+        status: 'approved',
+        requesterNote: null,
+        reviewerNote: 'Confirmed by phone.',
+        reviewedBy: 'admin-1',
+        reviewedAt: '2026-05-25T12:00:00Z',
+        createdAt: '2026-05-24T12:00:00Z',
+        updatedAt: '2026-05-25T12:00:00Z',
+        requesterName: 'Jordan Lee',
+        requesterEmail: 'jordan@example.com',
+      },
+    ]);
+
+    render(<RoleRequestsPage />, { initialRoute: '/admin/role-requests' });
+
+    // Approved requests live behind the "Approved" filter.
+    await screen.findByRole('button', { name: /Approved \(1\)/ });
+    await userEvent.setup().click(screen.getByRole('button', { name: /Approved \(1\)/ }));
+
+    expect(await screen.findByText(/Best Club/)).toBeInTheDocument();
+  });
+
+  it('marks the active status filter with aria-pressed for assistive tech', async () => {
+    render(<RoleRequestsPage />, { initialRoute: '/admin/role-requests' });
+
+    const pendingFilter = await screen.findByRole('button', { name: /Pending \(1\)/ });
+    expect(pendingFilter).toHaveAttribute('aria-pressed', 'true');
+
+    const allFilter = screen.getByRole('button', { name: /All \(1\)/ });
+    expect(allFilter).toHaveAttribute('aria-pressed', 'false');
+  });
 });

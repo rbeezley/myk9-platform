@@ -49,8 +49,11 @@ vi.mock('@/services/database/entries', () => ({
 vi.mock('@/hooks/mutations/useCheckInMutation', () => ({
   useCheckInMutation: (...args: unknown[]) => mockUseCheckInMutation(...args),
 }));
+const mockUseDogsByOwnerQuery = vi.hoisted(() =>
+  vi.fn(() => ({ data: [] as unknown[], isLoading: false }))
+);
 vi.mock('@/hooks/queries/useDogsDatabase', () => ({
-  useDogsByOwnerQuery: () => ({ data: [] }),
+  useDogsByOwnerQuery: (...args: unknown[]) => mockUseDogsByOwnerQuery(...args),
 }));
 vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
   useEntryStatisticsQuery: () => ({ data: null }),
@@ -172,10 +175,41 @@ function makeResultRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
+// Authenticate with a resolved person id so getUserEntries actually runs.
+const seedAuthWithPerson = () =>
+  (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
+    user: mockUser,
+    userWithRoles: { ...mockUser, databaseUserId: 'person-1' },
+    isAuthenticated: true,
+  });
+
+// Seed one loaded entry so the page renders its full stat/tab layout instead of
+// the no-entry FirstRunZeroState. The row is unscored/unreleased to avoid the
+// result-reveal dialog firing during structural assertions.
+const seedLoadedEntry = () => {
+  seedAuthWithPerson();
+  (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
+    data: [
+      makeResultRow({
+        is_scored: false,
+        result_status: null,
+        final_placement: null,
+        class_results_released_at: null,
+      }),
+    ],
+    error: null,
+  });
+};
+
 describe('MyEntriesPage UI Improvements', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    // clearAllMocks resets call history but not return-value overrides, so restore
+    // the defaults (no dogs, no entries) for every test explicitly — otherwise a
+    // prior seedLoadedEntry() leaks its resolved entry into later zero-state tests.
+    mockUseDogsByOwnerQuery.mockReturnValue({ data: [], isLoading: false });
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [], error: null });
     (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
       user: mockUser,
       userWithRoles: null,
@@ -191,9 +225,10 @@ describe('MyEntriesPage UI Improvements', () => {
 
   describe('Fake Trend Data Removal', () => {
     it('should NOT display hardcoded trend percentages', async () => {
+      seedLoadedEntry();
       renderWithProviders(<MyEntriesPage />);
 
-      // Wait for initial render - use heading role to be specific
+      // Wait for the full layout (tabs only render once entries exist)
       await screen.findByRole('tablist');
 
       // Verify no fake trend percentages exist
@@ -204,6 +239,7 @@ describe('MyEntriesPage UI Improvements', () => {
     });
 
     it('should render the stats area without fake data', async () => {
+      seedLoadedEntry();
       renderWithProviders(<MyEntriesPage />);
 
       await screen.findByRole('tablist');
@@ -219,17 +255,17 @@ describe('MyEntriesPage UI Improvements', () => {
 
   describe('Enter a Show CTA', () => {
     it('should display "Enter a Show" button in header', async () => {
+      // The header CTA is present in every state, including the zero-state.
       renderWithProviders(<MyEntriesPage />);
 
-      await screen.findByRole('tablist');
-
-      const enterShowButton = screen.getByRole('button', { name: /enter a show/i });
+      const enterShowButton = await screen.findByRole('button', { name: /enter a show/i });
       expect(enterShowButton).toBeInTheDocument();
     });
   });
 
   describe('Tab Structure', () => {
     it('should render tabs without redundant counts', async () => {
+      seedLoadedEntry();
       renderWithProviders(<MyEntriesPage />);
 
       await screen.findByRole('tablist');
@@ -244,6 +280,7 @@ describe('MyEntriesPage UI Improvements', () => {
     });
 
     it('should have scrollable tab container for mobile', async () => {
+      seedLoadedEntry();
       renderWithProviders(<MyEntriesPage />);
 
       await screen.findByRole('tablist');
@@ -253,24 +290,61 @@ describe('MyEntriesPage UI Improvements', () => {
     });
   });
 
-  describe('Empty State', () => {
-    it('should display helpful empty state message', async () => {
+  describe('Zero State (no entries)', () => {
+    it('renders FirstRunZeroState instead of the stat/tab stack', async () => {
       renderWithProviders(<MyEntriesPage />);
 
-      await screen.findByRole('tablist');
-
-      // When no entries, should show helpful message - use getAllBy since there may be multiple matches
-      const emptyMessages = screen.getAllByText(/no entries found|haven't entered any shows/i);
-      expect(emptyMessages.length).toBeGreaterThan(0);
+      // The welcoming zero-state replaces the whole stat/dog/tab stack.
+      expect(await screen.findByText(/Welcome!/i)).toBeInTheDocument();
+      // No tabs and no zeroed stat noise for a brand-new exhibitor.
+      expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
     });
 
-    it('should display Browse All Shows button in empty state', async () => {
+    it('offers a Browse Shows link pointing at /shows', async () => {
       renderWithProviders(<MyEntriesPage />);
 
-      await screen.findByRole('tablist');
+      const browse = await screen.findByRole('link', { name: /browse shows/i });
+      expect(browse).toHaveAttribute('href', '/shows');
+    });
 
-      const browseButton = screen.getByRole('link', { name: /browse all shows/i });
-      expect(browseButton).toBeInTheDocument();
+    it('leads with "Add Your First Dog" when the exhibitor has no dogs', async () => {
+      // Default auth has no databaseUserId → ownerId is empty → dogs are
+      // definitively none, so the first-dog CTA is shown (no loading flash).
+      renderWithProviders(<MyEntriesPage />);
+
+      expect(
+        await screen.findByRole('button', { name: /add your first dog/i })
+      ).toBeInTheDocument();
+    });
+
+    it('leads with browsing shows (no first-dog CTA) when the exhibitor already has dogs', async () => {
+      seedAuthWithPerson();
+      mockUseDogsByOwnerQuery.mockReturnValue({
+        data: [{ id: 'dog-1', name: 'Koda' }],
+        isLoading: false,
+      });
+      // No entries seeded (default getUserEntries → []), so still zero-state.
+      renderWithProviders(<MyEntriesPage />);
+
+      expect(await screen.findByText(/find a show/i)).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /add your first dog/i })
+      ).not.toBeInTheDocument();
+    });
+
+    it('stays dog-neutral while dog ownership is still resolving', async () => {
+      seedAuthWithPerson();
+      // Dogs query in flight: ownership unknown → must not flash a dog CTA.
+      mockUseDogsByOwnerQuery.mockReturnValue({ data: [], isLoading: true });
+      renderWithProviders(<MyEntriesPage />);
+
+      expect(await screen.findByRole('link', { name: /browse shows/i })).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /add your first dog/i })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /add another dog/i })
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -278,7 +352,8 @@ describe('MyEntriesPage UI Improvements', () => {
     it('does not load entries when no person id source is available', async () => {
       renderWithProviders(<MyEntriesPage />);
 
-      await screen.findByRole('tablist');
+      // No person id → no entries → zero-state (no tablist to await).
+      await screen.findByText(/Welcome!/i);
 
       expect(getUserEntries).not.toHaveBeenCalled();
     });
@@ -292,9 +367,9 @@ describe('MyEntriesPage UI Improvements', () => {
 
       renderWithProviders(<MyEntriesPage />);
 
-      await screen.findByRole('tablist');
-
-      expect(getUserEntries).toHaveBeenCalledWith('person-1');
+      // getUserEntries returns [] by default → zero-state, so assert the call
+      // directly rather than waiting on a tablist that never renders.
+      await waitFor(() => expect(getUserEntries).toHaveBeenCalledWith('person-1'));
     });
 
     it('routes exhibitor self check-in through the owner-scoped RPC mutation', async () => {
@@ -551,6 +626,7 @@ describe('Status Stepper Integration', () => {
   });
 
   it('should use EntryStatusStepper instead of progress bar', async () => {
+    seedLoadedEntry();
     renderWithProviders(<MyEntriesPage />);
 
     await screen.findByRole('tablist');

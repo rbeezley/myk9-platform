@@ -41,6 +41,7 @@ const PermissionManagementPage: React.FC = () => {
   const { userRoles, userPermissions, effectivePermissions, isLoading } = useRBAC();
   const [roleCount, setRoleCount] = useState<number | null>(null);
   const [permissions, setPermissions] = useState<Permission[] | null>(null);
+  const [permissionsError, setPermissionsError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useUrlTab(
     ['overview', 'permissions', 'audit'] as const,
     'overview'
@@ -55,14 +56,20 @@ const PermissionManagementPage: React.FC = () => {
         ]);
         setRoleCount(roles.length);
         setPermissions(allPermissions);
-      } catch {
-        // Fall back to showing '—' via null state
+      } catch (err) {
+        // Counts fall back to '—'; the inventory tab surfaces the error explicitly.
+        setPermissionsError(
+          err instanceof Error ? err.message : 'Failed to load permissions'
+        );
       }
     }
     loadCounts();
   }, []);
 
   const permissionCount = permissions?.length ?? null;
+  // Distinguish "still fetching" from "genuinely empty" so the inventory tab
+  // doesn't flash a false "No permissions defined" during a direct deep-load.
+  const permissionsLoading = permissions === null && !permissionsError;
 
   // Quick stats for dashboard
   const stats = [
@@ -410,7 +417,11 @@ const PermissionManagementPage: React.FC = () => {
                   Every permission defined in the system, grouped by resource
                 </p>
               </div>
-              <PermissionInventory permissions={permissions ?? []} />
+              <PermissionInventory
+                permissions={permissions ?? []}
+                isLoading={permissionsLoading}
+                error={permissionsError}
+              />
             </div>
           </div>
         </div>

@@ -62,6 +62,23 @@ describe('PermissionInventory', () => {
     expect(screen.getByText('No permissions are defined in the system')).toBeInTheDocument();
   });
 
+  it('shows a loading skeleton instead of the empty state while fetching', () => {
+    render(<PermissionInventory permissions={[]} isLoading />);
+    expect(screen.getByLabelText('Loading permissions')).toBeInTheDocument();
+    // The false "no permissions" message must NOT appear during loading.
+    expect(
+      screen.queryByText('No permissions are defined in the system')
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows the error instead of the empty state when the fetch fails', () => {
+    render(<PermissionInventory permissions={[]} error="Boom" />);
+    expect(screen.getByText('Boom')).toBeInTheDocument();
+    expect(
+      screen.queryByText('No permissions are defined in the system')
+    ).not.toBeInTheDocument();
+  });
+
   it('sorts permissions within a resource group by code', () => {
     render(<PermissionInventory permissions={permissions} />);
     // show:manage sorts before show:view alphabetically by code

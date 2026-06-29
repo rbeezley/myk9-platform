@@ -12,7 +12,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Search, KeyRound, RotateCcw } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Search, KeyRound, RotateCcw, AlertCircle } from 'lucide-react';
 import type { Permission } from '@/types/rbac-types';
 import {
   getPermissionResource,
@@ -21,9 +22,17 @@ import {
 
 interface PermissionInventoryProps {
   permissions: Permission[];
+  /** True while the permission list is still being fetched. */
+  isLoading?: boolean;
+  /** Non-null when the fetch failed; shown instead of the (false) empty state. */
+  error?: string | null;
 }
 
-export const PermissionInventory: React.FC<PermissionInventoryProps> = ({ permissions }) => {
+export const PermissionInventory: React.FC<PermissionInventoryProps> = ({
+  permissions,
+  isLoading = false,
+  error = null,
+}) => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const permissionsByResource = useMemo(() => {
@@ -58,6 +67,38 @@ export const PermissionInventory: React.FC<PermissionInventoryProps> = ({ permis
   );
 
   const matchCount = resources.reduce((sum, r) => sum + permissionsByResource[r].length, 0);
+
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6" aria-busy="true" aria-label="Loading permissions">
+        <Card>
+          <CardContent className="p-6">
+            <div className="h-10 bg-muted rounded animate-pulse" />
+          </CardContent>
+        </Card>
+        {[...Array(3)].map((_, i) => (
+          <Card key={i}>
+            <CardHeader className="pb-3">
+              <div className="h-5 w-40 bg-muted rounded animate-pulse" />
+            </CardHeader>
+            <CardContent className="pt-0 space-y-3">
+              <div className="h-4 bg-muted rounded animate-pulse" />
+              <div className="h-4 w-3/4 bg-muted rounded animate-pulse" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

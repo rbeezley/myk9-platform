@@ -27,6 +27,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useMyPayments, type MyPayment } from '@/features/payments/useMyPayments';
+import { summarizeMyPayments } from '@/features/payments/paymentsSummary';
 import { buildFinishPaymentHref } from '@/features/payments/finishPaymentHref';
 
 function isRetryable(status: string): boolean {
@@ -137,9 +138,7 @@ function PaymentRow({ payment }: { payment: MyPayment }) {
           // is distinguishable when tabbing through the column.
           <Link
             to="/exhibitor/entries"
-            aria-label={`Find the receipt for ${
-              payment.showName ?? 'this payment'
-            } under My Shows`}
+            aria-label={`Find the receipt for ${payment.showName ?? 'this payment'} under My Shows`}
             className="inline-flex min-h-11 items-center gap-1.5 text-sm text-primary hover:underline focus-visible:underline"
           >
             <ReceiptIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -147,12 +146,39 @@ function PaymentRow({ payment }: { payment: MyPayment }) {
           </Link>
         ) : (
           // Match the link's min height so rows stay vertically even.
-          <span className="inline-flex min-h-11 items-center text-muted-foreground">
-            {EMPTY}
-          </span>
+          <span className="inline-flex min-h-11 items-center text-muted-foreground">{EMPTY}</span>
         )}
       </TableCell>
     </TableRow>
+  );
+}
+
+/**
+ * At-a-glance total spent + payment count, so an exhibitor can answer "how much
+ * have I spent" without reading the table. One figure per currency (refunded
+ * orders are excluded by summarizeMyPayments — see its refund note); rendered
+ * only when there is paid, non-refunded spend.
+ */
+function PaymentsSummary({ payments }: { payments: MyPayment[] }) {
+  const totals = summarizeMyPayments(payments);
+  if (totals.length === 0) return null;
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {totals.map(t => (
+        <Card key={t.currency} className="border-primary/40">
+          <CardContent className="py-4">
+            <p className="text-sm text-muted-foreground">Total paid</p>
+            <p className="text-2xl font-semibold tabular-nums text-primary">
+              {formatCents(t.totalPaidCents, t.currency)}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t.paymentCount} {t.paymentCount === 1 ? 'payment' : 'payments'}
+            </p>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
   );
 }
 
@@ -183,10 +209,7 @@ export default function ExhibitorPaymentsPage() {
         </Card>
       ) : isError ? (
         <Card>
-          <CardContent
-            role="alert"
-            className="py-12 text-center text-muted-foreground"
-          >
+          <CardContent role="alert" className="py-12 text-center text-muted-foreground">
             We couldn&apos;t load your payments. Please refresh to try again.
           </CardContent>
         </Card>
@@ -197,27 +220,30 @@ export default function ExhibitorPaymentsPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Show</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Reference</TableHead>
-                  <TableHead>Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {payments.map(p => (
-                  <PaymentRow key={p.id} payment={p} />
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <>
+          <PaymentsSummary payments={payments} />
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Show</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Reference</TableHead>
+                    <TableHead>Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {payments.map(p => (
+                    <PaymentRow key={p.id} payment={p} />
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </>
       )}
     </div>
   );

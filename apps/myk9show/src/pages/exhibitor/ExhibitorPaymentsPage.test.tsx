@@ -35,7 +35,8 @@ describe('ExhibitorPaymentsPage', () => {
   it('renders a payment row with show, amount, status, reference, receipt link', () => {
     render(<ExhibitorPaymentsPage />);
     expect(screen.getByText('Spring Trial')).toBeInTheDocument();
-    expect(screen.getByText('$53.00')).toBeInTheDocument();
+    // $53.00 now appears twice — once in the summary card, once in the table row.
+    expect(screen.getAllByText('$53.00')).toHaveLength(2);
     expect(screen.getByText('Paid')).toBeInTheDocument();
     expect(screen.getByText('pi_abc123')).toBeInTheDocument();
     const receipt = screen.getByRole('link', { name: /find the receipt/i });
@@ -109,6 +110,21 @@ describe('ExhibitorPaymentsPage', () => {
     expect(
       screen.getByRole('link', { name: /find the receipt for spring trial/i })
     ).toBeInTheDocument();
+  });
+
+  it('shows a summary header with total paid and the payment count', () => {
+    render(<ExhibitorPaymentsPage />);
+    expect(screen.getByText('Total paid')).toBeInTheDocument();
+    expect(screen.getByText('1 payment')).toBeInTheDocument();
+  });
+
+  it('omits the summary header when the only order was refunded', () => {
+    state.data = [{ ...payment, status: 'refunded' }];
+    render(<ExhibitorPaymentsPage />);
+    // Refunded orders contribute no spend, so no summary card renders…
+    expect(screen.queryByText('Total paid')).not.toBeInTheDocument();
+    // …but the order still appears in the table.
+    expect(screen.getByText('Refunded')).toBeInTheDocument();
   });
 
   it('shows the empty state when there are no payments', () => {

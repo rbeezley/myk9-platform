@@ -33,7 +33,7 @@ describe('CompactStatsRow', () => {
     expect(grid.getAllByText('entered')).toHaveLength(2);
     expect(grid.getByText('$150')).toBeInTheDocument();
     expect(grid.getByText('Current Fees')).toBeInTheDocument();
-    expect(grid.getByText('Amount due $75')).toHaveClass('text-amber-500');
+    expect(grid.getByText('Amount due $75')).toHaveClass('text-warning');
   });
 
   it('shows paid in full when there is no amount due', () => {
@@ -71,10 +71,10 @@ describe('CompactStatsRow', () => {
     const feeCard = screen.getByLabelText(/Current Fees.*View details/i);
     const feeIcon = feeCard.querySelector('[data-slot="icon"]');
 
-    expect(feeIcon).toHaveClass('text-amber-500');
-    expect(feeIcon).toHaveClass('bg-amber-500/10');
-    expect(feeIcon).toHaveClass('border-amber-500/30');
-    expect(screen.getByText('Amount due $75')).toHaveClass('text-amber-500');
+    expect(feeIcon).toHaveClass('text-warning');
+    expect(feeIcon).toHaveClass('bg-warning/10');
+    expect(feeIcon).toHaveClass('border-warning/30');
+    expect(screen.getByText('Amount due $75')).toHaveClass('text-warning');
   });
 
   it('uses a calmer paid-in-full fee icon when no balance is due', () => {
@@ -83,9 +83,9 @@ describe('CompactStatsRow', () => {
     const feeCard = screen.getByLabelText(/Current Fees.*View details/i);
     const feeIcon = feeCard.querySelector('[data-slot="icon"]');
 
-    expect(feeIcon).toHaveClass('text-emerald-500');
-    expect(feeIcon).toHaveClass('bg-emerald-500/10');
-    expect(feeIcon).toHaveClass('border-emerald-500/25');
+    expect(feeIcon).toHaveClass('text-success');
+    expect(feeIcon).toHaveClass('bg-success/10');
+    expect(feeIcon).toHaveClass('border-success/25');
     expect(screen.getByText('Paid in full')).toHaveClass('text-muted-foreground');
   });
 
@@ -232,7 +232,7 @@ describe('CompactStatsRow', () => {
       render(<CompactStatsRow {...defaultProps} amountDue={75} />);
 
       const due = screen.getByText('$75 due');
-      expect(due).toHaveClass('text-amber-500');
+      expect(due).toHaveClass('text-warning');
       // The toggle recaps entry and show counts without expanding.
       const toggle = screen.getByRole('button', { expanded: false });
       expect(toggle).toHaveTextContent('5');

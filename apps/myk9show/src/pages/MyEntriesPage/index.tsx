@@ -200,18 +200,19 @@ const MyEntriesPage: React.FC = () => {
     withdraw,
   } = useMyWaitlistEntries(exhibitorProfile?.id);
 
-  // Handlers
-  const handleCheckInClick = (entry: MyEntry, classEntry: EntryClass) => {
+  // Handlers — stable identities so the memoized MyEntryCard list doesn't
+  // re-render every card when an unrelated dialog opens or a tab changes.
+  const handleCheckInClick = useCallback((entry: MyEntry, classEntry: EntryClass) => {
     setCheckInDialog({ open: true, entry, classEntry });
-  };
+  }, []);
 
-  const handleEditClick = (entry: MyEntry) => {
+  const handleEditClick = useCallback((entry: MyEntry) => {
     setEditDialog({ open: true, entry });
-  };
+  }, []);
 
-  const handleReceiptClick = (entry: MyEntry) => {
+  const handleReceiptClick = useCallback((entry: MyEntry) => {
     setReceiptDialog({ open: true, entry });
-  };
+  }, []);
 
   React.useEffect(() => {
     const keys = new Set<string>();
@@ -383,7 +384,10 @@ const MyEntriesPage: React.FC = () => {
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
               My Entries
               {entries.length > 0 && (
-                <span className="inline-flex items-center justify-center rounded-full bg-muted text-muted-foreground text-xs font-medium w-5 h-5">
+                <span
+                  aria-hidden="true"
+                  className="inline-flex items-center justify-center rounded-full bg-muted text-muted-foreground text-xs font-medium w-5 h-5"
+                >
                   {entries.length}
                 </span>
               )}
@@ -666,20 +670,20 @@ const WaitListSection: React.FC<WaitListSectionProps> = ({
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{entry.dogName}</p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {entry.className} — {entry.showName}
+                      {entry.className} <span aria-hidden="true">·</span> {entry.showName}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {entry.status === 'offered' && (
-                    <Badge variant="outline" className="border-green-500/50 text-success text-xs">
+                    <Badge variant="outline" className="border-success/50 text-success text-xs">
                       Spot Offered
                     </Badge>
                   )}
                   <button
                     onClick={() => onWithdraw(entry.id)}
                     disabled={isWithdrawing}
-                    className="text-xs text-muted-foreground hover:text-destructive transition-colors duration-150 disabled:opacity-50"
+                    className="inline-flex min-h-[44px] items-center rounded px-2 text-xs text-muted-foreground transition-colors duration-150 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50"
                   >
                     Withdraw
                   </button>

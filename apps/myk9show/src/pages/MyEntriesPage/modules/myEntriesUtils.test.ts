@@ -6,6 +6,7 @@ import {
   getContextualStatusMessage,
   getEntryStatusBadge,
   getPaymentStatusBadge,
+  getStatusIcon,
   normalizeCheckInStatus,
 } from './myEntriesUtils';
 
@@ -107,4 +108,34 @@ describe('My Entries terminal status display', () => {
     expect(screen.getByText('Move-Up Requested')).toBeInTheDocument();
     expect(screen.queryByText('Unknown')).not.toBeInTheDocument();
   });
+});
+
+describe('getStatusIcon theming', () => {
+  // Regression guard: status icons must use semantic theme tokens so they
+  // recolor correctly in dark mode. Hardcoded iOS-palette hex (text-[#34C759]
+  // etc.) bypassed the AA-tuned --success/--warning/--destructive tokens.
+  const cases: Array<{
+    entryStatus: EntryStatus;
+    paymentStatus: PaymentStatus;
+    token: string;
+  }> = [
+    { entryStatus: EntryStatus.COMPLETED, paymentStatus: PaymentStatus.PAID_ONLINE, token: 'text-success' },
+    { entryStatus: EntryStatus.ACCEPTED, paymentStatus: PaymentStatus.PAID_ONLINE, token: 'text-success' },
+    { entryStatus: EntryStatus.REJECTED, paymentStatus: PaymentStatus.PENDING, token: 'text-destructive' },
+    { entryStatus: EntryStatus.PENDING, paymentStatus: PaymentStatus.PENDING, token: 'text-warning' },
+    { entryStatus: EntryStatus.WAITLIST, paymentStatus: PaymentStatus.PAID_ONLINE, token: 'text-primary' },
+  ];
+
+  it.each(cases)(
+    'renders $token for $entryStatus and never a hardcoded hex',
+    ({ entryStatus, paymentStatus, token }) => {
+      const { container } = render(
+        React.createElement(React.Fragment, null, getStatusIcon(entryStatus, paymentStatus))
+      );
+      const svg = container.querySelector('svg');
+      expect(svg).not.toBeNull();
+      expect(svg?.getAttribute('class') ?? '').toContain(token);
+      expect(svg?.getAttribute('class') ?? '').not.toMatch(/text-\[#/);
+    }
+  );
 });

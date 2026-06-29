@@ -9,7 +9,7 @@ describe('resolvePayoutBadge', () => {
     expect(resolvePayoutBadge(row('completed'), true)).toEqual({
       label: 'Paid',
       variant: 'default',
-      className: 'bg-green-600 text-white hover:bg-green-600',
+      className: 'bg-success text-success-foreground hover:bg-success',
     });
     expect(resolvePayoutBadge(row('completed'), false).label).toBe('Paid');
   });

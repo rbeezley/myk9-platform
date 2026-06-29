@@ -46,6 +46,14 @@ export const STATUS_BADGE_CLASSES: Record<MembershipStatus, string> = {
 
 // --- Member Action Menu ---
 
+// The action rows are plain buttons in a disclosure popup, NOT an ARIA menu:
+// we deliberately don't claim role="menu"/"menuitem" because the roving-focus
+// keyboard contract (Arrow/Home/End) isn't implemented here. Tab still reaches
+// every button and click-outside closes the popup. min-h-11 holds each row at
+// the 44px touch-target floor (text-sm + py-2.5 alone is only 40px).
+const MENU_ITEM_BASE =
+  'flex min-h-11 w-full items-center px-3 py-2.5 text-left text-sm transition-colors';
+
 interface ActionMenuProps {
   member: ClubMember;
   hasShowAccess: boolean;
@@ -71,7 +79,6 @@ export const MemberActionMenu: React.FC<ActionMenuProps> = ({
         onClick={() => setOpen(!open)}
         className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         aria-label={`Actions for ${member.personName || 'member'}`}
-        aria-haspopup="menu"
         aria-expanded={open}
       >
         <MoreVertical className="h-4 w-4" />
@@ -79,10 +86,7 @@ export const MemberActionMenu: React.FC<ActionMenuProps> = ({
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div
-            role="menu"
-            className="absolute right-0 top-full mt-1 z-50 w-56 rounded-lg border border-border/50 bg-card shadow-xl backdrop-blur-xl py-1"
-          >
+          <div className="absolute right-0 top-full mt-1 z-50 w-56 rounded-lg border border-border/50 bg-card shadow-xl backdrop-blur-xl py-1">
             {/* Change Type submenu */}
             <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Change Type
@@ -95,9 +99,8 @@ export const MemberActionMenu: React.FC<ActionMenuProps> = ({
                     onChangeType(member.id, type);
                     setOpen(false);
                   }}
-                  role="menuitem"
                   disabled={member.membershipType === type}
-                  className={`w-full text-left px-3 py-2.5 text-sm transition-colors ${
+                  className={`${MENU_ITEM_BASE} ${
                     member.membershipType === type
                       ? 'text-muted-foreground/50 cursor-default'
                       : 'hover:bg-muted/50 text-foreground'
@@ -125,9 +128,8 @@ export const MemberActionMenu: React.FC<ActionMenuProps> = ({
                     onChangeStatus(member.id, status);
                     setOpen(false);
                   }}
-                  role="menuitem"
                   disabled={member.membershipStatus === status}
-                  className={`w-full text-left px-3 py-2.5 text-sm transition-colors ${
+                  className={`${MENU_ITEM_BASE} ${
                     member.membershipStatus === status
                       ? 'text-muted-foreground/50 cursor-default'
                       : 'hover:bg-muted/50 text-foreground'
@@ -148,12 +150,11 @@ export const MemberActionMenu: React.FC<ActionMenuProps> = ({
               Show Access
             </div>
             <button
-              role="menuitem"
               onClick={() => {
                 onToggleShowAccess(member.personId, !hasShowAccess);
                 setOpen(false);
               }}
-              className={`w-full text-left px-3 py-2.5 text-sm transition-colors flex items-center gap-2 ${
+              className={`${MENU_ITEM_BASE} gap-2 ${
                 hasShowAccess
                   ? 'text-warning hover:bg-warning/10'
                   : 'text-success hover:bg-success/10'
@@ -166,12 +167,11 @@ export const MemberActionMenu: React.FC<ActionMenuProps> = ({
             <div className="my-1 border-t border-border/30" />
 
             <button
-              role="menuitem"
               onClick={() => {
                 onRemove(member.id);
                 setOpen(false);
               }}
-              className="w-full text-left px-3 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-2"
+              className={`${MENU_ITEM_BASE} gap-2 text-destructive hover:bg-destructive/10`}
             >
               <Trash2 className="h-3.5 w-3.5" />
               Remove Member

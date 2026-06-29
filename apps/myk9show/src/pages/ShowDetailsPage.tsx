@@ -1,7 +1,6 @@
 import React, { Suspense, useState, useEffect, useMemo } from 'react';
 import { getShowStyle } from '@/features/registries';
 import { publishExperience } from '@/features/experience/publishExperience';
-import { STYLED_LANDING_BY_STYLE } from '@/features/_shared/styledLandingRegistry';
 import { Link, Outlet, useParams, useNavigate, useSearchParams, useMatch } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -54,6 +53,7 @@ import { useShowJudges } from '@/hooks/queries/useShowJudges';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { MyEntriesTab } from '@/components/shows/tabs/MyEntriesTab';
 import { EntriesTab } from '@/components/shows/ShowDetails/EntriesTab';
+import { ShowPublicLanding } from '@/components/shows/ShowDetails/ShowPublicLanding';
 import { getEntryStatus, type EntryStatus } from '@/utils/entryStatusUtils';
 import { MyShowStatsTab } from '@/components/analytics/MyShowStatsTab';
 import { ClassesTab } from '@/components/shows/tabs/ClassesTab';
@@ -480,24 +480,10 @@ const ShowDetailsPage: React.FC = () => {
     );
   }
 
-  const publicLandingShow =
-    actualCurrentShow.experienceIsPublished && actualCurrentShow.experiencePublishedStyle
-      ? { ...actualCurrentShow, style: actualCurrentShow.experiencePublishedStyle }
-      : actualCurrentShow;
-
   // Styled public landing — renders for non-staff visitors who are NOT yet entered.
   // Staff (secretary / admin / club_admin) always reach the management UI.
   // Authenticated exhibitors with entries bypass the marketing landing and see
   // the tabbed details UI (classes, my entries, run order) instead.
-  //
-  // INTENT: null/default style uses the product's committed Monogram default
-  // for public visitors. That keeps the shareable show URL on a brand landing
-  // without adding another default surface; management users still get the
-  // tabbed product UI where show operations live.
-  const publicShowStyle = getShowStyle(publicLandingShow);
-  // The registry is exhaustive over every ShowStyle value (typecheck
-  // enforces it), and getShowStyle() falls back to the committed
-  // Monogram default for null/default/unknown values.
   if (
     !isManagementSection &&
     !isSecretary &&
@@ -514,12 +500,10 @@ const ShowDetailsPage: React.FC = () => {
       );
     }
     if (!hasUserEntries) {
-      const StyledLanding = STYLED_LANDING_BY_STYLE[publicShowStyle];
       return (
-        <StyledLanding
-          show={publicLandingShow}
-          trial={landingTrials[0] ?? null}
-          allTrials={landingTrials}
+        <ShowPublicLanding
+          show={actualCurrentShow}
+          landingTrials={landingTrials}
           hasEntryClassInventory={hasEntryClassInventory}
         />
       );

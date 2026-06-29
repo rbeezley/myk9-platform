@@ -182,9 +182,36 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
   // ========================================
 
   /**
-   * Evict least recently used rows to reduce memory footprint
+   * Evict least recently used rows down to an absolute byte target.
    */
   async evictLRU(targetSizeBytes: number): Promise<number> {
+    return this.evictToTarget(() => targetSizeBytes);
+  }
+
+  /**
+   * Evict the oldest/least-used rows until only `retainFraction` of this
+   * table's current footprint remains (e.g. 0.7 sheds the oldest ~30%).
+   *
+   * Single table scan — unlike `estimateTotalSize()` followed by
+   * `evictLRU(size * fraction)`, which scans the table twice. This matters
+   * because eviction runs precisely when storage is under quota pressure.
+   *
+   * SCOPE: this table only. All replicated tables share one object store and
+   * the browser quota is global, so this frees space within the overflowing
+   * table but does not reclaim another table's evictable rows.
+   */
+  async evictRetainingFraction(retainFraction: number): Promise<number> {
+    return this.evictToTarget(currentSize => Math.floor(currentSize * retainFraction));
+  }
+
+  /**
+   * Shared eviction core: load the table once, derive the byte target from the
+   * measured current size, then evict LRU/LFU-ranked rows until at/under target.
+   * Dirty and recently-touched rows are always protected.
+   */
+  private async evictToTarget(
+    deriveTarget: (currentSize: number) => number
+  ): Promise<number> {
     const db = await this.getDb();
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
     const index = tx.store.index('tableName');
@@ -192,6 +219,7 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
     const rows = await index.getAll(this.tableName) as ReplicatedRow<T>[];
 
     let currentSize = rows.reduce((sum, row) => sum + this.estimateRowSize(row), 0);
+    const targetSizeBytes = deriveTarget(currentSize);
 
     if (currentSize <= targetSizeBytes) {
       this.logger.log(`[${this.tableName}] Cache size ${(currentSize / 1024 / 1024).toFixed(2)} MB already under target`);

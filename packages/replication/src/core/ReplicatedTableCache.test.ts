@@ -492,6 +492,45 @@ describe('ReplicatedTableCacheManager', () => {
     });
   });
 
+  describe('evictRetainingFraction', () => {
+    it('evicts roughly the oldest fraction of the footprint', async () => {
+      const oldTime = Date.now() - 60000; // past the grace period
+      for (let i = 0; i < 20; i++) {
+        await insertRow(
+          `${i}`,
+          { id: `${i}`, name: `Dog ${i}` },
+          { lastAccessedAt: oldTime - i * 1000, accessCount: 1 }
+        );
+      }
+
+      // Retain ~70% → shed ~30% of the (uniform) rows.
+      const evicted = await cacheManager.evictRetainingFraction(0.7);
+
+      expect(evicted).toBeGreaterThan(0);
+      expect(evicted).toBeLessThan(20);
+    });
+
+    it('never drops dirty rows even under aggressive retention', async () => {
+      const oldTime = Date.now() - 60000;
+      await insertRow(
+        '1',
+        { id: '1', name: 'Rex' },
+        { isDirty: true, syncStatus: 'pending', lastAccessedAt: oldTime }
+      );
+
+      // Retain 0% would evict everything — but the only row is dirty.
+      const evicted = await cacheManager.evictRetainingFraction(0);
+
+      expect(evicted).toBe(0);
+    });
+
+    it('returns 0 on an empty table', async () => {
+      const evicted = await cacheManager.evictRetainingFraction(0.7);
+
+      expect(evicted).toBe(0);
+    });
+  });
+
   describe('getSyncMetadata / updateSyncMetadata', () => {
     it('should return falsy when no metadata exists', async () => {
       const metadata = await cacheManager.getSyncMetadata();

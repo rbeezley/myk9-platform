@@ -923,11 +923,16 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    * the oldest/least-used ~30% of this table's footprint. Dirty/unsynced and
    * recently-touched rows are always protected (see {@link evictLRU}), so this
    * never drops pending offline mutations. Returns the number of rows evicted.
+   *
+   * SCOPE: per-table. All replicated tables share one IndexedDB object store
+   * and the browser quota is global, so this reclaims space within the table
+   * whose write overflowed — the common case, since bulk sync overflows on the
+   * large table that grew. A genuine cross-table overflow (this table has no
+   * evictable rows while another holds gigabytes of garbage) won't recover
+   * here; that would need a store-wide evictor — tracked as a follow-up.
    */
   async relieveQuota(): Promise<number> {
-    const currentBytes = await this.cacheManager.estimateTotalSize();
-    const target = Math.floor(currentBytes * QUOTA_EVICTION_RETAIN_FRACTION);
-    return this.cacheManager.evictLRU(target);
+    return this.cacheManager.evictRetainingFraction(QUOTA_EVICTION_RETAIN_FRACTION);
   }
 
   async getSyncMetadata(scopeValue?: string): Promise<SyncMetadata | null> {

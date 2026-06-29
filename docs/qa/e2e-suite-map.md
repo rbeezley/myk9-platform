@@ -237,20 +237,19 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 
 ## Manual Debug
 
-| Spec                                                                    | Why                                                         |
-| ----------------------------------------------------------------------- | ----------------------------------------------------------- |
-| `apps/myk9show/src/test/e2e/auth-test.spec.ts`                          | Authentication probe with unclear overlap.                  |
-| `apps/myk9show/src/test/e2e/debug-authentication.spec.ts`               | Explicit debug spec.                                        |
-| `apps/myk9show/src/test/e2e/debug-role-assignment.spec.ts`              | Explicit debug spec.                                        |
-| `apps/myk9show/src/test/e2e/debug-show-add-button.spec.ts`              | Explicit debug spec.                                        |
-| `apps/myk9show/src/test/e2e/debug-show-edit.spec.ts`                    | Explicit debug spec.                                        |
-| `apps/myk9show/src/test/e2e/debug-user-flow.spec.ts`                    | Explicit debug spec.                                        |
-| `apps/myk9show/src/test/e2e/playwright-real-auth.spec.ts`               | Real-auth investigation flow, likely environment-dependent. |
-| `apps/myk9show/src/test/e2e/seed.spec.ts`                               | Seed/data probe, not a quality gate.                        |
-| `apps/myk9show/src/test/e2e/simple-show-edit-debug.spec.ts`             | Explicit debug spec.                                        |
-| `apps/myk9show/src/test/e2e/test-user-edit-panel-authenticated.spec.ts` | Authenticated panel probe.                                  |
-| `apps/myk9show/src/test/e2e/test-user-edit-panel.spec.ts`               | Panel probe.                                                |
-| `apps/myk9show/src/test/e2e/test-user-profile-edit.spec.ts`             | Profile edit probe.                                         |
+| Spec                                                                    | Why                                        |
+| ----------------------------------------------------------------------- | ------------------------------------------ |
+| `apps/myk9show/src/test/e2e/auth-test.spec.ts`                          | Authentication probe with unclear overlap. |
+| `apps/myk9show/src/test/e2e/debug-authentication.spec.ts`               | Explicit debug spec.                       |
+| `apps/myk9show/src/test/e2e/debug-role-assignment.spec.ts`              | Explicit debug spec.                       |
+| `apps/myk9show/src/test/e2e/debug-show-add-button.spec.ts`              | Explicit debug spec.                       |
+| `apps/myk9show/src/test/e2e/debug-show-edit.spec.ts`                    | Explicit debug spec.                       |
+| `apps/myk9show/src/test/e2e/debug-user-flow.spec.ts`                    | Explicit debug spec.                       |
+| `apps/myk9show/src/test/e2e/seed.spec.ts`                               | Seed/data probe, not a quality gate.       |
+| `apps/myk9show/src/test/e2e/simple-show-edit-debug.spec.ts`             | Explicit debug spec.                       |
+| `apps/myk9show/src/test/e2e/test-user-edit-panel-authenticated.spec.ts` | Authenticated panel probe.                 |
+| `apps/myk9show/src/test/e2e/test-user-edit-panel.spec.ts`               | Panel probe.                               |
+| `apps/myk9show/src/test/e2e/test-user-profile-edit.spec.ts`             | Profile edit probe.                        |
 
 ## Candidate Delete
 

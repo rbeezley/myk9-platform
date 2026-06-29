@@ -371,6 +371,57 @@ describe('showMapActionMutations', () => {
     expect(mockCreateReplicatedEntry).not.toHaveBeenCalled();
   });
 
+  it('rolls back the original entry to its exact previous status when replicated move-up creation fails', async () => {
+    mockCreateReplicatedEntry.mockRejectedValueOnce(new Error('create failed'));
+
+    await expect(
+      moveUpShowMapEntry({
+        entryId: 'entry-1',
+        targetClassId: 'class-2',
+        reason: 'Qualified today',
+      })
+    ).rejects.toThrow('create failed');
+
+    expect(mockUpdateReplicatedEntry).toHaveBeenNthCalledWith(
+      1,
+      'entry-1',
+      expect.objectContaining({
+        entryStatus: 'moved',
+        entry_status: 'moved',
+      })
+    );
+    expect(mockUpdateReplicatedEntry).toHaveBeenNthCalledWith(
+      2,
+      'entry-1',
+      expect.objectContaining({
+        entryStatus: 'checked-in',
+        entry_status: 'checked-in',
+        checkInStatus: 'checked-in',
+        check_in_status: 'checked-in',
+        specialRequests: 'Bring paper form',
+        special_requests: 'Bring paper form',
+      })
+    );
+  });
+
+  it('keeps Show Map move-up fully replicated and audit logged', async () => {
+    await moveUpShowMapEntry({
+      entryId: 'entry-1',
+      targetClassId: 'class-2',
+      reason: 'Qualified today',
+    });
+
+    expect(mockFrom).not.toHaveBeenCalled();
+    expect(mockProcessMoveUp).not.toHaveBeenCalled();
+    expect(mockAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityType: 'entry',
+        entityId: 'entry-1',
+        metadata: expect.objectContaining({ action: 'mark_entry_moved' }),
+      })
+    );
+  });
+
   it('preserves the create failure when move-up rollback also fails', async () => {
     mockCreateReplicatedEntry.mockRejectedValueOnce(new Error('create failed'));
     mockUpdateReplicatedEntry

@@ -50,7 +50,7 @@ export const DogTabTrigger: React.FC<DogTabTriggerProps> = ({
       {existingEntryCount > 0 && (
         <Badge
           variant="default"
-          className="h-5 px-1.5 text-xs bg-success text-success-foreground"
+          className="h-5 px-1.5 text-xs bg-success text-success-foreground hover:bg-success/80"
           title={`Already entered in ${existingEntryCount} class${existingEntryCount !== 1 ? 'es' : ''}`}
         >
           <CheckCircle2 className="h-3 w-3 mr-0.5" />
@@ -265,7 +265,11 @@ const LevelChip: React.FC<LevelChipProps> = ({
           onCheckedChange={() => !isAlreadyEntered && onToggle(classId)}
           className="h-3.5 w-3.5"
         />
-        <span className="sr-only">Select</span> <span className="text-xs">{displayLabel}</span>
+        {/* The wrapping <label> is the checkbox's single naming source. Do NOT add
+            an aria-label here too — it stacks with the label text and doubles the
+            accessible name (e.g. "Select Advanced Select Advanced"). */}
+        <span className="sr-only">{isAlreadyEntered ? 'Already entered:' : 'Select'}</span>{' '}
+        <span className="text-xs">{displayLabel}</span>
       </label>
       {isJudgeDayFull && !isAlreadyEntered && <WaitlistBadge waitlistCount={waitlistCount} />}
     </div>

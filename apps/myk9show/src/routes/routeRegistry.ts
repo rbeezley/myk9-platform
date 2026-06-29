@@ -35,6 +35,8 @@ export const adminRouteComponents: Record<string, ImportFunction> = {
     import('@/pages/admin/TemplateTestingPage').then(m => ({ default: m.TemplateTestingPage })),
   '/admin/sync': () => import('@/pages/sync/SyncMonitoringPage'),
   '/admin/role-requests': () => import('@/pages/admin/RoleRequestsPage'),
+  '/admin/users': () => import('@/pages/admin/UserManagementPage'),
+  '/admin/payouts': () => import('@/pages/admin/PayoutLedgerPage'),
   // Permission management
   '/admin/permissions': () => import('@/pages/admin/permissions/PermissionManagementPage'),
   '/admin/permissions/roles': () => import('@/pages/admin/permissions/RoleListPage'),
@@ -92,6 +94,7 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
   '/exhibitor/show-day': () => import('@/features/at-show/AtShowClassListPage'),
   '/exhibitor/check-in/:entryId': () => import('@/pages/MyEntriesPage'),
   '/exhibitor/analytics': () => import('@/pages/AnalyticsPage'),
+  '/exhibitor/payments': () => import('@/pages/exhibitor/ExhibitorPaymentsPage'),
 
   // Dogs management
   '/dogs': () => import('@/pages/BrowseDogsPage'),
@@ -131,7 +134,14 @@ export const secretaryRouteComponents: Record<string, ImportFunction> = {
     })),
   '/shows': () => import('@/pages/BrowseShowsPage'),
   '/secretary/create-show/wizard': () => import('@/pages/secretary/ShowCreationWizardPage'),
+  '/people': () => import('@/pages/BrowsePeoplePage'),
   // Add more secretary routes as they're defined
+} as const;
+
+// Club admin route components (mounted via clubAdminRoutes.tsx)
+export const clubAdminRouteComponents: Record<string, ImportFunction> = {
+  '/club-admin/members': () => import('@/pages/club-admin/ClubMembersPage'),
+  '/club-admin/payments': () => import('@/pages/club-admin/ClubPaymentsPage'),
 } as const;
 
 // Judge route components (these would be defined in judgeRoutes.tsx)
@@ -147,6 +157,7 @@ export const fullRouteRegistry: Record<string, ImportFunction> = {
   ...adminRouteComponents,
   ...publicRouteComponents,
   ...secretaryRouteComponents,
+  ...clubAdminRouteComponents,
   ...judgeRouteComponents,
 };
 

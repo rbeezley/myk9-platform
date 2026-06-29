@@ -202,6 +202,36 @@ export const pageDirectory: readonly PageEntry[] = [
     status: 'working',
     linksTo: [],
   },
+  {
+    path: '/admin/users',
+    title: 'User Management',
+    description: 'Search, review, and manage platform user accounts.',
+    roles: [UserRole.SITE_ADMIN],
+    classification: 'critical-path',
+    category: 'Admin',
+    status: 'working',
+    linksTo: [],
+  },
+  {
+    path: '/admin/role-requests',
+    title: 'Role Requests',
+    description: 'Review and resolve pending access requests.',
+    roles: [UserRole.SITE_ADMIN],
+    classification: 'critical-path',
+    category: 'Admin',
+    status: 'working',
+    linksTo: [],
+  },
+  {
+    path: '/admin/payouts',
+    title: 'Payout Ledger',
+    description: 'Review club payout status and payment ledger details.',
+    roles: [UserRole.SITE_ADMIN],
+    classification: 'critical-path',
+    category: 'Admin',
+    status: 'working',
+    linksTo: [],
+  },
 
   // =========================
   // SECRETARY
@@ -273,7 +303,8 @@ export const pageDirectory: readonly PageEntry[] = [
   {
     path: '/shows/:showId/results-control',
     title: 'Results & Check-In',
-    description: 'Set result visibility, configure self check-in, and release results to exhibitors.',
+    description:
+      'Set result visibility, configure self check-in, and release results to exhibitors.',
     roles: [UserRole.SECRETARY, UserRole.SITE_ADMIN],
     classification: 'critical-path',
     category: 'Results',
@@ -293,6 +324,16 @@ export const pageDirectory: readonly PageEntry[] = [
     category: 'Results',
     status: 'working',
     linksTo: ['/shows/:showId/results-control', '/shows/:showId/reports'],
+  },
+  {
+    path: '/people',
+    title: 'People',
+    description: 'Find, add, and manage people records used by shows and clubs.',
+    roles: [UserRole.SECRETARY, UserRole.SITE_ADMIN],
+    classification: 'critical-path',
+    category: 'People',
+    status: 'working',
+    linksTo: [],
   },
 
   // =========================
@@ -433,6 +474,21 @@ export const pageDirectory: readonly PageEntry[] = [
     linksTo: ['/dogs/:id'],
   },
   {
+    path: '/exhibitor/payments',
+    title: 'My Payments',
+    description:
+      'Chronological list of the exhibitor\'s online entry payments with status and Stripe reference; receipts live per-entry under My Shows.',
+    roles: [UserRole.EXHIBITOR, UserRole.SITE_ADMIN],
+    classification: 'park',
+    category: 'Payments',
+    status: 'working',
+    // linksTo intentionally empty: the natural target (My Shows) is a
+    // doc-staleness-tracked route, so listing it here would re-flag an
+    // unchanged guide in qa:doc-staleness:strict. The page links to My
+    // Shows in its own UI (Receipt column).
+    linksTo: [],
+  },
+  {
     path: '/dogs',
     title: 'Browse Dogs',
     description: 'Directory of dogs registered with the platform.',
@@ -551,6 +607,32 @@ export const pageDirectory: readonly PageEntry[] = [
     category: 'Shows',
     status: 'working',
     linksTo: [],
+  },
+
+  // =========================
+  // CLUB ADMIN
+  // =========================
+  {
+    path: '/club-admin/members',
+    title: 'Club Members',
+    description:
+      'Manage club-level access: add or remove Club Admins and Secretaries and grant show-management rights.',
+    roles: [UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN],
+    classification: 'critical-path',
+    category: 'Clubs',
+    status: 'working',
+    linksTo: ['/club-admin/payments'],
+  },
+  {
+    path: '/club-admin/payments',
+    title: 'Club Payments',
+    description:
+      'Connect the club Stripe Express account and review per-show payout history and status.',
+    roles: [UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN],
+    classification: 'critical-path',
+    category: 'Payments',
+    status: 'working',
+    linksTo: ['/club-admin/members'],
   },
 
   // =========================

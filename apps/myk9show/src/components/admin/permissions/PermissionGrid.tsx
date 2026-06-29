@@ -21,6 +21,11 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { Role, Permission, RolePermission } from '@/types/rbac-types';
+import {
+  getPermissionResource as getResource,
+  getPermissionAction as getAction,
+  getPermissionDisplayName as getDisplayName,
+} from './permissionDisplay';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Select,
@@ -51,10 +56,6 @@ export const PermissionGrid: React.FC<PermissionGridProps> = ({
     new Set(['show', 'entry'])
   );
 
-  // Helper to get resource from permission (from code or resource field)
-  const getResource = (p: Permission) => p.resource || p.code?.split(':')[0] || 'other';
-  const getAction = (p: Permission) => p.action || p.code?.split(':')[1] || '';
-  const getDisplayName = (p: Permission) => p.display_name || p.name;
 
   // Get unique resources for filter
   const resources = useMemo(() => {

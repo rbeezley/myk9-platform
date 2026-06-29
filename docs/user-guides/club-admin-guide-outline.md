@@ -26,9 +26,9 @@ Do not document deferred features. If a club asks about them, the answer is "com
 |---|---|---|---|---|
 | Club profile setup | Club profile page (via club-admin sidebar) | yes | stable | Site admin creates the club; this is edit-only |
 | Show access and secretary assignment | Club Admin → Shows | yes | stable | |
-| Stripe Express onboarding | `/club-admin/payments` | yes | **partial** | Not in pageDirectory.ts — add first; sandbox walkthrough needed |
+| Stripe Express onboarding | `/club-admin/payments` | yes | **partial** | Cataloged in pageDirectory (#1014); sandbox walkthrough still needed |
 | View payouts | `/club-admin/payments` | yes | partial | Same route as onboarding |
-| Club members | `/club-admin/members` | yes | stable | Not in pageDirectory.ts — add first |
+| Club members | `/club-admin/members` | yes | stable | Cataloged in pageDirectory (#1014) |
 
 ---
 
@@ -106,7 +106,7 @@ Include this boundary clearly near the front of the guide. Clubs get confused wh
 
 **Canonical route:** `/club-admin/payments`
 
-**Note:** This route is not yet in `pageDirectory.ts` — add before documenting.
+**Note:** Cataloged in `pageDirectory.ts` (#1014).
 
 **Defer this section to the existing guide:** Most of this section is already written in full in `docs/operations/stripe-treasurer-guide.md`. Link to it from this guide instead of duplicating steps.
 
@@ -175,7 +175,7 @@ This section maps to KB articles, not app steps. Each item is a standalone KB ar
 
 **Canonical route:** `/club-admin/members`
 
-**Note:** This route is not yet in `pageDirectory.ts` — add before documenting.
+**Note:** Cataloged in `pageDirectory.ts` (#1014).
 
 **Rough steps (qa-draft):**
 1. From the Club Admin sidebar, open **Members**.
@@ -201,8 +201,8 @@ This section maps to KB articles, not app steps. Each item is a standalone KB ar
 
 | Finding | Section | Backlog action |
 |---|---|---|
-| `/club-admin/payments` not in pageDirectory.ts | §4, §5 | Add before documenting; tracked in workflow source map |
-| `/club-admin/members` not in pageDirectory.ts | §7 | Add before documenting; tracked in workflow source map |
+| `/club-admin/payments` cataloged in pageDirectory.ts (#1014) | §4, §5 | Resolved — section can be documented |
+| `/club-admin/members` cataloged in pageDirectory.ts (#1014) | §7 | Resolved — section can be documented |
 | Stripe onboarding screenshots need a fresh sandbox run | §4 | Don't reuse any existing screenshots; re-walk in sandbox before publishing |
 | Club Admin role is minimal in fall 2026 (by design) | All | Don't expand scope; link to role doc for what's deferred |
 | Site admin creates clubs — club admin only edits | §2 | Explicit note in guide: "If your club is not in myK9Show yet, contact us" |

@@ -208,29 +208,35 @@
     border-color 0.15s,
     background-color 0.15s;
   min-width: 80px;
+  /* 44px tap floor on every width, not just phones — exhibitors select classes
+     one-handed at a show on tablets too (exhibitor-facing INTENT rule). */
+  min-height: 44px;
 }
 
 .myk9-level-chip:hover {
-  border-color: hsl(var(--primary) / 0.5);
-  background: hsl(var(--primary) / 0.05);
+  border-color: color-mix(in srgb, var(--primary) 50%, transparent);
+  background: color-mix(in srgb, var(--primary) 5%, transparent);
 }
 
 .myk9-level-chip-selected {
-  border-color: hsl(var(--primary));
-  background: hsl(var(--primary) / 0.1);
-  color: hsl(var(--primary));
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  color: var(--primary);
 }
 
+/* "Already entered" — a completed/locked state, so it borrows the theme-aware
+   success token (light green-800 / dark green-400, both AA-verified) instead of
+   a hardcoded teal that ignored the theme. */
 .myk9-level-chip-entered {
-  border-color: #0d9488;
-  background: rgba(13, 148, 136, 0.1);
-  color: #0d9488;
+  border-color: rgb(var(--success));
+  background: rgb(var(--success) / 0.1);
+  color: rgb(var(--success));
   cursor: default;
 }
 
 .myk9-level-chip-entered:hover {
-  border-color: #0d9488;
-  background: rgba(13, 148, 136, 0.1);
+  border-color: rgb(var(--success));
+  background: rgb(var(--success) / 0.1);
 }
 
 /* Navigation Buttons */
@@ -356,19 +362,19 @@
   }
 }
 
-/* Dark mode adjustments */
-@media (prefers-color-scheme: dark) {
-  .myk9-registration-card {
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
-  }
+/* Dark mode adjustments — class-driven to match the app's Tailwind
+   darkMode:'class' toggle. An OS-preference media query here would key off the
+   system setting and bypass the in-app theme switch (project watchlist #2). */
+.dark .myk9-registration-card {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+}
 
-  .myk9-dog-card:hover,
-  .myk9-class-card:hover {
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2) !important;
-  }
+.dark .myk9-dog-card:hover,
+.dark .myk9-class-card:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2) !important;
+}
 
-  .myk9-dog-card.selected,
-  .myk9-class-card.selected {
-    box-shadow: 0 8px 25px color-mix(in srgb, var(--primary) 25%, transparent) !important;
-  }
+.dark .myk9-dog-card.selected,
+.dark .myk9-class-card.selected {
+  box-shadow: 0 8px 25px color-mix(in srgb, var(--primary) 25%, transparent) !important;
 }

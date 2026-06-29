@@ -1,4 +1,4 @@
-import React, { Suspense, useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getShowStyle } from '@/features/registries';
 import { publishExperience } from '@/features/experience/publishExperience';
 import { Link, Outlet, useParams, useNavigate, useSearchParams, useMatch } from 'react-router-dom';
@@ -15,7 +15,6 @@ import {
   ListTree,
   MoreHorizontal,
 } from 'lucide-react';
-import { TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -24,15 +23,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
+import { type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
 import DeleteShowDialog from '@/components/shows/ShowDetails/dialogs/DeleteShowDialog';
-import { ShowOverviewTab } from '@/components/shows/tabs/ShowOverviewTab';
 import { QuickInfoCards } from '@/components/shows/overview/QuickInfoCards';
 import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
-import { ShowResultsTab } from '@/components/results/ShowResultsTab';
-import { TrialsTab, type TrialStats } from '@/components/shows/tabs/TrialsTab';
+import { type TrialStats } from '@/components/shows/tabs/TrialsTab';
 import type { ShowInput } from '@/store/showStore';
 import type { Show } from '@/types/show-types';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
@@ -51,13 +48,10 @@ import { useMyEntries } from '@/hooks/useMyEntries';
 import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
-import { MyEntriesTab } from '@/components/shows/tabs/MyEntriesTab';
-import { EntriesTab } from '@/components/shows/ShowDetails/EntriesTab';
 import { ShowPublicLanding } from '@/components/shows/ShowDetails/ShowPublicLanding';
+import { ShowDetailTabs } from '@/components/shows/ShowDetails/ShowDetailTabs';
 import { resolveShowAudience } from './ShowDetailsPage.audience';
 import { getEntryStatus, type EntryStatus } from '@/utils/entryStatusUtils';
-import { MyShowStatsTab } from '@/components/analytics/MyShowStatsTab';
-import { ClassesTab } from '@/components/shows/tabs/ClassesTab';
 import { ArmbandLookup } from '@/components/shows/ArmbandLookup';
 import { useArmbandCount } from '@/hooks/queries/useArmbandLookup';
 import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
@@ -82,8 +76,6 @@ import { LiveUpdateIndicator } from '@/features/show-live-sync/LiveUpdateIndicat
 import { SHOW_MANAGEMENT_SECTIONS } from '@/routes/showManagementSections';
 import { SETUP_PUBLISH_ANCHOR } from '@/features/show-workbench/setupReadinessSignals';
 import { selectOwnedDogIds } from '@/utils/dogOwnership';
-
-const ShowMapTab = React.lazy(() => import('@/features/show-map/ShowMapTab'));
 
 const ENTRY_STATUS_HERO_VARIANT: Record<
   EntryStatus,
@@ -699,73 +691,23 @@ const ShowDetailsPage: React.FC = () => {
             <LoadingSkeleton variant="cards" count={2} />
           </div>
         ) : (
-          <PrimaryTabs tabs={tabDefs} value={activeTab} onValueChange={setTab}>
-            <TabsContent value="overview">
-              <ShowOverviewTab
-                show={actualCurrentShow}
-                canManageShow={canManageShow}
-                judges={effectiveJudges}
-                classes={effectiveShowClasses}
-                onViewClasses={() => setTab('classes')}
-              />
-            </TabsContent>
-
-            <TabsContent value="trials">
-              <TrialsTab
-                trials={effectiveTrials}
-                showId={actualCurrentShow.id}
-                trialStats={effectiveTrialStats}
-              />
-            </TabsContent>
-
-            <TabsContent value="classes">
-              <ClassesTab
-                classes={effectiveShowClasses}
-                showId={actualCurrentShow.id}
-                userHasEntries={hasUserEntries}
-                hideRing={effectiveTrials.some(
-                  t =>
-                    t.trialType === 'Scent Work' ||
-                    t.trialType === 'Nosework' ||
-                    t.trialType === 'Scent Detection'
-                )}
-              />
-            </TabsContent>
-
-            {isAuthenticated && (
-              <TabsContent value="my-entries">
-                {canManageShow ? (
-                  <EntriesTab showId={actualCurrentShow.id} />
-                ) : (
-                  <MyEntriesTab showId={actualCurrentShow.id} />
-                )}
-              </TabsContent>
-            )}
-
-            {isAuthenticated && canManageShow && (
-              <TabsContent value="my-stats">
-                <MyShowStatsTab showId={actualCurrentShow.id} />
-              </TabsContent>
-            )}
-
-            <TabsContent value="results">
-              <ShowResultsTab showId={actualCurrentShow.id} />
-            </TabsContent>
-
-            {canShowMap && (
-              <TabsContent value="map">
-                <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
-                  <ShowMapTab
-                    show={actualCurrentShow}
-                    trials={associatedTrials}
-                    classes={showClasses}
-                    entries={showEntries}
-                    canManageShow={false}
-                  />
-                </Suspense>
-              </TabsContent>
-            )}
-          </PrimaryTabs>
+          <ShowDetailTabs
+            show={actualCurrentShow}
+            tabs={tabDefs}
+            activeTab={activeTab}
+            onTabChange={setTab}
+            canManageShow={canManageShow}
+            canShowMap={canShowMap}
+            isAuthenticated={isAuthenticated}
+            hasUserEntries={hasUserEntries}
+            judges={effectiveJudges}
+            classes={effectiveShowClasses}
+            trials={effectiveTrials}
+            trialStats={effectiveTrialStats}
+            mapTrials={associatedTrials}
+            mapClasses={showClasses}
+            mapEntries={showEntries}
+          />
         )}
       </PageShell>
 

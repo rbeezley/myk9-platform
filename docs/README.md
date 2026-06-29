@@ -73,7 +73,6 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-ringside-occ-conflict-storm.md](plan-ringside-occ-conflict-storm.md)                 | Active    | Ringside OCC conflict storm — high-CPU remediation (token advance + backoff) |
 | [plan-ringside-navigation.md](plan-ringside-navigation.md)                                 | Active    | Ringside navigation — permanent sidebar entry + smart /at-show landing |
 | [plan-show-day-sequencing.md](plan-show-day-sequencing.md)                                 | Active    | Plan — Show-Day Workflow Sequencing                                   |
-| [plan-show-detail-consolidation.md](plan-show-detail-consolidation.md)                     | Active    | Plan: Show-Detail Surface Consolidation (hotspot #1)                  |
 | [plan-soft-delete-person-rpc.md](plan-soft-delete-person-rpc.md)                           | Active    | Plan: Fix person soft-delete (RLS WITH-CHECK block)                   |
 | [plan-ux-journey-audit.md](plan-ux-journey-audit.md)                                       | Active    | Plan: UX Journey Audit — Exhibitor & Secretary                        |
 | [plan-ux-journey-phase6.md](plan-ux-journey-phase6.md)                                     | Active    | Plan: UX Journey Audit — Phase 6 (Remediation Verification)           |

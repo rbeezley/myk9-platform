@@ -1,8 +1,25 @@
 # Plan: Show-Detail Surface Consolidation
 
-> **Status:** Active
+> **Status:** Complete
 
 **Created:** 2026-06-29
+**Completed:** 2026-06-29 across 8 PRs (all merged):
+`useShowLandingData` ([#1032](https://github.com/rbeezley/myk9-platform/pull/1032)) ·
+`ShowPublicLanding` ([#1033](https://github.com/rbeezley/myk9-platform/pull/1033)) ·
+`resolveShowAudience` ([#1034](https://github.com/rbeezley/myk9-platform/pull/1034)) ·
+`ShowDetailTabs` ([#1035](https://github.com/rbeezley/myk9-platform/pull/1035)) ·
+`ShowManagementShell`+`ShowExhibitorView` ([#1036](https://github.com/rbeezley/myk9-platform/pull/1036)) ·
+`useTrialDetailData` ([#1037](https://github.com/rbeezley/myk9-platform/pull/1037)) ·
+`TrialManagementDialogs` ([#1038](https://github.com/rbeezley/myk9-platform/pull/1038)).
+**Result:** `ShowDetailsPage` 893→466 LOC, `TrialDetailsPage` 606→383 LOC; every
+extracted module is under the 500-line ceiling. All phases behavior-preserving,
+verified by the existing route/page suites staying green plus new per-module unit
+tests. Dual-route decision (Phase 4c): **keep both** `/trials/:trialId` and
+`/shows/:showId/trials/:trialId` — the unscoped route is an actively-used fallback
+that can't be redirected cleanly. Cold-session anon paths are covered by the
+existing cold-anon integration tests (the anon data layer was re-homed, not
+changed); a live incognito spot-check remains a recommended human gate.
+
 **Source:** OPEN-TODOS.md → "Consolidate the show-detail surface (hotspot #1)" (identified 2026-06-25 via `/hotspots`, git churn × size).
 **Gate:** The original blocker — *"wait for code-audit Waves A–C"* — is **satisfied**: the code-quality audit ([`docs/archive/plan-code-quality-audit.md`](archive/plan-code-quality-audit.md)) is complete (Waves A–D shipped, archived). Wave C extracted the *mechanical* concerns from these files; what remains is the **IA fusion** problem this plan addresses, which is a consolidation/UX question, not a line-count one. Execution still sequences through [`plan-launch-execution-lanes.md`](plan-launch-execution-lanes.md) — do not implement out of lane order.
 

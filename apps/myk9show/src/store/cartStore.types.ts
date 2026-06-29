@@ -31,6 +31,7 @@ export interface CartItemWithDetails extends EntryCartItem {
         name: string;
         level: string | null;
         trial_id: string;
+        allow_waitlist: boolean | null;
       }
     | undefined;
   handler?:
@@ -91,6 +92,10 @@ export interface CartState {
   // Data
   cart: CartWithDetails | null;
   isLoading: boolean;
+  // True once a cart load has been initiated this session. Lets the cart UI keep
+  // a hydration placeholder up before the first load resolves, instead of
+  // flashing the empty-cart state on the pre-load frame of a direct visit.
+  loadInitiated: boolean;
   error: string | null;
   lastSyncedAt: string | null;
 
@@ -114,13 +119,13 @@ export interface CartState {
   extendExpiration: () => Promise<boolean>;
   abandonCart: () => Promise<boolean>;
   /**
-   * Checkout that routes full-class items to the waitlist RPC instead of
+   * Checkout that routes overflow cart items to the waitlist RPC instead of
    * creating normal entries. Returns a split result so the caller can show
    * "N confirmed, M added to wait list".
    */
   checkoutWithWaitlist: (
     exhibitorId: string,
-    fullClassIds: Set<string>
+    waitlistCartItemIds: Set<string>
   ) => Promise<CheckoutResult | null>;
 
   // Computed getters

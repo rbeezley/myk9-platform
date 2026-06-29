@@ -26,8 +26,10 @@ describe('CartSummary source', () => {
     expect(source).toMatch(/<Loader2[^>]*animate-spin/);
   });
 
-  it('keeps the Extend button above the 44px touch floor', () => {
-    expect(source).toMatch(/Extend[\s\S]{0,200}/);
-    expect(source).toContain('min-h-[44px]');
+  it('keeps the Extend button itself above the 44px touch floor', () => {
+    // min-h-[44px] must live on the Extend button's OWN className, not merely
+    // somewhere in the file. The class sits in the <Button> opening tag right
+    // before the "Extend" label, so anchor the match forward to ">Extend".
+    expect(source).toMatch(/min-h-\[44px\][\s\S]{0,60}>\s*Extend/);
   });
 });

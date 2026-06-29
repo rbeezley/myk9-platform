@@ -237,7 +237,7 @@ test.describe('Secretary Entry Walk', () => {
       timeout: 10000,
     });
 
-    await page.getByRole('button', { name: 'Complete Registration' }).click();
+    await page.getByRole('button', { name: 'Finish' }).click();
     await expect(page).toHaveURL(new RegExp(`/shows/${TEST_SHOW_ID}`));
     await expect(
       page.getByRole('heading', { level: 2, name: LIVE_SECRETARY_SHOW_NAME })

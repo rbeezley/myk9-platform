@@ -36,16 +36,32 @@ export function getConfirmationHeroCopy(
   entryStatus: EntryStatus,
   paymentStatus: PaymentStatus
 ): ConfirmationHeroCopy {
+  // The confirmation step is always reached AFTER the entry is written — the
+  // submit happens on the Payment step's Next (card checkout or
+  // submitShowRegistration), and the wizard only advances here on success. So
+  // the framing is never "ready to submit"; it's "submitted". The remaining
+  // nuance is whether payment has been recorded yet.
   if (isRegistrationRecorded(entryStatus, paymentStatus)) {
     return {
       title: 'Registration Confirmed',
-      description: 'Your registration has been submitted and payment has been recorded.',
+      description: 'Your entry has been submitted and payment recorded.',
     };
   }
 
+  if (isPaidStatus(paymentStatus)) {
+    // Paid, but the entry is not accepted yet (e.g. awaiting review or
+    // waitlisted). Do not tell an already-paid exhibitor that payment is due
+    // at the show — that would be wrong.
+    return {
+      title: 'Registration Submitted',
+      description: 'Your entry has been submitted and payment recorded.',
+    };
+  }
+
+  // Submitted, payment still pending (the common check/cash path).
   return {
-    title: 'Registration Ready to Submit',
-    description: 'Review this summary, then choose Complete Registration to submit your entry.',
+    title: 'Registration Submitted',
+    description: 'Your entry has been submitted. Payment is due at the show.',
   };
 }
 

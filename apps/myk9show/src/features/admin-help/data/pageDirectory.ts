@@ -621,7 +621,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Clubs',
     status: 'working',
-    linksTo: ['/club-admin/payments'],
+    linksTo: ['/club-admin/payments', '/clubs/:id'],
   },
   {
     path: '/club-admin/payments',

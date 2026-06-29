@@ -68,7 +68,15 @@ describe('pageDirectory (invariant)', () => {
   it('catalogs sidebar-visible role pages that are safe for customer docs', () => {
     const paths = pageDirectory.map(e => e.path);
     expect(paths).toEqual(
-      expect.arrayContaining(['/admin/users', '/admin/role-requests', '/admin/payouts', '/people'])
+      expect.arrayContaining([
+        '/admin/users',
+        '/admin/role-requests',
+        '/admin/payouts',
+        '/people',
+        '/exhibitor/payments',
+        '/club-admin/members',
+        '/club-admin/payments',
+      ])
     );
   });
 

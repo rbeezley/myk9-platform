@@ -94,8 +94,9 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 
 ### 10. View payments and receipts
 
-**Outcome:** Exhibitor reviews what they paid and downloads a receipt.
-**Canonical route:** /exhibitor/payments (cataloged in `pageDirectory.ts`; reachable via the "My Payments" sidebar entry)
+**Outcome:** Exhibitor reviews what they paid; the Receipt column links to My Shows where the per-entry receipt lives.
+**Canonical route:** `/exhibitor/payments`
+**Note:** Cataloged in `pageDirectory.ts`; reachable from the sidebar as **My Payments**.
 **Docs target:** Exhibitor Guide § Payments, KB: `my-payments.md`
 
 ### 11. View personal analytics
@@ -188,21 +189,31 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 ### 21. Set up club payment account (Stripe Express onboarding)
 
 **Outcome:** Club treasurer connects the club to receive show payouts via Stripe.
-**Canonical route:** /club-admin/payments (cataloged in `pageDirectory.ts`)
+**Canonical route:** `/club-admin/payments`
+**Note:** Cataloged in `pageDirectory.ts`; reachable from the sidebar as **Payments**.
 **Docs target:** Club Admin Guide § Payments, KB: `stripe-onboarding.md`
 **Related:** `docs/operations/stripe-treasurer-guide.md` (already written)
 
 ### 22. View show payouts
 
 **Outcome:** Treasurer sees payout schedule, net amounts, and transfer status per show.
-**Canonical route:** /club-admin/payments (cataloged in `pageDirectory.ts`)
+**Canonical route:** `/club-admin/payments`
+**Note:** Same surface as § 21, cataloged in `pageDirectory.ts` (Payouts tab of **Payments**).
 **Docs target:** Club Admin Guide § Payouts
 
 ### 23. Manage club members
 
 **Outcome:** Club admin views or updates club membership and access.
-**Canonical route:** /club-admin/members (cataloged in `pageDirectory.ts`)
+**Canonical route:** `/club-admin/members`
+**Note:** Cataloged in `pageDirectory.ts`; reachable from the sidebar as **Members**.
 **Docs target:** Club Admin Guide § Members
+
+### 24. Review and update the club profile
+
+**Outcome:** Club admin reviews and updates club name, AKC/UKC numbers, address, and contacts.
+**Canonical route:** `/clubs/:id`
+**Note:** Cataloged in `pageDirectory.ts` as Club Detail; reachable from the sidebar as **Club Profile**.
+**Docs target:** Club Admin Guide § Club Profile Setup
 
 ---
 

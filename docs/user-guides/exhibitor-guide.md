@@ -25,11 +25,11 @@ No account needed to browse. Go to myK9Show — the shows list is the first thin
 
 Each show card shows the name, sanctioning organization, dates, entry deadline, and status:
 
-| Badge | Meaning |
-|---|---|
+| Badge             | Meaning                                  |
+| ----------------- | ---------------------------------------- |
 | Accepting Entries | Entry window is open — you can enter now |
-| Closing Soon | Entry deadline is within a few days |
-| Closed | Entry window has passed |
+| Closing Soon      | Entry deadline is within a few days      |
+| Closed            | Entry window has passed                  |
 
 Click any show to open its detail page — trial schedule, classes offered, entry fee, and deadline.
 
@@ -126,12 +126,12 @@ Go to **My Shows** in the navigation to see all your entries.
 
 **Status meanings:**
 
-| Status | What it means |
-|---|---|
-| **Pending** | Received — awaiting secretary review |
-| **Accepted** | You're in |
-| **Waitlisted** | Class is full; you're in queue |
-| **Rejected** | Your entry was not approved — contact the secretary |
+| Status         | What it means                                       |
+| -------------- | --------------------------------------------------- |
+| **Pending**    | Received — awaiting secretary review                |
+| **Accepted**   | You're in                                           |
+| **Waitlisted** | Class is full; you're in queue                      |
+| **Rejected**   | Your entry was not approved — contact the secretary |
 
 **When the status changes to Accepted,** you'll receive a push notification (if notifications are enabled on your device).
 
@@ -190,6 +190,7 @@ After the class is scored and the secretary releases results, they appear on you
 ![E-16: My Shows — entry card showing Q result badge and placement](../screenshots/E-16.png)
 
 Each scored class shows:
+
 - **Q** (qualified) or **NQ** (did not qualify)
 - Your placement (1st, 2nd, 3rd, …)
 - Your search time
@@ -248,22 +249,22 @@ Fields you can update: call name, registered name, AKC or UKC registration numbe
 
 All shots from `docs/training/screenshot-shot-list.md`. Status as of 2026-06-19:
 
-| Shot ID | Section | Description | Status |
-|---|---|---|---|
-| E-01 | § 1 | Shows list with entry status badges | captured 2026-06-19 |
-| E-02 | § 1 | Show detail — "Enter This Show" CTA | captured 2026-06-19 |
-| E-03 | § 2 | Sign-up form | captured 2026-06-19 |
-| E-04 | § 3 | My Dogs list | captured 2026-06-19 |
-| E-05 | § 3 | Add Dog form | captured 2026-06-19 |
-| E-06 | § 4 | Registration wizard — Step 1 (class selection) | captured 2026-06-19 |
-| E-07 | § 4 | Registration wizard — Step 1 with class selected + cart toast | captured 2026-06-19 |
-| E-08 | § 4 | Confirmation receipt | captured 2026-06-20 |
-| E-09 | § 5 | My Shows — Pending entry card | captured 2026-06-19 |
-| E-10 | § 5 | My Shows — Accepted entry card | captured 2026-06-19 |
-| E-11 | § 5 | My Shows — show card | captured 2026-06-19 |
-| E-12 | § 6 | Class detail — run order with armband number | captured 2026-06-19 |
-| E-13 | § 7 | Show Today banner | captured 2026-06-20 |
-| E-14 | § 7 | Entry card — "Not Checked In" status pill | captured 2026-06-19 |
-| E-15 | § 7 | Entry card — Checked In state | captured 2026-06-19 |
-| E-16 | § 8 | Entry card — Q result badge | captured 2026-06-19 |
-| E-17 | § 8 | Class results page | captured 2026-06-19 |
+| Shot ID | Section | Description                                                   | Status              |
+| ------- | ------- | ------------------------------------------------------------- | ------------------- |
+| E-01    | § 1     | Shows list with entry status badges                           | captured 2026-06-19 |
+| E-02    | § 1     | Show detail — "Enter This Show" CTA                           | captured 2026-06-19 |
+| E-03    | § 2     | Sign-up form                                                  | captured 2026-06-19 |
+| E-04    | § 3     | My Dogs list                                                  | captured 2026-06-19 |
+| E-05    | § 3     | Add Dog form                                                  | captured 2026-06-19 |
+| E-06    | § 4     | Registration wizard — Step 1 (class selection)                | captured 2026-06-19 |
+| E-07    | § 4     | Registration wizard — Step 1 with class selected + cart toast | captured 2026-06-19 |
+| E-08    | § 4     | Confirmation receipt                                          | captured 2026-06-20 |
+| E-09    | § 5     | My Shows — Pending entry card                                 | captured 2026-06-19 |
+| E-10    | § 5     | My Shows — Accepted entry card                                | captured 2026-06-19 |
+| E-11    | § 5     | My Shows — show card                                          | captured 2026-06-19 |
+| E-12    | § 6     | Class detail — run order with armband number                  | captured 2026-06-19 |
+| E-13    | § 7     | Show Today banner                                             | captured 2026-06-20 |
+| E-14    | § 7     | Entry card — "Not Checked In" status pill                     | captured 2026-06-19 |
+| E-15    | § 7     | Entry card — Checked In state                                 | captured 2026-06-19 |
+| E-16    | § 8     | Entry card — Q result badge                                   | captured 2026-06-19 |
+| E-17    | § 8     | Class results page                                            | captured 2026-06-19 |

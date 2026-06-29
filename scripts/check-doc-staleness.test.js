@@ -17,6 +17,7 @@ const {
   extractRoutesFromSource,
   extractComposedRoutes,
   parseDiffForRoutes,
+  reverifiedRoutesFromMapDiff,
   parseSourceMap,
   matchChangedRoutes,
   selectBlockingFlags,
@@ -227,4 +228,60 @@ test('selectBlockingFlags returns empty when every flagged route is internal', (
     },
   ];
   assert.equal(selectBlockingFlags(flagged).length, 0);
+});
+
+test('reverifiedRoutesFromMapDiff collects routes from removed map lines', () => {
+  // The catalog scenario: gap-audit table rows for the three payment routes are
+  // DELETED, so each token appears only on a '-' line.
+  const diff = [
+    '+++ b/docs/user-guides/workflow-source-map.md',
+    '@@ -17,3 +0,0 @@',
+    '-| `/exhibitor/payments`  | My Payments   | EXHIBITOR  |',
+    '-| `/club-admin/members`  | Members       | CLUB_ADMIN |',
+    '-| `/club-admin/payments` | Payments      | CLUB_ADMIN |',
+  ].join('\n');
+  const set = reverifiedRoutesFromMapDiff(diff);
+  assert.deepEqual([...set].sort(), [
+    '/club-admin/members',
+    '/club-admin/payments',
+    '/exhibitor/payments',
+  ]);
+});
+
+test('reverifiedRoutesFromMapDiff counts in-place edits (UNION, not symmetric diff)', () => {
+  // A route token present on BOTH the '-' and '+' side of an in-place prose edit
+  // must still count as re-verified — the key difference from parseDiffForRoutes,
+  // whose symmetric difference would cancel it to nothing.
+  const diff = [
+    '+++ b/docs/user-guides/workflow-source-map.md',
+    '@@ -104 +104 @@',
+    '-**Canonical route:** `/exhibitor/payments` — not yet in nav',
+    '+**Canonical route:** `/exhibitor/payments` — sidebar link under My Payments',
+  ].join('\n');
+  const set = reverifiedRoutesFromMapDiff(diff);
+  assert.ok(set.has('/exhibitor/payments'));
+  assert.deepEqual(parseDiffForRoutes(diff), [], 'parseDiffForRoutes cancels it; we must not');
+});
+
+test('reverifiedRoutesFromMapDiff normalizes param names and ignores context/header lines', () => {
+  const diff = [
+    '+++ b/docs/user-guides/workflow-source-map.md',
+    '--- a/docs/user-guides/workflow-source-map.md',
+    '@@ -1 +1 @@',
+    '+**Canonical route:** `/shows/:showId/entry-management`',
+    ' unchanged context mentioning `/should-not-count`',
+  ].join('\n');
+  const set = reverifiedRoutesFromMapDiff(diff);
+  assert.ok(set.has('/shows/:/entry-management'), 'param names collapsed');
+  assert.ok(!set.has('/should-not-count'), 'context line ignored');
+});
+
+test('reverifiedRoutesFromMapDiff returns empty for a diff with no route tokens', () => {
+  const diff = [
+    '+++ b/docs/user-guides/workflow-source-map.md',
+    '@@ -1 +1 @@',
+    '-Some prose without any backtick route.',
+    '+Reworded prose, still no route.',
+  ].join('\n');
+  assert.equal(reverifiedRoutesFromMapDiff(diff).size, 0);
 });

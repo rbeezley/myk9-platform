@@ -138,6 +138,12 @@ export const secretaryRouteComponents: Record<string, ImportFunction> = {
   // Add more secretary routes as they're defined
 } as const;
 
+// Club admin route components (mounted via clubAdminRoutes.tsx)
+export const clubAdminRouteComponents: Record<string, ImportFunction> = {
+  '/club-admin/members': () => import('@/pages/club-admin/ClubMembersPage'),
+  '/club-admin/payments': () => import('@/pages/club-admin/ClubPaymentsPage'),
+} as const;
+
 // Judge route components (these would be defined in judgeRoutes.tsx)
 export const judgeRouteComponents: Record<string, ImportFunction> = {
   // Placeholder for judge routes - would be populated by actual judge routes
@@ -146,19 +152,13 @@ export const judgeRouteComponents: Record<string, ImportFunction> = {
   // Add more judge routes as they're defined
 } as const;
 
-// Club admin route components (defined in clubAdminRoutes.tsx, guarded by ClubAdminRoute)
-export const clubAdminRouteComponents: Record<string, ImportFunction> = {
-  '/club-admin/members': () => import('@/pages/club-admin/ClubMembersPage'),
-  '/club-admin/payments': () => import('@/pages/club-admin/ClubPaymentsPage'),
-} as const;
-
 // Combined route registry for intelligent preloading
 export const fullRouteRegistry: Record<string, ImportFunction> = {
   ...adminRouteComponents,
   ...publicRouteComponents,
   ...secretaryRouteComponents,
-  ...judgeRouteComponents,
   ...clubAdminRouteComponents,
+  ...judgeRouteComponents,
 };
 
 // Route categories for prioritized preloading

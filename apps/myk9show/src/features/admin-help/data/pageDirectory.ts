@@ -476,14 +476,16 @@ export const pageDirectory: readonly PageEntry[] = [
   {
     path: '/exhibitor/payments',
     title: 'My Payments',
-    description: 'Your online entry payment history; receipts live with each entry under My Shows.',
+    description:
+      'Chronological list of the exhibitor\'s online entry payments with status and Stripe reference; receipts live per-entry under My Shows.',
     roles: [UserRole.EXHIBITOR, UserRole.SITE_ADMIN],
     classification: 'park',
     category: 'Payments',
     status: 'working',
-    // No linksTo: the natural target (My Shows / Cart) is a documented route, and
-    // referencing it here would trip the doc-staleness gate into flagging that
-    // guide as changed. Matches the empty-linksTo precedent for catalog additions.
+    // linksTo intentionally empty: the natural target (My Shows) is a
+    // doc-staleness-tracked route, so listing it here would re-flag an
+    // unchanged guide in qa:doc-staleness:strict. The page links to My
+    // Shows in its own UI (Receipt column).
     linksTo: [],
   },
   {
@@ -608,12 +610,13 @@ export const pageDirectory: readonly PageEntry[] = [
   },
 
   // =========================
-  // CLUB ADMIN / TREASURER
+  // CLUB ADMIN
   // =========================
   {
     path: '/club-admin/members',
     title: 'Club Members',
-    description: 'Manage club-level access: add or remove Club Admins and Secretaries.',
+    description:
+      'Manage club-level access: add or remove Club Admins and Secretaries and grant show-management rights.',
     roles: [UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN],
     classification: 'critical-path',
     category: 'Clubs',
@@ -623,7 +626,8 @@ export const pageDirectory: readonly PageEntry[] = [
   {
     path: '/club-admin/payments',
     title: 'Club Payments',
-    description: 'Connect the club bank account and review show payout history (Stripe Express).',
+    description:
+      'Connect the club Stripe Express account and review per-show payout history and status.',
     roles: [UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN],
     classification: 'critical-path',
     category: 'Payments',

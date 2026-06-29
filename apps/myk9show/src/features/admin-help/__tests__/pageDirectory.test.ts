@@ -51,6 +51,20 @@ describe('pageDirectory (invariant)', () => {
     }
   });
 
+  it('catalogs the deferred payment-surface routes (PR #1002 follow-up)', () => {
+    const paths = pageDirectory.map(e => e.path);
+    expect(paths).toContain('/exhibitor/payments');
+    expect(paths).toContain('/club-admin/members');
+    expect(paths).toContain('/club-admin/payments');
+  });
+
+  it('scopes the club-admin payment surfaces to club-admin and site-admin', () => {
+    for (const path of ['/club-admin/members', '/club-admin/payments']) {
+      const entry = pageDirectory.find(e => e.path === path);
+      expect(entry?.roles).toEqual([UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN]);
+    }
+  });
+
   it('catalogs sidebar-visible role pages that are safe for customer docs', () => {
     const paths = pageDirectory.map(e => e.path);
     expect(paths).toEqual(

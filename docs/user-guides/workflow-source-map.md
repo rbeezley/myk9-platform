@@ -10,7 +10,7 @@ Maps user workflows to their canonical routes in myK9Show. The per-route invento
 
 Routes visible in the sidebar (`unifiedSidebarConfig.ts`) that are **not yet in `pageDirectory.ts`**. These are gaps — add them to `pageDirectory.ts` before they can be documented.
 
-No open gaps. The admin user-management, role-requests, payout-ledger, and people surfaces — and the payment surfaces (Exhibitor **My Payments**, Club Admin **Members** / **Payments**) — are all cataloged in `pageDirectory.ts` and reconciled with their customer guide sections (Exhibitor Guide § Payments; Club Admin Guide § Members / § Payments / § Payouts).
+All sidebar-visible routes are now cataloged in `pageDirectory.ts` — there are no remaining gaps. The admin user-management, role-requests, payout-ledger, and people surfaces were cataloged in #1002; the exhibitor and club-admin payment surfaces in #1014 (after re-verifying Exhibitor Guide § Payments and Club Admin Guide § Members / § Payments).
 
 ---
 

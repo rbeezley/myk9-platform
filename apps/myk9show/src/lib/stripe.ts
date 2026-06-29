@@ -42,16 +42,26 @@ export async function createCheckoutSession(priceId: string, mode: 'payment' | '
  * @param cartId - The ID of the entry cart to checkout
  * @returns Promise that resolves when redirect happens, or throws on error
  */
-export async function createEntryCheckoutSession(cartId: string): Promise<void> {
+export async function createEntryCheckoutSession(
+  cartId: string,
+  options?: { splitCheckoutId?: string }
+): Promise<void> {
   if (!cartId) {
     throw new Error('Cart ID is required');
+  }
+
+  const successUrl = new URL(`${window.location.origin}/checkout/success`);
+  successUrl.searchParams.set('session_id', '{CHECKOUT_SESSION_ID}');
+
+  if (options?.splitCheckoutId) {
+    successUrl.searchParams.set('split', options.splitCheckoutId);
   }
 
   const { data, error } = await supabase.functions.invoke('stripe-checkout', {
     body: {
       mode: 'entry',
       cart_id: cartId,
-      success_url: `${window.location.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: successUrl.toString(),
       cancel_url: `${window.location.origin}/checkout/cancel`,
     },
   });
@@ -80,11 +90,14 @@ export async function createEntryCheckoutSession(cartId: string): Promise<void> 
  */
 export async function verifyCheckoutSession(sessionId: string): Promise<{
   success: boolean;
+  checkoutOutcome?: 'paid_entries' | 'full_overflow_refund';
   orderId?: string;
   entryIds?: string[];
   showId?: string;
   showName?: string;
   totalAmount?: number;
+  refundAmount?: number;
+  refundStatus?: 'issued' | 'processing';
   confirmationNumber?: string;
   error?: string;
 }> {
@@ -110,7 +123,9 @@ export async function verifyCheckoutSession(sessionId: string): Promise<{
       entry_ids,
       show_id,
       paid_at,
+      refunded_at,
       stripe_payment_intent_id,
+      metadata,
       shows:show_id (name),
       enrollment:enrollment_id (confirmation_number)
     `
@@ -121,6 +136,21 @@ export async function verifyCheckoutSession(sessionId: string): Promise<{
   if (error || !order) {
     // Order might not be created yet (webhook delay)
     return { success: false, error: 'Order not found. It may still be processing.' };
+  }
+
+  const overflowRefund = getFullOverflowRefund(order.metadata);
+  if (overflowRefund && (order.status === 'refunded' || order.status === 'succeeded')) {
+    return {
+      success: true,
+      checkoutOutcome: 'full_overflow_refund',
+      orderId: order.id,
+      entryIds: [],
+      ...(order.show_id != null && { showId: order.show_id }),
+      ...(order.shows && { showName: (order.shows as { name: string }).name }),
+      ...(overflowRefund.amountCents != null && { refundAmount: overflowRefund.amountCents }),
+      refundStatus: order.status === 'refunded' ? 'issued' : 'processing',
+      ...(order.stripe_payment_intent_id && { confirmationNumber: order.stripe_payment_intent_id }),
+    };
   }
 
   if (order.status !== 'succeeded') {
@@ -134,11 +164,26 @@ export async function verifyCheckoutSession(sessionId: string): Promise<{
 
   return {
     success: true,
+    checkoutOutcome: 'paid_entries',
     orderId: order.id,
     entryIds: order.entry_ids || [],
     ...(order.show_id != null && { showId: order.show_id }),
     ...(order.shows && { showName: (order.shows as { name: string }).name }),
     ...(order.amount_cents != null && { totalAmount: order.amount_cents }),
     ...(confirmationNumber && { confirmationNumber }),
+  };
+}
+
+function getFullOverflowRefund(metadata: unknown): { amountCents: number | null } | null {
+  if (!metadata || typeof metadata !== 'object') return null;
+
+  const rawRefund = (metadata as { overflow_refund?: unknown }).overflow_refund;
+  if (!rawRefund || typeof rawRefund !== 'object') return null;
+
+  const refund = rawRefund as { action?: unknown; reason?: unknown; amount_cents?: unknown };
+  if (refund.action !== 'refund' || refund.reason !== 'full_make_whole') return null;
+
+  return {
+    amountCents: typeof refund.amount_cents === 'number' ? refund.amount_cents : null,
   };
 }

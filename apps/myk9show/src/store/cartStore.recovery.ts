@@ -17,7 +17,7 @@ export const loadCartItemsByCartId = async (cartId: string): Promise<CartItemWit
   const { data, error } = await supabase
     .from('entry_cart_items')
     .select(
-      `*, dog:dogs(id, name, call_name, breed), class:classes(id, name, level, trial_id), handler:people(id, first_name, last_name)`
+      `*, dog:dogs(id, name, call_name, breed), class:classes(id, name, level, trial_id, allow_waitlist), handler:people(id, first_name, last_name)`
     )
     .eq('cart_id', cartId);
 

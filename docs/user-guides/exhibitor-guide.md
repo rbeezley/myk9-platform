@@ -217,13 +217,9 @@ Refund terms are in the show's entry agreement.
 
 ## Section 10 — Payments and Receipts
 
-The **My Payments** page lists every online entry payment you've made, newest first.
+Go to **My Payments** in the navigation to see every online entry payment you've made, newest first. Each row shows the date, show, amount, status (Paid, Refunded, or Failed), and the Stripe reference.
 
-1. In the sidebar, open **My Payments**.
-2. Each row shows the date, show, amount, status, and a payment reference.
-3. In the **Receipt** column, click **My Shows** to open the entry, where the printable per-entry receipt lives.
-
-Haven't paid online yet? The page reads "No payments yet" until your first online entry payment. Payments you made another way (for example, at the door) won't appear here — ask the trial secretary for those receipts.
+To print a receipt, use the **Receipt** link on the row — it opens **My Shows**, where the printable receipt lives with each entry. You can also reach the same payment status directly from any entry card under **My Shows**.
 
 ---
 

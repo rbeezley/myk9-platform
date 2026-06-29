@@ -6,9 +6,7 @@ import { UserRole } from '@/types/auth-types';
 import { hasScopedClubRole } from '@/utils/roleScopes';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useTemplateStore } from '@/store/templateStore';
-import { useShowStore } from '@/store/showStore';
-import { useTrialQuery } from '@/hooks/queries/useTrialsDatabase';
-import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
+import { useTrialDetailData } from '@/hooks/useTrialDetailData';
 import TrialDetailsMain from '@/components/trials/TrialDetailsMain';
 import { AddClassesToTrialPanel } from '@/components/classes/AddClassesToTrialPanel';
 import { TrialEditPanel } from '@/components/panels/edit/TrialEditPanel';
@@ -81,37 +79,17 @@ const TrialDetailsPage: React.FC = () => {
   } = useTrialStore();
   const { user, isSecretary, isAdmin, hasRole, userWithRoles } = useAuthContext();
   const { templates, initializeDefaultTemplates } = useTemplateStore();
-  const { shows } = useShowStore();
 
-  // Current trial + its parent show — plain store derivations, safe to read
-  // before the hooks below (they depend only on already-loaded store data) so
-  // the staff gate can scope club_admin to this trial's club.
-  //
-  // Lane 3.7: the trial store is replication-fed and never syncs for a
-  // logged-out guest, so a cold anon visitor finds nothing here. Fall back to
-  // the anon-safe by-id service read (getTrialById self-falls-through to direct
-  // PostgREST) so the public trial page renders instead of being stuck on
-  // "Loading trial...". The query is disabled for warm sessions that already
-  // have the trial in the store.
-  const storeTrial = trials.find(trial => trial.id === selectedTrialId);
+  // Current trial + its parent show, with the anon/cold-store by-id fallback the
+  // public trial page needs (the staff gate below scopes club_admin to this
+  // trial's club). See useTrialDetailData.
   const {
-    data: fallbackTrial,
-    isSuccess: fallbackTrialResolved,
-    isError: fallbackTrialError,
-    refetch: refetchFallbackTrial,
-  } = useTrialQuery(storeTrial ? undefined : trialId);
-  const currentTrial = (storeTrial ?? fallbackTrial ?? undefined) as
-    | (import('@/components/trials/types/trial.types').Trial & { classes?: TrialClass[] })
-    | undefined;
-
-  const storeShow = currentTrial
-    ? shows.find(show => show.id === currentTrial.showId)
-    : undefined;
-  // Same cold-store gap for the parent show — getShowById is already anon-safe.
-  const { data: fallbackShow } = useShowQuery(
-    !storeShow && currentTrial?.showId ? currentTrial.showId : ''
-  );
-  const parentShow = storeShow ?? fallbackShow ?? undefined;
+    currentTrial,
+    parentShow,
+    fallbackTrialResolved,
+    fallbackTrialError,
+    refetchFallbackTrial,
+  } = useTrialDetailData(trialId);
   const showOrganization = parentShow?.organization;
 
   // Public route — exhibitors are now deep-linked here from styled landings.

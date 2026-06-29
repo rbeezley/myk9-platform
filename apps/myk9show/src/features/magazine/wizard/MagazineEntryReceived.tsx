@@ -48,7 +48,7 @@ const META = "'Inter Tight', system-ui, sans-serif";
  * Magazine wizard final-step receipt.
  *
  * Visual contract (from `Magazine Wizard Completion.html`):
- * 1. Smallcaps kicker ("Ready to submit · Entry 2026-0137") in gold-3
+ * 1. Smallcaps kicker ("Submitted · Entry 2026-0137") in gold-3
  * 2. Cormorant Garamond heading with italic gold-3 accent on "ready"
  * 3. Italic dek (club + show + date range)
  * 4. 2px gold-gradient rule
@@ -78,8 +78,8 @@ export function MagazineEntryReceived({
   const navigate = useNavigate();
 
   const kicker = registrationNumber
-    ? `Ready to submit · Entry ${registrationNumber}`
-    : 'Ready to submit';
+    ? `Submitted · Entry ${registrationNumber}`
+    : 'Submitted';
 
   // No `data-magazine` attribute here — this component renders inside the
   // wizard's existing layout shell, which does not import `magazine.css`,
@@ -122,7 +122,7 @@ export function MagazineEntryReceived({
           }}
         >
           Your entry is{' '}
-          <span style={{ fontStyle: 'italic', color: GOLD_3 }}>ready</span>.
+          <span style={{ fontStyle: 'italic', color: GOLD_3 }}>submitted</span>.
         </h2>
 
         <p

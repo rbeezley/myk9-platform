@@ -23,9 +23,9 @@ const BASE_PROPS = {
 };
 
 describe('PosterEntryReceived', () => {
-  it('renders the ready-to-submit heading', () => {
+  it('renders the submitted heading', () => {
     render(<PosterEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByRole('heading', { name: /ready to submit/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /entry submitted/i })).toBeTruthy();
   });
 
   it('renders the byline (uppercased) with show, club, and date range', () => {
@@ -37,13 +37,13 @@ describe('PosterEntryReceived', () => {
 
   it('renders the entry number in the kicker when provided', () => {
     render(<PosterEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/NO 01 \/ READY TO SUBMIT · ENTRY 2026-0137/)).toBeInTheDocument();
+    expect(screen.getByText(/NO 01 \/ SUBMITTED · ENTRY 2026-0137/)).toBeInTheDocument();
   });
 
   it('omits the entry suffix when registration number is null', () => {
     render(<PosterEntryReceived {...BASE_PROPS} registrationNumber={null} />);
     expect(screen.queryByText(/ENTRY 2026/)).toBeNull();
-    expect(screen.getByText(/NO 01 \/ READY TO SUBMIT/)).toBeInTheDocument();
+    expect(screen.getByText(/NO 01 \/ SUBMITTED/)).toBeInTheDocument();
   });
 
   it('renders the dog registered name in uppercase', () => {

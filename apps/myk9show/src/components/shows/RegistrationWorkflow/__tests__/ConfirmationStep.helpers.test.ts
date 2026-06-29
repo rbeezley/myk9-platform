@@ -75,25 +75,50 @@ describe('getPaymentMethodDisplay', () => {
 });
 
 describe('getConfirmationHeroCopy', () => {
-  it('uses final-review language while the entry and payment are pending', () => {
-    expect(getConfirmationHeroCopy(EntryStatus.PENDING, PaymentStatus.PENDING)).toEqual({
-      title: 'Registration Ready to Submit',
-      description: 'Review this summary, then choose Complete Registration to submit your entry.',
-    });
-  });
-
-  it('uses confirmed language only once entry and payment are recorded', () => {
+  // The confirmation step is always post-submit (the entry is written on the
+  // Payment step's Next), so the copy is "submitted", never "ready to submit".
+  it('confirms once the entry is accepted and payment is recorded', () => {
     expect(getConfirmationHeroCopy(EntryStatus.ACCEPTED, PaymentStatus.PAID_BY_CHECK)).toEqual({
       title: 'Registration Confirmed',
-      description: 'Your registration has been submitted and payment has been recorded.',
+      description: 'Your entry has been submitted and payment recorded.',
     });
   });
 
-  it('keeps deferred accepted entries in final-review language until payment is recorded', () => {
-    expect(getConfirmationHeroCopy(EntryStatus.ACCEPTED, PaymentStatus.PENDING)).toEqual({
-      title: 'Registration Ready to Submit',
-      description: 'Review this summary, then choose Complete Registration to submit your entry.',
+  it('frames a pending check/cash entry as submitted with payment due at the show', () => {
+    expect(getConfirmationHeroCopy(EntryStatus.PENDING, PaymentStatus.PENDING)).toEqual({
+      title: 'Registration Submitted',
+      description: 'Your entry has been submitted. Payment is due at the show.',
     });
+  });
+
+  it('keeps a deferred-but-accepted unpaid entry in submitted / payment-due language', () => {
+    expect(getConfirmationHeroCopy(EntryStatus.ACCEPTED, PaymentStatus.PENDING)).toEqual({
+      title: 'Registration Submitted',
+      description: 'Your entry has been submitted. Payment is due at the show.',
+    });
+  });
+
+  it('does not claim payment is due when an unaccepted entry is already paid', () => {
+    // e.g. paid online but waitlisted / awaiting review — telling them payment
+    // is due at the show would be wrong.
+    expect(getConfirmationHeroCopy(EntryStatus.WAITLIST, PaymentStatus.PAID_ONLINE)).toEqual({
+      title: 'Registration Submitted',
+      description: 'Your entry has been submitted and payment recorded.',
+    });
+  });
+
+  it('never uses pre-submit "ready to submit" framing for any post-submit state', () => {
+    const samples: Array<[EntryStatus, PaymentStatus]> = [
+      [EntryStatus.PENDING, PaymentStatus.PENDING],
+      [EntryStatus.ACCEPTED, PaymentStatus.PAID_ONLINE],
+      [EntryStatus.WAITLIST, PaymentStatus.PAID_ONLINE],
+      [EntryStatus.MISSING_INFO, PaymentStatus.PENDING],
+    ];
+    for (const [entry, payment] of samples) {
+      const copy = getConfirmationHeroCopy(entry, payment);
+      expect(copy.title).not.toMatch(/ready to submit/i);
+      expect(copy.description).not.toMatch(/to submit/i);
+    }
   });
 });
 

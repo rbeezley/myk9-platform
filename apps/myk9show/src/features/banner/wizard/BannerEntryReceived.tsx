@@ -68,7 +68,7 @@ export function BannerEntryReceived({
             opacity: 0.7,
           }}
         >
-          Ready to submit{registrationNumber ? ` · Entry ${registrationNumber}` : ''}
+          Submitted{registrationNumber ? ` · Entry ${registrationNumber}` : ''}
         </p>
         <h2
           style={{
@@ -81,7 +81,7 @@ export function BannerEntryReceived({
             color: colors.textOnFlag,
           }}
         >
-          Ready to submit.
+          Entry submitted.
         </h2>
         <p
           style={{

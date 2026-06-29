@@ -3,15 +3,7 @@ import { getShowStyle } from '@/features/registries';
 import { publishExperience } from '@/features/experience/publishExperience';
 import { STYLED_LANDING_BY_STYLE } from '@/features/_shared/styledLandingRegistry';
 import { Link, Outlet, useParams, useNavigate, useSearchParams, useMatch } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getTrialsByShow } from '@/services/database/trials';
-import { getClassesByTrialId } from '@/services/database/classes';
-import { pickLandingTrials } from './ShowDetailsPage.landingTrials';
-import {
-  buildPublicShowClasses,
-  buildPublicTrialStats,
-  type TrialClassRows,
-} from './ShowDetailsPage.publicClasses';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   LayoutDashboard,
   Trophy,
@@ -50,6 +42,7 @@ import { useShowsQuery, showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import { useShowStore } from '@/store/showStore';
 import { persistShowJudgeAssignments } from '@/services/database/judges';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
+import { useShowLandingData } from '@/hooks/useShowLandingData';
 import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useTrialStore } from '@/store/trialStore';
@@ -251,52 +244,18 @@ const ShowDetailsPage: React.FC = () => {
     [showId_, trials]
   );
 
-  // Public/anon fallback for trials. The trial store (associatedTrials) is fed by the
-  // replication layer, which does NOT sync for guests (ReplicationSyncProvider skips guest
-  // sync) — so a cold signed-out visitor on a public styled landing has zero replicated
-  // trials even though the public show loaded. getTrialsByShow self-falls-through to a direct
-  // PostgREST read when the show isn't in the replicated store, so it works for anon. We only
-  // enable it when the store is empty, then map the rows to the Trial[] the landing expects.
-  const { data: publicTrialsResult } = useQuery({
-    queryKey: ['public-show-trials', showId_],
-    queryFn: () => getTrialsByShow(showId_ as string),
-    enabled: !!showId_ && associatedTrials.length === 0,
-    staleTime: 60_000,
-  });
-  const landingTrials = useMemo(
-    () => pickLandingTrials(associatedTrials, publicTrialsResult?.data),
-    [associatedTrials, publicTrialsResult]
+  // Anon / cold-store fallback data layer for the public read path: trials,
+  // classes, and per-trial stats fetched via anon-safe PostgREST when the
+  // replicated store is cold (guest session). See useShowLandingData.
+  const { landingTrials, publicShowClasses, publicTrialStats } = useShowLandingData(
+    showId_,
+    associatedTrials,
+    showEntries
   );
   // For tabs/counts/derivations, treat landingTrials as the effective trial
   // list: it IS associatedTrials when the store is warm, and the anon-safe
   // public rows when the store is cold. (Lane 3.7)
   const effectiveTrials = landingTrials;
-
-  // Public/anon fallback for trial *classes*. Same cold-store gap as trials:
-  // a logged-out guest on a DEFAULT-style show falls to the tabbed UI whose
-  // Trials/Classes tabs read the cold trialClasses store. getClassesByTrialId
-  // self-falls-through to a direct anon-safe PostgREST read, so fetch per
-  // landing trial when the store is cold, then reshape to the tab's ClassInfo.
-  const landingTrialIdsKey = useMemo(() => landingTrials.map(t => t.id).join(','), [landingTrials]);
-  const { data: publicClassesByTrial } = useQuery<TrialClassRows[]>({
-    queryKey: ['public-show-classes', showId_, landingTrialIdsKey],
-    queryFn: async () => {
-      const results = await Promise.all(
-        landingTrials.map(async trial => {
-          const { data, error } = await getClassesByTrialId(trial.id);
-          // The service returns { data: [], error } on a fallback failure — NOT a
-          // throw. Swallowing that error would turn a failed read into a silent
-          // empty tab, re-creating the exact false-empty bug this query fixes.
-          // Throw so React Query surfaces the error (and retries) instead.
-          if (error) throw error;
-          return { trialId: trial.id, rows: (data ?? []) as Record<string, unknown>[] };
-        })
-      );
-      return results;
-    },
-    enabled: !!showId_ && associatedTrials.length === 0 && landingTrials.length > 0,
-    staleTime: 60_000,
-  });
 
   // Check if user has entries in this show (determines default tab)
   // Only enable polling when the My Entries tab is active (fix #3)
@@ -387,13 +346,9 @@ const ShowDetailsPage: React.FC = () => {
     });
   }, [associatedTrials, trialClasses, userEntryClassIds, entryCountByClassId]);
 
-  // Anon/cold-store fallback for the Classes tab + overview. When the store has
-  // trials we keep the store-derived `showClasses` verbatim (warm session, no
-  // behavior change); only a cold guest swaps in the public PostgREST reshape.
-  const publicShowClasses = useMemo(
-    () => buildPublicShowClasses(landingTrials, publicClassesByTrial ?? [], showEntries),
-    [landingTrials, publicClassesByTrial, showEntries]
-  );
+  // When the store has trials we keep the store-derived `showClasses` verbatim
+  // (warm session, no behavior change); only a cold guest swaps in the public
+  // PostgREST reshape from useShowLandingData.
   const effectiveShowClasses = showClasses.length > 0 ? showClasses : publicShowClasses;
 
   const effectiveJudges = useMemo((): ShowJudgeAssignment[] => {
@@ -422,11 +377,8 @@ const ShowDetailsPage: React.FC = () => {
     return stats;
   }, [associatedTrials, trialClasses, entryCountByClassId]);
 
-  // Same cold-store fallback for the Trials tab's per-trial stat cards.
-  const publicTrialStats = useMemo(
-    () => buildPublicTrialStats(publicClassesByTrial ?? [], showEntries),
-    [publicClassesByTrial, showEntries]
-  );
+  // Same cold-store fallback for the Trials tab's per-trial stat cards
+  // (publicTrialStats from useShowLandingData).
   const effectiveTrialStats = associatedTrials.length > 0 ? trialStats : publicTrialStats;
 
   const hasEntryClassInventory =

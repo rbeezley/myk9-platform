@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Download, Mail, Bell, Phone } from 'lucide-react';
+import { Download, Mail } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,22 +10,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
-import { logger } from '@/services/LoggingService';
 import {
   getPaymentMethodDisplay,
   getEntryStatusBadgeColor,
   getPaymentStatusBadgeColor,
 } from './ConfirmationStep.helpers';
-import type { ArmbandAssignment, NotificationPreferences } from './ConfirmationStep.types';
+import type { ArmbandAssignment } from './ConfirmationStep.types';
 
 interface RegistrationManagementPanelProps {
   registrationNumber: string;
@@ -40,7 +37,6 @@ interface RegistrationManagementPanelProps {
   onSendEmail?: (() => void) | undefined;
   onStatusChange?: ((dogId: string, status: EntryStatus) => void) | undefined;
   onArmbandAssign?: ((dogId: string, armband: string) => void) | undefined;
-  onNotificationToggle?: ((type: string, enabled: boolean) => void) | undefined;
 }
 
 export const RegistrationManagementPanel: React.FC<RegistrationManagementPanelProps> = ({
@@ -56,44 +52,10 @@ export const RegistrationManagementPanel: React.FC<RegistrationManagementPanelPr
   onSendEmail,
   onStatusChange,
   onArmbandAssign,
-  onNotificationToggle,
 }) => {
   const { dogs } = useDogStoreCompat();
   const [activeTab, setActiveTab] = useState('summary');
   const [statusNotes, setStatusNotes] = useState('');
-
-  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>({
-    email: true,
-    sms: false,
-    statusChanges: true,
-    paymentReceipts: true,
-    remindersBefore: 3,
-    ringCallReminders: true,
-    scheduleChanges: true,
-  });
-
-  const handleNotificationToggle = (
-    type: keyof NotificationPreferences,
-    value: boolean | number
-  ) => {
-    setNotificationPreferences(prev => ({
-      ...prev,
-      [type]: value,
-    }));
-
-    if (onNotificationToggle) {
-      onNotificationToggle(type, value as boolean);
-    }
-  };
-
-  const handleSendConfirmationEmail = () => {
-    if (onSendEmail) {
-      onSendEmail();
-    }
-    logger.debug('Sending confirmation email with preferences:', 'shows', {
-      data: notificationPreferences,
-    });
-  };
 
   const getArmbandForDog = (dogId: string) => {
     return armbandAssignments.find(a => a.dogId === dogId);
@@ -107,10 +69,9 @@ export const RegistrationManagementPanel: React.FC<RegistrationManagementPanelPr
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="summary">Summary</TabsTrigger>
               <TabsTrigger value="status">Status</TabsTrigger>
-              <TabsTrigger value="notifications">Notifications</TabsTrigger>
               <TabsTrigger value="armbands">Armbands</TabsTrigger>
             </TabsList>
 
@@ -166,7 +127,7 @@ export const RegistrationManagementPanel: React.FC<RegistrationManagementPanelPr
                     <Download className="h-4 w-4 mr-2" />
                     Download Receipt
                   </Button>
-                  <Button size="sm" variant="outline" onClick={handleSendConfirmationEmail}>
+                  <Button size="sm" variant="outline" onClick={onSendEmail}>
                     <Mail className="h-4 w-4 mr-2" />
                     Email Confirmation
                   </Button>
@@ -202,136 +163,6 @@ export const RegistrationManagementPanel: React.FC<RegistrationManagementPanelPr
                   placeholder="Add notes about status change..."
                   rows={3}
                 />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="notifications" className="space-y-4">
-              <div className="space-y-4">
-                <div className="text-sm text-gray-600">
-                  Configure how you want to receive updates about your registration and show
-                  information.
-                </div>
-
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="email-notifications"
-                        checked={notificationPreferences.email}
-                        onCheckedChange={checked =>
-                          handleNotificationToggle('email', checked === true)
-                        }
-                      />
-                      <Label htmlFor="email-notifications" className="flex items-center gap-2">
-                        <Mail className="h-4 w-4" />
-                        Email notifications
-                      </Label>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="sms-notifications"
-                        checked={notificationPreferences.sms}
-                        onCheckedChange={checked =>
-                          handleNotificationToggle('sms', checked === true)
-                        }
-                      />
-                      <Label htmlFor="sms-notifications" className="flex items-center gap-2">
-                        <Phone className="h-4 w-4" />
-                        SMS notifications
-                      </Label>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-3">
-                    <h4 className="text-sm font-medium">Notification Types</h4>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="status-changes"
-                          checked={notificationPreferences.statusChanges}
-                          onCheckedChange={checked =>
-                            handleNotificationToggle('statusChanges', checked === true)
-                          }
-                        />
-                        <Label htmlFor="status-changes" className="text-sm">
-                          Entry status changes
-                        </Label>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="payment-receipts"
-                          checked={notificationPreferences.paymentReceipts}
-                          onCheckedChange={checked =>
-                            handleNotificationToggle('paymentReceipts', checked === true)
-                          }
-                        />
-                        <Label htmlFor="payment-receipts" className="text-sm">
-                          Payment confirmations
-                        </Label>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="ring-call-reminders"
-                          checked={notificationPreferences.ringCallReminders}
-                          onCheckedChange={checked =>
-                            handleNotificationToggle('ringCallReminders', checked === true)
-                          }
-                        />
-                        <Label htmlFor="ring-call-reminders" className="text-sm">
-                          Ring call reminders
-                        </Label>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="schedule-changes"
-                          checked={notificationPreferences.scheduleChanges}
-                          onCheckedChange={checked =>
-                            handleNotificationToggle('scheduleChanges', checked === true)
-                          }
-                        />
-                        <Label htmlFor="schedule-changes" className="text-sm">
-                          Schedule changes
-                        </Label>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Send reminders</Label>
-                    <Select
-                      value={notificationPreferences.remindersBefore.toString()}
-                      onValueChange={value =>
-                        handleNotificationToggle('remindersBefore', parseInt(value))
-                      }
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select reminder timing..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1">1 day before show</SelectItem>
-                        <SelectItem value="3">3 days before show</SelectItem>
-                        <SelectItem value="7">1 week before show</SelectItem>
-                        <SelectItem value="14">2 weeks before show</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="pt-4">
-                    <Button size="sm" variant="outline" onClick={handleSendConfirmationEmail}>
-                      <Bell className="h-4 w-4 mr-2" />
-                      Send Test Notification
-                    </Button>
-                  </div>
-                </div>
               </div>
             </TabsContent>
 

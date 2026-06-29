@@ -43,7 +43,6 @@ import {
 import type { ReceiptData } from './ConfirmationStep.helpers';
 import type { ConfirmationStepProps, DogClassDetails } from './ConfirmationStep.types';
 import { RegistrationManagementPanel } from './RegistrationManagementPanel';
-import { NotificationPreferencesCard } from './NotificationPreferencesCard';
 import { sendRegistrationConfirmationEmail } from './sendRegistrationConfirmationEmail';
 import { formatRingLabel } from '@/utils/ringLabel';
 
@@ -68,7 +67,6 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   onSendEmail,
   onStatusChange,
   onArmbandAssign,
-  onNotificationToggle,
 }) => {
   const { dogs } = useDogStoreCompat();
   const { shows = [] } = useShowStore();
@@ -550,11 +548,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
         onSendEmail={handleSendEmail}
         onStatusChange={onStatusChange}
         onArmbandAssign={onArmbandAssign}
-        onNotificationToggle={onNotificationToggle}
       />
-
-      {/* Notification Preferences */}
-      <NotificationPreferencesCard onNotificationToggle={onNotificationToggle} />
 
       {/* Documentation */}
       {documents && documents.length > 0 && (

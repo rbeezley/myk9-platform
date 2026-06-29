@@ -1,14 +1,42 @@
--- Track how a waitlist row was created so mail-in/offline promotions can use
--- a manual hold instead of the online pay-to-claim expiration clock.
+-- Forward deploy review fixes for PR #1013.
+--
+-- 1. Do not rely on edits to already-applied waitlist migration 20260622002405.
+-- 2. Keep the display RPC and paid-entry gate on the same capacity formula by
+--    delegating to the VOLATILE live helper created in 20260628202146.
 
-ALTER TABLE public.waitlist_entries
-  ADD COLUMN IF NOT EXISTS joined_via text NOT NULL DEFAULT 'online'
-  CHECK (joined_via IN ('online', 'mail_in'));
+CREATE UNIQUE INDEX IF NOT EXISTS waitlist_entries_active_class_dog_key
+  ON public.waitlist_entries (class_id, dog_id)
+  WHERE status IN ('waiting', 'offered');
 
-COMMENT ON COLUMN public.waitlist_entries.joined_via IS
-  'Channel that created the waitlist row. online rows use pay-to-claim expiry; mail_in rows are held for secretary/offline handling.';
+CREATE OR REPLACE FUNCTION public.get_judge_day_capacity(
+  p_judge_id uuid,
+  p_show_id uuid,
+  p_date date
+)
+RETURNS TABLE (
+  judge_id uuid,
+  show_date date,
+  capacity integer,
+  confirmed_count integer,
+  waitlist_count integer,
+  mail_in_reserved integer,
+  available_spots integer,
+  class_ids uuid[]
+)
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT *
+  FROM public.get_judge_day_capacity_live(p_judge_id, p_show_id, p_date);
+END;
+$$;
 
-DROP FUNCTION IF EXISTS public.add_to_waitlist(uuid, uuid, uuid, uuid);
+REVOKE ALL ON FUNCTION public.get_judge_day_capacity(uuid, uuid, date) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_judge_day_capacity(uuid, uuid, date) TO authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.add_to_waitlist(
   p_class_id uuid,
@@ -66,6 +94,19 @@ BEGIN
 
   PERFORM pg_advisory_xact_lock(hashtext(p_class_id::text));
 
+  SELECT *
+  INTO new_entry
+  FROM public.waitlist_entries
+  WHERE class_id = p_class_id
+    AND dog_id = p_dog_id
+    AND status IN ('waiting', 'offered')
+  ORDER BY position NULLS LAST, created_at
+  LIMIT 1;
+
+  IF FOUND THEN
+    RETURN new_entry;
+  END IF;
+
   SELECT COALESCE(MAX(position), 0) + 1
   INTO next_position
   FROM public.waitlist_entries
@@ -95,40 +136,6 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.add_to_waitlist(uuid, uuid, uuid, uuid, text) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.add_to_waitlist(uuid, uuid, uuid, uuid, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.add_to_waitlist(uuid, uuid, uuid, uuid, text) TO authenticated, service_role;
 
-DROP POLICY IF EXISTS "waitlist_entries_insert" ON public.waitlist_entries;
-
-CREATE POLICY "waitlist_entries_insert" ON public.waitlist_entries
-    FOR INSERT TO public
-    WITH CHECK (
-        EXISTS (
-            SELECT 1
-            FROM public.classes c
-            JOIN public.trials t ON t.id = c.trial_id
-            JOIN public.shows s ON s.id = t.show_id
-            JOIN public.user_roles ur ON (
-                ur.show_id = s.id
-                OR (ur.show_id IS NULL AND ur.club_id = s.club_id)
-            )
-            JOIN public.roles r ON r.id = ur.role_id
-            WHERE c.id = waitlist_entries.class_id
-              AND ur.auth_user_id = (SELECT auth.uid())
-              AND ur.is_active
-              AND (ur.expires_at IS NULL OR ur.expires_at > now())
-              AND r.name IN ('site_admin', 'secretary')
-        )
-        OR (
-            exhibitor_id IN (
-                SELECT ep.id
-                FROM public.exhibitor_profiles ep
-                WHERE ep.auth_user_id = (SELECT auth.uid())
-            )
-            AND dog_id IN (
-                SELECT d.id
-                FROM public.dogs d
-                WHERE d.owner_id = (SELECT public.get_my_person_id())
-                   OR d.co_owner_id = (SELECT public.get_my_person_id())
-            )
-        )
-    );
+NOTIFY pgrst, 'reload schema';

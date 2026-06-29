@@ -18,6 +18,118 @@ CREATE UNIQUE INDEX IF NOT EXISTS waitlist_entries_active_class_dog_key
   ON public.waitlist_entries (class_id, dog_id)
   WHERE status IN ('waiting', 'offered');
 
+CREATE OR REPLACE FUNCTION public.get_judge_day_capacity_live(
+  p_judge_id uuid,
+  p_show_id uuid,
+  p_date date
+)
+RETURNS TABLE (
+  judge_id uuid,
+  show_date date,
+  capacity integer,
+  confirmed_count integer,
+  waitlist_count integer,
+  mail_in_reserved integer,
+  available_spots integer,
+  class_ids uuid[]
+)
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_capacity integer;
+  v_override integer;
+  v_show_capacity integer;
+  v_confirmed integer;
+  v_waitlist integer;
+  v_reserved integer;
+  v_class_ids uuid[];
+  v_mail_in_strategy text;
+  v_mail_in_value integer;
+  v_mail_in_auto_release boolean;
+  v_mail_in_release_date date;
+BEGIN
+  SELECT COALESCE(ARRAY_AGG(DISTINCT ja.class_id), ARRAY[]::uuid[])
+  INTO v_class_ids
+  FROM public.judge_assignments ja
+  JOIN public.classes c ON c.id = ja.class_id
+  JOIN public.trials t ON t.id = c.trial_id
+  WHERE ja.person_id = p_judge_id
+    AND ja.show_id = p_show_id
+    AND t.date = p_date
+    AND ja.status = 'confirmed';
+
+  SELECT
+    s.default_judge_day_capacity,
+    s.mail_in_strategy,
+    s.mail_in_value,
+    s.mail_in_auto_release,
+    s.mail_in_release_date
+  INTO
+    v_show_capacity,
+    v_mail_in_strategy,
+    v_mail_in_value,
+    v_mail_in_auto_release,
+    v_mail_in_release_date
+  FROM public.shows s
+  WHERE s.id = p_show_id;
+
+  SELECT MAX(ja.day_capacity_override)
+  INTO v_override
+  FROM public.judge_assignments ja
+  JOIN public.classes c ON c.id = ja.class_id
+  JOIN public.trials t ON t.id = c.trial_id
+  WHERE ja.person_id = p_judge_id
+    AND ja.show_id = p_show_id
+    AND t.date = p_date
+    AND ja.day_capacity_override IS NOT NULL;
+
+  v_capacity := COALESCE(v_override, v_show_capacity, 125);
+
+  v_reserved := 0;
+  IF NOT (
+    COALESCE(v_mail_in_auto_release, false)
+    AND v_mail_in_release_date IS NOT NULL
+    AND v_mail_in_release_date <= CURRENT_DATE
+  ) THEN
+    IF v_mail_in_strategy = 'fixed' THEN
+      v_reserved := GREATEST(0, COALESCE(v_mail_in_value, 0));
+    ELSIF v_mail_in_strategy = 'percentage' THEN
+      v_reserved := GREATEST(0, FLOOR(v_capacity * COALESCE(v_mail_in_value, 0) / 100.0));
+    END IF;
+  END IF;
+
+  SELECT COUNT(*)
+  INTO v_confirmed
+  FROM public.entries e
+  WHERE e.class_id = ANY(v_class_ids)
+    AND e.entry_status IN ('submitted', 'paid', 'confirmed', 'checked-in', 'competing', 'in-ring', 'pending-payment')
+    AND e.deleted_at IS NULL;
+
+  SELECT COUNT(*)
+  INTO v_waitlist
+  FROM public.waitlist_entries we
+  WHERE we.class_id = ANY(v_class_ids)
+    AND we.status = 'waiting';
+
+  judge_id := p_judge_id;
+  show_date := p_date;
+  capacity := v_capacity;
+  confirmed_count := v_confirmed;
+  waitlist_count := v_waitlist;
+  mail_in_reserved := v_reserved;
+  available_spots := GREATEST(0, v_capacity - v_confirmed - v_reserved);
+  class_ids := v_class_ids;
+
+  RETURN NEXT;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.get_judge_day_capacity_live(uuid, uuid, date) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_judge_day_capacity_live(uuid, uuid, date) TO service_role;
+
 CREATE OR REPLACE FUNCTION public.create_online_paid_entry(
   p_dog_id uuid,
   p_class_id uuid,
@@ -50,16 +162,7 @@ DECLARE
   v_entry public.entries;
   v_waitlist_entry public.waitlist_entries;
   v_waitlist_position integer;
-  v_class_ids uuid[];
-  v_show_capacity integer;
-  v_override integer;
-  v_capacity integer;
-  v_mail_in_strategy text;
-  v_mail_in_value integer;
-  v_mail_in_auto_release boolean;
-  v_mail_in_release_date date;
-  v_reserved integer;
-  v_confirmed integer;
+  v_available_spots integer;
 BEGIN
   SELECT c.trial_id, t.show_id, t.date, COALESCE(c.allow_waitlist, false)
   INTO v_trial_id, v_show_id, v_trial_date, v_allow_waitlist
@@ -95,63 +198,11 @@ BEGIN
       hashtext('judgeday:' || v_judge_id::text || ':' || v_trial_date::text)
     );
 
-    SELECT COALESCE(ARRAY_AGG(DISTINCT ja.class_id), ARRAY[]::uuid[])
-    INTO v_class_ids
-    FROM public.judge_assignments ja
-    JOIN public.classes c ON c.id = ja.class_id
-    JOIN public.trials t ON t.id = c.trial_id
-    WHERE ja.person_id = v_judge_id
-      AND ja.show_id = v_show_id
-      AND t.date = v_trial_date
-      AND ja.status = 'confirmed';
+    SELECT available_spots
+    INTO v_available_spots
+    FROM public.get_judge_day_capacity_live(v_judge_id, v_show_id, v_trial_date);
 
-    SELECT
-      s.default_judge_day_capacity,
-      s.mail_in_strategy,
-      s.mail_in_value,
-      s.mail_in_auto_release,
-      s.mail_in_release_date
-    INTO
-      v_show_capacity,
-      v_mail_in_strategy,
-      v_mail_in_value,
-      v_mail_in_auto_release,
-      v_mail_in_release_date
-    FROM public.shows s
-    WHERE s.id = v_show_id;
-
-    SELECT MAX(ja.day_capacity_override)
-    INTO v_override
-    FROM public.judge_assignments ja
-    JOIN public.classes c ON c.id = ja.class_id
-    JOIN public.trials t ON t.id = c.trial_id
-    WHERE ja.person_id = v_judge_id
-      AND ja.show_id = v_show_id
-      AND t.date = v_trial_date
-      AND ja.day_capacity_override IS NOT NULL;
-
-    v_capacity := COALESCE(v_override, v_show_capacity, 125);
-    v_reserved := 0;
-    IF NOT (
-      COALESCE(v_mail_in_auto_release, false)
-      AND v_mail_in_release_date IS NOT NULL
-      AND v_mail_in_release_date <= CURRENT_DATE
-    ) THEN
-      IF v_mail_in_strategy = 'fixed' THEN
-        v_reserved := GREATEST(0, COALESCE(v_mail_in_value, 0));
-      ELSIF v_mail_in_strategy = 'percentage' THEN
-        v_reserved := GREATEST(0, FLOOR(v_capacity * COALESCE(v_mail_in_value, 0) / 100.0));
-      END IF;
-    END IF;
-
-    SELECT COUNT(*)
-    INTO v_confirmed
-    FROM public.entries e
-    WHERE e.class_id = ANY(v_class_ids)
-      AND e.entry_status IN ('submitted', 'paid', 'confirmed', 'checked-in', 'competing', 'in-ring', 'pending-payment')
-      AND e.deleted_at IS NULL;
-
-    IF GREATEST(0, v_capacity - v_confirmed - v_reserved) <= 0 THEN
+    IF COALESCE(v_available_spots, 0) <= 0 THEN
       IF NOT v_allow_waitlist THEN
         outcome := 'denied';
         entry_id := NULL;

@@ -7,6 +7,14 @@ const migration = readFileSync(
   'utf8'
 );
 
+const hardeningMigration = readFileSync(
+  resolve(
+    __dirname,
+    '../../../../../supabase/migrations/20260629015413_harden_waitlist_idempotency_capacity_helper.sql'
+  ),
+  'utf8'
+);
+
 const waitlistReads = readFileSync(
   resolve(__dirname, '../../services/database/waitlists/reads.ts'),
   'utf8'
@@ -42,18 +50,19 @@ describe('waitlist joined_via channel contract', () => {
     expect(migration).toContain(
       'REVOKE ALL ON FUNCTION public.add_to_waitlist(uuid, uuid, uuid, uuid, text) FROM PUBLIC, anon, authenticated'
     );
-    expect(migration).toContain(
+    expect(hardeningMigration).toContain(
       'GRANT EXECUTE ON FUNCTION public.add_to_waitlist(uuid, uuid, uuid, uuid, text) TO authenticated, service_role'
     );
   });
 
-  it('returns an existing active dog/class waitlist row instead of duplicating it', () => {
-    expect(migration).toContain('waitlist_entries_active_class_dog_key');
-    expect(migration).toContain('ON public.waitlist_entries (class_id, dog_id)');
-    expect(migration).toContain("WHERE status IN ('waiting', 'offered')");
-    expect(migration).toContain('AND dog_id = p_dog_id');
-    expect(migration).toContain('IF FOUND THEN');
-    expect(migration).toContain('RETURN new_entry');
+  it('deploys active dog/class idempotency through a forward migration', () => {
+    expect(migration).not.toContain('waitlist_entries_active_class_dog_key');
+    expect(hardeningMigration).toContain('waitlist_entries_active_class_dog_key');
+    expect(hardeningMigration).toContain('ON public.waitlist_entries (class_id, dog_id)');
+    expect(hardeningMigration).toContain("WHERE status IN ('waiting', 'offered')");
+    expect(hardeningMigration).toContain('AND dog_id = p_dog_id');
+    expect(hardeningMigration).toContain('IF FOUND THEN');
+    expect(hardeningMigration).toContain('RETURN new_entry');
   });
 
   it('requires exhibitor-owned dogs for direct waitlist inserts', () => {

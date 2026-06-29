@@ -37,7 +37,9 @@ describe('stripe webhook online cart capacity gate', () => {
     expect(compactCapacityGateMigration).toContain(
       "hashtext('judgeday:' || v_judge_id::text || ':' || v_trial_date::text)"
     );
-    expect(capacityGateMigration).not.toContain('FROM public.get_judge_day_capacity');
+    expect(capacityGateMigration).toContain('CREATE OR REPLACE FUNCTION public.get_judge_day_capacity_live');
+    expect(capacityGateMigration).toContain('FROM public.get_judge_day_capacity_live');
+    expect(capacityGateMigration).not.toContain('FROM public.get_judge_day_capacity(');
     expect(capacityGateMigration).toContain('SELECT COUNT(*)');
     expect(capacityGateMigration).toContain('v_capacity - v_confirmed - v_reserved');
     expect(capacityGateMigration).toContain('INSERT INTO public.entries');

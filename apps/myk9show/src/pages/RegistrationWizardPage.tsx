@@ -700,10 +700,8 @@ function RegistrationWizardContent() {
 
         <div className="container mx-auto px-4 sm:px-6 pt-6 pb-8 max-w-7xl">
           {/* Main Content */}
-          <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl min-h-[600px] flex flex-col transition-all duration-300 hover:shadow-lg">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-            <div className="relative flex-1 p-4 sm:p-8">
+          <div className="bg-card border border-border rounded-2xl shadow-sm min-h-[600px] flex flex-col">
+            <div className="flex-1 p-4 sm:p-8">
               {/* Draft controls */}
               <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">

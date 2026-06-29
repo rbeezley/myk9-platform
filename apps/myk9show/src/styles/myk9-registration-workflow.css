@@ -8,127 +8,6 @@
   background: var(--background);
 }
 
-/* Step Navigation Card */
-.myk9-registration-card {
-  background: var(--card) !important;
-  border: 0.5px solid var(--border) !important;
-  border-radius: 20px !important;
-  padding: 40px !important;
-  margin-bottom: 0 !important;
-  backdrop-filter: blur(20px) !important;
-  position: relative !important;
-  overflow: hidden !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08) !important;
-}
-
-.myk9-registration-card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 20px;
-  padding: 0.5px;
-  background: linear-gradient(
-    135deg,
-    transparent,
-    color-mix(in srgb, var(--primary) 10%, transparent),
-    transparent
-  );
-  mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  opacity: 0.3;
-  pointer-events: none;
-}
-
-/* Step Progress Indicators */
-.myk9-registration-step {
-  width: 56px !important;
-  height: 56px !important;
-  border-radius: 16px !important;
-  border: 2px solid var(--border) !important;
-  background: var(--background) !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  font-weight: 650 !important;
-  font-size: 16px !important;
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
-  backdrop-filter: blur(20px) !important;
-  position: relative !important;
-  z-index: 10 !important;
-}
-
-.myk9-registration-step.completed {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%) !important;
-  border-color: transparent !important;
-  color: white !important;
-  box-shadow: 0 4px 20px color-mix(in srgb, var(--primary) 30%, transparent) !important;
-}
-
-.myk9-registration-step.active {
-  background: var(--background) !important;
-  border-color: var(--primary) !important;
-  color: var(--primary) !important;
-  box-shadow: 0 4px 20px color-mix(in srgb, var(--primary) 20%, transparent) !important;
-  transform: scale(1.05) !important;
-}
-
-.myk9-registration-step.inactive {
-  background: var(--muted) !important;
-  border-color: var(--border) !important;
-  color: var(--muted-foreground) !important;
-}
-
-/* Step Connector Lines */
-.myk9-registration-connector {
-  height: 2px !important;
-  background: var(--border) !important;
-  margin: 0 16px !important;
-  flex: 1 !important;
-  border-radius: 1px !important;
-  transition: all 0.3s ease !important;
-}
-
-.myk9-registration-connector.completed {
-  background: linear-gradient(90deg, var(--primary) 0%, var(--primary-hover) 100%) !important;
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--primary) 20%, transparent) !important;
-}
-
-/* Step Content Area */
-.myk9-registration-content {
-  padding: 32px 0 !important;
-  position: relative !important;
-  z-index: 10 !important;
-}
-
-/* Step Header */
-.myk9-registration-step-header {
-  text-align: center !important;
-  margin-bottom: 32px !important;
-}
-
-.myk9-registration-step-title {
-  font-size: 28px !important;
-  font-weight: 650 !important;
-  line-height: 1.15 !important;
-  letter-spacing: -0.02em !important;
-  color: var(--foreground) !important;
-  margin-bottom: 8px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 12px !important;
-}
-
-.myk9-registration-step-description {
-  font-size: 17px !important;
-  font-weight: 400 !important;
-  line-height: 1.47 !important;
-  color: var(--muted-foreground) !important;
-  margin: 0 !important;
-}
-
 /* Dog Selection Cards */
 .myk9-dog-card {
   background: var(--card) !important;
@@ -233,111 +112,11 @@
   background: rgba(13, 148, 136, 0.1);
 }
 
-/* Navigation Buttons */
-.myk9-registration-nav {
-  display: flex !important;
-  justify-content: space-between !important;
-  align-items: center !important;
-  padding-top: 32px !important;
-  border-top: 1px solid var(--border) !important;
-  margin-top: 32px !important;
-}
-
-.myk9-nav-button {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 8px !important;
-  padding: 12px 24px !important;
-  border-radius: 12px !important;
-  font-size: 16px !important;
-  font-weight: 590 !important;
-  transition: all 0.2s ease !important;
-  text-decoration: none !important;
-  border: none !important;
-  cursor: pointer !important;
-}
-
-.myk9-nav-button.primary {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%) !important;
-  color: white !important;
-  box-shadow: 0 4px 20px color-mix(in srgb, var(--primary) 30%, transparent) !important;
-}
-
-.myk9-nav-button.primary:hover {
-  transform: translateY(-1px) !important;
-  box-shadow: 0 6px 25px color-mix(in srgb, var(--primary) 40%, transparent) !important;
-}
-
-.myk9-nav-button.secondary {
-  background: var(--muted) !important;
-  color: var(--foreground) !important;
-  border: 1px solid var(--border) !important;
-}
-
-.myk9-nav-button.secondary:hover {
-  background: var(--accent) !important;
-  transform: translateY(-1px) !important;
-}
-
-.myk9-nav-button:disabled {
-  opacity: 0.5 !important;
-  cursor: not-allowed !important;
-  transform: none !important;
-}
-
-/* Draft Manager Styling */
-.myk9-draft-controls {
-  display: flex !important;
-  gap: 12px !important;
-  align-items: center !important;
-}
-
-.myk9-draft-button {
-  padding: 8px 16px !important;
-  border-radius: 10px !important;
-  font-size: 14px !important;
-  font-weight: 590 !important;
-  background: var(--muted) !important;
-  color: var(--foreground) !important;
-  border: 1px solid var(--border) !important;
-  transition: all 0.2s ease !important;
-}
-
-.myk9-draft-button:hover {
-  background: var(--accent) !important;
-  transform: translateY(-1px) !important;
-}
-
 /* Responsive adjustments */
 @media (max-width: 768px) {
-  .myk9-registration-card {
-    padding: 24px !important;
-    border-radius: 16px !important;
-  }
-
-  .myk9-registration-step {
-    width: 48px !important;
-    height: 48px !important;
-    font-size: 14px !important;
-  }
-
-  .myk9-registration-step-title {
-    font-size: 24px !important;
-  }
-
   .myk9-class-grid {
     grid-template-columns: 1fr !important;
     gap: 16px !important;
-  }
-
-  .myk9-registration-nav {
-    flex-direction: column !important;
-    gap: 16px !important;
-  }
-
-  .myk9-nav-button {
-    width: 100% !important;
-    justify-content: center !important;
   }
 }
 
@@ -358,10 +137,6 @@
 
 /* Dark mode adjustments */
 @media (prefers-color-scheme: dark) {
-  .myk9-registration-card {
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
-  }
-
   .myk9-dog-card:hover,
   .myk9-class-card:hover {
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2) !important;

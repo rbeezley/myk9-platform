@@ -259,9 +259,6 @@ const LevelChip: React.FC<LevelChipProps> = ({
           id={`chip-${classId}`}
           checked={isChecked}
           disabled={isAlreadyEntered}
-          aria-label={
-            isAlreadyEntered ? `${displayLabel} (already entered)` : `Select ${displayLabel}`
-          }
           onCheckedChange={() => !isAlreadyEntered && onToggle(classId)}
           className="h-3.5 w-3.5"
         />

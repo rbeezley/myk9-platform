@@ -253,6 +253,27 @@ describe('MyEntriesPage UI Improvements', () => {
     });
   });
 
+  describe('Mobile information density', () => {
+    it('orders the entries section above the dog strip on phones via flex order', async () => {
+      renderWithProviders(<MyEntriesPage />);
+
+      await screen.findByRole('tablist');
+
+      // The "My Entries" label anchors the entries section wrapper.
+      const entriesWrapper = screen.getByText('My Entries').closest('div');
+      expect(entriesWrapper).not.toBeNull();
+      expect(entriesWrapper).toHaveClass('max-[720px]:order-1');
+
+      // The dog strip lives in a sibling wrapper that drops below on mobile.
+      const stack = entriesWrapper!.parentElement!;
+      expect(stack).toHaveClass('flex', 'flex-col', 'gap-8');
+      const dogWrapper = Array.from(stack.children).find(child =>
+        child.className.includes('max-[720px]:order-2')
+      );
+      expect(dogWrapper).toBeTruthy();
+    });
+  });
+
   describe('Empty State', () => {
     it('should display helpful empty state message', async () => {
       renderWithProviders(<MyEntriesPage />);

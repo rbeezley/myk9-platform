@@ -1,7 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CompactStatsRow } from '@/components/exhibitor/CompactStatsRow';
+
+// The four stat cards live in this grid; the mobile summary line restates some
+// of the same numbers, so card-specific assertions scope here to avoid colliding
+// with the summary recap.
+const getGrid = (container: HTMLElement) =>
+  within(container.querySelector('#exhibitor-stat-cards') as HTMLElement);
 
 describe('CompactStatsRow', () => {
   const defaultProps = {
@@ -15,18 +21,19 @@ describe('CompactStatsRow', () => {
   };
 
   it('renders all four stat cards with values', () => {
-    render(<CompactStatsRow {...defaultProps} />);
-    expect(screen.getByText('5')).toBeInTheDocument();
-    expect(screen.getByText('Entries')).toBeInTheDocument();
-    expect(screen.getByText('3 accepted · 2 pending')).toBeInTheDocument();
-    expect(screen.getByText('2')).toBeInTheDocument();
-    expect(screen.getByText('Upcoming Shows')).toBeInTheDocument();
-    expect(screen.getByText('1')).toBeInTheDocument();
-    expect(screen.getByText('Past Show')).toBeInTheDocument();
-    expect(screen.getAllByText('entered')).toHaveLength(2);
-    expect(screen.getByText('$150')).toBeInTheDocument();
-    expect(screen.getByText('Current Fees')).toBeInTheDocument();
-    expect(screen.getByText('Amount due $75')).toHaveClass('text-amber-500');
+    const { container } = render(<CompactStatsRow {...defaultProps} />);
+    const grid = getGrid(container);
+    expect(grid.getByText('5')).toBeInTheDocument();
+    expect(grid.getByText('Entries')).toBeInTheDocument();
+    expect(grid.getByText('3 accepted · 2 pending')).toBeInTheDocument();
+    expect(grid.getByText('2')).toBeInTheDocument();
+    expect(grid.getByText('Upcoming Shows')).toBeInTheDocument();
+    expect(grid.getByText('1')).toBeInTheDocument();
+    expect(grid.getByText('Past Show')).toBeInTheDocument();
+    expect(grid.getAllByText('entered')).toHaveLength(2);
+    expect(grid.getByText('$150')).toBeInTheDocument();
+    expect(grid.getByText('Current Fees')).toBeInTheDocument();
+    expect(grid.getByText('Amount due $75')).toHaveClass('text-amber-500');
   });
 
   it('shows paid in full when there is no amount due', () => {
@@ -38,8 +45,9 @@ describe('CompactStatsRow', () => {
   it('uses the compact four-column layout with icons before the stat data', () => {
     const { container } = render(<CompactStatsRow {...defaultProps} />);
 
-    expect(container.firstChild).toHaveClass('grid-cols-4');
-    expect(container.firstChild).toHaveClass('max-[720px]:grid-cols-2');
+    const grid = container.querySelector('#exhibitor-stat-cards');
+    expect(grid).toHaveClass('grid-cols-4');
+    expect(grid).toHaveClass('max-[720px]:grid-cols-2');
 
     const entriesCard = screen.getByLabelText(/Entries.*View details/i);
     const icon = entriesCard.querySelector('[data-slot="icon"]');
@@ -190,8 +198,57 @@ describe('CompactStatsRow', () => {
     expect(container.firstChild).toHaveClass('mt-4');
   });
 
+  describe('mobile collapse', () => {
+    it('collapses the stat grid behind a summary toggle by default', () => {
+      const { container } = render(<CompactStatsRow {...defaultProps} />);
+
+      // The summary toggle is the only element exposing an expanded state.
+      const toggle = screen.getByRole('button', { expanded: false });
+      expect(toggle).toHaveClass('max-[720px]:flex');
+
+      // Grid stays hidden on phones until expanded; the four cards remain in the
+      // DOM (data is never removed) and visible on desktop.
+      const grid = container.querySelector('#exhibitor-stat-cards');
+      expect(grid).toHaveClass('max-[720px]:hidden');
+      expect(screen.getByLabelText(/Entries.*View details/i)).toBeInTheDocument();
+    });
+
+    it('reveals the four deep-linked cards when the summary is expanded', async () => {
+      const { container } = render(<CompactStatsRow {...defaultProps} />);
+
+      await userEvent.click(screen.getByRole('button', { expanded: false }));
+
+      expect(screen.getByRole('button', { expanded: true })).toBeInTheDocument();
+      const grid = container.querySelector('#exhibitor-stat-cards');
+      expect(grid).not.toHaveClass('max-[720px]:hidden');
+      // Every deep-linked card is still reachable after expanding.
+      expect(screen.getByLabelText(/Entries.*View details/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Upcoming Shows.*View details/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Past Show.*View details/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Current Fees.*View details/i)).toBeInTheDocument();
+    });
+
+    it('surfaces the amount due in the collapsed summary', () => {
+      render(<CompactStatsRow {...defaultProps} amountDue={75} />);
+
+      const due = screen.getByText('$75 due');
+      expect(due).toHaveClass('text-amber-500');
+      // The toggle recaps entry and show counts without expanding.
+      const toggle = screen.getByRole('button', { expanded: false });
+      expect(toggle).toHaveTextContent('5');
+      expect(toggle).toHaveTextContent('upcoming');
+    });
+
+    it('shows total fees in the summary when paid in full', () => {
+      render(<CompactStatsRow {...defaultProps} currentFees={150} amountDue={0} />);
+
+      expect(screen.getByText('$150 fees')).toBeInTheDocument();
+      expect(screen.queryByText(/due/)).not.toBeInTheDocument();
+    });
+  });
+
   it('renders zero counts correctly', () => {
-    render(
+    const { container } = render(
       <CompactStatsRow
         {...defaultProps}
         acceptedEntries={0}
@@ -202,9 +259,10 @@ describe('CompactStatsRow', () => {
         amountDue={0}
       />
     );
-    const zeros = screen.getAllByText('0');
+    const grid = getGrid(container);
+    const zeros = grid.getAllByText('0');
     expect(zeros).toHaveLength(3);
-    expect(screen.getByText('0 accepted · 0 pending')).toBeInTheDocument();
-    expect(screen.getByText('$0')).toBeInTheDocument();
+    expect(grid.getByText('0 accepted · 0 pending')).toBeInTheDocument();
+    expect(grid.getByText('$0')).toBeInTheDocument();
   });
 });

@@ -26,9 +26,9 @@ Do not document deferred features. If a club asks about them, the answer is "com
 |---|---|---|---|---|
 | Club profile setup | Club profile page (via club-admin sidebar) | yes | stable | Site admin creates the club; this is edit-only |
 | Show access and secretary assignment | Club Admin → Shows | yes | stable | |
-| Stripe Express onboarding | `/club-admin/payments` | yes | **partial** | Not in pageDirectory.ts — add first; sandbox walkthrough needed |
+| Stripe Express onboarding | `/club-admin/payments` | yes | **partial** | Cataloged in pageDirectory (#1014); sandbox walkthrough still needed |
 | View payouts | `/club-admin/payments` | yes | partial | Same route as onboarding |
-| Club members | `/club-admin/members` | yes | stable | Not in pageDirectory.ts — add first |
+| Club members | `/club-admin/members` | yes | stable | Cataloged in pageDirectory (#1014) |
 
 ---
 

@@ -22,7 +22,7 @@
 | View the run order | `/shows/:showId` (Classes tab) | yes | stable | |
 | Check in on show day | My Entries card check-in dialog | yes | stable | Golden path § Part 7 (fixed BUG-EX-11) |
 | View results | `/exhibitor/entries` result badges, `/shows/:showId/trials/:trialId/classes/:classId/results` | yes | **partial** | Result display not walked (no released fixture); see golden path § Part 8 |
-| My Payments | `/exhibitor/payments` | yes | stable | Not in pageDirectory yet — add before documenting |
+| My Payments | `/exhibitor/payments` | yes | stable | Cataloged in pageDirectory (#1014); reachable via the My Payments sidebar entry |
 | Dog profiles | `/dogs`, `/dogs/:id` | yes | stable | |
 | Personal analytics | `/exhibitor/analytics` | yes | lower priority | |
 

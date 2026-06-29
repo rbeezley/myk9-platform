@@ -35,6 +35,8 @@ export const adminRouteComponents: Record<string, ImportFunction> = {
     import('@/pages/admin/TemplateTestingPage').then(m => ({ default: m.TemplateTestingPage })),
   '/admin/sync': () => import('@/pages/sync/SyncMonitoringPage'),
   '/admin/role-requests': () => import('@/pages/admin/RoleRequestsPage'),
+  '/admin/users': () => import('@/pages/admin/UserManagementPage'),
+  '/admin/payouts': () => import('@/pages/admin/PayoutLedgerPage'),
   // Permission management
   '/admin/permissions': () => import('@/pages/admin/permissions/PermissionManagementPage'),
   '/admin/permissions/roles': () => import('@/pages/admin/permissions/RoleListPage'),
@@ -132,6 +134,7 @@ export const secretaryRouteComponents: Record<string, ImportFunction> = {
     })),
   '/shows': () => import('@/pages/BrowseShowsPage'),
   '/secretary/create-show/wizard': () => import('@/pages/secretary/ShowCreationWizardPage'),
+  '/people': () => import('@/pages/BrowsePeoplePage'),
   // Add more secretary routes as they're defined
 } as const;
 

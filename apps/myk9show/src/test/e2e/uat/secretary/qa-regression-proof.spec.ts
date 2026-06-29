@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { signInAsSecretary } from '../shared/auth';
+import { SECRETARY_USER, signInAsSecretary } from '../shared/auth';
 import { currentMonthWizardDates } from '../../shared/wizardDates';
 import { ADD_TRIALS_SHOW_ID } from '../shared/seededShows';
 import {
@@ -16,6 +16,11 @@ const strictBrowserHealth = process.env.QA_STRICT_BROWSER_HEALTH !== 'false';
 const healthByTest = new Map<string, BrowserHealth>();
 
 test.describe('Secretary QA regression proof', () => {
+  test.skip(
+    !SECRETARY_USER.email || !SECRETARY_USER.password,
+    'Secretary QA regression proof requires E2E_SECRETARY_EMAIL and E2E_SECRETARY_PASSWORD'
+  );
+
   test.beforeEach(async ({ page }, testInfo) => {
     const health = createBrowserHealth();
     healthByTest.set(testInfo.testId, health);

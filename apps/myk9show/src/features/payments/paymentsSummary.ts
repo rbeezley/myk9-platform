@@ -7,6 +7,18 @@
  * Currencies never get co-mingled: rows are grouped per currency so a USD + CAD
  * mix yields two totals rather than one meaningless sum. The page renders the
  * single-currency case plainly and degrades to per-currency rows otherwise.
+ *
+ * Refund handling — read carefully. useMyPayments reads one stripe_orders row
+ * per order whose `status` mutates in place; on refund the row's `amountCents`
+ * stays the ORIGINAL charge — there is no separate refund-delta field (unlike
+ * the admin entries table's `refund_amount`, which is why payoutLedger can do
+ * real net math and we can't). So a refunded order's amount tells us nothing
+ * about how much came back. The only honest figure here is money currently paid
+ * and NOT refunded: refunded orders are excluded entirely (a fully refunded
+ * order = zero net spend, the dominant real case — entry withdrawn → full
+ * refund). This understates the rare partial refund, but with no delta column
+ * available that's unrecoverable; we do not pretend otherwise by subtracting a
+ * full charge that was only partly returned.
  */
 
 /** The minimal MyPayment fields the summary needs (structural subset). */
@@ -19,34 +31,32 @@ export interface PaymentSummaryRow {
 export interface CurrencyTotal {
   /** Lowercased ISO currency code (e.g. 'usd'). */
   currency: string;
-  /** Net spend: paid/succeeded add, refunded subtract (signed-aware). */
+  /** Total of paid, non-refunded orders in this currency. */
   totalPaidCents: number;
-  /** How many settled rows (paid + refunded) fed this total. */
+  /** How many paid, non-refunded orders fed this total. */
   paymentCount: number;
 }
 
-// A row counts toward spend only once money has actually moved. Pending/failed/
-// cancelled rows are excluded — they aren't spend. Refunds are still "payments"
-// for the count (the card was charged), but reduce the total.
+// A row counts toward spend only once money has actually moved and stayed moved.
+// Pending/failed/cancelled rows aren't spend; refunded orders are excluded too
+// (see the refund note above — the row carries the gross charge, not the refund
+// amount, so it can't be netted, and the money came back).
 const PAID_STATUSES = new Set(['succeeded', 'paid']);
-const REFUND_STATUSES = new Set(['refunded']);
 
 /**
- * Group settled payments by currency and total net spend per currency.
- * Returns one bucket per currency, sorted by currency code. Empty input → [].
+ * Group paid, non-refunded orders by currency and total spend per currency.
+ * Returns one bucket per currency, sorted by currency code. Empty input — or
+ * input with no paid orders (e.g. all refunded) — yields [].
  */
 export function summarizeMyPayments(rows: PaymentSummaryRow[]): CurrencyTotal[] {
   const byCurrency = new Map<string, CurrencyTotal>();
 
   for (const row of rows) {
-    const status = row.status.toLowerCase();
-    const isPaid = PAID_STATUSES.has(status);
-    const isRefund = REFUND_STATUSES.has(status);
-    if (!isPaid && !isRefund) continue;
+    if (!PAID_STATUSES.has(row.status.toLowerCase())) continue;
 
     const currency = (row.currency || 'usd').toLowerCase();
     const acc = byCurrency.get(currency) ?? { currency, totalPaidCents: 0, paymentCount: 0 };
-    acc.totalPaidCents += isRefund ? -row.amountCents : row.amountCents;
+    acc.totalPaidCents += row.amountCents;
     acc.paymentCount += 1;
     byCurrency.set(currency, acc);
   }

@@ -81,8 +81,9 @@ function PaymentRow({ payment }: { payment: MyPayment }) {
 
 /**
  * At-a-glance total spent + payment count, so an exhibitor can answer "how much
- * have I spent" without reading the table. One figure per currency (refunds are
- * netted out by summarizeMyPayments); rendered only when there is settled spend.
+ * have I spent" without reading the table. One figure per currency (refunded
+ * orders are excluded by summarizeMyPayments — see its refund note); rendered
+ * only when there is paid, non-refunded spend.
  */
 function PaymentsSummary({ payments }: { payments: MyPayment[] }) {
   const totals = summarizeMyPayments(payments);

@@ -23,20 +23,21 @@ describe('summarizeMyPayments', () => {
     expect(result).toEqual([{ currency: 'usd', totalPaidCents: 5500, paymentCount: 2 }]);
   });
 
-  it('subtracts refunded rows (signed-aware) so a refund reduces spend', () => {
+  it('excludes refunded orders from the total (amount is the gross charge, not a refund delta)', () => {
+    // The refunded row carries its original $20 charge, NOT a $20 refund. It is
+    // dropped, not subtracted, so the total is the paid order alone.
     const result = summarizeMyPayments([
       row({ amountCents: 5000, status: 'succeeded' }),
       row({ amountCents: 2000, status: 'refunded' }),
     ]);
-    expect(result).toEqual([{ currency: 'usd', totalPaidCents: 3000, paymentCount: 2 }]);
+    expect(result).toEqual([{ currency: 'usd', totalPaidCents: 5000, paymentCount: 1 }]);
   });
 
-  it('nets a fully refunded payment to zero spend', () => {
-    const result = summarizeMyPayments([
-      row({ amountCents: 4000, status: 'succeeded' }),
-      row({ amountCents: 4000, status: 'refunded' }),
-    ]);
-    expect(result).toEqual([{ currency: 'usd', totalPaidCents: 0, paymentCount: 2 }]);
+  it('yields no spend when every order was refunded', () => {
+    // A single fully refunded order means $0 net spent — no bucket at all,
+    // rather than a misleading negative or gross figure.
+    const result = summarizeMyPayments([row({ amountCents: 4000, status: 'refunded' })]);
+    expect(result).toEqual([]);
   });
 
   it('ignores non-settled rows (failed, cancelled, pending, unknown)', () => {
@@ -50,12 +51,12 @@ describe('summarizeMyPayments', () => {
     expect(result).toEqual([{ currency: 'usd', totalPaidCents: 2500, paymentCount: 1 }]);
   });
 
-  it('treats status case-insensitively', () => {
+  it('treats status case-insensitively (SUCCEEDED counts, Refunded is excluded)', () => {
     const result = summarizeMyPayments([
       row({ amountCents: 1000, status: 'SUCCEEDED' }),
       row({ amountCents: 500, status: 'Refunded' }),
     ]);
-    expect(result).toEqual([{ currency: 'usd', totalPaidCents: 500, paymentCount: 2 }]);
+    expect(result).toEqual([{ currency: 'usd', totalPaidCents: 1000, paymentCount: 1 }]);
   });
 
   it('groups mixed currencies into separate buckets, sorted by currency', () => {

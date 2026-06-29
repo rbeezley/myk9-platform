@@ -1,0 +1,72 @@
+import { describe, it, expect } from 'vitest';
+import { render, screen, fireEvent } from '@/test/utils/testUtils';
+import type { Permission } from '@/types/rbac-types';
+import { PermissionInventory } from '../PermissionInventory';
+
+function makePermission(overrides: Partial<Permission>): Permission {
+  return {
+    id: Math.random().toString(36).slice(2),
+    code: 'show:manage',
+    name: 'Manage Shows',
+    description: null,
+    category: null,
+    created_at: null,
+    ...overrides,
+  };
+}
+
+const permissions: Permission[] = [
+  makePermission({ id: 'a', code: 'show:manage', name: 'Manage Shows' }),
+  makePermission({ id: 'b', code: 'show:view', name: 'View Shows' }),
+  makePermission({ id: 'c', code: 'entry:create', name: 'Create Entries' }),
+];
+
+describe('PermissionInventory', () => {
+  it('groups permissions by resource', () => {
+    render(<PermissionInventory permissions={permissions} />);
+    expect(screen.getByText('show Permissions')).toBeInTheDocument();
+    expect(screen.getByText('entry Permissions')).toBeInTheDocument();
+  });
+
+  it('renders the code for each permission', () => {
+    render(<PermissionInventory permissions={permissions} />);
+    expect(screen.getByText('show:manage')).toBeInTheDocument();
+    expect(screen.getByText('entry:create')).toBeInTheDocument();
+  });
+
+  it('shows the match-count badge', () => {
+    render(<PermissionInventory permissions={permissions} />);
+    expect(screen.getByText('3 of 3 permissions')).toBeInTheDocument();
+  });
+
+  it('filters by search term across name, code, and resource', () => {
+    render(<PermissionInventory permissions={permissions} />);
+    fireEvent.change(screen.getByLabelText('Search permissions'), {
+      target: { value: 'entry' },
+    });
+    expect(screen.getByText('Create Entries')).toBeInTheDocument();
+    expect(screen.queryByText('Manage Shows')).not.toBeInTheDocument();
+    expect(screen.getByText('1 of 3 permissions')).toBeInTheDocument();
+  });
+
+  it('shows an empty state when no permission matches the search', () => {
+    render(<PermissionInventory permissions={permissions} />);
+    fireEvent.change(screen.getByLabelText('Search permissions'), {
+      target: { value: 'nonexistent-xyz' },
+    });
+    expect(screen.getByText('No permissions found')).toBeInTheDocument();
+  });
+
+  it('shows an empty state when the system has no permissions', () => {
+    render(<PermissionInventory permissions={[]} />);
+    expect(screen.getByText('No permissions are defined in the system')).toBeInTheDocument();
+  });
+
+  it('sorts permissions within a resource group by code', () => {
+    render(<PermissionInventory permissions={permissions} />);
+    // show:manage sorts before show:view alphabetically by code
+    const codes = screen.getAllByText(/^show:/);
+    expect(codes[0]).toHaveTextContent('show:manage');
+    expect(codes[1]).toHaveTextContent('show:view');
+  });
+});

@@ -11,13 +11,17 @@ import {
   useClubPayoutHistory,
   startConnectOnboarding,
 } from './useClubStripeAccount';
+import { resolvePayoutBadge } from './payoutBadge';
 
-const PAYOUT_STATUS_LABELS: Record<string, { label: string; className: string }> = {
-  completed: { label: 'Paid', className: 'bg-green-600 text-white hover:bg-green-600' },
-  processing: { label: 'Sending', className: '' },
-  pending: { label: 'Waiting for account', className: '' },
-  failed: { label: 'Retrying', className: '' },
-};
+const currencyFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+});
+
+/** Cents -> a fully formatted USD string with thousands separators ($1,240.00). */
+function formatPayoutAmount(amountCents: number): string {
+  return currencyFormatter.format(amountCents / 100);
+}
 
 const RETURN_PATH = '/club-admin/payments';
 
@@ -28,7 +32,7 @@ const RETURN_PATH = '/club-admin/payments';
 const CHECKLIST_ITEMS = [
   'Your club’s EIN (it’s on the club’s tax paperwork)',
   'The club’s legal name and mailing address',
-  'One of the club’s checks — use the club’s bank account, not a personal one',
+  'One of the club’s checks, so you can use the club’s bank account, not a personal one',
   'The treasurer’s name, date of birth, home address, and the last 4 digits of their Social Security number',
 ];
 
@@ -39,7 +43,12 @@ interface ClubPaymentsCardProps {
 export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const accountQuery = useClubStripeAccount(clubId);
-  const payoutHistory = useClubPayoutHistory(clubId);
+  const account = accountQuery.data;
+  const enabled = !!account && account.payouts_enabled;
+  // Only load payout history once payouts are actually enabled. Otherwise a
+  // failed history fetch would surface a "Couldn't load your payout history"
+  // error beside the connect/setup flow for a club that isn't connected yet.
+  const payoutHistory = useClubPayoutHistory(enabled ? clubId : undefined);
   const [showChecklist, setShowChecklist] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
   const inFlightRef = useRef(false);
@@ -75,29 +84,27 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
     }
   };
 
-  const account = accountQuery.data;
   const notConnected = !account;
   const onboardingIncomplete = !!account && !account.onboarding_complete;
   const inReview = !!account && account.onboarding_complete && !account.payouts_enabled;
-  const enabled = !!account && account.payouts_enabled;
 
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <Landmark className="h-5 w-5 text-muted-foreground" />
-            <CardTitle>Payments</CardTitle>
+            <Landmark className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+            <CardTitle>Bank account</CardTitle>
           </div>
           {enabled && (
-            <Badge className="bg-green-600 text-white hover:bg-green-600">
-              <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
+            <Badge className="shrink-0 bg-success text-success-foreground hover:bg-success">
+              <CheckCircle2 className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
               Payouts enabled
             </Badge>
           )}
           {inReview && (
-            <Badge variant="secondary">
-              <Clock className="mr-1 h-3.5 w-3.5" />
+            <Badge variant="secondary" className="shrink-0">
+              <Clock className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
               Under review by Stripe
             </Badge>
           )}
@@ -118,10 +125,14 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
 
         {accountQuery.isError && (
           <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
+            <AlertCircle className="h-4 w-4" aria-hidden="true" />
             <AlertDescription>
               Couldn&apos;t load your payment account status.{' '}
-              <Button variant="link" className="h-auto p-0" onClick={() => accountQuery.refetch()}>
+              <Button
+                variant="link"
+                className="inline-flex min-h-[44px] items-center p-0"
+                onClick={() => accountQuery.refetch()}
+              >
                 Try again
               </Button>
             </AlertDescription>
@@ -130,10 +141,14 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
 
         {connectError && (
           <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
+            <AlertCircle className="h-4 w-4" aria-hidden="true" />
             <AlertDescription>
               {connectError}{' '}
-              <Button variant="link" className="h-auto p-0" onClick={handleContinueToStripe}>
+              <Button
+                variant="link"
+                className="inline-flex min-h-[44px] items-center p-0"
+                onClick={handleContinueToStripe}
+              >
                 Try again
               </Button>
             </AlertDescription>
@@ -142,40 +157,61 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
 
         {!accountQuery.isLoading && !accountQuery.isError && (
           <>
-            {enabled && (payoutHistory.data?.length ?? 0) === 0 && (
-              <p className="text-sm text-muted-foreground">
-                You&apos;re all set. Payouts appear here after your first show closes.
-              </p>
+            {enabled &&
+              !payoutHistory.isLoading &&
+              !payoutHistory.isError &&
+              (payoutHistory.data?.length ?? 0) === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  You&apos;re all set. Payouts appear here after your first show closes.
+                </p>
+              )}
+
+            {enabled && payoutHistory.isError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" aria-hidden="true" />
+                <AlertDescription>
+                  Couldn&apos;t load your payout history.{' '}
+                  <Button
+                    variant="link"
+                    className="inline-flex min-h-[44px] items-center p-0"
+                    onClick={() => payoutHistory.refetch()}
+                  >
+                    Try again
+                  </Button>
+                </AlertDescription>
+              </Alert>
             )}
 
-            {(payoutHistory.data?.length ?? 0) > 0 && (
+            {enabled && (payoutHistory.data?.length ?? 0) > 0 && (
               <div className="space-y-2">
                 <h4 className="text-sm font-medium">Show payouts</h4>
+                <p className="text-xs text-muted-foreground">
+                  Amounts shown are deposited to your club&apos;s bank account.
+                </p>
                 <ul className="divide-y rounded-lg border">
                   {payoutHistory.data!.map(payout => {
-                    const status = PAYOUT_STATUS_LABELS[payout.status] ?? {
-                      label: payout.status,
-                      className: '',
-                    };
+                    const badge = resolvePayoutBadge(payout, enabled);
+                    const isPaid = !!payout.completed_at;
+                    const dateLabel = isPaid ? 'Paid' : 'Started';
+                    const dateValue = new Date(
+                      payout.completed_at ?? payout.created_at
+                    ).toLocaleDateString();
                     return (
-                      <li key={payout.id} className="flex items-center justify-between px-3 py-2">
+                      <li key={payout.id} className="flex items-center justify-between gap-2 px-3 py-2">
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium">
                             {payout.show?.name ?? 'Show'}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {new Date(payout.completed_at ?? payout.created_at).toLocaleDateString()}
+                            {dateLabel} {dateValue}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold">
-                            ${(payout.amount_cents / 100).toFixed(2)}
+                        <div className="flex shrink-0 items-center gap-2">
+                          <span className="text-sm font-semibold tabular-nums">
+                            {formatPayoutAmount(payout.amount_cents)}
                           </span>
-                          <Badge
-                            variant={payout.status === 'completed' ? 'default' : 'secondary'}
-                            className={status.className}
-                          >
-                            {status.label}
+                          <Badge variant={badge.variant} className={badge.className}>
+                            {badge.label}
                           </Badge>
                         </div>
                       </li>
@@ -188,7 +224,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
             {inReview && (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  Stripe is verifying your club&apos;s details — this usually finishes within a
+                  Stripe is verifying your club&apos;s details. This usually finishes within a
                   day or two, and we&apos;ll enable payouts automatically the moment it clears.
                   If Stripe asked you for more information, you can add it here.
                 </p>
@@ -214,7 +250,13 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
             )}
 
             {notConnected && !showChecklist && (
-              <Button onClick={() => setShowChecklist(true)}>Connect payment account</Button>
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  No bank account is connected yet, so your club can&apos;t receive entry fees.
+                  Connecting takes about 10 minutes.
+                </p>
+                <Button onClick={() => setShowChecklist(true)}>Connect payment account</Button>
+              </div>
             )}
 
             {notConnected && showChecklist && (

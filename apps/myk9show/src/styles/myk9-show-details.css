@@ -678,6 +678,41 @@
   .myk9-trial-card:hover {
     transform: none;
   }
+
+  /* My Entries cards: tighten and stack for phone widths so the action bar
+     never overflows and the title/badge row doesn't compete for space. */
+  .myk9-entries-card {
+    padding: 16px;
+  }
+
+  .myk9-entries-card:hover {
+    transform: none;
+  }
+
+  .myk9-entries-card-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .myk9-entries-badges {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .myk9-entries-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .myk9-entries-action-buttons {
+    flex-wrap: wrap;
+  }
+
+  .myk9-entries-class-item:hover {
+    transform: none;
+  }
 }
 
 /* Smooth animations */
@@ -792,7 +827,7 @@
 
 .myk9-entries-card:hover {
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
-  border-color: rgba(0, 122, 255, 0.3);
+  border-color: color-mix(in srgb, var(--primary) 30%, transparent);
   transform: scale(1.01);
 }
 
@@ -802,7 +837,12 @@
   inset: 0;
   border-radius: 20px;
   padding: 0.5px;
-  background: linear-gradient(135deg, transparent, rgba(0, 122, 255, 0.1), transparent);
+  background: linear-gradient(
+    135deg,
+    transparent,
+    color-mix(in srgb, var(--primary) 10%, transparent),
+    transparent
+  );
   mask:
     linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
@@ -847,9 +887,9 @@
 .myk9-entries-progress-section {
   margin: 20px 0;
   padding: 16px;
-  background: rgba(0, 122, 255, 0.04);
+  background: color-mix(in srgb, var(--primary) 4%, transparent);
   border-radius: 12px;
-  border: 1px solid rgba(0, 122, 255, 0.1);
+  border: 1px solid color-mix(in srgb, var(--primary) 10%, transparent);
 }
 
 .myk9-entries-progress-header {
@@ -879,7 +919,7 @@
   gap: 16px;
   margin: 20px 0;
   padding: 16px;
-  background: var(--muted/20);
+  background: color-mix(in srgb, var(--muted) 20%, transparent);
   border-radius: 12px;
 }
 
@@ -924,8 +964,8 @@
 }
 
 .myk9-entries-class-item:hover {
-  background: var(--muted/30);
-  border-color: rgba(0, 122, 255, 0.2);
+  background: color-mix(in srgb, var(--muted) 30%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 20%, transparent);
   transform: translateY(-1px);
 }
 
@@ -959,6 +999,48 @@
 .myk9-entries-action-buttons {
   display: flex;
   gap: 8px;
+}
+
+/* My Entries cards: tighten and stack for phone widths so the action bar never
+   overflows and the title/badge row doesn't compete for space.
+   IMPORTANT: this block MUST stay after the base .myk9-entries-* rules above.
+   Media queries add no specificity, so at equal specificity source order
+   decides — placing these overrides before the base rules (as an earlier pass
+   did) let the desktop rules win on phones and silently killed the mobile
+   polish. Keep mobile overrides last. */
+@media (max-width: 768px) {
+  .myk9-entries-card {
+    padding: 16px;
+  }
+
+  .myk9-entries-card:hover {
+    transform: none;
+  }
+
+  .myk9-entries-card-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .myk9-entries-badges {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .myk9-entries-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .myk9-entries-action-buttons {
+    flex-wrap: wrap;
+  }
+
+  .myk9-entries-class-item:hover {
+    transform: none;
+  }
 }
 
 .akc-placement-badge {

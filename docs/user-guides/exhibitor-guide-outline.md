@@ -22,7 +22,7 @@
 | View the run order | `/shows/:showId` (Classes tab) | yes | stable | |
 | Check in on show day | My Entries card check-in dialog | yes | stable | Golden path § Part 7 (fixed BUG-EX-11) |
 | View results | `/exhibitor/entries` result badges, `/shows/:showId/trials/:trialId/classes/:classId/results` | yes | **partial** | Result display not walked (no released fixture); see golden path § Part 8 |
-| My Payments | `/exhibitor/payments` | yes | stable | Not in pageDirectory yet — add before documenting |
+| My Payments | `/exhibitor/payments` | yes | stable | Cataloged in pageDirectory (#1014); reachable via the My Payments sidebar entry |
 | Dog profiles | `/dogs`, `/dogs/:id` | yes | stable | |
 | Personal analytics | `/exhibitor/analytics` | yes | lower priority | |
 
@@ -283,7 +283,7 @@ The sign-in/sign-up gate is triggered only by "Enter This Show" — not by brows
 
 **Canonical route:** `/exhibitor/payments`
 
-**Note:** This route is not yet in `pageDirectory.ts` — add before documenting. See workflow source map gap.
+**Note:** Cataloged in `pageDirectory.ts` (#1014) and reachable via the "My Payments" sidebar entry.
 
 **Rough steps (qa-draft):**
 1. Go to **My Payments** in the navigation.
@@ -332,6 +332,6 @@ The sign-in/sign-up gate is triggered only by "Enter This Show" — not by brows
 | Raw enum "scent_work" in wizard (BUG-EX-06) | § 4 | Fix before screenshotting |
 | Run order not in My Entries (journey § Phase 3) | § 6 | **RESOLVED** — PR #845 added "View run order" deep-link on entry card → `/shows/:showId?tab=classes` |
 | ShowTodayBanner only on show day | § 7 | Explain clearly — exhibitors checking early won't see it |
-| My Payments not in pageDirectory.ts | § 10 | Add route before documenting section |
+| My Payments cataloged in pageDirectory.ts (#1014) | § 10 | Resolved — section can be documented |
 | Results release RLS gap (P-04) | § 8 | Don't promise withholding; gap in backlog |
 | UUID on confirmation receipt (not MK9 number) | § 4 | Fix before screenshotting receipt |

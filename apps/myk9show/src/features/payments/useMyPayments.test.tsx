@@ -42,6 +42,7 @@ describe('useMyPayments', () => {
           created_at: '2026-06-09T00:00:00Z',
           stripe_payment_intent_id: 'pi_1',
           entry_ids: ['e1', 'e2'],
+          show_id: 'show-1',
           show: { name: 'Spring Trial' },
         },
       ],
@@ -53,6 +54,7 @@ describe('useMyPayments', () => {
       {
         id: 'o1',
         date: '2026-06-10T00:00:00Z',
+        showId: 'show-1',
         showName: 'Spring Trial',
         amountCents: 5300,
         netPaidCents: 5300,
@@ -76,6 +78,7 @@ describe('useMyPayments', () => {
           created_at: '2026-06-01T00:00:00Z',
           stripe_payment_intent_id: null,
           entry_ids: null,
+          show_id: null,
           show: null,
         },
       ],
@@ -85,6 +88,7 @@ describe('useMyPayments', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.[0]).toMatchObject({
       date: '2026-06-01T00:00:00Z',
+      showId: null,
       showName: null,
       netPaidCents: 499,
       currency: 'usd',

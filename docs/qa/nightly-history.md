@@ -18,6 +18,16 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-06-29
+
+- **Playwright command:** pass. Phase 1 promoted Vitest passed (`18/18`). Initial Phase 2 exposed two stale/flaky secretary assertions, then the exact active Playwright command passed after low-risk test repairs: `49 passed, 1 skipped (3.0m, --retries=0)`.
+- **Route sweep:** pass. Standalone Phase 3 `route-health-by-role.spec.ts` passed all configured role groups: public, exhibitor, secretary, judge, club-admin, and admin (`6/6`, `1.0m`, `--retries=0`). Admin route-health also passed inside the full Phase 2 command (`17.4s`).
+- **Active specs:** Vitest `18/18`; active Playwright `49/50` with the existing public-show-card skip.
+- **Failures:** `QA-TEST-FLAKE-027` closed. The first Phase 2 attempt failed `uat/secretary/critical-path.spec.ts:94` because the current Entry Management UI exposes the work-mode group as `Quick view presets`, not the stale `Entry work mode` label. It also failed `uat/secretary/disposable-entry.spec.ts:48` when the row-actions button detached during a React re-render after filtering/cards-view.
+- **Fixes made:** test-only. `critical-path.spec.ts` now asserts the current `Quick view presets` accessible group. `disposable-entry.spec.ts` retries the row-actions click only when Playwright reports the button detached from the DOM during the click, then continues to require the real `Assign armband` / `Change armband` menu item.
+- **Demotions/promotions:** none.
+- **Notes:** Ran from isolated worktree `.worktrees/nightly-qa-2026-06-29-023200` on `origin/main` `710961a37ab82c148da59212e8e642ba07f60ea6`, using `PLAYWRIGHT_PORT=5966`, `PLAYWRIGHT_BASE_URL=http://127.0.0.1:5966`, and `PLAYWRIGHT_HMR_PORT=25966`. Focused proof before the full replay: `disposable-entry.spec.ts` + `critical-path.spec.ts` passed `6/6` in `24.0s`.
+
 ### 2026-06-28
 
 - **Playwright command:** fail/stopped. Phase 1 promoted Vitest passed (`18/18`). Phase 2 exact active Playwright command from `docs/qa/e2e-suite-map.md` was stopped after exceeding the 30-minute global Nightly budget: `36 passed, 3 failed, 1 interrupted, 1 skipped, 9 did not run (33.6m, --retries=0)`.

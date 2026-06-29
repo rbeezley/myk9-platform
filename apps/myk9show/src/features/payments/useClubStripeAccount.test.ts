@@ -33,11 +33,19 @@ describe('mapConnectOnboardingError', () => {
     expect(mapConnectOnboardingError('Missing Authorization header')).toMatch(/sign in again/i);
   });
 
-  it('maps authorization errors to an ask-an-admin next step', () => {
+  it('maps a real permission denial (403) to an ask-an-admin next step', () => {
     expect(mapConnectOnboardingError('Not authorized for this club')).toMatch(
       /club administrator/i
     );
-    expect(mapConnectOnboardingError('Authorization check failed')).toMatch(/club administrator/i);
+  });
+
+  it('maps an RBAC RPC failure (500) to a retry/support message, NOT ask-an-admin', () => {
+    // "Authorization check failed" means the is_club_admin RPC itself errored,
+    // not that the caller lacks access — an admin must not be told to go get
+    // permission they already have.
+    const mapped = mapConnectOnboardingError('Authorization check failed');
+    expect(mapped).not.toMatch(/club administrator/i);
+    expect(mapped).toMatch(/try again|contact support/i);
   });
 
   it('maps network/provider reachability errors to a connection retry message', () => {

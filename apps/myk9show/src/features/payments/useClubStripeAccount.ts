@@ -82,10 +82,20 @@ const CONNECT_ERROR_PATTERNS: Array<{ test: RegExp; message: string }> = [
       'Your sign-in session has expired. Please sign in again, then restart payment setup.',
   },
   {
-    // 403: caller isn't a club admin for this club.
-    test: /not authorized for this club|authorization check failed/i,
+    // 403: caller genuinely isn't a club admin for this club. This is the only
+    // string the edge function emits for a real permission denial — getting
+    // access is the actual fix.
+    test: /not authorized for this club/i,
     message:
       "Your account isn't set up to manage this club's payments. Ask a club administrator to give you access, then try again.",
+  },
+  {
+    // 500: the RBAC predicate RPC itself errored ("Authorization check
+    // failed"). This is a backend hiccup, NOT a permission problem — do not
+    // send an admin chasing access they already have. Retry, then support.
+    test: /authorization check failed/i,
+    message:
+      "Something went wrong while checking your permissions. Please try again in a moment — if it keeps happening, contact support.",
   },
   {
     // Stripe account isn't ready yet — a capability (card_payments/transfers)

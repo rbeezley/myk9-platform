@@ -167,6 +167,70 @@ describe('verifyCheckoutSession', () => {
     expect(result.error).toMatch(/pending/i);
   });
 
+  it('returns a full overflow refund outcome after the order is marked refunded', async () => {
+    mockSingle.mockResolvedValue({
+      data: {
+        id: 'order-uuid',
+        status: 'refunded',
+        amount_cents: 0,
+        entry_ids: [],
+        show_id: 'show-uuid',
+        paid_at: '2026-04-13T10:00:00Z',
+        refunded_at: '2026-04-13T10:01:00Z',
+        stripe_payment_intent_id: 'pi_3TgoK2AIej2Q9UtX3HSHZh3M',
+        metadata: {
+          overflow_refund: {
+            action: 'refund',
+            reason: 'full_make_whole',
+            amount_cents: 7500,
+          },
+        },
+        shows: { name: 'Spring Invitational' },
+        enrollment: null,
+      },
+      error: null,
+    });
+
+    const result = await verifyCheckoutSession('cs_test_abc123');
+
+    expect(result.success).toBe(true);
+    expect(result.checkoutOutcome).toBe('full_overflow_refund');
+    expect(result.refundAmount).toBe(7500);
+    expect(result.refundStatus).toBe('issued');
+    expect(result.entryIds).toEqual([]);
+  });
+
+  it('returns a processing refund outcome during the full overflow refund race window', async () => {
+    mockSingle.mockResolvedValue({
+      data: {
+        id: 'order-uuid',
+        status: 'succeeded',
+        amount_cents: 0,
+        entry_ids: [],
+        show_id: 'show-uuid',
+        paid_at: '2026-04-13T10:00:00Z',
+        refunded_at: null,
+        stripe_payment_intent_id: 'pi_3TgoK2AIej2Q9UtX3HSHZh3M',
+        metadata: {
+          overflow_refund: {
+            action: 'refund',
+            reason: 'full_make_whole',
+            amount_cents: 7500,
+          },
+        },
+        shows: { name: 'Spring Invitational' },
+        enrollment: null,
+      },
+      error: null,
+    });
+
+    const result = await verifyCheckoutSession('cs_test_abc123');
+
+    expect(result.success).toBe(true);
+    expect(result.checkoutOutcome).toBe('full_overflow_refund');
+    expect(result.refundStatus).toBe('processing');
+  });
+
   it('returns failure when order is not found', async () => {
     mockSingle.mockResolvedValue({ data: null, error: { message: 'Not found' } });
 
@@ -326,6 +390,40 @@ describe('CheckoutSuccessPage', () => {
     });
     expect(screen.queryByText(/Bring your armband number/i)).not.toBeInTheDocument();
     expect(screen.getByText(/confirmed by the show secretary/i)).toBeInTheDocument();
+  });
+
+  it('renders full overflow refunds without claiming entries were submitted', async () => {
+    mockSingle.mockResolvedValue({
+      data: {
+        id: 'order-uuid',
+        status: 'refunded',
+        amount_cents: 0,
+        entry_ids: [],
+        show_id: 'show-uuid',
+        paid_at: '2026-04-13T10:00:00Z',
+        refunded_at: '2026-04-13T10:01:00Z',
+        stripe_payment_intent_id: 'pi_3TgoK2AIej2Q9UtX3HSHZh3M',
+        metadata: {
+          overflow_refund: {
+            action: 'refund',
+            reason: 'full_make_whole',
+            amount_cents: 7500,
+          },
+        },
+        shows: { name: 'Spring Invitational' },
+        enrollment: null,
+      },
+      error: null,
+    });
+
+    renderSuccessPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Payment Refunded')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Entry Submitted Successfully!')).not.toBeInTheDocument();
+    expect(screen.getByText('$75.00')).toBeInTheDocument();
+    expect(screen.getByText(/No paid entries were created/i)).toBeInTheDocument();
   });
 
   it('does not render the confirmation block when neither source exists', async () => {

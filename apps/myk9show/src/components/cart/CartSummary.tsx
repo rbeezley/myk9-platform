@@ -6,7 +6,14 @@
  */
 
 import { useNavigate } from 'react-router-dom';
-import { Clock, CreditCard, AlertTriangle, ShoppingCart, ArrowRight } from 'lucide-react';
+import {
+  Clock,
+  CreditCard,
+  AlertTriangle,
+  ShoppingCart,
+  ArrowRight,
+  Loader2,
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -115,7 +122,7 @@ export function CartSummary({
               variant="outline"
               size="sm"
               onClick={() => extendExpiration()}
-              className="flex-shrink-0"
+              className="flex-shrink-0 min-h-[44px]"
             >
               Extend
             </Button>
@@ -183,7 +190,7 @@ export function CartSummary({
         >
           {isCheckingOut ? (
             <>
-              <span className="animate-spin mr-2">⏳</span>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               Processing...
             </>
           ) : (

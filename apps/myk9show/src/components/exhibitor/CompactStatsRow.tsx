@@ -78,13 +78,13 @@ export function CompactStatsRow({
       value: currentFees,
       displayValue: `$${currentFees.toLocaleString()}`,
       detail: feeDetail,
-      ...(amountDue > 0 ? { detailClassName: 'text-amber-500' } : {}),
+      ...(amountDue > 0 ? { detailClassName: 'text-warning' } : {}),
       href: feeHref,
-      iconColor: amountDue > 0 ? 'text-amber-500' : 'text-emerald-500',
+      iconColor: amountDue > 0 ? 'text-warning' : 'text-success',
       iconChipClassName:
         amountDue > 0
-          ? 'border-amber-500/30 bg-amber-500/10'
-          : 'border-emerald-500/25 bg-emerald-500/10',
+          ? 'border-warning/30 bg-warning/10'
+          : 'border-success/25 bg-success/10',
     },
   ];
 

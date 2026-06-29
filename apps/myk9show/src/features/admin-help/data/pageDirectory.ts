@@ -202,6 +202,36 @@ export const pageDirectory: readonly PageEntry[] = [
     status: 'working',
     linksTo: [],
   },
+  {
+    path: '/admin/users',
+    title: 'User Management',
+    description: 'Search, review, and manage platform user accounts.',
+    roles: [UserRole.SITE_ADMIN],
+    classification: 'critical-path',
+    category: 'Admin',
+    status: 'working',
+    linksTo: [],
+  },
+  {
+    path: '/admin/role-requests',
+    title: 'Role Requests',
+    description: 'Review and resolve pending access requests.',
+    roles: [UserRole.SITE_ADMIN],
+    classification: 'critical-path',
+    category: 'Admin',
+    status: 'working',
+    linksTo: [],
+  },
+  {
+    path: '/admin/payouts',
+    title: 'Payout Ledger',
+    description: 'Review club payout status and payment ledger details.',
+    roles: [UserRole.SITE_ADMIN],
+    classification: 'critical-path',
+    category: 'Admin',
+    status: 'working',
+    linksTo: [],
+  },
 
   // =========================
   // SECRETARY
@@ -273,7 +303,8 @@ export const pageDirectory: readonly PageEntry[] = [
   {
     path: '/shows/:showId/results-control',
     title: 'Results & Check-In',
-    description: 'Set result visibility, configure self check-in, and release results to exhibitors.',
+    description:
+      'Set result visibility, configure self check-in, and release results to exhibitors.',
     roles: [UserRole.SECRETARY, UserRole.SITE_ADMIN],
     classification: 'critical-path',
     category: 'Results',
@@ -293,6 +324,16 @@ export const pageDirectory: readonly PageEntry[] = [
     category: 'Results',
     status: 'working',
     linksTo: ['/shows/:showId/results-control', '/shows/:showId/reports'],
+  },
+  {
+    path: '/people',
+    title: 'People',
+    description: 'Find, add, and manage people records used by shows and clubs.',
+    roles: [UserRole.SECRETARY, UserRole.SITE_ADMIN],
+    classification: 'critical-path',
+    category: 'People',
+    status: 'working',
+    linksTo: [],
   },
 
   // =========================

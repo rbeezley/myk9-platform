@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { DogSelectionStep } from './DogSelectionStep';
 import { DogSelectionStepEnhanced } from './DogSelectionStepEnhanced';
 import { ClassSelectionStep } from './ClassSelectionStep';
@@ -223,9 +224,9 @@ export function WorkflowStepContent({
               <Info className="h-4 w-4" />
               <AlertDescription>
                 No dogs registered yet. Please{' '}
-                <a href="/dogs" className="underline font-medium text-primary">
+                <Link to="/dogs" className="underline font-medium text-primary">
                   register a dog
-                </a>{' '}
+                </Link>{' '}
                 before entering a show.
               </AlertDescription>
             </Alert>

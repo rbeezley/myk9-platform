@@ -254,7 +254,7 @@ No new Critical product issue was confirmed. The public route-health sample pass
    - If folded into existing pages, update redirects/docs.
    - If standalone, add show context and page-directory entries.
 
-   **Remediation decision (PR 5, docs-only):** Canonical surfaces are now recorded in `docs/user-guides/workflow-source-map.md` under "Secretary Canonical Surface Decisions".
+   **Remediation decision (recorded via PR #1002):** Canonical surfaces are recorded in `docs/user-guides/workflow-source-map.md` under "Secretary Canonical Surface Decisions". That source-map reconciliation ships in **PR #1002**, not this docs PR — the `qa:doc-staleness:strict` CI gate couples source-map edits to the pageDirectory route change, so they must travel on the same branch. The waitlist/volunteer decisions themselves are summarized below.
    - **Waitlist:** `/secretary/waitlist` remains a legacy redirect to `/secretary/dashboard`; customer docs now point waitlist work to `/shows/:showId/entry-management`. No code change taken this run — the redirect is left as-is and the optional deep-link redirect is deferred.
    - **Volunteers:** `/secretary/volunteers` stays canonical through launch. Show Setup already deep-links to it without context loss via `VolunteersCard` (`apps/myk9show/src/features/show-workbench/VolunteersCard.tsx`, which appends `?showId=`), so no new Setup link or implementation plan is needed.
 

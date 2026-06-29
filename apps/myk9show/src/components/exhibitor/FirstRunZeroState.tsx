@@ -33,24 +33,30 @@ export const FirstRunZeroState: React.FC<FirstRunZeroStateProps> = ({ hasDogs, o
   // and withhold any dog-specific button until the query settles.
   const dogOwnershipKnown = hasDogs !== undefined;
 
+  // The heading/body/icon must also stay neutral while ownership is unknown —
+  // otherwise a returning exhibitor with dogs briefly sees the brand-new
+  // "Welcome! Let's get you set up" first-run copy before the query resolves.
+  // Three states: known-has-dogs, known-no-dogs, and unknown (dog-agnostic).
+  const Icon = hasDogs === false ? PawPrint : CalendarPlus;
+  const heading = !dogOwnershipKnown
+    ? 'Find your next show'
+    : hasDogs
+      ? "Your dogs are ready — let's find a show"
+      : 'Welcome! Let’s get you set up';
+  const body = !dogOwnershipKnown
+    ? 'Browse upcoming shows and enter in just a few taps.'
+    : hasDogs
+      ? 'You haven’t entered any shows yet. Browse upcoming shows and enter in just a few taps.'
+      : 'Add your dog once and we’ll remember the details — entering a show takes about 30 seconds from here on.';
+
   return (
     <div className="rounded-2xl border border-border/60 bg-card p-8 text-center sm:p-12">
       <div className="mx-auto mb-5 inline-flex items-center justify-center rounded-full border border-primary/15 bg-primary/8 p-5">
-        {hasDogs ? (
-          <CalendarPlus className="h-9 w-9 text-primary" />
-        ) : (
-          <PawPrint className="h-9 w-9 text-primary" />
-        )}
+        <Icon className="h-9 w-9 text-primary" />
       </div>
 
-      <h2 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-        {hasDogs ? "Your dogs are ready — let's find a show" : 'Welcome! Let’s get you set up'}
-      </h2>
-      <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-        {hasDogs
-          ? 'You haven’t entered any shows yet. Browse upcoming shows and enter in just a few taps.'
-          : 'Add your dog once and we’ll remember the details — entering a show takes about 30 seconds from here on.'}
-      </p>
+      <h2 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">{heading}</h2>
+      <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">{body}</p>
 
       <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
         {hasDogs ? (

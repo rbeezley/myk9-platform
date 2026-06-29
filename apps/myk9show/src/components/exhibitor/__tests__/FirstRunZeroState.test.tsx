@@ -63,5 +63,15 @@ describe('FirstRunZeroState', () => {
       expect(screen.queryByRole('button', { name: /Add Your First Dog/i })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /Add Another Dog/i })).not.toBeInTheDocument();
     });
+
+    it('shows neutral copy, not the brand-new or has-dogs heading', () => {
+      // A returning exhibitor with dogs must not flash "Welcome! Let's get you
+      // set up" (nor the dogs-ready copy) while ownership is still unknown.
+      render(<FirstRunZeroState hasDogs={undefined} onAddDog={vi.fn()} />);
+      expect(screen.getByText(/Find your next show/i)).toBeInTheDocument();
+      expect(screen.queryByText(/Welcome!/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Add your dog once/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/your dogs are ready/i)).not.toBeInTheDocument();
+    });
   });
 });

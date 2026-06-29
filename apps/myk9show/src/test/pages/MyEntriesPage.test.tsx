@@ -65,8 +65,9 @@ vi.mock('@/components/exhibitor/CompactStatsRow', () => ({
 vi.mock('@/components/exhibitor/DogStrip', () => ({
   DogStrip: () => null,
 }));
+const mockUseCurrentUserPersonId = vi.hoisted(() => vi.fn((): string | null => null));
 vi.mock('@/hooks/useRoleBasedData', () => ({
-  useCurrentUserPersonId: () => null,
+  useCurrentUserPersonId: () => mockUseCurrentUserPersonId(),
 }));
 vi.mock('@/components/panels/edit', () => ({
   AddDogPanel: () => null,
@@ -209,6 +210,7 @@ describe('MyEntriesPage UI Improvements', () => {
     // the defaults (no dogs, no entries) for every test explicitly — otherwise a
     // prior seedLoadedEntry() leaks its resolved entry into later zero-state tests.
     mockUseDogsByOwnerQuery.mockReturnValue({ data: [], isLoading: false });
+    mockUseCurrentUserPersonId.mockReturnValue(null);
     (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [], error: null });
     (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
       user: mockUser,
@@ -334,17 +336,39 @@ describe('MyEntriesPage UI Improvements', () => {
 
     it('stays dog-neutral while dog ownership is still resolving', async () => {
       seedAuthWithPerson();
-      // Dogs query in flight: ownership unknown → must not flash a dog CTA.
+      // Dogs query in flight: ownership unknown → must not flash a dog CTA or the
+      // brand-new "Welcome" copy at an exhibitor who may already own dogs.
       mockUseDogsByOwnerQuery.mockReturnValue({ data: [], isLoading: true });
       renderWithProviders(<MyEntriesPage />);
 
       expect(await screen.findByRole('link', { name: /browse shows/i })).toBeInTheDocument();
+      expect(screen.queryByText(/Welcome!/i)).not.toBeInTheDocument();
       expect(
         screen.queryByRole('button', { name: /add your first dog/i })
       ).not.toBeInTheDocument();
       expect(
         screen.queryByRole('button', { name: /add another dog/i })
       ).not.toBeInTheDocument();
+    });
+
+    it('enables the dog query off the legacy person id when databaseUserId is absent', async () => {
+      // Mirrors entry loading: when the auth record has no databaseUserId but the
+      // legacy lookup resolves a person id, dogs must still load — otherwise the
+      // zero-state would wrongly treat a dog-owning exhibitor as having none.
+      mockUseCurrentUserPersonId.mockReturnValue('legacy-person-1');
+      mockUseDogsByOwnerQuery.mockReturnValue({
+        data: [{ id: 'dog-1', name: 'Koda' }],
+        isLoading: false,
+      });
+      renderWithProviders(<MyEntriesPage />);
+
+      // hasDogs resolves true → leads with browsing, no first-dog CTA.
+      expect(await screen.findByText(/find a show/i)).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /add your first dog/i })
+      ).not.toBeInTheDocument();
+      // The query was enabled with the legacy id (second arg = enabled flag).
+      expect(mockUseDogsByOwnerQuery).toHaveBeenCalledWith('legacy-person-1', true);
     });
   });
 

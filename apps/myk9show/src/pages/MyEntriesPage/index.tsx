@@ -110,7 +110,14 @@ const MyEntriesPage: React.FC = () => {
 
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const ownerId = userWithRoles?.databaseUserId ?? '';
+
+  // Resolve the exhibitor's person id from the same source entry loading and the
+  // AddDogPanel use (legacy lookup first, then the auth record). Deriving dog
+  // ownership from only userWithRoles.databaseUserId would disable the dog query
+  // for exhibitors whose id comes from the legacy lookup, making the zero-state
+  // wrongly treat them as having no dogs. See useMyEntriesData's personId.
+  const currentUserPersonId = useCurrentUserPersonId();
+  const ownerId = currentUserPersonId ?? userWithRoles?.databaseUserId ?? '';
 
   const { data: dogs = [], isLoading: dogsLoading } = useDogsByOwnerQuery(ownerId, !!ownerId);
 
@@ -201,7 +208,6 @@ const MyEntriesPage: React.FC = () => {
   });
 
   const [addDogOpen, setAddDogOpen] = useState(false);
-  const currentUserPersonId = useCurrentUserPersonId();
 
   // Waitlist
   const { profile: exhibitorProfile } = useExhibitorProfile();

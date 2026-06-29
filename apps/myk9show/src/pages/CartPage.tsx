@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { ShoppingCart, ArrowLeft, Trash2, AlertCircle, Eye, Info, X } from 'lucide-react';
+import { ShoppingCart, ArrowLeft, Trash2, AlertCircle, Eye, Info, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
@@ -27,19 +27,38 @@ import { CartItemCard } from '@/components/cart/CartItemCard';
 import { CartSummary } from '@/components/cart/CartSummary';
 import { createEntryCheckoutSession } from '@/lib/stripe';
 import { CHECKOUT_RETURN_PARAM, readCheckoutReturnStatus } from './cartCheckoutNotice';
+import { useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
+import { writeCartSplitCheckoutSummary } from '@/features/payments/cartSplitCheckoutStorage';
+import { splitCartItemsByJudgeDayCapacity } from '@/features/payments/cartCapacitySplit';
+
+function createSplitCheckoutCorrelationId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+
+  return `split-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 export default function CartPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuthContext();
-  const { profile } = useExhibitorProfile();
+  const { profile, isLoading: isProfileLoading } = useExhibitorProfile();
   const cart = useCartStore(state => state.cart);
   const items = useCartItems();
+  const isCartLoading = useCartStore(state => state.isLoading);
+  const loadInitiated = useCartStore(state => state.loadInitiated);
   const error = useCartStore(state => state.error);
   const removeItem = useCartStore(state => state.removeItem);
   const clearCart = useCartStore(state => state.clearCart);
   const setError = useCartStore(state => state.setError);
   const loadActiveCart = useCartStore(state => state.loadActiveCart);
+  const checkoutWithWaitlist = useCartStore(state => state.checkoutWithWaitlist);
+  const {
+    judgeDays,
+    isLoading: isCapacityLoading,
+    error: capacityError,
+  } = useJudgeDayCapacity(cart?.show_id);
 
   const [removingItemId, setRemovingItemId] = useState<string | null>(null);
   const [showClearDialog, setShowClearDialog] = useState(false);
@@ -121,13 +140,81 @@ export default function CartPage() {
       setError('No cart found. Please add items to your cart.');
       return;
     }
+    if (!profile?.id) {
+      setError('Could not verify your exhibitor profile. Please sign in again.');
+      return;
+    }
+    if (isCapacityLoading) {
+      setError('Class availability is still loading. Please try checkout again in a moment.');
+      return;
+    }
+    if (capacityError) {
+      setError('Could not verify class availability right now. Please try again.');
+      return;
+    }
 
     setIsCheckingOut(true);
     setError(null);
 
     try {
-      // This will redirect to Stripe Checkout
-      await createEntryCheckoutSession(cart.id);
+      const splitDecision = splitCartItemsByJudgeDayCapacity(items, judgeDays);
+      const blockedItems = splitDecision.blockedItems;
+
+      if (blockedItems.length > 0) {
+        setError(
+          `${blockedItems.map(item => item.class?.name || 'A class').join(', ')} ${
+            blockedItems.length === 1 ? 'is' : 'are'
+          } full and not accepting wait list entries. Remove ${
+            blockedItems.length === 1 ? 'it' : 'them'
+          } to continue.`
+        );
+        setIsCheckingOut(false);
+        return;
+      }
+
+      const splitResult = await checkoutWithWaitlist(profile.id, splitDecision.waitlistItemIds);
+
+      if (!splitResult) {
+        setIsCheckingOut(false);
+        return;
+      }
+
+      const waitlistedItemIds = Array.from(splitDecision.waitlistItemIds);
+
+      for (const itemId of waitlistedItemIds) {
+        const removed = await removeItem(itemId);
+        if (!removed) {
+          setError(
+            'Your wait list request was saved, but we could not refresh the cart for payment. Please reload the cart before trying again.'
+          );
+          setIsCheckingOut(false);
+          return;
+        }
+      }
+
+      const splitCheckoutId =
+        splitResult.waitlisted.length > 0 ? createSplitCheckoutCorrelationId() : null;
+
+      if (splitCheckoutId) {
+        writeCartSplitCheckoutSummary({
+          correlationId: splitCheckoutId,
+          showId: cart.show_id,
+          confirmedEntryCount: splitResult.confirmed.length,
+          waitlistEntries: splitResult.waitlisted,
+        });
+      }
+
+      if (splitResult.confirmed.length === 0) {
+        navigate(
+          splitCheckoutId
+            ? `/checkout/success?waitlist=1&split=${encodeURIComponent(splitCheckoutId)}`
+            : '/checkout/success?waitlist=1'
+        );
+        return;
+      }
+
+      // This will redirect to Stripe Checkout for the remaining confirmed entries.
+      await createEntryCheckoutSession(cart.id, splitCheckoutId ? { splitCheckoutId } : undefined);
       // If we get here, the redirect didn't happen (shouldn't normally occur)
     } catch (_err) {
       setError('Something went wrong starting checkout. Please try again.');
@@ -142,6 +229,36 @@ export default function CartPage() {
       navigate('/shows');
     }
   };
+
+  // Loading state — wait for the profile to resolve and the cart to hydrate
+  // before deciding the cart is empty. Without this, a direct visit (refresh,
+  // deep link, new device) flashes the empty-cart zero-state over a cart that
+  // is still loading.
+  //
+  // The cart-load effect runs AFTER the first render, so on that first frame a
+  // resolved exhibitor profile has isProfileLoading === false and isCartLoading
+  // === false even though the load has not started — which would fall through
+  // to the empty state for one frame. The store flips loadInitiated true the
+  // moment loadActiveCart begins, so "profile resolved with an id but no load
+  // initiated yet" still counts as hydrating.
+  const awaitingCartLoad = Boolean(profile?.id) && !loadInitiated;
+  const isHydrating = items.length === 0 && (isProfileLoading || isCartLoading || awaitingCartLoad);
+  if (isHydrating) {
+    return (
+      <div className="bg-background pt-6">
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <div
+            className="flex flex-col items-center justify-center py-16 text-center"
+            role="status"
+            aria-live="polite"
+          >
+            <Loader2 className="h-10 w-10 text-muted-foreground animate-spin mb-4" />
+            <p className="text-muted-foreground">Loading your cart…</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Empty cart state
   if (!cart || items.length === 0) {
@@ -176,7 +293,7 @@ export default function CartPage() {
               variant="ghost"
               size="default"
               onClick={() => navigate(cart.show_id ? `/shows/${cart.show_id}` : '/shows')}
-              className="gap-1"
+              className="gap-1 min-h-[44px]"
             >
               <ArrowLeft className="h-4 w-4" />
               Back
@@ -202,7 +319,7 @@ export default function CartPage() {
               variant="outline"
               size="default"
               onClick={() => setShowClearDialog(true)}
-              className="text-muted-foreground hover:text-destructive"
+              className="min-h-[44px] text-muted-foreground hover:text-destructive"
             >
               <Trash2 className="h-4 w-4 mr-1" />
               Clear Cart

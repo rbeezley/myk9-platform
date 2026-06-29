@@ -349,8 +349,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList
-          className="flex gap-0 border-b-0 border-0 bg-transparent h-auto p-0 overflow-x-auto"
-          style={{ borderBottom: '0.5px solid var(--border)' }}
+          className="flex gap-0 border-0 border-b border-border bg-transparent h-auto p-0 overflow-x-auto"
         >
           {selectedDogs.map(dogId => (
             <DogTabTrigger

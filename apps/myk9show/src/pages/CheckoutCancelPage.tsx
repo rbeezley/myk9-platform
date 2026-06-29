@@ -66,10 +66,7 @@ export default function CheckoutCancelPage() {
               the calm "checkout cancelled, your cart is saved" banner. Gating this
               button on itemCount made that banner unreachable in the normal flow.
             */}
-            <Button
-              className="w-full"
-              onClick={() => navigate('/cart?checkout=cancelled')}
-            >
+            <Button className="w-full" onClick={() => navigate('/cart?checkout=cancelled')}>
               <ShoppingCart className="h-4 w-4 mr-2" />
               Return to Cart
             </Button>

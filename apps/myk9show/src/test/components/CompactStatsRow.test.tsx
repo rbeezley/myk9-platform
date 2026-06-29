@@ -26,7 +26,7 @@ describe('CompactStatsRow', () => {
     expect(screen.getAllByText('entered')).toHaveLength(2);
     expect(screen.getByText('$150')).toBeInTheDocument();
     expect(screen.getByText('Current Fees')).toBeInTheDocument();
-    expect(screen.getByText('Amount due $75')).toHaveClass('text-amber-500');
+    expect(screen.getByText('Amount due $75')).toHaveClass('text-warning');
   });
 
   it('shows paid in full when there is no amount due', () => {
@@ -63,10 +63,10 @@ describe('CompactStatsRow', () => {
     const feeCard = screen.getByLabelText(/Current Fees.*View details/i);
     const feeIcon = feeCard.querySelector('[data-slot="icon"]');
 
-    expect(feeIcon).toHaveClass('text-amber-500');
-    expect(feeIcon).toHaveClass('bg-amber-500/10');
-    expect(feeIcon).toHaveClass('border-amber-500/30');
-    expect(screen.getByText('Amount due $75')).toHaveClass('text-amber-500');
+    expect(feeIcon).toHaveClass('text-warning');
+    expect(feeIcon).toHaveClass('bg-warning/10');
+    expect(feeIcon).toHaveClass('border-warning/30');
+    expect(screen.getByText('Amount due $75')).toHaveClass('text-warning');
   });
 
   it('uses a calmer paid-in-full fee icon when no balance is due', () => {
@@ -75,9 +75,9 @@ describe('CompactStatsRow', () => {
     const feeCard = screen.getByLabelText(/Current Fees.*View details/i);
     const feeIcon = feeCard.querySelector('[data-slot="icon"]');
 
-    expect(feeIcon).toHaveClass('text-emerald-500');
-    expect(feeIcon).toHaveClass('bg-emerald-500/10');
-    expect(feeIcon).toHaveClass('border-emerald-500/25');
+    expect(feeIcon).toHaveClass('text-success');
+    expect(feeIcon).toHaveClass('bg-success/10');
+    expect(feeIcon).toHaveClass('border-success/25');
     expect(screen.getByText('Paid in full')).toHaveClass('text-muted-foreground');
   });
 

@@ -19,15 +19,13 @@ const {
   parseDiffForRoutes,
   parseSourceMap,
   matchChangedRoutes,
+  selectBlockingFlags,
 } = require('./check-doc-staleness.js');
 
 test('normalizeRoute collapses differing param names to one form', () => {
   assert.equal(normalizeRoute('/shows/:id'), '/shows/:');
   assert.equal(normalizeRoute('/shows/:showId'), '/shows/:');
-  assert.equal(
-    normalizeRoute('/shows/:showId/trials/:trialId'),
-    '/shows/:/trials/:'
-  );
+  assert.equal(normalizeRoute('/shows/:showId/trials/:trialId'), '/shows/:/trials/:');
 });
 
 test('normalizeRoute strips splats and trailing slashes', () => {
@@ -73,9 +71,7 @@ test('extractComposedRoutes prefixes bare slugs with the mount base', () => {
 });
 
 test('extractComposedRoutes leaves already-absolute paths unprefixed', () => {
-  assert.deepEqual(extractComposedRoutes("path: '/admin/sync'", '/shows/:showId'), [
-    '/admin/sync',
-  ]);
+  assert.deepEqual(extractComposedRoutes("path: '/admin/sync'", '/shows/:showId'), ['/admin/sync']);
 });
 
 test('parseDiffForRoutes composes slug changes only for the composed-base file', () => {
@@ -184,9 +180,51 @@ test('matchChangedRoutes flags documented and separates undocumented', () => {
 
 test('matchChangedRoutes dedupes routes differing only by param name', () => {
   const index = parseSourceMap(SAMPLE_MAP);
-  const { flagged } = matchChangedRoutes(
-    ['/shows/:id/register', '/shows/:showId/register'],
-    index
-  );
+  const { flagged } = matchChangedRoutes(['/shows/:id/register', '/shows/:showId/register'], index);
   assert.equal(flagged.length, 1, 'both collapse to one flagged entry');
+});
+
+test('selectBlockingFlags keeps only routes tied to a real customer Docs target', () => {
+  const flagged = [
+    // Internal route — its only reference carries the no-docs-target sentinel.
+    {
+      route: '/admin/users',
+      normalized: '/admin/users',
+      refs: [{ section: 'Admin Workflows', docsTarget: '(no docs target)' }],
+    },
+    // Customer-guide route — a real Docs target.
+    {
+      route: '/exhibitor/payments',
+      normalized: '/exhibitor/payments',
+      refs: [{ section: '10. View payments', docsTarget: 'Exhibitor Guide § Payments' }],
+    },
+    // Mixed — internal AND a guide; the guide makes it blocking.
+    {
+      route: '/club-admin/payments',
+      normalized: '/club-admin/payments',
+      refs: [
+        { section: 'Admin Workflows', docsTarget: '(no docs target)' },
+        { section: '21. Stripe onboarding', docsTarget: 'Club Admin Guide § Payments' },
+      ],
+    },
+  ];
+  const blocking = selectBlockingFlags(flagged).map(f => f.normalized);
+  assert.deepEqual(blocking, ['/exhibitor/payments', '/club-admin/payments']);
+  assert.ok(!blocking.includes('/admin/users'), 'internal route must not block strict');
+});
+
+test('selectBlockingFlags returns empty when every flagged route is internal', () => {
+  const flagged = [
+    {
+      route: '/admin/users',
+      normalized: '/admin/users',
+      refs: [{ section: 'Admin Workflows', docsTarget: '(no docs target)' }],
+    },
+    {
+      route: '/admin/dashboard',
+      normalized: '/admin/dashboard',
+      refs: [{ section: 'Admin Workflows', docsTarget: '(no docs target)' }],
+    },
+  ];
+  assert.equal(selectBlockingFlags(flagged).length, 0);
 });

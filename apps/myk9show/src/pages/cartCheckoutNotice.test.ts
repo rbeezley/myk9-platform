@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  CHECKOUT_RETURN_PARAM,
-  readCheckoutReturnStatus,
-} from './cartCheckoutNotice';
+import { CHECKOUT_RETURN_PARAM, readCheckoutReturnStatus } from './cartCheckoutNotice';
 
 describe('readCheckoutReturnStatus', () => {
   it('returns "cancelled" for the exact ?checkout=cancelled contract', () => {

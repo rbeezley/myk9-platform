@@ -19,6 +19,7 @@ import type { ReplicatedRow } from '../types';
 import type { Logger } from '../dependencies';
 import { REPLICATION_STORES } from './DatabaseManager';
 import { MAX_CHUNK_SIZE } from '../constants';
+import { withQuotaEviction } from '../quota-eviction';
 
 /**
  * Batch operations manager for a replicated table
@@ -28,7 +29,9 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
     private tableName: string,
     private logger: Logger,
     private getDb: () => Promise<IDBPDatabase>,
-    private notifyListeners: () => void
+    private notifyListeners: () => void,
+    /** Frees cache space when a bulk write hits the storage quota. */
+    private relieveQuota: () => Promise<number>
   ) {}
 
   /**
@@ -42,6 +45,17 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
    * data loss — this mirrors the Phase 1 set() guard (scoring-sync-bug fix).
    */
   async batchSet(items: T[], serverVersions?: Map<string, number>): Promise<void> {
+    // Bulk sync downloads are the most likely point to overflow the storage
+    // quota. Evict + retry once on a quota abort instead of letting it escape.
+    await withQuotaEviction(
+      () => this.batchSetOnce(items, serverVersions),
+      () => this.relieveQuota(),
+      this.logger
+    );
+  }
+
+  /** Single attempt of {@link batchSet}; opens its own transaction so it is safe to retry. */
+  private async batchSetOnce(items: T[], serverVersions?: Map<string, number>): Promise<void> {
     const db = await this.getDb();
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
 
@@ -110,6 +124,23 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
     if (totalRows <= chunkSize) {
       return this.batchSet(items, serverVersions);
     }
+
+    // The chunked write already rolls itself back atomically on failure, so a
+    // quota abort leaves a clean slate — safe to evict and retry the whole run.
+    await withQuotaEviction(
+      () => this.batchSetChunkedOnce(items, chunkSize, serverVersions),
+      () => this.relieveQuota(),
+      this.logger
+    );
+  }
+
+  /** Single attempt of {@link batchSetChunked}; self-rolls-back, so it is safe to retry. */
+  private async batchSetChunkedOnce(
+    items: T[],
+    chunkSize: number,
+    serverVersions?: Map<string, number>
+  ): Promise<void> {
+    const totalRows = items.length;
 
     this.logger.log(
       `[${this.tableName}] Starting chunked batch set: ${totalRows} rows (chunks of ${chunkSize})`

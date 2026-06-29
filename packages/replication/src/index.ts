@@ -131,6 +131,7 @@ export {
 export { ReplicatedTableCacheManager } from './core/ReplicatedTableCache';
 export { ReplicatedTableBatchManager } from './core/ReplicatedTableBatch';
 export { ReplicatedTable } from './core/ReplicatedTable';
+export { isQuotaExceededError, withQuotaEviction } from './quota-eviction';
 export {
   syncReplicatedTable,
   configureConflictSurfacing,

@@ -49,7 +49,12 @@ interface ClubPaymentsCardProps {
 export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const accountQuery = useClubStripeAccount(clubId);
-  const payoutHistory = useClubPayoutHistory(clubId);
+  const account = accountQuery.data;
+  const enabled = !!account && account.payouts_enabled;
+  // Only load payout history once payouts are actually enabled. Otherwise a
+  // failed history fetch would surface a "Couldn't load your payout history"
+  // error beside the connect/setup flow for a club that isn't connected yet.
+  const payoutHistory = useClubPayoutHistory(enabled ? clubId : undefined);
   const [showChecklist, setShowChecklist] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
   const inFlightRef = useRef(false);
@@ -85,11 +90,9 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
     }
   };
 
-  const account = accountQuery.data;
   const notConnected = !account;
   const onboardingIncomplete = !!account && !account.onboarding_complete;
   const inReview = !!account && account.onboarding_complete && !account.payouts_enabled;
-  const enabled = !!account && account.payouts_enabled;
 
   return (
     <Card>
@@ -169,7 +172,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
                 </p>
               )}
 
-            {payoutHistory.isError && (
+            {enabled && payoutHistory.isError && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" aria-hidden="true" />
                 <AlertDescription>
@@ -185,7 +188,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
               </Alert>
             )}
 
-            {(payoutHistory.data?.length ?? 0) > 0 && (
+            {enabled && (payoutHistory.data?.length ?? 0) > 0 && (
               <div className="space-y-2">
                 <h4 className="text-sm font-medium">Show payouts</h4>
                 <p className="text-xs text-muted-foreground">

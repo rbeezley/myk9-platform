@@ -253,6 +253,22 @@ describe('ClubPaymentsCard', () => {
     expect(refetch).toHaveBeenCalled();
   });
 
+  it('does not show a payout-history error before payouts are enabled', () => {
+    // Not connected at all: no Stripe account row.
+    mockAccountState(null);
+    // Even if the payout-history query errored, a not-connected club must not
+    // see the payout-history alert next to the connect/setup flow.
+    mockedUsePayoutHistory.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof accountModule.useClubPayoutHistory>);
+    render(<ClubPaymentsCard clubId="club-1" />);
+
+    expect(screen.queryByText(/couldn't load your payout history/i)).not.toBeInTheDocument();
+  });
+
   it('Paid badge uses the semantic success token, not raw green palette', () => {
     mockAccountState(connectedAccount({ onboarding_complete: true, payouts_enabled: true }));
     mockedUsePayoutHistory.mockReturnValue({

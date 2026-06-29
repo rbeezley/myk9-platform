@@ -54,6 +54,7 @@ import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { MyEntriesTab } from '@/components/shows/tabs/MyEntriesTab';
 import { EntriesTab } from '@/components/shows/ShowDetails/EntriesTab';
 import { ShowPublicLanding } from '@/components/shows/ShowDetails/ShowPublicLanding';
+import { resolveShowAudience } from './ShowDetailsPage.audience';
 import { getEntryStatus, type EntryStatus } from '@/utils/entryStatusUtils';
 import { MyShowStatsTab } from '@/components/analytics/MyShowStatsTab';
 import { ClassesTab } from '@/components/shows/tabs/ClassesTab';
@@ -480,34 +481,36 @@ const ShowDetailsPage: React.FC = () => {
     );
   }
 
-  // Styled public landing — renders for non-staff visitors who are NOT yet entered.
-  // Staff (secretary / admin / club_admin) always reach the management UI.
-  // Authenticated exhibitors with entries bypass the marketing landing and see
-  // the tabbed details UI (classes, my entries, run order) instead.
-  if (
-    !isManagementSection &&
-    !isSecretary &&
-    !isAdmin &&
-    !hasRole('club_admin')
-  ) {
-    // For authenticated users, wait for entries to resolve before deciding
-    // which experience to render — avoids flashing the landing page briefly.
-    if (user && userEntriesLoading) {
-      return (
-        <PageShell>
-          <LoadingSkeleton variant="cards" />
-        </PageShell>
-      );
-    }
-    if (!hasUserEntries) {
-      return (
-        <ShowPublicLanding
-          show={actualCurrentShow}
-          landingTrials={landingTrials}
-          hasEntryClassInventory={hasEntryClassInventory}
-        />
-      );
-    }
+  // Decide which surface this visitor sees. Staff (secretary / admin / club_admin)
+  // and management-section URLs reach the tabbed/management UI; non-staff visitors
+  // with no entries get the styled marketing landing; an authenticated visitor whose
+  // entries are still loading is held ('pending') to avoid flashing the landing.
+  const audience = resolveShowAudience({
+    isManagementSection,
+    isSecretary,
+    isAdmin,
+    isClubAdmin: hasRole('club_admin'),
+    isAuthenticated,
+    userEntriesLoading,
+    hasUserEntries,
+  });
+
+  if (audience === 'pending') {
+    return (
+      <PageShell>
+        <LoadingSkeleton variant="cards" />
+      </PageShell>
+    );
+  }
+
+  if (audience === 'public') {
+    return (
+      <ShowPublicLanding
+        show={actualCurrentShow}
+        landingTrials={landingTrials}
+        hasEntryClassInventory={hasEntryClassInventory}
+      />
+    );
   }
 
   const entryStatus = getEntryStatus(actualCurrentShow, hasUserEntries, {

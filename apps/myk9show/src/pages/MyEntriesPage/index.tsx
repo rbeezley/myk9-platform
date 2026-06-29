@@ -16,6 +16,7 @@ import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
 import { ShowTodayBanner } from '@/features/show-today/ShowTodayBanner';
 import { CompactStatsRow } from '@/components/exhibitor/CompactStatsRow';
 import { DogStrip } from '@/components/exhibitor/DogStrip';
+import { FirstRunZeroState } from '@/components/exhibitor/FirstRunZeroState';
 import { AddDogPanel } from '@/components/panels/edit';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { PaymentStatus } from '@/types/show-registration-types';
@@ -342,65 +343,78 @@ const MyEntriesPage: React.FC = () => {
               since HomeRedirect keeps them off Home (where the banner also mounts). */}
           <ShowTodayBanner />
 
-          <CompactStatsRow
-            acceptedEntries={entryStats.currentAcceptedEntries}
-            pendingEntries={entryStats.currentPendingEntries}
-            upcomingShows={entryStats.upcomingShows}
-            pastShows={entryStats.pastShows}
-            currentFees={entryStats.currentFees}
-            amountDue={entryStats.currentAmountDue}
-            currentFeesHref={currentFeesHref}
-            onNavigate={navigate}
-          />
+          {/* First-run zero-state: a brand-new exhibitor with no entries would
+              otherwise see all-zero stat cards, an empty dog-strip gap, and an
+              empty tab — noise that reads as a data-entry chore. Suppress the
+              whole stack and present one calm, adaptive call-to-action instead.
+              INTENT: Exhibitor first run must feel frictionless ("respects my
+              time"), never like a form to fill. */}
+          {entries.length === 0 ? (
+            <FirstRunZeroState
+              hasDogs={(dogs ?? []).length > 0}
+              onAddDog={() => setAddDogOpen(true)}
+            />
+          ) : (
+            <>
+              <CompactStatsRow
+                acceptedEntries={entryStats.currentAcceptedEntries}
+                pendingEntries={entryStats.currentPendingEntries}
+                upcomingShows={entryStats.upcomingShows}
+                pastShows={entryStats.pastShows}
+                currentFees={entryStats.currentFees}
+                amountDue={entryStats.currentAmountDue}
+                currentFeesHref={currentFeesHref}
+                onNavigate={navigate}
+              />
 
-          <DogStrip
-            dogs={
-              (dogs ?? []) as {
-                id: string;
-                call_name?: string;
-                name?: string;
-                registrations?: { breed?: string; organization?: string; status?: string }[];
-              }[]
-            }
-            upcomingClassCountByDog={upcomingClassCountByDog}
-            onAddDog={() => setAddDogOpen(true)}
-          />
+              <DogStrip
+                dogs={
+                  (dogs ?? []) as {
+                    id: string;
+                    call_name?: string;
+                    name?: string;
+                    registrations?: { breed?: string; organization?: string; status?: string }[];
+                  }[]
+                }
+                upcomingClassCountByDog={upcomingClassCountByDog}
+                onAddDog={() => setAddDogOpen(true)}
+              />
 
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-            My Entries
-            {entries.length > 0 && (
-              <span className="inline-flex items-center justify-center rounded-full bg-muted text-muted-foreground text-xs font-medium w-5 h-5">
-                {entries.length}
-              </span>
-            )}
-          </p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                My Entries
+                <span className="inline-flex items-center justify-center rounded-full bg-muted text-muted-foreground text-xs font-medium w-5 h-5">
+                  {entries.length}
+                </span>
+              </p>
 
-          {/* Entries List */}
-          <PrimaryTabs
-            tabs={entryTabs}
-            value={selectedTab}
-            onValueChange={value => setSelectedTab(value as EntryTabFilter)}
-            className="space-y-6"
-          >
-            <TabsContent value={selectedTab} className="space-y-4">
-              {filteredEntries.length === 0 ? (
-                <EmptyState selectedTab={selectedTab} />
-              ) : (
-                filteredEntries.map(entry => (
-                  <MyEntryCard
-                    key={entry.id}
-                    entry={entry}
-                    selfCheckinByClassId={selfCheckinByClassId}
-                    onCheckInClick={handleCheckInClick}
-                    onEditClick={handleEditClick}
-                    onReceiptClick={handleReceiptClick}
-                    onResultRevealClick={setResultRevealModel}
-                    seenResultReleaseKeys={seenResultReleaseKeys}
-                  />
-                ))
-              )}
-            </TabsContent>
-          </PrimaryTabs>
+              {/* Entries List */}
+              <PrimaryTabs
+                tabs={entryTabs}
+                value={selectedTab}
+                onValueChange={value => setSelectedTab(value as EntryTabFilter)}
+                className="space-y-6"
+              >
+                <TabsContent value={selectedTab} className="space-y-4">
+                  {filteredEntries.length === 0 ? (
+                    <EmptyState selectedTab={selectedTab} />
+                  ) : (
+                    filteredEntries.map(entry => (
+                      <MyEntryCard
+                        key={entry.id}
+                        entry={entry}
+                        selfCheckinByClassId={selfCheckinByClassId}
+                        onCheckInClick={handleCheckInClick}
+                        onEditClick={handleEditClick}
+                        onReceiptClick={handleReceiptClick}
+                        onResultRevealClick={setResultRevealModel}
+                        seenResultReleaseKeys={seenResultReleaseKeys}
+                      />
+                    ))
+                  )}
+                </TabsContent>
+              </PrimaryTabs>
+            </>
+          )}
         </div>
       </div>
 
@@ -462,6 +476,9 @@ interface EmptyStateProps {
   selectedTab: string;
 }
 
+// Per-tab empty state. The whole-page zero-state (no entries at all) is handled
+// upstream by FirstRunZeroState, so by the time this renders the exhibitor has
+// entries — just none matching the active filter (e.g. an empty Waitlist tab).
 const EmptyState: React.FC<EmptyStateProps> = ({ selectedTab }) => (
   <div className="myk9-entries-card text-center">
     <div className="bg-muted/50 rounded-full p-6 mb-4 inline-block">
@@ -469,9 +486,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({ selectedTab }) => (
     </div>
     <h3 className="text-lg font-semibold mb-2">No entries found</h3>
     <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-      {selectedTab === 'all'
-        ? "You haven't entered any shows yet"
-        : `No entries match the ${selectedTab} filter`}
+      No entries match the {selectedTab} filter
     </p>
     <Button
       asChild

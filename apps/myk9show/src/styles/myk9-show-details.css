@@ -678,6 +678,41 @@
   .myk9-trial-card:hover {
     transform: none;
   }
+
+  /* My Entries cards: tighten and stack for phone widths so the action bar
+     never overflows and the title/badge row doesn't compete for space. */
+  .myk9-entries-card {
+    padding: 16px;
+  }
+
+  .myk9-entries-card:hover {
+    transform: none;
+  }
+
+  .myk9-entries-card-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .myk9-entries-badges {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .myk9-entries-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .myk9-entries-action-buttons {
+    flex-wrap: wrap;
+  }
+
+  .myk9-entries-class-item:hover {
+    transform: none;
+  }
 }
 
 /* Smooth animations */

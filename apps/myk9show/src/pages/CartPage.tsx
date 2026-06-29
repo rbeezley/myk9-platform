@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { ShoppingCart, ArrowLeft, Trash2, AlertCircle, Eye } from 'lucide-react';
+import { ShoppingCart, ArrowLeft, Trash2, AlertCircle, Eye, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
@@ -42,9 +42,11 @@ export default function CartPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuthContext();
-  const { profile } = useExhibitorProfile();
+  const { profile, isLoading: isProfileLoading } = useExhibitorProfile();
   const cart = useCartStore(state => state.cart);
   const items = useCartItems();
+  const isCartLoading = useCartStore(state => state.isLoading);
+  const loadInitiated = useCartStore(state => state.loadInitiated);
   const error = useCartStore(state => state.error);
   const removeItem = useCartStore(state => state.removeItem);
   const clearCart = useCartStore(state => state.clearCart);
@@ -212,6 +214,37 @@ export default function CartPage() {
     }
   };
 
+  // Loading state — wait for the profile to resolve and the cart to hydrate
+  // before deciding the cart is empty. Without this, a direct visit (refresh,
+  // deep link, new device) flashes the empty-cart zero-state over a cart that
+  // is still loading.
+  //
+  // The cart-load effect runs AFTER the first render, so on that first frame a
+  // resolved exhibitor profile has isProfileLoading === false and isCartLoading
+  // === false even though the load has not started — which would fall through
+  // to the empty state for one frame. The store flips loadInitiated true the
+  // moment loadActiveCart begins, so "profile resolved with an id but no load
+  // initiated yet" still counts as hydrating.
+  const awaitingCartLoad = Boolean(profile?.id) && !loadInitiated;
+  const isHydrating =
+    items.length === 0 && (isProfileLoading || isCartLoading || awaitingCartLoad);
+  if (isHydrating) {
+    return (
+      <div className="bg-background pt-6">
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <div
+            className="flex flex-col items-center justify-center py-16 text-center"
+            role="status"
+            aria-live="polite"
+          >
+            <Loader2 className="h-10 w-10 text-muted-foreground animate-spin mb-4" />
+            <p className="text-muted-foreground">Loading your cart…</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Empty cart state
   if (!cart || items.length === 0) {
     return (
@@ -245,7 +278,7 @@ export default function CartPage() {
               variant="ghost"
               size="default"
               onClick={() => navigate(cart.show_id ? `/shows/${cart.show_id}` : '/shows')}
-              className="gap-1"
+              className="gap-1 min-h-[44px]"
             >
               <ArrowLeft className="h-4 w-4" />
               Back
@@ -271,7 +304,7 @@ export default function CartPage() {
               variant="outline"
               size="default"
               onClick={() => setShowClearDialog(true)}
-              className="text-muted-foreground hover:text-destructive"
+              className="min-h-[44px] text-muted-foreground hover:text-destructive"
             >
               <Trash2 className="h-4 w-4 mr-1" />
               Clear Cart

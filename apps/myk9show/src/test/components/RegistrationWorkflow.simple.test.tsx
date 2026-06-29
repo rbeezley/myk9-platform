@@ -20,19 +20,24 @@ describe('RegistrationWorkflow Error Detection Tests', () => {
   });
 
   describe('Function Initialization Order Detection', () => {
-    it('should validate isStepCompleted is defined in the wizard page', () => {
-      const filePath = path.join(__dirname, '../../pages/RegistrationWizardPage.tsx');
-      const fileContent = fs.readFileSync(filePath, 'utf8');
+    // The wizard's state, including isStepCompleted, moved out of the page into
+    // useRegistrationWizardState.ts during the 500-line-ceiling refactor.
+    const stateHookPath = path.join(
+      __dirname,
+      '../../pages/RegistrationWizardPage/useRegistrationWizardState.ts'
+    );
+
+    it('should validate isStepCompleted is defined in the wizard state hook', () => {
+      const fileContent = fs.readFileSync(stateHookPath, 'utf8');
 
       const isStepCompletedPos = fileContent.indexOf('const isStepCompleted');
       expect(isStepCompletedPos).toBeGreaterThan(0);
     });
 
     it('should not use isStepCompleted before its definition', () => {
-      const filePath = path.join(__dirname, '../../pages/RegistrationWizardPage.tsx');
-      const fileContent = fs.readFileSync(filePath, 'utf8');
+      const fileContent = fs.readFileSync(stateHookPath, 'utf8');
 
-      const functionStart = fileContent.indexOf('function RegistrationWizardContent');
+      const functionStart = fileContent.indexOf('function useRegistrationWizardState');
       const functionBody = fileContent.substring(functionStart);
 
       const lines = functionBody.split('\n');
@@ -94,25 +99,38 @@ describe('RegistrationWorkflow Error Detection Tests', () => {
 });
 
 describe('Submission Loading State Wiring', () => {
-  const wizardPagePath = path.join(__dirname, '../../pages/RegistrationWizardPage.tsx');
-  const wizardPageContent = fs.readFileSync(wizardPagePath, 'utf8');
+  // The submission orchestration was split out of the page during the
+  // 500-line-ceiling refactor: state lives in useRegistrationWizardState.ts,
+  // the payment submission in submitPaymentStep.ts, the in-flight guard and the
+  // handler wiring in wizardHandlers.ts, and the JSX prop stays in the page.
+  const base = path.join(__dirname, '../../pages/RegistrationWizardPage');
+  const stateHookContent = fs.readFileSync(
+    path.join(base, 'useRegistrationWizardState.ts'),
+    'utf8'
+  );
+  const paymentStepContent = fs.readFileSync(path.join(base, 'submitPaymentStep.ts'), 'utf8');
+  const handlersContent = fs.readFileSync(path.join(base, 'wizardHandlers.ts'), 'utf8');
+  const wizardPageContent = fs.readFileSync(
+    path.join(__dirname, '../../pages/RegistrationWizardPage.tsx'),
+    'utf8'
+  );
 
   it('should declare isSubmitting state', () => {
-    expect(wizardPageContent).toContain('const [isSubmitting, setIsSubmitting] = useState');
+    expect(stateHookContent).toContain('const [isSubmitting, setIsSubmitting] = useState');
   });
 
   it('should set isSubmitting true before async payment submission', () => {
     // setIsSubmitting(true) must appear before the async registration submission
-    const setTruePos = wizardPageContent.indexOf('setIsSubmitting(true)');
-    const submitPos = wizardPageContent.indexOf('await submitShowRegistration(');
+    const setTruePos = paymentStepContent.indexOf('setIsSubmitting(true)');
+    const submitPos = paymentStepContent.indexOf('await submitShowRegistration(');
     expect(setTruePos).toBeGreaterThan(0);
     expect(submitPos).toBeGreaterThan(setTruePos);
   });
 
   it('should reset isSubmitting in a finally block', () => {
     // The finally block must contain setIsSubmitting(false)
-    const finallyPos = wizardPageContent.indexOf('} finally {');
-    const setFalsePos = wizardPageContent.indexOf('setIsSubmitting(false)');
+    const finallyPos = paymentStepContent.indexOf('} finally {');
+    const setFalsePos = paymentStepContent.indexOf('setIsSubmitting(false)');
     expect(finallyPos).toBeGreaterThan(0);
     expect(setFalsePos).toBeGreaterThan(finallyPos);
   });
@@ -122,7 +140,7 @@ describe('Submission Loading State Wiring', () => {
   });
 
   it('should guard against double-clicks with submittingRef', () => {
-    expect(wizardPageContent).toContain('if (submittingRef.current');
+    expect(handlersContent).toContain('if (submittingRef.current');
   });
 });
 

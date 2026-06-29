@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { signInAsSecretary } from '../shared/auth';
 import {
   createBrowserHealth,
@@ -99,8 +99,7 @@ async function openArmbandDialog(page: Page, dogName: string) {
     .first();
 
   if ((await rowActions.count()) > 0) {
-    await expect(rowActions).toBeVisible({ timeout: 10000 });
-    await rowActions.click();
+    await clickRowActionsWhenStable(rowActions);
     const assignItem = page.getByRole('menuitem', { name: /Assign armband|Change armband/i });
     await expect(assignItem.first()).toBeVisible({ timeout: 10000 });
     await assignItem.first().click();
@@ -108,4 +107,23 @@ async function openArmbandDialog(page: Page, dogName: string) {
   }
 
   await page.getByRole('button', { name: 'Assign' }).first().click();
+}
+
+async function clickRowActionsWhenStable(rowActions: Locator) {
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    await expect(rowActions).toBeVisible({ timeout: 10000 });
+
+    try {
+      await rowActions.click({ timeout: 3000 });
+      return;
+    } catch (error) {
+      if (attempt === 3 || !isDetachedDuringClick(error)) {
+        throw error;
+      }
+    }
+  }
+}
+
+function isDetachedDuringClick(error: unknown) {
+  return error instanceof Error && /detached from the DOM/i.test(error.message);
 }

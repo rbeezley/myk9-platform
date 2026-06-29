@@ -196,6 +196,11 @@ export async function getShowMapHandlerMessageTarget(
   };
 }
 
+// INTENT: Show Map move-up stays on replicated entry mutations because this
+// action is show-day/offline-critical. The online day-of path routes status
+// changes through entries/lifecycle.ts; this path mirrors the same domain
+// transition locally, audit-logs it, and relies on sync/server review as the
+// backstop for stale replicas or concurrent capacity changes.
 export async function moveUpShowMapEntry({
   entryId,
   targetClassId,

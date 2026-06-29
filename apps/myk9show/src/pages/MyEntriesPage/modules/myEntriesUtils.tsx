@@ -132,18 +132,18 @@ export function getPaymentStatusBadge(
  */
 export function getStatusIcon(entryStatus: EntryStatus, paymentStatus: PaymentStatus): React.ReactNode {
   if (entryStatus === EntryStatus.COMPLETED) {
-    return <CheckCircle2 className="h-5 w-5 text-[#34C759]" />;
+    return <CheckCircle2 className="h-5 w-5 text-success" />;
   }
   if (entryStatus === EntryStatus.ACCEPTED && paymentStatus !== PaymentStatus.PENDING) {
-    return <CheckCircle2 className="h-5 w-5 text-[#34C759]" />;
+    return <CheckCircle2 className="h-5 w-5 text-success" />;
   }
   if (entryStatus === EntryStatus.REJECTED || entryStatus === EntryStatus.CANCELLED) {
-    return <XCircle className="h-5 w-5 text-[#FF3B30]" />;
+    return <XCircle className="h-5 w-5 text-destructive" />;
   }
   if (entryStatus === EntryStatus.PENDING || paymentStatus === PaymentStatus.PENDING) {
-    return <AlertCircle className="h-5 w-5 text-[#FF9500]" />;
+    return <AlertCircle className="h-5 w-5 text-warning" />;
   }
-  return <Clock className="h-5 w-5 text-[#007AFF]" />;
+  return <Clock className="h-5 w-5 text-primary" />;
 }
 
 /**

@@ -24,6 +24,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useMyPayments, type MyPayment } from '@/features/payments/useMyPayments';
+import { summarizeMyPayments } from '@/features/payments/paymentsSummary';
 
 function formatCents(cents: number, currency: string): string {
   return new Intl.NumberFormat('en-US', {
@@ -78,6 +79,34 @@ function PaymentRow({ payment }: { payment: MyPayment }) {
   );
 }
 
+/**
+ * At-a-glance total spent + payment count, so an exhibitor can answer "how much
+ * have I spent" without reading the table. One figure per currency (refunds are
+ * netted out by summarizeMyPayments); rendered only when there is settled spend.
+ */
+function PaymentsSummary({ payments }: { payments: MyPayment[] }) {
+  const totals = summarizeMyPayments(payments);
+  if (totals.length === 0) return null;
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {totals.map(t => (
+        <Card key={t.currency} className="border-primary/40">
+          <CardContent className="py-4">
+            <p className="text-sm text-muted-foreground">Total paid</p>
+            <p className="text-2xl font-semibold tabular-nums text-primary">
+              {formatCents(t.totalPaidCents, t.currency)}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t.paymentCount} {t.paymentCount === 1 ? 'payment' : 'payments'}
+            </p>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
 export default function ExhibitorPaymentsPage() {
   const { data: payments, isLoading, isError } = useMyPayments();
 
@@ -109,27 +138,30 @@ export default function ExhibitorPaymentsPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Show</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Reference</TableHead>
-                  <TableHead>Receipt</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {payments.map(p => (
-                  <PaymentRow key={p.id} payment={p} />
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <>
+          <PaymentsSummary payments={payments} />
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Show</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Reference</TableHead>
+                    <TableHead>Receipt</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {payments.map(p => (
+                    <PaymentRow key={p.id} payment={p} />
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </>
       )}
     </div>
   );

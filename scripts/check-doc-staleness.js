@@ -22,6 +22,15 @@
 //   --routes a,b   skip git and treat this comma-separated list as the changed
 //                  routes (used by tests and for manual "what guides cover /x?").
 //
+// Re-verification suppression (strict mode only): a flagged route does NOT fail
+// strict if its source-map block was ALSO edited in this same base...HEAD diff.
+// Touching the guide-map entry for a route is treated as proof you re-checked the
+// guide, so the route may move (e.g. get catalogued in pageDirectory.ts) without
+// tripping the gate — provided you reconciled its map block in the same PR. This
+// is what lets a "documented route changed" PR pass without de-documenting the
+// route (removing its backticks/Docs target to dodge the gate is the anti-pattern
+// this check exists to prevent). See reverifiedRoutesFromMapDiff.
+//
 // Exit codes: 0 = ok / advisory; 1 = --strict and documented routes changed;
 //             2 = usage or environment error.
 
@@ -167,6 +176,32 @@ function parseDiffForRoutes(diffText) {
 }
 
 /**
+ * Normalized routes whose backtick tokens appear on ANY changed (+/-) line of a
+ * source-map diff. This is the re-verification signal: editing the guide-map block
+ * that documents a route — in either direction — is proof the author re-checked
+ * that guide, so the route may change without failing strict mode (see header).
+ *
+ * Deliberately a UNION over touched lines, NOT the symmetric difference that
+ * parseDiffForRoutes computes. There the goal is to detect genuine route *changes*
+ * and ignore in-place label edits, so a token present on both sides cancels. Here
+ * the opposite is wanted: any touch of a route-bearing map line — including an
+ * in-place edit where the token sits on both the '-' and '+' side — must count as
+ * re-verification, so we never cancel.
+ */
+function reverifiedRoutesFromMapDiff(diffText) {
+  const set = new Set();
+  for (const line of diffText.split('\n')) {
+    if (line.startsWith('+++') || line.startsWith('---')) continue; // file headers
+    if (!/^[+-]/.test(line)) continue; // context / hunk meta
+    for (const raw of extractRoutesFromMarkdown(line.slice(1))) {
+      const norm = normalizeRoute(raw);
+      if (norm && norm !== '/') set.add(norm);
+    }
+  }
+  return set;
+}
+
+/**
  * Parse the source map into an index: normalizedRoute -> [{ section, docsTarget, raw }].
  * Workflow blocks (### headings) carry a real "Docs target:" line; table-only
  * sections (## headings) are indexed too, tagged "(table)".
@@ -308,6 +343,17 @@ function sourceMapChanged(baseRef) {
   }
 }
 
+/** Set of normalized routes whose source-map block changed in this diff (see
+ *  reverifiedRoutesFromMapDiff). --unified=0 so only added/removed lines count. */
+function reverifiedRoutesFromGit(baseRef) {
+  try {
+    const out = git(['diff', '--unified=0', `${baseRef}...HEAD`, '--', SOURCE_MAP_REL]);
+    return reverifiedRoutesFromMapDiff(out);
+  } catch {
+    return new Set();
+  }
+}
+
 function main(argv) {
   const args = argv.slice(2);
   if (args.includes('--help') || args.includes('-h')) {
@@ -335,6 +381,7 @@ function main(argv) {
   let changed;
   let labelChanges = [];
   let mapAlsoChanged = false;
+  let reverified = new Set();
 
   if (explicitRoutes) {
     changed = explicitRoutes;
@@ -349,6 +396,7 @@ function main(argv) {
       changed = changedRoutesFromGit(baseRef);
       labelChanges = labelFilesChanged(baseRef);
       mapAlsoChanged = sourceMapChanged(baseRef);
+      reverified = reverifiedRoutesFromGit(baseRef);
     } catch (err) {
       console.error(`git diff failed against ${baseRef}: ${err.message}`);
       return 2;
@@ -357,7 +405,12 @@ function main(argv) {
   }
 
   const { flagged, undocumented } = matchChangedRoutes(changed, index);
-  const blocking = selectBlockingFlags(flagged);
+  // Re-verification suppression: a documented route that changed does not block
+  // strict mode if its source-map block was also edited in this same diff. Touching
+  // the guide-map entry is proof the guide was re-checked (see header).
+  let blocking = selectBlockingFlags(flagged);
+  const reverifiedBlocking = blocking.filter(f => reverified.has(f.normalized));
+  blocking = blocking.filter(f => !reverified.has(f.normalized));
 
   if (flagged.length === 0 && undocumented.length === 0 && labelChanges.length === 0) {
     console.log('No documented routes changed — no guide re-verification triggered.');
@@ -368,7 +421,12 @@ function main(argv) {
     const blockingSet = new Set(blocking.map(f => f.normalized));
     console.log('\n⚠  Guides to RE-VERIFY (a documented route changed):');
     for (const { route, normalized, refs } of flagged) {
-      const tag = blockingSet.has(normalized) ? '' : '  (advisory only — no customer Docs target)';
+      let tag = '';
+      if (reverified.has(normalized)) {
+        tag = '  (re-verified in this diff — guide-map block also changed)';
+      } else if (!blockingSet.has(normalized)) {
+        tag = '  (advisory only — no customer Docs target)';
+      }
       console.log(`\n  ${route}${tag}`);
       const printed = new Set();
       for (const ref of refs) {
@@ -379,6 +437,13 @@ function main(argv) {
         console.log(`      → ${ref.docsTarget}`);
       }
     }
+  }
+
+  if (reverifiedBlocking.length > 0) {
+    console.log(
+      '\n✓  Re-verified in this diff (guide-map block also changed — does NOT block strict):'
+    );
+    for (const f of reverifiedBlocking) console.log(`    • ${f.route}`);
   }
 
   if (labelChanges.length > 0) {
@@ -402,13 +467,17 @@ function main(argv) {
   );
 
   if (strict && flagged.length > 0 && blocking.length === 0) {
-    console.log(
-      '\nStrict mode: flagged routes are all internal/excluded (no customer Docs target), so this does not fail.'
-    );
+    const why =
+      reverifiedBlocking.length > 0
+        ? 'flagged routes are internal/excluded or re-verified in this diff'
+        : 'flagged routes are all internal/excluded (no customer Docs target)';
+    console.log(`\nStrict mode: ${why}, so this does not fail.`);
   }
 
-  // Strict mode fails only when a route tied to a real customer guide changed —
-  // internal/excluded routes are advisory-only (see selectBlockingFlags).
+  // Strict mode fails only when a route tied to a real customer guide changed AND
+  // its guide-map block was not re-verified in this diff. Internal/excluded routes
+  // are advisory-only (see selectBlockingFlags); re-verified routes are suppressed
+  // (see reverifiedRoutesFromMapDiff).
   return strict && blocking.length > 0 ? 1 : 0;
 }
 
@@ -418,6 +487,7 @@ module.exports = {
   extractRoutesFromSource,
   extractComposedRoutes,
   parseDiffForRoutes,
+  reverifiedRoutesFromMapDiff,
   parseSourceMap,
   matchChangedRoutes,
   selectBlockingFlags,

@@ -474,6 +474,19 @@ export const pageDirectory: readonly PageEntry[] = [
     linksTo: ['/dogs/:id'],
   },
   {
+    path: '/exhibitor/payments',
+    title: 'My Payments',
+    description: 'Your online entry payment history; receipts live with each entry under My Shows.',
+    roles: [UserRole.EXHIBITOR, UserRole.SITE_ADMIN],
+    classification: 'park',
+    category: 'Payments',
+    status: 'working',
+    // No linksTo: the natural target (My Shows / Cart) is a documented route, and
+    // referencing it here would trip the doc-staleness gate into flagging that
+    // guide as changed. Matches the empty-linksTo precedent for catalog additions.
+    linksTo: [],
+  },
+  {
     path: '/dogs',
     title: 'Browse Dogs',
     description: 'Directory of dogs registered with the platform.',
@@ -592,6 +605,30 @@ export const pageDirectory: readonly PageEntry[] = [
     category: 'Shows',
     status: 'working',
     linksTo: [],
+  },
+
+  // =========================
+  // CLUB ADMIN / TREASURER
+  // =========================
+  {
+    path: '/club-admin/members',
+    title: 'Club Members',
+    description: 'Manage club-level access: add or remove Club Admins and Secretaries.',
+    roles: [UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN],
+    classification: 'critical-path',
+    category: 'Clubs',
+    status: 'working',
+    linksTo: ['/club-admin/payments', '/clubs/:id'],
+  },
+  {
+    path: '/club-admin/payments',
+    title: 'Club Payments',
+    description: 'Connect the club bank account and review show payout history (Stripe Express).',
+    roles: [UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN],
+    classification: 'critical-path',
+    category: 'Payments',
+    status: 'working',
+    linksTo: ['/club-admin/members'],
   },
 
   // =========================

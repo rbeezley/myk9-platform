@@ -140,7 +140,7 @@ export default function ExhibitorPaymentsPage() {
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Reference</TableHead>
-                  <TableHead>Receipt</TableHead>
+                  <TableHead>Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

@@ -340,7 +340,7 @@ export default function CartPage() {
                 type="button"
                 onClick={dismissCancelNotice}
                 aria-label="Dismiss"
-                className="-mr-1 -mt-0.5 shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+                className="-mr-3 -mt-3 inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 <X className="h-4 w-4" />
               </button>

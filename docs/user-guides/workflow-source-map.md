@@ -16,9 +16,6 @@ Routes visible in the sidebar (`unifiedSidebarConfig.ts`) that are **not yet in 
 | `/admin/role-requests` | Role Requests | SITE_ADMIN |
 | `/admin/payouts` | Payments | SITE_ADMIN |
 | `/people` | People | SECRETARY, SITE_ADMIN |
-| `/exhibitor/payments` | My Payments | EXHIBITOR |
-| `/club-admin/members` | Members | CLUB_ADMIN |
-| `/club-admin/payments` | Payments | CLUB_ADMIN |
 
 ---
 
@@ -93,8 +90,7 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 
 ### 10. View payments and receipts
 **Outcome:** Exhibitor reviews what they paid and downloads a receipt.
-**Canonical route:** `/exhibitor/payments`
-**Note:** Not yet in `pageDirectory.ts` — add before documenting.
+**Canonical route:** /exhibitor/payments (cataloged in `pageDirectory.ts`; reachable via the "My Payments" sidebar entry)
 **Docs target:** Exhibitor Guide § Payments, KB: `my-payments.md`
 
 ### 11. View personal analytics
@@ -160,20 +156,18 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 
 ### 21. Set up club payment account (Stripe Express onboarding)
 **Outcome:** Club treasurer connects the club to receive show payouts via Stripe.
-**Canonical route:** `/club-admin/payments`
-**Note:** Not yet in `pageDirectory.ts` — add before documenting.
+**Canonical route:** /club-admin/payments (cataloged in `pageDirectory.ts`)
 **Docs target:** Club Admin Guide § Payments, KB: `stripe-onboarding.md`
 **Related:** `docs/operations/stripe-treasurer-guide.md` (already written)
 
 ### 22. View show payouts
 **Outcome:** Treasurer sees payout schedule, net amounts, and transfer status per show.
-**Canonical route:** `/club-admin/payments`
+**Canonical route:** /club-admin/payments (cataloged in `pageDirectory.ts`)
 **Docs target:** Club Admin Guide § Payouts
 
 ### 23. Manage club members
 **Outcome:** Club admin views or updates club membership and access.
-**Canonical route:** `/club-admin/members`
-**Note:** Not yet in `pageDirectory.ts` — add before documenting.
+**Canonical route:** /club-admin/members (cataloged in `pageDirectory.ts`)
 **Docs target:** Club Admin Guide § Members
 
 ---

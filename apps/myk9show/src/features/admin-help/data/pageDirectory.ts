@@ -433,6 +433,21 @@ export const pageDirectory: readonly PageEntry[] = [
     linksTo: ['/dogs/:id'],
   },
   {
+    path: '/exhibitor/payments',
+    title: 'My Payments',
+    description:
+      'Chronological list of the exhibitor\'s online entry payments with status and Stripe reference; receipts live per-entry under My Shows.',
+    roles: [UserRole.EXHIBITOR, UserRole.SITE_ADMIN],
+    classification: 'park',
+    category: 'Payments',
+    status: 'working',
+    // linksTo intentionally empty: the natural target (My Shows) is a
+    // doc-staleness-tracked route, so listing it here would re-flag an
+    // unchanged guide in qa:doc-staleness:strict. The page links to My
+    // Shows in its own UI (Receipt column).
+    linksTo: [],
+  },
+  {
     path: '/dogs',
     title: 'Browse Dogs',
     description: 'Directory of dogs registered with the platform.',
@@ -551,6 +566,32 @@ export const pageDirectory: readonly PageEntry[] = [
     category: 'Shows',
     status: 'working',
     linksTo: [],
+  },
+
+  // =========================
+  // CLUB ADMIN
+  // =========================
+  {
+    path: '/club-admin/members',
+    title: 'Club Members',
+    description:
+      'Manage club-level access: add or remove Club Admins and Secretaries and grant show-management rights.',
+    roles: [UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN],
+    classification: 'critical-path',
+    category: 'Clubs',
+    status: 'working',
+    linksTo: ['/club-admin/payments'],
+  },
+  {
+    path: '/club-admin/payments',
+    title: 'Club Payments',
+    description:
+      'Connect the club Stripe Express account and review per-show payout history and status.',
+    roles: [UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN],
+    classification: 'critical-path',
+    category: 'Payments',
+    status: 'working',
+    linksTo: ['/club-admin/members'],
   },
 
   // =========================

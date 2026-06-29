@@ -50,6 +50,13 @@ import {
 } from './ReplicatedTableRowState';
 import { mergeNonConflictingServerFields } from '../conflict/detectDirtyRowConflict';
 import { isConflictSurfacingEnabled } from '../conflictConfig';
+import { withQuotaEviction } from '../quota-eviction';
+
+/**
+ * Fraction of a table's current footprint to retain when relieving storage
+ * quota pressure — evict roughly the remaining 30% (oldest/least-used first).
+ */
+const QUOTA_EVICTION_RETAIN_FRACTION = 0.7;
 
 // Re-export REPLICATION_STORES for backward compatibility
 export { REPLICATION_STORES } from './DatabaseManager';
@@ -101,7 +108,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       tableName,
       this.logger,
       () => this.init(),
-      () => this.notifyListeners()
+      () => this.notifyListeners(),
+      () => this.relieveQuota()
     );
   }
 
@@ -259,10 +267,20 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       return null;
     }
 
-    // Update access tracking for LRU+LFU eviction
+    // Update access tracking for LRU+LFU eviction. This is best-effort
+    // metadata: a read must never fail (or emit an unhandled rejection)
+    // because the access-stats write hit a full storage quota. Swallow any
+    // write error and return the row we already read.
     row.lastAccessedAt = Date.now();
     row.accessCount = (row.accessCount || 0) + 1;
-    await db.put(REPLICATION_STORES.REPLICATED_TABLES, row);
+    try {
+      await db.put(REPLICATION_STORES.REPLICATED_TABLES, row);
+    } catch (error) {
+      this.logger.warn(
+        `[${this.tableName}] Access-tracking write failed for ${normalizedId} (non-fatal):`,
+        error
+      );
+    }
 
     return row;
   }
@@ -278,6 +296,23 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     id: string,
     data: T,
     isDirty = false,
+    expectedVersion?: number,
+    incomingServerVersion?: number
+  ): Promise<void> {
+    // Wrap the write so a storage-quota abort triggers eviction + one retry
+    // rather than escaping as an unhandled "AbortError: QuotaExceededError".
+    await withQuotaEviction(
+      () => this.setOnce(id, data, isDirty, expectedVersion, incomingServerVersion),
+      () => this.relieveQuota(),
+      this.logger
+    );
+  }
+
+  /** Single attempt of {@link set}; opens its own transaction so it is safe to retry. */
+  private async setOnce(
+    id: string,
+    data: T,
+    isDirty: boolean,
     expectedVersion?: number,
     incomingServerVersion?: number
   ): Promise<void> {
@@ -881,6 +916,23 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
   async evictLRU(targetSizeBytes: number): Promise<number> {
     return this.cacheManager.evictLRU(targetSizeBytes);
+  }
+
+  /**
+   * Free local cache space in response to storage-quota pressure by evicting
+   * the oldest/least-used ~30% of this table's footprint. Dirty/unsynced and
+   * recently-touched rows are always protected (see {@link evictLRU}), so this
+   * never drops pending offline mutations. Returns the number of rows evicted.
+   *
+   * SCOPE: per-table. All replicated tables share one IndexedDB object store
+   * and the browser quota is global, so this reclaims space within the table
+   * whose write overflowed — the common case, since bulk sync overflows on the
+   * large table that grew. A genuine cross-table overflow (this table has no
+   * evictable rows while another holds gigabytes of garbage) won't recover
+   * here; that would need a store-wide evictor — tracked as a follow-up.
+   */
+  async relieveQuota(): Promise<number> {
+    return this.cacheManager.evictRetainingFraction(QUOTA_EVICTION_RETAIN_FRACTION);
   }
 
   async getSyncMetadata(scopeValue?: string): Promise<SyncMetadata | null> {

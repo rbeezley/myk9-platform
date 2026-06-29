@@ -59,7 +59,8 @@ describe('ReplicatedTableCache batch-write dirty protection', () => {
       tableName,
       { log: vi.fn(), warn: vi.fn(), error: vi.fn() },
       async () => db,
-      vi.fn() as () => void
+      vi.fn() as () => void,
+      async () => 0
     );
   });
 
@@ -134,7 +135,8 @@ describe('ReplicatedTableCache batch-write dirty protection', () => {
       tableName,
       { log: vi.fn(), warn: vi.fn(), error: vi.fn() },
       async () => dbProxy as unknown as IDBPDatabase,
-      vi.fn() as () => void
+      vi.fn() as () => void,
+      async () => 0
     );
 
     // Act: batchSetChunked should throw because chunk 2 fails
@@ -211,7 +213,8 @@ describe('ReplicatedTableCache batch-write dirty protection', () => {
       tableName,
       { log: vi.fn(), warn: vi.fn(), error: vi.fn() },
       async () => dbProxy as unknown as IDBPDatabase,
-      vi.fn() as () => void
+      vi.fn() as () => void,
+      async () => 0
     );
 
     // Act

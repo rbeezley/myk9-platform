@@ -30,7 +30,8 @@ describe('ReplicatedTableBatchManager', () => {
       tableName,
       { log: vi.fn(), warn: vi.fn(), error: vi.fn() },
       async () => db,
-      notifyListeners as () => void
+      notifyListeners as () => void,
+      async () => 0
     );
   });
 

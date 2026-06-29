@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { ShoppingCart, ArrowLeft, Trash2, AlertCircle, Eye, Loader2 } from 'lucide-react';
+import { ShoppingCart, ArrowLeft, Trash2, AlertCircle, Eye, Info, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
@@ -26,6 +26,7 @@ import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { CartItemCard } from '@/components/cart/CartItemCard';
 import { CartSummary } from '@/components/cart/CartSummary';
 import { createEntryCheckoutSession } from '@/lib/stripe';
+import { CHECKOUT_RETURN_PARAM, readCheckoutReturnStatus } from './cartCheckoutNotice';
 import { useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
 import { writeCartSplitCheckoutSummary } from '@/features/payments/cartSplitCheckoutStorage';
 import { splitCartItemsByJudgeDayCapacity } from '@/features/payments/cartCapacitySplit';
@@ -40,7 +41,7 @@ function createSplitCheckoutCorrelationId(): string {
 
 export default function CartPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuthContext();
   const { profile, isLoading: isProfileLoading } = useExhibitorProfile();
   const cart = useCartStore(state => state.cart);
@@ -63,6 +64,21 @@ export default function CartPage() {
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [cancelNoticeDismissed, setCancelNoticeDismissed] = useState(false);
+
+  // Reading the Stripe cancel return param is purely informational — the cart
+  // itself is untouched, so this banner reassures rather than alarms.
+  const showCancelNotice =
+    readCheckoutReturnStatus(searchParams) === 'cancelled' && !cancelNoticeDismissed;
+
+  const dismissCancelNotice = () => {
+    setCancelNoticeDismissed(true);
+    // Strip the param so a refresh or back-nav doesn't resurrect the banner.
+    const next = new URLSearchParams(searchParams);
+    next.delete(CHECKOUT_RETURN_PARAM);
+    setSearchParams(next, { replace: true });
+  };
+
   const recoveryShowId = searchParams.get('showId') ?? undefined;
   const recoveryEntryIdsParam = searchParams.get('entryIds') ?? '';
   const recoveryEntryIds = useMemo(
@@ -226,8 +242,7 @@ export default function CartPage() {
   // moment loadActiveCart begins, so "profile resolved with an id but no load
   // initiated yet" still counts as hydrating.
   const awaitingCartLoad = Boolean(profile?.id) && !loadInitiated;
-  const isHydrating =
-    items.length === 0 && (isProfileLoading || isCartLoading || awaitingCartLoad);
+  const isHydrating = items.length === 0 && (isProfileLoading || isCartLoading || awaitingCartLoad);
   if (isHydrating) {
     return (
       <div className="bg-background pt-6">
@@ -311,6 +326,27 @@ export default function CartPage() {
             </Button>
           )}
         </div>
+
+        {/* Cancelled-checkout notice — calm, reassuring, distinct from a hard error */}
+        {showCancelNotice && (
+          <Alert className="mb-6 border-primary/30 bg-primary/5" role="status">
+            <Info className="h-4 w-4 text-primary" />
+            <AlertDescription className="flex items-start justify-between gap-4">
+              <span className="text-foreground">
+                <span className="font-medium">Checkout cancelled — no charge was made.</span> Your
+                cart is saved exactly as you left it. Pick up whenever you're ready.
+              </span>
+              <button
+                type="button"
+                onClick={dismissCancelNotice}
+                aria-label="Dismiss"
+                className="-mr-3 -mt-3 inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Error Alert */}
         {error && (

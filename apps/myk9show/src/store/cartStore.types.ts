@@ -91,6 +91,10 @@ export interface CartState {
   // Data
   cart: CartWithDetails | null;
   isLoading: boolean;
+  // True once a cart load has been initiated this session. Lets the cart UI keep
+  // a hydration placeholder up before the first load resolves, instead of
+  // flashing the empty-cart state on the pre-load frame of a direct visit.
+  loadInitiated: boolean;
   error: string | null;
   lastSyncedAt: string | null;
 

@@ -35,6 +35,7 @@ export default function CartPage() {
   const cart = useCartStore(state => state.cart);
   const items = useCartItems();
   const isCartLoading = useCartStore(state => state.isLoading);
+  const loadInitiated = useCartStore(state => state.loadInitiated);
   const error = useCartStore(state => state.error);
   const removeItem = useCartStore(state => state.removeItem);
   const clearCart = useCartStore(state => state.clearCart);
@@ -132,7 +133,16 @@ export default function CartPage() {
   // before deciding the cart is empty. Without this, a direct visit (refresh,
   // deep link, new device) flashes the empty-cart zero-state over a cart that
   // is still loading.
-  const isHydrating = (isProfileLoading || isCartLoading) && items.length === 0;
+  //
+  // The cart-load effect runs AFTER the first render, so on that first frame a
+  // resolved exhibitor profile has isProfileLoading === false and isCartLoading
+  // === false even though the load has not started — which would fall through
+  // to the empty state for one frame. The store flips loadInitiated true the
+  // moment loadActiveCart begins, so "profile resolved with an id but no load
+  // initiated yet" still counts as hydrating.
+  const awaitingCartLoad = Boolean(profile?.id) && !loadInitiated;
+  const isHydrating =
+    items.length === 0 && (isProfileLoading || isCartLoading || awaitingCartLoad);
   if (isHydrating) {
     return (
       <div className="bg-background pt-6">

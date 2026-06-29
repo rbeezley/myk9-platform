@@ -49,6 +49,7 @@ export const useCartStore = create<CartState>()(
         // Initial state
         cart: null,
         isLoading: false,
+        loadInitiated: false,
         error: null,
         lastSyncedAt: null,
         expirationWarning: false,
@@ -136,7 +137,7 @@ export const useCartStore = create<CartState>()(
         // /cart be visited directly (deep link, refresh, new tab). Recovery
         // deliberately excludes submitted/abandoned carts; those are terminal.
         loadActiveCart: async (exhibitorId: string, options = {}) => {
-          set({ isLoading: true, error: null });
+          set({ isLoading: true, error: null, loadInitiated: true });
 
           let cartLookupQuery = supabase
             .from('entry_carts')
@@ -796,6 +797,7 @@ export const useCartStore = create<CartState>()(
           set({
             cart: null,
             isLoading: false,
+            loadInitiated: false,
             error: null,
             lastSyncedAt: null,
             expirationWarning: false,

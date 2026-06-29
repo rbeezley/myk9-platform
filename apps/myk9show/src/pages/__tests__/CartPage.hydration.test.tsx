@@ -18,6 +18,7 @@ const { cartState, profileState } = vi.hoisted(() => ({
   cartState: {
     cart: null as { show_id?: string } | null,
     isLoading: false,
+    loadInitiated: false,
     error: null as string | null,
     items: [] as unknown[],
     removeItem: () => {},
@@ -43,6 +44,7 @@ describe('CartPage hydration gate', () => {
   beforeEach(() => {
     cartState.cart = null;
     cartState.isLoading = false;
+    cartState.loadInitiated = false;
     cartState.error = null;
     cartState.items = [];
     profileState.profile = null;
@@ -63,8 +65,37 @@ describe('CartPage hydration gate', () => {
     expect(screen.queryByText('Your cart is empty')).not.toBeInTheDocument();
   });
 
-  it('falls through to the empty zero-state once loading settles with no items', () => {
+  it('shows the loading state on the first frame: profile resolved with an id but the cart-load effect has not started', () => {
+    // isProfileLoading and isCartLoading are both false, but the cart-load
+    // effect runs after the first render, so the store has not flipped
+    // loadInitiated yet. The gate must still hold the loading state rather than
+    // flashing the empty zero-state.
+    profileState.profile = { id: 'p1' };
+    profileState.isLoading = false;
     cartState.isLoading = false;
+    cartState.loadInitiated = false;
+    cartState.items = [];
+    render(<CartPage />);
+    expect(screen.getByText('Loading your cart…')).toBeInTheDocument();
+    expect(screen.queryByText('Your cart is empty')).not.toBeInTheDocument();
+  });
+
+  it('falls through to the empty zero-state once a profiled load completes with no items', () => {
+    // Profile resolved, the load has run (loadInitiated true) and settled with
+    // no items — this is a genuinely empty cart, so show the zero-state.
+    profileState.profile = { id: 'p1' };
+    profileState.isLoading = false;
+    cartState.isLoading = false;
+    cartState.loadInitiated = true;
+    cartState.items = [];
+    render(<CartPage />);
+    expect(screen.getByText('Your cart is empty')).toBeInTheDocument();
+    expect(screen.queryByText('Loading your cart…')).not.toBeInTheDocument();
+  });
+
+  it('shows the empty zero-state for a visitor with no exhibitor profile', () => {
+    cartState.isLoading = false;
+    profileState.profile = null;
     profileState.isLoading = false;
     render(<CartPage />);
     expect(screen.getByText('Your cart is empty')).toBeInTheDocument();

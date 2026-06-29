@@ -10,13 +10,7 @@ Maps user workflows to their canonical routes in myK9Show. The per-route invento
 
 Routes visible in the sidebar (`unifiedSidebarConfig.ts`) that are **not yet in `pageDirectory.ts`**. These are gaps — add them to `pageDirectory.ts` before they can be documented.
 
-The admin user-management, role-requests, payout-ledger, and people surfaces are now cataloged in `pageDirectory.ts`. The remaining gaps are the payment surfaces below; they are already sidebar links, so navigation is not the blocker — they are deferred pending re-verification of their customer guide sections (Exhibitor Guide § Payments; Club Admin Guide § Members / § Payments) before cataloging:
-
-| Route                  | Sidebar label | Role(s)    |
-| ---------------------- | ------------- | ---------- |
-| `/exhibitor/payments`  | My Payments   | EXHIBITOR  |
-| `/club-admin/members`  | Members       | CLUB_ADMIN |
-| `/club-admin/payments` | Payments      | CLUB_ADMIN |
+All sidebar-visible routes are now cataloged in `pageDirectory.ts` — there are no remaining gaps. The admin user-management, role-requests, payout-ledger, and people surfaces were cataloged in #1002; the exhibitor and club-admin payment surfaces in #1014 (after re-verifying Exhibitor Guide § Payments and Club Admin Guide § Members / § Payments).
 
 ---
 
@@ -101,8 +95,7 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 ### 10. View payments and receipts
 
 **Outcome:** Exhibitor reviews what they paid and downloads a receipt.
-**Canonical route:** `/exhibitor/payments`
-**Note:** Not yet in `pageDirectory.ts` — add before documenting.
+**Canonical route:** /exhibitor/payments (cataloged in `pageDirectory.ts`; reachable via the "My Payments" sidebar entry)
 **Docs target:** Exhibitor Guide § Payments, KB: `my-payments.md`
 
 ### 11. View personal analytics
@@ -195,22 +188,20 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 ### 21. Set up club payment account (Stripe Express onboarding)
 
 **Outcome:** Club treasurer connects the club to receive show payouts via Stripe.
-**Canonical route:** `/club-admin/payments`
-**Note:** Not yet in `pageDirectory.ts` — add before documenting.
+**Canonical route:** /club-admin/payments (cataloged in `pageDirectory.ts`)
 **Docs target:** Club Admin Guide § Payments, KB: `stripe-onboarding.md`
 **Related:** `docs/operations/stripe-treasurer-guide.md` (already written)
 
 ### 22. View show payouts
 
 **Outcome:** Treasurer sees payout schedule, net amounts, and transfer status per show.
-**Canonical route:** `/club-admin/payments`
+**Canonical route:** /club-admin/payments (cataloged in `pageDirectory.ts`)
 **Docs target:** Club Admin Guide § Payouts
 
 ### 23. Manage club members
 
 **Outcome:** Club admin views or updates club membership and access.
-**Canonical route:** `/club-admin/members`
-**Note:** Not yet in `pageDirectory.ts` — add before documenting.
+**Canonical route:** /club-admin/members (cataloged in `pageDirectory.ts`)
 **Docs target:** Club Admin Guide § Members
 
 ---

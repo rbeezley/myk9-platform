@@ -94,6 +94,7 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
   '/exhibitor/show-day': () => import('@/features/at-show/AtShowClassListPage'),
   '/exhibitor/check-in/:entryId': () => import('@/pages/MyEntriesPage'),
   '/exhibitor/analytics': () => import('@/pages/AnalyticsPage'),
+  '/exhibitor/payments': () => import('@/pages/exhibitor/ExhibitorPaymentsPage'),
 
   // Dogs management
   '/dogs': () => import('@/pages/BrowseDogsPage'),
@@ -137,6 +138,12 @@ export const secretaryRouteComponents: Record<string, ImportFunction> = {
   // Add more secretary routes as they're defined
 } as const;
 
+// Club admin route components (mounted via clubAdminRoutes.tsx)
+export const clubAdminRouteComponents: Record<string, ImportFunction> = {
+  '/club-admin/members': () => import('@/pages/club-admin/ClubMembersPage'),
+  '/club-admin/payments': () => import('@/pages/club-admin/ClubPaymentsPage'),
+} as const;
+
 // Judge route components (these would be defined in judgeRoutes.tsx)
 export const judgeRouteComponents: Record<string, ImportFunction> = {
   // Placeholder for judge routes - would be populated by actual judge routes
@@ -150,6 +157,7 @@ export const fullRouteRegistry: Record<string, ImportFunction> = {
   ...adminRouteComponents,
   ...publicRouteComponents,
   ...secretaryRouteComponents,
+  ...clubAdminRouteComponents,
   ...judgeRouteComponents,
 };
 

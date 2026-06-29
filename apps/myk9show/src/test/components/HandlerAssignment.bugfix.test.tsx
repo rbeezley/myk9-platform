@@ -38,9 +38,13 @@ describe('Handler Assignment Bug Fixes', () => {
   describe('RegistrationWizardPage proceed gating', () => {
     // Next-button gating moved from an inline canProceed() switch into
     // proceedBlockedReason (proceedGating.ts); the handlerName-vs-handlerId
-    // guard now lives in the gating-context construction in the page.
+    // guard now lives in the gating-context construction, which moved out of the
+    // page into the wizard state hook (useRegistrationWizardState.ts).
     it('should derive unassigned handlers from handlerName not handlerId', () => {
-      const filePath = path.join(__dirname, '../../pages/RegistrationWizardPage.tsx');
+      const filePath = path.join(
+        __dirname,
+        '../../pages/RegistrationWizardPage/useRegistrationWizardState.ts'
+      );
       const content = fs.readFileSync(filePath, 'utf8');
       const gatingStart = content.indexOf('proceedBlockedReason({');
       expect(gatingStart).toBeGreaterThan(-1);

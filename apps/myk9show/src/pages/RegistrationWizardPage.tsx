@@ -3,638 +3,84 @@
  *
  * Full-page wizard for show registration with a horizontal step indicator.
  * Replaces the old dialog-based RegistrationWorkflow.
+ *
+ * All stateful orchestration lives in `useRegistrationWizard`; this file is
+ * intentionally thin — chrome, step indicator, and step content wired to the
+ * hook's values and handlers.
  */
 
-import { useState, useMemo, useEffect, useRef } from 'react';
-import { useParams, useNavigate, useMatch, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getErrorMessage } from '@myk9/core';
 import { notifications } from '@/lib/notifications';
 import { helpUrl } from '@/lib/help';
-import { useShowRegistrationStore } from '@/store/showRegistrationStore';
-import {
-  ClassSelectionData,
-  RegistrationFormData,
-  HandlerInfo,
-  PaymentStatus,
-  EntryStatus,
-  makeHandlerKey,
-} from '@/types/show-registration-types';
 import type { PaymentMethod, PaymentDetails } from '@/types/show-registration-types';
-import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
-import { useReplicationSync } from '@/hooks/useReplicationSync';
-import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
+import type { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
 import { useShowStore } from '@/store/showStore';
-import { useCartStore } from '@/store/cartStore';
-import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
-import { calculateTotalFees } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
 import { RegistrationErrorBoundary } from '@/components/common/ErrorBoundary';
 import { DraftManager } from '@/components/shows/RegistrationWorkflow/DraftManager';
-import { useDraftPersistence, type SavedDraft } from '@/hooks/useDraftPersistence';
-import { useAuthContext } from '@/hooks/useAuthContext';
-import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { RegistrationProvider } from '@/context/RegistrationContext';
 import HorizontalProgressIndicator from '@/components/shows/wizard/components/HorizontalProgressIndicator';
 import WizardNavigation from '@/components/shows/wizard/components/WizardNavigation';
 import { WorkflowStepContent } from '@/components/shows/RegistrationWorkflow/WorkflowStepContent';
-import type {
-  WorkflowMode,
-  StepId,
-} from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow.types';
-import type { ArmbandAssignment } from '@/components/shows/RegistrationWorkflow/ConfirmationStep.types';
-import {
-  WORKFLOW_CONFIGS,
-  ALL_STEP_DEFINITIONS,
-} from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow.constants';
-import {
-  selectedDogsOwner,
-  type SelectedDogsOwnerResult,
-} from '@/features/registration/selectedDogsOwner';
-import { submitShowRegistration } from '@/features/registration/submitShowRegistration';
-import { submitRegistrationCartCheckout } from '@/features/registration/registrationCartCheckout';
-import {
-  isShowDeskLateEntryMode,
-  resolveRegistrationCompletionPath,
-} from './RegistrationWizardPage.routes';
-import { proceedBlockedReason } from './RegistrationWizardPage/proceedGating';
-
-// Exhibitor self-service defaults to online card payment; on-behalf modes
-// (secretary/admin/club) can't use card checkout, so they start unset and must
-// choose explicitly. Shared by the initial state and the mode-change reset.
-const defaultPaymentForMode = (mode: WorkflowMode): PaymentMethod | undefined =>
-  mode === 'exhibitor' ? 'credit_card' : undefined;
+import { useRegistrationWizard } from './RegistrationWizardPage/useRegistrationWizard';
 
 function RegistrationWizardContent() {
-  const { showId: showIdParam } = useParams<{ showId: string }>();
-  // showId is guaranteed by the outer RegistrationWizardPage guard
-  const showId = showIdParam!;
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const isInsideSidebar = !!useMatch('/secretary/*');
-  const isLateEntryMode = isShowDeskLateEntryMode(searchParams);
-  const workflowLabel = isLateEntryMode ? 'Late entry' : 'Register';
-  const sidebarTitle = isLateEntryMode ? 'Late entry' : 'Register for Show';
-
-  // Auth and permissions
-  const { isSecretary, isClubAdmin, isSiteAdmin, canAssignArmbands } = useRegistrationPermissions();
-  const { user } = useAuthContext();
-  const { profile: exhibitorProfile } = useExhibitorProfile();
-  const { triggerSync } = useReplicationSync();
-
-  // Trigger a sync on mount so any pending local mutations are uploaded
-  // before the user interacts with the cart (which requires server-side records).
-  const hasSynced = useRef(false);
-  useEffect(() => {
-    if (!hasSynced.current) {
-      hasSynced.current = true;
-      triggerSync();
-    }
-  }, [triggerSync]);
-
-  // INTENT: Re-set mountedRef to true on each mount so React StrictMode's
-  // double-invocation of effects in dev (mount → cleanup → mount) doesn't
-  // leave the ref permanently false. Without the explicit `= true`, the
-  // first cleanup runs and any later async await chain bails out via the
-  // `if (!mountedRef.current) return;` guards even though the component
-  // is still mounted.
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
-  // Data stores
-  const { dogs, isLoading: dogsLoading } = useDogStoreCompat();
-  const { shows = [] } = useShowStore();
-  const { classes = [] } = useClassStoreCompat();
-  const loadCart = useCartStore(state => state.loadCart);
-  const clearCart = useCartStore(state => state.clearCart);
-  const createCart = useCartStore(state => state.createCart);
-  const addItem = useCartStore(state => state.addItem);
-  const abandonCart = useCartStore(state => state.abandonCart);
-  const currentShow = useMemo(() => shows.find(s => s.id === showId), [shows, showId]);
-
-  // Derived from role flags, not RegistrationContext.mode — that value defaults
-  // to 'exhibitor' while RBAC loads, which would hide the secretary search UI.
-  const currentWorkflowMode: WorkflowMode = useMemo(() => {
-    if (isSiteAdmin) return 'site_admin';
-    if (isClubAdmin) return 'club_admin';
-    if (isSecretary) return 'secretary_new';
-    return 'exhibitor';
-  }, [isSiteAdmin, isClubAdmin, isSecretary]);
-
-  const currentWorkflowConfig = WORKFLOW_CONFIGS[currentWorkflowMode];
-
-  // Reset step state when workflow mode changes mid-session (e.g. role change)
-  // to prevent stale completions from a previous mode allowing skipping payment.
-  const prevWorkflowMode = useRef(currentWorkflowMode);
-  useEffect(() => {
-    if (prevWorkflowMode.current !== currentWorkflowMode) {
-      prevWorkflowMode.current = currentWorkflowMode;
-      setStepCompletionState({});
-      setCurrentStep(0);
-      // Re-apply the per-mode payment default. RBAC resolves async, so the mode
-      // can start as 'exhibitor' (card default) and flip to an on-behalf mode
-      // once permissions load — clear the card default there since on-behalf
-      // flows can't use card checkout and would otherwise hit the guard in
-      // handleNext. Restore it if the mode flips back to exhibitor.
-      setRegistrationData(prev => ({
-        ...prev,
-        paymentMethod: defaultPaymentForMode(currentWorkflowMode),
-      }));
-    }
-  }, [currentWorkflowMode]);
-
-  // Build steps for HorizontalProgressIndicator
-  const steps = useMemo(() => {
-    return currentWorkflowConfig.steps.map((stepId, index) => ({
-      ...ALL_STEP_DEFINITIONS[stepId],
-      id: index,
-      completed: false,
-    }));
-  }, [currentWorkflowConfig.steps]);
-
-  // Wizard state
-  const [currentStep, setCurrentStep] = useState(0);
-  const [stepCompletionState, setStepCompletionState] = useState<Record<string, boolean>>({});
-  const [registrationData, setRegistrationData] = useState<RegistrationFormData>({
-    selectedDogs: [],
-    entries: [],
-    documents: [],
-    // INTENT: Default exhibitor self-service to online card payment so most
-    // exhibitors can pay instantly without touching the radio; they only switch
-    // if they intend to pay by check/cash (and only when the show offers those).
-    paymentMethod: defaultPaymentForMode(currentWorkflowMode),
-    specialRequests: undefined,
-  });
-
-  // Scroll the wizard back to the top of its scroll container on every step
-  // change. Steps differ a lot in height, so otherwise the prior scroll offset
-  // carries over and a tall step (the payment step in particular) opens scrolled
-  // past its first controls — exactly the "I land near the bottom and can't see
-  // the payment choices" symptom. scrollIntoView climbs to whichever ancestor
-  // actually scrolls: the window when the wizard is full-page, the sidebar's
-  // overflow-auto pane when embedded under /secretary.
-  const scrollTopRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = scrollTopRef.current;
-    // jsdom (test env) doesn't implement scrollIntoView; guard so it's a no-op
-    // there while still running in every real browser.
-    if (el && typeof el.scrollIntoView === 'function') {
-      el.scrollIntoView({ block: 'start' });
-    }
-  }, [currentStep]);
-
-  // Resolve the exhibitor that this submission is filed under. For exhibitor
-  // self-service this equals the caller's own people.id (since they only see
-  // dogs they own). For mail-in (advancedSearch=true) the secretary may have
-  // selected dogs from a different exhibitor — that exhibitor's people.id
-  // becomes the enrollment handler.
-  const ownerResolution: SelectedDogsOwnerResult = useMemo(
-    () => selectedDogsOwner(dogs, registrationData.selectedDogs),
-    [dogs, registrationData.selectedDogs]
-  );
-
-  const [classSelections, setClassSelections] = useState<ClassSelectionData[]>([]);
-  const [handlerAssignments, setHandlerAssignments] = useState<Record<string, HandlerInfo>>({});
-  const [registrationId, setRegistrationId] = useState<string | undefined>();
-  const [registrationNumber, setRegistrationNumber] = useState<string | undefined>();
-  const [isCreatingRegistration, setIsCreatingRegistration] = useState(false);
-  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(PaymentStatus.PENDING);
-  const [entryStatus, setEntryStatus] = useState<EntryStatus>(EntryStatus.PENDING);
-  const [armbandAssignments, setArmbandAssignments] = useState<ArmbandAssignment[]>([]);
-  const paymentDetailsRef = useRef<PaymentDetails>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [agreedToEntryAgreement, setAgreedToEntryAgreement] = useState(false);
-  const submittingRef = useRef(false);
-  const mountedRef = useRef(true);
-  const hasAutoSelectedDogs = useRef(false);
-
+  const wiz = useRegistrationWizard();
   const {
-    createRegistration,
-    submitRegistration,
-    confirmRegistration,
-    currentRegistration,
-    setDraftData,
-    clearDraftData,
-    updateRegistration: updateShowRegistration,
-    updatePaymentStatus: storeUpdatePaymentStatus,
-    updateEntryStatus: storeUpdateEntryStatus,
-  } = useShowRegistrationStore();
-
-  // Draft persistence
-  const userId = user?.id || 'anonymous';
-  const clampedStep = Math.min(currentStep, currentWorkflowConfig.steps.length - 1);
-  const currentStepId: StepId = currentWorkflowConfig.steps[clampedStep];
-
-  const {
-    saveDraft: draftSave,
-    loadDraft: draftLoad,
-    deleteDraft: draftDelete,
+    scrollTopRef,
+    isInsideSidebar,
+    workflowLabel,
+    sidebarTitle,
+    currentShow,
+    navigate,
+    steps,
+    currentStep,
+    completedSteps,
+    currentStepId,
+    isLastStep,
+    handleStepClick,
+    draftSave,
+    draftLoad,
+    draftDelete,
     availableDrafts,
     clearAllDrafts,
-    discardDraftsWithoutFinalSave,
     hasUnsavedChanges,
-  } = useDraftPersistence(showId || '', userId, currentStepId, {
-    autoSaveInterval: 30000,
-    debug: import.meta.env.DEV,
-  });
-
-  // Step helpers
-  const isStepCompleted = (stepIndex: number) => {
-    const stepId = currentWorkflowConfig.steps[stepIndex];
-    return stepId ? stepCompletionState[stepId] || false : false;
-  };
-
-  const markStepComplete = (stepIndex: number) => {
-    const stepId = currentWorkflowConfig.steps[stepIndex];
-    if (stepId) {
-      setStepCompletionState(prev => ({ ...prev, [stepId]: true }));
-    }
-  };
-
-  const optimisticState = useMemo(
-    () => ({
-      formData: registrationData,
-      classSelections,
-      handlerAssignments,
-      paymentStatus,
-      entryStatus,
-    }),
-    [registrationData, classSelections, handlerAssignments, paymentStatus, entryStatus]
-  );
-
-  const completedSteps = useMemo(() => {
-    return steps
-      .map((_step, index) => index)
-      .filter(index => {
-        const stepId = currentWorkflowConfig.steps[index];
-        return stepId ? stepCompletionState[stepId] || false : false;
-      });
-  }, [steps, currentWorkflowConfig.steps, stepCompletionState]);
-
-  // Sync draft data
-  useEffect(() => {
-    const draftFormData: Partial<RegistrationFormData> = {
-      selectedDogs: registrationData.selectedDogs,
-      entries: registrationData.entries,
-      paymentMethod: registrationData.paymentMethod,
-      specialRequests: registrationData.specialRequests,
-      _workflowState: {
-        currentStep: currentStepId,
-        stepCompletionState,
-        classSelections,
-        handlerAssignments,
-        paymentStatus,
-        entryStatus,
-      },
-    };
-    setDraftData(draftFormData);
-  }, [
+    handleDraftLoaded,
+    currentWorkflowConfig,
     registrationData,
-    currentStepId,
-    stepCompletionState,
-    classSelections,
-    handlerAssignments,
-    paymentStatus,
-    entryStatus,
-    setDraftData,
-  ]);
-
-  // Auto-assign dog owners as handlers for each entry (dog+class) when class selections change.
-  // Derived key tracks the set of entries; useEffect fires only when entries change.
-  const liveTotalFees = useMemo(
-    () =>
-      calculateTotalFees(
-        registrationData.selectedDogs,
-        classSelections,
-        dogs,
-        classes,
-        currentShow
-          ? {
-              preEntryFee: currentShow.preEntryFee || '0',
-              dayOfShowFee: currentShow.dayOfShowFee,
-              startDate: currentShow.startDate,
-            }
-          : undefined
-      ).total,
-    [registrationData.selectedDogs, classSelections, dogs, classes, currentShow]
-  );
-
-  const classSelectionsKey = useMemo(
-    () =>
-      classSelections
-        .flatMap(s => s.selectedClasses.map(c => makeHandlerKey(s.dogId, c.classId)))
-        .sort()
-        .join(','),
-    [classSelections]
-  );
-
-  useEffect(() => {
-    if (classSelections.length === 0 || !currentWorkflowConfig.smartDefaults.autoAssignHandler) {
-      return;
-    }
-
-    setHandlerAssignments(prev => {
-      const newAssignments = { ...prev };
-      let hasNewAssignments = false;
-
-      classSelections.forEach(selection => {
-        const dog = dogs.find(d => d.id === selection.dogId);
-        if (!dog || !dog.ownerId) return;
-
-        selection.selectedClasses.forEach(cls => {
-          const key = makeHandlerKey(selection.dogId, cls.classId);
-          if (!newAssignments[key]) {
-            newAssignments[key] = {
-              handlerId: dog.ownerId!,
-              handlerName: dog.ownerName || 'Owner',
-              isOwner: true,
-            };
-            hasNewAssignments = true;
-          }
-        });
-      });
-
-      return hasNewAssignments ? newAssignments : prev;
-    });
-    // classSelectionsKey is derived from classSelections — captures entry changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [classSelectionsKey, dogs, currentWorkflowConfig.smartDefaults.autoAssignHandler]);
-
-  // Auto-select all dogs when dog-selection step is not in the workflow (exhibitor flow).
-  // Runs once after dogs load; draft loading restores selectedDogs so hasAutoSelectedDogs
-  // prevents re-triggering.
-  useEffect(() => {
-    if (hasAutoSelectedDogs.current) return;
-    if (dogsLoading) return;
-    if (currentWorkflowConfig.steps.includes('dog-selection')) return;
-    if (registrationData.selectedDogs.length > 0) return;
-    if (dogs.length === 0) return;
-
-    hasAutoSelectedDogs.current = true;
-    const allDogIds = dogs.map(d => d.id);
-    handleDogSelectionChange(allDogIds);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dogsLoading, dogs, currentWorkflowConfig.steps, registrationData.selectedDogs.length]);
-
-  // Validation — proceedBlockedReason is the single source of truth; the
-  // returned copy renders next to the disabled Next button so the user is
-  // never left guessing why the wizard won't advance.
-  const allEntryKeys = classSelections.flatMap(s =>
-    s.selectedClasses.map(c => makeHandlerKey(s.dogId, c.classId))
-  );
-  const proceedBlocked = proceedBlockedReason({
-    stepId: currentStepId,
-    selectedDogsCount: registrationData.selectedDogs.length,
-    ownerSelectionOk: ownerResolution.ok,
-    hasSelectedClasses:
-      classSelections.length > 0 && classSelections.some(s => s.selectedClasses.length > 0),
-    hasSeparateHandlerStep: currentWorkflowConfig.steps.includes('handler-assignment'),
-    entryCount: allEntryKeys.length,
-    unassignedHandlerCount: allEntryKeys.filter(key => !handlerAssignments[key]?.handlerName)
-      .length,
-    totalFees: liveTotalFees,
-    hasPaymentMethod: !!registrationData.paymentMethod,
-    needsAgreement: !!currentShow?.organization,
+    optimisticState,
+    showId,
+    registrationId,
+    registrationNumber,
+    liveTotalFees,
+    armbandAssignments,
+    ownerResolution,
+    dogsLoading,
     agreedToEntryAgreement,
-  });
-  const canProceed = () => proceedBlocked === null;
-
-  const isLastStep = currentStep === steps.length - 1;
-
-  // Navigation handlers
-  const handleNext = async () => {
-    if (submittingRef.current || !canProceed()) return;
-
-    // On the last step, complete registration and navigate away
-    if (isLastStep) {
-      markStepComplete(currentStep);
-      notifications.success(
-        isLateEntryMode
-          ? 'Late entry completed successfully'
-          : 'Registration completed successfully'
-      );
-      navigate(resolveRegistrationCompletionPath(showId, isLateEntryMode));
-      return;
-    }
-
-    if (currentStepId === 'payment' && registrationId && currentRegistration) {
-      if (!currentShow) {
-        notifications.error('Show not found. Please go back and try again.');
-        return;
-      }
-      submittingRef.current = true;
-      setIsSubmitting(true);
-      const previousStatus = currentRegistration.status;
-      const paymentDetails = paymentDetailsRef.current;
-      try {
-        if (registrationData.paymentMethod === 'credit_card') {
-          // Card checkout is exhibitor-self-service only. Stripe-hosted checkout
-          // runs under the logged-in user's account and stripe-checkout 403s any
-          // cart that user doesn't own, so an organizer paying on behalf of an
-          // exhibitor can't go through card checkout — and exhibitorProfile here
-          // is the ORGANIZER's profile, not the selected dogs' owner. The UI
-          // hides the card option for these modes; this guards loaded drafts and
-          // any other path that bypasses it. Caught below → toast + flag reset.
-          if (currentWorkflowMode !== 'exhibitor') {
-            throw new Error(
-              'Online card checkout is only available when an exhibitor pays for their own entries. For on-behalf entries, record the payment as check, cash, or mark it as paid.'
-            );
-          }
-          await submitRegistrationCartCheckout({
-            showId,
-            ownerResolution,
-            exhibitorProfileId: exhibitorProfile?.id ?? '',
-            classSelections,
-            handlerAssignments,
-            classes,
-            showFeeInfo: {
-              preEntryFee: currentShow.preEntryFee || '0',
-              dayOfShowFee: currentShow.dayOfShowFee,
-              startDate: currentShow.startDate,
-            },
-            deps: {
-              loadCart,
-              clearCart,
-              createCart,
-              addItem,
-              abandonCart,
-              deleteDraft: async () => {
-                discardDraftsWithoutFinalSave();
-                clearDraftData();
-              },
-              navigate: path => navigate(path),
-            },
-          });
-          return;
-        }
-
-        // Update local Zustand state to reflect submission in progress
-        const submissionResult = await submitShowRegistration({
-          showId,
-          userId,
-          registrationId,
-          ownerResolution,
-          paymentMethod: registrationData.paymentMethod,
-          paymentDetails,
-          classSelections,
-          handlerAssignments,
-          classes,
-          canAssignArmbands,
-          showFeeInfo: {
-            preEntryFee: currentShow.preEntryFee || '0',
-            dayOfShowFee: currentShow.dayOfShowFee,
-            startDate: currentShow.startDate,
-          },
-          isActive: () => mountedRef.current,
-          deps: {
-            submitRegistration,
-            confirmRegistration,
-          },
-        });
-        if (submissionResult.aborted) return;
-        setRegistrationNumber(submissionResult.registrationNumber);
-        if (submissionResult.armbandAssignments.length > 0) {
-          setArmbandAssignments(submissionResult.armbandAssignments);
-        }
-        if (submissionResult.armbandFailures.length > 0) {
-          // Entries are submitted; only the armband writes failed. Warn loudly
-          // so the secretary assigns these manually instead of discovering
-          // missing ring numbers on show day. The wizard auto-advances to the
-          // confirmation step, so the toast must persist until dismissed.
-          const count = submissionResult.armbandFailures.length;
-          notifications.error(
-            `Entries submitted, but armband assignment failed for ${count} dog${count === 1 ? '' : 's'}. Assign armbands manually from Entries Management.`,
-            { duration: Infinity, action: { label: 'Dismiss', onClick: () => {} } }
-          );
-        }
-        triggerSync();
-        markStepComplete(currentStep);
-        setCurrentStep(prev => prev + 1);
-        return;
-      } catch (error) {
-        // Roll back local registration status so retry starts from correct state
-        updateShowRegistration(registrationId, { status: previousStatus });
-        console.error('Registration payment submission failed:', error);
-        if (mountedRef.current) {
-          notifications.error(getErrorMessage(error));
-        }
-      } finally {
-        submittingRef.current = false;
-        if (mountedRef.current) {
-          setIsSubmitting(false);
-        }
-      }
-      return;
-    }
-
-    markStepComplete(currentStep);
-    setCurrentStep(prev => prev + 1);
-  };
-
-  const handleBack = () => {
-    if (currentStepId === 'payment') {
-      setAgreedToEntryAgreement(false);
-    }
-    if (currentStep > 0) {
-      setCurrentStep(prev => prev - 1);
-    } else {
-      navigate(-1);
-    }
-  };
-
-  // Dog selection handler
-  const handleDogSelectionChange = async (selectedDogs: string[]) => {
-    setRegistrationData(prev => ({ ...prev, selectedDogs }));
-
-    if (selectedDogs.length === 0 || isCreatingRegistration) {
-      return;
-    }
-
-    // Defer registration creation until we have a single, resolvable owner.
-    // selectedDogsOwner handles the empty case; here we additionally bail
-    // when the cart spans multiple owners (canProceed will surface the error).
-    const owner = selectedDogsOwner(dogs, selectedDogs);
-    if (!owner.ok) return;
-
-    // Owner-change guard: if the user replaces their selection with a
-    // different exhibitor's dog(s), the existing registration's handlerId is
-    // now stale. Reset it so a fresh registration is created under the new
-    // owner. Without this, submission would file the entry under the PREVIOUS
-    // exhibitor — silently re-introducing the wrong-attribution bug.
-    if (registrationId) {
-      const existing = useShowRegistrationStore.getState().getRegistration(registrationId);
-      if (existing && existing.handlerId !== owner.ownerId) {
-        setRegistrationId(undefined);
-      } else {
-        return;
-      }
-    }
-
-    setIsCreatingRegistration(true);
-    const reg = createRegistration(showId || '', userId, owner.ownerId);
-    setRegistrationId(reg.id);
-    setIsCreatingRegistration(false);
-  };
-
-  // Class selection handler
-  const handleClassSelectionChange = (selections: ClassSelectionData[]) => {
-    setClassSelections(selections);
-  };
-
-  // Handler assignment handler
-  const handleHandlerAssignmentChange = (assignments: Record<string, HandlerInfo>) => {
-    setHandlerAssignments(assignments);
-  };
-
-  // Draft loading handler
-  const handleDraftLoaded = (draft: SavedDraft) => {
-    if (draft.data._workflowState) {
-      const workflowState = draft.data._workflowState;
-      setStepCompletionState(workflowState.stepCompletionState || {});
-      setClassSelections(workflowState.classSelections || []);
-      setHandlerAssignments(workflowState.handlerAssignments || {});
-      setPaymentStatus(workflowState.paymentStatus || PaymentStatus.PENDING);
-      setEntryStatus(workflowState.entryStatus || EntryStatus.PENDING);
-
-      // Map steps that may have been removed from the current workflow config
-      let targetStep = workflowState.currentStep;
-      if (!currentWorkflowConfig.steps.includes(targetStep as StepId)) {
-        targetStep = 'class-selection';
-      }
-      const stepIndex = currentWorkflowConfig.steps.findIndex(s => s === targetStep);
-      if (stepIndex >= 0) {
-        setCurrentStep(stepIndex);
-      }
-    }
-
-    setRegistrationData({
-      selectedDogs: draft.data.selectedDogs || [],
-      entries: draft.data.entries || [],
-      documents: draft.data.documents || [],
-      paymentMethod: draft.data.paymentMethod,
-      specialRequests: draft.data.specialRequests,
-    });
-
-    if (!registrationId && (draft.data.selectedDogs?.length ?? 0) > 0) {
-      // createRegistration is synchronous — returns the new local registration directly.
-      // Resolve the loaded selection's owner the same way handleDogSelectionChange does.
-      const owner = selectedDogsOwner(dogs, draft.data.selectedDogs ?? []);
-      if (owner.ok) {
-        const reg = createRegistration(showId, userId, owner.ownerId);
-        setRegistrationId(reg.id);
-      }
-    }
-
-    notifications.success('Draft loaded successfully');
-  };
+    setAgreedToEntryAgreement,
+    setPaymentStatus,
+    setEntryStatus,
+    handleDogSelectionChange,
+    handleClassSelectionChange,
+    handleHandlerAssignmentChange,
+    handlePaymentMethodChange,
+    handlePaymentDetailsChange,
+    handlePaymentStatusChange,
+    handleEntryStatusChange,
+    proceedBlocked,
+    canProceed,
+    isSubmitting,
+    handleNext,
+    handleBack,
+  } = wiz;
 
   return (
     <RegistrationErrorBoundary>
-      <div ref={scrollTopRef} className={isInsideSidebar ? 'bg-background' : 'min-h-screen bg-background'}>
+      <div
+        ref={scrollTopRef}
+        className={isInsideSidebar ? 'bg-background' : 'min-h-screen bg-background'}
+      >
         {/* Sticky header stack — breadcrumb + title + step indicator as ONE
             sticky unit. Keeping them together means the stepper can never slide
             under the breadcrumb: the previous separate top-28 offset was
@@ -684,14 +130,7 @@ function RegistrationWizardContent() {
                   steps={steps}
                   currentStep={currentStep}
                   completedSteps={completedSteps}
-                  onStepClick={(step: number) => {
-                    if (isStepCompleted(step) || step <= Math.max(-1, ...completedSteps) + 1) {
-                      if (currentStepId === 'payment') {
-                        setAgreedToEntryAgreement(false);
-                      }
-                      setCurrentStep(step);
-                    }
-                  }}
+                  onStepClick={handleStepClick}
                 />
               </div>
             </div>
@@ -752,21 +191,16 @@ function RegistrationWizardContent() {
                 onDogSelectionChange={handleDogSelectionChange}
                 onClassSelectionChange={handleClassSelectionChange}
                 onHandlerAssignmentChange={handleHandlerAssignmentChange}
-                onPaymentMethodChange={(method: PaymentMethod) =>
-                  setRegistrationData(prev => ({
-                    ...prev,
-                    paymentMethod: method,
-                  }))
+                onPaymentMethodChange={(method: PaymentMethod) => handlePaymentMethodChange(method)}
+                onPaymentDetailsChange={(details: PaymentDetails) =>
+                  handlePaymentDetailsChange(details)
                 }
-                onPaymentDetailsChange={(details: PaymentDetails) => {
-                  paymentDetailsRef.current = details;
-                }}
-                onPaymentStatusChange={(regId: string, status: PaymentStatus) => {
-                  storeUpdatePaymentStatus(regId, status);
-                }}
-                onEntryStatusChange={(regId: string, status: EntryStatus, reason?: string) => {
-                  storeUpdateEntryStatus(regId, status, reason);
-                }}
+                onPaymentStatusChange={(regId: string, status: PaymentStatus) =>
+                  handlePaymentStatusChange(regId, status)
+                }
+                onEntryStatusChange={(regId: string, status: EntryStatus, reason?: string) =>
+                  handleEntryStatusChange(regId, status, reason)
+                }
                 setPaymentStatus={setPaymentStatus}
                 setEntryStatus={setEntryStatus}
                 dogsLoading={dogsLoading}

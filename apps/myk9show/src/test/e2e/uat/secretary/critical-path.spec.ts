@@ -109,7 +109,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     await expect(page.getByRole('tab', { name: 'Entries', exact: true })).toBeVisible({
       timeout: 10000,
     });
-    await expect(page.getByRole('group', { name: 'Entry work mode' })).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Quick view presets' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Review', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Day-of', exact: true })).toBeVisible();
 

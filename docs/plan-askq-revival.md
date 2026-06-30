@@ -2,9 +2,9 @@
 
 > **Status:** Active
 
-**Goal:** Get AskQ working again, then simplify it from a half-built RAG stack into a "select-then-bundle" design that fits the actual corpus sizes. AskQ already has the right *shape* (Claude + tool-calling + SSE streaming, rate-limited by tier); the work is finishing the dark paths and deleting the retrieval machinery the corpus doesn't justify.
+**Goal:** Get AskQ working again, then simplify it from a half-built RAG stack into a "select-then-bundle" design that fits the actual corpus sizes. AskQ already has the right _shape_ (Claude + tool-calling + SSE streaming, rate-limited by tier); the work is finishing the dark paths and deleting the retrieval machinery the corpus doesn't justify.
 
-**Owner surface:** `supabase/functions/ask-myk9show`, `supabase/functions/ask-myk9q`, and the shared `supabase/functions/_shared/askq/*`. Frontend: `apps/myk9show/src/components/askq/*`, `apps/myk9show/src/services/askqService.ts`, `apps/myk9show/src/hooks/useAskQ.ts`.
+**Owner surface:** `supabase/functions/ask-myk9show` and the shared `supabase/functions/_shared/askq/*`. Frontend: `apps/myk9show/src/components/askq/*`, `apps/myk9show/src/services/askqService.ts`, `apps/myk9show/src/hooks/useAskQ.ts`.
 
 ---
 
@@ -20,11 +20,11 @@ A code investigation found AskQ is **non-functional in production** and carries 
 
 ### Corpus sizes (the load-bearing facts)
 
-| Corpus | Size | Fits in context? |
-|---|---|---|
-| How-to guides (`docs/user-guides/*.md`, all roles) | ~10K tokens total | Trivially — the whole set fits in one prompt |
-| One rulebook (AKC Scent Work `RSW001.pdf`) | 88 pages / ~40K words / **~53K tokens** | Yes, easily (Haiku 4.5 context = 200K) |
-| Show data | live | n/a (queried, not bundled) |
+| Corpus                                             | Size                                    | Fits in context?                             |
+| -------------------------------------------------- | --------------------------------------- | -------------------------------------------- |
+| How-to guides (`docs/user-guides/*.md`, all roles) | ~10K tokens total                       | Trivially — the whole set fits in one prompt |
+| One rulebook (AKC Scent Work `RSW001.pdf`)         | 88 pages / ~40K words / **~53K tokens** | Yes, easily (Haiku 4.5 context = 200K)       |
+| Show data                                          | live                                    | n/a (queried, not bundled)                   |
 
 **Conclusion:** the corpus is small enough that AskQ needs **no vector DB, no chunking, and (mostly) no full-text search.** How-to bundles wholesale; rules bundle one selected rulebook at a time.
 
@@ -32,11 +32,11 @@ A code investigation found AskQ is **non-functional in production** and carries 
 
 ## Architecture decision — select-then-bundle, don't retrieve
 
-| Corpus | Approach | Storage / source of truth | Retrieval infra |
-|---|---|---|---|
-| **How-to** | Bundle **all** guides into context on every app-help question | `docs/user-guides/*.md` (already the docs-site source); regenerated into a function asset at build/deploy time | **None** — drop `user_guide` table + `search_user_guide` tool |
-| **Rules** | **Select** the relevant rulebook by `org + sport` (cheap structured lookup using the show's registry), then bundle that one rulebook with **prompt caching** | One rulebook = one whole document; see "Rules storage decision" below | **None** — drop `rules.embedding`, skip the `search_vector` FTS |
-| **Show data** | Direct DB queries via tool-calling (unchanged) | live tables/views | n/a |
+| Corpus        | Approach                                                                                                                                                     | Storage / source of truth                                                                                      | Retrieval infra                                                 |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| **How-to**    | Bundle **all** guides into context on every app-help question                                                                                                | `docs/user-guides/*.md` (already the docs-site source); regenerated into a function asset at build/deploy time | **None** — drop `user_guide` table + `search_user_guide` tool   |
+| **Rules**     | **Select** the relevant rulebook by `org + sport` (cheap structured lookup using the show's registry), then bundle that one rulebook with **prompt caching** | One rulebook = one whole document; see "Rules storage decision" below                                          | **None** — drop `rules.embedding`, skip the `search_vector` FTS |
+| **Show data** | Direct DB queries via tool-calling (unchanged)                                                                                                               | live tables/views                                                                                              | n/a                                                             |
 
 ```
 Why this beats the half-built RAG:
@@ -64,7 +64,7 @@ Recommendation: **(A) if the bundle fits**, else **(B)**. Either way, the existi
 ## Phase 0 — Unbreak production (DONE)
 
 - [x] Swap `_shared/askq/promptBuilder.ts` model to `claude-haiku-4-5` ([#1048](https://github.com/rbeezley/myk9-platform/pull/1048)).
-- [x] Deploy `ask-myk9show` and `ask-myk9q` (`--no-verify-jwt`, project `sojmvhhwsjxmfistvzbe`).
+- [x] Deploy `ask-myk9show` (`--no-verify-jwt`, project `sojmvhhwsjxmfistvzbe`).
 - [ ] Confirm a real AskQ question answers in-app (authenticated) — owner verification.
 
 ## Phase 1 — Turn on how-to (app-help)

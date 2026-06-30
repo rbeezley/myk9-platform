@@ -85,6 +85,8 @@ export function replicatedToTrial(replicated: ReplicatedTrial): SyncableTrial {
     timeEnded: replicated.actualEndTime || '',
     order: replicated.displayOrder !== undefined ? String(replicated.displayOrder) : '',
     image: replicated.imageUrl || '',
+    // Registry (migration 192) — drives registry-aware landing/email copy + class structure.
+    registryId: replicated.registryId ?? null,
     // Sync metadata
     _version: replicated._version || 1,
     _lastModified: replicated._lastModified || new Date(),

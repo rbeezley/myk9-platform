@@ -3,6 +3,7 @@ import {
   buildMagazineConfirmationProps,
   type BuildMagazineConfirmationPropsOptions,
 } from '../buildConfirmationProps';
+import { ukcRegistry } from '@/features/registries/ukc';
 
 function makeOpts(
   overrides: Partial<BuildMagazineConfirmationPropsOptions> = {}
@@ -336,5 +337,24 @@ describe('buildMagazineConfirmationProps', () => {
     expect(props.trialUrl).toBe('https://myk9show.com/bckc-spring-2026');
     expect(props.showSlug).toBe('bckc-spring-2026');
     expect(props.licenseReference).toBe('License № 2026-2841');
+  });
+
+  // ─── Registry-aware member-club line (Phase 5a) ──────────────────────────
+
+  it('defaults memberClubLanguage to AKC when no registry_id on the trials', () => {
+    const props = buildMagazineConfirmationProps(makeOpts());
+    expect(props.memberClubLanguage).toBe('A member club of the American Kennel Club');
+  });
+
+  it('reads the registry off the trial — UKC trial yields UKC member-club language', () => {
+    const props = buildMagazineConfirmationProps(
+      makeOpts({
+        allTrials: [
+          { id: 't1', date: '2026-06-12', trial_number: 'I', display_order: 1, registry_id: 'UKC' },
+        ],
+      })
+    );
+    expect(props.memberClubLanguage).toBe(ukcRegistry.memberClubLanguage);
+    expect(props.memberClubLanguage).not.toBe('A member club of the American Kennel Club');
   });
 });

@@ -104,6 +104,30 @@ describe('getTrialRegistry', () => {
       process.env.NODE_ENV = prev;
     }
   });
+
+  // The mapped domain Trial (trial.types.ts) carries the registry as camelCase `registryId`,
+  // not snake_case — this is the shape the landing hooks pass. Without this path every styled
+  // landing would silently fall back to AKC even for a UKC/ASCA trial.
+  describe('camelCase registryId (mapped domain Trial)', () => {
+    it('resolves UKC / ASCA from the camelCase field', () => {
+      expect(getTrialRegistry({ registryId: 'UKC' })).toBe(ukcRegistry);
+      expect(getTrialRegistry({ registryId: 'ASCA' })).toBe(ascaRegistry);
+      expect(getTrialRegistry({ registryId: ' UKC ' })).toBe(ukcRegistry);
+    });
+
+    it('falls back to AKC for null/blank camelCase registryId', () => {
+      expect(getTrialRegistry({ registryId: null })).toBe(akcRegistry);
+      expect(getTrialRegistry({ registryId: '   ' })).toBe(akcRegistry);
+    });
+
+    it('prefers snake_case registry_id when both are present (raw row wins)', () => {
+      expect(getTrialRegistry({ registry_id: 'UKC', registryId: 'ASCA' })).toBe(ukcRegistry);
+    });
+
+    it('falls through to camelCase when snake_case is null (mapped-row shape)', () => {
+      expect(getTrialRegistry({ registry_id: null, registryId: 'ASCA' })).toBe(ascaRegistry);
+    });
+  });
 });
 
 describe('getTrialTimezone', () => {

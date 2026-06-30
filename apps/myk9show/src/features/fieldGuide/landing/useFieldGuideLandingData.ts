@@ -13,7 +13,7 @@ import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
 import { getLiveExperienceSnapshot } from '@/features/experience/experienceSnapshot';
-import { getRegistry, getTrialTimezone } from '@/features/registries';
+import { getTrialRegistry, getTrialTimezone } from '@/features/registries';
 import { formatFee } from '@/utils/format';
 import type {
   FieldGuideFee,
@@ -41,7 +41,7 @@ export function useFieldGuideLandingData(
   const { data: entries = [] } = useEntriesByShowQuery(showId, !!showId);
   const entryCount = entries.length;
 
-  const akc = getRegistry('AKC');
+  const registry = getTrialRegistry(currentTrial);
   const timezone = getTrialTimezone(currentTrial);
 
   return useMemo<FieldGuideLandingData>(() => {
@@ -151,9 +151,7 @@ export function useFieldGuideLandingData(
       },
       {
         label: 'CLOSES',
-        value: entryCloseDate
-          ? formatDateInTimezone(entryCloseDate, timezone, 'monthDay')
-          : 'TBA',
+        value: entryCloseDate ? formatDateInTimezone(entryCloseDate, timezone, 'monthDay') : 'TBA',
         emphasis: true,
       },
       {
@@ -207,10 +205,10 @@ export function useFieldGuideLandingData(
       secretaryName: null,
       secretaryEmail: null,
 
-      licenseLanguage: akc.licenseLanguage,
-      memberClubLanguage: akc.memberClubLanguage,
+      licenseLanguage: registry.licenseLanguage,
+      memberClubLanguage: registry.memberClubLanguage,
 
       entryWizardUrl: show?.id ? `/shows/${show.id}/register` : '/shows',
     };
-  }, [show, currentTrial, allTrials, entryCount, akc, timezone]);
+  }, [show, currentTrial, allTrials, entryCount, registry, timezone]);
 }

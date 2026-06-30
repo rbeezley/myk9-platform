@@ -46,11 +46,14 @@ import {
   getClassesWithCapacity,
   type ClassWithCapacity,
 } from '@/services/database/day-of-operations';
+import { getTrialsByShow } from '@/services/database/trials';
 import {
   approveMoveUpRequestReplicated,
   denyMoveUpRequestReplicated,
 } from '@/services/show-day/requestManagement';
 import { getAvailableMoveUpTargets, hasConfiguredCapacity } from './moveUpTargets';
+import { getTrialRegistry } from '@/features/registries';
+import type { RegistryId } from '@/features/registries';
 
 interface MoveUpRequest {
   id: string;
@@ -84,6 +87,9 @@ interface MoveUpRequestsTabProps {
 export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, onRefresh }) => {
   const [requests, setRequests] = useState<MoveUpRequest[]>([]);
   const [classes, setClasses] = useState<ClassWithCapacity[]>([]);
+  // A show's trials always share one registry (scoping §7) — resolved once per
+  // load so getAvailableMoveUpTargets recognizes UKC/ASCA-only levels.
+  const [registryId, setRegistryId] = useState<RegistryId>('AKC');
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -102,9 +108,10 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
       setError(null);
 
       try {
-        const [requestsResult, classesResult] = await Promise.all([
+        const [requestsResult, classesResult, trialsResult] = await Promise.all([
           getPendingMoveUpRequests(showId),
           getClassesWithCapacity(showId),
+          getTrialsByShow(showId),
         ]);
 
         if (requestsResult.error) {
@@ -115,6 +122,10 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
 
         if (!classesResult.error) {
           setClasses(classesResult.data);
+        }
+
+        if (!trialsResult.error) {
+          setRegistryId(getTrialRegistry(trialsResult.data[0]).id);
         }
       } catch (_err) {
         setError('An unexpected error occurred');
@@ -133,9 +144,10 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
     setError(null);
 
     try {
-      const [requestsResult, classesResult] = await Promise.all([
+      const [requestsResult, classesResult, trialsResult] = await Promise.all([
         getPendingMoveUpRequests(showId),
         getClassesWithCapacity(showId),
+        getTrialsByShow(showId),
       ]);
 
       if (requestsResult.error) {
@@ -146,6 +158,10 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
 
       if (!classesResult.error) {
         setClasses(classesResult.data);
+      }
+
+      if (!trialsResult.error) {
+        setRegistryId(getTrialRegistry(trialsResult.data[0]).id);
       }
     } catch (_err) {
       setError('An unexpected error occurred');
@@ -236,9 +252,9 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
   });
 
   // Available targets: same element + strictly higher level + open spots.
-  // See getAvailableMoveUpTargets for the AKC move-up rule.
+  // See getAvailableMoveUpTargets for the move-up rule.
   const getAvailableTargetClasses = (request: MoveUpRequest) =>
-    getAvailableMoveUpTargets(classes, request.class_id);
+    getAvailableMoveUpTargets(classes, request.class_id, registryId);
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleString('en-US', {
@@ -412,9 +428,9 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
                   <Alert>
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                      No valid move-up target for{' '}
-                      <strong>{selectedRequest?.class?.name}</strong>. A move-up must be to a higher
-                      level within the same element, and this show has no higher class available.
+                      No valid move-up target for <strong>{selectedRequest?.class?.name}</strong>. A
+                      move-up must be to a higher level within the same element, and this show has
+                      no higher class available.
                     </AlertDescription>
                   </Alert>
                 );
@@ -461,7 +477,8 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
                         <>
                           <strong>{targetClass.name}</strong> has{' '}
                           <strong>{targetClass.accepted_count}</strong>{' '}
-                          {targetClass.accepted_count === 1 ? 'entry' : 'entries'} (no entry cap set)
+                          {targetClass.accepted_count === 1 ? 'entry' : 'entries'} (no entry cap
+                          set)
                         </>
                       );
                     }

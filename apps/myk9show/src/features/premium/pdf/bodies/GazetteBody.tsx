@@ -8,7 +8,8 @@ import { Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../../types/premium-types';
 import { formatDate, formatPhone, type StyleTokens } from '../pdfStyles';
 import { PdfFooter } from '../PdfFooter';
-import { compareClassesByProgression } from './classOrder';
+import { makeClassComparator } from './classOrder';
+import type { RegistryId } from '@/features/registries';
 
 interface Props {
   data: GeneratedPremium;
@@ -17,6 +18,9 @@ interface Props {
 
 export function GazetteBody({ data, tokens }: Props) {
   const { show, secretary, officials, trials, supplemental, narratives } = data;
+  // GeneratedPremium.org is 'AKC' | 'UKC' (premium generation isn't offered for other
+  // registries — see generate-premium's CHECK-constraint gate), both valid RegistryIds.
+  const classComparator = makeClassComparator((data.org ?? 'AKC') as RegistryId);
 
   const sectionStyle = {
     flexBasis: '32%' as const,
@@ -116,7 +120,7 @@ export function GazetteBody({ data, tokens }: Props) {
                   <Text style={denseStyle}>
                     {(trial.classes ?? [])
                       .slice()
-                      .sort(compareClassesByProgression)
+                      .sort(classComparator)
                       .map(c => `${c.element} ${c.level}${c.section ? ` ${c.section}` : ''}`)
                       .join(' · ')}
                   </Text>

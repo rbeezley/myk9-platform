@@ -2,16 +2,28 @@
  * Move-up eligibility — the single source of truth for "is class B a valid
  * move-up target from class A?"
  *
- * AKC Scent Work move-ups promote a dog to a HIGHER level within the SAME
- * element (Container / Interior / Exterior / Buried / Handler Discrimination).
+ * Scent-work move-ups promote a dog to a HIGHER level within the SAME element
+ * (e.g. AKC's Container / Interior / Exterior / Buried / Handler Discrimination).
  * Moving across elements, or to a lower/equal level, is not a move-up.
  *
  * ASSUMPTION: same element + strictly higher level. If a registry ever permits
  * cross-element moves, relax the element check here — every surface (Entries
  * Management, Show Map, Show Desk) and the write-path mutation share this rule,
  * so changing it once keeps them consistent.
+ *
+ * REGISTRY: the level ladder differs per registry (UKC adds Superior/Elite, ASCA
+ * adds Open — neither is in AKC's ladder), so callers must pass the registry the
+ * classes belong to. Defaults to AKC for any caller not yet updated (matches the
+ * getTrialRegistry default-to-AKC convention).
+ *
+ * NOT COVERED: ASCA's Champion is a standalone terminal class with its own element
+ * ('Champion', not Container/Interior/Exterior/Vehicle) and no `level` field on real
+ * generated classes (see asca.ts, generateScentWorkClasses) — so it can never satisfy
+ * the same-element check above, registry-aware or not. Whether/how a dog should be
+ * able to move up into Champion is a separate design question, out of scope here.
  */
 import { isKnownLevel, levelProgressionRank } from '@/features/premium/pdf/bodies/classOrder';
+import type { RegistryId } from '@/features/registries';
 
 export interface MoveUpClassIdentity {
   element?: string | null | undefined;
@@ -20,20 +32,26 @@ export interface MoveUpClassIdentity {
 
 /**
  * True when `candidate` is a valid move-up destination from `current`:
- * same element, strictly higher level. Returns false when either class lacks
- * a resolvable element/level (the conservative choice — never validate a move
- * we can't reason about).
+ * same element, strictly higher level within `registryId`'s level ladder.
+ * Returns false when either class lacks a resolvable element/level (the
+ * conservative choice — never validate a move we can't reason about).
  */
 export function isEligibleMoveUpTarget(
   current: MoveUpClassIdentity,
-  candidate: MoveUpClassIdentity
+  candidate: MoveUpClassIdentity,
+  registryId: RegistryId = 'AKC'
 ): boolean {
   if (!current.element || !current.level) return false;
   if (!candidate.element || !candidate.level) return false;
   if (candidate.element !== current.element) return false;
-  // Both levels must be recognized. An unknown/custom level ranks last (999),
-  // which would otherwise read as "higher" than any known level and let e.g. a
-  // 'Open' or misspelled candidate be accepted from a known lower level.
-  if (!isKnownLevel(current.level) || !isKnownLevel(candidate.level)) return false;
-  return levelProgressionRank(candidate.level) > levelProgressionRank(current.level);
+  // Both levels must be recognized BY THIS REGISTRY. An unknown/custom level ranks
+  // last (999), which would otherwise read as "higher" than any known level and let
+  // e.g. a misspelled candidate be accepted from a known lower level.
+  if (!isKnownLevel(current.level, registryId) || !isKnownLevel(candidate.level, registryId)) {
+    return false;
+  }
+  return (
+    levelProgressionRank(candidate.level, registryId) >
+    levelProgressionRank(current.level, registryId)
+  );
 }

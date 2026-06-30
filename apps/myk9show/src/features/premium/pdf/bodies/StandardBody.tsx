@@ -4,7 +4,7 @@ import type { GeneratedPremium } from '../../../../types/premium-types';
 import { buildStyles, formatDate, formatPhone, resolveTokens } from '../pdfStyles';
 import { SectionDivider } from '../SectionDivider';
 import { PdfFooter } from '../PdfFooter';
-import { compareClassesByProgression } from './classOrder';
+import { makeClassComparator } from './classOrder';
 
 const REQUIRED = '[REQUIRED — add before submitting]';
 
@@ -17,12 +17,14 @@ interface Props {
 /**
  * Standard body — the section-stacked layout used by every style whose
  * `bodyLayout === 'standard'`. Shared between AKC and UKC; the `org` prop
- * is the seam where future org-specific divergence will land.
+ * is the seam where future org-specific divergence will land — now also
+ * driving registry-aware class ordering (Phase 5b).
  */
-export function StandardBody({ data, org: _org, inkSaver = false }: Props) {
+export function StandardBody({ data, org, inkSaver = false }: Props) {
   const s = buildStyles(data.style, { inkSaver });
   const t = resolveTokens(data.style, { inkSaver });
   const divider = <SectionDivider style={data.style} tokens={t} />;
+  const classComparator = makeClassComparator(org);
   const { show, secretary, officials, trials, supplemental, narratives } = data;
 
   return (
@@ -153,7 +155,7 @@ export function StandardBody({ data, org: _org, inkSaver = false }: Props) {
               <Text style={s.label}>Classes</Text>
               <Text style={s.value}>
                 {[...(trial.classes ?? [])]
-                  .sort(compareClassesByProgression)
+                  .sort(classComparator)
                   .map(c => `${c.element} ${c.level}${c.section ? ` ${c.section}` : ''}`)
                   .join(', ')}
               </Text>

@@ -19,6 +19,7 @@ const mockUpdateReplicatedEntryStatus = vi.fn();
 const mockGetReplicatedEntryById = vi.fn();
 const mockGetReplicatedClassById = vi.fn();
 const mockGetReplicatedEntriesByClass = vi.fn();
+const mockGetReplicatedTrialById = vi.fn();
 const mockCreateReplicatedEntry = vi.fn();
 const mockDeleteReplicatedEntry = vi.fn();
 const mockAuditLog = vi.fn<() => Promise<void>>(() => Promise.resolve());
@@ -58,6 +59,12 @@ vi.mock('@/services/replication', () => ({
     getEntriesByClass: (...args: unknown[]) => mockGetReplicatedEntriesByClass(...args),
     createEntry: (...args: unknown[]) => mockCreateReplicatedEntry(...args),
     deleteEntry: (...args: unknown[]) => mockDeleteReplicatedEntry(...args),
+  },
+  replicatedTrialsTable: {
+    // Default to null (→ getTrialRegistry falls back to AKC), matching every existing
+    // fixture's AKC-only levels. Multi-registry move-up coverage lives in
+    // utils/moveUpEligibility.test.ts; this file only needs the resolution wired.
+    getTrialById: (...args: unknown[]) => mockGetReplicatedTrialById(...args),
   },
 }));
 
@@ -369,6 +376,77 @@ describe('showMapActionMutations', () => {
     // Nothing should have been written.
     expect(mockUpdateReplicatedEntry).not.toHaveBeenCalled();
     expect(mockCreateReplicatedEntry).not.toHaveBeenCalled();
+  });
+
+  it('resolves the source class trial registry and accepts a UKC-only Superior→Elite move-up (Phase 5b)', async () => {
+    // Superior/Elite aren't in AKC's level ladder — without resolving the source
+    // class's trial registry, this write-path guard would reject the move-up as
+    // "unknown level" even though it's a valid UKC progression.
+    mockGetReplicatedClassById.mockImplementation((id: string) => {
+      if (id === 'class-1') {
+        return Promise.resolve({
+          id: 'class-1',
+          trialId: 'trial-1',
+          name: 'Container Superior',
+          element: 'Container',
+          level: 'Superior',
+          maxEntries: 50,
+        });
+      }
+      return Promise.resolve({
+        id: 'class-2',
+        trialId: 'trial-1',
+        name: 'Container Elite',
+        element: 'Container',
+        level: 'Elite',
+        maxEntries: 50,
+      });
+    });
+    mockGetReplicatedTrialById.mockResolvedValue({
+      id: 'trial-1',
+      registryId: 'UKC',
+    });
+
+    const result = await moveUpShowMapEntry({
+      entryId: 'entry-1',
+      targetClassId: 'class-2',
+    });
+
+    expect(result.targetClassName).toBe('Container Elite');
+    expect(mockGetReplicatedTrialById).toHaveBeenCalledWith('trial-1');
+    expect(mockUpdateReplicatedEntry).toHaveBeenCalled();
+  });
+
+  it('rejects the same UKC Superior→Elite move-up when the trial registry cannot be resolved', async () => {
+    mockGetReplicatedClassById.mockImplementation((id: string) => {
+      if (id === 'class-1') {
+        return Promise.resolve({
+          id: 'class-1',
+          trialId: 'trial-1',
+          name: 'Container Superior',
+          element: 'Container',
+          level: 'Superior',
+          maxEntries: 50,
+        });
+      }
+      return Promise.resolve({
+        id: 'class-2',
+        trialId: 'trial-1',
+        name: 'Container Elite',
+        element: 'Container',
+        level: 'Elite',
+        maxEntries: 50,
+      });
+    });
+    // No trial found → falls back to AKC, whose ladder doesn't know Superior/Elite.
+    mockGetReplicatedTrialById.mockResolvedValue(null);
+
+    await expect(
+      moveUpShowMapEntry({
+        entryId: 'entry-1',
+        targetClassId: 'class-2',
+      })
+    ).rejects.toThrow('not a valid move-up target');
   });
 
   it('rolls back the original entry to its exact previous status when replicated move-up creation fails', async () => {

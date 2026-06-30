@@ -4,6 +4,7 @@ import {
   compareLevelsByProgression,
   isKnownLevel,
   levelProgressionRank,
+  makeClassComparator,
   type ClassLike,
 } from '../classOrder';
 
@@ -87,5 +88,71 @@ describe('classOrder — compareClassesByProgression (characterization)', () => 
       'Interior Novice A',
       'Interior Novice B',
     ]);
+  });
+});
+
+/**
+ * Phase 5b: classOrder.ts used to hardcode AKC's level ladder for EVERY premium PDF,
+ * regardless of the show's actual registry — so a UKC premium document (premium generation
+ * already supports UKC) sorted 'Superior'/'Elite' classes to the bottom (unknown → rank 999)
+ * instead of their correct rank-3/rank-5 position. These tests pin the live bug fix.
+ */
+describe('classOrder — registry-aware (Phase 5b)', () => {
+  it('without a registryId arg, UKC-only levels still rank unknown (AKC default unchanged)', () => {
+    expect(levelProgressionRank('Superior')).toBe(999);
+    expect(isKnownLevel('Superior')).toBe(false);
+  });
+
+  it('recognizes UKC Superior/Elite in their correct progression rank when passed UKC', () => {
+    expect(isKnownLevel('Superior', 'UKC')).toBe(true);
+    expect(isKnownLevel('Elite', 'UKC')).toBe(true);
+    const shuffled = ['Elite', 'Novice', 'Superior', 'Advanced', 'Master'];
+    expect([...shuffled].sort((a, b) => compareLevelsByProgression(a, b, 'UKC'))).toEqual([
+      'Novice',
+      'Advanced',
+      'Superior',
+      'Master',
+      'Elite',
+    ]);
+  });
+
+  it('recognizes ASCA Open/Champion in their correct progression rank when passed ASCA', () => {
+    expect(isKnownLevel('Open', 'ASCA')).toBe(true);
+    const shuffled = ['Champion', 'Novice', 'Open', 'Excellent', 'Advanced'];
+    expect([...shuffled].sort((a, b) => compareLevelsByProgression(a, b, 'ASCA'))).toEqual([
+      'Novice',
+      'Open',
+      'Advanced',
+      'Excellent',
+      'Champion',
+    ]);
+  });
+
+  it("the AKC-only 'Masters' alias does not leak into UKC/ASCA canonicalization", () => {
+    expect(isKnownLevel('Masters', 'AKC')).toBe(true); // AKC alias for 'Master'
+    expect(isKnownLevel('Masters', 'UKC')).toBe(false); // UKC has no 'Masters' alias
+    expect(isKnownLevel('Masters', 'ASCA')).toBe(false); // ASCA has no 'Masters' alias
+  });
+
+  it('makeClassComparator binds a registry once for a .sort()-ready comparator', () => {
+    const classes: ClassLike[] = [
+      { element: 'Container', level: 'Elite', section: null },
+      { element: 'Container', level: 'Novice', section: null },
+      { element: 'Container', level: 'Superior', section: null },
+    ];
+    const sorted = [...classes].sort(makeClassComparator('UKC')).map(c => c.level);
+    expect(sorted).toEqual(['Novice', 'Superior', 'Elite']);
+  });
+
+  it('compareClassesByProgression accepts a registryId positionally, same element/section rules apply', () => {
+    const classes: ClassLike[] = [
+      { element: 'Container', level: 'Open', section: null },
+      { element: 'Container', level: 'Novice', section: null },
+      { element: 'Container', level: 'Champion', section: null },
+    ];
+    const sorted = [...classes]
+      .sort((a, b) => compareClassesByProgression(a, b, 'ASCA'))
+      .map(c => c.level);
+    expect(sorted).toEqual(['Novice', 'Open', 'Champion']);
   });
 });

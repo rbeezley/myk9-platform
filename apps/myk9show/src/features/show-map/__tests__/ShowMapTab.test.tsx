@@ -17,6 +17,7 @@ const mockCreateReplicatedEntry = vi.hoisted(() => vi.fn());
 const mockGetReplicatedEntryById = vi.hoisted(() => vi.fn());
 const mockGetReplicatedClassById = vi.hoisted(() => vi.fn());
 const mockGetReplicatedEntriesByClass = vi.hoisted(() => vi.fn());
+const mockGetReplicatedTrialById = vi.hoisted(() => vi.fn());
 const mockMessageStore = vi.hoisted(() => ({
   getOrCreateThread: vi.fn(),
   sendMessage: vi.fn(),
@@ -44,13 +45,16 @@ vi.mock('@/services/replication', () => ({
     getEntryById: (...args: unknown[]) => mockGetReplicatedEntryById(...args),
     getEntriesByClass: (...args: unknown[]) => mockGetReplicatedEntriesByClass(...args),
   },
+  replicatedTrialsTable: {
+    // Defaults to undefined (→ getTrialRegistry falls back to AKC), matching this
+    // file's AKC-only level fixtures.
+    getTrialById: (...args: unknown[]) => mockGetReplicatedTrialById(...args),
+  },
 }));
 
 vi.mock('@/services/show-day/checkInStatus', () => ({
-  updateReplicatedCheckInStatus: (...args: unknown[]) =>
-    mockUpdateReplicatedCheckInStatus(...args),
-  updateReplicatedDayOfScratch: (...args: unknown[]) =>
-    mockUpdateReplicatedDayOfScratch(...args),
+  updateReplicatedCheckInStatus: (...args: unknown[]) => mockUpdateReplicatedCheckInStatus(...args),
+  updateReplicatedDayOfScratch: (...args: unknown[]) => mockUpdateReplicatedDayOfScratch(...args),
 }));
 
 vi.mock('@/store/messageStore', () => ({
@@ -783,7 +787,7 @@ describe('ShowMapTab', () => {
     });
   });
 
-  it("counts wrap-up work in the Need Attention summary when actionPhase is undefined", () => {
+  it('counts wrap-up work in the Need Attention summary when actionPhase is undefined', () => {
     // Regression guard: before the fix, the summary tile read
     // tree.root.attentionCount (entry-only). In unified mode an
     // unsigned-complete class is an attention item but no entry is
@@ -802,9 +806,7 @@ describe('ShowMapTab', () => {
             status: 'Complete',
           },
         ]}
-        entries={[
-          { id: 'entry-1', class_id: 'class-needs-signature', is_scored: true },
-        ]}
+        entries={[{ id: 'entry-1', class_id: 'class-needs-signature', is_scored: true }]}
         canManageShow
       />
     );

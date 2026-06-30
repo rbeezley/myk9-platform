@@ -33,9 +33,10 @@ interface ShowLike {
 interface TrialLike {
   /** Snake-case as it comes off a raw PostgREST row / email TrialInput. */
   registry_id?: string | null;
-  /** Camel-case as it rides on the mapped domain `Trial` (trial.types.ts). */
-  registryId?: string | null;
-  timezone?: string | null;
+  /** Camel-case as it rides on the mapped domain `Trial` (trial.types.ts) or a
+   *  ReplicatedTrial (which models the optional field as `string | undefined`). */
+  registryId?: string | null | undefined;
+  timezone?: string | null | undefined;
 }
 
 const VALID_STYLES = new Set<ShowStyle>([

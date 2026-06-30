@@ -1,6 +1,7 @@
 import { Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../types/premium-types';
 import { compareLevelsByProgression } from './bodies/classOrder';
+import type { RegistryId } from '@/features/registries';
 import type { StyleTokens } from './pdfStyles';
 import { formatDate } from './pdfStyles';
 
@@ -127,9 +128,12 @@ function buildRows(data: GeneratedPremium): Row[] {
     rows.push({ label: 'Elements', value: elements.join(' · ') });
   }
 
+  // GeneratedPremium.org is 'AKC' | 'UKC' (premium generation isn't offered for other
+  // registries — see generate-premium's CHECK-constraint gate), both valid RegistryIds.
+  const registryId = (data.org ?? 'AKC') as RegistryId;
   const levels = unique(
     trials.flatMap(t => (t.classes ?? []).map(c => c.level)).filter(Boolean)
-  ).sort(compareLevelsByProgression);
+  ).sort((a, b) => compareLevelsByProgression(a, b, registryId));
   if (levels.length > 0) {
     rows.push({ label: 'Levels', value: levels.join(' · ') });
   }

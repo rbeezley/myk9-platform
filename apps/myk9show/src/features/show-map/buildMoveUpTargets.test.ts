@@ -59,3 +59,26 @@ describe('buildMoveUpTargets', () => {
     expect(buildMoveUpTargets([containerAdvanced], 'nope')).toEqual([]);
   });
 });
+
+describe('buildMoveUpTargets — registry-aware (Phase 5b)', () => {
+  const ascaContainerOpen = makeClass({
+    id: 'container-open',
+    name: 'Container Open',
+    element: 'Container',
+    level: 'Open',
+  });
+
+  it('without a registryId arg (AKC default), ASCA-only Open is excluded as unknown', () => {
+    const targets = buildMoveUpTargets([containerNovice, ascaContainerOpen], containerNovice.id);
+    expect(targets.map(t => t.id)).not.toContain(ascaContainerOpen.id);
+  });
+
+  it('passing ASCA recognizes Open as a valid higher-level target', () => {
+    const targets = buildMoveUpTargets(
+      [containerNovice, ascaContainerOpen],
+      containerNovice.id,
+      'ASCA'
+    );
+    expect(targets.map(t => t.id)).toEqual([ascaContainerOpen.id]);
+  });
+});

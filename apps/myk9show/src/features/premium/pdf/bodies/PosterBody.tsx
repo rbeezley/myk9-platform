@@ -2,7 +2,8 @@ import { Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../../types/premium-types';
 import { formatDate, formatPhone, type StyleTokens } from '../pdfStyles';
 import { PdfFooter } from '../PdfFooter';
-import { compareClassesByProgression } from './classOrder';
+import { makeClassComparator } from './classOrder';
+import type { RegistryId } from '@/features/registries';
 
 interface Props {
   data: GeneratedPremium;
@@ -20,6 +21,9 @@ const REQUIRED = '[REQUIRED — add before submitting]';
  */
 export function PosterBody({ data, tokens }: Props) {
   const { show, secretary, officials, trials, supplemental, narratives } = data;
+  // GeneratedPremium.org is 'AKC' | 'UKC' (premium generation isn't offered for other
+  // registries — see generate-premium's CHECK-constraint gate), both valid RegistryIds.
+  const classComparator = makeClassComparator((data.org ?? 'AKC') as RegistryId);
   const labelStyle = {
     fontFamily: tokens.displayFont,
     fontSize: 11,
@@ -145,7 +149,7 @@ export function PosterBody({ data, tokens }: Props) {
             {(trial.classes?.length ?? 0) > 0 && (
               <Text style={bodyStyle}>
                 {[...(trial.classes ?? [])]
-                  .sort(compareClassesByProgression)
+                  .sort(classComparator)
                   .map(c => `${c.element} ${c.level}${c.section ? ` ${c.section}` : ''}`)
                   .join(' · ')}
               </Text>

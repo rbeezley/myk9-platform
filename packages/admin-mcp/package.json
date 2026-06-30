@@ -1,0 +1,40 @@
+{
+  "name": "@myk9/admin-mcp",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Local site-admin-only myK9 MCP server — read-only diagnostics over Supabase.",
+  "type": "module",
+  "bin": {
+    "myk9-admin-mcp": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo 'no lint configured'",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "@myk9/supabase": "workspace:*",
+    "@supabase/supabase-js": "2.108.2",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.4",
+    "tsup": "^8.5.1",
+    "tsx": "^4.22.4",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.9"
+  }
+}

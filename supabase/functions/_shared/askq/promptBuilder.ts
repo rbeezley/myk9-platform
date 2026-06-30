@@ -1,6 +1,9 @@
 import type { ClaudeMessage, ToolDefinition } from './types.ts';
 
-const MODEL = 'claude-3-5-haiku-20241022';
+// claude-3-5-haiku-20241022 retired 2026-02-19; claude-haiku-4-5 is the
+// drop-in replacement (same request surface — no temperature/top_p/thinking
+// to migrate). See docs/plan-askq-revival.md.
+const MODEL = 'claude-haiku-4-5';
 const MAX_TOKENS = 1024;
 
 export async function callClaude(

@@ -5,7 +5,7 @@
  * (docs/plan-multi-registry-scent-work.md).
  */
 import { getRegistry, getSport } from './lookup';
-import type { ElementSpec, LevelSpec, RegistryId, RegistrySport } from './types';
+import type { ClassVariant, ElementSpec, LevelSpec, RegistryId, RegistrySport } from './types';
 
 const SCENT_WORK = 'scent-work';
 
@@ -49,24 +49,75 @@ export function scentWorkLevelOrder(sport: RegistrySport): string[] {
   return out;
 }
 
-/**
- * Progression level labels offered by the grid (column) elements, in order — e.g. AKC
- * `['Novice', 'Advanced', 'Excellent', 'Master']`. Excludes single-level non-grid elements
- * like Detective. Used for the entry-blank §II grid rows.
- */
-export function scentWorkGridLevelLabels(sport: RegistrySport): string[] {
-  const gridLevelKeys = new Set<string>();
-  for (const el of sport.elements) {
-    if (el.grid) for (const key of el.levels) gridLevelKeys.add(key);
-  }
-  return levelsByOrder(sport)
-    .filter(l => gridLevelKeys.has(l.key))
-    .map(l => l.label);
+/** A column in the entry-blank §II grid — one grid element. */
+export interface ScentWorkGridColumn {
+  /** Canonical element label, as stored in `classes.element` (e.g. 'Container'). For matching. */
+  label: string;
+  /** Display label shown on the printed grid (e.g. 'Containers'). */
+  gridLabel: string;
 }
 
-/** Grid (column) element display labels — `gridLabel ?? label` (AKC pluralizes). */
-export function scentWorkGridElementLabels(sport: RegistrySport): string[] {
-  return sport.elements.filter(e => e.grid).map(e => e.gridLabel ?? e.label);
+/** A row in the entry-blank §II grid — a level, optionally a continuation variant of it. */
+export interface ScentWorkGridRow {
+  /** Display label for the row (e.g. 'Novice' or 'Novice Level C'). */
+  label: string;
+  /** Canonical level label, for matching a prefilled entry (e.g. 'Novice'). */
+  level: string;
+  /**
+   * Continuation section key (e.g. 'C') when this row is a continuation variant; absent for a
+   * base row. A base row matches entries whose section is NOT a continuation section.
+   */
+  section?: string;
+}
+
+export interface ScentWorkGrid {
+  columns: ScentWorkGridColumn[];
+  rows: ScentWorkGridRow[];
+  /** Continuation section keys per level label — for base-row match exclusion. */
+  continuationSectionsByLevel: Record<string, string[]>;
+}
+
+/**
+ * Build the entry-blank §II grid (level rows × element columns) for a sport.
+ *
+ * Rows expand by CONTINUATION variants only: ASCA's "Level C" is its own row (a distinct class),
+ * but AKC/UKC ownership A/B is NOT — the A/B distinction isn't a grid row, just a section on the
+ * base level. Columns carry both the canonical element label (for matching `classes.element`) and
+ * the display gridLabel (which may be pluralized).
+ */
+export function scentWorkGrid(sport: RegistrySport): ScentWorkGrid {
+  const gridElements = sport.elements.filter(e => e.grid);
+  const columns: ScentWorkGridColumn[] = gridElements.map(e => ({
+    label: e.label,
+    gridLabel: e.gridLabel ?? e.label,
+  }));
+
+  const gridLevelKeys = new Set<string>();
+  for (const el of gridElements) for (const key of el.levels) gridLevelKeys.add(key);
+  const gridLevels = levelsByOrder(sport).filter(l => gridLevelKeys.has(l.key));
+
+  const rows: ScentWorkGridRow[] = [];
+  const continuationSectionsByLevel: Record<string, string[]> = {};
+  for (const level of gridLevels) {
+    rows.push({ label: level.label, level: level.label }); // base row
+    // Continuation variants for this level, unioned across grid elements (deduped by key).
+    const seen = new Set<string>();
+    const continuations: ClassVariant[] = [];
+    for (const el of gridElements) {
+      for (const v of el.variantsByLevel?.[level.key] ?? []) {
+        if (v.kind === 'continuation' && !seen.has(v.key)) {
+          seen.add(v.key);
+          continuations.push(v);
+        }
+      }
+    }
+    continuationSectionsByLevel[level.label] = continuations.map(v => v.key);
+    for (const v of continuations) {
+      rows.push({ label: `${level.label} ${v.label}`, level: level.label, section: v.key });
+    }
+  }
+
+  return { columns, rows, continuationSectionsByLevel };
 }
 
 /** Non-grid ("special") element labels, e.g. `['Handler Discrimination', 'Detective']`. */

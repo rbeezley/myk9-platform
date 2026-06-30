@@ -1,8 +1,7 @@
 import { getTrialRegistry } from '@/features/registries';
 import {
   getScentWorkSport,
-  scentWorkGridElementLabels,
-  scentWorkGridLevelLabels,
+  scentWorkGrid,
   scentWorkSpecialElementLabels,
 } from '@/features/registries/scentWork';
 import { toRoman } from '@/features/heritage/landing/useHeritageLandingData';
@@ -47,6 +46,7 @@ interface ClassInput {
   trial_id: string;
   level?: string | null;
   element?: string | null;
+  section?: string | null;
   name?: string | null;
 }
 
@@ -185,19 +185,27 @@ export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankPr
   const entryClass = entryClassId ? classes.find(c => c.id === entryClassId) : null;
   const entryLevel = entryClass?.level ?? null;
   const entryElement = entryClass?.element ?? null;
+  const entrySection = entryClass?.section ?? null;
 
-  // §II grid: progression levels × grid elements (registry-derived), then the special rows.
-  const gridLevels = scentWorkGridLevelLabels(sport);
-  const gridElements = scentWorkGridElementLabels(sport);
+  // §II grid: rows (levels + continuation variants like ASCA Level C) × element columns, then
+  // the special rows. Matching uses the canonical element label (`column.label`), not the
+  // pluralized display label, so prefilled entries (which store the canonical `classes.element`)
+  // line up; the displayed cell still uses the gridLabel.
+  const grid = scentWorkGrid(sport);
   const specialElements = scentWorkSpecialElementLabels(sport);
 
   const levelCells: EntryBlankLevelCell[] = [];
-  for (const level of gridLevels) {
-    for (const element of gridElements) {
+  for (const row of grid.rows) {
+    const continuationSections = grid.continuationSectionsByLevel[row.level] ?? [];
+    for (const column of grid.columns) {
+      const isMatch = entryElement === column.label && entryLevel === row.level;
+      const sectionMatches = row.section
+        ? entrySection === row.section // continuation row (e.g. Level C) — match its section
+        : !continuationSections.includes(entrySection ?? ''); // base row — exclude continuation sections
       levelCells.push({
-        level,
-        element,
-        checked: level === entryLevel && element === entryElement,
+        level: row.label,
+        element: column.gridLabel,
+        checked: isMatch && sectionMatches,
       });
     }
   }

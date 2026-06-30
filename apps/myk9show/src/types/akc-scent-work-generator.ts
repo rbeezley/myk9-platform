@@ -1,115 +1,86 @@
 import { GeneratedClass } from './class-template-types';
+import { generateScentWorkClasses, getScentWorkSport } from '@/features/registries/scentWork';
 
-// Official AKC Scent Work class generator based on 2024 rules
-export function generateAKCScentWorkClasses(): GeneratedClass[] {
-  const classes: GeneratedClass[] = [];
-
-  // Standard elements that have all levels
-  const standardElements = ['Interior', 'Exterior', 'Container', 'Buried'];
-
-  // Generate standard element classes
-  standardElements.forEach(element => {
-    // NOVICE A & B (known 1 hide, basic search)
-    ['A', 'B'].forEach(division => {
-      classes.push({
-        className: `${element} Novice ${division}`,
-        element,
-        level: 'Novice',
-        section: division,
-
-        maxEntries: 40,
-        customFields: {
-          searchType: 'Known number',
-          hideCount: '1',
-          difficulty: 'Basic search - straightforward placement, no air movement challenges',
-          distractionsRequired: 'Per regulations (varies by element)',
-          offLeashOption: 'true',
-        },
-      });
-    });
-
-    // ADVANCED (known 2 hides, multiple hide challenge)
-    classes.push({
-      className: `${element} Advanced`,
-      element,
-      level: 'Advanced',
-      maxEntries: 40,
-      customFields: {
-        searchType: 'Known number',
-        hideCount: '2',
-        difficulty: 'Two relatively simple hides, minimal converging odor',
-        distractionsRequired: 'Per regulations (varies by element)',
-        offLeashOption: 'true',
-      },
-    });
-
-    // EXCELLENT (complex search, at least 1 difficult hide)
-    classes.push({
-      className: `${element} Excellent`,
-      element,
-      level: 'Excellent',
-      maxEntries: 40,
-      customFields: {
-        searchType: element === 'Interior' ? 'Unknown number' : 'Known number',
-        hideCount: element === 'Interior' ? 'Unknown (1-3)' : 'Variable',
-        difficulty: 'Complex search, inaccessible hides introduced, basic converging odor',
-        distractionsRequired: 'Per regulations (varies by element)',
-        offLeashOption: 'true',
-      },
-    });
-
-    // MASTERS (ultimate teamwork test)
-    classes.push({
-      className: `${element} Masters`,
-      element,
-      level: 'Masters',
-      maxEntries: 40,
-      customFields: {
-        searchType: 'Unknown number',
-        hideCount: 'Unknown',
-        difficulty: 'Complex search testing teamwork, time management, efficiency',
-        distractionsRequired: 'Per regulations (varies by element)',
-        offLeashOption: 'true',
-      },
-    });
-  });
-
-  // HANDLER DISCRIMINATION classes (all levels)
-  ['Novice A', 'Novice B', 'Advanced', 'Excellent', 'Masters'].forEach(levelDiv => {
-    const [level, division] = levelDiv.split(' ');
-    classes.push({
-      className: `Handler Discrimination ${levelDiv}`,
-      element: 'Handler Discrimination',
-      level,
-      section: division || undefined,
-      maxEntries: 40,
-      customFields: {
-        searchType: level === 'Novice' || level === 'Advanced' ? 'Known number' : 'Unknown number',
-        hideCount: level === 'Novice' ? '1' : level === 'Advanced' ? '2' : 'Unknown',
-        difficulty: 'Handler scent discrimination challenge',
-        distractionsRequired: 'Per regulations',
-        offLeashOption: 'true',
-        special: 'Hide location changes between competitors',
-      },
-    });
-  });
-
-  // DETECTIVE class (standalone complex search)
-  classes.push({
-    className: 'Detective',
-    element: 'Detective',
-    maxEntries: 30, // Usually smaller entry limit
-    customFields: {
+// AKC customField prose per (element, level) — extracted verbatim from the prior inline
+// generator. Keyed by canonical labels ('Master', 'Handler Discrimination').
+function getGeneratedCustomFields(
+  element: string,
+  level: string | undefined
+): Record<string, string> {
+  if (element === 'Detective') {
+    return {
       searchType: 'Unknown number',
       hideCount: 'Unknown',
       difficulty: 'Ultimate challenge - large search area incorporating interiors AND exteriors',
       distractionsRequired: 'Complex odor problems allowed',
       offLeashOption: 'true',
       special: 'Combines interior and exterior elements in one large search area',
-    },
-  });
+    };
+  }
 
-  return classes;
+  if (element === 'Handler Discrimination') {
+    const known = level === 'Novice' || level === 'Advanced';
+    return {
+      searchType: known ? 'Known number' : 'Unknown number',
+      hideCount: level === 'Novice' ? '1' : level === 'Advanced' ? '2' : 'Unknown',
+      difficulty: 'Handler scent discrimination challenge',
+      distractionsRequired: 'Per regulations',
+      offLeashOption: 'true',
+      special: 'Hide location changes between competitors',
+    };
+  }
+
+  // Standard elements (Container/Interior/Exterior/Buried).
+  switch (level) {
+    case 'Novice':
+      return {
+        searchType: 'Known number',
+        hideCount: '1',
+        difficulty: 'Basic search - straightforward placement, no air movement challenges',
+        distractionsRequired: 'Per regulations (varies by element)',
+        offLeashOption: 'true',
+      };
+    case 'Advanced':
+      return {
+        searchType: 'Known number',
+        hideCount: '2',
+        difficulty: 'Two relatively simple hides, minimal converging odor',
+        distractionsRequired: 'Per regulations (varies by element)',
+        offLeashOption: 'true',
+      };
+    case 'Excellent':
+      return {
+        searchType: element === 'Interior' ? 'Unknown number' : 'Known number',
+        hideCount: element === 'Interior' ? 'Unknown (1-3)' : 'Variable',
+        difficulty: 'Complex search, inaccessible hides introduced, basic converging odor',
+        distractionsRequired: 'Per regulations (varies by element)',
+        offLeashOption: 'true',
+      };
+    case 'Master':
+      return {
+        searchType: 'Unknown number',
+        hideCount: 'Unknown',
+        difficulty: 'Complex search testing teamwork, time management, efficiency',
+        distractionsRequired: 'Per regulations (varies by element)',
+        offLeashOption: 'true',
+      };
+    default:
+      return {};
+  }
+}
+
+// Official AKC Scent Work class generator. Structure comes from the AKC registry (the single
+// source of truth, via generateScentWorkClasses); this attaches the per-class customField prose.
+// Canonical labels ('Master', 'Handler Discrimination') and registry order.
+export function generateAKCScentWorkClasses(): GeneratedClass[] {
+  return generateScentWorkClasses(getScentWorkSport('AKC')).map(cls => ({
+    className: cls.className,
+    element: cls.element,
+    ...(cls.level ? { level: cls.level } : {}),
+    ...(cls.section ? { section: cls.section } : {}),
+    maxEntries: cls.element === 'Detective' ? 30 : 40,
+    customFields: getGeneratedCustomFields(cls.element, cls.level),
+  }));
 }
 
 // Validation function for AKC Scent Work classes
@@ -145,7 +116,7 @@ export function validateAKCScentWorkClass(
   const standardElements = ['Interior', 'Exterior', 'Container', 'Buried'];
   if (standardElements.includes(element)) {
     if (!level) {
-      errors.push(`${element} classes require a level (Novice, Advanced, Excellent, Masters)`);
+      errors.push(`${element} classes require a level (Novice, Advanced, Excellent, Master)`);
     }
     if (level === 'Novice' && !division) {
       errors.push('Novice level requires division A or B');
@@ -230,7 +201,7 @@ export function getAKCScentWorkClassRequirements(
         ],
       };
 
-    case 'Masters':
+    case 'Master':
       return {
         hideCount: 'Unknown',
         searchType: 'Unknown',

@@ -15,6 +15,40 @@ describe('generateScentWorkClasses — AKC', () => {
     expect(classes).toHaveLength(26);
   });
 
+  it('emits classes in canonical registry order (Container → … → HD → Detective)', () => {
+    // Ordered assertion — pins the INTENTIONAL canonical order (registry element order), which
+    // differs from the legacy generators' Interior-first order and matches the entry-blank grid.
+    // Downstream displayOrder is assigned from this sequence, so order drift must fail loudly.
+    expect(names).toEqual([
+      'Container Novice A',
+      'Container Novice B',
+      'Container Advanced',
+      'Container Excellent',
+      'Container Master',
+      'Interior Novice A',
+      'Interior Novice B',
+      'Interior Advanced',
+      'Interior Excellent',
+      'Interior Master',
+      'Exterior Novice A',
+      'Exterior Novice B',
+      'Exterior Advanced',
+      'Exterior Excellent',
+      'Exterior Master',
+      'Buried Novice A',
+      'Buried Novice B',
+      'Buried Advanced',
+      'Buried Excellent',
+      'Buried Master',
+      'Handler Discrimination Novice A',
+      'Handler Discrimination Novice B',
+      'Handler Discrimination Advanced',
+      'Handler Discrimination Excellent',
+      'Handler Discrimination Master',
+      'Detective',
+    ]);
+  });
+
   it('emits each grid element with Novice A/B + Advanced/Excellent/Master (canonical labels)', () => {
     for (const element of ['Container', 'Interior', 'Exterior', 'Buried']) {
       expect(names).toEqual(

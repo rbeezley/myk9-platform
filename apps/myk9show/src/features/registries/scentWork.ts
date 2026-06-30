@@ -102,6 +102,13 @@ function levelsForElement(sport: RegistrySport, el: ElementSpec): LevelSpec[] {
  * classes exist" — replaces per-registry hardcoded generators. Standalone elements (a single
  * level whose label matches the element, e.g. AKC Detective) render as just the element name
  * with no level. Phase 2 of the multi-registry plan.
+ *
+ * ORDER: classes are emitted in registry element order (`sport.elements`), then level
+ * progression, then variant. For AKC this is Container → Interior → Exterior → Buried → HD →
+ * Detective. This is an INTENTIONAL canonical change from the legacy generators' Interior-first
+ * order — it makes the generated class list match the order already used by the entry-blank §II
+ * grid (Phase 1b), so every surface derives element order from one place. Safe pre-launch (no
+ * real class data). The ordered-catalog test pins this; downstream displayOrder follows it.
  */
 export function generateScentWorkClasses(sport: RegistrySport): ScentWorkClassSkeleton[] {
   const out: ScentWorkClassSkeleton[] = [];

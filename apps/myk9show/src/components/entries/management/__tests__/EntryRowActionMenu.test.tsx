@@ -76,6 +76,32 @@ describe('EntryRowActionMenu', () => {
     expect(screen.queryByRole('menuitem', { name: /comp entry/i })).not.toBeInTheDocument();
   });
 
+  it('groups mixed row actions by concern', async () => {
+    const { user } = render(
+      <EntryRowActionMenu
+        entry={makeEntry({
+          entryStatus: EntryStatus.ACCEPTED,
+          paymentStatus: PaymentStatus.PENDING,
+        })}
+        onStatusChange={vi.fn()}
+        onCheckInEntry={vi.fn()}
+        onOpenArmbandDialog={vi.fn()}
+        onOpenCompDialog={vi.fn()}
+        onRemoveEntry={vi.fn()}
+        onResendEmail={vi.fn()}
+        onOpenRequestPayment={vi.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /actions for bravo/i }));
+    await screen.findByRole('menu');
+
+    expect(screen.getByText('Show day')).toBeInTheDocument();
+    expect(screen.getByText('Payment')).toBeInTheDocument();
+    expect(screen.getByText('Communication')).toBeInTheDocument();
+    expect(screen.getByText('Danger')).toBeInTheDocument();
+  });
+
   it('shows the Refund action for a stripe-refundable entry when onOpenRefund is supplied', async () => {
     const onOpenRefund = vi.fn();
     const refundable = makeEntry({

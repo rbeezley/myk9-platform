@@ -53,6 +53,7 @@ export function EntryRowActionMenu({
     {
       id: 'accept',
       label: 'Accept entry',
+      sectionLabel: 'Entry',
       icon: <CheckCircle2 className="h-4 w-4" />,
       onSelect: () => onStatusChange?.(entry.id, EntryStatus.ACCEPTED),
       hidden: !onStatusChange || entry.entryStatus === EntryStatus.ACCEPTED,
@@ -60,6 +61,7 @@ export function EntryRowActionMenu({
     {
       id: 'waitlist',
       label: 'Move to waitlist',
+      sectionLabel: 'Entry',
       icon: <Ticket className="h-4 w-4" />,
       onSelect: () => onStatusChange?.(entry.id, EntryStatus.WAITLIST),
       hidden: !onStatusChange || !canMoveToWaitlist(entry.entryStatus),
@@ -67,6 +69,7 @@ export function EntryRowActionMenu({
     {
       id: 'check-in',
       label: 'Check in all classes',
+      sectionLabel: 'Show day',
       icon: <ClipboardCheck className="h-4 w-4" />,
       onSelect: () => onCheckInEntry?.(entry.id),
       hidden: !onCheckInEntry || !canCheckIn(entry.entryStatus),
@@ -74,6 +77,7 @@ export function EntryRowActionMenu({
     {
       id: 'armband',
       label: entry.armbandNumber ? 'Change armband' : 'Assign armband',
+      sectionLabel: 'Show day',
       icon: <PencilLine className="h-4 w-4" />,
       onSelect: () => onOpenArmbandDialog?.(entry),
       hidden: !onOpenArmbandDialog,
@@ -81,6 +85,7 @@ export function EntryRowActionMenu({
     {
       id: 'comp',
       label: entry.comped ? 'Remove comp' : 'Comp entry',
+      sectionLabel: 'Payment',
       icon: <DollarSign className="h-4 w-4" />,
       onSelect: () => (entry.comped ? onUncompEntry?.(entry.id) : onOpenCompDialog?.(entry)),
       hidden: entry.comped ? !onUncompEntry : !onOpenCompDialog,
@@ -88,6 +93,7 @@ export function EntryRowActionMenu({
     {
       id: 'request-payment',
       label: 'Request payment…',
+      sectionLabel: 'Payment',
       icon: <CreditCard className="h-4 w-4" />,
       onSelect: () => onOpenRequestPayment?.(entry),
       hidden: !onOpenRequestPayment || !isPaymentRequestable(entry),
@@ -95,6 +101,7 @@ export function EntryRowActionMenu({
     {
       id: 'refund',
       label: 'Refund payment…',
+      sectionLabel: 'Payment',
       icon: <Undo2 className="h-4 w-4" />,
       onSelect: () => onOpenRefund?.(entry),
       hidden: !onOpenRefund || !isStripeRefundable(entry),
@@ -102,6 +109,7 @@ export function EntryRowActionMenu({
     {
       id: 'resend-email',
       label: 'Resend confirmation',
+      sectionLabel: 'Communication',
       icon: <Mail className="h-4 w-4" />,
       onSelect: () => onResendEmail?.(entry.registrationId),
       disabled: !onResendEmail || isResendDisabled?.(entry.registrationId) === true,
@@ -110,6 +118,7 @@ export function EntryRowActionMenu({
     {
       id: 'reject',
       label: 'Reject entry',
+      sectionLabel: 'Danger',
       icon: <XCircle className="h-4 w-4" />,
       onSelect: () => onStatusChange?.(entry.id, EntryStatus.REJECTED),
       hidden: !onStatusChange || entry.entryStatus === EntryStatus.REJECTED,
@@ -118,6 +127,7 @@ export function EntryRowActionMenu({
     {
       id: 'remove',
       label: 'Remove entry',
+      sectionLabel: 'Danger',
       icon: <Trash2 className="h-4 w-4" />,
       onSelect: () => onRemoveEntry?.(entry.id),
       hidden: !onRemoveEntry,

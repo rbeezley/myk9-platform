@@ -13,6 +13,8 @@
  *   popover surfaces in both themes (see src/index.css). Hard-coded red-600 did not.
  * - A separator is inserted automatically before the first destructive action when
  *   non-destructive actions precede it, so callers don't repeat that boilerplate.
+ * - Optional section labels let dense row menus group mixed concerns without
+ *   creating a second action surface.
  * - Items default to a 44px min height to satisfy the INTENT touch-target guardrail.
  */
 
@@ -42,6 +44,8 @@ export interface RowAction {
   disabled?: boolean | undefined;
   /** Secondary muted line under the label (e.g. why an action is unavailable). */
   description?: string | undefined;
+  /** Optional section heading rendered before this action's group. */
+  sectionLabel?: string | undefined;
   /** Force a separator above this item (in addition to the auto destructive separator). */
   separatorBefore?: boolean | undefined;
   /** When true the action is omitted entirely — lets callers express conditional items inline. */
@@ -125,9 +129,11 @@ export function RowActionMenu({
       <DropdownMenuContent align={align} className={cn('w-48', contentClassName)}>
         {visible.map((action, index) => {
           const variant = action.variant ?? 'default';
-          const autoSeparator =
-            index === firstDestructiveIdx && firstDestructiveIdx > 0;
-          const showSeparator = index > 0 && (action.separatorBefore || autoSeparator);
+          const autoSeparator = index === firstDestructiveIdx && firstDestructiveIdx > 0;
+          const previousSection = visible[index - 1]?.sectionLabel;
+          const startsSection = action.sectionLabel && action.sectionLabel !== previousSection;
+          const showSeparator =
+            index > 0 && (action.separatorBefore || autoSeparator || startsSection);
           // exactOptionalPropertyTypes: only pass these when defined, never `undefined`.
           const itemProps = {
             ...(action.disabled ? {} : { onClick: action.onSelect }),
@@ -136,6 +142,11 @@ export function RowActionMenu({
           return (
             <React.Fragment key={action.id}>
               {showSeparator && <DropdownMenuSeparator />}
+              {startsSection && (
+                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                  {action.sectionLabel}
+                </div>
+              )}
               <DropdownMenuItem
                 {...itemProps}
                 className={cn(

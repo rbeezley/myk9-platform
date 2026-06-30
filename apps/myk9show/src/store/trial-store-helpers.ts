@@ -85,7 +85,9 @@ export function replicatedToTrial(replicated: ReplicatedTrial): SyncableTrial {
     timeEnded: replicated.actualEndTime || '',
     order: replicated.displayOrder !== undefined ? String(replicated.displayOrder) : '',
     image: replicated.imageUrl || '',
-    // Registry (migration 192) — drives registry-aware landing/email copy + class structure.
+    // Heritage / registry columns (migration 192) — carry both so landing-data hooks
+    // read the real timezone (not 'America/New_York') and registry-aware copy (not AKC).
+    timezone: replicated.timezone ?? null,
     registryId: replicated.registryId ?? null,
     // Sync metadata
     _version: replicated._version || 1,

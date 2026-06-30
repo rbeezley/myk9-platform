@@ -46,8 +46,10 @@ export const mapDatabaseToTrial = (dbTrial: DbTrialWithShow): Trial => {
         : undefined,
     trialType: dbTrial.trial_type ?? undefined,
     image: dbTrial.image_url ?? undefined,
-    // Registry (migration 192) — carried so the anon/cold public landing reads the
-    // trial's sanctioning body (UKC/ASCA), not the AKC fallback.
+    // Heritage / registry columns (migration 192) — carried so the anon/cold public
+    // landing matches the warm path: real timezone (not the 'America/New_York' default
+    // in getTrialTimezone) and the trial's sanctioning body (UKC/ASCA, not the AKC fallback).
+    timezone: dbTrial.timezone ?? undefined,
     registryId: dbTrial.registry_id ?? null,
   };
 };
@@ -207,9 +209,11 @@ export const mapReplicatedTrialToDbRow = (
       display_order: 'displayOrder',
       category: 'category',
       image_url: 'imageUrl',
-      // Registry (migration 192) — keep it on the snake_case row so the replication
-      // fallback (getTrialById/getTrialsByShow) survives the downstream mapDatabaseToTrial
-      // remap and renders UKC/ASCA copy instead of the AKC default.
+      // Heritage / registry columns (migration 192) — must round-trip so the replicated
+      // service-row path (getTrialById / getTrialsByShow) feeds real values into the
+      // downstream mapDatabaseToTrial remap: a real timezone (not the America/New_York
+      // default) and UKC/ASCA registry copy (not the AKC default).
+      timezone: 'timezone',
       registry_id: 'registryId',
     }),
     deleted_at: null,

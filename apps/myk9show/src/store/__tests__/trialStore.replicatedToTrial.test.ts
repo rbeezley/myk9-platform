@@ -4,11 +4,14 @@ import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTab
 
 /**
  * The warm / authenticated landing path maps replicated trial rows (IndexedDB) into the
- * domain Trial via `replicatedToTrial`. Phase 5a depends on `registryId` surviving that hop
- * so the styled landing reads the trial's sanctioning body. Pins the carry on both the direct
- * map and the merge-with-existing variant the store actually calls.
+ * domain Trial via `replicatedToTrial`. Heritage / registry columns (migration 192) must
+ * survive that hop: Phase 5a pinned `registryId` (sanctioning body), and we additionally
+ * pin `timezone` — both default silently (AKC copy / America/New_York) if dropped.
  */
-function makeReplicated(registryId: string | undefined): ReplicatedTrial {
+function makeReplicated(fields: {
+  registryId?: string | undefined;
+  timezone?: string | undefined;
+}): ReplicatedTrial {
   return {
     id: 'trial-1',
     showId: 'show-1',
@@ -17,24 +20,42 @@ function makeReplicated(registryId: string | undefined): ReplicatedTrial {
     trialNumber: 'I',
     status: 'Upcoming',
     displayOrder: 1,
-    registryId,
+    registryId: fields.registryId,
+    timezone: fields.timezone,
   };
 }
 
 describe('replicatedToTrial — registry carry (warm path)', () => {
   it('carries registryId from the replicated row onto the domain Trial', () => {
-    expect(replicatedToTrial(makeReplicated('UKC')).registryId).toBe('UKC');
-    expect(replicatedToTrial(makeReplicated('ASCA')).registryId).toBe('ASCA');
+    expect(replicatedToTrial(makeReplicated({ registryId: 'UKC' })).registryId).toBe('UKC');
+    expect(replicatedToTrial(makeReplicated({ registryId: 'ASCA' })).registryId).toBe('ASCA');
   });
 
   it('defaults a missing registryId to null (selector resolves AKC downstream)', () => {
-    expect(replicatedToTrial(makeReplicated(undefined)).registryId).toBeNull();
+    expect(replicatedToTrial(makeReplicated({})).registryId).toBeNull();
   });
 
   it('preserves registryId through mergeTrialData with an existing local trial', () => {
-    const base = replicatedToTrial(makeReplicated('ASCA'));
-    const merged = mergeTrialData(makeReplicated('ASCA'), { ...base, showName: 'Local Show' });
+    const base = replicatedToTrial(makeReplicated({ registryId: 'ASCA' }));
+    const merged = mergeTrialData(makeReplicated({ registryId: 'ASCA' }), {
+      ...base,
+      showName: 'Local Show',
+    });
     expect(merged.registryId).toBe('ASCA');
     expect(merged.showName).toBe('Local Show');
+  });
+});
+
+describe('replicatedToTrial — timezone carry (warm path)', () => {
+  // Regression: the warm path dropped `timezone`, so currentTrial.timezone was
+  // always undefined and getTrialTimezone() silently fell back to 'America/New_York'.
+  it('carries timezone through the replicated → domain hop', () => {
+    expect(replicatedToTrial(makeReplicated({ timezone: 'America/Chicago' })).timezone).toBe(
+      'America/Chicago'
+    );
+  });
+
+  it('maps a missing timezone to null (lets getTrialTimezone apply its default)', () => {
+    expect(replicatedToTrial(makeReplicated({})).timezone).toBeNull();
   });
 });

@@ -97,64 +97,22 @@ export const createCustomAKCScentWorkTemplate = (customizations: {
   return template;
 };
 
-// Export class name list for easy reference
-export const AKC_SCENT_WORK_CLASS_NAMES = [
-  // Interior classes
-  'Interior Novice A',
-  'Interior Novice B',
-  'Interior Advanced',
-  'Interior Excellent',
-  'Interior Master',
+// Reference exports derived from the generated catalog so they can't drift from it (Phase 2b).
+const AKC_CLASS_DEFINITIONS = AKC_SCENT_WORK_TEMPLATE.classDefinitions;
 
-  // Exterior classes
-  'Exterior Novice A',
-  'Exterior Novice B',
-  'Exterior Advanced',
-  'Exterior Excellent',
-  'Exterior Master',
+// Class name list for easy reference (canonical registry order).
+export const AKC_SCENT_WORK_CLASS_NAMES = AKC_CLASS_DEFINITIONS.map(c => c.className);
 
-  // Container classes
-  'Container Novice A',
-  'Container Novice B',
-  'Container Advanced',
-  'Container Excellent',
-  'Container Master',
-
-  // Buried classes
-  'Buried Novice A',
-  'Buried Novice B',
-  'Buried Advanced',
-  'Buried Excellent',
-  'Buried Master',
-
-  // Handler Discrimination classes
-  'Handler Discrimination Novice A',
-  'Handler Discrimination Novice B',
-  'Handler Discrimination Advanced',
-  'Handler Discrimination Excellent',
-  'Handler Discrimination Master',
-
-  // Detective class
-  'Detective',
-];
-
-// Quick reference for class counts
+// Quick reference for class counts.
 export const AKC_SCENT_WORK_SUMMARY = {
-  totalClasses: 27,
-  elements: {
-    Interior: 6,
-    Exterior: 6,
-    Container: 6,
-    Buried: 6,
-    'Handler Discrimination': 5,
-    Detective: 1,
-  },
-  levels: {
-    'Novice A': 5,
-    'Novice B': 5,
-    Advanced: 5,
-    Excellent: 5,
-    Master: 5,
-    'None (Detective)': 1,
-  },
+  totalClasses: AKC_CLASS_DEFINITIONS.length,
+  elements: AKC_CLASS_DEFINITIONS.reduce<Record<string, number>>((counts, c) => {
+    counts[c.element] = (counts[c.element] ?? 0) + 1;
+    return counts;
+  }, {}),
+  levels: AKC_CLASS_DEFINITIONS.reduce<Record<string, number>>((counts, c) => {
+    const key = c.level ? (c.section ? `${c.level} ${c.section}` : c.level) : 'None (Detective)';
+    counts[key] = (counts[key] ?? 0) + 1;
+    return counts;
+  }, {}),
 };

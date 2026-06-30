@@ -207,6 +207,10 @@ export const mapReplicatedTrialToDbRow = (
       display_order: 'displayOrder',
       category: 'category',
       image_url: 'imageUrl',
+      // Registry (migration 192) — keep it on the snake_case row so the replication
+      // fallback (getTrialById/getTrialsByShow) survives the downstream mapDatabaseToTrial
+      // remap and renders UKC/ASCA copy instead of the AKC default.
+      registry_id: 'registryId',
     }),
     deleted_at: null,
   };

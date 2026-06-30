@@ -18,6 +18,16 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-06-30
+
+- **Playwright command:** pass after low-risk test repairs. Phase 1 promoted Vitest passed (`18/18`). Initial Phase 2 reproduced three active-suite issues and was stopped after exceeding the global budget (`23 passed, 3 failed, 1 interrupted, 1 skipped, 22 did not run; 32.2m`). After repairs, the exact active Playwright command passed with `49 passed, 1 skipped (3.0m, --retries=0)`.
+- **Route sweep:** pass. Standalone Phase 3 `route-health-by-role.spec.ts` passed all configured role groups: public, exhibitor, secretary, judge, club-admin, and admin (`6/6`, `1.1m`, `--retries=0`). The same route-health file also passed inside the final Phase 2 command.
+- **Active specs:** Vitest `18/18`; active Playwright `49/50` with the existing public-show-card skip.
+- **Failures:** `QA-TEST-FLAKE-027` updated with a repaired recurrence. Initial failures were `cross-role-workflows.spec.ts:47` stale exhibitor `All` tab assertion, `registration/exhibitorSelfRegistration.spec.ts:143` card-payment actionability instability, and `route-health-by-role.spec.ts:289` judge route-health timeout during the budget-breached first run. The first post-fix full replay then exposed `uat/secretary/disposable-entry.spec.ts:63` still preferring the stale exact `Actions for <dog>` accessible name over the current card's direct `Assign` button.
+- **Fixes made:** test-only. `cross-role-workflows.spec.ts` now asserts the current exhibitor empty-state discovery affordance. `exhibitorSelfRegistration.spec.ts` uses a DOM click for the visible card-payment button after asserting it is visible. `disposable-entry.spec.ts` now opens armband assignment through the visible card `Assign` button before falling back to generic actions.
+- **Demotions/promotions:** none.
+- **Notes:** Ran from isolated worktree `.worktrees/nightly-qa-2026-06-30-021347` on `origin/main` `20f130f21`, using `PLAYWRIGHT_PORT=5967`, `PLAYWRIGHT_BASE_URL=http://127.0.0.1:5967`, and `PLAYWRIGHT_HMR_PORT=25967`. Focused proof before the final full replay: cross-role + exhibitor checkout + judge route-health `6/6` in `27.1s`; disposable-entry `1/1` in `11.1s`.
+
 ### 2026-06-29
 
 - **Playwright command:** pass. Phase 1 promoted Vitest passed (`18/18`). Initial Phase 2 exposed two stale/flaky secretary assertions, then the exact active Playwright command passed after low-risk test repairs: `49 passed, 1 skipped (3.0m, --retries=0)`.

@@ -140,7 +140,11 @@ test('exhibitor card entry hands off to cart checkout without enrollment writes'
     timeout: 15000,
   });
   await expect(page.getByText('Total Due').locator('..')).toContainText(/\$\d+\.\d{2}/);
-  await page.getByRole('button', { name: /Credit\/Debit Card \(Online Payment\)/i }).click();
+  const cardPayment = page.getByRole('button', {
+    name: /Credit\/Debit Card \(Online Payment\)/i,
+  });
+  await expect(cardPayment).toBeVisible();
+  await cardPayment.evaluate((button: HTMLElement) => button.click());
   await expect(page.getByText(/secure checkout to complete payment/i).first()).toBeVisible();
 
   const agreement = page.getByText(/I have read and agree to the .* entry agreement/i);

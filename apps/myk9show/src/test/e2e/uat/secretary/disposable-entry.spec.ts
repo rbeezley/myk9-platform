@@ -60,7 +60,7 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
     await expect(page.getByText(seed.className).first()).toBeVisible();
     await page.getByRole('button', { name: 'Cards view' }).click();
 
-    await openArmbandDialog(page, seed.dogName);
+    await openArmbandDialog(page);
     const armbandDialog = page.getByRole('dialog', { name: 'Assign Armband' });
     await expect(armbandDialog).toBeVisible();
     await armbandDialog.getByLabel('Armband Number').fill(seed.armband);
@@ -92,21 +92,28 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
   });
 });
 
-async function openArmbandDialog(page: Page, dogName: string) {
-  const escapedDogName = dogName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const rowActions = page
-    .getByRole('button', { name: new RegExp(`^Actions for ${escapedDogName}$`) })
-    .first();
-
-  if ((await rowActions.count()) > 0) {
-    await clickRowActionsWhenStable(rowActions);
-    const assignItem = page.getByRole('menuitem', { name: /Assign armband|Change armband/i });
-    await expect(assignItem.first()).toBeVisible({ timeout: 10000 });
-    await assignItem.first().click();
+async function openArmbandDialog(page: Page) {
+  const directAssign = page.getByRole('button', { name: 'Assign', exact: true }).last();
+  if (await clickVisibleButton(directAssign, 10000)) {
     return;
   }
 
-  await page.getByRole('button', { name: 'Assign' }).first().click();
+  await clickRowActionsWhenStable(
+    page.getByRole('button', { name: 'Actions', exact: true }).first()
+  );
+  const assignItem = page.getByRole('menuitem', { name: /Assign armband|Change armband/i });
+  await expect(assignItem.first()).toBeVisible({ timeout: 10000 });
+  await assignItem.first().click();
+}
+
+async function clickVisibleButton(button: Locator, timeout: number) {
+  try {
+    await expect(button).toBeVisible({ timeout });
+    await button.click();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function clickRowActionsWhenStable(rowActions: Locator) {

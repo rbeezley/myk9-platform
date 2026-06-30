@@ -80,6 +80,30 @@ describe('buildEntryManagementRosterRows', () => {
 
     expect(row.handlerName).toBe('Jamie Handler');
   });
+
+  it('preserves a blank handler cell when the owner has no name', () => {
+    const [row] = buildEntryManagementRosterRows(
+      [
+        makeTrialEntry({
+          dog: {
+            id: 'dog-blank-owner',
+            name: 'Nameless Owner Dog',
+            call_name: null,
+            breed: null,
+            owner: {
+              id: 'person-empty',
+              first_name: null,
+              last_name: null,
+              email: null,
+            },
+          },
+        }),
+      ],
+      null
+    );
+
+    expect(row.handlerName).toBe('');
+  });
 });
 
 describe('buildEntryManagementBreadcrumbNames', () => {

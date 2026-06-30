@@ -1,6 +1,6 @@
 # Plan: Entry Management Consolidation
 
-> Status: Complete
+> **Status:** Active
 
 ## Problem
 

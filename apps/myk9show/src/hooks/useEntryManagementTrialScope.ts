@@ -33,7 +33,7 @@ interface TrialScopeInput {
 function formatOwnerName(owner: NonNullable<TrialEntryRow['dog']>['owner']): string | null {
   if (!owner) return null;
   const name = [owner.first_name, owner.last_name].filter(Boolean).join(' ').trim();
-  return name || null;
+  return name;
 }
 
 export function buildEntryManagementRosterRows(
@@ -45,7 +45,7 @@ export function buildEntryManagementRosterRows(
     armband: row.armband,
     dogName: row.dog?.call_name || row.dog?.name || 'Unknown Dog',
     breed: row.dog?.breed || null,
-    handlerName: row.handler || formatOwnerName(row.dog?.owner ?? null) || 'Unknown',
+    handlerName: row.handler || (formatOwnerName(row.dog?.owner ?? null) ?? 'Unknown'),
     className: row.class?.name || 'Unknown Class',
     classId: row.class_id,
     isScored: row.is_scored === true,

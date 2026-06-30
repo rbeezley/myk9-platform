@@ -208,6 +208,10 @@ export const mapReplicatedTrialToDbRow = (
       display_order: 'displayOrder',
       category: 'category',
       image_url: 'imageUrl',
+      // Heritage / registry columns (migration 192) — must round-trip so the
+      // replicated service-row path (getTrialById / getTrialsByShow) feeds a
+      // real timezone into mapDatabaseToTrial instead of dropping it.
+      timezone: 'timezone',
     }),
     deleted_at: null,
   };

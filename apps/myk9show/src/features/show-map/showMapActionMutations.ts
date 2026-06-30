@@ -2,7 +2,11 @@ import { CLASS_STATUS, logger, type CheckInStatus } from '@myk9/core';
 
 import { createDatabaseError, supabase } from '@/services/database/supabaseClient';
 import { buildMovedUpFromNote } from '@/services/database/entries/moveUpNote';
-import { replicatedClassesTable, replicatedEntriesTable } from '@/services/replication';
+import {
+  replicatedClassesTable,
+  replicatedEntriesTable,
+  replicatedTrialsTable,
+} from '@/services/replication';
 import {
   updateReplicatedCheckInStatus,
   updateReplicatedDayOfScratch,
@@ -10,6 +14,7 @@ import {
 import { logReplicatedEntryStatusChange } from '@/services/show-day/entryStatusAudit';
 import { generateUUID } from '@/utils/idUtils';
 import { isEligibleMoveUpTarget } from '@/utils/moveUpEligibility';
+import { getTrialRegistry } from '@/features/registries';
 
 export interface ShowMapMoveUpInput {
   entryId: string;
@@ -45,8 +50,7 @@ export function sourceIdFromShowMapNodeId(nodeId: string, expectedType: string):
 
 export function entryIdFromShowMapNodeId(nodeId: string): string | null {
   return (
-    sourceIdFromShowMapNodeId(nodeId, 'entry') ??
-    sourceIdFromShowMapNodeId(nodeId, 'dog-entry')
+    sourceIdFromShowMapNodeId(nodeId, 'entry') ?? sourceIdFromShowMapNodeId(nodeId, 'dog-entry')
   );
 }
 
@@ -226,13 +230,17 @@ export async function moveUpShowMapEntry({
     ? await replicatedClassesTable.getClassById(sourceClassId)
     : null;
   if (!sourceClass) {
-    throw createDatabaseError(
-      new Error('Current class not found'),
-      'classes',
-      'show_map_move_up'
-    );
+    throw createDatabaseError(new Error('Current class not found'), 'classes', 'show_map_move_up');
   }
-  if (!isEligibleMoveUpTarget(sourceClass, targetClass)) {
+  // Resolve the registry server-side too, from the source class's trial (a show's
+  // trials always share one registry — scoping §7) — defaults to AKC if the trial
+  // can't be resolved, matching getTrialRegistry's own fallback.
+  const sourceTrialId = sourceClass.trialId ?? sourceClass.trial_id ?? null;
+  const sourceTrial = sourceTrialId
+    ? await replicatedTrialsTable.getTrialById(sourceTrialId)
+    : null;
+  const registryId = getTrialRegistry(sourceTrial).id;
+  if (!isEligibleMoveUpTarget(sourceClass, targetClass, registryId)) {
     throw createDatabaseError(
       new Error(
         `${targetClass.name} is not a valid move-up target for ${sourceClass.name}. ` +

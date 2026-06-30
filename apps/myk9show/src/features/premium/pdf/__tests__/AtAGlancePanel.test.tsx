@@ -111,6 +111,31 @@ describe('AtAGlancePanel', () => {
     expect(screen.queryByText('Entries Close')).toBeNull();
   });
 
+  it("renders UKC levels in UKC's competition progression order (Phase 5b — live bug fix)", () => {
+    // Before Phase 5b, classOrder hardcoded AKC's ladder for every org, so a UKC
+    // document sorted 'Superior'/'Elite' to the end (unknown → rank 999) instead
+    // of their correct rank-3/rank-5 position.
+    const data: GeneratedPremium = {
+      ...fullData,
+      org: 'UKC',
+      trials: [
+        {
+          ...fullData.trials[0]!,
+          classes: [
+            { element: 'Container', level: 'Elite', section: null },
+            { element: 'Container', level: 'Novice', section: null },
+            { element: 'Container', level: 'Superior', section: null },
+            { element: 'Container', level: 'Advanced', section: null },
+          ],
+        },
+      ],
+    };
+
+    render(<AtAGlancePanel data={data} tokens={tokens} />);
+
+    expect(screen.getByText('Novice · Advanced · Superior · Elite')).toBeTruthy();
+  });
+
   it('falls back to "Details coming soon" when no substantive rows render', () => {
     // Org alone is never enough to make the panel useful — the fallback fires
     // when trials/elements/levels are all empty, regardless of org.

@@ -6,6 +6,7 @@ import { ShowMapStructureTable } from './ShowMapStructureTable';
 import { useShowPresenceRoster } from '@/features/show-presence/showPresenceContext';
 import { ShowMapMoveUpDialog } from './ShowMapMoveUpDialog';
 import { buildMoveUpTargets } from './buildMoveUpTargets';
+import { getTrialRegistry } from '@/features/registries';
 import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
 import { ShowMapScratchNoShowDialog } from './ShowMapScratchNoShowDialog';
 import { ShowMapToolbar } from './ShowMapToolbar';
@@ -217,9 +218,12 @@ function ShowMapTabView({
   } = executor;
 
   const catalogEntryCount = countCatalogEntries(entries);
+  // A show's trials always share one registry (scoping §7) — resolve once from the
+  // first trial so move-up recognizes UKC/ASCA-only levels (Superior/Elite, Open/Champion).
+  const registryId = useMemo(() => getTrialRegistry(trials[0]).id, [trials]);
   const moveUpTargets = useMemo(
-    () => buildMoveUpTargets(classes, moveUpAction?.classId),
-    [classes, moveUpAction?.classId]
+    () => buildMoveUpTargets(classes, moveUpAction?.classId, registryId),
+    [classes, moveUpAction?.classId, registryId]
   );
   const moveUpCurrentClass = moveUpAction?.classId
     ? tree.nodesById[`class:${moveUpAction.classId}`]

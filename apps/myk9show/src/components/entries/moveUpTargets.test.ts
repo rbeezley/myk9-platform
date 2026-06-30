@@ -110,13 +110,19 @@ describe('getAvailableMoveUpTargets', () => {
   });
 
   it('excludes the current class even when its level matches', () => {
-    const targets = getAvailableMoveUpTargets([containerAdvanced, containerMaster], containerAdvanced.id);
+    const targets = getAvailableMoveUpTargets(
+      [containerAdvanced, containerMaster],
+      containerAdvanced.id
+    );
     expect(targets.map(c => c.id)).toEqual([containerMaster.id]);
   });
 
   it('excludes full classes (no available spots)', () => {
     const fullMaster = { ...containerMaster, available_spots: 0 };
-    const targets = getAvailableMoveUpTargets([containerAdvanced, fullMaster], containerAdvanced.id);
+    const targets = getAvailableMoveUpTargets(
+      [containerAdvanced, fullMaster],
+      containerAdvanced.id
+    );
     expect(targets).toEqual([]);
   });
 
@@ -129,6 +135,32 @@ describe('getAvailableMoveUpTargets', () => {
     const unstructured = makeClass({ id: 'mystery', element: null, level: null });
     const targets = getAvailableMoveUpTargets([unstructured, containerMaster], unstructured.id);
     expect(targets).toEqual([]);
+  });
+});
+
+describe('getAvailableMoveUpTargets — registry-aware (Phase 5b)', () => {
+  const containerSuperior = makeClass({
+    id: 'container-superior',
+    name: 'Container Superior',
+    element: 'Container',
+    level: 'Superior',
+  });
+
+  it('without a registryId arg (AKC default), UKC-only Superior is excluded as unknown', () => {
+    const targets = getAvailableMoveUpTargets(
+      [containerAdvanced, containerSuperior],
+      containerAdvanced.id
+    );
+    expect(targets.map(c => c.id)).not.toContain(containerSuperior.id);
+  });
+
+  it('passing UKC recognizes Superior as a valid higher-level target', () => {
+    const targets = getAvailableMoveUpTargets(
+      [containerAdvanced, containerSuperior],
+      containerAdvanced.id,
+      'UKC'
+    );
+    expect(targets.map(c => c.id)).toEqual([containerSuperior.id]);
   });
 });
 

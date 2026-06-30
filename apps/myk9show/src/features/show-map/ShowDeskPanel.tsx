@@ -20,6 +20,7 @@ import { ShowMapReorderBanner } from './ShowMapReorderBanner';
 import { ShowMapEntryReviewSheet } from './ShowMapEntryReviewSheet';
 import { ShowMapMoveUpDialog } from './ShowMapMoveUpDialog';
 import { buildMoveUpTargets } from './buildMoveUpTargets';
+import { getTrialRegistry } from '@/features/registries';
 import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
 import { ShowMapScratchNoShowDialog } from './ShowMapScratchNoShowDialog';
 import ShowMapTab from './ShowMapTab';
@@ -193,9 +194,12 @@ export default function ShowDeskPanel({
     () => pendingSignals.find(s => s.id === 'entries-waiting-review')?.count ?? 0,
     [pendingSignals]
   );
+  // A show's trials always share one registry (scoping §7) — resolve once from the
+  // first trial so move-up recognizes UKC/ASCA-only levels (Superior/Elite, Open/Champion).
+  const registryId = useMemo(() => getTrialRegistry(trials[0]).id, [trials]);
   const moveUpTargets = useMemo(
-    () => buildMoveUpTargets(classes, moveUpAction?.classId),
-    [classes, moveUpAction?.classId]
+    () => buildMoveUpTargets(classes, moveUpAction?.classId, registryId),
+    [classes, moveUpAction?.classId, registryId]
   );
   const moveUpCurrentClass = moveUpAction?.classId
     ? tree.nodesById[`class:${moveUpAction.classId}`]

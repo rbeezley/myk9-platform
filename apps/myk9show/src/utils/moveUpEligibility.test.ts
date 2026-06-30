@@ -94,11 +94,90 @@ describe('isEligibleMoveUpTarget', () => {
 
   it('rejects when either class lacks an element or level', () => {
     expect(
-      isEligibleMoveUpTarget({ element: null, level: 'Novice' }, { element: 'Container', level: 'Advanced' })
+      isEligibleMoveUpTarget(
+        { element: null, level: 'Novice' },
+        { element: 'Container', level: 'Advanced' }
+      )
     ).toBe(false);
     expect(
-      isEligibleMoveUpTarget({ element: 'Container', level: 'Novice' }, { element: 'Container', level: null })
+      isEligibleMoveUpTarget(
+        { element: 'Container', level: 'Novice' },
+        { element: 'Container', level: null }
+      )
     ).toBe(false);
     expect(isEligibleMoveUpTarget({}, {})).toBe(false);
+  });
+});
+
+/**
+ * Phase 5b bug fix: AKC's hardcoded level ladder used to gate isKnownLevel for every
+ * registry, so UKC's 'Superior'/'Elite' and ASCA's 'Open'/'Champion' — none of which are
+ * in AKC's ladder — were always rejected as "unknown", silently blocking every UKC/ASCA
+ * move-up that touched those levels. Passing the trial's actual registry fixes it.
+ */
+describe('isEligibleMoveUpTarget — registry-aware (Phase 5b)', () => {
+  it('without a registry arg (AKC default), UKC/ASCA-only levels are still rejected as unknown', () => {
+    expect(
+      isEligibleMoveUpTarget(
+        { element: 'Container', level: 'Advanced' },
+        { element: 'Container', level: 'Superior' }
+      )
+    ).toBe(false);
+    expect(
+      isEligibleMoveUpTarget(
+        { element: 'Container', level: 'Advanced' },
+        { element: 'Container', level: 'Open' }
+      )
+    ).toBe(false);
+  });
+
+  it('recognizes UKC Superior/Elite when passed the UKC registry', () => {
+    expect(
+      isEligibleMoveUpTarget(
+        { element: 'Container', level: 'Advanced' },
+        { element: 'Container', level: 'Superior' },
+        'UKC'
+      )
+    ).toBe(true);
+    expect(
+      isEligibleMoveUpTarget(
+        { element: 'Container', level: 'Superior' },
+        { element: 'Container', level: 'Elite' },
+        'UKC'
+      )
+    ).toBe(true);
+    // Still rejects AKC-only 'Detective' under UKC.
+    expect(
+      isEligibleMoveUpTarget(
+        { element: 'Container', level: 'Advanced' },
+        { element: 'Container', level: 'Detective' },
+        'UKC'
+      )
+    ).toBe(false);
+  });
+
+  it('recognizes ASCA Open as a higher level than Novice (Open is ASCA-only, unknown to AKC)', () => {
+    expect(
+      isEligibleMoveUpTarget(
+        { element: 'Container', level: 'Novice' },
+        { element: 'Container', level: 'Open' },
+        'ASCA'
+      )
+    ).toBe(true);
+    expect(
+      isEligibleMoveUpTarget(
+        { element: 'Container', level: 'Open' },
+        { element: 'Container', level: 'Advanced' },
+        'ASCA'
+      )
+    ).toBe(true);
+    // Equal level (Open → Open) is not a move-up.
+    expect(
+      isEligibleMoveUpTarget(
+        { element: 'Container', level: 'Open' },
+        { element: 'Container', level: 'Open' },
+        'ASCA'
+      )
+    ).toBe(false);
   });
 });

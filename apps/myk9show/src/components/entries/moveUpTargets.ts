@@ -8,6 +8,7 @@
  */
 import { isEligibleMoveUpTarget } from '@/utils/moveUpEligibility';
 import type { ClassWithCapacity } from '@/services/database/day-of-operations';
+import type { RegistryId } from '@/features/registries';
 
 /**
  * Given the full set of classes for a show and the id of the request's current
@@ -17,11 +18,14 @@ import type { ClassWithCapacity } from '@/services/database/day-of-operations';
  *   - with at least one available spot
  *
  * Returns [] when the current class can't be resolved (the conservative
- * choice — never offer a target we can't validate).
+ * choice — never offer a target we can't validate). `registryId` defaults to
+ * AKC for any caller not yet updated — pass the show's actual registry so
+ * UKC/ASCA-only levels (Superior/Elite, Open/Champion) are recognized.
  */
 export function getAvailableMoveUpTargets(
   classes: ClassWithCapacity[],
-  currentClassId: string | null
+  currentClassId: string | null,
+  registryId: RegistryId = 'AKC'
 ): ClassWithCapacity[] {
   if (!currentClassId) return [];
 
@@ -31,7 +35,7 @@ export function getAvailableMoveUpTargets(
   return classes.filter(cls => {
     if (cls.id === currentClassId) return false;
     if (cls.available_spots <= 0) return false;
-    return isEligibleMoveUpTarget(current, cls);
+    return isEligibleMoveUpTarget(current, cls, registryId);
   });
 }
 

@@ -10,16 +10,23 @@
 import { isEligibleMoveUpTarget } from '@/utils/moveUpEligibility';
 import type { ShowMapMoveUpTarget } from './ShowMapMoveUpDialog';
 import type { BuildShowMapTreeInput } from './showMapTypes';
+import type { RegistryId } from '@/features/registries';
 
+/**
+ * `registryId` defaults to AKC for any caller not yet updated — pass the show's
+ * actual registry (a show's trials always share one — see scoping §7) so
+ * UKC/ASCA-only levels (Superior/Elite, Open/Champion) are recognized.
+ */
 export function buildMoveUpTargets(
   classes: BuildShowMapTreeInput['classes'],
-  currentClassId: string | undefined
+  currentClassId: string | undefined,
+  registryId: RegistryId = 'AKC'
 ): ShowMapMoveUpTarget[] {
   const current = currentClassId ? classes.find(cls => cls.id === currentClassId) : undefined;
   if (!current) return [];
 
   return classes
-    .filter(cls => cls.id !== currentClassId && isEligibleMoveUpTarget(current, cls))
+    .filter(cls => cls.id !== currentClassId && isEligibleMoveUpTarget(current, cls, registryId))
     .map(cls => ({
       id: cls.id,
       label: cls.name || [cls.element, cls.level, cls.section].filter(Boolean).join(' '),

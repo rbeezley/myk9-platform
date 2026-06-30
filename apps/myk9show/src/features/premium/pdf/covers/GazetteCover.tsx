@@ -7,8 +7,9 @@ import {
   composeFallbackArticle,
   extractCityState,
 } from './gazetteHelpers';
-import { compareClassesByProgression, compareLevelsByProgression } from '../bodies/classOrder';
+import { makeClassComparator, compareLevelsByProgression } from '../bodies/classOrder';
 import { PdfFooter } from '../PdfFooter';
+import type { RegistryId } from '@/features/registries';
 
 // ─── Layout constants ────────────────────────────────────────────────────────
 // Hoisted from inline literals so a designer can tune the masthead in one
@@ -35,6 +36,11 @@ export function renderGazetteCover(ctx: CoverContext) {
   // it on AKC mastheads only so the gazette label has parity with sanction
   // expectations without inventing a new field.
   const akcLicenseNumber = org === 'AKC' ? (data.trials[0]?.eventNumber ?? null) : null;
+  // CoverContext.org is a loose `string` (not the narrower GeneratedPremium.org union), and
+  // premium generation isn't offered for non-AKC/UKC shows (generate-premium's CHECK-constraint
+  // gate) — fall back to AKC rather than let an unrecognized id throw mid-render.
+  const registryId: RegistryId = org === 'UKC' ? 'UKC' : 'AKC';
+  const classComparator = makeClassComparator(registryId);
 
   // Pull a city/state-ish fragment from the venue address. Newspaper
   // mastheads want a place tag, not a full street address.
@@ -61,11 +67,11 @@ export function renderGazetteCover(ctx: CoverContext) {
   const allClasses = trials
     .flatMap(tr => tr.classes ?? [])
     .slice()
-    .sort(compareClassesByProgression);
+    .sort(classComparator);
   const elements = Array.from(new Set(allClasses.map(c => c.element))).filter(Boolean);
   const levels = Array.from(new Set(allClasses.map(c => c.level)))
     .filter(Boolean)
-    .sort(compareLevelsByProgression);
+    .sort((a, b) => compareLevelsByProgression(a, b, registryId));
   const atAGlanceLines: Array<{ label: string; value: string }> = [];
   if (trials.length > 0) {
     atAGlanceLines.push({

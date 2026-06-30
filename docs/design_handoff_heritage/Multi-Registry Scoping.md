@@ -330,6 +330,18 @@ With all three registries known, the schema can be designed against real diverge
 
 **Build implication:** the AKC-extraction refactor (§6 steps 1–2) should target *this* §10 shape, not the narrower §4/§8.5 AKC-or-UKC-only drafts. Doing the extraction against the three-registry spec avoids a second refactor when UKC/ASCA land. Title schemes (UKC §8.4, ASCA §9.4) are **out of day-one scope** — they belong to a future titles/awards surface, not the trial-publishing config — but are captured so they aren't re-derived.
 
+### 10.1 · Odor model — noted, but OUT of day-one scope
+
+The registries differ in *how odor relates to level*. This is a **course-design / scoring-enforcement** rule, not a class-structure or legal-language fact — the day-one publishing surfaces only ever *display* a level's odor(s), they never enforce selection. So model this only if/when a judge course-setup tool or scoring engine is built. Captured here so it isn't re-derived:
+
+| Registry | Odor model | Rule |
+|---|---|---|
+| **UKC** | **required-per-level** (1:1) | Each of the 5 levels has exactly one designated odor (Novice Birch · Advanced Anise · Superior Clove · Master Myrrh · Elite Vetiver). At least one hide at that level **must** carry the level's odor — the odor *is* the level marker. |
+| **AKC** | **permitted-ceiling** (grows by level) | Four odors, each with a *minimum* level: Birch≥Novice, Anise≥Advanced, Clove≥Excellent, Cypress≥Master. A level permits any odor at/below its tier; **nothing is required** (every level may run on Birch alone). Cypress is illegal below Master. |
+| **ASCA** | **chosen-per-level from a regional line** | Club picks one scent per level from a Line column (Ch. 2): e.g. Line 1 US = Birch/Anise/Clove; Excellent adds no new scent. Higher-level trials stack the lower-level scents. |
+
+If ever modeled: a per-registry `odorModel: "required-per-level" | "permitted-ceiling" | "chosen-per-level"` plus a per-odor `minLevel` (AKC) or per-level `odor` (UKC) / `odorColumn` (ASCA). **Do not build for launch** — `name`-of-odor display is all the premium/entry-blank needs, and that's already covered by the per-level odor data in §7.5/§8/§9.
+
 ---
 
 *End of scoping document. No longer deferred — scent work for AKC + UKC + ASCA is a day-one commitment (banner at top). UKC (§8) and ASCA (§9) are populated on paper; §10 is the cross-registry schema spec. The remaining day-one engineering is the AKC-extraction refactor (§6 steps 1–2) built against §10.*

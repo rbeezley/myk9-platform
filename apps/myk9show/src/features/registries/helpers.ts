@@ -70,7 +70,9 @@ export function getShowLandingStyle(show: ShowLike | null | undefined): LandingS
  * is missing — every trial in the system today is AKC-sanctioned.
  */
 export function getTrialRegistry(trial: TrialLike | null | undefined): Registry {
-  const id = trial?.registry_id ?? 'AKC';
+  // Trim + default so blank/whitespace registry_id falls back to AKC rather than
+  // tripping the unknown-registry path.
+  const id = trial?.registry_id?.trim() || 'AKC';
   if (id === 'AKC') return getRegistry('AKC');
   if (process.env.NODE_ENV !== 'production') {
     throw new Error(`Trial references unknown registry "${id}"`);

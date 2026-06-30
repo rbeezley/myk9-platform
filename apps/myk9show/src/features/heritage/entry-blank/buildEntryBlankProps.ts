@@ -1,5 +1,4 @@
-import { getRegistry } from '@/features/registries';
-import type { RegistryId } from '@/features/registries';
+import { getTrialRegistry } from '@/features/registries';
 import {
   getScentWorkSport,
   scentWorkGridElementLabels,
@@ -152,11 +151,10 @@ export interface BuildEntryBlankOptions {
 
 export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankProps {
   const { show, trials, classes, judges, club, secretary, entry, dog, handler } = opts;
-  // Bind to the trial's registry (defaults to AKC). getRegistry throws for an unconfigured
-  // id — the intended hard-error until UKC/ASCA are populated (multi-registry plan §7 Q4).
-  const registryId = (trials[0]?.registry_id ?? 'AKC') as RegistryId;
-  const registry = getRegistry(registryId);
-  const sport = getScentWorkSport(registryId);
+  // Bind to the trial's registry via the shared selector (trims + defaults to AKC for
+  // blank/missing registry_id; throws in dev / falls back to AKC in prod for unknown ids).
+  const registry = getTrialRegistry(trials[0]);
+  const sport = getScentWorkSport(registry.id);
   const ownerDisplayName = handler
     ? [handler.first_name, handler.last_name].filter(Boolean).join(' ')
     : null;

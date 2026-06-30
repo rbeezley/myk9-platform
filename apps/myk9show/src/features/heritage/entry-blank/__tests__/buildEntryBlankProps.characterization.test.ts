@@ -66,4 +66,16 @@ describe('buildEntryBlankProps — §II grid (characterization)', () => {
     const checked = filled.levelCells.filter(c => c.checked).map(c => `${c.level} / ${c.element}`);
     expect(checked).toEqual(['Other / Detective']);
   });
+
+  it('defaults to AKC for a blank/whitespace registry_id (does not throw)', () => {
+    for (const registry_id of ['', '   ', null, undefined]) {
+      const props = buildEntryBlankProps({
+        ...BASE,
+        trials: [{ id: 't1', date: '2026-06-12', display_order: 1, registry_id }],
+      });
+      expect(props.licenseLanguage).toBe('An A.K.C. Licensed Trial');
+      // Grid still renders the AKC structure (plural labels), proving AKC fallback.
+      expect(props.levelCells[0]).toMatchObject({ level: 'Novice', element: 'Containers' });
+    }
+  });
 });

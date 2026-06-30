@@ -78,6 +78,12 @@ describe('getTrialRegistry', () => {
     expect(getTrialRegistry(null)).toBe(akcRegistry);
   });
 
+  it('returns AKC for blank/whitespace registry_id (trim + default)', () => {
+    expect(getTrialRegistry({ registry_id: '' })).toBe(akcRegistry);
+    expect(getTrialRegistry({ registry_id: '   ' })).toBe(akcRegistry);
+    expect(getTrialRegistry({ registry_id: ' AKC ' })).toBe(akcRegistry);
+  });
+
   it('throws in dev for an unknown registry id', () => {
     const prev = process.env.NODE_ENV;
     process.env.NODE_ENV = 'development';

@@ -149,6 +149,9 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
       display_order: trial.displayOrder ?? null,
       category: trial.category ?? null,
       image_url: trial.imageUrl ?? null,
+      // Registry (migration 192) — the write side of the registry column. Default to 'AKC'
+      // (the DB default) when unset so this never writes NULL into the NOT-NULL column.
+      registry_id: trial.registryId ?? 'AKC',
       updated_at: new Date().toISOString(),
     };
   }
@@ -184,9 +187,14 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
       resolveConflict: (_local, remote) => remote,
     };
 
-    const result = await syncReplicatedTable(this, adapter, { value: licenseKey }, {
-      incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
-    });
+    const result = await syncReplicatedTable(
+      this,
+      adapter,
+      { value: licenseKey },
+      {
+        incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
+      }
+    );
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {
       logger.error(`[${this.getTableName()}] Sync failed:`, result.error);

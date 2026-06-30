@@ -14,6 +14,7 @@ import { useWizardStore } from '@/store/wizardStore';
 import { useShowStore } from '@/store/showStore';
 import { useClubStore } from '@/store/clubStore';
 import { useTrialStore, type TrialInput } from '@/store/trialStore';
+import { deriveRegistryId } from '@/features/registries';
 import {
   replicatedClassesTable,
   type ReplicatedClass,
@@ -135,6 +136,10 @@ export function useShowCreationWizardActions({
         });
       }
 
+      // Registry is show-wide (scoping §7): every trial under this show shares the
+      // registry derived from the show's organization. Compute once.
+      const registryId = deriveRegistryId(showOrganization);
+
       // Create trials sequentially — parallel Promise.all would leave a
       // partially-populated trialIdMap if one insert fails, causing classes
       // for the failed trial to be silently dropped with no trialId.
@@ -144,6 +149,7 @@ export function useShowCreationWizardActions({
           showId,
           showName,
           name: trialName,
+          registryId,
           trialDate: wizardTrial.dateTime
             ? format(new Date(wizardTrial.dateTime), 'yyyy-MM-dd')
             : '',
@@ -243,7 +249,11 @@ export function useShowCreationWizardActions({
         // multi-step flow below, which could leave orphaned rows on partial
         // failure. Edit-mode and offline paths still use the multi-step flow.
         if (!editMode?.showId && isOnline) {
-          const { showId: realShowId, savedShow, passcodes } = await saveShowAtomicOnline({
+          const {
+            showId: realShowId,
+            savedShow,
+            passcodes,
+          } = await saveShowAtomicOnline({
             show,
             trials,
             judgeDetails,

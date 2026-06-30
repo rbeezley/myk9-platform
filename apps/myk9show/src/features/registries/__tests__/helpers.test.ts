@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { getShowStyle, getShowLandingStyle, getTrialRegistry, getTrialTimezone } from '../helpers';
+import {
+  getShowStyle,
+  getShowLandingStyle,
+  getTrialRegistry,
+  getTrialTimezone,
+  deriveRegistryId,
+} from '../helpers';
 import { akcRegistry } from '../akc';
 import { ukcRegistry } from '../ukc';
 import { ascaRegistry } from '../asca';
@@ -127,6 +133,40 @@ describe('getTrialRegistry', () => {
     it('falls through to camelCase when snake_case is null (mapped-row shape)', () => {
       expect(getTrialRegistry({ registry_id: null, registryId: 'ASCA' })).toBe(ascaRegistry);
     });
+  });
+});
+
+describe('deriveRegistryId', () => {
+  // The org→registry rule: registry_id is the validated, config-backed projection of
+  // the show's organization (the write side; getTrialRegistry is the read side).
+  it('passes through a configured registry organization', () => {
+    expect(deriveRegistryId('AKC')).toBe('AKC');
+    expect(deriveRegistryId('UKC')).toBe('UKC');
+    expect(deriveRegistryId('ASCA')).toBe('ASCA');
+  });
+
+  it('falls back to AKC for organizations with no registry config', () => {
+    // Bodies in the org dropdown that have no rulebook config yet.
+    expect(deriveRegistryId('NACSW')).toBe('AKC');
+    expect(deriveRegistryId('NADAC')).toBe('AKC');
+    expect(deriveRegistryId('Other')).toBe('AKC');
+  });
+
+  it('falls back to AKC for null/undefined/blank organization', () => {
+    expect(deriveRegistryId(null)).toBe('AKC');
+    expect(deriveRegistryId(undefined)).toBe('AKC');
+    expect(deriveRegistryId('')).toBe('AKC');
+    expect(deriveRegistryId('   ')).toBe('AKC');
+  });
+
+  it('trims surrounding whitespace before matching', () => {
+    expect(deriveRegistryId(' UKC ')).toBe('UKC');
+  });
+
+  it('is case-sensitive (organization values are canonical upper-case)', () => {
+    // The org dropdown stores canonical 'UKC'; a lowercase value is not a configured
+    // registry id, so it safely falls back rather than silently matching.
+    expect(deriveRegistryId('ukc')).toBe('AKC');
   });
 });
 

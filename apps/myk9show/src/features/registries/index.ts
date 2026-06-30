@@ -23,5 +23,11 @@ export type {
 export { akcRegistry, AKC_EXHIBITOR_AGREEMENT } from './akc';
 export { ukcRegistry, UKC_EXHIBITOR_AGREEMENT } from './ukc';
 export { ascaRegistry, ASCA_EXHIBITOR_AGREEMENT } from './asca';
-export { getShowStyle, getShowLandingStyle, getTrialRegistry, getTrialTimezone } from './helpers';
+export {
+  getShowStyle,
+  getShowLandingStyle,
+  getTrialRegistry,
+  getTrialTimezone,
+  deriveRegistryId,
+} from './helpers';
 export type { ShowStyle, LandingStyle } from './helpers';

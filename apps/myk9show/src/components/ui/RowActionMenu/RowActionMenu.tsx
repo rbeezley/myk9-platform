@@ -162,7 +162,9 @@ export function RowActionMenu({
             firstIndex === firstDestructiveIdx && firstDestructiveIdx > 0;
           const showSectionSeparator =
             startsAfterPreviousSection &&
-            (firstAction?.separatorBefore || startsDestructiveSection || section.sectionLabel);
+            Boolean(
+              firstAction?.separatorBefore || startsDestructiveSection || section.sectionLabel
+            );
           const sectionItems = section.items.map(({ action, index }, itemIndex) => {
             const variant = action.variant ?? 'default';
             const autoSeparator = index === firstDestructiveIdx && firstDestructiveIdx > 0;

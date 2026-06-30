@@ -3,7 +3,7 @@ import { getRegistry, getSport, listRegistries, akcRegistry } from '../index';
 
 describe('registry config layer', () => {
   it('lists all configured registry ids', () => {
-    expect(listRegistries()).toEqual(['AKC', 'UKC']);
+    expect(listRegistries()).toEqual(['AKC', 'UKC', 'ASCA']);
   });
 
   it('returns the AKC registry by id', () => {

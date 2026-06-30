@@ -4,7 +4,7 @@
  * docs/plans/2026-05-07-heritage-trial-pages-plan.md §4
  */
 
-export type RegistryId = 'AKC' | 'UKC';
+export type RegistryId = 'AKC' | 'UKC' | 'ASCA';
 
 export interface RegistryRegistrationField {
   /** Label shown next to the registration-number input (e.g. "A.K.C. registration number"). */

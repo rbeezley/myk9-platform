@@ -8,11 +8,13 @@
 
 import { akcRegistry } from './akc';
 import { ukcRegistry } from './ukc';
+import { ascaRegistry } from './asca';
 import type { Registry, RegistryId, RegistrySport } from './types';
 
 const REGISTRIES: Readonly<Record<RegistryId, Registry>> = {
   AKC: akcRegistry,
   UKC: ukcRegistry,
+  ASCA: ascaRegistry,
 };
 
 /** All registry ids currently configured. */

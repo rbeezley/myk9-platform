@@ -38,6 +38,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | ------------------------------------------------------------------------------------------ | --------- | --------------------------------------------------------------------- |
 | [DEFERRED-WORK.md](DEFERRED-WORK.md)                                                       | Reference | Deferred Work Items                                                   |
 | [INTENT.md](INTENT.md)                                                                     | Reference | myK9 Platform Intent Document                                         |
+| [admin-mcp-local-setup.md](admin-mcp-local-setup.md)                                       | Reference | Site-Admin MCP — local setup (read-only diagnostics)                 |
 | [ai-ux-adaptation.md](ai-ux-adaptation.md)                                                 | Reference | myK9 Adaptation Notes — "4 AI UX Prompts" Guide                       |
 | [codex-review-playbook.md](codex-review-playbook.md)                                       | Reference | Codex review playbook                                                 |
 | [feature-audit-2026.md](feature-audit-2026.md)                                             | Reference | Feature Audit — Fall 2026                                             |

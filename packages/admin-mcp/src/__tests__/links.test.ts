@@ -27,9 +27,7 @@ describe('buildEntryManagementLink', () => {
     );
   });
 
-  it('appends the entry id as a query param when provided', () => {
-    expect(buildEntryManagementLink(CONFIG, 'show-123', 'entry-9').url).toBe(
-      'https://app.myk9show.com/shows/show-123/entry-management?entryId=entry-9',
-    );
+  it('does not append an entry-select param the page ignores', () => {
+    expect(buildEntryManagementLink(CONFIG, 'show-123').url).not.toContain('?');
   });
 });

@@ -22,9 +22,12 @@ export function buildShowLink(
 export function buildEntryManagementLink(
   config: AdminMcpConfig,
   showId: string,
-  entryId?: string,
 ): DiagnosticLink {
-  const base = `${config.appBaseUrl}/shows/${encodeURIComponent(showId)}/entry-management`;
-  const url = entryId ? `${base}?entryId=${encodeURIComponent(entryId)}` : base;
-  return { label: 'Open entry management', url };
+  // Links to the show's Entry Management page. The page filters by a `trial`
+  // query param, not an entry id, so we don't append an entry-select param it
+  // would silently ignore — the diagnostic's evidence carries the entry id.
+  return {
+    label: 'Open entry management',
+    url: `${config.appBaseUrl}/shows/${encodeURIComponent(showId)}/entry-management`,
+  };
 }

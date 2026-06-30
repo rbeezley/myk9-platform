@@ -27,18 +27,14 @@ describe('RowActionMenu', () => {
 
   it('renders nothing when every action is hidden', () => {
     const { container } = render(
-      <RowActionMenu
-        actions={[{ id: 'a', label: 'A', onSelect: vi.fn(), hidden: true }]}
-      />
+      <RowActionMenu actions={[{ id: 'a', label: 'A', onSelect: vi.fn(), hidden: true }]} />
     );
     expect(container).toBeEmptyDOMElement();
   });
 
   it('exposes the accessible label on the trigger', () => {
     render(<RowActionMenu actions={makeActions()} label="Actions for Fido" />);
-    expect(
-      screen.getByRole('button', { name: /actions for fido/i })
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /actions for fido/i })).toBeInTheDocument();
   });
 
   it('opens the menu and lists every visible action', async () => {
@@ -133,6 +129,21 @@ describe('RowActionMenu', () => {
     expect(document.body.querySelector('[role="separator"]')).not.toBeNull();
   });
 
+  it('renders section labels for grouped action concerns', async () => {
+    const actions: RowAction[] = [
+      { id: 'accept', label: 'Accept', sectionLabel: 'Entry', onSelect: vi.fn() },
+      { id: 'check-in', label: 'Check in', sectionLabel: 'Entry', onSelect: vi.fn() },
+      { id: 'refund', label: 'Refund', sectionLabel: 'Payment', onSelect: vi.fn() },
+    ];
+    const { user } = render(<RowActionMenu actions={actions} />);
+    await user.click(screen.getByRole('button', { name: /row actions/i }));
+    await screen.findByRole('menu');
+
+    expect(screen.getByText('Entry')).toBeInTheDocument();
+    expect(screen.getByText('Payment')).toBeInTheDocument();
+    expect(screen.getAllByRole('separator')).toHaveLength(1);
+  });
+
   it('renders a description as a secondary line', async () => {
     const actions: RowAction[] = [
       {
@@ -152,9 +163,7 @@ describe('RowActionMenu', () => {
 
   it('supports controlled open state', async () => {
     const onOpenChange = vi.fn();
-    render(
-      <RowActionMenu actions={makeActions()} open onOpenChange={onOpenChange} />
-    );
+    render(<RowActionMenu actions={makeActions()} open onOpenChange={onOpenChange} />);
     await waitFor(() => expect(screen.getByRole('menu')).toBeInTheDocument());
   });
 });

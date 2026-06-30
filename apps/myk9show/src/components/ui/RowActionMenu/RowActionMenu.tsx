@@ -13,6 +13,8 @@
  *   popover surfaces in both themes (see src/index.css). Hard-coded red-600 did not.
  * - A separator is inserted automatically before the first destructive action when
  *   non-destructive actions precede it, so callers don't repeat that boilerplate.
+ * - Optional section labels let dense row menus group mixed concerns without
+ *   creating a second action surface.
  * - Items default to a 44px min height to satisfy the INTENT touch-target guardrail.
  */
 
@@ -25,7 +27,9 @@ import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 
@@ -42,6 +46,8 @@ export interface RowAction {
   disabled?: boolean | undefined;
   /** Secondary muted line under the label (e.g. why an action is unavailable). */
   description?: string | undefined;
+  /** Optional section heading rendered before this action's group. */
+  sectionLabel?: string | undefined;
   /** Force a separator above this item (in addition to the auto destructive separator). */
   separatorBefore?: boolean | undefined;
   /** When true the action is omitted entirely — lets callers express conditional items inline. */
@@ -82,6 +88,29 @@ const VARIANT_CLASS: Record<RowActionVariant, string> = {
   warning: 'text-amber-600 focus:text-amber-600',
 };
 
+interface VisibleRowAction {
+  action: RowAction;
+  index: number;
+}
+
+interface RowActionSection {
+  sectionLabel: string | undefined;
+  items: VisibleRowAction[];
+}
+
+function groupVisibleActions(visible: RowAction[]): RowActionSection[] {
+  return visible.reduce<RowActionSection[]>((sections, action, index) => {
+    const current = sections[sections.length - 1];
+    if (!current || current.sectionLabel !== action.sectionLabel) {
+      sections.push({ sectionLabel: action.sectionLabel, items: [{ action, index }] });
+      return sections;
+    }
+
+    current.items.push({ action, index });
+    return sections;
+  }, []);
+}
+
 export function RowActionMenu({
   actions,
   align = 'end',
@@ -98,6 +127,7 @@ export function RowActionMenu({
   if (visible.length === 0) return null;
 
   const firstDestructiveIdx = visible.findIndex(action => action.variant === 'destructive');
+  const sections = groupVisibleActions(visible);
   const Glyph = icon === 'horizontal' ? MoreHorizontal : MoreVertical;
   const glyphSize = size === 'touch' ? 'h-5 w-5' : 'h-4 w-4';
 
@@ -123,40 +153,69 @@ export function RowActionMenu({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align={align} className={cn('w-48', contentClassName)}>
-        {visible.map((action, index) => {
-          const variant = action.variant ?? 'default';
-          const autoSeparator =
-            index === firstDestructiveIdx && firstDestructiveIdx > 0;
-          const showSeparator = index > 0 && (action.separatorBefore || autoSeparator);
-          // exactOptionalPropertyTypes: only pass these when defined, never `undefined`.
-          const itemProps = {
-            ...(action.disabled ? {} : { onClick: action.onSelect }),
-            ...(action.disabled !== undefined ? { disabled: action.disabled } : {}),
-          };
-          return (
-            <React.Fragment key={action.id}>
-              {showSeparator && <DropdownMenuSeparator />}
-              <DropdownMenuItem
-                {...itemProps}
-                className={cn(
-                  'min-h-[44px] cursor-pointer',
-                  action.description && 'items-start [&>svg]:mt-0.5',
-                  VARIANT_CLASS[variant],
-                  action.className
-                )}
-              >
-                {action.icon}
-                {action.description ? (
-                  <span className="flex min-w-0 flex-col">
-                    <span className="block">{action.label}</span>
-                    <span className="block text-xs text-muted-foreground">
-                      {action.description}
+        {sections.map((section, sectionIndex) => {
+          const firstItem = section.items[0];
+          const firstAction = firstItem?.action;
+          const firstIndex = firstItem?.index ?? 0;
+          const startsAfterPreviousSection = sectionIndex > 0;
+          const startsDestructiveSection =
+            firstIndex === firstDestructiveIdx && firstDestructiveIdx > 0;
+          const showSectionSeparator =
+            startsAfterPreviousSection &&
+            Boolean(
+              firstAction?.separatorBefore || startsDestructiveSection || section.sectionLabel
+            );
+          const sectionItems = section.items.map(({ action, index }, itemIndex) => {
+            const variant = action.variant ?? 'default';
+            const autoSeparator = index === firstDestructiveIdx && firstDestructiveIdx > 0;
+            const showItemSeparator = itemIndex > 0 && (action.separatorBefore || autoSeparator);
+            // exactOptionalPropertyTypes: only pass these when defined, never `undefined`.
+            const itemProps = {
+              ...(action.disabled ? {} : { onClick: action.onSelect }),
+              ...(action.disabled !== undefined ? { disabled: action.disabled } : {}),
+            };
+
+            return (
+              <React.Fragment key={action.id}>
+                {showItemSeparator && <DropdownMenuSeparator />}
+                <DropdownMenuItem
+                  {...itemProps}
+                  className={cn(
+                    'min-h-[44px] cursor-pointer',
+                    action.description && 'items-start [&>svg]:mt-0.5',
+                    VARIANT_CLASS[variant],
+                    action.className
+                  )}
+                >
+                  {action.icon}
+                  {action.description ? (
+                    <span className="flex min-w-0 flex-col">
+                      <span className="block">{action.label}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {action.description}
+                      </span>
                     </span>
-                  </span>
-                ) : (
-                  <span>{action.label}</span>
-                )}
-              </DropdownMenuItem>
+                  ) : (
+                    <span>{action.label}</span>
+                  )}
+                </DropdownMenuItem>
+              </React.Fragment>
+            );
+          });
+
+          return (
+            <React.Fragment key={`${section.sectionLabel ?? 'ungrouped'}-${sectionIndex}`}>
+              {showSectionSeparator && <DropdownMenuSeparator />}
+              {section.sectionLabel ? (
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
+                    {section.sectionLabel}
+                  </DropdownMenuLabel>
+                  {sectionItems}
+                </DropdownMenuGroup>
+              ) : (
+                sectionItems
+              )}
             </React.Fragment>
           );
         })}

@@ -15,6 +15,10 @@ export type {
   RegistrySport,
   RegistryDogFields,
   RegistryRegistrationField,
+  LevelSpec,
+  ElementSpec,
+  ClassVariant,
+  ClassVariantKind,
 } from './types';
 export { akcRegistry, AKC_EXHIBITOR_AGREEMENT } from './akc';
 export { getShowStyle, getShowLandingStyle, getTrialRegistry, getTrialTimezone } from './helpers';

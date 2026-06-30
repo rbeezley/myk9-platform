@@ -1,5 +1,75 @@
 import { AKC_SCENT_WORK_LEVELS, ELEMENT_COLUMN_HEADERS } from '@/lib/reports/entryFormTypes';
-import type { Registry } from './types';
+import type { ClassVariant, ElementSpec, LevelSpec, Registry, RegistrySport } from './types';
+
+/**
+ * AKC scent-work class structure, derived from the same source consts the rest of the
+ * app already uses (`AKC_SCENT_WORK_LEVELS`, `ELEMENT_COLUMN_HEADERS`) so the richer
+ * `RegistrySport` shape carries identical data — no drift. (Phase 0 of the multi-registry
+ * plan: docs/plan-multi-registry-scent-work.md.)
+ */
+
+// Novice is split A/B by ownership; the other levels have a single base class.
+const NOVICE_AB: readonly ClassVariant[] = [
+  { key: 'A', label: 'A', kind: 'ownership' },
+  { key: 'B', label: 'B', kind: 'ownership' },
+];
+
+// The four progression levels (Novice → Master), plus Detective as its own single-level element.
+const AKC_LEVELS: readonly LevelSpec[] = [
+  ...AKC_SCENT_WORK_LEVELS.map((label, i) => ({ key: label.toLowerCase(), label, order: i + 1 })),
+  { key: 'detective', label: 'Detective', order: AKC_SCENT_WORK_LEVELS.length + 1 },
+];
+
+const PROGRESSION_LEVEL_KEYS = AKC_SCENT_WORK_LEVELS.map(l => l.toLowerCase());
+
+/** Standard grid element with Novice A/B (Container, Interior, Exterior, Buried). */
+function gridElement(label: string): ElementSpec {
+  return {
+    key: label.toLowerCase(),
+    label,
+    columnHeader: ELEMENT_COLUMN_HEADERS[label as keyof typeof ELEMENT_COLUMN_HEADERS],
+    grid: true,
+    levels: PROGRESSION_LEVEL_KEYS,
+    variantsByLevel: { novice: NOVICE_AB },
+  };
+}
+
+const AKC_ELEMENTS: readonly ElementSpec[] = [
+  gridElement('Container'),
+  gridElement('Interior'),
+  gridElement('Exterior'),
+  gridElement('Buried'),
+  // Handler Discrimination: same four levels (Novice also split A/B), rendered outside the grid.
+  {
+    key: 'hd',
+    label: 'Handler Discrimination',
+    columnHeader: ELEMENT_COLUMN_HEADERS['Handler Discrimination'],
+    grid: false,
+    levels: PROGRESSION_LEVEL_KEYS,
+    variantsByLevel: { novice: NOVICE_AB },
+  },
+  // Detective: its own element, exactly one level, no sections.
+  {
+    key: 'detective',
+    label: 'Detective',
+    columnHeader: ELEMENT_COLUMN_HEADERS['Detective'],
+    grid: false,
+    levels: ['detective'],
+  },
+];
+
+const akcScentWork: RegistrySport = {
+  levels: AKC_LEVELS,
+  elements: AKC_ELEMENTS,
+  division: {
+    container: 'Odor Search',
+    interior: 'Odor Search',
+    exterior: 'Odor Search',
+    buried: 'Odor Search',
+    hd: 'Handler Discrimination',
+    detective: 'Detective',
+  },
+};
 
 /**
  * Exhibitor agreement — three paragraphs joined with '\n\n'. The original three
@@ -31,13 +101,7 @@ export const akcRegistry: Registry = {
     pattern: null,
   },
   sports: {
-    'scent-work': {
-      levels: AKC_SCENT_WORK_LEVELS,
-      // Scent-work elements split into standard (grid columns) and special (non-grid).
-      elements: ['Container', 'Interior', 'Exterior', 'Buried'],
-      special: ['Handler Discrimination', 'Detective'],
-      elementColumnHeaders: ELEMENT_COLUMN_HEADERS,
-    },
+    'scent-work': akcScentWork,
   },
   dogFields: {
     required: ['registeredName', 'callName', 'breed', 'sex', 'dateOfBirth', 'registrationNumber'],

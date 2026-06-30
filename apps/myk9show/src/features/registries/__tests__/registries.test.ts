@@ -18,11 +18,26 @@ describe('registry config layer', () => {
     expect(akc.memberClubLanguage).toBe('A member club of the American Kennel Club');
   });
 
-  it('AKC scent-work sport has the canonical levels and elements', () => {
+  it('AKC scent-work sport preserves the canonical levels and elements (new shape)', () => {
     const sport = getSport(akcRegistry, 'scent-work');
-    expect(sport.levels).toEqual(['Novice', 'Advanced', 'Excellent', 'Master']);
-    expect(sport.elements).toEqual(['Container', 'Interior', 'Exterior', 'Buried']);
-    expect(sport.special).toEqual(['Handler Discrimination', 'Detective']);
+    // Progression levels (excluding the Detective pseudo-level) match the original flat list.
+    expect(sport.levels.filter(l => l.key !== 'detective').map(l => l.label)).toEqual([
+      'Novice',
+      'Advanced',
+      'Excellent',
+      'Master',
+    ]);
+    // Grid elements == the original `elements`; non-grid == the original `special`.
+    expect(sport.elements.filter(e => e.grid).map(e => e.label)).toEqual([
+      'Container',
+      'Interior',
+      'Exterior',
+      'Buried',
+    ]);
+    expect(sport.elements.filter(e => !e.grid).map(e => e.label)).toEqual([
+      'Handler Discrimination',
+      'Detective',
+    ]);
   });
 
   it('getSport throws loudly for an unconfigured sport', () => {

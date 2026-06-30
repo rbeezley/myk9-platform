@@ -43,6 +43,12 @@ export interface ElementSpec {
   key: string;
   /** Display label, as stored in `classes.element` (e.g. 'Container', 'Handler Discrimination'). */
   label: string;
+  /**
+   * Display label for the entry-blank §II grid, when it differs from `label` (AKC pluralizes:
+   * 'Container' → 'Containers'). Defaults to `label`. This is the string the printed grid shows
+   * and matches against `classes.element`, so it must stay stable for that surface.
+   */
+  gridLabel?: string;
   /** Short header when rendered as a class-grid column (e.g. 'Cont.'). Omitted for non-grid elements. */
   columnHeader?: string;
   /** True = a column in the main element grid; false = rendered separately (e.g. HD, Detective). */

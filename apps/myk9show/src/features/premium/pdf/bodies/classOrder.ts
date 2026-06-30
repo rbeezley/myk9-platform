@@ -1,14 +1,10 @@
-// AKC Scent Work levels in competition-progression order. Levels not in this
-// list (custom or unknown) sort to the end alphabetically.
-const LEVEL_ORDER = [
-  'Novice A',
-  'Novice B',
-  'Novice',
-  'Advanced',
-  'Excellent',
-  'Master',
-  'Detective',
-] as const;
+import { getScentWorkSport, scentWorkLevelOrder } from '@/features/registries/scentWork';
+
+// AKC Scent Work levels in competition-progression order. Levels not in this list (custom
+// or unknown) sort to the end alphabetically. Derived from the AKC registry config (the
+// single source of truth) rather than hardcoded — reproduces
+// ['Novice A', 'Novice B', 'Novice', 'Advanced', 'Excellent', 'Master', 'Detective'].
+const LEVEL_ORDER: readonly string[] = scentWorkLevelOrder(getScentWorkSport('AKC'));
 
 // Rank assigned to any level we don't recognize. Kept above every real index so
 // unknown levels sort last in display order — but callers comparing two levels
@@ -19,12 +15,12 @@ const UNKNOWN_LEVEL_RANK = 999;
 // Case-insensitive lookup from a level string (incl. known aliases) to its
 // canonical LEVEL_ORDER value. 'Masters' (plural) is the common alias — the DB
 // stores 'Master', but scent-work-types.ts and registry copy use 'Masters'.
-const CANONICAL_LEVEL_BY_KEY: Record<string, (typeof LEVEL_ORDER)[number]> = {
+const CANONICAL_LEVEL_BY_KEY: Record<string, string> = {
   ...Object.fromEntries(LEVEL_ORDER.map(level => [level.toLowerCase(), level])),
   masters: 'Master',
 };
 
-function canonicalLevel(level: string): (typeof LEVEL_ORDER)[number] | null {
+function canonicalLevel(level: string): string | null {
   return CANONICAL_LEVEL_BY_KEY[level.trim().toLowerCase()] ?? null;
 }
 

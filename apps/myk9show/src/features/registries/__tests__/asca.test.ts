@@ -25,6 +25,12 @@ describe('ASCA registry — identity & legal', () => {
     expect(ASCA_EXHIBITOR_AGREEMENT).toMatch(/indemnify and hold Releasees harmless/);
     expect(ASCA_EXHIBITOR_AGREEMENT).toMatch(/AS USED HERE, "ASCA®" MEANS/);
   });
+
+  it('character length is in the expected range (guards against silent truncation)', () => {
+    // Captured 2026-06-30: 5921 chars. Bounds allow ±5% drift before failing.
+    expect(ASCA_EXHIBITOR_AGREEMENT.length).toBeGreaterThan(5625);
+    expect(ASCA_EXHIBITOR_AGREEMENT.length).toBeLessThan(6217);
+  });
 });
 
 describe('ASCA Scent Detection — generated class catalog', () => {

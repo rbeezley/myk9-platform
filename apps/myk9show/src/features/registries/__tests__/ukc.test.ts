@@ -31,6 +31,12 @@ describe('UKC registry — identity & legal', () => {
     expect(UKC_EXHIBITOR_AGREEMENT).toMatch(/indemnify and hold UKC, the host club/);
     expect(UKC_EXHIBITOR_AGREEMENT).toMatch(/Official UKC Rules and Regulations \(Nosework\)/);
   });
+
+  it('character length is in the expected range (guards against silent truncation)', () => {
+    // Captured 2026-06-30: 1379 chars. Bounds allow ±5% drift before failing.
+    expect(UKC_EXHIBITOR_AGREEMENT.length).toBeGreaterThan(1310);
+    expect(UKC_EXHIBITOR_AGREEMENT.length).toBeLessThan(1448);
+  });
 });
 
 describe('UKC Nosework — generated class catalog', () => {

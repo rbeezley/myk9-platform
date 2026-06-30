@@ -18,6 +18,7 @@ import {
   type ReplicatedJudgeAssignment,
 } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
 import { supabase } from '@/services/database/supabaseClient';
+import { resyncTrialRegistry } from '@/services/database/trials';
 import { getLastModifiedBy } from '@/utils/authHelpers';
 import {
   reportStoreError,
@@ -370,6 +371,13 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       if (updates.isNationals !== undefined) replicatedUpdates.isNationals = updates.isNationals;
 
       await replicatedShowsTable.updateShow(id, replicatedUpdates);
+
+      // Registry is show-wide and stored denormalized on each trial (write-path Phase 1).
+      // When the organization changes, re-derive and resync the show's trials so their
+      // registry_id never drifts from the org. Only fire on an actual change.
+      if (updates.organization !== undefined && updates.organization !== currentShow.organization) {
+        await resyncTrialRegistry(id, updates.organization);
+      }
 
       // Create updated show with local-only fields preserved
       // Filter out undefined values from updates to satisfy exactOptionalPropertyTypes

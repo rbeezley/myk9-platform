@@ -85,9 +85,10 @@ export function replicatedToTrial(replicated: ReplicatedTrial): SyncableTrial {
     timeEnded: replicated.actualEndTime || '',
     order: replicated.displayOrder !== undefined ? String(replicated.displayOrder) : '',
     image: replicated.imageUrl || '',
-    // Heritage / registry columns (migration 192) — must carry through so landing-data
-    // hooks read the real trial timezone instead of falling back to 'America/New_York'.
+    // Heritage / registry columns (migration 192) — carry both so landing-data hooks
+    // read the real timezone (not 'America/New_York') and registry-aware copy (not AKC).
     timezone: replicated.timezone ?? null,
+    registryId: replicated.registryId ?? null,
     // Sync metadata
     _version: replicated._version || 1,
     _lastModified: replicated._lastModified || new Date(),

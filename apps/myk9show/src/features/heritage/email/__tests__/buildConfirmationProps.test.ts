@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildConfirmationProps } from '../buildConfirmationProps';
+import { ukcRegistry } from '@/features/registries/ukc';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -159,6 +160,15 @@ describe('buildConfirmationProps', () => {
   it('uses AKC memberClubLanguage from registry', () => {
     const props = buildConfirmationProps(BASE_OPTS);
     expect(props.memberClubLanguage).toBe('A member club of the American Kennel Club');
+  });
+
+  it('reads the registry off the trial — UKC trial yields UKC member-club language', () => {
+    const props = buildConfirmationProps({
+      ...BASE_OPTS,
+      allTrials: TRIALS.map(t => ({ ...t, registry_id: 'UKC' })),
+    });
+    expect(props.memberClubLanguage).toBe(ukcRegistry.memberClubLanguage);
+    expect(props.memberClubLanguage).not.toBe('A member club of the American Kennel Club');
   });
 
   it('all optional fields are null when settings omitted', () => {

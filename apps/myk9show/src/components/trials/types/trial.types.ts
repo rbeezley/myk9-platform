@@ -18,6 +18,9 @@ export interface Trial {
   trialType?: string | undefined;
   pipelineStage?: number | undefined;
   // Heritage / registry columns (migration 192)
+  /** Sanctioning body, e.g. 'AKC' | 'UKC' | 'ASCA'. Read via getTrialRegistry(); drives
+   *  registry-aware license/agreement copy and the scent-work class structure. */
+  registryId?: string | null;
   entryCloseDate?: string | null;
   timezone?: string | null;
   maxTotalEntries?: number | null;

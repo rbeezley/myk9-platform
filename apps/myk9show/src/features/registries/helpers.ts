@@ -6,8 +6,8 @@
  * These are NOT React hooks — they are pure, synchronous selectors.
  */
 
-import { getRegistry } from './lookup';
-import type { Registry } from './types';
+import { getRegistry, listRegistries } from './lookup';
+import type { Registry, RegistryId } from './types';
 
 /** All experience styles a show can be assigned. Mirrors PremiumStyle. */
 export type ShowStyle =
@@ -73,7 +73,9 @@ export function getTrialRegistry(trial: TrialLike | null | undefined): Registry 
   // Trim + default so blank/whitespace registry_id falls back to AKC rather than
   // tripping the unknown-registry path.
   const id = trial?.registry_id?.trim() || 'AKC';
-  if (id === 'AKC') return getRegistry('AKC');
+  if ((listRegistries() as readonly string[]).includes(id)) {
+    return getRegistry(id as RegistryId);
+  }
   if (process.env.NODE_ENV !== 'production') {
     throw new Error(`Trial references unknown registry "${id}"`);
   }

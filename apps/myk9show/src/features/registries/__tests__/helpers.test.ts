@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { getShowStyle, getShowLandingStyle, getTrialRegistry, getTrialTimezone } from '../helpers';
 import { akcRegistry } from '../akc';
+import { ukcRegistry } from '../ukc';
 
 describe('getShowStyle', () => {
   it('reads style column (migration 195) over landing_style', () => {
@@ -82,6 +83,11 @@ describe('getTrialRegistry', () => {
     expect(getTrialRegistry({ registry_id: '' })).toBe(akcRegistry);
     expect(getTrialRegistry({ registry_id: '   ' })).toBe(akcRegistry);
     expect(getTrialRegistry({ registry_id: ' AKC ' })).toBe(akcRegistry);
+  });
+
+  it('resolves a configured non-AKC registry (UKC)', () => {
+    expect(getTrialRegistry({ registry_id: 'UKC' })).toBe(ukcRegistry);
+    expect(getTrialRegistry({ registry_id: ' UKC ' })).toBe(ukcRegistry);
   });
 
   it('throws in dev for an unknown registry id', () => {

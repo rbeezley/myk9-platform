@@ -150,7 +150,7 @@ Per [[feedback_parallelize_plans_by_file_not_pr]], fan by **file set**, not logi
 
 ## 6 · Risks & dependencies
 
-1. **CONTENT GAP — UKC/ASCA exhibitor-agreement + member-club legal text not yet sourced.** The *structure* of both registries is known (§8/§9), but the verbatim exhibitor-agreement prose and member-club footer language (the AKC equivalents in `akc.ts:10–20`) are **not** in the rulebooks I have — they live on each registry's official entry form. Phases 3–4 can ship the class structure and identity, but the entry blank for UKC/ASCA is **not publish-ready until that legal text is obtained**. Action: request the official UKC Nosework and ASCA Scent Detection entry forms before Phase 5.
+1. **CONTENT GAP — RESOLVED 2026-06-29.** The verbatim UKC + ASCA exhibitor-agreement text is now captured in scoping doc **§11** (from the official UKC Performance Entry Form FO135FBL and the ASCA Scent Detection Entry Form). Two follow-ups remain, neither a blocker: (a) UKC's text comes from the *generic Performance* form whose rule-set parenthetical omits Nosework — substitute "(Nosework)" or source the Nosework-specific form; (b) the ASCA agreement is COVID-19-era and should pass the attorney review gate ([[project_legal_content]]) before customer launch. UKC uses "host club" framing (no `memberClubLanguage` field needed). ASCA registration field refined to accept LEP/QT/REGULAR.
 2. **Scoring-rule fidelity.** AKC has rich per-(element,level) time/hide/area rules. UKC is largely judge-set; ASCA has per-level max times. Day-one ships ASCA's documented times + judge-set defaults elsewhere; full fidelity is a fast-follow tied to the (out-of-scope) scoring surface.
 3. **`RegistrySport` shape churn.** The §3.1 target type is a proposal; expect to refine it in Phase 0 as AKC is forced through it, and again in Phases 3–4 as UKC/ASCA stress it. That is the intended schema-by-extraction loop (scoping §6) — budget for one type revision per registry.
 4. **Free-text columns = no DB guardrail.** Because level/element/section are unconstrained text, a typo'd registry config silently produces wrong class names with no DB error. Mitigate with the per-registry catalog snapshot tests (Phases 2–4) as the guardrail the schema doesn't provide.
@@ -162,5 +162,5 @@ Per [[feedback_parallelize_plans_by_file_not_pr]], fan by **file set**, not logi
 - A secretary can create an AKC, UKC, or ASCA scent trial and the correct class catalog is generated.
 - Premium PDF, heritage landing, entry blank, confirmation email, and the registration wizard all render correct levels/elements/variants and registry-correct identity language for all three registries.
 - AKC output is provably unchanged (catalog + ordering + legal-text snapshots green).
-- UKC/ASCA entry-blank legal text either sourced and rendered, or the gap is explicitly tracked as a publish blocker for those two registries.
+- UKC/ASCA entry-blank legal text rendered from the verbatim agreements in scoping §11 (sourced 2026-06-29).
 - `pnpm typecheck` + `pnpm lint` + app vitest green; new unit tests cover each registry's catalog and the generic generator.

@@ -57,14 +57,24 @@ describe('buildEntryBlankProps — §II grid (characterization)', () => {
     expect(checked).toEqual(['Master / Exteriors']);
   });
 
-  it('marks the special row checked when a Master special class is entered', () => {
+  it('marks the special row checked for a level-less Detective entry (any level)', () => {
     const filled = buildEntryBlankProps({
       ...BASE,
-      classes: [{ id: 'c1', trial_id: 't1', level: 'Master', element: 'Detective' }],
+      classes: [{ id: 'c1', trial_id: 't1', element: 'Detective' }], // Detective has no level
       entry: { trial_id: 't1', class_id: 'c1' },
     });
     const checked = filled.levelCells.filter(c => c.checked).map(c => `${c.level} / ${c.element}`);
     expect(checked).toEqual(['Other / Detective']);
+  });
+
+  it('marks the HD special row checked for a non-Master HD entry (Advanced)', () => {
+    const filled = buildEntryBlankProps({
+      ...BASE,
+      classes: [{ id: 'c1', trial_id: 't1', level: 'Advanced', element: 'Handler Discrimination' }],
+      entry: { trial_id: 't1', class_id: 'c1' },
+    });
+    const checked = filled.levelCells.filter(c => c.checked).map(c => `${c.level} / ${c.element}`);
+    expect(checked).toEqual(['Other / Handler Discrimination']);
   });
 
   it('defaults to AKC for a blank/whitespace registry_id (does not throw)', () => {
@@ -77,5 +87,29 @@ describe('buildEntryBlankProps — §II grid (characterization)', () => {
       // Grid still renders the AKC structure (plural labels), proving AKC fallback.
       expect(props.levelCells[0]).toMatchObject({ level: 'Novice', element: 'Containers' });
     }
+  });
+});
+
+describe('buildEntryBlankProps — UKC trial', () => {
+  const UKC_BASE = {
+    ...BASE,
+    trials: [{ id: 't1', date: '2026-06-12', display_order: 1, registry_id: 'UKC' }],
+  };
+
+  it('renders UKC license language + Vehicle grid (registry-aware)', () => {
+    const props = buildEntryBlankProps(UKC_BASE);
+    expect(props.licenseLanguage).toBe('A UKC Licensed Nosework Trial');
+    expect(props.levelCells.some(c => c.element === 'Vehicle')).toBe(true);
+    expect(props.levelCells.some(c => c.element === 'Buried')).toBe(false);
+  });
+
+  it('prefills the HD special row for a UKC Excellent HD entry', () => {
+    const props = buildEntryBlankProps({
+      ...UKC_BASE,
+      classes: [{ id: 'c1', trial_id: 't1', level: 'Excellent', element: 'Handler Discrimination' }],
+      entry: { trial_id: 't1', class_id: 'c1' },
+    });
+    const checked = props.levelCells.filter(c => c.checked).map(c => `${c.level} / ${c.element}`);
+    expect(checked).toEqual(['Other / Handler Discrimination']);
   });
 });

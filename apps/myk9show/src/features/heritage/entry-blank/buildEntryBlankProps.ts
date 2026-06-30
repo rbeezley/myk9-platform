@@ -205,8 +205,11 @@ export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankPr
     levelCells.push({
       level: 'Other',
       element: special,
-      // Preserved AKC behavior: special rows check only for a Master-level entry.
-      checked: entryLevel === 'Master' && entryElement === special,
+      // A special row represents the element, not a specific level (the level isn't shown on the
+      // 'Other' row), so it checks whenever the entry is for that element — at ANY level. This
+      // covers UKC HD's Novice/Advanced/Excellent/Master and AKC's level-less Detective, both of
+      // which the old `=== 'Master'` guard missed.
+      checked: entryElement === special,
     });
   }
 

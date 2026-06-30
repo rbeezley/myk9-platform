@@ -1,4 +1,11 @@
 import { getRegistry } from '@/features/registries';
+import type { RegistryId } from '@/features/registries';
+import {
+  getScentWorkSport,
+  scentWorkGridElementLabels,
+  scentWorkGridLevelLabels,
+  scentWorkSpecialElementLabels,
+} from '@/features/registries/scentWork';
 import { toRoman } from '@/features/heritage/landing/useHeritageLandingData';
 import { formatFee } from '@/utils/format';
 import type {
@@ -89,12 +96,6 @@ interface PersonInput {
   zip_code?: string | null;
 }
 
-// ─── AKC levels + elements (from registry) ───────────────────────────────────
-// Matches the §II class-level grid in the design handoff.
-const AKC_LEVELS = ['Novice', 'Advanced', 'Excellent', 'Master'];
-const AKC_ELEMENTS = ['Containers', 'Interiors', 'Exteriors', 'Buried'];
-const AKC_SPECIAL = ['Handler Discrimination', 'Detective'];
-
 // ─── Date formatting ──────────────────────────────────────────────────────────
 
 function formatTrialDate(isoDate: string): string {
@@ -151,9 +152,11 @@ export interface BuildEntryBlankOptions {
 
 export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankProps {
   const { show, trials, classes, judges, club, secretary, entry, dog, handler } = opts;
-  // Phase 3: AKC-only per plan §7. When multi-registry support ships, replace
-  // with getRegistry(trials[0]?.registry_id ?? 'AKC').
-  const registry = getRegistry('AKC');
+  // Bind to the trial's registry (defaults to AKC). getRegistry throws for an unconfigured
+  // id — the intended hard-error until UKC/ASCA are populated (multi-registry plan §7 Q4).
+  const registryId = (trials[0]?.registry_id ?? 'AKC') as RegistryId;
+  const registry = getRegistry(registryId);
+  const sport = getScentWorkSport(registryId);
   const ownerDisplayName = handler
     ? [handler.first_name, handler.last_name].filter(Boolean).join(' ')
     : null;
@@ -185,9 +188,14 @@ export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankPr
   const entryLevel = entryClass?.level ?? null;
   const entryElement = entryClass?.element ?? null;
 
+  // §II grid: progression levels × grid elements (registry-derived), then the special rows.
+  const gridLevels = scentWorkGridLevelLabels(sport);
+  const gridElements = scentWorkGridElementLabels(sport);
+  const specialElements = scentWorkSpecialElementLabels(sport);
+
   const levelCells: EntryBlankLevelCell[] = [];
-  for (const level of AKC_LEVELS) {
-    for (const element of AKC_ELEMENTS) {
+  for (const level of gridLevels) {
+    for (const element of gridElements) {
       levelCells.push({
         level,
         element,
@@ -195,10 +203,11 @@ export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankPr
       });
     }
   }
-  for (const special of AKC_SPECIAL) {
+  for (const special of specialElements) {
     levelCells.push({
       level: 'Other',
       element: special,
+      // Preserved AKC behavior: special rows check only for a Master-level entry.
       checked: entryLevel === 'Master' && entryElement === special,
     });
   }

@@ -22,11 +22,19 @@ const AKC_LEVELS: readonly LevelSpec[] = [
 
 const PROGRESSION_LEVEL_KEYS = AKC_SCENT_WORK_LEVELS.map(l => l.toLowerCase());
 
+// AKC pluralizes element names on the printed entry-blank grid (Buried stays singular).
+const AKC_GRID_LABELS: Record<string, string> = {
+  Container: 'Containers',
+  Interior: 'Interiors',
+  Exterior: 'Exteriors',
+};
+
 /** Standard grid element with Novice A/B (Container, Interior, Exterior, Buried). */
 function gridElement(label: string): ElementSpec {
   return {
     key: label.toLowerCase(),
     label,
+    gridLabel: AKC_GRID_LABELS[label] ?? label,
     columnHeader: ELEMENT_COLUMN_HEADERS[label as keyof typeof ELEMENT_COLUMN_HEADERS],
     grid: true,
     levels: PROGRESSION_LEVEL_KEYS,

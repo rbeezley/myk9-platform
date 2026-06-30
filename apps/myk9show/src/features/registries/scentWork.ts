@@ -48,3 +48,28 @@ export function scentWorkLevelOrder(sport: RegistrySport): string[] {
   }
   return out;
 }
+
+/**
+ * Progression level labels offered by the grid (column) elements, in order — e.g. AKC
+ * `['Novice', 'Advanced', 'Excellent', 'Master']`. Excludes single-level non-grid elements
+ * like Detective. Used for the entry-blank §II grid rows.
+ */
+export function scentWorkGridLevelLabels(sport: RegistrySport): string[] {
+  const gridLevelKeys = new Set<string>();
+  for (const el of sport.elements) {
+    if (el.grid) for (const key of el.levels) gridLevelKeys.add(key);
+  }
+  return levelsByOrder(sport)
+    .filter(l => gridLevelKeys.has(l.key))
+    .map(l => l.label);
+}
+
+/** Grid (column) element display labels — `gridLabel ?? label` (AKC pluralizes). */
+export function scentWorkGridElementLabels(sport: RegistrySport): string[] {
+  return sport.elements.filter(e => e.grid).map(e => e.gridLabel ?? e.label);
+}
+
+/** Non-grid ("special") element labels, e.g. `['Handler Discrimination', 'Detective']`. */
+export function scentWorkSpecialElementLabels(sport: RegistrySport): string[] {
+  return sport.elements.filter(e => !e.grid).map(e => e.label);
+}

@@ -37,7 +37,7 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
     dataType: 'select',
     required: true,
     editable: false,
-    options: ['Interior', 'Exterior', 'Container', 'Buried', 'Handler Discrimination (HD)', 'Detective'],
+    options: ['Container', 'Interior', 'Exterior', 'Buried', 'Handler Discrimination', 'Detective'],
     displayOrder: 3,
     groupName: 'Basic Information',
     columnWidth: 2

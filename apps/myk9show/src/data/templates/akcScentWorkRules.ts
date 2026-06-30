@@ -1,4 +1,5 @@
 import { ClassDefinition } from '@/types/template.types';
+import { generateScentWorkClasses, getScentWorkSport } from '@/features/registries/scentWork';
 
 // Time limit rules based on element and level
 export const getTimeLimit = (element: string, level: string | undefined): { 
@@ -68,7 +69,7 @@ export const getTimeLimit = (element: string, level: string | undefined): {
   }
 
   // Handler Discrimination
-  if (element === 'Handler Discrimination (HD)') {
+  if (element === 'Handler Discrimination') {
     const hdTimes: Record<string, { time: string; setBy: 'Rules' | 'Judge' }> = {
       'Novice': { time: '2 minutes', setBy: 'Rules' },
       'Advanced': { time: '2-5 minutes', setBy: 'Judge' },
@@ -112,7 +113,7 @@ export const getSearchAreas = (element: string, level: string | undefined): numb
     if (level === 'Master') return 3;
   }
   
-  if (element === 'Handler Discrimination (HD)' && level === 'Master') {
+  if (element === 'Handler Discrimination' && level === 'Master') {
     return 2;
   }
 
@@ -127,7 +128,7 @@ export const getHideConfiguration = (element: string, level: string | undefined)
   }
   
   if (level === 'Advanced') {
-    return element === 'Handler Discrimination (HD)' ? 'Set by Rules: 1' : 'Set by Rules: 2';
+    return element === 'Handler Discrimination' ? 'Set by Rules: 1' : 'Set by Rules: 2';
   }
 
   // Variable hide counts for higher levels
@@ -135,7 +136,7 @@ export const getHideConfiguration = (element: string, level: string | undefined)
     if (element === 'Interior') {
       return 'Set by Rules: Unknown (1-3)';
     }
-    if (element === 'Handler Discrimination (HD)') {
+    if (element === 'Handler Discrimination') {
       return 'Set by Rules: 1';
     }
     return 'Set by Rules: 3';
@@ -151,7 +152,7 @@ export const getHideConfiguration = (element: string, level: string | undefined)
     if (element === 'Buried') {
       return 'Set by Judge: 1-4 (Unknown to Exhibitor)';
     }
-    if (element === 'Handler Discrimination (HD)') {
+    if (element === 'Handler Discrimination') {
       return 'Set by Rules: 3 per class';
     }
   }
@@ -168,10 +169,10 @@ export const getDistractionCount = (element: string, level: string | undefined):
   if (level === 'Novice') return 0;
   if (level === 'Advanced') return 1;
   if (level === 'Excellent') {
-    return element === 'Handler Discrimination (HD)' ? 1 : 2;
+    return element === 'Handler Discrimination' ? 1 : 2;
   }
   if (level === 'Master') {
-    if (element === 'Handler Discrimination (HD)') return 1; // Set by Judge: 1-2
+    if (element === 'Handler Discrimination') return 1; // Set by Judge: 1-2
     return 3;
   }
   if (element === 'Detective') return 4; // Set by Judge: 4-6
@@ -200,109 +201,53 @@ export const getEstimatedJudgingTime = (element: string, level: string | undefin
   return levelTimes[element] || levelTimes.default || 2.5;
 };
 
-// Generate all 27 AKC Scent Work classes
+// Generate the AKC Scent Work class catalog (26 classes). Structure comes from the AKC
+// registry (the single source of truth, via generateScentWorkClasses); this function attaches
+// the AKC rule field-overrides (time limits, hides, distractions, fees) per class. Canonical
+// labels: 'Master' (not 'Masters'), 'Handler Discrimination' (not '... (HD)'); registry order.
 export const generateAKCScentWorkClasses = (): ClassDefinition[] => {
-  const classes: ClassDefinition[] = [];
-  let displayOrder = 1;
+  return generateScentWorkClasses(getScentWorkSport('AKC')).map((cls, index) => {
+    const displayOrder = index + 1;
 
-  // Standard elements that have all levels
-  const standardElements = ['Interior', 'Exterior', 'Container', 'Buried'];
-  
-  standardElements.forEach(element => {
-    // Novice A & B
-    ['A', 'B'].forEach(section => {
-      classes.push({
-        element,
-        level: 'Novice',
-        section,
-        className: `${element} Novice ${section}`,
-        displayOrder: displayOrder++,
+    // Detective: standalone, judge-set, higher fee + smaller entry limit.
+    if (cls.element === 'Detective') {
+      return {
+        element: cls.element,
+        className: cls.className,
+        displayOrder,
         fieldOverrides: {
           searchAreas: { ruleValue: 1 },
-          hides: { ruleValue: getHideConfiguration(element, 'Novice') },
-          distractions: { ruleValue: 0 },
-          estimatedJudgingTime: { defaultValue: 2.5 },
-          ...getTimeLimitOverrides(element, 'Novice')
-        }
-      });
-    });
-
-    // Advanced, Excellent, Master
-    ['Advanced', 'Excellent', 'Master'].forEach(level => {
-      classes.push({
-        element,
-        level,
-        className: `${element} ${level}`,
-        displayOrder: displayOrder++,
-        fieldOverrides: {
-          searchAreas: { ruleValue: getSearchAreas(element, level) },
-          hides: { ruleValue: getHideConfiguration(element, level) },
-          distractions: { ruleValue: getDistractionCount(element, level) },
-          estimatedJudgingTime: { defaultValue: getEstimatedJudgingTime(element, level) },
-          ...getTimeLimitOverrides(element, level)
-        }
-      });
-    });
-  });
-
-  // Handler Discrimination classes
-  const hdElement = 'Handler Discrimination (HD)';
-  
-  // HD Novice A & B
-  ['A', 'B'].forEach(section => {
-    classes.push({
-      element: hdElement,
-      level: 'Novice',
-      section,
-      className: `Handler Discrimination Novice ${section}`,
-      displayOrder: displayOrder++,
-      fieldOverrides: {
-        searchAreas: { ruleValue: 1 },
-        hides: { ruleValue: 'Set by Rules: 1' },
-        distractions: { ruleValue: 0 },
-        estimatedJudgingTime: { defaultValue: 2.5 },
-        hcdExclude: { defaultValue: true }, // HD classes excluded from HCD award
-        ...getTimeLimitOverrides(hdElement, 'Novice')
-      }
-    });
-  });
-
-  // HD Advanced, Excellent, Master
-  ['Advanced', 'Excellent', 'Master'].forEach(level => {
-    classes.push({
-      element: hdElement,
-      level,
-      className: `Handler Discrimination ${level}`,
-      displayOrder: displayOrder++,
-      fieldOverrides: {
-        searchAreas: { ruleValue: getSearchAreas(hdElement, level) },
-        hides: { ruleValue: getHideConfiguration(hdElement, level) },
-        distractions: { ruleValue: getDistractionCount(hdElement, level) },
-        estimatedJudgingTime: { defaultValue: getEstimatedJudgingTime(hdElement, level) },
-        hcdExclude: { defaultValue: true },
-        ...getTimeLimitOverrides(hdElement, level)
-      }
-    });
-  });
-
-  // Detective class (standalone)
-  classes.push({
-    element: 'Detective',
-    className: 'Detective',
-    displayOrder: displayOrder++,
-    fieldOverrides: {
-      searchAreas: { ruleValue: 1 },
-      hides: { ruleValue: 'Set by Judge: 5-10' },
-      distractions: { ruleValue: 4, helpText: 'Judge sets 4-6 distractions' },
-      estimatedJudgingTime: { defaultValue: 5 },
-      preEntryFee: { defaultValue: 35 }, // Often higher fee
-      dayOfShowFee: { defaultValue: 40 },
-      maxEntries: { defaultValue: 30 }, // Usually smaller limit
-      ...getTimeLimitOverrides('Detective', undefined)
+          hides: { ruleValue: 'Set by Judge: 5-10' },
+          distractions: { ruleValue: 4, helpText: 'Judge sets 4-6 distractions' },
+          estimatedJudgingTime: { defaultValue: 5 },
+          preEntryFee: { defaultValue: 35 }, // Often higher fee
+          dayOfShowFee: { defaultValue: 40 },
+          maxEntries: { defaultValue: 30 }, // Usually smaller limit
+          ...getTimeLimitOverrides('Detective', undefined),
+        },
+      };
     }
-  });
 
-  return classes;
+    // Standard + Handler Discrimination classes: rule values come from the shared helpers,
+    // keyed by (element, level) — identical to the prior hardcoded values. HD classes are
+    // excluded from the HCD award.
+    const isHandlerDiscrimination = cls.element === 'Handler Discrimination';
+    return {
+      element: cls.element,
+      ...(cls.level ? { level: cls.level } : {}),
+      ...(cls.section ? { section: cls.section } : {}),
+      className: cls.className,
+      displayOrder,
+      fieldOverrides: {
+        searchAreas: { ruleValue: getSearchAreas(cls.element, cls.level) },
+        hides: { ruleValue: getHideConfiguration(cls.element, cls.level) },
+        distractions: { ruleValue: getDistractionCount(cls.element, cls.level) },
+        estimatedJudgingTime: { defaultValue: getEstimatedJudgingTime(cls.element, cls.level) },
+        ...(isHandlerDiscrimination ? { hcdExclude: { defaultValue: true } } : {}),
+        ...getTimeLimitOverrides(cls.element, cls.level),
+      },
+    };
+  });
 };
 
 // Helper to get time limit field overrides

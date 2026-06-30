@@ -17,7 +17,7 @@ export const AKC_SCENT_WORK_TEMPLATE: Omit<ClassTemplate, 'id' | 'createdAt' | '
 
   // Metadata
   description:
-    "Official AKC Scent Work template based on 2024 Judge's Guidelines. Generates all 27 standard classes with proper rules and field configurations.",
+    "Official AKC Scent Work template based on 2024 Judge's Guidelines. Generates all 26 standard classes with proper rules and field configurations.",
   officialRulesReference: "AKC Scent Work Judge's Guidelines (2024)",
   effectiveDate: new Date('2024-01-01'),
 
@@ -36,7 +36,7 @@ export const AKC_SCENT_WORK_TEMPLATE: Omit<ClassTemplate, 'id' | 'createdAt' | '
   // Field definitions
   fieldSpecifications: AKC_SCENT_WORK_FIELDS,
 
-  // Class definitions - all 27 classes
+  // Class definitions - all 26 classes
   classDefinitions: generateAKCScentWorkClasses(),
 
   // Validation rules

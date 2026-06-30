@@ -129,7 +129,7 @@ export async function diagnosePayment(
         ]
       : [];
   const links = entryShowId
-    ? [buildEntryManagementLink(config, entryShowId, entryId)]
+    ? [buildEntryManagementLink(config, entryShowId)]
     : [];
 
   if (rows.length > 1) {

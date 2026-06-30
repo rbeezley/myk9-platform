@@ -73,4 +73,10 @@ describe('diagnosePaymentInput', () => {
   it('rejects when no identifier is provided', () => {
     expect(() => diagnosePaymentInput.parse({})).toThrow();
   });
+
+  it('rejects when more than one identifier is provided (fail closed on ambiguity)', () => {
+    expect(() =>
+      diagnosePaymentInput.parse({ entryId: VALID_UUID, paymentIntentId: 'pi_123' }),
+    ).toThrow();
+  });
 });

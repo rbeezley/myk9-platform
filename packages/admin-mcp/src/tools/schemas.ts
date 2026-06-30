@@ -53,10 +53,17 @@ export const diagnosePaymentInput = z
     paymentIntentId: searchStringSchema.optional(),
     checkoutSessionId: searchStringSchema.optional(),
   })
+  // Exactly one identifier — fail closed on ambiguity rather than silently
+  // prioritizing one and hiding a mismatch the admin is trying to diagnose.
   .refine(
     (value) =>
-      Boolean(value.entryId ?? value.paymentIntentId ?? value.checkoutSessionId),
-    { message: 'provide one of entryId, paymentIntentId, or checkoutSessionId' },
+      [value.entryId, value.paymentIntentId, value.checkoutSessionId].filter(
+        Boolean,
+      ).length === 1,
+    {
+      message:
+        'provide exactly one of entryId, paymentIntentId, or checkoutSessionId',
+    },
   );
 
 export type DiagnoseConfirmationEmailInput = z.infer<

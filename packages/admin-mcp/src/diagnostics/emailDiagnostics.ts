@@ -114,6 +114,18 @@ export async function diagnoseConfirmationEmail(
       value: redactEmail(row.recipient_email),
       source: 'email_log.recipient_email',
     });
+    evidence.push({
+      label: 'Email-log received at',
+      value: row.created_at,
+      source: 'email_log.created_at',
+    });
+    if (row.resend_message_id) {
+      evidence.push({
+        label: 'Email-log provider id',
+        value: shortenProviderId(row.resend_message_id),
+        source: 'email_log.resend_message_id',
+      });
+    }
   }
 
   const limitations: string[] = [];
@@ -123,9 +135,7 @@ export async function diagnoseConfirmationEmail(
     );
   }
 
-  const links = e.show_id
-    ? [buildEntryManagementLink(config, e.show_id, entryId)]
-    : [];
+  const links = e.show_id ? [buildEntryManagementLink(config, e.show_id)] : [];
 
   if (!hasSendRecord && logRows.length === 0) {
     return createDiagnosticResult(config.envLabel, 'insufficient_data', {

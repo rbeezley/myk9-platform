@@ -116,6 +116,10 @@ describe('diagnoseConfirmationEmail', () => {
     const evidence = JSON.stringify(result.evidence);
     expect(evidence).toContain('p***@example.com');
     expect(evidence).not.toContain('pat@example.com');
+    // Task 6: email-log timestamp + shortened resend id must be in evidence.
+    expect(evidence).toContain('email_log.created_at');
+    expect(evidence).toContain('re_…f456');
+    expect(evidence).not.toContain('re_abc123def456');
   });
 
   it('flags "marked sent but no email-log row"', async () => {

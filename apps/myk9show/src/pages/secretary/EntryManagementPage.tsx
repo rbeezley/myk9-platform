@@ -15,9 +15,10 @@ import { Users, AlertCircle, Download, Loader2, Plus } from 'lucide-react';
 import { useEntryManagementData } from '@/hooks/useEntryManagementData';
 import { useEntryManagementFilters } from '@/hooks/useEntryManagementFilters';
 import { useEntryManagementActions } from '@/hooks/useEntryManagementActions';
-import { useShowTrials } from '@/hooks/queries/useShowTrials';
-import { useClassesByTrialQuery } from '@/hooks/queries/useClassesDatabase';
-import { useTrialEntries } from '@/hooks/queries/useTrialEntries';
+import {
+  useEntryManagementTrialClasses,
+  useEntryManagementTrialScope,
+} from '@/hooks/useEntryManagementTrialScope';
 import {
   ArmbandDialog,
   CompEntryDialog,
@@ -96,12 +97,8 @@ const EntryManagementPage: React.FC = () => {
 
   // Classes for the selected trial — fetched before useEntryManagementFilters so
   // their ids can scope the (show-wide) entry list to the chosen trial.
-  const { data: rawTrialClasses = [], isLoading: isLoadingClasses } = useClassesByTrialQuery(
-    trialParam || '',
-    !!trialParam
-  );
-  const trialClasses = rawTrialClasses as Array<{ id: string; name: string | null }>;
-  const trialClassIds = useMemo(() => trialClasses.map(c => c.id), [trialClasses]);
+  const { trialClasses, trialClassIds, isLoadingClasses } =
+    useEntryManagementTrialClasses(trialParam);
 
   const {
     searchTerm,
@@ -155,46 +152,19 @@ const EntryManagementPage: React.FC = () => {
     user,
   });
 
-  const { data: rawTrials = [], isLoading: isLoadingTrials } = useShowTrials(selectedShowId);
-  const trials = rawTrials as Array<{
-    id: string;
-    name: string | null;
-    date: string | null;
-    trial_number: string | number | null;
-  }>;
-  const { data: trialEntryRows = [], isLoading: isLoadingTrialEntries } = useTrialEntries(
-    trialFilter || ''
-  );
-
-  // Breadcrumb display names for the active trial/class filters.
-  const breadcrumbTrial = trialFilter ? trials.find(tr => tr.id === trialFilter) : null;
-  const breadcrumbTrialName = breadcrumbTrial
-    ? breadcrumbTrial.name || `Trial ${breadcrumbTrial.trial_number}`
-    : null;
-  const breadcrumbClassName = classFilter
-    ? (trialClasses.find(cl => cl.id === classFilter)?.name ?? null)
-    : null;
-
-  // Roster rows for the selected trial, narrowed by the class filter.
-  const rosterEntries = useMemo(() => {
-    if (!trialEntryRows.length) return [];
-    const rows = trialEntryRows.map(row => ({
-      id: row.id,
-      armband: row.armband,
-      dogName: row.dog?.call_name || row.dog?.name || 'Unknown Dog',
-      breed: row.dog?.breed || null,
-      handlerName:
-        row.handler ||
-        (row.dog?.owner
-          ? `${row.dog.owner.first_name || ''} ${row.dog.owner.last_name || ''}`.trim()
-          : 'Unknown'),
-      className: row.class?.name || 'Unknown Class',
-      classId: row.class_id,
-      isScored: row.is_scored === true,
-      checkInStatus: row.check_in_status || null,
-    }));
-    return classFilter ? rows.filter(e => e.classId === classFilter) : rows;
-  }, [trialEntryRows, classFilter]);
+  const {
+    trials,
+    isLoadingTrials,
+    breadcrumbTrialName,
+    breadcrumbClassName,
+    rosterEntries,
+    isLoadingTrialEntries,
+  } = useEntryManagementTrialScope({
+    selectedShowId,
+    trialFilter,
+    classFilter,
+    trialClasses,
+  });
 
   const [compDialog, setCompDialog] = useState<{
     open: boolean;
@@ -449,10 +419,7 @@ const EntryManagementPage: React.FC = () => {
 
         <TabsContent value="exceptions">
           {selectedShowId && (
-            <ExceptionsView
-              showId={selectedShowId}
-              onRefresh={() => loadEntries(selectedShowId)}
-            />
+            <ExceptionsView showId={selectedShowId} onRefresh={() => loadEntries(selectedShowId)} />
           )}
         </TabsContent>
 

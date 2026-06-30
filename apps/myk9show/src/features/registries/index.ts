@@ -21,5 +21,6 @@ export type {
   ClassVariantKind,
 } from './types';
 export { akcRegistry, AKC_EXHIBITOR_AGREEMENT } from './akc';
+export { ukcRegistry, UKC_EXHIBITOR_AGREEMENT } from './ukc';
 export { getShowStyle, getShowLandingStyle, getTrialRegistry, getTrialTimezone } from './helpers';
 export type { ShowStyle, LandingStyle } from './helpers';

@@ -46,6 +46,10 @@ export const mapDatabaseToTrial = (dbTrial: DbTrialWithShow): Trial => {
         : undefined,
     trialType: dbTrial.trial_type ?? undefined,
     image: dbTrial.image_url ?? undefined,
+    // Heritage / registry columns (migration 192) — carry timezone so the anon/cold
+    // public-landing path matches the warm path (replicatedToTrial) instead of
+    // silently defaulting to 'America/New_York' in getTrialTimezone.
+    timezone: dbTrial.timezone ?? undefined,
   };
 };
 

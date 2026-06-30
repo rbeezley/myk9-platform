@@ -85,6 +85,9 @@ export function replicatedToTrial(replicated: ReplicatedTrial): SyncableTrial {
     timeEnded: replicated.actualEndTime || '',
     order: replicated.displayOrder !== undefined ? String(replicated.displayOrder) : '',
     image: replicated.imageUrl || '',
+    // Heritage / registry columns (migration 192) — must carry through so landing-data
+    // hooks read the real trial timezone instead of falling back to 'America/New_York'.
+    timezone: replicated.timezone ?? null,
     // Sync metadata
     _version: replicated._version || 1,
     _lastModified: replicated._lastModified || new Date(),

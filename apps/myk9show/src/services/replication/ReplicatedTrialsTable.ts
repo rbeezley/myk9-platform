@@ -46,6 +46,8 @@ export interface ReplicatedTrial {
   imageUrl?: string | undefined;
   /** IANA timezone (migration 192 default 'America/New_York'); drives show-local date logic. */
   timezone?: string | undefined;
+  /** Sanctioning body (migration 192 default 'AKC'); drives registry-aware copy + class structure. */
+  registryId?: string | undefined;
 
   // Extra fields for scoring
   trial_date?: string | undefined;
@@ -82,6 +84,7 @@ function rowToTrial(row: TrialRow): ReplicatedTrial {
     category: row.category ?? undefined,
     imageUrl: row.image_url ?? undefined,
     timezone: row.timezone ?? undefined,
+    registryId: row.registry_id ?? undefined,
 
     // Map additional fields (from any as they might be missing in older types)
     trial_date: row.date,

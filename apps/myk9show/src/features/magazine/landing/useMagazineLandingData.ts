@@ -21,7 +21,7 @@ import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
 import { getLiveExperienceSnapshot } from '@/features/experience/experienceSnapshot';
-import { getRegistry, getTrialTimezone } from '@/features/registries';
+import { getTrialRegistry, getTrialTimezone } from '@/features/registries';
 import { formatFee } from '@/utils/format';
 import type {
   MagazineLandingData,
@@ -146,7 +146,7 @@ export function useMagazineLandingData(
   const { data: entries = [] } = useEntriesByShowQuery(showId, !!showId);
   const entryCount = entries.length;
 
-  const akc = getRegistry('AKC');
+  const registry = getTrialRegistry(currentTrial);
   const timezone = getTrialTimezone(currentTrial);
 
   return useMemo<MagazineLandingData>(() => {
@@ -240,7 +240,7 @@ export function useMagazineLandingData(
       monogramLetters: deriveMonogram(clubName),
 
       showName: show?.name ?? '',
-      showSubtitle: `${akc.licenseLanguage} · ${allTrials.length} Trial${allTrials.length !== 1 ? 's' : ''}`,
+      showSubtitle: `${registry.licenseLanguage} · ${allTrials.length} Trial${allTrials.length !== 1 ? 's' : ''}`,
       welcomeText: null,
       trialChairName: null,
 
@@ -277,12 +277,12 @@ export function useMagazineLandingData(
       secretaryName: null,
       secretaryEmail: null,
 
-      licenseLanguage: akc.licenseLanguage,
-      memberClubLanguage: akc.memberClubLanguage,
+      licenseLanguage: registry.licenseLanguage,
+      memberClubLanguage: registry.memberClubLanguage,
 
       journeySteps,
 
       entryWizardUrl: show?.id ? `/shows/${show.id}/register` : '/shows',
     };
-  }, [show, currentTrial, allTrials, entryCount, akc, timezone]);
+  }, [show, currentTrial, allTrials, entryCount, registry, timezone]);
 }

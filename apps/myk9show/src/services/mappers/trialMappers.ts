@@ -46,6 +46,9 @@ export const mapDatabaseToTrial = (dbTrial: DbTrialWithShow): Trial => {
         : undefined,
     trialType: dbTrial.trial_type ?? undefined,
     image: dbTrial.image_url ?? undefined,
+    // Registry (migration 192) — carried so the anon/cold public landing reads the
+    // trial's sanctioning body (UKC/ASCA), not the AKC fallback.
+    registryId: dbTrial.registry_id ?? null,
   };
 };
 

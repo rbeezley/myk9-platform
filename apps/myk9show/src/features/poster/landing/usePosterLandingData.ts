@@ -9,15 +9,10 @@ import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
 import { getLiveExperienceSnapshot } from '@/features/experience/experienceSnapshot';
-import { getRegistry, getTrialTimezone } from '@/features/registries';
+import { getTrialRegistry, getTrialTimezone } from '@/features/registries';
 import { formatFee } from '@/utils/format';
 import { padTrialNumber } from './utils/dateFormat';
-import type {
-  PosterFee,
-  PosterJudge,
-  PosterLandingData,
-  PosterTrial,
-} from './types';
+import type { PosterFee, PosterJudge, PosterLandingData, PosterTrial } from './types';
 
 export function usePosterLandingData(
   show: Show | null | undefined,
@@ -28,7 +23,7 @@ export function usePosterLandingData(
   const { data: entries = [] } = useEntriesByShowQuery(showId, !!showId);
   const entryCount = entries.length;
 
-  const akc = getRegistry('AKC');
+  const registry = getTrialRegistry(currentTrial);
   const timezone = getTrialTimezone(currentTrial);
 
   return useMemo<PosterLandingData>(() => {
@@ -118,7 +113,7 @@ export function usePosterLandingData(
     return {
       clubName,
       showName,
-      showSubtitle: `${akc.licenseLanguage} · ${allTrials.length} Trial${allTrials.length !== 1 ? 's' : ''}`,
+      showSubtitle: `${registry.licenseLanguage} · ${allTrials.length} Trial${allTrials.length !== 1 ? 's' : ''}`,
       welcomeText: null,
       trialChairName: null,
 
@@ -149,10 +144,10 @@ export function usePosterLandingData(
       secretaryName: null,
       secretaryEmail: null,
 
-      licenseLanguage: akc.licenseLanguage,
-      memberClubLanguage: akc.memberClubLanguage,
+      licenseLanguage: registry.licenseLanguage,
+      memberClubLanguage: registry.memberClubLanguage,
 
       entryWizardUrl: show?.id ? `/shows/${show.id}/register` : '/shows',
     };
-  }, [show, currentTrial, allTrials, entryCount, akc, timezone]);
+  }, [show, currentTrial, allTrials, entryCount, registry, timezone]);
 }

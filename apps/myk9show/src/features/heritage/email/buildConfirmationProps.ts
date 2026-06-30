@@ -1,4 +1,4 @@
-import { getRegistry } from '@/features/registries';
+import { getTrialRegistry } from '@/features/registries';
 import { toRoman } from '@/features/heritage/landing/useHeritageLandingData';
 import type { HeritageConfirmationProps, HeritageRunRow } from '@myk9/email';
 
@@ -20,6 +20,8 @@ interface TrialInput {
   trial_number?: string | null;
   display_order?: number | null;
   timezone?: string | null;
+  /** Sanctioning body (migration 192); drives the registry-aware member-club line. */
+  registry_id?: string | null;
 }
 
 interface ClassInput {
@@ -156,7 +158,8 @@ export function buildConfirmationProps(
 ): HeritageConfirmationProps {
   const { show, allTrials, allClasses, judges, entries, dog, handler, club, officers, settings } =
     opts;
-  const registry = getRegistry('AKC');
+  // Single-registry show: every trial shares one sanctioning body, so read it off the first.
+  const registry = getTrialRegistry(allTrials[0]);
 
   // Build sorted trial numeral map
   const sortedTrials = [...allTrials].sort(

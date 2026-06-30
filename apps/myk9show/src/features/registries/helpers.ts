@@ -31,7 +31,10 @@ interface ShowLike {
 }
 
 interface TrialLike {
+  /** Snake-case as it comes off a raw PostgREST row / email TrialInput. */
   registry_id?: string | null;
+  /** Camel-case as it rides on the mapped domain `Trial` (trial.types.ts). */
+  registryId?: string | null;
   timezone?: string | null;
 }
 
@@ -70,9 +73,10 @@ export function getShowLandingStyle(show: ShowLike | null | undefined): LandingS
  * is missing — every trial in the system today is AKC-sanctioned.
  */
 export function getTrialRegistry(trial: TrialLike | null | undefined): Registry {
+  // Accept either shape — snake_case off a raw row, camelCase off the mapped domain Trial.
   // Trim + default so blank/whitespace registry_id falls back to AKC rather than
   // tripping the unknown-registry path.
-  const id = trial?.registry_id?.trim() || 'AKC';
+  const id = (trial?.registry_id ?? trial?.registryId)?.trim() || 'AKC';
   if ((listRegistries() as readonly string[]).includes(id)) {
     return getRegistry(id as RegistryId);
   }

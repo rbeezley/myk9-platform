@@ -20,7 +20,8 @@ import type { RegistryId } from '@/features/registries';
  * Returns [] when the current class can't be resolved (the conservative
  * choice — never offer a target we can't validate). `registryId` defaults to
  * AKC for any caller not yet updated — pass the show's actual registry so
- * UKC/ASCA-only levels (Superior/Elite, Open/Champion) are recognized.
+ * UKC/ASCA-only levels (Superior/Elite, Open) are recognized. See
+ * isEligibleMoveUpTarget's NOT COVERED note re: ASCA's standalone Champion class.
  */
 export function getAvailableMoveUpTargets(
   classes: ClassWithCapacity[],

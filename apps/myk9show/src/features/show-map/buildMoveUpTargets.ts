@@ -15,7 +15,8 @@ import type { RegistryId } from '@/features/registries';
 /**
  * `registryId` defaults to AKC for any caller not yet updated — pass the show's
  * actual registry (a show's trials always share one — see scoping §7) so
- * UKC/ASCA-only levels (Superior/Elite, Open/Champion) are recognized.
+ * UKC/ASCA-only levels (Superior/Elite, Open) are recognized. See
+ * isEligibleMoveUpTarget's NOT COVERED note re: ASCA's standalone Champion class.
  */
 export function buildMoveUpTargets(
   classes: BuildShowMapTreeInput['classes'],

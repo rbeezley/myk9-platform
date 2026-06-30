@@ -12,9 +12,15 @@
  * so changing it once keeps them consistent.
  *
  * REGISTRY: the level ladder differs per registry (UKC adds Superior/Elite, ASCA
- * adds Open/Champion — neither is in AKC's ladder), so callers must pass the
- * registry the classes belong to. Defaults to AKC for any caller not yet updated
- * (matches the getTrialRegistry default-to-AKC convention).
+ * adds Open — neither is in AKC's ladder), so callers must pass the registry the
+ * classes belong to. Defaults to AKC for any caller not yet updated (matches the
+ * getTrialRegistry default-to-AKC convention).
+ *
+ * NOT COVERED: ASCA's Champion is a standalone terminal class with its own element
+ * ('Champion', not Container/Interior/Exterior/Vehicle) and no `level` field on real
+ * generated classes (see asca.ts, generateScentWorkClasses) — so it can never satisfy
+ * the same-element check above, registry-aware or not. Whether/how a dog should be
+ * able to move up into Champion is a separate design question, out of scope here.
  */
 import { isKnownLevel, levelProgressionRank } from '@/features/premium/pdf/bodies/classOrder';
 import type { RegistryId } from '@/features/registries';

@@ -219,7 +219,7 @@ function ShowMapTabView({
 
   const catalogEntryCount = countCatalogEntries(entries);
   // A show's trials always share one registry (scoping §7) — resolve once from the
-  // first trial so move-up recognizes UKC/ASCA-only levels (Superior/Elite, Open/Champion).
+  // first trial so move-up recognizes UKC/ASCA-only levels (Superior/Elite, Open).
   const registryId = useMemo(() => getTrialRegistry(trials[0]).id, [trials]);
   const moveUpTargets = useMemo(
     () => buildMoveUpTargets(classes, moveUpAction?.classId, registryId),

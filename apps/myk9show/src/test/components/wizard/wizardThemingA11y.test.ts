@@ -15,6 +15,7 @@ const read = (p: string) => readFileSync(p, 'utf8');
 
 const reviewStep = read(path.join(stepsDir, 'ReviewStep.tsx'));
 const showDetailsStep = read(path.join(stepsDir, 'ShowDetailsStep.tsx'));
+const basicShowInfoSection = read(path.join(stepsDir, 'ShowDetailsStep.sections.tsx'));
 const trialConfigStep = read(path.join(stepsDir, 'TrialConfigurationStep.tsx'));
 const classSelectionStep = read(path.join(stepsDir, 'ClassSelectionStep.tsx'));
 const judgesPicker = read(path.join(stepsDir, 'JudgesPicker.tsx'));
@@ -89,7 +90,7 @@ describe('Show creation wizard — dark-mode theming guards', () => {
 
   it('ShowDetailsStep validation errors use the semantic destructive token', () => {
     expect(showDetailsStep).not.toContain('text-red-500');
-    expect(showDetailsStep).toContain('text-sm text-destructive mt-1');
+    expect(basicShowInfoSection).toContain('text-sm text-destructive mt-1');
   });
 
   it('ClassSelectionStep empty state uses semantic warning tokens', () => {

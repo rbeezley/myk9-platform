@@ -103,6 +103,11 @@ function levelsForElement(sport: RegistrySport, el: ElementSpec): LevelSpec[] {
  * level whose label matches the element, e.g. AKC Detective) render as just the element name
  * with no level. Phase 2 of the multi-registry plan.
  *
+ * VARIANTS: a level's `variantsByLevel` entries are interpreted by `kind`. `ownership` variants
+ * (AKC/UKC A/B) REPLACE the base class (no plain "Novice", only "Novice A"/"Novice B").
+ * `continuation` variants (ASCA "Level C") are ADDITIVE — the base class is still emitted
+ * alongside the variant (e.g. "Novice" + "Novice Level C").
+ *
  * ORDER: classes are emitted in registry element order (`sport.elements`), then level
  * progression, then variant. For AKC this is Container → Interior → Exterior → Buried → HD →
  * Detective. This is an INTENTIONAL canonical change from the legacy generators' Interior-first
@@ -116,22 +121,26 @@ export function generateScentWorkClasses(sport: RegistrySport): ScentWorkClassSk
     for (const level of levelsForElement(sport, el)) {
       const standalone = el.levels.length === 1 && level.label === el.label;
       const variants = el.variantsByLevel?.[level.key] ?? [];
-      if (variants.length === 0) {
+      // Variant kinds behave oppositely: `ownership` (AKC/UKC A/B) REPLACES the base class —
+      // there is no plain "Novice", only "Novice A"/"Novice B". `continuation` (ASCA "Level C")
+      // is ADDITIVE — the base "Novice" still exists alongside "Novice Level C". So emit the
+      // base unless an ownership variant has replaced it.
+      const hasOwnershipVariant = variants.some(v => v.kind === 'ownership');
+      if (!hasOwnershipVariant) {
         // Standalone (e.g. Detective) renders as just the element name, no level.
         out.push(
           standalone
             ? { element: el.label, className: el.label }
             : { element: el.label, level: level.label, className: `${el.label} ${level.label}` }
         );
-      } else {
-        for (const variant of variants) {
-          out.push({
-            element: el.label,
-            level: level.label,
-            section: variant.key,
-            className: `${el.label} ${level.label} ${variant.label}`,
-          });
-        }
+      }
+      for (const variant of variants) {
+        out.push({
+          element: el.label,
+          level: level.label,
+          section: variant.key,
+          className: `${el.label} ${level.label} ${variant.label}`,
+        });
       }
     }
   }

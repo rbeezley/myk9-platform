@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateScentWorkClasses, getScentWorkSport } from '../scentWork';
+import type { RegistrySport } from '../types';
 
 /**
  * Tests for the registry-driven scent-work class generator (Phase 2). Asserts the canonical
@@ -93,5 +94,61 @@ describe('generateScentWorkClasses — AKC', () => {
     expect(names.some(n => n.includes('Masters'))).toBe(false);
     expect(names.some(n => n.includes('(HD)'))).toBe(false);
     expect(classes.every(c => c.level !== 'Masters')).toBe(true);
+  });
+});
+
+/**
+ * Variant-kind handling — guards Phase 4 (ASCA) before its registry exists. ASCA's "Level C" is
+ * a `continuation` variant: the base class must NOT be dropped. AKC/UKC A/B are `ownership`:
+ * the base IS dropped. Uses synthetic sports since UKC/ASCA aren't configured yet.
+ */
+describe('generateScentWorkClasses — variant kinds', () => {
+  const NOVICE = [{ key: 'novice', label: 'Novice', order: 1 }];
+
+  it('continuation variant (ASCA Level C) keeps the base class AND adds the variant', () => {
+    const ascaLike: RegistrySport = {
+      levels: NOVICE,
+      elements: [
+        {
+          key: 'container',
+          label: 'Containers',
+          grid: true,
+          levels: ['novice'],
+          variantsByLevel: { novice: [{ key: 'C', label: 'Level C', kind: 'continuation' }] },
+        },
+      ],
+    };
+    expect(generateScentWorkClasses(ascaLike)).toEqual([
+      { element: 'Containers', level: 'Novice', className: 'Containers Novice' },
+      {
+        element: 'Containers',
+        level: 'Novice',
+        section: 'C',
+        className: 'Containers Novice Level C',
+      },
+    ]);
+  });
+
+  it('ownership variant (A/B) replaces the base class', () => {
+    const akcLike: RegistrySport = {
+      levels: NOVICE,
+      elements: [
+        {
+          key: 'container',
+          label: 'Container',
+          grid: true,
+          levels: ['novice'],
+          variantsByLevel: {
+            novice: [
+              { key: 'A', label: 'A', kind: 'ownership' },
+              { key: 'B', label: 'B', kind: 'ownership' },
+            ],
+          },
+        },
+      ],
+    };
+    const names = generateScentWorkClasses(akcLike).map(c => c.className);
+    expect(names).toEqual(['Container Novice A', 'Container Novice B']);
+    expect(names).not.toContain('Container Novice');
   });
 });

@@ -24,7 +24,7 @@ All backend API endpoints in the myK9 Platform are Supabase Edge Functions runni
   - `supabase/functions/<name>/index.ts` -- platform-wide functions, including ringside (`/at-show`) auth/AI and all notification/email senders.
   - `apps/myk9show/supabase/functions/<name>/index.ts` -- app-scoped functions: Stripe billing and cron jobs.
 
-  There is no longer a separate myK9Q app. Ringside scoring now lives at `/at-show` inside myK9Show, and its supporting functions (e.g. `validate-passcode`, `ask-myk9q`) live in the platform-wide `supabase/functions/` directory.
+  There is no longer a separate myK9Q app. Ringside scoring now lives at `/at-show` inside myK9Show, and its supporting functions (e.g. `validate-passcode`) live in the platform-wide `supabase/functions/` directory.
 
 ### Complete Function Inventory
 
@@ -32,20 +32,20 @@ Only the key functions are documented in full below. The complete current invent
 
 **`supabase/functions/` (platform-wide)**
 
-| Group              | Functions                                                                                                                                                                                                          |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Ringside / AI      | `validate-passcode` (ringside passcode auth for `/at-show`), `ask-myk9q` (ringside AI assistant), `ask-myk9show` (show-app AI assistant)                                                                            |
-| Email senders      | `send-email`, `send-auth-email`, `send-confirmation-email`, `send-registration-email`, `send-targeted-message`, `send-results`, `send-waitlist-invite`, `resend-webhook`                       |
-| Push notifications | `send-push-notification`, `push-trigger-announcement`, `push-trigger-chat-message`, `push-trigger-class-status`, `push-trigger-scoring`                                                                             |
-| Premium / admin    | `generate-premium`, `admin-delete-user`, `admin-generate-reset-link`                                                                                                                                               |
+| Group              | Functions                                                                                                                                                                |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Ringside / AI      | `validate-passcode` (ringside passcode auth for `/at-show`), `ask-myk9show` (show-app AI assistant)                                                                      |
+| Email senders      | `send-email`, `send-auth-email`, `send-confirmation-email`, `send-registration-email`, `send-targeted-message`, `send-results`, `send-waitlist-invite`, `resend-webhook` |
+| Push notifications | `send-push-notification`, `push-trigger-announcement`, `push-trigger-chat-message`, `push-trigger-class-status`, `push-trigger-scoring`                                  |
+| Premium / admin    | `generate-premium`, `admin-delete-user`, `admin-generate-reset-link`                                                                                                     |
 
 **`apps/myk9show/supabase/functions/` (app-scoped)**
 
-| Group               | Functions                                                                                                                                              |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Stripe / payments   | `stripe-checkout`, `stripe-customer-portal`, `stripe-upgrade-subscription`, `stripe-webhook`, `stripe-connect-onboard`, `stripe-refund-entry`, `cron-process-payouts` |
-| Waitlist            | `cron-waitlist-expiration`                                                                                                                             |
-| Email               | `send-email` (app-scoped sender; a same-named platform-wide sender also exists)                                                                       |
+| Group             | Functions                                                                                                                                                             |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stripe / payments | `stripe-checkout`, `stripe-customer-portal`, `stripe-upgrade-subscription`, `stripe-webhook`, `stripe-connect-onboard`, `stripe-refund-entry`, `cron-process-payouts` |
+| Waitlist          | `cron-waitlist-expiration`                                                                                                                                            |
+| Email             | `send-email` (app-scoped sender; a same-named platform-wide sender also exists)                                                                                       |
 
 ---
 
@@ -264,11 +264,11 @@ The function validates `newPlanId` against a hardcoded allowlist of valid price 
 
 Server-side passcode validation with IP-based rate limiting. This is the ringside passcode authentication endpoint used by the `/at-show` experience inside myK9Show (there is no longer a separate myK9Q app).
 
-| Detail     | Value                                                      |
-| ---------- | ---------------------------------------------------------- |
-| **Source** | `supabase/functions/validate-passcode/index.ts`            |
-| **Method** | `POST`                                                     |
-| **Auth**   | None (this IS the authentication endpoint)                 |
+| Detail     | Value                                           |
+| ---------- | ----------------------------------------------- |
+| **Source** | `supabase/functions/validate-passcode/index.ts` |
+| **Method** | `POST`                                          |
+| **Auth**   | None (this IS the authentication endpoint)      |
 
 **Request Body:**
 
@@ -309,53 +309,6 @@ Passcode format: first character is a role prefix (`a` = admin, `j` = judge, `s`
 | `500`  | Database or internal error                                                 |
 
 **Rate Limiting:** Uses the `check_login_rate_limit` and `record_login_attempt` Postgres RPC functions. 5 attempts per 15 minutes, then a 30-minute block.
-
----
-
-### ask-myk9q
-
-AI-powered ringside chatbot that answers questions about show data and competition rules using Claude with tool-use. Serves the `/at-show` ringside experience inside myK9Show. Its sibling, `ask-myk9show` (`supabase/functions/ask-myk9show/index.ts`), is the equivalent AI assistant for the main show app.
-
-| Detail     | Value                                                     |
-| ---------- | --------------------------------------------------------- |
-| **Source** | `supabase/functions/ask-myk9q/index.ts`                   |
-| **Method** | `POST`                                                    |
-| **Auth**   | None (public, but requires `licenseKey` for data scoping) |
-
-**Request Body:**
-
-```typescript
-interface ChatRequest {
-  message: string; // User's natural language question
-  licenseKey: string; // Show license key for data scoping
-  organizationCode?: string; // e.g. 'AKC', 'UKC'
-  sportCode?: string; // e.g. 'scent-work', 'nosework'
-}
-```
-
-**Success Response** (`200`):
-
-```typescript
-interface ChatResponse {
-  answer: string; // Claude's final text answer
-  toolsUsed: string[]; // Names of tools Claude invoked
-  sources?: {
-    rules?: Rule[]; // Rules referenced
-    classes?: ClassSummary[]; // Class data referenced
-    entries?: EntryResult[]; // Entry data referenced
-    trials?: TrialSummary[]; // Trial data referenced
-  };
-}
-```
-
-**Error Responses:**
-
-| Status | Condition                                                            |
-| ------ | -------------------------------------------------------------------- |
-| `400`  | Missing or empty `message`; missing `licenseKey`                     |
-| `500`  | `ANTHROPIC_API_KEY` not configured; Claude API error; internal error |
-
-**Environment Variables Required:** `ANTHROPIC_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
 
 ---
 
@@ -468,10 +421,10 @@ Receives and processes Stripe webhook events. Called by Stripe's servers, not by
 
 Emails an electronic results file (e.g. AKC Scent Work XML) to the registry submission address, with the submitting secretary CC'd. The destination address is resolved server-side from an `organization:sportType` map so the client cannot redirect the email.
 
-| Detail     | Value                                                  |
-| ---------- | ------------------------------------------------------ |
-| **Source** | `supabase/functions/send-results/index.ts`            |
-| **Method** | `POST`                                                 |
+| Detail     | Value                                                               |
+| ---------- | ------------------------------------------------------------------- |
+| **Source** | `supabase/functions/send-results/index.ts`                          |
+| **Method** | `POST`                                                              |
 | **Auth**   | Supabase JWT (validated internally; origins restricted to myK9Show) |
 
 **Request Body:**
@@ -494,11 +447,11 @@ interface SendResultsPayload {
 
 **Error Responses:**
 
-| Status | Condition                                                          |
-| ------ | ----------------------------------------------------------------- |
+| Status | Condition                                                                          |
+| ------ | ---------------------------------------------------------------------------------- |
 | `400`  | Missing required field, or no submission email mapped for `organization:sportType` |
-| `502`  | Resend API rejected the send                                       |
-| `503`  | `RESEND_API_KEY` not configured                                    |
+| `502`  | Resend API rejected the send                                                       |
+| `503`  | `RESEND_API_KEY` not configured                                                    |
 
 **Environment Variables Required:** `RESEND_API_KEY`
 
@@ -722,9 +675,7 @@ Scheduled job that expires overdue waitlist offers and auto-offers spots to the 
 
    ```typescript
    const { data, error } = await supabase.functions.invoke('<function-name>', {
-     body: {
-       /* request payload */
-     },
+     body: {/* request payload */},
    });
    ```
 
@@ -746,7 +697,7 @@ Custom secrets used across functions:
 | `STRIPE_WEBHOOK_SECRET` | stripe-webhook                                                                       | Stripe webhook signing secret                     |
 | `RESEND_API_KEY`        | send-email                                                                           | Resend email service API key                      |
 | `CRON_SECRET`           | cron-waitlist-expiration                                                             | Shared secret for cron authentication             |
-| `ANTHROPIC_API_KEY`     | ask-myk9q, ask-myk9show                                                              | Anthropic API key for Claude                      |
+| `ANTHROPIC_API_KEY`     | ask-myk9show                                                                         | Anthropic API key for Claude                      |
 | `TRIGGER_SECRET`        | send-push-notification                                                               | Shared secret for database trigger authentication |
 | `VITE_VAPID_PUBLIC_KEY` | send-push-notification                                                               | Web Push VAPID public key                         |
 | `VAPID_PRIVATE_KEY`     | send-push-notification                                                               | Web Push VAPID private key                        |

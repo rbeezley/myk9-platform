@@ -15,7 +15,7 @@ supabase functions download --project-ref sojmvhhwsjxmfistvzbe --use-api --workd
 # then diff each: deployed = $TMP/supabase/functions/<name>/index.ts  vs  repo source
 ```
 
-Direction matters: a function whose deployed bundle byte-matches an *old* commit is **repo-ahead** (safe to deploy from repo). One whose deployed bundle matches *no* commit is **deployed-ahead** (an uncommitted hotfix — recover to source, do NOT redeploy).
+Direction matters: a function whose deployed bundle byte-matches an _old_ commit is **repo-ahead** (safe to deploy from repo). One whose deployed bundle matches _no_ commit is **deployed-ahead** (an uncommitted hotfix — recover to source, do NOT redeploy).
 
 ## Resolved 2026-06-23
 
@@ -27,18 +27,18 @@ Direction matters: a function whose deployed bundle byte-matches an *old* commit
 
 These 10 are safe in the sense that the repo version is reviewed/merged and the deployed version is an older committed version. **But most are the #259/#261 "shared HTTP envelope" migration (merged 2026-05-20, never deployed), which changes each function's response shape** — so each needs its callers checked before deploy, not a blind batch. Several also carry newer feature work (e.g. `send-confirmation-email` gained the heritage field-guide/gazette/magazine/poster email builders).
 
-| Function | Location | Undeployed change |
-| --- | --- | --- |
-| `ask-myk9q` | root | #259 envelope refactor |
-| `send-auth-email` | root | #261 envelope (⚠️ GoTrue auth-email hook — test carefully) |
-| `send-confirmation-email` | root | envelope + heritage email builders (large) |
-| `send-registration-email` | root | #261 envelope |
-| `send-waitlist-invite` | root | #261 envelope (large) |
-| `push-trigger-scoring` | root | #261 envelope |
-| `push-trigger-class-status` | root | #261 envelope |
-| `admin-generate-reset-link` | root | #261 envelope |
-| `generate-premium` | root | #261 envelope |
-| `stripe-customer-portal` | apps/myk9show | staging CORS origin add (#225, minor) |
+| Function                    | Location      | Undeployed change                                                                                    |
+| --------------------------- | ------------- | ---------------------------------------------------------------------------------------------------- |
+| `ask-myk9q`                 | root          | ~~#259 envelope refactor~~ — retired 2026-06-30 (function deleted, #1049); no longer a deploy target |
+| `send-auth-email`           | root          | #261 envelope (⚠️ GoTrue auth-email hook — test carefully)                                           |
+| `send-confirmation-email`   | root          | envelope + heritage email builders (large)                                                           |
+| `send-registration-email`   | root          | #261 envelope                                                                                        |
+| `send-waitlist-invite`      | root          | #261 envelope (large)                                                                                |
+| `push-trigger-scoring`      | root          | #261 envelope                                                                                        |
+| `push-trigger-class-status` | root          | #261 envelope                                                                                        |
+| `admin-generate-reset-link` | root          | #261 envelope                                                                                        |
+| `generate-premium`          | root          | #261 envelope                                                                                        |
+| `stripe-customer-portal`    | apps/myk9show | staging CORS origin add (#225, minor)                                                                |
 
 Deploy command (root vs apps/myk9show workdir):
 

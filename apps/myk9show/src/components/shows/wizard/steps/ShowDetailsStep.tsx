@@ -1,19 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { logger } from '@/services/LoggingService';
 import { CloneFromShowCombobox } from './CloneFromShowCombobox';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { DateRangePicker } from '@/components/ui/date-range-picker';
-import { HelpCircle } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Label } from '@/components/ui/label';
 import { PaymentMethodsCheckboxGroup } from '@/components/common/PaymentMethodsCheckboxGroup';
 import { useWizardStore } from '@/store/wizardStore';
 import { useClubStore } from '@/store/clubStore';
@@ -22,39 +9,16 @@ import { UserRole } from '@/types/auth-types';
 import { useUserClubIds } from '@/hooks/useUserClubIds';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import type { ShowDetailsStepProps } from './ShowDetailsStep.types';
-import { ORGANIZATIONS } from './ShowDetailsStep.types';
 import {
   filterClubs,
   resolveSelectedJudges,
   isValidDateRange,
   isValidEntryDates,
 } from './ShowDetailsStep.helpers';
-import { ClubSection } from './ShowDetailsStep.sections';
-import { FeeField } from './ShowDetailsStep.FeeField';
+import { ClubSection, BasicShowInfoSection } from './ShowDetailsStep.sections';
 import { OfficialPicker } from './OfficialPicker';
 import { JudgesPicker } from './JudgesPicker';
-import { createUser, updateUser } from '@/services/database/users';
-import { createJudgeQualification } from '@/services/database/judges';
-import { createClub } from '@/services/database/clubs';
-import type { CreateClubData } from './ShowDetailsStep.sections';
-import {
-  getPremiumStyleOptions,
-  resolvePremiumStyle,
-  type PremiumStyle,
-} from '@/types/premium-types';
-
-const PREMIUM_STYLE_OPTIONS = getPremiumStyleOptions();
-const PREMIUM_STYLE_LABEL_BY_VALUE: Record<PremiumStyle, string> = PREMIUM_STYLE_OPTIONS.reduce(
-  (acc, opt) => {
-    acc[opt.value] = opt.label;
-    return acc;
-  },
-  {} as Record<PremiumStyle, string>
-);
-
-function getPremiumStyleLabel(style: PremiumStyle | undefined): string {
-  return PREMIUM_STYLE_LABEL_BY_VALUE[resolvePremiumStyle(style)];
-}
+import { useShowDetailsStepActions } from './useShowDetailsStepActions';
 
 export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) => {
   logger.debug('ShowDetailsStep component loaded', 'wizard');
@@ -124,78 +88,12 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
     [show.judgeIds, people, judgeDetails]
   );
 
-  // Inline club creation — no panelManager needed
-  const handleCreateClub = async (data: CreateClubData): Promise<void> => {
-    const result = await createClub({ name: data.name, email: data.email });
-    if (result.error) throw result.error;
-    await loadClubs();
-    updateShowData({ clubId: result.data!.id });
-    logger.debug('Club created and selected', 'wizard', { clubName: data.name });
-  };
-
-  const handleCreateOfficialPerson = async (data: {
-    firstName: string;
-    lastName: string;
-    email: string;
-  }): Promise<string> => {
-    const result = await createUser({
-      first_name: data.firstName,
-      last_name: data.lastName,
-      email: data.email,
-    });
-    if (result.error) throw result.error;
-    await loadPeople();
-    return result.data!.id;
-  };
-
-  const handleSaveJudgeCredentials = async (
-    personId: string,
-    data: { organization: string; judgeNumber: string; email: string }
-  ): Promise<void> => {
-    if (!data.judgeNumber.trim()) throw new Error('Judge number is required');
-    await createJudgeQualification({
-      person_id: personId,
-      organization: data.organization,
-      qualification_level: 'General',
-      disciplines: [],
-      judge_number: data.judgeNumber,
-      date_obtained: new Date().toISOString().split('T')[0],
-      is_active: true,
-    });
-    const person = people.find(p => p.id === personId);
-    if (data.email && !person?.email) {
-      await updateUser(personId, { email: data.email });
-    }
-    await loadPeople();
-  };
-
-  const handleCreateNewJudge = async (data: {
-    firstName: string;
-    lastName: string;
-    organization: string;
-    judgeNumber: string;
-    email: string;
-  }): Promise<string> => {
-    if (!data.judgeNumber.trim()) throw new Error('Judge number is required');
-    const result = await createUser({
-      first_name: data.firstName,
-      last_name: data.lastName,
-      email: data.email,
-    });
-    if (result.error) throw result.error;
-    const personId = result.data!.id;
-    await createJudgeQualification({
-      person_id: personId,
-      organization: data.organization,
-      qualification_level: 'General',
-      disciplines: [],
-      judge_number: data.judgeNumber,
-      date_obtained: new Date().toISOString().split('T')[0],
-      is_active: true,
-    });
-    await loadPeople();
-    return personId;
-  };
+  const {
+    handleCreateClub,
+    handleCreateOfficialPerson,
+    handleSaveJudgeCredentials,
+    handleCreateNewJudge,
+  } = useShowDetailsStepActions();
 
   // Entry close date is set manually by the secretary — no auto-populate.
 
@@ -209,190 +107,12 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         <CloneFromShowCombobox clubId={show.clubId || undefined} />
 
         {/* Basic Show Information */}
-        <div>
-          <div>
-            <h3 className="text-lg font-semibold mb-4 text-foreground">Basic Show Information</h3>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="show-name">
-                  Show Name <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="show-name"
-                  value={show.name || ''}
-                  onChange={e => updateShowData({ name: e.target.value })}
-                  placeholder="Enter show name"
-                  className="border border-border bg-input rounded-md"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="show-organization">
-                  Organization <span className="text-destructive">*</span>
-                </Label>
-                <Select
-                  value={show.organization || ''}
-                  onValueChange={value =>
-                    updateShowData({ organization: value as 'AKC' | 'UKC' | 'NASDA' | 'Other' })
-                  }
-                >
-                  <SelectTrigger id="show-organization" className="bg-input h-10">
-                    <SelectValue placeholder="Select organization">
-                      {show.organization
-                        ? ORGANIZATIONS.find(t => t.value === show.organization)?.label
-                        : undefined}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ORGANIZATIONS.map(org => (
-                      <SelectItem key={org.value} value={org.value}>
-                        {org.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="show-dates">
-                  Show Dates <span className="text-destructive">*</span>
-                </Label>
-                <DateRangePicker
-                  id="show-dates"
-                  startDate={show.startDate ? new Date(show.startDate) : undefined}
-                  endDate={show.endDate ? new Date(show.endDate) : undefined}
-                  onStartDateChange={date =>
-                    updateShowData({ startDate: date?.toISOString() || '' })
-                  }
-                  onEndDateChange={date => updateShowData({ endDate: date?.toISOString() || '' })}
-                  startLabel="Start"
-                  endLabel="End"
-                  placeholder="Select show start and end dates"
-                  startDefaultTime="8:00 AM"
-                  endDefaultTime="5:00 PM"
-                />
-                {!dateRangeValid && (
-                  <p className="text-sm text-destructive mt-1">
-                    Start date must be before end date
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="show-entry-period">
-                  Entry Period <span className="text-destructive">*</span>
-                </Label>
-                <DateRangePicker
-                  id="show-entry-period"
-                  startDate={show.entryOpenDate ? new Date(show.entryOpenDate) : undefined}
-                  endDate={show.entryCloseDate ? new Date(show.entryCloseDate) : undefined}
-                  onStartDateChange={date =>
-                    updateShowData({ entryOpenDate: date?.toISOString() || '' })
-                  }
-                  onEndDateChange={date =>
-                    updateShowData({ entryCloseDate: date?.toISOString() || '' })
-                  }
-                  startLabel="Opens"
-                  endLabel="Closes"
-                  placeholder="Select entry open and close dates"
-                  startDefaultTime="8:00 AM"
-                  endDefaultTime="11:59 PM"
-                />
-                {!entryDatesValid && (
-                  <p className="text-sm text-destructive mt-1">
-                    Entry open date must be before close date
-                  </p>
-                )}
-              </div>
-
-              <FeeField
-                id="show-pre-entry-fee"
-                label="Pre-Entry Fee"
-                tooltip="Entry fee for registrations submitted before the entry close date. Usually lower than day-of-show fee."
-                value={show.preEntryFee}
-                onChange={v => {
-                  if (v !== undefined) updateShowData({ preEntryFee: v });
-                }}
-              />
-
-              <FeeField
-                id="show-day-of-show-fee"
-                label="Day-of-Show Fee"
-                tooltip="Entry fee for on-site registrations on the day of the show. Usually higher than pre-entry fee."
-                value={show.dayOfShowFee}
-                onChange={v => {
-                  if (v !== undefined) updateShowData({ dayOfShowFee: v });
-                }}
-              />
-
-              <div className="space-y-2">
-                <Label htmlFor="show-premium-style">Premium List Style</Label>
-                <Select
-                  value={resolvePremiumStyle(show.style)}
-                  onValueChange={value => updateShowData({ style: value as PremiumStyle })}
-                >
-                  <SelectTrigger id="show-premium-style" className="bg-input h-10">
-                    <SelectValue placeholder="Select style">
-                      {getPremiumStyleLabel(show.style)}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PREMIUM_STYLE_OPTIONS.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="show-starting-armband" className="flex items-center gap-1.5">
-                  Starting Armband Number
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="max-w-xs">
-                        <p>
-                          First dog registered will receive this armband number. Subsequent dogs get
-                          sequential numbers.
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </Label>
-                <Input
-                  id="show-starting-armband"
-                  type="number"
-                  min={1}
-                  value={show.startingArmbandNumber ?? 100}
-                  onChange={e =>
-                    updateShowData({
-                      startingArmbandNumber: parseInt(e.target.value, 10) || 100,
-                    })
-                  }
-                  className="border border-border bg-input rounded-md"
-                />
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="show-location">
-                  Location <span className="text-destructive">*</span>
-                </Label>
-                <Textarea
-                  id="show-location"
-                  value={show.location || ''}
-                  onChange={e => updateShowData({ location: e.target.value })}
-                  placeholder="Enter venue name and address"
-                  rows={3}
-                  className="border border-border bg-input rounded-md"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+        <BasicShowInfoSection
+          show={show}
+          dateRangeValid={dateRangeValid}
+          entryDatesValid={entryDatesValid}
+          onUpdate={updateShowData}
+        />
 
         {/* Payment Methods */}
         <div>

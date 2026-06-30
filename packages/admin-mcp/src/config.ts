@@ -43,6 +43,29 @@ function requireString(env: NodeJS.ProcessEnv, key: string): string {
   return raw.trim();
 }
 
+/**
+ * Require an env var that is an absolute http(s) URL. Rejects relative paths
+ * (`/`), non-http schemes (`javascript:`, `ftp:`), and malformed values so
+ * deep links are never broken or unsafe. Returns the validated raw string.
+ */
+function requireHttpUrl(env: NodeJS.ProcessEnv, key: string): string {
+  const raw = requireString(env, key);
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new AdminMcpConfigError(
+      `${key} must be an absolute http(s) URL, received "${raw}"`,
+    );
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new AdminMcpConfigError(
+      `${key} must use the http or https scheme, received "${raw}"`,
+    );
+  }
+  return raw;
+}
+
 function parsePositiveIntLimit(
   env: NodeJS.ProcessEnv,
   key: string,
@@ -62,20 +85,16 @@ function parsePositiveIntLimit(
 }
 
 export function loadAdminMcpConfig(env: NodeJS.ProcessEnv): AdminMcpConfig {
-  const supabaseUrl = requireString(env, 'MYK9_MCP_SUPABASE_URL');
-  if (!/^https?:\/\//i.test(supabaseUrl)) {
-    throw new AdminMcpConfigError(
-      `MYK9_MCP_SUPABASE_URL must be an http(s) URL, received "${supabaseUrl}"`,
-    );
-  }
+  const supabaseUrl = requireHttpUrl(env, 'MYK9_MCP_SUPABASE_URL');
 
   const supabaseServiceRoleKey = requireString(
     env,
     'MYK9_MCP_SUPABASE_SERVICE_ROLE_KEY',
   );
 
-  // Trim any trailing slashes so link building can join paths cleanly.
-  const appBaseUrl = requireString(env, 'MYK9_MCP_APP_BASE_URL').replace(
+  // Validate as an absolute http(s) URL, then trim trailing slashes so link
+  // building can join paths cleanly.
+  const appBaseUrl = requireHttpUrl(env, 'MYK9_MCP_APP_BASE_URL').replace(
     /\/+$/,
     '',
   );

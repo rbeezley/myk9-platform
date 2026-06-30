@@ -29,6 +29,21 @@ describe('createDiagnosticResult', () => {
     expect(createDiagnosticResult('production', 'found').envLabel).toBe('production');
   });
 
+  it('redacts secret-shaped evidence values at the envelope boundary', () => {
+    const result = createDiagnosticResult('local', 'found', {
+      evidence: [
+        { label: 'Stripe key', value: 'sk_live_abcdefgh12345678', source: 'leak' },
+        { label: 'Amount cents', value: 4200, source: 'stripe_orders.amount_cents' },
+        { label: 'Paid', value: true, source: 'stripe_orders.paid_at' },
+      ],
+    });
+
+    // A caller that forgets to redact is still protected by the builder.
+    expect(result.evidence[0]?.value).toBe('[redacted-secret]');
+    expect(result.evidence[1]?.value).toBe(4200);
+    expect(result.evidence[2]?.value).toBe(true);
+  });
+
   it('preserves supplied summary, evidence, links, and limitations', () => {
     const result = createDiagnosticResult('local', 'found', {
       summary: { showId: 'abc' },

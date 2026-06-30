@@ -6,6 +6,7 @@
  * always knows which database an answer came from (local/staging/production).
  */
 import type { EnvLabel } from '../config';
+import { redactEvidenceValue } from './redaction';
 
 export type DiagnosticState =
   | 'found'
@@ -47,6 +48,10 @@ export interface DiagnosticResultInit<TSummary extends Record<string, unknown>> 
 /**
  * Build a fully-populated diagnostic envelope, stamping `envLabel` and
  * defaulting the array/summary fields so every tool returns the same shape.
+ *
+ * Evidence values are passed through {@link redactEvidenceValue} here, at the
+ * boundary, so secret-shaped strings are scrubbed even when a caller forgets
+ * to redact. This is the single enforcement point for the redaction guarantee.
  */
 export function createDiagnosticResult<
   TSummary extends Record<string, unknown> = Record<string, unknown>,
@@ -59,7 +64,10 @@ export function createDiagnosticResult<
     state,
     envLabel,
     summary: (init.summary ?? {}) as TSummary,
-    evidence: init.evidence ?? [],
+    evidence: (init.evidence ?? []).map((entry) => ({
+      ...entry,
+      value: redactEvidenceValue(entry.value),
+    })),
     links: init.links ?? [],
     limitations: init.limitations ?? [],
   };

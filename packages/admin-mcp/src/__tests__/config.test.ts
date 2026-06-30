@@ -41,6 +41,18 @@ describe('loadAdminMcpConfig', () => {
     ).toThrow(AdminMcpConfigError);
   });
 
+  it.each([
+    '/',
+    'app.myk9show.com',
+    'javascript:alert(1)',
+    'ftp://app.myk9show.com',
+    'not a url',
+  ])('rejects an app base URL that is not absolute http(s): %s', (value) => {
+    expect(() =>
+      loadAdminMcpConfig({ ...BASE_ENV, MYK9_MCP_APP_BASE_URL: value }),
+    ).toThrow(AdminMcpConfigError);
+  });
+
   it('rejects an env label outside local, staging, and production', () => {
     expect(() =>
       loadAdminMcpConfig({ ...BASE_ENV, MYK9_MCP_ENV_LABEL: 'prod' }),

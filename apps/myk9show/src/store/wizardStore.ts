@@ -15,6 +15,8 @@ const DEFAULT_TRIAL_TYPE: Partial<Record<string, string>> = {
   ASCA: 'Scent Detection',
 };
 
+export type ShowDraft = WizardState['show'];
+
 interface WizardState {
   currentStep: number;
   completedSteps: number[];

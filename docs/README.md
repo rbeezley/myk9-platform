@@ -48,6 +48,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [navigation-ia.md](navigation-ia.md)                                                       | Reference | Navigation & IA Sketch — Fall 2026                                    |
 | [plan-active-docs-triage-2026-06-14.md](plan-active-docs-triage-2026-06-14.md)             | Active    | Active-Docs Triage — 2026-06-14                                       |
 | [plan-architecture-deepening.md](plan-architecture-deepening.md)                           | Active    | Architecture Deepening Plan                                           |
+| [plan-askq-revival.md](plan-askq-revival.md)                                               | Active    | AskQ Revival & Simplification (select-then-bundle)                    |
 | [plan-atshow-ringside-writes.md](plan-atshow-ringside-writes.md)                           | Active    | At-Show Ringside — wire deferred writes + judge/steward write authz   |
 | [plan-block-person-delete-owns-dogs.md](plan-block-person-delete-owns-dogs.md)             | Active    | Block deleting a person who still owns dogs                           |
 | [plan-class-status-auto-derivation.md](plan-class-status-auto-derivation.md)               | Active    | Plan — Class Status Auto-Derivation (Stub)                            |

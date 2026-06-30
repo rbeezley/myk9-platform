@@ -5,7 +5,7 @@
  * (docs/plan-multi-registry-scent-work.md).
  */
 import { getRegistry, getSport } from './lookup';
-import type { LevelSpec, RegistryId, RegistrySport } from './types';
+import type { ElementSpec, LevelSpec, RegistryId, RegistrySport } from './types';
 
 const SCENT_WORK = 'scent-work';
 
@@ -72,4 +72,61 @@ export function scentWorkGridElementLabels(sport: RegistrySport): string[] {
 /** Non-grid ("special") element labels, e.g. `['Handler Discrimination', 'Detective']`. */
 export function scentWorkSpecialElementLabels(sport: RegistrySport): string[] {
   return sport.elements.filter(e => !e.grid).map(e => e.label);
+}
+
+/**
+ * One generated class skeleton — the canonical (element, level, section) identity plus the
+ * formatted display name. Carries structure only; per-registry rule detail (time limits,
+ * hide counts, fee defaults) is attached by the registry-specific generator that consumes this.
+ */
+export interface ScentWorkClassSkeleton {
+  /** Canonical element label (e.g. 'Container', 'Handler Discrimination'). */
+  element: string;
+  /** Canonical level label (e.g. 'Novice', 'Master'). Omitted for standalone classes (Detective). */
+  level?: string;
+  /** Section/variant key stored in `classes.section` (e.g. 'A', 'B'). Omitted when none. */
+  section?: string;
+  /** Display name: '<element> <level>[ <section>]', or just '<element>' when standalone. */
+  className: string;
+}
+
+/** Levels an element offers, in progression order. */
+function levelsForElement(sport: RegistrySport, el: ElementSpec): LevelSpec[] {
+  const offered = new Set(el.levels);
+  return levelsByOrder(sport).filter(l => offered.has(l.key));
+}
+
+/**
+ * Generate the canonical class catalog for a registry's scent-work sport by walking
+ * `elements × element.levels × variantsByLevel`. The single source of truth for "which scent
+ * classes exist" — replaces per-registry hardcoded generators. Standalone elements (a single
+ * level whose label matches the element, e.g. AKC Detective) render as just the element name
+ * with no level. Phase 2 of the multi-registry plan.
+ */
+export function generateScentWorkClasses(sport: RegistrySport): ScentWorkClassSkeleton[] {
+  const out: ScentWorkClassSkeleton[] = [];
+  for (const el of sport.elements) {
+    for (const level of levelsForElement(sport, el)) {
+      const standalone = el.levels.length === 1 && level.label === el.label;
+      const variants = el.variantsByLevel?.[level.key] ?? [];
+      if (variants.length === 0) {
+        // Standalone (e.g. Detective) renders as just the element name, no level.
+        out.push(
+          standalone
+            ? { element: el.label, className: el.label }
+            : { element: el.label, level: level.label, className: `${el.label} ${level.label}` }
+        );
+      } else {
+        for (const variant of variants) {
+          out.push({
+            element: el.label,
+            level: level.label,
+            section: variant.key,
+            className: `${el.label} ${level.label} ${variant.label}`,
+          });
+        }
+      }
+    }
+  }
+  return out;
 }

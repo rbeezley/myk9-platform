@@ -132,8 +132,11 @@ Each phase is independently shippable, behavior-preserving where noted, and **no
 - **Tests:** snapshot ASCA catalog; assert Level-C variant kind, "Open"/"Champion" levels, Champion has no Level C; QTracker label renders.
 
 ### Phase 5 — Wire publishing surfaces end-to-end
-- Finish `buildEntryBlankProps` (read trial registry), premium `classOrder` (registry ordering), confirm landing / confirmation-email / wizard render all three registries from DB data.
-- Manual cold-session walk: create one UKC and one ASCA scent trial on staging; verify premium PDF, heritage landing, entry blank, confirmation email, and the registration wizard class-selection all show correct levels/elements/variants/legal language.
+Split into three independently-shippable PRs once the consumer surfaces were surveyed.
+
+- **5a — Landing pages + confirmation emails registry-aware. ✅ DONE (#1054).** `buildEntryBlankProps` already read the trial registry (Phase 1b). 5a threaded `registryId` through the full trial-mapper chain (warm `replicatedToTrial`, cold `mapDatabaseToTrial`, **and** the replication-fallback re-serializer `mapReplicatedTrialToDbRow` — Codex P2 catch), widened `getTrialRegistry` to accept snake **or** camel casing, then pointed the 7 landing hooks (8 styles — Headline reuses Heritage) and both `buildConfirmationProps` builders at `getTrialRegistry(trial)`. Tests pin every mapper hop + UKC/ASCA copy. **Found + queued separately:** the same mappers also drop `timezone` (every landing silently shows Eastern).
+- **5b — Premium `classOrder` registry-aware. ⬜ TODO.** `classOrder.ts`'s progression comparators are context-free module globals (`compareClassesByProgression(a, b)`) hardcoding `getScentWorkSport('AKC')` — needs an API-shape decision (thread registry through ~6 premium bodies vs. a `makeComparator(registry)` factory). Retire the `'masters'` alias here too.
+- **5c — Live cold-session walk.** Create one UKC and one ASCA scent trial on staging; verify premium PDF, heritage landing, entry blank, confirmation email, and the registration wizard class-selection all show correct levels/elements/variants/legal language.
 - **Tests:** component tests for entry-blank + premium across all three registries; the walk is evidence, not a substitute for tests.
 
 ### Phase 6 — QA, regression, scorecard

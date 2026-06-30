@@ -47,10 +47,12 @@ describe('buildEntryBlankProps — §II grid (characterization)', () => {
     expect(props.levelCells.every(c => c.checked === false)).toBe(true);
   });
 
-  it('marks the matching grid cell checked for a pre-filled entry', () => {
+  it('marks the matching grid cell checked for a pre-filled entry (canonical element label)', () => {
     const filled = buildEntryBlankProps({
       ...BASE,
-      classes: [{ id: 'c1', trial_id: 't1', level: 'Master', element: 'Exteriors' }],
+      // Real classes store the canonical singular element label ('Exterior'); the grid displays
+      // the pluralized 'Exteriors' but matches on the canonical label.
+      classes: [{ id: 'c1', trial_id: 't1', level: 'Master', element: 'Exterior' }],
       entry: { trial_id: 't1', class_id: 'c1' },
     });
     const checked = filled.levelCells.filter(c => c.checked).map(c => `${c.level} / ${c.element}`);
@@ -111,5 +113,41 @@ describe('buildEntryBlankProps — UKC trial', () => {
     });
     const checked = props.levelCells.filter(c => c.checked).map(c => `${c.level} / ${c.element}`);
     expect(checked).toEqual(['Other / Handler Discrimination']);
+  });
+});
+
+describe('buildEntryBlankProps — ASCA trial (Level C continuation rows)', () => {
+  const ASCA_BASE = {
+    ...BASE,
+    trials: [{ id: 't1', date: '2026-06-12', display_order: 1, registry_id: 'ASCA' }],
+  };
+
+  it('renders Level C rows alongside the base levels on a blank form', () => {
+    const rows = new Set(buildEntryBlankProps(ASCA_BASE).levelCells.map(c => c.level));
+    // Base levels AND their Level C continuation rows both appear.
+    expect(rows.has('Novice')).toBe(true);
+    expect(rows.has('Novice Level C')).toBe(true);
+    expect(rows.has('Excellent')).toBe(true);
+    expect(rows.has('Excellent Level C')).toBe(true);
+  });
+
+  it('prefills the Level C cell (not the base) for a Level C entry', () => {
+    const props = buildEntryBlankProps({
+      ...ASCA_BASE,
+      classes: [{ id: 'c1', trial_id: 't1', level: 'Novice', element: 'Container', section: 'C' }],
+      entry: { trial_id: 't1', class_id: 'c1' },
+    });
+    const checked = props.levelCells.filter(c => c.checked).map(c => `${c.level} / ${c.element}`);
+    expect(checked).toEqual(['Novice Level C / Containers']);
+  });
+
+  it('prefills the BASE cell (not Level C) for a base Novice entry', () => {
+    const props = buildEntryBlankProps({
+      ...ASCA_BASE,
+      classes: [{ id: 'c1', trial_id: 't1', level: 'Novice', element: 'Container' }], // no section
+      entry: { trial_id: 't1', class_id: 'c1' },
+    });
+    const checked = props.levelCells.filter(c => c.checked).map(c => `${c.level} / ${c.element}`);
+    expect(checked).toEqual(['Novice / Containers']);
   });
 });

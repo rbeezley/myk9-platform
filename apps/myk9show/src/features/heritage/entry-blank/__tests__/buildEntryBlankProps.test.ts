@@ -48,8 +48,10 @@ const CLASSES = [
     id: 'cls-1',
     trial_id: 'trial-1',
     name: 'Containers · Interiors · Buried',
-    element: 'Containers',
+    // Canonical element label (singular), as real generated classes store it.
+    element: 'Container',
     level: 'Novice',
+    section: 'A',
     entry_fee: 25,
   },
 ];

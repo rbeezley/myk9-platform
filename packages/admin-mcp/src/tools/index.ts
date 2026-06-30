@@ -1,11 +1,13 @@
 /**
  * V1 tool registry.
  *
- * The server framework, allowlist, validation, and logging are in place.
- * V1.0 ships `list_show_access`; the confirmation-email and payment diagnostics
- * register here in Tasks 6-7. Each handler closes over `ctx.supabase`.
+ * V1.0 ships the three cross-table diagnostics — `diagnose_confirmation_email`,
+ * `diagnose_payment`, and `list_show_access`. Each handler closes over
+ * `ctx.supabase`. Lookup tools (`lookup_show`/`lookup_entry`/...) are V1.1.
  */
 import { listShowAccessTool } from '../diagnostics/accessDiagnostics';
+import { diagnoseConfirmationEmailTool } from '../diagnostics/emailDiagnostics';
+import { diagnosePaymentTool } from '../diagnostics/paymentDiagnostics';
 import type { AdminMcpConfig } from '../config';
 import type { AdminSupabaseClient } from '../db/supabaseAdmin';
 import type { AdminToolDefinition } from '../mcp/server';
@@ -16,5 +18,9 @@ export interface ToolContext {
 }
 
 export function buildAdminTools(ctx: ToolContext): AdminToolDefinition[] {
-  return [listShowAccessTool(ctx)];
+  return [
+    diagnoseConfirmationEmailTool(ctx),
+    diagnosePaymentTool(ctx),
+    listShowAccessTool(ctx),
+  ];
 }

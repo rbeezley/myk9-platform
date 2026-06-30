@@ -2,7 +2,7 @@
 
 > **Status:** Active
 
-**LAUNCH SCOPE (decided 2026-06-29):** the **scent sport** is being advertised for **AKC, UKC, and ASCA on day one** — this is a launch commitment, not post-MVP. The day-one bar is narrow but firm: those three registries' *scent work / nosework / scent detection* class structures and legal language must render correctly across the publishing surfaces. Other sports (obedience, conformation) and other registries remain post-MVP. **Day-one status:** (1) AKC-extraction refactor (§6 steps 1–2) — ⬜ not started, the real engineering work; (2) UKC Nosework populated (§8) — ✅ on paper; (3) ASCA Scent Detection populated (§9) — ✅ on paper (from June 2026 rules). **The cross-registry schema synthesis (§10) is the spec the AKC extraction must target** — all three registries are now known, so the schema can be designed against real divergence instead of guessed.
+**LAUNCH SCOPE (decided 2026-06-29):** the **scent sport** is being advertised for **AKC, UKC, and ASCA on day one** — this is a launch commitment, not post-MVP. The day-one bar is narrow but firm: those three registries' *scent work / nosework / scent detection* class structures and legal language must render correctly across the publishing surfaces. Other sports (obedience, conformation) and other registries remain post-MVP. **Day-one status:** all three registries are now populated from their actual rulebooks — AKC Scent Work (§7.5), UKC Nosework (§8), ASCA Scent Detection (§9) — ✅ on paper. The cross-registry schema synthesis (§10) is the spec the build must target. **Remaining day-one engineering:** the AKC-extraction refactor (§6 steps 1–2) built against §10 — ⬜ not started.
 
 This document describes how the trial-publishing system (Premium PDF, Landing Page, Entry Blank, Confirmation Email, and Wizard) would be extended to support sanctioning bodies beyond AKC — UKC, ASCA, CKC, etc.
 
@@ -143,6 +143,43 @@ Resolved with the product owner; UKC Nosework reference materials (2020 rulebook
 
 ---
 
+## 7.5 · AKC Scent Work — populated reference (from RSW001 + Judges' Guidelines)
+
+Registry #1 and the day-one extraction base. Source of record: *AKC Scent Work Regulations* (RSW001) + *AKC Scent Work Judges' Guidelines*. Verified 2026-06-29 against the rulebook — supersedes the AKC column previously inferred in §10.
+
+### 7.5.1 · Identity & legal (Tier 1)
+
+| Field | Value |
+|---|---|
+| `name` | American Kennel Club |
+| `shortName` | AKC |
+| Sport label | "Scent Work" |
+| Registration field | AKC registration number (or PAL/ILP, or an AKC number for the listed-breed paths) |
+
+### 7.5.2 · Class & competition structure (Tier 2)
+
+AKC groups classes into **Divisions** (a grouping tier above element, used for titling & awards like *High Combined Division*). For the publishing config we **flatten divisions into a single element list**, but the divisions matter for the future titles surface:
+
+| Division | Elements | Levels |
+|---|---|---|
+| **Odor Search** | Container, Interior, Exterior, **Buried** | Novice, Advanced, Excellent, Master (4) |
+| **Handler Discrimination** | HD *(treated as just another element)* | Novice, Advanced, Excellent, Master (4) |
+| **Detective** | Detective *(its own element)* | **1 level only — referred to simply as "Detective"; no A/B sections** |
+
+So the flattened AKC element list is **Container, Interior, Exterior, Buried, HD, Detective** (6). Confirmed details:
+- **Sections A/B: Novice only.** "Novice A and Novice B are different sections of the same class. The hide location does not move between Novice A and Novice B. Teams are judged under the exact same criteria." Ownership-style split; every other level (and Detective) has no sections.
+- **Detective** is a single large **combined interior + exterior search** across multiple areas/hides — its own element with exactly **one level and no sections**. Open to dogs holding any Master title; 10 qualifying scores earn the Scent Work Detective (SWD) title.
+- **Buried** is AKC-only (target odor in a small container buried under sand or water) — UKC/ASCA have no Buried element.
+
+**Target odors, cumulative by level** (Odor Search Division): Novice = **Birch** only · Advanced = Birch and/or **Anise** · Excellent = +**Clove** · Master = +**Cypress**. (Birch *Betula lenta*, Anise *Pimpinella anisum*, Clove *Eugenia caryophyllata*, Cypress *Cupressus sempervirens*.)
+
+### 7.5.3 · Scoring & titles
+
+- **Pass/fail** with faults and search time (time used for placements / High in Trial / High Combined).
+- **Title tiers:** each division has **Basic** element + level titles, then **Elite** titles (earned by continuing to qualify at Master). Plus the standalone **SWD** (Detective). Titles are out of day-one scope (titles/awards surface) but noted so they aren't re-derived.
+
+---
+
 ## 8 · UKC Nosework — populated reference (from 2020 rulebook + 2021 trial manual)
 
 The second registry to populate (per §6 step 3). UKC Nosework is the most structurally different sport from AKC scent work, so it stress-tests the schema hardest. Source of record: *Official UKC Nosework Rulebook* (eff. 2020) + *UKC Nosework Trial Manual* (eff. Nov 1 2021).
@@ -266,28 +303,30 @@ Source of record: *ASCA Scent Detection Program Rules*, June 2026 (incl. the new
 
 With all three registries known, the schema can be designed against real divergence. The headline: **almost nothing about class structure is shared across registries.** Concretely, the schema must NOT hardcode any of these:
 
-| Dimension | AKC scent work | UKC Nosework | ASCA Scent Detection |
+| Dimension | AKC Scent Work | UKC Nosework | ASCA Scent Detection |
 |---|---|---|---|
 | Sport label | "Scent Work" | "Nosework" | "Scent Detection" |
-| # levels | 4 | 5 | 5 |
+| # levels | 4 (Detective: 1) | 5 | 5 |
 | Level names | Novice, Advanced, Excellent, Master | Novice, Advanced, Superior, Master, Elite | Novice, Open, Advanced, Excellent, Champion |
-| Elements | Containers, Interiors, Exteriors, **Buried** | Container, Interior, Exterior, Vehicle, **HD** | Containers, Interiors, Exteriors, Vehicles |
-| Per-element level differences | — | HD uses "Excellent", no Elite | — |
+| Elements | Container, Interior, Exterior, **Buried**, **HD**, **Detective** | Container, Interior, Exterior, Vehicle, **HD** | Containers, Interiors, Exteriors, Vehicles |
+| Element grouping | **Divisions** (Odor Search / HD / Detective) | flat | flat |
+| Per-element level differences | **Detective = 1 level, no sections** | HD uses "Excellent", no Elite | — |
 | Class sub-division | **A/B at Novice only** (ownership) | **A/B at every level** (ownership) | **Level C at 4 base levels** (continuation, *not* ownership) |
-| Scoring model | faults/time | pass/fail, ≤1 fault | pass/fail **except Champion = points** |
-| Registration field | AKC reg # | UKC reg # / PL / LP / TL | QTracker # |
-| Title scheme | (AKC-specific) | NC…/NN…/NWCH/NWGC | SC…/SCN4/SCTCH-n |
+| Scoring model | pass/fail, faults/time | pass/fail, ≤1 fault | pass/fail **except Champion = points** |
+| Registration field | AKC reg # (or PAL/ILP) | UKC reg # / PL / LP / TL | QTracker # |
+| Title scheme | Basic + Elite per division; SWD | NC…/NN…/NWCH/NWGC | SC…/SCN4/SCTCH-n |
 
 **Schema requirements this forces:**
 1. **Levels are data, per (registry, sport)** — variable count, disjoint label sets. No shared `levels` enum, no 4- or 5-level assumption.
-2. **Elements are per (registry, sport)**, and *level sets can be per-element* (UKC HD). Model `element.levels`, not one list per sport.
+2. **Elements are per (registry, sport)**, and *level sets can be per-element* — UKC HD (4 levels, "Excellent") and **AKC Detective (exactly 1 level, no sections)** both prove this. Model `element.levels`, not one list per sport. An element may declare a single level with no variants.
 3. **"Class sub-division" is a generalized concept, not an A/B boolean.** Each (registry, level) declares a list of **class variants**, each with its own semantic + titling rule:
    - ownership-based (AKC/UKC "A"/"B"), or
    - continuation-based (ASCA base / "C").
    Don't model this as `section: "A" | "B"`. Model `variants: [{ key, label, kind: "ownership" | "continuation", titlingRule }]` per level, possibly empty.
 4. **Scoring model can vary *by level*, not just by registry** (ASCA pass/fail vs. Champion points). The scoring strategy is a property of `(registry, sport, level)`.
 5. **Registration-field identity varies** — label *and* the set of acceptable id types (UKC accepts 4 kinds; ASCA's QTracker is optional-but-needed-for-titles).
-6. **Unsupported registry = hard error** (per §7 Q4) — no fallback template.
+6. **Elements may carry an optional `division` grouping** (AKC's Odor Search / HD / Detective). Not needed to render the publishing config, but the field should exist so the future titles/awards surface (High Combined Division, division-scoped titles) isn't blocked.
+7. **Unsupported registry = hard error** (per §7 Q4) — no fallback template.
 
 **Build implication:** the AKC-extraction refactor (§6 steps 1–2) should target *this* §10 shape, not the narrower §4/§8.5 AKC-or-UKC-only drafts. Doing the extraction against the three-registry spec avoids a second refactor when UKC/ASCA land. Title schemes (UKC §8.4, ASCA §9.4) are **out of day-one scope** — they belong to a future titles/awards surface, not the trial-publishing config — but are captured so they aren't re-derived.
 

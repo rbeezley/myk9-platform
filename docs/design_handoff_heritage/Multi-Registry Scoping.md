@@ -1,6 +1,8 @@
 # Multi-Registry Support — Scoping Document
 
-*Status: scoping draft · not yet implemented*
+> **Status:** Active
+
+**LAUNCH SCOPE (decided 2026-06-29):** the **scent sport** is being advertised for **AKC, UKC, and ASCA on day one** — this is a launch commitment, not post-MVP. The day-one bar is narrow but firm: those three registries' *scent work / nosework* class structures and legal language must render correctly across the publishing surfaces. Other sports (obedience, conformation) and other registries remain post-MVP. **Still needed for day one:** (1) the AKC-extraction refactor (§6 steps 1–2), (2) UKC populated (§8 — done on paper), (3) **ASCA scent-work reference materials** (rulebook/premium/entry form) — not yet supplied.
 
 This document describes how the trial-publishing system (Premium PDF, Landing Page, Entry Blank, Confirmation Email, and Wizard) would be extended to support sanctioning bodies beyond AKC — UKC, ASCA, CKC, etc.
 
@@ -130,13 +132,83 @@ Don't design the schema speculatively. Build it by *forcing one piece to read fr
 
 ---
 
-## 7 · Open questions to resolve before building
+## 7 · Open questions — RESOLVED 2026-06-29
 
-1. Does a single trial ever span two registries? (e.g. AKC + UKC dual-licensed). If yes, the data model is `registries: ["AKC", "UKC"]` not `registry: "AKC"`.
-2. Is *sport* a top-level concept or nested under registry? Most registries support multiple sports with different class structures — sport feels top-level with registry as a modifier.
-3. Should registry choice influence which of the 8 visual styles is offered as a default? (E.g. UKC trials default to a less formal style.) Probably no — let users pick freely.
-4. For registries we don't yet support, what's the failure mode? Hard error, or generic fallback template with a "verify legal language" warning?
+Resolved with the product owner; UKC Nosework reference materials (2020 rulebook + 2021 trial manual) supplied to populate §8.
+
+1. **Does a single trial ever span two registries?** → **No.** A show or trial is never both AKC and UKC. The dual-registry data model (`registries: [...]`) is **rejected** — keep `registry: "AKC"` as a single value. (It already lives at the trial level as `trials.registry_id`.) The legitimate "multiple things under one umbrella" case is a **show with several trials of different *sports*** (e.g. Nosework + Obedience + Conformation) — more common in UKC because of the cross-sport **Total Dog** award. That is modeled as multiple trials sharing the show's registry, not as a multi-registry trial.
+2. **Is *sport* top-level or nested under registry?** → **Nested under registry in the config; a *trial* selects a (registry, sport) pair.** Registry is the anchor (already `trials.registry_id`); sport is the modifier. Class structure is defined *by the registry for that sport* — the same label can't be assumed shared across registries (UKC's levels are Novice/Advanced/**Superior**/Master/**Elite**; AKC's are Novice/Advanced/**Excellent**/Master). So a trial carries both `registry` and `sport`; the schema keeps `registries[reg].sports[sport]`. **Total Dog is neither a registry nor a sport** — it is a UKC cross-sport *award* (conformation win + a performance leg) that reads results across a dog's trials. Park it as a post-MVP award, out of scope for this config layer.
+3. **Should registry choice pre-select a visual style?** → *Unresolved / deferred* — leave the doc's lean ("probably no, let users pick freely"). Not a blocker for the AKC-extraction + UKC-populate work.
+4. **Failure mode for an unsupported registry?** → **Hard error.** No generic fallback template. If `registries[trial.registry]` is missing, fail loudly at config-resolution time rather than rendering a packet with wrong/placeholder legal language. (A wrong exhibitor agreement or license header is worse than a blocked publish.)
 
 ---
 
-*End of scoping document. Implementation deferred until a concrete user need surfaces.*
+## 8 · UKC Nosework — populated reference (from 2020 rulebook + 2021 trial manual)
+
+The second registry to populate (per §6 step 3). UKC Nosework is the most structurally different sport from AKC scent work, so it stress-tests the schema hardest. Source of record: *Official UKC Nosework Rulebook* (eff. 2020) + *UKC Nosework Trial Manual* (eff. Nov 1 2021).
+
+### 8.1 · Identity & legal (Tier 1)
+
+| Field | Value |
+|---|---|
+| `name` | United Kennel Club |
+| `shortName` | UKC |
+| `licenseLanguage` | "A UKC Licensed Nosework Trial" |
+| Registration field | UKC Permanent Registration number — **or** a Performance Listing (PL), Limited Privilege (LP), or Temporary Listing (TL) number. Eligibility also requires the dog be ≥6 months old. |
+
+> Trademark note from the rulebook: "The use of the initials UKC in association with any other registry would be in violation of the registered trademark." Keep UKC branding off any non-UKC surface.
+
+### 8.2 · Class & competition structure (Tier 2 — the hard part)
+
+**Levels (5, successive):** Novice → Advanced → Superior → Master → Elite. *(The 3rd level is **Superior** for most elements but **Excellent** for HD — see below.)*
+
+**Elements (5):** Container · Interior · Exterior · Vehicle · **Handler Discrimination (HD)**. *(No "Buried" — that's AKC-only.)* **HD is just another element** — there is no separate HD "trial format." A trial offers any set of elements at any set of levels; a trial may be HD-only, or HD plus Container/Interior/etc.
+
+**Trial structure = a set of (element, level) classes.** The club picks which elements and which levels to host (offering all levels below the highest offered, per element). **Do not build a "Class/Level trial" format** (all four elements at one level) — confirmed 2026-06-29 as **no longer offered**; only the element-by-element structure exists.
+
+**Per-element level sets are not uniform** — this is the key wrinkle:
+| Element | Levels |
+|---|---|
+| Container, Interior, Exterior, Vehicle | Novice, Advanced, **Superior**, Master, Elite (5) |
+| Handler Discrimination (HD) | Novice, Advanced, **Excellent**, Master (4 — no Superior label, no Elite) |
+
+So the level list must be modeled **per element**, not once per sport: HD swaps "Excellent" for "Superior" at rank 3 and has no Elite. Element-level labels are **not** shared across elements within the same registry.
+
+**A/B section split** *(a dimension AKC scent work largely lacks):* dogs not owned by the exhibitor or immediate family must run in the **"B"** section; B sections also carry the championship legs.
+- **UKC: every level has an A and B section** (all 5 levels).
+- **AKC: only the Novice level has A/B.**
+- So `section: "A" | "B"` is configured **per (registry, level)**, not as a flat per-registry flag.
+
+**Essential oil by level** (drives equipment/odor, useful for the entry blank & judge cards): Novice = Birch · Advanced = Anise · Superior = Clove · Master = Myrrh · Elite = Vetiver.
+
+**Max element times** (placement/tiebreak context): announced at the handlers' meeting per class; HD Novice/Advanced/Excellent = 1 min per entry, HD Master = 2 min per entry.
+
+### 8.3 · Scoring model
+
+- **Pass/fail (qualifying)** per search — *not* a points or cumulative-fault total like some sports.
+- **≤ 1 fault still passes.** A second fault, or any item on the **non-qualifying faults** list (incorrect call, dog eliminates in area, aggressive alert, etc.), = NQ.
+- **Search time** is recorded for **placement and tiebreak**, not for pass/fail.
+- Judge calls faults *after* the search, never during.
+
+### 8.4 · Title ladder (for a future titles/awards surface — not the publishing config, but captured so it isn't re-derived)
+
+The "4 elements" in the Nosework-title rules below means **Container/Interior/Exterior/Vehicle**. HD is entered like an element but has its **own separate title track** (rulebook Ch. 11) — it does *not* feed the NN/AN ladder.
+
+- **Element titles** — 2 passes at 2 *different* licensed trials. Abbrevs by element × level:
+  - Container: NC AC SC MC EC · Interior: NI AI SI MI EI · Exterior: NE AE SE ME EE · Vehicle: NV AV SV MV EV
+- **Nosework (level) titles** — all 4 elements at a level: **NN AN SN MN EN** (successive; must title an element before entering the next level in it).
+- **Class Champion** — `NN…EN` earned first, then **3 qualifying legs in the B section** for each element: **NNCH ACH SCH MCH ECH**. All five → **NWCH** (Nosework Champion).
+- **Class Grand Champion** — Champion earned first, then **5 B-section legs** per element: **NGC AGC SNGC MGC EGC** *(note the inconsistent `SNGC` abbrev in the source)*. All five → **NWGC** (Nosework Grand Champion).
+- **HD titles** — separate track (Ch. 11), levels Novice/Advanced/Excellent/Master. *(Capture exact abbrevs from Ch. 11 when the titles surface is actually built.)*
+
+### 8.5 · Schema additions surfaced by UKC (vs. the §4 AKC-only shape)
+
+Populating UKC forces these schema changes the AKC-only draft didn't anticipate:
+1. **`levels` is per element, not per sport.** UKC's main elements have 5 levels (Novice/Advanced/Superior/Master/Elite); HD has 4 (Novice/Advanced/**Excellent**/Master). Model `element.levels`, not a single shared `sport.levels`. No hardcoded 4-level (AKC) assumption anywhere.
+2. **HD is an element, not a format.** Elements = `[container, interior, exterior, vehicle, hd]`; a trial selects any subset at any levels. **No `trialFormat` selector** and **no "Class/Level trial"** — trial structure is purely a set of (element, level) classes.
+3. **`section: "A" | "B"` is configured per (registry, level).** UKC = all 5 levels have A/B; AKC = Novice level only. Not a flat per-registry flag, and not always-absent for AKC.
+4. **Unsupported-registry = hard error** (per Q4) — the resolver throws; no fallback template.
+
+---
+
+*End of scoping document. No longer deferred — see the launch-scope banner at top: scent work for AKC + UKC + ASCA is a day-one commitment. §8 (UKC Nosework) is build-ready; AKC extraction (§6 steps 1–2) and ASCA reference capture are the remaining day-one work.*

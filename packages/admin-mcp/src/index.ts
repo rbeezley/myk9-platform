@@ -1,13 +1,15 @@
 /**
  * Process entry point for the local site-admin MCP server.
  *
- * Task 1 wires only config loading so the package builds, runs, and fails
- * closed on missing env vars. The stdio MCP transport and tool registration
- * land in Task 3 (see docs/plan-site-admin-mcp-v1.md).
+ * Loads + validates config (fails closed), creates the Supabase admin client,
+ * builds the allowlisted tool set, and serves it over stdio.
  */
 import { AdminMcpConfigError, loadAdminMcpConfig } from './config';
+import { createSupabaseAdminClient } from './db/supabaseAdmin';
+import { startAdminMcpServer } from './mcp/server';
+import { buildAdminTools } from './tools/index';
 
-function main(): void {
+async function main(): Promise<void> {
   let config;
   try {
     config = loadAdminMcpConfig(process.env);
@@ -21,11 +23,19 @@ function main(): void {
     process.exit(1);
   }
 
+  const supabase = createSupabaseAdminClient(config);
+  const tools = buildAdminTools({ config, supabase });
+
   process.stderr.write(
-    `[myk9-admin-mcp] config loaded for env=${config.envLabel}; ` +
-      `defaultLimit=${config.defaultLimit} maxLimit=${config.maxLimit}. ` +
-      'Server wiring lands in Task 3.\n',
+    `[myk9-admin-mcp] serving over stdio; env=${config.envLabel}; ` +
+      `${tools.length} tool(s) registered.\n`,
   );
+
+  await startAdminMcpServer({ config, tools });
 }
 
-main();
+main().catch((error) => {
+  const detail = error instanceof Error ? error.message : String(error);
+  process.stderr.write(`[myk9-admin-mcp] fatal: ${detail}\n`);
+  process.exit(1);
+});

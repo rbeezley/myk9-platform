@@ -32,17 +32,35 @@ export function useShowDetailsStepActions() {
   );
 
   const handleCreateOfficialPerson = useCallback(
-    async (data: { firstName: string; lastName: string; email: string }): Promise<string> => {
+    async (data: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone: string;
+    }): Promise<string> => {
+      // Dedup guard: if a person with this email already exists, reuse them
+      // instead of creating a duplicate record. Email is the reliable identity
+      // key (name alone is too weak — two different "John Smith"s are common).
+      // This is the wizard's #1 source of duplicate person rows.
+      const normalizedEmail = data.email.trim().toLowerCase();
+      const existing = normalizedEmail
+        ? people.find(p => (p.email ?? '').trim().toLowerCase() === normalizedEmail)
+        : undefined;
+      if (existing) {
+        return existing.id;
+      }
+
       const result = await createUser({
         first_name: data.firstName,
         last_name: data.lastName,
         email: data.email,
+        phone: data.phone,
       });
       if (result.error) throw result.error;
       await loadPeople();
       return result.data!.id;
     },
-    [loadPeople]
+    [people, loadPeople]
   );
 
   const handleSaveJudgeCredentials = useCallback(

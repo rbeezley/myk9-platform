@@ -60,13 +60,19 @@ export function isValidEntryDates(openDate?: string, closeDate?: string): boolea
 /**
  * Split all people into "suggested" (has one of the given roles) and "others".
  * Both groups are filtered by searchTerm. Used by OfficialPicker.
+ *
+ * `excludeIds` removes people who cannot be picked for this official — e.g. the
+ * person already selected as the OTHER official (a Chairman and Secretary cannot
+ * be the same person). Excluding an id that isn't present is a harmless no-op.
  */
 export function groupPeopleForOfficial(
   people: User[],
   suggestedRoles: UserRole[],
-  searchTerm: string
+  searchTerm: string,
+  excludeIds: string[] = []
 ): { suggested: User[]; others: User[] } {
-  const sorted = getAllPeopleSorted(people);
+  const exclude = new Set(excludeIds);
+  const sorted = getAllPeopleSorted(people).filter(p => !exclude.has(p.id));
   const filtered = filterPeopleByName(sorted, searchTerm);
   return {
     suggested: filtered.filter(p => p.roles?.some(r => suggestedRoles.includes(r as UserRole))),

@@ -60,7 +60,7 @@ Officials are **not** stored as a name or JSON blob on the show. They are **`use
 ### Phase 4 — Regression
 - [x] App `tsc -p tsconfig.app.json` clean; `eslint --max-warnings 0` clean on all changed files.
 - [x] App vitest green: premium suite (287 passed / 9 skipped) + wizard officials specs (35 passed).
-- [ ] Update the e2e `show-wizard-officials.spec.ts` for the new exclusion + create-form shape (phone field, dedup).
+- [x] Updated the e2e `show-wizard-officials.spec.ts`: new test asserts the chairman "Add new" form requires name/email/phone and stays disabled until phone is filled (lint-clean; not run here — e2e needs a live server).
 - [ ] Deno type-check the edge function (deno not installed locally; will run at `supabase functions deploy`).
 
 ## Notes

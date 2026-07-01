@@ -37,14 +37,27 @@ The expensive judgment (what's actually wrong inside a file, and the fix) is del
 
 3. **Compute size** (the opportunity proxy) — `wc -l` over the top ~10 churned files. Skip files that no longer exist (renamed/deleted) and note them.
 
-4. **Normalize and rank.** Map each axis to 1–5 by relative position within the result set (top file ≈ 5, bottom ≈ 1). Present a table: `Rank | File (clickable path) | Churn | LOC | Impact×Opp | Note`.
+4. **Filter cured files — the churn metric counts the cure as the disease.** A `refactor`/`extract`/`split`/`consolidate` commit *adds* churn, so a file you just cleaned up ranks high precisely *because* you fixed it. Check the most recent commit per top file and de-weight anything already addressed:
 
-5. **Apply judgment — this is the part git can't do:**
+   ```bash
+   git log -1 --format='%cd %s' --date=short -- <file>
+   ```
+
+   Classify by the latest commit's subject:
+   - **Cured** — latest touch is `refactor(...)`, `extract`, `split … under 500`, `consolidate`, or a `polish`/mechanical sweep. Its high churn is the cleanup itself. Mark ✅ Addressed and **drop it from the actionable ranking** (still show it, struck through or in an "already addressed" group, so the user sees it was considered).
+   - **Structural churner** — config/registry/route files (`*Config.ts`, `*Routes.tsx`, sidebar, `types/*.ts`) churn because the app grows, not because they're broken. Mark 🟡 and de-weight — high churn here is expected, not debt.
+   - **Live debt** — latest touch is `fix`/`feat` and the file was never decomposed. This is the real signal; keep it in the ranking.
+
+   Skip this filter only if the user explicitly asks for raw unfiltered churn.
+
+5. **Normalize and rank** (live-debt files only). Map each axis to 1–5 by relative position within the result set (top file ≈ 5, bottom ≈ 1). Present a table: `Rank | File (clickable path) | Churn | LOC | Impact×Opp | Note`.
+
+6. **Apply judgment — this is the part git can't do:**
    - Flag any file over **500 LOC** — it's tracked as known debt by `qa:code-quality-ratchet` (the ratchet fails *regressions* past the baseline, not every existing oversized file), so its "opportunity" score is grounded in a real metric, not a guess.
    - Look for **clustering**: do the top files share a surface/feature (e.g. the secretary show-detail pages)? A cluster usually means the real fix is *consolidation*, not N point-fixes — surface that explicitly. This aligns with the repo's "consolidate, don't duplicate" rule in `CLAUDE.md`.
    - For any UI/page finding, answer: "Does this duplicate an existing page? If so, why is duplication justified instead of a link?"
 
-6. **Offer the hand-off, don't auto-run it.** Recommend `/improve` (improve-codebase-architecture) on the rank-1 file as the "premium attention on the high-value target" step. Run it only if the user asks.
+7. **Offer the hand-off, don't auto-run it.** Recommend `/improve` (improve-codebase-architecture) on the rank-1 *live-debt* file as the "premium attention on the high-value target" step. Run it only if the user asks.
 
 ## What this is NOT
 

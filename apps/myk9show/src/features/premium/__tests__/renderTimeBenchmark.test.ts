@@ -48,7 +48,7 @@ function makePremium(style: PremiumStyle): GeneratedPremium {
       phone: '555-0100',
       mailingAddress: '1 Sec St',
     },
-    officials: { chairman: 'Chair', steward: 'Steward' },
+    officials: { chairman: { name: 'Chair', email: null, phone: null } },
     trials: [
       {
         name: 'Trial 1',

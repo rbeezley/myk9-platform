@@ -106,6 +106,39 @@ handle<GeneratePremiumPayload>(
       : null;
     const secretaryEmail = secretaryPerson?.email ?? null;
 
+    // Resolve the show chairman the same way (user_roles → people). The chairman
+    // is often a non-login contact, so surface full contact info (name/email/phone)
+    // for the premium and official reports.
+    const { data: chairmanRoleRow } = await userClient
+      .from('user_roles')
+      .select('people:user_id(first_name, last_name, email, phone), roles!inner(name)')
+      .eq('show_id', show_id)
+      .eq('is_active', true)
+      .eq('roles.name', 'chairman')
+      .limit(1)
+      .maybeSingle();
+    const chairmanPerson =
+      (
+        chairmanRoleRow as {
+          people?: {
+            first_name?: string;
+            last_name?: string;
+            email?: string;
+            phone?: string;
+          } | null;
+        } | null
+      )?.people ?? null;
+    const chairmanName = chairmanPerson
+      ? `${chairmanPerson.first_name ?? ''} ${chairmanPerson.last_name ?? ''}`.trim() || null
+      : null;
+    const chairman = chairmanName
+      ? {
+          name: chairmanName,
+          email: chairmanPerson?.email ?? null,
+          phone: chairmanPerson?.phone ?? null,
+        }
+      : null;
+
     // Step 8: Template resolution — find best matching template for this show's trial type
     const { data: templates } = await userClient
       .from('club_premium_templates')
@@ -244,8 +277,7 @@ handle<GeneratePremiumPayload>(
         phone: null,
       },
       officials: {
-        chairman: null,
-        steward: null,
+        chairman,
       },
       trials,
       supplemental: {

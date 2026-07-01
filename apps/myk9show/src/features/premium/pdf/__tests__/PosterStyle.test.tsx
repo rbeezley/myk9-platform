@@ -32,7 +32,7 @@ function makePremium(org: Org): GeneratedPremium {
       phone: '918-555-0000',
       mailingAddress: '456 Oak Ave',
     },
-    officials: { chairman: 'Bob Jones', steward: 'Sue Hart' },
+    officials: { chairman: { name: 'Bob Jones', email: null, phone: null } },
     trials: [
       {
         name: 'Saturday Trial 1',

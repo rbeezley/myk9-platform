@@ -33,34 +33,35 @@ Officials are **not** stored as a name or JSON blob on the show. They are **`use
 
 ## Phases
 
-### Phase 1 — Picker UX (reduce duplicate-creation pressure)
-- [ ] Distinguish *loading* from *empty* in `GroupedSearchablePopover` (and `OfficialPicker`): show "Loading people…" while `useUserStore` is fetching, so the picker never dead-ends at "Add new" prematurely.
-- [ ] Surface obvious candidates in "Suggested" so search is not the only path.
-- [ ] **Symmetric exclusion**: pass an `excludePersonIds` prop to `OfficialPicker`; chairman excludes `secretary[0]`, secretary excludes `chairman[0]`. Apply the exclusion in `groupPeopleForOfficial` (filter before splitting).
-- [ ] Tests: loading≠empty; excluded person absent from both groups; excluding an id that isn't selected is a no-op.
+### Phase 1 — Picker UX (reduce duplicate-creation pressure) — DONE (commit `f0c905ffc`)
+- [x] Distinguish *loading* from *empty* in `GroupedSearchablePopover` (and `OfficialPicker`): show "Loading people…" while `useUserStore` is fetching, so the picker never dead-ends at "Add new" prematurely.
+- [x] Surface obvious candidates in "Suggested" — satisfied by the existing role-based `suggested` group (CHAIRMAN/CLUB_ADMIN) + the new exclusion; the logged-in secretary is now *excluded* from the chairman list, not suggested.
+- [x] **Symmetric exclusion**: `excludePersonIds` prop on `OfficialPicker`; chairman excludes `secretary[0]`, secretary excludes `chairman[0]`; applied in `groupPeopleForOfficial` before splitting.
+- [x] Tests: loading≠empty; excluded person absent from both groups; excluding an unselected id is a no-op.
 
-### Phase 2 — Create form (all fields required + dedup)
-- [ ] Add a **phone** input to `OfficialPicker`'s create form; make first/last/email/phone all required (`canSave` gates on all four).
-- [ ] Thread `phone` through `handleCreateOfficialPerson` → `createUser` (people.phone column).
-- [ ] **Dedup guard**: before insert, match on name + email against loaded `people`; if a match exists, select it instead of creating a duplicate. Surface a subtle "Selected existing person" affordance.
-- [ ] Tests: phone required; createUser called with phone; dedup reuses existing id; no-match still creates.
+### Phase 2 — Create form (all fields required + dedup) — DONE (commit `f0c905ffc`)
+- [x] Added a **phone** input to `OfficialPicker`'s create form; first/last/email/phone all required (`canSave` gates on all four).
+- [x] Threaded `phone` through `handleCreateOfficialPerson` → `createUser` (people.phone column; no migration).
+- [x] **Dedup guard**: `handleCreateOfficialPerson` reuses an existing person when email matches (case-insensitive) instead of inserting a duplicate.
+- [x] Tests: phone required; createUser called with phone; dedup reuses existing id; no-match still creates.
 
 ### Phase 3 — Premium/reports surfacing (chairman contact) + steward removal
 
 **Resolution site pinned:** `supabase/functions/generate-premium/index.ts` is the sole source of truth. It resolves the secretary from `user_roles → people` (name + email; phone hardcoded null) at ~L88-107 and assembles `officials.{chairman,steward} = null` at ~L247. The client `publishPremium.tsx` renders the PDF from the edge function's JSON — no client-side resolution. **This means Phase 3 requires editing AND deploying `generate-premium` (gated shared-system step — confirm before deploy).**
 
-- [ ] Extend premium `officials.chairman` from `string | null` to `{ name; email; phone } | null` (mirror the existing `secretary` object shape) in `premium-types.ts` (the shape shared between the edge fn output and the PDF bodies).
-- [ ] **Remove `officials.steward`** from `premium-types.ts` (display-only; the steward *grant* path in `saveShowAtomicOnline`/`grant_show_official` stays intact — steward is still a real show role).
-- [ ] In `generate-premium/index.ts`: add a chairman resolution query mirroring the secretary one (`user_roles` join `people`, `roles.name = 'chairman'`, `is_active`), selecting `first_name, last_name, email, phone`; assemble `officials.chairman = { name, email, phone }`; drop the `steward` field.
-- [ ] Update PDF bodies (`StandardBody` L106/116-120, `PosterBody` L51/113-114, `FieldGuideBody` L54/132-136, `GazetteBody` L52/82): render chairman name + email + phone; remove all `officials.steward` references and fix `hasOfficials` guards.
-- [ ] Verify the AKC Trial Chairman report (`akcTrialChairmanReport.ts`) still resolves the chair name.
-- [ ] Update every premium test fixture that sets `officials.steward` / `officials.chairman: string` (the `__tests__` matrix: `AKCPremiumTemplate`, `UKCPremiumTemplate`, `PosterStyle`, `GazetteFieldGuideStyle`, `magazineHeritage`, `allStylesMatrix`, `bodyContractInvariants`, `AtAGlancePanel`, `minimumDataFixture`, `renderTimeBenchmark`, `PremiumContentEditor`, `logPremiumGeneration`).
-- [ ] **Deploy (gated):** `supabase functions deploy generate-premium` — confirm with owner first.
+- [x] Extended premium `officials.chairman` to `{ name; email; phone } | null` in `premium-types.ts`.
+- [x] **Removed `officials.steward`** from the premium type (grant path untouched — steward is still a real show role).
+- [x] `generate-premium/index.ts`: added a chairman resolution query mirroring the secretary one (selecting `first_name, last_name, email, phone`); assembles `officials.chairman = { name, email, phone } | null`; dropped `steward`.
+- [x] Updated PDF bodies (`StandardBody`, `PosterBody`, `FieldGuideBody`, `GazetteBody`): render chairman name + email + phone; removed all `officials.steward` references and fixed `hasOfficials` guards.
+- [x] AKC Trial Chairman report is unaffected — it builds `trialChair` from `ReportProps`, not from premium `officials.chairman`.
+- [x] Updated `ShowEditPremiumTab` preview builder + every premium test fixture (12 files).
+- [ ] **Deploy (gated):** `supabase functions deploy generate-premium` — confirm with owner first. **Until deployed, staging/prod premiums keep printing `chairman: null` (steward already absent from the new type).**
 
 ### Phase 4 — Regression
-- [ ] `pnpm typecheck` + `pnpm lint` clean.
-- [ ] App vitest green (esp. premium `__tests__` matrix + wizard officials specs).
-- [ ] Update the e2e `show-wizard-officials.spec.ts` for the new exclusion + create-form shape.
+- [x] App `tsc -p tsconfig.app.json` clean; `eslint --max-warnings 0` clean on all changed files.
+- [x] App vitest green: premium suite (287 passed / 9 skipped) + wizard officials specs (35 passed).
+- [ ] Update the e2e `show-wizard-officials.spec.ts` for the new exclusion + create-form shape (phone field, dedup).
+- [ ] Deno type-check the edge function (deno not installed locally; will run at `supabase functions deploy`).
 
 ## Notes
 - Premium resolution site pinned (see Phase 3). Requires an edge-function deploy — gated.

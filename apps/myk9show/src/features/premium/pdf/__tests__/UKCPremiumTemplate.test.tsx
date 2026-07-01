@@ -26,7 +26,7 @@ const premium: GeneratedPremium = {
     phone: '918-555-1234',
     mailingAddress: '789 Elm St',
   },
-  officials: { chairman: 'Tom Chairman', steward: null },
+  officials: { chairman: { name: 'Tom Chairman', email: null, phone: null } },
   trials: [
     {
       name: 'Fall Trial 1',

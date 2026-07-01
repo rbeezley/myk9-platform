@@ -49,7 +49,7 @@ export function GazetteBody({ data, tokens }: Props) {
   };
   const denseStyle = { ...bodyTextStyle, fontSize: tokens.bodyFontSize - 1 };
 
-  const hasOfficials = Boolean(officials.chairman || officials.steward);
+  const hasOfficials = Boolean(officials.chairman);
   const hasJudges = trials.some(t => (t.judges?.length ?? 0) > 0);
   const hasClasses = trials.some(t => (t.classes?.length ?? 0) > 0);
   const hasFees = (show.preEntryFee ?? 0) > 0 || (show.dayOfFee ?? 0) > 0;
@@ -78,8 +78,15 @@ export function GazetteBody({ data, tokens }: Props) {
             <View style={headerWrapStyle}>
               <Text style={headerTextStyle}>Officials</Text>
             </View>
-            {officials.chairman && <Text style={bodyTextStyle}>Chair: {officials.chairman}</Text>}
-            {officials.steward && <Text style={bodyTextStyle}>Steward: {officials.steward}</Text>}
+            {officials.chairman && (
+              <Text style={bodyTextStyle}>Chair: {officials.chairman.name}</Text>
+            )}
+            {officials.chairman?.email && (
+              <Text style={bodyTextStyle}>Chair Email: {officials.chairman.email}</Text>
+            )}
+            {officials.chairman?.phone && (
+              <Text style={bodyTextStyle}>Chair Phone: {formatPhone(officials.chairman.phone)}</Text>
+            )}
             {secretary.name && <Text style={bodyTextStyle}>Secretary: {secretary.name}</Text>}
           </View>
         )}

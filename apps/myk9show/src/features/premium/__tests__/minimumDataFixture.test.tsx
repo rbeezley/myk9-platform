@@ -38,7 +38,7 @@ function makeMinimalPremium(org: Org, style: PremiumStyle): GeneratedPremium {
       phone: null,
       mailingAddress: null,
     },
-    officials: { chairman: null, steward: null },
+    officials: { chairman: null },
     trials: [],
     supplemental: {
       vetClinic: null,

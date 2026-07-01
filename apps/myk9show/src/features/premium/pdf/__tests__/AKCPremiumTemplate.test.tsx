@@ -26,7 +26,7 @@ const premium: GeneratedPremium = {
     phone: null,
     mailingAddress: '456 Oak Ave',
   },
-  officials: { chairman: 'Bob Jones', steward: null },
+  officials: { chairman: { name: 'Bob Jones', email: null, phone: null } },
   trials: [
     {
       name: 'Saturday Trial 1',

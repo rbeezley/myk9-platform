@@ -31,7 +31,7 @@ function makePremium(org: Org, style: PremiumStyle): GeneratedPremium {
       phone: '918-555-0000',
       mailingAddress: '456 Oak Ave',
     },
-    officials: { chairman: 'Bob Jones', steward: 'Sue Hart' },
+    officials: { chairman: { name: 'Bob Jones', email: null, phone: null } },
     trials: [
       {
         name: 'Saturday Trial 1',
@@ -82,7 +82,7 @@ describe('Gazette + Field Guide style matrix', () => {
       const base = makePremium(org, style);
       const premium: GeneratedPremium = {
         ...base,
-        officials: { chairman: null, steward: null },
+        officials: { chairman: null },
         supplemental: {
           vetClinic: null,
           accommodations: [],

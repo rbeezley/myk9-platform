@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/select';
 import { logger } from '@/services/LoggingService';
 import { Search, CheckSquare, Square, Filter, User } from 'lucide-react';
-import { formatJudgeName } from './SimpleClassSelector.helpers';
+import { formatJudgeName, groupClassesByElement } from './SimpleClassSelector.helpers';
 import '@/styles/myk9-class-selection.css';
 
 interface SimpleClassSelectorProps {
@@ -86,32 +86,14 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
     });
   }, [classes, searchTerm, filterElement, filterLevel]);
 
-  // Group classes by element for 5-column layout
+  // Group classes by element for 5-column layout. Ordering within each group is
+  // driven by the seeded `displayOrder` (see groupClassesByElement) so every
+  // registry — including ASCA 'Open' and UKC 'Superior'/'Elite' levels that a
+  // hardcoded level array used to mis-sort to the top — renders in intended order.
   const classesByElement = useMemo(() => {
-    const grouped: Record<string, ClassDefinition[]> = {};
-
     logger.debug('Grouping classes - filteredClasses:', 'templates', { data: filteredClasses });
 
-    filteredClasses.forEach(cls => {
-      if (!grouped[cls.element]) {
-        grouped[cls.element] = [];
-      }
-      grouped[cls.element].push(cls);
-    });
-
-    // Sort each element's classes by level order
-    Object.keys(grouped).forEach(element => {
-      grouped[element].sort((a, b) => {
-        const levelOrder = ['Novice', 'Advanced', 'Excellent', 'Master'];
-        const aIndex = levelOrder.indexOf(a.level || '');
-        const bIndex = levelOrder.indexOf(b.level || '');
-
-        if (aIndex !== bIndex) return aIndex - bIndex;
-
-        // If same level, sort by section (A before B)
-        return (a.section || '').localeCompare(b.section || '');
-      });
-    });
+    const grouped = groupClassesByElement(filteredClasses);
 
     logger.debug('Grouped classes:', 'templates', { data: grouped });
     return grouped;

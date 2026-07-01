@@ -5,7 +5,7 @@ const mockLoadClubs = vi.fn().mockResolvedValue(undefined);
 const mockLoadPeople = vi.fn().mockResolvedValue(undefined);
 const mockUpdateShowData = vi.fn();
 
-let mockPeople: Array<{ id: string; email?: string }> = [];
+let mockPeople: Array<{ id: string; email?: string; phone?: string }> = [];
 
 vi.mock('@/store/clubStore', () => ({
   useClubStore: vi.fn(() => ({ loadClubs: mockLoadClubs })),
@@ -100,7 +100,9 @@ describe('useShowDetailsStepActions', () => {
     });
 
     it('reuses an existing person with the same email instead of creating a duplicate', async () => {
+      // Existing record has no phone → the entered phone must be persisted.
       mockPeople = [{ id: 'existing-1', email: 'Jane@Example.com' }];
+      mockUpdateUser.mockResolvedValue({ error: null });
       const { result } = renderHook(() => useShowDetailsStepActions());
 
       const id = await result.current.handleCreateOfficialPerson({
@@ -113,6 +115,25 @@ describe('useShowDetailsStepActions', () => {
 
       expect(id).toBe('existing-1');
       expect(mockCreateUser).not.toHaveBeenCalled();
+      // The required phone is written back to the reused record (not dropped).
+      expect(mockUpdateUser).toHaveBeenCalledWith('existing-1', { phone: '555-111-2222' });
+      expect(mockLoadPeople).toHaveBeenCalled();
+    });
+
+    it('does not update the reused person when their phone already matches', async () => {
+      mockPeople = [{ id: 'existing-1', email: 'jane@example.com', phone: '555-111-2222' }];
+      const { result } = renderHook(() => useShowDetailsStepActions());
+
+      const id = await result.current.handleCreateOfficialPerson({
+        firstName: 'Jane',
+        lastName: 'Doe',
+        email: 'jane@example.com',
+        phone: '555-111-2222',
+      });
+
+      expect(id).toBe('existing-1');
+      expect(mockCreateUser).not.toHaveBeenCalled();
+      expect(mockUpdateUser).not.toHaveBeenCalled();
       expect(mockLoadPeople).not.toHaveBeenCalled();
     });
 

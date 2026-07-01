@@ -47,6 +47,16 @@ export function useShowDetailsStepActions() {
         ? people.find(p => (p.email ?? '').trim().toLowerCase() === normalizedEmail)
         : undefined;
       if (existing) {
+        // Reuse the existing person, but keep their phone current. The form
+        // requires a phone and the premium/reports surface it, so a matched
+        // record with a missing or changed phone must be updated — otherwise
+        // the phone the user just entered is silently dropped.
+        const trimmedPhone = data.phone.trim();
+        if (trimmedPhone && trimmedPhone !== (existing.phone ?? '').trim()) {
+          const updateResult = await updateUser(existing.id, { phone: trimmedPhone });
+          if (updateResult.error) throw updateResult.error;
+          await loadPeople();
+        }
         return existing.id;
       }
 

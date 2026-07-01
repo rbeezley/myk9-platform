@@ -8,6 +8,8 @@
 
 **Tech Stack:** React, TypeScript, Zustand, React Query, Vitest, Testing Library, Playwright.
 
+**Implementation status, 2026-07-01:** Complete. Task 1 was committed as `45e5beaee`, Task 2 as `385403e79`, and Task 3 verification/tracking is complete on this branch. Manual creation of a real cloned show was not run because it would mutate shared app data; non-mutating wizard coverage verifies the clone-and-review flow through Step 2.
+
 ## Global Constraints
 
 - Work in a feature worktree before editing app code.
@@ -620,12 +622,12 @@ Manual QA:
 - Environment: local/test, not staging/prod
 ```
 
-- [ ] **Step 7: Update OPEN-TODOS.md**
+- [x] **Step 7: Update OPEN-TODOS.md**
 
 In `OPEN-TODOS.md`, change:
 
 ```md
-- [ ] **Test Clone Show feature** — Manual verification that the existing Clone Show flow still works end-to-end after show-detail/dashboard consolidation: open the clone dialog, clone a representative show, confirm trials/classes/settings copied as expected, and verify the cloned show appears in the secretary workflow without duplicating any existing surface.
+- [ ] **Test Clone Show feature** — Manual verification that the existing Clone Show flow still works end-to-end after show-detail/dashboard consolidation: use the wizard clone picker, clone a representative show, confirm trials/classes/settings copied as expected, and verify the cloned show appears in the secretary workflow without duplicating any existing surface.
 ```
 
 To:
@@ -645,7 +647,7 @@ git commit -m "test(show-wizard): verify clone consolidation"
 
 ## Final Verification
 
-- [ ] Run:
+- [x] Run:
 
 ```bash
 pnpm typecheck
@@ -653,7 +655,7 @@ pnpm typecheck
 
 Expected: pass.
 
-- [ ] Run:
+- [x] Run:
 
 ```bash
 cd apps/myk9show
@@ -662,16 +664,16 @@ npx vitest run src/components/shows/wizard/steps/__tests__/CloneFromShowCombobox
 
 Expected: pass.
 
-- [ ] Run:
+- [x] Run:
 
 ```bash
 cd apps/myk9show
-pnpm test:e2e -- src/test/e2e/secretary/show-creation-wizard.spec.ts --project=chromium
+pnpm exec playwright test src/test/e2e/secretary/show-creation-wizard.spec.ts --project=chromium
 ```
 
-Expected: pass or a clearly reported pre-existing infrastructure hang after 60 seconds.
+Result: passed, 6 tests.
 
-- [ ] Confirm no duplicate clone UI remains:
+- [x] Confirm no duplicate clone UI remains:
 
 ```bash
 rg -n "ShowCloneDialog|components/shows/cloning|Clone Existing Show|Review Cloned Show" apps/myk9show/src
@@ -679,7 +681,7 @@ rg -n "ShowCloneDialog|components/shows/cloning|Clone Existing Show|Review Clone
 
 Expected: no matches.
 
-- [ ] [ADDED] Confirm manual QA evidence is present in the PR or final handoff:
+- [x] [ADDED] Confirm manual QA evidence is present in the PR or final handoff:
 
 ```md
 Manual QA:

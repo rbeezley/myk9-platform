@@ -58,8 +58,9 @@ export interface WizardRangeDates {
 
 /**
  * Two distinct date ranges anchored to fixed day-of-month positions in the
- * current month. All four days (5th, 10th, 14th, 20th) exist in every month and
+ * current month. All four days (5th, 8th, 10th, 14th) exist in every month and
  * render in the picker's default grid, so the proof never depends on wall-clock.
+ * Entry close stays before show start to satisfy show-details validation.
  */
 export function currentMonthWizardDates(now: Date = new Date()): WizardRangeDates {
   const year = now.getFullYear();
@@ -72,6 +73,6 @@ export function currentMonthWizardDates(now: Date = new Date()): WizardRangeDate
   });
   return {
     show: { start: day(10), end: day(14) },
-    entry: { start: day(5), end: day(20) },
+    entry: { start: day(5), end: day(8) },
   };
 }

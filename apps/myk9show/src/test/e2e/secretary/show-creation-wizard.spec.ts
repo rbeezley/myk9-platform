@@ -62,6 +62,46 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
     await expect(page.locator('#show-entry-period')).toContainText(entryRange);
   });
 
+  test('secretary can clone a previous show into the wizard and continue reviewing fields', async ({
+    page,
+  }) => {
+    await signInAsSecretary(page, '/secretary/create-show/wizard');
+
+    const sourceName = await selectFirstShowToClone(page);
+
+    await expect(page.getByText(sourceName, { exact: true }).first()).toBeVisible();
+    await expect(page.getByLabel(/Show Name/i)).toHaveValue(sourceName);
+    await expect(page.locator('#show-dates')).toContainText(/select show start and end dates/i);
+    await expect(page.locator('#show-entry-period')).toContainText(
+      /select entry open and close dates/i
+    );
+    await expect(page.getByRole('button', { name: /^Next$/ })).toBeDisabled();
+  });
+
+  test('secretary can set new dates after cloning and continue to trial review', async ({
+    page,
+  }) => {
+    await signInAsSecretary(page, '/secretary/create-show/wizard');
+
+    await selectFirstShowToClone(page);
+
+    const dates = currentMonthWizardDates();
+    await selectRange(page, page.getByRole('button', { name: /Show Dates/i }), {
+      start: dates.show.start.pick,
+      end: dates.show.end.pick,
+    });
+    await selectRange(page, page.getByRole('button', { name: /Entry Period/i }), {
+      start: dates.entry.start.pick,
+      end: dates.entry.end.pick,
+    });
+
+    await selectFirstChairman(page);
+
+    await page.getByRole('button', { name: /^Next$/ }).click();
+    await expect(page.getByText('Step 2 of 4', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /^Trials \(\d+\)$/ })).toBeVisible();
+  });
+
   test('Add Trials mode lands on trial configuration with AKC event number guidance', async ({
     page,
   }) => {
@@ -83,6 +123,42 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
     await expect(page.getByLabel(/Trial Type/i)).toBeVisible();
   });
 });
+
+async function selectFirstShowToClone(page: Page) {
+  const cloneTrigger = page.getByRole('button', { name: 'Select a past show to clone' });
+  await expect(cloneTrigger).toBeVisible({ timeout: 15000 });
+  await cloneTrigger.click();
+
+  const search = page.getByPlaceholder('Search shows...');
+  await expect(search).toBeVisible();
+
+  const cloneDialog = page.getByRole('dialog').filter({ has: search });
+  await expect(cloneDialog).toBeVisible();
+
+  const firstShow = cloneDialog.getByRole('button').first();
+  await expect(firstShow).toBeVisible();
+  const sourceName = (await firstShow.locator('span').first().textContent())?.trim();
+  expect(sourceName).toBeTruthy();
+  await firstShow.click();
+  await expect(search).not.toBeVisible();
+
+  return sourceName!;
+}
+
+async function selectFirstChairman(page: Page) {
+  const chairmanTrigger = page.getByRole('button', { name: /Show Chairman/i });
+  await expect(chairmanTrigger).toBeVisible();
+  await chairmanTrigger.click();
+
+  const search = page.getByPlaceholder('Search show chairman…');
+  await expect(search).toBeVisible();
+
+  const popover = page.getByRole('dialog').filter({ has: search });
+  const firstPerson = popover.locator('[data-group-key]').first();
+  await expect(firstPerson).toBeVisible();
+  await firstPerson.click();
+  await expect(search).not.toBeVisible();
+}
 
 async function selectRange(page: Page, trigger: Locator, dates: { start: RegExp; end: RegExp }) {
   await trigger.click();

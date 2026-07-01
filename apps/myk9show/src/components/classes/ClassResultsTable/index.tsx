@@ -1,16 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import {
-  Save,
-  AlertCircle,
-  ClipboardList,
-  Eraser,
-  Plus,
-  Trophy,
-  Trash2,
-  X,
-  ListOrdered,
-} from 'lucide-react';
+import { Save, AlertCircle, ClipboardList, Plus, ListOrdered } from 'lucide-react';
 import { useRunOrderDrag } from './useRunOrderDrag';
 import { DragHandleCell } from './SortableRow';
 import { DndTableView } from './DndTableView';
@@ -18,27 +8,19 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Input } from '@/components/ui/input';
 import { TooltipProvider } from '@/components/ui/tooltip/tooltip';
-import { DataTable, TimeInput, formatSearchTime } from '@/components/ui/data-table';
-import { ArmbandBadge } from '@/components/common/ArmbandBadge';
+import { DataTable } from '@/components/ui/data-table';
 import { SearchBar } from '@/components/common/SearchBar';
-import { CheckInStatusBadge } from '@/components/common/CheckInStatusBadge';
 import { StatusPickerDialog } from '@/components/common/StatusPickerDialog';
 import { RunOrderDialog } from '../RunOrderDialog';
 import { useRunOrderPreset } from './useRunOrderPreset';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import '@/styles/myk9-show-details.css';
-import type { ClassResultsTableProps, ScoringRow, ScoringEdit } from './types';
-import type { ScentWorkEntry } from '@/types/scent-work-types';
+import type { ClassResultsTableProps, ScoringRow } from './types';
 import type { CheckInStatus } from '@myk9/core';
 import { matchesAny } from '@myk9/core';
 import { useClassResults } from './useClassResults';
-import { getPlacementBadgeClass, formatPlacement } from './utils';
-import { DogInfoTooltip } from './DogInfoTooltip';
-import { QualificationCell } from './QualificationCell';
-import { PendingCell } from './PendingCell';
-import { StatusBadge } from './StatusBadge';
+import { useResultColumns } from './columns';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { ViewToggle } from '@/components/common/ViewToggle';
 import { EntryCardGrid } from './EntryCardGrid';
@@ -202,249 +184,19 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
     return result;
   }, [entries, scoringTab, isEntryScored, searchQuery]);
 
-  const columns: ColumnDef<ScoringRow, unknown>[] = useMemo(() => {
-    const cols: ColumnDef<ScoringRow, unknown>[] = [
-      // Armband
-      {
-        id: 'armband',
-        accessorKey: 'armband',
-        header: 'Armband',
-        sortingFn: 'basic',
-        cell: ({ row }) => <ArmbandBadge armband={row.original.armband} />,
-      },
-      // Dog & Handler
-      {
-        id: 'dogHandler',
-        accessorKey: 'dogName',
-        header: 'Dog & Handler',
-        cell: ({ row }) => {
-          const item = row.original;
-          const entry: ScentWorkEntry | undefined = entryMap.get(item.entryId);
-          return (
-            <div>
-              <DogInfoTooltip dogName={item.dogName} registrations={entry?.registrations} />
-              <div className="text-sm text-gray-600">{item.handlerName}</div>
-            </div>
-          );
-        },
-      },
-      // Placement
-      {
-        id: 'placement',
-        accessorKey: 'placement',
-        header: 'Placement',
-        cell: ({ row }) => {
-          const item = row.original;
-          if (!isStaff && !visibility.showPlacement) {
-            return <PendingCell />;
-          }
-          return item.placement ? (
-            <Badge variant="default" className={getPlacementBadgeClass(item.placement)}>
-              <Trophy className="h-4 w-4" />
-              {formatPlacement(item.placement)}
-            </Badge>
-          ) : (
-            <span className="text-sm text-muted-foreground">--</span>
-          );
-        },
-      },
-      // Qualification
-      {
-        id: 'qualification',
-        accessorKey: 'qualification',
-        header: 'Qualification',
-        cell: ({ row }) => (
-          <QualificationCell
-            item={row.original}
-            canEdit={canEdit}
-            visible={isStaff || visibility.showQualification}
-            onUpdate={(id, field, value) => onFieldChange(id, field as keyof ScoringEdit, value)}
-          />
-        ),
-      },
-      // Time
-      {
-        id: 'searchTime',
-        accessorKey: 'searchTime',
-        header: 'Search Time',
-        cell: ({ row }) => {
-          const item = row.original;
-          if (canEdit) {
-            return (
-              <div className="flex justify-center">
-                <div
-                  className={cn(
-                    'inline-block rounded-md',
-                    item.hasEdits && 'ring-2 ring-blue-500/30'
-                  )}
-                >
-                  <div className="flex items-center gap-1">
-                    <TimeInput
-                      value={item.searchTime}
-                      onChange={digits =>
-                        onFieldChange(item.entryId, 'searchTime', formatSearchTime(digits))
-                      }
-                      onCommit={() => {
-                        const next = document.querySelector(
-                          `[data-index="${row.index}"][data-field="faults"]`
-                        ) as HTMLElement;
-                        next?.focus();
-                      }}
-                      onCancel={() => {}}
-                      className="w-24 h-8 text-center font-mono"
-                    />
-                    {item.searchTime && (
-                      <button
-                        type="button"
-                        className="text-muted-foreground hover:text-foreground"
-                        onMouseDown={e => e.preventDefault()}
-                        onClick={() => onFieldChange(item.entryId, 'searchTime', '')}
-                        title="Clear time"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          }
-          if (!isStaff && !visibility.showTime) {
-            return <PendingCell />;
-          }
-          return (
-            <div className="text-center">
-              <span className="text-sm font-mono">{item.searchTime || '--'}</span>
-            </div>
-          );
-        },
-      },
-      // Faults
-      {
-        id: 'faults',
-        accessorKey: 'faults',
-        header: 'Faults',
-        cell: ({ row }) => {
-          const item = row.original;
-          if (canEdit) {
-            return (
-              <Input
-                type="number"
-                value={item.faults}
-                onChange={e => onFieldChange(item.entryId, 'faults', e.target.value)}
-                onFocus={e => e.target.select()}
-                onKeyDown={e => handleKeyDown(e, row.index, 'faults')}
-                min="0"
-                max="99"
-                className={cn('w-16', item.hasEdits && 'ring-2 ring-blue-500/30 border-blue-500')}
-                data-index={row.index}
-                data-field="faults"
-              />
-            );
-          }
-          if (!isStaff && !visibility.showFaults) {
-            return <PendingCell />;
-          }
-          return <span className="text-sm">{item.faults}</span>;
-        },
-      },
-    ];
-
-    // Check-in column — hidden on Completed tab (always "Completed" there)
-    if (scoringTab !== 'completed') {
-      // Insert before the last column (Scoring Status)
-      cols.push({
-        id: 'checkInStatus',
-        header: 'Check-in',
-        cell: ({ row }) => {
-          const item = row.original;
-          return (
-            <CheckInStatusBadge
-              status={item.checkInStatus}
-              size="sm"
-              onClick={() =>
-                setStatusPickerEntry({
-                  entryId: item.entryId,
-                  armband: item.armband ?? '',
-                  dogName: item.dogName ?? 'Unknown',
-                  handlerName: item.handlerName ?? '',
-                  currentStatus: item.checkInStatus,
-                })
-              }
-            />
-          );
-        },
-      });
-    }
-
-    // Scoring Status
-    cols.push({
-      id: 'status',
-      header: 'Status',
-      cell: ({ row }) => <StatusBadge item={row.original} />,
-    });
-
-    // Clear result column
-    if (canEdit) {
-      cols.push({
-        id: 'clearResult',
-        header: '',
-        cell: ({ row }) => {
-          const item = row.original;
-          if (!item.isScored && !item.hasEdits) return null;
-          return (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-muted-foreground hover:text-destructive"
-              onClick={() => clearEntry(item.entryId)}
-              title="Clear result"
-            >
-              <Eraser className="h-3.5 w-3.5" />
-            </Button>
-          );
-        },
-      });
-    }
-
-    // Conditional delete column
-    if (showDeleteColumn) {
-      cols.push({
-        id: 'delete',
-        header: '',
-        enableSorting: false,
-        cell: ({ row }) => {
-          const item = row.original;
-          // Hide delete on scored entries — reset first, then delete from Pending
-          if (item.isScored) return null;
-          return (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onDeleteEntry?.(item.entryId)}
-              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-              title="Delete entry"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          );
-        },
-      });
-    }
-
-    return cols;
-  }, [
+  const columns = useResultColumns({
     canEdit,
-    clearEntry,
-    entryMap,
-    handleKeyDown,
     isStaff,
-    onDeleteEntry,
-    onFieldChange,
+    visibility,
     scoringTab,
     showDeleteColumn,
-    visibility,
-  ]);
+    entryMap,
+    onFieldChange,
+    handleKeyDown,
+    clearEntry,
+    onDeleteEntry,
+    onCheckInClick: setStatusPickerEntry,
+  });
 
   const dragColumns = useMemo<ColumnDef<ScoringRow, unknown>[]>(
     () => (showDragHandles ? [DRAG_HANDLE_COL, ...columns] : columns),

@@ -15,6 +15,12 @@ export interface TemplateStoreState {
   filterOrganization: Organization | null;
   filterTrialType: TrialType | null;
   isInitialized: boolean;
+  /**
+   * Epoch ms of the last successful DB template fetch, or null if never fetched.
+   * Persisted so an already-active client can decide whether its cached templates
+   * are stale relative to a DB change (see `shouldRevalidate` / `refreshTemplatesFromDB`).
+   */
+  templatesFetchedAt: number | null;
 }
 
 export interface TemplateStoreActions {
@@ -63,6 +69,13 @@ export interface TemplateStoreActions {
   // Initialize with default templates
   initializeDefaultTemplates: (force?: boolean) => void;
 
+  /**
+   * Revalidate cached templates against the DB (stale-while-revalidate).
+   * Keeps serving the persisted cache on failure/offline; upserts fresh rows by id
+   * so stale clients converge. `force` bypasses the TTL check.
+   */
+  refreshTemplatesFromDB: (options?: { force?: boolean }) => Promise<void>;
+
   // Lazy loading method
   ensureTemplatesLoaded: () => Promise<void>;
 
@@ -81,4 +94,5 @@ export const initialState: TemplateStoreState = {
   filterOrganization: null,
   filterTrialType: null,
   isInitialized: false,
+  templatesFetchedAt: null,
 };

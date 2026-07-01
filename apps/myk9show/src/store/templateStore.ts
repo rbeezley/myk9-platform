@@ -15,9 +15,23 @@ import {
   filterTemplates,
   applyActiveFilters,
   migrateV0ToV1,
+  upsertTemplates,
+  shouldRevalidate,
 } from './templateStore.helpers';
 
 export type { TemplateStore } from './templateStore.types';
+
+/**
+ * How long a persisted template cache is considered fresh before a background
+ * revalidation is due. `0` = revalidate on every load (the current default —
+ * chosen because sport templates are low-churn setup data and a single embed
+ * fetch is cheap). Raise this to trade freshness for fewer round-trips.
+ */
+const TEMPLATE_REVALIDATE_TTL_MS = 0;
+
+// Dedupes concurrent revalidations (e.g. onRehydrate + a component mount racing)
+// into a single in-flight DB fetch.
+let _refreshInFlight: Promise<void> | null = null;
 
 export const useTemplateStore = create<TemplateStore>()(
   persist(
@@ -379,16 +393,15 @@ export const useTemplateStore = create<TemplateStore>()(
             );
 
             if (dbTemplates.length > 0) {
-              set(state => {
-                const existingIds = new Set(state.templates.map(t => t.id));
-                const newTemplates = dbTemplates.filter(t => !existingIds.has(t.id));
-                return {
-                  templates: [...state.templates, ...newTemplates],
-                  isInitialized: true,
-                  isLoading: false,
-                  error: null,
-                };
-              });
+              set(state => ({
+                // Upsert (replace-by-id) so a re-init actually refreshes changed
+                // templates instead of skipping them because the id already exists.
+                templates: upsertTemplates(state.templates, dbTemplates),
+                isInitialized: true,
+                isLoading: false,
+                templatesFetchedAt: Date.now(),
+                error: null,
+              }));
               return;
             }
           } catch (error) {
@@ -446,9 +459,55 @@ export const useTemplateStore = create<TemplateStore>()(
         loadFromDB();
       },
 
+      // Stale-while-revalidate: reach already-active clients that cached templates
+      // before a DB change, without a manual cache clear. Keeps serving the
+      // persisted cache on failure/offline (offline-first) and upserts fresh rows
+      // by id so a stale snapshot (e.g. 16 ASCA classes) converges to the DB state
+      // (32 classes incl. Level C).
+      refreshTemplatesFromDB: async (options = {}) => {
+        const { force = false } = options;
+
+        if (
+          !force &&
+          !shouldRevalidate(get().templatesFetchedAt, TEMPLATE_REVALIDATE_TTL_MS, Date.now())
+        ) {
+          return;
+        }
+
+        // Coalesce concurrent callers onto a single in-flight fetch.
+        if (_refreshInFlight) return _refreshInFlight;
+
+        _refreshInFlight = (async () => {
+          try {
+            const rows = await fetchAllSportTemplatesWithRules();
+            const dbTemplates = rows.map(row =>
+              mapSportTemplateToClassTemplate(row, row.sport_class_rules)
+            );
+
+            if (dbTemplates.length > 0) {
+              set(state => ({
+                templates: upsertTemplates(state.templates, dbTemplates),
+                isInitialized: true,
+                templatesFetchedAt: Date.now(),
+                error: null,
+              }));
+            }
+          } catch (error) {
+            // Offline-first: never wipe the cache on a failed revalidation.
+            logger.warn('Template revalidation failed; keeping cached templates', 'store', {
+              error: error instanceof Error ? error.message : String(error),
+            });
+          } finally {
+            _refreshInFlight = null;
+          }
+        })();
+
+        return _refreshInFlight;
+      },
+
       // Emergency function to clear corrupted data
       clearCorruptedData: async () => {
-        set({ templates: [], isInitialized: false });
+        set({ templates: [], isInitialized: false, templatesFetchedAt: null });
 
         const storageName = 'myk9show-template-storage';
         localStorage.removeItem(storageName);
@@ -468,6 +527,7 @@ export const useTemplateStore = create<TemplateStore>()(
       partialize: state => ({
         templates: state.templates,
         isInitialized: state.isInitialized,
+        templatesFetchedAt: state.templatesFetchedAt,
       }),
       migrate: (persistedState: unknown, version: number) => {
         if (version === 0) {
@@ -476,9 +536,21 @@ export const useTemplateStore = create<TemplateStore>()(
         return persistedState;
       },
       onRehydrateStorage: () => {
-        return (_state, _error) => {
-          // PERFORMANCE OPTIMIZATION: Skip automatic template initialization
-          // Templates will be loaded on-demand when template features are accessed
+        return (_state, error) => {
+          // PERFORMANCE OPTIMIZATION: Skip automatic template *initialization* —
+          // templates are still loaded on-demand when template features are accessed.
+          //
+          // REVALIDATE-ON-LOAD: but if a cache WAS hydrated, kick a background
+          // refresh so clients that cached templates before a DB change converge
+          // without a manual clear. Offline-first — only when online; the persisted
+          // cache keeps serving otherwise. Deferred so hydration fully settles
+          // before we upsert fresh DB rows on top of it.
+          if (error) return;
+          if (typeof window === 'undefined') return;
+          if (navigator.onLine === false) return;
+          setTimeout(() => {
+            void useTemplateStore.getState().refreshTemplatesFromDB();
+          }, 0);
         };
       },
     }

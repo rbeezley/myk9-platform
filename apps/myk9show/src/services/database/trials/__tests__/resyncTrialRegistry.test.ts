@@ -68,4 +68,17 @@ describe('resyncTrialRegistry', () => {
     expect(updated).toBe(1);
     expect(mockUpdateTrial).toHaveBeenCalledWith('t1', { registryId: 'ASCA' });
   });
+
+  it('no-ops safely on a cold/incomplete local replica (no trials present)', async () => {
+    // If the show's org changes before its trials have synced into IndexedDB,
+    // getTrialsByShow returns []. This replica-bound helper can do nothing locally and
+    // must not throw; correctness for that case is the authoritative DB trigger's job
+    // (migration 20260701120000_sync_trial_registry_on_show_org_change), not this helper.
+    mockGetTrialsByShow.mockResolvedValue([]);
+
+    const updated = await resyncTrialRegistry('show-1', 'UKC');
+
+    expect(updated).toBe(0);
+    expect(mockUpdateTrial).not.toHaveBeenCalled();
+  });
 });

@@ -373,8 +373,10 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       await replicatedShowsTable.updateShow(id, replicatedUpdates);
 
       // Registry is show-wide and stored denormalized on each trial (write-path Phase 1).
-      // When the organization changes, re-derive and resync the show's trials so their
-      // registry_id never drifts from the org. Only fire on an actual change.
+      // On an organization change, give the editing client immediate LOCAL consistency for
+      // the trials it already holds. This is best-effort (replica-bound) — the authoritative
+      // resync is the sync_trial_registry_from_show DB trigger, which corrects every child
+      // trial server-side when the org change syncs. Only fire on an actual change.
       if (updates.organization !== undefined && updates.organization !== currentShow.organization) {
         await resyncTrialRegistry(id, updates.organization);
       }

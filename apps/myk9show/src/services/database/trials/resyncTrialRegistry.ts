@@ -2,15 +2,21 @@ import { replicatedTrialsTable } from '@/services/replication';
 import { deriveRegistryId } from '@/features/registries';
 
 /**
- * Keep `trials.registry_id` consistent with the show's organization.
+ * Best-effort LOCAL resync of `trials.registry_id` to a show's organization.
  *
  * Registry is show-wide (scoping §7) and stored denormalized on each trial (write-path
- * Phase 1). When a show's organization changes after its trials exist, the trials' stored
- * `registry_id` would otherwise drift from the new organization. This re-derives the
- * registry from the new organization and persists it onto every trial that's now out of
- * sync (skipping trials already correct, so a redundant call is a no-op).
+ * Phase 1). When a show's organization changes, its trials' `registry_id` must follow.
  *
- * Returns the number of trials updated.
+ * AUTHORITY LIVES IN THE DB, NOT HERE. This helper is replica-bound on both ends — it
+ * reads the local IndexedDB replica (`getTrialsByShow`) and `updateTrial` only touches
+ * trials present locally (it throws otherwise). So on a cold/incomplete replica it may
+ * see no trials and do nothing. That is safe because the authoritative fix is the
+ * `sync_trial_registry_from_show` DB trigger (migration 20260701120000): when the show's
+ * organization change reaches the server, the trigger re-derives registry_id for EVERY
+ * child trial regardless of any client's replica. This function just gives the editing
+ * client immediate local consistency for the trials it already holds.
+ *
+ * Idempotent: skips trials already correct. Returns the number of local trials updated.
  */
 export async function resyncTrialRegistry(
   showId: string,

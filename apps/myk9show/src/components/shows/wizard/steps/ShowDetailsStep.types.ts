@@ -1,10 +1,13 @@
+// The wizard offers only sanctioning bodies with a real rulebook config —
+// picking a body the app can't run dead-ends at an empty class step
+// (docs/audits/2026-07-01-show-creation-wizard-ux.md §4). The list is owned by
+// the shared domain module `@/data/organizations` (the club onboarding lead
+// form needs a *broader* list, so the two must not share one constant).
+export { SHOW_ORGANIZATIONS as ORGANIZATIONS } from '@/data/organizations';
+export type { OrganizationOption } from '@/data/organizations';
+
 export interface ShowDetailsStepProps {
   className?: string;
-}
-
-export interface OrganizationOption {
-  value: string;
-  label: string;
 }
 
 export interface ResolvedJudge {
@@ -12,15 +15,3 @@ export interface ResolvedJudge {
   name: string;
   judgeNumber: string;
 }
-
-export const ORGANIZATIONS: OrganizationOption[] = [
-  { value: 'AKC', label: 'AKC (American Kennel Club)' },
-  { value: 'UKC', label: 'UKC (United Kennel Club)' },
-  { value: 'NACSW', label: 'NACSW (National Association of Canine Scent Work)' },
-  { value: 'CPE', label: 'CPE (Canine Performance Events)' },
-  { value: 'USDAA', label: 'USDAA (United States Dog Agility Association)' },
-  { value: 'NADAC', label: 'NADAC (North American Dog Agility Council)' },
-  { value: 'ASCA', label: 'ASCA (Australian Shepherd Club of America)' },
-  { value: 'NASDA', label: 'NASDA (North American Sport Dog Association)' },
-  { value: 'Other', label: 'Other' },
-];

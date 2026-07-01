@@ -17,7 +17,7 @@ import { useWizardStore } from '@/store/wizardStore';
 import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
 import { useUserStore } from '@/store/userStore';
 import { useUserClubIds } from '@/hooks/useUserClubIds';
-import type { Show } from '@/types/show-types';
+import type { Class, Show } from '@/types/show-types';
 
 interface CloneFromShowComboboxProps {
   /** Optional: restrict to this clubId (pre-selected club context) */
@@ -29,9 +29,9 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
   const [search, setSearch] = useState('');
   const [clonedShowName, setClonedShowName] = useState<string | null>(null);
 
-  const { updateShowData, addJudgeToShow } = useWizardStore();
+  const { updateShowData, addJudgeToShow, addTrial, resetWizard } = useWizardStore();
   const { people } = useUserStore();
-  const { data: allShows = [], isLoading } = useShowsQuery();
+  const { data: allShows = [], isLoading, isError } = useShowsQuery();
 
   // Determine which club IDs this user has secretary/admin access to
   const userClubIds = useUserClubIds();
@@ -68,6 +68,7 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
     setOpen(false);
     setSearch('');
     setClonedShowName(show.name);
+    resetWizard();
 
     // Prefill all non-date show fields
     updateShowData({
@@ -102,26 +103,49 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
         });
       }
     }
+
+    if (show.trials?.length) {
+      for (const trial of show.trials) {
+        addTrial({
+          name: trial.name || 'Trial',
+          dateTime: '',
+          eventNumber: '',
+          trialType: trial.trialType,
+          classes: (trial.classes || []).map(cls => {
+            const cloneClass = cls as Class & { templateId?: string };
+            const judgeId =
+              (show.assignedJudges || []).find(judge => judge.assignedClasses?.includes(cls.id))
+                ?.judgeId || undefined;
+
+            return {
+              templateId: cloneClass.templateId || '',
+              customizations: {
+                className: cls.name,
+                element: cls.element,
+                level: cls.level,
+                entryFee: cls.entryFee,
+              },
+              ...(judgeId ? { judgeId } : {}),
+            };
+          }),
+        });
+      }
+    }
   };
 
   const handleStartFresh = () => {
     setClonedShowName(null);
-    updateShowData({
-      name: '',
-      organization: 'AKC',
-      startDate: '',
-      endDate: '',
-      location: '',
-      entryOpenDate: '',
-      entryCloseDate: '',
-      preEntryFee: 0,
-      dayOfShowFee: 0,
-      startingArmbandNumber: 100,
-      acceptCheckPayments: false,
-      acceptCashPayments: false,
-      judgeIds: [],
-    });
+    resetWizard();
   };
+
+  if (isError) {
+    return (
+      <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+        <p className="font-medium text-foreground">We could not load previous shows.</p>
+        <p>You can still enter this show manually.</p>
+      </div>
+    );
+  }
 
   if (candidateShows.length === 0 && !isLoading) {
     // No past shows to clone from — render nothing so the form looks clean for new users

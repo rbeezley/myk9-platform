@@ -39,7 +39,6 @@ const mockShows: Show[] = [
         classes: [
           {
             id: 'class-1',
-            templateId: 'tmpl-nosework',
             name: 'Novice Containers',
             level: 'Novice',
             element: 'Containers',
@@ -87,6 +86,27 @@ vi.mock('@/store/userStore', () => ({
 
 vi.mock('@/hooks/useUserClubIds', () => ({
   useUserClubIds: vi.fn(() => new Set(['club-1'])),
+}));
+
+vi.mock('@/hooks/useTemplates', () => ({
+  useTemplates: vi.fn(() => ({
+    templates: [
+      {
+        id: 'tmpl-nosework',
+        organization: 'UKC',
+        trialType: 'Nosework',
+        isActive: true,
+        classDefinitions: [
+          {
+            className: 'Novice Containers',
+            element: 'Containers',
+            level: 'Novice',
+            displayOrder: 1,
+          },
+        ],
+      },
+    ],
+  })),
 }));
 
 import { CloneFromShowCombobox } from '../CloneFromShowCombobox';
@@ -143,7 +163,7 @@ describe('CloneFromShowCombobox', () => {
     });
   });
 
-  it('copies trial and class structure while clearing trial date and event number', async () => {
+  it('copies production-shaped trial and class structure while clearing trial date and event number', async () => {
     await selectSourceShow();
 
     expect(mockAddTrial).toHaveBeenCalledWith({

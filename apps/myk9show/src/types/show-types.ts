@@ -37,6 +37,7 @@ export interface ShowTrial {
 
 export interface Class {
   id: string;
+  templateId?: string | undefined;
   name: string;
   description?: string | undefined;
   entryFee?: number | undefined;

@@ -7,6 +7,7 @@ import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable
 import type { ReplicatedClub } from '@/services/replication/ReplicatedClubsTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import type { ReplicatedJudgeAssignment } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
+import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 
 /**
  * Maps ShowInput (from Zustand store) to DbShowInsert (for Supabase insertion)
@@ -112,6 +113,8 @@ export const mapDatabaseToShow = (
         const classObj = cls as Record<string, unknown>;
         return {
           id: classObj.id as string,
+          templateId:
+            ((classObj.template_id || classObj.templateId) as string | undefined) ?? undefined,
           name: classObj.name as string,
           description: (classObj.description || '') as string,
           entryFee: (classObj.entry_fee || 0) as number,
@@ -120,24 +123,41 @@ export const mapDatabaseToShow = (
           allowWaitlist: (classObj.allow_waitlist || false) as boolean,
           maxDogsPerHandler: classObj.max_dogs_per_handler as number | undefined,
           level: classObj.level as string | undefined,
+          element: classObj.element as string | undefined,
+          competitionType: classObj.competition_type as string | undefined,
           breedRestrictions: (classObj.breed_restrictions || []) as string[],
           ageRestrictions: classObj.age_restrictions
             ? {
                 min: (classObj.age_restrictions as Record<string, unknown>).min as number,
                 max: (classObj.age_restrictions as Record<string, unknown>).max as number,
               }
+            : classObj.age_min !== undefined || classObj.age_max !== undefined
+              ? {
+                  min: classObj.age_min as number | undefined,
+                  max: classObj.age_max as number | undefined,
+                }
             : undefined,
           heightRestrictions: classObj.height_restrictions
             ? {
                 min: (classObj.height_restrictions as Record<string, unknown>).min as number,
                 max: (classObj.height_restrictions as Record<string, unknown>).max as number,
               }
+            : classObj.height_min !== undefined || classObj.height_max !== undefined
+              ? {
+                  min: classObj.height_min as number | undefined,
+                  max: classObj.height_max as number | undefined,
+                }
             : undefined,
           handlerAgeRestrictions: classObj.handler_age_restrictions
             ? {
                 min: (classObj.handler_age_restrictions as Record<string, unknown>).min as number,
                 max: (classObj.handler_age_restrictions as Record<string, unknown>).max as number,
               }
+            : classObj.handler_age_min !== undefined || classObj.handler_age_max !== undefined
+              ? {
+                  min: classObj.handler_age_min as number | undefined,
+                  max: classObj.handler_age_max as number | undefined,
+                }
             : undefined,
           startTime: classObj.start_time as string | undefined,
           estimatedDuration: classObj.estimated_duration as number | undefined,
@@ -457,8 +477,37 @@ export const mapReplicatedClubToDetailRow = (club: ReplicatedClub): Record<strin
  * Convert a ReplicatedTrial to the snake_case trial sub-object shape
  * returned by PostgREST `trials(...)` select.
  */
-export const mapReplicatedTrialToRow = (trial: ReplicatedTrial): Record<string, unknown> =>
-  mapFields(trial as unknown as Record<string, unknown>, {
+export const mapReplicatedClassToRow = (classData: ReplicatedClass): Record<string, unknown> =>
+  mapFields(classData as unknown as Record<string, unknown>, {
+    id: 'id',
+    trial_id: 'trialId',
+    template_id: 'templateId',
+    name: 'name',
+    description: 'description',
+    entry_fee: 'entryFee',
+    jump_heights: 'jumpHeights',
+    max_entries: 'maxEntries',
+    allow_waitlist: 'allowsWaitlist',
+    max_dogs_per_handler: 'maxDogsPerHandler',
+    level: 'level',
+    element: 'element',
+    section: 'section',
+    breed_restrictions: 'breedRestrictions',
+    age_min: 'ageMin',
+    age_max: 'ageMax',
+    height_min: 'heightMin',
+    height_max: 'heightMax',
+    handler_age_min: 'handlerAgeMin',
+    handler_age_max: 'handlerAgeMax',
+    start_time: 'startTime',
+    estimated_duration: 'estimatedDuration',
+  });
+
+export const mapReplicatedTrialToRow = (
+  trial: ReplicatedTrial,
+  classes: ReplicatedClass[] = []
+): Record<string, unknown> => ({
+  ...mapFields(trial as unknown as Record<string, unknown>, {
     id: 'id',
     name: 'name',
     date: 'date',
@@ -468,7 +517,9 @@ export const mapReplicatedTrialToRow = (trial: ReplicatedTrial): Record<string, 
     max_entries_per_dog: 'maxEntriesPerDog',
     max_total_entries: 'maxTotalEntries',
     max_entries_per_handler: 'maxEntriesPerHandler',
-  });
+  }),
+  class: classes.map(mapReplicatedClassToRow),
+});
 
 /**
  * Convert a ReplicatedJudgeAssignment to the snake_case row shape
@@ -506,6 +557,7 @@ export const mapReplicatedShowToDbRow = (
   options?: {
     club?: ReplicatedClub | null;
     trials?: ReplicatedTrial[];
+    classesByTrial?: Map<string, ReplicatedClass[]>;
     judgeAssignments?: ReplicatedJudgeAssignment[];
     clubDetail?: boolean;
   }
@@ -553,7 +605,9 @@ export const mapReplicatedShowToDbRow = (
 
   // Attach trials array when provided
   if (options?.trials) {
-    row.trials = options.trials.map(mapReplicatedTrialToRow);
+    row.trials = options.trials.map(trial =>
+      mapReplicatedTrialToRow(trial, options.classesByTrial?.get(trial.id) ?? [])
+    );
   }
 
   // Attach judge_assignments array when provided

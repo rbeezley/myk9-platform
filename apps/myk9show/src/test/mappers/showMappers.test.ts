@@ -74,6 +74,97 @@ describe('mapDatabaseToShow — branding fallback', () => {
     ]);
   });
 
+  it('preserves joined trial class structure needed for wizard cloning', () => {
+    const result = mapDatabaseToShow({
+      ...baseDbShow,
+      trials: [
+        {
+          id: 'trial-1',
+          name: 'Friday Trial',
+          date: '2026-06-01',
+          trial_number: 'T1',
+          status: 'completed',
+          trial_type: 'Nosework',
+          class: [
+            {
+              id: 'class-1',
+              name: 'Novice Containers',
+              entry_fee: 28,
+              level: 'Novice',
+              element: 'Containers',
+              section: null,
+            },
+          ],
+        },
+      ],
+    } as never);
+
+    expect(result.trials[0]?.classes).toEqual([
+      expect.objectContaining({
+        id: 'class-1',
+        name: 'Novice Containers',
+        entryFee: 28,
+        level: 'Novice',
+        element: 'Containers',
+      }),
+    ]);
+  });
+
+  it('attaches replicated classes to replicated trial rows for show queries', () => {
+    const row = mapReplicatedShowToDbRow(
+      {
+        id: 'show-1',
+        name: 'Test Show',
+        organization: 'UKC',
+        startDate: '2026-06-01',
+        endDate: '2026-06-02',
+        location: 'Test Venue',
+        status: 'completed',
+        entryOpenDate: '2026-05-01',
+        entryCloseDate: '2026-05-15',
+        preEntryFee: 28,
+        clubId: 'club-1',
+      },
+      {
+        trials: [
+          {
+            id: 'trial-1',
+            showId: 'show-1',
+            name: 'Friday Trial',
+            date: '2026-06-01',
+            trialType: 'Nosework',
+          },
+        ],
+        classesByTrial: new Map([
+          [
+            'trial-1',
+            [
+              {
+                id: 'class-1',
+                trialId: 'trial-1',
+                name: 'Novice Containers',
+                element: 'Containers',
+                level: 'Novice',
+                entryFee: 28,
+              },
+            ],
+          ],
+        ]),
+      }
+    );
+
+    const trial = (row.trials as Array<{ class: Array<Record<string, unknown>> }>)[0];
+    expect(trial.class).toEqual([
+      expect.objectContaining({
+        id: 'class-1',
+        name: 'Novice Containers',
+        element: 'Containers',
+        level: 'Novice',
+        entry_fee: 28,
+      }),
+    ]);
+  });
+
   it('falls back to club branding when show branding is null', () => {
     const result = mapDatabaseToShow({
       ...baseDbShow,

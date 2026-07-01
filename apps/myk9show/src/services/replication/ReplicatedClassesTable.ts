@@ -33,6 +33,7 @@ type ClassRow = Database['public']['Tables']['classes']['Row'];
 export interface ReplicatedClass {
   id: string;
   trialId?: string | undefined;
+  templateId?: string | undefined;
   name: string;
   description?: string | undefined;
   entryFee?: number | undefined;
@@ -130,6 +131,7 @@ function rowToClass(row: ClassRow): ReplicatedClass {
   return {
     id: String(row.id),
     trialId: row.trial_id ?? undefined,
+    templateId: (dbRow.template_id as string | undefined) ?? undefined,
     name: row.name,
     description: row.description ?? undefined,
     entryFee: row.entry_fee ?? undefined,

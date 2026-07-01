@@ -17,7 +17,9 @@ import { useWizardStore } from '@/store/wizardStore';
 import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
 import { useUserStore } from '@/store/userStore';
 import { useUserClubIds } from '@/hooks/useUserClubIds';
+import { useTemplates } from '@/hooks/useTemplates';
 import type { Class, Show } from '@/types/show-types';
+import type { ClassTemplate } from '@/types/template.types';
 
 interface CloneFromShowComboboxProps {
   /** Optional: restrict to this clubId (pre-selected club context) */
@@ -32,6 +34,7 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
   const { updateShowData, addJudgeToShow, addTrial, resetWizard } = useWizardStore();
   const { people } = useUserStore();
   const { data: allShows = [], isLoading, isError } = useShowsQuery();
+  const { templates } = useTemplates();
 
   // Determine which club IDs this user has secretary/admin access to
   const userClubIds = useUserClubIds();
@@ -106,19 +109,26 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
 
     if (show.trials?.length) {
       for (const trial of show.trials) {
+        const sourceClasses = trial.classes || [];
+        const template = resolveCloneTemplate({
+          templates,
+          organization: show.organization,
+          trialType: trial.trialType,
+          classes: sourceClasses,
+        });
+
         addTrial({
           name: trial.name || 'Trial',
           dateTime: '',
           eventNumber: '',
           trialType: trial.trialType,
-          classes: (trial.classes || []).map(cls => {
-            const cloneClass = cls as Class & { templateId?: string };
+          classes: sourceClasses.map(cls => {
             const judgeId =
               (show.assignedJudges || []).find(judge => judge.assignedClasses?.includes(cls.id))
                 ?.judgeId || undefined;
 
             return {
-              templateId: cloneClass.templateId || '',
+              templateId: cls.templateId || template?.id || '',
               customizations: {
                 className: cls.name,
                 element: cls.element,
@@ -251,5 +261,72 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
     </div>
   );
 };
+
+function resolveCloneTemplate(args: {
+  templates: ClassTemplate[];
+  organization: string;
+  trialType?: string | undefined;
+  classes: Class[];
+}): ClassTemplate | undefined {
+  const normalizedOrganization = normalizeText(args.organization);
+  const normalizedTrialType = normalizeText(args.trialType);
+  const sourceClasses = args.classes.filter(cls => cls.name || cls.element || cls.level);
+
+  const candidates = args.templates.filter(template => {
+    if (!template.isActive) return false;
+
+    const templateOrganization = normalizeText(template.organization);
+    const organizationMatches =
+      templateOrganization === normalizedOrganization ||
+      normalizedOrganization.includes(templateOrganization) ||
+      templateOrganization.includes(normalizedOrganization);
+    if (!organizationMatches) return false;
+
+    if (!normalizedTrialType) return true;
+
+    const templateTrialType = normalizeText(template.trialType);
+    return (
+      templateTrialType === normalizedTrialType ||
+      templateTrialType.includes(normalizedTrialType) ||
+      normalizedTrialType.includes(templateTrialType)
+    );
+  });
+
+  const best = candidates
+    .map(template => ({ template, score: scoreTemplateMatch(template, sourceClasses) }))
+    .sort((a, b) => b.score - a.score)[0];
+
+  if (!best) return undefined;
+  if (sourceClasses.length > 0 && best.score === 0) return undefined;
+  return best.template;
+}
+
+function scoreTemplateMatch(template: ClassTemplate, sourceClasses: Class[]): number {
+  if (sourceClasses.length === 0) return 0;
+
+  return sourceClasses.reduce((score, cls) => {
+    const normalizedClassName = normalizeText(cls.name);
+    const normalizedElement = normalizeText(cls.element);
+    const normalizedLevel = normalizeText(cls.level);
+
+    const hasMatchingClass = template.classDefinitions.some(def => {
+      const classNameMatches =
+        normalizedClassName !== '' && normalizeText(def.className) === normalizedClassName;
+      const elementMatches =
+        normalizedElement !== '' && normalizeText(def.element) === normalizedElement;
+      const levelMatches = normalizedLevel === '' || normalizeText(def.level) === normalizedLevel;
+
+      return classNameMatches || (elementMatches && levelMatches);
+    });
+
+    return hasMatchingClass ? score + 1 : score;
+  }, 0);
+}
+
+function normalizeText(value: unknown): string {
+  return String(value || '')
+    .toLowerCase()
+    .trim();
+}
 
 export default CloneFromShowCombobox;

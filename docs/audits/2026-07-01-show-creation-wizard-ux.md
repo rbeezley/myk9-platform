@@ -28,8 +28,10 @@ Clicking **Next** on Step 1 with required fields blank (Show Dates, Entry Period
 ### 3. Step 1 is a long single scroll; the blocking field sits below the fold — P2
 Show Details stacks name, org, dates, entry period, fees, style, armband, location, payment methods, host club, chairman, secretary, and judges on one page. The required field that most often blocks advancing (Chairman) is near the bottom, out of view when you're at the top. Combined with #2, this is a "why won't it advance?" trap. Not necessarily a split-the-step fix — could be as simple as an inline "N required fields remaining" affordance near the Next button.
 
-### 4. Organization dropdown offers bodies the app can't run — P2
+### 4. Organization dropdown offers bodies the app can't run — P2 — RESOLVED 2026-07-01
 The org dropdown lists NACSW, CPE, USDAA, NADAC, NASDA — none of which have a rulebook config. A secretary can pick one and land in a broken/empty class-selection step. (Already tracked as a follow-up in the archived multi-registry plan: `docs/archive/plan-multi-registry-scent-work.md` → "org-dropdown tightening.")
+
+**Fix:** the org list moved to a shared domain module `apps/myk9show/src/data/organizations.ts` with two explicit audiences. `SHOW_ORGANIZATIONS` (used by the wizard) is derived from `listRegistries()` — exactly the configured registries (AKC, UKC, ASCA); the 5 unrunnable bodies and "Other" are gone, and it can't drift because adding a registry surfaces it automatically. `ONBOARDING_ORGANIZATIONS` (used by the club onboarding *lead* form) keeps the broad list — configured registries **plus** the unsupported bodies **plus** "Other" — so a club running an unsupported org can still raise its hand, matching the FAQ ("let us know through the club onboarding form"). This split also removed a landing→wizard import coupling (the onboarding form previously reused the wizard's constant). Pinned by `src/data/__tests__/organizations.test.ts`. Legacy show records carrying a removed org still degrade gracefully to AKC via `deriveRegistryId` (proven by `buildCreateShowPayload.test.ts`).
 
 ## Suggested priority
 

@@ -124,6 +124,35 @@ describe('buildCreateShowPayload', () => {
     expect(localEntities.show._localOnly).toBe(false);
   });
 
+  it('derives trials.registry_id from the show organization for the atomic RPC payload', () => {
+    // The online create path is the RPC payload (not createTrials) — a UKC/ASCA show's
+    // trials must carry the right registry_id here, or the RPC defaults them to AKC.
+    const ukcShow: WizardShowData = { ...baseShow, organization: 'UKC' };
+    const { rpcInput, localEntities } = buildCreateShowPayload(
+      ukcShow,
+      [baseTrial],
+      {},
+      new Map(),
+      'unpublished'
+    );
+    expect(rpcInput.p_trials[0]!.registry_id).toBe('UKC');
+    // Local IndexedDB cache written after the RPC must agree.
+    expect(localEntities.trials[0]!.registryId).toBe('UKC');
+  });
+
+  it('defaults registry_id to AKC for a non-registry organization', () => {
+    const nacswShow: WizardShowData = { ...baseShow, organization: 'NACSW' };
+    const { rpcInput, localEntities } = buildCreateShowPayload(
+      nacswShow,
+      [baseTrial],
+      {},
+      new Map(),
+      'unpublished'
+    );
+    expect(rpcInput.p_trials[0]!.registry_id).toBe('AKC');
+    expect(localEntities.trials[0]!.registryId).toBe('AKC');
+  });
+
   it('localEntities.trials have _syncStatus synced and _localOnly false', () => {
     const { localEntities } = buildCreateShowPayload(
       baseShow,

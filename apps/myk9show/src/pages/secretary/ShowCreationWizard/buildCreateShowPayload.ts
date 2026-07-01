@@ -4,6 +4,7 @@ import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import { toLocalDateOnly } from '@/utils/date-format';
+import { deriveRegistryId } from '@/features/registries';
 import { resolvePremiumStyle, type PremiumStyle } from '@/types/premium-types';
 import type { JudgeDetailsMap, ShowStatus } from './show-creation-wizard-types';
 import {
@@ -41,6 +42,10 @@ export interface TrialRpcPayload {
   event_number: string | null;
   display_order: number | null;
   category: string | null;
+  /** Sanctioning body (migration 192), derived from the show's organization. The atomic
+   *  create_show_with_children RPC reads this so online-created trials persist the right
+   *  registry instead of the DB default. */
+  registry_id: string;
 }
 
 export interface ClassRpcPayload {
@@ -114,11 +119,14 @@ export function buildCreateShowPayload(
   const showStyle = normalizeShowStyle(show.style);
 
   const trialIdMap: Record<string, string> = {};
+  // Registry is show-wide (scoping §7) — derive once from the show's organization.
+  const registryId = deriveRegistryId(show.organization);
   const trialPayloads: TrialRpcPayload[] = trials.map((wizardTrial, index) => {
     const trialId = crypto.randomUUID();
     trialIdMap[wizardTrial.id] = trialId;
     const trialName = wizardTrial.name || `Trial ${index + 1}`;
     return {
+      registry_id: registryId,
       id: trialId,
       name: trialName,
       date: wizardTrial.dateTime
@@ -204,6 +212,7 @@ export function buildCreateShowPayload(
     eventNumber: t.event_number ?? undefined,
     displayOrder: t.display_order ?? undefined,
     category: t.category ?? undefined,
+    registryId: t.registry_id,
     _version: 1,
     _lastModified: new Date(),
     _syncStatus: 'synced',

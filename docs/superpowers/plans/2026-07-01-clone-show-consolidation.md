@@ -15,10 +15,18 @@
 - The wizard is the only Clone Show workflow.
 - Cloning prefills non-date show settings, copies trial/class structure, and leaves show dates, entry-period dates, trial dates, and event numbers blank.
 - The secretary must proceed through the normal wizard steps before creation.
+- [ADDED] If prior shows fail to load, fresh show creation must remain available and the wizard must show plain-English non-blocking copy.
+- [ADDED] Do not create or close a real staging/shared-system show during manual QA without explicit user confirmation.
 - Use TypeScript only.
 - Use `src/test/utils/testUtils.tsx` for React component tests.
 - Keep files under 500 lines.
 - Update `OPEN-TODOS.md` only when implementation begins or completes.
+
+## Validation Profile
+
+- Risk: medium
+- Validation: app
+- Rationale: This removes a duplicate production UI path and changes a secretary setup flow inside one app, so focused unit/E2E coverage plus app typecheck is enough before PR.
 
 ---
 
@@ -27,7 +35,7 @@
 - Modify: `apps/myk9show/src/components/shows/wizard/steps/CloneFromShowCombobox.tsx`
   - Responsibility: canonical source-show picker and wizard-store prefill behavior, including trial/class structure copy.
 - Create: `apps/myk9show/src/components/shows/wizard/steps/__tests__/CloneFromShowCombobox.test.tsx`
-  - Responsibility: unit coverage for copied fields, copied trial/class structure, blank schedule fields, judge copy, and start-fresh behavior.
+  - Responsibility: unit coverage for copied fields, copied trial/class structure, blank schedule fields, judge copy, start-fresh behavior, empty candidate state, and failed candidate-load state.
 - Modify: `apps/myk9show/src/pages/CalendarPage.tsx`
   - Responsibility: remove the duplicate standalone clone dialog entry point.
 - Delete: `apps/myk9show/src/components/shows/cloning/ShowCloneDialog.tsx`
@@ -52,9 +60,9 @@
 **Interfaces:**
 - Consumes: `CloneFromShowCombobox({ clubId?: string })`
 - Consumes: `useWizardStore()` actions `updateShowData(data)`, `addJudgeToShow(judgeId, details)`, `addTrial(trial)`, and `resetWizard()`
-- Produces: verified behavior that selecting a show writes non-date fields, copies trial/class structure, and clears `startDate`, `endDate`, `entryOpenDate`, `entryCloseDate`, cloned trial `dateTime`, and cloned trial `eventNumber`
+- Produces: verified behavior that selecting a show writes non-date fields, copies trial/class structure, clears `startDate`, `endDate`, `entryOpenDate`, `entryCloseDate`, cloned trial `dateTime`, and cloned trial `eventNumber`, and handles empty/error candidate states without blocking fresh entry
 
-- [ ] **Step 1: Write the failing component tests**
+- [ ] **Step 1: Write the failing component tests** [EXPANDED]
 
 Create `apps/myk9show/src/components/shows/wizard/steps/__tests__/CloneFromShowCombobox.test.tsx`:
 
@@ -85,7 +93,9 @@ const mockShows: Show[] = [
     acceptCheckPayments: true,
     acceptCashPayments: true,
     status: 'completed',
-    assignedJudges: [{ judgeId: 'judge-1', judgeName: 'Alex Judge' }],
+    assignedJudges: [
+      { judgeId: 'judge-1', judgeName: 'Alex Judge', assignedClasses: ['class-1'] },
+    ],
     trials: [
       {
         id: 'trial-1',
@@ -108,6 +118,11 @@ const mockShows: Show[] = [
     ],
   } as unknown as Show,
 ];
+let mockShowsQueryState: { data: Show[]; isLoading: boolean; isError: boolean } = {
+  data: mockShows,
+  isLoading: false,
+  isError: false,
+};
 
 vi.mock('@/store/wizardStore', () => ({
   useWizardStore: vi.fn(() => ({
@@ -119,7 +134,7 @@ vi.mock('@/store/wizardStore', () => ({
 }));
 
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
-  useShowsQuery: vi.fn(() => ({ data: mockShows, isLoading: false })),
+  useShowsQuery: vi.fn(() => mockShowsQueryState),
 }));
 
 vi.mock('@/store/userStore', () => ({
@@ -146,6 +161,7 @@ import { CloneFromShowCombobox } from '../CloneFromShowCombobox';
 describe('CloneFromShowCombobox', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockShowsQueryState = { data: mockShows, isLoading: false, isError: false };
   });
 
   it('prefills non-date show fields and leaves all date fields blank', async () => {
@@ -227,6 +243,24 @@ describe('CloneFromShowCombobox', () => {
 
     expect(mockResetWizard).toHaveBeenCalledTimes(1);
   });
+
+  it('renders nothing when there are no prior shows to clone', () => {
+    mockShowsQueryState = { data: [], isLoading: false, isError: false };
+
+    render(<CloneFromShowCombobox />);
+
+    expect(screen.queryByRole('button', { name: /select a past show to clone/i })).toBeNull();
+  });
+
+  it('shows a non-blocking plain-English message when prior shows fail to load', () => {
+    mockShowsQueryState = { data: [], isLoading: false, isError: true };
+
+    render(<CloneFromShowCombobox />);
+
+    expect(screen.getByText(/we could not load previous shows/i)).toBeVisible();
+    expect(screen.getByText(/you can still enter this show manually/i)).toBeVisible();
+    expect(screen.queryByRole('button', { name: /select a past show to clone/i })).toBeNull();
+  });
 });
 ```
 
@@ -239,14 +273,31 @@ cd apps/myk9show
 npx vitest run src/components/shows/wizard/steps/__tests__/CloneFromShowCombobox.test.tsx
 ```
 
-Expected: the new trial/class copy assertion fails before implementation. Existing show-field assertions may already pass.
+Expected: the new trial/class copy assertion and failed-load assertion fail before implementation. Existing show-field assertions may already pass.
 
-- [ ] **Step 3: Make the minimal wizard clone fix**
+- [ ] **Step 3: Make the minimal wizard clone fix** [EXPANDED]
 
-In `apps/myk9show/src/components/shows/wizard/steps/CloneFromShowCombobox.tsx`, read all needed actions:
+In `apps/myk9show/src/components/shows/wizard/steps/CloneFromShowCombobox.tsx`, read all needed query fields and actions:
+
+```tsx
+const { data: allShows = [], isLoading, isError } = useShowsQuery();
+```
 
 ```tsx
 const { updateShowData, addJudgeToShow, addTrial, resetWizard } = useWizardStore();
+```
+
+Before the existing empty-candidate return, add the failed-load state:
+
+```tsx
+if (isError) {
+  return (
+    <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+      <p className="font-medium text-foreground">We could not load previous shows.</p>
+      <p>You can still enter this show manually.</p>
+    </div>
+  );
+}
 ```
 
 Ensure `handleSelect` writes every expected show field in one `updateShowData` call:
@@ -429,9 +480,9 @@ git commit -m "refactor(shows): consolidate clone flow into wizard"
 
 **Interfaces:**
 - Consumes: wizard clone behavior from Task 1
-- Produces: Playwright coverage proving the user-facing flow is the wizard path
+- Produces: Playwright coverage proving the user-facing flow is the wizard path, plus a documented QA gate for the cloned show appearing in the normal secretary workflow
 
-- [ ] **Step 1: Add a wizard clone E2E test**
+- [ ] **Step 1: Add a wizard clone E2E test** [EXPANDED]
 
 In `apps/myk9show/src/test/e2e/secretary/show-creation-wizard.spec.ts`, add this test inside `test.describe('Trial Secretary - Show Creation Wizard', () => { ... })`:
 
@@ -464,7 +515,45 @@ test('secretary can clone a previous show into the wizard and continue reviewing
 
 This test intentionally stops before show creation. It proves clone is a prefill-and-review flow, not a silent create action.
 
-- [ ] **Step 2: Keep existing Shows UI coverage aligned**
+- [ ] **Step 2: Add a non-mutating review-step continuation check** [ADDED]
+
+Add this second test to the same file. It fills the schedule fields after cloning and verifies the secretary can leave Step 1 for trial review without creating a show:
+
+```ts
+test('secretary can set new dates after cloning and continue to trial review', async ({ page }) => {
+  await signInAsSecretary(page, '/secretary/create-show/wizard');
+
+  const cloneTrigger = page.getByRole('button', { name: 'Select a past show to clone' });
+  await expect(cloneTrigger).toBeVisible({ timeout: 15000 });
+  await cloneTrigger.click();
+
+  const firstShow = page.locator('button').filter({ hasText: /AKC|UKC|ASCA|NACSW/i }).first();
+  await expect(firstShow).toBeVisible();
+  await firstShow.click();
+
+  const dates = currentMonthWizardDates();
+  await selectRange(page, page.getByRole('button', { name: /Show Dates/i }), {
+    start: dates.show.start.pick,
+    end: dates.show.end.pick,
+  });
+  await selectRange(page, page.getByRole('button', { name: /Entry Period/i }), {
+    start: dates.entry.start.pick,
+    end: dates.entry.end.pick,
+  });
+
+  const chairmanTrigger = page.getByRole('button', { name: /Show Chairman/i });
+  await chairmanTrigger.click();
+  const firstChairman = page.getByText(/Suggested|All People/).locator('xpath=..').locator('button').first();
+  await expect(firstChairman).toBeVisible();
+  await firstChairman.click();
+
+  await page.getByRole('button', { name: /^Next$/ }).click();
+  await expect(page.getByText('Step 2 of 4', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Trial/i })).toBeVisible();
+});
+```
+
+- [ ] **Step 3: Keep existing Shows UI coverage aligned**
 
 In `apps/myk9show/src/test/e2e/entities/showsUI.spec.ts`, keep this assertion in the `New Show button opens the wizard at step 1` test:
 
@@ -474,7 +563,7 @@ await expect(page.getByRole('button', { name: 'Select a past show to clone' })).
 
 Remove any future assertion that expects a Calendar Page `Clone Show` dialog button.
 
-- [ ] **Step 3: Run focused E2E coverage**
+- [ ] **Step 4: Run focused E2E coverage**
 
 Run:
 
@@ -485,7 +574,7 @@ pnpm test:e2e -- src/test/e2e/secretary/show-creation-wizard.spec.ts --project=c
 
 Expected: secretary wizard E2E file passes. If the runner hangs for more than 60 seconds without useful output, stop and report the hang.
 
-- [ ] **Step 4: Run focused unit and type checks**
+- [ ] **Step 5: Run focused unit and type checks**
 
 Run:
 
@@ -504,7 +593,34 @@ pnpm typecheck
 
 Expected: pass.
 
-- [ ] **Step 5: Update OPEN-TODOS.md**
+- [ ] **Step 6: Run the manual cloned-show appearance gate** [ADDED]
+
+After focused tests pass, run one manual QA pass in a local/test environment. Do not run this against staging or production without explicit user confirmation because it creates a show.
+
+Manual QA script:
+
+1. Start the app with `pnpm dev:show`.
+2. Sign in as the secretary test user.
+3. Open `/secretary/create-show/wizard`.
+4. Select a prior show from "Select a past show to clone."
+5. Confirm show settings are prefilled and show dates/entry dates are blank.
+6. Confirm copied trials/classes appear in the wizard review path.
+7. Fill new dates and any required missing fields.
+8. Create the show.
+9. Confirm the cloned show appears in the normal secretary show list/workflow.
+10. Confirm the Calendar Page does not expose a separate clone dialog.
+
+Evidence to record in the PR:
+
+```md
+Manual QA:
+- Wizard clone selected source show: <source show name>
+- New cloned show appeared in secretary workflow: yes
+- Separate Calendar clone dialog absent: yes
+- Environment: local/test, not staging/prod
+```
+
+- [ ] **Step 7: Update OPEN-TODOS.md**
 
 In `OPEN-TODOS.md`, change:
 
@@ -518,7 +634,7 @@ To:
 - [x] ~~**Test Clone Show feature**~~ — **DONE 2026-07-01.** Consolidated Clone Show into the Show Creation Wizard as the single workflow. The old Calendar Page clone dialog was removed. Wizard clone now behaves as prefill-and-review: select a previous show, copy settings plus trial/class structure, clear schedule/event-number fields that must be new, and create only after the secretary steps through the wizard. Verified with focused unit coverage, secretary wizard E2E coverage, and `pnpm typecheck`.
 ```
 
-- [ ] **Step 6: Commit Task 3**
+- [ ] **Step 8: Commit Task 3**
 
 ```bash
 git add apps/myk9show/src/test/e2e/secretary/show-creation-wizard.spec.ts apps/myk9show/src/test/e2e/entities/showsUI.spec.ts OPEN-TODOS.md
@@ -562,3 +678,13 @@ rg -n "ShowCloneDialog|components/shows/cloning|Clone Existing Show|Review Clone
 ```
 
 Expected: no matches.
+
+- [ ] [ADDED] Confirm manual QA evidence is present in the PR or final handoff:
+
+```md
+Manual QA:
+- Wizard clone selected source show: <source show name>
+- New cloned show appeared in secretary workflow: yes
+- Separate Calendar clone dialog absent: yes
+- Environment: local/test, not staging/prod
+```

@@ -52,24 +52,25 @@ describe('ShowCreationWizardPage — Step 1 Next-button feedback', () => {
     expect(nextButton).not.toBeDisabled();
   });
 
-  it('shows an inline "N required fields remaining" hint before any click', () => {
+  it('shows an inline "N items remaining" hint before any click', () => {
     render(<ShowCreationWizardPage />);
 
-    expect(screen.getByText(/\d+ required fields? remaining/i)).toBeInTheDocument();
+    // "items", not "required fields" — the count also covers non-field issues
+    // like date ordering, so the label stays honest on every step.
+    expect(screen.getByText(/\d+ items? remaining/i)).toBeInTheDocument();
   });
 
   it('surfaces and scrolls to the validation banner when Next is clicked with missing fields', async () => {
     const { user } = render(<ShowCreationWizardPage />);
 
-    // No banner until the secretary actually attempts to advance.
-    expect(screen.queryByText(/required fields? needs? attention/i)).not.toBeInTheDocument();
+    // No banner (role="alert") until the secretary actually attempts to advance.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /next/i }));
 
     // Banner explains what's blocking, and we scroll it into view.
-    expect(
-      await screen.findByText(/required fields? needs? attention/i)
-    ).toBeInTheDocument();
+    const banner = await screen.findByRole('alert');
+    expect(banner).toHaveTextContent(/\d+ items? needs? attention/i);
     await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
   });
 });

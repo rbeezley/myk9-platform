@@ -268,12 +268,12 @@ const ShowCreationWizardPage: React.FC = () => {
   const validationMessages = getValidationMessagesForStep(currentStep, show, trials);
 
   // Keep Next clickable whenever we're not mid-submit. It is deliberately NOT
-  // gated on validation: a disabled Next just sits there doing nothing when a
-  // required field is missing (the secretary clicks and is left guessing). Now
-  // the click always fires handleNext, which either advances or surfaces the
-  // validation banner + inline "N required fields remaining" hint. Decoupled
-  // from completedSteps to avoid auto-advance from markStepCompleted side
-  // effects during re-renders.
+  // gated on validation: a disabled Next just sits there doing nothing when the
+  // step is incomplete (the secretary clicks and is left guessing). Now the
+  // click always fires handleNext, which either advances or surfaces the
+  // validation banner + inline "N items remaining" hint. Decoupled from
+  // completedSteps to avoid auto-advance from markStepCompleted side effects
+  // during re-renders.
   const canGoNext = !isLoading;
 
   // Scroll the validation banner into view after a failed Next attempt, once it
@@ -400,7 +400,7 @@ const ShowCreationWizardPage: React.FC = () => {
                   onNext={handleNext}
                   onSaveDraft={isDirty ? handleSaveProgress : undefined}
                   isLoading={isLoading}
-                  remainingRequiredCount={validationMessages.length}
+                  remainingIssueCount={validationMessages.length}
                 />
               </div>
             )}

@@ -91,6 +91,28 @@ export function getTrialRegistry(trial: TrialLike | null | undefined): Registry 
 }
 
 /**
+ * Derive a trial's `registry_id` from the show's `organization`.
+ *
+ * `organization` and `registry_id` are the same axis (the sanctioning body):
+ * organization is the user-entered source of truth (broad list, show level);
+ * registry_id is the validated, config-backed projection stored on the trial
+ * (offline-first denormalization — see plan-registry-write-path.md). When the
+ * organization names a configured registry (AKC/UKC/ASCA) we use it; otherwise
+ * we fall back to AKC (the column's NOT-NULL default — harmless for sports that
+ * never read the registry, e.g. an org with no rulebook config).
+ *
+ * This is the single source of the org→registry rule; every trial create/update
+ * path runs the show's organization through it.
+ */
+export function deriveRegistryId(organization: string | null | undefined): RegistryId {
+  const org = organization?.trim();
+  if (org && (listRegistries() as readonly string[]).includes(org)) {
+    return org as RegistryId;
+  }
+  return 'AKC';
+}
+
+/**
  * Resolve the IANA timezone for a trial. Falls back to America/New_York,
  * matching the migration default.
  */

@@ -206,6 +206,45 @@ describe('ReplicatedTrialsTable', () => {
         await expect(table.delete('nonexistent')).resolves.not.toThrow();
       });
     });
+
+    describe('createTrial — registry write path (Phase 1)', () => {
+      // toSupabaseRow is the final write hop. createTrial queues an INSERT mutation
+      // whose payload is toSupabaseRow's output — spy on queueMutation to capture it.
+      type Spyable = { queueMutation: (...args: unknown[]) => Promise<string> };
+
+      it('persists registry_id from the replicated trial into the INSERT payload', async () => {
+        const spy = vi
+          .spyOn(table as unknown as Spyable, 'queueMutation')
+          .mockResolvedValue('mutation-1');
+
+        await table.createTrial({
+          id: 'trial-ukc',
+          showId: 'show-1',
+          name: 'UKC Nosework Trial',
+          date: '2026-06-12',
+          registryId: 'UKC',
+        });
+
+        const payload = spy.mock.calls[0]?.[2] as Record<string, unknown>;
+        expect(payload.registry_id).toBe('UKC');
+      });
+
+      it('defaults registry_id to AKC when unset (never writes NULL to the NOT-NULL column)', async () => {
+        const spy = vi
+          .spyOn(table as unknown as Spyable, 'queueMutation')
+          .mockResolvedValue('mutation-2');
+
+        await table.createTrial({
+          id: 'trial-default',
+          showId: 'show-1',
+          name: 'Trial',
+          date: '2026-06-12',
+        });
+
+        const payload = spy.mock.calls[0]?.[2] as Record<string, unknown>;
+        expect(payload.registry_id).toBe('AKC');
+      });
+    });
   });
 
   describe('Trial Filtering and Query Operations', () => {

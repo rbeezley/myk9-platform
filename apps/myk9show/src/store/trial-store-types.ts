@@ -36,6 +36,10 @@ export interface TrialInput {
   trialType?: string | undefined;
   plannedStartTime?: string | undefined;
   order?: string | undefined;
+  /** Sanctioning body (migration 192), derived from the show's organization via
+   *  deriveRegistryId(). Threaded to toSupabaseRow so created/updated trials persist
+   *  the right registry instead of the DB default. */
+  registryId?: string | undefined;
   // Additional fields from Trial interface for updates
   image?: string | undefined;
   timeStarted?: string | undefined;

@@ -66,6 +66,7 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
         displayOrder: trialData.order ? parseInt(trialData.order, 10) : 0,
         category: trialData.type,
         imageUrl: trialData.image,
+        registryId: trialData.registryId,
         _version: 1,
         _lastModified: new Date(),
         _lastModifiedBy: userId,

@@ -22,7 +22,7 @@ const fullData: GeneratedPremium = {
   },
   club: { name: 'Test Club', logoUrl: null },
   secretary: { name: 'Jane', email: null, phone: null, mailingAddress: null },
-  officials: { chairman: null, steward: null },
+  officials: { chairman: null },
   trials: [
     {
       name: 'Trial 1',

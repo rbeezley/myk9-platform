@@ -103,20 +103,24 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
         </View>
       )}
 
-      {(officials.chairman || officials.steward) && (
+      {officials.chairman && (
         <>
           {divider}
-          <Text style={s.sectionTitle}>Officials</Text>
-          {officials.chairman && (
+          <Text style={s.sectionTitle}>Trial Chairman</Text>
+          <View style={s.row}>
+            <Text style={s.label}>Name</Text>
+            <Text style={s.value}>{officials.chairman.name}</Text>
+          </View>
+          {officials.chairman.email && (
             <View style={s.row}>
-              <Text style={s.label}>Trial Chairman</Text>
-              <Text style={s.value}>{officials.chairman}</Text>
+              <Text style={s.label}>Email</Text>
+              <Text style={s.value}>{officials.chairman.email}</Text>
             </View>
           )}
-          {officials.steward && (
+          {officials.chairman.phone && (
             <View style={s.row}>
-              <Text style={s.label}>Steward</Text>
-              <Text style={s.value}>{officials.steward}</Text>
+              <Text style={s.label}>Phone</Text>
+              <Text style={s.value}>{formatPhone(officials.chairman.phone)}</Text>
             </View>
           )}
         </>

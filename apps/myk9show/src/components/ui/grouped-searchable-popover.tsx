@@ -23,6 +23,14 @@ export interface GroupedSearchablePopoverProps<T extends { id: string }> {
   footer?: React.ReactNode;
   /** id on the trigger button so a sibling <label htmlFor> connects for a11y. */
   id?: string | undefined;
+  /**
+   * When true, the list shows a "Loading…" message instead of "No results".
+   * Lets the caller distinguish "still fetching" from "genuinely none" so an
+   * empty picker never dead-ends the user at "Add new" prematurely.
+   */
+  loading?: boolean;
+  /** Message shown while `loading` is true. Defaults to "Loading…". */
+  loadingLabel?: string;
 }
 
 function GroupedSearchablePopover<T extends { id: string }>({
@@ -37,6 +45,8 @@ function GroupedSearchablePopover<T extends { id: string }>({
   onSelect,
   footer,
   id,
+  loading = false,
+  loadingLabel = 'Loading…',
 }: GroupedSearchablePopoverProps<T>) {
   const visibleGroups = groups.filter(g => g.items.length > 0);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -74,10 +84,14 @@ function GroupedSearchablePopover<T extends { id: string }>({
           />
         </div>
         <div className="max-h-60 overflow-auto">
-          {visibleGroups.length === 0 && (
+          {loading && (
+            <div className="p-3 text-sm text-muted-foreground text-center">{loadingLabel}</div>
+          )}
+          {!loading && visibleGroups.length === 0 && (
             <div className="p-3 text-sm text-muted-foreground text-center">No results</div>
           )}
-          {visibleGroups.map((group, idx) => (
+          {!loading &&
+            visibleGroups.map((group, idx) => (
             <React.Fragment key={group.groupKey}>
               {idx > 0 && <div className="h-px bg-border mx-2" />}
               <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">

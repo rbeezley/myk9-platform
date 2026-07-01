@@ -32,17 +32,45 @@ export function useShowDetailsStepActions() {
   );
 
   const handleCreateOfficialPerson = useCallback(
-    async (data: { firstName: string; lastName: string; email: string }): Promise<string> => {
+    async (data: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone: string;
+    }): Promise<string> => {
+      // Dedup guard: if a person with this email already exists, reuse them
+      // instead of creating a duplicate record. Email is the reliable identity
+      // key (name alone is too weak — two different "John Smith"s are common).
+      // This is the wizard's #1 source of duplicate person rows.
+      const normalizedEmail = data.email.trim().toLowerCase();
+      const existing = normalizedEmail
+        ? people.find(p => (p.email ?? '').trim().toLowerCase() === normalizedEmail)
+        : undefined;
+      if (existing) {
+        // Reuse the existing person, but keep their phone current. The form
+        // requires a phone and the premium/reports surface it, so a matched
+        // record with a missing or changed phone must be updated — otherwise
+        // the phone the user just entered is silently dropped.
+        const trimmedPhone = data.phone.trim();
+        if (trimmedPhone && trimmedPhone !== (existing.phone ?? '').trim()) {
+          const updateResult = await updateUser(existing.id, { phone: trimmedPhone });
+          if (updateResult.error) throw updateResult.error;
+          await loadPeople();
+        }
+        return existing.id;
+      }
+
       const result = await createUser({
         first_name: data.firstName,
         last_name: data.lastName,
         email: data.email,
+        phone: data.phone,
       });
       if (result.error) throw result.error;
       await loadPeople();
       return result.data!.id;
     },
-    [loadPeople]
+    [people, loadPeople]
   );
 
   const handleSaveJudgeCredentials = useCallback(

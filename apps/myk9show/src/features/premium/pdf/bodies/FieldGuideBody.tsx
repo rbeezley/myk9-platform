@@ -51,7 +51,7 @@ export function FieldGuideBody({ data, tokens }: Props) {
   const blockStyle = { marginBottom: 14 };
 
   const hasOverview = Boolean(narratives?.trialInformation?.trim());
-  const hasOfficials = Boolean(officials.chairman || officials.steward || secretary.name);
+  const hasOfficials = Boolean(officials.chairman || secretary.name);
   const hasJudges = trials.some(t => (t.judges?.length ?? 0) > 0);
   const hasClasses = trials.length > 0;
   const hasEntry = Boolean(
@@ -126,13 +126,11 @@ export function FieldGuideBody({ data, tokens }: Props) {
           {officials.chairman && (
             <View style={rowStyle}>
               <Text style={labelStyle}>Chair</Text>
-              <Text style={valueStyle}>{officials.chairman}</Text>
-            </View>
-          )}
-          {officials.steward && (
-            <View style={rowStyle}>
-              <Text style={labelStyle}>Steward</Text>
-              <Text style={valueStyle}>{officials.steward}</Text>
+              <Text style={valueStyle}>
+                {officials.chairman.name}
+                {officials.chairman.email ? ` · ${officials.chairman.email}` : ''}
+                {officials.chairman.phone ? ` · ${formatPhone(officials.chairman.phone)}` : ''}
+              </Text>
             </View>
           )}
           {secretary.name && (

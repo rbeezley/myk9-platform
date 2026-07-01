@@ -248,7 +248,6 @@ function buildLocalPremiumDraft(
     },
     officials: {
       chairman: null,
-      steward: null,
     },
     trials: (data.trials ?? []).map(trial => ({
       name: trial.name,

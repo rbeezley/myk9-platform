@@ -1,4 +1,4 @@
-import { render, screen, within } from '@/test/utils/testUtils';
+import { render, screen, waitFor, within } from '@/test/utils/testUtils';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Show } from '@/types/show-types';
@@ -7,6 +7,7 @@ const mockUpdateShowData = vi.fn();
 const mockAddJudgeToShow = vi.fn();
 const mockAddTrial = vi.fn();
 const mockResetWizard = vi.fn();
+const mockGetClassesByTrialId = vi.hoisted(() => vi.fn());
 
 const mockShows: Show[] = [
   {
@@ -109,6 +110,10 @@ vi.mock('@/hooks/useTemplates', () => ({
   })),
 }));
 
+vi.mock('@/services/database/classes', () => ({
+  getClassesByTrialId: mockGetClassesByTrialId,
+}));
+
 import { CloneFromShowCombobox } from '../CloneFromShowCombobox';
 
 async function selectSourceShow() {
@@ -128,6 +133,7 @@ describe('CloneFromShowCombobox', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockShowsQueryState = { data: mockShows, isLoading: false, isError: false };
+    mockGetClassesByTrialId.mockResolvedValue({ data: [], error: null });
   });
 
   it('prefills non-date show fields and leaves all date fields blank', async () => {
@@ -166,6 +172,56 @@ describe('CloneFromShowCombobox', () => {
   it('copies production-shaped trial and class structure while clearing trial date and event number', async () => {
     await selectSourceShow();
 
+    await waitFor(() =>
+      expect(mockAddTrial).toHaveBeenCalledWith({
+        name: 'Friday Trial 1',
+        dateTime: '',
+        eventNumber: '',
+        trialType: 'Nosework',
+        classes: [
+          {
+            templateId: 'tmpl-nosework',
+            customizations: {
+              className: 'Novice Containers',
+              element: 'Containers',
+              level: 'Novice',
+              entryFee: 28,
+            },
+            judgeId: 'judge-1',
+          },
+        ],
+      })
+    );
+  });
+
+  it('hydrates missing classes from the class service before cloning', async () => {
+    const sourceTrial = mockShows[0]!.trials[0]!;
+    mockShowsQueryState = {
+      data: [
+        {
+          ...mockShows[0]!,
+          trials: [{ ...sourceTrial, classes: [] }],
+        } as Show,
+      ],
+      isLoading: false,
+      isError: false,
+    };
+    mockGetClassesByTrialId.mockResolvedValueOnce({
+      data: [
+        {
+          id: 'class-1',
+          name: 'Novice Containers',
+          element: 'Containers',
+          level: 'Novice',
+          entry_fee: 28,
+        },
+      ],
+      error: null,
+    });
+
+    await selectSourceShow();
+
+    await waitFor(() => expect(mockGetClassesByTrialId).toHaveBeenCalledWith('trial-1'));
     expect(mockAddTrial).toHaveBeenCalledWith({
       name: 'Friday Trial 1',
       dateTime: '',

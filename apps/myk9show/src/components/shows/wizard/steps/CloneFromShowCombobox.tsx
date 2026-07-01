@@ -18,6 +18,7 @@ import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
 import { useUserStore } from '@/store/userStore';
 import { useUserClubIds } from '@/hooks/useUserClubIds';
 import { useTemplates } from '@/hooks/useTemplates';
+import { getClassesByTrialId } from '@/services/database/classes';
 import type { Class, Show } from '@/types/show-types';
 import type { ClassTemplate } from '@/types/template.types';
 
@@ -67,7 +68,7 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
     );
   }, [candidateShows, search]);
 
-  const handleSelect = (show: Show) => {
+  const handleSelect = async (show: Show) => {
     setOpen(false);
     setSearch('');
     setClonedShowName(show.name);
@@ -107,9 +108,13 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
       }
     }
 
-    if (show.trials?.length) {
-      for (const trial of show.trials) {
+    const sourceTrials = await getCloneSourceTrials(show);
+
+    if (sourceTrials.length) {
+      for (const trial of sourceTrials) {
         const sourceClasses = trial.classes || [];
+        // Wizard state stores one template id per class. Normal trial data is single-sport, and
+        // customizations preserve the visible class details if the template cannot be recovered.
         const template = resolveCloneTemplate({
           templates,
           organization: show.organization,
@@ -231,7 +236,7 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
                     <button
                       key={show.id}
                       type="button"
-                      onClick={() => handleSelect(show)}
+                      onClick={() => void handleSelect(show)}
                       className="w-full px-3 py-2.5 text-left hover:bg-accent hover:text-accent-foreground transition-colors duration-150 flex flex-col gap-0.5"
                     >
                       <span className="text-sm font-medium leading-tight truncate">
@@ -261,6 +266,58 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
     </div>
   );
 };
+
+async function getCloneSourceTrials(show: Show): Promise<Show['trials']> {
+  if (!show.trials?.length) return [];
+
+  return await Promise.all(
+    show.trials.map(async trial => {
+      if (trial.classes?.length) return trial;
+
+      try {
+        // Show-list reads can come from a cold replicated class store. Hydrate the selected
+        // trial lazily so clone preserves class structure without widening every list query.
+        const { data, error } = await getClassesByTrialId(trial.id);
+        if (error || data.length === 0) return trial;
+
+        return {
+          ...trial,
+          classes: data.map(mapFetchedClassToShowClass),
+        };
+      } catch {
+        return trial;
+      }
+    })
+  );
+}
+
+function mapFetchedClassToShowClass(value: Record<string, unknown>): Class {
+  const name = optionalString(value.name) || optionalString(value.className) || 'Unnamed Class';
+  const entryFee = optionalNumber(value.entry_fee ?? value.entryFee);
+
+  return {
+    id: optionalString(value.id) || name,
+    templateId: optionalString(value.template_id ?? value.templateId),
+    name,
+    description: optionalString(value.description),
+    entryFee,
+    level: optionalString(value.level),
+    element: optionalString(value.element),
+  };
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value : undefined;
+}
+
+function optionalNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+}
 
 function resolveCloneTemplate(args: {
   templates: ClassTemplate[];

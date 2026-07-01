@@ -23,3 +23,5 @@ export {
 } from './reads';
 
 export { getShowScheduleTimelineRows, getTrialTimelineRows } from './timeline';
+
+export { resyncTrialRegistry } from './resyncTrialRegistry';

@@ -11,7 +11,6 @@ import {
 const DEFAULT_TRIAL_TYPE: Partial<Record<string, string>> = {
   AKC: 'Scent Work',
   UKC: 'Nosework',
-  NACSW: 'Nosework',
   ASCA: 'Scent Detection',
 };
 

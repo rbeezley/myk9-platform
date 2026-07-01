@@ -99,7 +99,6 @@ From live walk-throughs during the multi-registry Phase 4 verification. Full det
 
 - [ ] **Chairman picker surfaces no people (P1 — highest trust cost)** — Searching the Show Chairman picker for a person that clearly exists (e.g. the same name auto-filled into Show Secretary) returns nothing, forcing "Add new Show Chairman" and duplicate person records. Likely a two-lookup seam: the secretary field derives from the auth session while the chairman search queries `people` with terms (or a current-user exclusion) that don't match. Trace whether both should share one "eligible officials" query. See audit §Findings.1.
 - [ ] **"Next" fails silently on Step 1 (P1)** — Clicking Next with required fields unset (Show Dates, Entry Period, Chairman) does nothing visible — no scroll-to-error, no summary. Add a "N required fields remaining" affordance and/or scroll-to-first-error. Pairs with the long Step-1 scroll (blocking field sits below the fold). See audit §Findings.2–3.
-- [ ] **Org dropdown lists bodies with no rulebook config (P2)** — NACSW/CPE/USDAA/NADAC/NASDA are selectable but land in a broken/empty class step. Tighten to configured registries. Also tracked in the archived multi-registry plan. See audit §Findings.4.
 
 ---
 

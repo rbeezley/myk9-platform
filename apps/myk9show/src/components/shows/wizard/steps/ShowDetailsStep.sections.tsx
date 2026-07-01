@@ -265,9 +265,7 @@ export const BasicShowInfoSection: React.FC<BasicShowInfoSectionProps> = ({
             </Label>
             <Select
               value={show.organization || ''}
-              onValueChange={value =>
-                onUpdate({ organization: value as 'AKC' | 'UKC' | 'NASDA' | 'Other' })
-              }
+              onValueChange={value => onUpdate({ organization: value })}
             >
               <SelectTrigger id="show-organization" className="bg-input h-10">
                 <SelectValue placeholder="Select organization">

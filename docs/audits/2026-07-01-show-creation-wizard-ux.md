@@ -28,8 +28,10 @@ Clicking **Next** on Step 1 with required fields blank (Show Dates, Entry Period
 ### 3. Step 1 is a long single scroll; the blocking field sits below the fold — P2
 Show Details stacks name, org, dates, entry period, fees, style, armband, location, payment methods, host club, chairman, secretary, and judges on one page. The required field that most often blocks advancing (Chairman) is near the bottom, out of view when you're at the top. Combined with #2, this is a "why won't it advance?" trap. Not necessarily a split-the-step fix — could be as simple as an inline "N required fields remaining" affordance near the Next button.
 
-### 4. Organization dropdown offers bodies the app can't run — P2
+### 4. Organization dropdown offers bodies the app can't run — P2 — RESOLVED 2026-07-01
 The org dropdown lists NACSW, CPE, USDAA, NADAC, NASDA — none of which have a rulebook config. A secretary can pick one and land in a broken/empty class-selection step. (Already tracked as a follow-up in the archived multi-registry plan: `docs/archive/plan-multi-registry-scent-work.md` → "org-dropdown tightening.")
+
+**Fix:** `ORGANIZATIONS` in `apps/myk9show/src/components/shows/wizard/steps/ShowDetailsStep.types.ts` is now derived from `listRegistries()` (the registry config layer) instead of a hardcoded list, so the dropdown offers exactly the configured registries (AKC, UKC, ASCA) — the 5 unrunnable bodies and the "Other" escape hatch are gone. Deriving from the single source of truth means the list can never drift again: adding a registry surfaces it automatically. Pinned by `ShowDetailsStep.organizations.test.ts`. Legacy show records carrying a removed org still degrade gracefully to AKC via `deriveRegistryId` (proven by `buildCreateShowPayload.test.ts`).
 
 ## Suggested priority
 

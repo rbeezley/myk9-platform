@@ -1,6 +1,6 @@
 # Plan: Show Chairman Picker — Reliable Reuse, Contact Capture, Premium Surfacing
 
-> **Status:** Active
+> **Status:** Complete — shipped in [#1072](https://github.com/rbeezley/myk9-platform/pull/1072) (2026-07-01); `generate-premium` deployed v39.
 
 Source: [`docs/audits/2026-07-01-show-creation-wizard-ux.md`](audits/2026-07-01-show-creation-wizard-ux.md) §Findings.1 ("Show Chairman picker surfaces no people"). Investigated 2026-07-01.
 

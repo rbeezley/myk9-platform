@@ -86,6 +86,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-wave3a-at-show-phone-polish.md](plan-wave3a-at-show-phone-polish.md)                 | Active    | Wave 3A At-Show Phone Polish Plan                                     |
 | [plan-wave3b-results-my-shows-clarity.md](plan-wave3b-results-my-shows-clarity.md)         | Active    | Wave 3B Results and My Shows Clarity Plan                             |
 | [playbook-impeccable-page-improvements.md](playbook-impeccable-page-improvements.md)       | Reference | Impeccable Page-Improvement Playbook                                  |
+| [rulebooks/README.md](rulebooks/README.md)                                                 | Reference | Sport & Registry Rulebooks — source reference library                |
 
 ### plans/ — feature & phase plans
 

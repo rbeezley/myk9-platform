@@ -15,6 +15,15 @@ interface WizardNavigationProps {
   nextLabel?: string | undefined;
   backLabel?: string | undefined;
   className?: string | undefined;
+  /**
+   * Count of still-unmet required fields on the current step. When > 0 an
+   * inline "N required fields remaining" hint renders beneath the Next button
+   * so the secretary sees *why* they can't advance without having to click and
+   * guess. Leaving Next enabled (see `canGoNext` at the call site) means the
+   * click still fires and surfaces the full validation banner. Defaults to 0
+   * (no hint) so other wizards that reuse this component are unaffected.
+   */
+  remainingRequiredCount?: number | undefined;
 }
 
 export const WizardNavigation: React.FC<WizardNavigationProps> = ({
@@ -29,6 +38,7 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
   nextLabel,
   backLabel,
   className,
+  remainingRequiredCount = 0,
 }) => {
   const isLastStep = currentStep === totalSteps - 1;
   const defaultNextLabel = isLastStep ? 'Create Show' : 'Next';
@@ -70,9 +80,12 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
         </div>
       </div>
 
-      {/* Right side - Next/Create button. Enabled/disabled state alone signals
-          readiness; no decorative glow (DESIGN.md: motion is purposeful, not decorative). */}
-      <div className="relative">
+      {/* Right side - Next/Create button with an inline readiness hint beneath
+          it. Next stays clickable when fields are missing (the click surfaces
+          the validation banner instead of failing silently); the hint tells the
+          secretary how many fields remain before they click. No decorative glow
+          (DESIGN.md: motion is purposeful, not decorative). */}
+      <div className="flex flex-col items-end gap-1.5">
         <Button
           onClick={onNext}
           disabled={!canGoNext || isLoading}
@@ -90,6 +103,12 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
             </>
           )}
         </Button>
+        {!isLoading && remainingRequiredCount > 0 && (
+          <p role="status" className="text-xs text-muted-foreground">
+            {remainingRequiredCount} required field
+            {remainingRequiredCount === 1 ? '' : 's'} remaining
+          </p>
+        )}
       </div>
     </div>
   );

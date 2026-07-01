@@ -88,4 +88,47 @@ describe('WizardNavigation', () => {
       expect(backButton).toBeDisabled();
     });
   });
+
+  describe('remainingRequiredCount hint', () => {
+    it('renders a pluralized hint when fields remain', () => {
+      render(<WizardNavigation {...defaultProps} remainingRequiredCount={3} />);
+      expect(screen.getByText('3 required fields remaining')).toBeInTheDocument();
+    });
+
+    it('renders a singular hint when exactly one field remains', () => {
+      render(<WizardNavigation {...defaultProps} remainingRequiredCount={1} />);
+      expect(screen.getByText('1 required field remaining')).toBeInTheDocument();
+    });
+
+    it('renders no hint when no fields remain', () => {
+      render(<WizardNavigation {...defaultProps} remainingRequiredCount={0} />);
+      expect(screen.queryByText(/required field/i)).not.toBeInTheDocument();
+    });
+
+    it('renders no hint when the prop is omitted', () => {
+      render(<WizardNavigation {...defaultProps} />);
+      expect(screen.queryByText(/required field/i)).not.toBeInTheDocument();
+    });
+
+    it('hides the hint while loading', () => {
+      render(<WizardNavigation {...defaultProps} isLoading={true} remainingRequiredCount={3} />);
+      expect(screen.queryByText(/required field/i)).not.toBeInTheDocument();
+    });
+
+    it('keeps Next clickable while fields remain (feedback, not a dead-end)', () => {
+      // The page passes canGoNext independent of validation so the click can
+      // surface the validation banner instead of the button sitting disabled.
+      const onNext = vi.fn();
+      render(
+        <WizardNavigation
+          {...defaultProps}
+          canGoNext={true}
+          remainingRequiredCount={3}
+          onNext={onNext}
+        />
+      );
+      const nextButton = screen.getByText('Next').closest('button');
+      expect(nextButton).not.toBeDisabled();
+    });
+  });
 });

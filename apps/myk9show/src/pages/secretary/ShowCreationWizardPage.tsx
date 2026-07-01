@@ -44,6 +44,11 @@ const ShowCreationWizardPage: React.FC = () => {
   const [hasAttemptedNext, setHasAttemptedNext] = useState(false);
   const [createdShow, setCreatedShow] = useState<CreatedShow | null>(null);
   const stepContentRef = useRef<HTMLDivElement>(null);
+  const validationBannerRef = useRef<HTMLDivElement>(null);
+  // Set by a failed Next click so the effect below scrolls the banner into
+  // view once it has mounted. A ref (not state) keeps this a one-shot signal
+  // that doesn't re-fire as the secretary fixes fields.
+  const pendingBannerScrollRef = useRef(false);
 
   const editModeInitializedRef = useRef<string | null>(null);
 
@@ -231,8 +236,11 @@ const ShowCreationWizardPage: React.FC = () => {
     // Check validation before allowing navigation
     const messages = getValidationMessagesForStep(currentStep, show, trials);
     if (messages.length > 0) {
-      // Validation failed — show the banner but don't navigate
+      // Validation failed — surface the banner, expand it, and scroll it into
+      // view. Next stays enabled (see canGoNext) so this click actually fires
+      // instead of the button sitting disabled with no explanation.
       setValidationExpanded(true);
+      pendingBannerScrollRef.current = true;
       return;
     }
 
@@ -259,9 +267,27 @@ const ShowCreationWizardPage: React.FC = () => {
   // Get validation messages for current step
   const validationMessages = getValidationMessagesForStep(currentStep, show, trials);
 
-  // Enable Next when validation passes (decoupled from completedSteps to prevent
-  // auto-advance caused by markStepCompleted side effects during re-renders)
-  const canGoNext = !isLoading && validationMessages.length === 0;
+  // Keep Next clickable whenever we're not mid-submit. It is deliberately NOT
+  // gated on validation: a disabled Next just sits there doing nothing when a
+  // required field is missing (the secretary clicks and is left guessing). Now
+  // the click always fires handleNext, which either advances or surfaces the
+  // validation banner + inline "N required fields remaining" hint. Decoupled
+  // from completedSteps to avoid auto-advance from markStepCompleted side
+  // effects during re-renders.
+  const canGoNext = !isLoading;
+
+  // Scroll the validation banner into view after a failed Next attempt, once it
+  // has actually mounted. Guarded by a ref flag so it only fires on the click,
+  // not on every re-render as fields are corrected. scrollIntoView is a no-op
+  // stub in jsdom, hence the typeof guard.
+  useEffect(() => {
+    if (pendingBannerScrollRef.current && validationBannerRef.current) {
+      pendingBannerScrollRef.current = false;
+      if (typeof validationBannerRef.current.scrollIntoView === 'function') {
+        validationBannerRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  });
 
   // Wizard state is reset explicitly on cancel (handleConfirmClose) or
   // successful creation (saveShow). No unmount cleanup needed — the Zustand
@@ -326,13 +352,16 @@ const ShowCreationWizardPage: React.FC = () => {
               step cards are the single lifting card layer, never card-in-card. */}
           <div className="relative flex min-h-[560px] flex-col overflow-hidden rounded-2xl border border-border bg-background sm:min-h-[700px]">
 
-            {/* Collapsible Validation Banner — only shown after user clicks Next */}
+            {/* Collapsible Validation Banner — only shown after user clicks Next.
+                Wrapped so handleNext can scroll it into view on a failed attempt. */}
             {hasAttemptedNext && validationMessages.length > 0 && (
-              <WizardValidationBanner
-                messages={validationMessages}
-                expanded={validationExpanded}
-                onToggle={() => setValidationExpanded(!validationExpanded)}
-              />
+              <div ref={validationBannerRef}>
+                <WizardValidationBanner
+                  messages={validationMessages}
+                  expanded={validationExpanded}
+                  onToggle={() => setValidationExpanded(!validationExpanded)}
+                />
+              </div>
             )}
 
             {/* Step Content with Transition */}
@@ -371,6 +400,7 @@ const ShowCreationWizardPage: React.FC = () => {
                   onNext={handleNext}
                   onSaveDraft={isDirty ? handleSaveProgress : undefined}
                   isLoading={isLoading}
+                  remainingRequiredCount={validationMessages.length}
                 />
               </div>
             )}

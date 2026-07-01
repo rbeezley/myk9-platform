@@ -142,6 +142,49 @@ export function applyActiveFilters(
 }
 
 /**
+ * Merges freshly-fetched DB templates into the existing (possibly persisted) list.
+ *
+ * Unlike a naive append, this REPLACES any existing template whose id matches an
+ * incoming one, then appends incoming templates that are genuinely new. This is
+ * what lets a stale client converge: e.g. a cached ASCA template holding 16 class
+ * definitions is overwritten by the fresh 32-definition version (same id) rather
+ * than being kept because "the id already exists". Templates not present in
+ * `incoming` (user-created custom templates, hardcoded fallbacks) are preserved
+ * untouched.
+ */
+export function upsertTemplates(
+  existing: ClassTemplate[],
+  incoming: ClassTemplate[]
+): ClassTemplate[] {
+  const incomingById = new Map(incoming.map(t => [t.id, t]));
+  // Replace in place where a fresh version exists, preserving order + custom entries.
+  const merged = existing.map(t => incomingById.get(t.id) ?? t);
+  // Append incoming templates that weren't already present.
+  const existingIds = new Set(existing.map(t => t.id));
+  const added = incoming.filter(t => !existingIds.has(t.id));
+  return [...merged, ...added];
+}
+
+/**
+ * Decides whether the persisted template cache should be revalidated against the DB.
+ *
+ * Returns true when the cache has never been fetched (`fetchedAt == null`) or when
+ * it is older than `ttlMs`. With `ttlMs === 0` this always returns true, giving
+ * "revalidate on every load" behavior — the current configured default. The knob
+ * exists so freshness can be traded against network chatter without touching call
+ * sites. Callers must still gate on connectivity (offline-first): a `true` here
+ * only means "refetch is due", not "refetch regardless of network".
+ */
+export function shouldRevalidate(
+  fetchedAt: number | null | undefined,
+  ttlMs: number,
+  now: number
+): boolean {
+  if (fetchedAt == null) return true;
+  return now - fetchedAt >= ttlMs;
+}
+
+/**
  * Migrates persisted state from version 0 to version 1.
  */
 export function migrateV0ToV1(persistedState: unknown): unknown {

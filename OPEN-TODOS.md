@@ -97,7 +97,6 @@ Cross-cutting principle that informs every other todo in this section. Secretari
 
 From live walk-throughs during the multi-registry Phase 4 verification. Full detail + calibration caveats in [docs/audits/2026-07-01-show-creation-wizard-ux.md](docs/audits/2026-07-01-show-creation-wizard-ux.md).
 
-- [ ] **Chairman picker surfaces no people (P1 — highest trust cost)** — Searching the Show Chairman picker for a person that clearly exists (e.g. the same name auto-filled into Show Secretary) returns nothing, forcing "Add new Show Chairman" and duplicate person records. Likely a two-lookup seam: the secretary field derives from the auth session while the chairman search queries `people` with terms (or a current-user exclusion) that don't match. Trace whether both should share one "eligible officials" query. See audit §Findings.1.
 - [ ] **Step-1 density: group, don't split (P2)** — Group within Step 1, don't split it into more wizard steps — visual sections with headings: Basics (name, org, location) · Dates & Entry · Fees & Payments · Officials. Collapse rarely-touched fields (armband start, premium style) behind their defaults. This cuts cognitive load without adding a single click (grouping lowers per-screen load without raising navigation cost; more steps trades one for the other). Only promote **Officials** to its own step if chairman friction persists after the picker fix. Land AFTER #1070 (clone-into-wizard) and #1071 (org dropdown) settle, since both edit this surface; check `docs/INTENT.md` for the secretary's target feeling first.
 
 ---

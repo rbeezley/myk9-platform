@@ -17,6 +17,8 @@ vi.mock('@/components/ui/grouped-searchable-popover', () => ({
     renderItem,
     onSelect,
     footer,
+    loading,
+    loadingLabel,
   }: {
     open: boolean;
     onOpenChange: (v: boolean) => void;
@@ -25,6 +27,8 @@ vi.mock('@/components/ui/grouped-searchable-popover', () => ({
     renderItem: (item: unknown, groupKey: string) => React.ReactNode;
     onSelect: (item: unknown, groupKey: string) => void;
     footer?: React.ReactNode;
+    loading?: boolean;
+    loadingLabel?: string;
   }) => (
     <div>
       <button type="button" onClick={() => onOpenChange(!open)}>
@@ -32,13 +36,15 @@ vi.mock('@/components/ui/grouped-searchable-popover', () => ({
       </button>
       {open && (
         <div>
-          {groups.map(g =>
-            g.items.map(item => (
-              <div key={item.id} onClick={() => onSelect(item, g.groupKey)}>
-                {renderItem(item, g.groupKey)}
-              </div>
-            ))
-          )}
+          {loading && <div>{loadingLabel ?? 'Loading…'}</div>}
+          {!loading &&
+            groups.map(g =>
+              g.items.map(item => (
+                <div key={item.id} onClick={() => onSelect(item, g.groupKey)}>
+                  {renderItem(item, g.groupKey)}
+                </div>
+              ))
+            )}
           {footer}
         </div>
       )}
@@ -144,14 +150,79 @@ describe('OfficialPicker', () => {
     fireEvent.change(screen.getByPlaceholderText('email@example.com'), {
       target: { value: 'jane@doe.com' },
     });
+    fireEvent.change(screen.getByPlaceholderText('(555) 123-4567'), {
+      target: { value: '555-111-2222' },
+    });
     fireEvent.click(screen.getByRole('button', { name: /add show chairman/i }));
     await waitFor(() =>
       expect(onCreatePerson).toHaveBeenCalledWith({
         firstName: 'Jane',
         lastName: 'Doe',
         email: 'jane@doe.com',
+        phone: '555-111-2222',
       })
     );
+  });
+
+  it('keeps the save button disabled until phone is also filled', async () => {
+    renderWithProviders(
+      <OfficialPicker
+        label="Show Chairman"
+        selectedPersonId={undefined}
+        people={[]}
+        suggestedRoles={[UserRole.CHAIRMAN]}
+        onSelect={vi.fn()}
+        onCreatePerson={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /select show chairman/i }));
+    await waitFor(() => screen.getByText(/add new show chairman/i));
+    fireEvent.click(screen.getByText(/add new show chairman/i));
+    fireEvent.change(screen.getByPlaceholderText('First name'), { target: { value: 'Jane' } });
+    fireEvent.change(screen.getByPlaceholderText('Last name'), { target: { value: 'Doe' } });
+    fireEvent.change(screen.getByPlaceholderText('email@example.com'), {
+      target: { value: 'jane@doe.com' },
+    });
+    // Name + email present but phone empty → still disabled (phone is required).
+    expect(screen.getByRole('button', { name: /add show chairman/i })).toBeDisabled();
+    fireEvent.change(screen.getByPlaceholderText('(555) 123-4567'), {
+      target: { value: '555-111-2222' },
+    });
+    expect(screen.getByRole('button', { name: /add show chairman/i })).toBeEnabled();
+  });
+
+  it('omits an excluded person from the popover (chairman ≠ secretary)', async () => {
+    // Bob is the already-selected secretary — he must not appear in the Chairman list.
+    renderWithProviders(
+      <OfficialPicker
+        label="Show Chairman"
+        selectedPersonId={undefined}
+        people={[chairman, exhibitor]}
+        suggestedRoles={[UserRole.CHAIRMAN]}
+        excludePersonIds={[exhibitor.id]}
+        onSelect={vi.fn()}
+        onCreatePerson={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /select show chairman/i }));
+    await waitFor(() => expect(screen.getByText('Alice Smith')).toBeInTheDocument());
+    expect(screen.queryByText('Bob Smith')).not.toBeInTheDocument();
+  });
+
+  it('shows a loading message instead of people while loading', () => {
+    renderWithProviders(
+      <OfficialPicker
+        label="Show Chairman"
+        selectedPersonId={undefined}
+        people={[]}
+        suggestedRoles={[UserRole.CHAIRMAN]}
+        loading
+        onSelect={vi.fn()}
+        onCreatePerson={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /select show chairman/i }));
+    expect(screen.getByText(/loading people/i)).toBeInTheDocument();
   });
 
   it('disables the save button when required fields are empty', async () => {

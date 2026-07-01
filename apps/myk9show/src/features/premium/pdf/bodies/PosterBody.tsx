@@ -48,7 +48,7 @@ export function PosterBody({ data, tokens }: Props) {
   };
   const sectionGap = { marginBottom: 22 };
 
-  const hasOfficials = officials.chairman || officials.steward;
+  const hasOfficials = Boolean(officials.chairman);
   const hasAccommodations = (supplemental.accommodations?.length ?? 0) > 0;
 
   return (
@@ -109,9 +109,9 @@ export function PosterBody({ data, tokens }: Props) {
         <View style={sectionGap}>
           <Text style={labelStyle}>Officials</Text>
           <Text style={bodyStyle}>
-            {officials.chairman ? `Chair: ${officials.chairman}` : ''}
-            {officials.chairman && officials.steward ? '\n' : ''}
-            {officials.steward ? `Steward: ${officials.steward}` : ''}
+            {officials.chairman ? `Chair: ${officials.chairman.name}` : ''}
+            {officials.chairman?.email ? ` · ${officials.chairman.email}` : ''}
+            {officials.chairman?.phone ? ` · ${formatPhone(officials.chairman.phone)}` : ''}
           </Text>
         </View>
       )}

@@ -32,7 +32,7 @@ const makeOriginal = (
   },
   club: { name: 'Test Club', logoUrl: null },
   secretary: { name: null, email: null, phone: null, mailingAddress: null },
-  officials: { chairman: null, steward: null },
+  officials: { chairman: null },
   trials: [],
   supplemental,
   narratives: {

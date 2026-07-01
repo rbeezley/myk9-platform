@@ -42,6 +42,30 @@ test.describe('Show Wizard — Officials & Judges Pickers', () => {
     expect(hasSuggested || hasAllPeople).toBe(true);
   });
 
+  test('"Add new Show Chairman" form requires name, email, and phone', async ({ page }) => {
+    await expect(page.locator('text=Basic Show Information')).toBeVisible();
+
+    // Open the chairman picker and expand its inline "Add new" form.
+    await page.getByRole('button', { name: /Show Chairman/i }).click();
+    await page.getByRole('button', { name: /Add new Show Chairman/i }).click();
+
+    // The create form must collect full contact info — email AND phone are
+    // surfaced on the premium/reports, so both are required alongside the name.
+    await expect(page.getByPlaceholder('First name')).toBeVisible();
+    await expect(page.getByPlaceholder('Last name')).toBeVisible();
+    await expect(page.getByPlaceholder('email@example.com')).toBeVisible();
+    await expect(page.getByPlaceholder('(555) 123-4567')).toBeVisible();
+
+    // Save stays disabled until every field (including phone) is filled.
+    const save = page.getByRole('button', { name: /Add Show Chairman/i });
+    await page.getByPlaceholder('First name').fill('Pat');
+    await page.getByPlaceholder('Last name').fill('Chair');
+    await page.getByPlaceholder('email@example.com').fill('pat.chair@example.com');
+    await expect(save).toBeDisabled();
+    await page.getByPlaceholder('(555) 123-4567').fill('555-123-4567');
+    await expect(save).toBeEnabled();
+  });
+
   test('Secretary field is auto-filled with the logged-in user badge', async ({ page }) => {
     // Verify we're on the Show Details step
     await expect(page.locator('text=Basic Show Information')).toBeVisible();

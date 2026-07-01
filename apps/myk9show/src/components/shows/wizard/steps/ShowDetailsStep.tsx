@@ -25,8 +25,15 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
   const { show, updateShowData, addJudgeToShow, removeJudgeFromShow, judgeDetails } =
     useWizardStore();
   const { clubs, loadClubs, syncClubs } = useClubStore();
-  const { people, loadPeople } = useUserStore();
+  const { people, loadPeople, isLoading } = useUserStore();
   const { userWithRoles } = useAuthContext();
+
+  // Only surface a "loading" state on the pickers during the initial fetch —
+  // not during unrelated create/update mutations that also flip isLoading.
+  const peopleLoading = isLoading && people.length === 0;
+
+  const selectedChairmanId = show.officials.chairman[0];
+  const selectedSecretaryId = show.officials.secretary[0];
 
   // Scope clubs to user's assigned clubs (secretaries/club admins see only their clubs)
   const userClubIds = useUserClubIds();
@@ -148,9 +155,11 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
               <OfficialPicker
                 label="Show Chairman"
                 required
-                selectedPersonId={show.officials.chairman[0]}
+                selectedPersonId={selectedChairmanId}
                 people={people}
                 suggestedRoles={[UserRole.CHAIRMAN, UserRole.CLUB_ADMIN]}
+                loading={peopleLoading}
+                excludePersonIds={selectedSecretaryId ? [selectedSecretaryId] : []}
                 onSelect={id =>
                   updateShowData({ officials: { ...show.officials, chairman: [id] } })
                 }
@@ -159,10 +168,12 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
               <OfficialPicker
                 label="Show Secretary"
                 required
-                selectedPersonId={show.officials.secretary[0]}
+                selectedPersonId={selectedSecretaryId}
                 people={people}
                 suggestedRoles={[UserRole.SECRETARY]}
-                {...(show.officials.secretary[0] === userWithRoles?.databaseUserId
+                loading={peopleLoading}
+                excludePersonIds={selectedChairmanId ? [selectedChairmanId] : []}
+                {...(selectedSecretaryId === userWithRoles?.databaseUserId
                   ? { autoFillBadge: 'You' }
                   : {})}
                 onSelect={id =>

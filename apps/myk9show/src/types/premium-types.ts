@@ -88,7 +88,9 @@ export interface GeneratedPremium {
     phone: string | null;
     mailingAddress: string | null;
   };
-  officials: { chairman: string | null; steward: string | null };
+  officials: {
+    chairman: { name: string; email: string | null; phone: string | null } | null;
+  };
   trials: Array<{
     name: string;
     date: string;

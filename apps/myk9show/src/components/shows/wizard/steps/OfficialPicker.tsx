@@ -13,6 +13,7 @@ export interface CreatePersonData {
   firstName: string;
   lastName: string;
   email: string;
+  phone: string;
 }
 
 export interface OfficialPickerProps {
@@ -22,6 +23,13 @@ export interface OfficialPickerProps {
   people: User[];
   suggestedRoles: UserRole[];
   autoFillBadge?: string;
+  /**
+   * People who cannot be selected here — e.g. the person already chosen as the
+   * other official. A Chairman and Secretary must be different people.
+   */
+  excludePersonIds?: string[];
+  /** True while the people list is still being fetched. */
+  loading?: boolean;
   onSelect: (personId: string) => void;
   onCreatePerson: (data: CreatePersonData) => Promise<string>;
 }
@@ -33,6 +41,8 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
   people,
   suggestedRoles,
   autoFillBadge,
+  excludePersonIds = [],
+  loading = false,
   onSelect,
   onCreatePerson,
 }) => {
@@ -42,11 +52,17 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const selectedName = getPersonName(people, selectedPersonId);
-  const { suggested, others } = groupPeopleForOfficial(people, suggestedRoles, searchTerm);
+  const { suggested, others } = groupPeopleForOfficial(
+    people,
+    suggestedRoles,
+    searchTerm,
+    excludePersonIds
+  );
 
   const handleOpenAddNew = () => {
     setOpen(false);
@@ -58,11 +74,12 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
     setFirstName('');
     setLastName('');
     setEmail('');
+    setPhone('');
     setSaveError(null);
   };
 
   const handleSaveCreate = async () => {
-    if (!firstName.trim() || !lastName.trim() || !email.trim()) return;
+    if (!firstName.trim() || !lastName.trim() || !email.trim() || !phone.trim()) return;
     setSaving(true);
     setSaveError(null);
     try {
@@ -70,6 +87,7 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         email: email.trim(),
+        phone: phone.trim(),
       });
       onSelect(newId);
       handleCancelCreate();
@@ -80,7 +98,11 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
     }
   };
 
-  const canSave = firstName.trim() !== '' && lastName.trim() !== '' && email.trim() !== '';
+  const canSave =
+    firstName.trim() !== '' &&
+    lastName.trim() !== '' &&
+    email.trim() !== '' &&
+    phone.trim() !== '';
 
   // Slug derived from `label` so two OfficialPickers on the same page (e.g.
   // "Show Chairman" + "Show Secretary") don't collide on element ids.
@@ -92,6 +114,7 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
   const firstNameId = `official-${idSlug}-first-name`;
   const lastNameId = `official-${idSlug}-last-name`;
   const emailId = `official-${idSlug}-email`;
+  const phoneId = `official-${idSlug}-phone`;
 
   const renderPersonRow = (person: User) => (
     <div className="p-3 hover:bg-muted cursor-pointer border-b last:border-b-0">
@@ -119,6 +142,8 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
           searchPlaceholder={`Search ${label.toLowerCase()}…`}
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
+          loading={loading}
+          loadingLabel="Loading people…"
           groups={[
             { groupKey: 'suggested', label: 'Suggested', items: suggested },
             { groupKey: 'all', label: 'All People', items: others },
@@ -188,6 +213,19 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
+              className="h-8 text-sm"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor={phoneId} className="text-xs">
+              Phone *
+            </Label>
+            <Input
+              id={phoneId}
+              placeholder="(555) 123-4567"
+              type="tel"
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
               className="h-8 text-sm"
             />
           </div>

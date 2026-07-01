@@ -1,6 +1,8 @@
 # Registry Write Path — populate `trials.registry_id` from the show's organization
 
-> **Status:** Active
+> **Status:** Complete
+>
+> All phases shipped and verified. Phase 1 (derive + thread `registryId`, client + `create_show_with_children` RPC) merged in #1061; Phase 3 (org-change sync trigger `sync_trial_registry_from_show`, migration `20260701120000`) in #1062, pushed to the shared DB. Phase 2 backfill was a confirmed no-op (all pre-existing trials were AKC). Phase 4 live verification (2026-07-01): drove both a UKC and an ASCA show through the full wizard → correct `registry_id` persisted via the real RPC; the org-change trigger and `btrim` parity were exercised on a real row. See also [`plan-multi-registry-scent-work.md`](plan-multi-registry-scent-work.md).
 
 ## Problem
 

@@ -65,8 +65,6 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-landing-hero-lcp-prerender.md](plan-landing-hero-lcp-prerender.md)                   | Active    | Landing-page mobile LCP — prerender + hydrate the hero                |
 | [plan-lane-2-2-entry-multiselect.md](plan-lane-2-2-entry-multiselect.md)                   | Active    | Plan: Lane 2.2 — Entry Management checkbox multi-select               |
 | [plan-launch-execution-lanes.md](plan-launch-execution-lanes.md)                           | Active    | Plan: Fall Launch — Execution Lanes (canonical to-do)                 |
-| [plan-multi-registry-scent-work.md](plan-multi-registry-scent-work.md)                     | Active    | Multi-Registry Scent Work — AKC + UKC + ASCA (day-one launch)         |
-| [plan-registry-write-path.md](plan-registry-write-path.md)                                 | Active    | Registry Write Path — derive trials.registry_id from show.organization |
 | [plan-operator-docs-portal.md](plan-operator-docs-portal.md)                               | Deferred  | Gated Operator Docs Portal — searchable runbooks (deferred 2026-06-27)|
 | [plan-phase4-seam-render-only.md](plan-phase4-seam-render-only.md)                         | Active    | Plan: Phase 4 seam render-only read strategy                          |
 | [plan-pull-management-split.md](plan-pull-management-split.md)                             | Active    | Pull Management — separate show-day pull state from refund accounting  |

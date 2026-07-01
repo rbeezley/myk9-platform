@@ -5,9 +5,8 @@ import { ShowCalendar } from '@/components/common/LazyComponents';
 import { CalendarSkeleton } from '@/components/common/CalendarSkeleton';
 import { Button } from '@/components/ui/button';
 import { useShowStore } from '@/store/showStore';
-import { Plus, Calendar as CalendarIcon, Trophy, Users, Clock, Copy } from 'lucide-react';
+import { Plus, Calendar as CalendarIcon, Trophy, Users, Clock } from 'lucide-react';
 import { StatCard, StatsGrid } from '@myk9/ui';
-import { ShowCloneDialog } from '@/components/shows/cloning';
 import '@/styles/myk9-show-details.css';
 import '@/styles/calendar-performance.css';
 import { getShowStats } from '@/utils/showFilters';
@@ -19,7 +18,6 @@ export default function CalendarPage() {
   const { shows } = useShowStore();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showRegistrationHint, setShowRegistrationHint] = useState(false);
-  const [showCloneDialog, setShowCloneDialog] = useState(false);
   const [isCalendarLoading, setIsCalendarLoading] = useState(true);
 
   // Check for registration intent from URL
@@ -81,13 +79,6 @@ export default function CalendarPage() {
                 Browse All Shows
               </Button>
             </Link>
-
-            <PermissionGuard permission={PERMISSIONS.SHOW_CREATE}>
-              <Button onClick={() => setShowCloneDialog(true)} variant="outline" size="sm">
-                <Copy className="h-4 w-4 mr-2" />
-                Clone Show
-              </Button>
-            </PermissionGuard>
 
             <PermissionGuard permission={PERMISSIONS.SHOW_CREATE}>
               <Button onClick={() => navigate('/secretary/create-show/wizard')} size="sm">
@@ -173,9 +164,6 @@ export default function CalendarPage() {
             <ShowCalendar onShowRegister={handleRegisterForShow} />
           </Suspense>
         )}
-
-        {/* Show Clone Dialog */}
-        <ShowCloneDialog open={showCloneDialog} onOpenChange={setShowCloneDialog} />
       </div>
     </motion.div>
   );

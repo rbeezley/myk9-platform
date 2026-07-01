@@ -7,7 +7,7 @@
  * Selecting "Start fresh" resets show data back to the wizard's empty defaults.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Copy, ChevronsUpDown, Check, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,7 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [clonedShowName, setClonedShowName] = useState<string | null>(null);
+  const cloneRequestIdRef = useRef(0);
 
   const { updateShowData, addJudgeToShow, addTrial, resetWizard } = useWizardStore();
   const { people } = useUserStore();
@@ -69,6 +70,8 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
   }, [candidateShows, search]);
 
   const handleSelect = async (show: Show) => {
+    const requestId = cloneRequestIdRef.current + 1;
+    cloneRequestIdRef.current = requestId;
     setOpen(false);
     setSearch('');
     setClonedShowName(show.name);
@@ -109,6 +112,7 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
     }
 
     const sourceTrials = await getCloneSourceTrials(show);
+    if (requestId !== cloneRequestIdRef.current) return;
 
     if (sourceTrials.length) {
       for (const trial of sourceTrials) {
@@ -149,6 +153,7 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
   };
 
   const handleStartFresh = () => {
+    cloneRequestIdRef.current += 1;
     setClonedShowName(null);
     resetWizard();
   };

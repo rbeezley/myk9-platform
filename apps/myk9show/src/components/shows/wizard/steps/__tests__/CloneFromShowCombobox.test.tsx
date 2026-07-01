@@ -242,6 +242,50 @@ describe('CloneFromShowCombobox', () => {
     });
   });
 
+  it('does not append hydrated trials after start fresh cancels the selection', async () => {
+    const sourceTrial = mockShows[0]!.trials[0]!;
+    let resolveClasses: (value: {
+      data: Array<Record<string, unknown>>;
+      error: null;
+    }) => void = () => {};
+    const pendingClasses = new Promise<{ data: Array<Record<string, unknown>>; error: null }>(
+      resolve => {
+        resolveClasses = resolve;
+      }
+    );
+    mockShowsQueryState = {
+      data: [
+        {
+          ...mockShows[0]!,
+          trials: [{ ...sourceTrial, classes: [] }],
+        } as Show,
+      ],
+      isLoading: false,
+      isError: false,
+    };
+    mockGetClassesByTrialId.mockReturnValueOnce(pendingClasses);
+
+    const user = await selectSourceShow();
+    await waitFor(() => expect(mockGetClassesByTrialId).toHaveBeenCalledWith('trial-1'));
+
+    await user.click(screen.getByRole('button', { name: /start fresh/i }));
+    resolveClasses({
+      data: [
+        {
+          id: 'class-1',
+          name: 'Novice Containers',
+          element: 'Containers',
+          level: 'Novice',
+          entry_fee: 28,
+        },
+      ],
+      error: null,
+    });
+    await flushPromises();
+
+    expect(mockAddTrial).not.toHaveBeenCalled();
+  });
+
   it('start fresh clears copied fields and selected judges', async () => {
     const user = await selectSourceShow();
     await user.click(screen.getByRole('button', { name: /start fresh/i }));
@@ -267,3 +311,9 @@ describe('CloneFromShowCombobox', () => {
     expect(screen.queryByRole('button', { name: /select a past show to clone/i })).toBeNull();
   });
 });
+
+function flushPromises(): Promise<void> {
+  return new Promise(resolve => {
+    setTimeout(resolve, 0);
+  });
+}

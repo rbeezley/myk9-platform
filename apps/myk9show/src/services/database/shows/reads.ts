@@ -4,6 +4,7 @@ import type { DatabaseError } from '../supabaseClient';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
 import { replicatedClubsTable } from '@/services/replication/ReplicatedClubsTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
+import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedJudgeAssignmentsTable } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
 import { mapReplicatedShowToDbRow } from '@/services/mappers/showMappers';
 import { buildMapFromArray } from '../_shared/maps';
@@ -11,6 +12,7 @@ import { withReplicationFallback } from '../_shared/replication-fallback';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
 import type { ReplicatedClub } from '@/services/replication/ReplicatedClubsTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
+import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedJudgeAssignment } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
 import {
   postgrestGetAllShows,
@@ -32,6 +34,7 @@ import {
 
 const EMPTY_JUDGE_MAP = new Map<string, ReplicatedJudgeAssignment[]>();
 const EMPTY_TRIALS_MAP = new Map<string, ReplicatedTrial[]>();
+const EMPTY_CLASSES_MAP = new Map<string, ReplicatedClass[]>();
 
 async function loadClubsMap(): Promise<Map<string, ReplicatedClub>> {
   const clubs = await replicatedClubsTable.getAllClubs();
@@ -46,6 +49,19 @@ async function loadTrialsByShowMap(): Promise<Map<string, ReplicatedTrial[]>> {
       const list = map.get(t.showId) ?? [];
       list.push(t);
       map.set(t.showId, list);
+    }
+  }
+  return map;
+}
+
+async function loadClassesByTrialMap(): Promise<Map<string, ReplicatedClass[]>> {
+  const classes = await replicatedClassesTable.getAll();
+  const map = new Map<string, ReplicatedClass[]>();
+  for (const cls of classes) {
+    if (cls.trialId) {
+      const list = map.get(cls.trialId) ?? [];
+      list.push(cls);
+      map.set(cls.trialId, list);
     }
   }
   return map;
@@ -78,6 +94,7 @@ function mapShowsWithJoins(
   shows: ReplicatedShow[],
   clubsMap: Map<string, ReplicatedClub>,
   trialsMap: Map<string, ReplicatedTrial[]>,
+  classesMap: Map<string, ReplicatedClass[]>,
   judgeAssignmentsMap: Map<string, ReplicatedJudgeAssignment[]>,
   clubDetail = false
 ): Record<string, unknown>[] {
@@ -85,6 +102,7 @@ function mapShowsWithJoins(
     mapReplicatedShowToDbRow(show, {
       club: show.clubId ? (clubsMap.get(show.clubId) ?? null) : null,
       trials: trialsMap.get(show.id) ?? [],
+      classesByTrial: classesMap,
       judgeAssignments: judgeAssignmentsMap.get(show.id) ?? [],
       clubDetail,
     })
@@ -109,13 +127,20 @@ export const getAllShows = async () => {
   try {
     return await withReplicationFallback(
       async () => {
-        const [shows, clubsMap, trialsMap, judgeAssignmentsMap] = await Promise.all([
+        const [shows, clubsMap, trialsMap, classesMap, judgeAssignmentsMap] = await Promise.all([
           replicatedShowsTable.getAllShows(),
           loadClubsMap(),
           loadTrialsByShowMap(),
+          loadClassesByTrialMap(),
           loadJudgeAssignmentsByShowMap(),
         ]);
-        const data = mapShowsWithJoins(shows, clubsMap, trialsMap, judgeAssignmentsMap);
+        const data = mapShowsWithJoins(
+          shows,
+          clubsMap,
+          trialsMap,
+          classesMap,
+          judgeAssignmentsMap
+        );
         return { data, error: null };
       },
       postgrestGetAllShows,
@@ -141,15 +166,17 @@ export const getShowById = async (id: string) => {
           };
         }
 
-        const [club, trials, judgeAssignments] = await Promise.all([
+        const [club, trials, classesMap, judgeAssignments] = await Promise.all([
           show.clubId ? replicatedClubsTable.getClubById(show.clubId) : Promise.resolve(null),
           replicatedTrialsTable.getTrialsByShow(id),
+          loadClassesByTrialMap(),
           replicatedJudgeAssignmentsTable.getByShowId(id),
         ]);
 
         const data = mapReplicatedShowToDbRow(show, {
           club,
           trials,
+          classesByTrial: classesMap,
           judgeAssignments,
           clubDetail: true,
         });
@@ -184,7 +211,13 @@ export const getUpcomingShows = async (limit = 10) => {
           loadTrialsByShowMap(),
         ]);
         const limited = shows.slice(0, limit);
-        const data = mapShowsWithJoins(limited, clubsMap, trialsMap, EMPTY_JUDGE_MAP);
+        const data = mapShowsWithJoins(
+          limited,
+          clubsMap,
+          trialsMap,
+          EMPTY_CLASSES_MAP,
+          EMPTY_JUDGE_MAP
+        );
         return { data, error: null };
       },
       () => postgrestGetUpcomingShows(limit),
@@ -209,7 +242,13 @@ export const getShowsByDateRange = async (startDate: string, endDate: string) =>
         const filtered = allShows.filter(
           show => show.startDate >= startDate && show.endDate <= endDate
         );
-        const data = mapShowsWithJoins(filtered, clubsMap, trialsMap, EMPTY_JUDGE_MAP);
+        const data = mapShowsWithJoins(
+          filtered,
+          clubsMap,
+          trialsMap,
+          EMPTY_CLASSES_MAP,
+          EMPTY_JUDGE_MAP
+        );
         return { data, error: null };
       },
       () => postgrestGetShowsByDateRange(startDate, endDate),
@@ -233,7 +272,13 @@ export const getShowsByClub = async (clubId: string) => {
         ]);
         // Sort descending by start_date (matching original PostgREST behavior)
         shows.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
-        const data = mapShowsWithJoins(shows, clubsMap, trialsMap, EMPTY_JUDGE_MAP);
+        const data = mapShowsWithJoins(
+          shows,
+          clubsMap,
+          trialsMap,
+          EMPTY_CLASSES_MAP,
+          EMPTY_JUDGE_MAP
+        );
         return { data, error: null };
       },
       () => postgrestGetShowsByClub(clubId),
@@ -296,7 +341,13 @@ export const getShowsWithEntryCounts = async () => {
           replicatedShowsTable.getAllShows(),
           loadClubsMap(),
         ]);
-        const rows = mapShowsWithJoins(shows, clubsMap, EMPTY_TRIALS_MAP, EMPTY_JUDGE_MAP);
+        const rows = mapShowsWithJoins(
+          shows,
+          clubsMap,
+          EMPTY_TRIALS_MAP,
+          EMPTY_CLASSES_MAP,
+          EMPTY_JUDGE_MAP
+        );
         // Add basic entry count as 0 for now (matching original behavior)
         const data = rows.map(row => ({ ...row, entry_count: 0 }));
         return { data, error: null };

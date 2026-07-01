@@ -38,7 +38,30 @@ export async function postgrestGetAllShows() {
         trial_type,
         max_entries_per_dog,
         max_total_entries,
-        max_entries_per_handler
+        max_entries_per_handler,
+        class:classes(
+          id,
+          name,
+          description,
+          entry_fee,
+          jump_heights,
+          max_entries,
+          allow_waitlist,
+          max_dogs_per_handler,
+          level,
+          element,
+          section,
+          competition_type,
+          breed_restrictions,
+          age_min,
+          age_max,
+          height_min,
+          height_max,
+          handler_age_min,
+          handler_age_max,
+          start_time,
+          estimated_duration
+        )
       ),
       judge_assignments(
         id,
@@ -267,7 +290,30 @@ export async function postgrestGetShowById(id: string) {
         trial_type,
         max_entries_per_dog,
         max_total_entries,
-        max_entries_per_handler
+        max_entries_per_handler,
+        class:classes(
+          id,
+          name,
+          description,
+          entry_fee,
+          jump_heights,
+          max_entries,
+          allow_waitlist,
+          max_dogs_per_handler,
+          level,
+          element,
+          section,
+          competition_type,
+          breed_restrictions,
+          age_min,
+          age_max,
+          height_min,
+          height_max,
+          handler_age_min,
+          handler_age_max,
+          start_time,
+          estimated_duration
+        )
       ),
       judge_assignments(
         id,

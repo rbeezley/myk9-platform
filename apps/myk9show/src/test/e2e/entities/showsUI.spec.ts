@@ -76,7 +76,7 @@ test.describe('Shows UI — Create wizard (secretary)', () => {
       page.getByRole('button', { name: 'New Show' }).click(),
     ]);
     await expect(page.getByRole('heading', { name: 'Create New Show', level: 2 })).toBeVisible();
-    // Clone affordance is present (Phase 1 — Quiet the Noise: Clone Show ported).
+    // Clone is owned by the wizard, not a second Calendar-page dialog.
     await expect(page.getByRole('button', { name: 'Select a past show to clone' })).toBeVisible();
     // Required fields are surfaced inline.
     await expect(page.getByText('Show Name *', { exact: true })).toBeVisible();

@@ -7,7 +7,7 @@
  * Selecting "Start fresh" resets show data back to the wizard's empty defaults.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Copy, ChevronsUpDown, Check, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,10 @@ import { useWizardStore } from '@/store/wizardStore';
 import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
 import { useUserStore } from '@/store/userStore';
 import { useUserClubIds } from '@/hooks/useUserClubIds';
-import type { Show } from '@/types/show-types';
+import { useTemplates } from '@/hooks/useTemplates';
+import { getClassesByTrialId } from '@/services/database/classes';
+import type { Class, Show } from '@/types/show-types';
+import type { ClassTemplate } from '@/types/template.types';
 
 interface CloneFromShowComboboxProps {
   /** Optional: restrict to this clubId (pre-selected club context) */
@@ -28,10 +31,12 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [clonedShowName, setClonedShowName] = useState<string | null>(null);
+  const cloneRequestIdRef = useRef(0);
 
-  const { updateShowData, addJudgeToShow } = useWizardStore();
+  const { updateShowData, addJudgeToShow, addTrial, resetWizard } = useWizardStore();
   const { people } = useUserStore();
-  const { data: allShows = [], isLoading } = useShowsQuery();
+  const { data: allShows = [], isLoading, isError } = useShowsQuery();
+  const { templates } = useTemplates();
 
   // Determine which club IDs this user has secretary/admin access to
   const userClubIds = useUserClubIds();
@@ -64,10 +69,13 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
     );
   }, [candidateShows, search]);
 
-  const handleSelect = (show: Show) => {
+  const handleSelect = async (show: Show) => {
+    const requestId = cloneRequestIdRef.current + 1;
+    cloneRequestIdRef.current = requestId;
     setOpen(false);
     setSearch('');
     setClonedShowName(show.name);
+    resetWizard();
 
     // Prefill all non-date show fields
     updateShowData({
@@ -102,26 +110,62 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
         });
       }
     }
+
+    const sourceTrials = await getCloneSourceTrials(show);
+    if (requestId !== cloneRequestIdRef.current) return;
+
+    if (sourceTrials.length) {
+      for (const trial of sourceTrials) {
+        const sourceClasses = trial.classes || [];
+        // Wizard state stores one template id per class. Normal trial data is single-sport, and
+        // customizations preserve the visible class details if the template cannot be recovered.
+        const template = resolveCloneTemplate({
+          templates,
+          organization: show.organization,
+          trialType: trial.trialType,
+          classes: sourceClasses,
+        });
+
+        addTrial({
+          name: trial.name || 'Trial',
+          dateTime: '',
+          eventNumber: '',
+          trialType: trial.trialType,
+          classes: sourceClasses.map(cls => {
+            const judgeId =
+              (show.assignedJudges || []).find(judge => judge.assignedClasses?.includes(cls.id))
+                ?.judgeId || undefined;
+
+            return {
+              templateId: cls.templateId || template?.id || '',
+              customizations: {
+                className: cls.name,
+                element: cls.element,
+                level: cls.level,
+                entryFee: cls.entryFee,
+              },
+              ...(judgeId ? { judgeId } : {}),
+            };
+          }),
+        });
+      }
+    }
   };
 
   const handleStartFresh = () => {
+    cloneRequestIdRef.current += 1;
     setClonedShowName(null);
-    updateShowData({
-      name: '',
-      organization: 'AKC',
-      startDate: '',
-      endDate: '',
-      location: '',
-      entryOpenDate: '',
-      entryCloseDate: '',
-      preEntryFee: 0,
-      dayOfShowFee: 0,
-      startingArmbandNumber: 100,
-      acceptCheckPayments: false,
-      acceptCashPayments: false,
-      judgeIds: [],
-    });
+    resetWizard();
   };
+
+  if (isError) {
+    return (
+      <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+        <p className="font-medium text-foreground">We could not load previous shows.</p>
+        <p>You can still enter this show manually.</p>
+      </div>
+    );
+  }
 
   if (candidateShows.length === 0 && !isLoading) {
     // No past shows to clone from — render nothing so the form looks clean for new users
@@ -197,7 +241,7 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
                     <button
                       key={show.id}
                       type="button"
-                      onClick={() => handleSelect(show)}
+                      onClick={() => void handleSelect(show)}
                       className="w-full px-3 py-2.5 text-left hover:bg-accent hover:text-accent-foreground transition-colors duration-150 flex flex-col gap-0.5"
                     >
                       <span className="text-sm font-medium leading-tight truncate">
@@ -227,5 +271,124 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
     </div>
   );
 };
+
+async function getCloneSourceTrials(show: Show): Promise<Show['trials']> {
+  if (!show.trials?.length) return [];
+
+  return await Promise.all(
+    show.trials.map(async trial => {
+      if (trial.classes?.length) return trial;
+
+      try {
+        // Show-list reads can come from a cold replicated class store. Hydrate the selected
+        // trial lazily so clone preserves class structure without widening every list query.
+        const { data, error } = await getClassesByTrialId(trial.id);
+        if (error || data.length === 0) return trial;
+
+        return {
+          ...trial,
+          classes: data.map(mapFetchedClassToShowClass),
+        };
+      } catch {
+        return trial;
+      }
+    })
+  );
+}
+
+function mapFetchedClassToShowClass(value: Record<string, unknown>): Class {
+  const name = optionalString(value.name) || optionalString(value.className) || 'Unnamed Class';
+  const entryFee = optionalNumber(value.entry_fee ?? value.entryFee);
+
+  return {
+    id: optionalString(value.id) || name,
+    templateId: optionalString(value.template_id ?? value.templateId),
+    name,
+    description: optionalString(value.description),
+    entryFee,
+    level: optionalString(value.level),
+    element: optionalString(value.element),
+  };
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value : undefined;
+}
+
+function optionalNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+}
+
+function resolveCloneTemplate(args: {
+  templates: ClassTemplate[];
+  organization: string;
+  trialType?: string | undefined;
+  classes: Class[];
+}): ClassTemplate | undefined {
+  const normalizedOrganization = normalizeText(args.organization);
+  const normalizedTrialType = normalizeText(args.trialType);
+  const sourceClasses = args.classes.filter(cls => cls.name || cls.element || cls.level);
+
+  const candidates = args.templates.filter(template => {
+    if (!template.isActive) return false;
+
+    const templateOrganization = normalizeText(template.organization);
+    const organizationMatches =
+      templateOrganization === normalizedOrganization ||
+      normalizedOrganization.includes(templateOrganization) ||
+      templateOrganization.includes(normalizedOrganization);
+    if (!organizationMatches) return false;
+
+    if (!normalizedTrialType) return true;
+
+    const templateTrialType = normalizeText(template.trialType);
+    return (
+      templateTrialType === normalizedTrialType ||
+      templateTrialType.includes(normalizedTrialType) ||
+      normalizedTrialType.includes(templateTrialType)
+    );
+  });
+
+  const best = candidates
+    .map(template => ({ template, score: scoreTemplateMatch(template, sourceClasses) }))
+    .sort((a, b) => b.score - a.score)[0];
+
+  if (!best) return undefined;
+  if (sourceClasses.length > 0 && best.score === 0) return undefined;
+  return best.template;
+}
+
+function scoreTemplateMatch(template: ClassTemplate, sourceClasses: Class[]): number {
+  if (sourceClasses.length === 0) return 0;
+
+  return sourceClasses.reduce((score, cls) => {
+    const normalizedClassName = normalizeText(cls.name);
+    const normalizedElement = normalizeText(cls.element);
+    const normalizedLevel = normalizeText(cls.level);
+
+    const hasMatchingClass = template.classDefinitions.some(def => {
+      const classNameMatches =
+        normalizedClassName !== '' && normalizeText(def.className) === normalizedClassName;
+      const elementMatches =
+        normalizedElement !== '' && normalizeText(def.element) === normalizedElement;
+      const levelMatches = normalizedLevel === '' || normalizeText(def.level) === normalizedLevel;
+
+      return classNameMatches || (elementMatches && levelMatches);
+    });
+
+    return hasMatchingClass ? score + 1 : score;
+  }, 0);
+}
+
+function normalizeText(value: unknown): string {
+  return String(value || '')
+    .toLowerCase()
+    .trim();
+}
 
 export default CloneFromShowCombobox;

@@ -8,8 +8,12 @@
 -- whenever a show's organization actually changes, every one of its trials is
 -- re-derived, independent of any client's replica state.
 --
--- Derivation mirrors the client deriveRegistryId(): the organization when it names a
--- configured registry (AKC/UKC/ASCA), else 'AKC' (the column default / fallback).
+-- Derivation mirrors the client deriveRegistryId(): the TRIMMED organization when it
+-- names a configured registry (AKC/UKC/ASCA), else 'AKC' (the column default / fallback).
+-- The btrim is load-bearing — deriveRegistryId() trims before matching, so ' UKC ' must
+-- resolve to 'UKC' here too, or the authoritative trigger would overwrite to AKC what the
+-- client wrote as UKC. btrim(NULL) is NULL and NULL IN (...) is NULL, so a null org falls
+-- to 'AKC' just as deriveRegistryId(null) does.
 -- Idempotent: only rows whose registry_id would actually change are touched, and the
 -- WHERE guard means re-running the same org value is a no-op.
 
@@ -29,8 +33,9 @@ BEGIN
     RETURN NEW;
   END IF;
 
+  -- btrim mirrors deriveRegistryId()'s .trim(): ' UKC ' -> 'UKC', not 'AKC'.
   v_registry_id := CASE
-    WHEN NEW.organization IN ('AKC', 'UKC', 'ASCA') THEN NEW.organization
+    WHEN btrim(NEW.organization) IN ('AKC', 'UKC', 'ASCA') THEN btrim(NEW.organization)
     ELSE 'AKC'
   END;
 

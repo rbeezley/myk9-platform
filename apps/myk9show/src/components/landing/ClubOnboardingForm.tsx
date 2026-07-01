@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Building2, Send, CheckCircle2, LogIn, Clock } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { ORGANIZATIONS } from '@/components/shows/wizard/steps/ShowDetailsStep.types';
+import { ONBOARDING_ORGANIZATIONS } from '@/data/organizations';
 import {
   submitOnboardingRequest,
   getMyOnboardingRequests,
@@ -288,7 +288,7 @@ export default function ClubOnboardingForm() {
               required
             >
               <option value="">Select organization...</option>
-              {ORGANIZATIONS.map(org => (
+              {ONBOARDING_ORGANIZATIONS.map(org => (
                 <option key={org.value} value={org.value}>
                   {org.label}
                 </option>

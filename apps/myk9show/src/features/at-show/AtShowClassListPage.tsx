@@ -25,6 +25,8 @@ import { formatTrialDate } from '@myk9/core';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
+import { useReplicationSync } from '@/hooks/useReplicationSync';
+import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
 import { useAtShowClassList } from './useAtShowClassList';
 import { loadCollapsedTrialIds, saveCollapsedTrialIds } from './atShowClassListState';
 import { badgeClass, getClassListStatusTier } from './slots/atShowChrome.helpers';
@@ -56,8 +58,8 @@ function sortClassesForAtShowScan(classes: ClassEntry[]): ClassEntry[] {
 export const AtShowClassListPage: React.FC = () => {
   const { showId } = useParams<{ showId: string }>();
   const navigate = useNavigate();
-  const { groups, organization, showName, isLoading, error, refresh } =
-    useAtShowClassList(showId);
+  const { groups, organization, showName, isLoading, error, refresh } = useAtShowClassList(showId);
+  const { status: syncStatus } = useReplicationSync();
 
   // Group Novice A/B pairs into single combined entries per trial.
   const groupedByTrial = useMemo(
@@ -114,10 +116,15 @@ export const AtShowClassListPage: React.FC = () => {
     [showId]
   );
 
-  if (isLoading) {
+  const isClassDataStillSyncing =
+    groups.length === 0 &&
+    areReplicationTablesPendingFirstSync(syncStatus, ['shows', 'trials', 'classes', 'entries']);
+
+  if (isLoading || isClassDataStillSyncing) {
     return (
-      <div className="ringside-root flex items-center justify-center h-96">
+      <div className="ringside-root flex flex-col items-center justify-center h-96 gap-3 px-4 text-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Loading your classes...</p>
       </div>
     );
   }

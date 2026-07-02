@@ -15,11 +15,13 @@
 
 import { useEffect, useState } from 'react';
 import { useOptimisticScoring } from '@/hooks/useOptimisticScoring';
+import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { logger } from '@/services/LoggingService';
+import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
 import { transitionToInRing, transitionToCompleted } from '@/utils/checkInTransitions';
 import { buildResolvedClassRules } from '@myk9/scoring-ui';
 import type { ResolvedClassRules, ScoreData } from '@myk9/scoring-ui';
@@ -48,6 +50,9 @@ export interface UseAtShowScoresheetResult {
   trialNumber: string | undefined;
   isLoading: boolean;
   error: string | null;
+  isInitialSyncPending: boolean;
+  loadedClassId: string | null;
+  loadedEntryId: string | null;
   submit: (scoreData: ScoreData) => Promise<void>;
   isSyncing: boolean;
   hasSyncError: boolean;
@@ -59,6 +64,13 @@ export function useAtShowScoresheet({
   onScored,
 }: UseAtShowScoresheetOptions): UseAtShowScoresheetResult {
   const { submitScoreOptimistically, isSyncing, hasError: hasSyncError } = useOptimisticScoring();
+  const { status: syncStatus } = useReplicationSync();
+  const isInitialSyncPending = areReplicationTablesPendingFirstSync(syncStatus, [
+    'classes',
+    'entries',
+    'dogs',
+    'trials',
+  ]);
 
   const [entry, setEntry] = useState<ScoringEntry | null>(null);
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
@@ -68,11 +80,22 @@ export function useAtShowScoresheet({
   const [trialNumber, setTrialNumber] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadedClassId, setLoadedClassId] = useState<string | null>(null);
+  const [loadedEntryId, setLoadedEntryId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadData() {
+      setEntry(null);
+      setClassInfo(null);
+      setRules(null);
+      setTrialSportType(undefined);
+      setTrialDate(undefined);
+      setTrialNumber(undefined);
+      setLoadedClassId(null);
+      setLoadedEntryId(null);
+
       if (!classId || !entryId) {
         setError('Missing class or entry ID');
         setIsLoading(false);
@@ -88,6 +111,11 @@ export function useAtShowScoresheet({
         ]);
         if (cancelled) return;
         if (!cls) {
+          if (isInitialSyncPending) {
+            setError(null);
+            setIsLoading(false);
+            return;
+          }
           setError('Class not found');
           setIsLoading(false);
           return;
@@ -106,6 +134,11 @@ export function useAtShowScoresheet({
 
         const rawEntry = allEntries.find(e => e.id === entryId);
         if (!rawEntry) {
+          if (isInitialSyncPending) {
+            setError(null);
+            setIsLoading(false);
+            return;
+          }
           setError('Entry not found');
           setIsLoading(false);
           return;
@@ -120,6 +153,8 @@ export function useAtShowScoresheet({
         setEntry(toScoringEntry(rawEntry, dog, 0));
         setClassInfo(toClassInfo(cls, allEntries.length));
         setRules(buildResolvedClassRules(cls));
+        setLoadedClassId(classId);
+        setLoadedEntryId(entryId);
       } catch (err) {
         if (cancelled) return;
         logger.error('Failed to load at-show scoresheet data:', 'at-show', {}, err as Error);
@@ -133,7 +168,7 @@ export function useAtShowScoresheet({
     return () => {
       cancelled = true;
     };
-  }, [classId, entryId]);
+  }, [classId, entryId, isInitialSyncPending]);
 
   const submit = async (scoreData: ScoreData) => {
     if (!entry || !classInfo) return;
@@ -162,6 +197,9 @@ export function useAtShowScoresheet({
     trialNumber,
     isLoading,
     error,
+    isInitialSyncPending,
+    loadedClassId,
+    loadedEntryId,
     submit,
     isSyncing,
     hasSyncError,

@@ -13,6 +13,8 @@
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@/test/utils/testUtils';
+import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 
 vi.mock('@/services/replication', () => ({
   replicatedShowsTable: { getShowById: vi.fn() },
@@ -88,13 +90,32 @@ function seed() {
   vi.mocked(replicatedEntriesTable.getEntriesByShow).mockResolvedValue([] as never);
 }
 
-const renderPage = () =>
+const settledSyncStatus: ReplicationSyncContextValue['status'] = {
+  isSyncing: false,
+  lastSyncAt: new Date('2026-06-01T12:00:00Z'),
+  error: null,
+  tablesStatus: {
+    shows: 'success',
+    trials: 'success',
+    classes: 'success',
+    entries: 'success',
+  },
+};
+
+const renderPage = (syncStatus: ReplicationSyncContextValue['status'] = settledSyncStatus) =>
   render(
-    <Routes>
-      <Route path="/at-show/:showId" element={<AtShowClassListPage />} />
-      <Route path="/at-show/:showId/class/:classId" element={<div>SINGLE PAGE</div>} />
-      <Route path="/at-show/:showId/class/:classIdA/:classIdB" element={<div>COMBINED PAGE</div>} />
-    </Routes>,
+    <ReplicationSyncContext.Provider
+      value={{ status: syncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
+    >
+      <Routes>
+        <Route path="/at-show/:showId" element={<AtShowClassListPage />} />
+        <Route path="/at-show/:showId/class/:classId" element={<div>SINGLE PAGE</div>} />
+        <Route
+          path="/at-show/:showId/class/:classIdA/:classIdB"
+          element={<div>COMBINED PAGE</div>}
+        />
+      </Routes>
+    </ReplicationSyncContext.Provider>,
     { initialRoute: '/at-show/show-1' }
   );
 
@@ -110,6 +131,19 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
     // The Novice A/B pair renders as a single card.
     expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
     expect(screen.getByText(/Interior Excellent/)).toBeInTheDocument();
+  });
+
+  it('shows syncing copy instead of a definitive empty state while first sync is pending', async () => {
+    vi.mocked(replicatedTrialsTable.getTrialsByShow).mockResolvedValue([] as never);
+
+    renderPage({
+      ...settledSyncStatus,
+      isSyncing: true,
+      tablesStatus: { shows: 'success', trials: 'syncing', classes: 'idle', entries: 'idle' },
+    });
+
+    expect(await screen.findByText('Loading your classes...')).toBeInTheDocument();
+    expect(screen.queryByText('This show has no classes yet.')).not.toBeInTheDocument();
   });
 
   it('routes a Novice A/B card to the combined EntryList', async () => {
@@ -215,12 +249,14 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
     };
 
     render(
-      <>
+      <ReplicationSyncContext.Provider
+        value={{ status: settledSyncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
+      >
         <ShowSwitcher />
         <Routes>
           <Route path="/at-show/:showId" element={<AtShowClassListPage />} />
         </Routes>
-      </>,
+      </ReplicationSyncContext.Provider>,
       { initialRoute: '/at-show/show-1' }
     );
 

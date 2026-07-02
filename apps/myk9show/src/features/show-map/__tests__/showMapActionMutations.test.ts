@@ -483,9 +483,12 @@ describe('showMapActionMutations', () => {
     );
   });
 
-  it('preserves the mark-moved failure when the move-up rollback delete also fails', async () => {
-    mockUpdateReplicatedEntry.mockRejectedValueOnce(new Error('mark-moved failed'));
-    mockDeleteReplicatedEntry.mockRejectedValueOnce(new Error('delete failed'));
+  it('preserves the mark-moved failure when the rollback soft-delete also fails', async () => {
+    // Both updateEntry calls reject: the mark-moved on the original AND the
+    // rollback soft-delete of the new entry. The original error must survive.
+    mockUpdateReplicatedEntry
+      .mockRejectedValueOnce(new Error('mark-moved failed'))
+      .mockRejectedValueOnce(new Error('soft-delete failed'));
 
     await expect(
       moveUpShowMapEntry({
@@ -495,7 +498,9 @@ describe('showMapActionMutations', () => {
     ).rejects.toThrow('mark-moved failed');
 
     expect(mockCreateReplicatedEntry).toHaveBeenCalledTimes(1);
-    expect(mockDeleteReplicatedEntry).toHaveBeenCalledTimes(1);
+    // mark-moved + rollback soft-delete = two updateEntry calls; no hard delete.
+    expect(mockUpdateReplicatedEntry).toHaveBeenCalledTimes(2);
+    expect(mockDeleteReplicatedEntry).not.toHaveBeenCalled();
   });
 
   describe('moveUpShowMapEntry write order', () => {
@@ -511,23 +516,9 @@ describe('showMapActionMutations', () => {
       expect(createOrder).toBeLessThan(markMovedOrder);
     });
 
-    it('never marks the original moved when the create fails', async () => {
-      mockCreateReplicatedEntry.mockRejectedValueOnce(new Error('create failed'));
-
-      await expect(
-        moveUpShowMapEntry({
-          entryId: 'entry-1',
-          targetClassId: 'class-2',
-        })
-      ).rejects.toThrow('create failed');
-
-      expect(mockUpdateReplicatedEntry).not.toHaveBeenCalledWith(
-        'entry-1',
-        expect.objectContaining({ entry_status: 'moved' })
-      );
-    });
-
-    it('deletes the newly created entry when marking the original moved fails', async () => {
+    it('soft-deletes the newly created entry when marking the original moved fails', async () => {
+      // The first updateEntry is the mark-moved on the original; reject only it,
+      // so the rollback soft-delete (a second updateEntry) still resolves.
       mockUpdateReplicatedEntry.mockRejectedValueOnce(new Error('mark-moved failed'));
 
       await expect(
@@ -539,7 +530,17 @@ describe('showMapActionMutations', () => {
 
       expect(mockCreateReplicatedEntry).toHaveBeenCalledTimes(1);
       const createdEntryId = mockCreateReplicatedEntry.mock.calls[0][0].id;
-      expect(mockDeleteReplicatedEntry).toHaveBeenCalledWith(createdEntryId);
+      // Rollback is a soft-delete UPDATE on the SAME row as the pending INSERT —
+      // NOT a hard deleteEntry, which is an independent, un-ordered mutation that
+      // could resurrect a live orphan on flaky show-day WiFi.
+      expect(mockDeleteReplicatedEntry).not.toHaveBeenCalled();
+      expect(mockUpdateReplicatedEntry).toHaveBeenCalledWith(
+        createdEntryId,
+        expect.objectContaining({
+          deletedAt: expect.any(String),
+          deleted_at: expect.any(String),
+        })
+      );
     });
   });
 

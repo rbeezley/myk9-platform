@@ -300,9 +300,15 @@ export async function moveUpShowMapEntry({
     throw createDatabaseError(error, 'entries', 'show_map_move_up_create');
   }
 
-  // New entry exists; now retire the original. If THIS fails, delete the entry we
-  // just created so we don't leave a duplicate — and if the delete also fails,
-  // a visible duplicate the secretary can scratch beats a silently disabled dog.
+  // New entry exists; now retire the original. If THIS fails, soft-delete the
+  // entry we just created so we don't leave a duplicate. Use a soft-delete
+  // UPDATE (not a hard deleteEntry) deliberately: on flaky show-day WiFi the
+  // create's INSERT may still be in retry-backoff in the mutation queue, and a
+  // hard DELETE is an independent, un-ordered mutation that could upload first,
+  // no-op against a not-yet-inserted row, and then let the INSERT land — leaving
+  // a live orphan on the server, invisible on this device. An UPDATE targets the
+  // SAME row as the pending INSERT, so it can never resurrect into a live entry
+  // regardless of queue ordering. This mirrors undoShowMapMoveUp's retire path.
   try {
     await replicatedEntriesTable.updateEntry(entryId, {
       entryStatus: 'moved',
@@ -312,10 +318,14 @@ export async function moveUpShowMapEntry({
     });
   } catch (error) {
     try {
-      await replicatedEntriesTable.deleteEntry(newEntryId);
+      const rolledBackAt = new Date().toISOString();
+      await replicatedEntriesTable.updateEntry(newEntryId, {
+        deletedAt: rolledBackAt,
+        deleted_at: rolledBackAt,
+      });
     } catch (rollbackError) {
       logger.error(
-        '[show-map] Failed to delete move-up entry after mark-moved failure',
+        '[show-map] Failed to soft-delete move-up entry after mark-moved failure',
         rollbackError
       );
     }

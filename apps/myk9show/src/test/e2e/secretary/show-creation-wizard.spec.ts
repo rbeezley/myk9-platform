@@ -24,7 +24,10 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
     await expect(page.getByLabel(/Location/i)).toBeVisible();
     await expect(page.getByText('Show Chairman *', { exact: true })).toBeVisible();
     await expect(page.getByText('Show Secretary *', { exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: /^Next$/ })).toBeDisabled();
+    await expect(page.getByText(/\d+ items? remaining/i)).toBeVisible();
+
+    await page.getByRole('button', { name: /^Next$/ }).click();
+    await expect(page.getByRole('alert')).toContainText(/\d+ items? needs? attention/i);
   });
 
   test('Step 1 exposes premium style options and independent date ranges', async ({ page }) => {
@@ -75,7 +78,7 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
     await expect(page.locator('#show-entry-period')).toContainText(
       /select entry open and close dates/i
     );
-    await expect(page.getByRole('button', { name: /^Next$/ })).toBeDisabled();
+    await expect(page.getByText(/\d+ items? remaining/i)).toBeVisible();
   });
 
   test('secretary can set new dates after cloning and continue to trial review', async ({

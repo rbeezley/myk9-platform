@@ -1,18 +1,26 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { consumePersistedSignInRedirect, getSignInReturnTo } from './SignInPage.helpers';
 
 const AuthCallbackPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
+  const hasNavigatedAfterOAuth = useRef(false);
 
   const params = useMemo(() => {
     const tokenHash = searchParams.get('token_hash');
     const type = searchParams.get('type') as 'signup' | 'recovery' | 'magiclink' | null;
     return tokenHash && type ? { tokenHash, type } : null;
   }, [searchParams]);
+  const redirectTarget = useMemo(() => getSignInReturnTo(searchParams), [searchParams]);
+  const oauthRedirectTarget = useMemo(
+    () =>
+      searchParams.has('redirectTo') || searchParams.has('returnTo') ? redirectTarget : null,
+    [redirectTarget, searchParams]
+  );
 
   // Handle OTP verification (email confirm, password reset)
   useEffect(() => {
@@ -28,19 +36,25 @@ const AuthCallbackPage = () => {
         if (params.type === 'recovery') {
           navigate('/reset-password', { replace: true });
         } else {
-          navigate('/', { replace: true });
+          navigate(redirectTarget, { replace: true });
         }
       });
-  }, [params, navigate]);
+  }, [params, navigate, redirectTarget]);
 
   // Handle OAuth redirect (no OTP params — session is picked up by onAuthStateChange)
   useEffect(() => {
     if (params) return; // OTP flow handles its own navigation
 
+    const navigateAfterOAuth = () => {
+      if (hasNavigatedAfterOAuth.current) return;
+      hasNavigatedAfterOAuth.current = true;
+      navigate(oauthRedirectTarget ?? consumePersistedSignInRedirect() ?? '/', { replace: true });
+    };
+
     // Check if user is already authenticated (OAuth session was picked up)
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        navigate('/', { replace: true });
+        navigateAfterOAuth();
       }
     });
 
@@ -49,7 +63,7 @@ const AuthCallbackPage = () => {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
-        navigate('/', { replace: true });
+        navigateAfterOAuth();
       }
     });
 
@@ -62,7 +76,7 @@ const AuthCallbackPage = () => {
       subscription.unsubscribe();
       clearTimeout(timeout);
     };
-  }, [params, navigate]);
+  }, [params, navigate, oauthRedirectTarget]);
 
   if (error) {
     return (

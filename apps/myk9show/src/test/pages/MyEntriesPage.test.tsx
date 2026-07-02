@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import MyEntriesPage from '@/pages/MyEntriesPage';
+import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { getUserEntries, updateCheckInStatus } from '@/services/database/entries';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
@@ -120,7 +122,23 @@ const mockUser: UserWithRoles = {
   permissions: [],
 };
 
-const renderWithProviders = (ui: React.ReactElement, initialRoute = '/my-entries') => {
+const settledSyncStatus: ReplicationSyncContextValue['status'] = {
+  isSyncing: false,
+  lastSyncAt: new Date('2026-06-01T12:00:00Z'),
+  error: null,
+  tablesStatus: {
+    entries: 'success',
+    dogs: 'success',
+    classes: 'success',
+    shows: 'success',
+  },
+};
+
+const renderWithProviders = (
+  ui: React.ReactElement,
+  initialRoute = '/my-entries',
+  syncStatus: ReplicationSyncContextValue['status'] = settledSyncStatus
+) => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -130,7 +148,11 @@ const renderWithProviders = (ui: React.ReactElement, initialRoute = '/my-entries
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[initialRoute]}>{ui}</MemoryRouter>
+      <ReplicationSyncContext.Provider
+        value={{ status: syncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
+      >
+        <MemoryRouter initialEntries={[initialRoute]}>{ui}</MemoryRouter>
+      </ReplicationSyncContext.Provider>
     </QueryClientProvider>
   );
 };
@@ -322,6 +344,23 @@ describe('MyEntriesPage UI Improvements', () => {
       expect(await screen.findByText(/Welcome!/i)).toBeInTheDocument();
       // No tabs and no zeroed stat noise for a brand-new exhibitor.
       expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    });
+
+    it('shows a syncing skeleton instead of the first-run welcome while entries are still syncing', async () => {
+      const { container } = renderWithProviders(<MyEntriesPage />, '/my-entries', {
+        ...settledSyncStatus,
+        isSyncing: true,
+        tablesStatus: {
+          entries: 'syncing',
+          dogs: 'success',
+          classes: 'success',
+          shows: 'success',
+        },
+      });
+
+      await waitFor(() => expect(container.querySelector('.animate-pulse')).toBeInTheDocument());
+      expect(screen.queryByText(/Welcome!/i)).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /add your first dog/i })).not.toBeInTheDocument();
     });
 
     it('offers a Browse Shows link pointing at /shows', async () => {

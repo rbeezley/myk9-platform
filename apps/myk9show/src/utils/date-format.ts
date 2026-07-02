@@ -30,7 +30,7 @@ export function toLocalDateOnly(isoStr: string): string {
 export function formatDateRange(
   startDate: string,
   endDate: string,
-  monthFormat: 'long' | 'short' = 'long',
+  monthFormat: 'long' | 'short' = 'short',
   showYear = true
 ): string {
   // Handle both date-only ("2026-03-14") and timestamptz ("2026-03-14T00:00:00+00:00") formats

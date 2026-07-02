@@ -23,6 +23,11 @@ vi.mock('@/store/ringsideGrantStore', () => ({
     selector({ activeGrant: null, setGrant: setGrantSpy, clearGrant: vi.fn() }),
 }));
 
+const useShowQueryMock = vi.fn();
+vi.mock('@/hooks/queries/useShowsDatabase', () => ({
+  useShowQuery: (showId: string) => useShowQueryMock(showId),
+}));
+
 const validatePasscodeMock = vi.fn();
 vi.mock('./validatePasscode', () => ({
   validatePasscode: (...args: unknown[]) => validatePasscodeMock(...args),
@@ -38,12 +43,13 @@ vi.mock('./ringsideAnonSession', () => ({
 
 let mockUser: { id: string } | null = null;
 const signInMock = vi.fn();
+const signInWithGoogleMock = vi.fn();
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     user: mockUser,
     firstName: 'Jane',
     signIn: signInMock,
-    signInWithGoogle: vi.fn(),
+    signInWithGoogle: signInWithGoogleMock,
     loading: false,
   }),
   getPrimaryRole: vi.fn(),
@@ -53,6 +59,10 @@ describe('SmartSignInPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUser = null;
+    signInMock.mockReset();
+    signInWithGoogleMock.mockReset();
+    useShowQueryMock.mockReset();
+    useShowQueryMock.mockReturnValue({ data: undefined });
   });
 
   it('disables Continue until the input is a valid email or passcode', async () => {
@@ -89,6 +99,46 @@ describe('SmartSignInPage', () => {
 
     expect(await screen.findByTestId('password-input')).toBeInTheDocument();
     expect(screen.getByTestId('locked-credential')).toHaveTextContent('jane@example.com');
+  });
+
+  it('shows contextual entry copy when redirectTo points at a show registration route', () => {
+    useShowQueryMock.mockReturnValue({ data: { name: 'Heartland Scent Work Classic' } });
+
+    render(<SmartSignInPage />, {
+      initialRoute: '/sign-in?redirectTo=%2Fshows%2Fshow-1%2Fregister',
+    });
+
+    expect(useShowQueryMock).toHaveBeenCalledWith('show-1');
+    expect(
+      screen.getByRole('heading', { name: 'Sign in to enter Heartland Scent Work Classic' })
+    ).toBeInTheDocument();
+  });
+
+  it('password sign-in follows redirectTo instead of the exhibitor fallback', async () => {
+    const user = userEvent.setup();
+    signInMock.mockResolvedValue(undefined);
+    render(<SmartSignInPage />, {
+      initialRoute: '/sign-in?redirectTo=%2Fshows%2Fshow-1%2Fregister',
+    });
+
+    await user.type(screen.getByTestId('credential-input'), 'jane@example.com');
+    await user.click(screen.getByTestId('continue-button'));
+    await user.type(await screen.findByTestId('password-input'), 'password');
+    await user.click(screen.getByTestId('sign-in-button'));
+
+    await waitFor(() => expect(navigateSpy).toHaveBeenCalledWith('/shows/show-1/register'));
+  });
+
+  it('passes redirectTo into Google sign-in from the first step', async () => {
+    const user = userEvent.setup();
+    signInWithGoogleMock.mockResolvedValue(undefined);
+    render(<SmartSignInPage />, {
+      initialRoute: '/sign-in?redirectTo=%2Fshows%2Fshow-1%2Fregister',
+    });
+
+    await user.click(screen.getByRole('button', { name: /continue with google/i }));
+
+    expect(signInWithGoogleMock).toHaveBeenCalledWith('/shows/show-1/register');
   });
 
   it('anonymous passcode validates and routes straight to ringside', async () => {

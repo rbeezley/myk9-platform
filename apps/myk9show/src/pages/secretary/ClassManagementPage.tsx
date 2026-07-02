@@ -4,7 +4,11 @@ import {
   useClassesByTrialQuery,
   useUpdateClassMutation,
   useDeleteClassMutation,
+  classKeys,
 } from '@/hooks/queries/useClassesDatabase';
+import { useJudgesWithQualifications } from '@/hooks/queries/useJudgesWithQualifications';
+import { upsertClassJudgeAssignment } from '@/services/database/judges';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTrialStore } from '@/store/trialStore';
 import { CLASS_STATUS, getClassStatusBadgeClasses, matchesAny } from '@myk9/core';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -51,15 +55,35 @@ type DbClassRow = {
   class_order: number | null;
   max_entries: number | null;
   entries: Array<{ id: string }> | undefined;
+  judge_assignments?: Array<{ person_id: string | null }> | null;
 };
+
+const UNASSIGNED_JUDGE_VALUE = 'TBD';
 
 export const ClassManagementPage: React.FC = () => {
   const { trialId } = useParams<{ trialId: string }>();
   const navigate = useNavigate();
   const trial = useTrialStore(s => (trialId ? s.getTrialById(trialId) : null));
+  const showId = trial?.showId;
   const { data: rawClasses = [], isLoading } = useClassesByTrialQuery(trialId || '');
+  const { data: judges = [] } = useJudgesWithQualifications();
+  const queryClient = useQueryClient();
   const updateClassMutation = useUpdateClassMutation();
   const deleteClassMutation = useDeleteClassMutation();
+  const assignJudgeMutation = useMutation({
+    mutationFn: ({ classId, judgeId }: { classId: string; judgeId: string }) => {
+      if (!showId) throw new Error('Show is required before assigning judges.');
+      return upsertClassJudgeAssignment(showId, classId, judgeId);
+    },
+    onSuccess: () => {
+      if (trialId) {
+        queryClient.invalidateQueries({ queryKey: classKeys.byTrial(trialId) });
+      }
+      if (showId) {
+        queryClient.invalidateQueries({ queryKey: ['shows', showId, 'publish-info'] });
+      }
+    },
+  });
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -88,6 +112,19 @@ export const ClassManagementPage: React.FC = () => {
     [allClasses]
   );
   const statuses = Object.values(CLASS_STATUS);
+  const availableJudges = useMemo(
+    () =>
+      judges
+        .filter(judge =>
+          judge.judgeQualifications?.some(qualification => qualification.status === 'Active')
+        )
+        .map(judge => ({
+          id: judge.id,
+          name: `${judge.firstName} ${judge.lastName}`.trim() || 'Unknown Judge',
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [judges]
+  );
 
   const toggleClassSelection = (classId: string) => {
     setSelectedClasses(prev =>
@@ -114,6 +151,10 @@ export const ClassManagementPage: React.FC = () => {
 
   const handleStatusChange = (classId: string, newStatus: string) => {
     updateClassMutation.mutate({ id: classId, updates: { status: newStatus } });
+  };
+
+  const handleJudgeChange = (classId: string, judgeId: string) => {
+    assignJudgeMutation.mutate({ classId, judgeId });
   };
 
   const handleDelete = (classId: string) => {
@@ -353,6 +394,7 @@ export const ClassManagementPage: React.FC = () => {
                 return (
                   <div
                     key={cls.id}
+                    data-class-id={cls.id}
                     className={`border rounded-lg p-4 transition-all ${
                       selectedClasses.includes(cls.id)
                         ? 'ring-2 ring-primary bg-primary/5'
@@ -365,7 +407,7 @@ export const ClassManagementPage: React.FC = () => {
                         onCheckedChange={() => toggleClassSelection(cls.id)}
                       />
 
-                      <div className="flex-1 grid grid-cols-1 md:grid-cols-6 gap-4 items-center">
+                      <div className="flex-1 grid grid-cols-1 md:grid-cols-7 gap-4 items-center">
                         <div className="md:col-span-2">
                           <div className="font-medium">{cls.name || 'Untitled Class'}</div>
                           {cls.class_order != null && (
@@ -393,6 +435,29 @@ export const ClassManagementPage: React.FC = () => {
                             Entries: {entryCount}
                             {maxEntries > 0 ? `/${maxEntries}` : ''}
                           </div>
+                        </div>
+
+                        <div>
+                          <Select
+                            value={cls.judge_assignments?.[0]?.person_id ?? UNASSIGNED_JUDGE_VALUE}
+                            onValueChange={judgeId => handleJudgeChange(cls.id, judgeId)}
+                            disabled={!showId || availableJudges.length === 0}
+                          >
+                            <SelectTrigger
+                              className="w-full"
+                              aria-label={`Judge for ${cls.name || 'Untitled Class'}`}
+                            >
+                              <SelectValue placeholder="Assign judge" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={UNASSIGNED_JUDGE_VALUE}>Unassigned</SelectItem>
+                              {availableJudges.map(judge => (
+                                <SelectItem key={judge.id} value={judge.id}>
+                                  {judge.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
 
                         <div className="flex gap-1">

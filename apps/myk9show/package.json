@@ -35,6 +35,7 @@
     "test:e2e:gui": "playwright test src/test/e2e/entities/",
     "test:e2e:workflows": "playwright test src/test/e2e/registration/ src/test/e2e/entities/",
     "test:a11y": "cross-env PLAYWRIGHT_A11Y=true playwright test --config=playwright.ci.config.ts",
+    "reset:e2e-passwords": "tsx scripts/reset-e2e-passwords.ts",
     "test:performance": "vitest run --config vitest.config.ts src/test/performance/",
     "test:load": "node -e \"console.log('Use: npm run test:load:playwright, npm run test:load:database, or npm run test:load:full')\"",
     "test:load:playwright": "playwright test src/test/load/playwright-load-tests.spec.ts",

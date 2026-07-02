@@ -18,6 +18,16 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-07-02
+
+- **Playwright command:** fail after partial low-risk test repairs. Phase 1 promoted Vitest passed (`18/18`). Initial Phase 2 exact active Playwright command failed with `40 passed, 10 failed, 3 did not run (1.4h, --retries=0)`, exceeding the 30-minute global Nightly budget. After low-risk repairs, focused proof for the repaired stale assertions passed: public browse + class creation + show wizard + officials picker + secretary critical path `18 passed, 1 skipped (1.3m, --retries=0)`.
+- **Route sweep:** fail/partial. The committed route-health spec ran inside Phase 2; exhibitor, secretary, judge, and club-admin passed, while public and admin each hit the 90s Playwright test budget. Standalone Phase 3 was skipped because Phase 2 had already exceeded the global Nightly budget.
+- **Active specs:** Vitest `18/18`; active Playwright `40/53` before failure (`49/53` effective after focused repairs, excluding the remaining route-health/disposable-entry proof requirement).
+- **Failures:** Opened `QA-TEST-FLAKE-032`. Initial stale/harness failures fixed in-run: `browse-shows-to-details.spec.ts` waited on an ambiguous/invisible `Shows` heading, `secretary/classCreation.spec.ts` used broad duplicate `\d+ classes` / `\d+ fields` text locators, `secretary/show-creation-wizard.spec.ts` and `uat/secretary/critical-path.spec.ts` still expected the wizard `Next` button to be disabled even though current unit coverage intentionally keeps it clickable and surfaces validation feedback, and `ShowCreationWizardPage.goto()` still waited for `networkidle`. Remaining unrepaired failures: `route-health-by-role.spec.ts` public/admin group timeouts and `uat/secretary/disposable-entry.spec.ts` sign-in setup timeout during the over-budget full run.
+- **Fixes made:** test-only. Updated public browse waits to use the visible search control, scoped duplicate class-template count assertions with `.first()`, updated wizard E2E assertions to prove the current "items remaining" hint and validation alert behavior, and removed the stale `networkidle` wait from the show-wizard page object.
+- **Demotions/promotions:** none.
+- **Notes:** Ran from isolated detached worktree `.worktrees/nightly-qa-2026-07-02-022657` on `origin/main` `6bda8d9a22bc639c5a1eacea73b928146701b8e5`, using `PLAYWRIGHT_PORT=6136`, `PLAYWRIGHT_BASE_URL=http://127.0.0.1:6136`, and `PLAYWRIGHT_HMR_PORT=26136`. The primary checkout had unrelated untracked docs WIP, but the isolated baseline was clean except for generated `.qa-nightly.env`. The requested plan file `docs/plans/qa/2026-05-11-qa-regression-proof.md` remains archived at `docs/archive/plans/qa/2026-05-11-qa-regression-proof.md` on this baseline.
+
 ### 2026-06-30
 
 - **Playwright command:** pass after low-risk test repairs. Phase 1 promoted Vitest passed (`18/18`). Initial Phase 2 reproduced three active-suite issues and was stopped after exceeding the global budget (`23 passed, 3 failed, 1 interrupted, 1 skipped, 22 did not run; 32.2m`). After repairs, the exact active Playwright command passed with `49 passed, 1 skipped (3.0m, --retries=0)`.

@@ -11,6 +11,7 @@ interface QueryCall {
   ins: Array<{ column: string; values: unknown[] }>;
   ises: Array<{ column: string; value: unknown }>;
   ors: string[];
+  deleteCalled?: boolean;
   updatePayload?: Record<string, unknown>;
   upsertPayload?: unknown;
   upsertOptions?: unknown;
@@ -72,6 +73,11 @@ class MockQueryBuilder {
 
   update(payload: Record<string, unknown>) {
     this.call.updatePayload = payload;
+    return this;
+  }
+
+  delete() {
+    this.call.deleteCalled = true;
     return this;
   }
 
@@ -155,6 +161,26 @@ const hydratedItem = {
   dog: { id: 'dog-1', name: 'Rover', call_name: 'Rover', breed: 'Mixed' },
   class: { id: 'class-1', name: 'Novice Standard', level: 'Novice', trial_id: 'trial-1' },
   handler: null,
+};
+
+const paidEntryCartItem = {
+  ...hydratedItem,
+  id: 'item-paid',
+  dog_id: 'dog-paid',
+  class_id: 'class-paid',
+  entry_fee_cents: 3000,
+  dog: { id: 'dog-paid', name: 'Paid Dog', call_name: 'Paid', breed: 'Mixed' },
+  class: { id: 'class-paid', name: 'Advanced Interior', level: 'Advanced', trial_id: 'trial-1' },
+};
+
+const pendingEntryCartItem = {
+  ...hydratedItem,
+  id: 'item-pending',
+  dog_id: 'dog-pending',
+  class_id: 'class-pending',
+  entry_fee_cents: 1800,
+  dog: { id: 'dog-pending', name: 'Pending Dog', call_name: 'Pending', breed: 'Mixed' },
+  class: { id: 'class-pending', name: 'Novice Exterior', level: 'Novice', trial_id: 'trial-1' },
 };
 
 describe('cartStore payment recovery', () => {
@@ -351,6 +377,7 @@ describe('cartStore payment recovery', () => {
                   entry_fee: 25,
                   jump_height: '16',
                   special_requests: null,
+                  payment_status: 'pending',
                 },
               ],
               error: null,
@@ -412,5 +439,136 @@ describe('cartStore payment recovery', () => {
       onConflict: 'cart_id,dog_id,class_id',
       ignoreDuplicates: true,
     });
+  });
+
+  it('drops stale loaded cart lines whose matching live entry is no longer pending', async () => {
+    queryCalls.length = 0;
+    mockFrom.mockImplementation(
+      (table: string) =>
+        new MockQueryBuilder(table, call => {
+          if (call.table === 'entry_carts' && call.updatePayload) {
+            return { data: null, error: null };
+          }
+
+          if (call.table === 'entry_carts') {
+            return {
+              data: {
+                ...hydratedCart,
+                id: 'cart-active',
+                show_id: 'show-1',
+                subtotal_cents: 4800,
+                platform_fee_cents: 336,
+                total_cents: 5136,
+              },
+              error: null,
+            };
+          }
+
+          if (call.table === 'entry_cart_items' && call.deleteCalled) {
+            return { data: null, error: null };
+          }
+
+          if (call.table === 'entry_cart_items') {
+            return { data: [paidEntryCartItem, pendingEntryCartItem], error: null };
+          }
+
+          if (call.table === 'entries') {
+            return {
+              data: [
+                {
+                  dog_id: 'dog-paid',
+                  class_id: 'class-paid',
+                  payment_status: 'paid_by_check',
+                },
+              ],
+              error: null,
+            };
+          }
+
+          return { data: null, error: null };
+        })
+    );
+
+    const cart = await useCartStore.getState().loadCart('show-1', 'exhibitor-1');
+
+    expect(cart?.items.map(item => item.id)).toEqual(['item-pending']);
+    expect(cart?.subtotal_cents).toBe(1800);
+    expect(cart?.platform_fee_cents).toBe(126);
+    expect(cart?.total_cents).toBe(1926);
+
+    const entriesCall = queryCalls.find(call => call.table === 'entries');
+    expect(entriesCall?.eqs).toEqual([{ column: 'show_id', value: 'show-1' }]);
+    expect(entriesCall?.ises).toEqual([{ column: 'deleted_at', value: null }]);
+    expect(entriesCall?.ins).toEqual([
+      { column: 'dog_id', values: ['dog-paid', 'dog-pending'] },
+      { column: 'class_id', values: ['class-paid', 'class-pending'] },
+    ]);
+
+    const deleteCall = queryCalls.find(
+      call => call.table === 'entry_cart_items' && call.deleteCalled
+    );
+    expect(deleteCall?.ins).toEqual([{ column: 'id', values: ['item-paid'] }]);
+
+    const totalsUpdate = queryCalls.find(
+      call => call.table === 'entry_carts' && call.updatePayload?.subtotal_cents === 1800
+    );
+    expect(totalsUpdate?.updatePayload).toMatchObject({
+      subtotal_cents: 1800,
+      platform_fee_cents: 126,
+      total_cents: 1926,
+      stripe_checkout_session_id: null,
+    });
+  });
+
+  it('preserves cart lines whose matching live entry is still pending payment', async () => {
+    queryCalls.length = 0;
+    mockFrom.mockImplementation(
+      (table: string) =>
+        new MockQueryBuilder(table, call => {
+          if (call.table === 'entry_carts' && call.select === 'id, show_id, status, expires_at') {
+            return { data: freshCartLookup, error: null };
+          }
+
+          if (call.table === 'entry_carts' && call.updatePayload) {
+            return { data: null, error: null };
+          }
+
+          if (call.table === 'entry_carts') {
+            return { data: freshHydratedCart, error: null };
+          }
+
+          if (call.table === 'entry_cart_items' && call.deleteCalled) {
+            throw new Error('Pending payment cart items should not be deleted');
+          }
+
+          if (call.table === 'entry_cart_items') {
+            return { data: [pendingEntryCartItem], error: null };
+          }
+
+          if (call.table === 'entries') {
+            return {
+              data: [
+                {
+                  dog_id: 'dog-pending',
+                  class_id: 'class-pending',
+                  payment_status: 'pending',
+                },
+              ],
+              error: null,
+            };
+          }
+
+          return { data: null, error: null };
+        })
+    );
+
+    const cart = await useCartStore.getState().loadActiveCart('exhibitor-1', {
+      showId: 'show-1',
+    });
+
+    expect(cart?.items.map(item => item.id)).toEqual(['item-pending']);
+    expect(queryCalls.some(call => call.table === 'entry_cart_items' && call.deleteCalled)).toBe(
+      false
+    );
   });
 });

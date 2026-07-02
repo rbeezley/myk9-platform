@@ -10,10 +10,12 @@
  * covered in @myk9/scoring-ui + the secretary ScoresheetPage).
  */
 
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@/test/utils/testUtils';
 import { UserRole } from '@/types/auth-types';
+import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 
 // Effective ringside role drives the scoring gate. Default to a JUDGE (can
 // score) so the happy-path wiring tests render the scoresheet; individual tests
@@ -116,15 +118,31 @@ function seed() {
   } as never);
 }
 
-const renderPage = () =>
+const settledSyncStatus: ReplicationSyncContextValue['status'] = {
+  isSyncing: false,
+  lastSyncAt: new Date('2026-06-01T12:00:00Z'),
+  error: null,
+  tablesStatus: {
+    classes: 'success',
+    entries: 'success',
+    dogs: 'success',
+    trials: 'success',
+  },
+};
+
+const renderPage = (syncStatus: ReplicationSyncContextValue['status'] = settledSyncStatus) =>
   render(
-    <Routes>
-      <Route
-        path="/at-show/:showId/class/:classId/score/:entryId"
-        element={<AtShowScoresheetPage />}
-      />
-      <Route path="/at-show/:showId/class/:classId" element={<div>Entry List</div>} />
-    </Routes>,
+    <ReplicationSyncContext.Provider
+      value={{ status: syncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
+    >
+      <Routes>
+        <Route
+          path="/at-show/:showId/class/:classId/score/:entryId"
+          element={<AtShowScoresheetPage />}
+        />
+        <Route path="/at-show/:showId/class/:classId" element={<div>Entry List</div>} />
+      </Routes>
+    </ReplicationSyncContext.Provider>,
     { initialRoute: '/at-show/show-1/class/class-1/score/entry-1' }
   );
 
@@ -143,6 +161,83 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     renderPage();
     expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
     expect(screen.getByText('Live scoresheet for #105')).toBeInTheDocument();
+  });
+
+  it('shows syncing copy instead of Class not found while first sync is pending', async () => {
+    vi.mocked(replicatedClassesTable.getClassById).mockResolvedValue(null as never);
+
+    renderPage({
+      ...settledSyncStatus,
+      isSyncing: true,
+      tablesStatus: { classes: 'syncing', entries: 'idle', dogs: 'idle', trials: 'idle' },
+    });
+
+    expect(await screen.findByText('Loading the scoresheet...')).toBeInTheDocument();
+    expect(screen.queryByText('Class not found')).not.toBeInTheDocument();
+  });
+
+  it('does not render a previous scoresheet after route params change during first sync', async () => {
+    vi.mocked(replicatedClassesTable.getClassById).mockImplementation(async (id: string) => {
+      if (id === 'class-1') {
+        return {
+          id: 'class-1',
+          trialId: 'trial-1',
+          element: 'Container',
+          level: 'Novice',
+        } as never;
+      }
+      return null as never;
+    });
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockImplementation(async (id: string) => {
+      if (id === 'class-1') {
+        return [
+          { id: 'entry-1', armband: 105, dogId: 'dog-1', checkInStatus: 'no-status' },
+        ] as never;
+      }
+      return [] as never;
+    });
+
+    const SwitchScoresheet = () => {
+      const navigate = useNavigate();
+      return (
+        <button
+          type="button"
+          onClick={() => navigate('/at-show/show-1/class/class-2/score/entry-2')}
+        >
+          switch scoresheet
+        </button>
+      );
+    };
+
+    render(
+      <ReplicationSyncContext.Provider
+        value={{
+          status: {
+            ...settledSyncStatus,
+            isSyncing: true,
+            tablesStatus: { classes: 'syncing', entries: 'idle', dogs: 'idle', trials: 'idle' },
+          },
+          triggerSync: vi.fn(),
+          syncTable: vi.fn(),
+        }}
+      >
+        <SwitchScoresheet />
+        <Routes>
+          <Route
+            path="/at-show/:showId/class/:classId/score/:entryId"
+            element={<AtShowScoresheetPage />}
+          />
+        </Routes>
+      </ReplicationSyncContext.Provider>,
+      { initialRoute: '/at-show/show-1/class/class-1/score/entry-1' }
+    );
+
+    expect(await screen.findByText('Live scoresheet for #105')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'switch scoresheet' }));
+
+    expect(await screen.findByText('Loading the scoresheet...')).toBeInTheDocument();
+    expect(screen.queryByText('Live scoresheet for #105')).not.toBeInTheDocument();
   });
 
   it('submits the score via submitScoreOptimistically with the entry identity', async () => {

@@ -87,13 +87,13 @@ describe('AuthContext', () => {
     vi.restoreAllMocks();
   });
 
-  const renderWithAuthProvider = (children: React.ReactNode) => {
+  const renderWithAuthProvider = (children: React.ReactNode, initialRoute = '/') => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
     return render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
+        <MemoryRouter initialEntries={[initialRoute]}>
           <AuthProvider>{children}</AuthProvider>
         </MemoryRouter>
       </QueryClientProvider>
@@ -437,7 +437,7 @@ describe('AuthContext', () => {
       expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
     });
 
-    it('should redirect to sign-in when no user', () => {
+    it('should redirect to sign-in with redirectTo when no user', () => {
       mockUseAuth.mockReturnValue({
         ...mockAuthReturn,
         user: null,
@@ -446,10 +446,13 @@ describe('AuthContext', () => {
       renderWithAuthProvider(
         <ProtectedRoute>
           <TestPage />
-        </ProtectedRoute>
+        </ProtectedRoute>,
+        '/shows/show-1/register?dog=dog-1'
       );
 
-      expect(screen.getByTestId('navigate')).toHaveTextContent('Redirecting to /sign-in');
+      expect(screen.getByTestId('navigate')).toHaveTextContent(
+        'Redirecting to /sign-in?redirectTo=%2Fshows%2Fshow-1%2Fregister%3Fdog%3Ddog-1'
+      );
     });
 
     it('should redirect to custom path when specified', () => {

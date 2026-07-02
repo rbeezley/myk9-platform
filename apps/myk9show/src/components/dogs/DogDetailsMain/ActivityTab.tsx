@@ -4,8 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useEntriesByDogQuery } from '@/hooks/queries/useEntriesDatabase';
-import { toLocalDate } from '@/utils/date-format';
 import { Link } from 'react-router-dom';
+import {
+  deriveDogActivity,
+  formatActivityDate,
+  type DogActivityEntry,
+} from './ActivityTab.helpers';
 
 interface ActivityTabProps {
   dogId: string;
@@ -13,20 +17,8 @@ interface ActivityTabProps {
   role: 'exhibitor' | 'secretary';
 }
 
-// Typed view of the Record<string,unknown> rows from getEntriesByDog
-interface EntryRow {
-  id: string;
-  entry_status?: string;
-  result_status?: string;
-  search_time_seconds?: number;
-  final_placement?: string;
-  show_id?: string;
-  show?: { name?: string; start_date?: string; id?: string };
-  class?: { name?: string; id?: string };
-}
-
-function asEntry(row: Record<string, unknown>): EntryRow {
-  return row as unknown as EntryRow;
+function asEntry(row: Record<string, unknown>): DogActivityEntry {
+  return row as unknown as DogActivityEntry;
 }
 
 function formatTime(seconds: number): string {
@@ -35,31 +27,23 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toFixed(2).padStart(5, '0')}`;
 }
 
-function isUpcoming(startDate?: string): boolean {
-  if (!startDate) return false;
-  return toLocalDate(startDate) >= new Date(new Date().toDateString());
-}
-
-function formatActivityDate(startDate: string, options: Intl.DateTimeFormatOptions): string {
-  return toLocalDate(startDate).toLocaleDateString('en-US', options);
-}
-
-function UpcomingRow({ entry }: { entry: EntryRow }) {
+function UpcomingRow({ entry }: { entry: DogActivityEntry }) {
   const showName = entry.show?.name ?? 'Unknown show';
   const className = entry.class?.name ?? 'Unknown class';
   const showDate = entry.show?.start_date;
+  const formattedDate = formatActivityDate(showDate);
   const showHref = entry.show?.id ? `/shows/${entry.show.id}` : undefined;
 
   return (
     <div className="flex items-start gap-4 py-3 border-t border-border first:border-t-0">
       <div className="w-16 flex-shrink-0 text-right">
-        {showDate && (
+        {formattedDate && (
           <>
             <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-              {formatActivityDate(showDate, { weekday: 'short' })}
+              {formattedDate.weekday}
             </div>
             <div className="font-mono text-sm font-semibold tabular-nums">
-              {formatActivityDate(showDate, { month: 'short', day: 'numeric' })}
+              {formattedDate.monthDay}
             </div>
           </>
         )}
@@ -84,23 +68,24 @@ function UpcomingRow({ entry }: { entry: EntryRow }) {
   );
 }
 
-function ResultRow({ entry }: { entry: EntryRow }) {
+function ResultRow({ entry }: { entry: DogActivityEntry }) {
   const showName = entry.show?.name ?? 'Unknown show';
   const className = entry.class?.name ?? 'Unknown class';
   const showDate = entry.show?.start_date;
+  const formattedDate = formatActivityDate(showDate);
   const qualified = entry.result_status === 'qualified';
   const showHref = entry.show?.id ? `/shows/${entry.show.id}` : undefined;
 
   return (
     <div className="flex items-start gap-4 py-3 border-t border-border first:border-t-0">
       <div className="w-16 flex-shrink-0 text-right">
-        {showDate && (
+        {formattedDate && (
           <>
             <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-              {formatActivityDate(showDate, { weekday: 'short' })}
+              {formattedDate.weekday}
             </div>
             <div className="font-mono text-sm font-semibold tabular-nums">
-              {formatActivityDate(showDate, { month: 'short', day: 'numeric' })}
+              {formattedDate.monthDay}
             </div>
           </>
         )}
@@ -147,16 +132,10 @@ function ResultRow({ entry }: { entry: EntryRow }) {
 const ActivityTab: React.FC<ActivityTabProps> = ({ dogId, dogName }) => {
   const { data: rawEntries, isLoading } = useEntriesByDogQuery(dogId);
 
-  const entries: EntryRow[] = (rawEntries ?? []).map(r => asEntry(r as Record<string, unknown>));
-
-  const upcoming = entries
-    .filter(e => e.entry_status === 'accepted' && isUpcoming(e.show?.start_date))
-    .sort((a, b) => (a.show?.start_date ?? '').localeCompare(b.show?.start_date ?? ''));
-
-  const recentResults = entries
-    .filter(e => e.result_status != null)
-    .sort((a, b) => (b.show?.start_date ?? '').localeCompare(a.show?.start_date ?? ''))
-    .slice(0, 10);
+  const entries: DogActivityEntry[] = (rawEntries ?? []).map(r =>
+    asEntry(r as Record<string, unknown>)
+  );
+  const { upcoming, recentResults } = deriveDogActivity(entries);
 
   if (isLoading) {
     return (

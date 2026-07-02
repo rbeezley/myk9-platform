@@ -321,7 +321,7 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       expect(screen.queryByTestId('shows-table')).not.toBeInTheDocument();
     });
 
-    it('renders cards by default on the My Shows tab', async () => {
+    it('renders cards by default on the Entered as exhibitor tab', async () => {
       setupMocks({ user: createMockUser([UserRole.EXHIBITOR, UserRole.SECRETARY]) });
 
       renderWithProviders(<BrowseShowsPage />, { route: '/shows?tab=entries' });
@@ -332,7 +332,7 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       expect(screen.queryByTestId('shows-table')).not.toBeInTheDocument();
     });
 
-    it('honors an explicit table view URL on the My Shows tab', async () => {
+    it('honors an explicit table view URL on the Entered as exhibitor tab', async () => {
       setupMocks({ user: createMockUser(UserRole.EXHIBITOR) });
 
       renderWithProviders(<BrowseShowsPage />, { route: '/shows?tab=entries&view=table' });
@@ -375,13 +375,13 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       setupMocks({ user: createMockUser(UserRole.EXHIBITOR) });
     });
 
-    it('should render base tabs plus My Shows for exhibitors', async () => {
+    it('should render base tabs plus Entered as exhibitor for exhibitors', async () => {
       renderWithProviders(<BrowseShowsPage />);
 
       await waitFor(() => {
         expect(screen.getByRole('tab', { name: /browse all/i })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /past shows/i })).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: /my shows/i })).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: /entered as exhibitor/i })).toBeInTheDocument();
         expect(screen.queryByRole('tab', { name: /managing/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('tab', { name: /my assignments/i })).not.toBeInTheDocument();
       });
@@ -539,7 +539,7 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
   });
 
   describe('Multi-Role User Tab Rendering', () => {
-    it('should render combined tabs for exhibitor + secretary (includes My Shows)', async () => {
+    it('should render combined tabs for exhibitor + secretary (includes Entered as exhibitor)', async () => {
       const multiRoleUser = createMockUser([UserRole.EXHIBITOR, UserRole.SECRETARY], 'multi-user');
       setupMocks({ user: multiRoleUser });
 
@@ -549,7 +549,7 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
         expect(screen.getByRole('tab', { name: /managing/i })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /browse all/i })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /past shows/i })).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: /my shows/i })).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: /entered as exhibitor/i })).toBeInTheDocument();
         expect(screen.queryByRole('tab', { name: /my assignments/i })).not.toBeInTheDocument();
       });
     });

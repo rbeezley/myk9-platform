@@ -63,9 +63,19 @@ export {
 // Class display status helper
 export {
   getClassDisplayStatus,
+  CLASS_DISPLAY_STATUS_LABELS,
+  getClassDisplayStatusLabel,
+  shouldShowClassLifecycleChips,
   type ClassDisplayStatus,
   type ClassDisplayStatusInput,
 } from './helpers/class-display-status';
+
+// Trial composite status (one composed line per trial)
+export {
+  deriveTrialCompositeStatus,
+  type TrialCompositeKind,
+  type TrialCompositeStatus,
+} from './helpers/trial-status';
 
 // Time formatting utilities
 export {

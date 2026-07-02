@@ -53,7 +53,7 @@ proof — not visual inspection, not typechecking. Each plan's "Test plan" and
 
 | Plan | Title | Severity | Effort | Risk | Status |
 |------|-------|----------|--------|------|--------|
-| [001](001-askq-show-scope-fail-closed.md) | AI assistant leaks cross-club entry/handler data (scope fails open) | **HIGH / security** | S | LOW | TODO |
+| [001](001-askq-show-scope-fail-closed.md) | AI assistant leaks cross-club entry/handler data (scope fails open) | **HIGH / security** | S | LOW | DONE (pending edge-fn deploy) |
 | [002](002-move-up-create-before-mark.md) | Move-up corrupts an entry if the new-entry write fails (wrong write order) | **HIGH / data-integrity** | M | MED | TODO |
 | [003](003-surface-mutation-errors.md) | Judge-assign & bulk class ops fail silently (secretary told nothing) | **MED–HIGH / UX-integrity** | S–M | LOW | BLOCKED (run after Phase 3 lands `ClassManagementPage.tsx`) |
 | [004](004-cart-checkout-loading-reset.md) | Checkout button stuck spinning after waitlist-only checkout | LOW / polish | S | LOW | TODO (standalone; adopt Phase 5 copy) |

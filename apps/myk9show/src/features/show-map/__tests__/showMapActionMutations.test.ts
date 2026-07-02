@@ -449,7 +449,7 @@ describe('showMapActionMutations', () => {
     ).rejects.toThrow('not a valid move-up target');
   });
 
-  it('rolls back the original entry to its exact previous status when replicated move-up creation fails', async () => {
+  it('leaves the original entry untouched when replicated move-up creation fails', async () => {
     mockCreateReplicatedEntry.mockRejectedValueOnce(new Error('create failed'));
 
     await expect(
@@ -460,26 +460,9 @@ describe('showMapActionMutations', () => {
       })
     ).rejects.toThrow('create failed');
 
-    expect(mockUpdateReplicatedEntry).toHaveBeenNthCalledWith(
-      1,
-      'entry-1',
-      expect.objectContaining({
-        entryStatus: 'moved',
-        entry_status: 'moved',
-      })
-    );
-    expect(mockUpdateReplicatedEntry).toHaveBeenNthCalledWith(
-      2,
-      'entry-1',
-      expect.objectContaining({
-        entryStatus: 'checked-in',
-        entry_status: 'checked-in',
-        checkInStatus: 'checked-in',
-        check_in_status: 'checked-in',
-        specialRequests: 'Bring paper form',
-        special_requests: 'Bring paper form',
-      })
-    );
+    // The create happens FIRST; when it fails the original entry was never
+    // marked 'moved', so there is nothing to roll back.
+    expect(mockUpdateReplicatedEntry).not.toHaveBeenCalled();
   });
 
   it('keeps Show Map move-up fully replicated and audit logged', async () => {
@@ -500,20 +483,64 @@ describe('showMapActionMutations', () => {
     );
   });
 
-  it('preserves the create failure when move-up rollback also fails', async () => {
-    mockCreateReplicatedEntry.mockRejectedValueOnce(new Error('create failed'));
-    mockUpdateReplicatedEntry
-      .mockResolvedValueOnce('mark-moved')
-      .mockRejectedValueOnce(new Error('rollback failed'));
+  it('preserves the mark-moved failure when the move-up rollback delete also fails', async () => {
+    mockUpdateReplicatedEntry.mockRejectedValueOnce(new Error('mark-moved failed'));
+    mockDeleteReplicatedEntry.mockRejectedValueOnce(new Error('delete failed'));
 
     await expect(
       moveUpShowMapEntry({
         entryId: 'entry-1',
         targetClassId: 'class-2',
       })
-    ).rejects.toThrow('create failed');
+    ).rejects.toThrow('mark-moved failed');
 
-    expect(mockUpdateReplicatedEntry).toHaveBeenCalledTimes(2);
+    expect(mockCreateReplicatedEntry).toHaveBeenCalledTimes(1);
+    expect(mockDeleteReplicatedEntry).toHaveBeenCalledTimes(1);
+  });
+
+  describe('moveUpShowMapEntry write order', () => {
+    it('creates the promoted entry before marking the original moved', async () => {
+      await moveUpShowMapEntry({
+        entryId: 'entry-1',
+        targetClassId: 'class-2',
+        reason: 'Qualified today',
+      });
+
+      const createOrder = mockCreateReplicatedEntry.mock.invocationCallOrder[0];
+      const markMovedOrder = mockUpdateReplicatedEntry.mock.invocationCallOrder[0];
+      expect(createOrder).toBeLessThan(markMovedOrder);
+    });
+
+    it('never marks the original moved when the create fails', async () => {
+      mockCreateReplicatedEntry.mockRejectedValueOnce(new Error('create failed'));
+
+      await expect(
+        moveUpShowMapEntry({
+          entryId: 'entry-1',
+          targetClassId: 'class-2',
+        })
+      ).rejects.toThrow('create failed');
+
+      expect(mockUpdateReplicatedEntry).not.toHaveBeenCalledWith(
+        'entry-1',
+        expect.objectContaining({ entry_status: 'moved' })
+      );
+    });
+
+    it('deletes the newly created entry when marking the original moved fails', async () => {
+      mockUpdateReplicatedEntry.mockRejectedValueOnce(new Error('mark-moved failed'));
+
+      await expect(
+        moveUpShowMapEntry({
+          entryId: 'entry-1',
+          targetClassId: 'class-2',
+        })
+      ).rejects.toThrow('mark-moved failed');
+
+      expect(mockCreateReplicatedEntry).toHaveBeenCalledTimes(1);
+      const createdEntryId = mockCreateReplicatedEntry.mock.calls[0][0].id;
+      expect(mockDeleteReplicatedEntry).toHaveBeenCalledWith(createdEntryId);
+    });
   });
 
   it('undoes a move-up by soft-deleting the new replicated entry before restoring the original entry', async () => {

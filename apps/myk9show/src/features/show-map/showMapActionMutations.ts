@@ -276,13 +276,8 @@ export async function moveUpShowMapEntry({
   );
   const newEntryId = generateUUID();
 
-  await replicatedEntriesTable.updateEntry(entryId, {
-    entryStatus: 'moved',
-    entry_status: 'moved',
-    specialRequests: moveNote,
-    special_requests: moveNote,
-  });
-
+  // Create the promoted entry FIRST. If this fails, the original entry is left
+  // exactly as it was — the dog still runs where it is, nothing is corrupted.
   try {
     await replicatedEntriesTable.createEntry({
       id: newEntryId,
@@ -302,19 +297,29 @@ export async function moveUpShowMapEntry({
       special_requests: movedUpFromNote,
     });
   } catch (error) {
-    try {
-      await replicatedEntriesTable.updateEntry(entryId, {
-        entryStatus: previousEntryStatus ?? undefined,
-        entry_status: previousEntryStatus ?? undefined,
-        checkInStatus: previousCheckInStatus ?? undefined,
-        check_in_status: previousCheckInStatus ?? undefined,
-        specialRequests: previousSpecialRequests,
-        special_requests: previousSpecialRequests,
-      });
-    } catch (rollbackError) {
-      logger.error('[show-map] Failed to roll back move-up after create failure', rollbackError);
-    }
     throw createDatabaseError(error, 'entries', 'show_map_move_up_create');
+  }
+
+  // New entry exists; now retire the original. If THIS fails, delete the entry we
+  // just created so we don't leave a duplicate — and if the delete also fails,
+  // a visible duplicate the secretary can scratch beats a silently disabled dog.
+  try {
+    await replicatedEntriesTable.updateEntry(entryId, {
+      entryStatus: 'moved',
+      entry_status: 'moved',
+      specialRequests: moveNote,
+      special_requests: moveNote,
+    });
+  } catch (error) {
+    try {
+      await replicatedEntriesTable.deleteEntry(newEntryId);
+    } catch (rollbackError) {
+      logger.error(
+        '[show-map] Failed to delete move-up entry after mark-moved failure',
+        rollbackError
+      );
+    }
+    throw createDatabaseError(error, 'entries', 'show_map_move_up');
   }
 
   await logReplicatedEntryStatusChange({

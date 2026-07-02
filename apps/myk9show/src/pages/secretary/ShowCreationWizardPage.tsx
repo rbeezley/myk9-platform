@@ -230,6 +230,16 @@ const ShowCreationWizardPage: React.FC = () => {
     }
   }, [currentStep, setCurrentStep, handleClose]);
 
+  // Scroll the validation banner into view. scrollIntoView is a no-op stub in
+  // jsdom, hence the typeof guard. Stable identity so handleNext/the effect can
+  // depend on it.
+  const scrollBannerIntoView = useCallback(() => {
+    const el = validationBannerRef.current;
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, []);
+
   const handleNext = useCallback(async () => {
     setHasAttemptedNext(true);
 
@@ -240,7 +250,18 @@ const ShowCreationWizardPage: React.FC = () => {
       // view. Next stays enabled (see canGoNext) so this click actually fires
       // instead of the button sitting disabled with no explanation.
       setValidationExpanded(true);
-      pendingBannerScrollRef.current = true;
+      if (validationBannerRef.current) {
+        // Banner already mounted (a repeat failed click) — scroll now. We can't
+        // rely on the post-render effect here: setState above is a no-op when
+        // the values are unchanged, so React may skip the re-render entirely.
+        scrollBannerIntoView();
+      } else {
+        // First failed attempt — the banner mounts on the render this click
+        // triggers. Defer the scroll to the effect below, which fires once it's
+        // in the DOM. (Not left set on the repeat path, so no stray delayed
+        // scroll during later field edits.)
+        pendingBannerScrollRef.current = true;
+      }
       return;
     }
 
@@ -259,7 +280,7 @@ const ShowCreationWizardPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentStep, markStepCompleted, setCurrentStep, show, trials]);
+  }, [currentStep, markStepCompleted, setCurrentStep, show, trials, scrollBannerIntoView]);
 
   // Step navigation validation
   const canGoBack = !isLoading;
@@ -276,16 +297,14 @@ const ShowCreationWizardPage: React.FC = () => {
   // during re-renders.
   const canGoNext = !isLoading;
 
-  // Scroll the validation banner into view after a failed Next attempt, once it
-  // has actually mounted. Guarded by a ref flag so it only fires on the click,
-  // not on every re-render as fields are corrected. scrollIntoView is a no-op
-  // stub in jsdom, hence the typeof guard.
+  // First-mount scroll: on the first failed Next the banner mounts on the
+  // triggered render, so handleNext defers the scroll here. Guarded by the ref
+  // flag so it fires exactly once per first-attempt, not on every re-render as
+  // fields are corrected. Repeat clicks scroll synchronously in handleNext.
   useEffect(() => {
     if (pendingBannerScrollRef.current && validationBannerRef.current) {
       pendingBannerScrollRef.current = false;
-      if (typeof validationBannerRef.current.scrollIntoView === 'function') {
-        validationBannerRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
+      scrollBannerIntoView();
     }
   });
 

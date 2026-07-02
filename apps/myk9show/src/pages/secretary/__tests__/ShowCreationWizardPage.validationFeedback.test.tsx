@@ -73,4 +73,19 @@ describe('ShowCreationWizardPage — Step 1 Next-button feedback', () => {
     expect(banner).toHaveTextContent(/\d+ items? needs? attention/i);
     await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
   });
+
+  it('scrolls again on a repeat failed Next click (no re-render needed)', async () => {
+    const { user } = render(<ShowCreationWizardPage />);
+    const next = screen.getByRole('button', { name: /next/i });
+
+    // First click mounts the banner and scrolls via the effect.
+    await user.click(next);
+    await screen.findByRole('alert');
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(1));
+
+    // Second click changes no state (banner already shown/expanded), so React
+    // may skip the render — the scroll must still happen synchronously.
+    await user.click(next);
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(2));
+  });
 });

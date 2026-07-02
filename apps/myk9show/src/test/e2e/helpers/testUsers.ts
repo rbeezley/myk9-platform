@@ -164,20 +164,22 @@ export async function signIn(
   await page.getByTestId('password-input').fill(password);
 
   await page.getByTestId('sign-in-button').click();
+  const authErrorBanner = page.getByText(/invalid login credentials|user is banned/i);
   const signInResult = await Promise.race([
     page
       .waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 })
       .then(() => 'signed-in' as const)
       .catch((error: unknown) => ({ error })),
-    page
-      .getByText(/invalid login credentials/i)
+    authErrorBanner
       .waitFor({ state: 'visible', timeout: 15000 })
-      .then(() => 'invalid-credentials' as const)
+      .then(async () => ({
+        authError: (await authErrorBanner.textContent())?.trim() ?? 'auth rejected',
+      }))
       .catch(() => new Promise<never>(() => undefined)),
   ]);
 
-  if (signInResult === 'invalid-credentials') {
-    throw new Error(`E2E sign-in rejected credentials for ${email}`);
+  if (typeof signInResult === 'object' && 'authError' in signInResult) {
+    throw new Error(`E2E sign-in rejected ${email}: ${signInResult.authError}`);
   }
 
   if (typeof signInResult === 'object' && 'error' in signInResult) {

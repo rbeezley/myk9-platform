@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useEntriesByDogQuery } from '@/hooks/queries/useEntriesDatabase';
+import { toLocalDate } from '@/utils/date-format';
 import { Link } from 'react-router-dom';
 
 interface ActivityTabProps {
@@ -36,7 +37,11 @@ function formatTime(seconds: number): string {
 
 function isUpcoming(startDate?: string): boolean {
   if (!startDate) return false;
-  return new Date(startDate) >= new Date(new Date().toDateString());
+  return toLocalDate(startDate) >= new Date(new Date().toDateString());
+}
+
+function formatActivityDate(startDate: string, options: Intl.DateTimeFormatOptions): string {
+  return toLocalDate(startDate).toLocaleDateString('en-US', options);
 }
 
 function UpcomingRow({ entry }: { entry: EntryRow }) {
@@ -51,10 +56,10 @@ function UpcomingRow({ entry }: { entry: EntryRow }) {
         {showDate && (
           <>
             <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-              {new Date(showDate).toLocaleDateString('en-US', { weekday: 'short' })}
+              {formatActivityDate(showDate, { weekday: 'short' })}
             </div>
             <div className="font-mono text-sm font-semibold tabular-nums">
-              {new Date(showDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              {formatActivityDate(showDate, { month: 'short', day: 'numeric' })}
             </div>
           </>
         )}
@@ -92,10 +97,10 @@ function ResultRow({ entry }: { entry: EntryRow }) {
         {showDate && (
           <>
             <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-              {new Date(showDate).toLocaleDateString('en-US', { weekday: 'short' })}
+              {formatActivityDate(showDate, { weekday: 'short' })}
             </div>
             <div className="font-mono text-sm font-semibold tabular-nums">
-              {new Date(showDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              {formatActivityDate(showDate, { month: 'short', day: 'numeric' })}
             </div>
           </>
         )}

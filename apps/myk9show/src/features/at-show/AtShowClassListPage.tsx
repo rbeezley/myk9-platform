@@ -21,6 +21,7 @@ import {
   getFormattedClassStatus,
   type ClassEntry,
 } from '@myk9/ringside';
+import { formatTrialDate } from '@myk9/core';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
@@ -153,8 +154,9 @@ export const AtShowClassListPage: React.FC = () => {
         const trialNumber = trial.trialNumber ?? trial.trial_number;
         const trialDate = trial.date ?? trial.trial_date;
         const isOpen = !collapsedTrialIds.has(trial.id);
+        const trialDateLabel = trialDate ? formatTrialDate(trialDate) : '';
         const trialLabel = `${trialNumber ? `Trial ${trialNumber}` : 'Trial'}${
-          trialDate ? ` · ${trialDate}` : ''
+          trialDateLabel ? ` · ${trialDateLabel}` : ''
         }`;
         return (
           <Collapsible

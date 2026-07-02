@@ -51,6 +51,8 @@ export interface UseAtShowScoresheetResult {
   isLoading: boolean;
   error: string | null;
   isInitialSyncPending: boolean;
+  loadedClassId: string | null;
+  loadedEntryId: string | null;
   submit: (scoreData: ScoreData) => Promise<void>;
   isSyncing: boolean;
   hasSyncError: boolean;
@@ -78,11 +80,22 @@ export function useAtShowScoresheet({
   const [trialNumber, setTrialNumber] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadedClassId, setLoadedClassId] = useState<string | null>(null);
+  const [loadedEntryId, setLoadedEntryId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadData() {
+      setEntry(null);
+      setClassInfo(null);
+      setRules(null);
+      setTrialSportType(undefined);
+      setTrialDate(undefined);
+      setTrialNumber(undefined);
+      setLoadedClassId(null);
+      setLoadedEntryId(null);
+
       if (!classId || !entryId) {
         setError('Missing class or entry ID');
         setIsLoading(false);
@@ -140,6 +153,8 @@ export function useAtShowScoresheet({
         setEntry(toScoringEntry(rawEntry, dog, 0));
         setClassInfo(toClassInfo(cls, allEntries.length));
         setRules(buildResolvedClassRules(cls));
+        setLoadedClassId(classId);
+        setLoadedEntryId(entryId);
       } catch (err) {
         if (cancelled) return;
         logger.error('Failed to load at-show scoresheet data:', 'at-show', {}, err as Error);
@@ -183,6 +198,8 @@ export function useAtShowScoresheet({
     isLoading,
     error,
     isInitialSyncPending,
+    loadedClassId,
+    loadedEntryId,
     submit,
     isSyncing,
     hasSyncError,

@@ -98,12 +98,20 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({ classId, entryId,
     isLoading,
     error,
     isInitialSyncPending,
+    loadedClassId,
+    loadedEntryId,
     submit,
     isSyncing,
     hasSyncError,
   } = useAtShowScoresheet({ classId, entryId, onScored: onBack });
+  const isLoadedRoute = loadedClassId === classId && loadedEntryId === entryId;
+  const hasAnyScoresheetState = Boolean(entry || classInfo || rules);
 
-  if (isLoading || (isInitialSyncPending && (!entry || !classInfo || !rules || error))) {
+  if (
+    isLoading ||
+    (!isLoadedRoute && hasAnyScoresheetState) ||
+    (isInitialSyncPending && (!entry || !classInfo || !rules || error))
+  ) {
     return (
       <div className="ringside-root flex flex-col items-center justify-center h-96 gap-3 px-4 text-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

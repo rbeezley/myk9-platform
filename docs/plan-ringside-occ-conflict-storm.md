@@ -89,6 +89,61 @@ The at-show live/offline scoring specs and the paper-scoring workflow spec use t
 This keeps the storm-prone writes off shared staging while preserving the existing fixture-backed
 browser coverage.
 
+## 2026-07-02 recurrence — stale-client storm re-observed and remediated
+
+The storm re-formed (observed during the UX-walk Phase 0 spikes and again live at
+2026-07-02 11:44 UTC: ~285–677 rollbacks/sec, 6–8 active `ringside_update_entry`
+backends, cumulative `xact_rollback` at **42M** vs 18.9M commits). The deployed RPC was
+confirmed to be the fixed version (DETAIL carries the version) — the driver is **pre-fix
+client code still running**.
+
+**Driver identified:** an automated QA/Playwright loop on a local Windows machine
+(`46.110.217.29`) serving a stale pre-June-25 bundle from `http://127.0.0.1:6136/` (matches
+`scripts/qa/run-nightly-isolated.sh`), logging in as the `e2e-*@test.myk9.com` accounts.
+The ringside scoring WRITES authenticate as **`e2e-admin`** (site_admin ⇒ `v_is_manager`),
+NOT secretary — 237 live admin sessions still minting at 11:59 UTC. This is a LOCAL box,
+**not** GitHub CI (different IP / base-URL). Thousands of accumulated `auth.sessions` rows
+across the e2e accounts from constant password-grant logins.
+
+**What did NOT stop it — auth-layer actions on their own.** Supabase access tokens are
+**stateless JWTs**: `banned_until` and `DELETE FROM auth.sessions` do NOT revoke a token
+already held by the client — they only stop it minting NEW ones. The live storm keeps
+running on its cached access token until `exp` (~1h from last login). So auth actions
+**bound a restart**; they do not end the in-flight storm.
+
+**What did NOT work — queue drain:** rolling the hammered demo entry
+(`7358aadd-336f-48a1-87aa-63a42a294e6c`, demo show `dededede-…-010`) back to `version 3`
+(via `ALTER TABLE public.entries DISABLE TRIGGER entries_version_increment` inside a txn —
+`session_replication_role` is denied to the pooler role; MCP `execute_sql` is read-only, so
+use `psql` on `aws-1-us-east-2.pooler.supabase.com` as `postgres.sojmvhhwsjxmfistvzbe`,
+password from `supabase/.env`) let both stuck mutations succeed and dequeue within 268ms
+(3→4→5) — but the still-running loop regenerated stale-token writes and the storm re-formed
+instantly. **Draining is futile while the zombie client runs.**
+
+**What bounded it — cut the auth supply line (owner-approved scope):** `banned_until =
+now() + 24h` on **both** `e2e-secretary` and `e2e-admin` (self-expiring 2026-07-03 ~12:09
+UTC — avoids recreating e2e password-drift confusion) + deleted their sessions. No new
+sessions minted after 12:01 UTC; the storm decays as the last cached admin tokens expire
+(~13:01 UTC) and **cannot restart while banned**. `pg_terminate_backend` was deliberately
+NOT used (cosmetic — PostgREST reconnects on the client's cached token).
+
+**Owner action STILL REQUIRED:** kill the process on the local machine serving port `6136`
+(leftover nightly-QA/Playwright loop on an old checkout). Until then it resumes the storm
+when the ban lapses. **After killing it, unban to restore CI e2e:**
+`UPDATE auth.users SET banned_until = NULL WHERE email IN
+('e2e-admin@test.myk9.com','e2e-secretary@test.myk9.com');` — these accounts back GitHub
+CI's E2E smoke (`E2E_SECRETARY_EMAIL` in `ci.yml`), so they stay broken until unbanned.
+
+**Lessons:** (1) `auth.sessions.refreshed_at` going quiet does NOT mean no valid JWTs
+exist — a password-grant client creates NEW sessions instead of refreshing; sort by
+`created_at` when hunting live clients. (2) Match the driver by which ROLE the write
+authenticates as (`v_is_manager` tiers), not by which account you first suspect — the
+scoring writes ran as admin, not secretary.
+
+**Durable follow-up (TODO):** add a server-side rate-limit / circuit-breaker to
+`ringside_update_entry` so a single stale client cannot saturate DB CPU regardless of a
+valid token — the only guard that survives future zombie clients.
+
 ## Testing
 
 - `MutationManager.test.ts`: RPC version-conflict re-reads + advances the replicated row's

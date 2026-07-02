@@ -8,6 +8,8 @@
 
 **Known issues honored (not re-litigated):** tapping a ringside entry card queues a failing `ringside_update_entry` write (known, reproduced ×2 previously — entry cards were deliberately not tapped on this walk); the wizard Step-1 silent-Next was fixed on `main` (#1073) and the fixed behavior (disabled Next with visible explanation) was observed working.
 
+**Merge note (2026-07-02):** After a review of the Codex exhibitor audit, findings I agree with but missed on my walk have been folded in below, tagged **[Codex]**. Codex walked mobile and the signed-out entry path; I walked desktop signed-in — the two are complementary, and the [Codex] items are adopted on judgment, not independently reproduced unless noted.
+
 ---
 
 ## Walkthrough summary
@@ -48,6 +50,9 @@ The core journey is **completable** — sign-in is genuinely good, Add Dog is sh
 | "My Stats" nav item | My dog statistics | "Analytics — coming soon" placeholder; page heading also disagrees with nav label | Medium |
 | Green check icons on untouched "Registration"/"Additional" tabs in Add Dog | "Someone already completed these" | They mean "valid/optional-ok" | Low |
 | "Entries Close: Sep 1" on an Aug 1–3 show | Entries close before the show | Reads as after the show ends (seed data or close-date logic) | Medium |
+| Signed-out "Enter this show" **[Codex]** | Sign in, then continue entering that show | Lands on `/exhibitor/entries`; the entry intent is lost (consistent with my observation that sign-in always lands there) | High |
+| Card payment at wizard step 2 **[Codex]** | Stay in the wizard through "Confirmation" | Hands off to `/cart` with a countdown timer — a route and time-pressure change mid-flow | High |
+| Skipping the Registration tab in Add Dog **[Codex, corroborated]** | Dog has no breed yet | Dog is silently labeled **"Mixed Breed"** (Codex Daisy displays this without anyone choosing it) | Medium |
 
 **Jargon found:** "Finish Payment" (for cash), "Registration #Pending", raw Stripe IDs (`pi_3TmybYAIej2Q9UtX…`) as a visible table column, "Reset Data", "Clear Cache", "⌘K", landing-page "Local-first PWA". The dog-show vocabulary itself (call name, entry blank, armband, premium) is well chosen — the jargon problem is software-speak, not sport-speak.
 
@@ -72,6 +77,10 @@ The core journey is **completable** — sign-in is genuinely good, Add Dog is sh
 | Stat cards vs list tabs | My Shows | 9 vs 10 entries, 2 vs 1 accepted (E2) | Derive card numbers from the same query/filters as the tabs, or label the difference |
 | Admin actions in exhibitor search | ⌘K dialog | "Users — View all people", "Add New User", "Add New Show" (confirms Codex) | Scope command palette to role permissions |
 | "Development Tools" in account menu | Account dropdown | "Reset Data" / "Clear Cache" visible to an exhibitor — terrifying and dangerous for this persona | Verify dev-build gating; never ship; even in dev, bury behind a flag |
+| Mobile Browse Shows exposes staff table tools **[Codex]** | `/shows` on mobile | Columns / Export CSV / Compact density / Reset view visible to exhibitors, with horizontal clipping | Default exhibitors to simple cards; table tools only in explicit table mode |
+| Duplicate profile surfaces **[Codex]** | `/profile` and `/account` | Two places edit similar personal info | One primary profile surface; link from account |
+| Advanced settings alongside basics **[Codex]** | `/account` | Export/import/reset, Data & sync, Devices, Delete account sit next to everyday profile fields | Group under "Advanced settings" with plain warning copy |
+| Two show-day routes **[Codex]** | `/at-show`, `/exhibitor/show-day` | One redirects, one denies without recovery; "Ringside" naming reads staff-facing to exhibitors | Exhibitor-facing nav label "Show day"; keep judge/steward ringside separate |
 
 **Visibility problems:**
 
@@ -101,10 +110,12 @@ The core journey is **completable** — sign-in is genuinely good, Add Dog is sh
 
 **Recommended fixes:**
 
-- Persistent sidebar labels (also fixes the flyout click-eater by removing the overlay).
+- Persistent sidebar labels (also fixes the flyout click-eater by removing the overlay). Same rule on mobile: label + icon nav, never icon-only rail **[Codex]**.
 - Name and label the photo-upload button ("Add photo").
 - Turn "Finish Payment" into "Payment: cash at check-in" (status, not CTA) for cash/check entries.
 - Add a visible search input inside the breed picker.
+- Explicit "View show" / "Enter show" buttons on show list rows in table view — rows are clickable but nothing says so **[Codex]**.
+- Label the Add Dog tabs "Optional details" so they don't read as required steps **[Codex]**.
 
 ---
 
@@ -120,7 +131,12 @@ The core journey is **completable** — sign-in is genuinely good, Add Dog is sh
 | Wizard Step 2 | Payment method + agreement | Good; plain-language method descriptions |
 | My Shows (reading) | Reconcile 6 status vocabularies: Submitted / Pending Review / Payment Due / Paid / Accepted / Upcoming — plus "Finish Payment" | One entry card currently wears up to 4 chips; compose a single status line |
 
-**Missing defaults:** none egregious — owner/handler defaulting to "You" is exactly right.
+**Missing defaults:**
+
+- Owner/handler defaulting to "You" is exactly right (positive).
+- Breed should never silently default to "Mixed Breed" when the Registration tab is skipped — ask, or say plainly "you can add breed later" **[Codex, corroborated]**.
+- Registration should start focused on the dog just created or the dog in context, with a nudge like "Dog saved. Enter a show with Buddy." **[Codex]**
+- Date of birth needs a visible format hint for non-native pickers **[Codex]**.
 
 **Unnecessary complexity:**
 
@@ -129,6 +145,8 @@ The core journey is **completable** — sign-in is genuinely good, Add Dog is sh
 | Nested modal for registration/breed | Registered-dog owners | Consider promoting Breed to Essential (dogs have breeds regardless of paperwork); keep registration numbers in the sub-form |
 | 6 entry-status tabs with drifting counts | Power exhibitors | Collapse to All / Needs something from you / Done |
 | Chord hints (⌘K, "G D") | Power users | Harmless if kept, but don't rely on them for reachability |
+| Cart countdown timer **[Codex]** | Nobody in this persona | Time pressure panics slow users; extend/remove for entry flows |
+| Full legal agreement rendered inline at the payment step **[Codex]** | Everyone must accept it | Contain it in a scrollable box so the payment controls and checkbox stay visible |
 
 **Cognitive load score:** **Medium** — individual screens are calm and well-labeled; the load comes from *reconciling contradictory numbers and statuses between screens*, which is exactly the load this persona cannot carry.
 
@@ -163,8 +181,15 @@ The core journey is **completable** — sign-in is genuinely good, Add Dog is sh
 | State | Implemented? | Quality | Issue |
 |-------|--------------|---------|-------|
 | Blocked Next | Yes | Good | Visible explanation (#1073 fix confirmed working) |
-| Submitted | Yes | Poor | Auto-submits at "Confirmation"; three exits (Back / Return to dashboard / Finish) with unclear differences; "Back" from a submitted state is available |
+| Submitted | Yes | Poor | Auto-submits at "Confirmation"; three exits (Back / Return to dashboard / Finish) with unclear differences; "Back" from a submitted state is available; "Finish" lands on show detail rather than the new entry's status **[Codex, corroborated]** |
 | Draft | Partial | — | Save Draft / "Load Draft (0)" buttons present; untested this walk |
+
+### Add Dog
+
+| State | Implemented? | Quality | Issue |
+|-------|--------------|---------|-------|
+| Success | Yes | Poor | Modal closes and the card appears, but there is no durable "Dog saved" confirmation with a next action ("Enter a show with Buddy") — low-confidence users need the reassurance **[Codex]** |
+| Error | Yes | Mixed | Gender validation can fire while merely opening the dropdown **[Codex]** |
 
 **Dead ends found:** Ringside denial screen (total); My Stats "coming soon" (soft — no back CTA needed since sidebar remains, but it's a permanent nav item to nowhere).
 
@@ -208,6 +233,8 @@ The core journey is **completable** — sign-in is genuinely good, Add Dog is sh
 - No remove control on the Payment summary (must navigate back to per-dog tabs).
 - No undo after auto-submit at "Confirmation" — and a "Back" button that implies there is.
 - Ringside denial has no back/recovery affordance at all.
+- Sign-in does not preserve `redirectTo` for an in-progress entry — the single biggest thread-break in the golden path **[Codex]**.
+- Wizard "Cancel" doesn't say where it will take you **[Codex]**.
 
 **Flow verdict:** **Completable with friction** — and with two money/trust traps that this persona specifically will fall into.
 
@@ -223,6 +250,7 @@ The core journey is **completable** — sign-in is genuinely good, Add Dog is sh
 |---------|------|--------|--------|
 | Future, unscored entry rendered as "Fri Jul 31 · 0:00.00 · NQ" on dog profile while "Upcoming" says none (E1; confirms C2 formatter in results list) | 5/6 | User believes the dog already failed; drives support calls and double entries | Med — fix results query to exclude unscored/future entries + fix date-only UTC parse |
 | Stale cart items silently pre-charged in a new wizard session; no duplicate-entry guard; no removal on summary (E-cart) | 6 | Double payment by the least-equipped users | Med — clear submitted items from cart; badge already-entered classes; add remove-per-line on summary |
+| Signed-out "Enter this show" loses intent through sign-in — lands on My Shows, not registration **[Codex]** | 1/6 | Users cannot reliably continue the core entry task | Med — preserve `redirectTo=/shows/:id/register`; sign-in copy "Sign in to enter Heartland…" |
 
 ### High Priority
 
@@ -236,6 +264,8 @@ The core journey is **completable** — sign-in is genuinely good, Add Dog is sh
 | "Confirmation" step auto-submits; no review moment; 3 ambiguous exits | 6 | Loss of control at the money moment | Med |
 | Money presentation: $270/$120 unexplained; "Total paid $66.30" vs rows $96.30; Stripe IDs (E5) | 1/2 | Money confusion (C5 pattern) | Low — show refund rows, hide `pi_` IDs, explain due |
 | "Development Tools: Reset Data / Clear Cache" in exhibitor account menu | 2 | Catastrophic mis-click potential — verify dev-gating | Low |
+| Card-payment path exits the wizard to `/cart` with a countdown timer **[Codex]** | 1/6 | Route + time-pressure change at the money moment | Med |
+| Mobile: icon-only nav rail; Browse Shows exposes staff table tools with clipping **[Codex]** | 2/3 | Mobile is this persona's likely primary device; first entry path feels broken/technical | Med |
 
 ### Medium Priority
 
@@ -249,6 +279,11 @@ The core journey is **completable** — sign-in is genuinely good, Add Dog is sh
 | Admin-scoped search results/actions for exhibitors | 2 | Confusion + apparent permission leak | Med |
 | "Entries Close: Sep 1" after an Aug 1–3 show | 1 | Nonsense date | Low (likely seed data; verify close-date validation) |
 | "Manage Entry" label opens the wizard | 1 | Wrong expectation | Low — "Enter this show" / "Add or change entries" |
+| Add Dog: one required page first; label other tabs "Optional details" **[Codex]** | 4/6 | Tabs read as required work; reduces uncertainty | Med |
+| Legal agreement rendered as a huge inline block at payment **[Codex]** | 4/6 | Users lose the payment controls and checkbox | Low–Med — contained scroll area |
+| `/profile` vs `/account` duplicate editing surfaces; advanced/destructive settings beside basics **[Codex]** | 2 | Two places to do one thing; scary options too close | Med |
+| Silent "Mixed Breed" default when registration skipped **[Codex, corroborated]** | 1/4 | Dog mislabeled without user choice | Low |
+| "Finish" on confirmation goes to show detail, not the new entry **[Codex, corroborated]** | 6 | "Did it work?" moment lands on the wrong page | Low — primary "View my entry", secondary "Back to show" |
 
 ### Low Priority
 
@@ -259,6 +294,9 @@ The core journey is **completable** — sign-in is genuinely good, Add Dog is sh
 | Waitlist "Withdraw" styled as plain text | 3 | Low-affordance destructive action | Low |
 | Greeting copy ("end strong tonight") + first-name "Test" | 1 | Odd tone | Low |
 | TBD/No-# chip wall on run schedule | 4 | Noise pre-show | Low — "Times posted closer to show day" |
+| No durable "Dog saved" toast with next action **[Codex]** | 5 | Reassurance for low-confidence users | Low |
+| DOB format hint for non-native pickers **[Codex]** | 4 | Form hesitation | Low |
+| "Ringside" → "Show day" for exhibitor-facing nav **[Codex]** | 1 | Friendlier terminology | Low |
 
 ### Quick Wins (high impact, low effort)
 
@@ -268,18 +306,24 @@ The core journey is **completable** — sign-in is genuinely good, Add Dog is sh
 4. Exclude withdrawn entries from "Where to be & when" (E4).
 5. Hide `pi_…` IDs behind a "Receipt" link; add refund rows (E5).
 6. Passcode input + back link on the ringside denial screen.
+7. Sign-in redirect: preserve the registration URL and show "Continue entering Heartland Scent Work Classic" **[Codex]**.
+8. Confirmation exits: primary "View my entry", secondary "Back to show" **[Codex]**.
+9. Mobile Browse Shows: hide Columns / Export CSV / Compact density / Reset view unless table mode is explicitly chosen **[Codex]**.
 
 ### Recommendations
 
 1. **Declare war on same-fact drift.** E1–E7 here plus C1–C7 on the secretary side are one disease: multiple queries/formatters answering the same question differently. A shared selector layer (one "entry status" derivation, one date formatter, one count source) fixes both audits at once. The date formatter behind C2 is confirmed still broken in at least one place (dog-profile results).
 2. **Make the wizard's money moment safe:** empty the cart of submitted items, badge already-entered classes, keep a real review step (or rename step 3 to "Receipt").
 3. **Run the INTENT.md litmus test on the shell, not just pages:** the sidebar, search palette, and account menu are all shared chrome that currently fails "Could my mom use this?" — hover-only labels, admin commands, and Reset Data are shell-level regressions that no page-level polish can compensate for.
+4. **Keep the golden path one continuous thread** **[Codex]**: find show → sign in → add dog if needed → enter class → submit → view entry, with no mid-task detours to generic dashboards or the cart. The redirect fix, the wizard/cart unification, and the "View my entry" confirmation exit are all one theme.
+5. **Treat mobile as this persona's primary device** **[Codex]**: labeled navigation, simple cards, large touch targets, no clipped toolbars — desktop polish alone won't reach the audience.
 
 ### Cross-audit consensus
 
 - **Confirms Codex exhibitor audit:** cash "Finish Payment" confusion; My Stats dead end; admin-scoped search; ringside passcode wall (this walk found it has *zero* interactive elements — worse than reported); jargon inventory substantially overlaps.
+- **Adopted from Codex (agreed on judgment; not independently reproduced unless marked corroborated):** signed-out enter-show intent lost through sign-in; card path exits wizard to `/cart` + countdown timer; all mobile findings (icon rail, staff table tools on Browse Shows, clipping); `/profile` vs `/account` duplication and advanced-settings placement; silent "Mixed Breed" default (corroborated — Codex Daisy displays it unchosen); inline legal-agreement wall; "Finish" → show detail instead of the entry (corroborated); no durable dog-saved confirmation; gender-validation-on-open; DOB format hint; "Show day" naming.
+- **Not adopted from Codex:** "Back to dashboard → `/`" as a false affordance — verified this walk that `/` redirects signed-in users to My Shows, so the link works; and Codex's "show detail says Jul 31–Aug 2" — on this desktop walk detail/list/wizard all read Aug 1–3 (E8); the only Jul 31 sighting was the dog-profile results formatter (E1). Treat C2 as formatter-specific, possibly environment/timezone-sensitive.
 - **Confirms secretary audit:** C2 (in a new surface: dog-profile results formatter, "Fri Jul 31"), C3 (exhibitor sees "Judge TBD"), and the C1/C4/C5 *patterns* via E2/E3/E4/E5.
-- **Did not reproduce:** C2 on Browse list/show header/wizard (all said Aug 1–3 on this desktop walk) — consistent with the drift living in specific formatters, not the data.
 - **New this walk (not in either prior audit):** the sidebar-flyout click-eater; stale-cart double-charge with missing duplicate guard; auto-submit at "Confirmation"; entry-number reuse (E7); waitlist tab-vs-widget contradiction on one page (E3); withdrawn-entry-as-Upcoming on one page (E4); My Payments total-vs-rows mismatch; silent 409 on `enrollments` during submission.
 
 ### Session artifacts

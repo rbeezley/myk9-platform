@@ -49,6 +49,7 @@ export interface Class {
   // Class restrictions
   level?: string | undefined;
   element?: string | undefined;
+  section?: string | undefined;
   competitionType?: string | undefined;
   breedRestrictions?: string[] | undefined;
   ageRestrictions?: { min?: number | undefined; max?: number | undefined } | undefined;

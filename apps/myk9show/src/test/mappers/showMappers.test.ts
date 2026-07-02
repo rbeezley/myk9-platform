@@ -92,7 +92,7 @@ describe('mapDatabaseToShow — branding fallback', () => {
               entry_fee: 28,
               level: 'Novice',
               element: 'Containers',
-              section: null,
+              section: 'B',
             },
           ],
         },
@@ -106,6 +106,7 @@ describe('mapDatabaseToShow — branding fallback', () => {
         entryFee: 28,
         level: 'Novice',
         element: 'Containers',
+        section: 'B',
       }),
     ]);
   });
@@ -145,6 +146,7 @@ describe('mapDatabaseToShow — branding fallback', () => {
                 name: 'Novice Containers',
                 element: 'Containers',
                 level: 'Novice',
+                section: 'B',
                 entryFee: 28,
               },
             ],
@@ -160,6 +162,7 @@ describe('mapDatabaseToShow — branding fallback', () => {
         name: 'Novice Containers',
         element: 'Containers',
         level: 'Novice',
+        section: 'B',
         entry_fee: 28,
       }),
     ]);

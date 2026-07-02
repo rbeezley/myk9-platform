@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
+  Code2,
   CreditCard,
   Heart,
   Info,
@@ -16,15 +18,18 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useGlobalSyncStatus } from '@/hooks/useGlobalSyncStatus';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
-import { ResetDataButton } from '@/components/common/ResetDataButton';
-import { ClearCacheButton } from '@/components/common/ClearCacheButton';
 import { helpUrl } from '@/lib/help';
+import { resetAllMockData } from '@/utils/debugUtils';
+import { clearDevelopmentCache } from '@/utils/clearDevelopmentCache';
 
 interface AccountMenuContentProps {
   /** Opens the About dialog, whose state lives in the host AppHeader. */
@@ -39,6 +44,31 @@ export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
   const globalSync = useGlobalSyncStatus();
   const networkStatus = useNetworkStatus();
   const { toggle: toggleAskQ } = useAskQPanelStore();
+  const [isClearingCache, setIsClearingCache] = useState(false);
+
+  const handleResetData = () => {
+    if (
+      window.confirm(
+        'Reset shared development data? This preserves templates and UI preferences, then reloads the page.'
+      )
+    ) {
+      resetAllMockData();
+    }
+  };
+
+  const handleClearCache = async () => {
+    if (
+      !window.confirm('Clear development cache and browser storage? This will reload the page.')
+    ) {
+      return;
+    }
+
+    setIsClearingCache(true);
+    const didClear = await clearDevelopmentCache();
+    if (!didClear) {
+      setIsClearingCache(false);
+    }
+  };
 
   return (
     <DropdownMenuContent align="end" className="w-64">
@@ -139,17 +169,28 @@ export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
 
       {/* Development Tools */}
       {process.env.NODE_ENV === 'development' && (
-        <>
-          <div className="px-3 py-1">
-            <p className="text-xs font-medium text-muted-foreground">Development Tools</p>
-          </div>
-          <div className="px-3 py-1">
-            <ResetDataButton />
-          </div>
-          <div className="px-3 py-1">
-            <ClearCacheButton />
-          </div>
-        </>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger className="cursor-pointer">
+            <Code2 className="h-4 w-4" />
+            Developer
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="w-48">
+            <DropdownMenuItem onClick={handleResetData} className="cursor-pointer">
+              <RefreshCw className="h-4 w-4" />
+              Reset Data
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                void handleClearCache();
+              }}
+              disabled={isClearingCache}
+              className="cursor-pointer"
+            >
+              <RefreshCw className={`h-4 w-4 ${isClearingCache ? 'animate-spin' : ''}`} />
+              {isClearingCache ? 'Clearing Cache...' : 'Clear Cache'}
+            </DropdownMenuItem>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
       )}
 
       <DropdownMenuItem asChild>

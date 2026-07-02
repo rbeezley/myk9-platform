@@ -164,7 +164,7 @@ export async function signIn(
   await page.getByTestId('password-input').fill(password);
 
   await page.getByTestId('sign-in-button').click();
-  const authErrorBanner = page.getByText(/invalid login credentials|user is banned/i);
+  const authErrorBanner = page.getByText(/invalid login credentials|user is banned/i).first();
   const signInResult = await Promise.race([
     page
       .waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 })

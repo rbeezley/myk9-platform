@@ -163,6 +163,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
         { duration: Infinity, action: { label: 'Dismiss', onClick: () => {} } }
       );
     }
+    await ctx.cart.clearCart();
     ctx.triggerSync();
     ctx.markStepComplete(ctx.currentStep);
     ctx.setCurrentStep(prev => prev + 1);

@@ -31,6 +31,7 @@ import {
   calculateCartTotals,
 } from './cartStore.helpers';
 import { loadCartItemsByCartId, recoverCartItemsFromEntryIds } from './cartStore.recovery';
+import { reconcileCartItemsAgainstExistingEntries } from './cartStore.reconciliation';
 
 // Re-export types so existing imports continue to work
 export type {
@@ -99,9 +100,19 @@ export const useCartStore = create<CartState>()(
               throw itemsError;
             }
 
+            const items = await reconcileCartItemsAgainstExistingEntries({
+              cartId: cartData.id,
+              showId,
+              items: (itemsData || []) as CartItemWithDetails[],
+            });
+            const { subtotal, platformFee, total } = calculateCartTotals(items);
+
             const cartWithDetails: CartWithDetails = {
               ...cartData,
-              items: (itemsData || []) as CartItemWithDetails[],
+              subtotal_cents: subtotal,
+              platform_fee_cents: platformFee,
+              total_cents: total,
+              items,
               show: cartData.show as CartWithDetails['show'],
             };
 
@@ -236,6 +247,12 @@ export const useCartStore = create<CartState>()(
               entryIds: options.recoveryEntryIds,
             });
           }
+
+          items = await reconcileCartItemsAgainstExistingEntries({
+            cartId: cartData.id,
+            showId: cartData.show_id,
+            items,
+          });
 
           const { subtotal, platformFee, total } = calculateCartTotals(items);
           const cartWithDetails: CartWithDetails = {

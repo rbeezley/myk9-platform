@@ -2,8 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Mail, Pencil } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
 import { GoogleIcon } from '@/components/icons/GoogleIcon';
-import { getSignInReturnTo } from './SignInPage.helpers';
+import {
+  getShowEntryRedirectShowId,
+  getSignInReturnTo,
+  persistSignInRedirect,
+} from './SignInPage.helpers';
 import { classifyCredential, normalizeCredential } from './SmartSignInPage.helpers';
 import { PasswordSubForm } from './PasswordSubForm';
 import { JoinShowConfirmation } from './JoinShowConfirmation';
@@ -57,6 +62,13 @@ const SmartSignInPage: React.FC = () => {
   const isLoading = loading || authLoading;
   const kind = useMemo(() => classifyCredential(credential), [credential]);
   const canContinue = kind === 'email' || kind === 'passcode';
+  const signInReturnTo = useMemo(() => getSignInReturnTo(searchParams), [searchParams]);
+  const entryShowId = useMemo(() => getShowEntryRedirectShowId(signInReturnTo), [signInReturnTo]);
+  const { data: entryShow } = useShowQuery(entryShowId ?? '');
+  const heading =
+    entryShowId && entryShow?.name
+      ? `Sign in to enter ${entryShow.name}`
+      : 'Sign in or join a show';
 
   // Programmatic focus to the password field when the email branch reveals it.
   useEffect(() => {
@@ -77,7 +89,8 @@ const SmartSignInPage: React.FC = () => {
     setError('');
     setGoogleLoading(true);
     try {
-      await signInWithGoogle();
+      persistSignInRedirect(signInReturnTo);
+      await signInWithGoogle(signInReturnTo);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Google sign-in failed');
       setGoogleLoading(false);
@@ -152,7 +165,7 @@ const SmartSignInPage: React.FC = () => {
     setError('');
     try {
       await signIn(normalizeCredential(credential), password);
-      navigate(getSignInReturnTo(searchParams));
+      navigate(signInReturnTo);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
@@ -189,7 +202,7 @@ const SmartSignInPage: React.FC = () => {
             myK9Show
           </Link>
         </div>
-        <h2 className="text-2xl md:text-3xl font-bold mb-2 text-center">Sign in or join a show</h2>
+        <h2 className="text-2xl md:text-3xl font-bold mb-2 text-center">{heading}</h2>
         <div className="text-muted-foreground text-center mb-6">
           Don't have an account?{' '}
           <Link to="/sign-up" className="text-primary hover:underline font-medium">

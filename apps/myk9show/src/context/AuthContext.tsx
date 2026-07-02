@@ -12,7 +12,7 @@
 import React, { createContext, ReactNode, useCallback, useMemo, useState, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 import { useAuth } from '@/hooks/useAuth';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
@@ -33,6 +33,7 @@ import { isTransientBrowserFetchError } from '@/services/rbac/PermissionChecker'
 import { PermissionWithRole } from '@/types/rbac-types';
 import { ensureError } from '@myk9/core';
 import { notifications } from '@/lib/notifications';
+import { buildSignInPathForRedirect } from '@/pages/SignInPage.helpers';
 
 // Type for user role with details from RBAC service
 export interface UserRoleWithDetails {
@@ -75,7 +76,7 @@ export interface AuthContextType {
   ) => Promise<void>;
   resendConfirmationEmail: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: (redirectTo?: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
   updateProfile: (updates: {
@@ -649,6 +650,7 @@ export function ProtectedRoute({
   ),
 }: ProtectedRouteProps) {
   const context = React.useContext(AuthContext);
+  const location = useLocation();
 
   if (!context) {
     throw new Error('ProtectedRoute must be used within an AuthProvider');
@@ -668,7 +670,11 @@ export function ProtectedRoute({
   }
 
   if (!user) {
-    return <Navigate to={redirectTo} replace />;
+    const target =
+      redirectTo === '/sign-in'
+        ? buildSignInPathForRedirect(`${location.pathname}${location.search}${location.hash}`)
+        : redirectTo;
+    return <Navigate to={target} replace />;
   }
 
   // Check role requirements

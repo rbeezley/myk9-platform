@@ -1,9 +1,10 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@/test/utils/testUtils';
+import { createTestQueryClient, render } from '@/test/utils/testUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PremiumDownloadCard } from '../PremiumDownloadCard';
 
 const maybeSingleMock = vi.hoisted(() => vi.fn());
+const generateMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
@@ -17,18 +18,46 @@ vi.mock('@/services/database/supabaseClient', () => ({
   },
 }));
 
+vi.mock('../useGeneratePremium', () => ({
+  useGeneratePremium: () => ({
+    generate: generateMock,
+    isLoading: false,
+    error: null,
+    reset: vi.fn(),
+  }),
+}));
+
+vi.mock('@/features/experience/publishExperience', () => ({
+  publishExperience: vi.fn(),
+}));
+
 function renderCard() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <PremiumDownloadCard showId="show-1" />
-    </QueryClientProvider>
-  );
+  return render(<PremiumDownloadCard showId="show-1" />, {
+    queryClient: createTestQueryClient(),
+  });
 }
 
 describe('PremiumDownloadCard', () => {
   beforeEach(() => {
     maybeSingleMock.mockReset();
+    generateMock.mockReset();
+  });
+
+  it('renders a primary publish action when no premium list is published', async () => {
+    maybeSingleMock.mockResolvedValue({
+      data: {
+        published_premium_url: null,
+        published_premium_at: null,
+        updated_at: '2026-05-09T12:00:00.000Z',
+      },
+      error: null,
+    });
+
+    renderCard();
+
+    expect(
+      await screen.findByRole('button', { name: /generate & publish premium/i })
+    ).toBeInTheDocument();
   });
 
   it('opens published premium lists in a new tab', async () => {

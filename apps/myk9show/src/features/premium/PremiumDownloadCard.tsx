@@ -1,8 +1,12 @@
-import { FileText, AlertTriangle } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { FileText, AlertTriangle, Upload } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
-import { buttonVariants } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { publishExperience } from '@/features/experience/publishExperience';
+import { notifications } from '@/lib/notifications';
 import { supabase } from '@/services/database/supabaseClient';
+import { useGeneratePremium } from './useGeneratePremium';
 
 interface PremiumDownloadCardProps {
   showId: string;
@@ -38,6 +42,9 @@ async function fetchPublishInfo(showId: string): Promise<PublishInfo> {
 }
 
 export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumDownloadCardProps) {
+  const queryClient = useQueryClient();
+  const { generate, isLoading: isGenerating } = useGeneratePremium();
+  const [isPublishing, setIsPublishing] = useState(false);
   const { data } = useQuery({
     queryKey: ['shows', showId, 'publish-info'],
     queryFn: () => fetchPublishInfo(showId),
@@ -46,10 +53,33 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
   const publishedUrl = data?.publishedUrl;
   const publishedAt = data?.publishedAt;
   const showUpdatedAt = data?.updatedAt;
+  const isBusy = isGenerating || isPublishing;
+
+  const handleGenerateAndPublish = async () => {
+    setIsPublishing(true);
+    try {
+      const premium = await generate(showId);
+      await publishExperience({ showId, premium, inkSaver: false });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['shows', showId, 'publish-info'] }),
+        queryClient.invalidateQueries({
+          queryKey: ['shows', showId, 'published-experience-content'],
+        }),
+        queryClient.invalidateQueries({ queryKey: ['shows'] }),
+      ]);
+      notifications.success('Premium list published');
+    } catch (error) {
+      notifications.error('Could not publish the premium list', {
+        description: error instanceof Error ? error.message : 'Please try again.',
+      });
+    } finally {
+      setIsPublishing(false);
+    }
+  };
 
   if (!publishedUrl || !publishedAt) {
     return (
-      <Card className="p-4 flex items-center gap-4">
+      <Card className="p-4 flex flex-wrap items-center gap-4">
         <div className="bg-muted text-muted-foreground rounded-md p-3">
           <FileText className="h-6 w-6" />
         </div>
@@ -57,6 +87,15 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
           <h3 className="font-semibold text-sm">Premium List</h3>
           <p className="text-xs text-muted-foreground mt-0.5">Not yet published</p>
         </div>
+        <Button
+          size="sm"
+          className="shrink-0 whitespace-nowrap"
+          onClick={handleGenerateAndPublish}
+          disabled={isBusy}
+        >
+          <Upload className="h-4 w-4 mr-2" />
+          {isBusy ? 'Publishing…' : 'Generate & publish premium'}
+        </Button>
       </Card>
     );
   }
@@ -78,7 +117,7 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
     new Date(showUpdatedAt).getTime() - new Date(publishedAt).getTime() > STALE_TOLERANCE_MS;
 
   return (
-    <Card className="p-4 flex items-center gap-4">
+    <Card className="p-4 flex flex-wrap items-center gap-4">
       <div className="bg-primary/10 text-primary rounded-md p-3">
         <FileText className="h-6 w-6" />
       </div>
@@ -98,7 +137,7 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
         href={publishedUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className={buttonVariants({ size: 'sm' })}
+        className={buttonVariants({ size: 'sm', className: 'shrink-0 whitespace-nowrap' })}
       >
         Download PDF
       </a>

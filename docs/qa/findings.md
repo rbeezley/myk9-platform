@@ -79,6 +79,23 @@ Copy this block for each new finding.
 
 ## Open Findings
 
+### QA-TEST-FLAKE-032
+
+- **Status:** open
+- **Severity:** high
+- **Role:** public, secretary, admin
+- **Surface:** exact Phase 2 active Nightly Playwright command from `docs/qa/e2e-suite-map.md`.
+- **Suite category:** nightly
+- **Pattern:** test-flake
+- **Detected by:** Playwright
+- **Evidence:** 2026-07-02 isolated Nightly from `origin/main` `6bda8d9a22bc639c5a1eacea73b928146701b8e5` passed Phase 1 Vitest (`18/18`) but failed Phase 2 active Playwright with `40 passed, 10 failed, 3 did not run (1.4h, --retries=0)`, exceeding the 30-minute global Nightly budget. Low-risk test repairs fixed the stale public browse heading wait, duplicated class-template text locators, stale wizard "Next is disabled" assertions, and an old `networkidle` wait in the show-wizard page object; focused proof passed `18 passed, 1 skipped (1.3m, --retries=0)`. Remaining unrepaired failures are route-health public/admin 90s timeouts and `uat/secretary/disposable-entry.spec.ts` timing out in sign-in setup after the full run had already exceeded budget. Evidence paths: `apps/myk9show/test-results/route-health-by-role-Route-0ffc7--public-routes-render-clean-chromium/error-context.md`, `apps/myk9show/test-results/route-health-by-role-Route-b0cad-n-admin-routes-render-clean-chromium/error-context.md`, and `apps/myk9show/test-results/uat-secretary-disposable-e-b1800-check-in-a-disposable-entry-chromium/error-context.md`.
+- **User impact:** Nightly cannot currently prove the active public/admin route-health baseline or the secretary disposable-entry path within the unattended time budget.
+- **Intent check:** Harms release confidence for public discovery, admin platform health, and the secretary "That was easy" entry-management proof.
+- **Fix owner:** `apps/myk9show/src/test/e2e/route-health-by-role.spec.ts`, `apps/myk9show/src/test/e2e/uat/secretary/disposable-entry.spec.ts`, and the route/page load paths they exercise.
+- **Proof required:** Isolate public route-health, admin route-health, and disposable-entry on an isolated port with `--retries=0`; repair any stale test logic or bounded harness waits without suppressing browser-health failures; then rerun the exact Phase 2 active Nightly command under 30 minutes and standalone Phase 3 route-health.
+- **Notes:** Do not close this with the focused stale-assertion proof alone; the full active command and standalone route-health proof remain required.
+- **2026-07-02 follow-up:** Focused public/admin route-health replay cleared those two surfaces: `route-health-by-role.spec.ts --grep "Route health: public|Route health: admin"` passed `2/2` in `35.1s` on `PLAYWRIGHT_BASE_URL=http://127.0.0.1:6174`. Focused disposable-entry still failed before exercising Entry Management because the canonical secretary account is banned in Supabase Auth: `simple-connectivity.spec.ts --grep "sign in with secretary credentials"` now fails fast in `5.8s` with `E2E sign-in rejected e2e-secretary@test.myk9.com: User is banned` after the shared sign-in helper was updated to classify visible auth rejections instead of waiting for navigation timeout. Remaining closure requirement: clear/reset the shared `e2e-secretary@test.myk9.com` auth state, then rerun secretary sign-in, disposable-entry, exact Phase 2, and standalone Phase 3.
+
 ### QA-MOBILE-LAYOUT-BREAK-028
 
 - **Status:** resolved (PR #936; 2026-06-23)

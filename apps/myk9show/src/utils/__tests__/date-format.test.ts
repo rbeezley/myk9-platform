@@ -1,5 +1,15 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect } from 'vitest';
 import { toLocalDateOnly, toLocalDate, formatDateRange } from '../date-format';
+
+const originalTimezone = process.env.TZ;
+
+afterEach(() => {
+  if (originalTimezone) {
+    process.env.TZ = originalTimezone;
+  } else {
+    delete process.env.TZ;
+  }
+});
 
 describe('toLocalDateOnly', () => {
   it('returns YYYY-MM-DD in the local timezone for an ISO datetime', () => {
@@ -45,6 +55,15 @@ describe('toLocalDate', () => {
 });
 
 describe('formatDateRange', () => {
+  it.each(['America/Chicago', 'America/New_York'])(
+    'formats date-only Heartland range as local calendar dates in %s',
+    timezone => {
+      process.env.TZ = timezone;
+
+      expect(formatDateRange('2026-08-01', '2026-08-03')).toBe('Aug 1–3, 2026');
+    }
+  );
+
   it('formats same-month range without repeating month', () => {
     expect(formatDateRange('2026-05-15', '2026-05-16', 'short', false)).toBe('May 15–16');
   });

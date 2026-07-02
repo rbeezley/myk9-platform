@@ -24,10 +24,13 @@ export interface PaymentStepProps {
   onAgreementChange?: ((agreed: boolean) => void) | undefined;
   /** Current state of the entry agreement checkbox. */
   agreedToEntryAgreement?: boolean | undefined;
+  /** Updates class selections when a payment-summary line is removed. */
+  onClassSelectionChange?: ((selections: ClassSelectionData[]) => void | Promise<void>) | undefined;
 }
 
 /** A single class entry within a dog's fee breakdown. */
 export interface FeeBreakdownClass {
+  classId: string;
   className: string;
   fee: number;
 }
@@ -59,6 +62,8 @@ export interface FeeCalculationResult {
 /** Props for the RegistrationSummary sub-component. */
 export interface RegistrationSummaryProps {
   feeCalculation: FeeCalculationResult;
+  onRemoveLine?: ((dogId: string, classId: string) => void | Promise<void>) | undefined;
+  removingLineKey?: string | null | undefined;
 }
 
 /** Props for the PaymentMethodSelector sub-component. */
@@ -98,8 +103,7 @@ export interface SecretaryPaymentManagementProps {
 export const PAYMENT_MESSAGES = {
   CARD_CHECKOUT_REDIRECT:
     "You'll be taken to our secure checkout to complete payment. Your entries will be confirmed once payment is processed.",
-  REGISTRATION_CONFIRMATION:
-    'Your registration will be confirmed once payment is received.',
+  REGISTRATION_CONFIRMATION: 'Your registration will be confirmed once payment is received.',
 } as const;
 
 /** Props for the PaymentSummaryCard sub-component. */

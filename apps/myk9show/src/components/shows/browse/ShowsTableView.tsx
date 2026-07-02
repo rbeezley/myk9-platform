@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DataTable } from '@/components/ui/data-table';
 import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
+import { formatShowsTableDateRange } from './ShowsTableView.helpers';
 
 interface ShowsTableViewProps {
   shows: EnhancedShow[];
@@ -46,20 +47,6 @@ function getStatusBadge(status: string) {
   }
 }
 
-function formatDateRange(startDate: string, endDate: string): string {
-  const start = new Date(startDate).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-  });
-  if (startDate === endDate) return start;
-  const end = new Date(endDate).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-  return `${start} - ${end}`;
-}
-
 const DATA_COLUMNS: ColumnDef<EnhancedShow, unknown>[] = [
   {
     accessorKey: 'name',
@@ -85,13 +72,13 @@ const DATA_COLUMNS: ColumnDef<EnhancedShow, unknown>[] = [
       exportHeader: 'Dates',
       exportValue: (show: unknown) => {
         const row = show as EnhancedShow;
-        return row.startDate ? formatDateRange(row.startDate, row.endDate) : '';
+        return row.startDate ? formatShowsTableDateRange(row.startDate, row.endDate) : '';
       },
     },
     cell: ({ row }) => (
       <span className="text-muted-foreground">
         {row.original.startDate
-          ? formatDateRange(row.original.startDate, row.original.endDate)
+          ? formatShowsTableDateRange(row.original.startDate, row.original.endDate)
           : '\u2014'}
       </span>
     ),

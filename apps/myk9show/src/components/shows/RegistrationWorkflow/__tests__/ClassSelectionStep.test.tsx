@@ -76,6 +76,12 @@ describe('ElementCard — wait list badge', () => {
     expect(screen.queryByText('Full: join wait list')).not.toBeInTheDocument();
   });
 
+  it('surfaces already-entered classes with a visible badge', () => {
+    const levels: LevelInfo[] = [{ ...baseLevel, isAlreadyEntered: true }];
+    render(<ElementCard {...defaultProps} levels={levels} />);
+    expect(screen.getByText('Already entered')).toBeInTheDocument();
+  });
+
   it('still allows toggling (checkbox enabled) for a full-but-selectable class', async () => {
     const onToggle = vi.fn();
     const levels: LevelInfo[] = [{ ...baseLevel, isJudgeDayFull: true, waitlistCount: 1 }];
@@ -125,6 +131,20 @@ describe('ElementCard (single-class) — wait list badge', () => {
       />
     );
     expect(screen.queryByText('Full: join wait list')).not.toBeInTheDocument();
+  });
+
+  it('surfaces an already-entered single class with a visible badge', () => {
+    const levels: LevelInfo[] = [{ ...singleClassLevel, isAlreadyEntered: true }];
+    render(
+      <ElementCard
+        element="Detective"
+        levels={levels}
+        fee={10}
+        isSingleClass={true}
+        onToggle={vi.fn()}
+      />
+    );
+    expect(screen.getByText('Already entered')).toBeInTheDocument();
   });
 });
 
@@ -445,8 +465,6 @@ describe('ClassSelectionStep — empty class inventory', () => {
     mockUseAuthContext.mockReturnValue({ isSecretary: true, isAdmin: false, user: null });
     renderStep();
 
-    expect(
-      await screen.findByText(/Add classes in the show management page/i)
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/Add classes in the show management page/i)).toBeInTheDocument();
   });
 });

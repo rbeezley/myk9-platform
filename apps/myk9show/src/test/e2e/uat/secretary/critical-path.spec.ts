@@ -47,7 +47,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     await expect(page.getByRole('button', { name: /^Message Center/ })).toBeVisible();
   });
 
-  test('show creation wizard starts with clear required fields and disabled next state', async ({
+  test('show creation wizard starts with clear required fields and validation feedback', async ({
     page,
   }) => {
     await signInAsSecretary(page, '/secretary/create-show/wizard');
@@ -60,7 +60,10 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     await expect(page.getByText('Entry Period *', { exact: true })).toBeVisible();
     await expect(page.getByText('Location *', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Select a past show to clone' })).toBeVisible();
-    await expect(page.getByRole('button', { name: /^Next$/ })).toBeDisabled();
+    await expect(page.getByText(/\d+ items? remaining/i)).toBeVisible();
+
+    await page.getByRole('button', { name: /^Next$/ }).click();
+    await expect(page.getByRole('alert')).toContainText(/\d+ items? needs? attention/i);
   });
 
   test('mail-in registration can find a non-owned dog and reach class selection', async ({

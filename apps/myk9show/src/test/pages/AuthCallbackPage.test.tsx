@@ -34,6 +34,7 @@ function renderWithRouter(search: string) {
 describe('AuthCallbackPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.sessionStorage.clear();
     mockGetSession.mockResolvedValue({ data: { session: null }, error: null });
     mockOnAuthStateChange.mockReturnValue({
       data: { subscription: { unsubscribe: vi.fn() } },
@@ -83,6 +84,30 @@ describe('AuthCallbackPage', () => {
       await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true }));
     });
 
+    it('redirects to redirectTo when session is already available', async () => {
+      mockGetSession.mockResolvedValue({
+        data: { session: { user: { id: '123' } } },
+        error: null,
+      });
+      renderWithRouter('?redirectTo=%2Fshows%2Fshow-1%2Fregister');
+      await waitFor(() =>
+        expect(mockNavigate).toHaveBeenCalledWith('/shows/show-1/register', { replace: true })
+      );
+    });
+
+    it('uses persisted redirect when OAuth callback has no query params', async () => {
+      window.sessionStorage.setItem('myk9.signIn.redirectTo', '/shows/show-1/register');
+      mockGetSession.mockResolvedValue({
+        data: { session: { user: { id: '123' } } },
+        error: null,
+      });
+      renderWithRouter('');
+      await waitFor(() =>
+        expect(mockNavigate).toHaveBeenCalledWith('/shows/show-1/register', { replace: true })
+      );
+      expect(window.sessionStorage.getItem('myk9.signIn.redirectTo')).toBeNull();
+    });
+
     it('redirects to home when auth state changes to SIGNED_IN', async () => {
       mockOnAuthStateChange.mockImplementation((cb: (event: string, session: unknown) => void) => {
         setTimeout(() => cb('SIGNED_IN', { user: { id: '123' } }), 50);
@@ -90,6 +115,17 @@ describe('AuthCallbackPage', () => {
       });
       renderWithRouter('');
       await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true }));
+    });
+
+    it('redirects auth state changes to redirectTo when provided', async () => {
+      mockOnAuthStateChange.mockImplementation((cb: (event: string, session: unknown) => void) => {
+        setTimeout(() => cb('SIGNED_IN', { user: { id: '123' } }), 50);
+        return { data: { subscription: { unsubscribe: vi.fn() } } };
+      });
+      renderWithRouter('?redirectTo=%2Fshows%2Fshow-1%2Fregister');
+      await waitFor(() =>
+        expect(mockNavigate).toHaveBeenCalledWith('/shows/show-1/register', { replace: true })
+      );
     });
 
     it('shows timeout error when no auth event arrives within 10 seconds', async () => {

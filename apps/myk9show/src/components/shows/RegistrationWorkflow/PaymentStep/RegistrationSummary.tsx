@@ -1,13 +1,18 @@
 import React from 'react';
-import { Tag } from 'lucide-react';
+import { Tag, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import type { RegistrationSummaryProps } from './types';
 
 /**
  * Displays the fee breakdown for each dog and class, discounts, and total due.
  */
-export const RegistrationSummary: React.FC<RegistrationSummaryProps> = ({ feeCalculation }) => {
+export const RegistrationSummary: React.FC<RegistrationSummaryProps> = ({
+  feeCalculation,
+  onRemoveLine,
+  removingLineKey,
+}) => {
   return (
     <Card>
       <CardHeader>
@@ -19,13 +24,29 @@ export const RegistrationSummary: React.FC<RegistrationSummaryProps> = ({ feeCal
             <div key={item.dogId || index}>
               <div className="font-medium text-sm">{item.dogName}</div>
               <div className="ml-4 space-y-1">
-                {item.classes.map((cls, idx) => (
+                {item.classes.map(cls => (
                   <div
-                    key={idx}
-                    className="flex justify-between gap-2 text-sm text-muted-foreground"
+                    key={cls.classId}
+                    className="flex items-center justify-between gap-2 text-sm text-muted-foreground"
                   >
                     <span className="min-w-0 break-words">{cls.className}</span>
-                    <span className="shrink-0">${cls.fee.toFixed(2)}</span>
+                    <span className="flex shrink-0 items-center gap-2">
+                      <span>${cls.fee.toFixed(2)}</span>
+                      {onRemoveLine && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          title={`Remove ${cls.className}`}
+                          aria-label={`Remove ${cls.className}`}
+                          disabled={removingLineKey === `${item.dogId}:${cls.classId}`}
+                          onClick={() => void onRemoveLine(item.dogId, cls.classId)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </span>
                   </div>
                 ))}
               </div>

@@ -156,9 +156,7 @@ export const ElementCard: React.FC<ElementCardProps> = ({
               checked={cls.isSelected || cls.isAlreadyEntered}
               disabled={cls.isAlreadyEntered}
               aria-label={
-                cls.isAlreadyEntered
-                  ? `${element} (already entered)`
-                  : `Select ${element}`
+                cls.isAlreadyEntered ? `${element} (already entered)` : `Select ${element}`
               }
               onCheckedChange={() => !cls.isAlreadyEntered && onToggle(cls.classId)}
             />
@@ -172,7 +170,10 @@ export const ElementCard: React.FC<ElementCardProps> = ({
               <span className="sr-only">Select</span> {element}
             </Label>
             {cls.isAlreadyEntered && (
-              <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+              <Badge variant="secondary" className="h-5 gap-1 text-xs text-success">
+                <CheckCircle2 className="h-3 w-3" />
+                Already entered
+              </Badge>
             )}
             {cls.isJudgeDayFull && !cls.isAlreadyEntered && (
               <WaitlistBadge waitlistCount={cls.waitlistCount} />
@@ -269,6 +270,12 @@ const LevelChip: React.FC<LevelChipProps> = ({
         <span className="text-xs">{displayLabel}</span>
       </label>
       {isJudgeDayFull && !isAlreadyEntered && <WaitlistBadge waitlistCount={waitlistCount} />}
+      {isAlreadyEntered && (
+        <Badge variant="secondary" className="h-5 gap-1 text-xs text-success">
+          <CheckCircle2 className="h-3 w-3" />
+          Already entered
+        </Badge>
+      )}
     </div>
   );
 };

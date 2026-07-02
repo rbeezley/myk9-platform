@@ -42,8 +42,8 @@ test.describe('Secretary Class Creation Workflow', () => {
     await expect(
       page.getByRole('heading', { name: 'AKC Scent Work - Official 2024 Rules' })
     ).toBeVisible();
-    await expect(page.getByText(/\d+ classes/)).toBeVisible();
-    await expect(page.getByText(/\d+ fields/)).toBeVisible();
+    await expect(page.getByText(/\d+ classes/).first()).toBeVisible();
+    await expect(page.getByText(/\d+ fields/).first()).toBeVisible();
   });
 });
 

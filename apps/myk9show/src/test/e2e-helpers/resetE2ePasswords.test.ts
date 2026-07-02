@@ -38,6 +38,7 @@ describe('resolveAccounts', () => {
       role: 'secretary',
       email: 'e2e-secretary@test.myk9.com',
       password: 'secretary-pw',
+      passwordVar: 'E2E_SECRETARY_PASSWORD',
     });
   });
 
@@ -49,12 +50,13 @@ describe('resolveAccounts', () => {
     expect(admin.email).toBe('e2e-admin@test.myk9.com');
   });
 
-  it('falls back to the demo-exhibitor password for clubadmin', () => {
+  it('falls back to the demo-exhibitor password for clubadmin, reporting the real source var', () => {
     const [clubadmin] = resolveAccounts(baseEnv, ['clubadmin']);
     expect(clubadmin).toEqual({
       role: 'clubadmin',
       email: 'e2e-clubadmin@test.myk9.com',
       password: 'exhibitor-pw',
+      passwordVar: 'E2E_DEMO_EXHIBITOR_PASSWORD',
     });
   });
 
@@ -63,6 +65,7 @@ describe('resolveAccounts', () => {
       'clubadmin',
     ]);
     expect(clubadmin.password).toBe('club-pw');
+    expect(clubadmin.passwordVar).toBe('E2E_CLUB_PASSWORD');
   });
 
   it('throws naming the missing env var when a password is absent', () => {

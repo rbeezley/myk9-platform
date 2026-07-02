@@ -13,6 +13,8 @@ export interface E2EAccount {
   role: string;
   email: string;
   password: string;
+  /** GH Actions secret / env-var name this password belongs under. */
+  passwordVar: string;
 }
 
 interface RoleEnvSpec {
@@ -97,9 +99,14 @@ export function resolveAccounts(
     }
 
     const email = env[spec.emailVar] || spec.defaultEmail;
-    const password =
-      env[spec.passwordVar] ||
-      (spec.passwordFallbackVar ? env[spec.passwordFallbackVar] : undefined);
+    // Track which var the password actually came from so secret syncing
+    // writes back to the real source, not an unset alias.
+    let passwordVar = spec.passwordVar;
+    let password = env[spec.passwordVar];
+    if (!password && spec.passwordFallbackVar) {
+      passwordVar = spec.passwordFallbackVar;
+      password = env[spec.passwordFallbackVar];
+    }
 
     if (!password) {
       const sources = [spec.passwordVar, spec.passwordFallbackVar].filter(Boolean).join(' or ');
@@ -108,7 +115,7 @@ export function resolveAccounts(
       );
     }
 
-    accounts.push({ role, email: email.toLowerCase(), password });
+    accounts.push({ role, email: email.toLowerCase(), password, passwordVar });
   }
 
   return accounts;

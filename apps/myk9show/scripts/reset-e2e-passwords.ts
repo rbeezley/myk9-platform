@@ -11,10 +11,17 @@
  * Idempotent: accounts whose password already works are skipped (verified via
  * a real anon-key sign-in), so re-running is always safe and cheap.
  *
+ * `.env.local` is the source of truth: GitHub Actions secrets are write-only
+ * (they can never be read back), so both Supabase Auth and the GH secrets are
+ * consumers pushed to FROM `.env.local`. Pass --sync-github to also overwrite
+ * the E2E_*_PASSWORD repo secrets (via `gh secret set`, value over stdin) so
+ * all three stores align in one command.
+ *
  * Run from apps/myk9show (local only — never CI; the service-role key must
  * not leave this machine):
- *   pnpm reset:e2e-passwords              # all roles
- *   pnpm reset:e2e-passwords -- --dry-run # report drift, write nothing
+ *   pnpm reset:e2e-passwords                  # all roles
+ *   pnpm reset:e2e-passwords -- --dry-run     # report drift, write nothing
+ *   pnpm reset:e2e-passwords -- --sync-github # also push GH Actions secrets
  *   pnpm reset:e2e-passwords -- secretary judge
  *
  * Reads VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY
@@ -22,6 +29,7 @@
  * back to .env.local. Never prints passwords.
  */
 
+import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -56,6 +64,7 @@ function requireVar(env: Record<string, string | undefined>, name: string): stri
 
 const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
+const syncGithub = args.includes('--sync-github');
 const roles = args.filter(arg => !arg.startsWith('--'));
 
 const env = loadEnv();
@@ -88,14 +97,28 @@ async function findUserId(
   return null;
 }
 
+/**
+ * Overwrite a repo secret via `gh secret set`, passing the value over stdin so
+ * it never appears in argv/process listings. GH secrets are write-only, so
+ * "sync" can only ever mean overwrite-from-.env.local.
+ */
+function pushGithubSecret(name: string, value: string): boolean {
+  const result = spawnSync('gh', ['secret', 'set', name], { input: value, encoding: 'utf8' });
+  if (result.status === 0) return true;
+  console.error(`FAILED   gh secret set ${name} — ${result.stderr?.trim() || 'unknown error'}`);
+  return false;
+}
+
 let drifted = 0;
 let failed = 0;
+const verified: E2EAccount[] = [];
 
 for (const account of accounts) {
   const label = `${account.role} (${account.email})`;
 
   if (await passwordWorks(account)) {
     console.log(`OK       ${label} — password already valid, skipped`);
+    verified.push(account);
     continue;
   }
 
@@ -127,9 +150,22 @@ for (const account of accounts) {
 
   if (await passwordWorks(account)) {
     console.log(`RESET    ${label} — password updated and sign-in verified`);
+    verified.push(account);
   } else {
     console.error(`FAILED   ${label} — reset applied but sign-in still rejected`);
     failed += 1;
+  }
+}
+
+if (syncGithub && !dryRun) {
+  // Dedupe by secret name: clubadmin's fallback shares the demo-exhibitor var.
+  const secrets = new Map(verified.map(account => [account.passwordVar, account.password]));
+  for (const [name, value] of secrets) {
+    if (pushGithubSecret(name, value)) {
+      console.log(`SYNCED   GitHub secret ${name}`);
+    } else {
+      failed += 1;
+    }
   }
 }
 

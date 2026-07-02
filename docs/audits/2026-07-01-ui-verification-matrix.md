@@ -7,6 +7,7 @@
 **Scope:** The three UI dimensions the journey walks left unaudited: **light mode** (all prior walks ran dark), **responsive coverage** (systematic 375/768/1280 instead of one spot-check), and **accessibility** (axe-core WCAG 2.1 AA + INTENT guardrails: 44px touch targets, 14px font floor).
 **Method:** 20 key pages × 2 themes × 3 viewports = **120 full-page screenshots**, 40 axe scans (desktop, both themes), runtime checks (horizontal overflow, touch-target sizes, sub-14px text), console-error capture, plus three codebase-wide static sweeps (unlabeled icon buttons via TS-compiler AST, theme-drift color literals, text-size classes). Accounts: `e2e-secretary@` / `e2e-exhibitor@test.myk9.com` on a worktree dev server (port 5199) against the shared dev DB.
 **Companion docs:** flow/UX findings live in [2026-07-01-secretary-journey-ux-audit.md](2026-07-01-secretary-journey-ux-audit.md) and [2026-07-01-show-creation-wizard-ux.md](2026-07-01-show-creation-wizard-ux.md). This report only re-states a journey finding when this pass adds evidence (marked **[confirms journey audit]**).
+**Cross-review:** merged 2026-07-02 with the independent Codex matrix of the same scope (`docs/qa/ui-verification-matrix-audit-2026-07-02.md`, 15 routes × 2 themes × 3 widths, on the `codex-ui-verification-matrix` worktree at time of merge). Codex-sourced findings are marked **[Codex]**; findings both matrices hit independently are marked **[×2]**. Every merged [Codex] claim was re-verified against source in this repo before inclusion. See "Cross-audit consensus" at the end.
 
 ## Calibration caveats — read before acting
 
@@ -56,8 +57,8 @@
 
 | # | Finding | Evidence | Severity |
 | --- | --- | --- | --- |
-| T1 | **Dark-mode status-chip contrast is a token/pattern-level failure**, not per-page: `text-success` on `bg-success/10` chips, "Published" chip keeps light-mode blue text rgb(30,64,175) on a dark navy pill (**≈1.9:1**, needs 4.5), "Pending" chip loses its pill background entirely (amber text bare on card), "Completed" chip near-invisible next to solid "In Progress", level chips (Novice/Advanced/Excellent) lose their pill surfaces while element chips keep theirs, exhibitor "Not Checked In" renders as an un-themed near-white pill | axe dark-contrast on 13 pages; `shows-browse__dark__*`, `entry-management__dark__mobile`, `manage-classes__dark__*`, `my-entries__dark__*` | High |
-| T2 | **Heritage public show page fails contrast in BOTH themes** (16–17 nodes: `hd-nav-cta`, `hd-hero-tag`, `hd-cta`, "Closing in" block) — this is the page exhibitors share publicly | axe both themes, `show-detail-public__*` | High |
+| T1 | **Dark-mode status-chip contrast is a token/pattern-level failure**, not per-page: `text-success` on `bg-success/10` chips, "Published" chip keeps light-mode blue text rgb(30,64,175) on a dark navy pill (**≈1.9:1**, needs 4.5), "Pending" chip loses its pill background entirely (amber text bare on card), "Completed" chip near-invisible next to solid "In Progress", level chips (Novice/Advanced/Excellent) lose their pill surfaces while element chips keep theirs, exhibitor "Not Checked In" renders as an un-themed near-white pill. **[×2] Root cause for the solid-fill half (Codex, verified):** dark accents brighten `--primary` (e.g. clay `#d97757`, index.css:698) for text-on-dark legibility but keep `--primary-foreground: #ffffff` — so every `bg-primary text-primary-foreground` fill (CTAs, armband badge "102", avatar, calendar chip) lands at **≈3.1:1** in dark mode across the app | axe dark-contrast on 13 pages (mine) + Codex's 15-route matrix; `shows-browse__dark__*`, `entry-management__dark__mobile`, `manage-classes__dark__*`, `my-entries__dark__*` | High |
+| T2 | **Heritage public show page fails contrast in BOTH themes** **[×2]** (16–17 nodes: `hd-nav-cta`, `hd-hero-tag`, `hd-cta`, "Closing in" block) — this is the page exhibitors share publicly | axe both themes (both audits), `show-detail-public__*` | High |
 | T3 | Ringside entry list has **more contrast failures in light (4) than dark (1)**, and its light-mode "No Status" chip is white-on-mid-gray ≈2.5–3:1 — below the "readable outdoors" INTENT bar on the tablet surface | axe; `at-show-entries__light__tablet/desktop` | High |
 | T4 | Dark mode: at-show-entries active tab loses its selected-state background (only text color differs) | `at-show-entries__dark__tablet/desktop` | Med |
 | T5 | Light mode: at-show-classes trial headers + judge names are muted gray on cream ≈3.5:1 at small size (outdoor tablet) | `at-show-classes__light__tablet` | Med |
@@ -72,7 +73,7 @@
 
 | # | Finding | Evidence | Severity |
 | --- | --- | --- | --- |
-| R1 | **Public landing overflows at tablet:** page renders 874px wide at a 768px viewport (+106px); the header "Join the waitlist" CTA sits entirely off-viewport (x 783–874); nav labels wrap mid-word onto 2–3 lines. Machine + visual agree | runtime overflow check; `home__*__tablet` | High |
+| R1 | **Public landing overflows at tablet** **[×2]**: page renders 874px wide at a 768px viewport (+106px); the header "Join the waitlist" CTA sits entirely off-viewport (x 783–874); nav labels wrap mid-word onto 2–3 lines. Both audits measured the identical +106px independently. Fix site (Codex): `LandingHeader` / `landing.css` `.l-waitlist-btn` — wrap, hide, or reorder the header band at ≤768px | runtime overflow check (both audits); `home__*__tablet` | High |
 | R2 | **Show title clips mid-word ("Heartlan") at 375px on every workbench page** — shared hero component; "Published" chip clips at the same card edge. **[confirms journey audit]**, now shown systemic (3 pages × 2 themes) | `workbench-setup/show-desk/reports/results-control/submit-results__*__mobile` | High |
 | R3 | **Manage Classes mobile: primary CTA off-screen** — "Add Classes" entirely outside the viewport, "Manage Waitlist" truncated to icon+"M" | `manage-classes__*__mobile` | High |
 | R4 | **Entry Management tablet: table renders Status/Date/action columns beyond the card edge with no scroll affordance**; mobile: per-card "Actions ⋯"→"Actio…", "Email E…" clipped off-screen on rows with refund chips / exhibitor IDs | `entry-management__*__tablet/mobile` | High |
@@ -97,14 +98,16 @@
 
 | # | Finding | Evidence | Severity |
 | --- | --- | --- | --- |
-| A1 | **153 icon-only buttons with no accessible name across 95 files** (of 270 icon-only buttons total — 57%). axe confirms rendered instances: `button-name` **critical** ×8 on Manage Classes **[confirms journey audit]**. The house convention exists (`"Actions for Ranger"`); it's just unapplied in half the app | AST sweep (full list in session artifacts); axe | High |
-| A2 | **Touch targets:** the shared app chrome fails 44px on every page — header logo 103×28, search 144×32, Message Center 36×36, theme toggle 28×32, AskQ 28×32, account 62×40, sidebar rows 39×44 — inflating every page's count (dogs-list literally 24/24). Ringside: **"Actions menu" is 20×20 on entry cards** (INTENT requires 44+, prefers 48 on tablet); "Back to Classes" 40×40 | runtime scan at 768px, all pages | High (chrome + ringside), Med (tables) |
+| A1 | **153 icon-only buttons with no accessible name across 95 files** (of 270 icon-only buttons total — 57%). axe confirms rendered instances: `button-name` **critical** ×8 on Manage Classes **[confirms journey audit]**. The house convention exists (`"Actions for Ranger"`); it's just unapplied in half the app. **[×2]** Codex's independent grep hit the same cluster (TrialDetailsPage prev/next, ClassDetailsPage menu, EntrySyncStatusBar retries, PlacementRecalculationAlert, ClassDefinitionTable…) and adds a nuance this sweep under-weighted: some buttons rely on `title` **alone** (counted as "labeled" here) — `title` is unreliable for screen readers and invisible on touch, so the sweep should prefer `aria-label` even where `title` exists | AST sweep (full list in [appendix](2026-07-01-ui-verification-matrix-appendix-icon-buttons.md)); axe; Codex grep | High |
+| A2 | **Touch targets:** the shared app chrome fails 44px on every page — header logo 103×28, search 144×32, Message Center 36×36, theme toggle 28×32, AskQ 28×32, account 62×40, sidebar rows 39×44 — inflating every page's count (dogs-list literally 24/24). Ringside: **"Actions menu" is 20×20 on entry cards** (INTENT requires 44+, prefers 48 on tablet); "Back to Classes" 40×40. **[×2]** Codex measured the same 28–36px header cluster and names the fix sites: `AppHeader.tsx` + `NotificationBell.tsx` — fix the shared primitives once, not per page | runtime scan at 768px, all pages; Codex DOM metrics | High (chrome + ringside), Med (tables) |
 | A3 | **Sub-14px text is systemic:** 1,660 `text-xs` (12px) across 551 files + 61 `text-[10px]` + 22 `text-[11px]`; runtime check capped out at 60 sub-14px elements on the home page alone. INTENT says "never below 14px for anything." Realistic remedy is a design decision (bump the `text-xs` token to 0.875rem app-wide and triage what breaks), not 1,660 edits | static + runtime | High (decision), effort Med |
-| A4 | `nested-interactive`: [ArmbandLookup.tsx](../../apps/myk9show/src/components/shows/ArmbandLookup.tsx) renders `<form role="button" tabindex="0">` wrapping interactive children — flagged on all 6 workbench tabs; screen-reader/keyboard users get a focusable form-as-button containing its own controls | axe, 6 pages both themes | Med |
-| A5 | `aria-prohibited-attr` ×5: [StatusDot.tsx:25](../../apps/myk9show/src/components/schedule/StatusDot.tsx) puts `aria-label` on a plain `<div>` (needs `role="img"` or sr-only text) | axe, workbench-setup | Low |
+| A4 | `nested-interactive` **[×2]**: [ArmbandLookup.tsx:63](../../apps/myk9show/src/components/shows/ArmbandLookup.tsx) wraps the search `<form>` in `<PopoverTrigger asChild>`, so Base UI stamps `role="button" tabindex="0"` onto a form containing a focusable input — flagged on all 6 workbench tabs. Fix (Codex, agreed): split the submit/search form from the popover-trigger semantics (anchor the results popover to the input instead of making the form the trigger) | axe (both audits), 6 pages both themes | Med |
+| A5 | `aria-prohibited-attr` ×5 **[×2]**: [StatusDot.tsx:25](../../apps/myk9show/src/components/schedule/StatusDot.tsx) puts `aria-label` on a plain `<div>` (needs `role="img"` or sr-only text) | axe (both audits), workbench-setup | Low |
 | A6 | `aria-toggle-field-name` ×3: bulk-select checkboxes on Manage Classes have no label (Base UI `role="checkbox"` spans) | axe | Med |
 | A7 | `aria-progressbar-name` ×2 on Show Desk progress bars | axe | Low |
-| A8 | **`document-title` missing on the public show page** — the page exhibitors share/bookmark has no `<title>` (bad for tabs, history, screen readers, link previews) | axe, `show-detail-public` | Med |
+| A8 | **`document-title` missing on the public show page** **[×2]** — the page exhibitors share/bookmark has no `<title>` (bad for tabs, history, screen readers, link previews) | axe (both audits), `show-detail-public` | Med |
+| A9 | **[Codex, verified] Shared DataTable makes whole rows `role="button"`** — [data-table/index.tsx:460](../../apps/myk9show/src/components/ui/data-table/index.tsx) adds `role="button" tabIndex=0` to `<TableRow>` whenever `onRowClick` is set, wrapping focusable cell controls (checkboxes, kebabs, links). Codex caught it as `nested-interactive` on `/admin/users` (a route this matrix skipped); the component is shared by dogs/clubs/shows/admin tables, so any consumer passing `onRowClick` plus row controls inherits the violation. Fix in the primitive: row-link semantics or an explicit per-row action instead of button-role on the `<tr>` | Codex axe on /admin/users + source verification | High |
+| A10 | **[Codex, verified] Admin users page-size `<select>` has no accessible name** — [UserTable/Pagination.tsx:42](../../apps/myk9show/src/components/admin/users/UserTable/Pagination.tsx) renders a bare `<select>` beside a `<span>Rows</span>` with no label association (axe `select-name`, serious). One-line fix: `aria-label="Rows per page"` | Codex axe on /admin/users + source verification | Med |
 
 ---
 
@@ -152,11 +155,12 @@
 | R8 results-control mobile toggles half-clipped | 2 | Settings unusable at 375 | Low |
 | T2 heritage page contrast both themes + A8 missing `<title>` | 1/3 | Public/sharable page | Low–Med |
 | T3 ringside light-mode contrast ("No Status" chip, 4 axe nodes) | 1 | Outdoor tablet readability | Low |
+| A9 shared DataTable row-as-button wraps focusable controls **[Codex]** | 3 | Invalid semantics on every clickable-row table (admin users confirmed; dogs/clubs/shows tables share the primitive) | Med — fix in `data-table/index.tsx` once |
 | S3/S4/S5 count contradictions + raw enum chips | 4 | Trust erosion (journey audit's C-family, now with 3 more instances) | Low–Med each; shared status-label map |
 
 ### Medium
 
-R5 Armban (all widths), R6 tab-strip clipping (5 surfaces), R7 Copy-Link/Headline overlap, R9 heart/chip overlap, R10–R11 tablet truncations, R13 clubs mobile, R16 toast docking, A4 ArmbandLookup nested-interactive, A6 checkbox names, A8 title, S6 akcDogRegnum + contradictory ready-count, S7 heritage timeline/TBDs, S8 armband "0", S9 doubled trial label + ISO date, S10 data hygiene, T4–T5 theme details, T7 drift register.
+R5 Armban (all widths), R6 tab-strip clipping (5 surfaces), R7 Copy-Link/Headline overlap, R9 heart/chip overlap, R10–R11 tablet truncations, R13 clubs mobile, R16 toast docking, A4 ArmbandLookup nested-interactive, A6 checkbox names, A8 title, A10 page-size select name **[Codex]**, S6 akcDogRegnum + contradictory ready-count, S7 heritage timeline/TBDs, S8 armband "0", S9 doubled trial label + ISO date, S10 data hygiene, T4–T5 theme details, T7 drift register.
 
 ### Low
 
@@ -171,18 +175,32 @@ R12/R14/R15 truncation & nav polish, A5 StatusDot, A7 progressbar names, S11 cos
 5. **`<title>` on public show page** (A8) — one line with the show name.
 6. **Workbench hero: `min-w-0` + truncate with title attr** — fixes R2 across 3 pages.
 7. **Ringside entry-card Actions menu → 44×44** (A2's worst instance) + move heart away from chip (R9).
-8. **Home tablet: collapse nav at ≤ md** — fixes R1 + nav wrap.
+8. **Home tablet: collapse nav at ≤ md** (`.l-waitlist-btn` band in `landing.css`) — fixes R1 + nav wrap. **[×2]**
+9. **`aria-label="Rows per page"` on the admin page-size select** (A10) — one line. **[Codex]**
 
 ### Improvement-plan lanes (proposed)
 
 Sequenced so systemic fixes land before per-page polish (they visually clean up many pages at once):
 
 1. **Lane: shared vocabulary & formatting** *(already Rec #2 of the journey audit — this audit adds 5 more consumers)* — status-label map, shared date formatter, armband placeholder rule.
-2. **Lane: dark-token & chip contrast pass** — index.css dark block + chip components; extend the existing `success-token.test.ts` guard pattern to the warning/info/chip-tint tokens (T1, T3–T5).
-3. **Lane: shared-component responsive fixes** — workbench hero, ArmbandLookup, landing-page card, tab-strip primitive, table-in-card scroll affordance, toast docking, app-header targets (R2–R16, A2-chrome).
-4. **Lane: a11y label sweep** — 153 icon buttons (list in artifacts), checkboxes, progressbars, StatusDot, document titles (A1, A5–A8). Mechanical; suits an unattended sweep.
+2. **Lane: dark-token & chip contrast pass** — index.css dark block + chip components, **starting with the dark `--primary`/`--primary-foreground` pair (≈3.1:1) [×2]**; extend the existing `success-token.test.ts` guard pattern to the primary/warning/info/chip-tint tokens (T1, T3–T5). Codex, agreed: fixing the token pair should collapse the majority of dark axe hits at once.
+3. **Lane: shared-component responsive & semantics fixes** — workbench hero, ArmbandLookup (truncation + popover-trigger semantics in one pass), landing-page card, tab-strip primitive, table-in-card scroll affordance, toast docking, app-header targets (`AppHeader.tsx`/`NotificationBell.tsx` to ≥44px), **DataTable row-as-button pattern (A9)** (R2–R16, A2, A4, A9).
+4. **Lane: a11y label sweep** — 153 icon buttons ([appendix list](2026-07-01-ui-verification-matrix-appendix-icon-buttons.md); prefer `aria-label` over `title`-only), checkboxes, progressbars, StatusDot, page-size select, document titles (A1, A5–A8, A10). Mechanical; suits an unattended sweep.
 5. **Lane: replication UX + read-path reliability** — S1 syncing-vs-empty states; S2 root-cause (with the journey audit's `ringside_update_entry` write-path failure — likely one investigation).
 6. **Then per-page cosmetic polish via the impeccable playbook** (S7, S11, R12–R15 leftovers), after lanes 1–3 land.
+7. **Testing phase (per repo convention; Codex, agreed):** extend `src/styles/__tests__` token-contrast guards to the dark primary/warning/chip tints; add component-level axe tests for `ArmbandLookup`, `StatusDot`, `Pagination`, and the DataTable clickable-row pattern; keep a repeatable slim matrix check (public pages + workbench + admin users, light/dark × 375/768/1280) with a **zero serious/critical axe budget** and a no-sub-44px-chrome assertion — recording pass/fail without committing screenshots.
+
+## Cross-audit consensus (Codex merge, 2026-07-02)
+
+Two independent matrices ran the same brief a day apart (this one: 20 pages, journey-weighted; Codex: 15 routes including 5 this one skipped — `/people`, `/judge/dashboard`, `/admin/dashboard`, `/admin/users`, `/admin/permissions`). The route sets are complementary; together they cover 25 surfaces.
+
+**Independently reproduced [×2]:** home tablet overflow (both measured the identical +106px), dark-mode contrast as a shared-token failure, heritage-page contrast + missing `document-title`, ArmbandLookup `nested-interactive`, StatusDot `aria-prohibited-attr`, sub-44px app-header cluster, and the unlabeled icon-button population (AST sweep here, grep there — overlapping example sets).
+
+**Merged from Codex after source verification:** the dark `--primary`/`--primary-foreground` root cause (T1), the `PopoverTrigger asChild` mechanism + fix for ArmbandLookup (A4), the shared DataTable row-as-button pattern (A9 — Codex saw it on `/admin/users`; the primitive is app-wide), the unlabeled page-size select (A10), `AppHeader`/`NotificationBell` fix sites (A2), the `title`-only labeling nuance (A1), and the testing-phase recommendations (lane 7). Severity note: Codex rated the select-name finding Critical; this doc records it Medium per its rubric (Critical = users cannot complete a core task) — it remains axe-serious and a one-line fix.
+
+**Claude-only (out of Codex's scope, stands as reported):** both Criticals — S1 cold-sync empty/error states (Codex didn't test cold-cache ringside routes) and S2 entries read-path 500s (Codex explicitly did not inspect console/network health) — plus the element-level responsive family (R2–R16: title/CTA/toggle clipping, tab-strip pattern, toast docking; Codex's "responsive mostly good" verdict rests on document-level overflow only, which this audit also found clean), the state/data-integrity family (S3–S11), ringside/tablet INTENT specifics (T3, A2-ringside), and the static theme-drift and text-floor registers (T7, A3).
+
+**Codex-only route results worth carrying:** `/judge/dashboard` and `/secretary/dashboard` were the only fully clean routes in its matrix (no serious/critical axe groups); `/admin/users` is the worst admin surface (`nested-interactive`, `select-name`, contrast); `/people`, `/admin/dashboard`, `/admin/permissions` fail only on the shared contrast tokens — consistent with lane 2 fixing them for free. Codex artifacts: `docs/qa/assets/ui-verification-2026-07-02/` (90 screenshots + matrix JSON, on its branch).
 
 ## Artifacts & reproduction
 

@@ -440,7 +440,6 @@ const ShowDetailsPage: React.FC = () => {
         <ShowExhibitorView
           show={actualCurrentShow}
           breadcrumbs={breadcrumbs}
-          armbandCount={armbandCount}
           catalogEntryCount={catalogEntryCount}
           entryStatus={entryStatus}
           hasUserEntries={hasUserEntries}

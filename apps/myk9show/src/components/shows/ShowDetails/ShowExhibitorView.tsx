@@ -29,7 +29,6 @@ const ENTRY_STATUS_HERO_VARIANT: Record<
 export interface ShowExhibitorViewProps {
   show: Show;
   breadcrumbs: React.ComponentProps<typeof PageHeader>['breadcrumbs'];
-  armbandCount: number | undefined;
   catalogEntryCount: number;
   entryStatus: EntryStatusInfo;
   hasUserEntries: boolean;

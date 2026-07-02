@@ -128,6 +128,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [audits/2026-06-28-overnight-launch-readiness-sweep.md](audits/2026-06-28-overnight-launch-readiness-sweep.md)   | Active    | Overnight Launch-Readiness Sweep   |
 | [audits/2026-07-01-show-creation-wizard-ux.md](audits/2026-07-01-show-creation-wizard-ux.md)                     | Active    | UX Findings — Show Creation Wizard |
 | [audits/2026-07-01-secretary-journey-ux-audit.md](audits/2026-07-01-secretary-journey-ux-audit.md)               | Active    | UX Audit — Secretary Journey Walkthrough |
+| [audits/2026-07-01-ui-verification-matrix.md](audits/2026-07-01-ui-verification-matrix.md)                       | Active    | UI Verification Matrix — Theme × Viewport × A11y (+ [icon-button appendix](audits/2026-07-01-ui-verification-matrix-appendix-icon-buttons.md)) |
 | [audits/2026-06-code-quality/08-config-flag-debt.md](audits/2026-06-code-quality/08-config-flag-debt.md)         | Active    | 08 Config And Flag Debt            |
 | [audits/2026-06-code-quality/09-phase-2-verification.md](audits/2026-06-code-quality/09-phase-2-verification.md) | Active    | 09 Phase 2 Verification            |
 | [audits/2026-06-code-quality/README.md](audits/2026-06-code-quality/README.md)                                   | Reference | Code-Quality Audit Run             |

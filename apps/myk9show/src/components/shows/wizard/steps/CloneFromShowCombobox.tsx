@@ -142,6 +142,7 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
                 className: cls.name,
                 element: cls.element,
                 level: cls.level,
+                section: cls.section,
                 entryFee: cls.entryFee,
               },
               ...(judgeId ? { judgeId } : {}),
@@ -308,6 +309,7 @@ function mapFetchedClassToShowClass(value: Record<string, unknown>): Class {
     entryFee,
     level: optionalString(value.level),
     element: optionalString(value.element),
+    section: optionalString(value.section),
   };
 }
 

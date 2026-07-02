@@ -124,6 +124,7 @@ export const mapDatabaseToShow = (
           maxDogsPerHandler: classObj.max_dogs_per_handler as number | undefined,
           level: classObj.level as string | undefined,
           element: classObj.element as string | undefined,
+          section: classObj.section as string | undefined,
           competitionType: classObj.competition_type as string | undefined,
           breedRestrictions: (classObj.breed_restrictions || []) as string[],
           ageRestrictions: classObj.age_restrictions

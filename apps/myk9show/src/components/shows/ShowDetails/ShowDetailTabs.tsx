@@ -7,7 +7,6 @@ import { TrialsTab, type TrialStats } from '@/components/shows/tabs/TrialsTab';
 import { ClassesTab, type ClassInfo } from '@/components/shows/tabs/ClassesTab';
 import { MyEntriesTab } from '@/components/shows/tabs/MyEntriesTab';
 import { EntriesTab } from '@/components/shows/ShowDetails/EntriesTab';
-import { MyShowStatsTab } from '@/components/analytics/MyShowStatsTab';
 import { ShowResultsTab } from '@/components/results/ShowResultsTab';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -47,7 +46,7 @@ export interface ShowDetailTabsProps {
  * The tabbed body shared by the exhibitor and management surfaces. Which tabs
  * appear is governed entirely by `tabs` + the role flags, exactly as before —
  * the management surface passes `canShowMap`/`canManageShow` true to light up the
- * Show Map, Entries, and My Stats tabs; the exhibitor surface does not.
+ * Show Map and manager Entries tab; the exhibitor surface does not.
  */
 export function ShowDetailTabs({
   show,
@@ -103,12 +102,6 @@ export function ShowDetailTabs({
           ) : (
             <MyEntriesTab showId={show.id} />
           )}
-        </TabsContent>
-      )}
-
-      {isAuthenticated && canManageShow && (
-        <TabsContent value="my-stats">
-          <MyShowStatsTab showId={show.id} />
         </TabsContent>
       )}
 

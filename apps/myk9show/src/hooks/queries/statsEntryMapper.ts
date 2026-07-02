@@ -2,7 +2,7 @@ import type { StatsEntry } from '@/components/analytics/analytics-utils';
 
 /**
  * Maps a raw Supabase row from `view_authenticated_entry_results` to a StatsEntry.
- * Shared across useShowStats, useJudgeShowStats, and useMyShowStats.
+ * Shared across useShowStats and useJudgeShowStats.
  */
 export function mapRowToStatsEntry(
   row: Record<string, unknown>,

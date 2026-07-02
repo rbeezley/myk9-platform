@@ -30,9 +30,6 @@ vi.mock('@/components/shows/tabs/MyEntriesTab', () => ({
 vi.mock('@/components/shows/ShowDetails/EntriesTab', () => ({
   EntriesTab: () => <div data-testid="entries-tab">entries</div>,
 }));
-vi.mock('@/components/analytics/MyShowStatsTab', () => ({
-  MyShowStatsTab: () => <div data-testid="my-stats-tab">my stats</div>,
-}));
 vi.mock('@/components/results/ShowResultsTab', () => ({
   ShowResultsTab: () => <div data-testid="results-tab">results</div>,
 }));
@@ -103,13 +100,6 @@ describe('ShowDetailTabs', () => {
   it('omits the Show Map content when canShowMap is false', () => {
     renderTabs({ activeTab: 'map', canShowMap: false });
     expect(screen.queryByTestId('show-map-tab')).toBeNull();
-  });
-
-  it('gates My Stats behind manager + authenticated', () => {
-    renderTabs({ activeTab: 'my-stats', canManageShow: false, isAuthenticated: true });
-    expect(screen.queryByTestId('my-stats-tab')).toBeNull();
-    renderTabs({ activeTab: 'my-stats', canManageShow: true, isAuthenticated: true });
-    expect(screen.getByTestId('my-stats-tab')).toBeInTheDocument();
   });
 
   it('passes hideRing=true to ClassesTab when a scent-work trial is present', () => {

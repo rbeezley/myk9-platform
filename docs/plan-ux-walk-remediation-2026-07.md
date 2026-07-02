@@ -82,7 +82,7 @@ All seven verdicts final; dependent tasks (1.C, 1.F, 2.C, 2.G, 4.A, 4.H, 5.A) re
 
 ### Tasks
 
-- [ ] **1.A — Dog profile lies about a new entry (E1, X-Critical).** In the dog-profile Activity/results derivation: exclude unscored and future entries from "Recent results" (never render `0:00.00 · NQ` for a dog that hasn't run); make "Upcoming entries" include submitted entries (currently says "No upcoming entries" while one exists). Root: results query has no `is_scored`/date guard + the C2 date-only UTC parse lives in this formatter too.
+- [x] **1.A — Dog profile lies about a new entry (E1, X-Critical).** In the dog-profile Activity/results derivation: exclude unscored and future entries from "Recent results" (never render `0:00.00 · NQ` for a dog that hasn't run); make "Upcoming entries" include submitted entries (currently says "No upcoming entries" while one exists). Root: results query has no `is_scored`/date guard + the C2 date-only UTC parse lives in this formatter too.
   - *Acceptance:* a just-submitted future entry appears under Upcoming with the correct local date; Recent results stays empty until a real score exists.
 - [ ] **1.B — Date off-by-one, minimal fix (C2, S-Critical).** Find the formatter(s) parsing date-only strings as UTC (`new Date('2026-08-01')` pattern) and parse as local calendar dates. Surfaces confirmed wrong: Browse Shows list ("Jul 31 – Aug 2"), dog-profile results ("Fri Jul 31"). Full formatter consolidation is 2.A; this task just makes every current surface agree on the weekend.
   - *Acceptance:* Browse list, show header, dog profile, reports, ringside all render Aug 1–3 for Heartland. Assertion-first test: `formatDateRange('2026-08-01','2026-08-03')` → "Aug 1–3, 2026" in `America/Chicago` and `America/New_York`.

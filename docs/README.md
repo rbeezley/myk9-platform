@@ -42,6 +42,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [ai-ux-adaptation.md](ai-ux-adaptation.md)                                                 | Reference | myK9 Adaptation Notes — "4 AI UX Prompts" Guide                       |
 | [codex-review-playbook.md](codex-review-playbook.md)                                       | Reference | Codex review playbook                                                 |
 | [feature-audit-2026.md](feature-audit-2026.md)                                             | Reference | Feature Audit — Fall 2026                                             |
+| [handoff-ux-walk-remediation-2026-07.md](handoff-ux-walk-remediation-2026-07.md)           | Active    | Handoff — Implementing the UX Walk Remediation Plan                   |
 | [ia-review-entry-status-surfaces.md](ia-review-entry-status-surfaces.md)                   | Active    | IA Review: Entry-Status Surfaces (cross-role)                         |
 | [ia-review-secretary-entry-management.md](ia-review-secretary-entry-management.md)          | Active    | IA Review: Secretary Entry Management (cognitive-load track)          |
 | [improve-audit-2026-06/README.md](improve-audit-2026-06/README.md)                         | Active    | Improve Audit — June 2026 (remaining plans 003–006)                  |

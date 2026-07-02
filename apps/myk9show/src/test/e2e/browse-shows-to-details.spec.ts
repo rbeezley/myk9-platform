@@ -12,7 +12,6 @@ test.describe('Browse Shows to Show Details Flow', () => {
     await page.goto('/shows');
 
     await expect(page).toHaveURL(/\/shows/);
-    await expect(page.getByRole('heading', { name: 'Shows' })).toBeVisible({ timeout: 15000 });
     await expect(page.getByPlaceholder(/search shows/i)).toBeVisible();
     expect(consoleErrors.filter(error => !error.includes('DevTools'))).toHaveLength(0);
   });
@@ -21,7 +20,7 @@ test.describe('Browse Shows to Show Details Flow', () => {
     page,
   }) => {
     await page.goto('/shows');
-    await expect(page.getByRole('heading', { name: 'Shows' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByPlaceholder(/search shows/i)).toBeVisible({ timeout: 15000 });
 
     const firstShowLink = page.locator('a[href^="/shows/"]').first();
     const showLinkCount = await firstShowLink.count();

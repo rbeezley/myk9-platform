@@ -15,11 +15,13 @@
 
 import { useEffect, useState } from 'react';
 import { useOptimisticScoring } from '@/hooks/useOptimisticScoring';
+import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { logger } from '@/services/LoggingService';
+import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
 import { transitionToInRing, transitionToCompleted } from '@/utils/checkInTransitions';
 import { buildResolvedClassRules } from '@myk9/scoring-ui';
 import type { ResolvedClassRules, ScoreData } from '@myk9/scoring-ui';
@@ -48,6 +50,7 @@ export interface UseAtShowScoresheetResult {
   trialNumber: string | undefined;
   isLoading: boolean;
   error: string | null;
+  isInitialSyncPending: boolean;
   submit: (scoreData: ScoreData) => Promise<void>;
   isSyncing: boolean;
   hasSyncError: boolean;
@@ -59,6 +62,13 @@ export function useAtShowScoresheet({
   onScored,
 }: UseAtShowScoresheetOptions): UseAtShowScoresheetResult {
   const { submitScoreOptimistically, isSyncing, hasError: hasSyncError } = useOptimisticScoring();
+  const { status: syncStatus } = useReplicationSync();
+  const isInitialSyncPending = areReplicationTablesPendingFirstSync(syncStatus, [
+    'classes',
+    'entries',
+    'dogs',
+    'trials',
+  ]);
 
   const [entry, setEntry] = useState<ScoringEntry | null>(null);
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
@@ -88,6 +98,11 @@ export function useAtShowScoresheet({
         ]);
         if (cancelled) return;
         if (!cls) {
+          if (isInitialSyncPending) {
+            setError(null);
+            setIsLoading(false);
+            return;
+          }
           setError('Class not found');
           setIsLoading(false);
           return;
@@ -106,6 +121,11 @@ export function useAtShowScoresheet({
 
         const rawEntry = allEntries.find(e => e.id === entryId);
         if (!rawEntry) {
+          if (isInitialSyncPending) {
+            setError(null);
+            setIsLoading(false);
+            return;
+          }
           setError('Entry not found');
           setIsLoading(false);
           return;
@@ -133,7 +153,7 @@ export function useAtShowScoresheet({
     return () => {
       cancelled = true;
     };
-  }, [classId, entryId]);
+  }, [classId, entryId, isInitialSyncPending]);
 
   const submit = async (scoreData: ScoreData) => {
     if (!entry || !classInfo) return;
@@ -162,6 +182,7 @@ export function useAtShowScoresheet({
     trialNumber,
     isLoading,
     error,
+    isInitialSyncPending,
     submit,
     isSyncing,
     hasSyncError,

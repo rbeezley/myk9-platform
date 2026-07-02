@@ -61,8 +61,8 @@ export const AtShowScoresheetPage: React.FC = () => {
           <ShieldAlert className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <p className="text-lg font-medium mb-2">No Scoring Access</p>
           <p className="text-muted-foreground">
-            Your role can view ringside but isn&apos;t allowed to submit scores. Ask the
-            secretary for a judge passcode if you need to score this class.
+            Your role can view ringside but isn&apos;t allowed to submit scores. Ask the secretary
+            for a judge passcode if you need to score this class.
           </p>
           <Button variant="outline" className="mt-4" onClick={handleBack}>
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -97,15 +97,17 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({ classId, entryId,
     trialNumber,
     isLoading,
     error,
+    isInitialSyncPending,
     submit,
     isSyncing,
     hasSyncError,
   } = useAtShowScoresheet({ classId, entryId, onScored: onBack });
 
-  if (isLoading) {
+  if (isLoading || (isInitialSyncPending && (!entry || !classInfo || !rules || error))) {
     return (
-      <div className="ringside-root flex items-center justify-center h-96">
+      <div className="ringside-root flex flex-col items-center justify-center h-96 gap-3 px-4 text-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Loading the scoresheet...</p>
       </div>
     );
   }
@@ -114,7 +116,9 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({ classId, entryId,
     return (
       <div className="ringside-root flex flex-col items-center justify-center h-96 gap-4">
         <AlertCircle className="h-12 w-12 text-destructive" />
-        <p className="text-lg font-medium text-destructive">{error || 'Failed to load scoresheet'}</p>
+        <p className="text-lg font-medium text-destructive">
+          {error || 'Failed to load scoresheet'}
+        </p>
         <Button variant="outline" onClick={onBack}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Entry List

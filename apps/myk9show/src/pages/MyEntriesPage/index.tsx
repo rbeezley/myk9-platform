@@ -13,10 +13,12 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { isPendingEntry, isAcceptedEntry, isWaitlistEntry } from '@/utils/entryPredicates';
 import { isPastShowEntry } from './modules/myEntriesStats.helpers';
 import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
+import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { ShowTodayBanner } from '@/features/show-today/ShowTodayBanner';
 import { CompactStatsRow } from '@/components/exhibitor/CompactStatsRow';
 import { DogStrip } from '@/components/exhibitor/DogStrip';
 import { FirstRunZeroState } from '@/components/exhibitor/FirstRunZeroState';
+import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
 import { AddDogPanel } from '@/components/panels/edit';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { PaymentStatus } from '@/types/show-registration-types';
@@ -77,6 +79,7 @@ import {
 const MyEntriesPage: React.FC = () => {
   const { user, userWithRoles, firstName } = useAuthContext();
   const checkInMutation = useCheckInMutation({ writer: 'self-checkin-rpc' });
+  const { status: syncStatus } = useReplicationSync();
 
   // Data and filters
   const { entries, isLoading, isError, refreshing, refreshEntries, updateEntryCheckIn } =
@@ -165,6 +168,10 @@ const MyEntriesPage: React.FC = () => {
       return counts;
     }, {});
   }, [entries]);
+
+  const isInitialEntriesSyncing =
+    entries.length === 0 &&
+    areReplicationTablesPendingFirstSync(syncStatus, ['entries', 'dogs', 'classes', 'shows']);
 
   const currentFeesHref = useMemo(() => {
     const now = new Date();
@@ -314,7 +321,7 @@ const MyEntriesPage: React.FC = () => {
   }
 
   // Loading state
-  if (isLoading) {
+  if (isLoading || isInitialEntriesSyncing) {
     return (
       <div className="bg-background">
         <div className="container mx-auto px-6 py-6 max-w-7xl">

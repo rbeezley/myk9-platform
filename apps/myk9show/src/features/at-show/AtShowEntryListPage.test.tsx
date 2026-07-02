@@ -17,6 +17,8 @@
 import { Routes, Route } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@/test/utils/testUtils';
+import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 import { AtShowEntryListPage } from './AtShowEntryListPage';
 import { AtShowRoutes } from '@/routes/atShowRoutes';
 import {
@@ -88,11 +90,27 @@ function seedReplication() {
   vi.mocked(replicatedEntriesTable.updateEntry).mockResolvedValue('entry-1');
 }
 
-const renderPage = () =>
+const settledSyncStatus: ReplicationSyncContextValue['status'] = {
+  isSyncing: false,
+  lastSyncAt: new Date('2026-06-01T12:00:00Z'),
+  error: null,
+  tablesStatus: {
+    shows: 'success',
+    trials: 'success',
+    classes: 'success',
+    entries: 'success',
+  },
+};
+
+const renderPage = (syncStatus: ReplicationSyncContextValue['status'] = settledSyncStatus) =>
   render(
-    <Routes>
-      <Route path="/at-show/:showId/class/:classId" element={<AtShowEntryListPage />} />
-    </Routes>,
+    <ReplicationSyncContext.Provider
+      value={{ status: syncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
+    >
+      <Routes>
+        <Route path="/at-show/:showId/class/:classId" element={<AtShowEntryListPage />} />
+      </Routes>
+    </ReplicationSyncContext.Provider>,
     { initialRoute: '/at-show/show-1/class/class-1' }
   );
 
@@ -108,6 +126,19 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     expect(await screen.findByText('Rex')).toBeInTheDocument();
     expect(screen.getByText('Border Collie')).toBeInTheDocument();
     expect(screen.getByText('Jane Handler')).toBeInTheDocument();
+  });
+
+  it('keeps showing loading copy instead of No Entries Yet while first sync is pending', async () => {
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+
+    renderPage({
+      ...settledSyncStatus,
+      isSyncing: true,
+      tablesStatus: { shows: 'success', trials: 'success', classes: 'success', entries: 'syncing' },
+    });
+
+    expect(await screen.findByText('Loading entries...')).toBeInTheDocument();
+    expect(screen.queryByText('No Entries Yet')).not.toBeInTheDocument();
   });
 
   it('writes the in-ring check-in status through the replicated status writer when a pending card is tapped', async () => {

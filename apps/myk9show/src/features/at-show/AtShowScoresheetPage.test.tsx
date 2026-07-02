@@ -14,6 +14,8 @@ import { Routes, Route } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@/test/utils/testUtils';
 import { UserRole } from '@/types/auth-types';
+import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 
 // Effective ringside role drives the scoring gate. Default to a JUDGE (can
 // score) so the happy-path wiring tests render the scoresheet; individual tests
@@ -116,15 +118,31 @@ function seed() {
   } as never);
 }
 
-const renderPage = () =>
+const settledSyncStatus: ReplicationSyncContextValue['status'] = {
+  isSyncing: false,
+  lastSyncAt: new Date('2026-06-01T12:00:00Z'),
+  error: null,
+  tablesStatus: {
+    classes: 'success',
+    entries: 'success',
+    dogs: 'success',
+    trials: 'success',
+  },
+};
+
+const renderPage = (syncStatus: ReplicationSyncContextValue['status'] = settledSyncStatus) =>
   render(
-    <Routes>
-      <Route
-        path="/at-show/:showId/class/:classId/score/:entryId"
-        element={<AtShowScoresheetPage />}
-      />
-      <Route path="/at-show/:showId/class/:classId" element={<div>Entry List</div>} />
-    </Routes>,
+    <ReplicationSyncContext.Provider
+      value={{ status: syncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
+    >
+      <Routes>
+        <Route
+          path="/at-show/:showId/class/:classId/score/:entryId"
+          element={<AtShowScoresheetPage />}
+        />
+        <Route path="/at-show/:showId/class/:classId" element={<div>Entry List</div>} />
+      </Routes>
+    </ReplicationSyncContext.Provider>,
     { initialRoute: '/at-show/show-1/class/class-1/score/entry-1' }
   );
 
@@ -143,6 +161,19 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     renderPage();
     expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
     expect(screen.getByText('Live scoresheet for #105')).toBeInTheDocument();
+  });
+
+  it('shows syncing copy instead of Class not found while first sync is pending', async () => {
+    vi.mocked(replicatedClassesTable.getClassById).mockResolvedValue(null as never);
+
+    renderPage({
+      ...settledSyncStatus,
+      isSyncing: true,
+      tablesStatus: { classes: 'syncing', entries: 'idle', dogs: 'idle', trials: 'idle' },
+    });
+
+    expect(await screen.findByText('Loading the scoresheet...')).toBeInTheDocument();
+    expect(screen.queryByText('Class not found')).not.toBeInTheDocument();
   });
 
   it('submits the score via submitScoreOptimistically with the entry identity', async () => {

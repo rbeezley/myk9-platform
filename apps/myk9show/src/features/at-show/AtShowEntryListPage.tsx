@@ -41,6 +41,8 @@ import {
   type RingsideShowContext,
 } from '@myk9/ringside';
 import { replicatedShowsTable } from '@/services/replication';
+import { useReplicationSync } from '@/hooks/useReplicationSync';
+import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
 import { buildRingsideContextValue, buildRingsideReplication } from './ringsideCapabilities';
 import { persistEntryRunOrder } from './persistEntryRunOrder';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
@@ -58,6 +60,7 @@ import { useAtShowRealtimeRefresh } from './useAtShowRealtimeRefresh';
 export const AtShowEntryListPage: React.FC = () => {
   const { showId, classId } = useParams<{ showId: string; classId: string }>();
   const navigate = useNavigate();
+  const { status: syncStatus } = useReplicationSync();
 
   // ── Role + permissions ────────────────────────────────────────────────
   // Account RBAC → primary ShowRole → ringside's 4-role enum, with a Phase 1c
@@ -130,6 +133,13 @@ export const AtShowEntryListPage: React.FC = () => {
     refresh,
     writer: ringsideRole === 'exhibitor' ? 'self-checkin-rpc' : 'replicated',
   });
+  const isInitialEntryDataSyncing =
+    entries.length === 0 &&
+    areReplicationTablesPendingFirstSync(syncStatus, ['shows', 'trials', 'classes', 'entries']);
+  const pageActions = useMemo(
+    () => ({ ...actions, isSyncing: actions.isSyncing || isInitialEntryDataSyncing }),
+    [actions, isInitialEntryDataSyncing]
+  );
 
   // ── Realtime: scoring/check-in changes elsewhere re-sync this list ─────
   useAtShowRealtimeRefresh(showId, refresh);
@@ -236,11 +246,17 @@ export const AtShowEntryListPage: React.FC = () => {
   const { hasCompletedInitialLoad } = uiState;
   const { setHasCompletedInitialLoad, setIsLoaded } = uiActions;
   useEffect(() => {
-    if (!isRefreshing && !hasCompletedInitialLoad) {
+    if (!isRefreshing && !isInitialEntryDataSyncing && !hasCompletedInitialLoad) {
       setHasCompletedInitialLoad(true);
       setIsLoaded(true);
     }
-  }, [isRefreshing, hasCompletedInitialLoad, setHasCompletedInitialLoad, setIsLoaded]);
+  }, [
+    isRefreshing,
+    isInitialEntryDataSyncing,
+    hasCompletedInitialLoad,
+    setHasCompletedInitialLoad,
+    setIsLoaded,
+  ]);
 
   // ── Ownership annotations (own-dog highlight + dogs-ahead pills) ────────
   // Built from the same `localEntries` array the page renders, so the pill
@@ -270,7 +286,7 @@ export const AtShowEntryListPage: React.FC = () => {
           data={{ entries, classInfo }}
           dataStatus={{ isRefreshing, fetchError, refresh }}
           handlers={handlers}
-          actions={actions}
+          actions={pageActions}
           uiState={uiState}
           uiActions={uiActions}
           derived={{

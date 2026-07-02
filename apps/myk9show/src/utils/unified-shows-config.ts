@@ -139,7 +139,7 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
   if (accessibleTabs.includes('entries')) {
     tabs.push({
       id: 'entries',
-      label: 'My Shows',
+      label: 'Entered as exhibitor',
       icon: ClipboardList,
       description: 'Your shows, entries, and dogs',
       getCount: (shows, entries, userId) => {

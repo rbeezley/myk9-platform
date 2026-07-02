@@ -21,6 +21,7 @@ interface StatusDotProps {
 export function StatusDot({ status, className }: StatusDotProps) {
   return (
     <div
+      role="status"
       className={cn('h-2.5 w-2.5 flex-shrink-0 rounded-full', STATUS_DOT_COLORS[status], className)}
       aria-label={`Status: ${status}`}
     />

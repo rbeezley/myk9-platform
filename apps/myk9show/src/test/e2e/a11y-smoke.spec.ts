@@ -55,6 +55,10 @@ const AUTHED_PAGES = [
 
 const BLOCKING_IMPACTS = ['serious', 'critical'];
 
+test.beforeEach(async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+});
+
 /**
  * Wait for the SPA shell to render before scanning the DOM.
  *

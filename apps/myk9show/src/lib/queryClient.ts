@@ -191,7 +191,6 @@ export const queryKeys = {
     ['show-day', 'ring-progress', userId, classIds] as const,
 
   // Exhibitor Analytics
-  myShowStats: (showId: string) => ['analytics', 'show', showId] as const,
   myLifetimeStats: () => ['analytics', 'lifetime'] as const,
 
   // Public Show & Judge Analytics

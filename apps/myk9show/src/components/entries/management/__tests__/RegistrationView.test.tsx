@@ -141,7 +141,7 @@ describe('RegistrationView filter content routing', () => {
     expect(screen.getByTestId('enrollment-card')).toBeInTheDocument();
   });
 
-  // Move-ups / pulled are no longer rendered here — Phase C moved those queues
-  // onto the dedicated Exceptions tab (see ExceptionsView). RegistrationView now
-  // only ever renders the entry list (table or cards).
+  // Move-ups / pulled are no longer rendered here. EntryManagementPage promotes
+  // those queues to dedicated top-level tabs, so RegistrationView only ever
+  // renders the entry list (table or cards).
 });

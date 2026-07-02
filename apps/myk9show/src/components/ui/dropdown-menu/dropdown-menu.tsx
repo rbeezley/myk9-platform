@@ -5,7 +5,11 @@ import { Check, ChevronRight, Circle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getNativeButtonProp } from '@/components/ui/base-ui-native-button';
 
-const DropdownMenu = MenuPrimitive.Root;
+type DropdownMenuProps = React.ComponentProps<typeof MenuPrimitive.Root>;
+
+function DropdownMenu({ modal = false, ...props }: DropdownMenuProps) {
+  return <MenuPrimitive.Root modal={modal} {...props} />;
+}
 
 interface DropdownMenuTriggerProps extends React.ComponentPropsWithoutRef<
   typeof MenuPrimitive.Trigger

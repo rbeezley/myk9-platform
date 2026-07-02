@@ -16,7 +16,7 @@ export function ProgressCell({ node }: { node: ShowMapNode }) {
   return (
     <div className="min-w-[150px]">
       <div className="mb-1 text-xs text-muted-foreground">{node.progress.label}</div>
-      <Progress value={value} className="h-1.5" />
+      <Progress value={value} className="h-1.5" aria-label={`${node.label} progress: ${value}%`} />
     </div>
   );
 }
@@ -37,8 +37,7 @@ export function ClassPrimaryActionButton({
   progressPercent: number | undefined;
   onNavigate: ((href: string) => void) | undefined;
   onAction:
-    | ((action: ShowMapAction, execution: ExecutableShowMapActionExecution) => void)
-    | undefined;
+    ((action: ShowMapAction, execution: ExecutableShowMapActionExecution) => void) | undefined;
 }) {
   const execution = resolveShowMapActionExecution(action);
   if (execution.kind === 'disabled') return null;
@@ -83,9 +82,7 @@ export function StatusCell({
         </Badge>
       )}
       {node.checkInStatus && <Badge variant="outline">{node.checkInStatus.label}</Badge>}
-      {attentionCount > 0 && (
-        <Badge variant="outline">{attentionCount} need attention</Badge>
-      )}
+      {attentionCount > 0 && <Badge variant="outline">{attentionCount} need attention</Badge>}
       {!node.status &&
         !node.wrapUpStatus &&
         !node.checkInStatus &&

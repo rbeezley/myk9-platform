@@ -42,6 +42,7 @@ export const Pagination: React.FC<PaginationProps> = ({
             <select
               value={pageSize}
               onChange={e => onPageSizeChange(Number(e.target.value))}
+              aria-label="Rows per page"
               className="h-8 px-2 rounded-lg border border-border/50 bg-background/50 text-foreground
                          text-sm font-[590] cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20"
             >
@@ -83,6 +84,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           disabled={currentPage === 1}
           className={paginationButtonClass}
           title="First page"
+          aria-label="Go to first page"
         >
           <ChevronsLeft className="h-4 w-4" />
         </Button>
@@ -95,6 +97,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           disabled={currentPage === 1}
           className={paginationButtonClass}
           title="Previous page"
+          aria-label="Go to previous page"
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
@@ -127,6 +130,7 @@ export const Pagination: React.FC<PaginationProps> = ({
                 }`}
                 onClick={() => onPageChange(pageNum)}
                 title={`Page ${pageNum}`}
+                aria-label={`Go to page ${pageNum}`}
               >
                 {pageNum}
               </Button>
@@ -142,6 +146,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           disabled={currentPage === totalPages}
           className={paginationButtonClass}
           title="Next page"
+          aria-label="Go to next page"
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
@@ -154,6 +159,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           disabled={currentPage === totalPages}
           className={paginationButtonClass}
           title="Last page"
+          aria-label="Go to last page"
         >
           <ChevronsRight className="h-4 w-4" />
         </Button>

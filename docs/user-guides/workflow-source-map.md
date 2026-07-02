@@ -70,8 +70,8 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 ### 6. Check in on show day
 
 **Outcome:** Exhibitor marks themselves present for a class.
-**Canonical route:** `/at-show` (permanent "Ringside" sidebar entry, all roles) **or** `/at-show/:showId` (via ShowTodayBanner on `/exhibitor/entries`) → `/exhibitor/check-in/:entryId`
-**Note:** Two entry points as of #948 — a permanent "Ringside" sidebar link to bare `/at-show` (resolves the live show at the destination via `RingsideEntryPage`), plus the context-aware ShowTodayBanner on My Shows that appears only on show day. As of #949/#950, exhibitor self-check-in is gated on a secretary toggle and routed through the `self_checkin_entry` RPC — guides must not promise self-check-in unconditionally.
+**Canonical route:** `/at-show` (permanent **Show day** sidebar entry for exhibitor-only users; **Ringside** for staff roles) **or** `/at-show/:showId` (via ShowTodayBanner on `/exhibitor/entries`) → `/exhibitor/check-in/:entryId`
+**Note:** Re-verified 2026-07-02 for #1088. The bare `/at-show` link resolves the live show at the destination via `RingsideEntryPage`; exhibitor-only navigation labels it **Show day** so the guide should not instruct exhibitors to look for **Ringside** in the sidebar. Staff roles still see **Ringside**. The context-aware ShowTodayBanner on My Shows appears only on show day. As of #949/#950, exhibitor self-check-in is gated on a secretary toggle and routed through the `self_checkin_entry` RPC — guides must not promise self-check-in unconditionally.
 **Docs target:** Exhibitor Guide § Show Day, KB: `check-in.md`
 
 ### 7. View results
@@ -102,7 +102,8 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 ### 11. View personal analytics
 
 **Outcome:** Exhibitor sees their career stats, Qs, and title progress.
-**Canonical route:** `/exhibitor/analytics`
+**Canonical route:** `/exhibitor/analytics` (dedicated analytics page; no sidebar shortcut as of #1088)
+**Note:** Re-verified 2026-07-02 for #1088. The sidebar **My Stats** shortcut and in-show `my-stats` tab path were removed; the analytics page itself remains reachable from dog activity/show-action links.
 **Docs target:** Exhibitor Guide § Stats (lower priority for initial guides)
 
 ---

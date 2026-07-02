@@ -26,6 +26,7 @@ export interface ListControlsProps {
   resultsTotal: number;
   filtered?: boolean;
   entityName: string;
+  hideViewToggle?: boolean;
 
   className?: string;
 }
@@ -56,6 +57,7 @@ export function ListControls({
   resultsTotal,
   filtered = false,
   entityName,
+  hideViewToggle = false,
   className,
 }: ListControlsProps) {
   return (
@@ -78,12 +80,14 @@ export function ListControls({
           <FilterChips filters={filters} values={filterValues} onChange={onFilterChange} />
         )}
 
-        <ViewToggle
-          modes={viewModes}
-          active={viewMode}
-          onChange={onViewModeChange}
-          className="self-end sm:ml-auto sm:self-auto"
-        />
+        {!hideViewToggle && (
+          <ViewToggle
+            modes={viewModes}
+            active={viewMode}
+            onChange={onViewModeChange}
+            className="self-end sm:ml-auto sm:self-auto"
+          />
+        )}
       </div>
 
       <ResultsCount

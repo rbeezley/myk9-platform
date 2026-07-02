@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import { Navigate, useLocation, useParams } from 'react-router-dom';
-import { ShieldAlert } from 'lucide-react';
+import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
+import { ArrowLeft, KeyRound, ShieldAlert } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { LoadingEmptyState } from '@/components/common/EmptyState';
 import { UserRole } from '@/types/auth-types';
@@ -70,6 +70,22 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
           Enter the passcode your secretary gave you, or ask the secretary for the right show
           access.
         </p>
+        <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
+          <Link
+            to="/at-show?passcode=1"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <KeyRound className="h-4 w-4" aria-hidden />
+            Enter passcode
+          </Link>
+          <Link
+            to="/"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-input px-4 text-sm font-medium text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            Back to dashboard
+          </Link>
+        </div>
       </div>
     </FullScreen>
   );

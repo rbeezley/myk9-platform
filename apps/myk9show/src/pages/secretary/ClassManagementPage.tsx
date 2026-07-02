@@ -28,7 +28,6 @@ import {
   Plus,
   Search,
   Filter,
-  Edit,
   Trash2,
   Play,
   Pause,
@@ -197,6 +196,9 @@ export const ClassManagementPage: React.FC = () => {
   };
 
   const trialDisplayName = trial?.name || (trialId ? 'Trial' : 'No trial selected');
+  const waitlistHref = showId
+    ? `/shows/${showId}/entry-management?tab=waitlist${trialId ? `&trial=${trialId}` : ''}`
+    : '/secretary/entries?tab=waitlist';
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">
@@ -213,10 +215,7 @@ export const ClassManagementPage: React.FC = () => {
         </div>
 
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => startTransition(() => navigate('/secretary/waitlist'))}
-          >
+          <Button variant="outline" onClick={() => startTransition(() => navigate(waitlistHref))}>
             <ListOrdered className="h-4 w-4 mr-2" />
             Manage Waitlist
           </Button>
@@ -405,6 +404,7 @@ export const ClassManagementPage: React.FC = () => {
                       <Checkbox
                         checked={selectedClasses.includes(cls.id)}
                         onCheckedChange={() => toggleClassSelection(cls.id)}
+                        aria-label={`Select ${cls.name || 'Untitled Class'}`}
                       />
 
                       <div className="flex-1 grid grid-cols-1 md:grid-cols-7 gap-4 items-center">
@@ -461,21 +461,19 @@ export const ClassManagementPage: React.FC = () => {
                         </div>
 
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="sm">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                aria-label={`More actions for ${cls.name || 'Untitled Class'}`}
+                              >
                                 <MoreVertical className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem
-                                onClick={() =>
-                                  startTransition(() => navigate('/secretary/waitlist'))
-                                }
+                                onClick={() => startTransition(() => navigate(waitlistHref))}
                               >
                                 <ListOrdered className="h-4 w-4 mr-2" />
                                 View Waitlist

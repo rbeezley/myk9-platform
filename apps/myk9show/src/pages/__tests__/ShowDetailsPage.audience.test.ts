@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  resolveShowAudience,
-  type ShowAudienceInput,
-} from '../ShowDetailsPage.audience';
+import { resolveShowAudience, type ShowAudienceInput } from '../ShowDetailsPage.audience';
 
 // Baseline: an anonymous visitor on the canonical /shows/:id route with no
 // entries. Each test overrides only the fields it exercises.
@@ -28,6 +25,12 @@ describe('resolveShowAudience', () => {
     expect(resolveShowAudience(input({ isSecretary: true }))).toBe('management');
   });
 
+  it('public preview forces the public landing on the canonical route', () => {
+    expect(resolveShowAudience(input({ isSecretary: true, forcePublicPreview: true }))).toBe(
+      'public'
+    );
+  });
+
   it('an admin sees the management shell', () => {
     expect(resolveShowAudience(input({ isAdmin: true }))).toBe('management');
   });
@@ -39,15 +42,15 @@ describe('resolveShowAudience', () => {
   });
 
   it('an entered exhibitor (authenticated, has entries) sees the exhibitor view', () => {
-    expect(
-      resolveShowAudience(input({ isAuthenticated: true, hasUserEntries: true }))
-    ).toBe('exhibitor');
+    expect(resolveShowAudience(input({ isAuthenticated: true, hasUserEntries: true }))).toBe(
+      'exhibitor'
+    );
   });
 
   it('an authenticated visitor with entries still loading is held as pending', () => {
-    expect(
-      resolveShowAudience(input({ isAuthenticated: true, userEntriesLoading: true }))
-    ).toBe('pending');
+    expect(resolveShowAudience(input({ isAuthenticated: true, userEntriesLoading: true }))).toBe(
+      'pending'
+    );
   });
 
   it('does NOT hold an anonymous visitor as pending even while loading', () => {
@@ -71,9 +74,9 @@ describe('resolveShowAudience', () => {
   });
 
   it('a management-section URL for a secretary resolves to management', () => {
-    expect(
-      resolveShowAudience(input({ isManagementSection: true, isSecretary: true }))
-    ).toBe('management');
+    expect(resolveShowAudience(input({ isManagementSection: true, isSecretary: true }))).toBe(
+      'management'
+    );
   });
 
   it('pending takes precedence over the public landing while entries load', () => {

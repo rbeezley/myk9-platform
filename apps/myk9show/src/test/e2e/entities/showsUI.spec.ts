@@ -47,7 +47,7 @@ test.describe('Shows UI — Browse (secretary)', () => {
     }
 
     // Tabs
-    for (const tab of ['Managing', 'Browse All', 'Past Shows', 'My Shows']) {
+    for (const tab of ['Managing', 'Browse All', 'Past Shows', 'Entered as exhibitor']) {
       await expect(page.getByRole('tab', { name: new RegExp(`^${tab}`) })).toBeVisible();
     }
   });

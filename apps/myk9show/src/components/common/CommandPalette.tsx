@@ -7,8 +7,10 @@ import { useNavigate } from 'react-router-dom';
 import { useDogStore } from '@/store/dogStore';
 import { useUserStore } from '@/store/userStore';
 import { useShowStore } from '@/store/showStore';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRecentSearches } from '@/hooks/useRecentSearches';
 import { getDogDisplayName } from '@/types/dog-types';
+import { PERMISSIONS, UserRole } from '@/types/auth-types';
 
 interface CommandPaletteProps {
   open: boolean;
@@ -47,12 +49,21 @@ function ShortcutBadge({ keys }: { keys: string }) {
 export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const [search, setSearch] = useState('');
   const navigate = useNavigate();
+  const { userWithRoles, hasPermission } = useAuthContext();
 
   const { addSearch, getSuggestions } = useRecentSearches({ context: 'command-palette' });
 
   const dogs = useDogStore(state => state.dogs);
   const people = useUserStore(state => state.people);
   const shows = useShowStore(state => state.shows);
+  const roles = userWithRoles?.roles ?? [];
+  const canManageUsers =
+    hasPermission(PERMISSIONS.USER_CREATE) || roles.includes(UserRole.SITE_ADMIN);
+  const canCreateShows = hasPermission(PERMISSIONS.SHOW_CREATE);
+  const canBrowsePeople =
+    hasPermission(PERMISSIONS.USER_READ) ||
+    roles.includes(UserRole.SECRETARY) ||
+    roles.includes(UserRole.SITE_ADMIN);
 
   // Clear search when dialog closes
   const [wasOpen, setWasOpen] = useState(open);
@@ -125,6 +136,11 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
     [navigate, onOpenChange]
   );
 
+  const visibleNavigationCommands = useMemo(
+    () => navigationCommands.filter(command => command.id !== 'nav-people' || canBrowsePeople),
+    [canBrowsePeople, navigationCommands]
+  );
+
   // Build all data commands from full dataset, then let cmdk filter + we slice display
   const allDataCommands: CommandAction[] = useMemo(() => {
     const commands: CommandAction[] = [];
@@ -147,21 +163,23 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
       });
     }
 
-    for (const person of people) {
-      const name = `${person.firstName} ${person.lastName}`;
-      commands.push({
-        id: `person-${person.id}`,
-        title: name,
-        subtitle: 'Go to person profile',
-        icon: <Users className="h-4 w-4" />,
-        action: () =>
-          startTransition(() => {
-            navigate(`/people/${person.id}`);
-            onOpenChange(false);
-          }),
-        keywords: [person.firstName, person.lastName, name],
-        category: 'data',
-      });
+    if (canBrowsePeople) {
+      for (const person of people) {
+        const name = `${person.firstName} ${person.lastName}`;
+        commands.push({
+          id: `person-${person.id}`,
+          title: name,
+          subtitle: 'Go to person profile',
+          icon: <Users className="h-4 w-4" />,
+          action: () =>
+            startTransition(() => {
+              navigate(`/people/${person.id}`);
+              onOpenChange(false);
+            }),
+          keywords: [person.firstName, person.lastName, name],
+          category: 'data',
+        });
+      }
     }
 
     for (const show of shows) {
@@ -181,7 +199,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
     }
 
     return commands;
-  }, [dogs, people, shows, navigate, onOpenChange]);
+  }, [canBrowsePeople, dogs, people, shows, navigate, onOpenChange]);
 
   // When searching, filter data commands client-side and take top results.
   // cmdk also filters, but we limit the rendered count for performance.
@@ -203,8 +221,8 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
     return scored.slice(0, MAX_DATA_RESULTS).map(s => s.cmd);
   }, [allDataCommands, search]);
 
-  const actionCommands: CommandAction[] = useMemo(
-    () => [
+  const actionCommands: CommandAction[] = useMemo(() => {
+    const commands: CommandAction[] = [
       {
         id: 'add-dog',
         title: 'Add New Dog',
@@ -215,10 +233,13 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             onOpenChange(false);
           }),
         keywords: ['add', 'new', 'create', 'dog'],
-        category: 'actions' as const,
+        category: 'actions',
         shortcut: 'C D',
       },
-      {
+    ];
+
+    if (canManageUsers) {
+      commands.push({
         id: 'add-person',
         title: 'Add New User',
         icon: <Plus className="h-4 w-4" />,
@@ -228,10 +249,13 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             onOpenChange(false);
           }),
         keywords: ['add', 'new', 'create', 'person', 'contact'],
-        category: 'actions' as const,
+        category: 'actions',
         shortcut: 'C P',
-      },
-      {
+      });
+    }
+
+    if (canCreateShows) {
+      commands.push({
         id: 'add-show',
         title: 'Add New Show',
         icon: <Plus className="h-4 w-4" />,
@@ -241,16 +265,17 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             onOpenChange(false);
           }),
         keywords: ['add', 'new', 'create', 'show', 'event'],
-        category: 'actions' as const,
+        category: 'actions',
         shortcut: 'C S',
-      },
-    ],
-    [navigate, onOpenChange]
-  );
+      });
+    }
+
+    return commands;
+  }, [canCreateShows, canManageUsers, navigate, onOpenChange]);
 
   const allCommands = useMemo(
-    () => [...navigationCommands, ...dataCommands, ...actionCommands],
-    [navigationCommands, dataCommands, actionCommands]
+    () => [...visibleNavigationCommands, ...dataCommands, ...actionCommands],
+    [visibleNavigationCommands, dataCommands, actionCommands]
   );
 
   const handleSelect = (commandId: string) => {
@@ -312,7 +337,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
             {/* Navigation */}
             <Command.Group heading="Navigation" className={groupHeadingClass}>
-              {navigationCommands.map(command => (
+              {visibleNavigationCommands.map(command => (
                 <Command.Item
                   key={command.id}
                   value={`${command.title} ${command.subtitle} ${command.keywords?.join(' ')}`}

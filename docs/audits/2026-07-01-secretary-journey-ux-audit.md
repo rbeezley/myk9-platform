@@ -289,9 +289,9 @@
 5. **Answer "what's blocking me?" before showing settings or exports** (Codex's framing, adopted here): a readiness summary at the top of Results & Check-In and Submit Results turns closeout from a guessing game into a checklist — the same pattern the Setup tab's readiness chips already establish.
 6. **Root-cause the reproducible ringside write failure** — two independent walks queued a failing `ringside_update_entry` by tapping an entry card as secretary. Fix the trigger (or the write path), not just the toast copy.
 
-### Where the two audits diverge (unmerged)
+### Cross-audit consensus
 
-Codex reported "no hard blocker"; this audit keeps three Criticals (fix-it chip dead ends ×2, show-date drift) because the Codex walk did not exercise the draft-show readiness chips or compare dates across surfaces. Conversely, findings marked **[Codex]** above were not independently reproduced here (my harness couldn't open the relevant menus/sheets) — they are merged on the strength of Codex's live observation plus plausibility against the codebase, and the overlay-interception bug in particular should be reproduced before fixing.
+Initially the audits diverged on severity: Codex's walk reported "no hard blocker" because it did not exercise the draft-show readiness chips or compare dates across surfaces. On cross-review (2026-07-01), **Codex accepted this audit's Criticals and Claude-only findings** — fix-it chip dead ends, cross-surface date drift, pending-count mismatch, Manage Classes shell break/dead affordances, "Judge: TBD" on reports, and the ringside exit gap — and confirmed the merged **[Codex]** items match its direct browser observations. The two audits are now in consensus; every Critical/High finding is either independently reproduced (**[×2]**) or endorsed by both auditors. One caveat remains: **[Codex]**-tagged interaction bugs (notably the row-menu overlay interception) rest on a single live observation each and should be reproduced during fix triage.
 
 ---
 

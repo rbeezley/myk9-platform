@@ -176,6 +176,15 @@ describe('normalizeClassStatus', () => {
     expect(normalizeClassStatus('Complete')).toBe(CLASS_STATUS.COMPLETED);
   });
 
+  it('should normalize the classes_status_check DB spellings', () => {
+    // Migration 138: 'upcoming' | 'setup' | 'in_progress' | 'completed' | 'cancelled'
+    expect(normalizeClassStatus('in_progress')).toBe(CLASS_STATUS.IN_PROGRESS);
+    expect(normalizeClassStatus('setup')).toBe(CLASS_STATUS.SCHEDULED);
+    expect(normalizeClassStatus('completed')).toBe(CLASS_STATUS.COMPLETED);
+    expect(normalizeClassStatus('upcoming')).toBe(CLASS_STATUS.UPCOMING);
+    expect(normalizeClassStatus('cancelled')).toBe(CLASS_STATUS.CANCELLED);
+  });
+
   it('should return Scheduled for unknown status', () => {
     expect(normalizeClassStatus('Unknown')).toBe(CLASS_STATUS.SCHEDULED);
   });

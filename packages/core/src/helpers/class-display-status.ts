@@ -1,3 +1,5 @@
+import { CLASS_STATUS, normalizeClassStatus } from '../constants/class-status';
+
 export type ClassDisplayStatus = 'not-started' | 'in-progress' | 'completed';
 
 /**
@@ -43,13 +45,18 @@ export interface ClassDisplayStatusInput {
 }
 
 export function getClassDisplayStatus(input: ClassDisplayStatusInput): ClassDisplayStatus {
+  // Rows reach this helper with either the display spellings ('Completed') or
+  // the raw classes_status_check spellings ('completed' / 'in_progress' /
+  // 'setup'); normalize once so both hit the checks below.
+  const status = input.status ? normalizeClassStatus(input.status) : undefined;
+
   // Priority 1: Finalized flag
   if (input.is_scoring_finalized === true) {
     return 'completed';
   }
 
   // Priority 2: Canonical status
-  if (input.status === 'Completed') {
+  if (status === CLASS_STATUS.COMPLETED) {
     return 'completed';
   }
 
@@ -59,7 +66,7 @@ export function getClassDisplayStatus(input: ClassDisplayStatusInput): ClassDisp
   }
 
   // Priority 4: In Progress status or active scoring
-  if (input.status === 'In Progress') {
+  if (status === CLASS_STATUS.IN_PROGRESS) {
     return 'in-progress';
   }
 

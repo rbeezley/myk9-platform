@@ -160,10 +160,13 @@ export const LEGACY_STATUS_MAP: Record<string, ClassStatusValue> = {
   accepting_entries: CLASS_STATUS.UPCOMING,
   closed: CLASS_STATUS.UPCOMING,
   unpublished: CLASS_STATUS.SCHEDULED,
+  setup: CLASS_STATUS.SCHEDULED,
 
   // Variations of In Progress
   'In Progress': CLASS_STATUS.IN_PROGRESS,
   'in progress': CLASS_STATUS.IN_PROGRESS,
+  // classes_status_check (migration 138) stores this spelling
+  in_progress: CLASS_STATUS.IN_PROGRESS,
   InProgress: CLASS_STATUS.IN_PROGRESS,
   inProgress: CLASS_STATUS.IN_PROGRESS,
 

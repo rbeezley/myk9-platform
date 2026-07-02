@@ -65,3 +65,20 @@ describe('deriveTrialCompositeStatus', () => {
     expect(result.label).toBe('In progress — 0 of 1 class complete');
   });
 });
+
+describe('deriveTrialCompositeStatus — DB status spellings', () => {
+  it('asserts needsWrapUp for classes carrying the raw DB completed spelling', () => {
+    const dbCompleted = { status: 'completed', entry_count: 5, scored_count: 0 };
+    const result = deriveTrialCompositeStatus([dbCompleted, dbCompleted]);
+    expect(result.kind).toBe('completed');
+    expect(result.needsWrapUp).toBe(true);
+  });
+
+  it('composes the in-progress line from raw DB spellings', () => {
+    const result = deriveTrialCompositeStatus([
+      { status: 'completed', entry_count: 5, scored_count: 0 },
+      { status: 'in_progress', entry_count: 5, scored_count: 0 },
+    ]);
+    expect(result.label).toBe('In progress — 1 of 2 classes complete');
+  });
+});

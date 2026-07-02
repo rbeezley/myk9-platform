@@ -128,3 +128,25 @@ describe('shouldShowClassLifecycleChips', () => {
     expect(shouldShowClassLifecycleChips(undefined)).toBe(true);
   });
 });
+
+describe('getClassDisplayStatus — DB status spellings (classes_status_check)', () => {
+  // Migration 138 constraint: 'upcoming' | 'setup' | 'in_progress' | 'completed' | 'cancelled'.
+  // Replicated rows reach this helper with those raw spellings.
+  it('recognizes a DB-backed completed class with no scored counts', () => {
+    expect(getClassDisplayStatus({ status: 'completed', entry_count: 5, scored_count: 0 })).toBe(
+      'completed'
+    );
+  });
+
+  it('recognizes a DB-backed in_progress class with no scoring activity', () => {
+    expect(getClassDisplayStatus({ status: 'in_progress', entry_count: 5, scored_count: 0 })).toBe(
+      'in-progress'
+    );
+  });
+
+  it('treats a setup-status class as not started', () => {
+    expect(getClassDisplayStatus({ status: 'setup', entry_count: 5, scored_count: 0 })).toBe(
+      'not-started'
+    );
+  });
+});

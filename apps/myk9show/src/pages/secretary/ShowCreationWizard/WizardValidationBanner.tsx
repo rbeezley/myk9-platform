@@ -36,7 +36,7 @@ export const WizardValidationBanner: React.FC<WizardValidationBannerProps> = ({
       <div className="flex items-center gap-3">
         <AlertTriangle className="h-4 w-4 text-warning flex-shrink-0" />
         <span className="text-sm font-medium text-warning">
-          {messages.length} required field
+          {messages.length} item
           {messages.length !== 1 ? 's' : ''} need
           {messages.length === 1 ? 's' : ''} attention
         </span>

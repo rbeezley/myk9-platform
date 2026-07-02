@@ -88,4 +88,47 @@ describe('WizardNavigation', () => {
       expect(backButton).toBeDisabled();
     });
   });
+
+  describe('remainingIssueCount hint', () => {
+    it('renders a pluralized hint when issues remain', () => {
+      render(<WizardNavigation {...defaultProps} remainingIssueCount={3} />);
+      expect(screen.getByText('3 items remaining')).toBeInTheDocument();
+    });
+
+    it('renders a singular hint when exactly one issue remains', () => {
+      render(<WizardNavigation {...defaultProps} remainingIssueCount={1} />);
+      expect(screen.getByText('1 item remaining')).toBeInTheDocument();
+    });
+
+    it('renders no hint when no issues remain', () => {
+      render(<WizardNavigation {...defaultProps} remainingIssueCount={0} />);
+      expect(screen.queryByText(/remaining/i)).not.toBeInTheDocument();
+    });
+
+    it('renders no hint when the prop is omitted', () => {
+      render(<WizardNavigation {...defaultProps} />);
+      expect(screen.queryByText(/remaining/i)).not.toBeInTheDocument();
+    });
+
+    it('hides the hint while loading', () => {
+      render(<WizardNavigation {...defaultProps} isLoading={true} remainingIssueCount={3} />);
+      expect(screen.queryByText(/remaining/i)).not.toBeInTheDocument();
+    });
+
+    it('keeps Next clickable while issues remain (feedback, not a dead-end)', () => {
+      // The page passes canGoNext independent of validation so the click can
+      // surface the validation banner instead of the button sitting disabled.
+      const onNext = vi.fn();
+      render(
+        <WizardNavigation
+          {...defaultProps}
+          canGoNext={true}
+          remainingIssueCount={3}
+          onNext={onNext}
+        />
+      );
+      const nextButton = screen.getByText('Next').closest('button');
+      expect(nextButton).not.toBeDisabled();
+    });
+  });
 });

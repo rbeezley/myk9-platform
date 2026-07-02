@@ -44,6 +44,11 @@ const ShowCreationWizardPage: React.FC = () => {
   const [hasAttemptedNext, setHasAttemptedNext] = useState(false);
   const [createdShow, setCreatedShow] = useState<CreatedShow | null>(null);
   const stepContentRef = useRef<HTMLDivElement>(null);
+  const validationBannerRef = useRef<HTMLDivElement>(null);
+  // Set by a failed Next click so the effect below scrolls the banner into
+  // view once it has mounted. A ref (not state) keeps this a one-shot signal
+  // that doesn't re-fire as the secretary fixes fields.
+  const pendingBannerScrollRef = useRef(false);
 
   const editModeInitializedRef = useRef<string | null>(null);
 
@@ -225,14 +230,38 @@ const ShowCreationWizardPage: React.FC = () => {
     }
   }, [currentStep, setCurrentStep, handleClose]);
 
+  // Scroll the validation banner into view. scrollIntoView is a no-op stub in
+  // jsdom, hence the typeof guard. Stable identity so handleNext/the effect can
+  // depend on it.
+  const scrollBannerIntoView = useCallback(() => {
+    const el = validationBannerRef.current;
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, []);
+
   const handleNext = useCallback(async () => {
     setHasAttemptedNext(true);
 
     // Check validation before allowing navigation
     const messages = getValidationMessagesForStep(currentStep, show, trials);
     if (messages.length > 0) {
-      // Validation failed — show the banner but don't navigate
+      // Validation failed — surface the banner, expand it, and scroll it into
+      // view. Next stays enabled (see canGoNext) so this click actually fires
+      // instead of the button sitting disabled with no explanation.
       setValidationExpanded(true);
+      if (validationBannerRef.current) {
+        // Banner already mounted (a repeat failed click) — scroll now. We can't
+        // rely on the post-render effect here: setState above is a no-op when
+        // the values are unchanged, so React may skip the re-render entirely.
+        scrollBannerIntoView();
+      } else {
+        // First failed attempt — the banner mounts on the render this click
+        // triggers. Defer the scroll to the effect below, which fires once it's
+        // in the DOM. (Not left set on the repeat path, so no stray delayed
+        // scroll during later field edits.)
+        pendingBannerScrollRef.current = true;
+      }
       return;
     }
 
@@ -251,7 +280,7 @@ const ShowCreationWizardPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentStep, markStepCompleted, setCurrentStep, show, trials]);
+  }, [currentStep, markStepCompleted, setCurrentStep, show, trials, scrollBannerIntoView]);
 
   // Step navigation validation
   const canGoBack = !isLoading;
@@ -259,9 +288,25 @@ const ShowCreationWizardPage: React.FC = () => {
   // Get validation messages for current step
   const validationMessages = getValidationMessagesForStep(currentStep, show, trials);
 
-  // Enable Next when validation passes (decoupled from completedSteps to prevent
-  // auto-advance caused by markStepCompleted side effects during re-renders)
-  const canGoNext = !isLoading && validationMessages.length === 0;
+  // Keep Next clickable whenever we're not mid-submit. It is deliberately NOT
+  // gated on validation: a disabled Next just sits there doing nothing when the
+  // step is incomplete (the secretary clicks and is left guessing). Now the
+  // click always fires handleNext, which either advances or surfaces the
+  // validation banner + inline "N items remaining" hint. Decoupled from
+  // completedSteps to avoid auto-advance from markStepCompleted side effects
+  // during re-renders.
+  const canGoNext = !isLoading;
+
+  // First-mount scroll: on the first failed Next the banner mounts on the
+  // triggered render, so handleNext defers the scroll here. Guarded by the ref
+  // flag so it fires exactly once per first-attempt, not on every re-render as
+  // fields are corrected. Repeat clicks scroll synchronously in handleNext.
+  useEffect(() => {
+    if (pendingBannerScrollRef.current && validationBannerRef.current) {
+      pendingBannerScrollRef.current = false;
+      scrollBannerIntoView();
+    }
+  });
 
   // Wizard state is reset explicitly on cancel (handleConfirmClose) or
   // successful creation (saveShow). No unmount cleanup needed — the Zustand
@@ -326,13 +371,16 @@ const ShowCreationWizardPage: React.FC = () => {
               step cards are the single lifting card layer, never card-in-card. */}
           <div className="relative flex min-h-[560px] flex-col overflow-hidden rounded-2xl border border-border bg-background sm:min-h-[700px]">
 
-            {/* Collapsible Validation Banner — only shown after user clicks Next */}
+            {/* Collapsible Validation Banner — only shown after user clicks Next.
+                Wrapped so handleNext can scroll it into view on a failed attempt. */}
             {hasAttemptedNext && validationMessages.length > 0 && (
-              <WizardValidationBanner
-                messages={validationMessages}
-                expanded={validationExpanded}
-                onToggle={() => setValidationExpanded(!validationExpanded)}
-              />
+              <div ref={validationBannerRef}>
+                <WizardValidationBanner
+                  messages={validationMessages}
+                  expanded={validationExpanded}
+                  onToggle={() => setValidationExpanded(!validationExpanded)}
+                />
+              </div>
             )}
 
             {/* Step Content with Transition */}
@@ -371,6 +419,7 @@ const ShowCreationWizardPage: React.FC = () => {
                   onNext={handleNext}
                   onSaveDraft={isDirty ? handleSaveProgress : undefined}
                   isLoading={isLoading}
+                  remainingIssueCount={validationMessages.length}
                 />
               </div>
             )}

@@ -97,7 +97,6 @@ Cross-cutting principle that informs every other todo in this section. Secretari
 
 From live walk-throughs during the multi-registry Phase 4 verification. Full detail + calibration caveats in [docs/audits/2026-07-01-show-creation-wizard-ux.md](docs/audits/2026-07-01-show-creation-wizard-ux.md).
 
-- [ ] **"Next" fails silently on Step 1 (P1)** — Clicking Next with required fields unset (Show Dates, Entry Period, Chairman) does nothing visible — no scroll-to-error, no summary. Add a "N required fields remaining" affordance and/or scroll-to-first-error. Pairs with the long Step-1 scroll (blocking field sits below the fold). See audit §Findings.2–3.
 - [ ] **Step-1 density: group, don't split (P2)** — Group within Step 1, don't split it into more wizard steps — visual sections with headings: Basics (name, org, location) · Dates & Entry · Fees & Payments · Officials. Collapse rarely-touched fields (armband start, premium style) behind their defaults. This cuts cognitive load without adding a single click (grouping lowers per-screen load without raising navigation cost; more steps trades one for the other). Only promote **Officials** to its own step if chairman friction persists after the picker fix. Land AFTER #1070 (clone-into-wizard) and #1071 (org dropdown) settle, since both edit this surface; check `docs/INTENT.md` for the secretary's target feeling first.
 
 ---

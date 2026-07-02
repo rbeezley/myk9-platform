@@ -15,6 +15,18 @@ interface WizardNavigationProps {
   nextLabel?: string | undefined;
   backLabel?: string | undefined;
   className?: string | undefined;
+  /**
+   * Count of still-unresolved validation issues on the current step — missing
+   * fields, but also date-ordering errors and "at least one trial/class" rules.
+   * When > 0 an inline "N items remaining" hint renders beneath the Next button
+   * so the secretary sees *why* they can't advance without having to click and
+   * guess. "Items" — not "fields" — because the count is not always
+   * field-shaped (a filled-out step can still have a date-order error). Leaving
+   * Next enabled (see `canGoNext` at the call site) means the click still fires
+   * and surfaces the full validation banner. Defaults to 0 (no hint) so other
+   * wizards that reuse this component are unaffected.
+   */
+  remainingIssueCount?: number | undefined;
 }
 
 export const WizardNavigation: React.FC<WizardNavigationProps> = ({
@@ -29,6 +41,7 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
   nextLabel,
   backLabel,
   className,
+  remainingIssueCount = 0,
 }) => {
   const isLastStep = currentStep === totalSteps - 1;
   const defaultNextLabel = isLastStep ? 'Create Show' : 'Next';
@@ -70,9 +83,13 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
         </div>
       </div>
 
-      {/* Right side - Next/Create button. Enabled/disabled state alone signals
-          readiness; no decorative glow (DESIGN.md: motion is purposeful, not decorative). */}
-      <div className="relative">
+      {/* Right side - Next/Create button with an inline readiness hint beneath
+          it. Next stays clickable when the step is incomplete (the click
+          surfaces the validation banner instead of failing silently); the hint
+          tells the secretary how many items still need attention before they
+          click. No decorative glow (DESIGN.md: motion is purposeful, not
+          decorative). */}
+      <div className="flex flex-col items-end gap-1.5">
         <Button
           onClick={onNext}
           disabled={!canGoNext || isLoading}
@@ -90,6 +107,11 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
             </>
           )}
         </Button>
+        {!isLoading && remainingIssueCount > 0 && (
+          <p role="status" className="text-xs text-muted-foreground">
+            {remainingIssueCount} item{remainingIssueCount === 1 ? '' : 's'} remaining
+          </p>
+        )}
       </div>
     </div>
   );

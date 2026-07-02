@@ -209,11 +209,9 @@ jobs:
         run: pnpm --filter @myk9/show budget:check
 
   # Focused accessibility smoke — runs ONLY the axe-core a11y spec against a
-  # built preview, not the full (still-disabled) e2e suite. Enforces the
-  # color-contrast + serious/critical gate the spec defines. GHA minutes are
-  # free post-public-repo, so this is safe to run per-PR. Authenticated role
-  # landings inside the spec self-skip when test-user creds are absent, so this
-  # job gates the public-page contrast surface without needing those secrets.
+  # built preview, not the full (still-disabled) e2e suite. This job touches the
+  # shared Supabase project when authenticated role checks run, so keep it
+  # opt-in via the MYK9SHOW_SMOKE_CI_ENABLED repository variable.
   #
   # To make this a *required* check, add "A11y smoke" to the main branch ruleset
   # (GitHub settings — not editable from the repo).
@@ -222,7 +220,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: build
-    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    if: (github.event_name == 'push' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true'
 
     steps:
       - uses: actions/checkout@v7
@@ -285,15 +283,15 @@ jobs:
           retention-days: 7
 
   # PR Smoke E2E — 2 stable specs (connectivity + secretary regression proof).
-  # Re-enabled 2026-06-18 (Lane 3.2): repo went public 2026-05-18 so GHA
-  # minutes are free. Nightly Active suite (20 specs) runs on a separate schedule.
-  # playwright.ci.config.ts scopes testMatch to PR Smoke specs only.
+  # This exercises the shared Supabase project, so it is opt-in via the
+  # MYK9SHOW_SMOKE_CI_ENABLED repository variable to prevent auth failures or
+  # bad local loops from consuming project resources.
   e2e-myk9show:
     name: E2E PR Smoke
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: build
-    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    if: (github.event_name == 'push' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true'
 
     steps:
       - uses: actions/checkout@v7

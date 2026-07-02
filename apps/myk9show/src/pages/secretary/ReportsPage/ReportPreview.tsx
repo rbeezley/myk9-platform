@@ -6,6 +6,7 @@ import { getReportById } from '@/lib/reports/reportRegistry';
 import type { ReportProps } from '@/lib/reports/types';
 import type { DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
+import { formatDateRange } from '@/utils/date-format';
 import { buildTrialReportProps, mapReportEntries, mapReportTrialFields } from './reportDataMapping';
 import { getReportRenderingMode } from './reportRenderingMode';
 
@@ -138,7 +139,7 @@ export function ReportPreview({
 
       const showDates =
         show.startDate && show.endDate && show.startDate !== show.endDate
-          ? `${show.startDate} – ${show.endDate}`
+          ? formatDateRange(show.startDate, show.endDate, 'short', true)
           : (show.startDate ?? undefined);
 
       const props: ReportProps = {

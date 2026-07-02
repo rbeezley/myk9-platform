@@ -180,6 +180,8 @@ R12/R14/R15 truncation & nav polish, A5 StatusDot, A7 progressbar names, S11 cos
 
 ### Improvement-plan lanes (proposed)
 
+> **Absorbed 2026-07-02:** these lanes are now tracked as tasks in [`docs/plan-ux-walk-remediation-2026-07.md`](../plan-ux-walk-remediation-2026-07.md) — lane 1 → Phase 2, lane 2 → 3.G, lane 3 → 3.H, lane 4 → 3.E, lane 5 → 0.G/1.G, lane 6 → 5.D/5.E, lane 7 → Phase 3 testing + 6.B. Execute from the plan, not this list.
+
 Sequenced so systemic fixes land before per-page polish (they visually clean up many pages at once):
 
 1. **Lane: shared vocabulary & formatting** *(already Rec #2 of the journey audit — this audit adds 5 more consumers)* — status-label map, shared date formatter, armband placeholder rule.

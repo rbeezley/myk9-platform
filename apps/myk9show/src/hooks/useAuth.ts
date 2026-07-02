@@ -221,11 +221,16 @@ export function useAuth() {
    * Signs in a user with Google OAuth
    * @throws {AuthError} If OAuth initiation fails
    */
-  const signInWithGoogle = useCallback(async () => {
+  const signInWithGoogle = useCallback(async (redirectTo?: string) => {
+    const callbackUrl = new URL('/auth/callback', window.location.origin);
+    if (redirectTo) {
+      callbackUrl.searchParams.set('redirectTo', redirectTo);
+    }
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: callbackUrl.toString(),
       },
     });
     if (error) throw error;

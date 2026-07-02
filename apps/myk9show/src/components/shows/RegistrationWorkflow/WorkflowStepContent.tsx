@@ -286,16 +286,17 @@ export function WorkflowStepContent({
             registrationId={registrationId}
             agreedToEntryAgreement={agreedToEntryAgreement}
             onAgreementChange={onAgreementChange}
+            onClassSelectionChange={onClassSelectionChange}
           />
         </PaymentErrorBoundary>
       )}
 
       {currentStepId === 'confirmation' &&
-        (styledReceipt && styledReceiptProps
-          ? STYLED_RECEIPT_BY_STYLE[styledReceipt.style](styledReceiptProps, {
-              brandColor: styledReceipt.brandColor,
-            })
-          : (
+        (styledReceipt && styledReceiptProps ? (
+          STYLED_RECEIPT_BY_STYLE[styledReceipt.style](styledReceiptProps, {
+            brandColor: styledReceipt.brandColor,
+          })
+        ) : (
           <ConfirmationStep
             registrationNumber={registrationNumber}
             registrationId={registrationId}

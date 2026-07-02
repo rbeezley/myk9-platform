@@ -5,7 +5,9 @@ import { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useShowStore } from '@/store/showStore';
+import { useCartItems, useCartStore } from '@/store/cartStore';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
+import { toast } from 'sonner';
 import { calculateTotalFees } from './utils';
 import { RegistrationSummary } from './RegistrationSummary';
 import { PaymentMethodSelector } from './PaymentMethodSelector';
@@ -14,6 +16,7 @@ import { PaymentSummaryCard } from './PaymentSummaryCard';
 import { EntryAgreementSection } from './EntryAgreementSection';
 import { PAYMENT_MESSAGES } from './types';
 import type { PaymentStepProps } from './types';
+import { removeClassFromSelections } from '../ClassSelectionStep.helpers';
 
 /**
  * Top-level PaymentStep component that composes the sub-components for
@@ -32,6 +35,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   onAgreementChange,
   agreedToEntryAgreement = false,
   showId,
+  onClassSelectionChange,
 }) => {
   const { dogs } = useDogStoreCompat();
   const { classes = [] } = useClassStoreCompat();
@@ -43,6 +47,9 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   const isOnBehalf = isSecretary || isClubAdmin || isSiteAdmin;
 
   const show = showId ? shows.find(s => s.id === showId) : undefined;
+  const cartItems = useCartItems();
+  const removeItem = useCartStore(state => state.removeItem);
+  const [removingLineKey, setRemovingLineKey] = useState<string | null>(null);
 
   const acceptedMethods = {
     check: show?.acceptCheckPayments ?? true,
@@ -60,6 +67,26 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
 
   const feeCalculation = calculateTotalFees(selectedDogs, classSelections, dogs, classes, show);
 
+  const handleRemoveSummaryLine = async (dogId: string, classId: string) => {
+    if (!onClassSelectionChange) return;
+
+    const lineKey = `${dogId}:${classId}`;
+    setRemovingLineKey(lineKey);
+    try {
+      const cartItem = cartItems.find(item => item.dog_id === dogId && item.class_id === classId);
+      if (cartItem) {
+        const success = await removeItem(cartItem.id);
+        if (!success) {
+          toast.error('Failed to remove from cart');
+          return;
+        }
+      }
+      await onClassSelectionChange(removeClassFromSelections(classSelections, dogId, classId));
+    } finally {
+      setRemovingLineKey(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="mb-4">
@@ -70,7 +97,11 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
       </div>
 
       {/* Fee Summary */}
-      <RegistrationSummary feeCalculation={feeCalculation} />
+      <RegistrationSummary
+        feeCalculation={feeCalculation}
+        onRemoveLine={onClassSelectionChange ? handleRemoveSummaryLine : undefined}
+        removingLineKey={removingLineKey}
+      />
 
       {/* Payment Method Selection */}
       <PaymentMethodSelector

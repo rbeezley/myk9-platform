@@ -114,6 +114,7 @@ export function calculateTotalFees(
       const dogClasses = dogSelections.selectedClasses.map(sc => {
         const classData = classes.find(c => c.id === sc.classId);
         return {
+          classId: sc.classId,
           className: classData?.className || 'Unknown Class',
           fee: getShowEntryFee(show, classData?.entryFee),
         };

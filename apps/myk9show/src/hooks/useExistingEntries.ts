@@ -1,5 +1,7 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useShowRegistrationStore } from '@/store/showRegistrationStore';
+import { supabase } from '@/lib/supabase';
+import { logger } from '@/services/LoggingService';
 
 interface ExistingEntry {
   dogId: string;
@@ -7,10 +9,70 @@ interface ExistingEntry {
   registrationId: string;
   status: string;
   entryStatus?: string;
+  paymentStatus?: string;
+}
+
+interface ExistingEntryRow {
+  id: string;
+  dog_id: string | null;
+  class_id: string | null;
+  registration_id: string | null;
+  entry_status: string | null;
+  payment_status: string | null;
 }
 
 export function useExistingEntries(showId: string) {
   const allRegistrations = useShowRegistrationStore(state => state.registrations);
+  const [serverEntries, setServerEntries] = useState<ExistingEntry[]>([]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadServerEntries = async () => {
+      if (!showId) {
+        setServerEntries([]);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('entries')
+        .select('id, dog_id, class_id, registration_id, entry_status, payment_status')
+        .eq('show_id', showId)
+        .is('deleted_at', null);
+
+      if (!isActive) return;
+
+      if (error) {
+        logger.warn(
+          'Error loading existing entries for class selection',
+          'registration',
+          { showId },
+          error
+        );
+        setServerEntries([]);
+        return;
+      }
+
+      setServerEntries(
+        ((data || []) as ExistingEntryRow[])
+          .filter(entry => entry.dog_id && entry.class_id)
+          .map(entry => ({
+            dogId: entry.dog_id!,
+            classId: entry.class_id!,
+            registrationId: entry.registration_id ?? entry.id,
+            status: entry.entry_status ?? 'submitted',
+            ...(entry.entry_status !== null && { entryStatus: entry.entry_status }),
+            ...(entry.payment_status !== null && { paymentStatus: entry.payment_status }),
+          }))
+      );
+    };
+
+    void loadServerEntries();
+
+    return () => {
+      isActive = false;
+    };
+  }, [showId]);
 
   const existingEntries = useMemo(() => {
     const registrations = allRegistrations.filter(r => r.showId === showId);
@@ -34,8 +96,17 @@ export function useExistingEntries(showId: string) {
       });
     });
 
+    const keys = new Set(entries.map(entry => `${entry.dogId}:${entry.classId}`));
+    for (const entry of serverEntries) {
+      const key = `${entry.dogId}:${entry.classId}`;
+      if (!keys.has(key)) {
+        entries.push(entry);
+        keys.add(key);
+      }
+    }
+
     return entries;
-  }, [showId, allRegistrations]);
+  }, [showId, allRegistrations, serverEntries]);
 
   const checkIfDogEnteredInClass = (dogId: string, classId: string): boolean => {
     return existingEntries.some(entry => entry.dogId === dogId && entry.classId === classId);

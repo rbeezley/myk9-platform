@@ -13,7 +13,7 @@
  */
 
 import React, { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { LoadingEmptyState } from '@/components/common/EmptyState';
 import SmartSignInPage from '@/pages/SmartSignInPage';
@@ -25,12 +25,13 @@ function FullScreen({ children }: { children: React.ReactNode }) {
 }
 
 const RingsideEntryPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const { user, loading: authLoading } = useAuthContext();
   const entry = useRingsideEntryShows();
-  const [showPasscode, setShowPasscode] = useState(false);
+  const [showPasscode, setShowPasscode] = useState(() => searchParams.get('passcode') === '1');
 
   // Explicit passcode path, or an anonymous visitor → the shared front door.
-  if (showPasscode) return <SmartSignInPage />;
+  if (showPasscode) return <SmartSignInPage passcodeOnly />;
   if (authLoading) {
     return (
       <FullScreen>

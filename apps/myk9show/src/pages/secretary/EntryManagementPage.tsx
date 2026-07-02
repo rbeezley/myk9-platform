@@ -27,13 +27,15 @@ import {
   TrialRosterView,
   TrialScopeBar,
   RegistrationView,
-  ExceptionsView,
 } from '@/components/entries/management';
+import { MoveUpRequestsTab } from '@/components/entries/MoveUpRequestsTab';
+import { PullManagementTab } from '@/components/entries/PullManagementTab';
 import { groupEntriesByEnrollment, type EnrollmentGroup } from '@/utils/enrollmentGrouping';
 
 const PAGE_TABS: PrimaryTabDef[] = [
   { id: 'entries', label: 'Entries' },
-  { id: 'exceptions', label: 'Exceptions' },
+  { id: 'move-ups', label: 'Move-ups' },
+  { id: 'pulls', label: 'Pulls' },
   { id: 'waitlist', label: 'Waitlist' },
 ];
 
@@ -46,16 +48,31 @@ const EntryManagementPage: React.FC = () => {
   const params = useParams<{ showId?: string; id?: string }>();
   const urlShowId = params.showId ?? params.id;
   const navigate = useNavigate();
-  const [activePageTab] = useUrlTab(['entries', 'exceptions', 'waitlist'] as const, 'entries');
+  const [activePageTab] = useUrlTab(
+    ['entries', 'move-ups', 'pulls', 'waitlist'] as const,
+    'entries'
+  );
   const [searchParams, setSearchParams] = useSearchParams();
   // Read the trial param directly so the trial's class list can be fetched
   // before useEntryManagementFilters (which consumes the class ids to filter the
   // entry list in place).
   const trialParam = searchParams.get('trial');
 
+  useEffect(() => {
+    if (searchParams.get('tab') !== 'exceptions') return;
+    setSearchParams(
+      prev => {
+        const next = new URLSearchParams(prev);
+        next.set('tab', prev.get('queue') === 'pulled' ? 'pulls' : 'move-ups');
+        next.delete('queue');
+        return next;
+      },
+      { replace: true }
+    );
+  }, [searchParams, setSearchParams]);
+
   // Leaving Entries resets the entry drill-down (trial/class/roster) so a later
-  // return doesn't re-enter scoring/roster unexpectedly; `queue` only survives
-  // while the Exceptions tab is active.
+  // return doesn't re-enter scoring/roster unexpectedly.
   const handlePageTabChange = (tab: string) => {
     setSearchParams(
       prev => {
@@ -68,7 +85,7 @@ const EntryManagementPage: React.FC = () => {
           next.delete('trial');
           next.delete('class');
           next.delete('roster');
-          if (tab !== 'exceptions') next.delete('queue');
+          next.delete('queue');
         }
         return next;
       },
@@ -263,7 +280,7 @@ const EntryManagementPage: React.FC = () => {
         </Alert>
       )}
 
-      {/* Page-level tabs: Entries | Exceptions | Waitlist */}
+      {/* Page-level tabs: Entries | Move-ups | Pulls | Waitlist */}
       <PrimaryTabs tabs={PAGE_TABS} value={activePageTab} onValueChange={handlePageTabChange}>
         <TabsContent value="entries">
           {/* No Show Selected — kept as loading guard while useEntryManagementData resolves the show */}
@@ -417,9 +434,29 @@ const EntryManagementPage: React.FC = () => {
           )}
         </TabsContent>
 
-        <TabsContent value="exceptions">
+        <TabsContent value="move-ups">
           {selectedShowId && (
-            <ExceptionsView showId={selectedShowId} onRefresh={() => loadEntries(selectedShowId)} />
+            <Card>
+              <CardContent className="pt-6">
+                <MoveUpRequestsTab
+                  showId={selectedShowId}
+                  onRefresh={() => loadEntries(selectedShowId)}
+                />
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="pulls">
+          {selectedShowId && (
+            <Card>
+              <CardContent className="pt-6">
+                <PullManagementTab
+                  showId={selectedShowId}
+                  onRefresh={() => loadEntries(selectedShowId)}
+                />
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
 

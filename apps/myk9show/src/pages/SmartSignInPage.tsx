@@ -19,6 +19,8 @@ import type { UserRole as RingsideRole } from '@myk9/ringside';
 
 const INVALID_COPY =
   'That doesn’t look like an email or a show passcode. Passcodes are 5 characters and start with a letter — for example, aa260.';
+const INVALID_PASSCODE_COPY =
+  'That doesn’t look like a show passcode. Passcodes are 5 characters and start with a letter — for example, aa260.';
 
 type PendingPasscode = {
   showId: string;
@@ -42,7 +44,11 @@ type PendingPasscode = {
  * passcode users get one OPTIONAL "Your name" field (never required, never an
  * extra tap) so they show a real name in show presence instead of "Judge".
  */
-const SmartSignInPage: React.FC = () => {
+interface SmartSignInPageProps {
+  passcodeOnly?: boolean;
+}
+
+const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false }) => {
   const [searchParams] = useSearchParams();
   const [credential, setCredential] = useState(() => searchParams.get('code') ?? '');
   const [displayName, setDisplayName] = useState('');
@@ -61,14 +67,16 @@ const SmartSignInPage: React.FC = () => {
 
   const isLoading = loading || authLoading;
   const kind = useMemo(() => classifyCredential(credential), [credential]);
-  const canContinue = kind === 'email' || kind === 'passcode';
+  const canContinue = passcodeOnly ? kind === 'passcode' : kind === 'email' || kind === 'passcode';
   const signInReturnTo = useMemo(() => getSignInReturnTo(searchParams), [searchParams]);
   const entryShowId = useMemo(() => getShowEntryRedirectShowId(signInReturnTo), [signInReturnTo]);
   const { data: entryShow } = useShowQuery(entryShowId ?? '');
   const heading =
     entryShowId && entryShow?.name
       ? `Sign in to enter ${entryShow.name}`
-      : 'Sign in or join a show';
+      : passcodeOnly
+        ? 'Enter a show passcode'
+        : 'Sign in or join a show';
 
   // Programmatic focus to the password field when the email branch reveals it.
   useEffect(() => {
@@ -77,7 +85,9 @@ const SmartSignInPage: React.FC = () => {
 
   const liveHint =
     kind === 'email'
-      ? "Looks like an email — we'll ask for your password next"
+      ? passcodeOnly
+        ? ''
+        : "Looks like an email — we'll ask for your password next"
       : kind === 'passcode'
         ? "Looks like a show passcode — you'll be signed in"
         : '';
@@ -107,12 +117,12 @@ const SmartSignInPage: React.FC = () => {
     if (isLoading) return;
     setError('');
 
-    if (kind === 'email') {
+    if (kind === 'email' && !passcodeOnly) {
       setStep('password');
       return;
     }
     if (kind !== 'passcode') {
-      setError(INVALID_COPY);
+      setError(passcodeOnly ? INVALID_PASSCODE_COPY : INVALID_COPY);
       return;
     }
 
@@ -203,12 +213,14 @@ const SmartSignInPage: React.FC = () => {
           </Link>
         </div>
         <h2 className="text-2xl md:text-3xl font-bold mb-2 text-center">{heading}</h2>
-        <div className="text-muted-foreground text-center mb-6">
-          Don't have an account?{' '}
-          <Link to="/sign-up" className="text-primary hover:underline font-medium">
-            Sign up
-          </Link>
-        </div>
+        {!passcodeOnly && (
+          <div className="text-muted-foreground text-center mb-6">
+            Don't have an account?{' '}
+            <Link to="/sign-up" className="text-primary hover:underline font-medium">
+              Sign up
+            </Link>
+          </div>
+        )}
 
         {/* aria-live region announcing branch + step transitions. */}
         <div className="sr-only" aria-live="polite">
@@ -217,28 +229,32 @@ const SmartSignInPage: React.FC = () => {
 
         {step === 'input' ? (
           <>
-            <button
-              type="button"
-              onClick={handleGoogleSignIn}
-              disabled={isLoading || googleLoading}
-              className="flex h-11 w-full items-center justify-center gap-3 rounded-md border border-input bg-background px-4 text-foreground transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <GoogleIcon className="h-5 w-5" />
-              Continue with Google
-            </button>
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-input" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="bg-card px-2 text-muted-foreground">or</span>
-              </div>
-            </div>
+            {!passcodeOnly && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  disabled={isLoading || googleLoading}
+                  className="flex h-11 w-full items-center justify-center gap-3 rounded-md border border-input bg-background px-4 text-foreground transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <GoogleIcon className="h-5 w-5" />
+                  Continue with Google
+                </button>
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-input" />
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="bg-card px-2 text-muted-foreground">or</span>
+                  </div>
+                </div>
+              </>
+            )}
 
             <form onSubmit={handleCredentialSubmit}>
               <div className="mb-1">
                 <label className="block mb-1 font-medium" htmlFor="credential">
-                  Email or show passcode
+                  {passcodeOnly ? 'Show passcode' : 'Email or show passcode'}
                 </label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
@@ -248,12 +264,12 @@ const SmartSignInPage: React.FC = () => {
                     type="text"
                     id="credential"
                     data-testid="credential-input"
-                    inputMode="email"
-                    autoComplete="username"
+                    inputMode={passcodeOnly ? 'text' : 'email'}
+                    autoComplete={passcodeOnly ? 'off' : 'username'}
                     autoCapitalize="off"
                     autoCorrect="off"
                     spellCheck={false}
-                    placeholder="Email or show passcode"
+                    placeholder={passcodeOnly ? 'Show passcode' : 'Email or show passcode'}
                     value={credential}
                     onChange={e => {
                       setCredential(e.target.value);
@@ -275,8 +291,7 @@ const SmartSignInPage: React.FC = () => {
               {kind === 'passcode' && !user && (
                 <div className="mb-3">
                   <label className="block mb-1 font-medium" htmlFor="display-name">
-                    Your name{' '}
-                    <span className="font-normal text-muted-foreground">(optional)</span>
+                    Your name <span className="font-normal text-muted-foreground">(optional)</span>
                   </label>
                   <input
                     type="text"
@@ -313,14 +328,16 @@ const SmartSignInPage: React.FC = () => {
             </form>
 
             <div id="credential-help" className="mt-6 text-sm text-muted-foreground space-y-1">
-              <p>Have an account? Use your email.</p>
+              {!passcodeOnly && <p>Have an account? Use your email.</p>}
               <p>Working a show? Use the passcode your secretary gave you (5 characters).</p>
             </div>
-            <div className="mt-3 text-sm">
-              <Link to="/help/credentials" className="text-primary hover:underline">
-                Learn how it works &rarr;
-              </Link>
-            </div>
+            {!passcodeOnly && (
+              <div className="mt-3 text-sm">
+                <Link to="/help/credentials" className="text-primary hover:underline">
+                  Learn how it works &rarr;
+                </Link>
+              </div>
+            )}
           </>
         ) : (
           <>

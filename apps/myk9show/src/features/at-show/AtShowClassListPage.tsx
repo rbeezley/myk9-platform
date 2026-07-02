@@ -13,7 +13,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Loader2, AlertCircle, User, ChevronRight, Star } from 'lucide-react';
+import { Loader2, AlertCircle, User, ChevronRight, Star, ArrowLeft } from 'lucide-react';
 import {
   groupSectionedClasses,
   getClassIds,
@@ -154,6 +154,15 @@ export const AtShowClassListPage: React.FC = () => {
 
   return (
     <div className="ringside-root mx-auto max-w-2xl px-4 py-4">
+      <Button
+        variant="ghost"
+        className="mb-3 min-h-11 gap-2 px-3"
+        onClick={() => navigate(showId ? `/shows/${showId}/show-desk` : '/shows')}
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden />
+        Back to Show Desk
+      </Button>
+
       {showName && <h1 className="mb-4 text-center text-lg font-semibold">{showName}</h1>}
 
       {groupedByTrial.map(({ trial, classes }) => {

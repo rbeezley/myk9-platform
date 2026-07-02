@@ -146,4 +146,13 @@ describe('ShowManagementShell', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
     expect(screen.getByTestId('edit-panel-open')).toBeInTheDocument();
   });
+
+  it('offers a public exhibitor preview from the overflow menu', () => {
+    renderShell();
+    fireEvent.click(screen.getByRole('button', { name: /more show actions/i }));
+    expect(screen.getByRole('menuitem', { name: /preview as exhibitor/i })).toHaveAttribute(
+      'href',
+      '/shows/show-1?preview=public'
+    );
+  });
 });

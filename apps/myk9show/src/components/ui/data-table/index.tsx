@@ -140,12 +140,10 @@ function getExportColumnLabel<TData>(column: Column<TData, unknown>): string {
 }
 
 function exportTableCsv<TData>(table: TanstackTable<TData>, tableId: string) {
-  const columns = table
-    .getVisibleLeafColumns()
-    .filter(column => {
-      const meta = column.columnDef.meta as DataTableColumnMeta | undefined;
-      return column.id !== '_select' && !meta?.exportDisabled;
-    });
+  const columns = table.getVisibleLeafColumns().filter(column => {
+    const meta = column.columnDef.meta as DataTableColumnMeta | undefined;
+    return column.id !== '_select' && !meta?.exportDisabled;
+  });
   const rows = table.getFilteredRowModel().rows;
 
   const header = columns.map(column => escapeCsvValue(getExportColumnLabel(column))).join(',');
@@ -171,6 +169,14 @@ function exportTableCsv<TData>(table: TanstackTable<TData>, tableId: string) {
     link.remove();
     URL.revokeObjectURL(url);
   }
+}
+
+function isInteractiveElement(target: EventTarget | null, boundary: Element): boolean {
+  if (!(target instanceof Element)) return false;
+  const interactive = target.closest(
+    'a,button,input,select,textarea,[role="button"],[role="menuitem"],[tabindex]:not([tabindex="-1"])'
+  );
+  return Boolean(interactive && interactive !== boundary);
 }
 
 export function DataTable<TData>({
@@ -233,6 +239,7 @@ export function DataTable<TData>({
 
     const selectionColumn: DisplayColumnDef<TData, unknown> = {
       id: '_select',
+      meta: { interactive: true },
       header:
         selectable === 'multi'
           ? ({ table: tbl }) => (
@@ -451,17 +458,13 @@ export function DataTable<TData>({
               </TableCell>
             </TableRow>
           ) : (
-            table.getRowModel().rows.map(row => (
-              <TableRow
-                key={row.id}
-                data-state={row.getIsSelected() ? 'selected' : undefined}
-                className={cn(
-                  'border-b border-border/30 hover:bg-muted/20 transition-colors',
-                  onRowClick && 'cursor-pointer',
-                  getRowClassName?.(row.original)
-                )}
-                onClick={() => onRowClick?.(row.original, row)}
-                {...(onRowClick
+            table.getRowModel().rows.map(row => {
+              const rowHasInteractiveCells = row.getVisibleCells().some(cell => {
+                const meta = cell.column.columnDef.meta as DataTableColumnMeta | undefined;
+                return meta?.interactive === true;
+              });
+              const keyboardRowClickProps =
+                onRowClick && !rowHasInteractiveCells
                   ? {
                       tabIndex: 0,
                       role: 'button' as const,
@@ -472,26 +475,38 @@ export function DataTable<TData>({
                         }
                       },
                     }
-                  : {})}
-              >
-                {row.getVisibleCells().map(cell => (
-                  <TableCell
-                    key={cell.id}
-                    className={cn(bodyCellClassName, getResponsiveClass(cell.column.id))}
-                  >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))
+                  : {};
+              return (
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() ? 'selected' : undefined}
+                  className={cn(
+                    'border-b border-border/30 hover:bg-muted/20 transition-colors',
+                    onRowClick && 'cursor-pointer',
+                    getRowClassName?.(row.original)
+                  )}
+                  onClick={event => {
+                    if (isInteractiveElement(event.target, event.currentTarget)) return;
+                    onRowClick?.(row.original, row);
+                  }}
+                  {...keyboardRowClickProps}
+                >
+                  {row.getVisibleCells().map(cell => (
+                    <TableCell
+                      key={cell.id}
+                      className={cn(bodyCellClassName, getResponsiveClass(cell.column.id))}
+                    >
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              );
+            })
           )}
         </TableBody>
       </Table>
 
-      <DataTablePagination
-        table={table}
-        pageSizeOptions={resolvedPageSizeOptions}
-      />
+      <DataTablePagination table={table} pageSizeOptions={resolvedPageSizeOptions} />
     </div>
   );
 }

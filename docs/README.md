@@ -81,6 +81,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-soft-delete-person-rpc.md](plan-soft-delete-person-rpc.md)                           | Active    | Plan: Fix person soft-delete (RLS WITH-CHECK block)                   |
 | [plan-ux-journey-audit.md](plan-ux-journey-audit.md)                                       | Active    | Plan: UX Journey Audit — Exhibitor & Secretary                        |
 | [plan-ux-journey-phase6.md](plan-ux-journey-phase6.md)                                     | Active    | Plan: UX Journey Audit — Phase 6 (Remediation Verification)           |
+| [plan-ux-walk-remediation-2026-07.md](plan-ux-walk-remediation-2026-07.md)                 | Active    | UX Walk Remediation — Phased Improvement Plan (July 2026)             |
 | [plan-wave1-exhibitor-entry-payment-trust.md](plan-wave1-exhibitor-entry-payment-trust.md) | Active    | Wave 1 Exhibitor Entry And Payment Trust Implementation Plan          |
 | [plan-wave3a-at-show-phone-polish.md](plan-wave3a-at-show-phone-polish.md)                 | Active    | Wave 3A At-Show Phone Polish Plan                                     |
 | [plan-wave3b-results-my-shows-clarity.md](plan-wave3b-results-my-shows-clarity.md)         | Active    | Wave 3B Results and My Shows Clarity Plan                             |

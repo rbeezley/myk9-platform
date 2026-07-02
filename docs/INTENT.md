@@ -117,6 +117,7 @@ Our users are not 25-year-old engineers. Many are retired, with varying levels o
 - **Smart defaults everywhere** — pre-fill what the system already knows
 - **Remember user preferences** — last-used ring, preferred view, recent dogs
 - **No dead ends** — every screen has an obvious next step or way back
+- **Readiness chips land on the fix** — a readiness chip may only ship if its destination contains the affordance that clears it. If the destination only explains the problem, keep narrowing the route or add the clearing action to the existing destination surface.
 
 ### Offline Is Normal, Not Broken
 

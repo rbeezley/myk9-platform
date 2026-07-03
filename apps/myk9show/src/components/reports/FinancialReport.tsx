@@ -1,6 +1,7 @@
 import React from 'react';
 import type { ReportProps } from '@/lib/reports/types';
 import { formatFee } from '@/utils/format';
+import { formatArmbandDisplay } from '@/utils/armbandUtils';
 
 export const FinancialReport: React.FC<ReportProps> = ({
   showName,
@@ -65,7 +66,7 @@ export const FinancialReport: React.FC<ReportProps> = ({
                 {exhibitorEntries.map(entry => (
                   <tr key={entry.id}>
                     <td>{entry.callName}</td>
-                    <td>{entry.armband}</td>
+                    <td>{formatArmbandDisplay(entry.armband)}</td>
                     <td>{entry.paymentMethod ?? '—'}</td>
                     <td>{entry.entryFee != null ? formatFee(entry.entryFee) : '—'}</td>
                   </tr>

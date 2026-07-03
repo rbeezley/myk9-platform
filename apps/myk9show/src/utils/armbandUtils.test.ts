@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { computeArmbandAssignments, resolveStartNumber } from './armbandUtils';
+import {
+  computeArmbandAssignments,
+  formatArmbandDisplay,
+  resolveStartNumber,
+} from './armbandUtils';
 
 describe('computeArmbandAssignments', () => {
   it('assigns sequential numbers starting from startNumber', () => {
@@ -37,5 +41,22 @@ describe('resolveStartNumber', () => {
 
   it('ignores non-numeric existing armbands', () => {
     expect(resolveStartNumber('ABC', 1)).toBe(1);
+  });
+});
+
+describe('formatArmbandDisplay', () => {
+  it('displays assigned armbands unchanged after trimming', () => {
+    expect(formatArmbandDisplay(42)).toBe('42');
+    expect(formatArmbandDisplay(' A12 ')).toBe('A12');
+  });
+
+  it('normalizes unassigned armbands to an em dash', () => {
+    expect(formatArmbandDisplay(null)).toBe('—');
+    expect(formatArmbandDisplay(undefined)).toBe('—');
+    expect(formatArmbandDisplay('')).toBe('—');
+    expect(formatArmbandDisplay('0')).toBe('—');
+    expect(formatArmbandDisplay(0)).toBe('—');
+    expect(formatArmbandDisplay('-')).toBe('—');
+    expect(formatArmbandDisplay('--')).toBe('—');
   });
 });

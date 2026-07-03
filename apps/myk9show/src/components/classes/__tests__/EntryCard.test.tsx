@@ -83,9 +83,14 @@ describe('EntryCard', () => {
     expect(badge).toHaveStyle({ backgroundColor: expect.stringContaining('var(') });
   });
 
-  it('shows -- for missing armband', () => {
+  it('shows an em dash for missing armband', () => {
     renderCard({ entry: makeEntry({ armband: '' }) });
-    expect(screen.getByText('--')).toBeInTheDocument();
+    expect(screen.getByText('—')).toBeInTheDocument();
+  });
+
+  it('shows an em dash for zero armband', () => {
+    renderCard({ entry: makeEntry({ armband: '0' }) });
+    expect(screen.getByText('—')).toBeInTheDocument();
   });
 
   // Verify card is a focusable button for keyboard accessibility

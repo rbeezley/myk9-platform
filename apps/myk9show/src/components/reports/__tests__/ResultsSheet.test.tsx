@@ -109,4 +109,11 @@ describe('ResultsSheet', () => {
     render(<ResultsSheet {...baseProps} entries={threeEntries} />);
     expect(screen.getByText(/Class Entries: 3/)).toBeInTheDocument();
   });
+
+  it('renders unassigned armbands as an em dash', () => {
+    render(<ResultsSheet {...baseProps} entries={[makeEntry({ armband: 0 })]} />);
+
+    const rows = screen.getAllByRole('row');
+    expect(rows[1].querySelectorAll('td')[1]).toHaveTextContent('—');
+  });
 });

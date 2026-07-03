@@ -8,6 +8,7 @@ import {
   isValidSection,
   formatTimeLimit,
 } from '@/lib/reports/reportUtils';
+import { formatArmbandDisplay } from '@/utils/armbandUtils';
 
 const NQ_REASONS = [
   'Incorrect Call',
@@ -80,9 +81,7 @@ export const ScoresheetReport: React.FC<ReportProps> = ({
   return (
     <div className="report-page">
       <div className="scoresheet-header">
-        <div
-          className="header-top"
-        >
+        <div className="header-top">
           <div className="report-logo">myK9Show</div>
           <div>
             <h1 className="report-title">{orgTitle} Scoresheet</h1>
@@ -187,7 +186,7 @@ export const ScoresheetReport: React.FC<ReportProps> = ({
         {sortedEntries.map(entry => (
           <div key={entry.id} className="scoresheet-entry-row">
             <div className="entry-info">
-              <div className="entry-armband">{entry.armband}</div>
+              <div className="entry-armband">{formatArmbandDisplay(entry.armband)}</div>
               <div className="entry-details">
                 <div className="entry-callname">{entry.callName}</div>
                 {entry.registrationNumber && (

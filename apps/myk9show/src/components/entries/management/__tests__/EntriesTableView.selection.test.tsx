@@ -109,6 +109,18 @@ describe('EntriesTableView selection column', () => {
     expect(headers[1]).toBe('Armband');
   });
 
+  it('renders zero armband values as unassigned', () => {
+    render(
+      <EntriesTableView
+        entries={[{ ...entry('zero-armband', 'Zero'), armbandNumber: '0' }]}
+        {...makeActionProps()}
+      />
+    );
+
+    expect(screen.getByText('—')).toBeInTheDocument();
+    expect(screen.queryByText('0')).not.toBeInTheDocument();
+  });
+
   it('renders one row action menu per entry', () => {
     render(
       <EntriesTableView entries={entries} selection={makeSelection()} {...makeActionProps()} />

@@ -56,6 +56,12 @@ describe('TrialRosterView', () => {
     expect(screen.getByText('Carol White')).toBeInTheDocument();
   });
 
+  it('renders missing roster armbands as an em dash', () => {
+    render(<TrialRosterView {...defaultProps} />);
+
+    expect(screen.getByText('—')).toBeInTheDocument();
+  });
+
   it('shows scoring status badges for scored and pending entries', () => {
     render(<TrialRosterView {...defaultProps} />);
 

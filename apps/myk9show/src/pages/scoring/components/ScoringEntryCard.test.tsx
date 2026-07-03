@@ -31,4 +31,9 @@ describe('ScoringEntryCard placement (scoring view — not the podium)', () => {
     render(<ScoringEntryCard entry={makeScoringEntry({ placement: 2 })} />);
     expect(screen.getByText('2')).toBeInTheDocument();
   });
+
+  it('shows an em dash for zero armband', () => {
+    render(<ScoringEntryCard entry={makeScoringEntry({ armband: 0 })} />);
+    expect(screen.getByText('—')).toBeInTheDocument();
+  });
 });

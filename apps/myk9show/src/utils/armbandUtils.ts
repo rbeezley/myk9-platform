@@ -3,6 +3,24 @@ export interface ArmbandAssignment {
   armband: string;
 }
 
+export const UNASSIGNED_ARMBAND_DISPLAY = '—';
+
+export type ArmbandDisplayValue = string | number | null | undefined;
+
+export function formatArmbandDisplay(armband: ArmbandDisplayValue): string {
+  if (armband == null) return UNASSIGNED_ARMBAND_DISPLAY;
+
+  if (typeof armband === 'number') {
+    return armband === 0 || Number.isNaN(armband) ? UNASSIGNED_ARMBAND_DISPLAY : String(armband);
+  }
+
+  const trimmed = armband.trim();
+  if (!trimmed || /^-+$/.test(trimmed)) return UNASSIGNED_ARMBAND_DISPLAY;
+  if (/^\d+$/.test(trimmed) && Number(trimmed) === 0) return UNASSIGNED_ARMBAND_DISPLAY;
+
+  return trimmed;
+}
+
 export function computeArmbandAssignments(
   dogIds: string[],
   startNumber: number

@@ -6,6 +6,7 @@ import {
   sortByHandler,
   sortByBreed,
 } from '@/lib/reports/reportUtils';
+import { formatArmbandDisplay } from '@/utils/armbandUtils';
 
 export const ShowCatalog: React.FC<ReportProps> = ({
   showName,
@@ -77,7 +78,7 @@ export const ShowCatalog: React.FC<ReportProps> = ({
                 <tbody>
                   {trialEntries.map(entry => (
                     <tr key={entry.id}>
-                      <td>{entry.armband}</td>
+                      <td>{formatArmbandDisplay(entry.armband)}</td>
                       <td>{entry.callName}</td>
                       <td>{entry.breed}</td>
                       <td>{entry.registrationNumber ?? ''}</td>

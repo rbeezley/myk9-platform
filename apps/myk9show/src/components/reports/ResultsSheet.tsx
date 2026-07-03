@@ -10,6 +10,7 @@ import {
   countQualified,
   buildReportOrgTitle,
 } from '@/lib/reports/reportUtils';
+import { formatArmbandDisplay } from '@/utils/armbandUtils';
 import { TrialInfoBox } from './TrialInfoBox';
 
 export const ResultsSheet: React.FC<ReportProps> = ({
@@ -56,7 +57,7 @@ export const ResultsSheet: React.FC<ReportProps> = ({
             return (
               <tr key={entry.id}>
                 <td className="place-cell">{getPlacementText(entry)}</td>
-                <td>{entry.armband}</td>
+                <td>{formatArmbandDisplay(entry.armband)}</td>
                 <td>{entry.callName}</td>
                 <td>{entry.breed}</td>
                 <td>{entry.handler}</td>

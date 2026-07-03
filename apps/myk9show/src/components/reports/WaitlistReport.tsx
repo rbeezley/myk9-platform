@@ -1,6 +1,7 @@
 import React from 'react';
 import type { ReportProps, ReportEntry } from '@/lib/reports/types';
 import { formatReportDate } from '@/lib/reports/reportUtils';
+import { formatArmbandDisplay } from '@/utils/armbandUtils';
 
 export const WaitlistReport: React.FC<ReportProps> = ({ showName, organization, entries }) => {
   const waitlisted = entries.filter(e => e.paymentStatus === 'waitlisted');
@@ -83,7 +84,7 @@ export const WaitlistReport: React.FC<ReportProps> = ({ showName, organization, 
                 <tbody>
                   {cls.entries.map(entry => (
                     <tr key={entry.id}>
-                      <td>{entry.armband}</td>
+                      <td>{formatArmbandDisplay(entry.armband)}</td>
                       <td>{entry.callName}</td>
                       <td>{entry.handler}</td>
                     </tr>

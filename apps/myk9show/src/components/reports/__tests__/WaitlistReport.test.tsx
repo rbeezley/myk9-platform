@@ -7,9 +7,84 @@ const baseProps: ReportProps = {
   organization: 'AKC',
   sortOrder: '',
   entries: [
-    { id: 'e1', armband: 101, runOrder: 1, callName: 'Buddy', breed: 'Lab', handler: 'Jane Mitchell', registrationNumber: null, checkInStatus: null, section: null, isScored: false, resultText: null, searchTimeSeconds: null, totalFaults: null, finalPlacement: null, paymentStatus: 'waitlisted', paymentMethod: 'Check', entryFee: 25, trialId: 't1', trialNumber: '1', trialDate: '2026-04-12', classId: 'c1', classElement: 'Container', classLevel: 'Novice', classSection: null },
-    { id: 'e2', armband: 102, runOrder: 2, callName: 'Rex', breed: 'Beagle', handler: 'Bob Smith', registrationNumber: null, checkInStatus: null, section: null, isScored: false, resultText: null, searchTimeSeconds: null, totalFaults: null, finalPlacement: null, paymentStatus: 'waitlisted', paymentMethod: 'PayPal', entryFee: 25, trialId: 't1', trialNumber: '1', trialDate: '2026-04-12', classId: 'c1', classElement: 'Container', classLevel: 'Novice', classSection: null },
-    { id: 'e3', armband: 103, runOrder: 3, callName: 'Max', breed: 'GSD', handler: 'Carlos Rivera', registrationNumber: null, checkInStatus: null, section: null, isScored: false, resultText: null, searchTimeSeconds: null, totalFaults: null, finalPlacement: null, paymentStatus: 'accepted', paymentMethod: 'Check', entryFee: 25, trialId: 't1', trialNumber: '1', trialDate: '2026-04-12', classId: 'c1', classElement: 'Container', classLevel: 'Novice', classSection: null },
+    {
+      id: 'e1',
+      armband: 101,
+      runOrder: 1,
+      callName: 'Buddy',
+      breed: 'Lab',
+      handler: 'Jane Mitchell',
+      registrationNumber: null,
+      checkInStatus: null,
+      section: null,
+      isScored: false,
+      resultText: null,
+      searchTimeSeconds: null,
+      totalFaults: null,
+      finalPlacement: null,
+      paymentStatus: 'waitlisted',
+      paymentMethod: 'Check',
+      entryFee: 25,
+      trialId: 't1',
+      trialNumber: '1',
+      trialDate: '2026-04-12',
+      classId: 'c1',
+      classElement: 'Container',
+      classLevel: 'Novice',
+      classSection: null,
+    },
+    {
+      id: 'e2',
+      armband: 102,
+      runOrder: 2,
+      callName: 'Rex',
+      breed: 'Beagle',
+      handler: 'Bob Smith',
+      registrationNumber: null,
+      checkInStatus: null,
+      section: null,
+      isScored: false,
+      resultText: null,
+      searchTimeSeconds: null,
+      totalFaults: null,
+      finalPlacement: null,
+      paymentStatus: 'waitlisted',
+      paymentMethod: 'PayPal',
+      entryFee: 25,
+      trialId: 't1',
+      trialNumber: '1',
+      trialDate: '2026-04-12',
+      classId: 'c1',
+      classElement: 'Container',
+      classLevel: 'Novice',
+      classSection: null,
+    },
+    {
+      id: 'e3',
+      armband: 103,
+      runOrder: 3,
+      callName: 'Max',
+      breed: 'GSD',
+      handler: 'Carlos Rivera',
+      registrationNumber: null,
+      checkInStatus: null,
+      section: null,
+      isScored: false,
+      resultText: null,
+      searchTimeSeconds: null,
+      totalFaults: null,
+      finalPlacement: null,
+      paymentStatus: 'accepted',
+      paymentMethod: 'Check',
+      entryFee: 25,
+      trialId: 't1',
+      trialNumber: '1',
+      trialDate: '2026-04-12',
+      classId: 'c1',
+      classElement: 'Container',
+      classLevel: 'Novice',
+      classSection: null,
+    },
   ],
 };
 
@@ -43,8 +118,30 @@ describe('WaitlistReport', () => {
   });
 
   it('shows empty state when no waitlisted entries', () => {
-    const props = { ...baseProps, entries: baseProps.entries.filter(e => e.paymentStatus === 'accepted') };
+    const props = {
+      ...baseProps,
+      entries: baseProps.entries.filter(e => e.paymentStatus === 'accepted'),
+    };
     render(<WaitlistReport {...props} />);
     expect(screen.getByText(/No waitlisted entries/i)).toBeInTheDocument();
+  });
+
+  it('renders unassigned armbands as an em dash', () => {
+    render(
+      <WaitlistReport
+        {...baseProps}
+        entries={[
+          {
+            ...baseProps.entries[0],
+            id: 'e-unassigned',
+            armband: 0,
+            callName: 'NoArm',
+          },
+        ]}
+      />
+    );
+
+    const rows = screen.getAllByRole('row');
+    expect(rows[1].querySelectorAll('td')[0]).toHaveTextContent('—');
   });
 });

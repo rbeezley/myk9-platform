@@ -20,8 +20,9 @@ vi.mock('@myk9/core', () => ({
   getClassStatusBadgeClasses: () => 'bg-gray-100 text-gray-800',
   getClassStatusDisplay: (status: string) => {
     if (status === 'In Progress') return { label: 'In Progress' };
-    if (status === 'Completed') return { label: 'Complete' };
-    return { label: 'Upcoming' };
+    // UX walk remediation 2.B fixed the "Complete"/"Completed" drift
+    if (status === 'Completed') return { label: 'Completed' };
+    return { label: 'Not started' };
   },
   CLASS_STATUS: {
     COMPLETED: 'Completed',

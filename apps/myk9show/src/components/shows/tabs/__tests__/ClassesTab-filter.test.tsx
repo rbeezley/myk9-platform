@@ -51,7 +51,9 @@ describe('ClassesTab status filter', () => {
     renderTab([makeClass({ status: 'Scheduled' }), makeClass({ status: 'Completed' })]);
     expect(screen.getByRole('button', { name: /All/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Pending/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Completed/ })).toBeInTheDocument();
+    // Match the toolbar filter button ("Completed (1)"), not the class-status
+    // chip, which reads "Completed" too now that the label triple is unified.
+    expect(screen.getByRole('button', { name: /Completed \(/ })).toBeInTheDocument();
   });
 
   it('filters to show only pending classes', async () => {

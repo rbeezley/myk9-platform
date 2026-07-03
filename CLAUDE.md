@@ -54,6 +54,8 @@ When creating implementation or remediation plans, always save them to a markdow
 
 Use `Active` while work is in progress or not yet started, `Complete` once the work has shipped, `Abandoned` if superseded or dropped. Then register the plan with one row in [`docs/README.md`](docs/README.md) (the living docs index). When a plan's work merges, flip its status to `Complete` and `git mv` the file into `docs/archive/` (mirror its path), then remove its row from the index. This convention is what keeps `docs/` from re-accumulating undated, indistinguishable plans — see [`docs/README.md`](docs/README.md) for the full "how docs are organized" rules. A plan without a status line is incomplete.
 
+**OpenSpec carve-out.** When a single unit of buildable work will be implemented through the opsx skills, the OpenSpec change (`openspec/changes/<id>/` — proposal, design, specs, tasks) *is* the plan and satisfies this requirement. Do not also author a `docs/plan-*.md` for the same work; the change's `tasks.md` is the sole execution tracker, and archiving the change closes it out. Investigate first with `opsx:explore`, then `opsx:propose` — the change artifacts still need a testing phase (the config's task rules enforce this). `docs/` plans remain the right home for: multi-change roadmaps, audits whose findings are the deliverable, and living reference material (token tables, specs) — extract reference material to its own doc or promote it to `openspec/specs/` via `opsx:sync` rather than leaving it inside an archived change. If a `docs/` plan already exists when the change is created, add `> Tracked in openspec change: <id>` under its status line so the two never track independently.
+
 ## Commands
 
 ```bash

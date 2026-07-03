@@ -61,6 +61,12 @@ Two follow-ups from the ringside OCC conflict-storm incident (PR [#961](https://
 
 ---
 
+## UI Motion Consistency — 2026-07-03
+
+- [ ] **Implement the motion-consistency plan** — Audit-backed plan for one consistent micro-animation language across myK9Show + ringside (durations/easings, dead optimistic-feedback code, an unstyled ringside success-toast bug, spinner/skeleton convergence). Not yet implemented. Plan: [`docs/plan-motion-consistency.md`](docs/plan-motion-consistency.md). **Recommended path: use `opsx:propose` for Phases 1–3 + 5** rather than a standalone build, per the OpenSpec carve-out in CLAUDE.md's Planning section (PR [#1104](https://github.com/rbeezley/myk9-platform/pull/1104)); Phase 4 (spinner sweep) stays incremental/separate. Full context in TO-DOS.md § "UI Motion Consistency Plan".
+
+---
+
 ## Active-Docs Triage — net-new backlog — 2026-06-14
 
 Source: [`docs/plan-active-docs-triage-2026-06-14.md`](docs/plan-active-docs-triage-2026-06-14.md). Items below were genuinely untracked elsewhere. Plan-backed features link to their plan instead of duplicating sub-tasks.

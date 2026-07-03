@@ -1,6 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 
 import { handle } from '../_shared/http/handler.ts';
+import { requirePushWebhookSecret } from '../_shared/pushWebhookAuth.ts';
 
 interface WebhookPayload {
   type: 'UPDATE';
@@ -16,7 +17,9 @@ interface WebhookPayload {
   };
 }
 
-handle<WebhookPayload>({ auth: 'none' }, async ({ body: payload, supabase }) => {
+handle<WebhookPayload>({ auth: 'none' }, async ({ req, body: payload, supabase }) => {
+  requirePushWebhookSecret(req);
+
   // Only fire when status transitions to 'in_progress'
   if (payload.record.status !== 'in_progress' || payload.old_record.status === 'in_progress') {
     return { status: 'no_action' };

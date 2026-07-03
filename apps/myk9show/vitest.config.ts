@@ -20,6 +20,8 @@ export default defineConfig({
       // `supabase/` (not under apps/myk9show). Scoped to askq/ only — sibling
       // `_shared/http` modules use Deno-only `npm:` imports vitest can't load.
       '../../supabase/functions/_shared/askq/*.test.ts',
+      '../../supabase/functions/_shared/pushWebhookAuth.test.ts',
+      '../../supabase/functions/send-confirmation-email/auth.test.ts',
     ],
     exclude: [
       '**/node_modules/**',

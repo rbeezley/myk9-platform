@@ -34,6 +34,8 @@ describe('entry count selectors', () => {
       { entry_status: 'submitted' },
       { entry_status: 'paid' },
       { entry_status: 'promotion-expired' },
+      { entry_status: null },
+      { entry_status: '' },
       { entry_status: 'confirmed' },
       { entry_status: 'waitlisted' },
       { entry_status: 'withdrawn' },
@@ -52,7 +54,7 @@ describe('entry count selectors', () => {
       })
     );
 
-    expect(countRawEntryManagementPendingBucket(rawEntries)).toBe(3);
-    expect(getEntryManagementCountSummary(managementEntries).tabCounts.pending).toBe(3);
+    expect(countRawEntryManagementPendingBucket(rawEntries)).toBe(5);
+    expect(getEntryManagementCountSummary(managementEntries).tabCounts.pending).toBe(5);
   });
 });

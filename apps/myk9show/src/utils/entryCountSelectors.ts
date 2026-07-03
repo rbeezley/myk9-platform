@@ -27,7 +27,6 @@ export interface RawEntryStatusLike {
 }
 
 export function isRawEntryInEntryManagementPendingBucket(entry: RawEntryStatusLike): boolean {
-  if (entry.entry_status == null || entry.entry_status === '') return false;
   return mapEntryStatus(entry.entry_status) === EntryStatus.PENDING;
 }
 

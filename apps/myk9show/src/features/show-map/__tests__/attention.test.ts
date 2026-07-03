@@ -15,9 +15,11 @@ describe('getEntryAttention', () => {
     expect(getEntryAttention({ entry_status: 'withdrawn' })).toBe(null);
   });
 
-  it('returns null for entries with all status fields missing', () => {
-    expect(getEntryAttention({})).toBe(null);
-    expect(getEntryAttention({ entry_status: null, check_in_status: null })).toBe(null);
+  it('matches Entry Management by putting blank statuses in the pending bucket', () => {
+    expect(getEntryAttention({})).toBe('pending_review');
+    expect(getEntryAttention({ entry_status: null, check_in_status: null })).toBe(
+      'pending_review'
+    );
   });
 
   it("returns 'pending_review' for the Entry Management pending bucket", () => {

@@ -4,11 +4,9 @@ import {
   approvePullRequest,
   denyMoveUpRequest,
   denyPullRequest,
-  markEntryMoved,
   rejectEntry,
   requestPull,
   restoreEntryStatus,
-  rollbackEntryMove,
   pullEntry,
   pullEntryDayOf,
   setEntryLifecycleStatus,
@@ -44,9 +42,9 @@ vi.mock('../supabaseClient', () => {
     chain.eq = vi.fn().mockReturnValue(chain);
     chain.select = vi.fn().mockReturnValue(chain);
     chain.single = vi.fn().mockResolvedValue({ data: { id: 'entry-1' }, error: null });
-    // Fire-and-forget transitions (markEntryMoved, rollbackEntryMove,
-    // restoreEntryStatus) await the chain directly without .single(). Make the
-    // chain thenable so `await chain` resolves to { error: null }.
+    // Fire-and-forget transitions (e.g. restoreEntryStatus) await the chain
+    // directly without .single(). Make the chain thenable so `await chain`
+    // resolves to { error: null }.
     chain.then = (resolve: (v: unknown) => void) => resolve({ data: null, error: null });
     return chain;
   };
@@ -241,46 +239,6 @@ describe('Entry lifecycle transitions', () => {
   });
 
   describe('move-up workflow', () => {
-    it('markEntryMoved writes moved status with class-name note', async () => {
-      await markEntryMoved({
-        entryId: 'entry-1',
-        targetClassName: 'Master Standard',
-        reason: 'Earned title',
-      });
-
-      expect(supabaseUpdates[0]!.payload).toEqual(
-        expect.objectContaining({
-          entry_status: 'moved',
-          special_requests: 'Moved up to Master Standard: Earned title',
-        })
-      );
-      expect(auditLog).toHaveBeenCalledWith(
-        expect.objectContaining({
-          metadata: expect.objectContaining({
-            action: 'mark_entry_moved',
-            targetClassName: 'Master Standard',
-          }),
-        })
-      );
-    });
-
-    it('rollbackEntryMove restores confirmed status and clears notes', async () => {
-      await rollbackEntryMove('entry-1');
-
-      expect(supabaseUpdates[0]!.payload).toEqual(
-        expect.objectContaining({
-          entry_status: 'confirmed',
-          special_requests: null,
-        })
-      );
-      expect(auditLog).toHaveBeenCalledWith(
-        expect.objectContaining({
-          changes: { entryStatus: { from: 'moved', to: 'confirmed' } },
-          metadata: expect.objectContaining({ action: 'rollback_entry_move' }),
-        })
-      );
-    });
-
     it('denyMoveUpRequest restores confirmed status and records denial reason', async () => {
       await denyMoveUpRequest('entry-1', 'Class is full');
 

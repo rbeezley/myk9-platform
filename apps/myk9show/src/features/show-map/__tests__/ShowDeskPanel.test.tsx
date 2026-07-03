@@ -18,9 +18,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
   createDatabaseError: (err: unknown) => (err instanceof Error ? err : new Error(String(err))),
 }));
 
-vi.mock('@/services/database/day-of-operations', () => ({
-  processMoveUp: vi.fn(),
-}));
+vi.mock('@/services/database/day-of-operations', () => ({}));
 
 vi.mock('@/services/database/entries/lifecycle', () => ({
   restoreEntryStatus: vi.fn(),

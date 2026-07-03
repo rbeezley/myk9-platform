@@ -4,8 +4,8 @@
  * A move-up leaves two rows in the database for the same dog: the source row
  * (`entry_status='moved'`, untouched in its original class) and a freshly
  * INSERTed destination row (`entry_status='confirmed'`) in the target class.
- * See `services/database/day-of-operations/move-up.ts:processMoveUp` and the
- * Show Map mutation in `features/show-map/showMapActionMutations.ts`.
+ * Written by the Show Map mutation
+ * `features/show-map/showMapActionMutations.ts:moveUpShowMapEntry`.
  *
  * Rendering both rows shows the exhibitor a phantom duplicate: the source row
  * will never run in its class, yet the un-filtered feeder labels it "Upcoming".
@@ -24,14 +24,14 @@
  * We therefore suppress every `moved` row for a dog as long as the dog still has
  * at least one non-`moved` entry. This is what makes chained move-ups correct:
  * Novice → Advanced → Excellent overwrites the intermediate row's note with
- * "Moved up to …" (see `markEntryMoved` / the Show Map mutation), destroying the
+ * "Moved up to …" (see the Show Map mutation), destroying the
  * back-pointer, so a linkage-only rule would leak the Novice row back. The only
  * case we keep a `moved` row is the pathological all-failed chain (every one of a
  * dog's entries is `moved`), where hiding them would make the dog vanish entirely.
  *
  * The annotation is the only consumer of the free-text linkage: the `confirmed`
  * destination's note `"Moved up from class <sourceClassId>[: reason]"` (written by
- * `processMoveUp`). A parse miss degrades gracefully to no label.
+ * `buildMovedUpFromNote`). A parse miss degrades gracefully to no label.
  */
 
 import type { EntryStatus } from '@/types/entry-lifecycle';
@@ -56,7 +56,7 @@ export interface MoveUpResolution {
 
 /**
  * Parses the source class id out of a destination's `special_requests` note.
- * Matches the format written by `processMoveUp`:
+ * Matches the format written by `buildMovedUpFromNote`:
  *   `Moved up from class <classId>` (optionally followed by `: <reason>`).
  * Class ids carry no spaces or colons, so the capture stops at the first of
  * either, leaving any trailing reason out.

@@ -1,6 +1,6 @@
 /**
  * Paginated Search Results Component
- * 
+ *
  * A generic component for displaying paginated search results across
  * different data types with role-based filtering and performance optimization.
  */
@@ -12,20 +12,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Search, 
-  Filter,
-  RefreshCw,
-  X
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, Filter, RefreshCw, X } from 'lucide-react';
 import { createPaginationInfo } from '@/store/base/ShowScopedStore';
 import { getPaginationForRole } from '@/services/data-scoping/role-profiles';
 
@@ -77,10 +70,10 @@ export function PaginatedSearchResults<T>({
   filters = [],
   customFilter,
   getItemKey,
-  searchPlaceholder = "Search...",
-  title = "Results",
+  searchPlaceholder = 'Search...',
+  title = 'Results',
   icon: Icon = Search,
-  emptyMessage = "No results found",
+  emptyMessage = 'No results found',
   isLoading = false,
   error = null,
   pageSize,
@@ -89,7 +82,7 @@ export function PaginatedSearchResults<T>({
   onExport,
 }: PaginatedSearchResultsProps<T>) {
   const { userRole } = useShowData();
-  
+
   // Local state
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -120,11 +113,11 @@ export function PaginatedSearchResults<T>({
   const startIndex = (currentPage - 1) * effectivePageSize;
   const endIndex = startIndex + effectivePageSize;
   const paginatedData = filteredData.slice(startIndex, endIndex);
-  
+
   const paginationInfo = createPaginationInfo(
-    currentPage, 
-    totalPages, 
-    effectivePageSize, 
+    currentPage,
+    totalPages,
+    effectivePageSize,
     filteredData.length
   );
 
@@ -172,11 +165,7 @@ export function PaginatedSearchResults<T>({
         <CardContent className="p-8">
           <div className="text-center text-destructive-strong">
             <p>Error: {error}</p>
-            <Button 
-              variant="outline" 
-              className="mt-4"
-              onClick={() => window.location.reload()}
-            >
+            <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Retry
             </Button>
@@ -200,11 +189,11 @@ export function PaginatedSearchResults<T>({
                 Page {currentPage} of {totalPages} • {userRole} view
               </p>
             </div>
-            
+
             <div className="flex gap-2">
               {showExport && (
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={handleExport}
                   disabled={filteredData.length === 0 || !onExport}
@@ -213,11 +202,7 @@ export function PaginatedSearchResults<T>({
                 </Button>
               )}
               {hasActiveFilters && (
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={clearAllFilters}
-                >
+                <Button variant="outline" size="sm" onClick={clearAllFilters}>
                   <X className="h-4 w-4 mr-2" />
                   Clear All
                 </Button>
@@ -225,7 +210,7 @@ export function PaginatedSearchResults<T>({
             </div>
           </div>
         </CardHeader>
-        
+
         <CardContent>
           {/* Search and filters */}
           <div className="flex gap-4 mb-6">
@@ -236,14 +221,14 @@ export function PaginatedSearchResults<T>({
                 <Input
                   placeholder={searchPlaceholder}
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={e => setSearchQuery(e.target.value)}
                   className="pl-10"
                 />
               </div>
             </div>
-            
+
             {/* Filters */}
-            {filters.map((filter) => (
+            {filters.map(filter => (
               <DropdownMenu key={filter.id}>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
@@ -260,9 +245,9 @@ export function PaginatedSearchResults<T>({
                   <DropdownMenuItem onClick={() => setFilter(filter.id, 'all')}>
                     All {filter.name}
                   </DropdownMenuItem>
-                  {filter.options.map((option) => (
-                    <DropdownMenuItem 
-                      key={option.value} 
+                  {filter.options.map(option => (
+                    <DropdownMenuItem
+                      key={option.value}
                       onClick={() => setFilter(filter.id, option.value)}
                     >
                       <div className="flex items-center justify-between w-full">
@@ -292,6 +277,7 @@ export function PaginatedSearchResults<T>({
                     <button
                       onClick={() => setFilter(filterId, 'all')}
                       className="ml-1 hover:bg-secondary-foreground/20 rounded"
+                      aria-label={`Remove ${filter?.name ?? filterId} filter`}
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -317,18 +303,15 @@ export function PaginatedSearchResults<T>({
                   <Icon className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                   <h3 className="text-lg font-medium mb-2">{emptyMessage}</h3>
                   <p className="text-muted-foreground">
-                    {hasActiveFilters ? 
-                      'Try adjusting your search criteria or filters' : 
-                      'No data available'
-                    }
+                    {hasActiveFilters
+                      ? 'Try adjusting your search criteria or filters'
+                      : 'No data available'}
                   </p>
                 </div>
               ) : (
                 <div className="space-y-2">
                   {paginatedData.map((item, index) => (
-                    <div key={getItemKey(item)}>
-                      {renderItem(item, startIndex + index)}
-                    </div>
+                    <div key={getItemKey(item)}>{renderItem(item, startIndex + index)}</div>
                   ))}
                 </div>
               )}
@@ -337,19 +320,21 @@ export function PaginatedSearchResults<T>({
               {totalPages > 1 && (
                 <div className="flex items-center justify-between mt-6 pt-4 border-t">
                   <div className="text-sm text-muted-foreground">
-                    Showing {paginationInfo.startItem}-{paginationInfo.endItem} of {paginationInfo.totalItems} results
+                    Showing {paginationInfo.startItem}-{paginationInfo.endItem} of{' '}
+                    {paginationInfo.totalItems} results
                   </div>
-                  
+
                   <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handlePageChange(currentPage - 1)}
                       disabled={!paginationInfo.hasPreviousPage}
+                      aria-label="Previous page"
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
-                    
+
                     <div className="flex gap-1">
                       {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                         let pageNum;
@@ -362,11 +347,11 @@ export function PaginatedSearchResults<T>({
                         } else {
                           pageNum = currentPage - 2 + i;
                         }
-                        
+
                         return (
                           <Button
                             key={pageNum}
-                            variant={currentPage === pageNum ? "default" : "outline"}
+                            variant={currentPage === pageNum ? 'default' : 'outline'}
                             size="sm"
                             onClick={() => handlePageChange(pageNum)}
                           >
@@ -375,12 +360,13 @@ export function PaginatedSearchResults<T>({
                         );
                       })}
                     </div>
-                    
+
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handlePageChange(currentPage + 1)}
                       disabled={!paginationInfo.hasNextPage}
+                      aria-label="Next page"
                     >
                       <ChevronRight className="h-4 w-4" />
                     </Button>
@@ -408,9 +394,9 @@ export function useSearchableData<T>(
 ) {
   const searchFunction = (items: T[], query: string): T[] => {
     if (!query.trim()) return items;
-    
+
     const lowercaseQuery = query.toLowerCase();
-    return items.filter(item => 
+    return items.filter(item =>
       searchFields.some(field => {
         const value = item[field];
         return value && String(value).toLowerCase().includes(lowercaseQuery);

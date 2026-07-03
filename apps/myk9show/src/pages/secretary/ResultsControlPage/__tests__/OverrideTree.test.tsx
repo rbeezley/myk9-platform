@@ -176,4 +176,26 @@ describe('OverrideTree', () => {
       within(document.body).getAllByRole('switch', { name: /^Self check-in for /i }).length
     ).toBeGreaterThan(1);
   });
+
+  it('lets row labels and override controls wrap before they clip on mobile', async () => {
+    const { user } = renderTree();
+
+    const trialToggle = screen.getByRole('button', { name: /Trial A.*classes/ });
+    const trialRow = trialToggle.parentElement;
+    expect(trialRow).toHaveClass('flex-col', 'sm:flex-row');
+
+    const trialControls = screen
+      .getByRole('combobox', { name: 'Results visibility for Trial A' })
+      .closest('div');
+    expect(trialControls).toHaveClass('w-full', 'overflow-x-auto', 'sm:w-auto');
+    expect(screen.getByRole('combobox', { name: 'Results visibility for Trial A' })).toHaveClass(
+      'w-32',
+      'shrink-0'
+    );
+
+    await user.click(trialToggle);
+    const classCheckbox = screen.getByRole('checkbox', { name: 'Select Container Novice' });
+    const classRow = classCheckbox.closest('.rounded-md');
+    expect(classRow).toHaveClass('flex-col', 'sm:flex-row');
+  });
 });

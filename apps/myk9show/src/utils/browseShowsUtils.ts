@@ -36,7 +36,7 @@ export function getStatusBadge(status: string): React.ReactNode {
 const TYPE_BADGE_COLORS: Record<string, string> = {
   'Agility': 'bg-primary/10 text-primary border-primary/20',
   'Scent Work': 'bg-success/10 text-success border-success/20',
-  'Rally': 'bg-[#5856D6]/10 text-[#5856D6] border-[#5856D6]/20',
+  'Rally': 'bg-[color:var(--chip-purple-bg)] text-[color:var(--chip-purple-fg)] border-[color:var(--chip-purple-bg)]',
   'Obedience': 'bg-warning/10 text-warning border-warning/20',
   'Nosework': 'bg-success/10 text-success border-success/20'
 };

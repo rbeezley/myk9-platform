@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
-import { CompactOfflineIndicator, FilterTriggerButton } from './atShowLayoutSlotComponents';
+import {
+  CompactOfflineIndicator,
+  FilterTriggerButton,
+  HamburgerMenu,
+} from './atShowLayoutSlotComponents';
 
 describe('CompactOfflineIndicator', () => {
   it('labels offline capability without implying the device is currently offline', () => {
@@ -12,6 +16,16 @@ describe('CompactOfflineIndicator', () => {
 });
 
 describe('FilterTriggerButton active-filter dot', () => {
+  it('uses the 44px icon button size for ringside touch viewports', () => {
+    render(<FilterTriggerButton onClick={() => {}} hasActiveFilters />);
+
+    const trigger = screen.getByRole('button', { name: 'Search & sort' });
+    expect(trigger.className).toContain('h-11');
+    expect(trigger.className).toContain('w-11');
+    expect(trigger.className).toContain('min-h-[44px]');
+    expect(trigger.className).toContain('min-w-[44px]');
+  });
+
   it('paints the dot with the semantic primary token, not a hardcoded hex', () => {
     const { container } = render(<FilterTriggerButton onClick={() => {}} hasActiveFilters />);
 
@@ -29,5 +43,17 @@ describe('FilterTriggerButton active-filter dot', () => {
     );
 
     expect(container.querySelector('span.absolute')).toBeNull();
+  });
+});
+
+describe('HamburgerMenu', () => {
+  it('uses the 44px icon button size when a back action is available', () => {
+    render(<HamburgerMenu backNavigation={{ label: 'Back to classes', action: () => {} }} />);
+
+    const trigger = screen.getByRole('button', { name: 'Back to classes' });
+    expect(trigger.className).toContain('h-11');
+    expect(trigger.className).toContain('w-11');
+    expect(trigger.className).toContain('min-h-[44px]');
+    expect(trigger.className).toContain('min-w-[44px]');
   });
 });

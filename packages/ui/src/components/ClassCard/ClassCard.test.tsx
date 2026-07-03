@@ -184,6 +184,24 @@ describe('ClassCard', () => {
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBeGreaterThanOrEqual(1);
     });
+
+    it('keeps favorite and menu icon buttons at the 44px touch floor', () => {
+      render(
+        <ClassCard
+          {...defaultProps}
+          onFavoriteClick={() => {}}
+          onMenuClick={() => {}}
+        />
+      );
+
+      const favoriteButton = screen.getByRole('button', { name: 'Add favorite' });
+      const menuButton = screen.getByRole('button', { name: 'More class actions' });
+
+      expect(favoriteButton.className).toContain('min-h-11');
+      expect(favoriteButton.className).toContain('min-w-11');
+      expect(menuButton.className).toContain('min-h-11');
+      expect(menuButton.className).toContain('min-w-11');
+    });
   });
 
   describe('status colors', () => {

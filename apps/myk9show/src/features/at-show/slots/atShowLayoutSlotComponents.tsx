@@ -31,7 +31,7 @@ export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({ backNavigation, cl
     <Button
       type="button"
       variant="ghost"
-      size="icon"
+      size="icon-lg"
       aria-label={backNavigation.label}
       title={backNavigation.label}
       className={cn('at-show-hamburger-back', className)}
@@ -130,7 +130,7 @@ export const FilterTriggerButton: React.FC<FilterTriggerButtonProps> = ({
   <Button
     type="button"
     variant="ghost"
-    size="icon"
+    size="icon-lg"
     aria-label="Search & sort"
     title="Search & sort"
     className={cn('at-show-filter-trigger relative', className)}

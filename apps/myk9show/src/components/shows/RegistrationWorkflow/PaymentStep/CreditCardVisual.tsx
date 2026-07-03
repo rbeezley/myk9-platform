@@ -14,6 +14,10 @@ interface CreditCardVisualProps {
   onCardholderNameChange: (value: string) => void;
 }
 
+// INTENT: Credit-card artwork uses fixed issuer/chip colors and a fixed dark
+// card body so the preview reads like a payment object. The surrounding form
+// remains tokenized; only the illustrative card art keeps literal colors.
+
 /** SVG brand logos rendered inline to avoid external dependencies. */
 const BrandLogo: React.FC<{ brand: CardBrand }> = ({ brand }) => {
   switch (brand) {

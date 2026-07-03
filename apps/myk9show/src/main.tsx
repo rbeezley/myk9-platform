@@ -70,7 +70,20 @@ createRoot(document.getElementById('root')!, {
       <QueryProvider>
         <ThemeProvider>
           <App />
-          <Toaster theme="system" richColors closeButton />
+          <Toaster
+            theme="system"
+            richColors
+            closeButton
+            position="top-right"
+            offset={{
+              top: 'calc(var(--app-top-inset, 3rem) + 0.75rem)',
+              right: 'max(1rem, env(safe-area-inset-right))',
+            }}
+            mobileOffset={{
+              top: 'calc(var(--app-top-inset, 3rem) + 0.75rem)',
+              right: 'max(1rem, env(safe-area-inset-right))',
+            }}
+          />
           <ToastContainer />
         </ThemeProvider>
       </QueryProvider>

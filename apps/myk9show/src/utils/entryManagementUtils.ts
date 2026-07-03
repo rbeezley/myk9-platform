@@ -245,13 +245,13 @@ export function getEntryStatusClasses(status: string | null): string {
     case EntryStatus.ACCEPTED:
       return 'bg-success/10 text-success border-success/30';
     case EntryStatus.PENDING:
-      return 'bg-warning/10 text-warning border-amber-200 ';
+      return 'bg-warning/10 text-warning border-warning/30 ';
     case EntryStatus.CANCELLED:
-      return 'bg-destructive/10 text-destructive border-red-200 ';
+      return 'bg-destructive/10 text-destructive border-destructive/30 ';
     case EntryStatus.WAITLIST:
-      return 'bg-info/10 text-info border-blue-200 ';
+      return 'bg-info/10 text-info border-info/30 ';
     default:
       // REJECTED / SCRATCHED / MOVED / COMPLETED / MOVE_UP_REQUESTED — neutral, as before.
-      return 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-200';
+      return 'bg-[color:var(--chip-stone-bg)] text-[color:var(--chip-stone-fg)] border-[color:var(--chip-stone-bg)]';
   }
 }

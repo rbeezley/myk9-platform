@@ -251,9 +251,14 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
 
             return (
               <div key={cls.id} className="myk9-entries-class-item">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="flex flex-col min-w-0">
-                    <span className="myk9-entries-class-name">
+                <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <span
+                      className="myk9-entries-class-name"
+                      title={`${cls.name}${cls.number ? ` #${cls.number}` : ''}${
+                        cls.jumpHeight ? ` (${cls.jumpHeight})` : ''
+                      }`}
+                    >
                       {cls.name}
                       {cls.number ? ` #${cls.number}` : ''}
                       {cls.jumpHeight && ` (${cls.jumpHeight})`}
@@ -307,8 +312,8 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
                       onClick={() => onResultRevealClick(resultModel)}
                       className={
                         showNewResult
-                          ? 'min-h-[36px] border-primary/30 text-primary'
-                          : 'min-h-[36px] border-muted-foreground/25 text-muted-foreground'
+                          ? 'min-h-[44px] w-full shrink-0 border-primary/30 text-primary sm:w-auto'
+                          : 'min-h-[44px] w-full shrink-0 border-muted-foreground/25 text-muted-foreground sm:w-auto'
                       }
                     >
                       {showNewResult ? 'New result' : 'Result card'}
@@ -322,7 +327,9 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
                   {!cls.isScored &&
                     ((cls.classId ? (selfCheckinByClassId[cls.classId] ?? true) : true) ? (
                       <button
+                        type="button"
                         onClick={() => onCheckInClick(entry, cls)}
+                        aria-label={`Update check-in for ${entry.dogName} in ${cls.name}`}
                         className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded px-1 hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 transition-transform"
                       >
                         <CheckInStatusIndicator

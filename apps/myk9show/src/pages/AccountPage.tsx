@@ -65,16 +65,13 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: 'Advanced',
+    label: 'Advanced settings',
     items: [
       { key: 'data', label: 'Data & sync', icon: Wifi },
       { key: 'devices', label: 'Devices', icon: Smartphone },
       { key: 'install', label: 'Install app', icon: Download },
+      { key: 'delete', label: 'Delete account', icon: Trash2 },
     ],
-  },
-  {
-    label: '',
-    items: [{ key: 'delete', label: 'Delete account', icon: Trash2 }],
   },
 ];
 

@@ -60,7 +60,7 @@ const ShowDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const managementSectionMatch = useMatch('/shows/:id/:section');
+  const managementSectionMatch = useMatch('/shows/:id/:section/*');
   const { endNavigation } = useNavigationPerformance();
   const { user, userWithRoles, isSecretary, isAdmin, hasRole } = useAuthContext();
   const trials = useTrialStore(s => s.trials);
@@ -108,7 +108,8 @@ const ShowDetailsPage: React.FC = () => {
   const activeManagementSection = managementSectionMatch?.params.section;
   const isManagementSection = Boolean(
     activeManagementSection &&
-    SHOW_MANAGEMENT_SECTIONS.some(item => item.path === activeManagementSection)
+    (SHOW_MANAGEMENT_SECTIONS.some(item => item.path === activeManagementSection) ||
+      activeManagementSection === 'classes')
   );
 
   useEffect(() => {

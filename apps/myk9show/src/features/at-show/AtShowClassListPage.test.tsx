@@ -114,6 +114,7 @@ const renderPage = (syncStatus: ReplicationSyncContextValue['status'] = settledS
           path="/at-show/:showId/class/:classIdA/:classIdB"
           element={<div>COMBINED PAGE</div>}
         />
+        <Route path="/shows/:showId/show-desk" element={<div>SHOW DESK</div>} />
       </Routes>
     </ReplicationSyncContext.Provider>,
     { initialRoute: '/at-show/show-1' }
@@ -144,6 +145,26 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
 
     expect(await screen.findByText('Loading your classes...')).toBeInTheDocument();
     expect(screen.queryByText('This show has no classes yet.')).not.toBeInTheDocument();
+  });
+
+  it('keeps a show-desk exit in the empty state', async () => {
+    vi.mocked(replicatedTrialsTable.getTrialsByShow).mockResolvedValue([] as never);
+
+    renderPage();
+
+    expect(await screen.findByText('This show has no classes yet.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Show Desk' }));
+    expect(await screen.findByText('SHOW DESK')).toBeInTheDocument();
+  });
+
+  it('keeps a show-desk exit when class loading fails', async () => {
+    vi.mocked(replicatedTrialsTable.getTrialsByShow).mockRejectedValue(new Error('Timed out'));
+
+    renderPage();
+
+    expect(await screen.findByText('Failed to load classes')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Show Desk' }));
+    expect(await screen.findByText('SHOW DESK')).toBeInTheDocument();
   });
 
   it('routes a Novice A/B card to the combined EntryList', async () => {
@@ -193,6 +214,20 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
     expect(screen.queryByText(/Exterior Master/)).not.toBeInTheDocument();
     // Sibling trial is unaffected.
     expect(screen.getByText(/Container Novice/)).toBeInTheDocument();
+  });
+
+  it('renders trial headers and count chips with outdoor-readable contrast tokens', async () => {
+    renderPage();
+    await screen.findByText(/Container Novice/);
+
+    const trial2Header = screen.getByRole('button', { name: /Trial 2/ });
+    expect(trial2Header).toHaveClass('text-foreground');
+    expect(trial2Header).not.toHaveClass('text-muted-foreground');
+
+    const countChip = trial2Header.querySelector('span.shrink-0.rounded-full');
+    expect(countChip).toHaveClass('bg-[color:var(--chip-stone-bg)]');
+    expect(countChip).toHaveClass('text-[color:var(--chip-stone-fg)]');
+    expect(countChip).not.toHaveClass('text-muted-foreground');
   });
 
   it('re-expands a collapsed trial when its header is clicked again', async () => {

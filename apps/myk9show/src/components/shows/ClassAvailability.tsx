@@ -39,7 +39,7 @@ function getAvailabilityBadge(classData: ClassAvailabilityData) {
   if (classData.isFull) {
     if (classData.hasWaitlist) {
       return (
-        <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 border">
+        <Badge className="bg-warning/10 text-warning border-warning/20 border">
           <Clock className="h-3 w-3 mr-1" />
           Waitlist ({classData.waitlistCount})
         </Badge>
@@ -55,7 +55,7 @@ function getAvailabilityBadge(classData: ClassAvailabilityData) {
 
   if (classData.spotsAvailable <= 5) {
     return (
-      <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 border">
+      <Badge className="bg-warning/10 text-warning border-warning/20 border">
         <AlertTriangle className="h-3 w-3 mr-1" />
         {classData.spotsAvailable} spots left
       </Badge>

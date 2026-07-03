@@ -20,9 +20,10 @@ describe('badgeClass', () => {
     expect(new Set(classes).size).toBe(tiers.length);
   });
 
-  it('uses theme tokens for the neutral tier (no hardcoded palette)', () => {
-    expect(badgeClass('neutral')).toContain('bg-muted');
-    expect(badgeClass('neutral')).toContain('text-muted-foreground');
+  it('uses high-contrast chip tokens for the neutral tier (no muted text)', () => {
+    expect(badgeClass('neutral')).toContain('var(--chip-stone-bg)');
+    expect(badgeClass('neutral')).toContain('var(--chip-stone-fg)');
+    expect(badgeClass('neutral')).not.toContain('text-muted-foreground');
   });
 
   it('uses semantic tokens for coloured tiers (dark mode handled automatically)', () => {

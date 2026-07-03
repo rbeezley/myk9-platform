@@ -77,6 +77,17 @@ describe('ToastContainer', () => {
     expect(screen.getByText('Alert 2')).toBeInTheDocument();
   });
 
+  it('docks below fixed chrome instead of covering header or bottom actions', () => {
+    useToastStore.getState().addToast(makePayload('1'));
+    const { container } = render(<ToastContainer />);
+
+    const dock = container.querySelector('[aria-live="polite"]');
+    expect(dock?.className).toContain('top-[calc(var(--app-top-inset,3rem)+0.75rem)]');
+    expect(dock?.className).toContain('right-[max(1rem,env(safe-area-inset-right))]');
+    expect(dock?.className).not.toContain('top-4');
+    expect(dock?.className).not.toContain('bottom-');
+  });
+
   it('shows correct icon for announcement type', () => {
     useToastStore.getState().addToast(makePayload('1', 'normal', 'announcement'));
     render(<ToastContainer />);

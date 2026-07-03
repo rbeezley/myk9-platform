@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '@/context/AuthContext';
 import { SecretaryRoutes } from '@/routes/secretaryRoutes';
 import { useShowStore } from '@/store/showStore';
+import { useTrialStore } from '@/store/trialStore';
 import type { Show } from '@/types/show-types';
 
 const mockUseAuth = vi.hoisted(() => vi.fn());
@@ -102,6 +103,18 @@ describe('secretary show phase redirects', () => {
       shows: [makeShow('show-1')],
       isLoading: false,
     });
+    useTrialStore.setState({
+      trials: [
+        {
+          id: 'trial-1',
+          showId: 'show-1',
+          name: 'Saturday Trial',
+          trialDate: '2026-03-22',
+          status: 'scheduled',
+        },
+      ],
+      isLoading: false,
+    });
   });
 
   it('redirects the legacy secretary show base route to canonical setup', async () => {
@@ -197,6 +210,14 @@ describe('secretary show phase redirects', () => {
 
     expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
       '/shows/show-1/setup'
+    );
+  });
+
+  it('redirects legacy trial class management to the show workbench class route', async () => {
+    renderSecretaryRoutes('/trials/trial-1/classes');
+
+    expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
+      '/shows/show-1/classes/trial-1'
     );
   });
 

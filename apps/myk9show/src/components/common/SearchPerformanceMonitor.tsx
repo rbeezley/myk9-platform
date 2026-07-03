@@ -3,15 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { 
-  Activity, 
-  Zap, 
-  Database, 
-  Clock, 
-  TrendingUp, 
-  EyeOff,
-  RefreshCw 
-} from 'lucide-react';
+import { Activity, Zap, Database, Clock, TrendingUp, EyeOff, RefreshCw } from 'lucide-react';
 import { useSearchAnalytics } from '@/lib/searchCache';
 
 interface PerformanceStats {
@@ -99,6 +91,7 @@ export const SearchPerformanceMonitor: React.FC = () => {
                 size="sm"
                 onClick={refreshStats}
                 className="h-6 w-6 p-0"
+                aria-label="Refresh search performance stats"
               >
                 <RefreshCw className="h-3 w-3" />
               </Button>
@@ -107,6 +100,7 @@ export const SearchPerformanceMonitor: React.FC = () => {
                 size="sm"
                 onClick={() => setIsVisible(false)}
                 className="h-6 w-6 p-0"
+                aria-label="Hide search performance monitor"
               >
                 <EyeOff className="h-3 w-3" />
               </Button>
@@ -130,7 +124,9 @@ export const SearchPerformanceMonitor: React.FC = () => {
                     <Clock className="h-3 w-3" />
                     Avg Response
                   </div>
-                  <div className={`text-lg font-medium ${getPerformanceColor(stats.averageResponseTime, 'responseTime')}`}>
+                  <div
+                    className={`text-lg font-medium ${getPerformanceColor(stats.averageResponseTime, 'responseTime')}`}
+                  >
                     {formatResponseTime(stats.averageResponseTime)}
                   </div>
                 </div>
@@ -143,17 +139,20 @@ export const SearchPerformanceMonitor: React.FC = () => {
                     <Zap className="h-3 w-3" />
                     Cache Hit Rate
                   </div>
-                  <Badge 
-                    variant={stats.cacheHitRate > 0.8 ? "default" : stats.cacheHitRate > 0.5 ? "secondary" : "destructive"}
+                  <Badge
+                    variant={
+                      stats.cacheHitRate > 0.8
+                        ? 'default'
+                        : stats.cacheHitRate > 0.5
+                          ? 'secondary'
+                          : 'destructive'
+                    }
                     className="text-xs"
                   >
                     {(stats.cacheHitRate * 100).toFixed(1)}%
                   </Badge>
                 </div>
-                <Progress 
-                  value={stats.cacheHitRate * 100} 
-                  className="h-2"
-                />
+                <Progress value={stats.cacheHitRate * 100} className="h-2" />
               </div>
 
               {/* Popular Queries */}
@@ -179,11 +178,15 @@ export const SearchPerformanceMonitor: React.FC = () => {
               {/* Performance Indicators */}
               <div className="grid grid-cols-2 gap-2 pt-2 border-t text-xs">
                 <div className="flex items-center gap-1 text-muted-foreground">
-                  <div className={`w-2 h-2 rounded-full ${stats.cacheHitRate > 0.8 ? 'bg-green-500' : stats.cacheHitRate > 0.5 ? 'bg-yellow-500' : 'bg-red-500'}`} />
+                  <div
+                    className={`w-2 h-2 rounded-full ${stats.cacheHitRate > 0.8 ? 'bg-green-500' : stats.cacheHitRate > 0.5 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                  />
                   Cache Performance
                 </div>
                 <div className="flex items-center gap-1 text-muted-foreground">
-                  <div className={`w-2 h-2 rounded-full ${stats.averageResponseTime < 200 ? 'bg-green-500' : stats.averageResponseTime < 500 ? 'bg-yellow-500' : 'bg-red-500'}`} />
+                  <div
+                    className={`w-2 h-2 rounded-full ${stats.averageResponseTime < 200 ? 'bg-green-500' : stats.averageResponseTime < 500 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                  />
                   Response Time
                 </div>
               </div>
@@ -214,7 +217,7 @@ export const SearchPerformanceIndicator: React.FC<SearchPerformanceIndicatorProp
   isSearching,
   responseTime,
   cacheHit,
-  resultCount
+  resultCount,
 }) => {
   if (process.env.NODE_ENV !== 'development') {
     return null;
@@ -232,7 +235,9 @@ export const SearchPerformanceIndicator: React.FC<SearchPerformanceIndicatorProp
           {responseTime > 0 && (
             <div className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
-              {responseTime < 1000 ? `${Math.round(responseTime)}ms` : `${(responseTime / 1000).toFixed(1)}s`}
+              {responseTime < 1000
+                ? `${Math.round(responseTime)}ms`
+                : `${(responseTime / 1000).toFixed(1)}s`}
             </div>
           )}
           {cacheHit && (

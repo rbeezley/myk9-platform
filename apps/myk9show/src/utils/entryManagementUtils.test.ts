@@ -108,10 +108,10 @@ describe('getEntryStatusClasses — colour via the shared classifier KIND', () =
   });
 
   it('uses the neutral chip for terminal/uncoloured statuses', () => {
-    // COMPLETED / SCRATCHED / MOVED / REJECTED project to the gray default.
-    expect(getEntryStatusClasses('completed')).toContain('text-gray-700');
-    expect(getEntryStatusClasses('scratched')).toContain('text-gray-700');
-    expect(getEntryStatusClasses('moved')).toContain('text-gray-700');
+    // COMPLETED / SCRATCHED / MOVED / REJECTED project to the neutral stone token.
+    expect(getEntryStatusClasses('completed')).toContain('var(--chip-stone-fg)');
+    expect(getEntryStatusClasses('scratched')).toContain('var(--chip-stone-fg)');
+    expect(getEntryStatusClasses('moved')).toContain('var(--chip-stone-fg)');
   });
 
   it('treats null / no-status as PENDING (warning), matching the stats bucket', () => {
@@ -176,6 +176,13 @@ describe('getEntryStatusBadge / getPaymentStatusBadge — warm --chip-* token vo
     const rawPalette = /bg-(teal|amber|gray|blue|red|green|slate|zinc)-\d{2,3}/;
     for (const status of Object.values(EntryStatus)) {
       expect(badgeClass(getEntryStatusBadge(status))).not.toMatch(rawPalette);
+    }
+  });
+
+  it('leaves no raw Tailwind palette class on string status classes', () => {
+    const rawPalette = /(bg|text|border)-(teal|amber|gray|blue|red|green|slate|zinc)-\d{2,3}/;
+    for (const status of ['confirmed', 'submitted', 'withdrawn', 'waitlisted', 'completed']) {
+      expect(getEntryStatusClasses(status)).not.toMatch(rawPalette);
     }
   });
 });

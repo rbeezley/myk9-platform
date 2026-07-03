@@ -64,6 +64,7 @@ const TrialsList: React.FC<TrialsListProps> = ({
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 p-0 bg-card/80 backdrop-blur-sm rounded-full border border-border/50 hover:bg-card"
+                      aria-label={`Actions for ${trial.name}`}
                     >
                       <MoreVertical className="w-4 h-4" />
                     </Button>

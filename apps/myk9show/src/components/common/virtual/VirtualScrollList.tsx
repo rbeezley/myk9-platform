@@ -1,6 +1,6 @@
 /**
  * Virtual Scrolling List Component
- * 
+ *
  * High-performance virtual scrolling for large datasets. Only renders
  * visible items, dramatically improving performance for lists with
  * thousands of items.
@@ -69,18 +69,18 @@ export function VirtualScrollList<T>({
   searchFunction,
   filters = [],
   customFilter,
-  title = "Items",
+  title = 'Items',
   icon: Icon = Search,
-  searchPlaceholder = "Search items...",
+  searchPlaceholder = 'Search items...',
   isLoading = false,
-  emptyMessage = "No items found",
+  emptyMessage = 'No items found',
   overscan = 5,
   onScrollNearEnd,
   scrollToTopThreshold = 500,
 }: VirtualScrollListProps<T>) {
   // Refs
   const scrollElementRef = useRef<HTMLDivElement>(null);
-  
+
   // State
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
@@ -108,46 +108,44 @@ export function VirtualScrollList<T>({
   const visibleRange = useMemo(() => {
     const itemCount = filteredItems.length;
     const visibleItemsCount = Math.ceil(containerHeight / itemHeight);
-    
+
     const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan);
-    const endIndex = Math.min(
-      itemCount - 1,
-      startIndex + visibleItemsCount + 2 * overscan
-    );
+    const endIndex = Math.min(itemCount - 1, startIndex + visibleItemsCount + 2 * overscan);
 
     return { startIndex, endIndex, visibleItemsCount };
   }, [filteredItems.length, containerHeight, itemHeight, scrollTop, overscan]);
 
   // Calculate total height and visible items
   const totalHeight = filteredItems.length * itemHeight;
-  const visibleItems = filteredItems.slice(
-    visibleRange.startIndex, 
-    visibleRange.endIndex + 1
-  );
+  const visibleItems = filteredItems.slice(visibleRange.startIndex, visibleRange.endIndex + 1);
 
   // Handle scroll
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const scrollTop = e.currentTarget.scrollTop;
-    setScrollTop(scrollTop);
-    setShowScrollToTop(scrollTop > scrollToTopThreshold);
+  const handleScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      const scrollTop = e.currentTarget.scrollTop;
+      setScrollTop(scrollTop);
+      setShowScrollToTop(scrollTop > scrollToTopThreshold);
 
-    // Check if near end for infinite loading
-    if (onScrollNearEnd) {
-      const { scrollHeight, clientHeight } = e.currentTarget;
-      const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
-      
-      if (distanceFromBottom < itemHeight * 10) { // Within 10 items from bottom
-        onScrollNearEnd();
+      // Check if near end for infinite loading
+      if (onScrollNearEnd) {
+        const { scrollHeight, clientHeight } = e.currentTarget;
+        const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
+
+        if (distanceFromBottom < itemHeight * 10) {
+          // Within 10 items from bottom
+          onScrollNearEnd();
+        }
       }
-    }
-  }, [itemHeight, onScrollNearEnd, scrollToTopThreshold]);
+    },
+    [itemHeight, onScrollNearEnd, scrollToTopThreshold]
+  );
 
   // Scroll to top
   const scrollToTop = useCallback(() => {
     if (scrollElementRef.current) {
       scrollElementRef.current.scrollTo({
         top: 0,
-        behavior: 'smooth'
+        behavior: 'smooth',
       });
     }
   }, []);
@@ -172,7 +170,11 @@ export function VirtualScrollList<T>({
   // Performance monitoring
   useEffect(() => {
     if (import.meta.env.DEV) {
-      logger.debug(`🔄 Virtual scroll: ${visibleItems.length}/${filteredItems.length} items rendered`, 'components', {});
+      logger.debug(
+        `🔄 Virtual scroll: ${visibleItems.length}/${filteredItems.length} items rendered`,
+        'components',
+        {}
+      );
     }
   }, [visibleItems.length, filteredItems.length]);
 
@@ -190,7 +192,7 @@ export function VirtualScrollList<T>({
                 Showing {visibleItems.length} of {filteredItems.length} • Virtual scrolling enabled
               </p>
             </div>
-            
+
             <div className="flex gap-2">
               {(searchQuery || Object.keys(activeFilters).length > 0) && (
                 <Button variant="outline" size="sm" onClick={clearAllFilters}>
@@ -215,14 +217,14 @@ export function VirtualScrollList<T>({
                   <Input
                     placeholder={searchPlaceholder}
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={e => setSearchQuery(e.target.value)}
                     className="pl-10"
                   />
                 </div>
               </div>
             )}
-            
-            {filters.map((filter) => (
+
+            {filters.map(filter => (
               <DropdownMenu key={filter.id}>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
@@ -239,9 +241,9 @@ export function VirtualScrollList<T>({
                   <DropdownMenuItem onClick={() => setFilter(filter.id, 'all')}>
                     All {filter.name}
                   </DropdownMenuItem>
-                  {filter.options.map((option) => (
-                    <DropdownMenuItem 
-                      key={option.value} 
+                  {filter.options.map(option => (
+                    <DropdownMenuItem
+                      key={option.value}
                       onClick={() => setFilter(filter.id, option.value)}
                     >
                       {option.label}
@@ -268,8 +270,7 @@ export function VirtualScrollList<T>({
                 <p className="text-muted-foreground">
                   {searchQuery || Object.keys(activeFilters).length > 0
                     ? 'Try adjusting your search or filters'
-                    : 'No items available'
-                  }
+                    : 'No items available'}
                 </p>
               </div>
             ) : (
@@ -289,7 +290,7 @@ export function VirtualScrollList<T>({
                       right: 0,
                       height: itemHeight,
                     };
-                    
+
                     return (
                       <div key={getItemKey(item, actualIndex)} style={style}>
                         {renderItem(item, actualIndex, style)}
@@ -304,8 +305,12 @@ export function VirtualScrollList<T>({
           {/* Performance Stats */}
           {import.meta.env.DEV && (
             <div className="mt-4 text-xs text-muted-foreground bg-muted/50 p-2 rounded">
-              Performance: Rendering {visibleItems.length} of {filteredItems.length} items 
-              (Saved {((filteredItems.length - visibleItems.length) / Math.max(filteredItems.length, 1) * 100).toFixed(1)}% DOM nodes)
+              Performance: Rendering {visibleItems.length} of {filteredItems.length} items (Saved{' '}
+              {(
+                ((filteredItems.length - visibleItems.length) / Math.max(filteredItems.length, 1)) *
+                100
+              ).toFixed(1)}
+              % DOM nodes)
             </div>
           )}
         </CardContent>
@@ -317,6 +322,7 @@ export function VirtualScrollList<T>({
           onClick={scrollToTop}
           className="fixed bottom-6 right-6 rounded-full shadow-lg z-50"
           size="sm"
+          aria-label="Back to top"
         >
           <ArrowUp className="h-4 w-4" />
         </Button>
@@ -388,17 +394,20 @@ export function useVirtualScrolling<T>(
     customFilter: (item: T, filters: Record<string, string>) => boolean;
   }
 ) {
-  const searchFunction = useCallback((items: T[], query: string): T[] => {
-    if (!query.trim()) return items;
-    
-    const lowercaseQuery = query.toLowerCase();
-    return items.filter(item => 
-      searchFields.some(field => {
-        const value = item[field];
-        return value && String(value).toLowerCase().includes(lowercaseQuery);
-      })
-    );
-  }, [searchFields]);
+  const searchFunction = useCallback(
+    (items: T[], query: string): T[] => {
+      if (!query.trim()) return items;
+
+      const lowercaseQuery = query.toLowerCase();
+      return items.filter(item =>
+        searchFields.some(field => {
+          const value = item[field];
+          return value && String(value).toLowerCase().includes(lowercaseQuery);
+        })
+      );
+    },
+    [searchFields]
+  );
 
   return {
     searchFunction,

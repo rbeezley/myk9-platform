@@ -49,6 +49,9 @@ export function HeritageLandingPage({
   const canEnterOnline = hasEntryClassInventory !== false;
 
   return (
+    // INTENT: Heritage is a deliberately fixed-light public style. It keeps the
+    // warm paper surface in dark app theme, while ink-band sections use separate
+    // AA-safe dark-surface tokens guarded by heritagePaletteContrast tests.
     <div
       data-heritage
       className="min-h-screen"

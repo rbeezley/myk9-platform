@@ -3,16 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Progress } from '../ui/progress';
-import { 
-  Activity, 
-  Clock, 
-  Database, 
-  Zap,
-  TrendingUp,
-  MemoryStick,
-  Eye,
-  EyeOff
-} from 'lucide-react';
+import { Activity, Clock, Database, Zap, TrendingUp, MemoryStick, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface PerformanceMetrics {
@@ -55,7 +46,7 @@ export function PaginationPerformanceMonitor({
   renderMetrics,
   className = '',
   minimized = false,
-  onToggleMinimize
+  onToggleMinimize,
 }: PaginationPerformanceMonitorProps) {
   // State for metrics that change independently of props
   const [internalMetrics, setInternalMetrics] = useState<{
@@ -63,7 +54,7 @@ export function PaginationPerformanceMonitor({
     scrollPosition: number;
   }>({
     memoryUsage: 0,
-    scrollPosition: 0
+    scrollPosition: 0,
   });
 
   const [performanceHistory, setPerformanceHistory] = useState<number[]>([]);
@@ -81,7 +72,7 @@ export function PaginationPerformanceMonitor({
     memoryUsage: internalMetrics.memoryUsage,
     scrollPosition: internalMetrics.scrollPosition,
     visibleItems: Math.min(pageSize, itemCount),
-    totalLoadTime: 0
+    totalLoadTime: 0,
   };
 
   // Monitor scroll performance
@@ -95,7 +86,7 @@ export function PaginationPerformanceMonitor({
 
       setInternalMetrics(prev => ({
         ...prev,
-        scrollPosition: window.scrollY
+        scrollPosition: window.scrollY,
       }));
 
       // Track performance history
@@ -128,7 +119,7 @@ export function PaginationPerformanceMonitor({
         const memInfo = (performance as { memory: { usedJSHeapSize: number } }).memory;
         setInternalMetrics(prev => ({
           ...prev,
-          memoryUsage: memInfo.usedJSHeapSize / 1024 / 1024 // Convert to MB
+          memoryUsage: memInfo.usedJSHeapSize / 1024 / 1024, // Convert to MB
         }));
       }
     };
@@ -145,9 +136,10 @@ export function PaginationPerformanceMonitor({
   };
 
   const getPerformanceScore = () => {
-    const avgRenderTime = performanceHistory.length > 0 
-      ? performanceHistory.reduce((a, b) => a + b, 0) / performanceHistory.length 
-      : metrics.renderTime;
+    const avgRenderTime =
+      performanceHistory.length > 0
+        ? performanceHistory.reduce((a, b) => a + b, 0) / performanceHistory.length
+        : metrics.renderTime;
 
     if (avgRenderTime < 16) return { score: 95, level: 'Excellent', color: 'text-green-600' };
     if (avgRenderTime < 33) return { score: 80, level: 'Good', color: 'text-blue-600' };
@@ -180,13 +172,16 @@ export function PaginationPerformanceMonitor({
                 size="sm"
                 onClick={onToggleMinimize}
                 className="h-6 w-6 p-0"
+                aria-label="Show pagination performance monitor"
               >
                 <Eye className="h-3 w-3" />
               </Button>
             </div>
             <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
               <div>Items: {itemCount.toLocaleString()}</div>
-              <div>Page: {currentPage}/{totalPages}</div>
+              <div>
+                Page: {currentPage}/{totalPages}
+              </div>
               <div>Cache: {cacheHitRate.toFixed(0)}%</div>
               <div>Memory: {metrics.memoryUsage.toFixed(1)}MB</div>
             </div>
@@ -211,7 +206,7 @@ export function PaginationPerformanceMonitor({
               Pagination Performance
             </CardTitle>
             <div className="flex items-center gap-2">
-              <Badge 
+              <Badge
                 variant={performanceScore.score > 80 ? 'default' : 'secondary'}
                 className={performanceScore.color}
               >
@@ -223,6 +218,7 @@ export function PaginationPerformanceMonitor({
                   size="sm"
                   onClick={onToggleMinimize}
                   className="h-6 w-6 p-0"
+                  aria-label="Hide pagination performance monitor"
                 >
                   <EyeOff className="h-3 w-3" />
                 </Button>
@@ -251,9 +247,7 @@ export function PaginationPerformanceMonitor({
                 Render Time
               </div>
               <div className="text-2xl font-bold">{metrics.renderTime.toFixed(1)}ms</div>
-              <div className="text-xs text-muted-foreground">
-                Target: &lt;16ms (60fps)
-              </div>
+              <div className="text-xs text-muted-foreground">Target: &lt;16ms (60fps)</div>
             </div>
 
             <div className="space-y-1">
@@ -273,9 +267,7 @@ export function PaginationPerformanceMonitor({
                 Memory Usage
               </div>
               <div className="text-2xl font-bold">{metrics.memoryUsage.toFixed(1)}MB</div>
-              <div className="text-xs text-muted-foreground">
-                JavaScript heap
-              </div>
+              <div className="text-xs text-muted-foreground">JavaScript heap</div>
             </div>
           </div>
 
@@ -286,10 +278,7 @@ export function PaginationPerformanceMonitor({
                 <span>Overall Performance</span>
                 <span className={performanceScore.color}>{performanceScore.score}/100</span>
               </div>
-              <Progress 
-                value={performanceScore.score} 
-                className="h-2"
-              />
+              <Progress value={performanceScore.score} className="h-2" />
             </div>
 
             <div>
@@ -297,21 +286,17 @@ export function PaginationPerformanceMonitor({
                 <span>Cache Efficiency</span>
                 <span>{cacheHitRate.toFixed(1)}%</span>
               </div>
-              <Progress 
-                value={cacheHitRate} 
-                className="h-2"
-              />
+              <Progress value={cacheHitRate} className="h-2" />
             </div>
 
             <div>
               <div className="flex items-center justify-between text-sm mb-1">
                 <span>Loading Progress</span>
-                <span>{currentPage}/{totalPages} pages</span>
+                <span>
+                  {currentPage}/{totalPages} pages
+                </span>
               </div>
-              <Progress 
-                value={(currentPage / totalPages) * 100} 
-                className="h-2"
-              />
+              <Progress value={(currentPage / totalPages) * 100} className="h-2" />
             </div>
           </div>
 

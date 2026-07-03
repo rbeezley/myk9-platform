@@ -218,8 +218,10 @@ export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
               {onFavoriteClick && (
                 <button
                   type="button"
+                  aria-label={isFavorite ? 'Remove favorite' : 'Add favorite'}
+                  aria-pressed={isFavorite}
                   className={cn(
-                    'w-9 h-9 flex items-center justify-center',
+                    'min-h-11 min-w-11 flex items-center justify-center',
                     'rounded-lg cursor-pointer',
                     'transition-all duration-300',
                     'bg-muted text-muted-foreground',
@@ -250,8 +252,9 @@ export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
               {onMenuClick && (
                 <button
                   type="button"
+                  aria-label="More class actions"
                   className={cn(
-                    'w-9 h-9 flex items-center justify-center',
+                    'min-h-11 min-w-11 flex items-center justify-center',
                     'rounded-lg cursor-pointer',
                     'transition-all duration-300',
                     'bg-muted text-muted-foreground',

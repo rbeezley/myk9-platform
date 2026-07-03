@@ -55,7 +55,13 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
           )}
         </div>
         {!isCollapsed && onCloseMobile && (
-          <Button variant="ghost" size="sm" onClick={onCloseMobile} className="md:hidden">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onCloseMobile}
+            className="md:hidden"
+            aria-label="Close sidebar"
+          >
             <X className="h-4 w-4" />
           </Button>
         )}
@@ -104,7 +110,9 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
                           className={cn(
                             'transition-colors',
                             isCollapsed ? 'h-5 w-5' : 'h-4 w-4',
-                            active ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+                            active
+                              ? 'text-primary'
+                              : 'text-muted-foreground group-hover:text-foreground'
                           )}
                         />
                       </div>

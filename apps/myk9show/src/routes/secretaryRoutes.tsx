@@ -15,6 +15,7 @@ import { SuspenseWrapper } from './utils/SuspenseWrapper';
 import { useShowStore } from '@/store/showStore';
 import { useToastStore } from '@/store/toastStore';
 import { LegacySecretaryShowRedirect } from '@/routes/showRouteRedirects';
+import { useTrialStore } from '@/store/trialStore';
 
 // Secretary Dashboard (replaces old PipelineDashboard)
 const SecretaryDashboardPage = lazy(() =>
@@ -29,9 +30,6 @@ const TrialPipelineDetail = lazy(
 const ShowCreationWizardPage = lazy(() => import('@/pages/secretary/ShowCreationWizardPage'));
 const ClassCreationPage = lazy(() =>
   import('@/pages/secretary/ClassCreationPage').then(m => ({ default: m.ClassCreationPage }))
-);
-const ClassManagementPage = lazy(() =>
-  import('@/pages/secretary/ClassManagementPage').then(m => ({ default: m.ClassManagementPage }))
 );
 // Secretary components
 const SecretaryClassDashboard = lazy(() =>
@@ -179,6 +177,33 @@ const SecretaryIndexRedirect = () => {
   }
 
   return <Navigate to={showId ? `/shows/${showId}/setup` : '/secretary/dashboard'} replace />;
+};
+
+const LegacyClassManagementRedirect = () => {
+  const { trialId } = useParams<{ trialId: string }>();
+  const trial = useTrialStore(s => (trialId ? s.getTrialById(trialId) : null));
+  const isLoading = useTrialStore(s => s.isLoading);
+  const loadTrials = useTrialStore(s => s.loadTrials);
+
+  useEffect(() => {
+    if (trialId && !trial && !isLoading) {
+      void loadTrials();
+    }
+  }, [trialId, trial, isLoading, loadTrials]);
+
+  if (!trialId) {
+    return <Navigate to="/secretary/dashboard" replace />;
+  }
+
+  if (trial?.showId) {
+    return <Navigate to={`/shows/${trial.showId}/classes/${trialId}`} replace />;
+  }
+
+  if (isLoading) {
+    return <LoadingSkeleton variant="cards" count={2} />;
+  }
+
+  return <Navigate to="/secretary/dashboard" replace />;
 };
 
 /** All secretary routes — rendered inside UnifiedAppLayout */
@@ -392,11 +417,7 @@ export const SecretaryRoutes = () => (
       path="/trials/:trialId/classes"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <ClassManagementPage />
-            </PageTransition>
-          </SuspenseWrapper>
+          <LegacyClassManagementRedirect />
         </ProtectedRoute>
       }
     />

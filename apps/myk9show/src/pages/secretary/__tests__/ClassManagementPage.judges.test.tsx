@@ -101,4 +101,49 @@ describe('ClassManagementPage judge assignment', () => {
       expect(upsertClassJudgeAssignmentMock).toHaveBeenCalledWith('show-1', 'class-1', 'judge-2');
     });
   });
+
+  it('uses show-scoped workbench links instead of browser-history back navigation', () => {
+    render(
+      <Routes>
+        <Route path="/shows/:id/classes/:trialId" element={<ClassManagementPage />} />
+      </Routes>,
+      { initialRoute: '/shows/show-1/classes/trial-1' }
+    );
+
+    expect(screen.getByRole('navigation', { name: 'Class management breadcrumb' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Show setup' })).toHaveAttribute(
+      'href',
+      '/shows/show-1/setup'
+    );
+    expect(screen.getByRole('link', { name: 'Back to Setup' })).toHaveAttribute(
+      'href',
+      '/shows/show-1/setup'
+    );
+    expect(screen.getByRole('link', { name: 'Back to Setup' })).toHaveClass(
+      'min-h-[44px]',
+      'w-full',
+      'sm:w-auto'
+    );
+    expect(screen.getByRole('link', { name: 'Manage Waitlist' })).toHaveAttribute(
+      'href',
+      '/shows/show-1/entry-management?tab=waitlist&trial=trial-1'
+    );
+    expect(screen.getByRole('link', { name: 'Manage Waitlist' })).toHaveClass(
+      'min-h-[44px]',
+      'w-full',
+      'sm:w-auto'
+    );
+    expect(screen.getByRole('link', { name: 'Add Classes' })).toHaveAttribute(
+      'href',
+      '/trials/trial-1/classes/create'
+    );
+    expect(screen.getByRole('link', { name: 'Add Classes' })).toHaveClass(
+      'min-h-[44px]',
+      'w-full',
+      'sm:w-auto'
+    );
+    expect(screen.getByText('Saturday Trial')).toHaveClass('truncate');
+    expect(screen.getByText('Saturday Trial')).toHaveAttribute('title', 'Saturday Trial');
+    expect(screen.queryByRole('button', { name: 'Back to Trial' })).not.toBeInTheDocument();
+  });
 });

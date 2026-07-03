@@ -105,7 +105,7 @@ describe('AccountPage', () => {
     // 'Notifications' appears as both group label and nav item — verify at least 2 occurrences
     expect(screen.getAllByText('Notifications').length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText('Privacy & security')).toBeInTheDocument();
-    expect(screen.getByText('Advanced')).toBeInTheDocument();
+    expect(screen.getByText('Advanced settings')).toBeInTheDocument();
   });
 
   it('shows all nav items', () => {

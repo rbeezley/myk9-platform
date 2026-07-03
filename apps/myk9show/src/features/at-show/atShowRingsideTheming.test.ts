@@ -17,9 +17,17 @@ const classList = read('AtShowClassListPage.tsx');
 
 describe('At-Show ringside — calm offline + tokenized status', () => {
   it('renders the offline state in a calm neutral tone, not alarm-orange', () => {
-    expect(scoresheet).toContain('bg-muted text-muted-foreground');
+    expect(scoresheet).toContain('badgeClass(');
+    expect(scoresheet).toContain("'neutral'");
     expect(scoresheet).not.toContain('bg-orange-100');
     expect(scoresheet).not.toContain('text-orange-800');
+  });
+
+  it('keeps ringside neutral chips readable in light mode', () => {
+    expect(classList).toContain('text-foreground transition-colors');
+    expect(classList).toContain('var(--chip-stone-bg)');
+    expect(classList).toContain('var(--chip-stone-fg)');
+    expect(classList).not.toContain('text-muted-foreground transition-colors');
   });
 
   it('tints the syncing indicator with the info token (no raw amber)', () => {

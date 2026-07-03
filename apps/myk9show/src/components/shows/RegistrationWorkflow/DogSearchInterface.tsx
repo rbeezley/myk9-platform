@@ -359,6 +359,7 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
             variant="ghost"
             size="sm"
             className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0"
+            aria-label="Clear dog search"
             onClick={() => {
               setFilters(prev => ({ ...prev, searchQuery: '' }));
               onSearchQueryChange?.('');

@@ -53,7 +53,23 @@ Archive a completed change in the experimental workflow.
 
    **If no tasks file exists:** Proceed without task-related warning.
 
-4. **Assess delta spec sync state**
+4. **Check the myK9 PR/merge gate**
+
+   For implemented code or workflow changes, do not archive until the change has
+   gone through the normal repository gate: PR opened, review/CI completed, and
+   merged to `main`.
+
+   Determine the Git state before archiving:
+   - Run `git branch --show-current` and `git status --short`.
+   - If on a feature branch, run `gh pr view --json url,state,isDraft,baseRefName,headRefName,mergeCommit,statusCheckRollup` when a PR exists, or `gh pr list --state merged --head <branch> --json url,state,mergedAt,mergeCommit` to find a squash-merged PR.
+   - If the branch has an open PR, a draft PR, failing/pending checks, or no PR, stop and explain that archive should wait until review/CI/merge is complete.
+   - If already on `main`, proceed only when the implementation is already merged or the change is docs/planning-only.
+
+   **Allowed exceptions:** docs/planning-only changes, abandoned changes, or an
+   explicit user instruction to archive before merge. When using an exception,
+   record the reason in the archive summary.
+
+5. **Assess delta spec sync state**
 
    Use `artifactPaths.specs.existingOutputPaths` from status JSON to check for delta specs. If none exist, proceed without sync prompt.
 
@@ -68,7 +84,7 @@ Archive a completed change in the experimental workflow.
 
    If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
 
-5. **Perform the archive**
+6. **Perform the archive**
 
    Create an `archive` directory under `planningHome.changesDir` if it doesn't exist:
    ```bash
@@ -85,13 +101,14 @@ Archive a completed change in the experimental workflow.
    mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
    ```
 
-6. **Display summary**
+7. **Display summary**
 
    Show archive completion summary including:
    - Change name
    - Schema that was used
    - Archive location
    - Whether specs were synced (if applicable)
+   - PR/merge state or the explicit reason no merged PR was required
    - Note about any warnings (incomplete artifacts/tasks)
 
 **Output On Success**
@@ -110,6 +127,7 @@ All artifacts complete. All tasks complete.
 **Guardrails**
 - Always prompt for change selection if not provided
 - Use artifact graph (pnpm openspec status --json) for completion checking
+- Do not archive implemented code or workflow changes until the PR is merged to main, unless the user explicitly chooses an exception
 - Don't block archive on warnings - just inform and confirm
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
 - Show clear summary of what happened

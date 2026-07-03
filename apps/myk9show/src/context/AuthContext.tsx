@@ -319,9 +319,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     loadRbacData();
+    const rbacRefreshInterval = window.setInterval(() => {
+      void loadRbacData();
+    }, 60 * 1000);
 
     return () => {
       stale = true;
+      window.clearInterval(rbacRefreshInterval);
     };
   }, [auth.user?.id]);
 

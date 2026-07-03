@@ -3,6 +3,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { handle } from '../_shared/http/handler.ts';
 import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
 import { HttpError } from '../_shared/http/responses.ts';
+import { assertSendEmailAuthorization, assertSendEmailRateLimit } from './authz.ts';
 
 // Email sender configuration
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
@@ -94,7 +95,7 @@ type EmailData =
 
 handle<EmailData>(
   { auth: 'jwt', origins: MYK9SHOW_ORIGINS },
-  async ({ body: data, supabase }) => {
+  async ({ body: data, user, supabase }) => {
     // Check for API key
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
     if (!resendApiKey) {
@@ -106,6 +107,13 @@ handle<EmailData>(
     if (!data.to || !data.type) {
       throw new HttpError(400, 'Missing required fields: to, type');
     }
+
+    if (!user) {
+      throw new HttpError(401, 'Unauthorized');
+    }
+
+    await assertSendEmailRateLimit({ supabase, userId: user.id });
+    await assertSendEmailAuthorization({ supabase, user, data });
 
     // Generate email content based on type
     let subject: string;
@@ -184,7 +192,7 @@ handle<EmailData>(
       .then(null, (err: unknown) => console.log('Could not log email:', err));
 
     return { success: true, id: result.id };
-  },
+  }
 );
 
 /**

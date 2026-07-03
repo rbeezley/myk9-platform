@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
@@ -10,7 +10,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { auditService } from '@/services/AuditService';
 import { UserRole } from '@/types/auth-types';
 import { AuditAction } from '@/types/audit-types';
-import { Users, AlertCircle, Download, Loader2, Plus } from 'lucide-react';
+import { Users, AlertCircle, Download, Loader2 } from 'lucide-react';
+import { SecretaryAddEntriesDecision } from '@/features/registration/SecretaryAddEntriesDecision';
 
 import { useEntryManagementData } from '@/hooks/useEntryManagementData';
 import { useEntryManagementFilters } from '@/hooks/useEntryManagementFilters';
@@ -47,7 +48,6 @@ const PAGE_TABS: PrimaryTabDef[] = [
 const EntryManagementPage: React.FC = () => {
   const params = useParams<{ showId?: string; id?: string }>();
   const urlShowId = params.showId ?? params.id;
-  const navigate = useNavigate();
   const [activePageTab] = useUrlTab(
     ['entries', 'move-ups', 'pulls', 'waitlist'] as const,
     'entries'
@@ -242,14 +242,7 @@ const EntryManagementPage: React.FC = () => {
           </p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap md:w-auto md:justify-end">
-          <Button
-            onClick={() => navigate(`/secretary/register/${selectedShowId}`)}
-            disabled={!selectedShowId}
-            className="w-full sm:w-auto"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            New Entry
-          </Button>
+          <SecretaryAddEntriesDecision showId={selectedShowId} />
           <Button
             variant="outline"
             onClick={handleExportCSV}

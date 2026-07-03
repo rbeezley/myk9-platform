@@ -80,7 +80,7 @@ test.describe('Browse entries', () => {
     await expect(page.getByText('Total Entries', { exact: true })).toBeVisible();
   });
 
-  test('entry row Actions menu teardown does not block the next New Entry click', async ({
+  test('entry row Actions menu teardown does not block the Add entries decision point', async ({
     page,
   }) => {
     await signInAsSecretary(page);
@@ -99,7 +99,9 @@ test.describe('Browse entries', () => {
     await page.keyboard.press('Escape');
     await expect(removeEntryItem).not.toBeVisible();
 
-    await page.getByRole('button', { name: 'New Entry' }).click();
+    await expect(page.getByRole('group', { name: 'Add entries' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Enter my dogs' })).toBeVisible();
+    await page.getByRole('button', { name: 'Record exhibitor or paper entry' }).click();
     await page.waitForURL(`**/secretary/register/${LIVE_SECRETARY_SHOW_ID}`, { timeout: 10_000 });
     await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible({
       timeout: 15_000,

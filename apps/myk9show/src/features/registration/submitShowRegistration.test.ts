@@ -92,6 +92,25 @@ describe('submitShowRegistration', () => {
     });
   });
 
+  it('passes the selected non-card payment method through the entry payload', async () => {
+    const params = makeParams({ paymentMethod: 'check' });
+
+    await submitShowRegistration(params);
+
+    expect(params.deps.submitShowEntries).toHaveBeenCalledWith(
+      expect.objectContaining({
+        paymentMethod: 'check',
+        entries: [
+          expect.objectContaining({
+            dogId: 'dog-1',
+            classId: 'class-1',
+            paymentMethod: 'check',
+          }),
+        ],
+      })
+    );
+  });
+
   it('does not duplicate claim-next armband patches through generic entry updates', async () => {
     const params = makeParams();
 
@@ -148,9 +167,7 @@ describe('submitShowRegistration', () => {
       ownerResolution: { ok: false, owners: ['owner-1', 'owner-2'] },
     });
 
-    await expect(submitShowRegistration(params)).rejects.toThrow(
-      'unresolved enrollment owner'
-    );
+    await expect(submitShowRegistration(params)).rejects.toThrow('unresolved enrollment owner');
     expect(params.deps.createShowRegistration).not.toHaveBeenCalled();
   });
 

@@ -4,7 +4,7 @@ import { LIVE_SECRETARY_SHOW_ID, LIVE_SECRETARY_SHOW_NAME } from './uat/shared/s
 
 const TEST_SHOW_ID = LIVE_SECRETARY_SHOW_ID;
 const DOG_SEARCH = 'Ranger';
-const MOCK_CART_ID = 'secretary-entry-walk-cart';
+const MOCK_CART_ID = '00000000-0000-4000-8000-00000000c001';
 
 test.describe('Secretary Entry Walk', () => {
   test('full wizard walk: search dog → select → pick class → submit', async ({ page }) => {

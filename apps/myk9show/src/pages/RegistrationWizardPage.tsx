@@ -33,7 +33,6 @@ function RegistrationWizardContent() {
     workflowLabel,
     sidebarTitle,
     currentShow,
-    navigate,
     steps,
     currentStep,
     completedSteps,
@@ -73,6 +72,7 @@ function RegistrationWizardContent() {
     isSubmitting,
     handleNext,
     handleBack,
+    handleExit,
   } = wiz;
 
   return (
@@ -94,7 +94,7 @@ function RegistrationWizardContent() {
               <Button
                 variant="ghost"
                 size="default"
-                onClick={() => navigate(-1)}
+                onClick={handleExit}
                 className="gap-2 hover:-translate-y-0.5 transition-all duration-300"
               >
                 <ArrowLeft className="h-4 w-4" />

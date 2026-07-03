@@ -15,11 +15,16 @@ import { screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { WORKFLOW_CONFIGS } from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow.constants';
 import {
+  buildExhibitorRegistrationPath,
+  buildSecretaryRegistrationPath,
+  buildShowDeskLateEntryPath,
   isShowDeskLateEntryMode,
+  resolveRegistrationExitPath,
   resolveRegistrationCompletionPath,
 } from '../RegistrationWizardPage.routes';
 
 const navigateMock = vi.hoisted(() => vi.fn());
+const mockIsSecretaryRoute = vi.hoisted(() => ({ current: false }));
 
 // ─── react-router-dom ────────────────────────────────────────────────────────
 vi.mock('react-router-dom', async () => {
@@ -28,7 +33,7 @@ vi.mock('react-router-dom', async () => {
     ...actual,
     useParams: () => ({ showId: 'show-1' }),
     useNavigate: () => navigateMock,
-    useMatch: () => null,
+    useMatch: () => (mockIsSecretaryRoute.current ? { params: { showId: 'show-1' } } : null),
   };
 });
 
@@ -162,6 +167,7 @@ describe('RegistrationWizardPage — workflowMode derivation', () => {
     mockPermissions.isSecretary = false;
     mockPermissions.isClubAdmin = false;
     mockPermissions.isSiteAdmin = false;
+    mockIsSecretaryRoute.current = false;
   });
 
   it('uses exhibitor config when user is an exhibitor', async () => {
@@ -173,7 +179,7 @@ describe('RegistrationWizardPage — workflowMode derivation', () => {
     expect(capturedWorkflowConfig?.features.advancedSearch).toBe(false);
   });
 
-  it('uses secretary_new config for secretary mail-in entry work', async () => {
+  it('keeps the public show registration route in exhibitor self-service mode for secretary-owned dogs', async () => {
     mockPermissions.isSecretary = true;
     mockPermissions.canCreateExhibitor = false;
 
@@ -181,15 +187,17 @@ describe('RegistrationWizardPage — workflowMode derivation', () => {
 
     await waitFor(() => expect(screen.getByTestId('step-content')).toBeInTheDocument());
 
-    expect(capturedWorkflowConfig?.features.advancedSearch).toBe(true);
-    expect(capturedWorkflowConfig?.features.createNew).toBe(true);
+    expect(capturedWorkflowConfig).toStrictEqual(WORKFLOW_CONFIGS.exhibitor);
+    expect(capturedWorkflowConfig?.features.advancedSearch).toBe(false);
+    expect(capturedWorkflowConfig?.features.createNew).toBe(false);
   });
 
-  it('uses secretary_new config when user is a secretary with create-exhibitor permission', async () => {
+  it('uses secretary_new config for the secretary registration route', async () => {
     mockPermissions.isSecretary = true;
     mockPermissions.canCreateExhibitor = true;
+    mockIsSecretaryRoute.current = true;
 
-    render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
+    render(<RegistrationWizardPage />, { initialRoute: '/secretary/register/show-1' });
 
     await waitFor(() => expect(screen.getByTestId('step-content')).toBeInTheDocument());
 
@@ -199,8 +207,9 @@ describe('RegistrationWizardPage — workflowMode derivation', () => {
 
   it('uses club_admin config when user is a club admin', async () => {
     mockPermissions.isClubAdmin = true;
+    mockIsSecretaryRoute.current = true;
 
-    render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
+    render(<RegistrationWizardPage />, { initialRoute: '/secretary/register/show-1' });
 
     await waitFor(() => expect(screen.getByTestId('step-content')).toBeInTheDocument());
 
@@ -209,8 +218,9 @@ describe('RegistrationWizardPage — workflowMode derivation', () => {
 
   it('uses site_admin config when user is a site admin', async () => {
     mockPermissions.isSiteAdmin = true;
+    mockIsSecretaryRoute.current = true;
 
-    render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
+    render(<RegistrationWizardPage />, { initialRoute: '/secretary/register/show-1' });
 
     await waitFor(() => expect(screen.getByTestId('step-content')).toBeInTheDocument());
 
@@ -220,8 +230,9 @@ describe('RegistrationWizardPage — workflowMode derivation', () => {
   it('site_admin takes precedence over secretary flag', async () => {
     mockPermissions.isSiteAdmin = true;
     mockPermissions.isSecretary = true;
+    mockIsSecretaryRoute.current = true;
 
-    render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
+    render(<RegistrationWizardPage />, { initialRoute: '/secretary/register/show-1' });
 
     await waitFor(() => expect(screen.getByTestId('step-content')).toBeInTheDocument());
 
@@ -231,6 +242,7 @@ describe('RegistrationWizardPage — workflowMode derivation', () => {
 
   it('keeps secretary config and labels late-entry context from Show Desk', async () => {
     mockPermissions.isSecretary = true;
+    mockIsSecretaryRoute.current = true;
 
     render(<RegistrationWizardPage />, {
       initialRoute: '/secretary/register/show-1?source=show-desk&entryMode=late',
@@ -253,7 +265,21 @@ describe('RegistrationWizardPage — workflowMode derivation', () => {
     expect(isShowDeskLateEntryMode(new URLSearchParams('entryMode=late'))).toBe(false);
   });
 
+  it('builds canonical entry-start routes', () => {
+    expect(buildExhibitorRegistrationPath('show 1/late')).toBe('/shows/show%201%2Flate/register');
+    expect(buildSecretaryRegistrationPath('show 1/late')).toBe(
+      '/secretary/register/show%201%2Flate'
+    );
+    expect(buildShowDeskLateEntryPath('show 1/late')).toBe(
+      '/secretary/register/show%201%2Flate?source=show-desk&entryMode=late'
+    );
+  });
+
   it('returns to Show Desk sub-route after late-entry completion', () => {
+    expect(resolveRegistrationExitPath('show 1/late', true)).toBe(
+      '/shows/show%201%2Flate/show-desk'
+    );
+    expect(resolveRegistrationExitPath('show 1/late', false)).toBeNull();
     expect(resolveRegistrationCompletionPath('show 1/late', true)).toBe(
       '/shows/show%201%2Flate/show-desk'
     );

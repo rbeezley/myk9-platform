@@ -45,7 +45,10 @@ import {
   selectedDogsOwner,
   type SelectedDogsOwnerResult,
 } from '@/features/registration/selectedDogsOwner';
-import { isShowDeskLateEntryMode } from '../RegistrationWizardPage.routes';
+import {
+  isShowDeskLateEntryMode,
+  resolveRegistrationExitPath,
+} from '../RegistrationWizardPage.routes';
 import { proceedBlockedReason } from './proceedGating';
 import { buildDraftFormData } from './buildDraftFormData';
 import { autoAssignHandlers } from './autoAssignHandlers';
@@ -64,8 +67,17 @@ export function useRegistrationWizardState() {
   const [searchParams] = useSearchParams();
   const isInsideSidebar = !!useMatch('/secretary/*');
   const isLateEntryMode = isShowDeskLateEntryMode(searchParams);
-  const workflowLabel = isLateEntryMode ? 'Late entry' : 'Register';
-  const sidebarTitle = isLateEntryMode ? 'Late entry' : 'Register for Show';
+  const workflowLabel = isLateEntryMode
+    ? 'Late entry'
+    : isInsideSidebar
+      ? 'Add entries'
+      : 'Register';
+  const sidebarTitle = isLateEntryMode
+    ? 'Late entry'
+    : isInsideSidebar
+      ? 'Add entries for exhibitor'
+      : 'Register for Show';
+  const exitPath = resolveRegistrationExitPath(showId, isLateEntryMode);
 
   // Auth and permissions
   const { isSecretary, isClubAdmin, isSiteAdmin, canAssignArmbands } = useRegistrationPermissions();
@@ -110,11 +122,12 @@ export function useRegistrationWizardState() {
   // Derived from role flags, not RegistrationContext.mode — that value defaults
   // to 'exhibitor' while RBAC loads, which would hide the secretary search UI.
   const currentWorkflowMode: WorkflowMode = useMemo(() => {
+    if (!isInsideSidebar) return 'exhibitor';
     if (isSiteAdmin) return 'site_admin';
     if (isClubAdmin) return 'club_admin';
     if (isSecretary) return 'secretary_new';
     return 'exhibitor';
-  }, [isSiteAdmin, isClubAdmin, isSecretary]);
+  }, [isInsideSidebar, isSiteAdmin, isClubAdmin, isSecretary]);
 
   const currentWorkflowConfig = WORKFLOW_CONFIGS[currentWorkflowMode];
 
@@ -360,6 +373,7 @@ export function useRegistrationWizardState() {
     navigate,
     isInsideSidebar,
     isLateEntryMode,
+    exitPath,
     workflowLabel,
     sidebarTitle,
     scrollTopRef,

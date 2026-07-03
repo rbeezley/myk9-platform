@@ -63,6 +63,10 @@ describe('getPaymentMethodDisplay', () => {
     expect(getPaymentMethodDisplay('waived')).toBe('Fees Waived');
   });
 
+  it('maps secretary_paid → Secretary Payment', () => {
+    expect(getPaymentMethodDisplay('secretary_paid')).toBe('Secretary Payment');
+  });
+
   // Regression: empty string previously returned 'Unknown' when online payment
   // was the only option and the user never explicitly selected it.
   it('returns Credit/Debit Card for empty string (unset online payment)', () => {
@@ -103,6 +107,13 @@ describe('getConfirmationHeroCopy', () => {
     // is due at the show would be wrong.
     expect(getConfirmationHeroCopy(EntryStatus.WAITLIST, PaymentStatus.PAID_ONLINE)).toEqual({
       title: 'Registration Submitted',
+      description: 'Your entry has been submitted and payment recorded.',
+    });
+  });
+
+  it('frames waived or already-received secretary payments as recorded once paid', () => {
+    expect(getConfirmationHeroCopy(EntryStatus.ACCEPTED, PaymentStatus.PAID_BY_CASH)).toEqual({
+      title: 'Registration Confirmed',
       description: 'Your entry has been submitted and payment recorded.',
     });
   });

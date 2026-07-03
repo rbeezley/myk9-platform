@@ -34,7 +34,8 @@ handle<WebhookPayload>({ auth: 'none' }, async ({ req, body: payload, supabase }
     )
     .eq('class_id', payload.record.id)
     .is('deleted_at', null)
-    .not('entry_status', 'eq', 'pulled');
+    .not('entry_status', 'in', '("withdrawn","scratched","absent")')
+    .not('check_in_status', 'eq', 'pulled');
 
   if (entriesError) {
     console.error('push-trigger-class-status: entry audience query failed', entriesError.message);

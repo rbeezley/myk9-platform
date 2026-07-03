@@ -171,6 +171,9 @@ describe('class-status and scoring push audience contracts', () => {
     expect(source).toContain('entry.dog?.owner?.auth_user_id');
     expect(source).toContain('entry.dog?.co_owner?.auth_user_id');
     expect(source).toContain('entry.handler?.auth_user_id');
+    expect(source).toContain(".not('entry_status', 'in', '(\"withdrawn\",\"scratched\",\"absent\")')");
+    expect(source).toContain(".not('check_in_status', 'eq', 'pulled')");
     expect(source).not.toContain(".select('user_id')");
+    expect(source).not.toContain(".not('entry_status', 'eq', 'pulled')");
   });
 });

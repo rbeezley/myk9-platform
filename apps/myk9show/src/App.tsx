@@ -7,6 +7,7 @@ import {
   setupQueryPerformanceMonitoring,
   prefetchCriticalData,
 } from '@/utils/performanceOptimizations';
+import { friendlyDbError } from '@/utils/friendlyDbError';
 
 // Home page loaded synchronously for LCP optimization
 import Home from './pages/Home';
@@ -136,6 +137,11 @@ const ErrorFallback = ({
   error: Error | null;
   resetErrorBoundary: () => void;
 }) => {
+  const message = React.useMemo(
+    () => friendlyDbError(error, 'Something went wrong. Please try again.'),
+    [error]
+  );
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4">
       <div className="max-w-md w-full p-6 bg-card rounded-lg shadow-md">
@@ -144,9 +150,7 @@ const ErrorFallback = ({
             <AlertCircle className="h-10 w-10 text-destructive" />
           </div>
           <h2 className="text-2xl font-bold mb-2">Something went wrong</h2>
-          <p className="text-muted-foreground mb-4">
-            {error?.message || 'An unexpected error occurred'}
-          </p>
+          <p className="text-muted-foreground mb-4">{message}</p>
           <div className="flex gap-4">
             <button
               onClick={resetErrorBoundary}

@@ -8963,6 +8963,10 @@ export type Database = {
         Args: { p_class_id: string }
         Returns: undefined
       }
+      refresh_class_scoring_state_authorized: {
+        Args: { p_class_id: string }
+        Returns: undefined
+      }
       regenerate_show_passcodes: {
         Args: { p_show_id: string }
         Returns: {

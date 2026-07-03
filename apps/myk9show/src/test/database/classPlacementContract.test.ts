@@ -28,6 +28,14 @@ const normalizeMigration = readFileSync(
   resolve(migrationsDir, '20260625180000_normalize_final_placement_default_null.sql'),
   'utf8'
 );
+const scoringGrantMigration = readFileSync(
+  resolve(migrationsDir, '20260703120000_revoke_scoring_fns_from_public.sql'),
+  'utf8'
+);
+const forceRlsSweepMigration = readFileSync(
+  resolve(migrationsDir, '20260703121000_force_rls_sweep_2026_07.sql'),
+  'utf8'
+);
 
 // The function has two ranking branches: nationals (points) vs regular (faults).
 const nationalsBranch = placementMigration.slice(
@@ -127,5 +135,57 @@ describe('final_placement NULL normalization (20260625180000)', () => {
     const addCheck = normalizeMigration.indexOf('ADD CONSTRAINT entries_final_placement_check');
     expect(backfill).toBeGreaterThanOrEqual(0);
     expect(addCheck).toBeGreaterThan(backfill);
+  });
+});
+
+describe('scoring SECURITY DEFINER execute grants (20260703120000)', () => {
+  it('revokes direct EXECUTE on the internal placement refresh functions from public client roles', () => {
+    expect(scoringGrantMigration).toContain(
+      'REVOKE ALL ON FUNCTION public.recalculate_class_placements(uuid[], boolean) FROM PUBLIC, anon, authenticated'
+    );
+    expect(scoringGrantMigration).toContain(
+      'REVOKE ALL ON FUNCTION public.refresh_class_scoring_state(uuid) FROM PUBLIC, anon, authenticated'
+    );
+  });
+
+  it('keeps the manual at-show backstop behind an authorized wrapper', () => {
+    expect(scoringGrantMigration).toContain(
+      'CREATE OR REPLACE FUNCTION public.refresh_class_scoring_state_authorized'
+    );
+    expect(scoringGrantMigration).toContain('v_is_manager OR v_is_assigned_judge OR v_has_judge_claim');
+    expect(scoringGrantMigration).toContain("v_claim_kind = 'ringside_passcode'");
+    expect(scoringGrantMigration).toContain("v_claim_role IN ('judge', 'admin')");
+    expect(scoringGrantMigration).toContain('RAISE EXCEPTION');
+    expect(scoringGrantMigration).toContain("USING errcode = '42501'");
+    expect(scoringGrantMigration).toContain('PERFORM public.refresh_class_scoring_state(p_class_id)');
+    expect(scoringGrantMigration).toContain(
+      'GRANT EXECUTE ON FUNCTION public.refresh_class_scoring_state_authorized(uuid) TO authenticated'
+    );
+  });
+});
+
+describe('FORCE RLS sweep (20260703121000)', () => {
+  it.each([
+    'analytics_events',
+    'chatbot_feedback',
+    'chatbot_query_log',
+    'user_guide',
+    'club_access_requests',
+    'entry_payment_links',
+    'entry_submissions',
+    'notifications',
+    'organization_agreements',
+    'platform_waitlist',
+    'result_submissions',
+    'role_requests',
+    'show_incidents',
+    'show_messages',
+    'show_message_threads',
+    'training_goals',
+    'trial_judge_supplies',
+  ])('forces row-level security on %s', tableName => {
+    expect(forceRlsSweepMigration).toContain(
+      `ALTER TABLE public.${tableName} FORCE ROW LEVEL SECURITY`
+    );
   });
 });

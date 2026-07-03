@@ -5,6 +5,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 
 import { handle } from '../_shared/http/handler.ts';
+import { requirePushWebhookSecret } from '../_shared/pushWebhookAuth.ts';
 
 interface WebhookPayload {
   type: 'UPDATE';
@@ -22,7 +23,9 @@ interface WebhookPayload {
   };
 }
 
-handle<WebhookPayload>({ auth: 'none' }, async ({ body, supabase }) => {
+handle<WebhookPayload>({ auth: 'none' }, async ({ req, body, supabase }) => {
+  requirePushWebhookSecret(req);
+
   // Only fire when scoring_completed_at transitions from null to a value
   if (
     body.old_record.scoring_completed_at !== null ||

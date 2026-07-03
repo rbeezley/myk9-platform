@@ -13,8 +13,16 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import type { Entry, EntryListActions } from '@myk9/ringside';
 import type { EntryStatus } from '@myk9/core';
 
+const supabaseMocks = vi.hoisted(() => ({
+  rpc: vi.fn(() => Promise.resolve({ error: null })),
+}));
+
 vi.mock('@/utils/logger', () => ({
   logger: { warn: vi.fn(), error: vi.fn(), log: vi.fn() },
+}));
+
+vi.mock('@/services/database/supabaseClient', () => ({
+  supabase: supabaseMocks,
 }));
 
 import { useAtShowEntryListHandlers } from './useAtShowEntryListHandlers';
@@ -184,5 +192,30 @@ describe('useAtShowEntryListHandlers — setDogInRingStatus exclusivity', () => 
       await Promise.all([p1, p2]);
     });
     expect(actions.handleMarkInRing).toHaveBeenCalledWith('C');
+  });
+});
+
+describe('useAtShowEntryListHandlers — placement recompute RPC', () => {
+  let actions: EntryListActions;
+
+  beforeEach(() => {
+    actions = makeActions();
+    supabaseMocks.rpc.mockClear();
+  });
+
+  it('uses the authorized placement refresh wrapper, not the internal definer function', async () => {
+    const { result } = renderHandlers([makeEntry({ id: 'entry-1' })], actions);
+
+    await act(async () => {
+      await result.current.handleRecalculatePlacements();
+    });
+
+    expect(supabaseMocks.rpc).toHaveBeenCalledWith('refresh_class_scoring_state_authorized', {
+      p_class_id: 'class-1',
+    });
+    expect(supabaseMocks.rpc).not.toHaveBeenCalledWith(
+      'refresh_class_scoring_state',
+      expect.anything()
+    );
   });
 });

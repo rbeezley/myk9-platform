@@ -38,6 +38,27 @@ const getAnonKey = (): string | undefined => {
   }
 };
 
+const AUTH_TOKEN_QUERY_PARAMS = [
+  'access_token',
+  'refresh_token',
+  'token',
+  'token_hash',
+  'code',
+] as const;
+
+function safeLogUrl(href: string): string {
+  const withoutHash = href.split('#')[0] ?? '';
+  try {
+    const url = new URL(withoutHash);
+    for (const param of AUTH_TOKEN_QUERY_PARAMS) {
+      url.searchParams.delete(param);
+    }
+    return url.toString();
+  } catch {
+    return withoutHash;
+  }
+}
+
 export enum LogLevel {
   DEBUG = 0,
   INFO = 1,
@@ -151,7 +172,7 @@ class RemoteTransport implements LogTransport {
           entries,
           source: 'frontend',
           userAgent: navigator.userAgent,
-          url: window.location.href,
+          url: safeLogUrl(window.location.href),
         }),
       });
     } catch (error) {

@@ -137,6 +137,32 @@ describe('ShowAccessCodesCard', () => {
     );
   });
 
+  it('escapes show metadata before writing the exhibitor print slip', async () => {
+    const { user } = renderWithProviders(
+      <ShowAccessCodesCard
+        showId={TEST_SHOW_ID}
+        showName="</title><script>alert(1)</script>"
+        showDate="<img src=x onerror=alert(2)>"
+        passcodes={{
+          admin: 'aq8m2',
+          judge: 'j7xk0',
+          steward: 's4nf3',
+          exhibitor: 'e<h2p9',
+        }}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: /print/i }));
+
+    const openedWindow = vi.mocked(window.open).mock.results[0]?.value as Window;
+    const html = vi.mocked(openedWindow.document.write).mock.calls[0]?.[0] ?? '';
+    expect(html).not.toContain('</title><script>alert(1)</script>');
+    expect(html).not.toContain('<img src=x onerror=alert(2)>');
+    expect(html).not.toContain('<div class="code">e<h2p9</div>');
+    expect(html).toContain('&lt;/title&gt;&lt;script&gt;alert(1)&lt;/script&gt;');
+    expect(html).toContain('&lt;img src=x onerror=alert(2)&gt;');
+    expect(html).toContain('<div class="code">e&lt;h2p9</div>');
+  });
+
   it('renders nothing when no passcodes are provided and canRegenerate is false', () => {
     // Public-facing surfaces (e.g., Show Overview tab for non-managers)
     // must not surface the destructive regenerate CTA — the empty-state
@@ -208,7 +234,9 @@ describe('ShowAccessCodesCard', () => {
     await user.click(generateConfirm);
 
     await waitFor(() => {
-      expect(notifications.error).toHaveBeenCalledWith('not authorized');
+      expect(notifications.error).toHaveBeenCalledWith(
+        "You don't have permission to make that change."
+      );
     });
     // Empty state remains active.
     expect(screen.getByRole('button', { name: /generate new codes/i })).toBeInTheDocument();

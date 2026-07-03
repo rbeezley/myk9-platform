@@ -51,6 +51,7 @@ import { User } from '@/types/user-types';
 import { useUpdateUserMutation } from '@/hooks/queries/useUsersQuery';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { commonValidations } from '@/lib/validation';
+import { friendlyDbError } from '@/utils/friendlyDbError';
 import { z } from 'zod';
 import { format } from 'date-fns';
 
@@ -173,11 +174,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
       toast.success(`Password reset email sent to ${email}`);
     } catch (err) {
       logger.error('Failed to send reset email:', 'admin', { email }, err as Error);
-      const msg =
-        err instanceof Error
-          ? err.message
-          : ((err as { message?: string })?.message ?? 'Failed to send password reset email');
-      toast.error(msg);
+      toast.error(friendlyDbError(err, 'Failed to send password reset email. Please try again.'));
     } finally {
       setResetEmailPending(false);
     }
@@ -199,7 +196,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
       toast.success('Reset link generated successfully');
     } catch (err) {
       logger.error('Failed to generate reset link:', 'admin', { email }, err as Error);
-      toast.error(err instanceof Error ? err.message : 'Failed to generate reset link');
+      toast.error(friendlyDbError(err, 'Failed to generate reset link. Please try again.'));
     } finally {
       setResetLinkPending(false);
     }

@@ -22,6 +22,7 @@ import { buildFieldGuideHtml } from './fieldGuide-email.ts';
 import { buildGazetteHtml } from './gazette-email.ts';
 import { buildMagazineHtml } from './magazine-email.ts';
 import { buildPosterHtml } from './poster-email.ts';
+import { requireConfirmationEmailSecret } from './auth.ts';
 import {
   deriveGazetteEditionLabel,
   deriveMagazineEditionLabel,
@@ -324,20 +325,14 @@ interface ConfirmationEmailPayload {
 // auth: 'none' because the caller is pg_cron / pg_net (migration 193), which
 // passes the service-role key in `Authorization: Bearer <key>` — that is not a
 // user JWT, so the envelope's JWT check would fail. Caller validation is the
-// optional HERITAGE_CONFIRMATION_SECRET header below.
+// required HERITAGE_CONFIRMATION_SECRET header below.
 handle<ConfirmationEmailPayload>(
   { auth: 'none', origins: MYK9SHOW_ORIGINS },
   async ({ req, body, supabase }) => {
-    // Caller auth: when HERITAGE_CONFIRMATION_SECRET is configured, every
-    // non-OPTIONS request must carry it in x-function-secret. The pg_cron
-    // SQL in migration 193 must be updated to pass this header.
-    const FUNCTION_SECRET = Deno.env.get('HERITAGE_CONFIRMATION_SECRET');
-    if (FUNCTION_SECRET) {
-      const provided = req.headers.get('x-function-secret');
-      if (provided !== FUNCTION_SECRET) {
-        throw new HttpError(401, 'Unauthorized');
-      }
-    }
+    // Caller auth: every non-OPTIONS request must carry the configured
+    // HERITAGE_CONFIRMATION_SECRET in x-function-secret. The pg_cron SQL in
+    // migration 193 passes this header.
+    requireConfirmationEmailSecret(req);
 
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
     if (!RESEND_API_KEY) {

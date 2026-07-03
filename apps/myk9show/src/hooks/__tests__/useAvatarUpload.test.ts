@@ -120,7 +120,7 @@ describe('useAvatarUpload', () => {
       await result.current.upload(file);
     });
 
-    expect(notifications.error).toHaveBeenCalledWith('Storage quota exceeded');
+    expect(notifications.error).toHaveBeenCalledWith('Failed to save profile photo.');
     expect(onSuccess).not.toHaveBeenCalled();
   });
 

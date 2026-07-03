@@ -55,8 +55,7 @@ export const RollbackNotification: React.FC<RollbackNotificationProps> = ({
 
   const getErrorDetails = (
     error:
-      | { status?: number; code?: string; timestamp?: string | Date; operationId?: string }
-      | unknown
+      { status?: number; code?: string; timestamp?: string | Date; operationId?: string } | unknown
   ) => {
     if (!error || typeof error !== 'object') return null;
 
@@ -96,6 +95,7 @@ export const RollbackNotification: React.FC<RollbackNotificationProps> = ({
                   size="sm"
                   onClick={handleDismiss}
                   className="h-6 w-6 p-0 hover:bg-destructive/10 "
+                  aria-label="Dismiss rollback notice"
                 >
                   <X className="h-3 w-3" />
                 </Button>

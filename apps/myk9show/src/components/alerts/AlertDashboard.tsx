@@ -386,9 +386,7 @@ export const AlertDashboard: React.FC<AlertDashboardProps> = ({ className }) => 
 
       {/* Premium Alert Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList
-          className="flex w-full max-w-full overflow-x-auto no-scrollbar bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 md:grid md:grid-cols-4"
-        >
+        <TabsList className="flex w-full max-w-full overflow-x-auto no-scrollbar bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 md:grid md:grid-cols-4">
           <TabsTrigger
             value="active"
             className="min-w-max px-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300 md:min-w-0"
@@ -494,7 +492,12 @@ export const AlertDashboard: React.FC<AlertDashboardProps> = ({ className }) => 
 
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild nativeButton>
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                aria-label={`Actions for ${alert.title}`}
+                              >
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>

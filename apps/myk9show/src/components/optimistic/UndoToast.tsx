@@ -84,6 +84,7 @@ export const UndoToast: React.FC<UndoToastProps> = ({
                 size="sm"
                 onClick={handleDismiss}
                 className="h-8 w-8 p-0 hover:bg-muted/50"
+                aria-label="Dismiss undo message"
               >
                 <X className="w-3 h-3" />
               </Button>

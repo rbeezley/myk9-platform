@@ -153,6 +153,7 @@ export const ProgressOverlay: React.FC<ProgressOverlayProps> = ({
                     size="sm"
                     onClick={() => setExpanded(!expanded)}
                     className="h-6 w-6 p-0"
+                    aria-label={expanded ? 'Collapse operations list' : 'Expand operations list'}
                   >
                     {expanded ? (
                       <ChevronUp className="h-3 w-3" />
@@ -167,6 +168,7 @@ export const ProgressOverlay: React.FC<ProgressOverlayProps> = ({
                   size="sm"
                   onClick={() => setVisible(false)}
                   className="h-6 w-6 p-0"
+                  aria-label="Dismiss operations progress"
                 >
                   <X className="h-3 w-3" />
                 </Button>
@@ -216,6 +218,7 @@ export const ProgressOverlay: React.FC<ProgressOverlayProps> = ({
                               size="sm"
                               onClick={() => handleCancel(operation.id)}
                               className="h-5 w-5 p-0 text-muted-foreground hover:text-red-500"
+                              aria-label={`Cancel ${getOperationDescription(operation)}`}
                             >
                               <X className="h-3 w-3" />
                             </Button>

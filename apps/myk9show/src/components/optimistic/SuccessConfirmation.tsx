@@ -9,7 +9,7 @@ export const SuccessConfirmation: React.FC<SuccessConfirmationProps> = ({
   message,
   showUndo = false,
   undoAction,
-  duration = 5000
+  duration = 5000,
 }) => {
   const [visible, setVisible] = useState(true);
   const [timeLeft, setTimeLeft] = useState(duration);
@@ -55,9 +55,11 @@ export const SuccessConfirmation: React.FC<SuccessConfirmationProps> = ({
         className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 bg-card/95 backdrop-blur-xl border border-border/50 rounded-xl shadow-2xl overflow-hidden min-w-[320px] max-w-md"
       >
         {/* Progress bar */}
-        <div className="absolute top-0 left-0 h-1 bg-gradient-to-r from-green-500 to-emerald-400 transition-all duration-100 ease-linear"
-             style={{ width: `${progressPercentage}%` }} />
-        
+        <div
+          className="absolute top-0 left-0 h-1 bg-gradient-to-r from-green-500 to-emerald-400 transition-all duration-100 ease-linear"
+          style={{ width: `${progressPercentage}%` }}
+        />
+
         <div className="p-4">
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0">
@@ -69,13 +71,11 @@ export const SuccessConfirmation: React.FC<SuccessConfirmationProps> = ({
                 <CheckCircle className="w-6 h-6 text-green-500" />
               </motion.div>
             </div>
-            
+
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground">
-                {message}
-              </p>
+              <p className="text-sm font-medium text-foreground">{message}</p>
             </div>
-            
+
             <div className="flex-shrink-0 flex items-center gap-1">
               {showUndo && undoAction && (
                 <Button
@@ -88,12 +88,13 @@ export const SuccessConfirmation: React.FC<SuccessConfirmationProps> = ({
                   Undo
                 </Button>
               )}
-              
+
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleDismiss}
                 className="h-8 w-8 p-0 hover:bg-muted/50"
+                aria-label="Dismiss success message"
               >
                 <X className="w-3 h-3" />
               </Button>

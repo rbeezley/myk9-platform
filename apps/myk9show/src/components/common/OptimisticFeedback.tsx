@@ -2,15 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Card, CardContent } from '../ui/card';
-import { 
-  Loader2, 
-  CheckCircle, 
-  AlertCircle, 
-  Undo2, 
-  Clock,
-  AlertTriangle,
-  X
-} from 'lucide-react';
+import { Loader2, CheckCircle, AlertCircle, Undo2, Clock, AlertTriangle, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 export interface OptimisticFeedbackProps {
@@ -39,9 +31,8 @@ export function OptimisticFeedback({
   onDismissError,
   className,
   variant = 'inline',
-  position = 'top-right'
+  position = 'top-right',
 }: OptimisticFeedbackProps) {
-  
   // Don't render if no relevant state
   if (!isLoading && !hasOptimisticChanges && !error) {
     return null;
@@ -54,36 +45,36 @@ export function OptimisticFeedback({
         text: 'Changes failed to save',
         detail: error,
         color: 'destructive',
-        bgColor: 'bg-destructive/10 border-destructive/20'
+        bgColor: 'bg-destructive/10 border-destructive/20',
       };
     }
-    
+
     if (isLoading) {
       return {
         icon: <Loader2 className="h-4 w-4 animate-spin text-blue-600" />,
         text: 'Saving changes...',
         detail: pendingUpdatesCount > 1 ? `${pendingUpdatesCount} pending updates` : null,
         color: 'blue',
-        bgColor: 'bg-blue-50 border-blue-200'
+        bgColor: 'bg-blue-50 border-blue-200',
       };
     }
-    
+
     if (hasOptimisticChanges) {
       return {
         icon: <Clock className="h-4 w-4 text-amber-600" />,
         text: 'Changes saved locally',
         detail: 'Syncing with server...',
         color: 'amber',
-        bgColor: 'bg-amber-50 border-amber-200'
+        bgColor: 'bg-amber-50 border-amber-200',
       };
     }
-    
+
     return {
       icon: <CheckCircle className="h-4 w-4 text-green-600" />,
       text: 'All changes saved',
       detail: null,
       color: 'green',
-      bgColor: 'bg-green-50 border-green-200'
+      bgColor: 'bg-green-50 border-green-200',
     };
   };
 
@@ -107,22 +98,22 @@ export function OptimisticFeedback({
           <span className="text-muted-foreground ml-1">- {statusInfo.detail}</span>
         )}
       </div>
-      
+
       {error && onRetry && (
         <Button size="sm" variant="outline" onClick={onRetry}>
           Retry
         </Button>
       )}
-      
+
       {(hasOptimisticChanges || error) && onRollback && (
         <Button size="sm" variant="outline" onClick={onRollback}>
           <Undo2 className="h-3 w-3 mr-1" />
           Undo
         </Button>
       )}
-      
+
       {error && onDismissError && (
-        <Button size="sm" variant="ghost" onClick={onDismissError}>
+        <Button size="sm" variant="ghost" onClick={onDismissError} aria-label="Dismiss error">
           <X className="h-3 w-3" />
         </Button>
       )}
@@ -152,28 +143,38 @@ export function OptimisticFeedback({
                 <p className="text-xs text-muted-foreground mt-1">{statusInfo.detail}</p>
               )}
             </div>
-            
+
             <div className="flex items-center gap-2">
               {pendingUpdatesCount > 0 && (
                 <Badge variant="secondary" className="text-xs">
                   {pendingUpdatesCount}
                 </Badge>
               )}
-              
+
               {error && onRetry && (
                 <Button size="sm" variant="outline" onClick={onRetry}>
                   Retry
                 </Button>
               )}
-              
+
               {(hasOptimisticChanges || error) && onRollback && (
-                <Button size="sm" variant="outline" onClick={onRollback}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={onRollback}
+                  aria-label="Undo optimistic changes"
+                >
                   <Undo2 className="h-4 w-4" />
                 </Button>
               )}
-              
+
               {error && onDismissError && (
-                <Button size="sm" variant="ghost" onClick={onDismissError}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={onDismissError}
+                  aria-label="Dismiss error"
+                >
                   <X className="h-4 w-4" />
                 </Button>
               )}
@@ -191,10 +192,13 @@ export function OptimisticFeedback({
       exit={{ opacity: 0, height: 0 }}
       className={cn(
         'border-l-4 p-4',
-        error ? 'border-destructive bg-destructive/10' : 
-        isLoading ? 'border-blue-500 bg-blue-50' :
-        hasOptimisticChanges ? 'border-amber-500 bg-amber-50' :
-        'border-green-500 bg-green-50',
+        error
+          ? 'border-destructive bg-destructive/10'
+          : isLoading
+            ? 'border-blue-500 bg-blue-50'
+            : hasOptimisticChanges
+              ? 'border-amber-500 bg-amber-50'
+              : 'border-green-500 bg-green-50',
         className
       )}
     >
@@ -208,29 +212,29 @@ export function OptimisticFeedback({
             )}
           </div>
         </div>
-        
+
         <div className="flex items-center gap-2">
           {pendingUpdatesCount > 0 && (
             <Badge variant="secondary" className="text-xs">
               {pendingUpdatesCount} pending
             </Badge>
           )}
-          
+
           {error && onRetry && (
             <Button size="sm" variant="outline" onClick={onRetry}>
               Retry
             </Button>
           )}
-          
+
           {(hasOptimisticChanges || error) && onRollback && (
             <Button size="sm" variant="outline" onClick={onRollback}>
               <Undo2 className="h-4 w-4 mr-1" />
               Undo All
             </Button>
           )}
-          
+
           {onDismissError && (
-            <Button size="sm" variant="ghost" onClick={onDismissError}>
+            <Button size="sm" variant="ghost" onClick={onDismissError} aria-label="Dismiss error">
               <X className="h-4 w-4" />
             </Button>
           )}
@@ -256,9 +260,11 @@ export function OptimisticStatusIndicator({
   hasOptimisticChanges,
   pendingUpdatesCount = 0,
   error,
-  className
-}: Pick<OptimisticFeedbackProps, 'isLoading' | 'hasOptimisticChanges' | 'pendingUpdatesCount' | 'error' | 'className'>) {
-  
+  className,
+}: Pick<
+  OptimisticFeedbackProps,
+  'isLoading' | 'hasOptimisticChanges' | 'pendingUpdatesCount' | 'error' | 'className'
+>) {
   if (!isLoading && !hasOptimisticChanges && !error) {
     return (
       <div className={cn('flex items-center gap-1 text-xs text-muted-foreground', className)}>

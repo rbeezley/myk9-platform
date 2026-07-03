@@ -185,6 +185,7 @@ export const AlertToast: React.FC<AlertToastProps> = ({
                 size="sm"
                 onClick={handleDismiss}
                 className="ml-auto text-xs h-7 w-7 p-0"
+                aria-label={`Dismiss alert ${alert.title}`}
               >
                 <X className="h-3 w-3" />
               </Button>

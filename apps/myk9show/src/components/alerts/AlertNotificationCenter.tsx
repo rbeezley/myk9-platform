@@ -20,17 +20,18 @@ interface AlertNotificationCenterProps {
 
 export const AlertNotificationCenter: React.FC<AlertNotificationCenterProps> = ({
   className,
-  maxAlerts = 10
+  maxAlerts = 10,
 }) => {
   const alertingService = AlertingService.getInstance();
 
   // Initialize state with data from the service
-  const getInitialAlerts = () => alertingService.getAlerts({
-    status: [AlertStatus.ACTIVE],
-    limit: maxAlerts,
-    sortBy: 'createdAt',
-    sortOrder: 'desc'
-  });
+  const getInitialAlerts = () =>
+    alertingService.getAlerts({
+      status: [AlertStatus.ACTIVE],
+      limit: maxAlerts,
+      sortBy: 'createdAt',
+      sortOrder: 'desc',
+    });
 
   const [alerts, setAlerts] = useState<Alert[]>(getInitialAlerts);
   const [isOpen, setIsOpen] = useState(false);
@@ -49,7 +50,7 @@ export const AlertNotificationCenter: React.FC<AlertNotificationCenterProps> = (
     };
 
     const handleAlertAcknowledged = (alert: Alert) => {
-      setAlerts(prev => prev.map(a => a.id === alert.id ? alert : a));
+      setAlerts(prev => prev.map(a => (a.id === alert.id ? alert : a)));
     };
 
     // Type-safe event handlers
@@ -137,7 +138,8 @@ export const AlertNotificationCenter: React.FC<AlertNotificationCenterProps> = (
         <Button
           variant="ghost"
           size="sm"
-          className={cn("relative p-2", className)}
+          className={cn('relative p-2', className)}
+          aria-label={unreadCount > 0 ? `Open alerts, ${unreadCount} unread` : 'Open alerts'}
         >
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
@@ -159,17 +161,13 @@ export const AlertNotificationCenter: React.FC<AlertNotificationCenterProps> = (
             </Badge>
           )}
         </div>
-        
+
         <ScrollArea className="h-96">
           {alerts.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-8 text-center">
               <CheckCircle className="h-12 w-12 text-green-500 mb-3" />
-              <p className="text-sm text-muted-foreground">
-                No active alerts
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                System is running smoothly
-              </p>
+              <p className="text-sm text-muted-foreground">No active alerts</p>
+              <p className="text-xs text-muted-foreground mt-1">System is running smoothly</p>
             </div>
           ) : (
             <div className="p-2">
@@ -177,24 +175,22 @@ export const AlertNotificationCenter: React.FC<AlertNotificationCenterProps> = (
                 <React.Fragment key={alert.id}>
                   <Card
                     className={cn(
-                      "mb-2 cursor-pointer transition-all duration-200 hover:shadow-md",
+                      'mb-2 cursor-pointer transition-all duration-200 hover:shadow-md',
                       alert.status === AlertStatus.ACTIVE
-                        ? "border-l-4 border-l-primary"
-                        : "opacity-70"
+                        ? 'border-l-4 border-l-primary'
+                        : 'opacity-70'
                     )}
                     onClick={() => handleAlertClick(alert)}
                   >
                     <CardContent className="p-3">
                       <div className="flex items-start justify-between">
                         <div className="flex items-start space-x-3 flex-1">
-                          <div className="mt-0.5">
-                            {getAlertIcon(alert.severity)}
-                          </div>
+                          <div className="mt-0.5">{getAlertIcon(alert.severity)}</div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center space-x-2 mb-1">
                               <Badge
                                 variant="outline"
-                                className={cn("text-xs", getSeverityColor(alert.severity))}
+                                className={cn('text-xs', getSeverityColor(alert.severity))}
                               >
                                 {alert.severity.toUpperCase()}
                               </Badge>
@@ -224,7 +220,8 @@ export const AlertNotificationCenter: React.FC<AlertNotificationCenterProps> = (
                           variant="ghost"
                           size="sm"
                           className="h-6 w-6 p-0 opacity-50 hover:opacity-100"
-                          onClick={(e) => handleDismissAlert(alert, e)}
+                          onClick={e => handleDismissAlert(alert, e)}
+                          aria-label={`Dismiss alert ${alert.title}`}
                         >
                           <X className="h-3 w-3" />
                         </Button>
@@ -237,7 +234,7 @@ export const AlertNotificationCenter: React.FC<AlertNotificationCenterProps> = (
             </div>
           )}
         </ScrollArea>
-        
+
         {alerts.length > 0 && (
           <>
             <Separator />

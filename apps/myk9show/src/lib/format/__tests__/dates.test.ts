@@ -91,6 +91,16 @@ describe('formatShortDate', () => {
     expect(formatShortDate('2026-07-03T18:00:00Z')).toBe('Jul 3, 2026');
   });
 
+  it.each(['America/Chicago', 'America/New_York'])(
+    'renders a DATE-only value (e.g. a show start_date) as its true local calendar day in %s, not a day early',
+    timezone => {
+      process.env.TZ = timezone;
+      // Regression: new Date('2026-08-01') parses as UTC midnight, which is
+      // still Jul 31 in every timezone west of UTC.
+      expect(formatShortDate('2026-08-01')).toBe('Aug 1, 2026');
+    }
+  );
+
   it('accepts a Date instance', () => {
     expect(formatShortDate(new Date('2026-07-03T18:00:00Z'))).toBe('Jul 3, 2026');
   });

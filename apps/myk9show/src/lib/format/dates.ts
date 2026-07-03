@@ -35,6 +35,20 @@ function isRenderableDate(isoStr: string): boolean {
   return !isNaN(toLocalDate(isoStr).getTime());
 }
 
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * A bare `YYYY-MM-DD` string is a DATE column with no timezone — parsing it
+ * with `new Date(str)` reads as UTC midnight and renders a day early for
+ * western-hemisphere viewers. Route it through `toLocalDate` instead; a
+ * value that already carries a time component (or a `Date` instance) is a
+ * real instant and is used as-is.
+ */
+function resolveInstant(value: string | Date): Date {
+  if (value instanceof Date) return value;
+  return DATE_ONLY.test(value) ? toLocalDate(value) : new Date(value);
+}
+
 /** Compact show date range: "Aug 1–3, 2026" (single day: "Aug 1, 2026"). */
 export function formatShowDateRange(
   startDate?: string | null,
@@ -73,7 +87,7 @@ export function formatEntryDate(
  */
 export function formatShortDate(value?: string | Date | null): string {
   if (!value) return '';
-  const instant = value instanceof Date ? value : new Date(value);
+  const instant = resolveInstant(value);
   if (isNaN(instant.getTime())) return '';
   return instant.toLocaleDateString('en-US', {
     month: 'short',
@@ -88,7 +102,7 @@ export function formatShortDate(value?: string | Date | null): string {
  */
 export function formatEntryDateTime(value?: string | Date | null): string {
   if (!value) return '';
-  const instant = value instanceof Date ? value : new Date(value);
+  const instant = resolveInstant(value);
   if (isNaN(instant.getTime())) return '';
   return instant
     .toLocaleString('en-US', {

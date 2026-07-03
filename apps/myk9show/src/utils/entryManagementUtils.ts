@@ -255,4 +255,3 @@ export function getEntryStatusClasses(status: string | null): string {
       return 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-200';
   }
 }
-

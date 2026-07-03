@@ -1,4 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
+import { toLocalDate } from '@/utils/date-format';
+
+/**
+ * A bare `entry_close_date` is a DATE column with no timezone — parsing it
+ * with `new Date('YYYY-MM-DD')` reads as UTC midnight and reports "closed"
+ * up to a day early for western-hemisphere viewers. Treat a date-only value
+ * as open through local end-of-day (23:59:59.999), matching the "Closes
+ * Today!" inclusive-close convention in `utils/entryStatusUtils.ts`. A value
+ * that already carries a time component is a real instant and is used as-is.
+ */
+function resolveTargetInstant(targetIso: string): Date {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(targetIso)) {
+    const endOfDay = toLocalDate(targetIso);
+    endOfDay.setHours(23, 59, 59, 999);
+    return endOfDay;
+  }
+  return new Date(targetIso);
+}
 
 export interface CountdownValue {
   days: number;
@@ -24,7 +42,7 @@ export function useCountdown(targetIso: string | null, _timezone: string): Count
   const compute = (): CountdownValue => {
     if (!targetIso)
       return { days: 0, hours: 0, minutes: 0, seconds: 0, closed: false, hasTarget: false };
-    const diff = new Date(targetIso).getTime() - Date.now();
+    const diff = resolveTargetInstant(targetIso).getTime() - Date.now();
     if (diff <= 0)
       return { days: 0, hours: 0, minutes: 0, seconds: 0, closed: true, hasTarget: true };
     const totalSeconds = Math.floor(diff / 1000);

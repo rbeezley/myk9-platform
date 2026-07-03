@@ -555,6 +555,45 @@ describe('MutationManager', () => {
       expect(results[0]!.success).toBe(false);
       expect(results[0]!.error).toContain('RLS policy blocked');
     });
+
+    it('classifies failed OCC re-checks as RLS/auth instead of row deletion', async () => {
+      const updateSelect = vi.fn(() => Promise.resolve({ data: [], error: null }));
+      const maybeSingle = vi.fn(() =>
+        Promise.resolve({
+          data: null,
+          error: { code: '42501', message: 'permission denied' },
+        })
+      );
+
+      vi.mocked(mockSupabase.from).mockReturnValue({
+        update: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              select: updateSelect,
+            })),
+            select: updateSelect,
+          })),
+        })),
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            maybeSingle,
+          })),
+        })),
+      } as unknown as ReturnType<typeof mockSupabase.from>);
+
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({ id: 'mut-occ-recheck-denied', serverVersion: 7 })
+      );
+
+      const results = await manager.uploadPendingMutations();
+
+      expect(results).toHaveLength(1);
+      expect(results[0]!.success).toBe(false);
+      expect(results[0]!.error).toContain('RLS policy blocked UPDATE');
+      expect(results[0]!.error).not.toContain('no longer exists server-side');
+      expect(maybeSingle).toHaveBeenCalledTimes(1);
+    });
   });
 
   // ========================================

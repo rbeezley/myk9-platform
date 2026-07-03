@@ -150,6 +150,12 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
     };
   }
 
+  protected override rebuildUpdatePayload(
+    assignment: ReplicatedJudgeAssignment
+  ): Record<string, unknown> {
+    return this.toSupabaseRow(assignment);
+  }
+
   /**
    * Sync judge assignments from Supabase.
    * No licenseKey filter — syncs all rows (table is small).
@@ -185,6 +191,7 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
         getRemoteId: remote => String(remote.id),
         getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
         toLocalRow: rowToJudgeAssignment,
+        rebuildUpdatePayload: assignment => this.toSupabaseRow(assignment),
         resolveConflict: (_local, remote) => remote,
       };
 

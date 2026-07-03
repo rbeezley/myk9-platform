@@ -186,6 +186,10 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     };
   }
 
+  protected override rebuildUpdatePayload(show: ReplicatedShow): Record<string, unknown> {
+    return this.toSupabaseRow(show);
+  }
+
   /**
    * Sync shows from Supabase
    */
@@ -215,6 +219,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       getRemoteId: remote => String(remote.id),
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
       toLocalRow: rowToShow,
+      rebuildUpdatePayload: show => this.toSupabaseRow(show),
       filterLocalRows: (rows, scope) =>
         scope.value ? rows.filter(r => r.clubId === scope.value) : rows,
       resolveConflict: (_local, remote) => remote,

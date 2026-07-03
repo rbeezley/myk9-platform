@@ -565,6 +565,27 @@ describe('syncReplicatedTable', () => {
       expect(row?.data.status).toBe('done');
     });
 
+    it('preserves a locally-created dirty row without promoting the matching remote row to a base', async () => {
+      const reconcileQueue = vi.fn(async () => {});
+      table.setMutationManager({
+        reconcilePendingMutationsForRow: reconcileQueue,
+      } as unknown as MutationManager);
+
+      await table.set('local-1', { id: 'local-1', name: 'Rex', status: 'pending' }, true);
+
+      const adapter = makeVersionedAdapter([
+        { id: 'local-1', name: 'Rex', status: 'accepted', version: 4 },
+      ]);
+
+      await syncReplicatedTable(table, adapter, {}, { conflictSurfacingEnabled: true });
+
+      const row = await table.getReplicatedRow('local-1');
+      expect(row?.data).toMatchObject({ status: 'pending' });
+      expect(row?.baseData).toBeUndefined();
+      expect(row?.serverVersion).toBeUndefined();
+      expect(reconcileQueue).not.toHaveBeenCalled();
+    });
+
     it('reconciles the QUEUED mutations too (not just the IDB row) so the storm actually stops', async () => {
       // The upload reads serverVersion/data from the queued mutation, so reconciling
       // only the row would leave the stuck mutation uploading the stale token forever.

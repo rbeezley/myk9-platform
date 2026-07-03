@@ -138,6 +138,15 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   /**
+   * Rebuild a full Supabase UPDATE payload from a local row after conflict
+   * resolution. Subclasses with direct full-row UPDATE mutations should override
+   * this with their table mapper; RPC/delta-only tables can keep the default.
+   */
+  protected rebuildUpdatePayload(_row: T): Record<string, unknown> | undefined {
+    return undefined;
+  }
+
+  /**
    * Queue a mutation for upload to Supabase.
    * Subclasses call this after set() with the Supabase-format payload.
    */
@@ -389,14 +398,23 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   /** Resolve a conflict by keeping the local edit.
-   *  Clears the conflict snapshot and resets syncStatus to 'pending' so the
-   *  local mutation uploads naturally on the next sync cycle.
+   *  Clears the conflict snapshot, resets syncStatus to 'pending', and refreshes
+   *  queued mutation OCC state so the local mutation uploads naturally on the
+   *  next sync cycle.
    *
    *  @param newServerVersion - The remote row's server version from the conflict
    *    snapshot. Pass this so the next upload uses the correct OCC precondition
    *    (the server has moved to this version) rather than the stale snapshot that
    *    caused the original rejection. */
-  async clearConflict(id: string, newServerVersion?: number): Promise<void> {
+  async clearConflict(
+    id: string,
+    newServerVersion?: number,
+    options?: {
+      mergedData?: T;
+      newBaseData?: T;
+      rebuildUpdatePayload?: (local: T) => Record<string, unknown>;
+    }
+  ): Promise<void> {
     const db = await this.init();
     const normalizedId = String(id);
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
@@ -410,8 +428,29 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       return;
     }
 
-    await tx.store.put(clearedRow);
+    const nextData = options?.mergedData
+      ? ({ ...options.mergedData, id: normalizedId } as T)
+      : clearedRow.data;
+    const nextRow: ReplicatedRow<T> = {
+      ...clearedRow,
+      data: nextData,
+      ...(options?.newBaseData ? { baseData: options.newBaseData } : {}),
+    };
+
+    await tx.store.put(nextRow);
     await tx.done;
+
+    if (newServerVersion !== undefined && this.mutationManager) {
+      const rebuiltData =
+        options?.rebuildUpdatePayload?.(nextRow.data) ?? this.rebuildUpdatePayload(nextRow.data);
+      await this.mutationManager.reconcilePendingMutationsForRow(
+        this.tableName,
+        normalizedId,
+        newServerVersion,
+        rebuiltData
+      );
+    }
+
     this.notifyListeners();
   }
 
@@ -733,14 +772,24 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    */
   async resolveReplicationConflict(
     id: string,
-    resolution: ReplicationConflictResolution
+    resolution: ReplicationConflictResolution,
+    options?: { rebuildUpdatePayload?: (local: T) => Record<string, unknown> }
   ): Promise<boolean> {
     const row = await this.getReplicatedRow(id);
     const snapshot = row?.conflict;
     if (!snapshot) return false;
 
     if (resolution === 'keep-local') {
-      await this.clearConflict(id, snapshot.remoteServerVersion);
+      const merged = mergeNonConflictingServerFields({
+        base: snapshot.baseData,
+        local: row.data,
+        remote: snapshot.remoteData,
+      }).merged;
+      await this.clearConflict(id, snapshot.remoteServerVersion, {
+        mergedData: merged,
+        newBaseData: snapshot.remoteData,
+        rebuildUpdatePayload: options?.rebuildUpdatePayload,
+      });
     } else {
       await this.replaceFromRemote(id, snapshot.remoteData, snapshot.remoteServerVersion);
     }

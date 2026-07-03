@@ -96,6 +96,10 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
     };
   }
 
+  protected override rebuildUpdatePayload(armband: ReplicatedArmband): Record<string, unknown> {
+    return this.toSupabaseRow(armband);
+  }
+
   private createLocalId(): string {
     if (typeof globalThis.crypto?.randomUUID === 'function') {
       return globalThis.crypto.randomUUID();
@@ -140,6 +144,7 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
       },
       getRemoteId: remote => String(remote.id),
       toLocalRow: rowToArmband,
+      rebuildUpdatePayload: armband => this.toSupabaseRow(armband),
       resolveConflict: (_local, remote) => remote,
       shouldCleanupStaleRows: true,
     };

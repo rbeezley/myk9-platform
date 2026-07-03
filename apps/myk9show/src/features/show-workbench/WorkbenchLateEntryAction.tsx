@@ -3,6 +3,7 @@ import { PlusCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
+import { buildShowDeskLateEntryPath } from '@/pages/RegistrationWizardPage.routes';
 import {
   getClassesWithCapacity,
   type ClassWithCapacity,
@@ -43,7 +44,7 @@ export function WorkbenchLateEntryAction({ showId }: WorkbenchLateEntryActionPro
         ? `${openClassCount} class${openClassCount === 1 ? '' : 'es'} with space`
         : 'No classes with space';
 
-  const lateEntryHref = `/secretary/register/${encodeURIComponent(showId)}?source=show-desk&entryMode=late`;
+  const lateEntryHref = buildShowDeskLateEntryPath(showId);
 
   return (
     <section

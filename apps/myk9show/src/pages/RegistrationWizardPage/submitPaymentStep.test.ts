@@ -2,18 +2,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { submitPaymentStep, type SubmitPaymentStepContext } from './submitPaymentStep';
 
 const submitShowRegistrationMock = vi.hoisted(() => vi.fn());
+const submitRegistrationCartCheckoutMock = vi.hoisted(() => vi.fn());
+const notificationErrorMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/features/registration/submitShowRegistration', () => ({
   submitShowRegistration: submitShowRegistrationMock,
 }));
 
 vi.mock('@/features/registration/registrationCartCheckout', () => ({
-  submitRegistrationCartCheckout: vi.fn(),
+  submitRegistrationCartCheckout: submitRegistrationCartCheckoutMock,
 }));
 
 vi.mock('@/lib/notifications', () => ({
   notifications: {
-    error: vi.fn(),
+    error: notificationErrorMock,
   },
 }));
 
@@ -91,6 +93,7 @@ describe('submitPaymentStep', () => {
       armbandAssignments: [],
       armbandFailures: [],
     });
+    submitRegistrationCartCheckoutMock.mockResolvedValue(undefined);
   });
 
   it('clears non-card cart lines after submit success and before sync', async () => {
@@ -101,5 +104,23 @@ describe('submitPaymentStep', () => {
     expect(submitShowRegistrationMock).toHaveBeenCalledTimes(1);
     expect(ctx.cart.clearCart).toHaveBeenCalledTimes(1);
     expect(order).toEqual(['clearCart', 'triggerSync']);
+  });
+
+  it('rejects stale on-behalf card checkout state before Stripe handoff', async () => {
+    const { ctx } = makeContextAndOrder({
+      currentWorkflowMode: 'secretary_new',
+      paymentMethod: 'credit_card',
+    });
+
+    await submitPaymentStep(ctx);
+
+    expect(submitRegistrationCartCheckoutMock).not.toHaveBeenCalled();
+    expect(submitShowRegistrationMock).not.toHaveBeenCalled();
+    expect(ctx.updateShowRegistration).toHaveBeenCalledWith('registration-1', {
+      status: 'draft',
+    });
+    expect(notificationErrorMock).toHaveBeenCalledWith(
+      'Online card checkout is only available when an exhibitor pays for their own entries. For on-behalf entries, record the payment as check, cash, or mark it as paid.'
+    );
   });
 });

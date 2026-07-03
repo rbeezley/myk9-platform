@@ -111,13 +111,12 @@ async function selectFirstAvailableClass(page: Page) {
     timeout: 15000,
   });
 
-  const firstClass = page
-    .locator('label.myk9-level-chip')
-    .filter({ hasText: /Novice A/i })
-    .first();
+  const firstClass = page.getByRole('checkbox', { name: /^Select / }).first();
   await expect(firstClass).toBeVisible({ timeout: 15000 });
   await firstClass.click();
-  await expect(page.getByText(/1 selected/).first()).toBeVisible({ timeout: 10000 });
+  await expect(page.getByRole('button', { name: /^Next$/ })).toBeEnabled({
+    timeout: 10000,
+  });
 }
 
 test('exhibitor card entry hands off to cart checkout without enrollment writes', async ({

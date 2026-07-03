@@ -33,6 +33,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     userId,
     navigate,
     isLateEntryMode,
+    exitPath,
     canAssignArmbands,
     exhibitorProfile,
     triggerSync,
@@ -85,6 +86,14 @@ export function createWizardHandlers(state: RegistrationWizardState) {
   } = state;
 
   // Navigation handlers
+  const handleExit = () => {
+    if (exitPath) {
+      navigate(exitPath);
+      return;
+    }
+    navigate(-1);
+  };
+
   const handleNext = async () => {
     if (submittingRef.current || !canProceed()) return;
 
@@ -162,7 +171,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     if (currentStep > 0) {
       setCurrentStep(prev => prev - 1);
     } else {
-      navigate(-1);
+      handleExit();
     }
   };
 
@@ -285,6 +294,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     handleClassSelectionChange,
     handleHandlerAssignmentChange,
     handleDraftLoaded,
+    handleExit,
     handleStepClick,
     handlePaymentMethodChange,
     handlePaymentDetailsChange,

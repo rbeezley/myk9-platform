@@ -56,7 +56,7 @@ proof — not visual inspection, not typechecking. Each plan's "Test plan" and
 | [001](001-askq-show-scope-fail-closed.md) | AI assistant leaks cross-club entry/handler data (scope fails open) | **HIGH / security** | S | LOW | DONE (pending edge-fn deploy) |
 | [002](002-move-up-create-before-mark.md) | Move-up corrupts an entry if the new-entry write fails (wrong write order) | **HIGH / data-integrity** | M | MED | DONE |
 | [003](003-surface-mutation-errors.md) | Judge-assign & bulk class ops fail silently (secretary told nothing) | **MED–HIGH / UX-integrity** | S–M | LOW | BLOCKED (run after Phase 3 lands `ClassManagementPage.tsx`) |
-| [004](004-cart-checkout-loading-reset.md) | Checkout button stuck spinning after waitlist-only checkout | LOW / polish | S | LOW | TODO (standalone; adopt Phase 5 copy) |
+| [004](004-cart-checkout-loading-reset.md) | Checkout button stuck spinning after waitlist-only checkout | LOW / polish | S | LOW | DONE |
 | [005](005-replication-occ-watermark-spike.md) | Investigate: OCC-token / watermark / conflict race cluster (read-only spike) | MED / investigate | M | LOW | TODO |
 
 **Suggested order:** 001 first (only cross-tenant data leak here; smallest fix,

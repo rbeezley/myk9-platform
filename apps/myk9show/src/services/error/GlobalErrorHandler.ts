@@ -9,6 +9,7 @@
 import { LoggingService } from '@/services/LoggingService';
 import { MonitoringService } from '@/services/MonitoringService';
 import { logger } from '@/services/LoggingService';
+import { isBenignResizeObserverLoopError } from './ignoredBrowserErrors';
 
 interface ErrorDetails {
   message: string;
@@ -46,7 +47,6 @@ class GlobalErrorHandler {
   private maxQueueSize = 100;
   private readonly ignoredErrors = new Set([
     // Common browser extension errors to ignore
-    'ResizeObserver loop limit exceeded',
     'Non-Error promise rejection captured',
     'Script error',
     // Add more patterns as needed
@@ -342,6 +342,8 @@ class GlobalErrorHandler {
    * Check if an error should be ignored
    */
   private shouldIgnoreError(message: string): boolean {
+    if (isBenignResizeObserverLoopError(message)) return true;
+
     return Array.from(this.ignoredErrors).some(pattern => 
       message.includes(pattern)
     );

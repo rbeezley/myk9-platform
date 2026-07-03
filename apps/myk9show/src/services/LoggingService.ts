@@ -3,6 +3,8 @@
  * Provides structured logging with multiple transports and environments
  */
 
+import { isBenignResizeObserverLoopError } from './error/ignoredBrowserErrors';
+
 // Helper to safely check environment - import.meta.env may not exist in Node.js/test contexts
 const isDev = (): boolean => {
   try {
@@ -261,6 +263,8 @@ export class LoggingService {
 
     // Global error handler
     window.addEventListener('error', (event) => {
+      if (isBenignResizeObserverLoopError(event.message)) return;
+
       this.error('Global Error', 'unhandled-error', {
         message: event.message,
         filename: event.filename,

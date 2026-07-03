@@ -3,6 +3,7 @@
  * Comprehensive application monitoring including performance, errors, and user analytics
  */
 
+import { isBenignResizeObserverLoopError } from './error/ignoredBrowserErrors';
 import { logger } from './LoggingService';
 
 export interface PerformanceMetric {
@@ -332,6 +333,8 @@ class ErrorMonitor {
   private setupErrorHandlers(): void {
     // Global error handler
     window.addEventListener('error', event => {
+      if (isBenignResizeObserverLoopError(event.message)) return;
+
       this.recordError({
         message: event.message,
         stack: event.error?.stack,

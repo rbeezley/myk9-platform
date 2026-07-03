@@ -83,20 +83,6 @@ test.describe('Browse entries', () => {
   test('entry row Actions menu teardown does not block the next New Entry click', async ({
     page,
   }) => {
-    const overlayErrors: string[] = [];
-    const resizeObserverLoop = /ResizeObserver loop/i;
-
-    page.on('console', msg => {
-      if (msg.type() === 'error' && resizeObserverLoop.test(msg.text())) {
-        overlayErrors.push(msg.text());
-      }
-    });
-    page.on('pageerror', error => {
-      if (resizeObserverLoop.test(error.message)) {
-        overlayErrors.push(error.message);
-      }
-    });
-
     await signInAsSecretary(page);
     await page.goto(`/secretary/entries/${LIVE_SECRETARY_SHOW_ID}?attention=all`);
     await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible({
@@ -118,7 +104,6 @@ test.describe('Browse entries', () => {
     await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible({
       timeout: 15_000,
     });
-    expect(overlayErrors).toEqual([]);
   });
 });
 

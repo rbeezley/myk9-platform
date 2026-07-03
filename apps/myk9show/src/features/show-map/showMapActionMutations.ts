@@ -317,6 +317,29 @@ export async function moveUpShowMapEntry({
       special_requests: moveNote,
     });
   } catch (error) {
+    // updateEntry is NOT atomic: it commits the local row BEFORE it queues the
+    // sync mutation (ReplicatedEntriesTable.updateEntry), so a throw here may
+    // have already left the original locally marked 'moved'. Restore it to its
+    // captured previous state FIRST — that makes the dog runnable again on this
+    // device even if the next step fails — then soft-delete the new entry.
+    // Ordering matters: if we soft-deleted first and the restore then threw, the
+    // dog would be stranded with no runnable entry; restoring first means the
+    // worst case is a visible duplicate the secretary can scratch.
+    try {
+      await replicatedEntriesTable.updateEntry(entryId, {
+        entryStatus: previousEntryStatus ?? undefined,
+        entry_status: previousEntryStatus ?? undefined,
+        checkInStatus: previousCheckInStatus ?? undefined,
+        check_in_status: previousCheckInStatus ?? undefined,
+        specialRequests: previousSpecialRequests,
+        special_requests: previousSpecialRequests,
+      });
+    } catch (restoreError) {
+      logger.error(
+        '[show-map] Failed to restore original entry after mark-moved failure',
+        restoreError
+      );
+    }
     try {
       const rolledBackAt = new Date().toISOString();
       await replicatedEntriesTable.updateEntry(newEntryId, {

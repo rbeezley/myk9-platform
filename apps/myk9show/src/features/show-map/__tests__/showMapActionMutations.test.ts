@@ -483,11 +483,13 @@ describe('showMapActionMutations', () => {
     );
   });
 
-  it('preserves the mark-moved failure when the rollback soft-delete also fails', async () => {
-    // Both updateEntry calls reject: the mark-moved on the original AND the
-    // rollback soft-delete of the new entry. The original error must survive.
+  it('preserves the mark-moved failure even when both rollback writes also fail', async () => {
+    // All three updateEntry calls reject: the mark-moved on the original, the
+    // restore of the original, and the soft-delete of the new entry. The
+    // original error must still surface.
     mockUpdateReplicatedEntry
       .mockRejectedValueOnce(new Error('mark-moved failed'))
+      .mockRejectedValueOnce(new Error('restore failed'))
       .mockRejectedValueOnce(new Error('soft-delete failed'));
 
     await expect(
@@ -498,8 +500,9 @@ describe('showMapActionMutations', () => {
     ).rejects.toThrow('mark-moved failed');
 
     expect(mockCreateReplicatedEntry).toHaveBeenCalledTimes(1);
-    // mark-moved + rollback soft-delete = two updateEntry calls; no hard delete.
-    expect(mockUpdateReplicatedEntry).toHaveBeenCalledTimes(2);
+    // mark-moved + restore original + soft-delete new = three updateEntry calls;
+    // no hard delete.
+    expect(mockUpdateReplicatedEntry).toHaveBeenCalledTimes(3);
     expect(mockDeleteReplicatedEntry).not.toHaveBeenCalled();
   });
 
@@ -541,6 +544,38 @@ describe('showMapActionMutations', () => {
           deleted_at: expect.any(String),
         })
       );
+    });
+
+    it('restores the original to its previous status BEFORE soft-deleting the new entry when mark-moved fails', async () => {
+      // updateEntry commits its local row before queueing sync, so a failed
+      // mark-moved may already have flipped the original to 'moved' locally.
+      // The rollback must restore the original (not just remove the new entry),
+      // and restore FIRST so the dog stays runnable even if the soft-delete then
+      // fails. Reject only the first updateEntry (the mark-moved).
+      mockUpdateReplicatedEntry.mockRejectedValueOnce(new Error('mark-moved failed'));
+
+      await expect(
+        moveUpShowMapEntry({
+          entryId: 'entry-1',
+          targetClassId: 'class-2',
+        })
+      ).rejects.toThrow('mark-moved failed');
+
+      const createdEntryId = mockCreateReplicatedEntry.mock.calls[0][0].id;
+      // calls[0] = mark-moved (threw); calls[1] = restore original; calls[2] = soft-delete new.
+      const calls = mockUpdateReplicatedEntry.mock.calls;
+      expect(calls).toHaveLength(3);
+      expect(calls[1][0]).toBe('entry-1');
+      expect(calls[1][1]).toMatchObject({
+        entryStatus: 'checked-in',
+        entry_status: 'checked-in',
+        checkInStatus: 'checked-in',
+        check_in_status: 'checked-in',
+        specialRequests: 'Bring paper form',
+        special_requests: 'Bring paper form',
+      });
+      expect(calls[2][0]).toBe(createdEntryId);
+      expect(typeof calls[2][1].deleted_at).toBe('string');
     });
   });
 

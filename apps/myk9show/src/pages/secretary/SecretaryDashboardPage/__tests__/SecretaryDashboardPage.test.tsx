@@ -160,8 +160,8 @@ describe('SecretaryDashboardPage', () => {
     renderPage();
 
     expect(screen.getByText('Managing 1 show')).toBeInTheDocument();
-    expect(screen.getByText('1 entry pending review')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /1 entry pending review/i })).toHaveAttribute(
+    expect(screen.getByText('1 pending entry')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /1 pending entry/i })).toHaveAttribute(
       'href',
       '/shows/managed-show/entry-management?mode=review&attention=pending'
     );

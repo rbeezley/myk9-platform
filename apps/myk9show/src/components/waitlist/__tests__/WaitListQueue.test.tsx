@@ -92,6 +92,20 @@ describe('WaitListQueue', () => {
     expect(screen.getByText(/left/i)).toBeInTheDocument();
   });
 
+  it('uses the shared status definition for queued and pending-payment counts', () => {
+    render(
+      <WaitListQueue
+        entries={[base, offeredEntry]}
+        pendingEntries={[base, offeredEntry]}
+        onPromote={vi.fn()}
+        onRemove={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('Pending Payment (1)')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /promote/i })).toHaveLength(1);
+  });
+
   it('shows empty state when no entries', () => {
     render(
       <WaitListQueue entries={[]} pendingEntries={[]} onPromote={vi.fn()} onRemove={vi.fn()} />

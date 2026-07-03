@@ -314,6 +314,100 @@ describe('useShowEntriesForUser', () => {
     expect(result.current.allEntries[0].dogsAhead).toBe(2);
   });
 
+  it('excludes withdrawn, moved source, and scratched rows from runnable schedule counts and dogsAhead', () => {
+    const liveEntry = makeEntry({
+      id: 'live',
+      registrationData: {
+        armband: '101',
+        runOrder: 4,
+        handler: 'Sarah',
+        submittedAt: '',
+        entryFee: 0,
+        paymentStatus: 'paid',
+      },
+    });
+    const withdrawnAhead = makeEntry({
+      id: 'withdrawn-ahead',
+      dogId: 'dog-x',
+      status: 'withdrawn',
+      registrationData: {
+        armband: '102',
+        runOrder: 1,
+        handler: 'x',
+        submittedAt: '',
+        entryFee: 0,
+        paymentStatus: 'refunded',
+      },
+    });
+    const movedAhead = makeEntry({
+      id: 'moved-ahead',
+      dogId: 'dog-y',
+      status: 'moved',
+      registrationData: {
+        armband: '103',
+        runOrder: 2,
+        handler: 'y',
+        submittedAt: '',
+        entryFee: 0,
+        paymentStatus: 'waived',
+      },
+    });
+    const scratchedAhead = makeEntry({
+      id: 'scratched-ahead',
+      dogId: 'dog-z',
+      status: 'scratched',
+      registrationData: {
+        armband: '104',
+        runOrder: 3,
+        handler: 'z',
+        submittedAt: '',
+        entryFee: 0,
+        paymentStatus: 'paid',
+      },
+    });
+    const alreadyRunAhead = makeEntry({
+      id: 'scored-ahead',
+      dogId: 'dog-a',
+      status: 'completed',
+      registrationData: {
+        armband: '105',
+        runOrder: 1,
+        handler: 'a',
+        submittedAt: '',
+        entryFee: 0,
+        paymentStatus: 'paid',
+      },
+      competitionData: { qualified: true },
+    });
+
+    setMocks({
+      entries: [liveEntry, withdrawnAhead, movedAhead, scratchedAhead, alreadyRunAhead],
+      dogs: [
+        makeDog(),
+        makeDog({ id: 'dog-x' }),
+        makeDog({ id: 'dog-y' }),
+        makeDog({ id: 'dog-z' }),
+        makeDog({ id: 'dog-a' }),
+      ],
+    });
+
+    const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
+
+    expect(result.current.allEntries.map(entry => entry.entryId).sort()).toEqual([
+      'live',
+      'moved-ahead',
+      'scored-ahead',
+      'scratched-ahead',
+      'withdrawn-ahead',
+    ]);
+    expect(result.current.scheduleEntries.map(entry => entry.entryId).sort()).toEqual([
+      'live',
+      'scored-ahead',
+    ]);
+    expect(result.current.totalClasses).toBe(2);
+    expect(result.current.allEntries.find(entry => entry.entryId === 'live')?.dogsAhead).toBe(0);
+  });
+
   it('uses dogName from callName', () => {
     setMocks();
     const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
@@ -459,6 +553,8 @@ describe('useShowEntriesForUser', () => {
       expect(result.current.allEntries).toHaveLength(1);
       expect(result.current.allEntries[0].entryId).toBe('src-1');
       expect(result.current.allEntries[0].movedUpFrom).toBeUndefined();
+      expect(result.current.scheduleEntries).toHaveLength(0);
+      expect(result.current.totalClasses).toBe(0);
     });
 
     it('shows only the final row for a chained move-up (no phantom intermediate rows)', () => {

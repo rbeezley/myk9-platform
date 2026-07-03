@@ -20,8 +20,10 @@ describe('getEntryAttention', () => {
     expect(getEntryAttention({ entry_status: null, check_in_status: null })).toBe(null);
   });
 
-  it("returns 'pending_review' when entry_status='submitted'", () => {
+  it("returns 'pending_review' for the Entry Management pending bucket", () => {
     expect(getEntryAttention({ entry_status: 'submitted' })).toBe('pending_review');
+    expect(getEntryAttention({ entry_status: 'paid' })).toBe('pending_review');
+    expect(getEntryAttention({ entry_status: 'promotion-expired' })).toBe('pending_review');
   });
 
   it("does not flag check_in_status='conflict' as secretary attention (myK9Q owns that signal)", () => {
@@ -36,10 +38,12 @@ describe('getEntryAttention', () => {
     ).toBe('pending_review');
   });
 
-  it('returns null for unknown statuses (does not throw)', () => {
-    expect(getEntryAttention({ entry_status: 'pending_review' })).toBe(null);
-    expect(getEntryAttention({ entry_status: 'conflict' })).toBe(null);
-    expect(getEntryAttention({ entry_status: 'mystery', check_in_status: 'mystery' })).toBe(null);
+  it('matches Entry Management by putting unknown statuses in the pending bucket', () => {
+    expect(getEntryAttention({ entry_status: 'pending_review' })).toBe('pending_review');
+    expect(getEntryAttention({ entry_status: 'conflict' })).toBe('pending_review');
+    expect(getEntryAttention({ entry_status: 'mystery', check_in_status: 'mystery' })).toBe(
+      'pending_review'
+    );
   });
 });
 
@@ -59,10 +63,11 @@ describe('countAttention', () => {
       { entry_status: 'accepted', check_in_status: 'conflict' },
       { entry_status: 'accepted', check_in_status: 'checked-in' },
       { entry_status: 'completed' },
+      { entry_status: 'paid' },
     ];
     expect(countAttention(entries)).toEqual({
-      pending_review: 3,
-      total: 3,
+      pending_review: 4,
+      total: 4,
     });
   });
 });

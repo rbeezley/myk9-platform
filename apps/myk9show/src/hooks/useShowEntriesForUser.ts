@@ -8,7 +8,10 @@ import { useShowStoreCompat } from '@/hooks/useShowStoreCompat';
 import { getDogDisplayName } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
 import { getClassName } from '@/components/classes/types/classTypes';
-import { resolveClassSection } from '@/services/entryDisplay/entryDisplaySelectors';
+import {
+  isRunnableScheduleStatus,
+  resolveClassSection,
+} from '@/services/entryDisplay/entryDisplaySelectors';
 import { entryIsScored } from '@/utils/entryPredicates';
 import { hasScopedClubRole, hasScopedShowRole } from '@/utils/roleScopes';
 import { resolveMoveUpDisplay } from '@/hooks/moveUpDisplay';
@@ -61,7 +64,9 @@ export interface DogEntriesGroup {
 export interface UseShowEntriesForUserResult {
   dogGroups: DogEntriesGroup[];
   allEntries: EnrichedShowEntry[];
+  scheduleEntries: EnrichedShowEntry[];
   totalClasses: number;
+  scheduleDogCount: number;
   isLoading: boolean;
   isError: boolean;
 }
@@ -120,7 +125,15 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
   const canSeeAll = isAdmin || secretaryCanSeeShow || clubAdminCanSeeShow;
 
   return useMemo(() => {
-    const empty = { dogGroups: [], allEntries: [], totalClasses: 0, isLoading, isError: !!error };
+    const empty = {
+      dogGroups: [],
+      allEntries: [],
+      scheduleEntries: [],
+      totalClasses: 0,
+      scheduleDogCount: 0,
+      isLoading,
+      isError: !!error,
+    };
 
     if (!showId) return empty;
 
@@ -157,9 +170,12 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
         .map(d => [d.id, getDogDisplayName(d) || 'Unknown Dog'])
     );
 
-    // Pre-group all show entries by classId for O(N) dogsAhead computation.
+    // Pre-group runnable show entries by classId for O(N) dogsAhead computation.
+    // Withdrawn / scratched / not-accepted / moved source rows remain available
+    // in the history list, but they are not physically ahead in the run schedule.
     const entriesByClassId = new Map<string, SyncableShowEntry[]>();
     for (const e of allShowEntries) {
+      if (!isRunnableScheduleStatus(e.status) || suppressedEntryIds.has(e.id)) continue;
       const bucket = entriesByClassId.get(e.classId);
       if (bucket) bucket.push(e);
       else entriesByClassId.set(e.classId, [e]);
@@ -178,8 +194,6 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
               e =>
                 (e.registrationData.runOrder ?? 0) > 0 &&
                 (e.registrationData.runOrder ?? 0) < runOrder &&
-                // A moved-up source row never runs, so it isn't "ahead".
-                e.status !== 'moved' &&
                 !entryIsScored(e)
             ).length
           : 0;
@@ -232,6 +246,8 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
     }
 
     const allEntries = [...enriched].sort(compareByTime);
+    const scheduleEntries = allEntries.filter(entry => isRunnableScheduleStatus(entry.entryStatus));
+    const scheduleDogCount = new Set(scheduleEntries.map(entry => entry.dogId)).size;
 
     const dogGroupMap = new Map<string, EnrichedShowEntry[]>();
     for (const entry of enriched) {
@@ -251,7 +267,9 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
     return {
       dogGroups,
       allEntries,
-      totalClasses: enriched.length,
+      scheduleEntries,
+      totalClasses: scheduleEntries.length,
+      scheduleDogCount,
       isLoading,
       isError: !!error,
     };

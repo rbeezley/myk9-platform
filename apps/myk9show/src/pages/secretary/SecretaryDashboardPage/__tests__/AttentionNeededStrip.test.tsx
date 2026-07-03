@@ -42,6 +42,16 @@ describe('AttentionNeededStrip', () => {
     expect(container.firstChild).toBeNull();
   });
 
+  it('renders an unknown placeholder instead of a confident zero when count loading fails', () => {
+    render(
+      <MemoryRouter>
+        <AttentionNeededStrip items={[]} countFailed />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText('\u2014 items need attention across your shows')).toBeInTheDocument();
+  });
+
   it('renders the "Needs attention" header when items exist', () => {
     renderStrip([
       { showId: 's1', showName: 'Spring Trial', kind: 'urgent', text: 'Check-in open', href: '/shows/s1' },
@@ -96,7 +106,7 @@ describe('AttentionNeededStrip', () => {
 
     const toggle = screen.getByRole('button', { name: /show 4 attention items/i });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.getByText('4 items need attention')).toBeInTheDocument();
+    expect(screen.getByText('4 items need attention across your shows')).toBeInTheDocument();
     const controlledId = toggle.getAttribute('aria-controls');
     expect(controlledId).toBeTruthy();
     const controlledContent = document.getElementById(controlledId!);

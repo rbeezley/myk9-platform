@@ -4,6 +4,7 @@ import { Chip } from '@/components/base/Chip';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
 import type { EnrichedShowEntry } from '@/hooks/useShowEntriesForUser';
 import { getPendingResultLabel } from './entryResultDisplay';
+import { isRunnableScheduleStatus } from '@/services/entryDisplay/entryDisplaySelectors';
 
 interface WhereToBeProps {
   entries: EnrichedShowEntry[];
@@ -11,11 +12,12 @@ interface WhereToBeProps {
 }
 
 export function WhereToBe({ entries, showId }: WhereToBeProps) {
-  if (entries.length === 0) return null;
+  const scheduleEntries = entries.filter(entry => isRunnableScheduleStatus(entry.entryStatus));
+  if (scheduleEntries.length === 0) return null;
 
   // Group by day, preserving the sorted order from the hook (already by date+time).
   const dayMap = new Map<string, EnrichedShowEntry[]>();
-  for (const e of entries) {
+  for (const e of scheduleEntries) {
     const bucket = dayMap.get(e.trialDate);
     if (bucket) bucket.push(e);
     else dayMap.set(e.trialDate, [e]);

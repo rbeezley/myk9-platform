@@ -64,7 +64,7 @@ describe('computeShowDeskPendingSignals', () => {
     ).toEqual([]);
   });
 
-  it('emits a highest-priority signal when entries are waiting for review', () => {
+  it('emits a highest-priority signal for Entry Management pending-bucket entries', () => {
     const t = tree([
       {
         id: 'e1',
@@ -96,7 +96,7 @@ describe('computeShowDeskPendingSignals', () => {
       count: 2,
       priority: 'highest',
     });
-    expect(signals[0]?.label).toContain('2 entries waiting for review');
+    expect(signals[0]?.label).toContain('2 pending entries');
   });
 
   it('emits a high-priority signal when entries are waiting for check-in', () => {
@@ -173,9 +173,9 @@ describe('computeShowDeskPendingSignals', () => {
     });
     const waiting = signals.find(s => s.id === 'entries-waiting-checkin');
     expect(waiting).toBeUndefined();
-    // Submitted entries still surface in the review chip.
+    // Pre-acceptance entries still surface in the pending-bucket chip.
     const review = signals.find(s => s.id === 'entries-waiting-review');
-    expect(review?.count).toBe(2);
+    expect(review?.count).toBe(4);
   });
 
   it('emits a signal when a class needs judge signature', () => {

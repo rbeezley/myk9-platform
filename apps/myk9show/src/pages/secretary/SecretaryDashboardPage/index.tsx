@@ -29,7 +29,7 @@ export function SecretaryDashboardPage() {
 
   const { today, upcoming, draft, past, attentionNeeded: showAttentionItems } = useMyShows(shows);
 
-  const { data: pendingEntries = [] } = usePendingEntries();
+  const { data: pendingEntries = [], isError: pendingEntriesError } = usePendingEntries();
 
   const attentionByShow = useMemo(() => {
     const map = new Map<string, { showName: string; counts: AttentionCounts }>();
@@ -65,8 +65,8 @@ export function SecretaryDashboardPage() {
           showName,
           kind: 'info',
           text: `${counts.pending_review} ${
-            counts.pending_review === 1 ? 'entry' : 'entries'
-          } pending review`,
+            counts.pending_review === 1 ? 'pending entry' : 'pending entries'
+          }`,
           href: `/shows/${showId}/entry-management?mode=review&attention=pending`,
         });
       }
@@ -101,7 +101,7 @@ export function SecretaryDashboardPage() {
       <DashboardQuickLinks />
 
       {/* Attention strip */}
-      <AttentionNeededStrip items={attentionNeeded} />
+      <AttentionNeededStrip items={attentionNeeded} countFailed={pendingEntriesError} />
 
       {/* Phase-grouped show sections */}
       <div className="px-5 pb-2">

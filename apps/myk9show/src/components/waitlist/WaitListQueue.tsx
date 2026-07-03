@@ -2,6 +2,10 @@ import { Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { WaitListEntry } from '@/types/waitlist-types';
+import {
+  filterOfferedWaitlistEntries,
+  filterQueuedWaitlistEntries,
+} from '@/utils/waitlistCountSelectors';
 
 interface WaitListQueueProps {
   entries: WaitListEntry[];
@@ -26,16 +30,19 @@ export function WaitListQueue({
   onRemove,
   isPromoting = false,
 }: WaitListQueueProps) {
+  const queuedEntries = filterQueuedWaitlistEntries(entries);
+  const offeredEntries = filterOfferedWaitlistEntries(pendingEntries);
+
   return (
     <div className="space-y-4">
       {/* Pending payment section */}
-      {pendingEntries.length > 0 && (
+      {offeredEntries.length > 0 && (
         <div className="rounded-md border border-amber-200 bg-amber-50 p-4">
           <p className="mb-2 text-sm font-semibold text-amber-800">
-            Pending Payment ({pendingEntries.length})
+            Pending Payment ({offeredEntries.length})
           </p>
           <div className="space-y-2">
-            {pendingEntries.map(entry => (
+            {offeredEntries.map(entry => (
               <div
                 key={entry.id}
                 className="flex items-center justify-between text-sm text-amber-700"
@@ -55,7 +62,7 @@ export function WaitListQueue({
       )}
 
       {/* Queue table */}
-      {entries.length === 0 ? (
+      {queuedEntries.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
           <Users className="mb-2 h-8 w-8 opacity-40" />
           <p className="text-sm">No exhibitors on the wait list</p>
@@ -74,7 +81,7 @@ export function WaitListQueue({
               </tr>
             </thead>
             <tbody>
-              {entries.map(entry => (
+              {queuedEntries.map(entry => (
                 <tr key={entry.id} className="border-b last:border-0">
                   <td className="py-2 pr-4 font-mono text-muted-foreground">{entry.position}</td>
                   <td className="py-2 pr-4">{entry.exhibitorName}</td>

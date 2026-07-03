@@ -5,6 +5,8 @@ import type { AttentionItem } from '@/hooks/useMyShows';
 
 interface AttentionNeededStripProps {
   items: AttentionItem[];
+  countFailed?: boolean;
+  scopeLabel?: string;
 }
 
 const STORAGE_KEY = 'myk9-secretary-dashboard-attention-open';
@@ -29,14 +31,19 @@ function persistOpen(open: boolean) {
   }
 }
 
-export function AttentionNeededStrip({ items }: AttentionNeededStripProps) {
+export function AttentionNeededStrip({
+  items,
+  countFailed = false,
+  scopeLabel = 'across your shows',
+}: AttentionNeededStripProps) {
   const contentId = useId();
   const [open, setOpen] = useState(() => getInitialOpen(items.length));
 
-  if (items.length === 0) return null;
+  if (items.length === 0 && !countFailed) return null;
 
   const itemLabel = items.length === 1 ? 'item' : 'items';
-  const toggleLabel = `${open ? 'Hide' : 'Show'} ${items.length} attention ${itemLabel}`;
+  const visibleCount = countFailed ? '\u2014' : String(items.length);
+  const toggleLabel = `${open ? 'Hide' : 'Show'} ${visibleCount} attention ${itemLabel}`;
 
   function toggleOpen() {
     setOpen(current => {
@@ -55,7 +62,7 @@ export function AttentionNeededStrip({ items }: AttentionNeededStripProps) {
             Needs attention
           </span>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            {items.length} {itemLabel} need attention
+            {visibleCount} {itemLabel} need attention {scopeLabel}
           </p>
         </div>
         <button

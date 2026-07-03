@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { isPendingEntry, isAcceptedEntry, isWaitlistEntry } from '@/utils/entryPredicates';
 import { isPastShowEntry } from './modules/myEntriesStats.helpers';
 import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
@@ -86,9 +85,10 @@ const MyEntriesPage: React.FC = () => {
     useMyEntriesData({
       persistCheckInStatus: checkInMutation.mutateAsync,
     });
-  const { filteredEntries, selectedTab, setSelectedTab, entryStats } = useMyEntriesFilters({
-    entries,
-  });
+  const { filteredEntries, selectedTab, setSelectedTab, entryStats, tabCounts } =
+    useMyEntriesFilters({
+      entries,
+    });
 
   // Resolve the secretary's self-check-in cascade (class ?? trial ?? show ?? true)
   // for every entered class. The check-in control should reflect whether the
@@ -134,30 +134,13 @@ const MyEntriesPage: React.FC = () => {
   // commits to the no-dogs branch before ownership is known.
   const hasDogs: boolean | undefined = !ownerId ? false : dogsLoading ? undefined : dogs.length > 0;
 
-  // Note: Date-range-aware summary counts live in useMyEntriesFilters
-  // (entryStats) so the top cards and filters never drift. Only tab counts
-  // live here.
-  const statistics = useMemo(() => {
-    const now = new Date();
-    return {
-      tabCounts: {
-        all: entries.length,
-        pending: entries.filter(isPendingEntry).length,
-        accepted: entries.filter(isAcceptedEntry).length,
-        waitlist: entries.filter(isWaitlistEntry).length,
-        upcoming: entries.filter(e => !isPastShowEntry(e, now)).length,
-        completed: entries.filter(e => isPastShowEntry(e, now)).length,
-      },
-    };
-  }, [entries]);
-
   const entryTabs = useMemo<PrimaryTabDef[]>(
     () =>
       ENTRY_TAB_DEFS.map(tab => ({
         ...tab,
-        count: statistics.tabCounts[tab.id],
+        count: tabCounts[tab.id],
       })),
-    [statistics.tabCounts]
+    [tabCounts]
   );
 
   const upcomingClassCountByDog = useMemo(() => {

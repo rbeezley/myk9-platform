@@ -34,8 +34,9 @@ const classes: ShowMapClassInput[] = [
   { id: 'class-2', trialId: 'trial-1', name: 'Novice B' },
 ];
 
-// Mixed dataset spanning every relevant status combination.
-// Post-B1: check-in conflicts are NOT secretary attention — only pending_review counts.
+// Mixed dataset spanning every relevant status combination. Count parity is
+// intentionally with Entry Management's Pending bucket, not a private raw-status
+// definition, so odd pending-family values like no-status are included.
 const entries: EntryLike[] = [
   // 3 pending_review (entry_status='submitted')
   { entry_status: 'submitted' },
@@ -51,6 +52,7 @@ const entries: EntryLike[] = [
   { entry_status: 'completed' },
   { entry_status: 'withdrawn' },
   { entry_status: 'scratched' },
+  // Entry Management's UI adapter maps this to the Pending tab.
   { entry_status: 'no-status' },
 ];
 
@@ -66,10 +68,8 @@ describe('attention divergence prevention', () => {
     const tree = buildShowMapTree({ show, trials, classes, entries: treeEntries });
     const dashboardCounts = countAttention(treeEntries);
 
-    // Sanity: post-B1 only pending_review contributes (3 submitted entries; the
-    // submitted+conflict row counts once, conflict-only rows contribute nothing).
-    expect(dashboardCounts.pending_review).toBe(4);
-    expect(dashboardCounts.total).toBe(4);
+    expect(dashboardCounts.pending_review).toBe(5);
+    expect(dashboardCounts.total).toBe(5);
 
     expect(tree.root.attentionCount).toBe(dashboardCounts.total);
   });

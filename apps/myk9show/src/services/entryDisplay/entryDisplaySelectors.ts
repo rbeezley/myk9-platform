@@ -108,6 +108,17 @@ export function isRemovedStatus(kind: EntryStatusKind): boolean {
   return REMOVED_KINDS.has(kind);
 }
 
+const NON_RUNNABLE_SCHEDULE_KINDS: ReadonlySet<EntryStatusKind> = new Set([
+  'withdrawn',
+  'not_accepted',
+  'scratched',
+  'moved',
+]);
+
+export function isRunnableScheduleStatus(raw: string | null | undefined): boolean {
+  return !NON_RUNNABLE_SCHEDULE_KINDS.has(getEntryStatusKind(raw));
+}
+
 /** Removal label for a removed kind; `null` for live entries (caller falls through). */
 export function getRemovedStatusLabel(kind: EntryStatusKind): string | null {
   switch (kind) {

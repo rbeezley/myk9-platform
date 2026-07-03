@@ -382,7 +382,7 @@ describe('showMapActions', () => {
     expect(counts.has('dog:dog-1')).toBe(false);
   });
 
-  it('does not treat generic pending entry statuses as Attention lens work', () => {
+  it('counts generic pending entry statuses without inventing a row-level review action', () => {
     const tree = buildShowMapTree({
       show,
       trials: [trial],
@@ -397,6 +397,7 @@ describe('showMapActions', () => {
       ],
     });
 
+    expect(tree.root.attentionCount).toBe(1);
     expect(getAttentionActions('root', { tree })).toEqual([]);
   });
 

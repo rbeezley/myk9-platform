@@ -14,17 +14,11 @@ import type {
 import type { SecretaryEntry } from '@/services/database/entries';
 import {
   getEntryPaidAmount,
-  getEffectivePaymentStatus,
   mapEntryStatus,
   mapPaymentStatus,
   mapClassEntryStatus,
 } from '@/utils/entryManagementUtils';
-import {
-  isPendingEntry,
-  isAcceptedEntry,
-  isWaitlistEntry,
-  isIssueEntry,
-} from '@/utils/entryPredicates';
+import { getEntryManagementCountSummary } from '@/utils/entryCountSelectors';
 
 interface UseEntryManagementDataReturn {
   // Auth
@@ -332,40 +326,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
     void loadEntries(selectedShowId);
   }, [entriesSyncAt, entriesSyncStatus, loadEntries, selectedShowId]);
 
-  // Single-pass computation for stats and tab counts
-  const { stats, tabCounts } = useMemo(() => {
-    const acc = { pending: 0, accepted: 0, waitlist: 0, issues: 0, revenue: 0 };
-    for (const e of entries) {
-      if (isPendingEntry(e)) acc.pending++;
-      if (isAcceptedEntry(e)) acc.accepted++;
-      if (isWaitlistEntry(e)) acc.waitlist++;
-      if (
-        isIssueEntry({
-          entryStatus: e.entryStatus,
-          paymentStatus: getEffectivePaymentStatus(e),
-        })
-      ) {
-        acc.issues++;
-      }
-      acc.revenue += e.paidAmount;
-    }
-    return {
-      stats: {
-        total: entries.length,
-        pending: acc.pending,
-        accepted: acc.accepted,
-        waitlist: acc.waitlist,
-        revenue: acc.revenue,
-      } satisfies EntryStats,
-      tabCounts: {
-        all: entries.length,
-        pending: acc.pending,
-        accepted: acc.accepted,
-        waitlist: acc.waitlist,
-        issues: acc.issues,
-      },
-    };
-  }, [entries]);
+  const { stats, tabCounts } = useMemo(() => getEntryManagementCountSummary(entries), [entries]);
 
   // Email log: map of registrationId → most recent decision email sent_at
   const [lastEmailedMap, setLastEmailedMap] = useState<Record<string, string>>({});

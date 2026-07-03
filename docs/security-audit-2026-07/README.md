@@ -2,6 +2,11 @@
 
 > **Status:** Active
 
+> **Executing these plans in a new session?** Start with
+> [`EXECUTION-HANDOFF.md`](EXECUTION-HANDOFF.md) — execution order, model tier +
+> post-merge deploy action per plan, the SA-006 STOP condition, and the rules of
+> the road.
+
 Remediation plans for the full security audit run on 2026-07-03 against commit
 `28a72d23f`. The audit report (evidence, risk, per-finding fix guidance, severity
 math) is the source of truth: [`../security-audit-2026-07-03.md`](../security-audit-2026-07-03.md).

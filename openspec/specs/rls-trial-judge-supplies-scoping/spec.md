@@ -1,7 +1,11 @@
 # rls-trial-judge-supplies-scoping Specification
 
 ## Purpose
-TBD - created by archiving change security-scoping-rls. Update Purpose after archive.
+Row-level security for `trial_judge_supplies` (per-trial judge supply checklists).
+Every operation (`SELECT`/`INSERT`/`UPDATE`/`DELETE`) is scoped to the club
+managers of the row's trial's show, mirroring the `trial_checklist_state` (087)
+precedent. Closes audit finding SA-007 (cross-tenant operational-data write hole).
+
 ## Requirements
 ### Requirement: Trial judge supply writes are scoped to show managers
 The system SHALL allow `INSERT`/`UPDATE`/`DELETE` on `trial_judge_supplies` only
@@ -39,4 +43,3 @@ consumer.
 - **WHEN** an authenticated user with no managing role on trial A queries
   `trial_judge_supplies` scoped to trial A
 - **THEN** zero rows are returned
-

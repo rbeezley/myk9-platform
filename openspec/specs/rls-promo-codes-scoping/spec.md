@@ -1,7 +1,12 @@
 # rls-promo-codes-scoping Specification
 
 ## Purpose
-TBD - created by archiving change security-scoping-rls. Update Purpose after archive.
+Row-level security for `promo_codes` (discount codes are club financial config).
+Every mutation (`INSERT`/`UPDATE`/`DELETE`) and the catalog `SELECT` are scoped to
+the managers of the code's show or trial, and exhibitor code validation goes
+through a validate-only RPC that never exposes the catalog. Closes audit finding
+SA-002 (cross-tenant financial-config disclosure + write hole).
+
 ## Requirements
 ### Requirement: Promo code mutations are scoped to show managers
 The system SHALL allow `INSERT`, `UPDATE`, and `DELETE` on `promo_codes` only for
@@ -52,4 +57,3 @@ row set.
 - **WHEN** a club secretary or admin for show A queries `promo_codes` scoped to
   show A
 - **THEN** the full set of that show's promo codes is returned
-

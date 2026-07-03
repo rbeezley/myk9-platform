@@ -22,4 +22,9 @@ rules:
   tasks:
     - Include focused tests for changed components, hooks, utilities, or data flows.
     - Include verification commands that match the blast radius.
+    - Include PR, CI, review, and merge as the final implementation gate before archive for code or workflow changes.
     - Include tracking-doc updates when the work completes a planned task.
+  archive:
+    - Do not archive implemented code or workflow changes until their branch has been reviewed, CI has passed, and the PR is merged to main.
+    - If a change is docs/planning-only, abandoned, or intentionally archived before merge, state that explicitly in the archive summary.
+    - Include the PR URL or merge evidence in the archive summary whenever a PR was part of the change.

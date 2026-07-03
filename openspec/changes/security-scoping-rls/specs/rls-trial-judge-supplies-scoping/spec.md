@@ -15,16 +15,20 @@ scoping predicate, not merely any authenticated user.
   deletes a `trial_judge_supplies` row scoped to trial A
 - **THEN** the mutation is denied by RLS
 
-### Requirement: Trial judge supply reads are scoped to the trial's participants
-The system SHALL scope `SELECT` on `trial_judge_supplies` to at least the trial's
-show participants, never to every authenticated user regardless of trial.
+### Requirement: Trial judge supply reads are scoped to show officials
+The system SHALL scope `SELECT` on `trial_judge_supplies` to users who manage the
+row's trial's show (the same predicate as the write policies), never to every
+authenticated user regardless of trial. Pre-work (SA-007) confirmed every
+consumer of this table is an official surface (the secretary trial-management
+view and the judge-supply checklist report); no exhibitor/participant surface
+reads it, so least-privilege official-only read is correct and regresses no
+consumer.
 
-#### Scenario: Show participant reads their trial's supply list
-- **WHEN** an authenticated participant of trial A queries `trial_judge_supplies`
-  scoped to trial A
+#### Scenario: Official of the trial reads its supply list
+- **WHEN** an official of trial A queries `trial_judge_supplies` scoped to trial A
 - **THEN** the trial's supply rows are returned
 
 #### Scenario: Unrelated authenticated user cannot read another trial's supplies
-- **WHEN** an authenticated user with no participation in trial A queries
+- **WHEN** an authenticated user with no official role on trial A queries
   `trial_judge_supplies` scoped to trial A
 - **THEN** zero rows are returned

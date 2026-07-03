@@ -145,104 +145,55 @@ describe('promo-codes', () => {
     });
   });
 
-  describe('findPromoCodeByCode', () => {
-    it('returns trial-level code when found', async () => {
-      const trialCode = {
-        id: 'pc-1',
-        trial_id: 'trial-1',
-        show_id: null,
-        code: 'SAVE10',
-        discount_type: 'percentage',
-        discount_value: 10,
-        usage_limit: null,
-        usage_count: 0,
-        expires_at: null,
-        created_by: 'user-1',
-        created_at: '2026-01-01',
-        updated_at: '2026-01-01',
-      };
-
-      // Single query returns array of matches; trial-level should be preferred
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: [trialCode], error: null }));
-
-      const { findPromoCodeByCode } = await import('@/services/database/promo-codes');
-      const result = await findPromoCodeByCode('trial-1', 'show-1', 'SAVE10');
-
-      expect(result.data).toEqual(trialCode);
-      expect(result.error).toBeNull();
-    });
-
-    it('falls back to show-level code when trial-level not found', async () => {
-      const showCode = {
-        id: 'pc-2',
-        trial_id: null,
-        show_id: 'show-1',
-        code: 'SHOWWIDE',
-        discount_type: 'flat',
-        discount_value: 5,
-        usage_limit: 100,
-        usage_count: 3,
-        expires_at: null,
-        created_by: 'user-1',
-        created_at: '2026-01-01',
-        updated_at: '2026-01-01',
-      };
-
-      // Single query returns only show-level match (no trial-level match)
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: [showCode], error: null }));
-
-      const { findPromoCodeByCode } = await import('@/services/database/promo-codes');
-      const result = await findPromoCodeByCode('trial-1', 'show-1', 'SHOWWIDE');
-
-      expect(result.data).toEqual(showCode);
-      expect(result.error).toBeNull();
-    });
-  });
-
+  // SA-002: exhibitor validation now goes through the validate_promo_code RPC
+  // (SECURITY DEFINER) instead of a direct catalog SELECT. The RPC returns a
+  // single row: { valid, promo_code_id, discount_type, discount_value, reason }.
   describe('validatePromoCodeForEntry', () => {
-    it('returns valid for a non-expired code with remaining usage', async () => {
-      const code = {
-        id: 'pc-1',
-        trial_id: null,
-        show_id: 'show-1',
-        code: 'VALID',
-        discount_type: 'percentage',
-        discount_value: 15,
-        usage_limit: 100,
-        usage_count: 5,
-        expires_at: '2099-12-31T00:00:00Z',
-        created_by: 'user-1',
-        created_at: '2026-01-01',
-        updated_at: '2026-01-01',
-      };
-
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: [code], error: null }));
+    it('returns valid for a code the RPC accepts', async () => {
+      mockSupabase.rpc.mockReturnValue(
+        createChainableQuery({
+          data: [
+            {
+              valid: true,
+              promo_code_id: 'pc-1',
+              discount_type: 'percentage',
+              discount_value: 15,
+              reason: null,
+            },
+          ],
+          error: null,
+        })
+      );
 
       const { validatePromoCodeForEntry } = await import('@/services/database/promo-codes');
       const result = await validatePromoCodeForEntry('trial-1', 'show-1', 'VALID');
 
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('validate_promo_code', {
+        p_code: 'VALID',
+        p_trial_id: 'trial-1',
+        p_show_id: 'show-1',
+      });
       expect(result.valid).toBe(true);
-      expect(result.promoCode?.code).toBe('VALID');
-      expect(result.promoCode?.show_id).toBe('show-1');
+      expect(result.promoCode?.id).toBe('pc-1');
+      expect(result.promoCode?.discount_type).toBe('percentage');
+      expect(result.promoCode?.discount_value).toBe(15);
     });
 
-    it('returns invalid for an expired code', async () => {
-      const code = {
-        id: 'pc-2',
-        trial_id: 'trial-1',
-        show_id: null,
-        code: 'EXPIRED',
-        discount_type: 'flat',
-        discount_value: 10,
-        usage_limit: null,
-        usage_count: 0,
-        expires_at: '2020-01-01T00:00:00Z',
-        created_by: 'user-1',
-        created_at: '2020-01-01',
-        updated_at: '2020-01-01',
-      };
-
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: [code], error: null }));
+    it('surfaces the RPC reason for an expired code', async () => {
+      mockSupabase.rpc.mockReturnValue(
+        createChainableQuery({
+          data: [
+            {
+              valid: false,
+              promo_code_id: null,
+              discount_type: null,
+              discount_value: null,
+              reason: 'This promo code has expired',
+            },
+          ],
+          error: null,
+        })
+      );
 
       const { validatePromoCodeForEntry } = await import('@/services/database/promo-codes');
       const result = await validatePromoCodeForEntry('trial-1', 'show-1', 'EXPIRED');
@@ -251,23 +202,21 @@ describe('promo-codes', () => {
       expect(result.error).toBe('This promo code has expired');
     });
 
-    it('returns invalid for an exhausted code', async () => {
-      const code = {
-        id: 'pc-3',
-        trial_id: null,
-        show_id: 'show-1',
-        code: 'EXHAUSTED',
-        discount_type: 'percentage',
-        discount_value: 50,
-        usage_limit: 10,
-        usage_count: 10,
-        expires_at: null,
-        created_by: 'user-1',
-        created_at: '2026-01-01',
-        updated_at: '2026-01-01',
-      };
-
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: [code], error: null }));
+    it('surfaces the RPC reason for an exhausted code', async () => {
+      mockSupabase.rpc.mockReturnValue(
+        createChainableQuery({
+          data: [
+            {
+              valid: false,
+              promo_code_id: null,
+              discount_type: null,
+              discount_value: null,
+              reason: 'This promo code has reached its usage limit',
+            },
+          ],
+          error: null,
+        })
+      );
 
       const { validatePromoCodeForEntry } = await import('@/services/database/promo-codes');
       const result = await validatePromoCodeForEntry('trial-1', 'show-1', 'EXHAUSTED');
@@ -276,8 +225,21 @@ describe('promo-codes', () => {
       expect(result.error).toBe('This promo code has reached its usage limit');
     });
 
-    it('returns invalid when no code found', async () => {
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: [], error: null }));
+    it('returns invalid when the RPC finds no code', async () => {
+      mockSupabase.rpc.mockReturnValue(
+        createChainableQuery({
+          data: [
+            {
+              valid: false,
+              promo_code_id: null,
+              discount_type: null,
+              discount_value: null,
+              reason: 'Invalid promo code',
+            },
+          ],
+          error: null,
+        })
+      );
 
       const { validatePromoCodeForEntry } = await import('@/services/database/promo-codes');
       const result = await validatePromoCodeForEntry('trial-1', 'show-1', 'NONEXIST');

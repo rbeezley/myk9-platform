@@ -4,7 +4,7 @@
 > ONE findings document — you do **not** change any `.ts` under `packages/` or
 > `apps/`. Follow the steps, answer each question with `file:line` evidence, and
 > for each lead render a verdict: CONFIRMED bug / NOT A BUG / NEEDS-TEST. Update
-> this plan's row in `plans/README.md` when done.
+> this plan's row in `docs/improve-audit-2026-07/README.md` when done.
 >
 > **Drift check (run first)**:
 > `git diff --stat 929240192..HEAD -- packages/replication`
@@ -65,11 +65,16 @@ per-scope slots (`scopes[scopeValue]`); the monotonic-advance path
 and per-scope could let a global advance poison a later scoped read, skipping
 rows.
 
-**The question**: enumerate every `sync(...)` call site and its scope. Per the
-project's own note (memory: judge_assignments/shows/clubs sync GLOBALLY;
-classes/entries/trials PER-SHOW), is any single table synced **both** ways? If
-no table mixes scoped and unscoped syncs, Lead B can't fire → NOT A BUG (record
-the call-site table). If one does, → CONFIRMED; scope an invariant/guard.
+**The question**: enumerate every `sync(...)` call site and its scope. Be precise
+about what "unscoped" means in the cache: `scope.value === undefined` is truly
+unscoped, but `scope.value === ''` is still passed as a scoped slot value. Some
+call sites intentionally pass an empty string to fetch all rows for a table, so
+do not collapse "unfiltered fetch" and "metadata-unscoped" into the same bucket.
+For each table, record whether its sync calls use a real scope value, `''`, or
+`undefined`/`{}`; then decide whether any single table can mix the table-global
+watermark with per-scope slots. If no table mixes those metadata modes, Lead B
+can't fire → NOT A BUG (record the call-site table). If one does, → CONFIRMED;
+scope an invariant/guard.
 
 ### Lead C — `baseData` missing for a locally-created row that reconciles before upload
 A row created locally (INSERT, dirty, never downloaded) that gets reconciled by a
@@ -127,9 +132,9 @@ and whether ringside passcode sessions can expire mid-show. Verdict + evidence.
       each of Lead A–E, each backed by `file:line` evidence the executor read.
 - [ ] Every CONFIRMED or NEEDS-TEST lead has a "fix scope" + "proof test" note.
 - [ ] The doc has a `Status: Active` line and a row in `docs/README.md`.
-- [ ] `git status` shows only the new doc (and `docs/README.md`) changed — no
-      source files.
-- [ ] `plans/README.md` row for 005 updated.
+- [ ] `git status` shows only the new findings doc, `docs/README.md`, and
+      `docs/improve-audit-2026-07/README.md` changed — no source files.
+- [ ] `docs/improve-audit-2026-07/README.md` row for 005 updated.
 
 ## STOP conditions
 

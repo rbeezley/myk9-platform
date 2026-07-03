@@ -115,7 +115,7 @@ export function ShowDeskToolsSheet({
         <SheetHeader className="border-b px-6 py-4 text-left">
           <SheetTitle>Show Desk tools</SheetTitle>
           <SheetDescription>
-            Late entries, hospitality, show messages, incidents, delay scripts, and access codes.
+            Entries, hospitality, show messages, incidents, delay scripts, and access codes.
           </SheetDescription>
         </SheetHeader>
         <ShowDeskToolSections

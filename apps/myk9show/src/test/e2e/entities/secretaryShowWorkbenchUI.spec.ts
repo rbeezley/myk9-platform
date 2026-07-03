@@ -61,6 +61,13 @@ test.describe('Secretary show management UI', () => {
     await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}/show-desk`));
     const toolsPanel = await openToolsPanel(page);
     await expect(toolsPanel.getByRole('button', { name: /Message Show/i })).toHaveCount(0);
+    await expect(toolsPanel.getByRole('button', { name: /Add entries/i })).toBeVisible();
+    await expect(toolsPanel.getByRole('group', { name: 'Add entries' })).toBeVisible();
+    await expect(toolsPanel.getByRole('button', { name: 'Enter my own dogs' })).toBeVisible();
+    await expect(
+      toolsPanel.getByRole('button', { name: 'Record exhibitor or paper entry' })
+    ).toBeVisible();
+    await expect(toolsPanel.getByRole('button', { name: 'Add late entry' })).toBeVisible();
     await toolsPanel.getByRole('button', { name: /close/i }).click();
     await expectWorkbenchSection(page, 'Show status');
     await expectWorkbenchSection(page, 'Pending signals');

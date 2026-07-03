@@ -45,11 +45,11 @@ describe('ShowDeskToolsSheet', () => {
   function makeTools() {
     return [
       {
-        id: 'late-entry',
-        title: 'Late entries',
-        summary: 'Add a day-of entry without leaving Show Desk',
+        id: 'add-entries',
+        title: 'Add entries',
+        summary: 'Choose own, paper, or late entries without leaving Show Desk',
         defaultOpen: true,
-        content: <div data-testid="late-entry-tool">Late entry content</div>,
+        content: <div data-testid="add-entries-tool">Add entries content</div>,
       },
       {
         id: 'access-codes',
@@ -98,7 +98,7 @@ describe('ShowDeskToolsSheet', () => {
     renderSheet();
 
     expect(screen.queryByRole('dialog', { name: /show desk tools/i })).not.toBeInTheDocument();
-    expect(screen.queryByTestId('late-entry-tool')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('add-entries-tool')).not.toBeInTheDocument();
   });
 
   it('opens the sheet on trigger click and renders collapsed tool sections', async () => {
@@ -107,7 +107,7 @@ describe('ShowDeskToolsSheet', () => {
     await user.click(screen.getByRole('button', { name: /open tools panel/i }));
 
     expect(screen.getByRole('dialog', { name: /show desk tools/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /late entries/i })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /add entries/i })).toHaveAttribute(
       'aria-expanded',
       'true'
     );
@@ -115,7 +115,7 @@ describe('ShowDeskToolsSheet', () => {
       'aria-expanded',
       'false'
     );
-    expect(screen.getByTestId('late-entry-tool')).toBeInTheDocument();
+    expect(screen.getByTestId('add-entries-tool')).toBeInTheDocument();
     expect(screen.queryByTestId('broadcast-tool')).not.toBeInTheDocument();
   });
 
@@ -190,15 +190,15 @@ describe('ShowDeskToolsSheet', () => {
       'true'
     );
     expect(screen.getByTestId('broadcast-tool')).toBeInTheDocument();
-    expect(screen.getByTestId('late-entry-tool')).toBeInTheDocument();
+    expect(screen.getByTestId('add-entries-tool')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /late entries/i }));
+    await user.click(screen.getByRole('button', { name: /add entries/i }));
 
-    expect(screen.getByRole('button', { name: /late entries/i })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /add entries/i })).toHaveAttribute(
       'aria-expanded',
       'false'
     );
-    expect(screen.queryByTestId('late-entry-tool')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('add-entries-tool')).not.toBeInTheDocument();
   });
 
   it('toggles a section from the keyboard', async () => {
@@ -232,7 +232,7 @@ describe('ShowDeskToolsSheet', () => {
     await user.click(screen.getByRole('button', { name: /open tools panel/i }));
 
     expect(screen.queryByTestId('broadcast-tool')).not.toBeInTheDocument();
-    expect(screen.getByTestId('late-entry-tool')).toBeInTheDocument();
+    expect(screen.getByTestId('add-entries-tool')).toBeInTheDocument();
   });
 
   it('falls back to defaults when saved state is corrupted', async () => {
@@ -241,12 +241,12 @@ describe('ShowDeskToolsSheet', () => {
 
     await user.click(screen.getByRole('button', { name: /open tools panel/i }));
 
-    expect(screen.getByTestId('late-entry-tool')).toBeInTheDocument();
+    expect(screen.getByTestId('add-entries-tool')).toBeInTheDocument();
     expect(screen.getByTestId('access-codes-tool')).toBeInTheDocument();
   });
 
   it('shows attention labels on collapsed headers without forcing saved sections open', async () => {
-    window.localStorage.setItem('show-desk-tools:show-1', JSON.stringify(['late-entry']));
+    window.localStorage.setItem('show-desk-tools:show-1', JSON.stringify(['add-entries']));
     const { user } = renderSheet({ showId: 'show-1' });
 
     await user.click(screen.getByRole('button', { name: /open tools panel/i }));

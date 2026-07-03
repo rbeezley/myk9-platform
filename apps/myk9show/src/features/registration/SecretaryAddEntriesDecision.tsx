@@ -37,7 +37,7 @@ export function SecretaryAddEntriesDecision({
         onClick={() => handleNavigate(buildExhibitorRegistrationPath)}
       >
         <Dog className="h-4 w-4 mr-2" />
-        Enter my dogs
+        Enter my own dogs
       </Button>
       <Button
         type="button"

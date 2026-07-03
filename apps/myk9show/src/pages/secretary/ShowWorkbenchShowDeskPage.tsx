@@ -14,6 +14,7 @@ import { useShowJudges } from '@/hooks/queries/useShowJudges';
 import { ShowAccessCodesCard } from '@/components/secretary/ShowAccessCodesCard';
 import { JudgeHospitalityCard } from '@/features/show-workbench/JudgeHospitalityCard';
 import { IncidentLogCard } from '@/features/show-workbench/IncidentLogCard';
+import { SecretaryAddEntriesDecision } from '@/features/registration/SecretaryAddEntriesDecision';
 import { ScheduleSlipScriptCard } from '@/features/show-workbench/ScheduleSlipScriptCard';
 import { TasksNotesCard } from '@/features/show-workbench/TasksNotesCard';
 import { VolunteersCard } from '@/features/show-workbench/VolunteersCard';
@@ -228,11 +229,16 @@ export function ShowWorkbenchShowDeskPage() {
 
     return [
       {
-        id: 'late-entry',
-        title: 'Late entries',
-        summary: 'Add a day-of entry without leaving Show Desk',
+        id: 'add-entries',
+        title: 'Add entries',
+        summary: 'Choose own, paper, or late entries without leaving Show Desk',
         defaultOpen: true,
-        content: <WorkbenchLateEntryAction showId={currentShow.id} />,
+        content: (
+          <div className="flex flex-col gap-3">
+            <SecretaryAddEntriesDecision showId={currentShow.id} />
+            <WorkbenchLateEntryAction showId={currentShow.id} />
+          </div>
+        ),
       },
       {
         id: 'judge-hospitality',

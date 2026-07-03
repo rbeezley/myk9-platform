@@ -100,7 +100,7 @@ test.describe('Browse entries', () => {
     await expect(removeEntryItem).not.toBeVisible();
 
     await expect(page.getByRole('group', { name: 'Add entries' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Enter my dogs' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Enter my own dogs' })).toBeVisible();
     await page.getByRole('button', { name: 'Record exhibitor or paper entry' }).click();
     await page.waitForURL(`**/secretary/register/${LIVE_SECRETARY_SHOW_ID}`, { timeout: 10_000 });
     await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible({

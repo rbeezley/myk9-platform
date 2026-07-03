@@ -49,6 +49,8 @@ Secretary-facing "Add entries" affordances should first ask whose dog is being e
 
 Alternative considered: keep separate buttons such as "Record Mail-In Entries" and "Enter My Dogs." Rejected because it makes the secretary remember which surface owns which work.
 
+Public "Register" CTAs continue to route to exhibitor self-service, even when the logged-in user also has secretary permissions. Staff on-behalf entry starts from secretary-owned surfaces such as Entry Management and Show Desk, where the decision point makes the audience split explicit.
+
 ### Decision: Model audience scope from route/mode, then enforce it in UI and submit guards
 
 The route-derived workflow mode remains the source of UI scope:
@@ -98,5 +100,5 @@ Rollback is low-risk: revert the routing/decision component and copy changes whi
 
 ## Open Questions
 
-- Should the secretary decision point live in Entry Management and be linked from Show Desk, or live as a shared component rendered in both places? Default implementation should choose the smaller route/link option unless the existing surfaces make reuse clearly cleaner.
+- Resolved: the secretary decision point renders in both Entry Management and Show Desk. Show Desk keeps the late-entry action next to the same decision point because late/day-of entry still belongs to Show Desk operationally.
 - Should late-entry payment defaults prefer check/cash, or leave payment method unset for the secretary to choose? Default implementation should avoid hidden assumptions and require an explicit secretary choice unless product guidance says otherwise.

@@ -205,6 +205,7 @@ export default function CartPage() {
       }
 
       if (splitResult.confirmed.length === 0) {
+        setIsCheckingOut(false);
         navigate(
           splitCheckoutId
             ? `/checkout/success?waitlist=1&split=${encodeURIComponent(splitCheckoutId)}`

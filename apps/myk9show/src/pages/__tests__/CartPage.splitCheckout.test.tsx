@@ -133,8 +133,14 @@ vi.mock('@/components/cart/CartItemCard', () => ({
 }));
 
 vi.mock('@/components/cart/CartSummary', () => ({
-  CartSummary: ({ onCheckout }: { onCheckout: () => void }) => (
-    <button type="button" onClick={onCheckout}>
+  CartSummary: ({
+    onCheckout,
+    isCheckingOut,
+  }: {
+    onCheckout: () => void;
+    isCheckingOut?: boolean;
+  }) => (
+    <button type="button" onClick={onCheckout} disabled={isCheckingOut}>
       Checkout
     </button>
   ),
@@ -278,6 +284,37 @@ describe('CartPage split checkout wiring', () => {
     expect(navigateMock).toHaveBeenCalledWith(
       `/checkout/success?waitlist=1&split=${encodeURIComponent(storedSummary.correlationId)}`
     );
+  });
+
+  it('clears the checkout spinner on the waitlist-only success path', async () => {
+    cartItems.value = [cartItems.value[1]];
+    checkoutWithWaitlistMock.mockResolvedValue({
+      confirmed: [],
+      waitlisted: [
+        {
+          id: 'wait-1',
+          class_id: 'class-full',
+          dog_id: 'dog-1',
+          exhibitor_id: 'exhibitor-1',
+          handler_id: null,
+          position: 2,
+          status: 'waiting',
+          className: 'Full Class',
+        },
+      ],
+    });
+
+    const { user } = render(<CartPage />, { initialRoute: '/cart' });
+
+    const checkoutButton = screen.getByRole('button', { name: 'Checkout' });
+    await user.click(checkoutButton);
+
+    // The waitlist-only branch navigates without unmounting in this test (the
+    // navigate mock is a no-op), mirroring the real "navigation delayed / page
+    // not yet unmounted" case. The button must not be left stuck disabled.
+    await waitFor(() => expect(navigateMock).toHaveBeenCalled());
+    expect(createEntryCheckoutSessionMock).not.toHaveBeenCalled();
+    await waitFor(() => expect(checkoutButton).not.toBeDisabled());
   });
 
   it('blocks checkout for full classes that do not accept the wait list', async () => {

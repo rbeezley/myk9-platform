@@ -134,8 +134,10 @@ function hydrateClubFields(show: Show, clubsById: Map<string, ReplicatedClub>): 
 
 function sameStringSet(left: readonly string[] = [], right: readonly string[] = []): boolean {
   if (left.length !== right.length) return false;
+  const leftSet = new Set(left);
   const rightSet = new Set(right);
-  return left.every(value => rightSet.has(value));
+  if (leftSet.size !== rightSet.size) return false;
+  return [...leftSet].every(value => rightSet.has(value));
 }
 
 export function areAssignedJudgesEqual(

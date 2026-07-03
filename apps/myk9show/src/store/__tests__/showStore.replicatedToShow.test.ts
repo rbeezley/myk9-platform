@@ -75,4 +75,27 @@ describe('areAssignedJudgesEqual', () => {
       )
     ).toBe(true);
   });
+
+  it('detects duplicated class ids as a membership mismatch', () => {
+    expect(
+      areAssignedJudgesEqual(
+        [
+          {
+            judgeId: 'judge-1',
+            judgeName: 'Pat Judge',
+            assignedDate: '2026-07-03',
+            assignedClasses: ['class-1', 'class-1'],
+          },
+        ],
+        [
+          {
+            judgeId: 'judge-1',
+            judgeName: 'Pat Judge',
+            assignedDate: '2026-07-03',
+            assignedClasses: ['class-1', 'class-2'],
+          },
+        ]
+      )
+    ).toBe(false);
+  });
 });

@@ -8,7 +8,6 @@ import type { SyncableTrial } from '@/store/trial-store-types';
 const mockEq = vi.fn();
 const mockUpdate = vi.fn();
 const mockFrom = vi.fn();
-const mockProcessMoveUp = vi.fn();
 const mockUpdateClass = vi.hoisted(() => vi.fn());
 const mockUpdateReplicatedCheckInStatus = vi.hoisted(() => vi.fn());
 const mockUpdateReplicatedDayOfScratch = vi.hoisted(() => vi.fn());
@@ -28,10 +27,6 @@ vi.mock('@/services/database/supabaseClient', () => ({
     from: (...args: unknown[]) => mockFrom(...args),
   },
   createDatabaseError: (err: unknown) => (err instanceof Error ? err : new Error(String(err))),
-}));
-
-vi.mock('@/services/database/day-of-operations', () => ({
-  processMoveUp: (...args: unknown[]) => mockProcessMoveUp(...args),
 }));
 
 vi.mock('@/services/replication', () => ({
@@ -101,10 +96,6 @@ describe('ShowMapTab', () => {
     mockEq.mockResolvedValue({ error: null });
     mockUpdate.mockReturnValue({ eq: mockEq });
     mockFrom.mockReturnValue({ update: mockUpdate });
-    mockProcessMoveUp.mockResolvedValue({
-      data: { id: 'new-entry-1', class: { name: 'Exterior Advanced' } },
-      error: null,
-    });
     mockUpdateClass.mockResolvedValue('mutation-1');
     mockUpdateReplicatedCheckInStatus.mockResolvedValue('mutation-1');
     mockUpdateReplicatedDayOfScratch.mockResolvedValue('mutation-2');
@@ -718,7 +709,6 @@ describe('ShowMapTab', () => {
         entryStatus: 'confirmed',
       })
     );
-    expect(mockProcessMoveUp).not.toHaveBeenCalled();
   });
 
   it('opens the message handler dialog and sends a canned reply', async () => {

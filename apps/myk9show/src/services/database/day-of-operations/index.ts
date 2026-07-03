@@ -14,10 +14,8 @@ export { getClassesWithCapacity, createDayOfEntry, getShowDogs, searchDogs } fro
 export { createDayOfEntryDog } from './late-entry-dog';
 
 export {
-  processMoveUp,
   getMoveUpEligibleEntries,
   getPendingMoveUpRequests,
-  approveMoveUpRequest,
   denyMoveUpRequest,
 } from './move-up';
 

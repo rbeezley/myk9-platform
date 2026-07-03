@@ -11,7 +11,6 @@ import {
 } from '../showMapActionMutations';
 
 const mockFrom = vi.fn();
-const mockProcessMoveUp = vi.fn();
 const mockUpdateReplicatedCheckInStatus = vi.fn();
 const mockUpdateReplicatedDayOfScratch = vi.fn();
 const mockUpdateReplicatedEntry = vi.fn();
@@ -36,10 +35,6 @@ vi.mock('@/services/database/supabaseClient', () => ({
     }
     return new Error(String(err));
   },
-}));
-
-vi.mock('@/services/database/day-of-operations', () => ({
-  processMoveUp: (...args: unknown[]) => mockProcessMoveUp(...args),
 }));
 
 vi.mock('@/services/show-day/checkInStatus', () => ({
@@ -307,7 +302,6 @@ describe('showMapActionMutations', () => {
       })
     );
     expect(mockFrom).not.toHaveBeenCalled();
-    expect(mockProcessMoveUp).not.toHaveBeenCalled();
   });
 
   it('surfaces a replicated move-up capacity error', async () => {
@@ -473,7 +467,6 @@ describe('showMapActionMutations', () => {
     });
 
     expect(mockFrom).not.toHaveBeenCalled();
-    expect(mockProcessMoveUp).not.toHaveBeenCalled();
     expect(mockAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({
         entityType: 'entry',

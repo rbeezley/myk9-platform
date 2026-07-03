@@ -82,7 +82,6 @@ function renderView(overrides: Partial<ShowExhibitorViewProps> = {}) {
   const props: ShowExhibitorViewProps = {
     show: makeShow(),
     breadcrumbs: [],
-    armbandCount: 0,
     catalogEntryCount: 0,
     entryStatus: makeEntryStatus(),
     hasUserEntries: false,

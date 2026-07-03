@@ -71,6 +71,7 @@ function buildSelectColumn(
     ),
     enableSorting: false,
     enableHiding: false,
+    meta: { interactive: true, exportDisabled: true } satisfies DataTableColumnMeta,
   };
 }
 
@@ -209,7 +210,7 @@ function buildColumns(
       ),
       enableSorting: false,
       enableHiding: false,
-      meta: { exportDisabled: true } satisfies DataTableColumnMeta,
+      meta: { interactive: true, exportDisabled: true } satisfies DataTableColumnMeta,
     });
   }
 

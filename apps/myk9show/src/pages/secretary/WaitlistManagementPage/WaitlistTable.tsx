@@ -76,17 +76,13 @@ function buildColumns(
               Offer Spot
             </Button>
           )}
-          <Button
-            size="sm"
-            variant="ghost"
-            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={() => onRemove(row.original)}
-          >
+          <Button size="sm" variant="destructive" onClick={() => onRemove(row.original)}>
             <Trash2 className="h-4 w-4 mr-1" />
             Remove
           </Button>
         </div>
       ),
+      meta: { interactive: true },
       enableSorting: false,
       enableHiding: false,
     },

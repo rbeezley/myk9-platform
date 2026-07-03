@@ -1,25 +1,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import type { ClassSummary, EntryResult, TrialSummary, UserContext } from './types.ts';
 import { executeSearchRules, parseAndResolveDate } from './ruleLookup.ts';
+import { applyShowScope, type ShowScope } from './showScope.ts';
 
 type SupabaseClient = ReturnType<typeof createClient>;
-
-// myK9Q scopes by license_key, myK9Show scopes by show_id
-interface ShowScope {
-  licenseKey?: string;
-  showId?: string;
-}
-
-// Apply the appropriate show scope filter to a query
-function applyShowScope(query: ReturnType<SupabaseClient['from']>, scope: ShowScope) {
-  if (scope.showId) {
-    return query.eq('show_id', scope.showId);
-  }
-  if (scope.licenseKey) {
-    return query.eq('license_key', scope.licenseKey);
-  }
-  return query;
-}
 
 async function executeGetClassSummary(
   params: {

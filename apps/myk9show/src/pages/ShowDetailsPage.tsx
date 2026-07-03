@@ -1,14 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams, useMatch } from 'react-router-dom';
-import {
-  LayoutDashboard,
-  Trophy,
-  ListChecks,
-  ClipboardList,
-  Medal,
-  BarChart3,
-  ListTree,
-} from 'lucide-react';
+import { LayoutDashboard, Trophy, ListChecks, ClipboardList, Medal, ListTree } from 'lucide-react';
 import { type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
@@ -196,7 +188,6 @@ const ShowDetailsPage: React.FC = () => {
         'trials',
         'classes',
         'my-entries',
-        'my-stats',
         'results',
       ];
     }
@@ -330,7 +321,6 @@ const ShowDetailsPage: React.FC = () => {
               icon: ClipboardList,
               count: catalogEntryCount,
             },
-            { id: 'my-stats', label: 'My Stats', icon: BarChart3 },
           ]
         : []),
       { id: 'results', label: 'Results', icon: Medal, count: 0 },
@@ -379,6 +369,7 @@ const ShowDetailsPage: React.FC = () => {
   // entries are still loading is held ('pending') to avoid flashing the landing.
   const audience = resolveShowAudience({
     isManagementSection,
+    forcePublicPreview: searchParams.get('preview') === 'public',
     isSecretary,
     isAdmin,
     isClubAdmin: hasRole('club_admin'),
@@ -449,7 +440,6 @@ const ShowDetailsPage: React.FC = () => {
         <ShowExhibitorView
           show={actualCurrentShow}
           breadcrumbs={breadcrumbs}
-          armbandCount={armbandCount}
           catalogEntryCount={catalogEntryCount}
           entryStatus={entryStatus}
           hasUserEntries={hasUserEntries}

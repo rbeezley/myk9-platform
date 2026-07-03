@@ -38,7 +38,7 @@ export function ViewToggle({ modes, active, onChange, className }: ViewTogglePro
             title={`${mode.label} view`}
             onClick={() => onChange(mode.key)}
             className={cn(
-              'p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
+              'min-h-11 min-w-11 p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
               isActive
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-muted/50 text-muted-foreground hover:bg-muted'

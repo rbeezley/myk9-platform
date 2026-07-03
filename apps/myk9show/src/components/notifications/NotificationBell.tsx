@@ -15,7 +15,7 @@ export function NotificationBell() {
     <button
       aria-label="Message Center"
       onClick={openCenter}
-      className="relative rounded-md p-2 hover:bg-muted"
+      className="relative flex min-h-11 min-w-11 items-center justify-center rounded-md p-2 hover:bg-muted"
     >
       <Bell className="h-5 w-5" />
       {totalUnread > 0 && (

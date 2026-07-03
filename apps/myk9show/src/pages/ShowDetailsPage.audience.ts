@@ -15,6 +15,8 @@ export type ShowAudience = 'public' | 'pending' | 'exhibitor' | 'management';
 export interface ShowAudienceInput {
   /** True when the URL targets a management section, e.g. `/shows/:id/setup`. */
   isManagementSection: boolean;
+  /** Staff-only escape hatch for checking the public/exhibitor landing without staff chrome. */
+  forcePublicPreview?: boolean;
   isSecretary: boolean;
   isAdmin: boolean;
   isClubAdmin: boolean;
@@ -28,6 +30,7 @@ export interface ShowAudienceInput {
 export function resolveShowAudience(input: ShowAudienceInput): ShowAudience {
   const {
     isManagementSection,
+    forcePublicPreview,
     isSecretary,
     isAdmin,
     isClubAdmin,
@@ -35,6 +38,8 @@ export function resolveShowAudience(input: ShowAudienceInput): ShowAudience {
     userEntriesLoading,
     hasUserEntries,
   } = input;
+
+  if (forcePublicPreview && !isManagementSection) return 'public';
 
   // Staff (secretary / admin / club_admin) and management-section URLs always
   // reach the non-public UI — they never see the marketing landing.

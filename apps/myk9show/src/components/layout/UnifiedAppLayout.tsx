@@ -88,10 +88,6 @@ export const UnifiedAppLayout: React.FC = () => {
       <SidebarLayout
         sidebar={<RoleSidebar config={sidebarConfig} />}
         sidebarWidth={240}
-        collapsedWidth={56}
-        isCollapsible
-        isCollapsed
-        hoverToExpand
         mobileMenuLabel="Navigation"
         showMobileMenuButton={false}
         mobileOpen={mobileOpen}

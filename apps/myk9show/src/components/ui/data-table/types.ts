@@ -16,6 +16,8 @@ export interface DataTableColumnMeta {
   exportValue?: (row: unknown) => string | number | boolean | null | undefined;
   /** Exclude this column from CSV export. */
   exportDisabled?: boolean;
+  /** Set true when this column renders buttons, links, inputs, or menus. */
+  interactive?: boolean;
   /** Enable inline editing for this column */
   editable?: boolean;
   /** Built-in editor type */

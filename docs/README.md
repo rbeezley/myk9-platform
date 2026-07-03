@@ -46,6 +46,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [ia-review-entry-status-surfaces.md](ia-review-entry-status-surfaces.md)                   | Active    | IA Review: Entry-Status Surfaces (cross-role)                         |
 | [ia-review-secretary-entry-management.md](ia-review-secretary-entry-management.md)          | Active    | IA Review: Secretary Entry Management (cognitive-load track)          |
 | [improve-audit-2026-06/README.md](improve-audit-2026-06/README.md)                         | Active    | Improve Audit — June 2026 (remaining plans 003–006)                  |
+| [improve-audit-2026-07/README.md](improve-audit-2026-07/README.md)                         | Active    | Production-Readiness Bug Audit — July 2026 (5 plans; reconciled vs UX walk) |
 | [launch-milestone-qa-checklist.md](launch-milestone-qa-checklist.md)                       | Reference | Launch-Milestone QA Checklist                                         |
 | [navigation-ia.md](navigation-ia.md)                                                       | Reference | Navigation & IA Sketch — Fall 2026                                    |
 | [plan-active-docs-triage-2026-06-14.md](plan-active-docs-triage-2026-06-14.md)             | Active    | Active-Docs Triage — 2026-06-14                                       |

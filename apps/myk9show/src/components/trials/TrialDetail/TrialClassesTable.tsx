@@ -6,6 +6,7 @@ import { TrialClass } from '../types/trial.types';
 import { type ColumnDef, type SortingFn } from '@tanstack/react-table';
 import {
   DataTable,
+  type DataTableColumnMeta,
   DataTableToolbar,
   DataTableSearch,
   DataTableColumnToggle,
@@ -169,6 +170,7 @@ export const TrialClassesTable = ({
                   </div>
                 );
               },
+              meta: { interactive: true, exportDisabled: true } satisfies DataTableColumnMeta,
             } satisfies ColumnDef<TrialClass, unknown>,
           ]
         : []),

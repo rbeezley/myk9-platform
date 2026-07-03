@@ -7,8 +7,10 @@ import { DetailHero } from '@/components/common/DetailHero';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { ShowDateBlock } from '@/components/shows/ShowDateBlock';
 import { QuickInfoCards } from '@/components/shows/overview/QuickInfoCards';
-import { ArmbandLookup } from '@/components/shows/ArmbandLookup';
-import { ShowDetailTabs, type ShowDetailTabsProps } from '@/components/shows/ShowDetails/ShowDetailTabs';
+import {
+  ShowDetailTabs,
+  type ShowDetailTabsProps,
+} from '@/components/shows/ShowDetails/ShowDetailTabs';
 import type { EntryStatus, EntryStatusInfo } from '@/utils/entryStatusUtils';
 import type { Show } from '@/types/show-types';
 
@@ -27,7 +29,6 @@ const ENTRY_STATUS_HERO_VARIANT: Record<
 export interface ShowExhibitorViewProps {
   show: Show;
   breadcrumbs: React.ComponentProps<typeof PageHeader>['breadcrumbs'];
-  armbandCount: number | undefined;
   catalogEntryCount: number;
   entryStatus: EntryStatusInfo;
   hasUserEntries: boolean;
@@ -52,7 +53,6 @@ export interface ShowExhibitorViewProps {
 export function ShowExhibitorView({
   show,
   breadcrumbs,
-  armbandCount,
   catalogEntryCount,
   entryStatus,
   hasUserEntries,
@@ -65,13 +65,7 @@ export function ShowExhibitorView({
 
   return (
     <PageShell>
-      <PageHeader
-        breadcrumbs={breadcrumbs}
-        title={show.name || 'Show Details'}
-        actions={
-          (armbandCount ?? 0) > 0 && show?.id ? <ArmbandLookup showId={show.id} /> : undefined
-        }
-      />
+      <PageHeader breadcrumbs={breadcrumbs} title={show.name || 'Show Details'} />
 
       <DetailHero
         cover={
@@ -82,9 +76,7 @@ export function ShowExhibitorView({
         name={show.name || 'Untitled Show'}
         subtitle={show.clubName || undefined}
         badges={[
-          ...(show.organization
-            ? [{ label: show.organization, variant: 'default' as const }]
-            : []),
+          ...(show.organization ? [{ label: show.organization, variant: 'default' as const }] : []),
           {
             label: entryStatus.label,
             variant: ENTRY_STATUS_HERO_VARIANT[entryStatus.status],
@@ -129,9 +121,7 @@ export function ShowExhibitorView({
             ) : null}
           </div>
         }
-        footer={
-          <QuickInfoCards show={show} canManageShow={false} entryCount={catalogEntryCount} />
-        }
+        footer={<QuickInfoCards show={show} canManageShow={false} entryCount={catalogEntryCount} />}
       />
 
       {isManagementSection ? (

@@ -157,13 +157,13 @@ const AppHeader: React.FC = () => {
                 variant="ghost"
                 size="sm"
                 onClick={openMobileNav}
-                className="md:hidden -ml-2 p-1.5 rounded-lg"
+                className="md:hidden -ml-2 min-h-11 min-w-11 rounded-lg p-2"
                 aria-label="Open navigation"
               >
                 <Menu className="h-5 w-5" />
               </Button>
             )}
-            <Link to="/" className="flex min-w-0 items-center">
+            <Link to="/" className="flex min-h-11 min-w-0 items-center">
               <span className="truncate text-lg font-bold text-foreground tracking-tight">
                 myK9Show
               </span>
@@ -177,7 +177,7 @@ const AppHeader: React.FC = () => {
                 variant="ghost"
                 size="sm"
                 onClick={() => openCommandPalette()}
-                className={`${buildClasses.button.ghost} flex items-center gap-2 px-3 py-1.5 bg-muted/50 hover:bg-muted/80 rounded-lg transition-colors`}
+                className={`${buildClasses.button.ghost} flex min-h-11 items-center gap-2 rounded-lg bg-muted/50 px-3 py-2 transition-colors hover:bg-muted/80`}
               >
                 <Search className="h-3.5 w-3.5 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">Search...</span>
@@ -197,7 +197,7 @@ const AppHeader: React.FC = () => {
                   variant="ghost"
                   size="sm"
                   onClick={() => setCommandPaletteOpen(true)}
-                  className="md:hidden p-1.5"
+                  className="min-h-11 min-w-11 p-2 md:hidden"
                   aria-label="Search"
                 >
                   <Search className="h-4 w-4" />
@@ -212,7 +212,7 @@ const AppHeader: React.FC = () => {
                     variant="ghost"
                     size="sm"
                     onClick={() => navigate('/cart')}
-                    className="p-1.5 relative"
+                    className="relative min-h-11 min-w-11 p-2"
                     aria-label="Shopping cart"
                   >
                     <ShoppingCart className="h-4 w-4" />
@@ -227,7 +227,7 @@ const AppHeader: React.FC = () => {
                   variant="ghost"
                   size="sm"
                   onClick={toggleTheme}
-                  className="p-1.5 rounded-lg"
+                  className="min-h-11 min-w-11 rounded-lg p-2"
                   aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                 >
                   {theme === 'dark' ? (
@@ -266,7 +266,7 @@ const AppHeader: React.FC = () => {
                   variant="ghost"
                   size="sm"
                   onClick={toggleAskQ}
-                  className="p-1.5 rounded-lg"
+                  className="min-h-11 min-w-11 rounded-lg p-2"
                   aria-label="AskQ Assistant"
                 >
                   <MessageSquare className="h-4 w-4" />
@@ -277,7 +277,7 @@ const AppHeader: React.FC = () => {
                   <DropdownMenuTrigger asChild nativeButton>
                     <Button
                       variant="ghost"
-                      className={`${buildClasses.button.ghost} flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg hover:bg-muted/50`}
+                      className={`${buildClasses.button.ghost} flex min-h-11 min-w-11 items-center gap-1.5 rounded-lg px-2 py-2 hover:bg-muted/50`}
                       aria-label="Account menu"
                     >
                       <Avatar className="w-7 h-7">

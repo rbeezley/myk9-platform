@@ -3,6 +3,12 @@ import { render, screen } from '@/test/utils/testUtils';
 import EntryManagementPage from '../EntryManagementPage';
 
 vi.mock('../WaitlistManagementPage/index', () => ({ default: () => <div>Waitlist Content</div> }));
+vi.mock('@/components/entries/MoveUpRequestsTab', () => ({
+  MoveUpRequestsTab: () => <div>Move-ups Content</div>,
+}));
+vi.mock('@/components/entries/PullManagementTab', () => ({
+  PullManagementTab: () => <div>Pulls Content</div>,
+}));
 
 vi.mock('@/hooks/useEntryManagementData', () => ({
   useEntryManagementData: () => ({
@@ -92,10 +98,11 @@ vi.mock('@/services/AuditService', () => ({
 }));
 
 describe('EntryManagementPage tab consolidation', () => {
-  it('shows Entries, Exceptions, and Waitlist tabs by default', () => {
+  it('shows Entries, Move-ups, Pulls, and Waitlist tabs by default', () => {
     render(<EntryManagementPage />, { initialRoute: '/secretary/entries' });
     expect(screen.getByRole('tab', { name: 'Entries' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Exceptions' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Move-ups' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Pulls' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Waitlist' })).toBeInTheDocument();
   });
 
@@ -104,9 +111,16 @@ describe('EntryManagementPage tab consolidation', () => {
     expect(screen.getByText('Waitlist Content')).toBeInTheDocument();
   });
 
-  it('selects the Exceptions tab when ?tab=exceptions', () => {
-    render(<EntryManagementPage />, { initialRoute: '/secretary/entries?tab=exceptions' });
-    expect(screen.getByRole('tab', { name: 'Exceptions' })).toHaveAttribute(
+  it('selects the Move-ups tab when ?tab=move-ups', () => {
+    render(<EntryManagementPage />, { initialRoute: '/secretary/entries?tab=move-ups' });
+    expect(screen.getByRole('tab', { name: 'Move-ups' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('normalizes legacy pulled exception links to the Pulls tab', async () => {
+    render(<EntryManagementPage />, {
+      initialRoute: '/secretary/entries?tab=exceptions&queue=pulled',
+    });
+    expect(await screen.findByRole('tab', { name: 'Pulls' })).toHaveAttribute(
       'aria-selected',
       'true'
     );

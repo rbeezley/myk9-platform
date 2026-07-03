@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { DataTable } from '@/components/ui/data-table';
+import { DataTable, type DataTableColumnMeta } from '@/components/ui/data-table';
 import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
 import { formatShowsTableDateRange } from './ShowsTableView.helpers';
 
@@ -52,7 +52,10 @@ const DATA_COLUMNS: ColumnDef<EnhancedShow, unknown>[] = [
     accessorKey: 'name',
     header: 'Name',
     accessorFn: show => (show.name ?? '').toLowerCase(),
-    meta: { exportHeader: 'Name', exportValue: (show: unknown) => (show as EnhancedShow).name || '' },
+    meta: {
+      exportHeader: 'Name',
+      exportValue: (show: unknown) => (show as EnhancedShow).name || '',
+    },
     cell: ({ row }) => (
       <div className="min-w-0">
         <div className="font-medium truncate">{row.original.name}</div>
@@ -157,6 +160,7 @@ export const ShowsTableView: React.FC<ShowsTableViewProps> = ({
           onClick={(e: React.MouseEvent) => e.stopPropagation()}
         />
       ),
+      meta: { interactive: true, exportDisabled: true } satisfies DataTableColumnMeta,
     };
     return [selectCol, ...DATA_COLUMNS];
   }, [hasSelection, isSelected, onToggleSelect]);

@@ -49,46 +49,48 @@ export function PrimaryTabs({
 
   return (
     <Tabs value={value} onValueChange={onValueChange} {...classNameProps}>
-      <TabsList
-        className={cn(
-          'flex w-full max-w-full overflow-x-auto no-scrollbar border-b border-border bg-transparent p-0 gap-0'
-        )}
-      >
-        {tabs.map(tab => {
-          const Icon = tab.icon;
-          return (
-            <TabsTrigger
-              key={tab.id}
-              value={tab.id}
-              className={cn(
-                'inline-flex min-w-max items-center gap-1.5 min-h-[48px] px-4 py-2 text-sm font-medium',
-                'text-muted-foreground border-b-2 border-transparent rounded-none bg-transparent',
-                'aria-selected:text-primary aria-selected:border-primary',
-                'hover:text-foreground transition-colors whitespace-nowrap'
-              )}
-            >
-              {Icon && <Icon className="h-4 w-4" />}
-              {tab.label}
-              {tab.locked && (
-                <Lock className="ml-0.5 h-3 w-3 opacity-40" aria-label="Premium feature" />
-              )}
-              {tab.count !== undefined && (
-                <Badge
-                  variant="secondary"
-                  className="ml-1 px-1.5 py-0 text-[10px] min-w-[20px] justify-center"
-                >
-                  {tab.count}
-                </Badge>
-              )}
-              {tab.badge != null && tab.badge > 0 && (
-                <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white">
-                  {tab.badge}
-                </span>
-              )}
-            </TabsTrigger>
-          );
-        })}
-      </TabsList>
+      <div className="relative max-w-full after:pointer-events-none after:absolute after:right-0 after:top-0 after:h-full after:w-8 after:bg-gradient-to-l after:from-background after:to-transparent">
+        <TabsList
+          className={cn(
+            'flex w-full max-w-full overflow-x-auto no-scrollbar border-b border-border bg-transparent p-0 gap-0'
+          )}
+        >
+          {tabs.map(tab => {
+            const Icon = tab.icon;
+            return (
+              <TabsTrigger
+                key={tab.id}
+                value={tab.id}
+                className={cn(
+                  'inline-flex min-w-max items-center gap-1.5 min-h-[48px] px-4 py-2 text-sm font-medium',
+                  'text-muted-foreground border-b-2 border-transparent rounded-none bg-transparent',
+                  'aria-selected:text-primary aria-selected:border-primary',
+                  'hover:text-foreground transition-colors whitespace-nowrap'
+                )}
+              >
+                {Icon && <Icon className="h-4 w-4" />}
+                {tab.label}
+                {tab.locked && (
+                  <Lock className="ml-0.5 h-3 w-3 opacity-40" aria-label="Premium feature" />
+                )}
+                {tab.count !== undefined && (
+                  <Badge
+                    variant="secondary"
+                    className="ml-1 px-1.5 py-0 text-[10px] min-w-[20px] justify-center"
+                  >
+                    {tab.count}
+                  </Badge>
+                )}
+                {tab.badge != null && tab.badge > 0 && (
+                  <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white">
+                    {tab.badge}
+                  </span>
+                )}
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+      </div>
       {children}
     </Tabs>
   );

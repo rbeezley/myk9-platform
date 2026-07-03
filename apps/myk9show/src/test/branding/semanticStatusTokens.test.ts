@@ -81,10 +81,20 @@ describe('semantic status token foundation', () => {
     it('defines dark --info-strong', () => {
       expect(darkCss).toContain('--info-strong: 147 197 253');
     });
+    it('defines dark --info-foreground as a dark ink for solid info fills', () => {
+      expect(darkCss).toContain('--info-foreground: 30 58 138');
+      expect(darkCss).not.toContain('--info-foreground: 255 255 255');
+    });
     it('defines dark --destructive as an RGB triplet (not hex), scoped to .dark', () => {
       expect(darkCss).toContain('--destructive: 220 38 38');
       expect(darkCss).not.toContain('--destructive: 185 28 28');
       expect(darkCss).not.toContain('--destructive: #dc2626');
+    });
+  });
+
+  describe('index.css — dark accent filled foregrounds', () => {
+    it('uses dark ink foreground for dark-mode primary fills in every accent', () => {
+      expect(css.match(/--primary-foreground: #181411/g)?.length).toBe(4);
     });
   });
 

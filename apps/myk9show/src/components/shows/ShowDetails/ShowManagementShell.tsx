@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, Outlet, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Trash2, Pencil, MoreHorizontal } from 'lucide-react';
+import { Trash2, Pencil, MoreHorizontal, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -154,9 +154,7 @@ export function ShowManagementShell({
           name={show.name || 'Untitled Show'}
           subtitle={show.clubName || undefined}
           badges={
-            show.organization
-              ? [{ label: show.organization, variant: 'default' as const }]
-              : []
+            show.organization ? [{ label: show.organization, variant: 'default' as const }] : []
           }
           metadata={[]}
           headerActions={
@@ -176,6 +174,13 @@ export function ShowManagementShell({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <Link to={`${canonicalShowHref}?preview=public`}>
+                      <Eye className="h-4 w-4 mr-2" />
+                      Preview as exhibitor
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => setShowEditPanel(true)}>
                     <Pencil className="h-4 w-4 mr-2" />
                     Edit

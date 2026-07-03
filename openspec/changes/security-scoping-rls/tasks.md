@@ -95,6 +95,13 @@
       resolved as **Option A** (club managers only — matches 087 + current
       club-scoped seed grants); spec + migration comments reworded to
       "club secretaries/admins/site admins" so wording matches implementation.
+      **Re-review (Codex, 2nd pass): P1/P2 confirmed resolved.** One new **P3**
+      fixed: the rewritten INSERT policy had dropped mig 045's
+      `created_by = auth.uid()` creator-integrity check, letting a manager spoof
+      who created a promo via direct PostgREST. Restored as an AND-clause
+      (`created_by = (SELECT auth.uid())`) alongside the scope check; verified the
+      app always inserts `created_by = auth user id` so no regression. Spec +
+      contract test + comment updated.
 - [ ] 4.4 Push migrations only after explicit user confirmation (merge is not
       deploy)
 - [ ] 4.5 Update `docs/security-audit-2026-07/README.md` status table (SA-002,

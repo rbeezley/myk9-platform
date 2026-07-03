@@ -39,8 +39,10 @@ describe('promo_codes scoping RLS contract (SA-002)', () => {
     expect(insertPolicy).toContain('public.can_manage_show(promo_codes.show_id)');
     expect(insertPolicy).toContain('public.can_manage_trial(promo_codes.trial_id)');
     expect(insertPolicy).toContain('public.is_site_admin()');
-    // the old permissive predicates must be gone from the INSERT policy
-    expect(insertPolicy).not.toContain('created_by = auth.uid()');
+    // creator-integrity invariant preserved: the row must be attributed to the
+    // acting user, so a manager cannot spoof created_by via direct PostgREST
+    expect(insertPolicy).toContain('promo_codes.created_by = (SELECT auth.uid())');
+    // the old permissive full-table predicate must be gone
     expect(insertPolicy).not.toContain('auth.uid() IS NOT NULL');
   });
 

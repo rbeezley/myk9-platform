@@ -28,19 +28,26 @@
 -- discount, never the underlying row set.
 -- =============================================================================
 
--- --- INSERT: only users who manage the row's show/trial (or platform admin) ---
+-- --- INSERT: only users who manage the row's show/trial (or site admin), AND
+-- the row must be attributed to the acting user. Pinning created_by = auth.uid()
+-- preserves the creator-integrity invariant from mig 045 (created_by is a NOT
+-- NULL audit/FK column) — a manager cannot spoof who created financial config
+-- via a direct PostgREST insert. The app always sets created_by = the auth user.
 DROP POLICY IF EXISTS "promo_codes_insert_policy" ON public.promo_codes;
 CREATE POLICY "promo_codes_insert_policy" ON public.promo_codes
   FOR INSERT TO authenticated
   WITH CHECK (
-    (SELECT public.is_site_admin())
-    OR (
-      promo_codes.show_id IS NOT NULL
-      AND (SELECT public.can_manage_show(promo_codes.show_id))
-    )
-    OR (
-      promo_codes.trial_id IS NOT NULL
-      AND (SELECT public.can_manage_trial(promo_codes.trial_id))
+    promo_codes.created_by = (SELECT auth.uid())
+    AND (
+      (SELECT public.is_site_admin())
+      OR (
+        promo_codes.show_id IS NOT NULL
+        AND (SELECT public.can_manage_show(promo_codes.show_id))
+      )
+      OR (
+        promo_codes.trial_id IS NOT NULL
+        AND (SELECT public.can_manage_trial(promo_codes.trial_id))
+      )
     )
   );
 

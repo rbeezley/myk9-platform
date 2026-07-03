@@ -9,6 +9,7 @@
     "build:show": "turbo build --filter=@myk9/show",
     "typecheck": "turbo typecheck",
     "lint": "turbo lint",
+    "openspec": "OPENSPEC_TELEMETRY=0 DO_NOT_TRACK=1 openspec",
     "qa:e2e-map:check": "node scripts/check-e2e-suite-map.js",
     "qa:doc-staleness": "node scripts/check-doc-staleness.js",
     "qa:doc-staleness:strict": "node scripts/check-doc-staleness.js --strict",
@@ -38,6 +39,7 @@
     "clean": "turbo clean && rm -rf node_modules"
   },
   "devDependencies": {
+    "@fission-ai/openspec": "^1.5.0",
     "@stryker-mutator/core": "9.6.1",
     "@stryker-mutator/vitest-runner": "9.6.1",
     "prettier": "^3.9.1",

@@ -49,14 +49,21 @@ Suggested order: close the one cross-tenant tampering vector first (SA-001, in t
 mechanical batch), then the scoping-RLS and email-authz design plans, then the
 disclosure/hardening tail.
 
+**Tracking moved to OpenSpec** (`openspec/changes/`) as of 2026-07-03 for the five
+design-decision plans below — each has a `proposal.md`/`design.md`/`specs/`/`tasks.md`
+seeded from its plan doc, apply-ready (`openspec validate` clean). Run
+`pnpm exec openspec status --change <name>` for live per-task progress instead of
+relying on this table; use `/opsx:apply` (or the `openspec-apply-change` skill) to
+execute.
+
 | Plan | Findings | Severity | Effort | Auto-fix | Status |
 |------|----------|----------|--------|----------|--------|
-| [remediation-mechanical.md](remediation-mechanical.md) | SA-001, 003, 009, 010, 012, 014, 015, 016, 017 | MED×2 + LOW×7 | S each | Yes | TODO |
-| [plan-scoping-rls.md](plan-scoping-rls.md) | SA-002 (promo_codes), SA-007 (trial_judge_supplies) | MEDIUM×2 | M | No | TODO |
-| [plan-email-fn-authz.md](plan-email-fn-authz.md) | SA-004 (send-email), SA-005 (send-auth-email), SA-013 (send-waitlist-invite) | MED×2 + LOW | M | No | TODO |
-| [plan-role-map-disclosure.md](plan-role-map-disclosure.md) | SA-006 (user_roles/permission_audit_log SELECT) | MEDIUM | M | No | TODO |
-| [plan-people-overfetch.md](plan-people-overfetch.md) | SA-008 (`select('*')` on people at login) | MEDIUM | M | No | TODO |
-| [plan-passcode-throttle.md](plan-passcode-throttle.md) | SA-011 (`upsert_ringside_session` no throttle) | LOW | S–M | No | TODO |
+| [remediation-mechanical.md](remediation-mechanical.md) | SA-001, 003, 009, 010, 012, 014, 015, 016, 017 | MED×2 + LOW×7 | S each | Yes | **DONE** — [#1099](https://github.com/rbeezley/myk9-platform/pull/1099), merged 2026-07-03 (`a5356a74a`) |
+| [plan-scoping-rls.md](plan-scoping-rls.md) | SA-002 (promo_codes), SA-007 (trial_judge_supplies) | MEDIUM×2 | M | No | TODO — `openspec/changes/security-scoping-rls/` |
+| [plan-email-fn-authz.md](plan-email-fn-authz.md) | SA-004 (send-email), SA-005 (send-auth-email), SA-013 (send-waitlist-invite) | MED×2 + LOW | M | No | TODO — `openspec/changes/security-email-fn-authz/` |
+| [plan-role-map-disclosure.md](plan-role-map-disclosure.md) | SA-006 (user_roles/permission_audit_log SELECT) | MEDIUM | M | No | TODO — `openspec/changes/security-role-map-disclosure/` |
+| [plan-people-overfetch.md](plan-people-overfetch.md) | SA-008 (`select('*')` on people at login) | MEDIUM | M | No | TODO — `openspec/changes/security-people-overfetch/` |
+| [plan-passcode-throttle.md](plan-passcode-throttle.md) | SA-011 (`upsert_ringside_session` no throttle) | LOW | S–M | No | TODO — `openspec/changes/security-passcode-throttle/` |
 
 ## Reconciliation with in-flight work (read before executing)
 

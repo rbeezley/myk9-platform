@@ -57,5 +57,5 @@
 - [x] 8.1 Update `docs/plan-ux-walk-remediation-2026-07.md` Phase 3 checkboxes/progress notes to match completed work.
 - [x] 8.2 Update `OPEN-TODOS.md` or another relevant tracking doc if the implementation closes a tracked backlog item.
 - [x] 8.3 Run `pnpm openspec validate ux-shell-integrity-followups --strict`.
-- [ ] 8.4 Open a PR for the implementation branch and request review for the user-visible shell behavior.
+- [x] 8.4 Open a PR for the implementation branch and request review for the user-visible shell behavior.
 - [ ] 8.5 Monitor CI/review, fix actionable failures, merge when green, and archive the OpenSpec change after implementation is complete.

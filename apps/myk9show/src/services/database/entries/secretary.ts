@@ -18,6 +18,7 @@ import type { PendingEntry, SecretaryStatusEntrySeed } from './secretaryTypes';
 import { postgrestGetSecretaryEntriesForShow } from './secretaryPostgrest';
 import { logger } from '@/services/LoggingService';
 import { AUTHENTICATED_ENTRY_READ_COLUMNS } from './entrySelects';
+import { isRawEntryInEntryManagementPendingBucket } from '@/utils/entryCountSelectors';
 
 export type { PendingEntry, SecretaryEntry, SecretaryStatusEntrySeed } from './secretaryTypes';
 
@@ -46,7 +47,7 @@ export const getPendingEntries = async (showIdFilter?: string): Promise<PendingE
     .select(
       'id, show_id, submitted_at, entry_status, check_in_status, dogs(call_name), people(first_name, last_name), classes(name), shows(name)'
     )
-    .eq('entry_status', 'submitted');
+    .or('entry_status.is.null,entry_status.not.in.(confirmed,waitlisted,withdrawn)');
 
   if (showIdFilter && showIdFilter !== 'all') {
     query = query.eq('show_id', showIdFilter);
@@ -61,7 +62,7 @@ export const getPendingEntries = async (showIdFilter?: string): Promise<PendingE
     throw createDatabaseError(error, 'entries', 'get_pending_entries');
   }
 
-  return (data ?? []).map(toPendingEntry);
+  return (data ?? []).map(toPendingEntry).filter(isRawEntryInEntryManagementPendingBucket);
 };
 
 /**

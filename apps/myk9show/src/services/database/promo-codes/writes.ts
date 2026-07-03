@@ -55,40 +55,21 @@ export const incrementPromoCodeUsage = async (id: string) => {
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase.rpc(
-      'increment_promo_usage' as never,
-      { promo_id: id } as never
-    );
-
-    // Fallback: if no RPC exists, do a manual increment.
-    if (error) {
-      const { data: current } = await supabase
-        .from('promo_codes')
-        .select('usage_count')
-        .eq('id', id)
-        .single();
-
-      const newCount = (current?.usage_count ?? 0) + 1;
-      const { data: updated, error: updateError } = await supabase
-        .from('promo_codes')
-        .update({ usage_count: newCount })
-        .eq('id', id)
-        .select()
-        .single();
-
-      const duration = Date.now() - startTime;
-      logQuery('promo_code', 'increment_usage', duration, updateError?.message);
-
-      if (updateError) {
-        throw createDatabaseError(updateError, 'promo_code', 'increment_usage');
-      }
-
-      return { data: updated, error: null };
-    }
+    // increment_promo_usage is a SECURITY DEFINER RPC (migration 085) that
+    // safely increments usage_count for any authenticated user. It is the ONLY
+    // correct path now that promo_codes writes/reads are officials-only
+    // (SA-002): the previous raw SELECT+UPDATE fallback would RLS-fail for
+    // exhibitor checkout sessions and silently under-count, so it is removed.
+    const { error } = await supabase.rpc('increment_promo_usage', { promo_id: id });
 
     const duration = Date.now() - startTime;
-    logQuery('promo_code', 'increment_usage', duration);
-    return { data, error: null };
+    logQuery('promo_code', 'increment_usage', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'promo_code', 'increment_usage');
+    }
+
+    return { data: null, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'promo_code', 'increment_usage');

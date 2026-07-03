@@ -8920,6 +8920,16 @@ export type Database = {
         Returns: boolean
       }
       increment_promo_usage: { Args: { promo_id: string }; Returns: undefined }
+      validate_promo_code: {
+        Args: { p_code: string; p_trial_id?: string | null; p_show_id?: string | null }
+        Returns: {
+          valid: boolean
+          promo_code_id: string | null
+          discount_type: string | null
+          discount_value: number | null
+          reason: string | null
+        }[]
+      }
       insert_club_access_request_from_signup: {
         Args: { p_auth_user_id: string; p_metadata: Json; p_person_id: string }
         Returns: undefined

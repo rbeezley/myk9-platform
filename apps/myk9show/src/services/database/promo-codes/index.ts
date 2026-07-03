@@ -4,8 +4,6 @@
 export {
   getPromoCodesByTrial,
   getPromoCodesByShow,
-  getPromoCodeByCode,
-  findPromoCodeByCode,
   validatePromoCode,
   validatePromoCodeForEntry,
   calculatePromoDiscount,

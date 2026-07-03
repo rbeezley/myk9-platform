@@ -1,6 +1,6 @@
 -- =============================================================================
--- Migration 20260703123000: SA-002 — scope promo_codes INSERT + SELECT to show
--- officials, and move exhibitor code-validation to a validate-only RPC.
+-- Migration 20260703123000: SA-002 — scope ALL promo_codes mutations + SELECT to
+-- show managers, and move exhibitor code-validation to a validate-only RPC.
 --
 -- MEDIUM (2026-07-03 pre-launch audit): promo_codes INSERT was gated on
 -- `created_by = auth.uid()` and SELECT on `auth.uid() IS NOT NULL`, so any
@@ -9,13 +9,23 @@
 --
 -- promo_codes rows are scoped by EITHER `show_id` OR `trial_id` (both nullable);
 -- a user "manages" the row when they can_manage_show() the row's show, resolved
--- directly (show_id) or via the trial (trial_id -> trials.show_id). This mirrors
--- the accepted 087 trial_checklist_state join, extended for the dual scope key.
+-- directly (show_id) or via the trial (can_manage_trial(), which does the
+-- trials->shows join internally and bypasses trials RLS). Authorization is
+-- CLUB-scoped (club admin / club secretary / site admin) per can_manage_show —
+-- see the SA-002 authz decision (Option A): financial config stays
+-- club-controlled; show-scoped-only officials are intentionally NOT admitted.
 --
--- UPDATE stays as set by migration 085 (SA-012); DELETE stays creator-scoped
--- (not a cross-tenant hole). Exhibitors never read the catalog: they validate a
--- specific typed code through validate_promo_code() (SECURITY DEFINER), which
--- returns only match/no-match + discount, never the underlying row set.
+-- All four policies (INSERT/SELECT/UPDATE/DELETE) now use the same predicate.
+-- Codex review (PR #1109) flagged that leaving UPDATE (mig 085: unscoped
+-- `is_trial_secretary()`) and DELETE (mig 045: creator-only) as-is left a
+-- residual cross-tenant mutation hole — a secretary of ANY club, or a stale
+-- creator, could edit/delete another show's promo config. The only live UPDATE
+-- path is the SECURITY DEFINER increment_promo_usage RPC (mig 085), which
+-- bypasses RLS, so tightening the UPDATE/DELETE policies regresses nothing.
+--
+-- Exhibitors never read the catalog: they validate a specific typed code through
+-- validate_promo_code() (SECURITY DEFINER), which returns only match/no-match +
+-- discount, never the underlying row set.
 -- =============================================================================
 
 -- --- INSERT: only users who manage the row's show/trial (or platform admin) ---
@@ -34,10 +44,56 @@ CREATE POLICY "promo_codes_insert_policy" ON public.promo_codes
     )
   );
 
--- --- SELECT: officials only. Exhibitors use validate_promo_code() instead. ---
+-- --- SELECT: managers only. Exhibitors use validate_promo_code() instead. ---
 DROP POLICY IF EXISTS "promo_codes_select_policy" ON public.promo_codes;
 CREATE POLICY "promo_codes_select_policy" ON public.promo_codes
   FOR SELECT TO authenticated
+  USING (
+    (SELECT public.is_site_admin())
+    OR (
+      promo_codes.show_id IS NOT NULL
+      AND (SELECT public.can_manage_show(promo_codes.show_id))
+    )
+    OR (
+      promo_codes.trial_id IS NOT NULL
+      AND (SELECT public.can_manage_trial(promo_codes.trial_id))
+    )
+  );
+
+-- --- UPDATE: managers only (replaces mig 085's unscoped is_trial_secretary()).
+-- WITH CHECK mirrors USING so a row cannot be re-scoped to a show/trial the
+-- caller does not manage. The usage_count increment path is the SECURITY DEFINER
+-- increment_promo_usage RPC (mig 085), which bypasses RLS and is unaffected.
+DROP POLICY IF EXISTS "promo_codes_update_policy" ON public.promo_codes;
+CREATE POLICY "promo_codes_update_policy" ON public.promo_codes
+  FOR UPDATE TO authenticated
+  USING (
+    (SELECT public.is_site_admin())
+    OR (
+      promo_codes.show_id IS NOT NULL
+      AND (SELECT public.can_manage_show(promo_codes.show_id))
+    )
+    OR (
+      promo_codes.trial_id IS NOT NULL
+      AND (SELECT public.can_manage_trial(promo_codes.trial_id))
+    )
+  )
+  WITH CHECK (
+    (SELECT public.is_site_admin())
+    OR (
+      promo_codes.show_id IS NOT NULL
+      AND (SELECT public.can_manage_show(promo_codes.show_id))
+    )
+    OR (
+      promo_codes.trial_id IS NOT NULL
+      AND (SELECT public.can_manage_trial(promo_codes.trial_id))
+    )
+  );
+
+-- --- DELETE: managers only (replaces mig 045's creator-only predicate). ---
+DROP POLICY IF EXISTS "promo_codes_delete_policy" ON public.promo_codes;
+CREATE POLICY "promo_codes_delete_policy" ON public.promo_codes
+  FOR DELETE TO authenticated
   USING (
     (SELECT public.is_site_admin())
     OR (

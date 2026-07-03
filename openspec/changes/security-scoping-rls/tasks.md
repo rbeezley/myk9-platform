@@ -85,7 +85,16 @@
       raw SELECT+UPDATE fallback in `incrementPromoCodeUsage` (would fail for
       exhibitor sessions under officials-only writes) — now RPC-only, typed.
 - [ ] 4.2 Run `supabase db push --dry-run`; confirm clean
-- [ ] 4.3 Request Codex second opinion (RLS change)
+- [x] 4.3 Request Codex second opinion (RLS change)
+      — DONE (user ran Codex on PR #1109). Two findings, both fixed:
+      **P1** promo_codes UPDATE/DELETE were still unscoped (mig 085's
+      `is_trial_secretary()` is club-unscoped → any secretary could edit any
+      show's promo config; mig 045 DELETE was creator-only) → now all four
+      policies share the row-scoped manager predicate; UPDATE gains WITH CHECK.
+      **P2** `can_manage_show` (club-scoped) ≠ the "show officials" wording →
+      resolved as **Option A** (club managers only — matches 087 + current
+      club-scoped seed grants); spec + migration comments reworded to
+      "club secretaries/admins/site admins" so wording matches implementation.
 - [ ] 4.4 Push migrations only after explicit user confirmation (merge is not
       deploy)
 - [ ] 4.5 Update `docs/security-audit-2026-07/README.md` status table (SA-002,

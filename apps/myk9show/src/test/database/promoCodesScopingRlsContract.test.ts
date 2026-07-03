@@ -21,9 +21,12 @@ function sliceBetween(source: string, start: string, end: string): string {
 }
 
 describe('promo_codes scoping RLS contract (SA-002)', () => {
-  it('drops the two permissive INSERT/SELECT policies before recreating them', () => {
-    expect(migration).toContain('DROP POLICY IF EXISTS "promo_codes_insert_policy" ON public.promo_codes');
-    expect(migration).toContain('DROP POLICY IF EXISTS "promo_codes_select_policy" ON public.promo_codes');
+  it('drops all four permissive INSERT/SELECT/UPDATE/DELETE policies before recreating them', () => {
+    for (const name of ['insert', 'select', 'update', 'delete']) {
+      expect(migration).toContain(
+        `DROP POLICY IF EXISTS "promo_codes_${name}_policy" ON public.promo_codes`
+      );
+    }
   });
 
   it('scopes INSERT to users who manage the row\'s show or trial (not created_by / not any authenticated)', () => {
@@ -41,15 +44,39 @@ describe('promo_codes scoping RLS contract (SA-002)', () => {
     expect(insertPolicy).not.toContain('auth.uid() IS NOT NULL');
   });
 
-  it('scopes SELECT to officials only (no auth.uid() IS NOT NULL catalog read)', () => {
+  it('scopes SELECT to managers only (no auth.uid() IS NOT NULL catalog read)', () => {
     const selectPolicy = sliceBetween(
       migration,
       'CREATE POLICY "promo_codes_select_policy"',
-      'Validate-only RPC'
+      '-- --- UPDATE'
     );
     expect(selectPolicy).toContain('public.can_manage_show(promo_codes.show_id)');
     expect(selectPolicy).toContain('public.can_manage_trial(promo_codes.trial_id)');
     expect(selectPolicy).not.toContain('auth.uid() IS NOT NULL');
+  });
+
+  it('scopes UPDATE + DELETE to managers (closes mig 085 unscoped is_trial_secretary + mig 045 creator-only)', () => {
+    const updatePolicy = sliceBetween(
+      migration,
+      'CREATE POLICY "promo_codes_update_policy"',
+      '-- --- DELETE'
+    );
+    const deletePolicy = sliceBetween(
+      migration,
+      'CREATE POLICY "promo_codes_delete_policy"',
+      'Validate-only RPC'
+    );
+    for (const policy of [updatePolicy, deletePolicy]) {
+      expect(policy).toContain('public.can_manage_show(promo_codes.show_id)');
+      expect(policy).toContain('public.can_manage_trial(promo_codes.trial_id)');
+      expect(policy).toContain('public.is_site_admin()');
+      // the old unscoped predicates must be gone
+      expect(policy).not.toContain('is_trial_secretary()');
+      expect(policy).not.toContain('created_by = auth.uid()');
+    }
+    // UPDATE must carry WITH CHECK so a row cannot be re-scoped to a show the
+    // caller does not manage
+    expect(updatePolicy).toContain('WITH CHECK');
   });
 
   it('adds a SECURITY DEFINER validate_promo_code RPC granted to authenticated, revoked from PUBLIC', () => {

@@ -1,18 +1,20 @@
 -- =============================================================================
--- Migration 20260703124000: SA-007 — scope trial_judge_supplies to show officials
+-- Migration 20260703124000: SA-007 — scope trial_judge_supplies to show managers
 --
 -- MEDIUM (2026-07-03 pre-launch audit): all four trial_judge_supplies policies
 -- gated only on `auth.uid() IS NOT NULL`, so any authenticated user (including
 -- exhibitors) could read, write, or delete another trial's judge-supply rows —
 -- a cross-tenant operational-data write hole.
 --
--- Replaces all four policies with `trials`-joined predicates gating on
--- can_manage_show() of the row's trial's show, mirroring the accepted 087
--- trial_checklist_state precedent. Read is scoped the same as writes:
--- pre-work (SA-007) confirmed every consumer of this table is an official
--- surface (TrialDetailsMain secretary view + JudgeSupplyChecklistReport); no
--- exhibitor/participant surface reads it, so least-privilege official-only read
--- is correct and does not regress any consumer.
+-- Replaces all four policies with `can_manage_trial()` (SECURITY DEFINER, mig
+-- 038 — does the trials->shows join internally and bypasses trials RLS), the
+-- same CLUB-scoped authorization the accepted 087 trial_checklist_state
+-- precedent uses. Authorization is club admin / club secretary / site admin per
+-- the SA-002/SA-007 authz decision (Option A) — show-scoped-only officials are
+-- intentionally NOT admitted; every live consumer is a club-secretary surface
+-- (TrialDetailsMain view + JudgeSupplyChecklistReport). Read is scoped the same
+-- as writes; pre-work (SA-007) confirmed no exhibitor/participant surface reads
+-- this table, so least-privilege manager-only read regresses no consumer.
 -- =============================================================================
 
 -- SELECT: only users who manage the row's trial's show (or platform admin)

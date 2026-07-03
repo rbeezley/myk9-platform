@@ -1,5 +1,5 @@
-import { formatDateRange } from '@/utils/date-format';
+import { formatShowDateRange } from '@/lib/format/dates';
 
 export function formatShowsTableDateRange(startDate: string, endDate: string): string {
-  return formatDateRange(startDate, endDate, 'short', true);
+  return formatShowDateRange(startDate, endDate);
 }

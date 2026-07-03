@@ -61,6 +61,20 @@ describe('ShowPhaseCard — upcoming', () => {
     expect(screen.getByText(/in \d+ days/i)).toBeInTheDocument();
   });
 
+  it('renders the shared compact show date range', () => {
+    const show = makeShow({
+      id: 's4-date',
+      startDate: '2030-08-01',
+      endDate: '2030-08-03',
+      status: 'published',
+      location: 'Des Moines, IA',
+    });
+
+    renderCard({ show, phase: 'upcoming' });
+
+    expect(screen.getByText('Aug 1–3, 2030 · Des Moines, IA')).toBeInTheDocument();
+  });
+
   it('shows urgent deadline chip when close date is within 7 days', () => {
     const closeDate = new Date(Date.now() + 5 * 86_400_000).toISOString().split('T')[0];
     const show = makeShow({

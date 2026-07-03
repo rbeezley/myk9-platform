@@ -63,6 +63,16 @@ describe('ShowCardHorizontal', () => {
     expect(screen.getByText('15')).toBeInTheDocument();
   });
 
+  it('renders the shared compact show date range', () => {
+    renderCard(
+      <ShowCardHorizontal
+        show={createMockShow({ startDate: '2026-08-01', endDate: '2026-08-03' })}
+      />
+    );
+
+    expect(screen.getByText('Aug 1–3, 2026')).toBeInTheDocument();
+  });
+
   it('renders discipline tags from show.events via getTypeBadge', () => {
     renderCard(
       <ShowCardHorizontal show={createMockShow({ events: ['Agility', 'Rally', 'Obedience'] })} />

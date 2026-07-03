@@ -204,6 +204,20 @@ const BrowseShowsPage: React.FC = () => {
   // Real-time updates
   useRealTimeUpdates();
 
+  useEffect(() => {
+    if (!isTabSwitching) return undefined;
+
+    const timeoutId = setTimeout(() => setIsTabSwitching(false), 300);
+    return () => clearTimeout(timeoutId);
+  }, [isTabSwitching, selectedTab]);
+
+  useEffect(() => {
+    if (!isViewModeChanging) return undefined;
+
+    const timeoutId = setTimeout(() => setIsViewModeChanging(false), 200);
+    return () => clearTimeout(timeoutId);
+  }, [isViewModeChanging, viewMode]);
+
   // Update view mode URL param (tab is handled by useUrlTab)
   const updateViewModeParam = useCallback(
     (newViewMode: ViewMode) => {
@@ -235,7 +249,6 @@ const BrowseShowsPage: React.FC = () => {
 
       setIsTabSwitching(true);
       setSelectedTab(newTab);
-      setTimeout(() => setIsTabSwitching(false), 300);
     },
     [selectedTab, setSelectedTab, user]
   );
@@ -249,7 +262,6 @@ const BrowseShowsPage: React.FC = () => {
       setIsViewModeChanging(true);
       setViewMode(newViewMode);
       updateViewModeParam(newViewMode);
-      setTimeout(() => setIsViewModeChanging(false), 200);
     },
     [updateViewModeParam, viewMode]
   );

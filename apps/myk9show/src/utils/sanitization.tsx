@@ -22,9 +22,10 @@ export const SANITIZE_CONFIGS = {
   richText: {
     ALLOWED_TAGS: [
       'p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-      'ul', 'ol', 'li', 'blockquote', 'pre', 'code'
+      'ul', 'ol', 'li', 'blockquote', 'pre', 'code', 'a', 'div', 'table',
+      'thead', 'tbody', 'tr', 'th', 'td', 'hr'
     ] as string[],
-    ALLOWED_ATTR: ['class'] as string[],
+    ALLOWED_ATTR: ['class', 'href'] as string[],
     ALLOW_DATA_ATTR: false,
   },
   

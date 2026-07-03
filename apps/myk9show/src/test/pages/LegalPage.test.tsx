@@ -129,6 +129,27 @@ describe('LegalPage', () => {
     expect(container.querySelector('a[href="https://example.com"]')).toHaveTextContent('link');
   });
 
+  it('does not render javascript: markdown links', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      text: async () => '# Title\n\nDo not run [bad link](javascript:alert).',
+    } as Response);
+
+    const { container } = render(
+      <MemoryRouter>
+        <LegalPage title="Terms" markdownPath="/legal/terms.md" />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Title')).toBeInTheDocument();
+    });
+
+    expect(container.innerHTML).not.toContain('javascript:');
+    expect(container.querySelector('article a')).toBeNull();
+    expect(screen.getByText(/bad link/)).toBeInTheDocument();
+  });
+
   it('converts markdown lists to HTML', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,

@@ -13,7 +13,7 @@ allowed-tools:
 1. Read `OPEN-TODOS.md` in the working directory (if it doesn't exist, say "No outstanding todos" and exit).
 
 2. Parse and display open items:
-   - Scan for all `- [ ]` lines in the file
+   - Scan for all `- [ ]` (not started) AND `- [~]` (in progress / partially done) lines in the file — both are open work, just at different stages. Only `- [x]` (done) is excluded.
    - Group them under their parent `##` section heading
    - Skip the **Post-Fall** section entirely — do not display those items
    - If no open items remain outside Post-Fall, say "No outstanding todos" and exit
@@ -24,7 +24,7 @@ allowed-tools:
    - Wait for user to reply with a number
 
 3. Load full context for selected todo:
-   - Display the complete `- [ ]` line including all description text
+   - Display the complete `- [ ]` or `- [~]` line including all description text
    - If the description mentions a plan file path, read it and summarize
    - If the description references TO-DOS.md for full context (look for `§` anchor), read TO-DOS.md, find the matching `##` section, and summarize the Problem and Solution fields
 
@@ -42,7 +42,7 @@ allowed-tools:
    - Wait for user response
 
 6. Handle user choice:
-   - **Option "Invoke skill" or "Start working"**: Remove the `- [ ]` line from `OPEN-TODOS.md` (if the `##` section becomes empty of `- [ ]` items after removal, remove the section heading too), then begin work
+   - **Option "Invoke skill" or "Start working"**: Remove the `- [ ]`/`- [~]` line from `OPEN-TODOS.md` (if the `##` section becomes empty of open items after removal, remove the section heading too), then begin work
    - **Option "Brainstorm approach"**: Keep the line in `OPEN-TODOS.md`, invoke `/brainstorm` with the todo description as argument
    - **Option "Put it back"**: Keep the line in `OPEN-TODOS.md`, return to step 2 to display the full list again
 

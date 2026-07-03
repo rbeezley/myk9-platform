@@ -80,6 +80,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-show-day-sequencing.md](plan-show-day-sequencing.md)                                 | Active    | Plan — Show-Day Workflow Sequencing                                   |
 | [plan-site-admin-mcp-v1.md](plan-site-admin-mcp-v1.md)                                     | Active    | Site Admin MCP V1 Implementation Plan                                 |
 | [plan-soft-delete-person-rpc.md](plan-soft-delete-person-rpc.md)                           | Active    | Plan: Fix person soft-delete (RLS WITH-CHECK block)                   |
+| [security-audit-2026-07/README.md](security-audit-2026-07/README.md)                       | Active    | Security Audit Remediation — July 2026 (17 findings; 0 P0/P1; 6 plans) |
 | [plan-ux-journey-audit.md](plan-ux-journey-audit.md)                                       | Active    | Plan: UX Journey Audit — Exhibitor & Secretary                        |
 | [plan-ux-journey-phase6.md](plan-ux-journey-phase6.md)                                     | Active    | Plan: UX Journey Audit — Phase 6 (Remediation Verification)           |
 | [plan-ux-walk-remediation-2026-07.md](plan-ux-walk-remediation-2026-07.md)                 | Active    | UX Walk Remediation — Phased Improvement Plan (July 2026)             |

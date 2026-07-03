@@ -6,7 +6,7 @@ import { getReportById } from '@/lib/reports/reportRegistry';
 import type { ReportProps } from '@/lib/reports/types';
 import type { DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
-import { formatDateRange } from '@/utils/date-format';
+import { formatShowDateRange } from '@/lib/format/dates';
 import { buildTrialReportProps, mapReportEntries, mapReportTrialFields } from './reportDataMapping';
 import { getReportRenderingMode } from './reportRenderingMode';
 
@@ -137,10 +137,7 @@ export function ReportPreview({
         judgeName: ((c as Record<string, unknown>).judge_name as string) ?? undefined,
       }));
 
-      const showDates =
-        show.startDate && show.endDate && show.startDate !== show.endDate
-          ? formatDateRange(show.startDate, show.endDate, 'short', true)
-          : (show.startDate ?? undefined);
+      const showDates = formatShowDateRange(show.startDate, show.endDate) || undefined;
 
       const props: ReportProps = {
         showId: show.id,
@@ -151,7 +148,7 @@ export function ReportPreview({
         allClasses,
         organization: show.organization ?? undefined,
         clubName: show.clubName ?? undefined,
-        showDates,
+        ...(showDates ? { showDates } : {}),
         ...(dogId !== 'all' ? { dogId } : {}),
         ...(trialId !== 'all' ? { trialId } : {}),
       };

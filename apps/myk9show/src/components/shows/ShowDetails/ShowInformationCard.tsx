@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { formatFee } from '@/utils/format';
+import { formatEntryDate } from '@/lib/format/dates';
 
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 
@@ -29,6 +30,10 @@ interface ShowInformationCardProps {
   showData: ShowFormData;
   handleEditShow: () => void;
   setShowDeleteDialog: () => void;
+}
+
+function formatLongShowDate(date?: string): string {
+  return formatEntryDate(date, { style: 'long' }) || 'Not set';
 }
 
 const ShowInformationCard: React.FC<ShowInformationCardProps> = ({
@@ -92,27 +97,11 @@ const ShowInformationCard: React.FC<ShowInformationCardProps> = ({
           </div>
           <div>
             <h3 className="text-sm font-medium text-muted-foreground mb-1">Start Date</h3>
-            <p className="text-muted-foreground">
-              {showData.startDate
-                ? new Date(showData.startDate).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })
-                : 'Not set'}
-            </p>
+            <p className="text-muted-foreground">{formatLongShowDate(showData.startDate)}</p>
           </div>
           <div>
             <h3 className="text-sm font-medium text-muted-foreground mb-1">End Date</h3>
-            <p className="text-muted-foreground">
-              {showData.endDate
-                ? new Date(showData.endDate).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })
-                : 'Not set'}
-            </p>
+            <p className="text-muted-foreground">{formatLongShowDate(showData.endDate)}</p>
           </div>
         </div>
         <div className="border-t border-gray-200 dark:border-zinc-700 pt-6 mb-8">
@@ -127,27 +116,11 @@ const ShowInformationCard: React.FC<ShowInformationCardProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-card-secondary p-4 rounded-xl">
               <h4 className="text-sm font-medium text-muted-foreground mb-1">Entry Open Date</h4>
-              <p className="text-muted-foreground">
-                {showData.entryOpenDate
-                  ? new Date(showData.entryOpenDate).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })
-                  : 'Not set'}
-              </p>
+              <p className="text-muted-foreground">{formatLongShowDate(showData.entryOpenDate)}</p>
             </div>
             <div className="bg-card-secondary p-4 rounded-xl">
               <h4 className="text-sm font-medium text-muted-foreground mb-1">Entry Close Date</h4>
-              <p className="text-muted-foreground">
-                {showData.entryCloseDate
-                  ? new Date(showData.entryCloseDate).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })
-                  : 'Not set'}
-              </p>
+              <p className="text-muted-foreground">{formatLongShowDate(showData.entryCloseDate)}</p>
             </div>
             <div className="bg-card-secondary p-4 rounded-xl">
               <h4 className="text-sm font-medium text-muted-foreground mb-1">Pre-Entry Fee</h4>

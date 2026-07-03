@@ -9,7 +9,7 @@ import { EntryStatusBadge } from '@/components/shows/EntryStatusBadge';
 import { getEntryStatus } from '@/utils/entryStatusUtils';
 import { getTypeBadge } from '@/utils/browseShowsUtils';
 import { getShowCardStatus } from '@/utils/showCardUtils';
-import { formatDateRange } from '@/utils/date-format';
+import { formatShowDateRange } from '@/lib/format/dates';
 import type { Show } from '@/types/show-types';
 
 export interface ShowCardHorizontalProps {
@@ -82,7 +82,7 @@ export const ShowCardHorizontal: React.FC<ShowCardHorizontalProps> = ({
             {show.clubName && show.startDate && <span className="text-muted-foreground/30">|</span>}
             {show.startDate && (
               <span className="flex-shrink-0">
-                {formatDateRange(show.startDate, show.endDate, 'short', false)}
+                {formatShowDateRange(show.startDate, show.endDate)}
               </span>
             )}
           </div>

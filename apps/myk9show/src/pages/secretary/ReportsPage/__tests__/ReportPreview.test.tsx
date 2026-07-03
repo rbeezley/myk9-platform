@@ -135,6 +135,8 @@ describe('ReportPreview', () => {
       const text = iframe.contentDocument?.body.textContent ?? '';
       expect(text).toContain('Scout');
       expect(text).toContain('Riley');
+      expect(text).toContain('May 11, 2026');
+      expect(text).not.toContain('2026-05-11');
     });
   });
 

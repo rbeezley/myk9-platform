@@ -3,7 +3,7 @@ import { differenceInDays } from 'date-fns';
 import { ArrowRight, Pencil, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/base/Chip';
-import { formatDateRange, toLocalDate } from '@/utils/date-format';
+import { formatShowDateRange, toLocalDate } from '@/lib/format/dates';
 import type { Show } from '@/types/show-types';
 import type { ShowPhase } from '@/hooks/useMyShows';
 
@@ -16,8 +16,7 @@ interface ShowPhaseCardProps {
   closedCount?: number | undefined;
 }
 
-const workbenchHref = (showId: string, phase: 'setup' | 'show-desk') =>
-  `/shows/${showId}/${phase}`;
+const workbenchHref = (showId: string, phase: 'setup' | 'show-desk') => `/shows/${showId}/${phase}`;
 
 function TodayCard({
   show,
@@ -84,7 +83,7 @@ function UpcomingCard({ show }: Pick<ShowPhaseCardProps, 'show'>) {
         </div>
         <p className="text-base font-semibold text-foreground truncate">{show.name}</p>
         <p className="text-xs text-muted-foreground mt-0.5">
-          {formatDateRange(show.startDate, show.endDate, 'short', false)} · {show.location}
+          {formatShowDateRange(show.startDate, show.endDate)} · {show.location}
         </p>
       </div>
       <Button asChild variant="outline" size="sm" className="shrink-0">
@@ -106,11 +105,7 @@ function DraftCard({ show }: Pick<ShowPhaseCardProps, 'show'>) {
             Draft
           </Chip>
           <span className="text-xs text-muted-foreground">
-            {toLocalDate(show.startDate).toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-            })}
+            {formatShowDateRange(show.startDate, show.endDate)}
           </span>
         </div>
         <p className="text-base font-semibold text-foreground truncate">{show.name}</p>
@@ -134,7 +129,7 @@ function PastCard({ show }: Pick<ShowPhaseCardProps, 'show'>) {
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-foreground truncate">{show.name}</p>
         <p className="text-xs text-muted-foreground mt-0.5">
-          {formatDateRange(show.startDate, show.endDate, 'short', false)} · {show.location}
+          {formatShowDateRange(show.startDate, show.endDate)} · {show.location}
         </p>
       </div>
       <Button asChild variant="ghost" size="sm" className="shrink-0 text-muted-foreground">

@@ -35,6 +35,7 @@ export interface CurrencyTotal {
 export interface PaymentDisplaySummaryRow {
   amountCents: number;
   currency: string;
+  status: string;
 }
 
 // A row counts toward spend only once money has actually moved and stayed moved.
@@ -76,6 +77,8 @@ export function summarizePaymentDisplayRows(rows: PaymentDisplaySummaryRow[]): C
   const byCurrency = new Map<string, CurrencyTotal>();
 
   for (const row of rows) {
+    if (row.amountCents > 0 && !PAID_STATUSES.has(row.status.toLowerCase())) continue;
+
     const currency = (row.currency || 'usd').toLowerCase();
     const acc = byCurrency.get(currency) ?? { currency, totalPaidCents: 0, paymentCount: 0 };
     acc.totalPaidCents += row.amountCents;

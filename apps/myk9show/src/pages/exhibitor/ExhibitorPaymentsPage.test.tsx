@@ -59,6 +59,13 @@ describe('ExhibitorPaymentsPage', () => {
     expect(screen.queryByRole('link', { name: /my shows/i })).not.toBeInTheDocument();
   });
 
+  it('does not count visible failed payments as paid in the summary', () => {
+    state.data = [{ ...payment, status: 'failed', showId: 'show-1', entryIds: ['e1'] }];
+    render(<ExhibitorPaymentsPage />);
+    expect(screen.getByRole('link', { name: /finish payment/i })).toBeInTheDocument();
+    expect(screen.queryByText('Total paid')).not.toBeInTheDocument();
+  });
+
   it('offers the retry link for a cancelled payment too', () => {
     state.data = [{ ...payment, status: 'cancelled', showId: 'show-1', entryIds: ['e1'] }];
     render(<ExhibitorPaymentsPage />);

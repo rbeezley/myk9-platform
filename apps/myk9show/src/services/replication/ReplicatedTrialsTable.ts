@@ -156,6 +156,10 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
     };
   }
 
+  protected override rebuildUpdatePayload(trial: ReplicatedTrial): Record<string, unknown> {
+    return this.toSupabaseRow(trial);
+  }
+
   async sync(licenseKey: string): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
@@ -182,6 +186,7 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
       getRemoteId: remote => String(remote.id),
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
       toLocalRow: rowToTrial,
+      rebuildUpdatePayload: trial => this.toSupabaseRow(trial),
       filterLocalRows: (rows, scope) =>
         scope.value ? rows.filter(r => r.showId === scope.value) : rows,
       resolveConflict: (_local, remote) => remote,

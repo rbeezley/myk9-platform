@@ -65,6 +65,7 @@ export interface EmptyUpdateClassificationOptions {
   rowId: string;
   serverVersion: number | undefined;
   serverCheck: { version?: number } | null | undefined;
+  serverCheckError?: unknown;
 }
 
 export function classifyEmptyUpdateResult({
@@ -72,8 +73,13 @@ export function classifyEmptyUpdateResult({
   rowId,
   serverVersion,
   serverCheck,
+  serverCheckError,
 }: EmptyUpdateClassificationOptions): Error {
   if (serverVersion !== undefined) {
+    if (serverCheckError) {
+      return makeRlsUpdateError(tableName, rowId);
+    }
+
     if (!serverCheck) {
       return new Error(`Row ${rowId} on ${tableName} no longer exists server-side.`);
     }
@@ -85,6 +91,10 @@ export function classifyEmptyUpdateResult({
     }
   }
 
+  return makeRlsUpdateError(tableName, rowId);
+}
+
+function makeRlsUpdateError(tableName: string, rowId: string): Error {
   return new Error(
     `RLS policy blocked UPDATE on ${tableName} for row ${rowId}. ` +
       `Check that the authenticated user has the required role.`

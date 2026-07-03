@@ -8,6 +8,7 @@ interface TestEntity {
   score?: number;
   class_id?: string;
   status?: string;
+  finalPlacement?: number | null;
 }
 
 class TestReplicatedTable extends ReplicatedTable<TestEntity> {
@@ -330,6 +331,56 @@ describe('ReplicatedTable', () => {
         conflict: undefined,
         data: { status: 'checked-in' },
         serverVersion: 5,
+      });
+    });
+
+    it('resolveReplicationConflict keep-local keeps local conflict fields and adopts untouched server fields', async () => {
+      const reconcileQueue = vi.fn(async () => {});
+      table.setMutationManager({
+        reconcilePendingMutationsForRow: reconcileQueue,
+      } as unknown as import('../MutationManager').MutationManager);
+
+      await table.set('1', { id: '1', name: 'Rex', status: 'ready', finalPlacement: null });
+      await table.set(
+        '1',
+        { id: '1', name: 'Rex', status: 'checked-in', finalPlacement: null },
+        true
+      );
+      const row = await table.getReplicatedRow('1');
+      await table.markConflict('1', {
+        tableName: table.getTableName(),
+        rowId: '1',
+        fields: ['status'],
+        localData: { id: '1', name: 'Rex', status: 'checked-in', finalPlacement: null },
+        remoteData: { id: '1', name: 'Rex', status: 'absent', finalPlacement: 2 },
+        baseData: { id: '1', name: 'Rex', status: 'ready', finalPlacement: null },
+        baseVersion: row!.baseVersion!,
+        localVersion: row!.version,
+        remoteServerVersion: 5,
+        detectedAt: 1,
+      });
+
+      const resolved = await table.resolveReplicationConflict('1', 'keep-local', {
+        rebuildUpdatePayload: local => ({
+          id: local.id,
+          status: local.status,
+          final_placement: local.finalPlacement ?? null,
+        }),
+      });
+
+      expect(resolved).toBe(true);
+      await expect(table.getReplicatedRow('1')).resolves.toMatchObject({
+        isDirty: true,
+        syncStatus: 'pending',
+        conflict: undefined,
+        data: { status: 'checked-in', finalPlacement: 2 },
+        baseData: { status: 'absent', finalPlacement: 2 },
+        serverVersion: 5,
+      });
+      expect(reconcileQueue).toHaveBeenCalledWith(table.getTableName(), '1', 5, {
+        id: '1',
+        status: 'checked-in',
+        final_placement: 2,
       });
     });
 

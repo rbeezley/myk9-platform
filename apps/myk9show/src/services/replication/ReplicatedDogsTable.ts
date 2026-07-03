@@ -121,6 +121,10 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
     };
   }
 
+  protected override rebuildUpdatePayload(dog: ReplicatedDog): Record<string, unknown> {
+    return this.toSupabaseRow(dog);
+  }
+
   async sync(licenseKey: string): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
@@ -147,6 +151,7 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
       getRemoteId: remote => String(remote.id),
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
       toLocalRow: rowToDog,
+      rebuildUpdatePayload: dog => this.toSupabaseRow(dog),
       filterLocalRows: (rows, scope) =>
         scope.value ? rows.filter(r => r.ownerId === scope.value) : rows,
       resolveConflict: (local, remote) => this.resolveConflict(local, remote),

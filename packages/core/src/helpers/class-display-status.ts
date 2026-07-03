@@ -1,4 +1,40 @@
+import { CLASS_STATUS, normalizeClassStatus } from '../constants/class-status';
+
 export type ClassDisplayStatus = 'not-started' | 'in-progress' | 'completed';
+
+/**
+ * The one label per lifecycle stage (UX walk remediation 2.B). Never
+ * "No Status", never Complete/Completed drift — surfaces render these
+ * exact strings or no chip at all.
+ */
+export const CLASS_DISPLAY_STATUS_LABELS: Record<ClassDisplayStatus, string> = {
+  'not-started': 'Not started',
+  'in-progress': 'In Progress',
+  completed: 'Completed',
+};
+
+/**
+ * Total lookup: any unrecognized value renders as "Not started" rather than
+ * crashing or leaking a raw enum string (house rule: `MAP[x] ?? MAP.unknown`).
+ */
+export function getClassDisplayStatusLabel(
+  status: ClassDisplayStatus | string | null | undefined
+): string {
+  return (
+    CLASS_DISPLAY_STATUS_LABELS[status as ClassDisplayStatus] ??
+    CLASS_DISPLAY_STATUS_LABELS['not-started']
+  );
+}
+
+/**
+ * Draft shows render no class lifecycle chips at all — "Not started" on a
+ * show that isn't published yet is status noise (UX walk remediation 2.B(1)).
+ * Only an affirmative `'draft'` hides chips: cold-store rows with no show
+ * status keep their chips (ringside must not lose state while syncing).
+ */
+export function shouldShowClassLifecycleChips(showStatus: string | null | undefined): boolean {
+  return showStatus !== 'draft';
+}
 
 export interface ClassDisplayStatusInput {
   status?: string;
@@ -9,13 +45,18 @@ export interface ClassDisplayStatusInput {
 }
 
 export function getClassDisplayStatus(input: ClassDisplayStatusInput): ClassDisplayStatus {
+  // Rows reach this helper with either the display spellings ('Completed') or
+  // the raw classes_status_check spellings ('completed' / 'in_progress' /
+  // 'setup'); normalize once so both hit the checks below.
+  const status = input.status ? normalizeClassStatus(input.status) : undefined;
+
   // Priority 1: Finalized flag
   if (input.is_scoring_finalized === true) {
     return 'completed';
   }
 
   // Priority 2: Canonical status
-  if (input.status === 'Completed') {
+  if (status === CLASS_STATUS.COMPLETED) {
     return 'completed';
   }
 
@@ -25,7 +66,7 @@ export function getClassDisplayStatus(input: ClassDisplayStatusInput): ClassDisp
   }
 
   // Priority 4: In Progress status or active scoring
-  if (input.status === 'In Progress') {
+  if (status === CLASS_STATUS.IN_PROGRESS) {
     return 'in-progress';
   }
 

@@ -276,13 +276,8 @@ export async function moveUpShowMapEntry({
   );
   const newEntryId = generateUUID();
 
-  await replicatedEntriesTable.updateEntry(entryId, {
-    entryStatus: 'moved',
-    entry_status: 'moved',
-    specialRequests: moveNote,
-    special_requests: moveNote,
-  });
-
+  // Create the promoted entry FIRST. If this fails, the original entry is left
+  // exactly as it was — the dog still runs where it is, nothing is corrupted.
   try {
     await replicatedEntriesTable.createEntry({
       id: newEntryId,
@@ -302,6 +297,34 @@ export async function moveUpShowMapEntry({
       special_requests: movedUpFromNote,
     });
   } catch (error) {
+    throw createDatabaseError(error, 'entries', 'show_map_move_up_create');
+  }
+
+  // New entry exists; now retire the original. If THIS fails, soft-delete the
+  // entry we just created so we don't leave a duplicate. Use a soft-delete
+  // UPDATE (not a hard deleteEntry) deliberately: on flaky show-day WiFi the
+  // create's INSERT may still be in retry-backoff in the mutation queue, and a
+  // hard DELETE is an independent, un-ordered mutation that could upload first,
+  // no-op against a not-yet-inserted row, and then let the INSERT land — leaving
+  // a live orphan on the server, invisible on this device. An UPDATE targets the
+  // SAME row as the pending INSERT, so it can never resurrect into a live entry
+  // regardless of queue ordering. This mirrors undoShowMapMoveUp's retire path.
+  try {
+    await replicatedEntriesTable.updateEntry(entryId, {
+      entryStatus: 'moved',
+      entry_status: 'moved',
+      specialRequests: moveNote,
+      special_requests: moveNote,
+    });
+  } catch (error) {
+    // updateEntry is NOT atomic: it commits the local row BEFORE it queues the
+    // sync mutation (ReplicatedEntriesTable.updateEntry), so a throw here may
+    // have already left the original locally marked 'moved'. Restore it to its
+    // captured previous state FIRST — that makes the dog runnable again on this
+    // device even if the next step fails — then soft-delete the new entry.
+    // Ordering matters: if we soft-deleted first and the restore then threw, the
+    // dog would be stranded with no runnable entry; restoring first means the
+    // worst case is a visible duplicate the secretary can scratch.
     try {
       await replicatedEntriesTable.updateEntry(entryId, {
         entryStatus: previousEntryStatus ?? undefined,
@@ -311,10 +334,25 @@ export async function moveUpShowMapEntry({
         specialRequests: previousSpecialRequests,
         special_requests: previousSpecialRequests,
       });
-    } catch (rollbackError) {
-      logger.error('[show-map] Failed to roll back move-up after create failure', rollbackError);
+    } catch (restoreError) {
+      logger.error(
+        '[show-map] Failed to restore original entry after mark-moved failure',
+        restoreError
+      );
     }
-    throw createDatabaseError(error, 'entries', 'show_map_move_up_create');
+    try {
+      const rolledBackAt = new Date().toISOString();
+      await replicatedEntriesTable.updateEntry(newEntryId, {
+        deletedAt: rolledBackAt,
+        deleted_at: rolledBackAt,
+      });
+    } catch (rollbackError) {
+      logger.error(
+        '[show-map] Failed to soft-delete move-up entry after mark-moved failure',
+        rollbackError
+      );
+    }
+    throw createDatabaseError(error, 'entries', 'show_map_move_up');
   }
 
   await logReplicatedEntryStatusChange({

@@ -5,7 +5,7 @@ import {
   type MoveUpLinkInput,
 } from './moveUpDisplay';
 
-// Mirrors the note written by processMoveUp / showMapActionMutations.
+// Mirrors the note written by the Show Map mutation (buildMovedUpFromNote).
 const movedNote = (sourceClassId: string, reason?: string) =>
   `Moved up from class ${sourceClassId}${reason ? ': ' + reason : ''}`;
 
@@ -83,7 +83,7 @@ describe('resolveMoveUpDisplay', () => {
 
   it('suppresses every moved row in a chain even after intermediate notes are overwritten', () => {
     // Regression: Novice -> Advanced -> Excellent. When Advanced is moved again,
-    // markEntryMoved / the Show Map mutation OVERWRITE its "Moved up from class
+    // the Show Map mutation OVERWRITES its "Moved up from class
     // <Novice>" note with "Moved up to Excellent", destroying the back-pointer.
     // A linkage-only rule would then leak the Novice row back; presence-based
     // suppression does not, because the dog still has a surviving Excellent row.

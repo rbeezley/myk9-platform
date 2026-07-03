@@ -15,8 +15,6 @@ vi.mock('@/services/database/supabaseClient', () => ({
 }));
 
 vi.mock('../entries/lifecycle', () => ({
-  markEntryMoved: vi.fn(),
-  rollbackEntryMove: vi.fn(),
   denyMoveUpRequest: vi.fn(),
 }));
 

@@ -2,6 +2,7 @@
 
 **Date:** 2026-05-22
 **Status:** **Stub.** Not yet drafted in detail. Pre-work required (PO interview on edge-case rules) before full plan can be written.
+**Status note (2026-07-02):** the *presentation* side landed via the UX walk remediation plan's task 2.B — `@myk9/core` now exports the canonical lifecycle label triple (`CLASS_DISPLAY_STATUS_LABELS`: "Not started" / "In Progress" / "Completed", via `getClassDisplayStatusLabel` over the existing `getClassDisplayStatus`), the trial composite line (`deriveTrialCompositeStatus`), and the draft-show chip gate (`shouldShowClassLifecycleChips`). Auto-*derivation* of the stored status from scoring events (this plan's actual subject) remains open; when drafted, it should treat `getClassDisplayStatus` as the derivation to formalize server-side.
 **Companion plan:** [`plan-show-map-workbench-collapse.md`](archive/plan-show-map-workbench-collapse.md) (Option B). Phase B2b includes a future-proofing note for this work.
 
 ## The idea

@@ -28,7 +28,7 @@ describe('CLASS_STATUS constants', () => {
 describe('CLASS_STATUS_DISPLAY', () => {
   it('should have display config for Scheduled', () => {
     const display = CLASS_STATUS_DISPLAY[CLASS_STATUS.SCHEDULED];
-    expect(display.label).toBe('Upcoming');
+    expect(display.label).toBe('Not started');
     expect(display.color).toBe('blue');
     expect(display.bgClass).toBe('bg-blue-100');
     expect(display.textClass).toBe('text-blue-800');
@@ -36,7 +36,7 @@ describe('CLASS_STATUS_DISPLAY', () => {
 
   it('should have display config for Upcoming (alias)', () => {
     const display = CLASS_STATUS_DISPLAY[CLASS_STATUS.UPCOMING];
-    expect(display.label).toBe('Upcoming');
+    expect(display.label).toBe('Not started');
     expect(display.color).toBe('blue');
   });
 
@@ -48,7 +48,7 @@ describe('CLASS_STATUS_DISPLAY', () => {
 
   it('should have display config for Completed', () => {
     const display = CLASS_STATUS_DISPLAY[CLASS_STATUS.COMPLETED];
-    expect(display.label).toBe('Complete');
+    expect(display.label).toBe('Completed');
     expect(display.color).toBe('green');
   });
 
@@ -97,13 +97,13 @@ describe('getNextClassStatus', () => {
 describe('getClassStatusDisplay', () => {
   it('should return display config for known status', () => {
     const display = getClassStatusDisplay(CLASS_STATUS.SCHEDULED);
-    expect(display.label).toBe('Upcoming');
+    expect(display.label).toBe('Not started');
     expect(display.color).toBe('blue');
   });
 
   it('should return Upcoming config for unknown status (falls through to Scheduled default)', () => {
     const display = getClassStatusDisplay('Unknown');
-    expect(display.label).toBe('Upcoming');
+    expect(display.label).toBe('Not started');
     expect(display.color).toBe('blue');
     expect(display.bgClass).toBe('bg-blue-100');
   });
@@ -174,6 +174,15 @@ describe('normalizeClassStatus', () => {
 
   it('should normalize Complete to Completed', () => {
     expect(normalizeClassStatus('Complete')).toBe(CLASS_STATUS.COMPLETED);
+  });
+
+  it('should normalize the classes_status_check DB spellings', () => {
+    // Migration 138: 'upcoming' | 'setup' | 'in_progress' | 'completed' | 'cancelled'
+    expect(normalizeClassStatus('in_progress')).toBe(CLASS_STATUS.IN_PROGRESS);
+    expect(normalizeClassStatus('setup')).toBe(CLASS_STATUS.SCHEDULED);
+    expect(normalizeClassStatus('completed')).toBe(CLASS_STATUS.COMPLETED);
+    expect(normalizeClassStatus('upcoming')).toBe(CLASS_STATUS.UPCOMING);
+    expect(normalizeClassStatus('cancelled')).toBe(CLASS_STATUS.CANCELLED);
   });
 
   it('should return Scheduled for unknown status', () => {

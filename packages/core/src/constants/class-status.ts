@@ -39,8 +39,11 @@ export type ClassStatusValue = (typeof CLASS_STATUS)[keyof typeof CLASS_STATUS];
  * - textClass: Full Tailwind text class
  */
 export const CLASS_STATUS_DISPLAY = {
+  // Lifecycle labels are fixed to the "Not started" / "In Progress" /
+  // "Completed" triple (UX walk remediation 2.B): one label per stage,
+  // never "No Status", never Complete/Completed drift.
   [CLASS_STATUS.SCHEDULED]: {
-    label: 'Upcoming',
+    label: 'Not started',
     color: 'blue',
     bgClass: 'bg-blue-100',
     textClass: 'text-blue-800',
@@ -48,7 +51,7 @@ export const CLASS_STATUS_DISPLAY = {
     darkTextClass: 'dark:text-blue-300',
   },
   [CLASS_STATUS.UPCOMING]: {
-    label: 'Upcoming',
+    label: 'Not started',
     color: 'blue',
     bgClass: 'bg-blue-100',
     textClass: 'text-blue-800',
@@ -64,7 +67,7 @@ export const CLASS_STATUS_DISPLAY = {
     darkTextClass: 'dark:text-amber-300',
   },
   [CLASS_STATUS.COMPLETED]: {
-    label: 'Complete',
+    label: 'Completed',
     color: 'green',
     bgClass: 'bg-green-100',
     textClass: 'text-green-800',
@@ -157,10 +160,13 @@ export const LEGACY_STATUS_MAP: Record<string, ClassStatusValue> = {
   accepting_entries: CLASS_STATUS.UPCOMING,
   closed: CLASS_STATUS.UPCOMING,
   unpublished: CLASS_STATUS.SCHEDULED,
+  setup: CLASS_STATUS.SCHEDULED,
 
   // Variations of In Progress
   'In Progress': CLASS_STATUS.IN_PROGRESS,
   'in progress': CLASS_STATUS.IN_PROGRESS,
+  // classes_status_check (migration 138) stores this spelling
+  in_progress: CLASS_STATUS.IN_PROGRESS,
   InProgress: CLASS_STATUS.IN_PROGRESS,
   inProgress: CLASS_STATUS.IN_PROGRESS,
 

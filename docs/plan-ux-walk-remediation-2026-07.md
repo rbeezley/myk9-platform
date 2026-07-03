@@ -1,8 +1,17 @@
 # UX Walk Remediation — Phased Improvement Plan (July 2026)
 
-> **Status:** Active
+> **Status:** Active — Phase 2/3 implementation in progress
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+## Current Status Snapshot — 2026-07-03
+
+- **Phase 0 is complete.** All root-cause investigation verdicts are closed in this plan.
+- **Phase 1 implementation tasks are complete.** The Phase 1 testing checklist remains open until the referenced unit/component/E2E evidence is linked or checked off.
+- **Phase 2 is underway.** `2.A` has its shared date/time module and tests landed in PR #1086; consumer migrations and the lint guard remain. `2.B`–`2.G` remain open.
+- **Phase 3 is partially underway.** `3.A` and `3.C` are complete; `3.B`, `3.D`, `3.E`, `3.F`, `3.G`, and `3.H` have remaining scope called out inline.
+- **Phases 4, 5, and 6 have not started.**
+- The implementation handoff has been archived to [`docs/archive/handoff-ux-walk-remediation-2026-07.md`](archive/handoff-ux-walk-remediation-2026-07.md); it is historical context only, and this plan is the source of truth.
 
 **Goal:** An intuitive, easy-to-use, consistent, and beautiful UI/UX that everyone — regardless of computer skills — can use and enjoy. Concretely: every fact the app states is true on every surface that states it; every guided path lands on the control that completes it; every control is visible, labeled, and honest; every error speaks plain English; and the shell (nav, search, menus) passes the INTENT.md litmus test _"Could my mom use this?"_
 
@@ -46,7 +55,7 @@
 
 Phases 0 and 1 run in parallel. Phases 2 and 3 can start once Phase 1's minimal date fix lands (2 depends on it; 3 is independent). Phase 4 depends on 2 (status/copy modules) and 0 (cart/409 verdicts). Phase 5 depends on 2's label maps. Phase 6 is the exit gate.
 
-**Rough sizing [ADDED; updated at UI-matrix merge]:** Phase 0 ≈ 2–3 spike-days remaining (4 of 7 verdicts closed at planning time). Phase 1 ≈ 7 packages, S–M. Phase 2 ≈ 7 packages, M each (test-heavy by design). Phase 3 ≈ 8 packages, S–M (3.G/3.H are the M–L items). Phase 4 ≈ 10 packages, mostly M (4.A/4.B are the L items). Phase 5 ≈ 6 packages, S (5.F is a decision + M execution). Phase 6 ≈ one elapsed week of verification. The audits' per-finding Effort columns remain the finer-grained source when splitting packages.
+**Rough sizing [ADDED; updated 2026-07-03]:** Phase 0 is complete. Phase 1 implementation tasks are complete, with testing checklist evidence still to close. Phase 2 remains the main consistency layer: 2.A is partially landed and 2.B–2.G are open. Phase 3 is partially complete, with the remaining work concentrated in overlay teardown, workbench-shell reunification, accessibility sweep, role-scoped chrome, contrast, and responsive primitives. Phase 4 ≈ 10 packages, mostly M (4.A/4.B are the L items). Phase 5 ≈ 6 packages, S (5.F is a decision + M execution). Phase 6 ≈ one elapsed week of verification. The audits' per-finding Effort columns remain the finer-grained source when splitting packages.
 
 ---
 
@@ -99,8 +108,8 @@ All seven verdicts final; dependent tasks (1.C, 1.F, 2.C, 2.G, 4.A, 4.H, 5.A) re
 
 ### Testing (Phase 1)
 
-- [ ] Unit: date-range formatter timezone tests (1.B); dog-profile activity selector tests covering unscored/future/withdrawn entries (1.A); cart reconciliation reducer tests — stale line dropped, entered class badged, submit clears (1.C).
-- [ ] Component: PremiumDownloadCard unpublished state renders the publish action; Manage Classes judge assign renders and calls the write (1.E); syncing-state gating for the four S1 surfaces (1.G).
+- [x] Unit: date-range formatter timezone tests (1.B); dog-profile activity selector tests covering unscored/future/withdrawn entries (1.A); cart reconciliation reducer tests — stale line dropped, entered class badged, submit clears (1.C). _(Verified 2026-07-03: `pnpm exec vitest run src/utils/__tests__/date-format.test.ts src/lib/format/__tests__/dates.test.ts src/components/dogs/DogDetailsMain/ActivityTab.helpers.test.ts src/store/cartStore.test.ts src/pages/RegistrationWizardPage/submitPaymentStep.test.ts src/components/shows/RegistrationWorkflow/__tests__/ClassSelectionStep.test.tsx src/components/shows/RegistrationWorkflow/PaymentStep/__tests__/PaymentStep.removeLine.test.tsx` — 7 files / 62 tests passed.)_
+- [x] Component: PremiumDownloadCard unpublished state renders the publish action; Manage Classes judge assign renders and calls the write (1.E); syncing-state gating for the four S1 surfaces (1.G). _(Verified 2026-07-03: `pnpm exec vitest run src/features/premium/__tests__/PremiumDownloadCard.test.tsx src/pages/secretary/__tests__/ClassManagementPage.judges.test.tsx src/features/at-show/AtShowClassListPage.test.tsx src/features/at-show/AtShowEntryListPage.test.tsx src/features/at-show/AtShowScoresheetPage.test.tsx src/test/pages/MyEntriesPage.test.tsx` — 6 files / 49 tests passed.)_
 - [ ] E2E: sign-in redirect spec (1.D); wizard fresh-cart spec (1.C); cold-profile sync-state spec (1.G).
 
 ### Exit criteria
@@ -119,7 +128,7 @@ Zero findings rated Critical remain open in any source audit (journey walks + UI
 
 - [ ] **2.A — Shared date/time module** (kills C2 family + §F date zoo). **[Module + tests landed in PR #1086; remaining: consumer migrations + the ESLint guard (guard lands last).]** One module (suggest `apps/myk9show/src/lib/format/dates.ts`, or promote to a shared package if ringside packages need it) exporting `formatShowDateRange`, `formatEntryDate`, `formatTime`, all timezone-aware via `getTrialTimezone`. Pick **one** date style per context (long: "Saturday, August 1, 2026"; compact: "Aug 1–3, 2026") and document it in the module. Migrate: Browse list, show header/cards, wizard, reports, ringside class list (currently raw ISO "2026-08-01"), ringside entry list, dog profile, My Shows. **Progress 2026-07-03 (Agent 2):** migrated the first show-date-range slice: Browse horizontal cards/table helper, secretary dashboard My Shows phase cards, Reports preview show headers, and Show Information date fields now consume `apps/myk9show/src/lib/format/dates.ts`, with focused render/helper tests. Remaining consumer migrations: wizard review/clone/show-details date inputs, ringside class list, ringside entry list, dog profile activity/results, exhibitor My Shows/entry rows, legacy/shared show cards such as vertical/upcoming cards, show detail sidebars/info cards, report pages outside `ReportPreview`, and any landing/premium template date helpers that still render show/entry facts. ESLint/grep guard still deferred until those migrations are complete enough.
   - *Acceptance:* `grep` finds no `toLocaleDateString`/`new Date(` date-only formatting in page components for show/entry dates; all go through the module. ESLint restriction (no-restricted-syntax or import rule) added so drift can't return.
-- [ ] **2.B — Status derivation + label maps** (kills C4, C7, "No Status", chip soup, Pending double-meaning, Pending+Refunded confusion — plus, per **[UI-matrix]** S4, the raw `in_progress`/lowercase-`completed` enum chips, raw `all` filter options, and frozen "Upcoming 0 / In Progress 0 / Complete 0" counters on Manage Classes). Three derivations with exhaustive label maps:
+- [ ] **2.B — Status derivation + label maps** **[Modules + tests landed in PR #1087; remaining: consumer migrations of the local status maps.]** (kills C4, C7, "No Status", chip soup, Pending double-meaning, Pending+Refunded confusion — plus, per **[UI-matrix]** S4, the raw `in_progress`/lowercase-`completed` enum chips, raw `all` filter options, and frozen "Upcoming 0 / In Progress 0 / Complete 0" counters on Manage Classes). Three derivations with exhaustive label maps:
   1. **Class lifecycle:** one enum → one label map ("Not started", "In Progress", "Completed" — never "No Status", never Complete/Completed drift). Extend the existing stub plan `plan-class-status-auto-derivation.md`. **[EXPANDED]** Draft/unpublished shows render _no_ lifecycle chips at all — Setup currently shows "Upcoming" on a draft show's classes, status noise before the show exists publicly (S Pass 5).
   2. **Entry lifecycle:** `deriveEntryPresentation(entry, context)` returning **one composed status line + at most one action hint** instead of up to 4 chips. Context-aware: the same entry reads "Needs review" to a secretary and "Submitted — you're in" to an exhibitor; "Pending" (needs review) and "not yet run" get _different words_. Special rows get their action hint (Pending+Refunded → "Refunded — confirm withdrawal or keep entry").
   3. **Trial composite (C7):** compose one status ("In progress — 1 of 3 classes complete"); "Needs wrap-up" only when all classes finished.

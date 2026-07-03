@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { getClassDisplayStatus } from '../../index';
+import {
+  getClassDisplayStatus,
+  getClassDisplayStatusLabel,
+  shouldShowClassLifecycleChips,
+} from '../../index';
 
 describe('getClassDisplayStatus', () => {
   it('returns "completed" when is_scoring_finalized is true', () => {
@@ -91,5 +95,58 @@ describe('getClassDisplayStatus', () => {
         scored_count: 0,
       }),
     ).toBe('in-progress');
+  });
+});
+
+describe('getClassDisplayStatusLabel', () => {
+  it('maps each lifecycle stage to its one canonical label', () => {
+    expect(getClassDisplayStatusLabel('not-started')).toBe('Not started');
+    expect(getClassDisplayStatusLabel('in-progress')).toBe('In Progress');
+    expect(getClassDisplayStatusLabel('completed')).toBe('Completed');
+  });
+
+  it('never renders "No Status" or a raw enum for unrecognized values', () => {
+    expect(getClassDisplayStatusLabel('no_status')).toBe('Not started');
+    expect(getClassDisplayStatusLabel(null)).toBe('Not started');
+    expect(getClassDisplayStatusLabel(undefined)).toBe('Not started');
+  });
+});
+
+describe('shouldShowClassLifecycleChips', () => {
+  it('hides lifecycle chips on draft shows', () => {
+    expect(shouldShowClassLifecycleChips('draft')).toBe(false);
+  });
+
+  it('shows chips for published and live shows', () => {
+    expect(shouldShowClassLifecycleChips('published')).toBe(true);
+    expect(shouldShowClassLifecycleChips('active')).toBe(true);
+    expect(shouldShowClassLifecycleChips('completed')).toBe(true);
+  });
+
+  it('keeps chips when the show status is not yet known (cold store)', () => {
+    expect(shouldShowClassLifecycleChips(null)).toBe(true);
+    expect(shouldShowClassLifecycleChips(undefined)).toBe(true);
+  });
+});
+
+describe('getClassDisplayStatus — DB status spellings (classes_status_check)', () => {
+  // Migration 138 constraint: 'upcoming' | 'setup' | 'in_progress' | 'completed' | 'cancelled'.
+  // Replicated rows reach this helper with those raw spellings.
+  it('recognizes a DB-backed completed class with no scored counts', () => {
+    expect(getClassDisplayStatus({ status: 'completed', entry_count: 5, scored_count: 0 })).toBe(
+      'completed'
+    );
+  });
+
+  it('recognizes a DB-backed in_progress class with no scoring activity', () => {
+    expect(getClassDisplayStatus({ status: 'in_progress', entry_count: 5, scored_count: 0 })).toBe(
+      'in-progress'
+    );
+  });
+
+  it('treats a setup-status class as not started', () => {
+    expect(getClassDisplayStatus({ status: 'setup', entry_count: 5, scored_count: 0 })).toBe(
+      'not-started'
+    );
   });
 });

@@ -1,0 +1,25 @@
+schema: spec-driven
+
+context: |
+  Project: myK9 platform TypeScript monorepo, with myK9Show as the active app.
+  Product goal: make myK9 launch-ready for fall 2026, prioritizing secretary/show-day reliability.
+  Current phase: consolidate existing workflows before adding new surface area.
+  Before proposing UX-facing changes, read docs/INTENT.md and preserve INTENT comments.
+  Prefer linking to existing surfaces over duplicating pages, dialogs, sheets, or affordances.
+  For show-day persistent app data, preserve offline-first behavior through @myk9/replication and established mutation flows.
+  Use pnpm, TypeScript, shadcn/ui for myK9Show UI, and existing repo patterns.
+  Every implementation plan must include a testing phase and keep tracking docs in sync when work completes.
+
+rules:
+  proposal:
+    - State how the change supports fall 2026 launch readiness.
+    - Answer whether the change duplicates an existing surface and why a link is not enough.
+    - Include non-goals for anything that would add avoidable surface area.
+  design:
+    - Note offline-first and replication impact for core show-day data.
+    - Reference existing pages, components, hooks, or mutation/query layers before introducing new ones.
+    - Preserve role-specific emotional intent from docs/INTENT.md for UX-facing work.
+  tasks:
+    - Include focused tests for changed components, hooks, utilities, or data flows.
+    - Include verification commands that match the blast radius.
+    - Include tracking-doc updates when the work completes a planned task.

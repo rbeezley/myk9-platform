@@ -1,19 +1,54 @@
 import { useEffect, useRef, useState } from 'react';
-import { toLocalDate } from '@/utils/date-format';
 
 /**
- * A bare `entry_close_date` is a DATE column with no timezone — parsing it
- * with `new Date('YYYY-MM-DD')` reads as UTC midnight and reports "closed"
- * up to a day early for western-hemisphere viewers. Treat a date-only value
- * as open through local end-of-day (23:59:59.999), matching the "Closes
- * Today!" inclusive-close convention in `utils/entryStatusUtils.ts`. A value
- * that already carries a time component is a real instant and is used as-is.
+ * The UTC instant at which `Y-M-D 23:59:59` occurs in `timeZone` — computed
+ * without a date library via the standard "format, then re-interpret,
+ * measure the offset, correct once" trick. IANA offsets are constant across
+ * a single instant, so one correction is exact (the only failure mode would
+ * be a DST transition landing on this exact second, which no show's close
+ * time does in practice).
  */
-function resolveTargetInstant(targetIso: string): Date {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(targetIso)) {
-    const endOfDay = toLocalDate(targetIso);
-    endOfDay.setHours(23, 59, 59, 999);
-    return endOfDay;
+function endOfDayInTimeZone(year: number, month: number, day: number, timeZone: string): Date {
+  const guess = Date.UTC(year, month - 1, day, 23, 59, 59);
+  const dtf = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+  const parts = Object.fromEntries(dtf.formatToParts(new Date(guess)).map(p => [p.type, p.value]));
+  const observed = Date.UTC(
+    Number(parts.year),
+    Number(parts.month) - 1,
+    Number(parts.day),
+    Number(parts.hour),
+    Number(parts.minute),
+    Number(parts.second)
+  );
+  const target = Date.UTC(year, month - 1, day, 23, 59, 59);
+  return new Date(guess + (target - observed) + 999);
+}
+
+/**
+ * A bare `entry_close_date` is a DATE column with no timezone — the calendar
+ * day it names is in the SHOW's timezone, not the viewer's. Parsing it with
+ * `new Date('YYYY-MM-DD')` (UTC midnight) or the viewer's local end-of-day
+ * both misreport "closed" by hours for a viewer in a different zone than the
+ * show. Resolve DATE-only values as open through end-of-day in `timeZone`,
+ * matching the inclusive "Closes Today!" convention in
+ * `utils/entryStatusUtils.ts` — just computed in the show's zone, not the
+ * browser's. A value that already carries a time component is a real
+ * instant and is used as-is.
+ */
+function resolveTargetInstant(targetIso: string, timeZone: string): Date {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(targetIso);
+  if (match) {
+    const [, y, m, d] = match;
+    return endOfDayInTimeZone(Number(y), Number(m), Number(d), timeZone);
   }
   return new Date(targetIso);
 }
@@ -38,11 +73,11 @@ export interface CountdownValue {
  * Shared across premium landing pages — heritage, monogram, banner, etc. all
  * surface "entries close in X days" countdowns.
  */
-export function useCountdown(targetIso: string | null, _timezone: string): CountdownValue {
+export function useCountdown(targetIso: string | null, timezone: string): CountdownValue {
   const compute = (): CountdownValue => {
     if (!targetIso)
       return { days: 0, hours: 0, minutes: 0, seconds: 0, closed: false, hasTarget: false };
-    const diff = resolveTargetInstant(targetIso).getTime() - Date.now();
+    const diff = resolveTargetInstant(targetIso, timezone).getTime() - Date.now();
     if (diff <= 0)
       return { days: 0, hours: 0, minutes: 0, seconds: 0, closed: true, hasTarget: true };
     const totalSeconds = Math.floor(diff / 1000);
@@ -79,7 +114,7 @@ export function useCountdown(targetIso: string | null, _timezone: string): Count
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
-  }, [targetIso]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [targetIso, timezone]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return value;
 }

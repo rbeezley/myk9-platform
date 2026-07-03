@@ -44,7 +44,7 @@ export const EntryStatsCards: React.FC<EntryStatsCardsProps> = ({ stats }) => {
         title="Revenue"
         value={`$${stats.revenue}`}
         color="emerald"
-        subtitle="Collected fees"
+        subtitle="Collected entry fees"
       />
     </StatsGrid>
   );

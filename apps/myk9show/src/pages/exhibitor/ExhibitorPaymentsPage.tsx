@@ -29,108 +29,58 @@ import {
 import { useMyPayments, type MyPayment } from '@/features/payments/useMyPayments';
 import { summarizeMyPayments } from '@/features/payments/paymentsSummary';
 import { buildFinishPaymentHref } from '@/features/payments/finishPaymentHref';
-
-function isRetryable(status: string): boolean {
-  const s = status.toLowerCase();
-  return s === 'failed' || s === 'cancelled';
-}
+import {
+  buildPaymentDisplayRows,
+  formatPaymentCents,
+  formatPaymentDate,
+  isRefundedPaymentStatus,
+  isRetryablePaymentStatus,
+  paymentStatusLabel,
+  type PaymentDisplayRow,
+} from '@/features/payments/moneyPresentation';
 
 /** Placeholder for a missing cell value. Hyphen-minus, never an em dash (UI-copy rule). */
 const EMPTY = '-';
 
-function isRefunded(status: string): boolean {
-  return status.toLowerCase() === 'refunded';
-}
-
-function formatCents(cents: number, currency: string): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency.toUpperCase(),
-  }).format(cents / 100);
-}
-
-/**
- * Display amount for a row. A refunded order returns to the exhibitor, so render
- * it as a signed deduction (e.g. "-$53.00") to distinguish it from a charge —
- * matching the Payout Ledger's signed-refund convention. Presentation only: the
- * stored amount is unchanged.
- */
-function formatRowAmount(payment: MyPayment): string {
-  const formatted = formatCents(payment.amountCents, payment.currency);
-  return isRefunded(payment.status) ? `-${formatted}` : formatted;
-}
-
-function formatDate(iso: string | null): string {
-  if (!iso) return EMPTY;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return EMPTY;
-  // Explicit month-name format so the date is unambiguous in every locale
-  // (avoids 6/7 vs 7/6 confusion on a money record).
-  return d.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
-/** Humane label for every status the order feed can emit. */
-function statusLabel(status: string): string {
-  const s = status.toLowerCase();
-  if (s === 'succeeded' || s === 'paid') return 'Paid';
-  if (s === 'refunded') return 'Refunded';
-  if (s === 'failed') return 'Failed';
-  if (s === 'cancelled' || s === 'canceled') return 'Cancelled';
-  if (s === 'pending') return 'Pending';
-  if (s === 'processing') return 'Processing';
-  if (s === 'unknown' || s === '') return 'Unknown';
-  // Last resort: title-case the raw token rather than leak a lowercase id.
-  return status.charAt(0).toUpperCase() + status.slice(1);
-}
-
 function statusBadge(status: string) {
   const s = status.toLowerCase();
   if (s === 'succeeded' || s === 'paid')
-    return <Badge variant="default">{statusLabel(status)}</Badge>;
-  if (s === 'refunded') return <Badge variant="secondary">{statusLabel(status)}</Badge>;
+    return <Badge variant="default">{paymentStatusLabel(status)}</Badge>;
+  if (s === 'refunded') return <Badge variant="secondary">{paymentStatusLabel(status)}</Badge>;
   if (s === 'failed' || s === 'cancelled' || s === 'canceled')
-    return <Badge variant="destructive">{statusLabel(status)}</Badge>;
-  return <Badge variant="outline">{statusLabel(status)}</Badge>;
+    return <Badge variant="destructive">{paymentStatusLabel(status)}</Badge>;
+  return <Badge variant="outline">{paymentStatusLabel(status)}</Badge>;
 }
 
-function PaymentRow({ payment }: { payment: MyPayment }) {
-  const showName = payment.showName ?? EMPTY;
-  const dateLabel = formatDate(payment.date);
+function PaymentRow({ row }: { row: PaymentDisplayRow }) {
+  const showName = row.showName ?? EMPTY;
+  const dateLabel = formatPaymentDate(row.date);
   return (
     <TableRow>
       <TableCell className="whitespace-nowrap tabular-nums">{dateLabel}</TableCell>
       <TableCell className="max-w-[16rem] truncate font-medium" title={showName}>
         {showName}
       </TableCell>
-      {/* Keep the figure at full foreground for legibility; the leading "-" and
-          the "Refunded" badge carry the refund meaning, not muting. */}
+      <TableCell className="max-w-[16rem] truncate" title={row.description}>
+        {row.description}
+      </TableCell>
       <TableCell className="text-right tabular-nums whitespace-nowrap">
-        {formatRowAmount(payment)}
+        {formatPaymentCents(row.amountCents, row.currency)}
       </TableCell>
-      <TableCell>{statusBadge(payment.status)}</TableCell>
-      <TableCell
-        className="max-w-[12rem] truncate font-mono text-sm text-muted-foreground"
-        title={payment.reference ?? undefined}
-      >
-        {payment.reference ?? EMPTY}
-      </TableCell>
+      <TableCell>{statusBadge(row.status)}</TableCell>
       <TableCell>
-        {isRetryable(payment.status) && payment.showId && payment.entryIds.length > 0 ? (
+        {isRetryablePaymentStatus(row.status) && row.showId && row.entryIds.length > 0 ? (
           // Failed/cancelled: deep-link straight to the cart-recovery flow,
           // scoped to this order's show + entries, so the exhibitor can retry the
           // exact payment rather than rebuilding it from scratch under My Shows.
           <Link
-            to={buildFinishPaymentHref(payment.showId, payment.entryIds)}
+            to={buildFinishPaymentHref(row.showId, row.entryIds)}
             className="inline-flex min-h-11 items-center gap-1.5 text-sm text-primary hover:underline focus-visible:underline"
           >
             <CreditCard className="h-4 w-4 shrink-0" aria-hidden="true" />
             Finish payment
           </Link>
-        ) : payment.entryIds.length > 0 ? (
+        ) : row.entryIds.length > 0 && !isRefundedPaymentStatus(row.status) ? (
           // Settled orders: the per-entry printable receipt lives on My Shows.
           // My Entries has no inbound entry/show filter, so this is a plain link
           // to that page (where the per-entry printable receipt lives), not a
@@ -138,11 +88,11 @@ function PaymentRow({ payment }: { payment: MyPayment }) {
           // is distinguishable when tabbing through the column.
           <Link
             to="/exhibitor/entries"
-            aria-label={`Find the receipt for ${payment.showName ?? 'this payment'} under My Shows`}
+            aria-label={`Receipt for ${row.showName ?? 'this payment'} under My Shows`}
             className="inline-flex min-h-11 items-center gap-1.5 text-sm text-primary hover:underline focus-visible:underline"
           >
             <ReceiptIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
-            Find receipt
+            Receipt
           </Link>
         ) : (
           // Match the link's min height so rows stay vertically even.
@@ -170,7 +120,7 @@ function PaymentsSummary({ payments }: { payments: MyPayment[] }) {
           <CardContent className="py-4">
             <p className="text-sm text-muted-foreground">Total paid</p>
             <p className="text-2xl font-semibold tabular-nums text-primary">
-              {formatCents(t.totalPaidCents, t.currency)}
+              {formatPaymentCents(t.totalPaidCents, t.currency)}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
               {t.paymentCount} {t.paymentCount === 1 ? 'payment' : 'payments'}
@@ -184,6 +134,7 @@ function PaymentsSummary({ payments }: { payments: MyPayment[] }) {
 
 export default function ExhibitorPaymentsPage() {
   const { data: payments, isLoading, isError } = useMyPayments();
+  const paymentRows = payments ? buildPaymentDisplayRows(payments) : [];
 
   useEffect(() => {
     if (isError) toast.error('Could not load your payments.');
@@ -229,15 +180,15 @@ export default function ExhibitorPaymentsPage() {
                   <TableRow>
                     <TableHead>Date</TableHead>
                     <TableHead>Show</TableHead>
+                    <TableHead>Description</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Reference</TableHead>
-                    <TableHead>Action</TableHead>
+                    <TableHead>Receipt</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {payments.map(p => (
-                    <PaymentRow key={p.id} payment={p} />
+                  {paymentRows.map(row => (
+                    <PaymentRow key={row.id} row={row} />
                   ))}
                 </TableBody>
               </Table>

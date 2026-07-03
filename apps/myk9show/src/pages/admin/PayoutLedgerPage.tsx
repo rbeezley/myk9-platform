@@ -183,7 +183,7 @@ function LedgerTable({ rows }: { rows: LedgerRow[] }) {
             <TableRow>
               <TableHead>Club</TableHead>
               <TableHead>Show</TableHead>
-              <TableHead className="text-right">Collected</TableHead>
+              <TableHead className="text-right">Online collected</TableHead>
               <TableHead className="text-right">Refunds</TableHead>
               <TableHead className="text-right">Net owed</TableHead>
               <TableHead>Settle date</TableHead>

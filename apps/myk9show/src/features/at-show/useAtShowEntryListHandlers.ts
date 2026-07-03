@@ -324,9 +324,10 @@ export function useAtShowEntryListHandlers(
     // fully-scored class (or clears stale placements otherwise) and updates the
     // class status. Server-authoritative and DRY — no client placement math, and
     // placements already recompute automatically on each score write, so this is
-    // a manual backstop. SECURITY DEFINER, so a judge/admin may invoke it.
+    // a manual backstop. The RPC is SECURITY DEFINER, but mirrors ringside
+    // scoring auth before invoking the internal trigger routine.
     try {
-      const { error } = await supabase.rpc('refresh_class_scoring_state', {
+      const { error } = await supabase.rpc('refresh_class_scoring_state_authorized', {
         p_class_id: classId,
       });
       if (error) throw error;

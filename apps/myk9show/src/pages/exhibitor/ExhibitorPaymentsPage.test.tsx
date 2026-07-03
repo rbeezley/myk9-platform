@@ -106,6 +106,23 @@ describe('ExhibitorPaymentsPage', () => {
     expect(screen.getByText('$23.00')).toBeInTheDocument();
   });
 
+  it('subtracts visible legacy refund rows from the Total paid summary', () => {
+    state.data = [
+      { ...payment, id: 'paid-order', amountCents: 10000, netPaidCents: 10000 },
+      {
+        ...payment,
+        id: 'legacy-refund',
+        amountCents: 5300,
+        netPaidCents: 0,
+        status: 'refunded',
+      },
+    ];
+    render(<ExhibitorPaymentsPage />);
+    expect(screen.getByText('-$53.00')).toBeInTheDocument();
+    expect(screen.getByText('$100.00')).toBeInTheDocument();
+    expect(screen.getByText('$47.00')).toBeInTheDocument();
+  });
+
   it('labels failed and pending statuses humanely (no raw lowercase tokens)', () => {
     state.data = [
       { ...payment, id: 'f1', status: 'failed' },

@@ -26,8 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useMyPayments, type MyPayment } from '@/features/payments/useMyPayments';
-import { summarizeMyPayments } from '@/features/payments/paymentsSummary';
+import { useMyPayments } from '@/features/payments/useMyPayments';
 import { buildFinishPaymentHref } from '@/features/payments/finishPaymentHref';
 import {
   buildPaymentDisplayRows,
@@ -38,6 +37,7 @@ import {
   paymentStatusLabel,
   type PaymentDisplayRow,
 } from '@/features/payments/moneyPresentation';
+import { summarizePaymentDisplayRows } from '@/features/payments/paymentsSummary';
 
 /** Placeholder for a missing cell value. Hyphen-minus, never an em dash (UI-copy rule). */
 const EMPTY = '-';
@@ -104,13 +104,11 @@ function PaymentRow({ row }: { row: PaymentDisplayRow }) {
 }
 
 /**
- * At-a-glance total spent + payment count, so an exhibitor can answer "how much
- * have I spent" without reading the table. One figure per currency (refunded
- * orders are excluded by summarizeMyPayments — see its refund note); rendered
- * only when there is paid, non-refunded spend.
+ * At-a-glance net total from the same visible rows in the table, so refunds
+ * cannot disappear from the header math.
  */
-function PaymentsSummary({ payments }: { payments: MyPayment[] }) {
-  const totals = summarizeMyPayments(payments);
+function PaymentsSummary({ rows }: { rows: PaymentDisplayRow[] }) {
+  const totals = summarizePaymentDisplayRows(rows);
   if (totals.length === 0) return null;
 
   return (
@@ -172,7 +170,7 @@ export default function ExhibitorPaymentsPage() {
         </Card>
       ) : (
         <>
-          <PaymentsSummary payments={payments} />
+          <PaymentsSummary rows={paymentRows} />
           <Card>
             <CardContent className="p-0">
               <Table>

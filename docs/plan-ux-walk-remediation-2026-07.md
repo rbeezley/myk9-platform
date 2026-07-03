@@ -1,8 +1,17 @@
 # UX Walk Remediation — Phased Improvement Plan (July 2026)
 
-> **Status:** Active
+> **Status:** Active — Phase 2/3 implementation in progress
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+## Current Status Snapshot — 2026-07-03
+
+- **Phase 0 is complete.** All root-cause investigation verdicts are closed in this plan.
+- **Phase 1 implementation tasks are complete.** The Phase 1 testing checklist remains open until the referenced unit/component/E2E evidence is linked or checked off.
+- **Phase 2 is underway.** `2.A` has its shared date/time module and tests landed in PR #1086; consumer migrations and the lint guard remain. `2.B`–`2.G` remain open.
+- **Phase 3 is partially underway.** `3.A` and `3.C` are complete; `3.B`, `3.D`, `3.E`, `3.F`, `3.G`, and `3.H` have remaining scope called out inline.
+- **Phases 4, 5, and 6 have not started.**
+- The implementation handoff has been archived to [`docs/archive/handoff-ux-walk-remediation-2026-07.md`](archive/handoff-ux-walk-remediation-2026-07.md); it is historical context only, and this plan is the source of truth.
 
 **Goal:** An intuitive, easy-to-use, consistent, and beautiful UI/UX that everyone — regardless of computer skills — can use and enjoy. Concretely: every fact the app states is true on every surface that states it; every guided path lands on the control that completes it; every control is visible, labeled, and honest; every error speaks plain English; and the shell (nav, search, menus) passes the INTENT.md litmus test _"Could my mom use this?"_
 
@@ -46,7 +55,7 @@
 
 Phases 0 and 1 run in parallel. Phases 2 and 3 can start once Phase 1's minimal date fix lands (2 depends on it; 3 is independent). Phase 4 depends on 2 (status/copy modules) and 0 (cart/409 verdicts). Phase 5 depends on 2's label maps. Phase 6 is the exit gate.
 
-**Rough sizing [ADDED; updated at UI-matrix merge]:** Phase 0 ≈ 2–3 spike-days remaining (4 of 7 verdicts closed at planning time). Phase 1 ≈ 7 packages, S–M. Phase 2 ≈ 7 packages, M each (test-heavy by design). Phase 3 ≈ 8 packages, S–M (3.G/3.H are the M–L items). Phase 4 ≈ 10 packages, mostly M (4.A/4.B are the L items). Phase 5 ≈ 6 packages, S (5.F is a decision + M execution). Phase 6 ≈ one elapsed week of verification. The audits' per-finding Effort columns remain the finer-grained source when splitting packages.
+**Rough sizing [ADDED; updated 2026-07-03]:** Phase 0 is complete. Phase 1 implementation tasks are complete, with testing checklist evidence still to close. Phase 2 remains the main consistency layer: 2.A is partially landed and 2.B–2.G are open. Phase 3 is partially complete, with the remaining work concentrated in overlay teardown, workbench-shell reunification, accessibility sweep, role-scoped chrome, contrast, and responsive primitives. Phase 4 ≈ 10 packages, mostly M (4.A/4.B are the L items). Phase 5 ≈ 6 packages, S (5.F is a decision + M execution). Phase 6 ≈ one elapsed week of verification. The audits' per-finding Effort columns remain the finer-grained source when splitting packages.
 
 ---
 
@@ -99,8 +108,8 @@ All seven verdicts final; dependent tasks (1.C, 1.F, 2.C, 2.G, 4.A, 4.H, 5.A) re
 
 ### Testing (Phase 1)
 
-- [ ] Unit: date-range formatter timezone tests (1.B); dog-profile activity selector tests covering unscored/future/withdrawn entries (1.A); cart reconciliation reducer tests — stale line dropped, entered class badged, submit clears (1.C).
-- [ ] Component: PremiumDownloadCard unpublished state renders the publish action; Manage Classes judge assign renders and calls the write (1.E); syncing-state gating for the four S1 surfaces (1.G).
+- [x] Unit: date-range formatter timezone tests (1.B); dog-profile activity selector tests covering unscored/future/withdrawn entries (1.A); cart reconciliation reducer tests — stale line dropped, entered class badged, submit clears (1.C). _(Verified 2026-07-03: `pnpm exec vitest run src/utils/__tests__/date-format.test.ts src/lib/format/__tests__/dates.test.ts src/components/dogs/DogDetailsMain/ActivityTab.helpers.test.ts src/store/cartStore.test.ts src/pages/RegistrationWizardPage/submitPaymentStep.test.ts src/components/shows/RegistrationWorkflow/__tests__/ClassSelectionStep.test.tsx src/components/shows/RegistrationWorkflow/PaymentStep/__tests__/PaymentStep.removeLine.test.tsx` — 7 files / 62 tests passed.)_
+- [x] Component: PremiumDownloadCard unpublished state renders the publish action; Manage Classes judge assign renders and calls the write (1.E); syncing-state gating for the four S1 surfaces (1.G). _(Verified 2026-07-03: `pnpm exec vitest run src/features/premium/__tests__/PremiumDownloadCard.test.tsx src/pages/secretary/__tests__/ClassManagementPage.judges.test.tsx src/features/at-show/AtShowClassListPage.test.tsx src/features/at-show/AtShowEntryListPage.test.tsx src/features/at-show/AtShowScoresheetPage.test.tsx src/test/pages/MyEntriesPage.test.tsx` — 6 files / 49 tests passed.)_
 - [ ] E2E: sign-in redirect spec (1.D); wizard fresh-cart spec (1.C); cold-profile sync-state spec (1.G).
 
 ### Exit criteria

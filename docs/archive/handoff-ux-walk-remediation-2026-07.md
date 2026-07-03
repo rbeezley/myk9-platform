@@ -1,29 +1,32 @@
 # Handoff — Implementing the UX Walk Remediation Plan
 
-> **Status:** Active
-> *(Archive this file once Phase 2 is underway; by then its context lives in PR history.)*
+> **Status:** Archived — Phase 2 is underway; use the plan as the source of truth.
 
 **Date:** 2026-07-02
 **From:** planning sessions (Claude walks + Codex cross-reviews, 2026-07-01/02)
 **To:** the implementing session(s)/agent(s)
-**The execution list:** [`docs/plan-ux-walk-remediation-2026-07.md`](plan-ux-walk-remediation-2026-07.md) — this handoff adds context; it does **not** add tasks. If this file and the plan disagree, the plan wins.
+**The execution list:** [`docs/plan-ux-walk-remediation-2026-07.md`](../plan-ux-walk-remediation-2026-07.md) — this handoff adds historical context; it does **not** add tasks. If this file and the plan disagree, the plan wins.
 
 ---
 
-## State at handoff
+## Archive Note — 2026-07-03
+
+This file was moved to `docs/archive/` because the implementation has progressed beyond the original handoff state: Phase 0 is complete, Phase 1 implementation tasks are checked off in the plan, Phase 2 has begun (`2.A` module/tests landed in PR #1086), and parts of Phase 3 are complete or in progress. The original "zero implementation code written" note below is preserved only as the state at the time this handoff was created.
+
+## Original State at Handoff
 
 - **Plan is final and on `main`** (through commit `44bdfca4d`): authored from two role walks, coverage-audited via /verify-plan (8 gap patches applied), then merged with the UI verification matrix (tasks 0.G, 1.G, 3.G, 3.H, 5.F added). 49 tasks across Phases 0–6; 4 Phase-0 investigation verdicts already closed at planning time (0.B, 0.C, 0.E, 0.F — read them before touching related code; they *changed* the fixes).
-- **Zero implementation code written.** No fix PRs exist yet. Nothing in the plan is started.
+- **Historical note:** Zero implementation code was written at the time of this handoff. This is no longer current; see the plan's 2026-07-03 status snapshot.
 - **Three source audits, all on `main`, all Claude+Codex cross-validated:**
-  [`2026-07-01-secretary-journey-ux-audit.md`](audits/2026-07-01-secretary-journey-ux-audit.md) ·
-  [`2026-07-02-exhibitor-elderly-ux-audit-claude.md`](audits/2026-07-02-exhibitor-elderly-ux-audit-claude.md) ·
-  [`2026-07-01-ui-verification-matrix.md`](audits/2026-07-01-ui-verification-matrix.md) (+ [icon-button appendix](audits/2026-07-01-ui-verification-matrix-appendix-icon-buttons.md)).
+  [`2026-07-01-secretary-journey-ux-audit.md`](../audits/2026-07-01-secretary-journey-ux-audit.md) ·
+  [`2026-07-02-exhibitor-elderly-ux-audit-claude.md`](../audits/2026-07-02-exhibitor-elderly-ux-audit-claude.md) ·
+  [`2026-07-01-ui-verification-matrix.md`](../audits/2026-07-01-ui-verification-matrix.md) (+ [icon-button appendix](../audits/2026-07-01-ui-verification-matrix-appendix-icon-buttons.md)).
   The audits are *evidence*; don't re-derive tasks from them — the plan's traceability appendix already maps every finding.
 
 ## Read in this order
 
 1. The plan — top matter + the phase you're implementing (don't skim Phase 0's verdicts; they're load-bearing).
-2. [`docs/INTENT.md`](INTENT.md) — mandatory before UX-facing changes; the plan cites its guardrails as acceptance criteria.
+2. [`docs/INTENT.md`](../INTENT.md) — mandatory before UX-facing changes; the plan cites its guardrails as acceptance criteria.
 3. `CLAUDE.md` — worktree/commit/migration conventions.
 
 ## Execution conventions (agreed with the owner)
@@ -45,7 +48,7 @@
 
 ## Traps specific to this plan
 
-- **0.A's write is INTENT-marked.** The mark-in-ring-on-tap is a deliberate spike stub (`useAtShowEntryListHandlers.ts:152`, INTENT comment). The 4.H fix must coordinate with [`plan-atshow-ringside-writes.md`](plan-atshow-ringside-writes.md) — change the behavior *with* that plan's context, don't just delete the call.
+- **0.A's write is INTENT-marked.** The mark-in-ring-on-tap is a deliberate spike stub (`useAtShowEntryListHandlers.ts:152`, INTENT comment). The 4.H fix must coordinate with [`plan-atshow-ringside-writes.md`](../plan-atshow-ringside-writes.md) — change the behavior *with* that plan's context, don't just delete the call.
 - **The shared dev DB itself is a finding.** Entries reads were hitting `statement timeout` during the matrix run (spike 0.G). If your verification hits 500s/toasts, you may be reproducing 0.G, not breaking things — check before "fixing".
 - **Cold vs warm cache discipline.** S1-class findings only reproduce on a fresh browser profile; a warm profile will falsely "pass". 1.G's e2e must use fresh storage.
 - **Replication layer:** never bypass it in core flows; a read-mapping fix must update **both** the replication mapper and the PostgREST fallback `.select` (two code paths). Rebuild shared packages before app tests: `pnpm --filter @myk9/<pkg> build`.

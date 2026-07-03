@@ -210,7 +210,6 @@ export function useMyEntriesData({
       totalFee: (entry.entry_fee as number) || 0,
       entryStatus,
       paymentStatus: mapPaymentStatus(effectivePaymentStatus),
-      registrationNumber: registration?.confirmation_number,
       confirmationNumber,
       entryCloseDate: show?.entry_close_date ? new Date(show.entry_close_date) : undefined,
       submittedAt: new Date((entry.submitted_at as string) || (entry.created_at as string)),
@@ -296,9 +295,8 @@ export function useMyEntriesData({
             if (e.id === entryId) {
               return {
                 ...e,
-                classes: e.classes.map(
-                  (c): EntryClass =>
-                    c.id === classId ? { ...c, checkInStatus: status, checkInTime: new Date() } : c
+                classes: e.classes.map((c): EntryClass =>
+                  c.id === classId ? { ...c, checkInStatus: status, checkInTime: new Date() } : c
                 ),
               };
             }
@@ -335,11 +333,10 @@ export function useMyEntriesData({
             if (e.id === entryId) {
               return {
                 ...e,
-                classes: e.classes.map(
-                  (c): EntryClass =>
-                    c.id === classId
-                      ? { ...c, checkInStatus: previousStatus, checkInTime: previousTime }
-                      : c
+                classes: e.classes.map((c): EntryClass =>
+                  c.id === classId
+                    ? { ...c, checkInStatus: previousStatus, checkInTime: previousTime }
+                    : c
                 ),
               };
             }

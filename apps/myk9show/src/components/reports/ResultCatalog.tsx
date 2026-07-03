@@ -9,6 +9,7 @@ import {
   isQualified,
   countQualified,
 } from '@/lib/reports/reportUtils';
+import { formatArmbandDisplay } from '@/utils/armbandUtils';
 
 export const ResultCatalog: React.FC<ReportProps> = ({
   showName,
@@ -87,7 +88,7 @@ export const ResultCatalog: React.FC<ReportProps> = ({
                       return (
                         <tr key={entry.id}>
                           <td>{placement}</td>
-                          <td>{entry.armband}</td>
+                          <td>{formatArmbandDisplay(entry.armband)}</td>
                           <td>{entry.callName}</td>
                           <td>{entry.breed}</td>
                           <td>{entry.registrationNumber ?? ''}</td>

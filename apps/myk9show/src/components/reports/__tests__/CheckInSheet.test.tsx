@@ -74,6 +74,11 @@ describe('CheckInSheet', () => {
     expect(screen.getByText('Novice A')).toBeInTheDocument();
   });
 
+  it('renders TBD when report data marks the class as unassigned', () => {
+    render(<CheckInSheet {...baseProps} trial={{ ...baseProps.trial!, judgeName: 'TBD' }} />);
+    expect(screen.getByText('TBD')).toBeInTheDocument();
+  });
+
   it('sorts entries by run order by default (runOrder=1 first)', () => {
     render(<CheckInSheet {...baseProps} />);
     const rows = screen.getAllByRole('row');
@@ -100,11 +105,11 @@ describe('CheckInSheet', () => {
     expect(screen.getByText('Class Entries: 0')).toBeInTheDocument();
   });
 
-  it('renders a dash for entries without armband numbers', () => {
+  it('renders an em dash for entries without armband numbers', () => {
     render(<CheckInSheet {...baseProps} entries={[{ ...entryBuddy, armband: 0 }]} />);
 
     const rows = screen.getAllByRole('row');
-    expect(rows[1].querySelectorAll('td')[1]).toHaveTextContent('-');
+    expect(rows[1].querySelectorAll('td')[1]).toHaveTextContent('—');
   });
 
   it('shows section when provided and non-empty', () => {

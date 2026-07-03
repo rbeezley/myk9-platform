@@ -23,6 +23,8 @@ function makeEntry(overrides: Partial<EnrichedShowEntry> = {}): EnrichedShowEntr
     startTime: '9:00 AM',
     judgeName: 'Smith',
     dogsAhead: 0,
+    entryStatus: 'accepted',
+    paymentStatus: 'paid',
     hasResult: false,
     ...overrides,
   };
@@ -137,5 +139,21 @@ describe('WhereToBe', () => {
     render(<WhereToBe entries={[makeEntry({ armband: '', startTime: '' })]} showId={SHOW_ID} />);
     expect(screen.getByLabelText('No armband assigned')).toHaveTextContent('No #');
     expect(screen.getByText('TBD')).toBeInTheDocument();
+  });
+
+  it('excludes withdrawn, moved source, and scratched rows from the runnable schedule', () => {
+    const entries = [
+      makeEntry({ entryId: 'live', dogName: 'Maggie', entryStatus: 'accepted' }),
+      makeEntry({ entryId: 'withdrawn', dogName: 'Ranger', entryStatus: 'withdrawn' }),
+      makeEntry({ entryId: 'moved', dogName: 'Daisy', entryStatus: 'moved' }),
+      makeEntry({ entryId: 'scratched', dogName: 'Scout', entryStatus: 'scratched' }),
+    ];
+
+    render(<WhereToBe entries={entries} showId={SHOW_ID} />);
+
+    expect(screen.getByText('Maggie')).toBeInTheDocument();
+    expect(screen.queryByText('Ranger')).not.toBeInTheDocument();
+    expect(screen.queryByText('Daisy')).not.toBeInTheDocument();
+    expect(screen.queryByText('Scout')).not.toBeInTheDocument();
   });
 });

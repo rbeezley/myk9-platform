@@ -65,6 +65,22 @@ describe('ShowMapStructureCells', () => {
     expect(screen.queryByRole('button', { name: 'Jane Handler' })).not.toBeInTheDocument();
   });
 
+  it('renders unassigned entry armbands as an em dash', () => {
+    const node = makeNode({
+      entryDisplay: {
+        armband: '0',
+        dogName: 'Bella',
+        breed: 'Labrador Retriever',
+        handler: 'Jane Handler',
+      },
+    });
+
+    render(<EntryIdentity node={node} />);
+
+    expect(screen.getByText('—')).toBeInTheDocument();
+    expect(screen.queryByText('0')).not.toBeInTheDocument();
+  });
+
   it('renders dog-entry identity with class context', () => {
     const node = makeNode({
       id: 'dog-entry:entry-1',

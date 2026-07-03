@@ -61,7 +61,8 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
       trials ?? [],
       classes ?? [],
       trialId,
-      classId
+      classId,
+      show?.assignedJudges ?? []
     );
     return prepareResultLabelItems(enriched, sortOrder, {
       showName: show?.name ?? '',

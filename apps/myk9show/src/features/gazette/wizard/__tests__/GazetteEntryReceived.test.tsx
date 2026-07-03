@@ -30,7 +30,7 @@ const BASE_PROPS = {
   dogCallName: 'Cooper',
   classSummary: '3 runs · Excellent · Containers, Interiors, Buried',
   totalFeesFormatted: '$69.00',
-  registrationNumber: '2026-0137',
+  registrationNumber: 'MK9-000137',
   confirmationDateLabel: 'Jun 6, 2026',
 };
 
@@ -70,15 +70,15 @@ describe('GazetteEntryReceived', () => {
     expect(screen.getByText('$69.00')).toBeTruthy();
   });
 
-  it('renders the entry number label when supplied', () => {
+  it('renders the confirmation number label when supplied', () => {
     render(<GazetteEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/Entry № 2026-0137/)).toBeTruthy();
+    expect(screen.getAllByText(/Confirmation # MK9-000137/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Entry №/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Registration #/)).not.toBeInTheDocument();
   });
 
   it('falls back to "Total fees" label when no registration number', () => {
-    render(
-      <GazetteEntryReceived {...BASE_PROPS} registrationNumber={null} />
-    );
+    render(<GazetteEntryReceived {...BASE_PROPS} registrationNumber={null} />);
     expect(screen.getByText(/Total fees/i)).toBeTruthy();
   });
 

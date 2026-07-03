@@ -34,6 +34,7 @@ interface UseMyEntriesFiltersReturn {
   selectedTab: EntryTabFilter;
   setSelectedTab: (tab: EntryTabFilter) => void;
   entryStats: MyEntryStats;
+  tabCounts: Record<EntryTabFilter, number>;
 }
 
 /**
@@ -91,13 +92,14 @@ export function useMyEntriesFilters({
     return filtered;
   }, [entries, selectedTab]);
 
-  /**
-   * Computed statistics for entries
-   */
-  const entryStats = useMemo<MyEntryStats>(() => {
+  const { entryStats, tabCounts } = useMemo<{
+    entryStats: MyEntryStats;
+    tabCounts: Record<EntryTabFilter, number>;
+  }>(() => {
     const now = new Date();
     const accepted = entries.filter(isExhibitorInEntry);
-    const pending = entries.filter(e => e.entryStatus === EntryStatus.PENDING);
+    const pending = entries.filter(isPendingEntry);
+    const waitlist = entries.filter(isWaitlistEntry);
     const currentEntries = entries.filter(entry => !isPastShowEntry(entry, now));
     const currentAcceptedEntries = currentEntries.filter(isExhibitorInEntry);
     const currentPendingEntries = currentEntries.filter(isPendingEntry);
@@ -122,27 +124,37 @@ export function useMyEntriesFilters({
       .reduce((sum, entry) => sum + entry.totalFee, 0);
 
     return {
-      total: entries.length,
-      accepted: accepted.length,
-      pending: pending.length,
-      upcoming: showDateStats.upcomingEntries,
-      pastShows: showDateStats.pastShows,
-      upcomingShows: showDateStats.upcomingShows,
-      currentAcceptedEntries: currentAcceptedEntries.length,
-      currentPendingEntries: currentPendingEntries.length,
-      acceptedPaid: acceptedPaid.length,
-      acceptedUnpaid: acceptedUnpaid.length,
-      needsAction: needsAction.length,
-      currentFees,
-      currentAmountDue,
-      totalFees,
-      paidFees,
-      unpaidFees,
-      acceptedPercent:
-        entries.length > 0 ? Math.round((accepted.length / entries.length) * 100) : 0,
-      paidPercent: totalFees > 0 ? Math.round((paidFees / totalFees) * 100) : 0,
-      needsActionPercent:
-        entries.length > 0 ? Math.round((needsAction.length / entries.length) * 100) : 0,
+      entryStats: {
+        total: entries.length,
+        accepted: accepted.length,
+        pending: pending.length,
+        upcoming: showDateStats.upcomingEntries,
+        pastShows: showDateStats.pastShows,
+        upcomingShows: showDateStats.upcomingShows,
+        currentAcceptedEntries: currentAcceptedEntries.length,
+        currentPendingEntries: currentPendingEntries.length,
+        acceptedPaid: acceptedPaid.length,
+        acceptedUnpaid: acceptedUnpaid.length,
+        needsAction: needsAction.length,
+        currentFees,
+        currentAmountDue,
+        totalFees,
+        paidFees,
+        unpaidFees,
+        acceptedPercent:
+          entries.length > 0 ? Math.round((accepted.length / entries.length) * 100) : 0,
+        paidPercent: totalFees > 0 ? Math.round((paidFees / totalFees) * 100) : 0,
+        needsActionPercent:
+          entries.length > 0 ? Math.round((needsAction.length / entries.length) * 100) : 0,
+      },
+      tabCounts: {
+        all: entries.length,
+        pending: pending.length,
+        accepted: accepted.length,
+        waitlist: waitlist.length,
+        upcoming: currentEntries.length,
+        completed: entries.length - currentEntries.length,
+      },
     };
   }, [entries]);
 
@@ -151,5 +163,6 @@ export function useMyEntriesFilters({
     selectedTab,
     setSelectedTab,
     entryStats,
+    tabCounts,
   };
 }

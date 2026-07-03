@@ -175,6 +175,8 @@ describe('useMyEntriesFilters tab filtering (date-range aware)', () => {
 
     expect(result.current.entryStats.accepted).toBe(3);
     expect(result.current.entryStats.pending).toBe(0);
+    expect(result.current.tabCounts.accepted).toBe(3);
+    expect(result.current.tabCounts.pending).toBe(0);
 
     act(() => result.current.setSelectedTab('accepted'));
     expect(result.current.filteredEntries.map(e => e.id).sort()).toEqual([

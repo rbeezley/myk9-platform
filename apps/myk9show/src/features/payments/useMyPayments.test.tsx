@@ -62,6 +62,7 @@ describe('useMyPayments', () => {
         status: 'succeeded',
         reference: 'pi_1',
         entryIds: ['e1', 'e2'],
+        refunds: [],
       },
     ]);
   });
@@ -94,6 +95,7 @@ describe('useMyPayments', () => {
       currency: 'usd',
       reference: null,
       entryIds: [],
+      refunds: [],
     });
   });
 
@@ -122,8 +124,14 @@ describe('useMyPayments', () => {
     });
     inFilter.mockResolvedValue({
       data: [
-        { id: 'e1', refund_amount: 30 },
-        { id: 'e2', refund_amount: null },
+        {
+          id: 'e1',
+          refund_amount: 30,
+          refunded_at: '2026-06-12T00:00:00Z',
+          dogs: { call_name: 'Copper' },
+          classes: { name: 'Advanced A' },
+        },
+        { id: 'e2', refund_amount: null, refunded_at: null, dogs: null, classes: null },
       ],
       error: null,
     });
@@ -131,12 +139,22 @@ describe('useMyPayments', () => {
     const { result } = renderHook(() => useMyPayments(), { wrapper: createWrapper() });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(entriesSelect).toHaveBeenCalledWith('id, refund_amount');
+    expect(entriesSelect).toHaveBeenCalledWith(
+      'id, refund_amount, refunded_at, dogs(call_name), classes(name)'
+    );
     expect(inFilter).toHaveBeenCalledWith('id', ['e1', 'e2']);
     expect(result.current.data?.[0]).toMatchObject({
       amountCents: 5300,
       netPaidCents: 2300,
       status: 'succeeded',
+      refunds: [
+        {
+          entryId: 'e1',
+          amountCents: 3000,
+          date: '2026-06-12T00:00:00Z',
+          label: 'Copper - Advanced A',
+        },
+      ],
     });
   });
 });

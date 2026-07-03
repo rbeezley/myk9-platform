@@ -15,7 +15,8 @@ interface MyEntriesTabProps {
 export function MyEntriesTab({ showId }: MyEntriesTabProps) {
   const navigate = useNavigate();
   const loadEntries = useEntryStore(s => s.loadEntries);
-  const { dogGroups, allEntries, totalClasses, isLoading, isError } = useShowEntriesForUser(showId);
+  const { dogGroups, allEntries, scheduleEntries, totalClasses, scheduleDogCount, isLoading, isError } =
+    useShowEntriesForUser(showId);
 
   if (isLoading) {
     return <LoadingSkeleton variant="cards" count={3} />;
@@ -59,9 +60,9 @@ export function MyEntriesTab({ showId }: MyEntriesTabProps) {
           <div className="min-w-0">
             <h2 className="text-lg font-semibold text-foreground">My run schedule</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {totalClasses} {totalClasses === 1 ? 'class' : 'classes'} across {dogGroups.length}{' '}
-              {dogGroups.length === 1 ? 'dog' : 'dogs'}. Times, armbands, judges, and results stay
-              together here.
+              {totalClasses} {totalClasses === 1 ? 'class' : 'classes'} across {scheduleDogCount}{' '}
+              {scheduleDogCount === 1 ? 'dog' : 'dogs'}. Times, armbands, judges, and results
+              stay together here.
             </p>
           </div>
         </div>
@@ -76,7 +77,7 @@ export function MyEntriesTab({ showId }: MyEntriesTabProps) {
         </Button>
       </div>
 
-      <WhereToBe entries={allEntries} showId={showId} />
+      <WhereToBe entries={scheduleEntries} showId={showId} />
 
       {dogGroups.map(group => (
         <DogEntriesSection key={group.dogId} group={group} showId={showId} />

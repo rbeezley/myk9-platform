@@ -145,6 +145,17 @@ describe('SecretaryDashboardPage', () => {
         check_in_status: null,
       },
       {
+        id: 'entry-paid',
+        showId: 'managed-show',
+        showName: 'Managed Show',
+        className: 'Container Advanced A',
+        handlerName: 'Cyd Handler',
+        dogName: 'Copper',
+        submittedAt: '2026-05-11T12:02:00Z',
+        entry_status: 'paid',
+        check_in_status: null,
+      },
+      {
         id: 'entry-2',
         showId: 'other-show',
         showName: 'Other Club Show',
@@ -160,8 +171,8 @@ describe('SecretaryDashboardPage', () => {
     renderPage();
 
     expect(screen.getByText('Managing 1 show')).toBeInTheDocument();
-    expect(screen.getByText('1 entry pending review')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /1 entry pending review/i })).toHaveAttribute(
+    expect(screen.getByText('2 pending entries')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /2 pending entries/i })).toHaveAttribute(
       'href',
       '/shows/managed-show/entry-management?mode=review&attention=pending'
     );

@@ -19,10 +19,12 @@ const payment: MyPayment = {
   showId: 'show-1',
   showName: 'Spring Trial',
   amountCents: 5300,
+  netPaidCents: 5300,
   currency: 'usd',
   status: 'succeeded',
   reference: 'pi_abc123',
   entryIds: ['e1'],
+  refunds: [],
 };
 
 describe('ExhibitorPaymentsPage', () => {
@@ -32,14 +34,15 @@ describe('ExhibitorPaymentsPage', () => {
     state.isError = false;
   });
 
-  it('renders a payment row with show, amount, status, reference, receipt link', () => {
+  it('renders a payment row with qualified description, amount, status, and receipt link', () => {
     render(<ExhibitorPaymentsPage />);
     expect(screen.getByText('Spring Trial')).toBeInTheDocument();
+    expect(screen.getByText('Online entry fees')).toBeInTheDocument();
     // $53.00 now appears twice — once in the summary card, once in the table row.
     expect(screen.getAllByText('$53.00')).toHaveLength(2);
     expect(screen.getByText('Paid')).toBeInTheDocument();
-    expect(screen.getByText('pi_abc123')).toBeInTheDocument();
-    const receipt = screen.getByRole('link', { name: /find the receipt/i });
+    expect(screen.queryByText('pi_abc123')).not.toBeInTheDocument();
+    const receipt = screen.getByRole('link', { name: /receipt for spring trial/i });
     expect(receipt).toHaveAttribute('href', '/exhibitor/entries');
     // Settled orders offer no retry affordance.
     expect(screen.queryByRole('link', { name: /finish payment/i })).not.toBeInTheDocument();
@@ -54,6 +57,13 @@ describe('ExhibitorPaymentsPage', () => {
     expect(retry).toHaveAttribute('href', '/cart?showId=show-1&entryIds=e1%2Ce2');
     // The retry replaces the receipt link for unsettled orders.
     expect(screen.queryByRole('link', { name: /my shows/i })).not.toBeInTheDocument();
+  });
+
+  it('does not count visible failed payments as paid in the summary', () => {
+    state.data = [{ ...payment, status: 'failed', showId: 'show-1', entryIds: ['e1'] }];
+    render(<ExhibitorPaymentsPage />);
+    expect(screen.getByRole('link', { name: /finish payment/i })).toBeInTheDocument();
+    expect(screen.queryByText('Total paid')).not.toBeInTheDocument();
   });
 
   it('offers the retry link for a cancelled payment too', () => {
@@ -73,12 +83,51 @@ describe('ExhibitorPaymentsPage', () => {
   });
 
   it('renders a refunded amount as a signed deduction, distinct from a charge', () => {
-    state.data = [{ ...payment, status: 'refunded' }];
+    state.data = [{ ...payment, status: 'refunded', netPaidCents: 0 }];
     render(<ExhibitorPaymentsPage />);
     // Money-clarity bar: a refund must not read identically to a $53 charge.
     expect(screen.getByText('-$53.00')).toBeInTheDocument();
     expect(screen.queryByText('$53.00')).not.toBeInTheDocument();
     expect(screen.getByText('Refunded')).toBeInTheDocument();
+  });
+
+  it('renders entry refunds as their own rows and totals the visible net paid amount', () => {
+    state.data = [
+      {
+        ...payment,
+        netPaidCents: 2300,
+        refunds: [
+          {
+            entryId: 'e1',
+            amountCents: 3000,
+            date: '2026-06-12T00:00:00Z',
+            label: 'Copper - Advanced A',
+          },
+        ],
+      },
+    ];
+    render(<ExhibitorPaymentsPage />);
+    expect(screen.getByText('Online entry fees')).toBeInTheDocument();
+    expect(screen.getByText('Refund - Copper - Advanced A')).toBeInTheDocument();
+    expect(screen.getByText('-$30.00')).toBeInTheDocument();
+    expect(screen.getByText('$23.00')).toBeInTheDocument();
+  });
+
+  it('subtracts visible legacy refund rows from the Total paid summary', () => {
+    state.data = [
+      { ...payment, id: 'paid-order', amountCents: 10000, netPaidCents: 10000 },
+      {
+        ...payment,
+        id: 'legacy-refund',
+        amountCents: 5300,
+        netPaidCents: 0,
+        status: 'refunded',
+      },
+    ];
+    render(<ExhibitorPaymentsPage />);
+    expect(screen.getByText('-$53.00')).toBeInTheDocument();
+    expect(screen.getByText('$100.00')).toBeInTheDocument();
+    expect(screen.getByText('$47.00')).toBeInTheDocument();
   });
 
   it('labels failed and pending statuses humanely (no raw lowercase tokens)', () => {
@@ -107,9 +156,7 @@ describe('ExhibitorPaymentsPage', () => {
 
   it('gives the receipt link a distinguishable accessible name per show', () => {
     render(<ExhibitorPaymentsPage />);
-    expect(
-      screen.getByRole('link', { name: /find the receipt for spring trial/i })
-    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /receipt for spring trial/i })).toBeInTheDocument();
   });
 
   it('shows a summary header with total paid and the payment count', () => {
@@ -119,7 +166,7 @@ describe('ExhibitorPaymentsPage', () => {
   });
 
   it('omits the summary header when the only order was refunded', () => {
-    state.data = [{ ...payment, status: 'refunded' }];
+    state.data = [{ ...payment, status: 'refunded', netPaidCents: 0 }];
     render(<ExhibitorPaymentsPage />);
     // Refunded orders contribute no spend, so no summary card renders…
     expect(screen.queryByText('Total paid')).not.toBeInTheDocument();

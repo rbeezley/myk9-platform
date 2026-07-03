@@ -234,7 +234,7 @@ describe('ShowDeskAdaptiveHeader', () => {
         id: 'entries-waiting-review' as const,
         count: 5,
         priority: 'highest' as const,
-        label: '5 entries waiting for review',
+        label: '5 pending entries',
       },
       {
         id: 'entries-waiting-checkin' as const,
@@ -254,7 +254,7 @@ describe('ShowDeskAdaptiveHeader', () => {
     );
     const row = getByTestId('show-desk-pending-signals');
     expect(row.querySelectorAll('[data-signal-id]')).toHaveLength(3);
-    expect(getByText('5 entries waiting for review')).toBeInTheDocument();
+    expect(getByText('5 pending entries')).toBeInTheDocument();
     expect(getByText('2 entries waiting for check-in')).toBeInTheDocument();
     expect(getByText('1 class needs judge signature')).toBeInTheDocument();
   });
@@ -268,7 +268,7 @@ describe('ShowDeskAdaptiveHeader', () => {
         id: 'entries-waiting-review' as const,
         count: 1,
         priority: 'highest' as const,
-        label: '1 entry waiting for review',
+        label: '1 pending entry',
       },
     ];
     const onSelectPendingSignal = vi.fn();
@@ -291,7 +291,7 @@ describe('ShowDeskAdaptiveHeader', () => {
         id: 'entries-waiting-review' as const,
         count: 5,
         priority: 'highest' as const,
-        label: '5 entries waiting for review',
+        label: '5 pending entries',
       },
     ];
     const { user, getByText } = render(
@@ -301,7 +301,7 @@ describe('ShowDeskAdaptiveHeader', () => {
         onSelectPendingSignal={onSelectPendingSignal}
       />
     );
-    await user.click(getByText('5 entries waiting for review'));
+    await user.click(getByText('5 pending entries'));
     expect(onSelectPendingSignal).toHaveBeenCalledWith('entries-waiting-review');
   });
 

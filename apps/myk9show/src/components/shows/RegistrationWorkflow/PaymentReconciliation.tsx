@@ -249,7 +249,7 @@ export const PaymentReconciliation: React.FC<PaymentReconciliationProps> = ({
                   <div className="text-xl font-bold">${paymentStats.totalFees.toFixed(2)}</div>
                 </div>
                 <div className="p-4 border rounded-lg">
-                  <div className="text-sm text-gray-600">Collected Fees</div>
+                  <div className="text-sm text-gray-600">Collected entry fees</div>
                   <div className="text-xl font-bold text-teal-700">
                     ${paymentStats.paidFees.toFixed(2)}
                   </div>

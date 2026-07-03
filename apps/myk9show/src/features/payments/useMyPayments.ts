@@ -1,6 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { cacheStrategies } from '@/lib/queryClient';
+import type { PaymentPresentationRefund } from './moneyPresentation';
+
+interface RefundEntryRow {
+  id: string;
+  refund_amount: number | null;
+  refunded_at: string | null;
+  dogs: { call_name: string | null } | null;
+  classes: { name: string | null } | null;
+}
 
 export interface MyPayment {
   id: string;
@@ -19,6 +28,8 @@ export interface MyPayment {
   reference: string | null;
   /** entries this payment covers — drives the "View entries" receipt link. */
   entryIds: string[];
+  /** Synthetic entry-level refund rows; current data stores refunds on entries. */
+  refunds: PaymentPresentationRefund[];
 }
 
 /**
@@ -42,16 +53,27 @@ export function useMyPayments() {
       const orders = data ?? [];
       const entryIds = [...new Set(orders.flatMap(o => o.entry_ids ?? []))];
       const refundsByEntryId = new Map<string, number>();
+      const refundDetailsByEntryId = new Map<string, PaymentPresentationRefund>();
 
       if (entryIds.length > 0) {
         const { data: entries, error: entriesError } = await supabase
           .from('entries')
-          .select('id, refund_amount')
+          .select('id, refund_amount, refunded_at, dogs(call_name), classes(name)')
           .in('id', entryIds);
         if (entriesError) throw entriesError;
 
-        for (const entry of entries ?? []) {
-          refundsByEntryId.set(entry.id, Math.round((entry.refund_amount ?? 0) * 100));
+        for (const entry of (entries ?? []) as RefundEntryRow[]) {
+          const refundCents = Math.round((entry.refund_amount ?? 0) * 100);
+          refundsByEntryId.set(entry.id, refundCents);
+          if (refundCents <= 0) continue;
+
+          const label = [entry.dogs?.call_name, entry.classes?.name].filter(Boolean).join(' - ');
+          refundDetailsByEntryId.set(entry.id, {
+            entryId: entry.id,
+            amountCents: refundCents,
+            date: entry.refunded_at ?? null,
+            label,
+          });
         }
       }
 
@@ -73,6 +95,9 @@ export function useMyPayments() {
           status: o.status ?? 'unknown',
           reference: o.stripe_payment_intent_id,
           entryIds: o.entry_ids ?? [],
+          refunds: (o.entry_ids ?? [])
+            .map(entryId => refundDetailsByEntryId.get(entryId))
+            .filter((refund): refund is PaymentPresentationRefund => Boolean(refund)),
         };
       });
     },

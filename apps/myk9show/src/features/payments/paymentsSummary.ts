@@ -32,6 +32,12 @@ export interface CurrencyTotal {
   paymentCount: number;
 }
 
+export interface PaymentDisplaySummaryRow {
+  amountCents: number;
+  currency: string;
+  status: string;
+}
+
 // A row counts toward spend only once money has actually moved and stayed moved.
 // Pending/failed/cancelled rows aren't spend; refunded orders are excluded too
 // (see the refund note above — the row carries the gross charge, not the refund
@@ -60,4 +66,27 @@ export function summarizeMyPayments(rows: PaymentSummaryRow[]): CurrencyTotal[] 
   }
 
   return [...byCurrency.values()].sort((a, b) => (a.currency < b.currency ? -1 : 1));
+}
+
+/**
+ * Summary for the exhibitor-visible ledger. This intentionally works from
+ * display rows, not raw orders, so visible refunds subtract from the header
+ * total instead of disappearing from the math.
+ */
+export function summarizePaymentDisplayRows(rows: PaymentDisplaySummaryRow[]): CurrencyTotal[] {
+  const byCurrency = new Map<string, CurrencyTotal>();
+
+  for (const row of rows) {
+    if (row.amountCents > 0 && !PAID_STATUSES.has(row.status.toLowerCase())) continue;
+
+    const currency = (row.currency || 'usd').toLowerCase();
+    const acc = byCurrency.get(currency) ?? { currency, totalPaidCents: 0, paymentCount: 0 };
+    acc.totalPaidCents += row.amountCents;
+    if (row.amountCents > 0) acc.paymentCount += 1;
+    byCurrency.set(currency, acc);
+  }
+
+  return [...byCurrency.values()]
+    .filter(total => total.totalPaidCents > 0)
+    .sort((a, b) => (a.currency < b.currency ? -1 : 1));
 }

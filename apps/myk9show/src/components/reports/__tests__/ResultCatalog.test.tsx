@@ -157,4 +157,23 @@ describe('ResultCatalog', () => {
     expect(screen.getAllByText(/Judge.?s Signature/i)).toHaveLength(1);
     expect(screen.getByText(/No results for this class/i)).toBeInTheDocument();
   });
+
+  it('renders unassigned armbands as an em dash', () => {
+    render(
+      <ResultCatalog
+        {...baseProps}
+        entries={[
+          {
+            ...baseProps.entries[0],
+            id: 'e-unassigned',
+            armband: 0,
+            callName: 'NoArm',
+          },
+        ]}
+      />
+    );
+
+    const rows = screen.getAllByRole('row');
+    expect(rows[1].querySelectorAll('td')[1]).toHaveTextContent('—');
+  });
 });

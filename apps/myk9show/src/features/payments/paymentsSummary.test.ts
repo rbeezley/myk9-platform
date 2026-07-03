@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { summarizeMyPayments, type PaymentSummaryRow } from './paymentsSummary';
+import {
+  summarizeMyPayments,
+  summarizePaymentDisplayRows,
+  type PaymentSummaryRow,
+} from './paymentsSummary';
 
 function row(p: Partial<PaymentSummaryRow>): PaymentSummaryRow {
   return {
@@ -84,5 +88,35 @@ describe('summarizeMyPayments', () => {
       row({ amountCents: 2000, currency: 'usd', status: 'succeeded' }),
     ]);
     expect(result).toEqual([{ currency: 'usd', totalPaidCents: 3000, paymentCount: 2 }]);
+  });
+});
+
+describe('summarizePaymentDisplayRows', () => {
+  it('sums visible charge and refund rows into the displayed net total', () => {
+    expect(
+      summarizePaymentDisplayRows([
+        { amountCents: 10000, currency: 'usd', status: 'succeeded' },
+        { amountCents: -5300, currency: 'usd', status: 'refunded' },
+      ])
+    ).toEqual([{ currency: 'usd', totalPaidCents: 4700, paymentCount: 1 }]);
+  });
+
+  it('does not count visible failed, pending, or cancelled rows as paid', () => {
+    expect(
+      summarizePaymentDisplayRows([
+        { amountCents: 5300, currency: 'usd', status: 'failed' },
+        { amountCents: 4200, currency: 'usd', status: 'pending' },
+        { amountCents: 2100, currency: 'usd', status: 'cancelled' },
+      ])
+    ).toEqual([]);
+  });
+
+  it('omits buckets when visible rows net to zero or less', () => {
+    expect(
+      summarizePaymentDisplayRows([
+        { amountCents: 3000, currency: 'usd', status: 'succeeded' },
+        { amountCents: -3000, currency: 'usd', status: 'refunded' },
+      ])
+    ).toEqual([]);
   });
 });

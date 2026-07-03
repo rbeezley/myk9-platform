@@ -33,7 +33,9 @@ describe('MyEntriesTab copy variants', () => {
     vi.mocked(useShowEntriesForUser).mockReturnValue({
       dogGroups: [{ dogId: 'd1', dogName: 'Maggie', entries: [] }],
       allEntries: [{}] as never,
+      scheduleEntries: [{}] as never,
       totalClasses: 1,
+      scheduleDogCount: 1,
       isLoading: false,
       isError: false,
     });
@@ -48,7 +50,9 @@ describe('MyEntriesTab copy variants', () => {
         { dogId: 'd2', dogName: 'Daisy', entries: [] },
       ],
       allEntries: [{}, {}] as never,
+      scheduleEntries: [{}, {}] as never,
       totalClasses: 4,
+      scheduleDogCount: 2,
       isLoading: false,
       isError: false,
     });

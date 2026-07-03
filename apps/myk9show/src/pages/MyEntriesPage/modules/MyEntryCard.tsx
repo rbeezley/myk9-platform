@@ -33,6 +33,7 @@ import {
 } from '@/features/result-card';
 import { buildVenueMapsUrls, formatVenueAddress } from '@/utils/venueMaps';
 import { buildFinishPaymentHref } from '@/features/payments/finishPaymentHref';
+import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
 import type { MyEntry, EntryClass } from './my-entries-types';
 import {
   getEntryStatusBadge,
@@ -111,7 +112,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
   const canEdit = hasEditableStatus && !isPastEntryDeadline;
   const canRequestPostDeadlineHelp = hasEditableStatus && isPastEntryDeadline;
 
-  // Terminal statuses have no active workflow — "Registration #Pending" reads as
+  // Terminal statuses have no active workflow — "Confirmation # Pending" reads as
   // a contradictory status label next to Withdrawn/Refunded badges (P1-04w-1).
   const isTerminalStatus =
     entry.entryStatus === EntryStatus.CANCELLED ||
@@ -172,7 +173,9 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
             <span>{entry.dogName}</span>
             <span aria-hidden="true">•</span>
             <span>
-              Registration #{entry.registrationNumber || (isTerminalStatus ? '—' : 'Pending')}
+              {formatConfirmationNumberLabel(
+                entry.confirmationNumber || (isTerminalStatus ? '—' : 'Pending')
+              )}
             </span>
           </div>
         </div>

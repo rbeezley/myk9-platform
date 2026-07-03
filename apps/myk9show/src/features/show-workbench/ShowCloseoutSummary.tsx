@@ -88,8 +88,8 @@ export function ShowCloseoutSummary({ showId, entries }: ShowCloseoutSummaryProp
             <p className={STAT_VALUE_CLASS}>{recon.totalEntryCount}</p>
             <p className="text-xs text-muted-foreground">{recon.lateEntryCount} day-of</p>
           </div>
-          <div role="group" aria-label="Collected late-entry fees">
-            <p className={STAT_LABEL_CLASS}>Collected</p>
+          <div role="group" aria-label="Collected at-show late-entry fees">
+            <p className={STAT_LABEL_CLASS}>At-show collected</p>
             <p className={STAT_VALUE_CLASS}>{formatCurrency(recon.collectedAmount)}</p>
           </div>
           <div role="group" aria-label="Waived late-entry fees">

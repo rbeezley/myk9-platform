@@ -18,7 +18,7 @@ const BASE_PROPS = {
   dogCallName: 'Cooper',
   classSummary: '3 runs · Excellent Containers · Judge Mrs. Beagles',
   totalFeesFormatted: '$69.00',
-  registrationNumber: '2026-0137',
+  registrationNumber: 'MK9-000137',
   confirmationDateLabel: 'Jun 6, 2026',
 };
 
@@ -35,22 +35,24 @@ describe('BannerEntryReceived', () => {
     ).toBeInTheDocument();
   });
 
-  it('renders the entry number in the kicker when provided', () => {
+  it('renders the confirmation number in the kicker when provided', () => {
     render(<BannerEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/Submitted · Entry 2026-0137/)).toBeInTheDocument();
+    const confirmationKicker = screen.getByText(/Submitted · Confirmation # MK9-000137/);
+    expect(confirmationKicker).toBeInTheDocument();
+    expect(confirmationKicker).not.toHaveStyle('text-transform: uppercase');
+    expect(screen.queryByText(/Entry #/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Registration #/)).not.toBeInTheDocument();
   });
 
-  it('omits the entry suffix when registration number is null', () => {
+  it('omits the confirmation suffix when confirmation number is null', () => {
     render(<BannerEntryReceived {...BASE_PROPS} registrationNumber={null} />);
-    expect(screen.queryByText(/Entry 2026/)).toBeNull();
+    expect(screen.queryByText(/Confirmation #/)).toBeNull();
     expect(screen.getByRole('heading', { name: /Entry submitted/ })).toBeInTheDocument();
   });
 
   it('renders the dog registered name', () => {
     render(<BannerEntryReceived {...BASE_PROPS} />);
-    expect(
-      screen.getByText("GCh. Ridgeway's Wandering Trailblazer, CGC")
-    ).toBeInTheDocument();
+    expect(screen.getByText("GCh. Ridgeway's Wandering Trailblazer, CGC")).toBeInTheDocument();
   });
 
   it('renders the dog call name in quotes when provided', () => {

@@ -5,6 +5,7 @@ import { MonogramEmboss } from '../components/MonogramEmboss';
 import { MONOGRAM_BODY_FAMILY, MONOGRAM_DISPLAY_FAMILY } from '../fonts';
 import { monogramColors } from '../tokens';
 import { buildMonogram } from '../utils/buildMonogram';
+import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
 import type { HeritageEntryReceivedProps } from '@/features/heritage/wizard/HeritageEntryReceived';
 
 /**
@@ -102,8 +103,7 @@ export function MonogramEntryReceived({
             color: INK,
           }}
         >
-          Your entry is{' '}
-          <span style={{ fontStyle: 'italic', color: BRONZE }}>submitted</span>.
+          Your entry is <span style={{ fontStyle: 'italic', color: BRONZE }}>submitted</span>.
         </h2>
         <p
           style={{
@@ -195,7 +195,7 @@ export function MonogramEntryReceived({
               color: QUILL,
             }}
           >
-            {registrationNumber ? `Entry № ${registrationNumber}` : 'Fees due'}
+            {registrationNumber ? formatConfirmationNumberLabel(registrationNumber) : 'Fees due'}
           </span>
           <span
             style={{

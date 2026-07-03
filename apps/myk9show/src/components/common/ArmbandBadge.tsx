@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { formatArmbandDisplay, UNASSIGNED_ARMBAND_DISPLAY } from '@/utils/armbandUtils';
 
 interface ArmbandBadgeProps {
   armband: string | number | null | undefined;
@@ -6,8 +7,10 @@ interface ArmbandBadgeProps {
 }
 
 export function ArmbandBadge({ armband, className }: ArmbandBadgeProps) {
-  if (!armband) {
-    return <span className="text-muted-foreground">--</span>;
+  const display = formatArmbandDisplay(armband);
+
+  if (display === UNASSIGNED_ARMBAND_DISPLAY) {
+    return <span className="text-muted-foreground">{UNASSIGNED_ARMBAND_DISPLAY}</span>;
   }
 
   return (
@@ -17,7 +20,7 @@ export function ArmbandBadge({ armband, className }: ArmbandBadgeProps) {
         className
       )}
     >
-      {armband}
+      {display}
     </span>
   );
 }

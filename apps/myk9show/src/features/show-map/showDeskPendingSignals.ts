@@ -1,6 +1,7 @@
 import { SHOW_MAP_WRAP_UP_STATUS } from './showMapTypes';
 import type { ShowMapTree } from './showMapTypes';
 import type { EntryLike } from './attention';
+import { countRawEntryManagementPendingBucket } from '@/utils/entryCountSelectors';
 
 export type ShowDeskPendingSignalId =
   | 'entries-waiting-review'
@@ -33,7 +34,7 @@ function lower(value: string | null | undefined): string {
 }
 
 function countEntriesWaitingReview(entries: readonly EntryLike[]): number {
-  return entries.filter(entry => lower(entry.entry_status) === 'submitted').length;
+  return countRawEntryManagementPendingBucket(entries);
 }
 
 // Entry states where the entry is in the run order and therefore eligible to be
@@ -85,7 +86,7 @@ export function computeShowDeskPendingSignals({
       id: 'entries-waiting-review',
       count: waitingReview,
       priority: 'highest',
-      label: `${waitingReview} ${waitingReview === 1 ? 'entry' : 'entries'} waiting for review`,
+      label: `${waitingReview} pending ${waitingReview === 1 ? 'entry' : 'entries'}`,
     });
   }
 

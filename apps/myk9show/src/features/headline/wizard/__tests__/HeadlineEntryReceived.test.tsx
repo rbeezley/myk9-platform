@@ -18,7 +18,7 @@ const BASE_PROPS = {
   dogCallName: 'Cooper',
   classSummary: 'Excellent · Containers, Interiors, Buried',
   totalFeesFormatted: '$69.00',
-  registrationNumber: 'BCKC-2026-0427',
+  registrationNumber: 'MK9-000427',
   confirmationDateLabel: '6 June 2026',
 };
 
@@ -28,7 +28,7 @@ describe('HeadlineEntryReceived', () => {
     expect(screen.getByRole('heading', { name: /entry submitted/i })).toBeTruthy();
   });
 
-  it('displays club, show, dog, classes, fees, and receipt number', () => {
+  it('displays club, show, dog, classes, fees, and confirmation number', () => {
     render(<HeadlineEntryReceived {...BASE_PROPS} />);
 
     expect(screen.getByText('Bexar County Kennel Club')).toBeTruthy();
@@ -36,7 +36,11 @@ describe('HeadlineEntryReceived', () => {
     expect(screen.getByText("GCh. Ridgeway's Wandering Cooper, CGC")).toBeTruthy();
     expect(screen.getByText(/Excellent · Containers/)).toBeTruthy();
     expect(screen.getByText('$69.00')).toBeTruthy();
-    expect(screen.getByText(/BCKC-2026-0427/)).toBeTruthy();
+    const confirmationLabel = screen.getByText(/Confirmation # MK9-000427/);
+    expect(confirmationLabel).toBeTruthy();
+    expect(confirmationLabel).not.toHaveStyle('text-transform: uppercase');
+    expect(screen.queryByText(/Entry #/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Registration #/)).not.toBeInTheDocument();
   });
 
   it('shows the confirmation date caption when present', () => {

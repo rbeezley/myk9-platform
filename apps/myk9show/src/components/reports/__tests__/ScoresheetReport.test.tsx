@@ -129,4 +129,11 @@ describe('ScoresheetReport', () => {
     render(<ScoresheetReport {...baseProps} />);
     expect(screen.getByText('WS12345')).toBeInTheDocument();
   });
+
+  it('renders unassigned armbands as an em dash', () => {
+    render(<ScoresheetReport {...baseProps} entries={[{ ...baseEntry, armband: 0 }]} />);
+
+    expect(screen.getByText('—')).toBeInTheDocument();
+    expect(screen.queryByText('0')).not.toBeInTheDocument();
+  });
 });

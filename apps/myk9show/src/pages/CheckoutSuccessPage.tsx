@@ -28,6 +28,7 @@ import {
   clearCartSplitCheckoutSummary,
   consumeCartSplitCheckoutSummary,
 } from '@/features/payments/cartSplitCheckoutStorage';
+import { CONFIRMATION_NUMBER_LABEL } from '@/features/registration/confirmationNumberDisplay';
 
 interface EntryDetails {
   id: string;
@@ -279,11 +280,11 @@ export default function CheckoutSuccessPage() {
           </CardHeader>
 
           <CardContent className="space-y-6">
-            {/* Confirmation Number */}
+            {/* Confirmation # */}
             {orderDetails?.confirmationNumber && (
               <div className="rounded-lg bg-success/10 border border-success/30 p-4 text-center">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
-                  Confirmation Number
+                <p className="text-xs text-muted-foreground tracking-wide mb-1">
+                  {CONFIRMATION_NUMBER_LABEL}
                 </p>
                 {/* break-all: pi_… fallback ids are 27 chars and must wrap on mobile */}
                 <p className="text-xl font-mono font-bold break-all text-success ">

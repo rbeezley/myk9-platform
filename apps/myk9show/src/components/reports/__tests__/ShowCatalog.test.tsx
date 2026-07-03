@@ -112,4 +112,23 @@ describe('ShowCatalog', () => {
     // Golden Retriever sorts before GSD alphabetically (G-o vs G-S, locale-aware)
     expect(rows[1]).toHaveTextContent('Golden Retriever');
   });
+
+  it('renders unassigned armbands as an em dash', () => {
+    render(
+      <ShowCatalog
+        {...baseProps}
+        entries={[
+          {
+            ...baseProps.entries[0],
+            id: 'e-unassigned',
+            armband: 0,
+            callName: 'NoArm',
+          },
+        ]}
+      />
+    );
+
+    const rows = screen.getAllByRole('row');
+    expect(rows[1].querySelectorAll('td')[0]).toHaveTextContent('—');
+  });
 });

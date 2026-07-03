@@ -7,6 +7,8 @@ function formatCurrency(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
+const CONFIRMATION_NUMBER_LABEL = 'Confirmation #';
+
 export function RegistrationConfirmation({
   firstName,
   confirmationNumber,
@@ -21,7 +23,9 @@ export function RegistrationConfirmation({
       </Heading>
 
       <Section style={confirmBadge}>
-        <Text style={{ margin: 0, color: '#6b7280', fontSize: '14px' }}>Confirmation Number</Text>
+        <Text style={{ margin: 0, color: '#6b7280', fontSize: '14px' }}>
+          {CONFIRMATION_NUMBER_LABEL}
+        </Text>
         <Text
           style={{
             margin: '4px 0 0',

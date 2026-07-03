@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { headlineColors, headlineTypography } from '@/features/headline/tokens';
+import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
 import type { HeritageEntryReceivedProps } from '@/features/heritage/wizard/HeritageEntryReceived';
 
 export type HeadlineEntryReceivedProps = HeritageEntryReceivedProps;
@@ -63,11 +64,10 @@ export function HeadlineEntryReceived({
               fontFamily: MONO,
               fontSize: '0.625rem',
               letterSpacing: '0.22em',
-              textTransform: 'uppercase',
               color: MUTE,
             }}
           >
-            {registrationNumber ? `Entry #${registrationNumber}` : 'Entry pending'}
+            {registrationNumber ? formatConfirmationNumberLabel(registrationNumber) : 'Pending'}
           </span>
         </div>
 

@@ -132,6 +132,33 @@ function hydrateClubFields(show: Show, clubsById: Map<string, ReplicatedClub>): 
   return { ...show, ...next };
 }
 
+function sameStringSet(left: readonly string[] = [], right: readonly string[] = []): boolean {
+  if (left.length !== right.length) return false;
+  const leftSet = new Set(left);
+  const rightSet = new Set(right);
+  if (leftSet.size !== rightSet.size) return false;
+  return [...leftSet].every(value => rightSet.has(value));
+}
+
+export function areAssignedJudgesEqual(
+  previous: ReadonlyArray<ShowJudgeAssignment> = [],
+  next: ReadonlyArray<ShowJudgeAssignment> = []
+): boolean {
+  return (
+    previous.length === next.length &&
+    previous.every((judge, index) => {
+      const nextJudge = next[index];
+      if (!nextJudge) return false;
+      return (
+        judge.judgeId === nextJudge.judgeId &&
+        judge.judgeName === nextJudge.judgeName &&
+        judge.assignedDate === nextJudge.assignedDate &&
+        sameStringSet(judge.assignedClasses ?? [], nextJudge.assignedClasses ?? [])
+      );
+    })
+  );
+}
+
 async function loadClubsById(): Promise<Map<string, ReplicatedClub>> {
   const clubs = await replicatedClubsTable.getAllClubs();
   return new Map(clubs.map(c => [c.id, c]));
@@ -645,9 +672,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         const updatedShows = currentShows.map(show => {
           const newJudges = buildAssignedJudges(assignments, show.id, people);
           const prev = show.assignedJudges;
-          const same =
-            prev.length === newJudges.length &&
-            prev.every((j, i) => j.judgeId === newJudges[i]?.judgeId);
+          const same = areAssignedJudgesEqual(prev, newJudges);
           if (!same) changed = true;
           return same ? show : { ...show, assignedJudges: newJudges };
         });

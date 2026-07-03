@@ -14,6 +14,10 @@ import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable'
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { mapWaitlistEntry, mapClassWithWaitlistCount } from '@/services/mappers/waitlistMappers';
 import { buildMapFromArray } from '../_shared/maps';
+import {
+  countQueuedWaitlistEntries,
+  filterQueuedWaitlistEntries,
+} from '@/utils/waitlistCountSelectors';
 
 export interface WaitlistEntry {
   id: string;
@@ -88,7 +92,7 @@ export const getWaitlistByShow = async (showId: string) => {
     const allWaitlist = await Promise.all(
       [...classIds].map(cid => replicatedWaitlistEntriesTable.getByClass(cid))
     );
-    const waitlistEntries = allWaitlist.flat();
+    const waitlistEntries = filterQueuedWaitlistEntries(allWaitlist.flat());
 
     // Build lookup maps
     const classesMap = buildMapFromArray(classes, c => c.id);
@@ -129,7 +133,9 @@ export const getWaitlistByClass = async (classId: string) => {
   const startTime = Date.now();
 
   try {
-    const waitlistEntries = await replicatedWaitlistEntriesTable.getByClass(classId);
+    const waitlistEntries = filterQueuedWaitlistEntries(
+      await replicatedWaitlistEntriesTable.getByClass(classId)
+    );
 
     // Look up class once
     const cls = await replicatedClassesTable.getClassById(classId);
@@ -192,7 +198,9 @@ export const getClassesWithWaitlistCounts = async (showId: string) => {
       const acceptedCount = allEntries.filter(
         e => e.classId === cls.id && e.entryStatus === 'accepted'
       ).length;
-      const waitlistCount = allWaitlist.filter(w => w.classId === cls.id).length;
+      const waitlistCount = countQueuedWaitlistEntries(
+        allWaitlist.filter(w => w.classId === cls.id)
+      );
 
       return mapClassWithWaitlistCount(
         cls,

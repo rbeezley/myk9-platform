@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { replicatedToShow } from '../showStore';
+import { areAssignedJudgesEqual, replicatedToShow } from '../showStore';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
 
 // Regression guard: replicatedToShow is the mapper both loadShows() and the
@@ -26,5 +26,76 @@ describe('replicatedToShow — isNationals', () => {
 
   it('defaults a missing isNationals to false (Regular)', () => {
     expect(replicatedToShow(baseRow).isNationals).toBe(false);
+  });
+});
+
+describe('areAssignedJudgesEqual', () => {
+  it('detects assigned class membership changes for the same judge', () => {
+    expect(
+      areAssignedJudgesEqual(
+        [
+          {
+            judgeId: 'judge-1',
+            judgeName: 'Pat Judge',
+            assignedDate: '2026-07-03',
+            assignedClasses: ['class-1'],
+          },
+        ],
+        [
+          {
+            judgeId: 'judge-1',
+            judgeName: 'Pat Judge',
+            assignedDate: '2026-07-03',
+            assignedClasses: ['class-2'],
+          },
+        ]
+      )
+    ).toBe(false);
+  });
+
+  it('treats assigned class membership as a set', () => {
+    expect(
+      areAssignedJudgesEqual(
+        [
+          {
+            judgeId: 'judge-1',
+            judgeName: 'Pat Judge',
+            assignedDate: '2026-07-03',
+            assignedClasses: ['class-1', 'class-2'],
+          },
+        ],
+        [
+          {
+            judgeId: 'judge-1',
+            judgeName: 'Pat Judge',
+            assignedDate: '2026-07-03',
+            assignedClasses: ['class-2', 'class-1'],
+          },
+        ]
+      )
+    ).toBe(true);
+  });
+
+  it('detects duplicated class ids as a membership mismatch', () => {
+    expect(
+      areAssignedJudgesEqual(
+        [
+          {
+            judgeId: 'judge-1',
+            judgeName: 'Pat Judge',
+            assignedDate: '2026-07-03',
+            assignedClasses: ['class-1', 'class-1'],
+          },
+        ],
+        [
+          {
+            judgeId: 'judge-1',
+            judgeName: 'Pat Judge',
+            assignedDate: '2026-07-03',
+            assignedClasses: ['class-1', 'class-2'],
+          },
+        ]
+      )
+    ).toBe(false);
   });
 });

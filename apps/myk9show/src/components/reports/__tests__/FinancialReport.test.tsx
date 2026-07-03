@@ -7,10 +7,82 @@ const baseProps: ReportProps = {
   organization: 'AKC',
   sortOrder: 'accepted',
   entries: [
-    { id: 'e1', armband: 101, runOrder: 1, callName: 'Buddy', breed: 'Lab', handler: 'Jane Mitchell', registrationNumber: null, checkInStatus: null, section: null, isScored: false, resultText: null, searchTimeSeconds: null, totalFaults: null, finalPlacement: null, entryFee: 25, paymentStatus: 'accepted', paymentMethod: 'Check' },
-    { id: 'e2', armband: 102, runOrder: 2, callName: 'Rex', breed: 'Beagle', handler: 'Jane Mitchell', registrationNumber: null, checkInStatus: null, section: null, isScored: false, resultText: null, searchTimeSeconds: null, totalFaults: null, finalPlacement: null, entryFee: 25, paymentStatus: 'accepted', paymentMethod: 'Check' },
-    { id: 'e3', armband: 103, runOrder: 3, callName: 'Max', breed: 'GSD', handler: 'Bob Smith', registrationNumber: null, checkInStatus: null, section: null, isScored: false, resultText: null, searchTimeSeconds: null, totalFaults: null, finalPlacement: null, entryFee: 30, paymentStatus: 'accepted', paymentMethod: 'PayPal' },
-    { id: 'e4', armband: 104, runOrder: 4, callName: 'Daisy', breed: 'Poodle', handler: 'Carlos', registrationNumber: null, checkInStatus: null, section: null, isScored: false, resultText: null, searchTimeSeconds: null, totalFaults: null, finalPlacement: null, entryFee: 25, paymentStatus: 'waitlisted', paymentMethod: 'Check' },
+    {
+      id: 'e1',
+      armband: 101,
+      runOrder: 1,
+      callName: 'Buddy',
+      breed: 'Lab',
+      handler: 'Jane Mitchell',
+      registrationNumber: null,
+      checkInStatus: null,
+      section: null,
+      isScored: false,
+      resultText: null,
+      searchTimeSeconds: null,
+      totalFaults: null,
+      finalPlacement: null,
+      entryFee: 25,
+      paymentStatus: 'accepted',
+      paymentMethod: 'Check',
+    },
+    {
+      id: 'e2',
+      armband: 102,
+      runOrder: 2,
+      callName: 'Rex',
+      breed: 'Beagle',
+      handler: 'Jane Mitchell',
+      registrationNumber: null,
+      checkInStatus: null,
+      section: null,
+      isScored: false,
+      resultText: null,
+      searchTimeSeconds: null,
+      totalFaults: null,
+      finalPlacement: null,
+      entryFee: 25,
+      paymentStatus: 'accepted',
+      paymentMethod: 'Check',
+    },
+    {
+      id: 'e3',
+      armband: 103,
+      runOrder: 3,
+      callName: 'Max',
+      breed: 'GSD',
+      handler: 'Bob Smith',
+      registrationNumber: null,
+      checkInStatus: null,
+      section: null,
+      isScored: false,
+      resultText: null,
+      searchTimeSeconds: null,
+      totalFaults: null,
+      finalPlacement: null,
+      entryFee: 30,
+      paymentStatus: 'accepted',
+      paymentMethod: 'PayPal',
+    },
+    {
+      id: 'e4',
+      armband: 104,
+      runOrder: 4,
+      callName: 'Daisy',
+      breed: 'Poodle',
+      handler: 'Carlos',
+      registrationNumber: null,
+      checkInStatus: null,
+      section: null,
+      isScored: false,
+      resultText: null,
+      searchTimeSeconds: null,
+      totalFaults: null,
+      finalPlacement: null,
+      entryFee: 25,
+      paymentStatus: 'waitlisted',
+      paymentMethod: 'Check',
+    },
   ],
 };
 
@@ -51,7 +123,33 @@ describe('FinancialReport', () => {
   });
 
   it('shows empty state when no entries match filter', () => {
-    render(<FinancialReport {...baseProps} sortOrder="waitlist" entries={baseProps.entries.filter(e => e.paymentStatus === 'accepted')} />);
+    render(
+      <FinancialReport
+        {...baseProps}
+        sortOrder="waitlist"
+        entries={baseProps.entries.filter(e => e.paymentStatus === 'accepted')}
+      />
+    );
     expect(screen.getByText(/No entries match/i)).toBeInTheDocument();
+  });
+
+  it('renders unassigned armbands as an em dash', () => {
+    render(
+      <FinancialReport
+        {...baseProps}
+        entries={[
+          {
+            ...baseProps.entries[0],
+            id: 'e-unassigned',
+            armband: 0,
+            callName: 'NoArm',
+            handler: 'Unassigned Handler',
+          },
+        ]}
+      />
+    );
+
+    const rows = screen.getAllByRole('row');
+    expect(rows[1].querySelectorAll('td')[1]).toHaveTextContent('—');
   });
 });

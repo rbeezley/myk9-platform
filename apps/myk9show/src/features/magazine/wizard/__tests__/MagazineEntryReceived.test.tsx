@@ -22,7 +22,7 @@ const BASE_PROPS = {
   dogCallName: 'Cooper',
   classSummary: 'Excellent · Containers, Interiors, Buried',
   totalFeesFormatted: '$69.00',
-  registrationNumber: '2026-0137',
+  registrationNumber: 'MK9-000137',
   confirmationDateLabel: '6 June 2026',
 };
 
@@ -36,7 +36,9 @@ describe('MagazineEntryReceived', () => {
 
   it('renders the submitted kicker when registrationNumber present', () => {
     render(<MagazineEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/Submitted · Entry 2026-0137/)).toBeTruthy();
+    const confirmationKicker = screen.getByText(/Submitted · Confirmation # MK9-000137/);
+    expect(confirmationKicker).toBeTruthy();
+    expect(confirmationKicker).not.toHaveStyle('text-transform: uppercase');
   });
 
   it('renders bare submitted kicker when registrationNumber is null', () => {
@@ -75,12 +77,14 @@ describe('MagazineEntryReceived', () => {
     expect(screen.getByText('$69.00')).toBeTruthy();
   });
 
-  it('renders the "Entry №" label when registrationNumber is set', () => {
+  it('renders the confirmation label when registrationNumber is set', () => {
     render(<MagazineEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/Entry № 2026-0137/)).toBeTruthy();
+    expect(screen.getAllByText(/Confirmation # MK9-000137/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Entry №/)).not.toBeTruthy();
+    expect(screen.queryByText(/Registration #/)).not.toBeTruthy();
   });
 
-  it('renders "Fees due" instead of "Entry №" when no number', () => {
+  it('renders "Fees due" instead of "Confirmation #" when no number', () => {
     render(<MagazineEntryReceived {...BASE_PROPS} registrationNumber={null} />);
     expect(screen.getByText('Fees due')).toBeTruthy();
   });

@@ -2,6 +2,11 @@
 // Dashboard strip and show-map tree must agree, or users see contradictory
 // counts for the same data.
 
+import {
+  countRawEntryManagementPendingBucket,
+  isRawEntryInEntryManagementPendingBucket,
+} from '@/utils/entryCountSelectors';
+
 export type AttentionReason = 'pending_review';
 
 export interface EntryLike {
@@ -10,7 +15,7 @@ export interface EntryLike {
 }
 
 export function getEntryAttention(entry: EntryLike): AttentionReason | null {
-  if (entry.entry_status === 'submitted') return 'pending_review';
+  if (isRawEntryInEntryManagementPendingBucket(entry)) return 'pending_review';
   return null;
 }
 
@@ -24,12 +29,6 @@ export function emptyAttentionCounts(): AttentionCounts {
 }
 
 export function countAttention(entries: readonly EntryLike[]): AttentionCounts {
-  const counts = emptyAttentionCounts();
-  for (const entry of entries) {
-    const reason = getEntryAttention(entry);
-    if (!reason) continue;
-    counts[reason]++;
-    counts.total++;
-  }
-  return counts;
+  const pendingReview = countRawEntryManagementPendingBucket(entries);
+  return { pending_review: pendingReview, total: pendingReview };
 }

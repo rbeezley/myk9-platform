@@ -109,7 +109,9 @@ describe('ShowCloseoutSummary', () => {
       within(screen.getByRole('group', { name: 'Show entries' })).getByText('1 day-of')
     ).toBeInTheDocument();
     expect(
-      within(screen.getByRole('group', { name: 'Collected late-entry fees' })).getByText('$35.00')
+      within(screen.getByRole('group', { name: 'Collected at-show late-entry fees' })).getByText(
+        '$35.00'
+      )
     ).toBeInTheDocument();
     expect(
       within(screen.getByRole('group', { name: 'Pulled or no-show entries' })).getByText('1')

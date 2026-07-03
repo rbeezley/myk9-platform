@@ -449,7 +449,7 @@ describe('showMapActionMutations', () => {
     ).rejects.toThrow('not a valid move-up target');
   });
 
-  it('rolls back the original entry to its exact previous status when replicated move-up creation fails', async () => {
+  it('leaves the original entry untouched when replicated move-up creation fails', async () => {
     mockCreateReplicatedEntry.mockRejectedValueOnce(new Error('create failed'));
 
     await expect(
@@ -460,26 +460,9 @@ describe('showMapActionMutations', () => {
       })
     ).rejects.toThrow('create failed');
 
-    expect(mockUpdateReplicatedEntry).toHaveBeenNthCalledWith(
-      1,
-      'entry-1',
-      expect.objectContaining({
-        entryStatus: 'moved',
-        entry_status: 'moved',
-      })
-    );
-    expect(mockUpdateReplicatedEntry).toHaveBeenNthCalledWith(
-      2,
-      'entry-1',
-      expect.objectContaining({
-        entryStatus: 'checked-in',
-        entry_status: 'checked-in',
-        checkInStatus: 'checked-in',
-        check_in_status: 'checked-in',
-        specialRequests: 'Bring paper form',
-        special_requests: 'Bring paper form',
-      })
-    );
+    // The create happens FIRST; when it fails the original entry was never
+    // marked 'moved', so there is nothing to roll back.
+    expect(mockUpdateReplicatedEntry).not.toHaveBeenCalled();
   });
 
   it('keeps Show Map move-up fully replicated and audit logged', async () => {
@@ -500,20 +483,100 @@ describe('showMapActionMutations', () => {
     );
   });
 
-  it('preserves the create failure when move-up rollback also fails', async () => {
-    mockCreateReplicatedEntry.mockRejectedValueOnce(new Error('create failed'));
+  it('preserves the mark-moved failure even when both rollback writes also fail', async () => {
+    // All three updateEntry calls reject: the mark-moved on the original, the
+    // restore of the original, and the soft-delete of the new entry. The
+    // original error must still surface.
     mockUpdateReplicatedEntry
-      .mockResolvedValueOnce('mark-moved')
-      .mockRejectedValueOnce(new Error('rollback failed'));
+      .mockRejectedValueOnce(new Error('mark-moved failed'))
+      .mockRejectedValueOnce(new Error('restore failed'))
+      .mockRejectedValueOnce(new Error('soft-delete failed'));
 
     await expect(
       moveUpShowMapEntry({
         entryId: 'entry-1',
         targetClassId: 'class-2',
       })
-    ).rejects.toThrow('create failed');
+    ).rejects.toThrow('mark-moved failed');
 
-    expect(mockUpdateReplicatedEntry).toHaveBeenCalledTimes(2);
+    expect(mockCreateReplicatedEntry).toHaveBeenCalledTimes(1);
+    // mark-moved + restore original + soft-delete new = three updateEntry calls;
+    // no hard delete.
+    expect(mockUpdateReplicatedEntry).toHaveBeenCalledTimes(3);
+    expect(mockDeleteReplicatedEntry).not.toHaveBeenCalled();
+  });
+
+  describe('moveUpShowMapEntry write order', () => {
+    it('creates the promoted entry before marking the original moved', async () => {
+      await moveUpShowMapEntry({
+        entryId: 'entry-1',
+        targetClassId: 'class-2',
+        reason: 'Qualified today',
+      });
+
+      const createOrder = mockCreateReplicatedEntry.mock.invocationCallOrder[0];
+      const markMovedOrder = mockUpdateReplicatedEntry.mock.invocationCallOrder[0];
+      expect(createOrder).toBeLessThan(markMovedOrder);
+    });
+
+    it('soft-deletes the newly created entry when marking the original moved fails', async () => {
+      // The first updateEntry is the mark-moved on the original; reject only it,
+      // so the rollback soft-delete (a second updateEntry) still resolves.
+      mockUpdateReplicatedEntry.mockRejectedValueOnce(new Error('mark-moved failed'));
+
+      await expect(
+        moveUpShowMapEntry({
+          entryId: 'entry-1',
+          targetClassId: 'class-2',
+        })
+      ).rejects.toThrow('mark-moved failed');
+
+      expect(mockCreateReplicatedEntry).toHaveBeenCalledTimes(1);
+      const createdEntryId = mockCreateReplicatedEntry.mock.calls[0][0].id;
+      // Rollback is a soft-delete UPDATE on the SAME row as the pending INSERT —
+      // NOT a hard deleteEntry, which is an independent, un-ordered mutation that
+      // could resurrect a live orphan on flaky show-day WiFi.
+      expect(mockDeleteReplicatedEntry).not.toHaveBeenCalled();
+      expect(mockUpdateReplicatedEntry).toHaveBeenCalledWith(
+        createdEntryId,
+        expect.objectContaining({
+          deletedAt: expect.any(String),
+          deleted_at: expect.any(String),
+        })
+      );
+    });
+
+    it('restores the original to its previous status BEFORE soft-deleting the new entry when mark-moved fails', async () => {
+      // updateEntry commits its local row before queueing sync, so a failed
+      // mark-moved may already have flipped the original to 'moved' locally.
+      // The rollback must restore the original (not just remove the new entry),
+      // and restore FIRST so the dog stays runnable even if the soft-delete then
+      // fails. Reject only the first updateEntry (the mark-moved).
+      mockUpdateReplicatedEntry.mockRejectedValueOnce(new Error('mark-moved failed'));
+
+      await expect(
+        moveUpShowMapEntry({
+          entryId: 'entry-1',
+          targetClassId: 'class-2',
+        })
+      ).rejects.toThrow('mark-moved failed');
+
+      const createdEntryId = mockCreateReplicatedEntry.mock.calls[0][0].id;
+      // calls[0] = mark-moved (threw); calls[1] = restore original; calls[2] = soft-delete new.
+      const calls = mockUpdateReplicatedEntry.mock.calls;
+      expect(calls).toHaveLength(3);
+      expect(calls[1][0]).toBe('entry-1');
+      expect(calls[1][1]).toMatchObject({
+        entryStatus: 'checked-in',
+        entry_status: 'checked-in',
+        checkInStatus: 'checked-in',
+        check_in_status: 'checked-in',
+        specialRequests: 'Bring paper form',
+        special_requests: 'Bring paper form',
+      });
+      expect(calls[2][0]).toBe(createdEntryId);
+      expect(typeof calls[2][1].deleted_at).toBe('string');
+    });
   });
 
   it('undoes a move-up by soft-deleting the new replicated entry before restoring the original entry', async () => {

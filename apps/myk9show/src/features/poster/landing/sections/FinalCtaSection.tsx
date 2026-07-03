@@ -7,6 +7,7 @@ import {
   POSTER_MONO_FAMILY,
 } from '../../fonts';
 import { posterColors, posterSpacing } from '../../tokens';
+import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { formatDateInTimezone } from '../utils/dateFormat';
 
 interface FinalCtaSectionProps {
@@ -31,12 +32,17 @@ export function FinalCtaSection({
   timezone,
   canEnterOnline = true,
 }: FinalCtaSectionProps) {
-  const closesLabel = entryCloseDate
-    ? formatDateInTimezone(entryCloseDate, timezone, 'monthDayUpper')
-    : null;
-  const closesTime = entryCloseDate
-    ? formatDateInTimezone(entryCloseDate, timezone, 'time')
-    : null;
+  const countdown = useCountdown(entryCloseDate, timezone);
+  // Gate on countdown.closed (not just entryCloseDate presence) so a past close
+  // date doesn't keep reading as still-pending after registration has closed.
+  const closesLabel =
+    entryCloseDate && !countdown.closed
+      ? formatDateInTimezone(entryCloseDate, timezone, 'monthDayUpper')
+      : null;
+  const closesTime =
+    entryCloseDate && !countdown.closed
+      ? formatDateInTimezone(entryCloseDate, timezone, 'time')
+      : null;
 
   return (
     <section

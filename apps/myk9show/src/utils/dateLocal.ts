@@ -9,43 +9,6 @@ import { LoggingService } from '@/services/LoggingService';
 const logger = LoggingService.getInstance();
 
 /**
- * Formats a date string for display in MM/DD/YYYY format with simple string manipulation
- * This is the most reliable way to format a date without timezone issues
- */
-export function formatDateDisplay(dateStr: string): string {
-  if (!dateStr) return '';
-  
-  try {
-    // Ensure we're using the raw YYYY-MM-DD string from the database
-    // and not interpreting it with Date objects that can cause timezone issues
-    const parts = dateStr.split('-');
-    if (parts.length !== 3) {
-      logger.debug('formatDateDisplay - invalid format, not YYYY-MM-DD', 'dateUtils', { dateStr });
-      return dateStr;
-    }
-    
-    // Extract parts directly from the string, no Date object creation
-    const [year, month, day] = parts;
-    
-    // Validate numeric parts
-    const yearNum = parseInt(year, 10);
-    const monthNum = parseInt(month, 10);
-    const dayNum = parseInt(day, 10);
-    
-    if (isNaN(yearNum) || isNaN(monthNum) || isNaN(dayNum)) {
-      logger.debug('formatDateDisplay - invalid numeric parts', 'dateUtils', { year, month, day });
-      return dateStr;
-    }
-    
-    // Format as MM/DD/YYYY, preserving exact day value from input string
-    return `${monthNum}/${dayNum}/${yearNum}`;
-  } catch (e) {
-    logger.error('Error in formatDateDisplay', 'dateUtils', { dateStr, error: e });
-    return dateStr; // Return original on error
-  }
-}
-
-/**
  * Converts a Date object to a YYYY-MM-DD string.
  * Uses component methods to avoid timezone issues.
  */

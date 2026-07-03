@@ -34,25 +34,6 @@ export function formatCurrency(amount: number, currency: string = 'USD'): string
   }).format(amount);
 }
 
-export function formatDate(
-  date: Date | string | number,
-  options?: Intl.DateTimeFormatOptions
-): string {
-  const dateObj = date instanceof Date ? date : new Date(date);
-
-  if (isNaN(dateObj.getTime())) {
-    return 'Invalid Date';
-  }
-
-  const defaultOptions: Intl.DateTimeFormatOptions = {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  };
-
-  return dateObj.toLocaleDateString('en-US', { ...defaultOptions, ...options });
-}
-
 /** Format a class element + level + section into a display label, with fallback to full class name. */
 export function formatClassLabel(
   element: string | null,

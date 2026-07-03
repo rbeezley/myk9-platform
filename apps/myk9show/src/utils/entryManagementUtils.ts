@@ -255,15 +255,3 @@ export function getEntryStatusClasses(status: string | null): string {
       return 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-200';
   }
 }
-
-/**
- * Format date string for display
- */
-export const formatDate = (dateStr: string | null): string => {
-  if (!dateStr) return 'TBD';
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-};

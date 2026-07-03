@@ -1,6 +1,7 @@
 import { BannerFlagBar } from '../../components/BannerFlagBar';
 import { BANNER_BODY_FAMILY, BANNER_DISPLAY_FAMILY } from '../../fonts';
 import { bannerColors } from '../../tokens';
+import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { formatDateInTimezone } from '../utils/dateFormat';
 import type { BannerBrandColors } from '../../hooks/useBannerBrandColor';
 
@@ -25,7 +26,13 @@ export function FinalFlagBand({
   closingLead = 'See you',
   closingAccent = 'ringside',
 }: FinalFlagBandProps) {
-  const closesLabel = entryCloseDate ? formatDateInTimezone(entryCloseDate, timezone, 'long') : null;
+  const countdown = useCountdown(entryCloseDate, timezone);
+  // Gate on countdown.closed (not just entryCloseDate presence) so a past close
+  // date doesn't keep reading as still-pending after registration has closed.
+  const closesLabel =
+    entryCloseDate && !countdown.closed
+      ? formatDateInTimezone(entryCloseDate, timezone, 'long')
+      : null;
 
   return (
     <div id="enter">

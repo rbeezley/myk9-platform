@@ -73,7 +73,12 @@ export function HeroBlock({
 }: HeroBlockProps) {
   const countdown = useCountdown(entryCloseDate, timezone);
   const dateRangeLabel = formatDateRange(trialStartDate, trialEndDate, timezone);
-  const closesLabel = entryCloseDate ? formatDateInTimezone(entryCloseDate, timezone, 'monthDay') : null;
+  // Gate on countdown.closed (not just entryCloseDate presence) so a past close
+  // date doesn't keep reading as still-pending after registration has closed.
+  const closesLabel =
+    entryCloseDate && !countdown.closed
+      ? formatDateInTimezone(entryCloseDate, timezone, 'monthDay')
+      : null;
   const venueLabel = [venueName, venueCity].filter(Boolean).join(' · ') || null;
 
   // Subtitle: registry license + dateRange, mirroring the handoff's "AKC
@@ -174,7 +179,9 @@ export function HeroBlock({
           </div>
           <div className="mg-hero__meta-cell" style={metaCellStyle}>
             <span style={SMALLCAPS_MUTE}>Closes</span>
-            <span style={META_VALUE}>{closesLabel || 'TBA'}</span>
+            <span style={META_VALUE}>
+              {closesLabel || (countdown.closed ? 'Closed' : 'TBA')}
+            </span>
           </div>
           <div className="mg-hero__meta-cell" style={metaCellStyle}>
             <span style={SMALLCAPS_MUTE}>Limit</span>

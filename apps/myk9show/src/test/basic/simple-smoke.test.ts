@@ -124,10 +124,10 @@ describe('Application Smoke Tests', () => {
 
   it('should validate core utility functions', async () => {
     // Test that utility functions work
-    const { formatDate } = await import('../../lib/utils');
+    const { formatShortDate } = await import('../../lib/format/dates');
 
     const testDate = new Date('2025-01-01');
-    const formatted = formatDate(testDate);
+    const formatted = formatShortDate(testDate);
 
     expect(typeof formatted).toBe('string');
     expect(formatted.length).toBeGreaterThan(0);

@@ -41,9 +41,9 @@ import {
   downloadXml,
   statusVariant,
   statusLabel,
-  formatDate,
   formatFormatterLabel,
 } from './helpers';
+import { formatEntryDateTime } from '@/lib/format/dates';
 
 // ---------------------------------------------------------------------------
 // Component
@@ -475,7 +475,7 @@ export default function ResultsSubmissionPage() {
                       {row.sport_type.replace(/_/g, ' ')}
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
-                      {formatDate(row.submitted_at)}
+                      {formatEntryDateTime(row.submitted_at) || row.submitted_at}
                     </TableCell>
                     <TableCell>
                       <Badge variant={statusVariant(row.status)}>{statusLabel(row.status)}</Badge>

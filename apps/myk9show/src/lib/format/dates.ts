@@ -10,6 +10,10 @@
  *   dog profile, My Shows rows): weekday compact — "Sat, Aug 1, 2026" — via
  *   {@link formatEntryDate}. Detail/confirmation headers use the long style —
  *   "Saturday, August 1, 2026" — via `formatEntryDate(date, { style: 'long' })`.
+ * - Compact table/record date (e.g. a row's created/submitted date, no
+ *   competition-day significance): "Jul 3, 2026" — via {@link formatShortDate}.
+ * - Record date + time together (e.g. a row's created/submitted instant):
+ *   "Jul 3, 2:00 PM" — via {@link formatEntryDateTime}.
  * - Clock times (trial start, briefing, check-in): "8:30 AM" — via
  *   {@link formatTime}, passing the trial's IANA zone from
  *   `getTrialTimezone(trial)` (`@/features/registries`).
@@ -29,6 +33,20 @@ export { toLocalDate, toLocalDateOnly };
 
 function isRenderableDate(isoStr: string): boolean {
   return !isNaN(toLocalDate(isoStr).getTime());
+}
+
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * A bare `YYYY-MM-DD` string is a DATE column with no timezone — parsing it
+ * with `new Date(str)` reads as UTC midnight and renders a day early for
+ * western-hemisphere viewers. Route it through `toLocalDate` instead; a
+ * value that already carries a time component (or a `Date` instance) is a
+ * real instant and is used as-is.
+ */
+function resolveInstant(value: string | Date): Date {
+  if (value instanceof Date) return value;
+  return DATE_ONLY.test(value) ? toLocalDate(value) : new Date(value);
 }
 
 /** Compact show date range: "Aug 1–3, 2026" (single day: "Aug 1, 2026"). */
@@ -61,6 +79,39 @@ export function formatEntryDate(
       ? { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }
       : { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }
   );
+}
+
+/**
+ * Compact record date, no weekday, no competition-day significance
+ * (e.g. an entry's created/submitted date in a table row): "Jul 3, 2026".
+ */
+export function formatShortDate(value?: string | Date | null): string {
+  if (!value) return '';
+  const instant = resolveInstant(value);
+  if (isNaN(instant.getTime())) return '';
+  return instant.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+/**
+ * Record date + time together (e.g. an entry's created/submitted instant):
+ * "Jul 3, 2:00 PM".
+ */
+export function formatEntryDateTime(value?: string | Date | null): string {
+  if (!value) return '';
+  const instant = resolveInstant(value);
+  if (isNaN(instant.getTime())) return '';
+  return instant
+    .toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    })
+    .replace(/\u202f/g, ' ');
 }
 
 /**

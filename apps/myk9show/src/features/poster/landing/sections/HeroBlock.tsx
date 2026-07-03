@@ -8,6 +8,7 @@ import {
   POSTER_MONO_FAMILY,
 } from '../../fonts';
 import { posterColors, posterSpacing } from '../../tokens';
+import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { formatDateInTimezone } from '../utils/dateFormat';
 
 interface HeroBlockProps {
@@ -67,10 +68,17 @@ export function HeroBlock({
   licenseLabel,
 }: HeroBlockProps) {
   const titleWords = buildTitleWords(showName);
-  const closesShort = entryCloseDate
-    ? formatDateInTimezone(entryCloseDate, timezone, 'monthDayUpper')
-    : null;
-  const closesTime = entryCloseDate ? formatDateInTimezone(entryCloseDate, timezone, 'time') : null;
+  const countdown = useCountdown(entryCloseDate, timezone);
+  // Gate on countdown.closed (not just entryCloseDate presence) so a past close
+  // date doesn't keep reading as still-pending after registration has closed.
+  const closesShort =
+    entryCloseDate && !countdown.closed
+      ? formatDateInTimezone(entryCloseDate, timezone, 'monthDayUpper')
+      : null;
+  const closesTime =
+    entryCloseDate && !countdown.closed
+      ? formatDateInTimezone(entryCloseDate, timezone, 'time')
+      : null;
   const trialYear = trialStartDate
     ? new Date(trialStartDate).getFullYear().toString().slice(-2)
     : null;

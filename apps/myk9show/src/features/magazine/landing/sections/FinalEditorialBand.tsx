@@ -1,4 +1,5 @@
 import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
+import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { formatDateInTimezone } from '../utils/dateFormat';
 
 interface FinalEditorialBandProps {
@@ -30,9 +31,13 @@ export function FinalEditorialBand({
   timezone,
   canEnterOnline = true,
 }: FinalEditorialBandProps) {
-  const closesLine = entryCloseDate
-    ? `Closing ${formatDateInTimezone(entryCloseDate, timezone, 'long')}`
-    : null;
+  const countdown = useCountdown(entryCloseDate, timezone);
+  // Gate on countdown.closed (not just entryCloseDate presence) so a past close
+  // date doesn't keep reading as still-pending after registration has closed.
+  const closesLine =
+    entryCloseDate && !countdown.closed
+      ? `Closing ${formatDateInTimezone(entryCloseDate, timezone, 'long')}`
+      : null;
 
   return (
     <section

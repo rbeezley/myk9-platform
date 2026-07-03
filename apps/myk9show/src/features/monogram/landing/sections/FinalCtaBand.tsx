@@ -1,5 +1,6 @@
 import { MonogramEmboss } from '../../components/MonogramEmboss';
 import { useRevealOnScroll } from '@/features/_shared/hooks/useRevealOnScroll';
+import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import {
   MONOGRAM_BODY_FAMILY,
   MONOGRAM_DISPLAY_FAMILY,
@@ -33,7 +34,13 @@ export function FinalCtaBand({
   canEnterOnline = true,
 }: FinalCtaBandProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLElement>();
-  const closesLabel = entryCloseDate ? formatDateInTimezone(entryCloseDate, timezone, 'long') : null;
+  const countdown = useCountdown(entryCloseDate, timezone);
+  // Gate on countdown.closed (not just entryCloseDate presence) so a past close
+  // date doesn't keep reading as still-pending after registration has closed.
+  const closesLabel =
+    entryCloseDate && !countdown.closed
+      ? formatDateInTimezone(entryCloseDate, timezone, 'long')
+      : null;
 
   return (
     <section

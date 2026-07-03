@@ -71,5 +71,20 @@ describe('Banner Enter CTA gating', () => {
       ).toBeInTheDocument();
       expect(screen.getByText('classes are assigned.')).toBeInTheDocument();
     });
+
+    it('hides the stale "Closes {date}" line once entryCloseDate is in the past', () => {
+      render(<FinalFlagBand {...finalBandProps} entryCloseDate="2020-01-01" />);
+      expect(screen.queryByText(/Closes/)).not.toBeInTheDocument();
+    });
+
+    it('shows the "Closes {date}" line when entryCloseDate is still in the future', () => {
+      render(<FinalFlagBand {...finalBandProps} entryCloseDate="2099-01-01" />);
+      expect(screen.getByText(/Closes/)).toBeInTheDocument();
+    });
+
+    it('shows no "Closes" line when entryCloseDate is not set (fails open, no false claim either way)', () => {
+      render(<FinalFlagBand {...finalBandProps} entryCloseDate={null} />);
+      expect(screen.queryByText(/Closes/)).not.toBeInTheDocument();
+    });
   });
 });

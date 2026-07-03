@@ -1,4 +1,5 @@
 import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
+import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { formatDateInTimezone } from '../utils/dateFormat';
 
 interface FinalCtaSectionProps {
@@ -22,9 +23,13 @@ export function FinalCtaSection({
   timezone,
   canEnterOnline = true,
 }: FinalCtaSectionProps) {
-  const closeLabel = entryCloseDate
-    ? formatDateInTimezone(entryCloseDate, timezone, 'long')
-    : null;
+  const countdown = useCountdown(entryCloseDate, timezone);
+  // Gate on countdown.closed (not just entryCloseDate presence) so a past close
+  // date doesn't keep reading as still-pending after registration has closed.
+  const closeLabel =
+    entryCloseDate && !countdown.closed
+      ? formatDateInTimezone(entryCloseDate, timezone, 'long')
+      : null;
 
   return (
     <section
@@ -46,7 +51,12 @@ export function FinalCtaSection({
             fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
           }}
         >
-          Notice{closeLabel ? ` · Entries close ${closeLabel}` : ' · Entries open'}
+          Notice
+          {closeLabel
+            ? ` · Entries close ${closeLabel}`
+            : countdown.closed
+              ? ' · Entries closed'
+              : ' · Entries open'}
         </div>
         <h2
           className="mx-auto mb-5 max-w-[18ch] text-balance"

@@ -226,7 +226,6 @@ export function MagazineEntryReceived({
               fontWeight: 500,
               fontSize: '10px',
               letterSpacing: '0.32em',
-              textTransform: 'uppercase',
               color: MUTE,
             }}
           >

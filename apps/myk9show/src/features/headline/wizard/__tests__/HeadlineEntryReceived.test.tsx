@@ -36,7 +36,9 @@ describe('HeadlineEntryReceived', () => {
     expect(screen.getByText("GCh. Ridgeway's Wandering Cooper, CGC")).toBeTruthy();
     expect(screen.getByText(/Excellent · Containers/)).toBeTruthy();
     expect(screen.getByText('$69.00')).toBeTruthy();
-    expect(screen.getByText(/Confirmation # MK9-000427/)).toBeTruthy();
+    const confirmationLabel = screen.getByText(/Confirmation # MK9-000427/);
+    expect(confirmationLabel).toBeTruthy();
+    expect(confirmationLabel).not.toHaveStyle('text-transform: uppercase');
     expect(screen.queryByText(/Entry #/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Registration #/)).not.toBeInTheDocument();
   });

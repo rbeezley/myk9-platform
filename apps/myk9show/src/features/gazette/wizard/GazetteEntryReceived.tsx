@@ -74,7 +74,7 @@ export function GazetteEntryReceived({
       {/* ── Header ── */}
       <div className="border-b px-7 pt-6 pb-5 text-center" style={{ borderColor: HAIR }}>
         <p
-          className="m-0 mb-3 text-[10px] font-semibold uppercase"
+          className="m-0 mb-3 text-[10px] font-semibold"
           style={{ color: BROWN, letterSpacing: '0.28em', fontFamily: META }}
         >
           {registrationNumber
@@ -149,7 +149,7 @@ export function GazetteEntryReceived({
           style={{ borderTop: `1px dotted ${HAIR}` }}
         >
           <span
-            className="text-[10px] font-medium uppercase"
+            className="text-[10px] font-medium"
             style={{ color: QUILL, letterSpacing: '0.18em', fontFamily: META }}
           >
             {registrationNumber ? formatConfirmationNumberLabel(registrationNumber) : 'Total fees'}

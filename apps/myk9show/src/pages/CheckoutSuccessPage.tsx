@@ -283,7 +283,7 @@ export default function CheckoutSuccessPage() {
             {/* Confirmation # */}
             {orderDetails?.confirmationNumber && (
               <div className="rounded-lg bg-success/10 border border-success/30 p-4 text-center">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                <p className="text-xs text-muted-foreground tracking-wide mb-1">
                   {CONFIRMATION_NUMBER_LABEL}
                 </p>
                 {/* break-all: pi_… fallback ids are 27 chars and must wrap on mobile */}

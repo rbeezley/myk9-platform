@@ -64,7 +64,6 @@ export function HeadlineEntryReceived({
               fontFamily: MONO,
               fontSize: '0.625rem',
               letterSpacing: '0.22em',
-              textTransform: 'uppercase',
               color: MUTE,
             }}
           >

@@ -30,8 +30,19 @@ export type PromoCodeTarget =
   | { showId: string; trialId?: never }
   | { showId?: never; trialId: string };
 
+/**
+ * Minimal promo-code shape returned by validation. Exhibitor validation goes
+ * through the `validate_promo_code` RPC (SA-002), which returns only the fields
+ * needed to apply a discount at checkout — never the full catalog row.
+ */
+export interface ValidatedPromoCode {
+  id: string;
+  discount_type: 'percentage' | 'flat';
+  discount_value: number;
+}
+
 export interface PromoCodeValidationResult {
   valid: boolean;
   error?: string;
-  promoCode?: PromoCode;
+  promoCode?: ValidatedPromoCode;
 }

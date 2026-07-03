@@ -1,7 +1,12 @@
-// Read-side operations for Promo Codes (lookup, validation, discount math).
+// Read-side operations for Promo Codes (secretary catalog + validation).
+//
+// SA-002: the promo_codes catalog is officials-only at the RLS layer. Exhibitor
+// code validation therefore goes through the `validate_promo_code` SECURITY
+// DEFINER RPC, which returns only match/no-match + discount and never exposes
+// the underlying rows. The secretary catalog reads (getPromoCodesBy*) remain
+// direct SELECTs — those callers are always show officials.
 
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
-import type { DbPromoCode } from '@/types/database-mappings';
 import type { PromoCodeValidationResult } from '@/types/promo-codes';
 
 export const getPromoCodesByTrial = async (trialId: string) => {
@@ -56,63 +61,6 @@ export const getPromoCodesByShow = async (showId: string) => {
   }
 };
 
-export const getPromoCodeByCode = async (trialId: string, code: string) => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('promo_codes')
-      .select('*')
-      .eq('trial_id', trialId)
-      .eq('code', code.toUpperCase())
-      .single();
-
-    const duration = Date.now() - startTime;
-    logQuery('promo_code', 'select_by_code', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'promo_code', 'select_by_code');
-    }
-
-    return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'promo_code', 'select_by_code');
-    logQuery('promo_code', 'select_by_code', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};
-
-/** Find a promo code by code string, checking both trial-level and show-level codes.
- *  Trial-level codes take priority over show-level codes. */
-export const findPromoCodeByCode = async (trialId: string, showId: string, code: string) => {
-  const startTime = Date.now();
-  const upperCode = code.toUpperCase();
-
-  try {
-    const { data, error } = await supabase
-      .from('promo_codes')
-      .select('*')
-      .eq('code', upperCode)
-      .or(`trial_id.eq.${trialId},show_id.eq.${showId}`);
-
-    const duration = Date.now() - startTime;
-    logQuery('promo_code', 'find_by_code', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'promo_code', 'find_by_code');
-    }
-
-    const match = data?.find((c) => c.trial_id === trialId) ?? data?.[0] ?? null;
-    return { data: match, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'promo_code', 'find_by_code');
-    logQuery('promo_code', 'find_by_code', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};
-
 /**
  * Validate a promo code for a trial (trial-level only).
  * For registration flows that need both show + trial scope, use validatePromoCodeForEntry.
@@ -121,59 +69,62 @@ export const validatePromoCode = async (
   trialId: string,
   code: string
 ): Promise<PromoCodeValidationResult> => {
-  const { data: promoCode, error } = await getPromoCodeByCode(trialId, code);
-
-  if (error || !promoCode) {
-    return { valid: false, error: 'Invalid promo code' };
-  }
-
-  return validatePromoCodeRecord(promoCode);
+  return validateViaRpc(code, trialId, null);
 };
 
 /**
  * Validate a promo code against both trial-level and show-level codes.
  * Used in registration/checkout where a show-wide code should also apply.
+ * Trial-level codes take precedence over show-level (enforced in the RPC).
  */
 export const validatePromoCodeForEntry = async (
   trialId: string,
   showId: string,
   code: string
 ): Promise<PromoCodeValidationResult> => {
-  const { data: promoCode, error } = await findPromoCodeByCode(trialId, showId, code);
-
-  if (error || !promoCode) {
-    return { valid: false, error: 'Invalid promo code' };
-  }
-
-  return validatePromoCodeRecord(promoCode);
+  return validateViaRpc(code, trialId, showId);
 };
 
-const validatePromoCodeRecord = (promoCode: DbPromoCode): PromoCodeValidationResult => {
-  if (promoCode.expires_at && new Date(promoCode.expires_at) < new Date()) {
-    return { valid: false, error: 'This promo code has expired' };
-  }
+const validateViaRpc = async (
+  code: string,
+  trialId: string | null,
+  showId: string | null
+): Promise<PromoCodeValidationResult> => {
+  const startTime = Date.now();
 
-  if (promoCode.usage_limit !== null && promoCode.usage_count >= promoCode.usage_limit) {
-    return { valid: false, error: 'This promo code has reached its usage limit' };
-  }
+  try {
+    const { data, error } = await supabase.rpc('validate_promo_code', {
+      p_code: code,
+      p_trial_id: trialId,
+      p_show_id: showId,
+    });
 
-  return {
-    valid: true,
-    promoCode: {
-      id: promoCode.id,
-      show_id: promoCode.show_id ?? null,
-      trial_id: promoCode.trial_id ?? null,
-      code: promoCode.code,
-      discount_type: promoCode.discount_type as 'percentage' | 'flat',
-      discount_value: promoCode.discount_value,
-      usage_limit: promoCode.usage_limit,
-      usage_count: promoCode.usage_count,
-      expires_at: promoCode.expires_at,
-      created_by: promoCode.created_by,
-      created_at: promoCode.created_at,
-      updated_at: promoCode.updated_at,
-    },
-  };
+    const duration = Date.now() - startTime;
+    logQuery('promo_code', 'validate_rpc', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'promo_code', 'validate_rpc');
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row || !row.valid) {
+      return { valid: false, error: row?.reason ?? 'Invalid promo code' };
+    }
+
+    return {
+      valid: true,
+      promoCode: {
+        id: row.promo_code_id as string,
+        discount_type: row.discount_type as 'percentage' | 'flat',
+        discount_value: Number(row.discount_value),
+      },
+    };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'promo_code', 'validate_rpc');
+    logQuery('promo_code', 'validate_rpc', duration, dbError.message);
+    return { valid: false, error: 'Invalid promo code' };
+  }
 };
 
 export const calculatePromoDiscount = (

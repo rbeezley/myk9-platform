@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, Suspense, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { Button } from '@/components/ui/button';
@@ -76,8 +76,6 @@ const BrowseShowsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { userWithRoles: authUser, isSecretary, isAdmin } = useAuthContext();
   const canManageShows = isSecretary || isAdmin;
-  const tabSwitchingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const viewModeChangingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Compute allowed tabs from user roles (needed before useUrlTab)
   const tabConfig = useMemo(() => getTabsForUser(authUser), [authUser]);
@@ -207,15 +205,18 @@ const BrowseShowsPage: React.FC = () => {
   useRealTimeUpdates();
 
   useEffect(() => {
-    return () => {
-      if (tabSwitchingTimeoutRef.current) {
-        clearTimeout(tabSwitchingTimeoutRef.current);
-      }
-      if (viewModeChangingTimeoutRef.current) {
-        clearTimeout(viewModeChangingTimeoutRef.current);
-      }
-    };
-  }, []);
+    if (!isTabSwitching) return undefined;
+
+    const timeoutId = setTimeout(() => setIsTabSwitching(false), 300);
+    return () => clearTimeout(timeoutId);
+  }, [isTabSwitching, selectedTab]);
+
+  useEffect(() => {
+    if (!isViewModeChanging) return undefined;
+
+    const timeoutId = setTimeout(() => setIsViewModeChanging(false), 200);
+    return () => clearTimeout(timeoutId);
+  }, [isViewModeChanging, viewMode]);
 
   // Update view mode URL param (tab is handled by useUrlTab)
   const updateViewModeParam = useCallback(
@@ -248,13 +249,6 @@ const BrowseShowsPage: React.FC = () => {
 
       setIsTabSwitching(true);
       setSelectedTab(newTab);
-      if (tabSwitchingTimeoutRef.current) {
-        clearTimeout(tabSwitchingTimeoutRef.current);
-      }
-      tabSwitchingTimeoutRef.current = setTimeout(() => {
-        setIsTabSwitching(false);
-        tabSwitchingTimeoutRef.current = null;
-      }, 300);
     },
     [selectedTab, setSelectedTab, user]
   );
@@ -268,13 +262,6 @@ const BrowseShowsPage: React.FC = () => {
       setIsViewModeChanging(true);
       setViewMode(newViewMode);
       updateViewModeParam(newViewMode);
-      if (viewModeChangingTimeoutRef.current) {
-        clearTimeout(viewModeChangingTimeoutRef.current);
-      }
-      viewModeChangingTimeoutRef.current = setTimeout(() => {
-        setIsViewModeChanging(false);
-        viewModeChangingTimeoutRef.current = null;
-      }, 200);
     },
     [updateViewModeParam, viewMode]
   );

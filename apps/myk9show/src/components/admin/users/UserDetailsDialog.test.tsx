@@ -168,7 +168,9 @@ describe('UserDetailsDialog — Security tab', () => {
       fireEvent.click(screen.getByTestId('send-reset-email-btn'));
 
       await waitFor(() => {
-        expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('User not found'));
+        expect(toast.error).toHaveBeenCalledWith(
+          'Failed to send password reset email. Please try again.'
+        );
       });
     });
   });
@@ -222,7 +224,7 @@ describe('UserDetailsDialog — Security tab', () => {
 
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalledWith(
-          expect.stringContaining('Unauthorized: requires site_admin role')
+          "You don't have permission to make that change."
         );
       });
 
@@ -242,9 +244,7 @@ describe('UserDetailsDialog — Security tab', () => {
       fireEvent.click(screen.getByTestId('generate-reset-link-btn'));
 
       await waitFor(() => {
-        expect(toast.error).toHaveBeenCalledWith(
-          expect.stringContaining('No link returned from server')
-        );
+        expect(toast.error).toHaveBeenCalledWith('Failed to generate reset link. Please try again.');
       });
     });
 

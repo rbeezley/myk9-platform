@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '@/services/database/supabaseClient';
 import { notifications } from '@/lib/notifications';
+import { friendlyDbError } from '@/utils/friendlyDbError';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
@@ -51,7 +52,7 @@ export function useAvatarUpload({ onSuccess }: UseAvatarUploadOptions) {
       await onSuccess?.(publicUrl);
       notifications.success('Profile photo updated.');
     } catch (err) {
-      notifications.error(err instanceof Error ? err.message : 'Failed to save profile photo.');
+      notifications.error(friendlyDbError(err, 'Failed to save profile photo.'));
     } finally {
       setUploading(false);
     }

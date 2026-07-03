@@ -7,6 +7,7 @@
 import ReactDOMServer from 'react-dom/server';
 import React from 'react';
 import { notifications } from '@/lib/notifications';
+import { escapeHtml } from '@/utils/escapeHtml';
 import { PRINT_STYLES } from './print-styles';
 import { RunOrderSheet, ResultsReport, BlankScoreSheet } from './print-templates';
 import type { PrintClassInfo, PrintReportEntry } from './print-types';
@@ -18,7 +19,7 @@ const generatePrintHTML = (title: string, content: string): string =>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title}</title>
+  <title>${escapeHtml(title)}</title>
   <style>${PRINT_STYLES}</style>
 </head>
 <body class="print-preview">

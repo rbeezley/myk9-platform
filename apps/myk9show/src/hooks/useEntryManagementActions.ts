@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { logger } from '@/services/LoggingService';
+import { friendlyDbError } from '@/utils/friendlyDbError';
 import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
@@ -353,7 +354,7 @@ export function useEntryManagementActions({
           }
 
           setEntries(snapshot);
-          toast.error(dbError.message || 'Failed to update payment status');
+          toast.error(friendlyDbError(dbError, 'Failed to update payment status'));
           logger.error(
             'DB error updating enrollment payment:',
             'secretary',
@@ -434,7 +435,7 @@ export function useEntryManagementActions({
       const { data, error: dbError } = await getEntriesForExport(selectedShowId);
 
       if (dbError) {
-        setError(dbError.message || 'Failed to export entries');
+        setError(friendlyDbError(dbError, 'Failed to export entries'));
         return;
       }
 

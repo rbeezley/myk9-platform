@@ -538,6 +538,22 @@ describe('LogTransport Implementations', () => {
       );
     });
 
+    it('strips URL hash fragments before sending logs to the remote endpoint', async () => {
+      window.location.href =
+        'https://example.com/auth/callback#access_token=secret-token&refresh_token=refresh-token';
+
+      logger.error('Critical error', 'test');
+
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      const [, requestInit] = mockFetch.mock.calls[0];
+      const body = JSON.parse((requestInit as RequestInit).body as string) as { url: string };
+
+      expect(body.url).toBe('https://example.com/auth/callback');
+      expect(body.url).not.toContain('access_token');
+      expect(body.url).not.toContain('#');
+    });
+
     it('should handle remote endpoint failures', async () => {
       mockFetch.mockRejectedValue(new Error('Network error'));
       const consoleSpy = vi.spyOn(console, 'error');

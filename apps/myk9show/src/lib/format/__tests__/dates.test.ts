@@ -1,5 +1,11 @@
 import { afterEach, describe, it, expect } from 'vitest';
-import { formatShowDateRange, formatEntryDate, formatTime } from '../dates';
+import {
+  formatShowDateRange,
+  formatEntryDate,
+  formatShortDate,
+  formatEntryDateTime,
+  formatTime,
+} from '../dates';
 
 const originalTimezone = process.env.TZ;
 
@@ -77,6 +83,40 @@ describe('formatEntryDate', () => {
     expect(formatEntryDate(null)).toBe('');
     expect(formatEntryDate('')).toBe('');
     expect(formatEntryDate('not-a-date')).toBe('');
+  });
+});
+
+describe('formatShortDate', () => {
+  it('renders a compact record date with no weekday', () => {
+    expect(formatShortDate('2026-07-03T18:00:00Z')).toBe('Jul 3, 2026');
+  });
+
+  it('accepts a Date instance', () => {
+    expect(formatShortDate(new Date('2026-07-03T18:00:00Z'))).toBe('Jul 3, 2026');
+  });
+
+  it('returns an empty string for missing or unparseable input', () => {
+    expect(formatShortDate(undefined)).toBe('');
+    expect(formatShortDate(null)).toBe('');
+    expect(formatShortDate('')).toBe('');
+    expect(formatShortDate('not-a-date')).toBe('');
+  });
+});
+
+describe('formatEntryDateTime', () => {
+  it('renders a record date and time together', () => {
+    expect(formatEntryDateTime('2026-07-03T14:00:00')).toBe('Jul 3, 2:00 PM');
+  });
+
+  it('accepts a Date instance', () => {
+    expect(formatEntryDateTime(new Date('2026-07-03T14:00:00'))).toBe('Jul 3, 2:00 PM');
+  });
+
+  it('returns an empty string for missing or unparseable input', () => {
+    expect(formatEntryDateTime(undefined)).toBe('');
+    expect(formatEntryDateTime(null)).toBe('');
+    expect(formatEntryDateTime('')).toBe('');
+    expect(formatEntryDateTime('not-a-date')).toBe('');
   });
 });
 

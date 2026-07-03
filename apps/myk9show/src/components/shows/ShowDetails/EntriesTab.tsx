@@ -5,7 +5,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Users, ClipboardList, Loader2 } from 'lucide-react';
 import { getEntriesByShow, getPublicEntriesByShow } from '@/services/database/entries';
-import { getEntryStatusClasses, formatDate } from '@/utils/entryManagementUtils';
+import { getEntryStatusClasses } from '@/utils/entryManagementUtils';
+import { formatShortDate } from '@/lib/format/dates';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { publicRowToShowEntryRow, type ShowEntryRow } from './entriesTabMappers';
@@ -78,7 +79,7 @@ const entryColumns: ColumnDef<ShowEntryRow, unknown>[] = [
     accessorKey: 'created_at',
     header: 'Date',
     meta: { responsiveHide: 'sm' as const },
-    cell: ({ getValue }) => formatDate(getValue() as string | null),
+    cell: ({ getValue }) => formatShortDate(getValue() as string | null) || 'TBD',
   },
 ];
 

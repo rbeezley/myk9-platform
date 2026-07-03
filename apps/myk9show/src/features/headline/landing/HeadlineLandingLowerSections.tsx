@@ -1,4 +1,5 @@
 import type { HeritageLandingData } from '@/features/heritage/landing/types';
+import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { SectionHead } from './HeadlineLandingPrimitives';
 import { formatDateRange, shortDate } from './headlineLandingDates';
 
@@ -90,13 +91,19 @@ export function FinalCta({
   data: HeritageLandingData;
   canEnterOnline?: boolean;
 }) {
+  const countdown = useCountdown(data.entryCloseDate, data.timezone);
+
   return (
     <section className="hd-final" id="enter">
       <div className="hd-final-inner">
         <div>
-          <div className="hd-final-tag">
-            Closing {shortDate(data.entryCloseDate, data.timezone)}
-          </div>
+          {/* Gate on countdown.closed (not just entryCloseDate presence) so a
+              past close date doesn't keep reading as still-pending after close. */}
+          {!countdown.closed && (
+            <div className="hd-final-tag">
+              Closing {shortDate(data.entryCloseDate, data.timezone)}
+            </div>
+          )}
           <h2>
             {canEnterOnline ? (
               <>

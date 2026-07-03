@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Clock, Dog, ArrowUpCircle, Trash2 } from 'lucide-react';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import type { WaitlistEntry, ClassWithWaitlistCount, ActionDialogState } from './types';
-import { formatDateTime } from './utils';
+import { formatEntryDateTime } from '@/lib/format/dates';
 
 interface WaitlistTableProps {
   entries: WaitlistEntry[];
@@ -61,7 +61,7 @@ function buildColumns(
       accessorFn: row => row.created_at ?? '',
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">
-          {formatDateTime(row.original.created_at)}
+          {formatEntryDateTime(row.original.created_at) || 'Unknown'}
         </span>
       ),
     },

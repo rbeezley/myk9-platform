@@ -50,14 +50,6 @@ export function statusLabel(status: ResultSubmissionRow['status']): string {
   }
 }
 
-export function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString();
-  } catch {
-    return iso;
-  }
-}
-
 // Human label for a formatter — e.g. { organization: 'AKC', sportType: 'scent_work' }
 // renders "AKC Scent Work". Used for both the option list and the collapsed
 // trigger so they never diverge; without an explicit label the Base UI trigger

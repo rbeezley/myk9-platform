@@ -6,6 +6,7 @@ import {
   FIELD_GUIDE_MONO_FAMILY,
 } from '../../fonts';
 import { fieldGuideColors, fieldGuideSpacing } from '../../tokens';
+import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { formatDateInTimezone } from '../utils/dateFormat';
 
 interface FinalCtaSectionProps {
@@ -32,9 +33,13 @@ export function FinalCtaSection({
   entryLimit,
   canEnterOnline = true,
 }: FinalCtaSectionProps) {
-  const closesLabel = entryCloseDate
-    ? formatDateInTimezone(entryCloseDate, timezone, 'long')
-    : null;
+  const countdown = useCountdown(entryCloseDate, timezone);
+  // Gate on countdown.closed (not just entryCloseDate presence) so a past close
+  // date doesn't keep reading as still-pending after registration has closed.
+  const closesLabel =
+    entryCloseDate && !countdown.closed
+      ? formatDateInTimezone(entryCloseDate, timezone, 'long')
+      : null;
 
   return (
     <FieldGuideDarkBand

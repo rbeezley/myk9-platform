@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/select';
 import { Calendar, Trophy } from 'lucide-react';
 import type { Show, ClassWithWaitlistCount } from './types';
-import { formatDate } from './utils';
+import { formatShortDate } from '@/lib/format/dates';
 
 interface ShowClassSelectionProps {
   shows: Show[];
@@ -55,7 +55,7 @@ export const ShowClassSelection: React.FC<ShowClassSelectionProps> = ({
                     ? (() => {
                         const show = shows.find(s => s.id === selectedShowId);
                         return show
-                          ? `${show.name || 'Unnamed Show'} (${formatDate(show.start_date)})`
+                          ? `${show.name || 'Unnamed Show'} (${formatShortDate(show.start_date) || 'TBD'})`
                           : undefined;
                       })()
                     : undefined}
@@ -68,7 +68,7 @@ export const ShowClassSelection: React.FC<ShowClassSelectionProps> = ({
                       <Calendar className="h-4 w-4 text-muted-foreground" />
                       <span>{show.name || 'Unnamed Show'}</span>
                       <span className="text-muted-foreground text-xs">
-                        ({formatDate(show.start_date)})
+                        ({formatShortDate(show.start_date) || 'TBD'})
                       </span>
                     </div>
                   </SelectItem>

@@ -20,7 +20,6 @@ const MONTH_ABBR = [
 
 // Re-export core date handling from dateLocal
 export {
-  formatDateDisplay,
   formatDateLocal,
   parseLocalDateString,
   normalizeLocalDateString,
@@ -29,28 +28,10 @@ export {
   dateDifferenceInDays,
 } from './dateLocal';
 
-/**
- * Formats an ISO date string (YYYY-MM-DD) to MM/DD/YYYY display format.
- * Uses direct string manipulation to avoid timezone issues.
- */
-export function formatDateMMDDYYYY(dateStr?: string): string {
-  if (!dateStr) return '';
-
-  // Handle YYYY-MM-DD format directly
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-    const [year, month, day] = dateStr.split('-');
-    return `${parseInt(month, 10)}/${parseInt(day, 10)}/${year}`;
-  }
-
-  // Try to parse other formats
-  const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return '';
-
-  const mm = date.getMonth() + 1;
-  const dd = date.getDate();
-  const yyyy = date.getFullYear();
-  return `${mm}/${dd}/${yyyy}`;
-}
+// Formats an ISO date string (YYYY-MM-DD) to MM/DD/YYYY display format.
+// Single source of truth lives in @myk9/core; this file previously redefined
+// an identical copy (ux-date-status-consistency change).
+export { formatDateMMDDYYYY } from '@myk9/core';
 
 /**
  * Formats an ISO date string (YYYY-MM-DD) to "Mon D" (e.g. "Apr 12").

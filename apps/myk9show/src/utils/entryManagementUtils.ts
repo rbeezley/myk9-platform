@@ -256,14 +256,3 @@ export function getEntryStatusClasses(status: string | null): string {
   }
 }
 
-/**
- * Format date string for display
- */
-export const formatDate = (dateStr: string | null): string => {
-  if (!dateStr) return 'TBD';
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-};

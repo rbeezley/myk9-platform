@@ -143,9 +143,13 @@ function Hero({
             Review details
           </a>
           <SeeClassesLink href={classesHref} />
-          <span className="hd-cta-meta">
-            Closes {shortDate(data.entryCloseDate, data.timezone)}
-          </span>
+          {/* Gate on countdown.closed (not just entryCloseDate presence) so a past
+              close date doesn't keep reading as still-pending after close. */}
+          {!countdown.closed && (
+            <span className="hd-cta-meta">
+              Closes {shortDate(data.entryCloseDate, data.timezone)}
+            </span>
+          )}
         </div>
 
         {countdown.hasTarget && !countdown.closed && (

@@ -115,7 +115,6 @@ export function EntryReceipt({
         .confirmation-label {
           font-size: 12px;
           color: #666;
-          text-transform: uppercase;
           letter-spacing: 1px;
         }
         .confirmation-number {

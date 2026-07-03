@@ -72,6 +72,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-pull-management-split.md](plan-pull-management-split.md)                             | Active    | Pull Management — separate show-day pull state from refund accounting  |
 | [plan-public-results-release-gate.md](plan-public-results-release-gate.md)                 | Active    | Plan: Server-side gate for public/anon scored results                 |
 | [plan-remove-unified-ringside-flag.md](plan-remove-unified-ringside-flag.md)               | Active    | Remove the `unified_ringside_enabled` feature flag (unblocks docs)    |
+| [plan-replication-occ-watermark-findings.md](plan-replication-occ-watermark-findings.md)   | Complete  | Replication OCC / Watermark Findings (fixed in PR #1098)              |
 | [plan-replication-insert-idempotency.md](plan-replication-insert-idempotency.md)           | Active    | Replication INSERT retry idempotency — investigation verdict (B)      |
 | [plan-restore-ui-remediation.md](plan-restore-ui-remediation.md)                           | Active    | Plan: Fix the Deleted Entities (restore) UI                           |
 | [plan-result-reveal-share-card.md](plan-result-reveal-share-card.md)                       | Active    | Plan: Result Reveal + Share Card                                      |

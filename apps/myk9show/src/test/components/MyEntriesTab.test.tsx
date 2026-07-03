@@ -35,6 +35,19 @@ function makeGroup(dogName: string) {
   return { dogId: dogName, dogName, entries: [] };
 }
 
+function makeHookResult(overrides: Partial<ReturnType<typeof useShowEntriesForUser>>) {
+  return {
+    dogGroups: [],
+    allEntries: [],
+    scheduleEntries: [],
+    totalClasses: 0,
+    scheduleDogCount: 0,
+    isLoading: false,
+    isError: false,
+    ...overrides,
+  } as ReturnType<typeof useShowEntriesForUser>;
+}
+
 describe('MyEntriesTab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -42,51 +55,45 @@ describe('MyEntriesTab', () => {
   });
 
   it('shows loading skeleton while loading', () => {
-    vi.mocked(useShowEntriesForUser).mockReturnValue({
-      dogGroups: [], allEntries: [], totalClasses: 0, isLoading: true, isError: false,
-    });
+    vi.mocked(useShowEntriesForUser).mockReturnValue(makeHookResult({ isLoading: true }));
     render(<MyEntriesTab showId="s1" />);
     expect(screen.getByTestId('loading-skeleton')).toBeInTheDocument();
   });
 
   it('shows error state with retry button', () => {
-    vi.mocked(useShowEntriesForUser).mockReturnValue({
-      dogGroups: [], allEntries: [], totalClasses: 0, isLoading: false, isError: true,
-    });
+    vi.mocked(useShowEntriesForUser).mockReturnValue(makeHookResult({ isError: true }));
     render(<MyEntriesTab showId="s1" />);
     expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
   });
 
   it('shows empty state when no entries', () => {
-    vi.mocked(useShowEntriesForUser).mockReturnValue({
-      dogGroups: [], allEntries: [], totalClasses: 0, isLoading: false, isError: false,
-    });
+    vi.mocked(useShowEntriesForUser).mockReturnValue(makeHookResult({}));
     render(<MyEntriesTab showId="s1" />);
     expect(screen.getByTestId('empty-state')).toBeInTheDocument();
   });
 
   it('renders WhereToBe and one DogEntriesSection per dog', () => {
-    vi.mocked(useShowEntriesForUser).mockReturnValue({
+    vi.mocked(useShowEntriesForUser).mockReturnValue(makeHookResult({
       dogGroups: [makeGroup('Maggie'), makeGroup('Daisy')],
       allEntries: [{}] as never,
+      scheduleEntries: [{}, {}] as never,
       totalClasses: 3,
-      isLoading: false,
-      isError: false,
-    });
+      scheduleDogCount: 2,
+    }));
     render(<MyEntriesTab showId="s1" />);
     expect(screen.getByTestId('where-to-be')).toBeInTheDocument();
+    expect(screen.getByText('2 entries')).toBeInTheDocument();
     expect(screen.getByText('Maggie')).toBeInTheDocument();
     expect(screen.getByText('Daisy')).toBeInTheDocument();
   });
 
   it('shows summary count line', () => {
-    vi.mocked(useShowEntriesForUser).mockReturnValue({
+    vi.mocked(useShowEntriesForUser).mockReturnValue(makeHookResult({
       dogGroups: [makeGroup('Maggie'), makeGroup('Daisy')],
       allEntries: [{}] as never,
       totalClasses: 3,
-      isLoading: false,
-      isError: false,
-    });
+      scheduleDogCount: 2,
+    }));
     render(<MyEntriesTab showId="s1" />);
     expect(screen.getByText(/3 classes across 2 dogs/i)).toBeInTheDocument();
   });

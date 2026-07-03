@@ -38,7 +38,8 @@ different configuration slot than Supabase **Custom SMTP**.
 1. Generate/copy the Send Email Hook secret from Supabase Dashboard →
    Authentication → Hooks.
 2. Set the same value in the edge-function environment as
-   `SEND_EMAIL_HOOK_SECRET`.
+   `SEND_EMAIL_HOOK_SECRET`. The function accepts either the exact dashboard
+   value (`v1,whsec_…`) or the trimmed `whsec_…` value.
 3. Deploy `send-auth-email`.
 4. Save/enable the dashboard hook registration with the matching secret.
 5. Immediately verify one real signup or password-reset email.

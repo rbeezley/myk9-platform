@@ -42,6 +42,6 @@
 ## 4. Verification and rollout
 
 - [x] 4.1 `pnpm typecheck` + `pnpm lint` clean
-- [ ] 4.2 Request Codex second opinion (auth-surface change)
+- [x] 4.2 Request Codex second opinion (auth-surface change)
 - [ ] 4.3 Update `docs/security-audit-2026-07/README.md` status table (SA-004,
       SA-005, SA-013 rows → DONE) and this change's tracking status

@@ -13,8 +13,13 @@ export interface VerifyStandardWebhookSignatureArgs {
 
 const MAX_SKEW_SECONDS = 5 * 60;
 
+function normalizeWebhookSecret(secret: string): string {
+  const versionless = secret.replace(/^v\d+,/, '');
+  return versionless.startsWith('whsec_') ? versionless.slice('whsec_'.length) : versionless;
+}
+
 function decodeWebhookSecret(secret: string): Uint8Array | null {
-  const encoded = secret.startsWith('whsec_') ? secret.slice('whsec_'.length) : secret;
+  const encoded = normalizeWebhookSecret(secret);
   try {
     return Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
   } catch {

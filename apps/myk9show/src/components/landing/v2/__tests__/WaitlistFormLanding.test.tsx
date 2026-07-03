@@ -50,7 +50,7 @@ describe('WaitlistFormLanding', () => {
     expect(await screen.findByText(/you're on the list/i)).toBeInTheDocument();
   });
 
-  it('triggers send-waitlist-invite and shows the check-your-email success when "Club / secretary" is picked', async () => {
+  it('records club-secretary signups for the DB trigger and shows the check-your-email success', async () => {
     const user = userEvent.setup();
     insertMock.mockResolvedValueOnce({ error: null });
 
@@ -63,9 +63,7 @@ describe('WaitlistFormLanding', () => {
     expect(insertMock).toHaveBeenCalledWith(
       expect.objectContaining({ email: 'secretary@example.com', role: 'club_official' }),
     );
-    expect(mockSupabase.functions.invoke).toHaveBeenCalledWith('send-waitlist-invite', {
-      body: { email: 'secretary@example.com' },
-    });
+    expect(mockSupabase.functions.invoke).not.toHaveBeenCalled();
     expect(await screen.findByText(/check your email/i)).toBeInTheDocument();
   });
 

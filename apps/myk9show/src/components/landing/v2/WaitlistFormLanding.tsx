@@ -94,21 +94,11 @@ export function WaitlistFormLanding({
       return;
     }
 
-    // Auto-grant path: "Club / secretary" signups get an immediate
-    // magic-link invite so they can try the show wizard right away.
-    // Fire-and-forget — the email arrives within seconds. The edge
-    // function is idempotent on access_invite_sent_at, so a duplicate
-    // insert (handled above as 23505) won't double-send.
+    // Auto-grant path is server-owned: the platform_waitlist insert trigger
+    // calls send-waitlist-invite with the Vault-held shared secret. The browser
+    // must never hold WAITLIST_INVITE_SECRET.
     const triggersInvite = role === EARLY_ACCESS_ROLE;
-    if (triggersInvite) {
-      const { error: inviteError } = await supabase.functions.invoke('send-waitlist-invite', {
-        body: { email: email.trim().toLowerCase() },
-      });
-      setState({ kind: 'success', invited: !inviteError });
-      return;
-    }
-
-    setState({ kind: 'success', invited: false });
+    setState({ kind: 'success', invited: triggersInvite });
   };
 
   if (state.kind === 'success') {

@@ -65,6 +65,9 @@ export async function assertSendEmailRateLimit(args: {
 
   if (error) {
     console.error('send-email rate limit check failed', error);
+    // Deliberate show-day availability tradeoff: this mirrors validate-passcode.
+    // Abuse blocking must not strand secretaries if the limiter RPC is unhealthy;
+    // the authorization check below still gates who can send.
     return;
   }
 

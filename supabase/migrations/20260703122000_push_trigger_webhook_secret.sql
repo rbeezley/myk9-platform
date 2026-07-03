@@ -45,7 +45,8 @@ begin
         'id', new.id,
         'dog_id', new.dog_id,
         'class_id', new.class_id,
-        'user_id', new.user_id,
+        'show_id', new.show_id,
+        'handler_id', new.handler_id,
         'scoring_completed_at', new.scoring_completed_at
       ),
       'old_record', jsonb_build_object(
@@ -66,7 +67,6 @@ create trigger trg_notify_entry_scoring_push
   when (
     old.scoring_completed_at is null
     and new.scoring_completed_at is not null
-    and new.user_id is not null
   )
   execute function public.notify_entry_scoring_push();
 

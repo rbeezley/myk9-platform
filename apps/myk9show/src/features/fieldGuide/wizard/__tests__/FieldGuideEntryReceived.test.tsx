@@ -18,7 +18,7 @@ const BASE_PROPS = {
   dogCallName: 'Cooper',
   classSummary: '3 runs · Excellent Containers · Judge C. Beagles',
   totalFeesFormatted: '$69.00',
-  registrationNumber: '2026-0137',
+  registrationNumber: 'MK9-000137',
   confirmationDateLabel: 'Jun 6, 2026',
 };
 
@@ -35,16 +35,18 @@ describe('FieldGuideEntryReceived', () => {
     ).toBeInTheDocument();
   });
 
-  it('shows the entry number in both the top strip and a chip', () => {
+  it('shows the confirmation number in both the top strip and a chip', () => {
     const { container } = render(<FieldGuideEntryReceived {...BASE_PROPS} />);
-    expect(container.textContent).toContain('ENTRY 2026-0137');
+    expect(container.textContent).toContain('Confirmation # MK9-000137');
+    expect(container.textContent).not.toContain('Entry #');
+    expect(container.textContent).not.toContain('Registration #');
   });
 
-  it('omits the entry strip + chip when registrationNumber is null', () => {
+  it('omits the confirmation strip + chip when confirmation number is null', () => {
     const { container } = render(
       <FieldGuideEntryReceived {...BASE_PROPS} registrationNumber={null} />
     );
-    expect(container.textContent).not.toContain('ENTRY');
+    expect(container.textContent).not.toContain('Confirmation #');
   });
 
   it('renders the submitted orange chip in the header', () => {
@@ -86,9 +88,7 @@ describe('FieldGuideEntryReceived', () => {
 
   it('renders the dog registered name', () => {
     render(<FieldGuideEntryReceived {...BASE_PROPS} />);
-    expect(
-      screen.getByText("GCh. Ridgeway's Wandering Trailblazer, CGC")
-    ).toBeInTheDocument();
+    expect(screen.getByText("GCh. Ridgeway's Wandering Trailblazer, CGC")).toBeInTheDocument();
   });
 
   it('renders the dog call name in curly quotes when supplied', () => {
@@ -97,9 +97,7 @@ describe('FieldGuideEntryReceived', () => {
   });
 
   it('omits the call-name line when null', () => {
-    const { container } = render(
-      <FieldGuideEntryReceived {...BASE_PROPS} dogCallName={null} />
-    );
+    const { container } = render(<FieldGuideEntryReceived {...BASE_PROPS} dogCallName={null} />);
     expect(container.textContent).not.toContain('“Cooper”');
   });
 

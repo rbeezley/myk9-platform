@@ -1,4 +1,5 @@
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import { CONFIRMATION_NUMBER_LABEL } from '@/features/registration/confirmationNumberDisplay';
 import type { DogClassDetails } from './ConfirmationStep.types';
 
 /** Data needed to generate a receipt */
@@ -76,7 +77,7 @@ export function generateReceiptText(data: ReceiptData): string {
     '               myK9Show',
     divider,
     '',
-    `Confirmation #: ${data.registrationNumber}`,
+    `${CONFIRMATION_NUMBER_LABEL}: ${data.registrationNumber}`,
     `Date Generated: ${data.generatedAt}`,
     '',
     thinDivider,
@@ -187,7 +188,7 @@ export function generateReceiptHtml(data: ReceiptData): string {
   </div>
 
   <div style="background: #f3f4f6; border-radius: 8px; padding: 15px; text-align: center; margin-bottom: 25px;">
-    <div style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 1px;">Confirmation Number</div>
+    <div style="font-size: 12px; color: #666; letter-spacing: 1px;">${CONFIRMATION_NUMBER_LABEL}</div>
     <div style="font-size: 24px; font-weight: 700; font-family: 'Courier New', monospace;">${escapeHtml(data.registrationNumber)}</div>
   </div>
 

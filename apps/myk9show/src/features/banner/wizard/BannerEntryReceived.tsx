@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { BANNER_BODY_FAMILY, BANNER_DISPLAY_FAMILY } from '../fonts';
 import { bannerColors } from '../tokens';
 import { deriveBannerBrandColors } from '../hooks/useBannerBrandColor';
+import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
 import type { HeritageEntryReceivedProps } from '@/features/heritage/wizard/HeritageEntryReceived';
 
 /**
@@ -46,7 +47,11 @@ export function BannerEntryReceived({
   return (
     <div
       data-banner
-      style={{ background: bannerColors.paper, color: bannerColors.ink, fontFamily: BANNER_BODY_FAMILY }}
+      style={{
+        background: bannerColors.paper,
+        color: bannerColors.ink,
+        fontFamily: BANNER_BODY_FAMILY,
+      }}
     >
       {/* ── Flag masthead ── */}
       <header
@@ -68,7 +73,8 @@ export function BannerEntryReceived({
             opacity: 0.7,
           }}
         >
-          Submitted{registrationNumber ? ` · Entry ${registrationNumber}` : ''}
+          Submitted
+          {registrationNumber ? ` · ${formatConfirmationNumberLabel(registrationNumber)}` : ''}
         </p>
         <h2
           style={{

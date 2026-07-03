@@ -10,6 +10,7 @@ import {
   ensurePosterFontsLoaded,
 } from '../fonts';
 import { posterColors } from '../tokens';
+import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
 import type { HeritageEntryReceivedProps } from '@/features/heritage/wizard/HeritageEntryReceived';
 import { useEffect } from 'react';
 import '../poster.css';
@@ -67,12 +68,7 @@ export function PosterEntryReceived({
       }}
     >
       {/* Decorative corner ink-blot — 240px, no animation (receipts are static). */}
-      <PosterInkBlot
-        size={240}
-        position={{ top: -100, right: -100 }}
-        staticMount
-        filter={null}
-      />
+      <PosterInkBlot size={240} position={{ top: -100, right: -100 }} staticMount filter={null} />
 
       {/* Header */}
       <header
@@ -94,7 +90,7 @@ export function PosterEntryReceived({
           }}
         >
           NO 01 / SUBMITTED
-          {registrationNumber ? ` · ENTRY ${registrationNumber}` : ''}
+          {registrationNumber ? ` · ${formatConfirmationNumberLabel(registrationNumber)}` : ''}
         </p>
         <h2
           style={{

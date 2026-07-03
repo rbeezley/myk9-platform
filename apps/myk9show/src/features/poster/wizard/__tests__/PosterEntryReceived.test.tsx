@@ -18,7 +18,7 @@ const BASE_PROPS = {
   dogCallName: 'Pointe',
   classSummary: '3 runs · Excellent Containers, Excellent Interiors, Excellent Buried',
   totalFeesFormatted: '$69.00',
-  registrationNumber: '2026-0137',
+  registrationNumber: 'MK9-000137',
   confirmationDateLabel: 'Jun 6, 2026',
 };
 
@@ -35,14 +35,16 @@ describe('PosterEntryReceived', () => {
     expect(container.textContent).toContain('JUN 12–14, 2026');
   });
 
-  it('renders the entry number in the kicker when provided', () => {
+  it('renders the confirmation number in the kicker when provided', () => {
     render(<PosterEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/NO 01 \/ SUBMITTED · ENTRY 2026-0137/)).toBeInTheDocument();
+    expect(screen.getByText(/NO 01 \/ SUBMITTED · Confirmation # MK9-000137/)).toBeInTheDocument();
+    expect(screen.queryByText(/Entry #/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Registration #/)).not.toBeInTheDocument();
   });
 
-  it('omits the entry suffix when registration number is null', () => {
+  it('omits the confirmation suffix when confirmation number is null', () => {
     render(<PosterEntryReceived {...BASE_PROPS} registrationNumber={null} />);
-    expect(screen.queryByText(/ENTRY 2026/)).toBeNull();
+    expect(screen.queryByText(/Confirmation #/)).toBeNull();
     expect(screen.getByText(/NO 01 \/ SUBMITTED/)).toBeInTheDocument();
   });
 

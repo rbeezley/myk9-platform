@@ -10,6 +10,7 @@ import {
   FIELD_GUIDE_MONO_FAMILY,
 } from '../fonts';
 import { fieldGuideColors } from '../tokens';
+import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
 // The CSS is scoped under [data-field-guide] so importing it on the wizard
 // surface is a no-op for non-Field-Guide pages. Required so any primitive
 // that adopts a CSS class for responsive collapse (fg-quickref, fg-reveal,
@@ -77,12 +78,10 @@ export function FieldGuideEntryReceived({
         style={{ display: 'flex', justifyContent: 'space-between' }}
       >
         <span>
-          <strong style={{ color: fieldGuideColors.orange, fontWeight: 600 }}>
-            CONFIRMATION
-          </strong>{' '}
+          <strong style={{ color: fieldGuideColors.orange, fontWeight: 600 }}>CONFIRMATION</strong>{' '}
           · REV 01
         </span>
-        {registrationNumber && <span>ENTRY {registrationNumber}</span>}
+        {registrationNumber && <span>{formatConfirmationNumberLabel(registrationNumber)}</span>}
       </FieldGuideDarkBand>
 
       {/* ── Chip-tagged header ── */}
@@ -96,7 +95,7 @@ export function FieldGuideEntryReceived({
           <FieldGuideChip variant="orange">SUBMITTED</FieldGuideChip>
           {runsLabel && <FieldGuideChip>{runsLabel}</FieldGuideChip>}
           {registrationNumber && (
-            <FieldGuideChip>ENTRY {registrationNumber}</FieldGuideChip>
+            <FieldGuideChip>{formatConfirmationNumberLabel(registrationNumber)}</FieldGuideChip>
           )}
         </div>
         <h2

@@ -271,7 +271,9 @@ describe('CheckoutSuccessPage', () => {
     await waitFor(() => {
       expect(screen.getByText('MK9-000042')).toBeInTheDocument();
     });
-    expect(screen.getByText('Confirmation Number')).toBeInTheDocument();
+    expect(screen.getByText('Confirmation #')).toBeInTheDocument();
+    expect(screen.queryByText('Entry #')).not.toBeInTheDocument();
+    expect(screen.queryByText('Registration #')).not.toBeInTheDocument();
   });
 
   it('displays the payment intent id as confirmation when no enrollment is linked', async () => {
@@ -295,7 +297,7 @@ describe('CheckoutSuccessPage', () => {
     await waitFor(() => {
       expect(screen.getByText('pi_3TgoK2AIej2Q9UtX3HSHZh3M')).toBeInTheDocument();
     });
-    expect(screen.getByText('Confirmation Number')).toBeInTheDocument();
+    expect(screen.getByText('Confirmation #')).toBeInTheDocument();
   });
 
   it('shows the already-assigned armband number and accurate next-step copy', async () => {
@@ -447,6 +449,6 @@ describe('CheckoutSuccessPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Entry Submitted Successfully!')).toBeInTheDocument();
     });
-    expect(screen.queryByText('Confirmation Number')).not.toBeInTheDocument();
+    expect(screen.queryByText('Confirmation #')).not.toBeInTheDocument();
   });
 });

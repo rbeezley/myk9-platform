@@ -36,6 +36,7 @@ import { EnrollmentCheckPaymentDialog } from './EnrollmentCheckPaymentDialog';
 import { EnrollmentPartialPaymentDialog } from './EnrollmentPartialPaymentDialog';
 import { EnrollmentRefundDialog } from './EnrollmentRefundDialog';
 import { EnrollmentEmailDialog } from './EnrollmentEmailDialog';
+import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
 
 interface EnrollmentCardProps {
   group: EnrollmentGroup;
@@ -64,8 +65,7 @@ interface EnrollmentCardProps {
   onResendEmail?: ((registrationId: string) => void) | undefined;
   isResendDisabled?: ((registrationId: string) => boolean) | undefined;
   onSendDecisionEmail?:
-    | ((registrationId: string, message?: string, amountDue?: number) => Promise<void>)
-    | undefined;
+    ((registrationId: string, message?: string, amountDue?: number) => Promise<void>) | undefined;
   lastDecisionEmailedAt?: string | undefined;
 }
 
@@ -159,7 +159,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
               <span className="font-semibold text-sm">{group.handlerName}</span>
               {group.confirmationNumber && (
                 <span className="text-xs text-muted-foreground ml-2">
-                  #{group.confirmationNumber}
+                  {formatConfirmationNumberLabel(group.confirmationNumber)}
                 </span>
               )}
               {group.paymentReference && (

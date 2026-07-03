@@ -44,7 +44,10 @@ describe('Email Templates', () => {
           payment: { subtotal: 3500, total: 3500, method: 'Visa ending in 4242' },
         })
       );
+      expect(html).toContain('Confirmation #');
       expect(html).toContain('MK9-001234');
+      expect(html).not.toContain('Entry # MK9-001234');
+      expect(html).not.toContain('Registration # MK9-001234');
       expect(html).toContain('Spring Classic');
       expect(html).toContain('Max');
       expect(html).toContain('Novice Agility');

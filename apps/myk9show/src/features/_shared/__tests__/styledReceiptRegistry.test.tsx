@@ -27,7 +27,7 @@ const BASE_PROPS: HeritageEntryReceivedProps = {
   dogCallName: 'Cooper',
   classSummary: '3 runs · Excellent Containers · Judge C. Beagles',
   totalFeesFormatted: '$69.00',
-  registrationNumber: '2026-0137',
+  registrationNumber: 'MK9-000137',
   confirmationDateLabel: 'Jun 6, 2026',
 };
 
@@ -67,6 +67,20 @@ describe('STYLED_RECEIPT_BY_STYLE', () => {
       expect(text).toContain('submitted');
       expect(text).not.toContain('confirmed');
       expect(text).not.toContain('fees received');
+    }
+  });
+
+  it('labels the enrollment confirmation number consistently across styled receipts', () => {
+    for (const style of ALL_STYLES) {
+      const element = STYLED_RECEIPT_BY_STYLE[style](BASE_PROPS, { brandColor: '#7a1f1f' });
+      const { container } = render(element);
+      const text = container.textContent ?? '';
+
+      expect(text).toContain('Confirmation #');
+      expect(text).toContain('MK9-000137');
+      expect(text).not.toContain('Entry #');
+      expect(text).not.toContain('Entry №');
+      expect(text).not.toContain('Registration #');
     }
   });
 

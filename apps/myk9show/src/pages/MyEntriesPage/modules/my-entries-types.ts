@@ -71,7 +71,6 @@ export interface MyEntry {
   totalFee: number;
   entryStatus: EntryStatus;
   paymentStatus: PaymentStatus;
-  registrationNumber?: string | undefined;
   confirmationNumber?: string | undefined;
   entryCloseDate?: Date | undefined;
   submittedAt: Date;

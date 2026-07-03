@@ -3,6 +3,7 @@ import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { gazetteColors, GAZETTE_DEFAULT_VOLUME_ROMAN } from '../tokens';
 import { GazetteMasthead } from '../components/GazetteMasthead';
+import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
 
 /**
  * Gazette wizard completion props mirror Heritage's verbatim — the
@@ -76,7 +77,9 @@ export function GazetteEntryReceived({
           className="m-0 mb-3 text-[10px] font-semibold uppercase"
           style={{ color: BROWN, letterSpacing: '0.28em', fontFamily: META }}
         >
-          {registrationNumber ? `Entry ${registrationNumber} · Submitted` : 'Submitted'}
+          {registrationNumber
+            ? `${formatConfirmationNumberLabel(registrationNumber)} · Submitted`
+            : 'Submitted'}
         </p>
         <h2
           className="m-0 mb-3"
@@ -124,7 +127,13 @@ export function GazetteEntryReceived({
         {dogCallName && (
           <p
             className="m-0 mb-3.5"
-            style={{ fontFamily: DISPLAY, fontStyle: 'italic', fontWeight: 400, fontSize: 14, color: BROWN }}
+            style={{
+              fontFamily: DISPLAY,
+              fontStyle: 'italic',
+              fontWeight: 400,
+              fontSize: 14,
+              color: BROWN,
+            }}
           >
             &ldquo;{dogCallName}&rdquo;
           </p>
@@ -143,11 +152,9 @@ export function GazetteEntryReceived({
             className="text-[10px] font-medium uppercase"
             style={{ color: QUILL, letterSpacing: '0.18em', fontFamily: META }}
           >
-            {registrationNumber ? `Entry № ${registrationNumber}` : 'Total fees'}
+            {registrationNumber ? formatConfirmationNumberLabel(registrationNumber) : 'Total fees'}
           </span>
-          <span
-            style={{ fontFamily: DISPLAY, fontWeight: 900, fontSize: 28, color: BROWN }}
-          >
+          <span style={{ fontFamily: DISPLAY, fontWeight: 900, fontSize: 28, color: BROWN }}>
             {totalFeesFormatted}
           </span>
         </div>

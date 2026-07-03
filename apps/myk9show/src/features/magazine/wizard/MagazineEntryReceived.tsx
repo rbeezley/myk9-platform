@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { magazineColors } from '../tokens';
+import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 //
@@ -78,7 +79,7 @@ export function MagazineEntryReceived({
   const navigate = useNavigate();
 
   const kicker = registrationNumber
-    ? `Submitted · Entry ${registrationNumber}`
+    ? `Submitted · ${formatConfirmationNumberLabel(registrationNumber)}`
     : 'Submitted';
 
   // No `data-magazine` attribute here — this component renders inside the
@@ -121,8 +122,7 @@ export function MagazineEntryReceived({
             color: INK,
           }}
         >
-          Your entry is{' '}
-          <span style={{ fontStyle: 'italic', color: GOLD_3 }}>submitted</span>.
+          Your entry is <span style={{ fontStyle: 'italic', color: GOLD_3 }}>submitted</span>.
         </h2>
 
         <p
@@ -230,7 +230,7 @@ export function MagazineEntryReceived({
               color: MUTE,
             }}
           >
-            {registrationNumber ? `Entry № ${registrationNumber}` : 'Fees due'}
+            {registrationNumber ? formatConfirmationNumberLabel(registrationNumber) : 'Fees due'}
           </span>
           <span
             style={{

@@ -45,6 +45,7 @@ import type { ConfirmationStepProps, DogClassDetails } from './ConfirmationStep.
 import { RegistrationManagementPanel } from './RegistrationManagementPanel';
 import { sendRegistrationConfirmationEmail } from './sendRegistrationConfirmationEmail';
 import { formatRingLabel } from '@/utils/ringLabel';
+import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
 
 export type { ConfirmationStepProps } from './ConfirmationStep.types';
 
@@ -316,7 +317,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
         <h2 className="text-2xl font-bold mb-2">{heroCopy.title}</h2>
         <p className="text-muted-foreground">{heroCopy.description}</p>
         <Badge variant="default" className="mt-3 text-lg py-1 px-4">
-          Confirmation #: {registrationNumber}
+          {formatConfirmationNumberLabel(registrationNumber)}
         </Badge>
       </div>
 

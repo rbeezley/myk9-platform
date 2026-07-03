@@ -17,6 +17,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Printer, X } from 'lucide-react';
+import { CONFIRMATION_NUMBER_LABEL } from '@/features/registration/confirmationNumberDisplay';
 
 interface EntryClass {
   id: string;
@@ -311,10 +312,10 @@ export function EntryReceipt({
             <p className="receipt-subtitle text-sm text-muted-foreground">myK9Show</p>
           </div>
 
-          {/* Confirmation Number */}
+          {/* Confirmation # */}
           <div className="confirmation-box bg-muted/50 rounded-lg p-4 mb-6 text-center">
             <div className="confirmation-label text-xs text-muted-foreground uppercase tracking-wider">
-              Confirmation Number
+              {CONFIRMATION_NUMBER_LABEL}
             </div>
             <div className="confirmation-number text-2xl font-bold font-mono">
               {entry.confirmationNumber}

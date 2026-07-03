@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { heritageColors, heritageOrnaments } from '@/features/heritage/tokens';
+import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -207,7 +208,7 @@ export function HeritageEntryReceived({
               color: QUILL,
             }}
           >
-            {registrationNumber ? `Entry #${registrationNumber}` : 'Fees due'}
+            {registrationNumber ? formatConfirmationNumberLabel(registrationNumber) : 'Fees due'}
           </span>
           <span
             style={{

@@ -276,9 +276,7 @@ describe('MyEntryCard result reveal prompt', () => {
           onEditClick={vi.fn()}
           onReceiptClick={vi.fn()}
           onResultRevealClick={onResultRevealClick}
-          seenResultReleaseKeys={
-            new Set(['entry-1:2026-09-14T20:00:00.000Z:qualified:1'])
-          }
+          seenResultReleaseKeys={new Set(['entry-1:2026-09-14T20:00:00.000Z:qualified:1'])}
         />
       </MemoryRouter>
     );
@@ -287,7 +285,9 @@ describe('MyEntryCard result reveal prompt', () => {
     const resultCardButton = screen.getByRole('button', { name: /Result card/i });
     expect(resultCardButton).toBeInTheDocument();
     resultCardButton.click();
-    expect(onResultRevealClick).toHaveBeenCalledWith(expect.objectContaining({ entryId: 'entry-1' }));
+    expect(onResultRevealClick).toHaveBeenCalledWith(
+      expect.objectContaining({ entryId: 'entry-1' })
+    );
   });
 
   it('does not show New result for non-qualifying results', () => {
@@ -497,26 +497,28 @@ describe('MyEntryCard scored result display', () => {
   });
 });
 
-describe('MyEntryCard registration number fallback (P1-04w-1)', () => {
-  it('shows "Pending" fallback for an active entry with no registration number', () => {
-    renderCard(makeEntry({ registrationNumber: undefined, entryStatus: EntryStatus.PENDING }));
-    expect(screen.getByText(/Registration #Pending/)).toBeInTheDocument();
+describe('MyEntryCard confirmation number fallback (P1-04w-1)', () => {
+  it('shows "Pending" fallback for an active entry with no confirmation number', () => {
+    renderCard(makeEntry({ confirmationNumber: undefined, entryStatus: EntryStatus.PENDING }));
+    expect(screen.getByText(/Confirmation # Pending/)).toBeInTheDocument();
   });
 
-  it('shows "—" fallback for a withdrawn entry with no registration number', () => {
-    renderCard(makeEntry({ registrationNumber: undefined, entryStatus: EntryStatus.CANCELLED }));
-    expect(screen.getByText(/Registration #—/)).toBeInTheDocument();
-    expect(screen.queryByText(/Registration #Pending/)).not.toBeInTheDocument();
+  it('shows "—" fallback for a withdrawn entry with no confirmation number', () => {
+    renderCard(makeEntry({ confirmationNumber: undefined, entryStatus: EntryStatus.CANCELLED }));
+    expect(screen.getByText(/Confirmation # —/)).toBeInTheDocument();
+    expect(screen.queryByText(/Confirmation # Pending/)).not.toBeInTheDocument();
   });
 
-  it('shows "—" fallback for a scratched entry with no registration number', () => {
-    renderCard(makeEntry({ registrationNumber: undefined, entryStatus: EntryStatus.SCRATCHED }));
-    expect(screen.getByText(/Registration #—/)).toBeInTheDocument();
+  it('shows "—" fallback for a scratched entry with no confirmation number', () => {
+    renderCard(makeEntry({ confirmationNumber: undefined, entryStatus: EntryStatus.SCRATCHED }));
+    expect(screen.getByText(/Confirmation # —/)).toBeInTheDocument();
   });
 
-  it('always shows the real registration number when present, regardless of status', () => {
-    renderCard(makeEntry({ registrationNumber: 'AKC-12345', entryStatus: EntryStatus.CANCELLED }));
-    expect(screen.getByText(/AKC-12345/)).toBeInTheDocument();
+  it('always shows the enrollment confirmation number when present, regardless of status', () => {
+    renderCard(makeEntry({ confirmationNumber: 'MK9-12345', entryStatus: EntryStatus.CANCELLED }));
+    expect(screen.getByText(/Confirmation # MK9-12345/)).toBeInTheDocument();
+    expect(screen.queryByText(/Registration #/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Entry #/)).not.toBeInTheDocument();
   });
 });
 
@@ -663,7 +665,7 @@ describe('MyEntryCard class detail display', () => {
   it('shows the dog armband before the dog name', () => {
     renderCard(makeEntry({ armband: '142' }));
 
-    const subtitle = screen.getByText(/Registration/).parentElement;
+    const subtitle = screen.getByText(/Confirmation #/).parentElement;
     expect(subtitle).not.toBeNull();
     expect(subtitle).toHaveTextContent('142');
     expect(subtitle).toHaveTextContent('Rex');

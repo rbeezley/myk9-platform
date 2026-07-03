@@ -53,7 +53,7 @@ function makeEntry(overrides: Partial<EntryManagementEntry> = {}): EntryManageme
 function makeGroup(overrides: Partial<EnrollmentGroup> = {}): EnrollmentGroup {
   return {
     enrollmentId: 'enroll-1',
-    confirmationNumber: 'CONF-123',
+    confirmationNumber: 'MK9-000123',
     handlerName: 'Jane Smith',
     paymentStatus: PaymentStatus.PAID_ONLINE,
     totalAmount: 5000,
@@ -83,7 +83,9 @@ describe('EnrollmentCard', () => {
 
   it('renders confirmation number', () => {
     render(<EnrollmentCard {...defaultProps} />);
-    expect(screen.getByText('#CONF-123')).toBeTruthy();
+    expect(screen.getByText('Confirmation # MK9-000123')).toBeTruthy();
+    expect(screen.queryByText(/Entry #/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Registration #/)).not.toBeInTheDocument();
   });
 
   it('formats cents total as dollars (5000 cents → $50.00)', () => {

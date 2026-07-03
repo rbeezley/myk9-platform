@@ -34,7 +34,7 @@ const BASE_PROPS = {
   dogCallName: 'Cooper',
   classSummary: 'Excellent · Containers, Interiors, Buried',
   totalFeesFormatted: '$69.00',
-  registrationNumber: 'BCKC-2026-0427',
+  registrationNumber: 'MK9-000427',
   confirmationDateLabel: '6 June 2026',
 };
 
@@ -81,9 +81,11 @@ describe('HeritageEntryReceived', () => {
     expect(screen.getByText('$69.00')).toBeTruthy();
   });
 
-  it('displays registration / receipt number', () => {
+  it('displays the enrollment confirmation number with the confirmation label', () => {
     render(<HeritageEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/BCKC-2026-0427/)).toBeTruthy();
+    expect(screen.getByText(/Confirmation # MK9-000427/)).toBeTruthy();
+    expect(screen.queryByText(/Entry #/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Registration #/)).not.toBeInTheDocument();
   });
 
   it('displays confirmation date caption', () => {

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen } from '@/test/utils/testUtils';
 import { describe, expect, it } from 'vitest';
 import { ArmbandBadge } from './ArmbandBadge';
 

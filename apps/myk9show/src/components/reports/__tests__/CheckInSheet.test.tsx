@@ -74,6 +74,11 @@ describe('CheckInSheet', () => {
     expect(screen.getByText('Novice A')).toBeInTheDocument();
   });
 
+  it('renders TBD when report data marks the class as unassigned', () => {
+    render(<CheckInSheet {...baseProps} trial={{ ...baseProps.trial!, judgeName: 'TBD' }} />);
+    expect(screen.getByText('TBD')).toBeInTheDocument();
+  });
+
   it('sorts entries by run order by default (runOrder=1 first)', () => {
     render(<CheckInSheet {...baseProps} />);
     const rows = screen.getAllByRole('row');

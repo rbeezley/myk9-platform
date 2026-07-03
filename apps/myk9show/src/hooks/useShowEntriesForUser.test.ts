@@ -217,6 +217,37 @@ describe('useShowEntriesForUser', () => {
     expect(entry.judgeName).toBe('Smith');
   });
 
+  it('uses the show judge assignment for the class before stale class judge text', () => {
+    setMocks({
+      classes: [makeClass({ judge: 'TBD' })],
+      shows: [
+        {
+          id: SHOW_ID,
+          clubId: 'club-1',
+          assignedJudges: [
+            {
+              judgeId: 'judge-1',
+              judgeName: 'Assigned Judge',
+              assignedDate: '2026-05-01',
+              assignedClasses: [CLASS_ID],
+            },
+          ],
+        },
+      ],
+    });
+
+    const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
+
+    expect(result.current.allEntries[0].judgeName).toBe('Assigned Judge');
+  });
+
+  it('keeps TBD only for genuinely unassigned classes', () => {
+    setMocks({ classes: [makeClass({ judge: 'TBD' })] });
+    const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
+
+    expect(result.current.allEntries[0].judgeName).toBe('TBD');
+  });
+
   it('hasResult is false when competitionData is absent', () => {
     setMocks();
     const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));

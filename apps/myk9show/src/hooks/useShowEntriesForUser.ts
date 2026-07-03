@@ -13,6 +13,7 @@ import { entryIsScored } from '@/utils/entryPredicates';
 import { hasScopedClubRole, hasScopedShowRole } from '@/utils/roleScopes';
 import { resolveMoveUpDisplay } from '@/hooks/moveUpDisplay';
 import { selectOwnedDogIds } from '@/utils/dogOwnership';
+import { resolveClassJudgeName } from '@/utils/classJudgeDisplay';
 import type { SyncableShowEntry } from '@/store/entry-store-types';
 import type { EntryStatus } from '@/types/entry-lifecycle';
 import type { EntryPaymentStatus } from '@/components/shows/tabs/entryResultDisplay';
@@ -107,7 +108,8 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
   const { shows } = useShowStoreCompat();
 
   const databaseUserId = userWithRoles?.databaseUserId;
-  const showClubId = shows.find(show => show.id === showId)?.clubId;
+  const currentShow = shows.find(show => show.id === showId);
+  const showClubId = currentShow?.clubId;
   const clubAdminCanSeeShow =
     hasRole(UserRole.CLUB_ADMIN) &&
     hasScopedClubRole(userWithRoles, UserRole.CLUB_ADMIN, showClubId);
@@ -210,7 +212,7 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
         dayLabel: trialDate ? formatDayLabel(trialDate) : '',
         trialName: cls.trial ?? '',
         startTime: cls.startTime ?? '',
-        judgeName: cls.judge ?? '',
+        judgeName: resolveClassJudgeName(cls, currentShow?.assignedJudges ?? []),
         dogsAhead,
         entryStatus: entry.status,
         paymentStatus: entry.registrationData.paymentStatus,
@@ -253,5 +255,15 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
       isLoading,
       isError: !!error,
     };
-  }, [showId, databaseUserId, canSeeAll, storeEntries, classes, dogs, isLoading, error]);
+  }, [
+    showId,
+    databaseUserId,
+    canSeeAll,
+    storeEntries,
+    classes,
+    dogs,
+    currentShow?.assignedJudges,
+    isLoading,
+    error,
+  ]);
 }

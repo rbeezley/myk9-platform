@@ -9,6 +9,7 @@ import type { Show } from '@/types/show-types';
 import { formatShowDateRange } from '@/lib/format/dates';
 import { buildTrialReportProps, mapReportEntries, mapReportTrialFields } from './reportDataMapping';
 import { getReportRenderingMode } from './reportRenderingMode';
+import { resolveClassJudgeName, resolveTrialJudgeName } from '@/utils/classJudgeDisplay';
 
 export interface ReportPreviewProps {
   reportType: string;
@@ -117,7 +118,7 @@ export function ReportPreview({
         .map(e => {
           const cls = filteredClasses.find(c => c.id === e.class_id);
           const trial = (trials ?? []).find(t => t.id === cls?.trial_id);
-          return mapReportEntries([e], trial, cls)[0];
+          return mapReportEntries([e], trial, cls, show.assignedJudges ?? [])[0];
         });
 
       const allTrials = (trials ?? [])
@@ -125,7 +126,10 @@ export function ReportPreview({
         .map(t => ({
           id: t.id,
           ...mapReportTrialFields(t),
-          judgeName: ((t as Record<string, unknown>).judge_name as string) ?? undefined,
+          judgeName: resolveTrialJudgeName(
+            filteredClasses.filter(c => c.trial_id === t.id),
+            show.assignedJudges ?? []
+          ),
         }));
 
       const allClasses = filteredClasses.map(c => ({
@@ -134,7 +138,7 @@ export function ReportPreview({
         element: c.element ?? '',
         level: c.level ?? '',
         section: c.section ?? '',
-        judgeName: ((c as Record<string, unknown>).judge_name as string) ?? undefined,
+        judgeName: resolveClassJudgeName(c, show.assignedJudges ?? []),
       }));
 
       const showDates = formatShowDateRange(show.startDate, show.endDate) || undefined;
@@ -185,7 +189,7 @@ export function ReportPreview({
             showName: show.name ?? '',
             trial: {
               ...mapReportTrialFields(trial),
-              judgeName: ((classData as Record<string, unknown>).judge_name as string) ?? 'TBD',
+              judgeName: resolveClassJudgeName(classData, show.assignedJudges ?? []),
             },
             classData: {
               element: classData.element ?? '',
@@ -198,7 +202,7 @@ export function ReportPreview({
                 ? String(classData.distraction_count)
                 : null,
             },
-            entries: mapReportEntries(pageEntries, trial, classData),
+            entries: mapReportEntries(pageEntries, trial, classData, show.assignedJudges ?? []),
             sortOrder,
             organization: show.organization ?? undefined,
           };

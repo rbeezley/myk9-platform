@@ -80,6 +80,46 @@ const entries = [
 ] as unknown as DbEntry[];
 
 describe('ReportPreview', () => {
+  it('renders assignment-backed class judges in check-in sheet previews', async () => {
+    const assignmentClasses = [
+      {
+        ...classes[0],
+        judge_name: null,
+        judge_assignments: [
+          {
+            person_id: 'judge-1',
+            people: { first_name: 'Assigned', last_name: 'Judge' },
+          },
+        ],
+      },
+    ] as unknown as DbClass[];
+
+    render(
+      <ReportPreview
+        reportType="check-in-sheet"
+        show={show}
+        trials={trials}
+        classes={assignmentClasses}
+        entries={[entries[0]!]}
+        trialId="trial-1"
+        classId="class-1"
+        dogId="all"
+        sortOrder="run-order"
+        isLoading={false}
+        isError={false}
+      />
+    );
+
+    const iframe = screen.getByTitle('Report Preview') as HTMLIFrameElement;
+
+    await waitFor(() => {
+      const text = iframe.contentDocument?.body.textContent ?? '';
+      expect(text).toContain('Assigned Judge');
+      expect(text).not.toContain('Judge One');
+      expect(text).not.toContain('Judge: TBD');
+    });
+  });
+
   it('honors class scope for result catalog deep links', async () => {
     render(
       <ReportPreview

@@ -1,16 +1,19 @@
 import { mapDbEntryToReportEntry } from '@/lib/reports/reportUtils';
 import { resolveClassSection } from '@/services/entryDisplay/entryDisplaySelectors';
 import { REPORT_ENTRY_SOURCE } from '@/lib/reports/types';
+import { resolveClassJudgeName, resolveTrialJudgeName } from '@/utils/classJudgeDisplay';
 import type { ReportEntry, ReportProps } from '@/lib/reports/types';
 import type { DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
+import type { ShowJudgeAssignment } from '@/types/judge-types';
 
 export function mapReportEntries(
   dbEntries: DbEntry[],
   trial?: DbTrial,
-  classData?: DbClass
+  classData?: DbClass,
+  assignedJudges: ReadonlyArray<ShowJudgeAssignment> = []
 ): ReportEntry[] {
-  return dbEntries.map(e => mapReportEntry(e, trial, classData));
+  return dbEntries.map(e => mapReportEntry(e, trial, classData, assignedJudges));
 }
 
 /**
@@ -33,7 +36,8 @@ export function mapScopedReportEntries(
   trials: DbTrial[],
   classes: DbClass[],
   trialId: string,
-  classId: string
+  classId: string,
+  assignedJudges: ReadonlyArray<ShowJudgeAssignment> = []
 ): ReportEntry[] {
   const classById = new Map(classes.map(c => [c.id, c] as const));
   const trialById = new Map(trials.map(t => [t.id, t] as const));
@@ -41,13 +45,13 @@ export function mapScopedReportEntries(
   const enrichByEntryClass = (e: DbEntry): ReportEntry => {
     const cls = e.class_id != null ? classById.get(e.class_id) : undefined;
     const trial = cls?.trial_id != null ? trialById.get(cls.trial_id) : undefined;
-    return mapReportEntry(e, trial, cls);
+    return mapReportEntry(e, trial, cls, assignedJudges);
   };
 
   if (classId !== 'all') {
     const cls = classById.get(classId);
     const trial = cls?.trial_id != null ? trialById.get(cls.trial_id) : undefined;
-    return dbEntries.map(e => mapReportEntry(e, trial, cls));
+    return dbEntries.map(e => mapReportEntry(e, trial, cls, assignedJudges));
   }
 
   if (trialId !== 'all') {
@@ -60,7 +64,12 @@ export function mapScopedReportEntries(
   return dbEntries.map(enrichByEntryClass);
 }
 
-function mapReportEntry(e: DbEntry, trial?: DbTrial, classData?: DbClass): ReportEntry {
+function mapReportEntry(
+  e: DbEntry,
+  trial?: DbTrial,
+  classData?: DbClass,
+  assignedJudges: ReadonlyArray<ShowJudgeAssignment> = []
+): ReportEntry {
   const dog = (e as Record<string, unknown>).dog as Record<string, unknown> | null;
   const owner = dog?.owner as Record<string, unknown> | null;
   const handlerName = owner ? `${owner.first_name ?? ''} ${owner.last_name ?? ''}`.trim() : '';
@@ -106,7 +115,7 @@ function mapReportEntry(e: DbEntry, trial?: DbTrial, classData?: DbClass): Repor
           classElement: classData.element ?? '',
           classLevel: classData.level ?? '',
           classSection: resolveClassSection(classData.section),
-          ...(classData.judge_name ? { judgeName: classData.judge_name } : {}),
+          judgeName: resolveClassJudgeName(classData, assignedJudges),
         }
       : {}),
   };
@@ -153,7 +162,7 @@ export function buildTrialReportProps(input: {
     element: c.element ?? '',
     level: c.level ?? '',
     section: resolveClassSection(c.section),
-    ...(c.judge_name ? { judgeName: c.judge_name } : {}),
+    judgeName: resolveClassJudgeName(c, show.assignedJudges ?? []),
   }));
 
   return targetTrials.map(trial => {
@@ -161,16 +170,15 @@ export function buildTrialReportProps(input: {
     const trialEntries = (entries ?? []).filter(e => trialClasses.some(c => c.id === e.class_id));
     const enriched = trialEntries.map(e => {
       const cls = trialClasses.find(c => c.id === e.class_id);
-      return mapReportEntry(e, trial, cls);
+      return mapReportEntry(e, trial, cls, show.assignedJudges ?? []);
     });
-    const firstClassJudge = trialClasses[0]?.judge_name ?? 'TBD';
 
     return {
       showId: show.id,
       showName: show.name ?? '',
       trial: {
         ...mapReportTrialFields(trial),
-        judgeName: firstClassJudge,
+        judgeName: resolveTrialJudgeName(trialClasses, show.assignedJudges ?? []),
       },
       allClasses: allClasses.filter(c => c.trialId === trial.id),
       entries: enriched,

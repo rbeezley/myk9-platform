@@ -86,6 +86,86 @@ describe('buildTrialReportProps', () => {
       ],
     });
   });
+
+  it('uses assignment-shaped class judge data before legacy judge_name', () => {
+    const assignmentBackedClass = {
+      ...classData,
+      judge_name: 'Legacy Judge',
+      judge_assignments: [
+        {
+          person_id: 'judge-1',
+          people: { first_name: 'Assigned', last_name: 'Judge' },
+        },
+      ],
+    } as unknown as DbClass;
+
+    const [props] = buildTrialReportProps({
+      show,
+      trials: [trial],
+      classes: [assignmentBackedClass],
+      entries: [entry],
+      trialId: 'trial-1',
+      sortOrder: '',
+    });
+
+    expect(props.trial?.judgeName).toBe('Assigned Judge');
+    expect(props.entries[0]?.judgeName).toBe('Assigned Judge');
+    expect(props.allClasses?.[0]?.judgeName).toBe('Assigned Judge');
+  });
+
+  it('keeps legacy judge_name fixtures displayable', () => {
+    const [props] = buildTrialReportProps({
+      show,
+      trials: [trial],
+      classes: [classData],
+      entries: [entry],
+      trialId: 'trial-1',
+      sortOrder: '',
+    });
+
+    expect(props.trial?.judgeName).toBe('Pat Judge');
+    expect(props.entries[0]?.judgeName).toBe('Pat Judge');
+  });
+
+  it('renders TBD only when the class is genuinely unassigned', () => {
+    const unassignedClass = {
+      ...classData,
+      judge_name: null,
+      judge_assignments: [],
+    } as unknown as DbClass;
+
+    const [props] = buildTrialReportProps({
+      show,
+      trials: [trial],
+      classes: [unassignedClass],
+      entries: [entry],
+      trialId: 'trial-1',
+      sortOrder: '',
+    });
+
+    expect(props.trial?.judgeName).toBe('TBD');
+    expect(props.entries[0]?.judgeName).toBe('TBD');
+  });
+
+  it('does not silently use the first class judge for mixed-judge trial headers', () => {
+    const secondClass = {
+      ...classData,
+      id: 'class-2',
+      judge_name: 'Second Judge',
+    } as DbClass;
+
+    const [props] = buildTrialReportProps({
+      show,
+      trials: [trial],
+      classes: [classData, secondClass],
+      entries: [entry],
+      trialId: 'trial-1',
+      sortOrder: '',
+    });
+
+    expect(props.trial?.judgeName).toBe('Multiple judges');
+    expect(props.allClasses?.map(c => c.judgeName)).toEqual(['Pat Judge', 'Second Judge']);
+  });
 });
 
 describe('mapScopedReportEntries', () => {

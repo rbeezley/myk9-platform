@@ -6,6 +6,18 @@ Active work items only. Resolved historical context lives in git history and dat
 
 ---
 
+## Launch Priority Focus — 2026-07-03
+
+High-judgment work to prioritize while strong-model access is available. These are umbrella tracking items; execute through the linked plan/audit docs and keep one small PR per concrete slice.
+
+- [ ] **Run a full-scope security audit before launch** — Focus on RLS, anon passcode sessions, edge functions, Stripe/webhook flows, AskQ/AI scoping, and cross-tenant data exposure. Start from the `security-audit` skill and reconcile findings against [`docs/improve-audit-2026-07/README.md`](docs/improve-audit-2026-07/README.md), [`docs/security-review-2026-06-24-ringside-passcode-phase-c.md`](docs/security-review-2026-06-24-ringside-passcode-phase-c.md), and the current launch-readiness scorecard. Any confirmed P0/P1 gets its own assertion-first fix plan with focused tests before implementation.
+- [ ] **Execute/review the July bug-audit criticals** — Work through [`docs/improve-audit-2026-07/README.md`](docs/improve-audit-2026-07/README.md) in priority order: 001 AskQ cross-tenant scope leak (DONE only after deployed), 002 move-up write-order corruption, 004 checkout spinner polish when convenient, and 005 replication investigation. Use the handoff rules in [`docs/improve-audit-2026-07/EXECUTION-HANDOFF.md`](docs/improve-audit-2026-07/EXECUTION-HANDOFF.md): assertion-first tests, drift checks, one PR per plan, and strong-model review for offline/security-sensitive changes.
+- [ ] **Investigate replication/read-path reliability for show-day trust** — Run Plan 005, [`docs/improve-audit-2026-07/005-replication-occ-watermark-spike.md`](docs/improve-audit-2026-07/005-replication-occ-watermark-spike.md), and fold in the July UI-matrix Criticals S1/S2 from [`docs/audits/2026-07-01-ui-verification-matrix.md`](docs/audits/2026-07-01-ui-verification-matrix.md): cold-sync false empty/error states and entries read timeouts/raw vendor toasts. Outcome should be a findings doc plus follow-up plans/tests for any confirmed bug; do not treat the already-fixed stale OCC-token root cause as still open.
+- [ ] **Close out the money path and live-mode readiness** — Finish withdrawal/refund Phase 4 from [`docs/plan-refund-policy-withdrawal.md`](docs/plan-refund-policy-withdrawal.md), push the pending withdrawal-policy migrations only with explicit confirmation, redeploy affected Stripe functions after schema is live, and complete the Stripe go-live tasks in the Payments & Email section below. Red-team pay → refund → payout for idempotency, partial failures, mode-scoped IDs, and secretary-facing recovery states.
+- [ ] **Author one ordered, gated go-live runbook** — Consolidate deploys, migrations, Stripe live-mode steps, CI-gated Vercel activation, passcode verification, judge directory preload, support/rollback actions, kill-switch posture, and final real-user testing into one launch-day checklist. Include explicit gates, owners, rollback criteria, and verification commands; this should become the human-executable launch document rather than another scattered checklist.
+
+---
+
 ## QA Program — execution order — 2026-06-12
 
 Four steps toward the fall launch, in dependency order. Detailed phase checklists live in the sections below; this list is the master sequence.

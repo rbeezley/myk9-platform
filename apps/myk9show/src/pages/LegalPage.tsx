@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { sanitizeHTML } from '@/utils/sanitization';
 
 interface LegalPageProps {
   title: string;
@@ -24,7 +25,7 @@ const LegalPage: React.FC<LegalPageProps> = ({ title, markdownPath }) => {
         return res.text();
       })
       .then(md => {
-        setHtml(markdownToHtml(md));
+        setHtml(sanitizeHTML(markdownToHtml(md), 'richText'));
         setLoading(false);
       })
       .catch(err => {
@@ -193,7 +194,13 @@ function inlineFormat(text: string): string {
   // Inline code
   text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
   // Links [text](url)
-  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, label: string, url: string) => {
+    const trimmedUrl = url.trim();
+    if (!/^https?:\/\//i.test(trimmedUrl)) {
+      return label;
+    }
+    return `<a href="${trimmedUrl}">${label}</a>`;
+  });
   return text;
 }
 

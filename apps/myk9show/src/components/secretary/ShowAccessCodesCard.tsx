@@ -16,6 +16,8 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { notifications } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
+import { escapeHtml } from '@/utils/escapeHtml';
+import { friendlyDbError } from '@/utils/friendlyDbError';
 
 interface ShowAccessCodesCardProps {
   showId: string;
@@ -100,7 +102,7 @@ export function ShowAccessCodesCard({
       )('regenerate_show_passcodes', { p_show_id: showId });
 
       if (error || !data || data.length === 0) {
-        notifications.error(error?.message ?? 'Could not generate new codes. Please try again.');
+        notifications.error(friendlyDbError(error, 'Could not generate new codes. Please try again.'));
         return;
       }
 
@@ -122,10 +124,14 @@ export function ShowAccessCodesCard({
     const svgMarkup = qrContainerRef.current?.innerHTML ?? '';
     const win = window.open('', '_blank', 'width=400,height=600');
     if (!win) return;
+    const titleShowName = escapeHtml(showName ?? 'Show');
+    const printedShowName = escapeHtml(showName ?? 'Dog Show');
+    const printedShowDate = showDate ? escapeHtml(showDate) : '';
+    const printedExhibitorCode = escapeHtml(exhibitorCode);
     win.document.write(`<!DOCTYPE html>
 <html>
 <head>
-  <title>Show Access: ${showName ?? 'Show'}</title>
+  <title>Show Access: ${titleShowName}</title>
   <style>
     body{font-family:sans-serif;display:flex;justify-content:center;padding:32px}
     .slip{border:2px dashed #ccc;border-radius:12px;padding:24px;width:280px;text-align:center}
@@ -139,10 +145,10 @@ export function ShowAccessCodesCard({
 </head>
 <body>
   <div class="slip">
-    <div class="show-name">${showName ?? 'Dog Show'}</div>
-    ${showDate ? `<div class="show-date">${showDate}</div>` : ''}
+    <div class="show-name">${printedShowName}</div>
+    ${printedShowDate ? `<div class="show-date">${printedShowDate}</div>` : ''}
     <div class="qr">${svgMarkup}</div>
-    <div class="code">${exhibitorCode}</div>
+    <div class="code">${printedExhibitorCode}</div>
     <div class="url">myk9show.com/at-show</div>
   </div>
 </body>

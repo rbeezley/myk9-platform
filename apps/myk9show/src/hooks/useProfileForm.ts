@@ -6,6 +6,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { notifications, actionNotifications } from '@/lib/notifications';
 import { supabase } from '@/services/database/supabaseClient';
 import { queryKeys } from '@/lib/queryClient';
+import { friendlyDbError } from '@/utils/friendlyDbError';
 
 export interface ProfileFormValues {
   firstName: string;
@@ -131,7 +132,7 @@ export function useProfileForm() {
       });
       actionNotifications.updated('Profile', `${values.firstName} ${values.lastName}`);
     } catch (err) {
-      notifications.error(err instanceof Error ? err.message : 'Failed to update profile.');
+      notifications.error(friendlyDbError(err, 'Failed to update profile.'));
     } finally {
       setSaving(false);
     }

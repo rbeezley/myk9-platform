@@ -283,6 +283,6 @@ describe('useProfileForm', () => {
       await result.current.save();
     });
 
-    expect(notifications.error).toHaveBeenCalledWith('Network error');
+    expect(notifications.error).toHaveBeenCalledWith('Failed to update profile.');
   });
 });

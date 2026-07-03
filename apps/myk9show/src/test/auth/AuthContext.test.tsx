@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { renderHook } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -84,6 +84,7 @@ describe('AuthContext', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -244,6 +245,53 @@ describe('AuthContext', () => {
         expect(screen.getByTestId('rbac-loading')).toHaveTextContent('false');
         expect(screen.getByTestId('rbac-error')).toHaveTextContent('none');
         expect(screen.getByTestId('db-permissions')).toHaveTextContent('show:view');
+      });
+    });
+
+    it('refreshes RBAC roles on the live-session poll interval', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      mockRbacService.getUserPermissions
+        .mockResolvedValueOnce({
+          roles: [
+            {
+              role_id: 'role-secretary',
+              role: { name: UserRole.SECRETARY, display_name: 'Secretary' },
+              is_active: true,
+            },
+          ],
+          permissions: [],
+          effectivePermissions: [PERMISSIONS.SHOW_MANAGE],
+        })
+        .mockResolvedValueOnce({
+          roles: [
+            {
+              role_id: 'role-exhibitor',
+              role: { name: UserRole.EXHIBITOR, display_name: 'Exhibitor' },
+              is_active: true,
+            },
+          ],
+          permissions: [],
+          effectivePermissions: [PERMISSIONS.DOG_CREATE],
+        });
+
+      const TestComponent = () => {
+        const auth = useAuthContext();
+        return <span data-testid="user-roles">{auth.userWithRoles?.roles.join(', ')}</span>;
+      };
+
+      renderWithAuthProvider(<TestComponent />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('user-roles')).toHaveTextContent(UserRole.SECRETARY);
+      });
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60_000);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('user-roles')).toHaveTextContent(UserRole.EXHIBITOR);
+        expect(screen.getByTestId('user-roles')).not.toHaveTextContent(UserRole.SECRETARY);
       });
     });
   });

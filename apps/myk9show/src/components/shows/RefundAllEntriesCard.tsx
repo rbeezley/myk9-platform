@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/lib/supabase';
 import { useShowRefundAll, type ShowRefundAllResult } from '@/features/payments/useShowRefundAll';
+import { friendlyDbError } from '@/utils/friendlyDbError';
 
 // INTENT: A bulk make-whole refund is a SHOW-CANCELLATION action and irreversible
 // money movement. It is deliberately TWO steps — mark the show cancelled, THEN
@@ -72,7 +73,7 @@ function useMarkShowCancelled(showId: string) {
       qc.invalidateQueries({ queryKey: ['show-status', showId] });
       toast.success('Show marked cancelled. You can now refund all entries.');
     },
-    onError: err => toast.error(err instanceof Error ? err.message : 'Could not cancel the show'),
+    onError: err => toast.error(friendlyDbError(err, 'Could not cancel the show. Please try again.')),
   });
 }
 
@@ -106,7 +107,7 @@ export function RefundAllEntriesCard({ showId }: RefundAllEntriesCardProps) {
           toast.success(`Refunded ${entriesRefunded} ${noun(entriesRefunded)} in full.`);
         }
       },
-      onError: err => toast.error(err.message),
+      onError: err => toast.error(friendlyDbError(err, 'Could not refund entries. Please try again.')),
     });
   };
 

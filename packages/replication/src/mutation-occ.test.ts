@@ -88,6 +88,22 @@ describe('classifyEmptyUpdateResult', () => {
     expect(result.message).toBe('OCC rejection: entries/entry-1 (expected server version 7)');
   });
 
+  it('returns an RLS/auth error when the server re-check itself fails', () => {
+    const result = classifyEmptyUpdateResult({
+      tableName: 'entries',
+      rowId: 'entry-1',
+      serverVersion: 7,
+      serverCheck: null,
+      serverCheckError: { code: '42501', message: 'permission denied' },
+    });
+
+    expect(result).toBeInstanceOf(Error);
+    expect(result).not.toBeInstanceOf(OccRejectionError);
+    expect(result.message).toBe(
+      'RLS policy blocked UPDATE on entries for row entry-1. Check that the authenticated user has the required role.'
+    );
+  });
+
   it('returns the current RLS error when the version is unchanged', () => {
     const result = classifyEmptyUpdateResult({
       tableName: 'entries',

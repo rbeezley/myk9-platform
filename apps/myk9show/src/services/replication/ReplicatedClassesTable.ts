@@ -307,6 +307,10 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     };
   }
 
+  protected override rebuildUpdatePayload(cls: ReplicatedClass): Record<string, unknown> {
+    return this.toSupabaseRow(cls);
+  }
+
   async sync(licenseKey: string): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
@@ -366,6 +370,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
         selfCheckinEnabled: remote._selfCheckinEnabled,
         visibilityPreset: remote._visibilityPreset,
       }),
+      rebuildUpdatePayload: cls => this.toSupabaseRow(cls),
       filterLocalRows: (rows, scope) =>
         scope.value ? rows.filter(r => r.trialId === scope.value) : rows,
       resolveConflict: (local, remote) => this.resolveConflict(local, remote),

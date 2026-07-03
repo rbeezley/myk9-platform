@@ -119,6 +119,10 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     };
   }
 
+  protected override rebuildUpdatePayload(entry: ReplicatedEntry): Record<string, unknown> {
+    return this.toSupabaseRow(entry);
+  }
+
   async sync(licenseKey: string): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 

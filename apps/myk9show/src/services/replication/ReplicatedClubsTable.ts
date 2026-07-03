@@ -136,6 +136,10 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
     };
   }
 
+  protected override rebuildUpdatePayload(club: ReplicatedClub): Record<string, unknown> {
+    return this.toSupabaseRow(club);
+  }
+
   /**
    * Sync clubs from Supabase.
    * Note: clubs have no license_key scope — all clubs are visible.
@@ -161,6 +165,7 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
       getRemoteId: remote => String(remote.id),
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
       toLocalRow: rowToClub,
+      rebuildUpdatePayload: club => this.toSupabaseRow(club),
       resolveConflict: (_local, remote) => remote,
     };
 

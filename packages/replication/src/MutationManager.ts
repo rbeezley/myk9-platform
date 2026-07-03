@@ -775,10 +775,11 @@ export class MutationManager {
         if (error) throw error;
         if (!rows || rows.length === 0) {
           let serverCheck: { version?: number } | null | undefined;
+          let serverCheckError: unknown;
           if (mutation.serverVersion !== undefined) {
             // Disambiguate: OCC rejection (version advanced) vs RLS denial (version unchanged)
             // vs row deleted. One bounded re-check avoids silent permanent queue stall.
-            const { data: check } = await withTimeout(
+            const { data: check, error: checkError } = await withTimeout(
               this.supabase
                 .from(tableName)
                 .select('version')
@@ -788,12 +789,14 @@ export class MutationManager {
               `${tableName} occ-check`
             );
             serverCheck = check as { version?: number } | null | undefined;
+            serverCheckError = checkError;
           }
           throw classifyEmptyUpdateResult({
             tableName,
             rowId: mutation.rowId,
             serverVersion: mutation.serverVersion,
             serverCheck,
+            serverCheckError,
           });
         }
         const newServerVersion = getReturnedServerVersion(rows as Array<{ version?: number }>);

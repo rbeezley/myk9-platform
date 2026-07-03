@@ -618,14 +618,9 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         cancel: {
           label: 'Keep mine',
           onClick: () => {
-            // Clear the conflict snapshot (reads remoteServerVersion from IDB snapshot)
-            // then update queued mutation(s) with the correct OCC precondition.
+            // Clear the conflict snapshot and let the table refresh queued
+            // mutation OCC state from the resolved row.
             void anyTable?.resolveReplicationConflict(detail.rowId, 'keep-local');
-            void mutationManager.updateMutationServerVersions(
-              detail.tableName,
-              detail.rowId,
-              detail.remoteServerVersion
-            );
             toast.dismiss(conflictId);
           },
         },

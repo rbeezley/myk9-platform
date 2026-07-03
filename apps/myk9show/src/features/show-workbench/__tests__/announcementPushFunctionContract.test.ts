@@ -20,6 +20,18 @@ const sendPushNotificationPath = resolve(
   testDir,
   '../../../../../../supabase/functions/send-push-notification/index.ts'
 );
+const classStatusTriggerPath = resolve(
+  testDir,
+  '../../../../../../supabase/functions/push-trigger-class-status/index.ts'
+);
+const scoringTriggerPath = resolve(
+  testDir,
+  '../../../../../../supabase/functions/push-trigger-scoring/index.ts'
+);
+const classAndScoringVaultMigrationPath = resolve(
+  testDir,
+  '../../../../../../supabase/migrations/20260703122000_push_trigger_webhook_secret.sql'
+);
 
 describe('push-trigger-announcement function contract', () => {
   it('authenticates the webhook against the dedicated PUSH_WEBHOOK_SECRET bearer', () => {
@@ -126,5 +138,42 @@ describe('send-push-notification subscription columns', () => {
     expect(source).toContain('keys: { p256dh: sub.p256dh, auth: sub.auth }');
     expect(source).not.toContain("'endpoint, keys'");
     expect(source).not.toContain('keys: sub.keys');
+  });
+});
+
+describe('class-status and scoring push audience contracts', () => {
+  it('does not reference a nonexistent entries.user_id column in the DB trigger', () => {
+    const sql = readFileSync(classAndScoringVaultMigrationPath, 'utf8');
+
+    expect(sql).not.toContain('new.user_id');
+    expect(sql).not.toContain("'user_id', new.user_id");
+    expect(sql).toContain("'handler_id', new.handler_id");
+  });
+
+  it('resolves scoring recipients from owner, co-owner, and handler auth links', () => {
+    const source = readFileSync(scoringTriggerPath, 'utf8');
+
+    expect(source).toContain('owner:people!owner_id(auth_user_id)');
+    expect(source).toContain('co_owner:people!co_owner_id(auth_user_id)');
+    expect(source).toContain('handler:people!handler_id(auth_user_id)');
+    expect(source).toContain('entry?.dog?.owner?.auth_user_id');
+    expect(source).toContain('entry?.dog?.co_owner?.auth_user_id');
+    expect(source).toContain('entry?.handler?.auth_user_id');
+    expect(source).not.toContain('body.record.user_id');
+  });
+
+  it('resolves class-start recipients from owner, co-owner, and handler auth links', () => {
+    const source = readFileSync(classStatusTriggerPath, 'utf8');
+
+    expect(source).toContain('owner:people!owner_id(auth_user_id)');
+    expect(source).toContain('co_owner:people!co_owner_id(auth_user_id)');
+    expect(source).toContain('handler:people!handler_id(auth_user_id)');
+    expect(source).toContain('entry.dog?.owner?.auth_user_id');
+    expect(source).toContain('entry.dog?.co_owner?.auth_user_id');
+    expect(source).toContain('entry.handler?.auth_user_id');
+    expect(source).toContain(".not('entry_status', 'in', '(\"withdrawn\",\"scratched\",\"absent\")')");
+    expect(source).toContain(".not('check_in_status', 'eq', 'pulled')");
+    expect(source).not.toContain(".select('user_id')");
+    expect(source).not.toContain(".not('entry_status', 'eq', 'pulled')");
   });
 });

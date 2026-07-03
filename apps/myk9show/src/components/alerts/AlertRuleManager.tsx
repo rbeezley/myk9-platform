@@ -356,7 +356,12 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
                   </div>
 
                   <div className="flex items-center space-x-2">
-                    <Button variant="ghost" size="sm" onClick={() => handleToggleRule(rule)}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleToggleRule(rule)}
+                      aria-label={`${rule.enabled ? 'Disable' : 'Enable'} alert rule ${rule.name}`}
+                    >
                       {rule.enabled ? (
                         <ToggleRight className="h-4 w-4 text-green-600" />
                       ) : (
@@ -366,7 +371,7 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
 
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild nativeButton>
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" aria-label={`Actions for ${rule.name}`}>
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -624,6 +629,7 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
                           variant="ghost"
                           size="sm"
                           onClick={() => removeThreshold(index)}
+                          aria-label={`Remove threshold ${index + 1}`}
                         >
                           <X className="h-4 w-4" />
                         </Button>

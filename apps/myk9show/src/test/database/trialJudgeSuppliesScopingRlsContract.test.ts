@@ -23,16 +23,16 @@ describe('trial_judge_supplies scoping RLS contract (SA-007)', () => {
     }
   });
 
-  it('recreates all four policies with the trials-joined can_manage_show predicate', () => {
+  it('recreates all four policies with the RLS-independent can_manage_trial predicate', () => {
     for (const cmd of POLICIES) {
       expect(migration).toContain(
         `CREATE POLICY "trial_judge_supplies_${cmd}" ON public.trial_judge_supplies`
       );
     }
-    // the scoping join appears once per policy (4 total)
-    const joinCount = migration.split('FROM public.trials t').length - 1;
-    expect(joinCount).toBe(4);
-    expect(migration).toContain('public.can_manage_show(t.show_id)');
+    // the scoping predicate appears once per policy (4 total)
+    const scopeCount =
+      migration.split('public.can_manage_trial(trial_judge_supplies.trial_id)').length - 1;
+    expect(scopeCount).toBe(4);
     expect(migration).toContain('public.is_site_admin()');
   });
 

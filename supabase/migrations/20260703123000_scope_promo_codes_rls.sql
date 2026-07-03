@@ -30,11 +30,7 @@ CREATE POLICY "promo_codes_insert_policy" ON public.promo_codes
     )
     OR (
       promo_codes.trial_id IS NOT NULL
-      AND EXISTS (
-        SELECT 1 FROM public.trials t
-        WHERE t.id = promo_codes.trial_id
-          AND (SELECT public.can_manage_show(t.show_id))
-      )
+      AND (SELECT public.can_manage_trial(promo_codes.trial_id))
     )
   );
 
@@ -50,11 +46,7 @@ CREATE POLICY "promo_codes_select_policy" ON public.promo_codes
     )
     OR (
       promo_codes.trial_id IS NOT NULL
-      AND EXISTS (
-        SELECT 1 FROM public.trials t
-        WHERE t.id = promo_codes.trial_id
-          AND (SELECT public.can_manage_show(t.show_id))
-      )
+      AND (SELECT public.can_manage_trial(promo_codes.trial_id))
     )
   );
 

@@ -21,11 +21,7 @@ CREATE POLICY "trial_judge_supplies_select" ON public.trial_judge_supplies
   FOR SELECT TO authenticated
   USING (
     (SELECT public.is_site_admin())
-    OR EXISTS (
-      SELECT 1 FROM public.trials t
-      WHERE t.id = trial_judge_supplies.trial_id
-        AND (SELECT public.can_manage_show(t.show_id))
-    )
+    OR (SELECT public.can_manage_trial(trial_judge_supplies.trial_id))
   );
 
 -- INSERT: only show managers or platform admins
@@ -34,11 +30,7 @@ CREATE POLICY "trial_judge_supplies_insert" ON public.trial_judge_supplies
   FOR INSERT TO authenticated
   WITH CHECK (
     (SELECT public.is_site_admin())
-    OR EXISTS (
-      SELECT 1 FROM public.trials t
-      WHERE t.id = trial_judge_supplies.trial_id
-        AND (SELECT public.can_manage_show(t.show_id))
-    )
+    OR (SELECT public.can_manage_trial(trial_judge_supplies.trial_id))
   );
 
 -- UPDATE: only show managers or platform admins
@@ -47,11 +39,7 @@ CREATE POLICY "trial_judge_supplies_update" ON public.trial_judge_supplies
   FOR UPDATE TO authenticated
   USING (
     (SELECT public.is_site_admin())
-    OR EXISTS (
-      SELECT 1 FROM public.trials t
-      WHERE t.id = trial_judge_supplies.trial_id
-        AND (SELECT public.can_manage_show(t.show_id))
-    )
+    OR (SELECT public.can_manage_trial(trial_judge_supplies.trial_id))
   );
 
 -- DELETE: only show managers or platform admins
@@ -60,11 +48,7 @@ CREATE POLICY "trial_judge_supplies_delete" ON public.trial_judge_supplies
   FOR DELETE TO authenticated
   USING (
     (SELECT public.is_site_admin())
-    OR EXISTS (
-      SELECT 1 FROM public.trials t
-      WHERE t.id = trial_judge_supplies.trial_id
-        AND (SELECT public.can_manage_show(t.show_id))
-    )
+    OR (SELECT public.can_manage_trial(trial_judge_supplies.trial_id))
   );
 
 NOTIFY pgrst, 'reload schema';

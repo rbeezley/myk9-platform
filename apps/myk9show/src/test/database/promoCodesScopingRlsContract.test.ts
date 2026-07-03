@@ -32,10 +32,9 @@ describe('promo_codes scoping RLS contract (SA-002)', () => {
       'CREATE POLICY "promo_codes_insert_policy"',
       'CREATE POLICY "promo_codes_select_policy"'
     );
-    // dual scope key: show_id direct OR trial_id -> trials.show_id
+    // dual scope key: show_id direct OR trial_id (RLS-independent can_manage_trial)
     expect(insertPolicy).toContain('public.can_manage_show(promo_codes.show_id)');
-    expect(insertPolicy).toContain('FROM public.trials t');
-    expect(insertPolicy).toContain('public.can_manage_show(t.show_id)');
+    expect(insertPolicy).toContain('public.can_manage_trial(promo_codes.trial_id)');
     expect(insertPolicy).toContain('public.is_site_admin()');
     // the old permissive predicates must be gone from the INSERT policy
     expect(insertPolicy).not.toContain('created_by = auth.uid()');
@@ -49,7 +48,7 @@ describe('promo_codes scoping RLS contract (SA-002)', () => {
       'Validate-only RPC'
     );
     expect(selectPolicy).toContain('public.can_manage_show(promo_codes.show_id)');
-    expect(selectPolicy).toContain('public.can_manage_show(t.show_id)');
+    expect(selectPolicy).toContain('public.can_manage_trial(promo_codes.trial_id)');
     expect(selectPolicy).not.toContain('auth.uid() IS NOT NULL');
   });
 

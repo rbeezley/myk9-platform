@@ -4,6 +4,21 @@ import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import type { DbPromoCode } from '@/types/database-mappings';
 import type { PromoCodeValidationResult } from '@/types/promo-codes';
 
+type ValidatedPromoCode = Pick<
+  DbPromoCode,
+  | 'id'
+  | 'show_id'
+  | 'trial_id'
+  | 'code'
+  | 'discount_type'
+  | 'discount_value'
+  | 'usage_limit'
+  | 'usage_count'
+  | 'expires_at'
+> & {
+  validation_status?: 'valid' | 'expired' | 'exhausted';
+};
+
 export const getPromoCodesByTrial = async (trialId: string) => {
   const startTime = Date.now();
 
@@ -90,11 +105,14 @@ export const findPromoCodeByCode = async (trialId: string, showId: string, code:
   const upperCode = code.toUpperCase();
 
   try {
-    const { data, error } = await supabase
-      .from('promo_codes')
-      .select('*')
-      .eq('code', upperCode)
-      .or(`trial_id.eq.${trialId},show_id.eq.${showId}`);
+    const { data, error } = await supabase.rpc(
+      'validate_promo_code_for_entry' as never,
+      {
+        p_trial_id: trialId,
+        p_show_id: showId,
+        p_code: upperCode,
+      } as never
+    );
 
     const duration = Date.now() - startTime;
     logQuery('promo_code', 'find_by_code', duration, error?.message);
@@ -103,7 +121,8 @@ export const findPromoCodeByCode = async (trialId: string, showId: string, code:
       throw createDatabaseError(error, 'promo_code', 'find_by_code');
     }
 
-    const match = data?.find((c) => c.trial_id === trialId) ?? data?.[0] ?? null;
+    const rows = Array.isArray(data) ? (data as ValidatedPromoCode[]) : [];
+    const match = rows[0] ?? null;
     return { data: match, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -148,7 +167,23 @@ export const validatePromoCodeForEntry = async (
   return validatePromoCodeRecord(promoCode);
 };
 
-const validatePromoCodeRecord = (promoCode: DbPromoCode): PromoCodeValidationResult => {
+const validatePromoCodeRecord = (
+  promoCode: DbPromoCode | ValidatedPromoCode
+): PromoCodeValidationResult => {
+  if (
+    'validation_status' in promoCode &&
+    promoCode.validation_status === 'expired'
+  ) {
+    return { valid: false, error: 'This promo code has expired' };
+  }
+
+  if (
+    'validation_status' in promoCode &&
+    promoCode.validation_status === 'exhausted'
+  ) {
+    return { valid: false, error: 'This promo code has reached its usage limit' };
+  }
+
   if (promoCode.expires_at && new Date(promoCode.expires_at) < new Date()) {
     return { valid: false, error: 'This promo code has expired' };
   }
@@ -156,6 +191,8 @@ const validatePromoCodeRecord = (promoCode: DbPromoCode): PromoCodeValidationRes
   if (promoCode.usage_limit !== null && promoCode.usage_count >= promoCode.usage_limit) {
     return { valid: false, error: 'This promo code has reached its usage limit' };
   }
+
+  const metadata = promoCode as Partial<DbPromoCode>;
 
   return {
     valid: true,
@@ -169,9 +206,9 @@ const validatePromoCodeRecord = (promoCode: DbPromoCode): PromoCodeValidationRes
       usage_limit: promoCode.usage_limit,
       usage_count: promoCode.usage_count,
       expires_at: promoCode.expires_at,
-      created_by: promoCode.created_by,
-      created_at: promoCode.created_at,
-      updated_at: promoCode.updated_at,
+      created_by: metadata.created_by ?? '',
+      created_at: metadata.created_at ?? '',
+      updated_at: metadata.updated_at ?? '',
     },
   };
 };

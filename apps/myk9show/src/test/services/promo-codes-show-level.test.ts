@@ -162,14 +162,18 @@ describe('promo-codes', () => {
         updated_at: '2026-01-01',
       };
 
-      // Single query returns array of matches; trial-level should be preferred
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: [trialCode], error: null }));
+      mockSupabase.rpc.mockReturnValue(createChainableQuery({ data: [trialCode], error: null }));
 
       const { findPromoCodeByCode } = await import('@/services/database/promo-codes');
       const result = await findPromoCodeByCode('trial-1', 'show-1', 'SAVE10');
 
       expect(result.data).toEqual(trialCode);
       expect(result.error).toBeNull();
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('validate_promo_code_for_entry', {
+        p_trial_id: 'trial-1',
+        p_show_id: 'show-1',
+        p_code: 'SAVE10',
+      });
     });
 
     it('falls back to show-level code when trial-level not found', async () => {
@@ -188,8 +192,7 @@ describe('promo-codes', () => {
         updated_at: '2026-01-01',
       };
 
-      // Single query returns only show-level match (no trial-level match)
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: [showCode], error: null }));
+      mockSupabase.rpc.mockReturnValue(createChainableQuery({ data: [showCode], error: null }));
 
       const { findPromoCodeByCode } = await import('@/services/database/promo-codes');
       const result = await findPromoCodeByCode('trial-1', 'show-1', 'SHOWWIDE');
@@ -216,7 +219,7 @@ describe('promo-codes', () => {
         updated_at: '2026-01-01',
       };
 
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: [code], error: null }));
+      mockSupabase.rpc.mockReturnValue(createChainableQuery({ data: [code], error: null }));
 
       const { validatePromoCodeForEntry } = await import('@/services/database/promo-codes');
       const result = await validatePromoCodeForEntry('trial-1', 'show-1', 'VALID');
@@ -242,7 +245,7 @@ describe('promo-codes', () => {
         updated_at: '2020-01-01',
       };
 
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: [code], error: null }));
+      mockSupabase.rpc.mockReturnValue(createChainableQuery({ data: [code], error: null }));
 
       const { validatePromoCodeForEntry } = await import('@/services/database/promo-codes');
       const result = await validatePromoCodeForEntry('trial-1', 'show-1', 'EXPIRED');
@@ -267,7 +270,7 @@ describe('promo-codes', () => {
         updated_at: '2026-01-01',
       };
 
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: [code], error: null }));
+      mockSupabase.rpc.mockReturnValue(createChainableQuery({ data: [code], error: null }));
 
       const { validatePromoCodeForEntry } = await import('@/services/database/promo-codes');
       const result = await validatePromoCodeForEntry('trial-1', 'show-1', 'EXHAUSTED');
@@ -277,7 +280,7 @@ describe('promo-codes', () => {
     });
 
     it('returns invalid when no code found', async () => {
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: [], error: null }));
+      mockSupabase.rpc.mockReturnValue(createChainableQuery({ data: [], error: null }));
 
       const { validatePromoCodeForEntry } = await import('@/services/database/promo-codes');
       const result = await validatePromoCodeForEntry('trial-1', 'show-1', 'NONEXIST');

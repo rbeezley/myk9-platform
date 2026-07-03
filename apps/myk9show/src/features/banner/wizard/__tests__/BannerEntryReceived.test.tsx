@@ -37,7 +37,9 @@ describe('BannerEntryReceived', () => {
 
   it('renders the confirmation number in the kicker when provided', () => {
     render(<BannerEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/Submitted · Confirmation # MK9-000137/)).toBeInTheDocument();
+    const confirmationKicker = screen.getByText(/Submitted · Confirmation # MK9-000137/);
+    expect(confirmationKicker).toBeInTheDocument();
+    expect(confirmationKicker).not.toHaveStyle('text-transform: uppercase');
     expect(screen.queryByText(/Entry #/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Registration #/)).not.toBeInTheDocument();
   });

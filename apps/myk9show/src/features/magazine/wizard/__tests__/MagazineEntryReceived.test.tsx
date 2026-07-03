@@ -36,7 +36,9 @@ describe('MagazineEntryReceived', () => {
 
   it('renders the submitted kicker when registrationNumber present', () => {
     render(<MagazineEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/Submitted · Confirmation # MK9-000137/)).toBeTruthy();
+    const confirmationKicker = screen.getByText(/Submitted · Confirmation # MK9-000137/);
+    expect(confirmationKicker).toBeTruthy();
+    expect(confirmationKicker).not.toHaveStyle('text-transform: uppercase');
   });
 
   it('renders bare submitted kicker when registrationNumber is null', () => {

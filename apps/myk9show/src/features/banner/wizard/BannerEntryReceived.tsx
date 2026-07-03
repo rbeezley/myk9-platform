@@ -68,7 +68,6 @@ export function BannerEntryReceived({
             fontWeight: 500,
             fontSize: 10,
             letterSpacing: '0.32em',
-            textTransform: 'uppercase',
             color: colors.textOnFlag,
             opacity: 0.7,
           }}

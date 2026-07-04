@@ -50,6 +50,7 @@ import { NetworkStatusProvider } from './components/common/NetworkStatusProvider
 // Context
 import { AuthProvider } from './context/AuthContext';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { shouldLoadPeopleDirectory } from '@/services/database/users/peopleDirectoryAccess';
 import { useAnnouncementSubscription } from '@/hooks/useAnnouncementSubscription';
 import { useMessageSubscription } from '@/hooks/useMessageSubscription';
 import { useNotificationMonitor } from '@/hooks/useNotificationMonitor';
@@ -179,10 +180,14 @@ const initializationState = {
 // Loads users whenever the authenticated user changes (e.g. after login).
 // Must render inside AuthProvider.
 function UserDataInitializer() {
-  const { user } = useAuthContext();
+  const { user, userWithRoles } = useAuthContext();
+  // SA-008: only management surfaces consume the people directory. Gate the
+  // bulk fetch so a plain-exhibitor session never loads it. Re-runs if roles
+  // resolve after `user` (RBAC loads async).
+  const shouldLoad = shouldLoadPeopleDirectory(userWithRoles?.roles);
 
   React.useEffect(() => {
-    if (!user) return;
+    if (!user || !shouldLoad) return;
 
     const initializeUserData = async () => {
       try {
@@ -195,7 +200,7 @@ function UserDataInitializer() {
     };
 
     initializeUserData();
-  }, [user]);
+  }, [user, shouldLoad]);
 
   return null;
 }

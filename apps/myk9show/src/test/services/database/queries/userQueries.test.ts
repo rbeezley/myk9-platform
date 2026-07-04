@@ -20,6 +20,38 @@ describe('User Queries', () => {
   });
 
   describe('getAllUsers', () => {
+    it('selects an explicit column allowlist, not "*" (SA-008)', async () => {
+      const chain = createChainableQuery({ data: [], error: null });
+      mockSupabase.from.mockReturnValue(chain);
+
+      await getAllUsers();
+
+      const selectArg = (chain.select as unknown as { mock: { calls: unknown[][] } }).mock
+        .calls[0][0] as string;
+      expect(selectArg).not.toContain('*');
+      // every `people` column mapDatabaseToUser consumes must still be fetched
+      for (const col of [
+        'id',
+        'first_name',
+        'last_name',
+        'email',
+        'phone',
+        'street_address',
+        'city',
+        'state',
+        'zip_code',
+        'profile_image',
+        'auth_user_id',
+        'updated_at',
+        'created_at',
+      ]) {
+        expect(selectArg).toContain(col);
+      }
+      // joins preserved
+      expect(selectArg).toContain('user_roles!user_roles_user_id_fkey');
+      expect(selectArg).toContain('judge_qualifications');
+    });
+
     it('should fetch all users successfully', async () => {
       const mockData = [
         {

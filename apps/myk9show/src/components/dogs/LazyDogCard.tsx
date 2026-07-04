@@ -16,7 +16,6 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
-import { useUserStore } from '../../store/userStore';
 import { useIntersectionObserver } from '../../hooks/useIntersectionObserver';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
@@ -94,11 +93,13 @@ export function LazyDogCard({
   const [hasLoadedDetails, setHasLoadedDetails] = useState(false);
 
   const { dogs } = useDogStoreCompat();
-  const { people } = useUserStore();
 
   // Find dog in already loaded data
   const dog = dogs.find(d => d.id === dogId);
-  const owner = dog ? people.find(p => p.id === dog.ownerId) : null;
+  // SA-008: resolve the owner name from the dog's own owner join (scoped by the
+  // dog's RLS) rather than the bulk people directory, so this card works without
+  // loading the full userStore.
+  const ownerName = dog?.ownerName?.trim() || null;
 
   // Intersection observer for lazy loading
   const cardRef = useIntersectionObserver(
@@ -337,12 +338,10 @@ export function LazyDogCard({
                 <span>{calculateAge(dog.dateOfBirth || '1990-01-01')} years old</span>
               </div>
 
-              {owner && (
+              {ownerName && (
                 <div className="flex items-center gap-2">
                   <User className="h-4 w-4 text-muted-foreground" />
-                  <span>
-                    {owner.firstName} {owner.lastName}
-                  </span>
+                  <span>{ownerName}</span>
                 </div>
               )}
 

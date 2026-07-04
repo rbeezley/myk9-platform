@@ -218,6 +218,7 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 | `apps/myk9show/src/test/e2e/entities/secretaryShowWorkbenchUI.spec.ts` | Secretary show workbench.                                                                       |
 | `apps/myk9show/src/test/e2e/entities/showCRUD.spec.ts`                 | Show CRUD.                                                                                      |
 | `apps/myk9show/src/test/e2e/entities/showsUI.spec.ts`                  | Shows UI.                                                                                       |
+| `apps/myk9show/src/test/e2e/shell-integrity-responsive.spec.ts`        | Responsive shell interaction integrity.                                                         |
 | `apps/myk9show/src/test/e2e/entities/showWizardUI.spec.ts`             | Show wizard UI.                                                                                 |
 | `apps/myk9show/src/test/e2e/entities/trialCRUD.spec.ts`                | Trial CRUD.                                                                                     |
 | `apps/myk9show/src/test/e2e/entities/trialsUI.spec.ts`                 | Trials UI.                                                                                      |

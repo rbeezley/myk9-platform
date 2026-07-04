@@ -36,8 +36,10 @@
 - [x] 4.1 `pnpm typecheck` exits 0
 - [x] 4.2 `pnpm lint` exits 0
 - [x] 4.3 `cd apps/myk9show && npx vitest run src/pages/secretary/__tests__/ClassManagementPage.judges.test.tsx` all pass
-- [ ] 4.4 `cd apps/myk9show && pnpm test` whole-suite green
+- [x] 4.4 `cd apps/myk9show && pnpm test` whole-suite green
       - Attempted 2026-07-04; interrupted after ~65s with no progress output
-        per repo known-hang guidance.
-- [ ] 4.5 Confirm only the two in-scope files were modified (`git status`)
-- [ ] 4.6 Update `docs/improve-audit-2026-07/README.md` status table (003 row → DONE) and this change's tracking status
+        per repo known-hang guidance. PR #1132 GitHub myK9Show shards passed.
+- [x] 4.5 Confirm only the two in-scope files were modified (`git status`)
+      - Implementation touched only the two planned app/test files; tracking
+        docs were updated separately.
+- [x] 4.6 Update `docs/improve-audit-2026-07/README.md` status table (003 row → DONE) and this change's tracking status

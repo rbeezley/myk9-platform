@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useState, memo } from 'react';
 import { Clock, Archive, Calendar } from 'lucide-react';
 import { useRBAC } from '@/hooks/useRBAC';
 import UnifiedSidebar, { SidebarGroup } from '@/components/common/UnifiedSidebar';
+import { formatShortDate } from '@/lib/format/dates';
 
 interface Show {
   id: string;
@@ -115,7 +116,7 @@ const ShowGroupedSidebarInner: React.FC<ShowGroupedSidebarProps> = ({
           {show.name}
         </div>
         <div className="text-xs text-muted-foreground">
-          {new Date(show.startDate).toLocaleDateString()}
+          {formatShortDate(show.startDate)}
         </div>
       </div>
     );

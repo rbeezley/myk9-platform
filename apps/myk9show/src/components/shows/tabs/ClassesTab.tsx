@@ -18,7 +18,7 @@ import {
 } from '@myk9/core';
 import { StatusFilter, type StatusFilterValue } from '@/components/common/StatusFilter';
 import { FilterEmptyState } from '@/components/common/FilterEmptyState';
-import { parseLocalDateString } from '@/utils/dateLocal';
+import { formatEntryDate } from '@/lib/format/dates';
 import { compareLevels } from '@/utils/schedule-summary';
 import { shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
@@ -56,14 +56,9 @@ interface ClassTableRow extends ClassInfo {
 }
 
 function formatTrialDate(dateStr: string): string {
-  const date = parseLocalDateString(dateStr);
-  if (!date) return dateStr;
-  return date.toLocaleDateString(undefined, {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  // Long weekday style ("Saturday, August 1, 2026") via the shared date module
+  // (UX walk remediation 2.A); falls back to the raw string if unparseable.
+  return formatEntryDate(dateStr, { style: 'long' }) || dateStr;
 }
 
 export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }: ClassesTabProps) {

@@ -75,7 +75,10 @@ const UserService = {
     if (result.error) {
       throw new Error(result.error.message);
     }
-    return result.data.map(mapDbUserToUser);
+    // getAllUsers now selects an explicit column allowlist (SA-008), so its rows
+    // are a subset of the full DbUser Row; mapDbUserToUser only reads allowlisted
+    // columns. Cast mirrors the existing pattern below.
+    return result.data.map(row => mapDbUserToUser(row as unknown as DbUser));
   },
 
   getById: async (id: string): Promise<User | null> => {

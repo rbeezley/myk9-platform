@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useResolvePersonName } from '@/hooks/useResolvePersonName';
 import { formatFee } from '@/utils/format';
+import { formatShortDate } from '@/lib/format/dates';
 
 interface ShowInfoCardProps {
   showData: {
@@ -38,8 +39,7 @@ const ShowInfoCard: React.FC<ShowInfoCardProps> = ({ showData }) => {
         <div>
           <div className="text-sm text-muted-foreground mb-1 font-semibold">Dates</div>
           <div className="font-medium">
-            {new Date(showData.startDate).toLocaleDateString()} -{' '}
-            {new Date(showData.endDate).toLocaleDateString()}
+            {formatShortDate(showData.startDate)} – {formatShortDate(showData.endDate)}
           </div>
         </div>
         <div>
@@ -56,11 +56,11 @@ const ShowInfoCard: React.FC<ShowInfoCardProps> = ({ showData }) => {
         </div>
         <div>
           <div className="text-sm text-muted-foreground mb-1 font-semibold">Entry Open</div>
-          <div className="font-medium">{showData.entryOpenDate.toLocaleDateString()}</div>
+          <div className="font-medium">{formatShortDate(showData.entryOpenDate)}</div>
         </div>
         <div>
           <div className="text-sm text-muted-foreground mb-1 font-semibold">Entry Close</div>
-          <div className="font-medium">{showData.entryCloseDate.toLocaleDateString()}</div>
+          <div className="font-medium">{formatShortDate(showData.entryCloseDate)}</div>
         </div>
         <div>
           <div className="text-sm text-muted-foreground mb-1 font-semibold">Pre-Entry Fee</div>

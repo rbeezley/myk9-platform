@@ -7,6 +7,12 @@ import {
   useDeleteClassMutation,
   classKeys,
 } from '@/hooks/queries/useClassesDatabase';
+import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
+import {
+  deriveClassLifecyclePresentation,
+  deriveClassLifecycleValue,
+  type ClassLifecycleValue,
+} from '@/lib/status/classLifecycle';
 import { useJudgesWithQualifications } from '@/hooks/queries/useJudgesWithQualifications';
 import { upsertClassJudgeAssignment } from '@/services/database/judges';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -72,6 +78,8 @@ export const ClassManagementPage: React.FC = () => {
   }>();
   const trial = useTrialStore(s => (trialId ? s.getTrialById(trialId) : null));
   const showId = routeShowId ?? id ?? trial?.showId;
+  const { data: show } = useShowQuery(showId ?? '');
+  const showStatus = show?.status;
   const { data: rawClasses = [], isLoading } = useClassesByTrialQuery(trialId || '');
   const { data: judges = [] } = useJudgesWithQualifications();
   const queryClient = useQueryClient();
@@ -122,6 +130,23 @@ export const ClassManagementPage: React.FC = () => {
     [allClasses]
   );
   const statuses = Object.values(CLASS_STATUS);
+  // Honest lifecycle counts: derive each class's canonical stage
+  // ("Not started" / "In Progress" / "Completed") so the summary tiles agree
+  // with the chip labels below (UX walk remediation 2.B) instead of matching
+  // only the single raw enum value they used to filter on.
+  const lifecycleCounts = useMemo(() => {
+    const tally: Record<ClassLifecycleValue, number> = {
+      not_started: 0,
+      in_progress: 0,
+      completed: 0,
+      cancelled: 0,
+      unknown: 0,
+    };
+    for (const cls of allClasses) {
+      tally[deriveClassLifecycleValue(cls.status)] += 1;
+    }
+    return tally;
+  }, [allClasses]);
   const availableJudges = useMemo(
     () =>
       judges
@@ -209,13 +234,13 @@ export const ClassManagementPage: React.FC = () => {
     }
   };
 
-  const getStatusIcon = (status: string | null) => {
-    switch (status) {
-      case CLASS_STATUS.IN_PROGRESS:
+  const getStatusIcon = (value: ClassLifecycleValue) => {
+    switch (value) {
+      case 'in_progress':
         return <Play className="h-4 w-4" />;
-      case CLASS_STATUS.COMPLETED:
+      case 'completed':
         return <CheckCircle className="h-4 w-4" />;
-      case CLASS_STATUS.CANCELLED:
+      case 'cancelled':
         return <Pause className="h-4 w-4" />;
       default:
         return <Clock className="h-4 w-4" />;
@@ -299,10 +324,8 @@ export const ClassManagementPage: React.FC = () => {
           <CardContent className="flex items-center p-4">
             <Clock className="h-8 w-8 text-blue-500 mr-3" />
             <div>
-              <div className="text-2xl font-bold">
-                {allClasses.filter(c => c.status === CLASS_STATUS.SCHEDULED).length}
-              </div>
-              <div className="text-sm text-muted-foreground">Upcoming</div>
+              <div className="text-2xl font-bold">{lifecycleCounts.not_started}</div>
+              <div className="text-sm text-muted-foreground">Not started</div>
             </div>
           </CardContent>
         </Card>
@@ -311,9 +334,7 @@ export const ClassManagementPage: React.FC = () => {
           <CardContent className="flex items-center p-4">
             <Play className="h-8 w-8 text-amber-500 mr-3" />
             <div>
-              <div className="text-2xl font-bold">
-                {allClasses.filter(c => c.status === CLASS_STATUS.IN_PROGRESS).length}
-              </div>
+              <div className="text-2xl font-bold">{lifecycleCounts.in_progress}</div>
               <div className="text-sm text-muted-foreground">In Progress</div>
             </div>
           </CardContent>
@@ -323,10 +344,8 @@ export const ClassManagementPage: React.FC = () => {
           <CardContent className="flex items-center p-4">
             <CheckCircle className="h-8 w-8 text-green-500 mr-3" />
             <div>
-              <div className="text-2xl font-bold">
-                {allClasses.filter(c => c.status === CLASS_STATUS.COMPLETED).length}
-              </div>
-              <div className="text-sm text-muted-foreground">Complete</div>
+              <div className="text-2xl font-bold">{lifecycleCounts.completed}</div>
+              <div className="text-sm text-muted-foreground">Completed</div>
             </div>
           </CardContent>
         </Card>
@@ -484,12 +503,26 @@ export const ClassManagementPage: React.FC = () => {
                           {cls.section && <Badge variant="outline">{cls.section}</Badge>}
                         </div>
 
-                        <div
-                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(cls.status)}`}
-                        >
-                          {getStatusIcon(cls.status)}
-                          {cls.status || 'Scheduled'}
-                        </div>
+                        {(() => {
+                          // Derived lifecycle chip: one label per stage
+                          // ("Not started" / "In Progress" / "Completed"),
+                          // never the raw enum ("in_progress") or "No Status".
+                          // Draft/unpublished shows render no chip at all
+                          // (UX walk remediation 2.B).
+                          const lifecycle = deriveClassLifecyclePresentation({
+                            classStatus: cls.status,
+                            showStatus,
+                          });
+                          if (!lifecycle) return null;
+                          return (
+                            <div
+                              className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(cls.status)}`}
+                            >
+                              {getStatusIcon(lifecycle.value)}
+                              {lifecycle.label}
+                            </div>
+                          );
+                        })()}
 
                         <div className="text-sm text-muted-foreground">
                           <div>

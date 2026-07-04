@@ -1,49 +1,69 @@
 ## 1. Pre-work (required before choosing a strategy)
 
-- [ ] 1.1 Read `upsert_ringside_session` final state
+- [x] 1.1 Read `upsert_ringside_session` final state
       (mig `20260531175637_fix_ringside_session_upsert_conflict.sql`) in full
-- [ ] 1.2 Read `RingsideSessionHeartbeat.tsx` in full; confirm whether it
+      — two arms; raw-passcode arm calls `validate_passcode()` inline, no throttle (SA-011)
+- [x] 1.2 Read `RingsideSessionHeartbeat.tsx` in full; confirm whether it
       passes a raw passcode or already carries a minted
       `ringside_passcode` claim
-- [ ] 1.3 Confirm the `check_login_rate_limit` RPC signature and keying
-      identifier
-- [ ] 1.4 Decide recommended vs. interim strategy based on 1.1–1.3
+      — re-sent RAW passcode every 30s; BUT `validate-passcode` already mints an anon
+      session stamped with the `ringside_passcode` app_metadata claim, so the session
+      already carries the claim (heartbeat just wasn't using it)
+- [x] 1.3 Confirm the `check_login_rate_limit` RPC signature and keying
+      identifier — `check_login_rate_limit(p_ip_address)`, IP-keyed (only meaningful
+      in the edge fn; an RPC has no reliable client IP → interim path is genuinely weaker)
+- [x] 1.4 Decide recommended vs. interim strategy based on 1.1–1.3
+      — **RECOMMENDED** chosen: claim infra already exists (view + `ringside_update_entry`
+      read the same claim), so the fix is small. §3 interim NOT used.
 
 ## 2. Recommended path — close the direct raw-passcode arm
 
-- [ ] 2.1 Write failing test: `upsert_ringside_session` called with a raw
+- [x] 2.1 Write failing test: `upsert_ringside_session` called with a raw
       passcode and no valid claim is denied (red against current behavior)
-- [ ] 2.2 Write the migration: change `upsert_ringside_session` to consume a
+      — source-text contract `ringsideSessionClaimAuthzContract.test.ts` asserts
+      `validate_passcode`/`_hash_passcode` are gone + no `anon` grant
+- [x] 2.2 Write the migration: change `upsert_ringside_session` to consume a
       pre-validated claim/token instead of re-validating a raw passcode;
       `REVOKE` the raw-passcode arm from `anon`
-- [ ] 2.3 Update `RingsideSessionHeartbeat.tsx` to use the claim path if it
-      does not already
-- [ ] 2.4 Write and pass the allow-path test: valid edge-function-minted claim
-      upserts the session
-- [ ] 2.5 Write/update a `RingsideSessionHeartbeat` component test proving it
-      uses the claim path
+      — `20260704190000_ringside_session_claim_authz.sql`
+- [x] 2.3 Update `RingsideSessionHeartbeat.tsx` to use the claim path if it
+      does not already — stops sending the raw passcode (`p_passcode_or_null: ''`);
+      claim rides on the JWT
+- [x] 2.4 Write and pass the allow-path test: valid edge-function-minted claim
+      upserts the session — contract asserts the claim arm reads the show scope
+      from the claim; behavioral allow-path proven live (task 4.6)
+- [x] 2.5 Write/update a `RingsideSessionHeartbeat` component test proving it
+      uses the claim path — asserts `p_passcode_or_null` is always `''` + a
+      never-sends-a-passcode guard across all calls
 
-## 3. Interim fallback (only if 1.4 selects it)
+## 3. Interim fallback (NOT selected — task 1.4 chose the recommended path)
 
-- [ ] 3.1 Write failing test: N rapid calls with a wrong passcode from the same
-      key → the (N+1)th is rejected/blocked (red against current unlimited
-      behavior)
-- [ ] 3.2 Write the migration adding a `check_login_rate_limit`-pattern check
-      inside `upsert_ringside_session`, keyed on `auth.uid()`
-- [ ] 3.3 Write and pass the allow-path test: a correct passcode within the
-      limit still upserts the session
-- [ ] 3.4 Document the anon-session-churn limitation in the PR description and
-      track the recommended-path refactor as an immediate follow-up
+- [~] 3.1 (skipped — recommended path chosen)
+- [~] 3.2 (skipped — recommended path chosen)
+- [~] 3.3 (skipped — recommended path chosen)
+- [~] 3.4 (skipped — recommended path chosen)
 
 ## 4. Verification and rollout
 
-- [ ] 4.1 Confirm the `anon` GRANT on the raw-passcode arm is revoked (if
-      recommended path) in the new migration
+- [x] 4.1 Confirm the `anon` GRANT on the raw-passcode arm is revoked (if
+      recommended path) in the new migration — `revoke all ... from public` +
+      grant to `authenticated` only; contract test guards against an anon re-grant
 - [ ] 4.2 Run `migration-auditor` subagent on the new migration
-- [ ] 4.3 Run `supabase db push --dry-run`; confirm clean
+- [x] 4.3 Run `supabase db push --dry-run`; confirm clean — connected to remote,
+      would push only `20260704190000_ringside_session_claim_authz.sql`, no conflicts
 - [ ] 4.4 Request Codex second opinion (auth path)
 - [ ] 4.5 Push migration only after explicit user confirmation
 - [ ] 4.6 Run a live cold-session ringside walk (`qa-feature`) confirming
       legitimate passcode sign-in works end-to-end
 - [ ] 4.7 Update `docs/security-audit-2026-07/README.md` status table (SA-011
       row → DONE) and this change's tracking status
+
+## 5. PR / CI / review / merge gate (final gate before archive)
+
+- [ ] 5.1 [ADDED] Open the PR (`ship-pr`); PR body cites `Tracked in openspec
+      change: security-passcode-throttle` and notes the chosen strategy +
+      (if interim) the anon-session-churn limitation
+- [ ] 5.2 [ADDED] CI green (typecheck, lint, tests) + code-reviewer subagent
+      self-review loop resolved; Codex second opinion attached (auth path)
+- [ ] 5.3 [ADDED] Squash-merge to `main` from the main repo directory — this is
+      the gate that must clear before the change is archived

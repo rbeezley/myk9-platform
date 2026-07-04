@@ -30,17 +30,6 @@ vi.mock('@/hooks/useAuth', () => ({
   }),
 }));
 
-vi.mock('@/store/ringsideGrantStore', () => ({
-  useRingsideGrantStore: (selector: (state: unknown) => unknown) =>
-    selector({
-      activeGrant: {
-        showId: 'show-1',
-        source: 'passcode',
-        passcode: 'j9f3b',
-      },
-    }),
-}));
-
 function setVisibilityState(value: DocumentVisibilityState) {
   Object.defineProperty(document, 'visibilityState', {
     configurable: true,
@@ -85,8 +74,11 @@ describe('RingsideSessionHeartbeat', () => {
 
     expect(screen.getByText('Ringside child')).toBeInTheDocument();
     await waitFor(() =>
+      // SA-011: the heartbeat NEVER sends a raw passcode — authz rides on the
+      // signed-in anonymous session's app_metadata claim. p_passcode_or_null is
+      // always empty, closing the un-throttled brute-force path.
       expect(rpcMock).toHaveBeenCalledWith('upsert_ringside_session', {
-        p_passcode_or_null: 'j9f3b',
+        p_passcode_or_null: '',
         p_subscription_endpoint: 'https://push.example/sub-1',
         p_favorited_armbands: ['202', '101'],
         p_route: '/at-show/show-1',
@@ -108,6 +100,24 @@ describe('RingsideSessionHeartbeat', () => {
     expect(
       rpcMock.mock.calls.filter(([fn]) => fn === 'clear_ringside_session_presence')
     ).toHaveLength(2);
+  });
+
+  it('never sends a raw passcode on any heartbeat (SA-011 claim-path guard)', async () => {
+    renderHeartbeat();
+
+    await waitFor(() =>
+      expect(rpcMock).toHaveBeenCalledWith(
+        'upsert_ringside_session',
+        expect.anything()
+      )
+    );
+
+    const passcodesSent = rpcMock.mock.calls
+      .filter(([fn]) => fn === 'upsert_ringside_session')
+      .map(([, args]) => (args as { p_passcode_or_null: string }).p_passcode_or_null);
+
+    expect(passcodesSent.length).toBeGreaterThan(0);
+    expect(passcodesSent.every(code => code === '')).toBe(true);
   });
 
   it('sends empty favorite armbands when no favorites are stored', async () => {

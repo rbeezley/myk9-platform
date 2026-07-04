@@ -44,6 +44,16 @@ a real authentication-throttle gap.
    it first appears (the RPC just needs to trust the existing claim rather than
    re-validate).
 
+## Offline-First / Replication Impact
+
+[ADDED] None to the offline-first core-data path. `upsert_ringside_session`
+establishes the ringside auth session, which inherently requires network
+connectivity (the passcode is validated server-side) — it is not persistent
+show-day app data flowing through `@myk9/replication`, and this change does not
+touch any replicated table or mutation flow. `RingsideSessionHeartbeat`'s
+established-session behavior (which gates the offline-capable ringside surfaces
+downstream) is preserved; only how the session is *first* authorized changes.
+
 ## Risks / Trade-offs
 
 - [Recommended fix requires a client refactor larger than launch time allows] →

@@ -31,6 +31,21 @@ grants only that show's ringside read/score, never financial/PII access).
 ### Modified Capabilities
 (none)
 
+## Surface Duplication
+
+[ADDED] No surface is duplicated. This change modifies the grant/behavior of an
+existing DB RPC (`upsert_ringside_session`) and reuses the existing
+`validate-passcode` edge function and `check_login_rate_limit`/`record_login_attempt`
+RPCs — no new page, dialog, sheet, or affordance is introduced. A link is not
+applicable: the gap is a server-side authentication-throttle hole, not a
+navigational one.
+
+## Non-Goals
+
+[ADDED] No new client surface, no CAPTCHA (parked separately), and no change to
+the claim-tier authorization model — this change adds no avoidable surface area
+beyond the one RPC it hardens.
+
 ## Impact
 
 - DB: possible migration changing `upsert_ringside_session`'s signature/grant

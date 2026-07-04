@@ -4,20 +4,15 @@ import { useShowOfficials } from '../useShowOfficials';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createElement } from 'react';
 
-// Use vi.hoisted so mock functions are available inside vi.mock factory.
-// The hook makes two sequential queries:
-//   1. from('roles').select('id, name').in('name', [...])
-//   2. from('user_roles').select(...).eq('show_id', ...).eq('is_active', true).in('role_id', [...])
-const { mockRolesSelect, mockUserRolesSelect } = vi.hoisted(() => ({
-  mockRolesSelect: vi.fn(),
-  mockUserRolesSelect: vi.fn(),
+// SA-006: the hook now reads officials through the get_show_officials
+// SECURITY DEFINER RPC (user_roles is no longer directly SELECT-able cross-user).
+const { mockRpc } = vi.hoisted(() => ({
+  mockRpc: vi.fn(),
 }));
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
-    from: vi.fn((table: string) => ({
-      select: table === 'roles' ? mockRolesSelect : mockUserRolesSelect,
-    })),
+    rpc: mockRpc,
   },
 }));
 
@@ -29,34 +24,25 @@ function createWrapper() {
     createElement(QueryClientProvider, { client: queryClient }, children);
 }
 
-// Canonical role ids used across tests (must be consistent with roles mock data)
-const ROLE_IDS = { secretary: 'r1', chairman: 'r2', steward: 'r3' };
-const ROLES_DATA = [
-  { id: ROLE_IDS.secretary, name: 'secretary' },
-  { id: ROLE_IDS.chairman, name: 'chairman' },
-  { id: ROLE_IDS.steward, name: 'steward' },
-];
-
-function setupRolesMock() {
-  mockRolesSelect.mockReturnValue({
-    in: vi.fn().mockResolvedValue({ data: ROLES_DATA, error: null }),
-  });
-}
-
 describe('useShowOfficials', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('returns empty arrays when no officials assigned', async () => {
-    setupRolesMock();
-    mockUserRolesSelect.mockReturnValue({
-      eq: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          in: vi.fn().mockResolvedValue({ data: [], error: null }),
-        }),
-      }),
+  it('calls the get_show_officials RPC with the show id', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null });
+
+    const { result } = renderHook(() => useShowOfficials('show-1'), {
+      wrapper: createWrapper(),
     });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(mockRpc).toHaveBeenCalledWith('get_show_officials', { p_show_id: 'show-1' });
+  });
+
+  it('returns empty arrays when no officials assigned', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null });
 
     const { result } = renderHook(() => useShowOfficials('show-1'), {
       wrapper: createWrapper(),
@@ -79,31 +65,12 @@ describe('useShowOfficials', () => {
 
   it('groups officials by role', async () => {
     const mockData = [
-      {
-        role_id: ROLE_IDS.secretary,
-        show_id: 'show-1',
-        people: { id: 'p1', first_name: 'Jane', last_name: 'Doe', email: 'jane@test.com' },
-      },
-      {
-        role_id: ROLE_IDS.chairman,
-        show_id: 'show-1',
-        people: { id: 'p2', first_name: 'John', last_name: 'Smith', email: 'john@test.com' },
-      },
-      {
-        role_id: ROLE_IDS.steward,
-        show_id: 'show-1',
-        people: { id: 'p3', first_name: 'Bob', last_name: 'Lee', email: null },
-      },
+      { user_id: 'p1', first_name: 'Jane', last_name: 'Doe', email: 'jane@test.com', role: 'secretary' },
+      { user_id: 'p2', first_name: 'John', last_name: 'Smith', email: 'john@test.com', role: 'chairman' },
+      { user_id: 'p3', first_name: 'Bob', last_name: 'Lee', email: null, role: 'steward' },
     ];
 
-    setupRolesMock();
-    mockUserRolesSelect.mockReturnValue({
-      eq: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          in: vi.fn().mockResolvedValue({ data: mockData, error: null }),
-        }),
-      }),
-    });
+    mockRpc.mockResolvedValue({ data: mockData, error: null });
 
     const { result } = renderHook(() => useShowOfficials('show-1'), {
       wrapper: createWrapper(),
@@ -123,5 +90,6 @@ describe('useShowOfficials', () => {
     expect(result.current.data?.chairmen[0].personId).toBe('p2');
     expect(result.current.data?.stewards).toHaveLength(1);
     expect(result.current.data?.stewards[0].personId).toBe('p3');
+    expect(result.current.data?.stewards[0].email).toBeNull();
   });
 });

@@ -16,6 +16,8 @@ vi.mock('@/lib/supabase', () => ({
     single: vi.fn().mockReturnThis(),
     maybeSingle: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
+    // SA-006: secretary now resolved via the get_show_officials RPC
+    rpc: vi.fn().mockResolvedValue({ data: [], error: null }),
   },
 }));
 

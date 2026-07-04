@@ -29,6 +29,24 @@ The system SHALL allow `SELECT` on `permission_audit_log` only for site admins.
 - **WHEN** a site admin queries `permission_audit_log`
 - **THEN** all rows are returned
 
+### Requirement: Show officials and club managers stay readable via SECURITY DEFINER RPC
+After `user_roles` SELECT is scoped to self-or-admin, the system SHALL still let
+any authenticated user read a show's officials and a club's show-managers through
+`SECURITY DEFINER` RPCs, so exhibitor-facing officials display, the entry-blank
+secretary, and club-member management do not regress.
+
+#### Scenario: Authenticated non-admin reads a show's officials
+- **WHEN** an authenticated non-admin user requests officials for a show via
+  `get_show_officials(show_id)`
+- **THEN** the show's active secretary/chairman/steward rows (person id, name,
+  email, role) are returned even though the caller cannot `SELECT` those
+  `user_roles` rows directly
+
+#### Scenario: Authenticated user reads a club's show-managers
+- **WHEN** an authenticated user requests a club's show-managers via
+  `get_club_show_manager_ids(club_id)`
+- **THEN** the person ids holding the club-scoped `secretary` role are returned
+
 ### Requirement: RBAC catalog reads do not regress current-user resolution
 The system SHALL continue to let any authenticated user resolve their own
 current roles and permissions after `user_roles`/`roles`/`permissions`/

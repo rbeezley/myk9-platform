@@ -201,23 +201,15 @@ async function fetchEntryFormData(
     }
   }
 
-  // 6. Fetch secretary via user_roles
-  const { data: secretaryRoleDefinition } = await supabase
-    .from('roles')
-    .select('id')
-    .eq('name', 'secretary')
-    .maybeSingle();
-
-  const { data: secretaryRole } = secretaryRoleDefinition
-    ? await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('show_id', showId)
-        .eq('role_id', secretaryRoleDefinition.id)
-        .eq('is_active', true)
-        .limit(1)
-        .maybeSingle()
-    : { data: null };
+  // 6. Fetch secretary via the get_show_officials RPC.
+  // SA-006: user_roles is no longer directly SELECT-able cross-user, so the
+  // show's officials come from the SECURITY DEFINER RPC (migration 20260703180000).
+  const { data: officialsData } = await supabase.rpc('get_show_officials', {
+    p_show_id: showId,
+  });
+  const secretaryRow = ((officialsData as Array<{ user_id: string; role: string }> | null) || [])
+    .find(o => o.role === 'secretary');
+  const secretaryRole = secretaryRow ? { user_id: secretaryRow.user_id } : null;
 
   let secretary: EntryFormSecretary | null = null;
   if (secretaryRole?.user_id) {

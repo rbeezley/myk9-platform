@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import {
   useClassesByTrialQuery,
   useUpdateClassMutation,
@@ -89,6 +90,9 @@ export const ClassManagementPage: React.FC = () => {
         queryClient.invalidateQueries({ queryKey: ['shows', showId, 'publish-info'] });
       }
     },
+    onError: () => {
+      toast.error('Failed to assign judge. Please try again.');
+    },
   });
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -169,17 +173,37 @@ export const ClassManagementPage: React.FC = () => {
     }
   };
 
+  const bulkBusy = updateClassMutation.isPending || deleteClassMutation.isPending;
+
   const handleBulkStatusChange = (newStatus: string) => {
+    if (bulkBusy) return;
+
     selectedClasses.forEach(classId => {
-      updateClassMutation.mutate({ id: classId, updates: { status: newStatus } });
+      updateClassMutation.mutate(
+        { id: classId, updates: { status: newStatus } },
+        {
+          onError: () => {
+            toast.error('Failed to update a class. Some changes may not have saved.');
+          },
+        }
+      );
     });
     setSelectedClasses([]);
   };
 
   const handleBulkDelete = () => {
+    if (bulkBusy) return;
+
     if (confirm(`Are you sure you want to delete ${selectedClasses.length} classes?`)) {
       selectedClasses.forEach(classId => {
-        deleteClassMutation.mutate({ id: classId });
+        deleteClassMutation.mutate(
+          { id: classId },
+          {
+            onError: () => {
+              toast.error('Failed to delete a class. Some changes may not have saved.');
+            },
+          }
+        );
       });
       setSelectedClasses([]);
     }
@@ -377,7 +401,7 @@ export const ClassManagementPage: React.FC = () => {
                   {selectedClasses.length} class{selectedClasses.length !== 1 ? 'es' : ''} selected
                 </span>
                 <div className="flex gap-2">
-                  <Select onValueChange={handleBulkStatusChange}>
+                  <Select onValueChange={handleBulkStatusChange} disabled={bulkBusy}>
                     <SelectTrigger className="w-[150px]">
                       <SelectValue placeholder="Change Status" />
                     </SelectTrigger>
@@ -389,7 +413,12 @@ export const ClassManagementPage: React.FC = () => {
                       ))}
                     </SelectContent>
                   </Select>
-                  <Button variant="outline" onClick={handleBulkDelete} className="text-red-600">
+                  <Button
+                    variant="outline"
+                    onClick={handleBulkDelete}
+                    className="text-red-600"
+                    disabled={bulkBusy}
+                  >
                     <Trash2 className="h-4 w-4 mr-1" />
                     Delete
                   </Button>

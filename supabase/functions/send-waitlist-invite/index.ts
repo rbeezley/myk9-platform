@@ -16,11 +16,11 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { handle } from '../_shared/http/handler.ts';
 import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
 import { HttpError } from '../_shared/http/responses.ts';
+import { assertWaitlistInviteSecret, resolveWaitlistInviteDecision } from './auth.ts';
 
 const SITE_URL = Deno.env.get('SITE_URL') || 'https://myk9-platform-myk9show.vercel.app';
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 
-const EARLY_ACCESS_ROLE = 'club_official';
 const REDIRECT_PATH = '/secretary/create-show/wizard';
 
 interface InvitePayload {
@@ -78,7 +78,9 @@ function buildInviteHtml(firstName: string, actionUrl: string): string {
 
 handle<InvitePayload>(
   { auth: 'none', origins: MYK9SHOW_ORIGINS },
-  async ({ body: payload, supabase }) => {
+  async ({ req, body: payload, supabase }) => {
+    assertWaitlistInviteSecret(req, Deno.env.get('WAITLIST_INVITE_SECRET'));
+
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
     if (!resendApiKey) {
       throw new HttpError(500, 'RESEND_API_KEY not configured');
@@ -109,13 +111,9 @@ handle<InvitePayload>(
       return { ok: true, sent: false, reason: 'no_row' };
     }
 
-    if (row.role !== EARLY_ACCESS_ROLE) {
-      return { ok: true, sent: false, reason: 'role_not_eligible' };
-    }
-
-    if (row.access_invite_sent_at) {
-      // Idempotent: already sent. Nothing to do.
-      return { ok: true, sent: false, reason: 'already_sent' };
+    const decision = resolveWaitlistInviteDecision(row);
+    if (!decision.ok) {
+      return { ok: true, sent: false, reason: decision.reason };
     }
 
     // Generate the magic link.
@@ -171,5 +169,5 @@ handle<InvitePayload>(
     }
 
     return { ok: true, sent: true };
-  },
+  }
 );

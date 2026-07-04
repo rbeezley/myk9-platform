@@ -62,11 +62,13 @@ export function WaitlistFormLanding({
     // accept these field names directly.
     //
     // Schema source of truth: supabase/migrations/197_create_platform_waitlist.sql
-    const { error } = await (supabase as unknown as {
-      from: (table: string) => {
-        insert: (row: Record<string, unknown>) => Promise<{ error: { code?: string } | null }>;
-      };
-    })
+    const { error } = await (
+      supabase as unknown as {
+        from: (table: string) => {
+          insert: (row: Record<string, unknown>) => Promise<{ error: { code?: string } | null }>;
+        };
+      }
+    )
       .from('platform_waitlist')
       .insert({
         email: email.trim().toLowerCase(),
@@ -92,18 +94,10 @@ export function WaitlistFormLanding({
       return;
     }
 
-    // Auto-grant path: "Club / secretary" signups get an immediate
-    // magic-link invite so they can try the show wizard right away.
-    // Fire-and-forget — the email arrives within seconds. The edge
-    // function is idempotent on access_invite_sent_at, so a duplicate
-    // insert (handled above as 23505) won't double-send.
+    // Auto-grant path is server-owned: the platform_waitlist insert trigger
+    // calls send-waitlist-invite with the Vault-held shared secret. The browser
+    // must never hold WAITLIST_INVITE_SECRET.
     const triggersInvite = role === EARLY_ACCESS_ROLE;
-    if (triggersInvite) {
-      void supabase.functions.invoke('send-waitlist-invite', {
-        body: { email: email.trim().toLowerCase() },
-      });
-    }
-
     setState({ kind: 'success', invited: triggersInvite });
   };
 
@@ -114,8 +108,8 @@ export function WaitlistFormLanding({
           <p className="l-success-title">Check your email.</p>
           <p>
             You're in — we've sent a sign-in link to <strong>{email.trim().toLowerCase()}</strong>.
-            Click it to start building your first show. (Give it a minute; if it doesn't show,
-            check your spam folder.)
+            Click it to start building your first show. (Give it a minute; if it doesn't show, check
+            your spam folder.)
           </p>
         </div>
       );
@@ -126,8 +120,8 @@ export function WaitlistFormLanding({
             heading skips break document outline inside the hero section. */}
         <p className="l-success-title">You're on the list.</p>
         <p>
-          Thanks — we'll send you an update when there's news worth sharing. No spam, no
-          marketing blasts. Just real updates on myK9Show.
+          Thanks — we'll send you an update when there's news worth sharing. No spam, no marketing
+          blasts. Just real updates on myK9Show.
         </p>
       </div>
     );
@@ -154,7 +148,7 @@ export function WaitlistFormLanding({
             type="text"
             id={`${emailInputId}-name`}
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={e => setName(e.target.value)}
             placeholder="First & last name"
             autoComplete="name"
           />
@@ -168,7 +162,7 @@ export function WaitlistFormLanding({
             type="email"
             id={emailInputId}
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={e => setEmail(e.target.value)}
             placeholder="you@example.com"
             required
             autoComplete="email"
@@ -183,7 +177,7 @@ export function WaitlistFormLanding({
                 { value: 'club_official', label: 'Club / secretary' },
                 { value: 'judge', label: 'Judge' },
               ] as const
-            ).map((opt) => (
+            ).map(opt => (
               <label key={opt.value}>
                 <input
                   type="radio"

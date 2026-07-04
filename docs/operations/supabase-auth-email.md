@@ -1,13 +1,13 @@
 # Supabase Auth Email — Resend, Rate Limits & Manual Confirmation
 
-**Status:** operational runbook · **Last updated:** 2026-06-03
+**Status:** operational runbook · **Last updated:** 2026-07-03
 
 How account/auth emails work in myK9Show, why the email rate limit sits at a tiny
 default, how to raise it **safely**, and how to manually confirm a user when you
 can't wait for (or didn't receive) the email.
 
 > Scope: this is about **GoTrue auth emails** — signup confirmation, magic link,
-> password reset, email-change. It does **not** cover the *entry/registration*
+> password reset, email-change. It does **not** cover the _entry/registration_
 > confirmation emails (`send-registration-email`, `send-confirmation-email`),
 > which are invoked directly and bypass GoTrue entirely (see below).
 
@@ -20,19 +20,42 @@ built-in mailer and not Custom SMTP:
 
 - GoTrue calls the [`send-auth-email`](../../supabase/functions/send-auth-email/index.ts)
   edge function.
+- GoTrue signs each hook request with the configured **Send Email Hook secret**.
+  The function verifies the Standard-Webhooks signature against
+  `SEND_EMAIL_HOOK_SECRET` and fails closed when the signature or secret is
+  missing.
 - That function sends via the **Resend HTTP API** (`POST https://api.resend.com/emails`)
   using the `RESEND_API_KEY` secret, from `notifications@myk9show.com`.
 - The user clicks the link → `/auth/callback` → `supabase.auth.verifyOtp(...)`.
 
-So: **we use Resend** — but through the *hook* (Resend's API), which is a
+So: **we use Resend** — but through the _hook_ (Resend's API), which is a
 different configuration slot than Supabase **Custom SMTP**.
+
+### Deploy-coupled signature secret
+
+`send-auth-email` is now coupled to the Supabase Auth dashboard hook secret:
+
+1. Generate/copy the Send Email Hook secret from Supabase Dashboard →
+   Authentication → Hooks.
+2. Set the same value in the edge-function environment as
+   `SEND_EMAIL_HOOK_SECRET`. The function accepts either the exact dashboard
+   value (`v1,whsec_…`) or the trimmed `whsec_…` value.
+3. Deploy `send-auth-email`.
+4. Save/enable the dashboard hook registration with the matching secret.
+5. Immediately verify one real signup or password-reset email.
+
+Do steps 2–4 as one cutover. Deploying the function before the dashboard hook has
+the matching secret, or saving the dashboard secret before the function has the
+same value, causes auth emails to fail closed with non-200 signature errors. If
+rollback is needed, revert both sides together: redeploy the prior function and
+restore/remove the dashboard hook signature secret in the same window.
 
 ---
 
 ## The rate-limit gotcha (why ~2 emails/hour, why "Save" is greyed out)
 
 Symptom: signup/resend fails with **"email rate limit exceeded"**, and on
-**Dashboard → Authentication → Rate Limits** the *Save* button for "Rate limit
+**Dashboard → Authentication → Rate Limits** the _Save_ button for "Rate limit
 for sending emails" is **disabled**.
 
 Root cause: Supabase decides which email rate limit applies by asking **"is
@@ -41,11 +64,12 @@ Custom SMTP configured?"** — **not** "is a hook sending the mail?"
 - With the Custom SMTP slot **empty** (our case — only the hook is set), the
   project is treated as using the **built-in** email service, which is hard-capped
   at a tiny rate (~2/hour). The hook does the actual sending, but GoTrue still
-  counts and throttles the **send action** *before* the hook runs.
+  counts and throttles the **send action** _before_ the hook runs.
 - The "emails per hour" field stays **locked** (greyed-out Save) until Custom SMTP
   is enabled.
 
 Key consequences:
+
 - **A Send Email Hook does not lift the cap.** Resend's own throughput is
   irrelevant while GoTrue's counter is the ceiling.
 - **Only auth emails count.** Entry/registration confirmation emails are invoked
@@ -64,14 +88,14 @@ preserved.
 
 SMTP values (Resend):
 
-| Field          | Value                          |
-| -------------- | ------------------------------ |
-| Host           | `smtp.resend.com`              |
-| Port           | `465` (SSL) or `587` (TLS)     |
-| Username       | `resend`                       |
-| Password       | your Resend API key (`re_…`)   |
-| Sender email   | `notifications@myk9show.com`   |
-| Sender name    | `myK9Show`                     |
+| Field        | Value                        |
+| ------------ | ---------------------------- |
+| Host         | `smtp.resend.com`            |
+| Port         | `465` (SSL) or `587` (TLS)   |
+| Username     | `resend`                     |
+| Password     | your Resend API key (`re_…`) |
+| Sender email | `notifications@myk9show.com` |
+| Sender name  | `myK9Show`                   |
 
 > The sender domain `myk9show.com` is already verified in Resend (the hook sends
 > from it), so no new DNS is required.
@@ -119,10 +143,11 @@ curl -s -X PATCH "https://api.supabase.com/v1/projects/$REF/config/auth" \
 - If the combined call is rejected (rate limit validated before SMTP "commits"),
   run it twice: `smtp_*` first, then `rate_limit_email_sent`.
 - **`rate_limit_email_sent` is per hour.** `100` absorbs a registration-open
-  burst. Your *real* volume ceiling is your **Resend plan** (free = 100/day,
+  burst. Your _real_ volume ceiling is your **Resend plan** (free = 100/day,
   3k/month) — size that plan for expected launch volume.
 
 ### Verify after applying
+
 1. One real signup → the email should still arrive from the **branded
    `send-auth-email` template** (hook precedence). If it looks like a plain
    default template, consolidate onto one path (keep SMTP, move HTML into
@@ -166,20 +191,21 @@ where lower(email) = 'user@example.com'
 ```
 
 Notes:
+
 - **Set `email_confirmed_at`, never `confirmed_at`.** `confirmed_at` is a
-  *generated* column (`LEAST(email_confirmed_at, phone_confirmed_at)`); writing it
+  _generated_ column (`LEAST(email_confirmed_at, phone_confirmed_at)`); writing it
   throws "cannot insert into generated column." It populates automatically.
 - **`lower(email)`** — GoTrue normalizes stored emails to lowercase, even if the
   signup form showed mixed case.
 - **The `people` / `exhibitor_profiles` rows already exist.** `handle_new_user`
-  (migration 165) fires on *insert* into `auth.users`, independent of
+  (migration 165) fires on _insert_ into `auth.users`, independent of
   confirmation — so confirming the email is the only missing step. The rate limit
-  blocks the *email send*, not the user/profile creation.
+  blocks the _email send_, not the user/profile creation.
 - **No row returned?** The user was never created — confirm/retry the signup once
   the email limit allows, or create the user from Auth → Users.
 - Prefer the **dashboard** alternative for one-offs: Auth → Users → row → confirm
   (no email sent, no quota burned). Run raw SQL in the **SQL Editor** — this is a
-  data fix, *not* a migration; do not add it to `supabase/migrations/`.
+  data fix, _not_ a migration; do not add it to `supabase/migrations/`.
 
 ### Connecting via `psql` (session pooler)
 

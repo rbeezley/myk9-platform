@@ -97,9 +97,20 @@ AS $$
     pe.email,
     r.name AS role
   FROM public.user_roles ur
+  JOIN public.shows s ON s.id = ur.show_id
   JOIN public.roles r ON r.id = ur.role_id
   JOIN public.people pe ON pe.id = ur.user_id
   WHERE ur.show_id = p_show_id
+    AND s.deleted_at IS NULL
+    AND (
+      s.status IN ('published', 'upcoming', 'in_progress', 'completed')
+      OR (
+        s.club_id IS NOT NULL
+        AND (SELECT public.is_club_admin(s.club_id))
+      )
+      OR (SELECT public.is_show_secretary(s.id))
+      OR (SELECT public.is_site_admin())
+    )
     AND ur.is_active = true
     AND r.name IN ('secretary', 'chairman', 'steward');
 $$;

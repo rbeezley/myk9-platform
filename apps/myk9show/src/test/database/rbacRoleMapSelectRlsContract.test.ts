@@ -84,7 +84,13 @@ describe('RBAC role-map SELECT scoping RLS contract (SA-006)', () => {
     expect(fn).toContain('SECURITY DEFINER');
     expect(fn).toContain("SET search_path = ''");
     // returns only a single show's officials, never the whole table
+    expect(fn).toContain('JOIN public.shows s ON s.id = ur.show_id');
     expect(fn).toContain('WHERE ur.show_id = p_show_id');
+    expect(fn).toContain('s.deleted_at IS NULL');
+    expect(fn).toContain("s.status IN ('published', 'upcoming', 'in_progress', 'completed')");
+    expect(fn).toContain('(SELECT public.is_club_admin(s.club_id))');
+    expect(fn).toContain('(SELECT public.is_show_secretary(s.id))');
+    expect(fn).toContain('(SELECT public.is_site_admin())');
     expect(fn).toContain("r.name IN ('secretary', 'chairman', 'steward')");
     expect(migration).toContain(
       'GRANT EXECUTE ON FUNCTION public.get_show_officials(uuid) TO anon'

@@ -48,7 +48,9 @@
 - [x] 4.1 Confirm the `anon` GRANT on the raw-passcode arm is revoked (if
       recommended path) in the new migration — `revoke all ... from public` +
       grant to `authenticated` only; contract test guards against an anon re-grant
-- [ ] 4.2 Run `migration-auditor` subagent on the new migration
+- [x] 4.2 Run `migration-auditor` subagent on the new migration — verdict SAFE TO
+      PUSH, 0 FAIL/WARN; confirmed schema-qualified under `search_path=''`,
+      forge-proof app_metadata-only, role-CHECK alignment, anon-revoke coherence
 - [x] 4.3 Run `supabase db push --dry-run`; confirm clean — connected to remote,
       would push only `20260704190000_ringside_session_claim_authz.sql`, no conflicts
 - [ ] 4.4 Request Codex second opinion (auth path)

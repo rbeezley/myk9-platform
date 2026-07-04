@@ -50,6 +50,11 @@ import { NetworkStatusProvider } from './components/common/NetworkStatusProvider
 // Context
 import { AuthProvider } from './context/AuthContext';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import {
+  shouldLoadPeopleDirectory,
+  keepPeopleDirectoryPurged,
+  areRolesResolved,
+} from '@/services/database/users/peopleDirectoryAccess';
 import { useAnnouncementSubscription } from '@/hooks/useAnnouncementSubscription';
 import { useMessageSubscription } from '@/hooks/useMessageSubscription';
 import { useNotificationMonitor } from '@/hooks/useNotificationMonitor';
@@ -179,23 +184,59 @@ const initializationState = {
 // Loads users whenever the authenticated user changes (e.g. after login).
 // Must render inside AuthProvider.
 function UserDataInitializer() {
-  const { user } = useAuthContext();
+  const { user, userWithRoles, rbacLoading } = useAuthContext();
+  // SA-008: only management surfaces consume the people directory. Gate the
+  // bulk fetch so a plain-exhibitor session never loads it. Re-runs if roles
+  // resolve after `user` (RBAC loads async).
+  const shouldLoad = shouldLoadPeopleDirectory(userWithRoles?.roles);
+  // Roles are only truly resolved when RBAC finished AND userWithRoles is set —
+  // `!rbacLoading` alone is true during the initial auth window (see helper).
+  const rolesResolved = areRolesResolved({ rbacLoading, hasUserWithRoles: !!userWithRoles });
 
   React.useEffect(() => {
     if (!user) return;
 
-    const initializeUserData = async () => {
-      try {
-        const { useUserStore } = await import('./store/userStore');
-        const store = useUserStore.getState();
-        await store.loadUsers();
-      } catch (error) {
-        logger.error('Failed to load user data after auth:', 'app', {}, error as Error);
+    let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
+
+    const run = async () => {
+      const { useUserStore } = await import('./store/userStore');
+      if (cancelled) return;
+
+      if (shouldLoad) {
+        try {
+          await useUserStore.getState().loadUsers();
+        } catch (error) {
+          logger.error('Failed to load user data after auth:', 'app', {}, error as Error);
+        }
+        return;
       }
+
+      // SA-008: non-management session. Wait until roles ACTUALLY resolve (not
+      // just !rbacLoading — that is true too early), then keep any people
+      // directory a prior management session persisted in this browser
+      // (myk9show-user-storage, async IndexedDB) purged — now and on rehydration.
+      if (!rolesResolved) return;
+
+      const stop = keepPeopleDirectoryPurged(
+        {
+          getPeopleCount: () => useUserStore.getState().people.length,
+          clearPeople: () => useUserStore.getState().setUsers([]),
+          subscribe: listener => useUserStore.subscribe(listener),
+        },
+        { rolesResolved: true, canLoadDirectory: false }
+      );
+      if (cancelled) stop();
+      else unsubscribe = stop;
     };
 
-    initializeUserData();
-  }, [user]);
+    run();
+
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
+  }, [user, shouldLoad, rolesResolved]);
 
   return null;
 }

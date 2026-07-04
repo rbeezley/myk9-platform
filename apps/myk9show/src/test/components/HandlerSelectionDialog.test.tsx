@@ -46,4 +46,15 @@ describe('HandlerSelectionDialog — Combobox Upgrade', () => {
   it('should cap filtered results at 10', () => {
     expect(content).toMatch(/\.slice\(0,\s*10\)/);
   });
+
+  // SA-008: the directory must be gated for exhibitors — both the fetch and the
+  // rendered list. Behavioral gate coverage lives in HandlerSelectionDialog.gate.test.tsx.
+  it('gates the directory load on the shared people-directory predicate', () => {
+    expect(content).toContain('shouldLoadPeopleDirectory');
+    expect(content).toContain('canLoadDirectory');
+  });
+
+  it('masks the persisted people list to [] when the role gate is closed', () => {
+    expect(content).toMatch(/people=\{canLoadDirectory \? people : \[\]\}/);
+  });
 });

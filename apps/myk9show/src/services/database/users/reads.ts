@@ -12,6 +12,17 @@ const JUDGE_QUALIFICATIONS_SELECT = `judge_qualifications(
 // FK hint to disambiguate user_roles → people (two FKs: user_id and granted_by)
 const USER_ROLES_FK = 'user_roles!user_roles_user_id_fkey';
 
+// SA-008: explicit column allowlist for the people-directory fetch — the union
+// of columns the two consumers of getAllUsers read (`mapDatabaseToUser` in
+// services/mappers/userMappers.ts for the userStore, and `mapDbUserToUser` in
+// hooks/queries/useUsersQuery.ts for React Query). Replaces `select('*')` so an
+// RLS regression can never turn this into a full-table PII dump. Keep in sync
+// with BOTH mappers; the column-shape test in userQueries.test.ts pins it.
+const PEOPLE_DIRECTORY_COLUMNS =
+  'id, first_name, last_name, email, phone, street_address, city, state, ' +
+  'zip_code, country, profile_image, auth_user_id, status, ' +
+  'created_at, updated_at, deleted_at, deleted_by';
+
 // Get all users (excluding soft-deleted)
 export const getAllUsers = async () => {
   const startTime = Date.now();
@@ -19,7 +30,9 @@ export const getAllUsers = async () => {
   try {
     const { data, error } = await supabase
       .from('people')
-      .select(`*, ${USER_ROLES_FK}(role:roles(name)), ${JUDGE_QUALIFICATIONS_SELECT}`)
+      .select(
+        `${PEOPLE_DIRECTORY_COLUMNS}, ${USER_ROLES_FK}(role:roles(name)), ${JUDGE_QUALIFICATIONS_SELECT}`
+      )
       .is('deleted_at', null)
       .order('last_name', { ascending: true })
       .order('first_name', { ascending: true });

@@ -4,6 +4,7 @@ import {
   shouldLoadPeopleDirectory,
   shouldPurgePersistedPeople,
   keepPeopleDirectoryPurged,
+  areRolesResolved,
   PEOPLE_DIRECTORY_ROLES,
 } from './peopleDirectoryAccess';
 
@@ -150,5 +151,22 @@ describe('keepPeopleDirectoryPurged (SA-008 hydration-safe purge)', () => {
     store.hydrate(7);
     expect(store.clearPeople).not.toHaveBeenCalled();
     expect(store.currentCount()).toBe(7);
+  });
+});
+
+describe('areRolesResolved (SA-008 auth-window guard)', () => {
+  it('is false during the initial auth window (roles not loaded yet, userWithRoles null)', () => {
+    // rbacLoading can be false before AuthContext populates userWithRoles —
+    // treating that as resolved would purge a returning manager's directory.
+    expect(areRolesResolved({ rbacLoading: false, hasUserWithRoles: false })).toBe(false);
+  });
+
+  it('is false while RBAC is actively loading', () => {
+    expect(areRolesResolved({ rbacLoading: true, hasUserWithRoles: false })).toBe(false);
+    expect(areRolesResolved({ rbacLoading: true, hasUserWithRoles: true })).toBe(false);
+  });
+
+  it('is true only once RBAC finished AND userWithRoles is present', () => {
+    expect(areRolesResolved({ rbacLoading: false, hasUserWithRoles: true })).toBe(true);
   });
 });

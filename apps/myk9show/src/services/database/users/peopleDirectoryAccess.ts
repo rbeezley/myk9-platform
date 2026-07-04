@@ -59,6 +59,22 @@ export function shouldPurgePersistedPeople(args: {
   return args.rolesResolved && !args.canLoadDirectory && args.hasPersistedPeople;
 }
 
+/**
+ * SA-008: roles are only ACTUALLY resolved when RBAC has finished loading AND a
+ * `userWithRoles` is present. `rbacLoading` alone is `false` during the initial
+ * auth window — before AuthContext's RBAC effect runs — while `userWithRoles` is
+ * still null. Relying on `!rbacLoading` there would purge a returning manager's
+ * persisted directory before their role arrives (and if the reload fails or they
+ * are offline, management surfaces stay empty). AuthContext defaults even
+ * exhibitors to a non-null `userWithRoles`, so its presence is a safe signal.
+ */
+export function areRolesResolved(args: {
+  rbacLoading: boolean;
+  hasUserWithRoles: boolean;
+}): boolean {
+  return !args.rbacLoading && args.hasUserWithRoles;
+}
+
 /** Minimal store surface the purge needs — keeps this unit testable without React/zustand. */
 export interface PeopleDirectoryStoreView {
   getPeopleCount: () => number;

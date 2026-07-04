@@ -53,6 +53,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import {
   shouldLoadPeopleDirectory,
   keepPeopleDirectoryPurged,
+  areRolesResolved,
 } from '@/services/database/users/peopleDirectoryAccess';
 import { useAnnouncementSubscription } from '@/hooks/useAnnouncementSubscription';
 import { useMessageSubscription } from '@/hooks/useMessageSubscription';
@@ -188,6 +189,9 @@ function UserDataInitializer() {
   // bulk fetch so a plain-exhibitor session never loads it. Re-runs if roles
   // resolve after `user` (RBAC loads async).
   const shouldLoad = shouldLoadPeopleDirectory(userWithRoles?.roles);
+  // Roles are only truly resolved when RBAC finished AND userWithRoles is set —
+  // `!rbacLoading` alone is true during the initial auth window (see helper).
+  const rolesResolved = areRolesResolved({ rbacLoading, hasUserWithRoles: !!userWithRoles });
 
   React.useEffect(() => {
     if (!user) return;
@@ -208,10 +212,11 @@ function UserDataInitializer() {
         return;
       }
 
-      // SA-008: non-management session. Wait until roles resolve, then keep any
-      // people directory a prior management session persisted in this browser
+      // SA-008: non-management session. Wait until roles ACTUALLY resolve (not
+      // just !rbacLoading — that is true too early), then keep any people
+      // directory a prior management session persisted in this browser
       // (myk9show-user-storage, async IndexedDB) purged — now and on rehydration.
-      if (rbacLoading) return;
+      if (!rolesResolved) return;
 
       const stop = keepPeopleDirectoryPurged(
         {
@@ -231,7 +236,7 @@ function UserDataInitializer() {
       cancelled = true;
       unsubscribe?.();
     };
-  }, [user, shouldLoad, rbacLoading]);
+  }, [user, shouldLoad, rolesResolved]);
 
   return null;
 }

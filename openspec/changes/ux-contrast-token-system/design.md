@@ -31,11 +31,15 @@ This is a UI/theme contract only. It does not touch persistent show-day data, re
    - Rationale: token contrast can be tested in Vitest by parsing known token values and computing WCAG ratios. Runtime code does not need a new dependency for a build-time quality check.
    - Alternative considered: rely only on axe. Rejected because axe scans rendered routes, not every theme/accent/status token pair.
 
-3. Keep axe `color-contrast` enabled and use it as the end-to-end proof.
+3. Put token contrast tests under `apps/myk9show/src/styles/__tests__/`.
+   - Rationale: this directory already contains source-text token guards such as `success-token.test.ts` and `myk9-table-destructive-token.test.ts`, so new token-pair tests stay in the app's Vitest/typecheck path.
+   - Alternative considered: place token tests beside `apps/myk9show/src/test/e2e/a11y-smoke.spec.ts`. Rejected because `src/test/e2e/` is a Playwright area, not the right home for Vitest source-text token checks.
+
+4. Keep axe `color-contrast` enabled and use it as the end-to-end proof.
    - Rationale: the existing smoke test already waits for the SPA shell and reports failing selectors clearly. It proves real rendered pages, including web fonts and composed states.
    - Alternative considered: replace axe with token tests. Rejected because token tests cannot catch every component composition or overlay/backdrop issue.
 
-4. Prefer token usage fixes over new component abstractions.
+5. Prefer token usage fixes over new component abstractions.
    - Rationale: this change is about closing contrast drift. New UI primitives are only justified if an existing shared component has a missing token hook that multiple callers need.
    - Alternative considered: introduce a contrast-aware badge/button family. Rejected unless implementation finds repeated local bypasses that cannot be corrected through existing shadcn/ui variants and tokens.
 
@@ -49,7 +53,7 @@ This is a UI/theme contract only. It does not touch persistent show-day data, re
 ## Migration Plan
 
 1. Inventory current semantic, accent, status, and common tint token pairs from `index.css`.
-2. Add a focused contrast test matrix for light/dark theme and accent combinations.
+2. Add focused contrast tests in `apps/myk9show/src/styles/__tests__/`, deriving accent variants from the `data-accent` blocks in `index.css` rather than a hand-maintained list.
 3. Run the test red if any current pair fails, then adjust shared tokens or token usage until it passes.
 4. Run the existing a11y smoke for public pages, and authenticated role landings when credentials are available.
 5. Update tracking docs if the implementation closes a known contrast-token follow-up or leaves a scoped follow-up.
@@ -59,4 +63,3 @@ Rollback is straightforward: revert token and test changes. No data migration or
 ## Open Questions
 
 - Which exact route set should be the minimum required a11y smoke for this slice if authenticated credentials are unavailable locally?
-- Should token tests live beside `index.css` under `apps/myk9show/src/styles` if a style-test folder already exists, or beside the current a11y tests for visibility?

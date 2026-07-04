@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { UserRole } from '@/types/auth-types';
 import {
   shouldLoadPeopleDirectory,
+  shouldPurgePersistedPeople,
   PEOPLE_DIRECTORY_ROLES,
 } from './peopleDirectoryAccess';
 
@@ -44,5 +45,47 @@ describe('shouldLoadPeopleDirectory (SA-008 fetch gate)', () => {
     expect(PEOPLE_DIRECTORY_ROLES).not.toContain(UserRole.EXHIBITOR);
     expect(PEOPLE_DIRECTORY_ROLES).not.toContain(UserRole.JUDGE);
     expect(PEOPLE_DIRECTORY_ROLES).not.toContain(UserRole.STEWARD);
+  });
+});
+
+describe('shouldPurgePersistedPeople (SA-008 persistence guard)', () => {
+  it('purges when a non-management session has persisted people and roles resolved', () => {
+    expect(
+      shouldPurgePersistedPeople({
+        rolesResolved: true,
+        canLoadDirectory: false,
+        hasPersistedPeople: true,
+      })
+    ).toBe(true);
+  });
+
+  it('does NOT purge while roles are still resolving (avoids clobbering RBAC window)', () => {
+    expect(
+      shouldPurgePersistedPeople({
+        rolesResolved: false,
+        canLoadDirectory: false,
+        hasPersistedPeople: true,
+      })
+    ).toBe(false);
+  });
+
+  it('does NOT purge for a management session (it will load/keep the directory)', () => {
+    expect(
+      shouldPurgePersistedPeople({
+        rolesResolved: true,
+        canLoadDirectory: true,
+        hasPersistedPeople: true,
+      })
+    ).toBe(false);
+  });
+
+  it('does NOT purge when nothing is persisted (no-op)', () => {
+    expect(
+      shouldPurgePersistedPeople({
+        rolesResolved: true,
+        canLoadDirectory: false,
+        hasPersistedPeople: false,
+      })
+    ).toBe(false);
   });
 });

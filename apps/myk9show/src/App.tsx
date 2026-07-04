@@ -50,7 +50,10 @@ import { NetworkStatusProvider } from './components/common/NetworkStatusProvider
 // Context
 import { AuthProvider } from './context/AuthContext';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { shouldLoadPeopleDirectory } from '@/services/database/users/peopleDirectoryAccess';
+import {
+  shouldLoadPeopleDirectory,
+  shouldPurgePersistedPeople,
+} from '@/services/database/users/peopleDirectoryAccess';
 import { useAnnouncementSubscription } from '@/hooks/useAnnouncementSubscription';
 import { useMessageSubscription } from '@/hooks/useMessageSubscription';
 import { useNotificationMonitor } from '@/hooks/useNotificationMonitor';
@@ -180,27 +183,44 @@ const initializationState = {
 // Loads users whenever the authenticated user changes (e.g. after login).
 // Must render inside AuthProvider.
 function UserDataInitializer() {
-  const { user, userWithRoles } = useAuthContext();
+  const { user, userWithRoles, rbacLoading } = useAuthContext();
   // SA-008: only management surfaces consume the people directory. Gate the
   // bulk fetch so a plain-exhibitor session never loads it. Re-runs if roles
   // resolve after `user` (RBAC loads async).
   const shouldLoad = shouldLoadPeopleDirectory(userWithRoles?.roles);
 
   React.useEffect(() => {
-    if (!user || !shouldLoad) return;
+    if (!user) return;
 
-    const initializeUserData = async () => {
-      try {
-        const { useUserStore } = await import('./store/userStore');
-        const store = useUserStore.getState();
-        await store.loadUsers();
-      } catch (error) {
-        logger.error('Failed to load user data after auth:', 'app', {}, error as Error);
+    const run = async () => {
+      const { useUserStore } = await import('./store/userStore');
+      const store = useUserStore.getState();
+
+      if (shouldLoad) {
+        try {
+          await store.loadUsers();
+        } catch (error) {
+          logger.error('Failed to load user data after auth:', 'app', {}, error as Error);
+        }
+        return;
+      }
+
+      // SA-008: non-management session. Once roles have resolved, purge any
+      // people directory a prior management session persisted in this browser
+      // (myk9show-user-storage) so a role downgrade does not retain PII.
+      if (
+        shouldPurgePersistedPeople({
+          rolesResolved: !rbacLoading,
+          canLoadDirectory: shouldLoad,
+          hasPersistedPeople: store.people.length > 0,
+        })
+      ) {
+        store.setUsers([]);
       }
     };
 
-    initializeUserData();
-  }, [user, shouldLoad]);
+    run();
+  }, [user, shouldLoad, rbacLoading]);
 
   return null;
 }

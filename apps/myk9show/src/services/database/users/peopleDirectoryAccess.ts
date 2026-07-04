@@ -42,3 +42,19 @@ export function shouldLoadPeopleDirectory(
   const needed = PEOPLE_DIRECTORY_ROLES as readonly string[];
   return roles.some(role => needed.includes(role as string));
 }
+
+/**
+ * SA-008 persistence guard. `userStore` persists its `users` array to local
+ * storage, so a directory loaded by a management session survives sign-out. When
+ * a non-management session then signs in on the same browser it would rehydrate
+ * that PII. Purge it once roles have resolved (`rolesResolved`), the session is
+ * NOT permitted to load the directory, and something is actually persisted —
+ * guarding on `rolesResolved` avoids clobbering during the async RBAC window.
+ */
+export function shouldPurgePersistedPeople(args: {
+  rolesResolved: boolean;
+  canLoadDirectory: boolean;
+  hasPersistedPeople: boolean;
+}): boolean {
+  return args.rolesResolved && !args.canLoadDirectory && args.hasPersistedPeople;
+}

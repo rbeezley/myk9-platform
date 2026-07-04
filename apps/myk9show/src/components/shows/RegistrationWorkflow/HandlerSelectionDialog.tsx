@@ -16,6 +16,8 @@ import { Separator } from '@/components/ui/separator';
 import { HandlerInfo } from '@/types/show-registration-types';
 import { getDogDisplayName, type Dog } from '@/types/dog-types';
 import { useUserStore } from '@/store/userStore';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { shouldLoadPeopleDirectory } from '@/services/database/users/peopleDirectoryAccess';
 import { filterPeopleByName, getPersonName } from '@/lib/people-utils';
 import type { User } from '@/types/user-types';
 
@@ -40,16 +42,24 @@ export const HandlerSelectionDialog: React.FC<HandlerSelectionDialogProps> = ({
   const loadPeople = useUserStore(s => s.loadPeople);
   const peopleLoading = useUserStore(s => s.isLoading);
 
+  // SA-008: the people directory (getAllUsers) may only be loaded for management
+  // sessions. An exhibitor self-registering gets freeform handler entry (default
+  // = the dog's owner) without the directory typeahead — never the bulk fetch.
+  const { userWithRoles } = useAuthContext();
+  const canLoadDirectory = shouldLoadPeopleDirectory(userWithRoles?.roles);
+
   const hasFetchedPeople = useRef(false);
 
-  // Load people once on mount if not already loaded
+  // Load people once (management only) if not already loaded. Depends on
+  // canLoadDirectory so it fires if roles resolve after mount (RBAC is async).
   useEffect(() => {
+    if (!canLoadDirectory) return;
     if (people.length === 0 && !hasFetchedPeople.current) {
       hasFetchedPeople.current = true;
       loadPeople();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [canLoadDirectory]);
 
   // Build initial handler name from existing assignment or owner
   const getInitialName = (dogId: string): string => {

@@ -9,13 +9,13 @@ import { supabase } from '../supabaseClient';
  * These people can create and manage shows for the club.
  */
 export async function getClubShowManagerIds(clubId: string): Promise<Set<string>> {
-  const { data, error } = await supabase
-    .from('user_roles')
-    .select('user_id, roles!inner(name)')
-    .eq('roles.name', 'secretary')
-    .eq('is_active', true)
-    .eq('club_id', clubId);
+  // SA-006: user_roles is no longer directly SELECT-able cross-user, so this
+  // reads through the get_club_show_manager_ids SECURITY DEFINER RPC
+  // (migration 20260703180000).
+  const { data, error } = await supabase.rpc('get_club_show_manager_ids', {
+    p_club_id: clubId,
+  });
 
   if (error) throw error;
-  return new Set((data ?? []).map(row => row.user_id));
+  return new Set(((data as Array<{ user_id: string }> | null) ?? []).map(row => row.user_id));
 }

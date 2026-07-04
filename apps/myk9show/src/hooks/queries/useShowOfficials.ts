@@ -16,57 +16,32 @@ export interface ShowOfficials {
   stewards: ShowOfficial[];
 }
 
-const OFFICIAL_ROLES = ['secretary', 'chairman', 'steward'];
-
-// Cached role id → name map (roles table is static)
-let cachedRoleMap: Map<string, string> | null = null;
-
-async function getOfficialRoleMap(): Promise<Map<string, string>> {
-  if (cachedRoleMap && cachedRoleMap.size === OFFICIAL_ROLES.length) return cachedRoleMap;
-  const { data, error } = await supabase
-    .from('roles')
-    .select('id, name')
-    .in('name', OFFICIAL_ROLES);
-  if (error) throw error;
-  const map = new Map((data || []).map(r => [r.id, r.name]));
-  // Only cache if all expected roles were found
-  if (map.size === OFFICIAL_ROLES.length) {
-    cachedRoleMap = map;
-  }
-  return map;
+// Row shape returned by the get_show_officials SECURITY DEFINER RPC.
+// SA-006: user_roles is no longer directly SELECT-able cross-user, so officials
+// are read through this RPC (see migration 20260703180000).
+interface ShowOfficialRow {
+  user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  role: string;
 }
 
 async function fetchShowOfficials(showId: string): Promise<ShowOfficials> {
-  const roleMap = await getOfficialRoleMap();
-  const roleIds = Array.from(roleMap.keys());
-
-  const { data, error } = await supabase
-    .from('user_roles')
-    .select(
-      `
-      role_id,
-      people!user_roles_user_id_fkey(id, first_name, last_name, email)
-    `
-    )
-    .eq('show_id', showId)
-    .eq('is_active', true)
-    .in('role_id', roleIds);
+  const { data, error } = await supabase.rpc('get_show_officials', { p_show_id: showId });
 
   if (error) throw error;
 
   const result: ShowOfficials = { secretaries: [], chairmen: [], stewards: [] };
 
-  for (const row of data || []) {
-    const role = roleMap.get(row.role_id as string);
-    if (!role) continue;
-    const rawPerson = row.people;
-    const person = (Array.isArray(rawPerson) ? rawPerson[0] : rawPerson) as Record<string, unknown>;
-    if (!person) continue;
+  for (const row of (data as ShowOfficialRow[] | null) || []) {
+    if (!row.user_id) continue;
+    const role = row.role;
     const official: ShowOfficial = {
-      personId: person.id as string,
-      firstName: (person.first_name as string) || '',
-      lastName: (person.last_name as string) || '',
-      email: (person.email as string) || null,
+      personId: row.user_id,
+      firstName: row.first_name || '',
+      lastName: row.last_name || '',
+      email: row.email || null,
       role: role as ShowOfficial['role'],
     };
 

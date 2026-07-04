@@ -32,11 +32,27 @@ verified clean by the audit — only the read side is open. Evidence:
    reactively — rejected per CLAUDE.md's debugging-seed-data rule (inventory
    before writing SQL) and because an RBAC lockout is a severe regression to
    discover after merge.
-2. **`user_roles` SELECT** — `auth_user_id = auth.uid() OR is_site_admin()` as the
-   default, narrowing to `is_site_admin()`-only if the map shows self-resolution
-   already goes through a `SECURITY DEFINER` RPC (which bypasses RLS, making the
-   own-row clause redundant). *Alternative considered:* admin-only from the start
-   — rejected until the map confirms no direct client read of one's own rows.
+2. **`user_roles` SELECT** — `(SELECT auth.uid()) = auth_user_id OR
+   (SELECT is_site_admin())`, `TO authenticated`. Mapping outcome (task §1):
+   self-resolution goes through the `get_user_roles`/`get_user_permissions`
+   `SECURITY DEFINER` RPCs (mig 017/065, RLS-bypassing) so login does **not**
+   depend on this policy; the own-row clause is kept only as defense-in-depth for
+   any direct self-read. Admin full-read via `is_site_admin()`.
+   *Alternative considered:* admin-only — rejected as needlessly strict once the
+   own-row clause is free.
+2b. **Cross-user official reads move to `SECURITY DEFINER` RPCs** — the map found
+   three legitimate non-admin reads of another user's `user_roles` that
+   self-or-admin would break: `useShowOfficials`/`getShowOfficials` (officials by
+   `show_id`), `useEntryFormData` secretary lookup (by `show_id`),
+   `getClubShowManagerIds` (by `club_id`). New `public.get_show_officials(uuid)`
+   and `public.get_club_show_manager_ids(uuid)` RPCs (definer, `search_path=''`,
+   `GRANT ... TO authenticated`) serve these; the three client reads are
+   repointed to them. Officials render only in authenticated views
+   (`ShowExhibitorView`/`ShowManagementShell`), never the anon `ShowPublicLanding`
+   — so `authenticated`-only grants suffice, no `anon`.
+   *Alternative considered:* broaden the policy to keep show/club-scoped rows
+   readable — rejected: that leaves the audit's "every user's show/club scoping +
+   `auth_user_id`" enumeration open, defeating the fix.
 3. **`permission_audit_log` SELECT** — `is_site_admin()`-only; no non-admin reason
    to read the audit trail was found in the source plan's analysis.
 4. **`roles`/`permissions`/`role_permissions` SELECT** — keep readable to
@@ -47,6 +63,16 @@ verified clean by the audit — only the read side is open. Evidence:
    pattern (already proven not to recurse) rather than `has_role`-style helpers
    that read `user_roles` under the caller's own RLS, which caused a documented
    42P17 in the 2026-06-11 `is_club_admin` review.
+
+## Offline-first / replication impact
+
+None. The five RBAC tables (`user_roles`, `roles`, `permissions`,
+`role_permissions`, `permission_audit_log`) are not part of the `@myk9/replication`
+offline-first surface — they are resolved once at session init, not synced as
+show-day persistent data. Tightening their SELECT policies therefore has no
+effect on offline reads, mutation queues, or conflict resolution. The only
+liveness concern is current-user role resolution at login, guarded by spec
+Requirement 3 and the AuthContext/RBAC regression suite.
 
 ## Risks / Trade-offs
 

@@ -25,7 +25,6 @@ import { formatTrialDate } from '@myk9/core';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
-import { chipClasses } from '@/components/base/chipClasses';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
 import { hasScopedClubRole } from '@/utils/roleScopes';
@@ -231,12 +230,7 @@ export const AtShowClassListPage: React.FC = () => {
                   aria-hidden="true"
                 />
                 <span className="min-w-0 flex-1 truncate">{trialLabel}</span>
-                <span
-                  className={cn(
-                    'shrink-0 rounded-full px-2 py-0.5 text-xs font-medium',
-                    chipClasses('stone')
-                  )}
-                >
+                <span className="shrink-0 rounded-full bg-[color:var(--chip-stone-bg)] px-2 py-0.5 text-xs font-medium text-[color:var(--chip-stone-fg)]">
                   {classes.length}
                 </span>
               </button>

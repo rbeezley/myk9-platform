@@ -1,11 +1,11 @@
 ---
 name: "OPSX: Ship"
-description: End-to-end OpenSpec pipeline - propose, verify artifacts, implement, verify implementation, PR, review, merge, archive (Experimental)
+description: End-to-end OpenSpec pipeline - propose, verify artifacts, implement, verify implementation, PR, review, merge, archive, cleanup (Experimental)
 category: Workflow
 tags: [workflow, artifacts, experimental, orchestrator]
 ---
 
-Run a full OpenSpec change end-to-end: propose → verify plan → apply → verify implementation → ship PR → archive.
+Run a full OpenSpec change end-to-end: propose → verify plan → apply → verify implementation → ship PR → archive → cleanup.
 
 Two distinct verification gates, on purpose:
 
@@ -57,7 +57,9 @@ Invoke the **Skill tool** with `skill: opsx:verify` and the change name as args.
 
 ## Phase 5: Ship the PR
 
-Invoke the **Skill tool** with `skill: ship-pr`. It handles simplify → commit → PR creation → self-review loop (code-reviewer subagent, max 5 rounds) → squash-merge from the main repo → branch/worktree cleanup.
+Invoke the **Skill tool** with `skill: ship-pr`. It handles simplify → commit → PR creation → self-review loop (code-reviewer subagent, max 5 rounds) → squash-merge from the main repo.
+
+**Skip ship-pr's own cleanup step (branch delete + worktree removal).** The pipeline owns cleanup as Phase 7 — running it inside ship-pr would remove the worktree before Phase 6 (archive) runs, orphaning the shell mid-pipeline.
 
 Extras for OpenSpec changes:
 
@@ -72,6 +74,12 @@ Only after the PR is confirmed MERGED (`gh pr view --json state`):
 1. Invoke the **Skill tool** with `skill: opsx:archive` and the change name as args. It re-checks the merge gate, offers delta-spec sync, and moves the change to `openspec/changes/archive/YYYY-MM-DD-<name>/`. Include the PR URL in the archive summary.
 2. The archive move leaves uncommitted changes on `main`. Commit them as `chore(openspec): archive <name>` and push. This is a push to `main` — confirm with the user first per the Auto Mode rule (one confirmation covers sync + archive commits in the same run). If linked worktrees exist, the pre-commit hook requires `MYK9_ALLOW_PRIMARY_COMMIT=1`.
 
+## Phase 7: Cleanup
+
+Invoke the **Skill tool** with `skill: cleanup`. It handles the deferred branch hygiene from Phase 5: sync `main` (`git pull --ff-only`), `git fetch --prune`, delete the local feature branch (`git branch -D` — `--delete-branch` on the merge only removed the remote), and remove the worktree.
+
+**Worktree removal is the absolute last command of the pipeline** — nothing runs after it. If the shell's cwd is inside the worktree being removed, this is why it must come last.
+
 ## Final report
 
 ```
@@ -82,6 +90,7 @@ Only after the PR is confirmed MERGED (`gh pr view --json state`):
 - PR: #<number> <url> — merged
 - Specs: synced / no delta specs
 - Archived: openspec/changes/archive/YYYY-MM-DD-<name>/
+- Cleanup: main synced, branch deleted, worktree removed
 ```
 
 ## Guardrails
@@ -89,5 +98,6 @@ Only after the PR is confirmed MERGED (`gh pr view --json state`):
 - Delegate, don't duplicate — every phase runs its existing skill via the Skill tool.
 - Never start Phase 3 before Phase 2's checkpoint clears (unless unattended mode).
 - Never archive before the PR is merged. Auto-merge armed ≠ merged.
+- Cleanup is the last phase, after archive — never let ship-pr remove the worktree mid-pipeline. Worktree removal is the pipeline's final command.
 - If any phase fails twice on the same error, stop and report — don't loop.
 - Resume is idempotent: re-invoking with an existing change name continues from the first incomplete phase; never re-create artifacts that already exist.

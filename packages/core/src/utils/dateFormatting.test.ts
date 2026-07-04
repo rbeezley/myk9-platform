@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-  formatDateDisplay,
   formatDateMMDDYYYY,
   formatDateLocal,
   toYYYYMMDD,
@@ -10,32 +9,6 @@ import {
   dateDifferenceInDays,
   formatTrialDate,
 } from './dateFormatting';
-
-describe('formatDateDisplay', () => {
-  it('should format YYYY-MM-DD to M/D/YYYY', () => {
-    expect(formatDateDisplay('2024-01-15')).toBe('1/15/2024');
-  });
-
-  it('should return empty string for empty input', () => {
-    expect(formatDateDisplay('')).toBe('');
-  });
-
-  it('should return original string for non-date format', () => {
-    expect(formatDateDisplay('not-a-date')).toBe('not-a-date');
-  });
-
-  it('should strip leading zeros from month and day', () => {
-    expect(formatDateDisplay('2024-01-05')).toBe('1/5/2024');
-  });
-
-  it('should handle double-digit month and day', () => {
-    expect(formatDateDisplay('2024-12-25')).toBe('12/25/2024');
-  });
-
-  it('should return original for invalid number parts', () => {
-    expect(formatDateDisplay('abcd-ef-gh')).toBe('abcd-ef-gh');
-  });
-});
 
 describe('formatDateMMDDYYYY', () => {
   it('should format YYYY-MM-DD string', () => {

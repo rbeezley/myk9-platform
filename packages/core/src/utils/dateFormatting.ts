@@ -6,40 +6,11 @@
  */
 
 /**
- * Formats a YYYY-MM-DD date string to MM/DD/YYYY display format.
- * Uses direct string manipulation to avoid timezone issues.
- *
- * @param dateStr - Date string in YYYY-MM-DD format
- * @returns Formatted date string in MM/DD/YYYY format
- *
- * @example
- * formatDateDisplay("2024-01-15") // "1/15/2024"
- */
-export function formatDateDisplay(dateStr: string): string {
-  if (!dateStr) return '';
-
-  const parts = dateStr.split('-');
-  if (parts.length !== 3) {
-    return dateStr;
-  }
-
-  const yearNum = parseInt(parts[0] ?? '0', 10);
-  const monthNum = parseInt(parts[1] ?? '0', 10);
-  const dayNum = parseInt(parts[2] ?? '0', 10);
-
-  if (isNaN(yearNum) || isNaN(monthNum) || isNaN(dayNum)) {
-    return dateStr;
-  }
-
-  return `${monthNum}/${dayNum}/${yearNum}`;
-}
-
-/**
- * Formats a YYYY-MM-DD date string to MM/DD/YYYY with leading zeros.
+ * Formats a YYYY-MM-DD date string to M/D/YYYY.
  * Uses direct string manipulation to avoid timezone issues.
  *
  * @param dateStr - Date string in YYYY-MM-DD format (or other parseable format)
- * @returns Formatted date string in MM/DD/YYYY format
+ * @returns Formatted date string in M/D/YYYY format
  *
  * @example
  * formatDateMMDDYYYY("2024-01-05") // "1/5/2024"

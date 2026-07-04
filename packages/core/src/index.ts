@@ -91,7 +91,6 @@ export {
 
 // Date formatting utilities
 export {
-  formatDateDisplay,
   formatDateMMDDYYYY,
   formatDateLocal,
   toYYYYMMDD,

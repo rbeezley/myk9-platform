@@ -142,7 +142,6 @@ Consistent date formatting and utilities:
 
 ```typescript
 import {
-  formatDateDisplay,
   formatDateMMDDYYYY,
   toYYYYMMDD,
   getTodayLocal,
@@ -150,11 +149,8 @@ import {
   formatTrialDate
 } from '@myk9/core';
 
-// Format date for display
-formatDateDisplay("2024-01-15"); // "Mon, Jan 15, 2024"
-
-// Format as MM/DD/YYYY
-formatDateMMDDYYYY("2024-01-15"); // "01/15/2024"
+// Format as M/D/YYYY
+formatDateMMDDYYYY("2024-01-15"); // "1/15/2024"
 
 // Convert to YYYY-MM-DD
 toYYYYMMDD(new Date()); // "2024-01-15"
@@ -366,8 +362,7 @@ packages/core/
 - `formatTimeInputToMMSS(input)`: Format input to MM:SS
 
 ### Date Formatting
-- `formatDateDisplay(date)`: Format date for display
-- `formatDateMMDDYYYY(date)`: Format as MM/DD/YYYY
+- `formatDateMMDDYYYY(date)`: Format as M/D/YYYY
 - `formatDateLocal(date)`: Format date in local format
 - `toYYYYMMDD(date)`: Convert to YYYY-MM-DD
 - `getTodayLocal()`: Get today's date

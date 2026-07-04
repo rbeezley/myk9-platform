@@ -30,18 +30,25 @@ allowed-tools:
 
 4. Check for established workflows:
    - Read `CLAUDE.md` to understand project-specific workflows and rules
-   - Match the todo type to a known skill:
+   - **OpenSpec-backed todos take priority.** If the todo references an `openspec/changes/<id>/` path (or explicitly names an OpenSpec change), it is backed by an apply-ready change. Extract `<id>` as the last path segment of that `openspec/changes/<id>/` reference (e.g. `openspec/changes/in-app-support-system/` → `in-app-support-system`). This routes to the OpenSpec pipeline, not a skill:
+     - Default → `/opsx:ship <id>` (full pipeline: verify → implement → PR → review → merge → archive)
+     - Implement-only → `/opsx:apply <id>`
+     If the todo line itself names an exact command (e.g. ``Execute with `/opsx:ship <id>` ``), prefer that command verbatim.
+   - Otherwise, match the todo type to a known skill:
      - Walk/audit tasks → `qa-feature`
      - DB migration tasks → `db-push`
      - Browser automation tasks → `playwright-cli`
      - Bug investigation → `debugging-patterns`
 
 5. Present action options to user:
-   - **If matching skill found**: "This looks like [domain] work. Would you like to:\n\n1. Invoke [skill-name] skill and start\n2. Work on it directly\n3. Brainstorm approach first\n4. Put it back and browse other todos\n\nReply with the number of your choice."
+   - **If OpenSpec-backed**: "This is an OpenSpec change (`<id>`). Would you like to:\n\n1. Ship it end-to-end (`/opsx:ship <id>`)\n2. Implement only (`/opsx:apply <id>`)\n3. Work on it directly\n4. Put it back and browse other todos\n\nReply with the number of your choice."
+   - **Else if matching skill found**: "This looks like [domain] work. Would you like to:\n\n1. Invoke [skill-name] skill and start\n2. Work on it directly\n3. Brainstorm approach first\n4. Put it back and browse other todos\n\nReply with the number of your choice."
    - **If no workflow match**: "Would you like to:\n\n1. Start working on it\n2. Brainstorm approach first\n3. Put it back and browse other todos\n\nReply with the number of your choice."
    - Wait for user response
 
 6. Handle user choice:
+   - **Option "Ship it end-to-end"**: invoke `/opsx:ship <id>`. Do NOT remove the `- [ ]`/`- [~]` line yet — the ship pipeline owns completion (its archive step, or a later `/cleanup`, closes the todo). Removing early would drop the tracker if the pipeline fails mid-run.
+   - **Option "Implement only"**: invoke `/opsx:apply <id>`. Same rule — leave the todo line in place; it closes when the change is verified and archived.
    - **Option "Invoke skill" or "Start working"**: Remove the `- [ ]`/`- [~]` line from `OPEN-TODOS.md` (if the `##` section becomes empty of open items after removal, remove the section heading too), then begin work
    - **Option "Brainstorm approach"**: Keep the line in `OPEN-TODOS.md`, invoke `/brainstorm` with the todo description as argument
    - **Option "Put it back"**: Keep the line in `OPEN-TODOS.md`, return to step 2 to display the full list again

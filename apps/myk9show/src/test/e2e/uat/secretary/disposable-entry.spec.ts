@@ -68,27 +68,23 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
     await expect(armbandDialog).not.toBeVisible({ timeout: 10000 });
     await expect(page.getByText(seed.armband).first()).toBeVisible();
 
-    await page
-      .getByRole('button', { name: /Pending/ })
-      .first()
-      .click();
+    const entryStatusButton = page.getByRole('button', { name: /Change entry status/i }).first();
+    await expect(entryStatusButton).toBeVisible({ timeout: 10000 });
+    await entryStatusButton.click();
     const acceptedItem = page.getByRole('menuitem', { name: 'Accepted', exact: true });
     await expect(acceptedItem).toBeVisible({ timeout: 10000 });
     await acceptedItem.click({ force: true });
-    await expect(page.getByRole('button', { name: /Accepted/ }).first()).toBeVisible({
-      timeout: 10000,
-    });
+    await expect(entryStatusButton).toContainText('Accepted', { timeout: 10000 });
 
-    await page
-      .getByRole('button', { name: /Not Checked In|No Status/ })
-      .first()
-      .click();
+    const checkInStatusButton = page
+      .getByRole('button', { name: /Change check-in status/i })
+      .first();
+    await expect(checkInStatusButton).toBeVisible({ timeout: 10000 });
+    await checkInStatusButton.click();
     const checkedInItem = page.getByRole('menuitem', { name: 'Checked-in' });
     await expect(checkedInItem).toBeVisible({ timeout: 10000 });
     await checkedInItem.click({ force: true });
-    await expect(page.getByRole('button', { name: /Checked-in|Checked In/ }).first()).toBeVisible({
-      timeout: 10000,
-    });
+    await expect(checkInStatusButton).toContainText(/Checked-in|Checked In/, { timeout: 10000 });
   });
 });
 

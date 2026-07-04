@@ -152,7 +152,7 @@ async function gotoSecretaryRegistration(page: Page) {
   if (!new URL(page.url()).pathname.startsWith(`/secretary/register/${SHOW_ID}`)) {
     await page.goto(`/secretary/register/${SHOW_ID}`, { waitUntil: 'domcontentloaded' });
   }
-  await expect(page.getByRole('heading', { name: 'Register for Show' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Add entries for exhibitor' })).toBeVisible({
     timeout: 15000,
   });
 }

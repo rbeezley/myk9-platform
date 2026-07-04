@@ -34,6 +34,7 @@ import {
   Landmark,
   Wallet,
   Radio,
+  Activity,
 } from 'lucide-react';
 import { UserRole } from '@/types/auth-types';
 import { isWizardSurface, isPathInWizardAllowlist } from '@/config/surface';
@@ -143,6 +144,12 @@ export function buildUnifiedSidebarConfig(
             href: '/admin/dashboard',
             icon: LayoutDashboard,
             description: 'System overview',
+          },
+          {
+            title: 'System Health',
+            href: '/admin/health',
+            icon: Activity,
+            description: 'Daily go-live parity checks',
           },
           { title: 'Users', href: '/admin/users', icon: Users, description: 'User accounts' },
           {

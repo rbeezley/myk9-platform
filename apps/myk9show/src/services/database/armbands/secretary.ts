@@ -53,6 +53,8 @@ async function getEntryArmbandTarget(entryId: string): Promise<EntryArmbandTarge
     };
   }
 
+  // INTENT: Recover online secretary actions when Entry Management rendered a PostgREST fallback row
+  // before the replicated entry store warmed; offline behavior still returns the existing error envelope.
   const { data, error } = await supabase
     .from('entries')
     .select('id, show_id, dog_id')
@@ -97,11 +99,12 @@ export const setEntryArmband = async (entryId: string, armband: string) => {
       dogId: entry.dogId,
       armbandNumber: armband,
     });
-    const data = entry.fromReplication
-      ? await replicatedEntriesTable.updateArmbandForDogInShow(entry.showId, entry.dogId, armband)
-      : await replicatedEntriesTable.updateArmbandForDogInShow(entry.showId, entry.dogId, armband, [
-          entry.id,
-        ]);
+    const data = await replicatedEntriesTable.updateArmbandForDogInShow(
+      entry.showId,
+      entry.dogId,
+      armband,
+      entry.fromReplication ? [] : [entry.id]
+    );
 
     const duration = Date.now() - startTime;
     logQuery('entries', 'assign_armband', duration);

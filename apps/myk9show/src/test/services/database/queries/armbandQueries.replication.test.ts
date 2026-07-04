@@ -195,7 +195,8 @@ describe('armbandQueries (replication)', () => {
       expect(mockEntriesTable.updateArmbandForDogInShow).toHaveBeenCalledWith(
         'show-1',
         'dog-1',
-        '205'
+        '205',
+        []
       );
       expect(mockSupabase.from).not.toHaveBeenCalledWith('entries');
       expect(mockSupabase.from).not.toHaveBeenCalledWith('armbands');

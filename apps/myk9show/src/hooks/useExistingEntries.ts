@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useShowRegistrationStore } from '@/store/showRegistrationStore';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
+import { EntryStatus } from '@/types/show-registration-types';
 
 interface ExistingEntry {
   dogId: string;
@@ -20,6 +21,14 @@ interface ExistingEntryRow {
   entry_status: string | null;
   payment_status: string | null;
 }
+
+const NON_BLOCKING_ENTRY_STATUSES = new Set<string>([
+  EntryStatus.CANCELLED,
+  EntryStatus.SCRATCHED,
+]);
+
+const blocksClassReEntry = (entryStatus: string | null | undefined) =>
+  !entryStatus || !NON_BLOCKING_ENTRY_STATUSES.has(entryStatus);
 
 export function useExistingEntries(showId: string) {
   const allRegistrations = useShowRegistrationStore(state => state.registrations);
@@ -56,6 +65,7 @@ export function useExistingEntries(showId: string) {
       setServerEntries(
         ((data || []) as ExistingEntryRow[])
           .filter(entry => entry.dog_id && entry.class_id)
+          .filter(entry => blocksClassReEntry(entry.entry_status))
           .map(entry => ({
             dogId: entry.dog_id!,
             classId: entry.class_id!,
@@ -80,6 +90,7 @@ export function useExistingEntries(showId: string) {
 
     registrations.forEach(registration => {
       if (registration.status === 'cancelled') return;
+      if (!blocksClassReEntry(registration.entryStatus)) return;
 
       registration.entries?.forEach(entry => {
         entry.classes?.forEach(classEntry => {

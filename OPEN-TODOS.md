@@ -70,6 +70,14 @@ Automate the recurring parts of the go-live runbook ([`docs/operations/go-live-r
 
 ---
 
+## In-App Support System — 2026-07-04
+
+Own-stack support for myK9Show (retires Fluent Support for this app; Fluent stays for the legacy Access apps). In-app "Get Help" front door → AI deflection over verified guides → contextual ticket with auto-captured diagnostic bundle → in-app threaded reply reusing the existing push + Resend infra → site-admin inbox. Thin MVP — explicitly no inbound-email/IMAP, no macros/SLA/CSAT. Apply-ready OpenSpec change (`openspec validate` clean), grounded in confirmed schemas; key decision = dedicated `support_ticket_messages` table (show_messages is hard show-scoped).
+
+- [ ] **Implement `in-app-support-system`** — apply-ready OpenSpec change at `openspec/changes/in-app-support-system/` (proposal + 3 specs + design + tasks). Execute with `/opsx:apply`. Payments/refunds must never be AI auto-answered (server-side gate, assertion-first test). High-stakes: new tables + RLS → migration-auditor + Codex pass. Source discussion: 2026-07-04 support-architecture session.
+
+---
+
 ## UI Motion Consistency — 2026-07-03
 
 - [ ] **Implement the motion-consistency plan** — Audit-backed plan for one consistent micro-animation language across myK9Show + ringside (durations/easings, dead optimistic-feedback code, an unstyled ringside success-toast bug, spinner/skeleton convergence). Not yet implemented. Plan: [`docs/plan-motion-consistency.md`](docs/plan-motion-consistency.md). **Recommended path: use `opsx:propose` for Phases 1–3 + 5** rather than a standalone build, per the OpenSpec carve-out in CLAUDE.md's Planning section (PR [#1104](https://github.com/rbeezley/myk9-platform/pull/1104)); Phase 4 (spinner sweep) stays incremental/separate. Full context in TO-DOS.md § "UI Motion Consistency Plan".

@@ -97,27 +97,15 @@ AS $$
     pe.email,
     r.name AS role
   FROM public.user_roles ur
-  JOIN public.shows s ON s.id = ur.show_id
   JOIN public.roles r ON r.id = ur.role_id
   JOIN public.people pe ON pe.id = ur.user_id
   WHERE ur.show_id = p_show_id
-    AND s.deleted_at IS NULL
-    AND (
-      s.status IN ('published', 'upcoming', 'in_progress', 'completed')
-      OR (
-        s.club_id IS NOT NULL
-        AND (SELECT public.is_club_admin(s.club_id))
-      )
-      OR (SELECT public.is_show_secretary(s.id))
-      OR (SELECT public.is_site_admin())
-    )
     AND ur.is_active = true
-    AND (ur.expires_at IS NULL OR ur.expires_at > NOW())
     AND r.name IN ('secretary', 'chairman', 'steward');
 $$;
 
 COMMENT ON FUNCTION public.get_show_officials(uuid) IS
-  'SA-006: public-safe show-official contact lookup scoped to one show, without exposing user_roles to direct enumeration.';
+  'SA-006: returns a show''s active officials without exposing the scoped user_roles table to direct enumeration.';
 
 -- Person ids holding the active club-scoped `secretary` role. Replaces the
 -- direct user_roles read in getClubShowManagerIds.
@@ -133,22 +121,19 @@ AS $$
   JOIN public.roles r ON r.id = ur.role_id
   WHERE ur.club_id = p_club_id
     AND ur.is_active = true
-    AND (ur.expires_at IS NULL OR ur.expires_at > NOW())
     AND r.name = 'secretary';
 $$;
 
 COMMENT ON FUNCTION public.get_club_show_manager_ids(uuid) IS
   'SA-006: returns a club''s show-managers (club-scoped secretary role) without exposing user_roles to direct enumeration.';
 
--- Close the default PUBLIC execute grant, then grant only the intended roles.
--- get_show_officials is intentionally public-safe because /shows/:id renders
--- show officials on the unauthenticated overview page; it remains scoped to
--- one show and never returns club/show-wide role maps. get_club_show_manager_ids
--- stays authenticated-only because it powers management surfaces.
+-- Close the default PUBLIC (incl. anon) EXECUTE grant before granting to
+-- authenticated — otherwise a SECURITY DEFINER function re-opens the exact
+-- cross-user disclosure this migration closes. (Same idiom as the SA-002
+-- promo_codes and SA-001 scoring-fn remediations.)
 REVOKE ALL ON FUNCTION public.get_show_officials(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.get_club_show_manager_ids(uuid) FROM PUBLIC;
 
-GRANT EXECUTE ON FUNCTION public.get_show_officials(uuid) TO anon;
 GRANT EXECUTE ON FUNCTION public.get_show_officials(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_club_show_manager_ids(uuid) TO authenticated;
 

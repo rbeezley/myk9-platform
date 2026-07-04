@@ -14,6 +14,14 @@ const migration = readFileSync(
   'utf8'
 );
 
+const followupMigration = readFileSync(
+  resolve(
+    __dirname,
+    '../../../../../supabase/migrations/20260704152531_fix_sa006_public_show_officials_rpc.sql'
+  ),
+  'utf8'
+);
+
 function sliceBetween(source: string, start: string, end: string): string {
   const startIndex = source.indexOf(start);
   expect(startIndex).toBeGreaterThanOrEqual(0);
@@ -72,7 +80,7 @@ describe('RBAC role-map SELECT scoping RLS contract (SA-006)', () => {
     }
   });
 
-  it('adds get_show_officials as a public-safe SECURITY DEFINER RPC for show overview officials', () => {
+  it('adds get_show_officials as a SECURITY DEFINER RPC granted to authenticated', () => {
     expect(migration).toContain(
       'CREATE OR REPLACE FUNCTION public.get_show_officials(p_show_id uuid)'
     );
@@ -84,18 +92,8 @@ describe('RBAC role-map SELECT scoping RLS contract (SA-006)', () => {
     expect(fn).toContain('SECURITY DEFINER');
     expect(fn).toContain("SET search_path = ''");
     // returns only a single show's officials, never the whole table
-    expect(fn).toContain('JOIN public.shows s ON s.id = ur.show_id');
     expect(fn).toContain('WHERE ur.show_id = p_show_id');
-    expect(fn).toContain('s.deleted_at IS NULL');
-    expect(fn).toContain("s.status IN ('published', 'upcoming', 'in_progress', 'completed')");
-    expect(fn).toContain('(SELECT public.is_club_admin(s.club_id))');
-    expect(fn).toContain('(SELECT public.is_show_secretary(s.id))');
-    expect(fn).toContain('(SELECT public.is_site_admin())');
-    expect(fn).toContain('AND (ur.expires_at IS NULL OR ur.expires_at > NOW())');
     expect(fn).toContain("r.name IN ('secretary', 'chairman', 'steward')");
-    expect(migration).toContain(
-      'GRANT EXECUTE ON FUNCTION public.get_show_officials(uuid) TO anon'
-    );
     expect(migration).toContain(
       'GRANT EXECUTE ON FUNCTION public.get_show_officials(uuid) TO authenticated'
     );
@@ -113,14 +111,13 @@ describe('RBAC role-map SELECT scoping RLS contract (SA-006)', () => {
     expect(fn).toContain('SECURITY DEFINER');
     expect(fn).toContain("SET search_path = ''");
     expect(fn).toContain('WHERE ur.club_id = p_club_id');
-    expect(fn).toContain('AND (ur.expires_at IS NULL OR ur.expires_at > NOW())');
     expect(fn).toContain("r.name = 'secretary'");
     expect(migration).toContain(
       'GRANT EXECUTE ON FUNCTION public.get_club_show_manager_ids(uuid) TO authenticated'
     );
   });
 
-  it('revokes default PUBLIC execute before granting only intended RPC roles', () => {
+  it('revokes PUBLIC execute on both RPCs before granting to authenticated (no anon bypass)', () => {
     expect(migration).toContain(
       'REVOKE ALL ON FUNCTION public.get_show_officials(uuid) FROM PUBLIC'
     );
@@ -129,20 +126,79 @@ describe('RBAC role-map SELECT scoping RLS contract (SA-006)', () => {
     );
     // ordering: each REVOKE must precede its GRANT
     expect(migration.indexOf('REVOKE ALL ON FUNCTION public.get_show_officials')).toBeLessThan(
-      migration.indexOf('GRANT EXECUTE ON FUNCTION public.get_show_officials(uuid) TO anon')
-    );
-    expect(migration.indexOf('REVOKE ALL ON FUNCTION public.get_show_officials')).toBeLessThan(
       migration.indexOf('GRANT EXECUTE ON FUNCTION public.get_show_officials')
     );
     expect(
       migration.indexOf('REVOKE ALL ON FUNCTION public.get_club_show_manager_ids')
     ).toBeLessThan(migration.indexOf('GRANT EXECUTE ON FUNCTION public.get_club_show_manager_ids'));
-    expect(migration).not.toContain(
-      'GRANT EXECUTE ON FUNCTION public.get_club_show_manager_ids(uuid) TO anon'
-    );
   });
 
   it('reloads the PostgREST schema cache so the policy + RPC changes take effect', () => {
     expect(migration).toContain("NOTIFY pgrst, 'reload schema'");
+  });
+});
+
+describe('RBAC role-map SELECT scoping follow-up RPC contract (SA-006)', () => {
+  it('replaces get_show_officials with a public-safe visible-show RPC', () => {
+    expect(followupMigration).toContain(
+      'CREATE OR REPLACE FUNCTION public.get_show_officials(p_show_id uuid)'
+    );
+    const fn = sliceBetween(
+      followupMigration,
+      'CREATE OR REPLACE FUNCTION public.get_show_officials(p_show_id uuid)',
+      'CREATE OR REPLACE FUNCTION public.get_club_show_manager_ids'
+    );
+    expect(fn).toContain('SECURITY DEFINER');
+    expect(fn).toContain("SET search_path = ''");
+    expect(fn).toContain('JOIN public.shows s ON s.id = ur.show_id');
+    expect(fn).toContain('WHERE ur.show_id = p_show_id');
+    expect(fn).toContain('s.deleted_at IS NULL');
+    expect(fn).toContain("s.status IN ('published', 'upcoming', 'in_progress', 'completed')");
+    expect(fn).toContain('(SELECT public.is_club_admin(s.club_id))');
+    expect(fn).toContain('(SELECT public.is_show_secretary(s.id))');
+    expect(fn).toContain('(SELECT public.is_site_admin())');
+    expect(fn).toContain('AND (ur.expires_at IS NULL OR ur.expires_at > NOW())');
+    expect(fn).toContain("r.name IN ('secretary', 'chairman', 'steward')");
+  });
+
+  it('keeps club show-manager ids authenticated-only and ignores expired roles', () => {
+    const fn = sliceBetween(
+      followupMigration,
+      'CREATE OR REPLACE FUNCTION public.get_club_show_manager_ids(p_club_id uuid)',
+      'REVOKE ALL ON FUNCTION public.get_show_officials'
+    );
+    expect(fn).toContain('SECURITY DEFINER');
+    expect(fn).toContain("SET search_path = ''");
+    expect(fn).toContain('WHERE ur.club_id = p_club_id');
+    expect(fn).toContain('AND (ur.expires_at IS NULL OR ur.expires_at > NOW())');
+    expect(fn).toContain("r.name = 'secretary'");
+  });
+
+  it('grants anon only to the visible-show officials RPC', () => {
+    expect(followupMigration).toContain(
+      'REVOKE ALL ON FUNCTION public.get_show_officials(uuid) FROM PUBLIC'
+    );
+    expect(followupMigration).toContain(
+      'REVOKE ALL ON FUNCTION public.get_club_show_manager_ids(uuid) FROM PUBLIC'
+    );
+    expect(followupMigration.indexOf('REVOKE ALL ON FUNCTION public.get_show_officials')).toBeLessThan(
+      followupMigration.indexOf('GRANT EXECUTE ON FUNCTION public.get_show_officials(uuid) TO anon')
+    );
+    expect(followupMigration).toContain(
+      'GRANT EXECUTE ON FUNCTION public.get_show_officials(uuid) TO anon'
+    );
+    expect(followupMigration).toContain(
+      'GRANT EXECUTE ON FUNCTION public.get_show_officials(uuid) TO authenticated'
+    );
+    expect(followupMigration).toContain(
+      'GRANT EXECUTE ON FUNCTION public.get_club_show_manager_ids(uuid) TO authenticated'
+    );
+    expect(followupMigration).not.toContain(
+      'GRANT EXECUTE ON FUNCTION public.get_club_show_manager_ids(uuid) TO anon'
+    );
+  });
+
+  it('reloads the PostgREST schema cache so the replaced RPC grants take effect', () => {
+    expect(followupMigration).toContain("NOTIFY pgrst, 'reload schema'");
   });
 });

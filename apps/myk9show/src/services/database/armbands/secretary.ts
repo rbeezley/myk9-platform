@@ -15,9 +15,7 @@ import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntries
 function getMaxArmbandNumber(data: ReplicatedArmband[]): string | null {
   if (data.length === 0) return null;
 
-  const nums = data
-    .map(r => parseInt(r.armbandNumber, 10))
-    .filter(n => !isNaN(n));
+  const nums = data.map(r => parseInt(r.armbandNumber, 10)).filter(n => !isNaN(n));
 
   return nums.length === 0 ? null : String(Math.max(...nums));
 }
@@ -37,6 +35,48 @@ async function fetchStartingArmbandForShow(showId: string): Promise<number> {
   return Number.isFinite(start) && start > 0 ? start : 100;
 }
 
+interface EntryArmbandTarget {
+  id: string;
+  showId: string;
+  dogId: string;
+  fromReplication: boolean;
+}
+
+async function getEntryArmbandTarget(entryId: string): Promise<EntryArmbandTarget | null> {
+  const replicatedEntry = await replicatedEntriesTable.getEntryById(entryId);
+  if (replicatedEntry?.dogId && replicatedEntry.showId) {
+    return {
+      id: replicatedEntry.id,
+      showId: replicatedEntry.showId,
+      dogId: replicatedEntry.dogId,
+      fromReplication: true,
+    };
+  }
+
+  // INTENT: Recover online secretary actions when Entry Management rendered a PostgREST fallback row
+  // before the replicated entry store warmed; offline behavior still returns the existing error envelope.
+  const { data, error } = await supabase
+    .from('entries')
+    .select('id, show_id, dog_id')
+    .eq('id', entryId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data?.dog_id || !data.show_id) {
+    return null;
+  }
+
+  return {
+    id: data.id,
+    showId: data.show_id,
+    dogId: data.dog_id,
+    fromReplication: false,
+  };
+}
+
 /**
  * Set a specific armband number for an entry. The caller picks the number;
  * this function upserts the armbands row and syncs the entries.armband field.
@@ -48,9 +88,9 @@ export const setEntryArmband = async (entryId: string, armband: string) => {
   const startTime = Date.now();
 
   try {
-    const entry = await replicatedEntriesTable.getEntryById(entryId);
+    const entry = await getEntryArmbandTarget(entryId);
 
-    if (!entry?.dogId || !entry.showId) {
+    if (!entry) {
       throw new Error('Entry not found');
     }
 
@@ -62,7 +102,8 @@ export const setEntryArmband = async (entryId: string, armband: string) => {
     const data = await replicatedEntriesTable.updateArmbandForDogInShow(
       entry.showId,
       entry.dogId,
-      armband
+      armband,
+      entry.fromReplication ? [] : [entry.id]
     );
 
     const duration = Date.now() - startTime;

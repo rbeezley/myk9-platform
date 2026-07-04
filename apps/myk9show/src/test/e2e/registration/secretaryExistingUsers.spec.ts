@@ -11,7 +11,7 @@ async function gotoRegistration(page: Page) {
     waitUntil: 'domcontentloaded',
     timeout: 15000,
   });
-  await expect(page.getByRole('heading', { name: 'Register for Show' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Add entries for exhibitor' })).toBeVisible({
     timeout: 15000,
   });
 }

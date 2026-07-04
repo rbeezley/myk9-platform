@@ -201,15 +201,45 @@ describe('armbandQueries (replication)', () => {
       expect(mockSupabase.from).not.toHaveBeenCalledWith('armbands');
     });
 
-    it('returns the existing error envelope when the entry is missing from replication', async () => {
+    it('falls back to PostGREST entry metadata when the replicated entry store is cold', async () => {
       mockEntriesTable.getEntryById.mockResolvedValue(null);
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table !== 'entries') {
+          return {};
+        }
 
-      const result = await setEntryArmband('missing-entry', '205');
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: { id: 'entry-1', show_id: 'show-1', dog_id: 'dog-1' },
+                error: null,
+              }),
+            }),
+          }),
+        };
+      });
+      mockArmbandsTable.upsertAssignedArmband.mockResolvedValue('armband-mutation-1');
+      mockEntriesTable.updateArmbandForDogInShow.mockResolvedValue({
+        updated: 1,
+        mutationIds: ['entry-mutation-1'],
+      });
 
-      expect(result.data).toBeNull();
-      expect(result.error).toEqual({ message: 'Entry not found' });
-      expect(mockArmbandsTable.upsertAssignedArmband).not.toHaveBeenCalled();
-      expect(mockEntriesTable.updateArmbandForDogInShow).not.toHaveBeenCalled();
+      const result = await setEntryArmband('entry-1', '205');
+
+      expect(result).toEqual({ data: { updated: 1, armband: '205' }, error: null });
+      expect(mockSupabase.from).toHaveBeenCalledWith('entries');
+      expect(mockArmbandsTable.upsertAssignedArmband).toHaveBeenCalledWith({
+        showId: 'show-1',
+        dogId: 'dog-1',
+        armbandNumber: '205',
+      });
+      expect(mockEntriesTable.updateArmbandForDogInShow).toHaveBeenCalledWith(
+        'show-1',
+        'dog-1',
+        '205',
+        ['entry-1']
+      );
     });
   });
 

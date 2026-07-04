@@ -12,11 +12,19 @@
 -- New migration only — 20260704120000 is never edited. The paired parser change
 -- (visible degradation of a non-array payload) is defense-in-depth for any row
 -- that predates this constraint or is read before it deploys.
+--
+-- NOT VALID: the constraint is enforced on every future INSERT/UPDATE (the whole
+-- point — block bad writes) but the initial full-table scan is skipped. Since the
+-- paired parser is deliberately built to *tolerate and display* a pre-existing
+-- non-array row, a plain validated ADD CONSTRAINT would contradictorily abort the
+-- migration if such a row existed. NOT VALID keeps this migration safe regardless
+-- of table contents (the table is empty at first deploy, but this stays correct
+-- if ordering ever changes). A later migration may VALIDATE it after any cleanup.
 -- Rollback = a follow-up migration dropping the constraint.
 -- =============================================================================
 
 ALTER TABLE public.system_health_snapshots
   ADD CONSTRAINT system_health_snapshots_checks_is_array
-  CHECK (jsonb_typeof(checks) = 'array');
+  CHECK (jsonb_typeof(checks) = 'array') NOT VALID;
 
 NOTIFY pgrst, 'reload schema';

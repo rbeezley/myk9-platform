@@ -33,6 +33,7 @@ export const adminRouteComponents: Record<string, ImportFunction> = {
   '/admin/templates/:templateId/edit': () => import('@/pages/admin/TemplateEditorPage'),
   '/admin/templates/:templateId/test': () =>
     import('@/pages/admin/TemplateTestingPage').then(m => ({ default: m.TemplateTestingPage })),
+  '/admin/health': () => import('@/pages/admin/SystemHealthPage'),
   '/admin/sync': () => import('@/pages/sync/SyncMonitoringPage'),
   '/admin/role-requests': () => import('@/pages/admin/RoleRequestsPage'),
   '/admin/users': () => import('@/pages/admin/UserManagementPage'),

@@ -2,7 +2,6 @@ import { useEffect, type ReactNode } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { getExistingSubscription } from '@myk9/notifications';
 import { supabase } from '@/lib/supabase';
-import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
 import { readDogFavoriteArmbands } from './ringsideDogFavorites';
 
 const HEARTBEAT_MS = 30_000;
@@ -10,11 +9,6 @@ const HEARTBEAT_MS = 30_000;
 export function RingsideSessionHeartbeat({ children }: { children: ReactNode }) {
   const { showId } = useParams<{ showId: string }>();
   const location = useLocation();
-  const activeGrant = useRingsideGrantStore(state => state.activeGrant);
-  const passcode =
-    activeGrant && activeGrant.showId === showId && activeGrant.source === 'passcode'
-      ? activeGrant.passcode
-      : undefined;
   const route = `${location.pathname}${location.search}`;
 
   useEffect(() => {
@@ -28,8 +22,13 @@ export function RingsideSessionHeartbeat({ children }: { children: ReactNode }) 
       endpoint = subscription?.endpoint ?? null;
       if (!endpoint || cancelled) return;
 
+      // SA-011: the passcode is NEVER sent here. A passcode caller is a signed-in
+      // anonymous session whose forge-proof app_metadata claim (minted + IP-rate-
+      // limited by the validate-passcode edge function) rides on the JWT that
+      // supabase.rpc attaches automatically; upsert_ringside_session authorizes on
+      // that claim. Re-sending the raw passcode would reopen the brute-force path.
       await supabase.rpc('upsert_ringside_session', {
-        p_passcode_or_null: passcode ?? '',
+        p_passcode_or_null: '',
         p_subscription_endpoint: endpoint,
         p_favorited_armbands: readDogFavoriteArmbands(heartbeatShowId).map(String),
         p_route: route,
@@ -64,7 +63,7 @@ export function RingsideSessionHeartbeat({ children }: { children: ReactNode }) 
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearPresence();
     };
-  }, [passcode, route, showId]);
+  }, [route, showId]);
 
   return <>{children}</>;
 }

@@ -12,7 +12,7 @@ import { useWizardStore } from '@/store/wizardStore';
 import { createUser, updateUser } from '@/services/database/users';
 import { createJudgeQualification } from '@/services/database/judges';
 import { createClub } from '@/services/database/clubs';
-import type { CreateClubData } from './ShowDetailsStep.sections';
+import type { CreateClubData } from './sections';
 
 export function useShowDetailsStepActions() {
   const { loadClubs } = useClubStore();

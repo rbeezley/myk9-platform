@@ -50,7 +50,7 @@ test.describe('Show management workflow', () => {
     ]);
 
     await expect(page.getByRole('heading', { name: 'Create New Show', level: 2 })).toBeVisible();
-    await expect(page.getByText('Basic Show Information')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Basics' })).toBeVisible();
     await expect(page.getByText('Show Name *', { exact: true })).toBeVisible();
     await expect(page.getByText('Show Dates *', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: /^Next$/ })).toBeDisabled();

@@ -73,7 +73,7 @@ export class ShowCreationWizardPage {
     // Wait for the wizard form to be visible - use multiple selectors for resilience
     // Some browsers may render text differently
     try {
-      await this.page.waitForSelector('text=Basic Show Information', { timeout: 15000 });
+      await this.page.waitForSelector('text="Basics"', { timeout: 15000 });
     } catch {
       // Fallback: wait for the form elements instead
       await this.page.waitForSelector(
@@ -681,7 +681,7 @@ export class ShowCreationWizardPage {
   // ========== Assertions ==========
   async expectToBeOnStep(stepNumber: 1 | 2 | 3 | 4) {
     const stepIndicators = {
-      1: 'Basic Show Information',
+      1: 'Basics',
       2: 'Trial',
       3: 'Class',
       4: 'Review',

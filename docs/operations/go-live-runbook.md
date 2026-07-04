@@ -247,12 +247,20 @@ product).
 
 ## Phase 5 — Launch day (morning-of checklist, ~30 min)
 
-> The recurring, machine-checkable parts of this checklist are being automated into a daily job
-> that writes a snapshot to `system_health_snapshots`; the **System Health board at `/admin/health`**
-> renders the latest run at a glance (overall status, per-check pills, and whether the run is
-> stale/overdue). Open it first each morning — a green board covers the automated checks below; a
-> stale or missing run is itself a failure signal. The check-runner that populates it lands in a
-> companion change, so until then treat the manual items below as authoritative.
+> The recurring, machine-checkable parts of this checklist are automated into a daily job — the
+> `cron-health-check` edge function + the `daily-health-check` pg_cron (change
+> `admin-system-health-check-runner`, #1125) — that writes a snapshot to `system_health_snapshots`;
+> the **System Health board at `/admin/health`** renders the latest run at a glance (overall status,
+> per-check pills, and whether the run is stale/overdue). Open it first each morning — a green board
+> covers the automated checks; a stale or missing run is itself a failure signal.
+> **Automated so far:** payout-cron health (5.4), the other background crons, and a migrations proxy
+> (5.2 — newest-applied version only, not full local↔remote parity). **Still manual:** 5.1, 5.3,
+> 5.5–5.9. Note the runner reports a `net.http_post` cron as *dispatched*, not that its Edge Function
+> returned 2xx — so 5.4/5.9 downstream failures still surface via `show_payouts.failure_reason`, not
+> this board. The runner is **merged but only populates the board once deployed** (the two migrations
+> pushed after the table, the `daily-health-check` cron scheduled, and `health_cron_secret` set in
+> Vault + `HEALTH_CRON_SECRET` on the function); until then, and for the still-manual items, treat the
+> checklist below as authoritative.
 
 - [ ] **5.1** `main` is green; Deploy Production workflow succeeded on the launch build; the
       production URL serves it.

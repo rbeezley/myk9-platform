@@ -61,6 +61,15 @@ Two follow-ups from the ringside OCC conflict-storm incident (PR [#961](https://
 
 ---
 
+## Operator Daily Health Board — 2026-07-04
+
+Automate the recurring parts of the go-live runbook ([`docs/operations/go-live-runbook.md`](docs/operations/go-live-runbook.md)) Phase 5 into a morning health snapshot the site-admin reads on one page. Two changes sharing one contract table (`public.system_health_snapshots`); ship **sequentially** via `/opsx:ship` (page/migration first, runner second). Full brief + paste-ready invocations captured in the 2026-07-04 session.
+
+- [ ] **Ship `admin-system-health-board`** (first) — `/admin/health` page + `system_health_snapshots` table (migration + RLS site-admin SELECT / service_role INSERT). Reads the latest snapshot, renders per-check green/amber/red, flags a stale (>26h) snapshot as its own failure. High-stakes diff (migration + RLS) — Codex pass before merge.
+- [ ] **Ship `daily-health-check-runner`** (after the board merges) — `scripts/daily-health-check.ts` + ~6am GitHub Actions cron writing ONE snapshot row: prod-live, migration parity, edge-fn drift, payout-cron health, failed payouts/refunds, nightly-E2E, Supabase advisors. Prefer a dedicated restricted read-only DB role over full service_role.
+
+---
+
 ## UI Motion Consistency — 2026-07-03
 
 - [ ] **Implement the motion-consistency plan** — Audit-backed plan for one consistent micro-animation language across myK9Show + ringside (durations/easings, dead optimistic-feedback code, an unstyled ringside success-toast bug, spinner/skeleton convergence). Not yet implemented. Plan: [`docs/plan-motion-consistency.md`](docs/plan-motion-consistency.md). **Recommended path: use `opsx:propose` for Phases 1–3 + 5** rather than a standalone build, per the OpenSpec carve-out in CLAUDE.md's Planning section (PR [#1104](https://github.com/rbeezley/myk9-platform/pull/1104)); Phase 4 (spinner sweep) stays incremental/separate. Full context in TO-DOS.md § "UI Motion Consistency Plan".

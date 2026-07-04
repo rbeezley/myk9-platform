@@ -46,26 +46,34 @@
 ## 4. Verification and rollout
 
 - [x] 4.1 Confirm the `anon` GRANT on the raw-passcode arm is revoked (if
-      recommended path) in the new migration — `revoke all ... from public` +
-      grant to `authenticated` only; contract test guards against an anon re-grant
+      recommended path) in the new migration — explicit `revoke all ... from anon`
+      (Codex-caught: `revoke ... from public` does NOT drop the prior explicit anon
+      grant) + `from public` + grant to `authenticated` only; contract test pins the
+      explicit anon revoke
 - [x] 4.2 Run `migration-auditor` subagent on the new migration — verdict SAFE TO
       PUSH, 0 FAIL/WARN; confirmed schema-qualified under `search_path=''`,
       forge-proof app_metadata-only, role-CHECK alignment, anon-revoke coherence
 - [x] 4.3 Run `supabase db push --dry-run`; confirm clean — connected to remote,
       would push only `20260704190000_ringside_session_claim_authz.sql`, no conflicts
-- [ ] 4.4 Request Codex second opinion (auth path)
-- [ ] 4.5 Push migration only after explicit user confirmation
+- [x] 4.4 Request Codex second opinion (auth path) — **caught a real bug**: the
+      `anon` grant survived `revoke ... from public`; fixed with explicit anon revoke
+      (commit `bafbe1b03`)
+- [ ] 4.5 Push migration only after explicit user confirmation — **PENDING ROLLOUT**
+      (operator-gated; migration on `main` but not yet deployed to staging/prod)
 - [ ] 4.6 Run a live cold-session ringside walk (`qa-feature`) confirming
-      legitimate passcode sign-in works end-to-end
+      legitimate passcode sign-in works end-to-end — **PENDING ROLLOUT** (needs 4.5 first)
 - [ ] 4.7 Update `docs/security-audit-2026-07/README.md` status table (SA-011
-      row → DONE) and this change's tracking status
+      row → DONE) and this change's tracking status — **PENDING ROLLOUT** (hold until
+      migration is live per the deploy-then-mark-DONE convention)
 
 ## 5. PR / CI / review / merge gate (final gate before archive)
 
-- [ ] 5.1 [ADDED] Open the PR (`ship-pr`); PR body cites `Tracked in openspec
+- [x] 5.1 [ADDED] Open the PR (`ship-pr`); PR body cites `Tracked in openspec
       change: security-passcode-throttle` and notes the chosen strategy +
-      (if interim) the anon-session-churn limitation
-- [ ] 5.2 [ADDED] CI green (typecheck, lint, tests) + code-reviewer subagent
-      self-review loop resolved; Codex second opinion attached (auth path)
-- [ ] 5.3 [ADDED] Squash-merge to `main` from the main repo directory — this is
-      the gate that must clear before the change is archived
+      (if interim) the anon-session-churn limitation — PR #1130
+- [x] 5.2 [ADDED] CI green (typecheck, lint, tests) + code-reviewer subagent
+      self-review loop resolved; Codex second opinion attached (auth path) —
+      code-reviewer APPROVED; Codex finding applied
+- [x] 5.3 [ADDED] Squash-merge to `main` from the main repo directory — this is
+      the gate that must clear before the change is archived — merged 2026-07-04
+      (squash `aa506c81d`, PR #1130)

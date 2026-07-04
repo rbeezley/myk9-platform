@@ -225,6 +225,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 
 | Doc                                                                          | Status    | Title                                                                   |
 | ---------------------------------------------------------------------------- | --------- | ----------------------------------------------------------------------- |
+| [operations/go-live-runbook.md](operations/go-live-runbook.md)               | Active    | Go-Live Runbook — the single ordered, gated launch-day document         |
 | [operations/stripe-platform-setup.md](operations/stripe-platform-setup.md)   | Reference | Stripe Platform Setup — Operator Runbook (Richard)                      |
 | [operations/stripe-treasurer-guide.md](operations/stripe-treasurer-guide.md) | Reference | Stripe Treasurer Guide — Club payout onboarding (share with treasurers) |
 | [operations/supabase-auth-email.md](operations/supabase-auth-email.md)       | Reference | Supabase Auth Email — Resend, Rate Limits & Manual Confirmation         |

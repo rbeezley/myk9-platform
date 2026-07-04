@@ -55,17 +55,39 @@ function parseCheck(raw: unknown, index: number): HealthCheck {
 }
 
 /**
- * Normalize a raw PostgREST row into a typed snapshot. Never throws: a non-array
- * `checks` yields an empty list, and each malformed entry degrades to `unknown`.
+ * Normalize a raw `checks` payload into a typed list. Never throws.
+ * - An array is mapped element-wise (each malformed entry degrades to `unknown`).
+ * - `null`/`undefined` (absent) yields an empty list.
+ * - Any other non-array value violates the array contract; rather than silently
+ *   emptying it — which would render a fresh, healthy-looking board with no rows —
+ *   surface a single visible "malformed payload" check so the anomaly is seen.
+ *   (The DB CHECK added in migration 20260704160000 prevents this at write time;
+ *   this branch protects rows that predate it or are read before it deploys.)
+ */
+function parseChecks(rawChecks: unknown): HealthCheck[] {
+  if (Array.isArray(rawChecks)) return rawChecks.map(parseCheck);
+  if (rawChecks == null) return [];
+  return [
+    {
+      key: 'malformed-checks',
+      label: 'Malformed health payload',
+      status: 'unknown',
+      detail: 'The stored "checks" value is not an array — the health writer is misconfigured.',
+      checkedAt: null,
+    },
+  ];
+}
+
+/**
+ * Normalize a raw PostgREST row into a typed snapshot. Never throws.
  */
 export function parseSnapshot(row: SystemHealthSnapshotRow): SystemHealthSnapshot {
-  const rawChecks = Array.isArray(row.checks) ? row.checks : [];
   return {
     id: row.id,
     createdAt: row.created_at,
     source: normalizeString(row.source),
     overallStatus: normalizeOverallStatus(row.overall_status),
-    checks: rawChecks.map(parseCheck),
+    checks: parseChecks(row.checks),
     runDurationMs: typeof row.run_duration_ms === 'number' ? row.run_duration_ms : null,
   };
 }

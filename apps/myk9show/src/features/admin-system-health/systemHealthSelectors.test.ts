@@ -76,9 +76,19 @@ describe('parseSnapshot', () => {
     expect(parsed.overallStatus).toBe('ok');
   });
 
-  it('does not throw when checks is not an array', () => {
+  it('treats an absent (null) checks payload as an empty list', () => {
     const parsed = parseSnapshot(row({ checks: null }));
     expect(parsed.checks).toEqual([]);
+  });
+
+  it('surfaces a visible malformed check for a non-array payload instead of emptying it', () => {
+    // A bad writer storing an object (not an array) must not render as a fresh,
+    // healthy-looking board with zero checks — the anomaly has to be visible.
+    const parsed = parseSnapshot(row({ overall_status: 'ok', checks: {} }));
+    expect(parsed.checks).toHaveLength(1);
+    expect(parsed.checks[0]?.key).toBe('malformed-checks');
+    expect(parsed.checks[0]?.status).toBe('unknown');
+    expect(parsed.checks[0]?.label).toBe('Malformed health payload');
   });
 
   it('degrades a malformed check to a safe fallback instead of crashing', () => {

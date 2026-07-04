@@ -30,14 +30,6 @@ The 5 design-level plans from the 2026-07-03 security audit that weren't covered
 
 ---
 
-## July Bug-Audit — Remaining Items — 2026-07-03
-
-The remaining item from [`docs/improve-audit-2026-07/README.md`](docs/improve-audit-2026-07/README.md) still open after 001/002/004/005 shipped. Full context in TO-DOS.md § "July Bug-Audit — Remaining Items".
-
-- [ ] **Execute plan 003 — surface class-mgmt mutation errors** — Judge-assign and bulk class status/delete actions on the secretary Class Management page fail silently (no toast, only a console log). Now unblocked (the Phase 3 UX edits to the same file already landed). `openspec/changes/class-mgmt-mutation-error-surfacing/` (apply-ready, `openspec validate` clean). Source plan: [`docs/improve-audit-2026-07/003-surface-mutation-errors.md`](docs/improve-audit-2026-07/003-surface-mutation-errors.md).
-
----
-
 ## QA Program — execution order — 2026-06-12
 
 Four steps toward the fall launch, in dependency order. Detailed phase checklists live in the sections below; this list is the master sequence.

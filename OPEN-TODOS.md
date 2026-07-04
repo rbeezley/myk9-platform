@@ -74,7 +74,7 @@ Automate the recurring parts of the go-live runbook ([`docs/operations/go-live-r
 
 Own-stack support for myK9Show (retires Fluent Support for this app; Fluent stays for the legacy Access apps). In-app "Get Help" front door → AI deflection over verified guides → contextual ticket with auto-captured diagnostic bundle → in-app threaded reply reusing the existing push + Resend infra → site-admin inbox. Thin MVP — explicitly no inbound-email/IMAP, no macros/SLA/CSAT. Apply-ready OpenSpec change (`openspec validate` clean), grounded in confirmed schemas; key decision = dedicated `support_ticket_messages` table (show_messages is hard show-scoped).
 
-- [ ] **Implement `in-app-support-system`** — apply-ready OpenSpec change at `openspec/changes/in-app-support-system/` (proposal + 3 specs + design + tasks). Execute with `/opsx:apply`. Payments/refunds must never be AI auto-answered (server-side gate, assertion-first test). High-stakes: new tables + RLS → migration-auditor + Codex pass. Source discussion: 2026-07-04 support-architecture session.
+- [ ] **Implement `in-app-support-system`** — apply-ready OpenSpec change at `openspec/changes/in-app-support-system/` (proposal + 3 specs + design + tasks). **Execute with `/opsx:ship in-app-support-system`** (full pipeline: verify → implement → PR → review → merge → archive; or `/opsx:apply` for implement-only). Payments/refunds must never be AI auto-answered (server-side gate, assertion-first test). High-stakes: new tables + RLS → migration-auditor + Codex pass. Source discussion: 2026-07-04 support-architecture session.
 
 ---
 

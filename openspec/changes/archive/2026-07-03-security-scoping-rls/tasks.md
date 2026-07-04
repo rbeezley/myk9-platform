@@ -84,7 +84,8 @@
       convention) in both migrations + contract tests; (2) removed the RLS-unsafe
       raw SELECT+UPDATE fallback in `incrementPromoCodeUsage` (would fail for
       exhibitor sessions under officials-only writes) — now RPC-only, typed.
-- [ ] 4.2 Run `supabase db push --dry-run`; confirm clean
+- [x] 4.2 Run `supabase db push --dry-run`; confirm clean — DONE: dry-run showed
+      only the two new migrations would apply, nothing else pending.
 - [x] 4.3 Request Codex second opinion (RLS change)
       — DONE (user ran Codex on PR #1109). Two findings, both fixed:
       **P1** promo_codes UPDATE/DELETE were still unscoped (mig 085's
@@ -102,7 +103,11 @@
       (`created_by = (SELECT auth.uid())`) alongside the scope check; verified the
       app always inserts `created_by = auth user id` so no regression. Spec +
       contract test + comment updated.
-- [ ] 4.4 Push migrations only after explicit user confirmation (merge is not
-      deploy)
-- [ ] 4.5 Update `docs/security-audit-2026-07/README.md` status table (SA-002,
-      SA-007 rows → DONE) and this change's tracking status
+- [x] 4.4 Push migrations only after explicit user confirmation (merge is not
+      deploy) — DONE 2026-07-03: PR #1109 merged (squash `2be73d70`), then
+      `supabase db push` applied both migrations. Verified live via pg_policies:
+      all 8 policies scoped, none still `auth.uid() IS NOT NULL`; validate_promo_code
+      RPC present; INSERT pins created_by.
+- [x] 4.5 Update `docs/security-audit-2026-07/README.md` status table (SA-002,
+      SA-007 rows → DONE) and this change's tracking status — DONE in this
+      closeout PR.

@@ -20,6 +20,16 @@ export const pageDirectory: readonly PageEntry[] = [
     linksTo: ['/admin/permissions', '/admin/alerts'],
   },
   {
+    path: '/admin/health',
+    title: 'System Health',
+    description: 'Latest daily go-live parity check: overall status, per-check pills, and recent run history. A stale or missing run is surfaced as a failure.',
+    roles: [UserRole.SITE_ADMIN],
+    classification: 'critical-path',
+    category: 'Admin',
+    status: 'working',
+    linksTo: [],
+  },
+  {
     path: '/admin/help',
     title: 'Help — Page Directory',
     description: 'Directory of every page in myK9Show, grouped by role.',

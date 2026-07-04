@@ -113,6 +113,11 @@ const AlertsPage = createEnhancedLazy(() => import('@/pages/AlertsPage'), {
   displayName: 'AlertsPage',
 });
 
+const SystemHealthPage = createEnhancedLazy(() => import('@/pages/admin/SystemHealthPage'), {
+  ...RouteLazyPresets.mediumPriority,
+  displayName: 'SystemHealthPage',
+});
+
 const JudgeAnalyticsPage = createEnhancedLazy(() => import('@/pages/admin/JudgeAnalyticsPage'), {
   ...RouteLazyPresets.mediumPriority,
   displayName: 'JudgeAnalyticsPage',
@@ -227,6 +232,16 @@ export const AdminRoutes = () => (
     />
 
     {/* System Management */}
+    <Route
+      path="/admin/health"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <SystemHealthPage />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
+    />
     <Route
       path="/admin/sync"
       element={adminGuard(

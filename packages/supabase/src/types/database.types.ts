@@ -6643,6 +6643,33 @@ export type Database = {
           },
         ]
       }
+      system_health_snapshots: {
+        Row: {
+          checks: Json
+          created_at: string
+          id: string
+          overall_status: string
+          run_duration_ms: number | null
+          source: string
+        }
+        Insert: {
+          checks: Json
+          created_at?: string
+          id?: string
+          overall_status: string
+          run_duration_ms?: number | null
+          source: string
+        }
+        Update: {
+          checks?: Json
+          created_at?: string
+          id?: string
+          overall_status?: string
+          run_duration_ms?: number | null
+          source?: string
+        }
+        Relationships: []
+      }
       template_fields: {
         Row: {
           created_at: string | null

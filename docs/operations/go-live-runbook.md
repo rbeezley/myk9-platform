@@ -247,6 +247,13 @@ product).
 
 ## Phase 5 — Launch day (morning-of checklist, ~30 min)
 
+> The recurring, machine-checkable parts of this checklist are being automated into a daily job
+> that writes a snapshot to `system_health_snapshots`; the **System Health board at `/admin/health`**
+> renders the latest run at a glance (overall status, per-check pills, and whether the run is
+> stale/overdue). Open it first each morning — a green board covers the automated checks below; a
+> stale or missing run is itself a failure signal. The check-runner that populates it lands in a
+> companion change, so until then treat the manual items below as authoritative.
+
 - [ ] **5.1** `main` is green; Deploy Production workflow succeeded on the launch build; the
       production URL serves it.
 - [ ] **5.2** Migration parity: `supabase migration list` — local and remote agree;
@@ -255,7 +262,7 @@ product).
 - [ ] **5.3** Edge-function parity: `supabase functions list` — every function's `updated_at` is
       at/after its last code change; no deployed-ahead drift.
 - [ ] **5.4** Payout cron healthy overnight (query in Phase 3 ongoing checks).
-- [ ] **5.5** Admin surfaces walk: `/admin/dashboard`, `/users`, `/permissions/*`,
+- [ ] **5.5** Admin surfaces walk: `/admin/dashboard`, `/health`, `/users`, `/permissions/*`,
       `/role-requests`, `/payouts`, `/sync`, `/onboarding`, `/performance`, `/alerts`,
       `/data-lifecycle` all render for the site-admin account.
 - [ ] **5.6** Support posture: [`admin-support-runbook.md`](admin-support-runbook.md) at hand;

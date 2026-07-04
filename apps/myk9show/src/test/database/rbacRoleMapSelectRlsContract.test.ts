@@ -91,6 +91,7 @@ describe('RBAC role-map SELECT scoping RLS contract (SA-006)', () => {
     expect(fn).toContain('(SELECT public.is_club_admin(s.club_id))');
     expect(fn).toContain('(SELECT public.is_show_secretary(s.id))');
     expect(fn).toContain('(SELECT public.is_site_admin())');
+    expect(fn).toContain('AND (ur.expires_at IS NULL OR ur.expires_at > NOW())');
     expect(fn).toContain("r.name IN ('secretary', 'chairman', 'steward')");
     expect(migration).toContain(
       'GRANT EXECUTE ON FUNCTION public.get_show_officials(uuid) TO anon'
@@ -112,6 +113,7 @@ describe('RBAC role-map SELECT scoping RLS contract (SA-006)', () => {
     expect(fn).toContain('SECURITY DEFINER');
     expect(fn).toContain("SET search_path = ''");
     expect(fn).toContain('WHERE ur.club_id = p_club_id');
+    expect(fn).toContain('AND (ur.expires_at IS NULL OR ur.expires_at > NOW())');
     expect(fn).toContain("r.name = 'secretary'");
     expect(migration).toContain(
       'GRANT EXECUTE ON FUNCTION public.get_club_show_manager_ids(uuid) TO authenticated'

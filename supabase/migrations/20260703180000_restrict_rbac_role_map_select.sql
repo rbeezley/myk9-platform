@@ -112,6 +112,7 @@ AS $$
       OR (SELECT public.is_site_admin())
     )
     AND ur.is_active = true
+    AND (ur.expires_at IS NULL OR ur.expires_at > NOW())
     AND r.name IN ('secretary', 'chairman', 'steward');
 $$;
 
@@ -132,6 +133,7 @@ AS $$
   JOIN public.roles r ON r.id = ur.role_id
   WHERE ur.club_id = p_club_id
     AND ur.is_active = true
+    AND (ur.expires_at IS NULL OR ur.expires_at > NOW())
     AND r.name = 'secretary';
 $$;
 

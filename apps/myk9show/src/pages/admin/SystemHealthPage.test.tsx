@@ -59,6 +59,8 @@ describe('SystemHealthPage', () => {
     expect(screen.getByText('Edge-function parity')).toBeInTheDocument();
     // relative freshness label rendered per check
     expect(screen.getAllByText(/checked .* ago/i).length).toBeGreaterThan(0);
+    // run duration is surfaced in the banner meta line (fixture is 1500ms)
+    expect(screen.getByText(/took 1\.5s/)).toBeInTheDocument();
   });
 
   it('shows a stale warning when the latest run is older than the threshold', () => {

@@ -6,9 +6,10 @@
 // leads to specifics ("I can drill down"). Do not soften the failure states into
 // neutral indicators.
 
-import { useMemo } from 'react';
+import { useState } from 'react';
 import { Activity, AlertTriangle, RefreshCw } from 'lucide-react';
 import { StatusBadge } from '@myk9/ui';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSystemHealthSnapshots } from '@/features/admin-system-health/useSystemHealthSnapshots';
 import {
@@ -42,6 +43,12 @@ const DOT_CLASS: Record<CheckStatus, string> = {
   fail: 'bg-destructive',
   unknown: 'bg-muted-foreground',
 };
+
+/** "took 1.5s" / "took 900ms", or '' when the writer omitted the duration. */
+function formatRunDuration(ms: number | null): string {
+  if (ms == null) return '';
+  return ms >= 1000 ? `took ${(ms / 1000).toFixed(1)}s` : `took ${ms}ms`;
+}
 
 function PageShell({ children }: { children: React.ReactNode }) {
   return (
@@ -78,6 +85,16 @@ function OverallBanner({
     ? 'No health run recorded yet'
     : OVERALL_HEADLINE[effective.status];
 
+  const meta = latest
+    ? [
+        `Last run ${formatCheckedAgo(latest.createdAt, now)}`,
+        `source: ${latest.source}`,
+        formatRunDuration(latest.runDurationMs),
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : 'Waiting for the first run from the daily health job.';
+
   return (
     <Card className={effective.status === 'ok' ? undefined : 'border-destructive/40'}>
       <CardContent className="flex flex-col gap-3 py-6 sm:flex-row sm:items-center sm:justify-between">
@@ -88,11 +105,7 @@ function OverallBanner({
             label={headline}
           />
         </div>
-        <div className="text-sm text-muted-foreground">
-          {latest
-            ? `Last run ${formatCheckedAgo(latest.createdAt, now)} · source: ${latest.source}`
-            : 'Waiting for the first run from the daily health job.'}
-        </div>
+        <div className="text-sm text-muted-foreground">{meta}</div>
       </CardContent>
     </Card>
   );
@@ -105,16 +118,11 @@ function StaleOrEmptyWarning({ effective }: { effective: EffectiveHealth }) {
     : 'The latest run is more than 26 hours old. The daily health job may have stopped — treat this as a failure until a fresh run lands.';
 
   return (
-    <div
-      role="alert"
-      className="flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive"
-    >
-      <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0" aria-hidden="true" />
-      <div>
-        <p className="font-semibold">Health run overdue</p>
-        <p className="mt-1 text-destructive/90">{message}</p>
-      </div>
-    </div>
+    <Alert variant="destructive" className="bg-destructive/10">
+      <AlertTriangle className="h-5 w-5" aria-hidden="true" />
+      <AlertTitle>Health run overdue</AlertTitle>
+      <AlertDescription>{message}</AlertDescription>
+    </Alert>
   );
 }
 
@@ -165,12 +173,12 @@ export default function SystemHealthPage() {
   const { data, isLoading, error } = useSystemHealthSnapshots();
   // Evaluated once per render; the pure selectors take `now` explicitly so the
   // stale/empty logic stays unit-testable without mocking the clock.
-  const now = Date.now();
-
-  const effective = useMemo<EffectiveHealth>(
-    () => deriveEffectiveStatus(data?.latest ?? null, now),
-    [data?.latest, now]
-  );
+  // Freeze "now" at mount (lazy init keeps render pure — the codebase pattern for
+  // render-time clock reads). Freshness is relative to page open, which is the
+  // right granularity for a board checked once each morning.
+  const [now] = useState(() => Date.now());
+  // Derivation is a single parse + subtraction — cheap enough to run inline.
+  const effective = deriveEffectiveStatus(data?.latest ?? null, now);
 
   if (isLoading) {
     return (
@@ -186,18 +194,13 @@ export default function SystemHealthPage() {
   if (error) {
     return (
       <PageShell>
-        <div
-          role="alert"
-          className="flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive"
-        >
-          <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0" aria-hidden="true" />
-          <div>
-            <p className="font-semibold">Couldn’t load system health</p>
-            <p className="mt-1 text-destructive/90">
-              The snapshot read failed. Confirm you have site-admin access and try again.
-            </p>
-          </div>
-        </div>
+        <Alert variant="destructive" className="bg-destructive/10">
+          <AlertTriangle className="h-5 w-5" aria-hidden="true" />
+          <AlertTitle>Couldn’t load system health</AlertTitle>
+          <AlertDescription>
+            The snapshot read failed. Confirm you have site-admin access and try again.
+          </AlertDescription>
+        </Alert>
       </PageShell>
     );
   }

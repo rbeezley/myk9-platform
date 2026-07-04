@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { CheckCheck, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { chipClasses } from '@/components/base/chipClasses';
 import { ShowMapGuidanceCard } from './ShowMapGuidanceCard';
 import { ShowMapRunningNowStrip } from './ShowMapRunningNowStrip';
 import type { ShowMapAction } from './showMapActions';
@@ -24,7 +25,7 @@ const STATUS_TONE: Record<ShowDeskShowStatus, string> = {
   // "Closed" is an inactive state: warm stone chip token (DESIGN.md
   // "stone=inactive"), not a cool slate. The token carries both light and
   // dark values, so no dark: variant is needed.
-  closed: 'bg-[color:var(--chip-stone-bg)] text-[color:var(--chip-stone-fg)]',
+  closed: chipClasses('stone'),
 };
 
 export interface ShowDeskAdaptiveHeaderProps {

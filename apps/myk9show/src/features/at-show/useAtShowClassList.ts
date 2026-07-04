@@ -13,6 +13,8 @@ export interface UseAtShowClassListResult {
   groups: AtShowClassGroup[];
   organization: string;
   showName: string;
+  /** Owning club, needed to match the show-desk route's club-scoped gate. */
+  clubId: string | undefined;
   isLoading: boolean;
   error: Error | null;
   refresh: () => void;
@@ -34,6 +36,7 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
     groups: groupsQuery.data ?? [],
     organization: showQuery.data?.organization ?? '',
     showName: showQuery.data?.name ?? '',
+    clubId: showQuery.data?.clubId ?? undefined,
     // Gate on BOTH queries: `organization` drives A/B pairing, so the page must
     // not group/render with the default ('') before the show metadata lands.
     isLoading: groupsQuery.isLoading || showQuery.isLoading,

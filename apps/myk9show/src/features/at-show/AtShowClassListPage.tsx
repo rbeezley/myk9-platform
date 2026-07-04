@@ -25,8 +25,10 @@ import { formatTrialDate } from '@myk9/core';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
+import { chipClasses } from '@/components/base/chipClasses';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
+import { hasScopedClubRole } from '@/utils/roleScopes';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
 import { useAtShowClassList } from './useAtShowClassList';
@@ -57,11 +59,24 @@ function sortClassesForAtShowScan(classes: ClassEntry[]): ClassEntry[] {
   });
 }
 
-function BackToRingsideExitButton({ showId }: { showId: string | undefined }) {
+function BackToRingsideExitButton({
+  showId,
+  clubId,
+}: {
+  showId: string | undefined;
+  clubId: string | undefined;
+}) {
   const navigate = useNavigate();
-  const { hasRole } = useAuthContext();
+  const { hasRole, userWithRoles } = useAuthContext();
+  // Mirror ShowManagementSectionRoute's admission exactly: secretary/site-admin
+  // pass unconditionally, but a club admin only reaches show-desk when scoped to
+  // THIS show's club. Predicting with a coarser check (any club admin) would
+  // send a cross-club admin to a route that then bounces them to the public
+  // show page — the ringside eject this button exists to avoid.
   const canUseShowDesk =
-    hasRole(UserRole.SECRETARY) || hasRole(UserRole.SITE_ADMIN) || hasRole(UserRole.CLUB_ADMIN);
+    hasRole(UserRole.SECRETARY) ||
+    hasRole(UserRole.SITE_ADMIN) ||
+    (hasRole(UserRole.CLUB_ADMIN) && hasScopedClubRole(userWithRoles, UserRole.CLUB_ADMIN, clubId));
   const label = canUseShowDesk ? 'Back to Show Desk' : 'Back to Ringside';
   const target = canUseShowDesk && showId ? `/shows/${showId}/show-desk` : '/at-show';
 
@@ -80,7 +95,8 @@ function BackToRingsideExitButton({ showId }: { showId: string | undefined }) {
 export const AtShowClassListPage: React.FC = () => {
   const { showId } = useParams<{ showId: string }>();
   const navigate = useNavigate();
-  const { groups, organization, showName, isLoading, error, refresh } = useAtShowClassList(showId);
+  const { groups, organization, showName, clubId, isLoading, error, refresh } =
+    useAtShowClassList(showId);
   const { status: syncStatus } = useReplicationSync();
 
   // Group Novice A/B pairs into single combined entries per trial.
@@ -161,7 +177,7 @@ export const AtShowClassListPage: React.FC = () => {
           <Button variant="outline" className="min-h-11 px-6" onClick={refresh}>
             Try again
           </Button>
-          <BackToRingsideExitButton showId={showId} />
+          <BackToRingsideExitButton showId={showId} clubId={clubId} />
         </div>
       </div>
     );
@@ -173,7 +189,7 @@ export const AtShowClassListPage: React.FC = () => {
       <div className="ringside-root flex flex-col items-center justify-center h-96 gap-3 px-4 text-center">
         <p className="text-lg font-medium">No classes</p>
         <p className="text-sm text-muted-foreground">This show has no classes yet.</p>
-        <BackToRingsideExitButton showId={showId} />
+        <BackToRingsideExitButton showId={showId} clubId={clubId} />
       </div>
     );
   }
@@ -181,7 +197,7 @@ export const AtShowClassListPage: React.FC = () => {
   return (
     <div className="ringside-root mx-auto max-w-2xl px-4 py-4">
       <div className="mb-3">
-        <BackToRingsideExitButton showId={showId} />
+        <BackToRingsideExitButton showId={showId} clubId={clubId} />
       </div>
 
       {showName && <h1 className="mb-4 text-center text-lg font-semibold">{showName}</h1>}
@@ -215,7 +231,12 @@ export const AtShowClassListPage: React.FC = () => {
                   aria-hidden="true"
                 />
                 <span className="min-w-0 flex-1 truncate">{trialLabel}</span>
-                <span className="shrink-0 rounded-full bg-[color:var(--chip-stone-bg)] px-2 py-0.5 text-xs font-medium text-[color:var(--chip-stone-fg)]">
+                <span
+                  className={cn(
+                    'shrink-0 rounded-full px-2 py-0.5 text-xs font-medium',
+                    chipClasses('stone')
+                  )}
+                >
                   {classes.length}
                 </span>
               </button>

@@ -1,5 +1,6 @@
 import { Badge } from '@/components/ui/badge';
 import React from 'react';
+import { chipClasses } from '@/components/base/chipClasses';
 import type { UserWithRoles } from '@/types/auth-types';
 import type { ShowTab } from '@/types/unified-shows-types';
 import type { Show } from '@/types/show-types';
@@ -36,7 +37,7 @@ export function getStatusBadge(status: string): React.ReactNode {
 const TYPE_BADGE_COLORS: Record<string, string> = {
   'Agility': 'bg-primary/10 text-primary border-primary/20',
   'Scent Work': 'bg-success/10 text-success border-success/20',
-  'Rally': 'bg-[color:var(--chip-purple-bg)] text-[color:var(--chip-purple-fg)] border-[color:var(--chip-purple-bg)]',
+  'Rally': chipClasses('purple', { border: true }),
   'Obedience': 'bg-warning/10 text-warning border-warning/20',
   'Nosework': 'bg-success/10 text-success border-success/20'
 };

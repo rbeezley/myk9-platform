@@ -1,5 +1,6 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
+import { chipClasses } from '@/components/base/chipClasses';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryStatus as CanonicalEntryStatus } from '@/types/entry-lifecycle';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
@@ -252,6 +253,6 @@ export function getEntryStatusClasses(status: string | null): string {
       return 'bg-info/10 text-info border-info/30 ';
     default:
       // REJECTED / SCRATCHED / MOVED / COMPLETED / MOVE_UP_REQUESTED — neutral, as before.
-      return 'bg-[color:var(--chip-stone-bg)] text-[color:var(--chip-stone-fg)] border-[color:var(--chip-stone-bg)]';
+      return chipClasses('stone', { border: true });
   }
 }

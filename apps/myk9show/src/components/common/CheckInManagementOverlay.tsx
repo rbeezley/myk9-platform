@@ -20,6 +20,7 @@ import {
 import { CheckInStatus, CHECK_IN_STATUS_CONFIG } from '@/types/check-in-types';
 import { CheckCircle2, AlertTriangle, XCircle, Eye, ArrowRight, Users, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { chipClasses } from '@/components/base/chipClasses';
 
 interface EntryForCheckIn {
   id: string;
@@ -60,22 +61,14 @@ const STATUS_COLORS = {
 };
 
 const STATUS_BADGE_COLORS = {
-  'no-status':
-    'bg-[color:var(--chip-stone-bg)] text-[color:var(--chip-stone-fg)] border-[color:var(--chip-stone-bg)]',
-  'checked-in':
-    'bg-[color:var(--chip-teal-bg)] text-[color:var(--chip-teal-fg)] border-[color:var(--chip-teal-bg)]',
-  conflict:
-    'bg-[color:var(--chip-amber-bg)] text-[color:var(--chip-amber-fg)] border-[color:var(--chip-amber-bg)]',
-  pulled:
-    'bg-[color:var(--chip-red-bg)] text-[color:var(--chip-red-fg)] border-[color:var(--chip-red-bg)]',
-  'at-gate':
-    'bg-[color:var(--chip-green-bg)] text-[color:var(--chip-green-fg)] border-[color:var(--chip-green-bg)]',
-  'come-to-gate':
-    'bg-[color:var(--chip-blue-bg)] text-[color:var(--chip-blue-fg)] border-[color:var(--chip-blue-bg)]',
-  'in-ring':
-    'bg-[color:var(--chip-purple-bg)] text-[color:var(--chip-purple-fg)] border-[color:var(--chip-purple-bg)]',
-  completed:
-    'bg-[color:var(--chip-green-bg)] text-[color:var(--chip-green-fg)] border-[color:var(--chip-green-bg)]',
+  'no-status': chipClasses('stone', { border: true }),
+  'checked-in': chipClasses('teal', { border: true }),
+  conflict: chipClasses('amber', { border: true }),
+  pulled: chipClasses('red', { border: true }),
+  'at-gate': chipClasses('green', { border: true }),
+  'come-to-gate': chipClasses('blue', { border: true }),
+  'in-ring': chipClasses('purple', { border: true }),
+  completed: chipClasses('green', { border: true }),
 };
 
 export const CheckInManagementOverlay: React.FC<CheckInManagementOverlayProps> = ({

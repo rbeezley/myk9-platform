@@ -67,6 +67,8 @@ test.describe('Secretary QA regression proof', () => {
     });
     await expect(page).toHaveURL(/\/secretary\/create-show\/wizard/);
 
+    // Premium List Style is collapsed by default under "More options".
+    await page.getByRole('button', { name: /More options/i }).click();
     await page.getByLabel('Premium List Style').click();
     const styleOptions = [
       'Monogram (default)',

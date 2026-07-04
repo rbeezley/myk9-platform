@@ -1,4 +1,5 @@
 import { render, screen } from '@/test/utils/testUtils';
+import { within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -63,9 +64,12 @@ describe('ShowDetailsStep — Payment Methods section', () => {
     vi.clearAllMocks();
   });
 
-  it('renders the Payment Methods section heading', () => {
+  it('renders the Fees & Payments heading with Payment Methods folded in', () => {
     render(<ShowDetailsStep />);
-    expect(screen.getByText('Payment Methods')).toBeInTheDocument();
+    expect(screen.getByText('Fees & Payments')).toBeInTheDocument();
+    // The old standalone "Payment Methods" heading is gone — the accept-check /
+    // accept-cash checkboxes now live under the Fees & Payments group.
+    expect(screen.queryByText('Payment Methods')).not.toBeInTheDocument();
   });
 
   it('renders "Credit/Debit Card — always enabled" as a locked row', () => {
@@ -99,12 +103,25 @@ describe('ShowDetailsStep — Payment Methods section', () => {
     expect(mockUpdateShowData).toHaveBeenCalledWith({ acceptCashPayments: true });
   });
 
-  it('renders the Premium List Style selector with the default style', () => {
+  it('keeps Premium List Style and Starting Armband collapsed by default', () => {
     render(<ShowDetailsStep />);
-    expect(screen.getByText('Premium List Style')).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: /premium list style/i })).toHaveTextContent(
-      /monogram \(default\)/i
-    );
+    // Role queries exclude hidden/unmounted nodes, so this holds whether Base UI
+    // unmounts the closed panel or just hides it.
+    expect(screen.queryByRole('combobox', { name: /premium list style/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('spinbutton', { name: /starting armband number/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('reveals Premium List Style (default monogram) + armband after expanding More options', async () => {
+    const user = userEvent.setup();
+    render(<ShowDetailsStep />);
+    await user.click(screen.getByRole('button', { name: /more options/i }));
+    const styleCombo = await screen.findByRole('combobox', { name: /premium list style/i });
+    expect(styleCombo).toHaveTextContent(/monogram \(default\)/i);
+    expect(
+      await screen.findByRole('spinbutton', { name: /starting armband number/i })
+    ).toBeInTheDocument();
   });
 
   it('uses single-column field groups on mobile with desktop two-column restoration', () => {
@@ -120,9 +137,34 @@ describe('ShowDetailsStep — Payment Methods section', () => {
     const entryPeriodGroup = screen.getByText(/entry period/i).closest('div');
     expect(entryPeriodGroup?.className).toContain('md:col-span-2');
 
-    const officialsSection = screen.getByText('Show Officials').closest('div');
+    const officialsSection = screen.getByText('Officials').closest('div');
     const officialsGrid = officialsSection?.querySelector('[class*="grid"]');
     expect(officialsGrid?.className).toContain('grid-cols-1');
     expect(officialsGrid?.className).toContain('md:grid-cols-2');
+  });
+});
+
+describe('ShowDetailsStep — Step-1 grouping', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders the four always-visible group headings', () => {
+    render(<ShowDetailsStep />);
+    expect(screen.getByRole('heading', { name: 'Basics' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Dates & Entry' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Fees & Payments' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Officials' })).toBeInTheDocument();
+  });
+
+  it('folds Host Club into Basics — no standalone Club Information heading', () => {
+    render(<ShowDetailsStep />);
+    expect(screen.getByText('Host Club')).toBeInTheDocument();
+    expect(screen.queryByText('Club Information')).not.toBeInTheDocument();
+    // Host Club sits inside the Basics group, alongside the Show Name field.
+    const basics = screen.getByRole('heading', { name: 'Basics' }).closest('div');
+    expect(basics).not.toBeNull();
+    expect(within(basics as HTMLElement).getByText('Host Club')).toBeInTheDocument();
+    expect(within(basics as HTMLElement).getByLabelText(/show name/i)).toBeInTheDocument();
   });
 });

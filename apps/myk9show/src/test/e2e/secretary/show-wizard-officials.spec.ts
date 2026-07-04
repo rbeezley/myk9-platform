@@ -22,7 +22,7 @@ test.describe('Show Wizard — Officials & Judges Pickers', () => {
 
   test('Show Details step loads with populated chairman picker', async ({ page }) => {
     // Verify we're on the Show Details step
-    await expect(page.locator('text=Basic Show Information')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Basics' })).toBeVisible();
 
     // Find the Show Chairman picker trigger and open it
     const chairmanTrigger = page.getByRole('button', { name: /Show Chairman/i });
@@ -43,7 +43,7 @@ test.describe('Show Wizard — Officials & Judges Pickers', () => {
   });
 
   test('"Add new Show Chairman" form requires name, email, and phone', async ({ page }) => {
-    await expect(page.locator('text=Basic Show Information')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Basics' })).toBeVisible();
 
     // Open the chairman picker and expand its inline "Add new" form.
     await page.getByRole('button', { name: /Show Chairman/i }).click();
@@ -68,7 +68,7 @@ test.describe('Show Wizard — Officials & Judges Pickers', () => {
 
   test('Secretary field is auto-filled with the logged-in user badge', async ({ page }) => {
     // Verify we're on the Show Details step
-    await expect(page.locator('text=Basic Show Information')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Basics' })).toBeVisible();
 
     // The secretary is auto-filled with the logged-in user — the "You" badge should appear
     // next to the secretary picker when the selection matches the current user.
@@ -77,7 +77,7 @@ test.describe('Show Wizard — Officials & Judges Pickers', () => {
 
   test('"Add new judge" footer expands the new-person form', async ({ page }) => {
     // Verify we're on the Show Details step
-    await expect(page.locator('text=Basic Show Information')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Basics' })).toBeVisible();
 
     // Open the judges search popover
     const judgesTrigger = page.getByRole('button', { name: /Show Judges/i });

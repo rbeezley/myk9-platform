@@ -16,7 +16,7 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
   test('Step 1 renders current required show details', async ({ page }) => {
     await signInAsSecretary(page, '/secretary/create-show/wizard');
 
-    await expect(page.getByText('Basic Show Information')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Basics' })).toBeVisible();
     await expect(page.getByLabel(/Show Name/i)).toBeVisible();
     await expect(page.getByLabel(/Organization/i)).toBeVisible();
     await expect(page.getByRole('button', { name: /Show Dates/i })).toBeVisible();
@@ -33,6 +33,8 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
   test('Step 1 exposes premium style options and independent date ranges', async ({ page }) => {
     await signInAsSecretary(page, '/secretary/create-show/wizard');
 
+    // Premium List Style + armband are collapsed by default under "More options".
+    await page.getByRole('button', { name: /More options/i }).click();
     await page.getByLabel('Premium List Style').click();
     for (const label of [
       'Monogram (default)',

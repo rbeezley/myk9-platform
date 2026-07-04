@@ -58,3 +58,37 @@ export function shouldPurgePersistedPeople(args: {
 }): boolean {
   return args.rolesResolved && !args.canLoadDirectory && args.hasPersistedPeople;
 }
+
+/** Minimal store surface the purge needs — keeps this unit testable without React/zustand. */
+export interface PeopleDirectoryStoreView {
+  getPeopleCount: () => number;
+  clearPeople: () => void;
+  subscribe: (listener: () => void) => () => void;
+}
+
+/**
+ * SA-008 hydration-safe purge. The persisted store is async (IndexedDB) backed,
+ * so a snapshot check right after sign-in can run BEFORE rehydration and miss
+ * the restored directory. Instead: purge now AND on every later store change
+ * that repopulates it (rehydration fires a store update). Returns an
+ * unsubscribe. Self-guards via `shouldPurgePersistedPeople`, so calling it for a
+ * management session is a harmless no-op.
+ */
+export function keepPeopleDirectoryPurged(
+  store: PeopleDirectoryStoreView,
+  session: { rolesResolved: boolean; canLoadDirectory: boolean }
+): () => void {
+  const purge = () => {
+    if (
+      shouldPurgePersistedPeople({
+        rolesResolved: session.rolesResolved,
+        canLoadDirectory: session.canLoadDirectory,
+        hasPersistedPeople: store.getPeopleCount() > 0,
+      })
+    ) {
+      store.clearPeople();
+    }
+  };
+  purge();
+  return store.subscribe(purge);
+}

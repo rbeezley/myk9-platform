@@ -52,7 +52,7 @@ import { AuthProvider } from './context/AuthContext';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import {
   shouldLoadPeopleDirectory,
-  shouldPurgePersistedPeople,
+  keepPeopleDirectoryPurged,
 } from '@/services/database/users/peopleDirectoryAccess';
 import { useAnnouncementSubscription } from '@/hooks/useAnnouncementSubscription';
 import { useMessageSubscription } from '@/hooks/useMessageSubscription';
@@ -192,34 +192,45 @@ function UserDataInitializer() {
   React.useEffect(() => {
     if (!user) return;
 
+    let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
+
     const run = async () => {
       const { useUserStore } = await import('./store/userStore');
-      const store = useUserStore.getState();
+      if (cancelled) return;
 
       if (shouldLoad) {
         try {
-          await store.loadUsers();
+          await useUserStore.getState().loadUsers();
         } catch (error) {
           logger.error('Failed to load user data after auth:', 'app', {}, error as Error);
         }
         return;
       }
 
-      // SA-008: non-management session. Once roles have resolved, purge any
+      // SA-008: non-management session. Wait until roles resolve, then keep any
       // people directory a prior management session persisted in this browser
-      // (myk9show-user-storage) so a role downgrade does not retain PII.
-      if (
-        shouldPurgePersistedPeople({
-          rolesResolved: !rbacLoading,
-          canLoadDirectory: shouldLoad,
-          hasPersistedPeople: store.people.length > 0,
-        })
-      ) {
-        store.setUsers([]);
-      }
+      // (myk9show-user-storage, async IndexedDB) purged — now and on rehydration.
+      if (rbacLoading) return;
+
+      const stop = keepPeopleDirectoryPurged(
+        {
+          getPeopleCount: () => useUserStore.getState().people.length,
+          clearPeople: () => useUserStore.getState().setUsers([]),
+          subscribe: listener => useUserStore.subscribe(listener),
+        },
+        { rolesResolved: true, canLoadDirectory: false }
+      );
+      if (cancelled) stop();
+      else unsubscribe = stop;
     };
 
     run();
+
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
   }, [user, shouldLoad, rbacLoading]);
 
   return null;

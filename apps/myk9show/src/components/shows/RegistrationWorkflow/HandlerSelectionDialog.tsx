@@ -175,8 +175,11 @@ export const HandlerSelectionDialog: React.FC<HandlerSelectionDialogProps> = ({
                 hasError={hasError}
                 isOpen={isOpen}
                 onOpenChange={handleOpenChange}
-                people={people}
-                peopleLoading={peopleLoading}
+                // SA-008: never surface the directory to a gated (exhibitor)
+                // session even if a prior management session left it in the
+                // persisted store — mask the list, not just the fetch.
+                people={canLoadDirectory ? people : []}
+                peopleLoading={canLoadDirectory ? peopleLoading : false}
                 onInputChange={handleInputChange}
                 onSelectPerson={handleSelectPerson}
                 onResetToOwner={resetToOwner}

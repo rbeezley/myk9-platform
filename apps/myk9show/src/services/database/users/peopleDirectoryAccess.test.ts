@@ -1,10 +1,35 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { UserRole } from '@/types/auth-types';
 import {
   shouldLoadPeopleDirectory,
   shouldPurgePersistedPeople,
+  keepPeopleDirectoryPurged,
   PEOPLE_DIRECTORY_ROLES,
 } from './peopleDirectoryAccess';
+
+/** In-memory fake of the persisted people store for purge tests. */
+function makeFakeStore(initialCount = 0) {
+  let count = initialCount;
+  const listeners = new Set<() => void>();
+  const clearPeople = vi.fn(() => {
+    count = 0;
+    listeners.forEach(l => l());
+  });
+  return {
+    getPeopleCount: () => count,
+    clearPeople,
+    subscribe: (l: () => void) => {
+      listeners.add(l);
+      return () => listeners.delete(l);
+    },
+    /** simulate async IndexedDB rehydration repopulating the directory */
+    hydrate: (n: number) => {
+      count = n;
+      listeners.forEach(l => l());
+    },
+    currentCount: () => count,
+  };
+}
 
 describe('shouldLoadPeopleDirectory (SA-008 fetch gate)', () => {
   it('returns false for a plain exhibitor session (no people fetch at login)', () => {
@@ -87,5 +112,43 @@ describe('shouldPurgePersistedPeople (SA-008 persistence guard)', () => {
         hasPersistedPeople: false,
       })
     ).toBe(false);
+  });
+});
+
+describe('keepPeopleDirectoryPurged (SA-008 hydration-safe purge)', () => {
+  const gated = { rolesResolved: true, canLoadDirectory: false };
+
+  it('purges immediately when data is already present for a gated session', () => {
+    const store = makeFakeStore(5);
+    keepPeopleDirectoryPurged(store, gated);
+    expect(store.clearPeople).toHaveBeenCalled();
+    expect(store.currentCount()).toBe(0);
+  });
+
+  it('purges on later async rehydration (the pre-hydration snapshot race)', () => {
+    const store = makeFakeStore(0); // starts empty (pre-hydration)
+    keepPeopleDirectoryPurged(store, gated);
+    expect(store.clearPeople).not.toHaveBeenCalled();
+
+    store.hydrate(7); // IndexedDB restores the directory after mount
+    expect(store.clearPeople).toHaveBeenCalled();
+    expect(store.currentCount()).toBe(0);
+  });
+
+  it('does NOT purge for a management session even on rehydration', () => {
+    const store = makeFakeStore(0);
+    keepPeopleDirectoryPurged(store, { rolesResolved: true, canLoadDirectory: true });
+    store.hydrate(7);
+    expect(store.clearPeople).not.toHaveBeenCalled();
+    expect(store.currentCount()).toBe(7);
+  });
+
+  it('stops purging after unsubscribe', () => {
+    const store = makeFakeStore(0);
+    const stop = keepPeopleDirectoryPurged(store, gated);
+    stop();
+    store.hydrate(7);
+    expect(store.clearPeople).not.toHaveBeenCalled();
+    expect(store.currentCount()).toBe(7);
   });
 });

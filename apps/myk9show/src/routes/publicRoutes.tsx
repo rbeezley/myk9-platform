@@ -56,6 +56,9 @@ const ShowWorkbenchShowDeskPage = lazy(() =>
 const ClassManagementPage = lazy(() =>
   import('@/pages/secretary/ClassManagementPage').then(m => ({ default: m.ClassManagementPage }))
 );
+const ClassCreationPage = lazy(() =>
+  import('@/pages/secretary/ClassCreationPage').then(m => ({ default: m.ClassCreationPage }))
+);
 const EntryManagementPage = lazy(() => import('@/pages/secretary/EntryManagementPage'));
 const ReportsPage = lazy(() => import('@/pages/secretary/ReportsPage'));
 const ResultsControlPage = lazy(() => import('@/pages/secretary/ResultsControlPage'));
@@ -176,6 +179,16 @@ export const PublicRoutes = () => (
           <ShowManagementSectionRoute>
             <SuspenseWrapper>
               <ClassManagementPage />
+            </SuspenseWrapper>
+          </ShowManagementSectionRoute>
+        }
+      />
+      <Route
+        path="classes/:trialId/create"
+        element={
+          <ShowManagementSectionRoute>
+            <SuspenseWrapper>
+              <ClassCreationPage />
             </SuspenseWrapper>
           </ShowManagementSectionRoute>
         }

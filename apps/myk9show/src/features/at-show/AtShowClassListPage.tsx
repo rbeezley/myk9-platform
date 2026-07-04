@@ -25,6 +25,8 @@ import { formatTrialDate } from '@myk9/core';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { UserRole } from '@/types/auth-types';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
 import { useAtShowClassList } from './useAtShowClassList';
@@ -55,16 +57,22 @@ function sortClassesForAtShowScan(classes: ClassEntry[]): ClassEntry[] {
   });
 }
 
-function BackToShowDeskButton({ showId }: { showId: string | undefined }) {
+function BackToRingsideExitButton({ showId }: { showId: string | undefined }) {
   const navigate = useNavigate();
+  const { hasRole } = useAuthContext();
+  const canUseShowDesk =
+    hasRole(UserRole.SECRETARY) || hasRole(UserRole.SITE_ADMIN) || hasRole(UserRole.CLUB_ADMIN);
+  const label = canUseShowDesk ? 'Back to Show Desk' : 'Back to Ringside';
+  const target = canUseShowDesk && showId ? `/shows/${showId}/show-desk` : '/at-show';
+
   return (
     <Button
       variant="ghost"
       className="min-h-11 gap-2 px-3"
-      onClick={() => navigate(showId ? `/shows/${showId}/show-desk` : '/shows')}
+      onClick={() => navigate(target)}
     >
       <ArrowLeft className="h-4 w-4" aria-hidden />
-      Back to Show Desk
+      {label}
     </Button>
   );
 }
@@ -153,7 +161,7 @@ export const AtShowClassListPage: React.FC = () => {
           <Button variant="outline" className="min-h-11 px-6" onClick={refresh}>
             Try again
           </Button>
-          <BackToShowDeskButton showId={showId} />
+          <BackToRingsideExitButton showId={showId} />
         </div>
       </div>
     );
@@ -165,7 +173,7 @@ export const AtShowClassListPage: React.FC = () => {
       <div className="ringside-root flex flex-col items-center justify-center h-96 gap-3 px-4 text-center">
         <p className="text-lg font-medium">No classes</p>
         <p className="text-sm text-muted-foreground">This show has no classes yet.</p>
-        <BackToShowDeskButton showId={showId} />
+        <BackToRingsideExitButton showId={showId} />
       </div>
     );
   }
@@ -173,7 +181,7 @@ export const AtShowClassListPage: React.FC = () => {
   return (
     <div className="ringside-root mx-auto max-w-2xl px-4 py-4">
       <div className="mb-3">
-        <BackToShowDeskButton showId={showId} />
+        <BackToRingsideExitButton showId={showId} />
       </div>
 
       {showName && <h1 className="mb-4 text-center text-lg font-semibold">{showName}</h1>}

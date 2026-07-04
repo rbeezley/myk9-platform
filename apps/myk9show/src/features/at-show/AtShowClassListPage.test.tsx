@@ -114,6 +114,7 @@ const renderPage = (syncStatus: ReplicationSyncContextValue['status'] = settledS
           path="/at-show/:showId/class/:classIdA/:classIdB"
           element={<div>COMBINED PAGE</div>}
         />
+        <Route path="/at-show" element={<div>RINGSIDE HOME</div>} />
         <Route path="/shows/:showId/show-desk" element={<div>SHOW DESK</div>} />
       </Routes>
     </ReplicationSyncContext.Provider>,
@@ -147,24 +148,24 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
     expect(screen.queryByText('This show has no classes yet.')).not.toBeInTheDocument();
   });
 
-  it('keeps a show-desk exit in the empty state', async () => {
+  it('keeps a ringside-safe exit in the empty state', async () => {
     vi.mocked(replicatedTrialsTable.getTrialsByShow).mockResolvedValue([] as never);
 
     renderPage();
 
     expect(await screen.findByText('This show has no classes yet.')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Back to Show Desk' }));
-    expect(await screen.findByText('SHOW DESK')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Ringside' }));
+    expect(await screen.findByText('RINGSIDE HOME')).toBeInTheDocument();
   });
 
-  it('keeps a show-desk exit when class loading fails', async () => {
+  it('keeps a ringside-safe exit when class loading fails', async () => {
     vi.mocked(replicatedTrialsTable.getTrialsByShow).mockRejectedValue(new Error('Timed out'));
 
     renderPage();
 
     expect(await screen.findByText('Failed to load classes')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Back to Show Desk' }));
-    expect(await screen.findByText('SHOW DESK')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Ringside' }));
+    expect(await screen.findByText('RINGSIDE HOME')).toBeInTheDocument();
   });
 
   it('routes a Novice A/B card to the combined EntryList', async () => {

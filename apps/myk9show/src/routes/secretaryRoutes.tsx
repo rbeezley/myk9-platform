@@ -5,7 +5,7 @@
  * Standalone routes (class management, sync) also render inside the unified layout.
  */
 
-import { lazy, useEffect } from 'react';
+import { lazy, useEffect, useRef, useState } from 'react';
 import { Route, Navigate, useParams, useLocation } from 'react-router-dom';
 import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
@@ -181,30 +181,40 @@ const SecretaryIndexRedirect = () => {
 
 const LegacyClassManagementRedirect = () => {
   const { trialId } = useParams<{ trialId: string }>();
-  const trial = useTrialStore(s => (trialId ? s.getTrialById(trialId) : null));
-  const isLoading = useTrialStore(s => s.isLoading);
-  const loadTrials = useTrialStore(s => s.loadTrials);
-
-  useEffect(() => {
-    if (trialId && !trial && !isLoading) {
-      void loadTrials();
-    }
-  }, [trialId, trial, isLoading, loadTrials]);
 
   if (!trialId) {
     return <Navigate to="/secretary/dashboard" replace />;
   }
 
+  return <LegacyClassManagementRedirectForTrial key={trialId} trialId={trialId} />;
+};
+
+function LegacyClassManagementRedirectForTrial({ trialId }: { trialId: string }) {
+  const trial = useTrialStore(s => (trialId ? s.getTrialById(trialId) : null));
+  const isLoading = useTrialStore(s => s.isLoading);
+  const loadTrials = useTrialStore(s => s.loadTrials);
+  const requestedLookupRef = useRef(false);
+  const [lookupDone, setLookupDone] = useState(false);
+
+  useEffect(() => {
+    if (!trial && !isLoading && !requestedLookupRef.current) {
+      requestedLookupRef.current = true;
+      void loadTrials().finally(() => {
+        setLookupDone(true);
+      });
+    }
+  }, [trialId, trial, isLoading, loadTrials]);
+
   if (trial?.showId) {
     return <Navigate to={`/shows/${trial.showId}/classes/${trialId}`} replace />;
   }
 
-  if (isLoading) {
+  if (isLoading || !lookupDone) {
     return <LoadingSkeleton variant="cards" count={2} />;
   }
 
   return <Navigate to="/secretary/dashboard" replace />;
-};
+}
 
 /** All secretary routes — rendered inside UnifiedAppLayout */
 export const SecretaryRoutes = () => (

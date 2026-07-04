@@ -88,7 +88,7 @@ function OverrideControls({
 }: OverrideControlsProps) {
   const switchId = useId();
   return (
-    <div className="flex w-full min-w-0 items-center justify-end gap-1 overflow-x-auto sm:w-auto sm:gap-2">
+    <div className="flex w-full min-w-0 flex-wrap items-center justify-start gap-1 sm:w-auto sm:flex-nowrap sm:justify-end sm:gap-2">
       {/* Results visibility */}
       <Select
         value={visibility.preset ?? ''}

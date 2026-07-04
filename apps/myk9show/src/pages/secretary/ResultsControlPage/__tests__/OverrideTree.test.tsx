@@ -187,7 +187,15 @@ describe('OverrideTree', () => {
     const trialControls = screen
       .getByRole('combobox', { name: 'Results visibility for Trial A' })
       .closest('div');
-    expect(trialControls).toHaveClass('w-full', 'overflow-x-auto', 'sm:w-auto');
+    expect(trialControls).toHaveClass(
+      'w-full',
+      'flex-wrap',
+      'justify-start',
+      'sm:flex-nowrap',
+      'sm:justify-end',
+      'sm:w-auto'
+    );
+    expect(trialControls).not.toHaveClass('overflow-x-auto');
     expect(screen.getByRole('combobox', { name: 'Results visibility for Trial A' })).toHaveClass(
       'w-32',
       'shrink-0'

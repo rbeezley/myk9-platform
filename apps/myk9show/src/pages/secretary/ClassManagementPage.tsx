@@ -207,7 +207,12 @@ export const ClassManagementPage: React.FC = () => {
   const waitlistHref = showId
     ? `/shows/${showId}/entry-management?tab=waitlist${trialId ? `&trial=${trialId}` : ''}`
     : '/secretary/entries?tab=waitlist';
-  const createHref = trialId ? `/trials/${trialId}/classes/create` : '/secretary/dashboard';
+  const createHref =
+    showId && trialId
+      ? `/shows/${showId}/classes/${trialId}/create`
+      : trialId
+        ? `/trials/${trialId}/classes/create`
+        : '/secretary/dashboard';
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">

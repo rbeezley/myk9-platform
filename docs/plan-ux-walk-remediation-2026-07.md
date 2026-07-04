@@ -1,6 +1,7 @@
 # UX Walk Remediation — Phased Improvement Plan (July 2026)
 
 > **Status:** Active — Phase 2/3 implementation in progress
+> **Tracked in openspec change:** `ux-shell-integrity-followups`
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

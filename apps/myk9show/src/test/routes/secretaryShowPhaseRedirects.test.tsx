@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '@/context/AuthContext';
@@ -29,6 +29,8 @@ vi.mock('@/pages/secretary/SecretaryDashboardPage', () => ({
 vi.mock('@/components/common/LoadingSkeleton', () => ({
   LoadingSkeleton: () => <div data-testid="redirect-loading" />,
 }));
+
+const originalLoadTrials = useTrialStore.getState().loadTrials;
 
 function makeShow(id: string): Show {
   return {
@@ -114,6 +116,7 @@ describe('secretary show phase redirects', () => {
         },
       ],
       isLoading: false,
+      loadTrials: originalLoadTrials,
     });
   });
 
@@ -219,6 +222,45 @@ describe('secretary show phase redirects', () => {
     expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
       '/shows/show-1/classes/trial-1'
     );
+  });
+
+  it('waits for trial hydration before falling back from a legacy class-management deep link', async () => {
+    let resolveLoadTrials: (() => void) | undefined;
+    useTrialStore.setState({
+      trials: [],
+      isLoading: false,
+      loadTrials: vi.fn(() => {
+        return new Promise<void>(resolve => {
+          resolveLoadTrials = () => {
+            useTrialStore.setState({
+              trials: [
+                {
+                  id: 'trial-1',
+                  showId: 'show-1',
+                  name: 'Saturday Trial',
+                  trialDate: '2026-03-22',
+                  status: 'scheduled',
+                },
+              ],
+              isLoading: false,
+            });
+            resolve();
+          };
+        });
+      }),
+    });
+
+    renderSecretaryRoutes('/trials/trial-1/classes');
+
+    expect(screen.getByTestId('redirect-loading')).toBeInTheDocument();
+    await waitFor(() => expect(useTrialStore.getState().loadTrials).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      resolveLoadTrials?.();
+    });
+    expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
+      '/shows/show-1/classes/trial-1'
+    );
+    expect(screen.queryByTestId('secretary-dashboard')).not.toBeInTheDocument();
   });
 
   it('uses the last selected show from localStorage before the store hydrates', async () => {

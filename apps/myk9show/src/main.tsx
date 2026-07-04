@@ -74,14 +74,14 @@ createRoot(document.getElementById('root')!, {
             theme="system"
             richColors
             closeButton
-            position="top-right"
+            position="bottom-right"
             offset={{
-              top: 'calc(var(--app-top-inset, 3rem) + 0.75rem)',
               right: 'max(1rem, env(safe-area-inset-right))',
+              bottom: 'max(1rem, env(safe-area-inset-bottom))',
             }}
             mobileOffset={{
-              top: 'calc(var(--app-top-inset, 3rem) + 0.75rem)',
               right: 'max(1rem, env(safe-area-inset-right))',
+              bottom: 'max(1rem, env(safe-area-inset-bottom))',
             }}
           />
           <ToastContainer />

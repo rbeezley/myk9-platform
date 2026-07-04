@@ -135,7 +135,7 @@ describe('ClassManagementPage judge assignment', () => {
     );
     expect(screen.getByRole('link', { name: 'Add Classes' })).toHaveAttribute(
       'href',
-      '/trials/trial-1/classes/create'
+      '/shows/show-1/classes/trial-1/create'
     );
     expect(screen.getByRole('link', { name: 'Add Classes' })).toHaveClass(
       'min-h-[44px]',

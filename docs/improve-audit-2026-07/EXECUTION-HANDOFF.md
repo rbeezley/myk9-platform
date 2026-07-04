@@ -30,7 +30,7 @@ red, then make the fix flip it green. The red→green transition is the proof.
 
 | Plan | Order | Model | Status | Notes |
 |------|-------|-------|--------|-------|
-| [001 — AI-assistant scope fails open (cross-tenant leak)](001-askq-show-scope-fail-closed.md) | **DO FIRST** | Sonnet OK | TODO | Only cross-tenant data leak; smallest fix. **After merge a human must `supabase functions deploy ask-myk9show`** for it to take effect — shared-system write, confirm first. |
+| [001 — AI-assistant scope fails open (cross-tenant leak)](001-askq-show-scope-fail-closed.md) | **DO FIRST** | Sonnet OK | DONE + DEPLOYED | Code merged [#1089](https://github.com/rbeezley/myk9-platform/pull/1089); `ask-myk9show` redeployed 2026-07-04 as version 34 (`updated_at` = `2026-07-04 19:44:05 UTC`). |
 | [002 — Move-up write-order corruption](002-move-up-create-before-mark.md) | 2 | Sonnet OK, strong model on review | TODO | Offline-critical path, MED risk — honor the STOP conditions. |
 | [004 — Checkout spinner stuck](004-cart-checkout-loading-reset.md) | anytime | Sonnet OK | TODO | One line + one test. |
 | [005 — Replication OCC/watermark spike](005-replication-occ-watermark-spike.md) | anytime (parallel) | **STRONG model** | TODO | READ-ONLY investigation → findings doc only. Judgment-heavy; a cheaper model tends to produce shallow verdicts here. |

@@ -32,9 +32,8 @@ The 5 design-level plans from the 2026-07-03 security audit that weren't covered
 
 ## July Bug-Audit — Remaining Items — 2026-07-03
 
-The 2 items from [`docs/improve-audit-2026-07/README.md`](docs/improve-audit-2026-07/README.md) still open after 002/004/005 shipped. Full context in TO-DOS.md § "July Bug-Audit — Remaining Items".
+The remaining item from [`docs/improve-audit-2026-07/README.md`](docs/improve-audit-2026-07/README.md) still open after 001/002/004/005 shipped. Full context in TO-DOS.md § "July Bug-Audit — Remaining Items".
 
-- [ ] **Deploy `ask-myk9show` edge function (plan 001 fix pending deploy)** — The AskQ cross-tenant scope-leak fix ([#1089](https://github.com/rbeezley/myk9-platform/pull/1089)) is merged to `main` but not live: the deployed function's last update (2026-07-03 confirmed) predates the fix commit. Ops action, not new code — `supabase functions deploy ask-myk9show` (confirmation-gated), then verify via `supabase functions list` that `updated_at` moves past the fix commit.
 - [ ] **Execute plan 003 — surface class-mgmt mutation errors** — Judge-assign and bulk class status/delete actions on the secretary Class Management page fail silently (no toast, only a console log). Now unblocked (the Phase 3 UX edits to the same file already landed). `openspec/changes/class-mgmt-mutation-error-surfacing/` (apply-ready, `openspec validate` clean). Source plan: [`docs/improve-audit-2026-07/003-surface-mutation-errors.md`](docs/improve-audit-2026-07/003-surface-mutation-errors.md).
 
 ---

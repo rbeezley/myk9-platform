@@ -41,10 +41,11 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       `security-role-map-disclosure` (SA-006), `security-people-overfetch` (SA-008),
       `security-passcode-throttle` (SA-011). Owner: Agent.
       _Verify:_ `pnpm exec openspec status --change <name>` shows all tasks done; changes archived.
-- [ ] **0.2 Deploy the `ask-myk9show` fix** — the AskQ cross-tenant scope-leak fix (#1089) is
-      merged but the deployed function predates it. Owner: Agent (confirmation-gated).
+- [x] **0.2 Deploy the `ask-myk9show` fix** — DONE 2026-07-04. The AskQ
+      cross-tenant scope-leak fix (#1089) is deployed live. Owner: Agent.
       _Do:_ `supabase functions deploy ask-myk9show --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt`
-      _Verify:_ `supabase functions list` — `updated_at` moves past the fix commit date.
+      _Verify:_ `supabase functions list` — `ask-myk9show` is `ACTIVE`, version 34,
+      `updated_at` = `2026-07-04 19:44:05 UTC`.
 - [ ] **0.3 Push the two pending withdrawal-policy migrations** — `20260625200000`,
       `20260626000000` must be pushed **before** any redeploy of `stripe-webhook` /
       `stripe-payment-link`. Owner: Agent (confirmation-gated).

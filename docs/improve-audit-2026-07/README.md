@@ -53,7 +53,7 @@ proof — not visual inspection, not typechecking. Each plan's "Test plan" and
 
 | Plan | Title | Severity | Effort | Risk | Status |
 |------|-------|----------|--------|------|--------|
-| [001](001-askq-show-scope-fail-closed.md) | AI assistant leaks cross-club entry/handler data (scope fails open) | **HIGH / security** | S | LOW | Code merged [#1089](https://github.com/rbeezley/myk9-platform/pull/1089) — **edge-fn deploy still pending** (confirmed 2026-07-03: `ask-myk9show`'s last deploy predates the fix commit) |
+| [001](001-askq-show-scope-fail-closed.md) | AI assistant leaks cross-club entry/handler data (scope fails open) | **HIGH / security** | S | LOW | **DONE + DEPLOYED 2026-07-04** — code merged [#1089](https://github.com/rbeezley/myk9-platform/pull/1089); `ask-myk9show` redeployed version 34, `updated_at` = `2026-07-04 19:44:05 UTC` |
 | [002](002-move-up-create-before-mark.md) | Move-up corrupts an entry if the new-entry write fails (wrong write order) | **HIGH / data-integrity** | M | MED | **DONE** — [#1090](https://github.com/rbeezley/myk9-platform/pull/1090)/[#1091](https://github.com/rbeezley/myk9-platform/pull/1091) merged, client-only, live |
 | [003](003-surface-mutation-errors.md) | Judge-assign & bulk class ops fail silently (secretary told nothing) | **MED–HIGH / UX-integrity** | S–M | LOW | **Unblocked** (Phase 3's `ClassManagementPage.tsx` edits landed 2026-07-02) — tracked as `openspec/changes/class-mgmt-mutation-error-surfacing/`, apply-ready, not yet implemented |
 | [004](004-cart-checkout-loading-reset.md) | Checkout button stuck spinning after waitlist-only checkout | LOW / polish | S | LOW | **DONE** — [#1092](https://github.com/rbeezley/myk9-platform/pull/1092) merged, live |

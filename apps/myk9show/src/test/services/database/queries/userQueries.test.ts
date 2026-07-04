@@ -29,7 +29,10 @@ describe('User Queries', () => {
       const selectArg = (chain.select as unknown as { mock: { calls: unknown[][] } }).mock
         .calls[0][0] as string;
       expect(selectArg).not.toContain('*');
-      // every `people` column mapDatabaseToUser consumes must still be fetched
+      // every `people` column the two consumers (mapDatabaseToUser in the
+      // userStore, mapDbUserToUser in React Query) read must still be fetched —
+      // `country`/`status` are only read by mapDbUserToUser, so omitting them
+      // would silently regress that path.
       for (const col of [
         'id',
         'first_name',
@@ -40,10 +43,14 @@ describe('User Queries', () => {
         'city',
         'state',
         'zip_code',
+        'country',
         'profile_image',
         'auth_user_id',
+        'status',
         'updated_at',
         'created_at',
+        'deleted_at',
+        'deleted_by',
       ]) {
         expect(selectArg).toContain(col);
       }

@@ -158,6 +158,7 @@ describe('RBAC role-map SELECT scoping follow-up RPC contract (SA-006)', () => {
     expect(fn).toContain('(SELECT public.is_show_secretary(s.id))');
     expect(fn).toContain('(SELECT public.is_site_admin())');
     expect(fn).toContain('AND (ur.expires_at IS NULL OR ur.expires_at > NOW())');
+    expect(fn).toContain('AND pe.deleted_at IS NULL');
     expect(fn).toContain("r.name IN ('secretary', 'chairman', 'steward')");
   });
 

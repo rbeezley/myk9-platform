@@ -44,6 +44,7 @@ AS $$
     )
     AND ur.is_active = true
     AND (ur.expires_at IS NULL OR ur.expires_at > NOW())
+    AND pe.deleted_at IS NULL
     AND r.name IN ('secretary', 'chairman', 'steward');
 $$;
 

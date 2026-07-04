@@ -46,10 +46,10 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       _Do:_ `supabase functions deploy ask-myk9show --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt`
       _Verify:_ `supabase functions list` — `ask-myk9show` is `ACTIVE`, version 34,
       `updated_at` = `2026-07-04 19:44:05 UTC`.
-- [ ] **0.3 Push the two pending withdrawal-policy migrations** — `20260625200000`,
-      `20260626000000` must be pushed **before** any redeploy of `stripe-webhook` /
-      `stripe-payment-link`. Owner: Agent (confirmation-gated).
-      _Verify:_ `supabase migration list` shows both applied remotely.
+- [x] **0.3 Verify withdrawal-policy migrations** — DONE 2026-07-04.
+      `20260625200000` and `20260626000000` are already applied remotely. Owner: Agent.
+      _Verify:_ `supabase db push --dry-run` reported the remote database is up to date;
+      `supabase migration list` shows both migrations applied locally and remotely.
 - [ ] **0.4 Edge-function drift audit + repo-ahead batch deploy** — re-run the drift check from
       [`edge-function-deploy-drift-2026-06-23.md`](edge-function-deploy-drift-2026-06-23.md)
       (download deployed bundles, diff vs repo). Deploy remaining repo-ahead functions in small

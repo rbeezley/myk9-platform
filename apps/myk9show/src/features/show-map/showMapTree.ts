@@ -16,6 +16,7 @@ import {
 } from './showMapRoutes';
 import { addAllExhibitorsBranch } from './showMapDogBranch';
 import { getRegisteredBreedForOrganization } from '@/lib/dogRegistrationBreed';
+import { formatEntryDate } from '@/lib/format/dates';
 import { formatRingLabel } from '@/utils/ringLabel';
 import type {
   BuildShowMapTreeInput,
@@ -251,7 +252,10 @@ export function buildShowMapTree({
       id: getShowMapNodeId('trial', trial.id),
       type: 'trial',
       label: trial.name || `Trial ${trial.trialNumber || trial.id.slice(-4)}`,
-      subtitle: [trial.trialDate, trial.trialNumber ? `Trial ${trial.trialNumber}` : undefined]
+      subtitle: [
+        formatEntryDate(trial.trialDate),
+        trial.trialNumber ? `Trial ${trial.trialNumber}` : undefined,
+      ]
         .filter(Boolean)
         .join(' · '),
       count: trialClasses.length,

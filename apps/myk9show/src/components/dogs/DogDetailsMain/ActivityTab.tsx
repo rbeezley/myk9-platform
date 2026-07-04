@@ -10,6 +10,7 @@ import {
   formatActivityDate,
   type DogActivityEntry,
 } from './ActivityTab.helpers';
+import { deriveEntryPresentation } from '@/services/entryDisplay/entryPresentation';
 
 interface ActivityTabProps {
   dogId: string;
@@ -27,12 +28,24 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toFixed(2).padStart(5, '0')}`;
 }
 
-function UpcomingRow({ entry }: { entry: DogActivityEntry }) {
+function UpcomingRow({
+  entry,
+  viewer,
+}: {
+  entry: DogActivityEntry;
+  viewer: 'exhibitor' | 'secretary';
+}) {
   const showName = entry.show?.name ?? 'Unknown show';
   const className = entry.class?.name ?? 'Unknown class';
   const showDate = entry.show?.start_date;
   const formattedDate = formatActivityDate(showDate);
   const showHref = entry.show?.id ? `/shows/${entry.show.id}` : undefined;
+  // One composed status line in the viewer's voice — never the raw enum
+  // ("submitted") or a bare "pending" (UX walk remediation 2.B).
+  const { statusLine } = deriveEntryPresentation(
+    { entryStatus: entry.entry_status ?? null },
+    { viewer }
+  );
 
   return (
     <div className="flex items-start gap-4 py-3 border-t border-border first:border-t-0">
@@ -61,8 +74,8 @@ function UpcomingRow({ entry }: { entry: DogActivityEntry }) {
         )}
         <div className="text-xs text-muted-foreground mt-0.5">{className}</div>
       </div>
-      <Badge variant="outline" className="text-xs flex-shrink-0 capitalize">
-        {entry.entry_status ?? 'pending'}
+      <Badge variant="outline" className="text-xs flex-shrink-0">
+        {statusLine}
       </Badge>
     </div>
   );
@@ -129,7 +142,7 @@ function ResultRow({ entry }: { entry: DogActivityEntry }) {
   );
 }
 
-const ActivityTab: React.FC<ActivityTabProps> = ({ dogId, dogName }) => {
+const ActivityTab: React.FC<ActivityTabProps> = ({ dogId, dogName, role }) => {
   const { data: rawEntries, isLoading } = useEntriesByDogQuery(dogId);
 
   const entries: DogActivityEntry[] = (rawEntries ?? []).map(r =>
@@ -181,7 +194,7 @@ const ActivityTab: React.FC<ActivityTabProps> = ({ dogId, dogName }) => {
           ) : (
             <div>
               {upcoming.map(e => (
-                <UpcomingRow key={e.id} entry={e} />
+                <UpcomingRow key={e.id} entry={e} viewer={role} />
               ))}
             </div>
           )}

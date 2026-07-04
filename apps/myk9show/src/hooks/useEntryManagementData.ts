@@ -183,6 +183,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
             refundAmount: entry.refund_amount ?? null,
           }),
           entryStatus: mapEntryStatus(entry.entry_status),
+          rawEntryStatus: entry.entry_status ?? null,
           paymentStatus: mapPaymentStatus(entry.payment_status),
           submittedAt: entry.submitted_at
             ? new Date(entry.submitted_at)

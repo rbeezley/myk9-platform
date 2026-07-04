@@ -33,6 +33,10 @@ export interface EntryManagementEntry {
   totalFee: number;
   paidAmount: number;
   entryStatus: EntryStatus;
+  /** Raw DB `entry_status` before UI-enum projection. Needed by
+   * `deriveEntryPresentation` for the owner-approved review-lane overrides
+   * (`paid`/`promotion-expired`) that the UI enum folds away. */
+  rawEntryStatus?: string | null;
   paymentStatus: PaymentStatus;
   submittedAt: Date;
   lastUpdated: Date;

@@ -501,7 +501,7 @@ describe('MyEntriesPage UI Improvements', () => {
 
       expect(mockUseCheckInMutation).toHaveBeenCalledWith({ writer: 'self-checkin-rpc' });
       await screen.findByText('Spring Trial');
-      await user.click(screen.getByRole('button', { name: /not checked in/i }));
+      await user.click(screen.getByRole('button', { name: /update check-in for koda in novice a/i }));
       const statusOptions = await screen.findAllByRole('radio', { name: /checked in/i });
       const checkedInOption = statusOptions.find(
         option => option.getAttribute('aria-labelledby') === 'checked-in-label'

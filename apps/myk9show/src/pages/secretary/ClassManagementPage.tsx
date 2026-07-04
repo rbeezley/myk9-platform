@@ -1,5 +1,5 @@
-import React, { useState, startTransition, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useMemo } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import {
   useClassesByTrialQuery,
   useUpdateClassMutation,
@@ -60,10 +60,17 @@ type DbClassRow = {
 const UNASSIGNED_JUDGE_VALUE = 'TBD';
 
 export const ClassManagementPage: React.FC = () => {
-  const { trialId } = useParams<{ trialId: string }>();
-  const navigate = useNavigate();
+  const {
+    id,
+    showId: routeShowId,
+    trialId,
+  } = useParams<{
+    id?: string;
+    showId?: string;
+    trialId: string;
+  }>();
   const trial = useTrialStore(s => (trialId ? s.getTrialById(trialId) : null));
-  const showId = trial?.showId;
+  const showId = routeShowId ?? id ?? trial?.showId;
   const { data: rawClasses = [], isLoading } = useClassesByTrialQuery(trialId || '');
   const { data: judges = [] } = useJudgesWithQualifications();
   const queryClient = useQueryClient();
@@ -196,34 +203,59 @@ export const ClassManagementPage: React.FC = () => {
   };
 
   const trialDisplayName = trial?.name || (trialId ? 'Trial' : 'No trial selected');
+  const setupHref = showId ? `/shows/${showId}/setup` : '/secretary/dashboard';
   const waitlistHref = showId
     ? `/shows/${showId}/entry-management?tab=waitlist${trialId ? `&trial=${trialId}` : ''}`
     : '/secretary/entries?tab=waitlist';
+  const createHref =
+    showId && trialId
+      ? `/shows/${showId}/classes/${trialId}/create`
+      : trialId
+        ? `/trials/${trialId}/classes/create`
+        : '/secretary/dashboard';
 
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => startTransition(() => navigate(-1))}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Trial
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold">Manage Classes</h1>
-            <p className="text-muted-foreground">{trialDisplayName}</p>
-          </div>
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="min-w-0 flex-1">
+          <nav
+            aria-label="Class management breadcrumb"
+            className="mb-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground"
+          >
+            <Link to={setupHref} className="font-medium text-foreground hover:underline">
+              Show setup
+            </Link>
+            <span aria-hidden="true">/</span>
+            <span>Manage classes</span>
+          </nav>
+          <h1 className="break-words text-2xl font-bold">Manage Classes</h1>
+          <p className="truncate text-muted-foreground" title={trialDisplayName}>
+            {trialDisplayName}
+          </p>
         </div>
 
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => startTransition(() => navigate(waitlistHref))}>
-            <ListOrdered className="h-4 w-4 mr-2" />
-            Manage Waitlist
+        <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto lg:shrink-0">
+          <Button variant="ghost" asChild className="min-h-[44px] w-full justify-center sm:w-auto">
+            <Link to={setupHref}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Setup
+            </Link>
           </Button>
           <Button
-            onClick={() => startTransition(() => navigate(`/trials/${trialId}/classes/create`))}
+            variant="outline"
+            asChild
+            className="min-h-[44px] w-full justify-center sm:w-auto"
           >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Classes
+            <Link to={waitlistHref}>
+              <ListOrdered className="h-4 w-4 mr-2" />
+              Manage Waitlist
+            </Link>
+          </Button>
+          <Button asChild className="min-h-[44px] w-full justify-center sm:w-auto">
+            <Link to={createHref}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Classes
+            </Link>
           </Button>
         </div>
       </div>
@@ -472,11 +504,11 @@ export const ClassManagementPage: React.FC = () => {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={() => startTransition(() => navigate(waitlistHref))}
-                              >
-                                <ListOrdered className="h-4 w-4 mr-2" />
-                                View Waitlist
+                              <DropdownMenuItem asChild>
+                                <Link to={waitlistHref}>
+                                  <ListOrdered className="h-4 w-4 mr-2" />
+                                  View Waitlist
+                                </Link>
                               </DropdownMenuItem>
                               {statuses.map(status => (
                                 <DropdownMenuItem
@@ -511,13 +543,11 @@ export const ClassManagementPage: React.FC = () => {
                   : 'No classes match your current filters.'}
               </p>
               {allClasses.length === 0 ? (
-                <Button
-                  onClick={() =>
-                    startTransition(() => navigate(`/trials/${trialId}/classes/create`))
-                  }
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Your First Classes
+                <Button asChild>
+                  <Link to={createHref}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Your First Classes
+                  </Link>
                 </Button>
               ) : (
                 <Button

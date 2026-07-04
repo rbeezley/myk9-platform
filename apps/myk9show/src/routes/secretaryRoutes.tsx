@@ -5,7 +5,7 @@
  * Standalone routes (class management, sync) also render inside the unified layout.
  */
 
-import { lazy, useEffect } from 'react';
+import { lazy, useEffect, useRef, useState } from 'react';
 import { Route, Navigate, useParams, useLocation } from 'react-router-dom';
 import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
@@ -15,6 +15,7 @@ import { SuspenseWrapper } from './utils/SuspenseWrapper';
 import { useShowStore } from '@/store/showStore';
 import { useToastStore } from '@/store/toastStore';
 import { LegacySecretaryShowRedirect } from '@/routes/showRouteRedirects';
+import { useTrialStore } from '@/store/trialStore';
 
 // Secretary Dashboard (replaces old PipelineDashboard)
 const SecretaryDashboardPage = lazy(() =>
@@ -29,9 +30,6 @@ const TrialPipelineDetail = lazy(
 const ShowCreationWizardPage = lazy(() => import('@/pages/secretary/ShowCreationWizardPage'));
 const ClassCreationPage = lazy(() =>
   import('@/pages/secretary/ClassCreationPage').then(m => ({ default: m.ClassCreationPage }))
-);
-const ClassManagementPage = lazy(() =>
-  import('@/pages/secretary/ClassManagementPage').then(m => ({ default: m.ClassManagementPage }))
 );
 // Secretary components
 const SecretaryClassDashboard = lazy(() =>
@@ -180,6 +178,43 @@ const SecretaryIndexRedirect = () => {
 
   return <Navigate to={showId ? `/shows/${showId}/setup` : '/secretary/dashboard'} replace />;
 };
+
+const LegacyClassManagementRedirect = () => {
+  const { trialId } = useParams<{ trialId: string }>();
+
+  if (!trialId) {
+    return <Navigate to="/secretary/dashboard" replace />;
+  }
+
+  return <LegacyClassManagementRedirectForTrial key={trialId} trialId={trialId} />;
+};
+
+function LegacyClassManagementRedirectForTrial({ trialId }: { trialId: string }) {
+  const trial = useTrialStore(s => (trialId ? s.getTrialById(trialId) : null));
+  const isLoading = useTrialStore(s => s.isLoading);
+  const loadTrials = useTrialStore(s => s.loadTrials);
+  const requestedLookupRef = useRef(false);
+  const [lookupDone, setLookupDone] = useState(false);
+
+  useEffect(() => {
+    if (!trial && !isLoading && !requestedLookupRef.current) {
+      requestedLookupRef.current = true;
+      void loadTrials().finally(() => {
+        setLookupDone(true);
+      });
+    }
+  }, [trialId, trial, isLoading, loadTrials]);
+
+  if (trial?.showId) {
+    return <Navigate to={`/shows/${trial.showId}/classes/${trialId}`} replace />;
+  }
+
+  if (isLoading || !lookupDone) {
+    return <LoadingSkeleton variant="cards" count={2} />;
+  }
+
+  return <Navigate to="/secretary/dashboard" replace />;
+}
 
 /** All secretary routes — rendered inside UnifiedAppLayout */
 export const SecretaryRoutes = () => (
@@ -392,11 +427,7 @@ export const SecretaryRoutes = () => (
       path="/trials/:trialId/classes"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <ClassManagementPage />
-            </PageTransition>
-          </SuspenseWrapper>
+          <LegacyClassManagementRedirect />
         </ProtectedRoute>
       }
     />

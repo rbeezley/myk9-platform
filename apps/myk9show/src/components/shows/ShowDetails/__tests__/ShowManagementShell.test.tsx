@@ -12,7 +12,11 @@ import type { Show } from '@/types/show-types';
 vi.mock('@/components/common/PageShell', () => ({
   PageShell: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
-vi.mock('@/components/common/PageHeader', () => ({ PageHeader: () => <div /> }));
+vi.mock('@/components/common/PageHeader', () => ({
+  PageHeader: ({ actions }: { actions?: React.ReactNode }) => (
+    <div data-testid="page-header-actions">{actions}</div>
+  ),
+}));
 vi.mock('@/components/common/DetailHero', () => ({
   DetailHero: ({ headerActions }: { headerActions?: React.ReactNode }) => (
     <div data-testid="detail-hero">{headerActions}</div>
@@ -20,7 +24,11 @@ vi.mock('@/components/common/DetailHero', () => ({
 }));
 vi.mock('@/components/shows/ShowDateBlock', () => ({ ShowDateBlock: () => null }));
 vi.mock('@/components/shows/overview/QuickInfoCards', () => ({ QuickInfoCards: () => null }));
-vi.mock('@/components/shows/ArmbandLookup', () => ({ ArmbandLookup: () => null }));
+vi.mock('@/components/shows/ArmbandLookup', () => ({
+  ArmbandLookup: ({ showId }: { showId: string }) => (
+    <div data-testid="armband-lookup">Armband lookup for {showId}</div>
+  ),
+}));
 vi.mock('@/components/shows/ShowStatusPill', () => ({
   ShowStatusPill: () => <div data-testid="status-pill" />,
 }));
@@ -117,6 +125,16 @@ describe('ShowManagementShell', () => {
       'href',
       '/shows/show-1/setup'
     );
+  });
+
+  it('renders the staff armband lookup only when armbands exist', () => {
+    renderShell({ armbandCount: 3 });
+    expect(screen.getByTestId('armband-lookup')).toHaveTextContent('Armband lookup for show-1');
+  });
+
+  it('omits the staff armband lookup before armbands exist', () => {
+    renderShell({ armbandCount: 0 });
+    expect(screen.queryByTestId('armband-lookup')).toBeNull();
   });
 
   it('renders the publish row anchor with the premium cards', () => {

@@ -88,14 +88,14 @@ function OverrideControls({
 }: OverrideControlsProps) {
   const switchId = useId();
   return (
-    <div className="flex items-center gap-1 sm:gap-2">
+    <div className="flex w-full min-w-0 flex-wrap items-center justify-start gap-1 sm:w-auto sm:flex-nowrap sm:justify-end sm:gap-2">
       {/* Results visibility */}
       <Select
         value={visibility.preset ?? ''}
         onValueChange={v => onVisibilityPreset(v as VisibilityPreset)}
       >
         <SelectTrigger
-          className="min-h-[44px] w-28 sm:w-32"
+          className="min-h-[44px] w-32 shrink-0"
           aria-label={`Results visibility for ${name}`}
         >
           <SelectValue placeholder="Inherit" />
@@ -297,16 +297,18 @@ export function OverrideTree({
           <Collapsible key={trial.id} className="rounded-md border">
             {/* Trial header: chevron+name is the ONLY collapsible trigger; the
                 controls live outside it to avoid nested interactive elements. */}
-            <div className="flex items-center justify-between gap-2 px-3 py-2">
+            <div className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
               <CollapsibleTrigger asChild>
                 <button
                   type="button"
-                  className="flex flex-1 items-center gap-2 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&[data-state=open]>svg]:rotate-180"
+                  className="flex min-w-0 flex-1 items-center gap-2 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&[data-state=open]>svg]:rotate-180"
                 >
                   <ChevronDown className="h-4 w-4 shrink-0 transition-transform" />
-                  <span className="min-w-0">
-                    <span className="flex items-center gap-2">
-                      <span className="truncate text-sm font-medium">{trial.name}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+                      <span className="max-w-full truncate text-sm font-medium" title={trial.name}>
+                        {trial.name}
+                      </span>
                       <span className="shrink-0 text-xs text-muted-foreground">
                         {trialClasses.length} {trialClasses.length === 1 ? 'class' : 'classes'}
                         {overrideCount > 0 && ` · ${overrideCount} overridden`}
@@ -347,16 +349,18 @@ export function OverrideTree({
                   return (
                     <div
                       key={cls.id}
-                      className="flex items-center justify-between gap-2 rounded-md border px-3 py-2"
+                      className="flex flex-col gap-2 rounded-md border px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
                     >
-                      <div className="flex min-w-0 items-center gap-2">
+                      <div className="flex min-w-0 flex-1 items-center gap-2">
                         <Checkbox
                           checked={selectedClasses.has(cls.id)}
                           onCheckedChange={() => onToggleClass(cls.id)}
                           aria-label={`Select ${className}`}
                         />
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">{className}</p>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium" title={className}>
+                            {className}
+                          </p>
                           <FacetStatus visibility={classVis} checkin={classCheckin} />
                         </div>
                       </div>

@@ -72,7 +72,7 @@ export function computeSetupReadinessSignals(
   // Classes and judges are managed per trial; until a trial exists, the
   // Trials tab is the right starting point for both.
   const classWorkHref = firstTrialId
-    ? `/trials/${firstTrialId}/classes`
+    ? `/shows/${showId}/classes/${firstTrialId}`
     : `/shows/${showId}?tab=trials`;
   if (!showDetailsComplete(input.show)) {
     signals.push({

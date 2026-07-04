@@ -34,7 +34,7 @@ interface ClassCreationPageProps {
 type WizardStep = 'template' | 'classes' | 'overrides' | 'review' | 'complete';
 
 export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId }) => {
-  const { trialId: paramTrialId } = useParams<{ trialId: string }>();
+  const { trialId: paramTrialId, id: showId } = useParams<{ trialId: string; id?: string }>();
   const navigate = useNavigate();
   const { user } = useAuthContext();
 
@@ -52,6 +52,12 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
   } = useClassCreationStore();
 
   const effectiveTrialId = trialId || paramTrialId;
+  const manageClassesHref =
+    showId && effectiveTrialId
+      ? `/shows/${showId}/classes/${effectiveTrialId}`
+      : effectiveTrialId
+        ? `/trials/${effectiveTrialId}/classes`
+        : '/secretary/dashboard';
 
   const [currentStep, setCurrentStep] = useState<WizardStep>('template');
   const [isCreating, setIsCreating] = useState(false);
@@ -517,9 +523,9 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
               </p>
               <div className="flex gap-4">
                 <Button
-                  onClick={() => startTransition(() => navigate(`/trials/${effectiveTrialId}`))}
+                  onClick={() => startTransition(() => navigate(manageClassesHref))}
                 >
-                  View Trial
+                  Manage Classes
                 </Button>
                 <Button
                   variant="outline"
@@ -556,19 +562,26 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
             </div>
 
             {currentStep === 'review' ? (
-              <Button onClick={handleCreateClasses} disabled={isCreating || !effectiveTrialId}>
-                {isCreating ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Creating...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Create Classes
-                  </>
+              <div className="flex flex-col items-end gap-1">
+                <Button onClick={handleCreateClasses} disabled={isCreating || !effectiveTrialId}>
+                  {isCreating ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      Create Classes
+                    </>
+                  )}
+                </Button>
+                {!effectiveTrialId && (
+                  <p className="text-right text-xs text-muted-foreground">
+                    Select a trial before creating classes.
+                  </p>
                 )}
-              </Button>
+              </div>
             ) : (
               <Button onClick={handleNext}>
                 Next

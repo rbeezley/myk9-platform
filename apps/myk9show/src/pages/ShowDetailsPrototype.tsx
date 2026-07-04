@@ -338,7 +338,12 @@ function ManagementCards({ status }: { status: ShowStatus }) {
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {/* Premium List card */}
       <Card className="p-4 flex items-center gap-4">
-        <div className={cn('rounded-md p-3', isPublished ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground')}>
+        <div
+          className={cn(
+            'rounded-md p-3',
+            isPublished ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+          )}
+        >
           <FileText className="h-6 w-6" />
         </div>
         <div className="flex-1">
@@ -348,18 +353,20 @@ function ManagementCards({ status }: { status: ShowStatus }) {
           </p>
         </div>
         {isPublished && (
-          <Button size="sm" variant="default">Download PDF</Button>
+          <Button size="sm" variant="default">
+            Download PDF
+          </Button>
         )}
       </Card>
 
       {/* Landing Page card */}
-      <Card className="p-4 flex items-center gap-4">
+      <Card className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
         <div className="bg-primary/10 text-primary rounded-md p-3">
           <Globe className="h-6 w-6" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-sm">Public Landing Page</h3>
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <h3 className="min-w-0 truncate text-sm font-semibold">Public Landing Page</h3>
             <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
               Heritage
             </span>
@@ -368,7 +375,7 @@ function ManagementCards({ status }: { status: ShowStatus }) {
             myk9show.com/shows/4584f257...
           </p>
         </div>
-        <Button size="sm" variant="outline" className="shrink-0">
+        <Button size="sm" variant="outline" className="min-h-[44px] w-full shrink-0 sm:w-auto">
           <Copy className="h-3.5 w-3.5 mr-1.5" />
           Copy Link
         </Button>
@@ -378,9 +385,27 @@ function ManagementCards({ status }: { status: ShowStatus }) {
 }
 
 const MOCK_ENTRIES = [
-  { handler: 'Sarah Chen', dog: 'Biscuit', element: 'Containers', level: 'Novice A', status: 'confirmed' },
-  { handler: 'Mike Torres', dog: 'Maple', element: 'Exteriors', level: 'Novice', status: 'confirmed' },
-  { handler: 'Janet Wu', dog: 'Pepper', element: 'Containers', level: 'Advanced', status: 'pending' },
+  {
+    handler: 'Sarah Chen',
+    dog: 'Biscuit',
+    element: 'Containers',
+    level: 'Novice A',
+    status: 'confirmed',
+  },
+  {
+    handler: 'Mike Torres',
+    dog: 'Maple',
+    element: 'Exteriors',
+    level: 'Novice',
+    status: 'confirmed',
+  },
+  {
+    handler: 'Janet Wu',
+    dog: 'Pepper',
+    element: 'Containers',
+    level: 'Advanced',
+    status: 'pending',
+  },
   { handler: 'Robert Hall', dog: 'Scout', element: 'Buried', level: 'Novice', status: 'confirmed' },
   { handler: 'Amy Liu', dog: 'Daisy', element: 'Interiors', level: 'Novice', status: 'confirmed' },
 ];
@@ -390,7 +415,9 @@ function AllEntriesTab() {
     <div className="py-4 space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">86 total entries across 2 trials</p>
-        <Button size="sm" variant="outline">Export CSV</Button>
+        <Button size="sm" variant="outline">
+          Export CSV
+        </Button>
       </div>
       <div className="rounded-xl border border-border overflow-hidden">
         {MOCK_ENTRIES.map((e, i) => (
@@ -406,11 +433,17 @@ function AllEntriesTab() {
               <span className="text-muted-foreground ml-2">w/ {e.dog}</span>
             </div>
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <span>{e.element} · {e.level}</span>
-              <span className={cn(
-                'rounded-full px-2 py-0.5 font-medium',
-                e.status === 'confirmed' ? 'bg-green-500/10 text-green-600' : 'bg-amber-500/10 text-amber-600'
-              )}>
+              <span>
+                {e.element} · {e.level}
+              </span>
+              <span
+                className={cn(
+                  'rounded-full px-2 py-0.5 font-medium',
+                  e.status === 'confirmed'
+                    ? 'bg-green-500/10 text-green-600'
+                    : 'bg-amber-500/10 text-amber-600'
+                )}
+              >
                 {e.status}
               </span>
             </div>
@@ -508,7 +541,9 @@ export default function ShowDetailsPrototype() {
               onClick={() => handleViewMode(m)}
               className={cn(
                 'px-3 py-1 rounded text-xs font-medium transition-colors capitalize',
-                viewMode === m ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'
+                viewMode === m
+                  ? 'bg-foreground text-background'
+                  : 'text-muted-foreground hover:text-foreground'
               )}
             >
               {m}
@@ -600,13 +635,21 @@ export default function ShowDetailsPrototype() {
         value={activeTab}
         onValueChange={setActiveTab}
       >
-        <PrimaryTabsContent value="overview"><OverviewTab /></PrimaryTabsContent>
+        <PrimaryTabsContent value="overview">
+          <OverviewTab />
+        </PrimaryTabsContent>
         <PrimaryTabsContent value="map">
           <EmptyTab label="Show Map — class and ring assignments across both trials." />
         </PrimaryTabsContent>
-        <PrimaryTabsContent value="trials"><TrialsTab /></PrimaryTabsContent>
-        <PrimaryTabsContent value="classes"><ClassesTab /></PrimaryTabsContent>
-        <PrimaryTabsContent value="entries"><AllEntriesTab /></PrimaryTabsContent>
+        <PrimaryTabsContent value="trials">
+          <TrialsTab />
+        </PrimaryTabsContent>
+        <PrimaryTabsContent value="classes">
+          <ClassesTab />
+        </PrimaryTabsContent>
+        <PrimaryTabsContent value="entries">
+          <AllEntriesTab />
+        </PrimaryTabsContent>
         <PrimaryTabsContent value="my-entries">
           <MyEntriesTab entered={entryState === 'already_entered'} />
         </PrimaryTabsContent>

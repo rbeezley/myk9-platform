@@ -131,7 +131,10 @@ export function ToastContainer() {
           to { width: 0%; }
         }
       `}</style>
-      <div aria-live="polite" className="fixed right-4 top-4 z-50 flex w-80 flex-col gap-2 sm:w-96">
+      <div
+        aria-live="polite"
+        className="fixed right-[max(1rem,env(safe-area-inset-right))] top-[calc(var(--app-top-inset,3rem)+0.75rem)] z-50 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2 sm:w-96"
+      >
         {toasts.map(entry => (
           <Toast key={entry.payload.id} entry={entry} onDismiss={dismissToast} />
         ))}

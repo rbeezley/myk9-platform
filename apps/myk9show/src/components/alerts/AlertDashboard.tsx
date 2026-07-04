@@ -9,7 +9,6 @@ import {
   Clock,
   Search,
   MoreHorizontal,
-  Eye,
   Check,
   AlertCircle,
 } from 'lucide-react';
@@ -502,14 +501,6 @@ export const AlertDashboard: React.FC<AlertDashboardProps> = ({ className }) => 
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  logger.debug('View details', 'alerts', { alertId: alert.id })
-                                }
-                              >
-                                <Eye className="mr-2 h-4 w-4" />
-                                View Details
-                              </DropdownMenuItem>
                               {alert.status === AlertStatus.ACTIVE && (
                                 <>
                                   <DropdownMenuItem

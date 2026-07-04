@@ -32,6 +32,7 @@ import {
 } from '@/pages/scoring/types';
 import { useAtShowScoresheet } from './useAtShowScoresheet';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
+import { badgeClass } from './slots/atShowChrome.helpers';
 
 export const AtShowScoresheetPage: React.FC = () => {
   const { showId, classId, entryId } = useParams<{
@@ -177,7 +178,11 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({ classId, entryId,
           {hasSyncError && !isSyncing && (
             // Offline is normal, not broken (PRODUCT.md): a calm neutral tone,
             // not alarm-orange. The token carries both light and dark values.
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-muted text-muted-foreground rounded-full">
+            <div
+              className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 ${badgeClass(
+                'neutral'
+              )}`}
+            >
               <WifiOff className="h-4 w-4" />
               Offline, score saved locally
             </div>

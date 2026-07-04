@@ -77,6 +77,14 @@
   background: var(--hl-gold);
 }
 
+[data-heritage] .hl-on-ink .hl-rule-orn.gold {
+  color: var(--hl-gold-on-dark);
+}
+
+[data-heritage] .hl-on-ink .hl-rule-orn.gold .l {
+  background: var(--hl-gold-on-dark);
+}
+
 [data-heritage] .hl-rule-orn.in .l {
   transform: scaleX(1);
 }

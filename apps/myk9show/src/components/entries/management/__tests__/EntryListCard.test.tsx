@@ -77,6 +77,23 @@ describe('EntryListCard - check-in button affordance', () => {
     expect(button).toHaveClass('border');
   });
 
+  it('names chip-style armband, entry status, and check-in controls by action', () => {
+    render(
+      <EntryListCard
+        {...defaultProps}
+        entries={[makeEntry({ armbandNumber: '42', classes: [makeClass({ name: 'Novice A' })] })]}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'Change armband for Fido' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Change entry status for Fido in Novice A' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Change check-in status for Fido in Novice A' })
+    ).toBeInTheDocument();
+  });
+
   it('renders check-in buttons for all classes in an entry', () => {
     const entry = makeEntry({
       classes: [

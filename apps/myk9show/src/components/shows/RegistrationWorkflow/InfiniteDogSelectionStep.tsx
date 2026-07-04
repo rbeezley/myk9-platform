@@ -258,6 +258,7 @@ export function InfiniteDogSelectionStep({
               size="sm"
               onClick={() => setViewMode('grid')}
               className="rounded-r-none border-0"
+              aria-label="Show dogs in grid view"
             >
               <Grid3X3 className="h-4 w-4" />
             </Button>
@@ -266,6 +267,7 @@ export function InfiniteDogSelectionStep({
               size="sm"
               onClick={() => setViewMode('list')}
               className="rounded-l-none border-0"
+              aria-label="Show dogs in list view"
             >
               <List className="h-4 w-4" />
             </Button>
@@ -584,7 +586,12 @@ export function InfiniteDogSelectionStep({
             exit={{ opacity: 0, scale: 0.8 }}
             className="fixed bottom-6 right-6 z-50"
           >
-            <Button onClick={scrollToTop} className="rounded-full p-3 shadow-lg" size="sm">
+            <Button
+              onClick={scrollToTop}
+              className="rounded-full p-3 shadow-lg"
+              size="sm"
+              aria-label="Back to top"
+            >
               <ArrowUp className="h-4 w-4" />
             </Button>
           </motion.div>

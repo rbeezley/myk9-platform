@@ -134,6 +134,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
               <button
                 className="inline-flex items-center gap-0.5 cursor-pointer hover:opacity-80 transition-opacity"
                 onClick={() => onOpenArmbandDialog(entry)}
+                aria-label={`Change armband for ${entry.dogName}`}
                 title="Change armband"
               >
                 <Badge variant="outline" className="font-mono">
@@ -246,6 +247,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                         <button
                           type="button"
                           className="inline-flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
+                          aria-label={`Change entry status for ${entry.dogName} in ${cls.name}`}
                         >
                           {getEntryStatusBadge(entry.entryStatus)}
                           <ChevronDown className="h-3 w-3 text-muted-foreground" />
@@ -342,6 +344,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                     <button
                       type="button"
                       className="inline-flex items-center gap-1 cursor-pointer border border-border/40 rounded px-1.5 py-0.5 hover:border-border transition-colors"
+                      aria-label={`Change check-in status for ${entry.dogName} in ${cls.name}`}
                     >
                       <CheckInStatusIndicator
                         status={cls.checkInStatus || 'no-status'}

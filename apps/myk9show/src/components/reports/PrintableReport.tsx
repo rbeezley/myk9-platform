@@ -411,6 +411,9 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
     };
 
     return (
+      // INTENT: Printable reports are fixed-light paper artifacts. They keep
+      // white/black/gray print colors regardless of app theme so exported or
+      // browser-printed documents remain legible on physical paper.
       <div ref={ref} className="print-report bg-white text-black">
         <style>{`
           @media print {

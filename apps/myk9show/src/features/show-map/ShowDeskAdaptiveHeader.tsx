@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { CheckCheck, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { chipClasses } from '@/components/base/chipClasses';
 import { ShowMapGuidanceCard } from './ShowMapGuidanceCard';
 import { ShowMapRunningNowStrip } from './ShowMapRunningNowStrip';
 import type { ShowMapAction } from './showMapActions';
@@ -24,7 +25,7 @@ const STATUS_TONE: Record<ShowDeskShowStatus, string> = {
   // "Closed" is an inactive state: warm stone chip token (DESIGN.md
   // "stone=inactive"), not a cool slate. The token carries both light and
   // dark values, so no dark: variant is needed.
-  closed: 'bg-[color:var(--chip-stone-bg)] text-[color:var(--chip-stone-fg)]',
+  closed: chipClasses('stone'),
 };
 
 export interface ShowDeskAdaptiveHeaderProps {
@@ -212,16 +213,24 @@ function SingleItemRow({
       className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
       data-group-key={group.key}
     >
-      <div className="min-w-0">
-        <div className="text-sm font-medium">
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm font-medium" title={action.label}>
           {action.label}
           {disambiguator && (
             <span className="font-normal text-muted-foreground"> · {disambiguator}</span>
           )}
         </div>
-        <div className="text-xs text-muted-foreground">{action.why}</div>
+        <div className="truncate text-xs text-muted-foreground" title={action.why}>
+          {action.why}
+        </div>
       </div>
-      <Button type="button" variant="outline" size="sm" onClick={() => onStart(action)}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="min-h-[44px] w-full sm:w-auto"
+        onClick={() => onStart(action)}
+      >
         <action.icon className="h-4 w-4" />
         Open
       </Button>
@@ -257,8 +266,10 @@ function MultiItemRow({
         onClick={onToggle}
       >
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">{representative.label}</span>
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-sm font-medium" title={representative.label}>
+              {representative.label}
+            </span>
             <Badge
               variant="secondary"
               className="px-1.5 py-0 text-[10px]"
@@ -267,7 +278,10 @@ function MultiItemRow({
               ×{group.count}
             </Badge>
           </div>
-          <div className="text-xs text-muted-foreground">
+          <div
+            className="truncate text-xs text-muted-foreground"
+            title={`${context}${context && ', '}across ${group.count} classes`}
+          >
             {context}
             {context && ', '}across {group.count} classes
           </div>
@@ -280,13 +294,19 @@ function MultiItemRow({
       </button>
       {expanded && showBulkApprove && (
         <div
-          className="flex items-center justify-between gap-3 border-t bg-primary/5 px-3 py-2"
+          className="flex flex-col gap-3 border-t bg-primary/5 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
           data-testid="up-next-group-bulk-approve"
         >
           <span className="text-xs text-muted-foreground">
             Bulk approve every pending entry for this dog.
           </span>
-          <Button type="button" variant="default" size="sm" onClick={() => onBulkApprove?.(group)}>
+          <Button
+            type="button"
+            variant="default"
+            size="sm"
+            className="min-h-[44px] w-full sm:w-auto"
+            onClick={() => onBulkApprove?.(group)}
+          >
             <CheckCheck className="h-4 w-4" />
             Approve all {group.count}
           </Button>
@@ -306,16 +326,25 @@ function MultiItemRow({
                 className="flex flex-col gap-2 px-3 py-2 pl-8 sm:flex-row sm:items-center sm:justify-between"
                 data-group-child-key={item.action.nodeId}
               >
-                <div className="min-w-0">
-                  <div className="text-sm font-medium">
+                <div className="min-w-0 flex-1">
+                  <div
+                    className="truncate text-sm font-medium"
+                    title={item.disambiguator ?? item.action.label}
+                  >
                     {item.disambiguator ?? item.action.label}
                   </div>
-                  <div className="text-xs text-muted-foreground">{issue || item.action.why}</div>
+                  <div
+                    className="truncate text-xs text-muted-foreground"
+                    title={issue || item.action.why}
+                  >
+                    {issue || item.action.why}
+                  </div>
                 </div>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
+                  className="min-h-[44px] w-full sm:w-auto"
                   onClick={() => onStart(item.action)}
                 >
                   <item.action.icon className="h-4 w-4" />

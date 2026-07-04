@@ -68,6 +68,11 @@ export const ArmbandDialog: React.FC<ArmbandDialogProps> = ({
           {dialogState.error && (
             <p className="text-sm text-destructive">{dialogState.error}</p>
           )}
+          {!dialogState.value.trim() && !dialogState.error && (
+            <p className="text-xs text-muted-foreground">
+              Enter an armband number to assign it to this entry.
+            </p>
+          )}
         </div>
         <DialogFooter>
           <Button

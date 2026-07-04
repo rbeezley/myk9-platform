@@ -89,7 +89,13 @@ export const EnrollmentPartialPaymentDialog: React.FC<EnrollmentPartialPaymentDi
 
         {(() => {
           const amt = parseFloat(state.amountPaid);
-          if (!state.amountPaid || isNaN(amt)) return null;
+          if (!state.amountPaid || isNaN(amt)) {
+            return (
+              <p className="text-xs text-muted-foreground">
+                Enter a payment amount greater than $0 to record this payment.
+              </p>
+            );
+          }
           return (
             <p className="text-xs text-muted-foreground">
               {amt >= totalDollars

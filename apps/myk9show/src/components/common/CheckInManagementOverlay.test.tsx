@@ -16,16 +16,19 @@ const baseEntry = {
 
 describe('CheckInManagementOverlay', () => {
   it('renders a known status without throwing', () => {
-    expect(() =>
-      render(
-        <CheckInManagementOverlay
-          open
-          onOpenChange={noop}
-          entries={[{ ...baseEntry, checkInStatus: 'checked-in' }]}
-          onUpdateStatus={asyncNoop}
-        />
-      )
-    ).not.toThrow();
+    const { getByText } = render(
+      <CheckInManagementOverlay
+        open
+        onOpenChange={noop}
+        entries={[{ ...baseEntry, checkInStatus: 'checked-in' }]}
+        onUpdateStatus={asyncNoop}
+      />
+    );
+
+    const badge = getByText('Checked In');
+    expect(badge.className).toContain('var(--chip-teal-bg)');
+    expect(badge.className).toContain('var(--chip-teal-fg)');
+    expect(badge.className).not.toContain('#007AFF');
   });
 
   it('renders an unexpected status without throwing (icon-map fallback)', () => {

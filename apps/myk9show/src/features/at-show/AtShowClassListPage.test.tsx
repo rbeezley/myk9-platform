@@ -15,12 +15,26 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@/test/utils/testUtils';
 import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
+import { UserRole, ScopeType, type UserWithRoles } from '@/types/auth-types';
 
 vi.mock('@/services/replication', () => ({
   replicatedShowsTable: { getShowById: vi.fn() },
   replicatedTrialsTable: { getTrialsByShow: vi.fn() },
   replicatedClassesTable: { getClassesByTrial: vi.fn() },
   replicatedEntriesTable: { getEntriesByShow: vi.fn() },
+}));
+
+// The "Back to Show Desk" affordance mirrors the show-desk route's admission,
+// which is club-SCOPED for club admins. Drive `hasRole`/`userWithRoles` so we
+// can prove a scoped club admin gets the shortcut while a cross-club admin does
+// not (and is routed back to ringside rather than ejected to the public page).
+const mockAuthState = vi.hoisted(() => ({
+  hasRole: (_role: unknown) => false,
+  userWithRoles: null as UserWithRoles | null,
+}));
+
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => mockAuthState,
 }));
 
 import { AtShowClassListPage } from './AtShowClassListPage';
@@ -114,6 +128,8 @@ const renderPage = (syncStatus: ReplicationSyncContextValue['status'] = settledS
           path="/at-show/:showId/class/:classIdA/:classIdB"
           element={<div>COMBINED PAGE</div>}
         />
+        <Route path="/at-show" element={<div>RINGSIDE HOME</div>} />
+        <Route path="/shows/:showId/show-desk" element={<div>SHOW DESK</div>} />
       </Routes>
     </ReplicationSyncContext.Provider>,
     { initialRoute: '/at-show/show-1' }
@@ -124,6 +140,8 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
     vi.clearAllMocks();
     window.localStorage.clear();
     seed();
+    mockAuthState.hasRole = () => false;
+    mockAuthState.userWithRoles = null;
   });
 
   it('renders class cards (Novice A/B collapsed into one, plus standalone)', async () => {
@@ -144,6 +162,60 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
 
     expect(await screen.findByText('Loading your classes...')).toBeInTheDocument();
     expect(screen.queryByText('This show has no classes yet.')).not.toBeInTheDocument();
+  });
+
+  it('keeps a ringside-safe exit in the empty state', async () => {
+    vi.mocked(replicatedTrialsTable.getTrialsByShow).mockResolvedValue([] as never);
+
+    renderPage();
+
+    expect(await screen.findByText('This show has no classes yet.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Ringside' }));
+    expect(await screen.findByText('RINGSIDE HOME')).toBeInTheDocument();
+  });
+
+  it('keeps a ringside-safe exit when class loading fails', async () => {
+    vi.mocked(replicatedTrialsTable.getTrialsByShow).mockRejectedValue(new Error('Timed out'));
+
+    renderPage();
+
+    expect(await screen.findByText('Failed to load classes')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Ringside' }));
+    expect(await screen.findByText('RINGSIDE HOME')).toBeInTheDocument();
+  });
+
+  it('offers Show Desk to a club admin scoped to this show', async () => {
+    vi.mocked(replicatedShowsTable.getShowById).mockResolvedValue({
+      name: 'Spring Trial',
+      organization: 'AKC Scent Work',
+      clubId: 'club-1',
+    } as never);
+    mockAuthState.hasRole = role => role === UserRole.CLUB_ADMIN;
+    mockAuthState.userWithRoles = {
+      scopes: [{ roleId: UserRole.CLUB_ADMIN, scopeType: ScopeType.CLUB, scopeId: 'club-1' }],
+    } as UserWithRoles;
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Back to Show Desk' }));
+    expect(await screen.findByText('SHOW DESK')).toBeInTheDocument();
+  });
+
+  it('keeps a club admin from ANOTHER club out of Show Desk (routes to ringside, no eject)', async () => {
+    vi.mocked(replicatedShowsTable.getShowById).mockResolvedValue({
+      name: 'Spring Trial',
+      organization: 'AKC Scent Work',
+      clubId: 'club-1',
+    } as never);
+    mockAuthState.hasRole = role => role === UserRole.CLUB_ADMIN;
+    mockAuthState.userWithRoles = {
+      scopes: [{ roleId: UserRole.CLUB_ADMIN, scopeType: ScopeType.CLUB, scopeId: 'club-OTHER' }],
+    } as UserWithRoles;
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Back to Ringside' }));
+    expect(await screen.findByText('RINGSIDE HOME')).toBeInTheDocument();
   });
 
   it('routes a Novice A/B card to the combined EntryList', async () => {
@@ -193,6 +265,20 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
     expect(screen.queryByText(/Exterior Master/)).not.toBeInTheDocument();
     // Sibling trial is unaffected.
     expect(screen.getByText(/Container Novice/)).toBeInTheDocument();
+  });
+
+  it('renders trial headers and count chips with outdoor-readable contrast tokens', async () => {
+    renderPage();
+    await screen.findByText(/Container Novice/);
+
+    const trial2Header = screen.getByRole('button', { name: /Trial 2/ });
+    expect(trial2Header).toHaveClass('text-foreground');
+    expect(trial2Header).not.toHaveClass('text-muted-foreground');
+
+    const countChip = trial2Header.querySelector('span.shrink-0.rounded-full');
+    expect(countChip).toHaveClass('bg-[color:var(--chip-stone-bg)]');
+    expect(countChip).toHaveClass('text-[color:var(--chip-stone-fg)]');
+    expect(countChip).not.toHaveClass('text-muted-foreground');
   });
 
   it('re-expands a collapsed trial when its header is clicked again', async () => {

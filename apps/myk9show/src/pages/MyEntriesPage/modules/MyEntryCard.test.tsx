@@ -253,7 +253,14 @@ describe('MyEntryCard result reveal prompt', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByRole('button', { name: /New result/i })).toBeInTheDocument();
+    const resultButton = screen.getByRole('button', { name: /New result/i });
+    expect(resultButton).toBeInTheDocument();
+    expect(resultButton).toHaveClass('min-h-[44px]', 'w-full', 'sm:w-auto');
+    expect(screen.getByText('Container Search #101')).toHaveClass('myk9-entries-class-name');
+    expect(screen.getByText('Container Search #101')).toHaveAttribute(
+      'title',
+      'Container Search #101'
+    );
   });
 
   it('shows a quieter Result card button after the reveal has been seen', () => {
@@ -713,20 +720,26 @@ describe('MyEntryCard self-check-in gating', () => {
 
   it('renders an interactive check-in control when self-check-in is enabled', () => {
     const onCheckInClick = renderWithMap(makeEntry({ classes: [unscored] }), { 'class-1': true });
-    const btn = screen.getByRole('button', { name: /not checked in/i });
+    const btn = screen.getByRole('button', {
+      name: /update check-in for rex in container search/i,
+    });
     fireEvent.click(btn);
     expect(onCheckInClick).toHaveBeenCalledTimes(1);
   });
 
   it('defaults to enabled when the class id is missing from the map', () => {
     renderWithMap(makeEntry({ classes: [unscored] }), {});
-    expect(screen.getByRole('button', { name: /not checked in/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /update check-in for rex in container search/i })
+    ).toBeInTheDocument();
   });
 
   it('disables the check-in control with a reason when self-check-in is off', () => {
     const onCheckInClick = renderWithMap(makeEntry({ classes: [unscored] }), { 'class-1': false });
     // No interactive button…
-    expect(screen.queryByRole('button', { name: /not checked in/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /update check-in for rex in container search/i })
+    ).not.toBeInTheDocument();
     // …a non-interactive indicator with an explanatory label instead.
     expect(screen.getByLabelText('Self check-in not available')).toBeInTheDocument();
     expect(onCheckInClick).not.toHaveBeenCalled();

@@ -22,7 +22,7 @@ export const RecentSearches: React.FC<RecentSearchesProps> = ({
   onClearAll,
   showMetadata = true,
   maxItems = 5,
-  className = ""
+  className = '',
 }) => {
   // Track current time for relative timestamps - hooks must be called before any early returns
   const [now, setNow] = useState(() => Date.now());
@@ -81,7 +81,7 @@ export const RecentSearches: React.FC<RecentSearchesProps> = ({
         </div>
       </CardHeader>
       <CardContent className="pt-0 space-y-2">
-        {displaySearches.map((search) => (
+        {displaySearches.map(search => (
           <div
             key={search.id}
             className="group flex items-center justify-between p-2 rounded-md hover:bg-muted transition-colors"
@@ -108,12 +108,13 @@ export const RecentSearches: React.FC<RecentSearchesProps> = ({
               size="sm"
               onClick={() => onSearchRemove(search.id)}
               className="opacity-0 group-hover:opacity-100 transition-opacity ml-2 h-6 w-6 p-0"
+              aria-label={`Remove recent search ${search.query}`}
             >
               <X className="h-3 w-3" />
             </Button>
           </div>
         ))}
-        
+
         {recentSearches.length > maxItems && (
           <div className="text-xs text-muted-foreground text-center pt-2 border-t">
             +{recentSearches.length - maxItems} more searches
@@ -137,7 +138,7 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
   currentQuery,
   onSuggestionSelect,
   frequentSearches = [],
-  className = ""
+  className = '',
 }) => {
   if (suggestions.length === 0 && frequentSearches.length === 0) {
     return null;
@@ -153,7 +154,7 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
               <Clock className="h-3 w-3" />
               Recent
             </div>
-            {suggestions.map((search) => (
+            {suggestions.map(search => (
               <button
                 key={search.id}
                 onClick={() => onSuggestionSelect(search.query)}

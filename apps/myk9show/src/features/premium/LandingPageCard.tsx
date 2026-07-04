@@ -53,20 +53,25 @@ export function LandingPageCard({ showId, showStyle }: LandingPageCardProps) {
   }, [url]);
 
   return (
-    <Card className="p-4 flex items-center gap-4">
+    <Card className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
       <div className="bg-primary/10 text-primary rounded-md p-3">
         <Globe className="h-6 w-6" />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <h3 className="font-semibold text-sm">Public Landing Page</h3>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <h3 className="min-w-0 truncate text-sm font-semibold">Public Landing Page</h3>
           <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
             {styleLabel}
           </span>
         </div>
         <p className="text-xs text-muted-foreground mt-0.5 truncate">{url}</p>
       </div>
-      <Button size="sm" variant="outline" onClick={handleCopy} className="shrink-0">
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={handleCopy}
+        className="min-h-[44px] w-full shrink-0 sm:w-auto"
+      >
         {copied ? (
           <>
             <Check className="h-3.5 w-3.5 mr-1.5 text-green-600" />

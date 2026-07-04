@@ -3,7 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -13,14 +19,14 @@ import { searchService, SearchQuery, SearchFilters, SearchResult } from '@/servi
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { logger } from '@/services/LoggingService';
 import {
-  Search, 
+  Search,
   Filter,
   Calendar as CalendarIcon,
   X,
   TrendingUp,
   Sliders,
   History,
-  Zap
+  Zap,
 } from 'lucide-react';
 
 interface AdvancedSearchProps {
@@ -48,15 +54,15 @@ interface AdvancedSearchProps {
 
 export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
   entityType,
-  placeholder = "Search...",
+  placeholder = 'Search...',
   onSearch,
   onResults,
   filters = {},
-  className = ""
+  className = '',
 }) => {
   const { user } = useAuthContext();
   const searchInputRef = useRef<HTMLInputElement>(null);
-  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
@@ -64,14 +70,16 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [popularSearches, setPopularSearches] = useState<string[]>([]);
-  
+
   // Filter states
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [selectedOrganizations, setSelectedOrganizations] = useState<string[]>([]);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
-  const [dateRange, setDateRange] = useState<{ start?: Date | undefined; end?: Date | undefined }>({});
+  const [dateRange, setDateRange] = useState<{ start?: Date | undefined; end?: Date | undefined }>(
+    {}
+  );
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
   const [customFilterValues, setCustomFilterValues] = useState<Record<string, unknown>>({});
 
@@ -79,7 +87,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
     try {
       const history = await searchService.getSearchHistory(user?.id || '', 10);
       setSearchHistory(history.map(entry => entry.query.term).filter(Boolean));
-      
+
       const popular = await searchService.getPopularSearches(entityType, 8);
       setPopularSearches(popular);
     } catch (error) {
@@ -118,15 +126,21 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
       roles: selectedRoles.length > 0 ? selectedRoles : undefined,
       organizations: selectedOrganizations.length > 0 ? selectedOrganizations : undefined,
       locations: selectedLocations.length > 0 ? selectedLocations : undefined,
-      dateRange: dateRange.start || dateRange.end ? {
-        start: dateRange.start || new Date(0),
-        end: dateRange.end || new Date()
-      } : undefined,
-      priceRange: filters.showPriceFilter && (priceRange[0] > 0 || priceRange[1] < 1000) ? {
-        min: priceRange[0],
-        max: priceRange[1]
-      } : undefined,
-      customFields: Object.keys(customFilterValues).length > 0 ? customFilterValues : undefined
+      dateRange:
+        dateRange.start || dateRange.end
+          ? {
+              start: dateRange.start || new Date(0),
+              end: dateRange.end || new Date(),
+            }
+          : undefined,
+      priceRange:
+        filters.showPriceFilter && (priceRange[0] > 0 || priceRange[1] < 1000)
+          ? {
+              min: priceRange[0],
+              max: priceRange[1],
+            }
+          : undefined,
+      customFields: Object.keys(customFilterValues).length > 0 ? customFilterValues : undefined,
     };
 
     return searchService.buildAdvancedQuery(searchTerm, searchFilters);
@@ -134,10 +148,10 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
 
   const handleSearch = async () => {
     if (isSearching) return;
-    
+
     setIsSearching(true);
     setShowSuggestions(false);
-    
+
     try {
       const query = buildSearchQuery();
       const results = await searchService.search(entityType, query, onSearch, user?.id);
@@ -199,8 +213,8 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
             type="text"
             placeholder={placeholder}
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+            onChange={e => setSearchTerm(e.target.value)}
+            onKeyPress={e => e.key === 'Enter' && handleSearch()}
             onFocus={() => setShowSuggestions(suggestions.length > 0)}
             className="pl-10 pr-24"
           />
@@ -224,6 +238,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
               disabled={isSearching}
               size="sm"
               className="h-7"
+              aria-label={isSearching ? 'Searching' : 'Search'}
             >
               {isSearching ? (
                 <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full" />
@@ -235,83 +250,86 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
         </div>
 
         {/* Search Suggestions */}
-        {showSuggestions && (suggestions.length > 0 || searchHistory.length > 0 || popularSearches.length > 0) && (
-          <Card className="absolute top-full left-0 right-0 z-50 mt-1 shadow-lg">
-            <CardContent className="p-3">
-              {suggestions.length > 0 && (
-                <div className="mb-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Zap className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-xs font-medium text-muted-foreground">Suggestions</span>
-                  </div>
-                  <div className="space-y-1">
-                    {suggestions.map((suggestion, index) => (
-                      <button
-                        key={index}
-                        className="w-full text-left px-2 py-1 text-sm hover:bg-muted/50 rounded transition-colors"
-                        onClick={() => handleSuggestionClick(suggestion)}
-                      >
-                        {suggestion}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {searchHistory.length > 0 && (
-                <div className="mb-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <History className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-xs font-medium text-muted-foreground">Recent Searches</span>
+        {showSuggestions &&
+          (suggestions.length > 0 || searchHistory.length > 0 || popularSearches.length > 0) && (
+            <Card className="absolute top-full left-0 right-0 z-50 mt-1 shadow-lg">
+              <CardContent className="p-3">
+                {suggestions.length > 0 && (
+                  <div className="mb-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Zap className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-xs font-medium text-muted-foreground">Suggestions</span>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearSearchHistory}
-                      className="h-5 text-xs"
-                    >
-                      Clear
-                    </Button>
+                    <div className="space-y-1">
+                      {suggestions.map((suggestion, index) => (
+                        <button
+                          key={index}
+                          className="w-full text-left px-2 py-1 text-sm hover:bg-muted/50 rounded transition-colors"
+                          onClick={() => handleSuggestionClick(suggestion)}
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-1">
-                    {searchHistory.slice(0, 5).map((term, index) => (
-                      <Badge
-                        key={index}
-                        variant="outline"
-                        className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => handleSuggestionClick(term)}
-                      >
-                        {term}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
+                )}
 
-              {popularSearches.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-xs font-medium text-muted-foreground">Popular</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {popularSearches.slice(0, 6).map((term, index) => (
-                      <Badge
-                        key={index}
-                        variant="secondary"
-                        className="cursor-pointer hover:bg-muted/70"
-                        onClick={() => handleSuggestionClick(term)}
+                {searchHistory.length > 0 && (
+                  <div className="mb-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <History className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-xs font-medium text-muted-foreground">
+                          Recent Searches
+                        </span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearSearchHistory}
+                        className="h-5 text-xs"
                       >
-                        {term}
-                      </Badge>
-                    ))}
+                        Clear
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {searchHistory.slice(0, 5).map((term, index) => (
+                        <Badge
+                          key={index}
+                          variant="outline"
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => handleSuggestionClick(term)}
+                        >
+                          {term}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
+                )}
+
+                {popularSearches.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <TrendingUp className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-xs font-medium text-muted-foreground">Popular</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {popularSearches.slice(0, 6).map((term, index) => (
+                        <Badge
+                          key={index}
+                          variant="secondary"
+                          className="cursor-pointer hover:bg-muted/70"
+                          onClick={() => handleSuggestionClick(term)}
+                        >
+                          {term}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
       </div>
 
       {/* Advanced Filters */}
@@ -327,7 +345,12 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                 <Button variant="outline" size="sm" onClick={clearFilters}>
                   Clear All
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => setShowAdvanced(false)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAdvanced(false)}
+                  aria-label="Close advanced filters"
+                >
                   <X className="h-4 w-4" />
                 </Button>
               </div>
@@ -335,18 +358,17 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              
               {/* Categories Filter */}
               {filters.categories && (
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Categories</Label>
                   <div className="space-y-1">
-                    {filters.categories.map((category) => (
+                    {filters.categories.map(category => (
                       <div key={category} className="flex items-center space-x-2">
                         <Checkbox
                           id={`category-${category}`}
                           checked={selectedCategories.includes(category)}
-                          onCheckedChange={(checked) => {
+                          onCheckedChange={checked => {
                             if (checked) {
                               setSelectedCategories([...selectedCategories, category]);
                             } else {
@@ -367,16 +389,18 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
               {filters.statuses && (
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Status</Label>
-                  <Select onValueChange={(value) => {
-                    if (!selectedStatuses.includes(value)) {
-                      setSelectedStatuses([...selectedStatuses, value]);
-                    }
-                  }}>
+                  <Select
+                    onValueChange={value => {
+                      if (!selectedStatuses.includes(value)) {
+                        setSelectedStatuses([...selectedStatuses, value]);
+                      }
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
-                      {filters.statuses.map((status) => (
+                      {filters.statuses.map(status => (
                         <SelectItem key={status} value={status}>
                           {status}
                         </SelectItem>
@@ -385,12 +409,15 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                   </Select>
                   {selectedStatuses.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
-                      {selectedStatuses.map((status) => (
+                      {selectedStatuses.map(status => (
                         <Badge key={status} variant="secondary" className="text-xs">
                           {status}
                           <button
-                            onClick={() => setSelectedStatuses(selectedStatuses.filter(s => s !== status))}
+                            onClick={() =>
+                              setSelectedStatuses(selectedStatuses.filter(s => s !== status))
+                            }
                             className="ml-1 hover:text-destructive"
+                            aria-label={`Remove ${status} status filter`}
                           >
                             <X className="h-3 w-3" />
                           </button>
@@ -417,12 +444,12 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                         <Calendar
                           mode="single"
                           selected={dateRange.start}
-                          onSelect={(date) => setDateRange(prev => ({ ...prev, start: date }))}
+                          onSelect={date => setDateRange(prev => ({ ...prev, start: date }))}
                           initialFocus
                         />
                       </PopoverContent>
                     </Popover>
-                    
+
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button variant="outline" size="sm">
@@ -434,7 +461,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                         <Calendar
                           mode="single"
                           selected={dateRange.end}
-                          onSelect={(date) => setDateRange(prev => ({ ...prev, end: date }))}
+                          onSelect={date => setDateRange(prev => ({ ...prev, end: date }))}
                           initialFocus
                         />
                       </PopoverContent>
@@ -451,7 +478,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                   </Label>
                   <Slider
                     value={priceRange}
-                    onValueChange={(value) => setPriceRange(value as [number, number])}
+                    onValueChange={value => setPriceRange(value as [number, number])}
                     max={1000}
                     min={0}
                     step={10}

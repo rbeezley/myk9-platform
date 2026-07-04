@@ -43,6 +43,7 @@
   justify-content: space-between;
   padding: 16px 56px;
   gap: 24px;
+  min-width: 0;
 }
 
 [data-headline] .hd-nav-mark,
@@ -68,6 +69,7 @@
   font-weight: 800;
   font-size: 16px;
   text-decoration: none;
+  min-width: 0;
 }
 
 [data-headline] .mono,
@@ -105,6 +107,9 @@
   padding-left: 12px;
   border-left: 1px solid var(--hd-hair);
   font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 [data-headline] .hd-nav-links {
@@ -145,6 +150,8 @@
 [data-headline] .hd-nav-cta {
   padding: 10px 20px;
   font-size: 13px;
+  flex-shrink: 0;
+  min-height: 44px;
 }
 
 [data-headline] .hd-cta {
@@ -541,6 +548,7 @@
 
   [data-headline] .hd-cta {
     justify-content: center;
+    width: 100%;
   }
 
   [data-headline] .hd-ticker {

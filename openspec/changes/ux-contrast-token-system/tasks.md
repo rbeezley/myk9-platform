@@ -8,7 +8,7 @@
 
 - [ ] 2.1 Add a focused TypeScript contrast utility for tests only, with WCAG relative-luminance and ratio helpers.
 - [ ] 2.2 Add token-pair tests for core semantic surface/text pairs in light and dark themes.
-- [ ] 2.3 Add token-pair tests for every supported `data-accent` variant in light and dark themes.
+- [ ] 2.3 Add token-pair tests under `apps/myk9show/src/styles/__tests__/` that parse `apps/myk9show/src/index.css` for supported `data-accent` blocks and verify every discovered accent variant in light and dark themes.
 - [ ] 2.4 Add token-pair tests for semantic status foreground/fill pairs and common tinted chip patterns.
 - [ ] 2.5 Run the new focused token tests and record any failing token pairs before making token fixes.
 

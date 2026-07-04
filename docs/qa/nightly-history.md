@@ -18,6 +18,16 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-07-04
+
+- **Playwright command:** fail. Phase 1 promoted Vitest passed (`18/18`). Phase 2 exact active Playwright command failed with `41 passed, 9 failed, 1 skipped, 2 did not run (1.4h, --retries=0)`, exceeding the 30-minute global Nightly budget.
+- **Route sweep:** fail/partial. The committed `route-health-by-role.spec.ts` ran inside Phase 2; public, exhibitor, judge, club-admin, and admin route groups passed, while the secretary group timed out in `sweepRoutes`. Standalone Phase 3 was skipped because Phase 2 had already exceeded the global Nightly budget.
+- **Active specs:** Vitest `18/18`; active Playwright `41/53` passed before failure.
+- **Failures:** Updated `QA-TEST-FLAKE-032`. Current failures were `cross-role-workflows.spec.ts:46` stale exhibitor `My Shows` heading; `registration/secretaryExistingUsers.spec.ts` and `registration/secretaryNewUsers.spec.ts` waiting for `Register for Show`; `registration/singleDogSingleClass.spec.ts` waiting for `Register for Show`; `route-health-by-role.spec.ts:274` secretary route-health timeout; `secretary/show-creation-wizard.spec.ts:132` missing clone trigger; `uat/secretary/critical-path.spec.ts` sign-in credential-input timeout; and `uat/secretary/disposable-entry.spec.ts:68` armband dialog still visible with `Entry not found`.
+- **Fixes made:** docs only (`docs/qa/findings.md`, `docs/qa/nightly-history.md`, `docs/qa/e2e-suite-map.md`). No product/test fix was made because the active command breached the global budget and the shifted failure set needs focused isolation; the suite-map edit only classifies `entry-intent-sign-in-redirect.spec.ts` as Feature Audit to repair drift.
+- **Demotions/promotions:** none.
+- **Notes:** Ran from isolated detached worktree `.worktrees/nightly-qa-2026-07-04-025120` on `origin/main` `e977a18ae163bbc4ee17c5fbc22a16e9e50d40c4`, using `PLAYWRIGHT_PORT=6346`, `PLAYWRIGHT_BASE_URL=http://127.0.0.1:6346`, and `PLAYWRIGHT_HMR_PORT=26346`. The primary checkout was clean. The first Phase 2 attempt was blocked by sandbox `listen EPERM` on the generated ports, then succeeded outside the sandbox.
+
 ### 2026-07-02
 
 - **Playwright command:** fail after partial low-risk test repairs. Phase 1 promoted Vitest passed (`18/18`). Initial Phase 2 exact active Playwright command failed with `40 passed, 10 failed, 3 did not run (1.4h, --retries=0)`, exceeding the 30-minute global Nightly budget. After low-risk repairs, focused proof for the repaired stale assertions passed: public browse + class creation + show wizard + officials picker + secretary critical path `18 passed, 1 skipped (1.3m, --retries=0)`.

@@ -121,8 +121,12 @@ export const ALL_STEP_DEFINITIONS: Record<StepId, Omit<RegistrationStep, 'comple
   },
   confirmation: {
     id: 4,
-    label: 'Confirmation',
-    description: 'Review and confirm',
+    // INTENT: Named "Receipt" (not "Confirmation") because the entry is already
+    // committed by the honest Submit button on the Payment step — this screen is
+    // the after-the-fact receipt, not a place that still asks the user to confirm
+    // (UX walk remediation 4.A). Do not relabel back to "Review and confirm".
+    label: 'Receipt',
+    description: 'Your entry receipt',
     icon: <CheckSquare className="h-5 w-5" />,
   },
 };

@@ -6,15 +6,7 @@ import { Label } from '../../ui/label';
 import { Badge } from '../../ui/badge';
 import { Separator } from '../../ui/separator';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card';
-import {
-  Save,
-  FolderOpen,
-  Trash2,
-  Clock,
-  FileText,
-  CheckCircle,
-  Archive
-} from 'lucide-react';
+import { Save, FolderOpen, Trash2, Clock, FileText, CheckCircle, Archive } from 'lucide-react';
 import { SavedDraft, DraftMetadata } from '../../../hooks/useDraftPersistence';
 import { formatDistanceToNow } from 'date-fns';
 import { useShowRegistrationStore } from '../../../store/showRegistrationStore';
@@ -38,7 +30,7 @@ export function DraftManager({
   clearAllDrafts,
   hasUnsavedChanges,
   onDraftLoaded,
-  onDraftSaved
+  onDraftSaved,
 }: DraftManagerProps) {
   const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
@@ -86,8 +78,8 @@ export function DraftManager({
       'dog-selection': 'outline',
       'class-selection': 'secondary',
       'handler-assignment': 'secondary',
-      'payment': 'default',
-      'confirmation': 'default'
+      payment: 'default',
+      confirmation: 'default',
     };
     return stepMapping[step] || 'outline';
   };
@@ -97,8 +89,8 @@ export function DraftManager({
       'dog-selection': 'Dog Selection',
       'class-selection': 'Class Selection',
       'handler-assignment': 'Handler Assignment',
-      'payment': 'Payment',
-      'confirmation': 'Confirmation'
+      payment: 'Payment',
+      confirmation: 'Confirmation',
     };
     return stepNames[step] || step;
   };
@@ -107,7 +99,7 @@ export function DraftManager({
     <div className="flex items-center gap-3">
       {/* Save Status Indicator */}
       <DraftIndicator hasUnsavedChanges={!!hasUnsavedChanges} />
-      
+
       {/* Save Draft Button */}
       <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
         <DialogTrigger asChild>
@@ -126,22 +118,16 @@ export function DraftManager({
               <Input
                 id="draft-title"
                 value={saveTitle}
-                onChange={(e) => setSaveTitle(e.target.value)}
+                onChange={e => setSaveTitle(e.target.value)}
                 placeholder={`Draft from ${new Date().toLocaleDateString()}`}
                 className="mt-1"
               />
             </div>
             <div className="flex justify-end gap-2">
-              <Button 
-                variant="outline" 
-                onClick={() => setIsSaveDialogOpen(false)}
-              >
+              <Button variant="outline" onClick={() => setIsSaveDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button 
-                onClick={handleSaveDraft}
-                disabled={!saveTitle.trim()}
-              >
+              <Button onClick={handleSaveDraft} disabled={!saveTitle.trim()}>
                 Save Draft
               </Button>
             </div>
@@ -152,8 +138,8 @@ export function DraftManager({
       {/* Load Draft Button */}
       <Dialog open={isLoadDialogOpen} onOpenChange={setIsLoadDialogOpen}>
         <DialogTrigger asChild>
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             size="sm"
             disabled={availableDrafts.length === 0}
             className="text-xs"
@@ -166,7 +152,7 @@ export function DraftManager({
           <DialogHeader>
             <DialogTitle>Load Registration Draft</DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             {availableDrafts.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
@@ -177,8 +163,8 @@ export function DraftManager({
             ) : (
               <>
                 <div className="grid gap-3 max-h-96 overflow-y-auto">
-                  {availableDrafts.map((draft) => (
-                    <Card 
+                  {availableDrafts.map(draft => (
+                    <Card
                       key={draft.id}
                       className={`cursor-pointer transition-colors hover:bg-muted/50 ${
                         selectedDraft?.id === draft.id ? 'ring-2 ring-primary' : ''
@@ -188,14 +174,13 @@ export function DraftManager({
                       <CardHeader className="pb-2">
                         <div className="flex items-start justify-between">
                           <div className="space-y-1">
-                            <CardTitle className="text-sm font-medium">
-                              {draft.title}
-                            </CardTitle>
-                            <CardDescription className="text-xs">
-                              {draft.preview}
-                            </CardDescription>
+                            <CardTitle className="text-sm font-medium">{draft.title}</CardTitle>
+                            <CardDescription className="text-xs">{draft.preview}</CardDescription>
                           </div>
-                          <Badge variant={getStepBadgeVariant(draft.stepCompleted)} className="text-xs">
+                          <Badge
+                            variant={getStepBadgeVariant(draft.stepCompleted)}
+                            className="text-xs"
+                          >
                             {getStepDisplayName(draft.stepCompleted)}
                           </Badge>
                         </div>
@@ -210,7 +195,8 @@ export function DraftManager({
                             variant="ghost"
                             size="sm"
                             className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={(e) => {
+                            aria-label={`Delete draft ${draft.title}`}
+                            onClick={e => {
                               e.stopPropagation();
                               handleDeleteDraft(draft.id);
                             }}
@@ -237,13 +223,10 @@ export function DraftManager({
                   </Button>
 
                   <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setIsLoadDialogOpen(false)}
-                    >
+                    <Button variant="outline" onClick={() => setIsLoadDialogOpen(false)}>
                       Cancel
                     </Button>
-                    <Button 
+                    <Button
                       onClick={() => selectedDraft && handleLoadDraft(selectedDraft.id)}
                       disabled={!selectedDraft}
                     >

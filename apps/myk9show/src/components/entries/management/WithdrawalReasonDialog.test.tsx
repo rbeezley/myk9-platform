@@ -50,6 +50,9 @@ describe('WithdrawalReasonDialog', () => {
   it('disables Confirm Withdrawal until a reason is selected', () => {
     renderDialog();
     expect(screen.getByRole('button', { name: /confirm withdrawal/i })).toBeDisabled();
+    expect(
+      screen.getByText('Select a withdrawal reason to confirm the withdrawal.')
+    ).toBeInTheDocument();
   });
 
   it('enables Confirm Withdrawal once a reason is selected', () => {

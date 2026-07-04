@@ -28,6 +28,16 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 - **Demotions/promotions:** none.
 - **Notes:** Ran from isolated detached worktree `.worktrees/nightly-qa-2026-07-04-025120` on `origin/main` `e977a18ae163bbc4ee17c5fbc22a16e9e50d40c4`, using `PLAYWRIGHT_PORT=6346`, `PLAYWRIGHT_BASE_URL=http://127.0.0.1:6346`, and `PLAYWRIGHT_HMR_PORT=26346`. The primary checkout was clean. The first Phase 2 attempt was blocked by sandbox `listen EPERM` on the generated ports, then succeeded outside the sandbox.
 
+### 2026-07-03
+
+- **Playwright command:** fail. Phase 1 promoted Vitest passed (`18/18`). Phase 2 exact active Playwright command failed with `46 passed, 6 failed, 1 skipped (1.1h, --retries=0)`, again exceeding the 30-minute global Nightly budget.
+- **Route sweep:** fail/partial. The committed `route-health-by-role.spec.ts` ran inside Phase 2; public, secretary, judge, club-admin, and admin route groups passed, while the exhibitor group timed out in `sweepRoutes`. Standalone Phase 3 was skipped because Phase 2 had already exceeded the global Nightly budget.
+- **Active specs:** Vitest `18/18`; active Playwright `46/53` passed before failure, with the existing public show-card skip.
+- **Failures:** Updated `QA-TEST-FLAKE-032`. Current failures were `cross-role-workflows.spec.ts:46` waiting for stale exhibitor `My Shows` heading while the current page renders `myK9 Exhibitor`; `route-health-by-role.spec.ts:259` exhibitor group timeout; `secretary/classCreation.spec.ts:21` stuck on manager-shell `Loading...`; `secretary-entry-walk.spec.ts:218` unstable handlers-step `Next` click; `uat/secretary/disposable-entry.spec.ts:68` armband dialog stayed open with visible `Entry not found`; and `uat/secretary/qa-regression-proof.spec.ts:65` landed in the browse shell instead of the create-show wizard. Evidence paths are listed in `QA-TEST-FLAKE-032`.
+- **Fixes made:** docs only (`docs/qa/findings.md`, `docs/qa/nightly-history.md`, `docs/qa/e2e-suite-map.md`). No product/test fix was made because the exact active command breached the global budget and the shifted failure set needs focused isolation; the suite-map edit only classifies `entry-intent-sign-in-redirect.spec.ts` as Feature Audit to repair drift.
+- **Demotions/promotions:** none.
+- **Notes:** Ran from isolated detached worktree `.worktrees/nightly-qa-2026-07-03-021031` on `origin/main` `c1f860be069ce73fc7d920c780cbc90eb2aa9c05`, using `PLAYWRIGHT_PORT=6320`, `PLAYWRIGHT_BASE_URL=http://127.0.0.1:6320`, and `PLAYWRIGHT_HMR_PORT=26320`. The primary checkout had unrelated local WIP, but the isolated baseline was clean except for generated `.qa-nightly.env`. The first Phase 2 attempt was blocked by sandbox `listen EPERM` on the generated ports, then succeeded outside the sandbox.
+
 ### 2026-07-02
 
 - **Playwright command:** fail after partial low-risk test repairs. Phase 1 promoted Vitest passed (`18/18`). Initial Phase 2 exact active Playwright command failed with `40 passed, 10 failed, 3 did not run (1.4h, --retries=0)`, exceeding the 30-minute global Nightly budget. After low-risk repairs, focused proof for the repaired stale assertions passed: public browse + class creation + show wizard + officials picker + secretary critical path `18 passed, 1 skipped (1.3m, --retries=0)`.

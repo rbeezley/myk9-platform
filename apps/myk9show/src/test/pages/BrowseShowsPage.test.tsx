@@ -57,7 +57,14 @@ vi.mock('@/components/common/SkeletonLoaders', () => ({
 }));
 vi.mock('@/components/shows/browse', () => ({
   ShowCardGrid: () => <div data-testid="shows-cards">Cards</div>,
-  ShowsTableView: () => <div data-testid="shows-table">Table</div>,
+  ShowsTableView: () => (
+    <div data-testid="shows-table">
+      <button type="button">Columns</button>
+      <button type="button">Export CSV</button>
+      <button type="button">Compact</button>
+      <button type="button">Reset table view</button>
+    </div>
+  ),
   ShowBulkActionsBar: () => <div data-testid="bulk-actions-bar">Bulk Actions</div>,
 }));
 vi.mock('@/components/auth/PermissionGuard', () => ({
@@ -319,6 +326,10 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
         expect(screen.getByTestId('shows-cards')).toBeInTheDocument();
       });
       expect(screen.queryByTestId('shows-table')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Columns' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Export CSV' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Compact' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Reset table view' })).not.toBeInTheDocument();
     });
 
     it('renders cards by default on the Entered as exhibitor tab', async () => {
@@ -341,6 +352,10 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
         expect(screen.getByTestId('shows-table')).toBeInTheDocument();
       });
       expect(screen.queryByTestId('shows-cards')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Columns' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Export CSV' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Compact' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Reset table view' })).toBeInTheDocument();
     });
   });
 

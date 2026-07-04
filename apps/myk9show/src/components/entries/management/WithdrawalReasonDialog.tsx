@@ -87,6 +87,11 @@ export const WithdrawalReasonDialog: React.FC<WithdrawalReasonDialogProps> = ({
               rows={3}
             />
           </div>
+          {!reason && (
+            <p className="text-xs text-muted-foreground">
+              Select a withdrawal reason to confirm the withdrawal.
+            </p>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => handleOpenChange(false)}>

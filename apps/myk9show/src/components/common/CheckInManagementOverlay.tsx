@@ -20,6 +20,7 @@ import {
 import { CheckInStatus, CHECK_IN_STATUS_CONFIG } from '@/types/check-in-types';
 import { CheckCircle2, AlertTriangle, XCircle, Eye, ArrowRight, Users, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { chipClasses } from '@/components/base/chipClasses';
 
 interface EntryForCheckIn {
   id: string;
@@ -50,24 +51,24 @@ const STATUS_ICONS = {
 
 const STATUS_COLORS = {
   'no-status': 'text-muted-foreground',
-  'checked-in': 'text-[#007AFF]',
-  conflict: 'text-[#FF9500]',
-  pulled: 'text-[#FF3B30]',
-  'at-gate': 'text-[#34C759]',
-  'come-to-gate': 'text-[#5856D6]',
-  'in-ring': 'text-[#AF52DE]',
-  completed: 'text-[#32D74B]',
+  'checked-in': 'text-[color:var(--chip-teal-fg)]',
+  conflict: 'text-[color:var(--chip-amber-fg)]',
+  pulled: 'text-[color:var(--chip-red-fg)]',
+  'at-gate': 'text-[color:var(--chip-green-fg)]',
+  'come-to-gate': 'text-[color:var(--chip-blue-fg)]',
+  'in-ring': 'text-[color:var(--chip-purple-fg)]',
+  completed: 'text-[color:var(--chip-green-fg)]',
 };
 
 const STATUS_BADGE_COLORS = {
-  'no-status': 'bg-muted/50 text-muted-foreground border-muted',
-  'checked-in': 'bg-[#007AFF]/10 text-[#007AFF] border-[#007AFF]/20',
-  conflict: 'bg-[#FF9500]/10 text-[#FF9500] border-[#FF9500]/20',
-  pulled: 'bg-[#FF3B30]/10 text-[#FF3B30] border-[#FF3B30]/20',
-  'at-gate': 'bg-[#34C759]/10 text-[#34C759] border-[#34C759]/20',
-  'come-to-gate': 'bg-[#5856D6]/10 text-[#5856D6] border-[#5856D6]/20',
-  'in-ring': 'bg-[#AF52DE]/10 text-[#AF52DE] border-[#AF52DE]/20',
-  completed: 'bg-[#32D74B]/10 text-[#32D74B] border-[#32D74B]/20',
+  'no-status': chipClasses('stone', { border: true }),
+  'checked-in': chipClasses('teal', { border: true }),
+  conflict: chipClasses('amber', { border: true }),
+  pulled: chipClasses('red', { border: true }),
+  'at-gate': chipClasses('green', { border: true }),
+  'come-to-gate': chipClasses('blue', { border: true }),
+  'in-ring': chipClasses('purple', { border: true }),
+  completed: chipClasses('green', { border: true }),
 };
 
 export const CheckInManagementOverlay: React.FC<CheckInManagementOverlayProps> = ({
@@ -167,7 +168,7 @@ export const CheckInManagementOverlay: React.FC<CheckInManagementOverlayProps> =
                       <div className="flex-1 flex items-center gap-4">
                         {/* Armband */}
                         <div className="flex-shrink-0">
-                          <div className="font-mono text-lg font-bold text-[#007AFF] bg-[#007AFF]/10 rounded-lg px-3 py-1.5">
+                          <div className="font-mono text-lg font-bold text-primary bg-primary/10 rounded-lg px-3 py-1.5">
                             #{entry.armband}
                           </div>
                         </div>
@@ -203,7 +204,7 @@ export const CheckInManagementOverlay: React.FC<CheckInManagementOverlayProps> =
                           }
                           disabled={isUpdating === entry.id}
                         >
-                          <SelectTrigger className="w-full h-10 bg-background border-border/50 hover:border-border focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 transition-all duration-200">
+                          <SelectTrigger className="w-full h-10 bg-background border-border/50 hover:border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200">
                             <SelectValue placeholder="Select status" />
                           </SelectTrigger>
                           <SelectContent className="bg-card/95 backdrop-blur-xl border-border shadow-xl">

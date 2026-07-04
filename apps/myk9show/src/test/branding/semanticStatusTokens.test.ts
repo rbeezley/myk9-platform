@@ -48,7 +48,7 @@ describe('semantic status token foundation', () => {
       expect(lightCss).toContain('--warning-foreground: 255 255 255');
     });
     it('defines --info as an RGB triplet', () => {
-      expect(lightCss).toContain('--info: 37 99 235');
+      expect(lightCss).toContain('--info: 27 94 231');
     });
     it('defines --info-strong as blue-800 for AA contrast on the /10 tint pattern', () => {
       expect(lightCss).toContain('--info-strong: 30 64 175');
@@ -82,7 +82,7 @@ describe('semantic status token foundation', () => {
       expect(darkCss).toContain('--info-strong: 147 197 253');
     });
     it('defines dark --info-foreground as a dark ink for solid info fills', () => {
-      expect(darkCss).toContain('--info-foreground: 30 58 138');
+      expect(darkCss).toContain('--info-foreground: 23 37 84');
       expect(darkCss).not.toContain('--info-foreground: 255 255 255');
     });
     it('defines dark --destructive as an RGB triplet (not hex), scoped to .dark', () => {

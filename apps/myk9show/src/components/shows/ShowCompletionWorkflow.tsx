@@ -190,11 +190,11 @@ export function ShowCompletionWorkflow({
   const getStepColor = (status: string) => {
     switch (status) {
       case 'completed':
-        return 'text-teal-600';
+        return 'text-success';
       case 'error':
-        return 'text-red-600';
+        return 'text-destructive';
       case 'in_progress':
-        return 'text-blue-600';
+        return 'text-info';
       default:
         return 'text-muted-foreground';
     }
@@ -256,7 +256,7 @@ export function ShowCompletionWorkflow({
                   <div
                     className={cn(
                       'font-semibold',
-                      showData.pendingPayments > 0 ? 'text-orange-600' : 'text-teal-600'
+                      showData.pendingPayments > 0 ? 'text-warning' : 'text-success'
                     )}
                   >
                     {showData.pendingPayments === 0 ? 'None' : showData.pendingPayments}
@@ -331,7 +331,7 @@ export function ShowCompletionWorkflow({
                           )}
 
                           {step.status === 'completed' && (
-                            <Badge variant="default" className="bg-teal-100 text-teal-800">
+                            <Badge variant="default" className="bg-success/10 text-success">
                               Complete
                             </Badge>
                           )}
@@ -446,7 +446,7 @@ export function ShowCompletionWorkflow({
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-teal-600" />
+              <CheckCircle2 className="h-5 w-5 text-success" />
               Complete Show?
             </DialogTitle>
           </DialogHeader>
@@ -458,19 +458,19 @@ export function ShowCompletionWorkflow({
 
             <ul className="space-y-1 text-sm">
               <li className="flex items-center gap-2">
-                <CheckCircle2 className="h-3 w-3 text-teal-600" />
+                <CheckCircle2 className="h-3 w-3 text-success" />
                 Finalize all results and awards
               </li>
               <li className="flex items-center gap-2">
-                <CheckCircle2 className="h-3 w-3 text-teal-600" />
+                <CheckCircle2 className="h-3 w-3 text-success" />
                 Archive show data permanently
               </li>
               <li className="flex items-center gap-2">
-                <CheckCircle2 className="h-3 w-3 text-teal-600" />
+                <CheckCircle2 className="h-3 w-3 text-success" />
                 Generate completion certificates
               </li>
               <li className="flex items-center gap-2">
-                <AlertTriangle className="h-3 w-3 text-amber-600" />
+                <AlertTriangle className="h-3 w-3 text-warning" />
                 Prevent further modifications
               </li>
             </ul>

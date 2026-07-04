@@ -65,7 +65,7 @@
   font-variation-settings: normal;
 }
 
-/* The page should always render in the editorial light palette,
+/* INTENT: The page should always render in the editorial light palette,
    regardless of the user's app-wide dark-mode preference. The
    landing is a marketing surface — keep it cream. */
 .landing-v2 {

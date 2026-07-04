@@ -59,16 +59,12 @@ describe('ShowDeskAdaptiveHeader', () => {
     ['wrap-up', 'Wrap-up'],
     ['closed', 'Closed'],
   ] as const)('renders status pill for %s', (status, label) => {
-    const { getByTestId } = render(
-      <ShowDeskAdaptiveHeader {...baseProps} showStatus={status} />
-    );
+    const { getByTestId } = render(<ShowDeskAdaptiveHeader {...baseProps} showStatus={status} />);
     expect(getByTestId('show-desk-status-pill').textContent).toBe(label);
   });
 
   it('tones the closed status pill with the warm stone chip token, not cool slate', () => {
-    const { getByTestId } = render(
-      <ShowDeskAdaptiveHeader {...baseProps} showStatus="closed" />
-    );
+    const { getByTestId } = render(<ShowDeskAdaptiveHeader {...baseProps} showStatus="closed" />);
     const pill = getByTestId('show-desk-status-pill');
     // DESIGN.md: "Closed" is an inactive state — warm stone chip token, never
     // a cool slate (no cool blue-grays outside the status vocabulary).
@@ -114,6 +110,9 @@ describe('ShowDeskAdaptiveHeader', () => {
     expect(getByText('Message handler C')).toBeInTheDocument();
     const openButtons = getAllByRole('button', { name: /open/i });
     expect(openButtons).toHaveLength(3);
+    expect(openButtons[0]).toHaveClass('min-h-[44px]', 'w-full', 'sm:w-auto');
+    expect(getByText('Score class A')).toHaveClass('truncate');
+    expect(getByText('Score class A')).toHaveAttribute('title', 'Score class A');
   });
 
   it('caps up-next at three groups even when more are supplied', () => {
@@ -147,14 +146,13 @@ describe('ShowDeskAdaptiveHeader', () => {
     // Count badge shows ×3.
     expect(getByTestId('up-next-group-count').textContent).toBe('×3');
     // Context appears on the summary line.
-    expect(
-      getByText(/#100 · Bravo · Test Secretary, across 3 classes/)
-    ).toBeInTheDocument();
+    expect(getByText(/#100 · Bravo · Test Secretary, across 3 classes/)).toBeInTheDocument();
     // Children are collapsed: no class-label disambiguators visible yet.
     expect(queryByText('Container Novice')).toBeNull();
     expect(queryByText('Interior Novice')).toBeNull();
     expect(queryByText('Exterior Novice')).toBeNull();
     expect(queryByTestId('up-next-group-children')).toBeNull();
+    expect(getByText('Review entry')).toHaveClass('truncate');
   });
 
   it('expands a multi-item group when the chevron is clicked and shows per-class child rows', async () => {
@@ -209,11 +207,7 @@ describe('ShowDeskAdaptiveHeader', () => {
     ]);
 
     const { user, getByRole, getAllByRole } = render(
-      <ShowDeskAdaptiveHeader
-        {...baseProps}
-        upNextGroups={[group]}
-        onStartAction={onStartAction}
-      />
+      <ShowDeskAdaptiveHeader {...baseProps} upNextGroups={[group]} onStartAction={onStartAction} />
     );
 
     await user.click(getByRole('button', { name: /Review entry/i }));
@@ -320,11 +314,7 @@ describe('ShowDeskAdaptiveHeader', () => {
 
   it('does not render Manage entries link when reviewQueueCount is 0', () => {
     const { queryByTestId } = render(
-      <ShowDeskAdaptiveHeader
-        {...baseProps}
-        onOpenEntryManagement={vi.fn()}
-        reviewQueueCount={0}
-      />
+      <ShowDeskAdaptiveHeader {...baseProps} onOpenEntryManagement={vi.fn()} reviewQueueCount={0} />
     );
     expect(queryByTestId('open-entry-management')).toBeNull();
   });
@@ -405,11 +395,7 @@ describe('ShowDeskAdaptiveHeader', () => {
     ]);
 
     const { user, getByRole, queryByTestId } = render(
-      <ShowDeskAdaptiveHeader
-        {...baseProps}
-        upNextGroups={[group]}
-        onBulkApproveGroup={vi.fn()}
-      />
+      <ShowDeskAdaptiveHeader {...baseProps} upNextGroups={[group]} onBulkApproveGroup={vi.fn()} />
     );
     await user.click(getByRole('button', { name: /Mark checked in/i }));
     expect(queryByTestId('up-next-group-bulk-approve')).toBeNull();

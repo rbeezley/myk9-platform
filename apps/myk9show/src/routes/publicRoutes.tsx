@@ -53,6 +53,12 @@ const ShowWorkbenchShowDeskPage = lazy(() =>
     default: m.ShowWorkbenchShowDeskPage,
   }))
 );
+const ClassManagementPage = lazy(() =>
+  import('@/pages/secretary/ClassManagementPage').then(m => ({ default: m.ClassManagementPage }))
+);
+const ClassCreationPage = lazy(() =>
+  import('@/pages/secretary/ClassCreationPage').then(m => ({ default: m.ClassCreationPage }))
+);
 const EntryManagementPage = lazy(() => import('@/pages/secretary/EntryManagementPage'));
 const ReportsPage = lazy(() => import('@/pages/secretary/ReportsPage'));
 const ResultsControlPage = lazy(() => import('@/pages/secretary/ResultsControlPage'));
@@ -72,7 +78,6 @@ const AccountPage = lazy(() => import('@/pages/AccountPage'));
 const BrowseShowsPage = lazy(() => import('@/pages/BrowseShowsPage'));
 const MyEntriesPage = lazy(() => import('@/pages/MyEntriesPage'));
 const ExhibitorPaymentsPage = lazy(() => import('@/pages/exhibitor/ExhibitorPaymentsPage'));
-const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
 const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage'));
 
 // TV Display
@@ -168,6 +173,26 @@ export const PublicRoutes = () => (
           }
         />
       ))}
+      <Route
+        path="classes/:trialId"
+        element={
+          <ShowManagementSectionRoute>
+            <SuspenseWrapper>
+              <ClassManagementPage />
+            </SuspenseWrapper>
+          </ShowManagementSectionRoute>
+        }
+      />
+      <Route
+        path="classes/:trialId/create"
+        element={
+          <ShowManagementSectionRoute>
+            <SuspenseWrapper>
+              <ClassCreationPage />
+            </SuspenseWrapper>
+          </ShowManagementSectionRoute>
+        }
+      />
     </Route>
 
     <Route
@@ -259,7 +284,7 @@ export const PublicRoutes = () => (
         </ProtectedRoute>
       }
     />
-    <Route path="/exhibitor/profile" element={<Navigate to="/profile" replace />} />
+    <Route path="/exhibitor/profile" element={<Navigate to="/account" replace />} />
     <Route path="/exhibitor/account" element={<Navigate to="/account" replace />} />
     <Route
       path="/exhibitor/analytics"
@@ -303,17 +328,7 @@ export const PublicRoutes = () => (
       }
     />
 
-    {/* /profile redirects to /people/{personId} */}
-    <Route
-      path="/profile"
-      element={
-        <ProtectedRoute>
-          <SuspenseWrapper>
-            <ProfilePage />
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
+    <Route path="/profile" element={<Navigate to="/account" replace />} />
 
     {/* Notifications history */}
     <Route

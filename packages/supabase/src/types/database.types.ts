@@ -8906,6 +8906,20 @@ export type Database = {
           user_role_id: string
         }[]
       }
+      get_show_officials: {
+        Args: { p_show_id: string }
+        Returns: {
+          user_id: string
+          first_name: string | null
+          last_name: string | null
+          email: string | null
+          role: string
+        }[]
+      }
+      get_club_show_manager_ids: {
+        Args: { p_club_id: string }
+        Returns: { user_id: string }[]
+      }
       grant_club_secretary: {
         Args: { p_club_id: string; p_person_id: string }
         Returns: string

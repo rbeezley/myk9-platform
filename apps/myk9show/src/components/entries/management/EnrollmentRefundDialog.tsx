@@ -100,6 +100,12 @@ export const EnrollmentRefundDialog: React.FC<EnrollmentRefundDialogProps> = ({
             onChange={e => onChange({ ...state, notes: e.target.value })}
           />
         </div>
+
+        {(!state.amount || !(parseFloat(state.amount) > 0)) && (
+          <p className="text-xs text-muted-foreground">
+            Enter a refund amount greater than $0 to record this refund.
+          </p>
+        )}
       </div>
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>

@@ -229,7 +229,7 @@
     --success-foreground: 255 255 255;
     --warning: 146 64 14; /* amber-800 — WCAG AA everywhere incl. the bg-warning/10 + text-warning tint pattern (5.7:1 page-tinted, 6.1:1 white-tinted, 7.1:1 white-on-solid); amber-700 (180 83 9) passed solid text but the /10 tint was only ~4.1:1 */
     --warning-foreground: 255 255 255;
-    --info: 37 99 235; /* blue-600 */
+    --info: 27 94 231; /* blue-600 adjusted — WCAG AA for bg-info/10 + text-info tint pattern */
     --info-strong: 30 64 175; /* blue-800 — WCAG AA for small text on bg-info/10 tint */
     --info-foreground: 255 255 255;
   }
@@ -509,7 +509,7 @@ select:hover {
     --warning-foreground: 69 26 3; /* amber-950 — 8.97:1 on amber-400 solid bg; white would be 1.67:1 */
     --info: 96 165 250; /* blue-400 */
     --info-strong: 147 197 253; /* blue-300 — readable on dark bg-info/10 tint */
-    --info-foreground: 30 58 138; /* blue-900 — 4.6:1 on blue-400 solid bg; white would be 2.5:1 */
+    --info-foreground: 23 37 84; /* blue-950 — 5.8:1 on blue-400 solid bg; white would be 2.5:1 */
     --border: #2e2b27;
     --input: #1e1c19;
     --input-border: #2e2b27;

@@ -82,6 +82,9 @@ vi.mock('@/pages/secretary/ResultsControlPage', () => ({
 vi.mock('@/pages/secretary/ResultsSubmissionPage', () => ({
   default: () => <div data-testid="production-submit-results">Submit Results</div>,
 }));
+vi.mock('@/pages/AccountPage', () => ({
+  default: () => <div data-testid="production-account-page">Account</div>,
+}));
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -196,6 +199,18 @@ describe('canonical show route redirects', () => {
     expect(await screen.findByTestId('location')).toHaveTextContent(
       '/shows/show-1/reports?report=result-catalog&trialId=trial-7'
     );
+  });
+});
+
+describe('canonical account route redirects', () => {
+  it.each(['/profile', '/exhibitor/profile'])('redirects %s to the unified account page', async path => {
+    render(
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>{PublicRoutes()}</Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByTestId('production-account-page')).toBeInTheDocument();
   });
 });
 

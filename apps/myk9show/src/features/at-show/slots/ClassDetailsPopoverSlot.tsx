@@ -170,7 +170,7 @@ export const ClassDetailsPopover: React.FC<ClassDetailsPopoverProps> = ({
           <span className="text-sm font-semibold text-foreground">Class Details</span>
           <button
             type="button"
-            className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent"
+            className="flex min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent"
             onClick={onClose}
             aria-label="Close"
           >

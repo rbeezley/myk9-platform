@@ -63,4 +63,10 @@ describe('StatusDot', () => {
       (completed.container.querySelector('[aria-label]') as HTMLElement).className
     ).toContain('bg-success');
   });
+
+  it('exposes the class status as an accessible status name', () => {
+    const { getByRole } = render(<StatusDot status={CLASS_STATUS.IN_PROGRESS} />);
+
+    expect(getByRole('status', { name: 'Status: In Progress' })).toBeInTheDocument();
+  });
 });

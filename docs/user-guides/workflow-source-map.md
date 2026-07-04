@@ -49,6 +49,12 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 **Canonical routes:** `/sign-up` → `/dogs` → `/dogs/:id`
 **Docs target:** Exhibitor Guide § Account Setup, KB: `create-account.md`
 
+### 2a. Manage profile, preferences, and account settings
+
+**Outcome:** Signed-in users update their personal profile, notification preferences, and advanced account settings from one consolidated surface.
+**Canonical route:** `/account`
+**Docs target:** Exhibitor Guide § Account Setup, KB: Account access
+
 ### 3. Enter a show online
 
 **Outcome:** Exhibitor submits an entry and pays via Stripe.
@@ -120,7 +126,8 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 ### 13. Monitor all shows (cross-show triage)
 
 **Outcome:** Secretary sees all active shows and which needs attention.
-**Canonical route:** `/secretary/dashboard`
+**Canonical route:** `/secretary/dashboard` (re-verified 2026-07-04 for #1114 route/catalog changes)
+**Note:** This remains the cross-show home, while single-show operations stay under `/shows/:showId/*`.
 **Docs target:** Secretary Guide § Dashboard
 
 ### 14. Manage a specific show (setup and configuration)
@@ -246,3 +253,4 @@ Workflows where the same user outcome appears at more than one route. Document o
 | Class details          | `/shows/:showId/trials/:trialId/classes/:classId` | `/classes/:classId`                     | Document the nested path only                                                 |
 | Entry list (exhibitor) | `/exhibitor/entries`                              | `/my-entries`                           | `/my-entries` is a redirect — document `/exhibitor/entries` only              |
 | Show day entry point   | ShowTodayBanner on `/exhibitor/entries`           | `/exhibitor/show-day`                   | `/exhibitor/show-day` is a legacy redirect — document the banner CTA only     |
+| Profile/settings       | `/account`                                        | `/profile`, `/settings`, `/preferences` | `/account` is the consolidated surface — document the single destination only |

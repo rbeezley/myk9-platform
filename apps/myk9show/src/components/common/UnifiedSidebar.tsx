@@ -442,6 +442,7 @@ function UnifiedSidebar<T extends { id: string }>({
               variant="ghost"
               size="sm"
               onClick={onCloseMobile}
+              aria-label="Close sidebar"
               className={cn(
                 'md:hidden h-8 w-8 rounded-lg',
                 'hover:bg-slate-100 dark:hover:bg-slate-800',
@@ -523,6 +524,7 @@ function UnifiedSidebar<T extends { id: string }>({
             {searchTerm && (
               <button
                 onClick={() => handleSearchChange('')}
+                aria-label={`Clear ${title} search`}
                 className={cn(
                   'absolute right-3 top-1/2 -translate-y-1/2',
                   'h-5 w-5 rounded-full',

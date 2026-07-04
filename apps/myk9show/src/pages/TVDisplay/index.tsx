@@ -9,6 +9,10 @@ import { TVPodiumOverlay } from './TVPodiumOverlay';
 import { TVMobileList } from './TVMobileList';
 import { TVSoundToggle } from './TVSoundToggle';
 
+// INTENT: TVDisplay is a fixed-dark venue screen, not an app-themed page. The
+// literal zinc/green/red colors are tuned for projected or wall-mounted displays
+// and should not inherit user light/dark mode.
+
 function useMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
   useEffect(() => {

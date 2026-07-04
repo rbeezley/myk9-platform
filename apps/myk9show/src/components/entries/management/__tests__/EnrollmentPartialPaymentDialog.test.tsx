@@ -42,6 +42,9 @@ describe('EnrollmentPartialPaymentDialog', () => {
     render(<EnrollmentPartialPaymentDialog {...baseProps} state={makeState()} />);
     expect(screen.queryByText(/Covers full balance/)).toBeNull();
     expect(screen.queryByText(/Remaining after payment/)).toBeNull();
+    expect(
+      screen.getByText('Enter a payment amount greater than $0 to record this payment.')
+    ).toBeInTheDocument();
   });
 
   it('disables Record Payment until a positive amount is entered', () => {

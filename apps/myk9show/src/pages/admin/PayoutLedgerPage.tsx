@@ -30,7 +30,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { usePlatformFeePercent } from '@/hooks/queries/usePlatformFeePercent';
 import { useUpdatePlatformFee } from '@/features/payments/useUpdatePlatformFee';
 import { usePlatformPayoutLedger } from '@/features/payments/usePlatformPayoutLedger';
-import { summarizeLedger, type LedgerRow, type PayoutStatus } from '@/features/payments/payoutLedger';
+import {
+  summarizeLedger,
+  type LedgerRow,
+  type PayoutStatus,
+} from '@/features/payments/payoutLedger';
+import { getPayoutStatusPresentation } from './adminStatusPresentation';
 
 function formatCents(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
@@ -41,18 +46,10 @@ function formatRefundCents(cents: number): string {
   return cents > 0 ? `-${formatCents(cents)}` : formatCents(0);
 }
 
-const STATUS_LABEL: Record<PayoutStatus, string> = {
-  pending: 'Pending',
-  processing: 'Processing',
-  completed: 'Paid',
-  failed: 'Failed',
-};
-
 function statusBadge(status: PayoutStatus | null) {
   if (!status) return <Badge variant="outline">Not settled</Badge>;
-  if (status === 'completed') return <Badge variant="default">{STATUS_LABEL[status]}</Badge>;
-  if (status === 'failed') return <Badge variant="destructive">{STATUS_LABEL[status]}</Badge>;
-  return <Badge variant="secondary">{STATUS_LABEL[status]}</Badge>;
+  const presentation = getPayoutStatusPresentation(status);
+  return <Badge className={presentation.className}>{presentation.label}</Badge>;
 }
 
 function PlatformFeeCard() {
@@ -246,9 +243,7 @@ export default function PayoutLedgerPage() {
         <Wallet className="h-7 w-7" />
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Payments &amp; Payouts</h1>
-          <p className="text-muted-foreground">
-            Platform fee and cross-club payout liabilities.
-          </p>
+          <p className="text-muted-foreground">Platform fee and cross-club payout liabilities.</p>
         </div>
       </div>
 

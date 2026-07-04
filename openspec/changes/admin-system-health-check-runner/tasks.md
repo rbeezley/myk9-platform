@@ -60,9 +60,13 @@
 ## 7. Ship gate (final)
 
 - [ ] 7.1 `/simplify` then `/harden` the diff; every file `< 500` lines.
-- [ ] 7.2 Open PR — body notes the dependency on #1123 (table migration must merge/push first) and
-      `Tracked in openspec change: admin-system-health-check-runner`. Run CI + code-reviewer; run the
-      Codex second-opinion pass (touches a migration + SECURITY DEFINER).
+- [x] 7.2 Open PR (#1125, base main; #1123 dependency called out) + run the Codex second-opinion pass.
+      Codex findings: P1 = the write depends on #1123's table (the known, deploy-gated dependency —
+      no code change; process-controlled). P2 = pg_cron `succeeded` ≠ Edge Function 2xx for
+      `net.http_post` jobs — FIXED: probe emits `dispatches_http`, runner words http-dispatch jobs as
+      "dispatched" not "succeeded" (+ INTENT guard comment, design/spec note, 3 new tests). Verified
+      against live DB (pg_net response table is pruned + uncorrelated, so honest wording is the right
+      fix, not fragile correlation). Deferred: a `payout_failures` per-function-ledger check.
 - [ ] 7.3 Deploy: push both migrations (confirmation-gated shared-DB write), set the `health_cron_secret`
       Vault secret + the function `HEALTH_CRON_SECRET` env, deploy `cron-health-check --no-verify-jwt`.
       Verify one manual invoke writes a row and the board goes green. (Merge is not deploy.)

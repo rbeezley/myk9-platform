@@ -51,6 +51,12 @@ begin
         select jsonb_build_object(
           'jobname',      job.jobname,
           'active',       job.active,
+          -- A job whose command dispatches an Edge Function via net.http_post
+          -- reports 'succeeded' the moment the request is ENQUEUED — pg_cron
+          -- never sees the async HTTP response, so a downstream 4xx/5xx still
+          -- reads 'succeeded' here. The runner words these jobs accordingly and
+          -- leaves true downstream health to per-function ledgers (Codex #1125).
+          'dispatches_http', (position('net.http_post' in coalesce(job.command, '')) > 0),
           'last_status',  lr.status,
           'last_start',   lr.start_time,
           'last_end',     lr.end_time,

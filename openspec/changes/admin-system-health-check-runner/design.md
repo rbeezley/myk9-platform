@@ -86,6 +86,22 @@ v1 checks:
 - `migrations` (runbook 5.2 proxy): `ok` with detail `Latest <version> (<n> applied)`; a missing
   version → `warn`. Honestly scoped to newest-applied, not full parity.
 
+**Known limit (Codex review, PR #1125) — pg_cron success ≠ Edge Function 2xx.** For a job whose
+command dispatches an Edge Function via `net.http_post` (the payout cron, this health cron,
+heritage/waitlist), pg_cron reports `succeeded` the moment the request is *enqueued*; the async HTTP
+response never rewrites `job_run_details.status`, and `net._http_response` is aggressively pruned and
+carries no correlation key back to the cron run. So `payout_cron`/`background_jobs` verify a job is
+*scheduled and its scheduler run completed* — for an http-dispatch job that means "dispatched", which
+the probe flags (`dispatches_http`, from `position('net.http_post' in job.command)`) and the runner
+words accordingly (`last run dispatched (Edge Function response not checked here)`), NOT a 2xx. This
+still catches the high-value failures — a job unscheduled/inactive, a scheduler-body error (e.g. the
+live `waitlist-offer-expiration` "Missing Vault secret", which RAISEs *before* the http_post so
+pg_cron marks it `failed`), and a job that stopped firing (overdue). True downstream-HTTP health
+belongs to a per-function ledger — `show_payouts.failure_reason` for payouts, the future
+`operator_alerts` generally, and this board's own staleness self-check for the health cron itself.
+**Deferred follow-up:** add a `payout_failures` check reading recent non-benign `show_payouts` rows
+(a real downstream signal) once the pure/IO seam grows an IO-fed fact.
+
 Rationale: the "stale/failed ⇒ fail, surfaced loudly" mapping and the worst-of fold are exactly
 CLAUDE.md's assertion-first targets. **Alternative considered:** inline in the edge function —
 rejected; not vitest-testable (Deno `npm:` imports) and pushes IO and logic together.

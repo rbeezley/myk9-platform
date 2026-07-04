@@ -61,6 +61,25 @@ items:
   version SHALL be `warn`; otherwise `ok`. This reports newest-applied only, not full local↔remote
   parity.
 
+For a cron job whose command dispatches an Edge Function via `net.http_post`, a healthy status SHALL be
+worded as "dispatched" rather than implying the Edge Function returned a 2xx response — because pg_cron
+records `succeeded` once the request is enqueued and never observes the downstream HTTP outcome. The
+runner SHALL surface whether a job dispatches HTTP (from its command) and word the check accordingly;
+verifying the downstream HTTP response is explicitly out of scope for this check and belongs to a
+per-function ledger.
+
+#### Scenario: An http-dispatch job's green status is worded as "dispatched"
+
+- **WHEN** a `net.http_post` cron job's most recent run status is `succeeded`
+- **THEN** the check is `ok` and its detail states the run was dispatched and the Edge Function response
+  was not checked here — it does not claim the function returned 2xx
+
+#### Scenario: A scheduler-body error is still caught
+
+- **WHEN** a cron job's `DO` block raises before dispatching (e.g. a missing Vault secret), so pg_cron
+  records `failed`
+- **THEN** the corresponding check is `fail`
+
 #### Scenario: A failed payout cron surfaces as fail
 
 - **WHEN** the `nightly-show-payouts` job's most recent run status is `failed`

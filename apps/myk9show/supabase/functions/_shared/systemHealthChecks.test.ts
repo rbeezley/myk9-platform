@@ -17,6 +17,7 @@ const HOUR = 60 * MIN;
 const job = (over: Partial<RawCronJob> = {}): RawCronJob => ({
   jobname: 'some-job',
   active: true,
+  dispatches_http: false,
   last_status: 'succeeded',
   last_start: iso(2 * HOUR),
   last_end: iso(2 * HOUR),
@@ -24,11 +25,15 @@ const job = (over: Partial<RawCronJob> = {}): RawCronJob => ({
   ...over,
 });
 
+// The real payout cron dispatches its Edge Function via net.http_post.
+const payoutJob = (over: Partial<RawCronJob> = {}): RawCronJob =>
+  job({ jobname: PAYOUT_CRON_JOB, dispatches_http: true, ...over });
+
 const facts = (over: Record<string, unknown> = {}) => ({
   probed_at: iso(0),
   latest_migration: '20260704140000',
   migration_count: 331,
-  cron_jobs: [job({ jobname: PAYOUT_CRON_JOB })],
+  cron_jobs: [payoutJob()],
   ...over,
 });
 
@@ -76,6 +81,9 @@ describe('payout_cron check (runbook 5.4)', () => {
     const check = find(snap, 'payout_cron');
     expect(check.status).toBe('ok');
     expect(check.detail).toContain(PAYOUT_CRON_JOB);
+    // http-dispatch job: green means "dispatched", not "Edge Function returned 2xx"
+    expect(check.detail).toContain('dispatched');
+    expect(check.detail).not.toContain('succeeded');
     // checked_at reflects the job's last run, not the probe time
     expect(check.checked_at).toBe(iso(2 * HOUR));
   });
@@ -210,6 +218,61 @@ describe('background_jobs check', () => {
     const check = find(snap, 'background_jobs');
     expect(check.status).toBe('ok');
     expect(check.detail).toContain('no other scheduled jobs');
+  });
+});
+
+describe('pg_cron success semantics (Codex PR #1125)', () => {
+  it('words an http-dispatch job as "dispatched", not "succeeded" (green ≠ 2xx)', () => {
+    const snap = buildSnapshot(
+      facts({
+        cron_jobs: [
+          payoutJob(),
+          job({ jobname: 'heritage-confirmation-emails', dispatches_http: true }),
+        ],
+      }),
+      { now: NOW }
+    );
+    expect(find(snap, 'payout_cron').detail).toContain('dispatched');
+    expect(find(snap, 'background_jobs').status).toBe('ok');
+  });
+
+  it('words a pure-SQL job as "succeeded" — pg_cron success there IS the work done', () => {
+    const snap = buildSnapshot(
+      facts({
+        cron_jobs: [
+          payoutJob(),
+          // a real DELETE cron (dispatches_http false by default)
+          job({ jobname: 'cleanup-ringside-anon' }),
+        ],
+      }),
+      { now: NOW }
+    );
+    // one healthy pure-SQL background job → ok
+    expect(find(snap, 'background_jobs').status).toBe('ok');
+    expect(find(snap, 'background_jobs').detail).toContain('1 job healthy');
+  });
+
+  it('still fails a dispatch job whose scheduler run errored (caught in the DO block)', () => {
+    // e.g. the live waitlist-offer-expiration "Missing Vault secret" case — the
+    // RAISE fires inside the DO block BEFORE net.http_post, so pg_cron sees 'failed'.
+    const snap = buildSnapshot(
+      facts({
+        cron_jobs: [
+          payoutJob(),
+          job({
+            jobname: 'waitlist-offer-expiration',
+            dispatches_http: true,
+            last_status: 'failed',
+            last_message: 'ERROR:  Missing Vault secret: cron_secret',
+          }),
+        ],
+      }),
+      { now: NOW }
+    );
+    const bg = find(snap, 'background_jobs');
+    expect(bg.status).toBe('fail');
+    expect(bg.detail).toContain('waitlist-offer-expiration');
+    expect(snap.overall_status).toBe('fail');
   });
 });
 

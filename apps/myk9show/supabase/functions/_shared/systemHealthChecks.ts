@@ -41,6 +41,9 @@ export interface HealthSnapshotInsert {
 export interface RawCronJob {
   jobname?: unknown;
   active?: unknown;
+  /** True when the job's command dispatches an Edge Function via net.http_post
+   * (so pg_cron 'succeeded' means "request enqueued", not "function returned 2xx"). */
+  dispatches_http?: unknown;
   last_status?: unknown;
   last_start?: unknown;
   last_end?: unknown;
@@ -100,6 +103,8 @@ function firstLine(message: string): string {
 interface CronJob {
   jobname: string;
   active: boolean;
+  /** True when the job dispatches an Edge Function via net.http_post. */
+  dispatchesHttp: boolean;
   lastStatus: string | null;
   /** last_end, or last_start if the run never finished, or null if never ran. */
   lastRunAt: string | null;
@@ -113,6 +118,7 @@ function parseCronJob(raw: unknown): CronJob {
   return {
     jobname: asString(entry.jobname, '(unnamed)'),
     active: entry.active === true,
+    dispatchesHttp: entry.dispatches_http === true,
     lastStatus: asIsoOrNull(entry.last_status),
     lastRunAt: lastEnd ?? lastStart,
     lastMessage: asIsoOrNull(entry.last_message),
@@ -126,7 +132,16 @@ function isOverdue(lastRunAt: string | null, now: number, staleAfterMs: number):
   return now - parsed > staleAfterMs;
 }
 
-/** Map a single cron job's last-run facts to a status + human detail. */
+// INTENT: pg_cron's job_run_details.status answers "did the scheduled SQL run?",
+// NOT "did the work succeed downstream". For a net.http_post job (dispatchesHttp)
+// pg_cron reports 'succeeded' as soon as the request is ENQUEUED — a 4xx/5xx from
+// the Edge Function never rewrites it (Codex review, PR #1125). So a green here for
+// such a job means "scheduled and dispatched", and the detail says exactly that;
+// it does NOT assert a 2xx response. True downstream-HTTP health belongs to a
+// per-function ledger (show_payouts.failure_reason, the future operator_alerts) and
+// to this board's OWN staleness self-check. Do not reword these details back into
+// claiming the function succeeded.
+/** Map a single cron job's last-run facts to a status + accurate human detail. */
 function evaluateJob(
   job: CronJob,
   now: number,
@@ -146,7 +161,13 @@ function evaluateJob(
     return { status: 'warn', detail: `last run (${job.lastRunAt}) is overdue` };
   }
   if (job.lastStatus === 'succeeded') {
-    return { status: 'ok', detail: 'last run succeeded' };
+    // Word http-dispatch jobs honestly — "dispatched", not "the function 2xx'd".
+    return {
+      status: 'ok',
+      detail: job.dispatchesHttp
+        ? 'last run dispatched (Edge Function response not checked here)'
+        : 'last run succeeded',
+    };
   }
   // starting / running / sending — recent and not (yet) failed.
   return { status: 'ok', detail: `last run in progress (${job.lastStatus})` };

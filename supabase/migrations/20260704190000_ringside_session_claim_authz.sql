@@ -169,8 +169,14 @@ $$;
 
 -- SA-011: the un-throttled raw-passcode re-validation arm is removed. anon (the
 -- pre-login publishable-key caller) no longer needs this RPC — a passcode caller
--- is a signed-in anonymous session (the `authenticated` role). Revoke from anon.
+-- is a signed-in anonymous session (the `authenticated` role).
+--
+-- The prior migration (20260531175637) granted EXECUTE to `anon, authenticated`
+-- EXPLICITLY. `REVOKE ... FROM public` strips only privileges held via the PUBLIC
+-- pseudo-role — it does NOT remove a role-specific grant — so anon would otherwise
+-- RETAIN EXECUTE. Revoke from anon EXPLICITLY to actually close the pre-login path.
 revoke all on function public.upsert_ringside_session(text, text, text[], text) from public;
+revoke all on function public.upsert_ringside_session(text, text, text[], text) from anon;
 grant execute on function public.upsert_ringside_session(text, text, text[], text) to authenticated;
 
 notify pgrst, 'reload schema';

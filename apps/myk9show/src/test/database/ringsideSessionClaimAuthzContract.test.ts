@@ -72,9 +72,16 @@ describe('upsert_ringside_session — SA-011 passcode-throttle contract', () => 
     expect(ownershipChecks!.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('is revoked from public and granted ONLY to authenticated (no anon grant)', () => {
+  it('explicitly revokes the pre-existing anon EXECUTE grant, not just from public', () => {
     expect(migration).toContain(
       'revoke all on function public.upsert_ringside_session(text, text, text[], text) from public'
+    );
+    // The prior migration (20260531175637) granted EXECUTE to anon EXPLICITLY, and
+    // REVOKE ... FROM public does NOT remove a role-specific grant. Without an
+    // explicit anon revoke, anon would RETAIN EXECUTE and the hardening is a no-op.
+    // This assertion is the one that catches a "revoke from public"-only regression.
+    expect(migration).toContain(
+      'revoke all on function public.upsert_ringside_session(text, text, text[], text) from anon'
     );
     expect(migration).toContain(
       'grant execute on function public.upsert_ringside_session(text, text, text[], text) to authenticated'

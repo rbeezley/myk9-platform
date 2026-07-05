@@ -46,7 +46,12 @@ export function formatDownloadFailureToast(
 ): string {
   const first = failures[0];
   const label = first ? objectLabel(first.name) : 'show data';
+  const remainingCount = failures.length - 1;
   const tail =
-    failures.length > 1 ? ` ${failures.length - 1} more area${failures.length === 2 ? '' : 's'} also need to refresh.` : '';
+    remainingCount > 0
+      ? ` ${remainingCount} more area${remainingCount === 1 ? '' : 's'} also ${
+          remainingCount === 1 ? 'needs' : 'need'
+        } to refresh.`
+      : '';
   return `We couldn't refresh ${label} data. You can keep using the saved copy while we try again.${tail}`;
 }

@@ -90,4 +90,15 @@ describe('formatDownloadFailureToast', () => {
       "We couldn't refresh show data. You can keep using the saved copy while we try again. 2 more areas also need to refresh."
     );
   });
+
+  it('uses singular grammar for one additional failing table', () => {
+    const msg = formatDownloadFailureToast([
+      { name: 'shows', error: 'RLS violation' },
+      { name: 'trials', error: 'timeout' },
+    ]);
+
+    expect(msg).toBe(
+      "We couldn't refresh show data. You can keep using the saved copy while we try again. 1 more area also needs to refresh."
+    );
+  });
 });

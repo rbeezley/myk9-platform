@@ -24,7 +24,7 @@ describe('ShowExhibitorView entry CTA — accent-safe tokens', () => {
   it('routes the entry CTA through the shared Button component', () => {
     // The CTA is conditional on entryStatus.canEnter; it must be a <Button>
     // (default = filled var(--primary)), not a raw <button> with hardcoded color.
-    expect(source).toContain("{hasUserEntries ? 'Manage Entry' : 'Enter This Show'}");
+    expect(source).toContain("{hasUserEntries ? 'Add or Change Entries' : 'Enter This Show'}");
     expect(source).not.toMatch(/bg-\[#c96442\]/);
   });
 });

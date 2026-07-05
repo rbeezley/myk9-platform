@@ -123,9 +123,9 @@ describe('ShowExhibitorView', () => {
     expect(screen.getByRole('button', { name: 'Enter This Show' })).toBeInTheDocument();
   });
 
-  it('shows "Manage Entry" when entries are open and the user already entered', () => {
+  it('shows "Add or Change Entries" when entries are open and the user already entered', () => {
     renderView({ entryStatus: makeEntryStatus({ canEnter: true }), hasUserEntries: true });
-    expect(screen.getByRole('button', { name: 'Manage Entry' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add or Change Entries' })).toBeInTheDocument();
   });
 
   it('shows "View Entry" when entries are closed but the user has entries', () => {
@@ -141,7 +141,11 @@ describe('ShowExhibitorView', () => {
       entryStatus: makeEntryStatus({ canEnter: false, label: 'Closed' }),
       hasUserEntries: false,
     });
-    expect(screen.queryByRole('button', { name: /enter this show|manage entry|view entry/i })).toBeNull();
+    expect(
+      screen.queryByRole('button', {
+        name: /enter this show|add or change entries|view entry/i,
+      })
+    ).toBeNull();
   });
 
   it('renders the entry-status badge', () => {

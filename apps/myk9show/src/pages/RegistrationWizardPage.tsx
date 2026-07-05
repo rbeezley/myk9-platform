@@ -32,6 +32,7 @@ function RegistrationWizardContent() {
   const {
     scrollTopRef,
     isInsideSidebar,
+    exitTarget,
     workflowLabel,
     sidebarTitle,
     currentShow,
@@ -101,7 +102,7 @@ function RegistrationWizardContent() {
                 className="gap-2 hover:-translate-y-0.5 transition-all duration-300"
               >
                 <ArrowLeft className="h-4 w-4" />
-                Back
+                {exitTarget.label}
               </Button>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span>Shows</span>

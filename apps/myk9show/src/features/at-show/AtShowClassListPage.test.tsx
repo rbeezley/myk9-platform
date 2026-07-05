@@ -160,7 +160,10 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
       tablesStatus: { shows: 'success', trials: 'syncing', classes: 'idle', entries: 'idle' },
     });
 
-    expect(await screen.findByText('Loading your classes...')).toBeInTheDocument();
+    expect(
+      await screen.findByRole('status', { name: 'Loading at-show classes' })
+    ).toBeInTheDocument();
+    expect(document.querySelector('.animate-spin')).toBeNull();
     expect(screen.queryByText('This show has no classes yet.')).not.toBeInTheDocument();
   });
 
@@ -170,6 +173,9 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
     renderPage();
 
     expect(await screen.findByText('This show has no classes yet.')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('status', { name: 'Loading at-show classes' })
+    ).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Back to Ringside' }));
     expect(await screen.findByText('RINGSIDE HOME')).toBeInTheDocument();
   });
@@ -180,6 +186,9 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
     renderPage();
 
     expect(await screen.findByText('Failed to load classes')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('status', { name: 'Loading at-show classes' })
+    ).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Back to Ringside' }));
     expect(await screen.findByText('RINGSIDE HOME')).toBeInTheDocument();
   });

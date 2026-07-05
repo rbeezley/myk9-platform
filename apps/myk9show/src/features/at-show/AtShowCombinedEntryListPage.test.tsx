@@ -77,7 +77,8 @@ function seed() {
     async (id: string) => (id === 'class-a' ? CLASS_A : id === 'class-b' ? CLASS_B : null) as never
   );
   vi.mocked(replicatedEntriesTable.getEntriesByClass).mockImplementation(
-    async (id: string) => (id === 'class-a' ? [ENTRY_A] : id === 'class-b' ? [ENTRY_B] : []) as never
+    async (id: string) =>
+      (id === 'class-a' ? [ENTRY_A] : id === 'class-b' ? [ENTRY_B] : []) as never
   );
   vi.mocked(replicatedTrialsTable.getTrialById).mockResolvedValue({
     id: 'trial-1',
@@ -102,6 +103,20 @@ describe('AtShowCombinedEntryListPage (Phase 1h combined Section A/B)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     seed();
+  });
+
+  it('shows a skeleton instead of a spinner while combined entries load', async () => {
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockImplementation(
+      () => new Promise(() => {})
+    );
+
+    renderPage();
+
+    expect(
+      await screen.findByRole('status', { name: 'Loading combined entries' })
+    ).toBeInTheDocument();
+    expect(document.querySelector('.animate-spin')).toBeNull();
+    expect(screen.queryByText('Loading combined entries...')).not.toBeInTheDocument();
   });
 
   it('renders merged A + B entries under All Sections', async () => {

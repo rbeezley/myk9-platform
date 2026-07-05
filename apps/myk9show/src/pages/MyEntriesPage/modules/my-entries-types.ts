@@ -71,6 +71,10 @@ export interface MyEntry {
   totalFee: number;
   entryStatus: EntryStatus;
   paymentStatus: PaymentStatus;
+  /** Raw `entries.payment_method` (DB vocabulary: 'online' | 'cash' | 'check' |
+   * 'waived' | 'secretary_paid' | 'group_payment' | null). Drives the cash/check
+   * "pay at show" status vs the online "Finish Payment" CTA (4.C). */
+  paymentMethod?: string | null;
   confirmationNumber?: string | undefined;
   entryCloseDate?: Date | undefined;
   submittedAt: Date;

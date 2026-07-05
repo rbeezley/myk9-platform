@@ -148,7 +148,7 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
     return (
       <div role="status" aria-label="Loading financial summary" className="space-y-4">
         <CardGridSkeleton items={5} />
-        <TableSkeleton rows={6} columns={5} />
+        <TableSkeleton rows={6} columns={7} />
       </div>
     );
   }

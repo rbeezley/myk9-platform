@@ -23,6 +23,13 @@ const rulebooks: AskQRulebookAsset[] = [
     title: 'AKC Scent Work Regulations',
     content: 'Excellent Interior time limits are set by the judge for each search area.',
   },
+  {
+    id: 'ukc-nosework',
+    organizationCode: 'UKC',
+    sportCode: 'ukc-nosework',
+    title: 'UKC Nose Work Rules',
+    content: 'UKC Excellent Container searches use UKC rules.',
+  },
 ];
 
 describe('AskQ document context', () => {
@@ -44,5 +51,15 @@ describe('AskQ document context', () => {
     expect(context).toContain('Add a mail-in entry');
     expect(context).toContain('<selected_rulebook');
     expect(context).toContain('Excellent Interior time limits');
+  });
+
+  it('can include multiple show rulebooks without relying on the first trial only', () => {
+    const context = buildDocumentContext({
+      guides,
+      rulebooks,
+    });
+
+    expect(context).toContain('AKC Scent Work Regulations');
+    expect(context).toContain('UKC Nose Work Rules');
   });
 });

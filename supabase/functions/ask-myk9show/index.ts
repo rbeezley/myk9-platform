@@ -11,6 +11,7 @@ import { collectSource } from '../_shared/askq/responseFormatter.ts';
 import { callClaude } from '../_shared/askq/promptBuilder.ts';
 import { ASKQ_GUIDES, ASKQ_RULEBOOKS } from '../_shared/askq/documentAssets.ts';
 import {
+  type AskQRulebookAsset,
   buildDocumentContext,
   selectRulebook,
 } from '../_shared/askq/documentContext.ts';
@@ -228,8 +229,7 @@ Deno.serve(async (req: Request) => {
     // Verify user has a relationship to the requested show before using it as context
     let verifiedShowId: string | null = null;
     let showName: string | null = null;
-    let rulesOrganizationCode: string | undefined;
-    let rulesSportCode: string | undefined;
+    let showRulebooks: AskQRulebookAsset[] = [];
     if (showId && showData?.show_name) {
       const dogIds = dogs.map(d => d.id);
       const [{ count: roleCount }, { count: entryCount }] = await Promise.all([
@@ -252,15 +252,12 @@ Deno.serve(async (req: Request) => {
       if (hasAccess) {
         verifiedShowId = showId;
         showName = showData.show_name;
-        const { data: trialContext } = await serviceClient
+        const { data: trialContexts } = await serviceClient
           .from('trials')
           .select('registry_id, trial_type')
           .eq('show_id', showId)
-          .order('trial_number', { ascending: true })
-          .limit(1)
-          .maybeSingle();
-        rulesOrganizationCode = trialContext?.registry_id ?? undefined;
-        rulesSportCode = trialContext?.trial_type ?? undefined;
+          .order('trial_number', { ascending: true });
+        showRulebooks = selectUniqueRulebooksForTrials(trialContexts ?? []);
       }
     }
 
@@ -274,7 +271,7 @@ Deno.serve(async (req: Request) => {
 
     const documentContext = buildDocumentContext({
       guides: ASKQ_GUIDES,
-      rulebook: selectRulebook(ASKQ_RULEBOOKS, rulesOrganizationCode, rulesSportCode),
+      rulebooks: showRulebooks,
     });
     const baseSystemPrompt = buildMyK9ShowPrompt(userContext, documentContext);
     const systemPrompt = supportMode ? buildSupportModePrompt(baseSystemPrompt) : baseSystemPrompt;
@@ -304,8 +301,8 @@ Deno.serve(async (req: Request) => {
             block.input!,
             serviceClient,
             '', // myK9Show uses show_id scoping via userContext, not license_key
-            rulesOrganizationCode,
-            rulesSportCode,
+            undefined,
+            undefined,
             userContext
           );
           // Fixed argument order: (sources, toolName, result)
@@ -383,6 +380,21 @@ function buildSupportEscalationStream(
     send('meta', meta);
     send('done', {});
   });
+}
+
+function selectUniqueRulebooksForTrials(
+  trials: Array<{ registry_id?: string | null; trial_type?: string | null }>
+): AskQRulebookAsset[] {
+  const selected = new Map<string, AskQRulebookAsset>();
+  for (const trial of trials) {
+    const rulebook = selectRulebook(
+      ASKQ_RULEBOOKS,
+      trial.registry_id ?? undefined,
+      trial.trial_type ?? undefined
+    );
+    if (rulebook) selected.set(rulebook.id, rulebook);
+  }
+  return [...selected.values()];
 }
 
 function buildMyK9ShowPrompt(ctx: UserContext, documentContext: string): string {

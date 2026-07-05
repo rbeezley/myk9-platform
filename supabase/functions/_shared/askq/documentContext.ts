@@ -16,6 +16,7 @@ export interface AskQRulebookAsset {
 export interface BuildDocumentContextInput {
   guides: AskQGuideAsset[];
   rulebook?: AskQRulebookAsset | null;
+  rulebooks?: AskQRulebookAsset[];
 }
 
 export function selectRulebook(
@@ -36,16 +37,15 @@ export function selectRulebook(
 }
 
 export function buildDocumentContext(input: BuildDocumentContextInput): string {
+  const rulebooks = input.rulebooks ?? (input.rulebook ? [input.rulebook] : []);
   const sections = [
     `<verified_user_guides>
 ${input.guides.map(formatGuide).join('\n\n')}
 </verified_user_guides>`,
   ];
 
-  if (input.rulebook) {
-    sections.push(`<selected_rulebook id="${input.rulebook.id}" title="${escapeAttribute(input.rulebook.title)}">
-${input.rulebook.content}
-</selected_rulebook>`);
+  if (rulebooks.length > 0) {
+    sections.push(rulebooks.map(formatRulebook).join('\n\n'));
   } else {
     sections.push(`<selected_rulebook>
 No rulebook was selected. If the user asks an official rules question, ask which registry/sport or trial they mean.
@@ -74,6 +74,12 @@ function formatGuide(guide: AskQGuideAsset): string {
   return `<guide id="${guide.id}" title="${escapeAttribute(guide.title)}" audience="${escapeAttribute(guide.audience)}">
 ${guide.content}
 </guide>`;
+}
+
+function formatRulebook(rulebook: AskQRulebookAsset): string {
+  return `<selected_rulebook id="${rulebook.id}" title="${escapeAttribute(rulebook.title)}">
+${rulebook.content}
+</selected_rulebook>`;
 }
 
 function escapeAttribute(value: string): string {

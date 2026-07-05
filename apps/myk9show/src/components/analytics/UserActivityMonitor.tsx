@@ -18,6 +18,7 @@ import { UserActivityUsersTab } from './UserActivityUsersTab';
 import { UserActivityDevicesTab } from './UserActivityDevicesTab';
 import { UserActivityFeaturesTab } from './UserActivityFeaturesTab';
 import { UserActivityGeographyTab } from './UserActivityGeographyTab';
+import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 
 interface UserActivityMonitorProps {
   className?: string;
@@ -52,27 +53,34 @@ export function UserActivityMonitor({ className }: UserActivityMonitorProps) {
 
     // Calculate average session duration
     const completedSessions = sessions.filter(s => s.endTime);
-    const avgDuration = completedSessions.reduce((acc, s) => acc + s.duration, 0) / completedSessions.length;
+    const avgDuration =
+      completedSessions.reduce((acc, s) => acc + s.duration, 0) / completedSessions.length;
 
     // Calculate device breakdown
-    const deviceCounts = sessions.reduce((acc, s) => {
-      acc[s.deviceType] = (acc[s.deviceType] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const deviceCounts = sessions.reduce(
+      (acc, s) => {
+        acc[s.deviceType] = (acc[s.deviceType] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
 
     const deviceBreakdown = Object.entries(deviceCounts).map(([device, count]) => ({
       device,
       count,
-      percentage: (count / sessions.length) * 100
+      percentage: (count / sessions.length) * 100,
     }));
 
     // Calculate feature usage
-    const featureUsage = sessions.reduce((acc, s) => {
-      s.activeFeaturesUsed.forEach(feature => {
-        acc[feature] = (acc[feature] || 0) + 1;
-      });
-      return acc;
-    }, {} as Record<string, number>);
+    const featureUsage = sessions.reduce(
+      (acc, s) => {
+        s.activeFeaturesUsed.forEach(feature => {
+          acc[feature] = (acc[feature] || 0) + 1;
+        });
+        return acc;
+      },
+      {} as Record<string, number>
+    );
 
     const mostUsedFeatures = Object.entries(featureUsage)
       .map(([feature, usage]) => ({ feature, usage }))
@@ -82,11 +90,14 @@ export function UserActivityMonitor({ className }: UserActivityMonitorProps) {
     // Calculate location stats
     const locationStats = sessions
       .filter(s => s.location)
-      .reduce((acc, s) => {
-        const key = `${s.location!.city}, ${s.location!.country}`;
-        acc[key] = (acc[key] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
+      .reduce(
+        (acc, s) => {
+          const key = `${s.location!.city}, ${s.location!.country}`;
+          acc[key] = (acc[key] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>
+      );
 
     const locationStatsArray = Object.entries(locationStats)
       .map(([location, users]) => ({ location, users }))
@@ -105,7 +116,10 @@ export function UserActivityMonitor({ className }: UserActivityMonitorProps) {
       mostUsedFeatures,
       deviceBreakdown,
       locationStats: locationStatsArray,
-      engagementScore: Math.min(100, (avgDuration / 60) * 20 + (activeUsers / totalUsers) * 30 + 30)
+      engagementScore: Math.min(
+        100,
+        (avgDuration / 60) * 20 + (activeUsers / totalUsers) * 30 + 30
+      ),
     };
   }, [sessions]);
 
@@ -129,7 +143,7 @@ export function UserActivityMonitor({ className }: UserActivityMonitorProps) {
         hour,
         sessions: hourSessions.length,
         users: new Set(hourSessions.map(s => s.userId)).size,
-        syncs: hourSessions.reduce((acc, s) => acc + s.syncCount, 0)
+        syncs: hourSessions.reduce((acc, s) => acc + s.syncCount, 0),
       };
     });
 
@@ -142,11 +156,13 @@ export function UserActivityMonitor({ className }: UserActivityMonitorProps) {
 
     const interval = setInterval(() => {
       // Simulate real-time updates
-      setSessions(prev => prev.map(session => ({
-        ...session,
-        lastActivity: Math.random() > 0.7 ? new Date() : session.lastActivity,
-        isOnline: Math.random() > 0.2 // 80% online rate
-      })));
+      setSessions(prev =>
+        prev.map(session => ({
+          ...session,
+          lastActivity: Math.random() > 0.7 ? new Date() : session.lastActivity,
+          isOnline: Math.random() > 0.2, // 80% online rate
+        }))
+      );
     }, 30000); // Update every 30 seconds
 
     return () => clearInterval(interval);
@@ -156,7 +172,7 @@ export function UserActivityMonitor({ className }: UserActivityMonitorProps) {
     const exportData = {
       metrics: userMetrics,
       sessions: filteredSessions,
-      generatedAt: new Date().toISOString()
+      generatedAt: new Date().toISOString(),
     };
 
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
@@ -172,17 +188,20 @@ export function UserActivityMonitor({ className }: UserActivityMonitorProps) {
 
   if (loading) {
     return (
-      <div className={cn("space-y-6", className)}>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" data-testid="loading-spinner"></div>
-        </div>
+      <div
+        role="status"
+        aria-label="Loading user activity"
+        data-testid="loading-skeleton"
+        className={cn('space-y-6', className)}
+      >
+        <TableSkeleton rows={6} columns={5} />
       </div>
     );
   }
 
   return (
     <motion.div
-      className={cn("space-y-6", className)}
+      className={cn('space-y-6', className)}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}

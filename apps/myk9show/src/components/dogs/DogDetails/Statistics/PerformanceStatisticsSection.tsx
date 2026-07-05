@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertCircle, Loader2, BarChart3 } from 'lucide-react';
+import { AlertCircle, BarChart3 } from 'lucide-react';
 import { usePerformanceStatistics } from '@/hooks/usePerformanceStatistics';
 import StatsSummaryCards from './StatsSummaryCards';
 import {
@@ -8,6 +8,7 @@ import {
   JudgePerformanceChart,
   ProgressTimelineChart,
 } from './charts';
+import { Skeleton } from '@/components/common/SkeletonLoaders';
 
 interface PerformanceStatisticsSectionProps {
   dogId: string;
@@ -18,8 +19,17 @@ const PerformanceStatisticsSection: React.FC<PerformanceStatisticsSectionProps> 
 
   if (isLoading) {
     return (
-      <div className="bg-background rounded-xl shadow-sm p-6 border flex items-center justify-center min-h-[200px]">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div role="status" aria-label="Loading performance statistics" className="space-y-6">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-24 rounded-xl" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-64 rounded-xl" />
+          ))}
+        </div>
       </div>
     );
   }

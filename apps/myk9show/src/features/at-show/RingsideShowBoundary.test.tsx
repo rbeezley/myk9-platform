@@ -44,7 +44,7 @@ describe('RingsideShowBoundary', () => {
     // Never-resolving promise keeps the query in its loading state.
     vi.mocked(replicatedShowsTable.getShowById).mockReturnValue(new Promise(() => {}) as never);
     renderBoundary('show-loading');
-    expect(screen.getByText('Loading ringside…')).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Loading ringside…' })).toBeInTheDocument();
     expect(screen.queryByText(CHILD)).not.toBeInTheDocument();
   });
 

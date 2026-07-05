@@ -10,7 +10,6 @@ import {
   X,
   Dog,
   Users,
-  Loader2,
   AlertCircle,
   CheckCircle,
   Grid3X3,
@@ -24,6 +23,7 @@ import { useDebounce } from '@myk9/scoring-ui';
 import { useDogStoreCompat } from '../../../hooks/useDogStoreCompat';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../../lib/utils';
+import { Skeleton } from '@/components/common/SkeletonLoaders';
 
 interface InfiniteDogSelectionStepProps {
   selectedDogs: string[];
@@ -466,11 +466,10 @@ export function InfiniteDogSelectionStep({
       <div className="space-y-4">
         {/* Initial Loading */}
         {isInitialLoad && (
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-              <p className="text-muted-foreground">Loading dogs...</p>
-            </div>
+          <div role="status" aria-label="Loading dogs" className="space-y-3">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton key={index} className="h-24 rounded-lg" />
+            ))}
           </div>
         )}
 

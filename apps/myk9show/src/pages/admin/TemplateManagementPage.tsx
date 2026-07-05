@@ -33,6 +33,7 @@ import { Plus, Filter, MoreVertical, Edit, TestTube, Trash2, FileText } from 'lu
 import { useNavigate } from 'react-router-dom';
 import '@/styles/myk9-template-management.css';
 import { cleanupDuplicateTemplates } from '@/utils/cleanup-duplicate-templates';
+import { CardGridSkeleton } from '@/components/common/SkeletonLoaders';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -455,9 +456,8 @@ const TemplateManagementPage: React.FC = () => {
         {/* Template List */}
         <div className="myk9-templates-section">
           {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-              <p className="mt-4 text-muted-foreground">Loading templates...</p>
+            <div role="status" aria-label="Loading templates">
+              <CardGridSkeleton items={6} />
             </div>
           ) : (
             <div className="myk9-templates-grid">

@@ -30,6 +30,7 @@ import { Dog } from '@/types/dog-types';
 import { Class } from '@/types/show-types';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/utils';
+import { Skeleton } from '@/components/common/SkeletonLoaders';
 // import { EntryLimitChecker, type LimitCheckContext } from '@/services/entries/EntryLimitChecker';
 
 interface OfflineClassSelectionStepProps {
@@ -534,10 +535,15 @@ export const OfflineClassSelectionStep: React.FC<OfflineClassSelectionStepProps>
   // Loading state
   if (isRefreshing || isValidating) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-center space-y-2">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="text-sm text-muted-foreground">Validating class eligibility...</p>
+      <div role="status" aria-label="Validating class eligibility" className="space-y-4 p-4">
+        <div className="space-y-2">
+          <Skeleton className="h-6 w-56" />
+          <Skeleton className="h-4 w-80 max-w-full" />
+        </div>
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-28 rounded-lg" />
+          ))}
         </div>
       </div>
     );

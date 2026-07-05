@@ -44,6 +44,7 @@ import {
 import { rbacService } from '@/services/rbac/RBACService';
 import { Role } from '@/types/rbac-types';
 import { notifications } from '@/lib/notifications';
+import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 
 const RoleListPage: React.FC = () => {
   const [roles, setRoles] = useState<Role[]>([]);
@@ -93,11 +94,8 @@ const RoleListPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          <span className="ml-2">Loading roles...</span>
-        </div>
+      <div className="container mx-auto p-6" role="status" aria-label="Loading roles">
+        <TableSkeleton rows={6} columns={5} />
       </div>
     );
   }

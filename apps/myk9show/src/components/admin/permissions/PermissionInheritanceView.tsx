@@ -9,18 +9,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  TreePine, 
-  ChevronDown, 
-  ChevronRight, 
-  Shield, 
-  Layers, 
+import {
+  TreePine,
+  ChevronDown,
+  ChevronRight,
+  Shield,
+  Layers,
   Info,
   Users,
-  Building
+  Building,
 } from 'lucide-react';
 import { rbacService } from '@/services/rbac/RBACService';
 import { Permission, Role, UserPermissionsResponse, PermissionWithRole } from '@/types/rbac-types';
+import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 
 interface PermissionNode {
   permission: Permission;
@@ -39,7 +40,7 @@ interface PermissionInheritanceViewProps {
 export const PermissionInheritanceView: React.FC<PermissionInheritanceViewProps> = ({
   userId,
   scope,
-  className = ''
+  className = '',
 }) => {
   const [permissionTree, setPermissionTree] = useState<PermissionNode[]>([]);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
@@ -84,19 +85,19 @@ export const PermissionInheritanceView: React.FC<PermissionInheritanceViewProps>
         is_system: true,
         created_at: new Date().toISOString(),
       };
-      
+
       const node: PermissionNode = {
         permission,
         source: 'direct',
         level: 0,
-        children: []
+        children: [],
       };
       permissionMap.set(permission.id, node);
       nodes.push(node);
     });
 
     // Process role-based permissions
-    userPermissions.roles.forEach((userRole) => {
+    userPermissions.roles.forEach(userRole => {
       if (!userRole.role) return;
 
       const rolePermission: Permission = {
@@ -118,7 +119,7 @@ export const PermissionInheritanceView: React.FC<PermissionInheritanceViewProps>
         source: 'role',
         sourceRole: userRole.role,
         level: 0,
-        children: []
+        children: [],
       };
 
       // Note: Role permissions would need to be fetched separately
@@ -147,11 +148,15 @@ export const PermissionInheritanceView: React.FC<PermissionInheritanceViewProps>
 
     return (
       <div key={node.permission.id} className="space-y-1">
-        <div className={`flex items-center gap-2 p-2 rounded-lg border ${indent} ${
-          node.source === 'direct' ? 'bg-blue-50 border-blue-200' :
-          node.source === 'role' ? 'bg-purple-50 border-purple-200' :
-          'bg-gray-50 border-gray-200'
-        }`}>
+        <div
+          className={`flex items-center gap-2 p-2 rounded-lg border ${indent} ${
+            node.source === 'direct'
+              ? 'bg-blue-50 border-blue-200'
+              : node.source === 'role'
+                ? 'bg-purple-50 border-purple-200'
+                : 'bg-gray-50 border-gray-200'
+          }`}
+        >
           {hasChildren && (
             <Button
               variant="ghost"
@@ -166,17 +171,19 @@ export const PermissionInheritanceView: React.FC<PermissionInheritanceViewProps>
               )}
             </Button>
           )}
-          
+
           {!hasChildren && <div className="w-4" />}
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className="font-medium text-sm">{node.permission.display_name}</span>
-              <Badge 
+              <Badge
                 variant={
-                  node.source === 'direct' ? 'default' :
-                  node.source === 'role' ? 'secondary' :
-                  'outline'
+                  node.source === 'direct'
+                    ? 'default'
+                    : node.source === 'role'
+                      ? 'secondary'
+                      : 'outline'
                 }
                 className="text-xs"
               >
@@ -188,20 +195,12 @@ export const PermissionInheritanceView: React.FC<PermissionInheritanceViewProps>
                 </Badge>
               )}
             </div>
-            <p className="text-xs text-muted-foreground truncate">
-              {node.permission.name}
-            </p>
+            <p className="text-xs text-muted-foreground truncate">{node.permission.name}</p>
           </div>
 
-          {node.source === 'role' && (
-            <Users className="h-4 w-4 text-purple-600" />
-          )}
-          {node.source === 'direct' && (
-            <Shield className="h-4 w-4 text-blue-600" />
-          )}
-          {node.source === 'inherited' && (
-            <Layers className="h-4 w-4 text-gray-600" />
-          )}
+          {node.source === 'role' && <Users className="h-4 w-4 text-purple-600" />}
+          {node.source === 'direct' && <Shield className="h-4 w-4 text-blue-600" />}
+          {node.source === 'inherited' && <Layers className="h-4 w-4 text-gray-600" />}
         </div>
 
         {hasChildren && isExpanded && (
@@ -216,11 +215,8 @@ export const PermissionInheritanceView: React.FC<PermissionInheritanceViewProps>
   if (isLoading) {
     return (
       <Card className={className}>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-center h-32">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-            <span className="ml-2 text-sm">Loading permission inheritance...</span>
-          </div>
+        <CardContent role="status" aria-label="Loading permission inheritance" className="p-6">
+          <TableSkeleton rows={4} columns={3} />
         </CardContent>
       </Card>
     );
@@ -288,16 +284,16 @@ export const PermissionInheritanceView: React.FC<PermissionInheritanceViewProps>
         </div>
 
         <div className="pt-4 border-t">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="sm"
             onClick={() => setExpandedNodes(new Set(permissionTree.map(n => n.permission.id)))}
           >
             Expand All
           </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             className="ml-2"
             onClick={() => setExpandedNodes(new Set())}
           >

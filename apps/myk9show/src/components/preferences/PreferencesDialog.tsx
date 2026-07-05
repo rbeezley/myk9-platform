@@ -41,6 +41,7 @@ import { PrivacySettings } from './PrivacySettings';
 import { DeviceManager } from './DeviceManager';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
 import type { PreferencesUpdate } from '@/types/user-preferences';
+import { FormSkeleton } from '@/components/common/SkeletonLoaders';
 
 interface PreferencesDialogProps {
   open: boolean;
@@ -285,11 +286,8 @@ export function PreferencesDialog({ open, onOpenChange }: PreferencesDialogProps
         </div>
 
         {loading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center space-y-2">
-              <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-              <p className="text-sm text-muted-foreground">Loading preferences...</p>
-            </div>
+          <div role="status" aria-label="Loading preferences" className="flex-1 p-6">
+            <FormSkeleton />
           </div>
         ) : (
           <div className="flex-1 flex min-h-0">

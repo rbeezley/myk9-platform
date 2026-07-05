@@ -55,6 +55,7 @@ const RotateCcw = LucideRotateCcw as React.ComponentType<
 import { cn } from '@/lib/utils';
 import { SyncAnalyticsService } from '@/services/analytics/SyncAnalyticsService';
 import { SyncMetrics } from '@/types/analytics-types';
+import { DashboardSkeleton } from '@/components/common/SkeletonLoaders';
 
 // Re-export types for backward compatibility
 export type {
@@ -154,13 +155,13 @@ export function PerformanceGraphs({ className }: PerformanceGraphsProps) {
 
   if (loading) {
     return (
-      <div className={cn('space-y-6', className)}>
-        <div className="flex items-center justify-center h-64">
-          <div
-            className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"
-            data-testid="loading-spinner"
-          ></div>
-        </div>
+      <div
+        role="status"
+        aria-label="Loading performance graphs"
+        data-testid="loading-skeleton"
+        className={cn('space-y-6', className)}
+      >
+        <DashboardSkeleton />
       </div>
     );
   }

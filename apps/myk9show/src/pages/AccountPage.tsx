@@ -33,6 +33,7 @@ import { downloadFile } from '@/lib/export';
 import { ProfileSection, DogsSection, DeleteSection } from './AccountPage.sections';
 import type { Section, NavGroup } from './AccountPage.types';
 import type { PreferencesUpdate } from '@/types/user-preferences';
+import { FormSkeleton } from '@/components/common/SkeletonLoaders';
 
 type ActionKey = 'reset' | 'export' | 'import';
 
@@ -196,8 +197,8 @@ export default function AccountPage() {
   const renderSection = () => {
     if (!NON_PREF_SECTIONS.has(active) && prefsLoading) {
       return (
-        <div className="flex justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <div role="status" aria-label="Loading account preferences" className="py-4">
+          <FormSkeleton />
         </div>
       );
     }

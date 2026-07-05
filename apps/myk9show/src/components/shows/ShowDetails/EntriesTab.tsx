@@ -3,13 +3,14 @@ import { useQuery } from '@tanstack/react-query';
 import { cacheStrategies } from '@/lib/queryClient';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, ClipboardList, Loader2 } from 'lucide-react';
+import { Users, ClipboardList } from 'lucide-react';
 import { getEntriesByShow, getPublicEntriesByShow } from '@/services/database/entries';
 import { getEntryStatusClasses } from '@/utils/entryManagementUtils';
 import { formatShortDate } from '@/lib/format/dates';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { publicRowToShowEntryRow, type ShowEntryRow } from './entriesTabMappers';
+import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 
 interface EntriesTabProps {
   showId: string;
@@ -116,9 +117,8 @@ export const EntriesTab: React.FC<EntriesTabProps> = ({ showId, onManageEntries 
   if (loading) {
     return (
       <Card className="border-0 bg-gradient-to-br from-gray-50/50 via-white to-slate-50/30 backdrop-blur-xl shadow-lg">
-        <CardContent className="p-16 text-center">
-          <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading entries...</p>
+        <CardContent role="status" aria-label="Loading show entries" className="p-6">
+          <TableSkeleton rows={5} columns={6} />
         </CardContent>
       </Card>
     );

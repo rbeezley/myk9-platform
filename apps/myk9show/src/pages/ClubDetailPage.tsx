@@ -2,6 +2,7 @@ import React, { useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useClubStore } from '@/store/clubStore';
 import { ClubDetails } from '@/components/clubs/ClubDetails';
+import { DetailPageSkeleton } from '@/components/common/SkeletonLoaders';
 
 /**
  * ClubDetailPage is a thin wrapper around ClubDetails for the /clubs/:id route.
@@ -40,11 +41,7 @@ const ClubDetailPage: React.FC = () => {
   }, [isLoading, clubs, id, navigate]);
 
   if (isLoading || (clubs.length === 0 && !club)) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-pulse text-muted-foreground">Loading club...</div>
-      </div>
-    );
+    return <DetailPageSkeleton />;
   }
 
   return <ClubDetails selectedClub={club} />;

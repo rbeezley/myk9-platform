@@ -11,6 +11,7 @@ import { Plus } from 'lucide-react';
 import { NoDataEmptyState } from '@/components/common/EmptyState';
 import { useEffect } from 'react';
 import { useDogRegistrationManagement } from '@/hooks/queries/useRegistrationsDatabase';
+import { Skeleton } from '@/components/common/SkeletonLoaders';
 
 /**
  * Loose registration record supporting both camelCase (domain) and snake_case (DB) fields.
@@ -173,11 +174,13 @@ export default function RegistrationsSection({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading registrations...</p>
+      <div role="status" aria-label="Loading registrations" className="space-y-4 py-2">
+        <div className="flex justify-end">
+          <Skeleton className="h-10 w-44" />
         </div>
+        {Array.from({ length: 3 }).map((_, index) => (
+          <Skeleton key={index} className="h-[170px] rounded-lg" />
+        ))}
       </div>
     );
   }

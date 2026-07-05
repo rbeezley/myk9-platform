@@ -14,31 +14,32 @@ import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { 
-  ArrowLeft, 
-  Copy, 
+import {
+  ArrowLeft,
+  Copy,
   Save,
   Wand2,
   AlertTriangle,
   CheckCircle,
   Shield,
-  Info
+  Info,
 } from 'lucide-react';
 import { rbacService } from '@/services/rbac/RBACService';
 import { Permission, Role } from '@/types/rbac-types';
 import { RolePermissionsEditor } from '@/components/admin/permissions/RolePermissionsEditor';
+import { FormSkeleton } from '@/components/common/SkeletonLoaders';
 
 const CloneRolePage: React.FC = () => {
   const { roleId } = useParams<{ roleId: string }>();
   const navigate = useNavigate();
-  
+
   const [sourceRole, setSourceRole] = useState<Role | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     displayName: '',
-    description: ''
+    description: '',
   });
-  
+
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -55,20 +56,20 @@ const CloneRolePage: React.FC = () => {
       const [roleData, allPermissions, rolePermissions] = await Promise.all([
         rbacService.getRole(roleId),
         rbacService.getAllPermissions(),
-        rbacService.getRolePermissions(roleId)
+        rbacService.getRolePermissions(roleId),
       ]);
 
       setSourceRole(roleData);
       setPermissions(allPermissions);
       setSelectedPermissions(rolePermissions.map(rp => rp.permission_id));
-      
+
       // Pre-populate form with source role data
       setFormData({
         name: `${roleData.name}_copy`,
         displayName: `${roleData.display_name} (Copy)`,
-        description: roleData.description ? 
-          `Copy of ${roleData.display_name}: ${roleData.description}` :
-          `Copy of ${roleData.display_name}`
+        description: roleData.description
+          ? `Copy of ${roleData.display_name}: ${roleData.description}`
+          : `Copy of ${roleData.display_name}`,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load role data');
@@ -93,10 +94,8 @@ const CloneRolePage: React.FC = () => {
   };
 
   const handlePermissionChange = (permissionId: string, granted: boolean) => {
-    setSelectedPermissions(prev => 
-      granted 
-        ? [...prev, permissionId]
-        : prev.filter(id => id !== permissionId)
+    setSelectedPermissions(prev =>
+      granted ? [...prev, permissionId] : prev.filter(id => id !== permissionId)
     );
   };
 
@@ -105,7 +104,7 @@ const CloneRolePage: React.FC = () => {
       setError('Role name is required');
       return false;
     }
-    
+
     if (!formData.displayName.trim()) {
       setError('Display name is required');
       return false;
@@ -134,7 +133,7 @@ const CloneRolePage: React.FC = () => {
         name: formData.name,
         displayName: formData.displayName,
         description: formData.description,
-        permissions: selectedPermissionNames
+        permissions: selectedPermissionNames,
       });
 
       navigate('/admin/permissions/roles');
@@ -147,11 +146,8 @@ const CloneRolePage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          <span className="ml-2">Loading role data...</span>
-        </div>
+      <div className="container mx-auto p-6" role="status" aria-label="Loading role data">
+        <FormSkeleton />
       </div>
     );
   }
@@ -225,9 +221,7 @@ const CloneRolePage: React.FC = () => {
             <Info className="h-5 w-5" />
             Source Role Information
           </CardTitle>
-          <CardDescription>
-            This new role will be based on the following role
-          </CardDescription>
+          <CardDescription>This new role will be based on the following role</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/30 rounded-lg">
@@ -238,7 +232,7 @@ const CloneRolePage: React.FC = () => {
             </div>
             <div>
               <Label className="text-sm font-medium text-muted-foreground">Type</Label>
-              <Badge variant={sourceRole.is_system ? "secondary" : "default"}>
+              <Badge variant={sourceRole.is_system ? 'secondary' : 'default'}>
                 {sourceRole.is_system ? 'System Role' : 'Custom Role'}
               </Badge>
             </div>
@@ -264,9 +258,7 @@ const CloneRolePage: React.FC = () => {
               <Shield className="h-5 w-5" />
               New Role Details
             </CardTitle>
-            <CardDescription>
-              Configure the details for the cloned role
-            </CardDescription>
+            <CardDescription>Configure the details for the cloned role</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -274,7 +266,7 @@ const CloneRolePage: React.FC = () => {
               <Input
                 id="display-name"
                 value={formData.displayName}
-                onChange={(e) => setFormData(prev => ({ ...prev, displayName: e.target.value }))}
+                onChange={e => setFormData(prev => ({ ...prev, displayName: e.target.value }))}
                 placeholder="e.g., Senior Secretary"
               />
             </div>
@@ -285,11 +277,11 @@ const CloneRolePage: React.FC = () => {
                 <Input
                   id="role-name"
                   value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="e.g., senior_secretary"
                 />
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={generateRoleName}
                   disabled={!formData.displayName}
@@ -307,7 +299,7 @@ const CloneRolePage: React.FC = () => {
               <Textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
                 placeholder="Describe what this role is responsible for..."
                 rows={4}
               />
@@ -316,8 +308,8 @@ const CloneRolePage: React.FC = () => {
             <Alert>
               <CheckCircle className="h-4 w-4" />
               <AlertDescription>
-                All permissions from the source role have been pre-selected. 
-                You can modify them below before creating the role.
+                All permissions from the source role have been pre-selected. You can modify them
+                below before creating the role.
               </AlertDescription>
             </Alert>
           </CardContent>
@@ -327,9 +319,7 @@ const CloneRolePage: React.FC = () => {
         <Card>
           <CardHeader>
             <CardTitle>Permission Summary</CardTitle>
-            <CardDescription>
-              Preview of permissions that will be assigned
-            </CardDescription>
+            <CardDescription>Preview of permissions that will be assigned</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -337,9 +327,9 @@ const CloneRolePage: React.FC = () => {
                 <span className="text-sm font-medium">Total Permissions:</span>
                 <Badge variant="outline">{selectedPermissions.length}</Badge>
               </div>
-              
+
               <Separator />
-              
+
               <div>
                 <Label className="text-sm font-medium text-muted-foreground">
                   Sample Permissions
@@ -370,7 +360,8 @@ const CloneRolePage: React.FC = () => {
         <CardHeader>
           <CardTitle>Modify Permissions</CardTitle>
           <CardDescription>
-            Adjust the permissions for the new role. All permissions from the source role are pre-selected.
+            Adjust the permissions for the new role. All permissions from the source role are
+            pre-selected.
           </CardDescription>
         </CardHeader>
         <CardContent>

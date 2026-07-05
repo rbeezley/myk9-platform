@@ -2,6 +2,7 @@ import React, { useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useRoleBasedPeople, useCanAccessPerson } from '@/hooks/useRoleBasedData';
 import UserDetailsView from '@/components/users/UserDetails/UserDetailsView';
+import { DetailPageSkeleton } from '@/components/common/SkeletonLoaders';
 
 /**
  * PersonDetailPage is a thin wrapper around UserDetailsView for the /people/:id route.
@@ -29,11 +30,7 @@ const PersonDetailPage: React.FC = () => {
   }, [isLoading, people, id, canAccessPerson, navigate]);
 
   if (isLoading || (people.length === 0 && !person)) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-pulse text-muted-foreground">Loading person...</div>
-      </div>
-    );
+    return <DetailPageSkeleton />;
   }
 
   if (!person) return null;

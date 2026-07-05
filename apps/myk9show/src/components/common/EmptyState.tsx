@@ -1,10 +1,9 @@
 /**
  * EmptyState Component
- * 
+ *
  * Premium empty state components with proper visual hierarchy,
  * iconography, and call-to-action patterns. Automatically follows design system.
  */
-
 
 import { cn } from '@/lib/utils';
 import {
@@ -25,27 +24,32 @@ import {
   Trophy,
   Stethoscope,
   Calendar,
-  Edit3
+  Edit3,
 } from 'lucide-react';
 import { PremiumButton } from './PremiumButton';
 import { IconContainer } from './IconContainer';
+import { Skeleton } from '@/components/common/SkeletonLoaders';
 
 export interface EmptyStateProps {
   icon: LucideIcon;
   title: string;
   description?: string;
-  action?: {
-    label: string;
-    onClick: () => void;
-    variant?: 'primary' | 'secondary' | 'outline';
-    icon?: LucideIcon;
-  } | undefined;
-  secondaryAction?: {
-    label: string;
-    onClick: () => void;
-    variant?: 'outline' | 'ghost';
-    icon?: LucideIcon;
-  } | undefined;
+  action?:
+    | {
+        label: string;
+        onClick: () => void;
+        variant?: 'primary' | 'secondary' | 'outline';
+        icon?: LucideIcon;
+      }
+    | undefined;
+  secondaryAction?:
+    | {
+        label: string;
+        onClick: () => void;
+        variant?: 'outline' | 'ghost';
+        icon?: LucideIcon;
+      }
+    | undefined;
   className?: string;
   size?: 'sm' | 'md' | 'lg';
 }
@@ -57,7 +61,7 @@ export function EmptyState({
   action,
   secondaryAction,
   className,
-  size = 'md'
+  size = 'md',
 }: EmptyStateProps) {
   const sizeConfig = {
     sm: {
@@ -65,30 +69,32 @@ export function EmptyState({
       iconSize: 'md' as const,
       titleSize: 'text-lg',
       descriptionSize: 'text-sm',
-      maxWidth: 'max-w-sm'
+      maxWidth: 'max-w-sm',
     },
     md: {
       container: 'py-16',
       iconSize: 'lg' as const,
       titleSize: 'text-xl',
       descriptionSize: 'text-base',
-      maxWidth: 'max-w-md'
+      maxWidth: 'max-w-md',
     },
     lg: {
       container: 'py-20',
       iconSize: 'xl' as const,
       titleSize: 'text-2xl',
       descriptionSize: 'text-lg',
-      maxWidth: 'max-w-lg'
-    }
+      maxWidth: 'max-w-lg',
+    },
   }[size];
 
   return (
-    <div className={cn(
-      "flex flex-col items-center justify-center text-center",
-      sizeConfig.container,
-      className
-    )}>
+    <div
+      className={cn(
+        'flex flex-col items-center justify-center text-center',
+        sizeConfig.container,
+        className
+      )}
+    >
       {/* Icon */}
       <IconContainer
         icon={icon}
@@ -99,19 +105,11 @@ export function EmptyState({
       />
 
       {/* Content */}
-      <div className={cn("space-y-3", sizeConfig.maxWidth)}>
-        <h3 className={cn(
-          "font-semibold text-foreground",
-          sizeConfig.titleSize
-        )}>
-          {title}
-        </h3>
-        
+      <div className={cn('space-y-3', sizeConfig.maxWidth)}>
+        <h3 className={cn('font-semibold text-foreground', sizeConfig.titleSize)}>{title}</h3>
+
         {description && (
-          <p className={cn(
-            "text-muted-foreground leading-relaxed",
-            sizeConfig.descriptionSize
-          )}>
+          <p className={cn('text-muted-foreground leading-relaxed', sizeConfig.descriptionSize)}>
             {description}
           </p>
         )}
@@ -130,7 +128,7 @@ export function EmptyState({
               {action.label}
             </PremiumButton>
           )}
-          
+
           {secondaryAction && (
             <PremiumButton
               variant={secondaryAction.variant || 'outline'}
@@ -170,11 +168,15 @@ export function NoDataEmptyState({
       icon={Database}
       title={`No ${entityName} Found`}
       description={description || defaultDescription}
-      action={canCreate && onCreateClick ? {
-        label: `Add ${entityName}`,
-        onClick: onCreateClick,
-        icon: Plus
-      } : undefined}
+      action={
+        canCreate && onCreateClick
+          ? {
+              label: `Add ${entityName}`,
+              onClick: onCreateClick,
+              icon: Plus,
+            }
+          : undefined
+      }
       {...props}
     />
   );
@@ -193,11 +195,9 @@ export function SearchEmptyState({
   suggestions,
   ...props
 }: SearchEmptyStateProps) {
-  const title = searchTerm 
-    ? `No results for "${searchTerm}"`
-    : 'No search results';
-    
-  const description = suggestions?.length 
+  const title = searchTerm ? `No results for "${searchTerm}"` : 'No search results';
+
+  const description = suggestions?.length
     ? `Try searching for: ${suggestions.join(', ')}`
     : 'Try adjusting your search criteria or check your spelling.';
 
@@ -206,18 +206,22 @@ export function SearchEmptyState({
       icon={Search}
       title={title}
       description={description}
-      action={searchTerm && onClearSearch ? {
-        label: 'Clear Search',
-        onClick: onClearSearch,
-        variant: 'outline' as const,
-        icon: X
-      } : undefined}
+      action={
+        searchTerm && onClearSearch
+          ? {
+              label: 'Clear Search',
+              onClick: onClearSearch,
+              variant: 'outline' as const,
+              icon: X,
+            }
+          : undefined
+      }
       {...props}
     />
   );
 }
 
-// Error Empty State  
+// Error Empty State
 export interface ErrorEmptyStateProps extends Omit<EmptyStateProps, 'icon' | 'title'> {
   error?: string;
   onRetry?: () => void;
@@ -235,17 +239,25 @@ export function ErrorEmptyState({
       icon={AlertTriangle}
       title="Oops! Something went wrong"
       description={error}
-      action={onRetry ? {
-        label: 'Try Again',
-        onClick: onRetry,
-        icon: RefreshCw
-      } : undefined}
-      secondaryAction={onContactSupport ? {
-        label: 'Contact Support',
-        onClick: onContactSupport,
-        variant: 'ghost' as const,
-        icon: HelpCircle
-      } : undefined}
+      action={
+        onRetry
+          ? {
+              label: 'Try Again',
+              onClick: onRetry,
+              icon: RefreshCw,
+            }
+          : undefined
+      }
+      secondaryAction={
+        onContactSupport
+          ? {
+              label: 'Contact Support',
+              onClick: onContactSupport,
+              variant: 'ghost' as const,
+              icon: HelpCircle,
+            }
+          : undefined
+      }
       {...props}
     />
   );
@@ -257,17 +269,14 @@ export interface LoadingEmptyStateProps {
   className?: string;
 }
 
-export function LoadingEmptyState({ 
-  message = 'Loading...',
-  className 
-}: LoadingEmptyStateProps) {
+export function LoadingEmptyState({ message = 'Loading...', className }: LoadingEmptyStateProps) {
   return (
-    <div className={cn(
-      "flex flex-col items-center justify-center py-16 text-center",
-      className
-    )}>
-      <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-4" />
-      <p className="text-muted-foreground">{message}</p>
+    <div role="status" aria-label={message} className={cn('space-y-4 py-8', className)}>
+      <Skeleton className="mx-auto h-12 w-12 rounded-full" />
+      <div className="mx-auto max-w-sm space-y-2">
+        <Skeleton className="mx-auto h-4 w-40" />
+        <Skeleton className="mx-auto h-3 w-64 max-w-full" />
+      </div>
     </div>
   );
 }
@@ -283,7 +292,7 @@ export function MaintenanceEmptyState({
   onCheckStatus,
   ...props
 }: MaintenanceEmptyStateProps) {
-  const description = estimatedTime 
+  const description = estimatedTime
     ? `We're performing scheduled maintenance. Expected completion: ${estimatedTime}`
     : "We're performing scheduled maintenance and will be back shortly.";
 
@@ -292,12 +301,16 @@ export function MaintenanceEmptyState({
       icon={Wrench}
       title="Under Maintenance"
       description={description}
-      action={onCheckStatus ? {
-        label: 'Check Status',
-        onClick: onCheckStatus,
-        variant: 'outline' as const,
-        icon: RefreshCw
-      } : undefined}
+      action={
+        onCheckStatus
+          ? {
+              label: 'Check Status',
+              onClick: onCheckStatus,
+              variant: 'outline' as const,
+              icon: RefreshCw,
+            }
+          : undefined
+      }
       {...props}
     />
   );
@@ -323,11 +336,15 @@ export function PermissionEmptyState({
       icon={Lock}
       title="Access Restricted"
       description={description}
-      action={onRequestAccess ? {
-        label: 'Request Access',
-        onClick: onRequestAccess,
-        icon: Key
-      } : undefined}
+      action={
+        onRequestAccess
+          ? {
+              label: 'Request Access',
+              onClick: onRequestAccess,
+              icon: Key,
+            }
+          : undefined
+      }
       {...props}
     />
   );
@@ -343,26 +360,26 @@ export interface DogsEmptyStateProps extends Omit<EmptyStateProps, 'icon' | 'tit
   onAddDog?: (() => void) | undefined;
 }
 
-export function DogsEmptyState({
-  isOwner = true,
-  onAddDog,
-  ...props
-}: DogsEmptyStateProps) {
-  const title = isOwner ? "No Dogs Yet" : "No Dogs Found";
+export function DogsEmptyState({ isOwner = true, onAddDog, ...props }: DogsEmptyStateProps) {
+  const title = isOwner ? 'No Dogs Yet' : 'No Dogs Found';
   const description = isOwner
-    ? "Add your first dog to start tracking their registrations, health records, and show results."
-    : "There are no dogs to display at this time.";
+    ? 'Add your first dog to start tracking their registrations, health records, and show results.'
+    : 'There are no dogs to display at this time.';
 
   return (
     <EmptyState
       icon={PawPrint}
       title={title}
       description={description}
-      action={isOwner && onAddDog ? {
-        label: 'Add Your First Dog',
-        onClick: onAddDog,
-        icon: Plus
-      } : undefined}
+      action={
+        isOwner && onAddDog
+          ? {
+              label: 'Add Your First Dog',
+              onClick: onAddDog,
+              icon: Plus,
+            }
+          : undefined
+      }
       {...props}
     />
   );
@@ -381,18 +398,22 @@ export function RegistrationsEmptyState({
 }: RegistrationsEmptyStateProps) {
   const description = dogName
     ? `${dogName} doesn't have any registrations yet. Add their first registration to track organization memberships and registration numbers.`
-    : "No registrations have been added yet. Add a registration to track organization memberships.";
+    : 'No registrations have been added yet. Add a registration to track organization memberships.';
 
   return (
     <EmptyState
       icon={FileText}
       title="No Registrations"
       description={description}
-      action={onAddRegistration ? {
-        label: 'Add Registration',
-        onClick: onAddRegistration,
-        icon: Plus
-      } : undefined}
+      action={
+        onAddRegistration
+          ? {
+              label: 'Add Registration',
+              onClick: onAddRegistration,
+              icon: Plus,
+            }
+          : undefined
+      }
       {...props}
     />
   );
@@ -411,18 +432,22 @@ export function CompetitionsEmptyState({
 }: CompetitionsEmptyStateProps) {
   const description = dogName
     ? `${dogName} hasn't competed in any shows yet. Enter your first show to start building their competition history.`
-    : "No competition history available. Enter a show to start tracking results.";
+    : 'No competition history available. Enter a show to start tracking results.';
 
   return (
     <EmptyState
       icon={Trophy}
       title="No Competition History"
       description={description}
-      action={onBrowseShows ? {
-        label: 'Browse Shows',
-        onClick: onBrowseShows,
-        icon: Calendar
-      } : undefined}
+      action={
+        onBrowseShows
+          ? {
+              label: 'Browse Shows',
+              onClick: onBrowseShows,
+              icon: Calendar,
+            }
+          : undefined
+      }
       {...props}
     />
   );
@@ -441,18 +466,22 @@ export function HealthRecordsEmptyState({
 }: HealthRecordsEmptyStateProps) {
   const description = dogName
     ? `Keep ${dogName}'s health records organized. Track vaccinations, vet visits, and health certifications all in one place.`
-    : "No health records have been added. Track vaccinations, vet visits, and certifications here.";
+    : 'No health records have been added. Track vaccinations, vet visits, and certifications here.';
 
   return (
     <EmptyState
       icon={Stethoscope}
       title="No Health Records"
       description={description}
-      action={onAddRecord ? {
-        label: 'Add Health Record',
-        onClick: onAddRecord,
-        icon: Plus
-      } : undefined}
+      action={
+        onAddRecord
+          ? {
+              label: 'Add Health Record',
+              onClick: onAddRecord,
+              icon: Plus,
+            }
+          : undefined
+      }
       {...props}
     />
   );
@@ -474,12 +503,16 @@ export function MissingDetailsEmptyState({
       icon={Edit3}
       title={`${fieldName} Not Set`}
       description={`Add ${fieldName.toLowerCase()} to complete your dog's profile.`}
-      action={onEdit ? {
-        label: `Add ${fieldName}`,
-        onClick: onEdit,
-        icon: Edit3,
-        variant: 'outline' as const
-      } : undefined}
+      action={
+        onEdit
+          ? {
+              label: `Add ${fieldName}`,
+              onClick: onEdit,
+              icon: Edit3,
+              variant: 'outline' as const,
+            }
+          : undefined
+      }
       size="sm"
       {...props}
     />

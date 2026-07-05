@@ -37,6 +37,7 @@ import {
 } from '../../types/alert-types';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '../../lib/utils';
+import { DashboardSkeleton } from '@/components/common/SkeletonLoaders';
 
 interface AlertDashboardProps {
   className?: string;
@@ -225,11 +226,8 @@ export const AlertDashboard: React.FC<AlertDashboardProps> = ({ className }) => 
 
   if (loading && !statistics) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading alerts...</p>
-        </div>
+      <div role="status" aria-label="Loading alerts">
+        <DashboardSkeleton />
       </div>
     );
   }

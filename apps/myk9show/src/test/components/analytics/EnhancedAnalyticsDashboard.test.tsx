@@ -1,6 +1,6 @@
 /**
  * Tests for EnhancedAnalyticsDashboard Component
- * 
+ *
  * Comprehensive test suite for the integrated analytics dashboard that combines
  * performance monitoring, user activity tracking, and real-time system health monitoring.
  */
@@ -15,11 +15,13 @@ import { SyncMetrics, SyncAlert, HealthCheckResult } from '@/types/analytics-typ
 
 // Mock child components
 vi.mock('@/components/analytics/PerformanceGraphs', () => ({
-  PerformanceGraphs: () => <div data-testid="performance-graphs">Performance Graphs Component</div>
+  PerformanceGraphs: () => <div data-testid="performance-graphs">Performance Graphs Component</div>,
 }));
 
 vi.mock('@/components/analytics/UserActivityMonitor', () => ({
-  UserActivityMonitor: () => <div data-testid="user-activity-monitor">User Activity Monitor Component</div>
+  UserActivityMonitor: () => (
+    <div data-testid="user-activity-monitor">User Activity Monitor Component</div>
+  ),
 }));
 
 // Mock the analytics service
@@ -29,16 +31,16 @@ vi.mock('@/services/analytics/SyncAnalyticsService', () => ({
       initialize: vi.fn().mockResolvedValue(undefined),
       getMetrics: vi.fn().mockResolvedValue(mockMetrics),
       getActiveAlerts: vi.fn().mockResolvedValue(mockAlerts),
-      getHealthChecks: vi.fn().mockResolvedValue(mockHealthChecks)
-    }))
-  }
+      getHealthChecks: vi.fn().mockResolvedValue(mockHealthChecks),
+    })),
+  },
 }));
 
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }: React.ComponentProps<'div'>) => <div {...props}>{children}</div>
-  }
+    div: ({ children, ...props }: React.ComponentProps<'div'>) => <div {...props}>{children}</div>,
+  },
 }));
 
 // Mock LoggingService
@@ -78,7 +80,7 @@ const mockMetrics: SyncMetrics = {
   syncTimeTrend: [],
   successRateTrend: [],
   conflictRateTrend: [],
-  bandwidthTrend: []
+  bandwidthTrend: [],
 };
 
 const mockAlerts: SyncAlert[] = [
@@ -88,7 +90,7 @@ const mockAlerts: SyncAlert[] = [
     severity: 'high',
     title: 'Slow Sync Performance',
     description: 'Sync operations are taking longer than expected',
-    triggeredAt: new Date('2024-01-01T12:00:00Z')
+    triggeredAt: new Date('2024-01-01T12:00:00Z'),
   },
   {
     id: 'alert-2',
@@ -96,8 +98,8 @@ const mockAlerts: SyncAlert[] = [
     severity: 'critical',
     title: 'Database Connection Issues',
     description: 'Unable to connect to the database',
-    triggeredAt: new Date('2024-01-01T12:30:00Z')
-  }
+    triggeredAt: new Date('2024-01-01T12:30:00Z'),
+  },
 ];
 
 const mockHealthChecks: HealthCheckResult[] = [
@@ -106,22 +108,22 @@ const mockHealthChecks: HealthCheckResult[] = [
     status: 'healthy',
     responseTime: 150,
     lastChecked: new Date('2024-01-01T12:00:00Z'),
-    uptime: 99.9
+    uptime: 99.9,
   },
   {
     service: 'Database',
     status: 'healthy',
     responseTime: 45,
     lastChecked: new Date('2024-01-01T12:00:00Z'),
-    uptime: 99.95
+    uptime: 99.95,
   },
   {
     service: 'Network',
     status: 'degraded',
     responseTime: 250,
     lastChecked: new Date('2024-01-01T12:00:00Z'),
-    uptime: 98.5
-  }
+    uptime: 98.5,
+  },
 ];
 
 describe('EnhancedAnalyticsDashboard Component', () => {
@@ -142,10 +144,12 @@ describe('EnhancedAnalyticsDashboard Component', () => {
       initialize: vi.fn().mockResolvedValue(undefined),
       getMetrics: vi.fn().mockResolvedValue(mockMetrics),
       getActiveAlerts: vi.fn().mockResolvedValue(mockAlerts),
-      getHealthChecks: vi.fn().mockResolvedValue(mockHealthChecks)
+      getHealthChecks: vi.fn().mockResolvedValue(mockHealthChecks),
     };
 
-    (SyncAnalyticsService.getInstance as ReturnType<typeof vi.fn>).mockReturnValue(mockAnalyticsService);
+    (SyncAnalyticsService.getInstance as ReturnType<typeof vi.fn>).mockReturnValue(
+      mockAnalyticsService
+    );
 
     // Mock URL.createObjectURL/revokeObjectURL (preserve the rest of URL)
     global.URL.createObjectURL = vi.fn(() => 'mock-url');
@@ -154,16 +158,18 @@ describe('EnhancedAnalyticsDashboard Component', () => {
     // Mock document.createElement to intercept 'a' elements for download testing
     // while allowing all other elements to be created normally (needed by React)
     const realCreateElement = document.createElement.bind(document);
-    createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tagName: string, options?: ElementCreationOptions) => {
-      if (tagName === 'a') {
-        // Create a real anchor element so appendChild/removeChild work,
-        // but spy on click to prevent actual navigation
-        mockAnchorElement = realCreateElement('a');
-        mockAnchorElement.click = vi.fn();
-        return mockAnchorElement;
-      }
-      return realCreateElement(tagName, options);
-    });
+    createElementSpy = vi
+      .spyOn(document, 'createElement')
+      .mockImplementation((tagName: string, options?: ElementCreationOptions) => {
+        if (tagName === 'a') {
+          // Create a real anchor element so appendChild/removeChild work,
+          // but spy on click to prevent actual navigation
+          mockAnchorElement = realCreateElement('a');
+          mockAnchorElement.click = vi.fn();
+          return mockAnchorElement;
+        }
+        return realCreateElement(tagName, options);
+      });
   });
 
   afterEach(() => {
@@ -175,13 +181,16 @@ describe('EnhancedAnalyticsDashboard Component', () => {
   describe('Initialization and Loading', () => {
     test('renders loading state initially', () => {
       render(<EnhancedAnalyticsDashboard />);
-      
-      expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
+
+      expect(screen.getByTestId('loading-skeleton')).toBeInTheDocument();
+      expect(
+        screen.getByRole('status', { name: 'Loading analytics dashboard' })
+      ).toBeInTheDocument();
     });
 
     test('initializes analytics service and loads all data', async () => {
       render(<EnhancedAnalyticsDashboard />);
-      
+
       await waitFor(() => {
         expect(mockAnalyticsService.initialize).toHaveBeenCalled();
         expect(mockAnalyticsService.getMetrics).toHaveBeenCalled();
@@ -192,10 +201,14 @@ describe('EnhancedAnalyticsDashboard Component', () => {
 
     test('displays dashboard header after loading', async () => {
       render(<EnhancedAnalyticsDashboard />);
-      
+
       await waitFor(() => {
         expect(screen.getByText('Analytics Dashboard')).toBeInTheDocument();
-        expect(screen.getByText('Comprehensive monitoring and analytics for sync performance and user activity')).toBeInTheDocument();
+        expect(
+          screen.getByText(
+            'Comprehensive monitoring and analytics for sync performance and user activity'
+          )
+        ).toBeInTheDocument();
       });
     });
   });
@@ -213,14 +226,14 @@ describe('EnhancedAnalyticsDashboard Component', () => {
     test('shows excellent status when all systems are healthy', async () => {
       const excellentHealthChecks = mockHealthChecks.map(hc => ({
         ...hc,
-        status: 'healthy' as const
+        status: 'healthy' as const,
       }));
-      
+
       mockAnalyticsService.getHealthChecks.mockResolvedValue(excellentHealthChecks);
       mockAnalyticsService.getActiveAlerts.mockResolvedValue([]);
-      
+
       render(<EnhancedAnalyticsDashboard />);
-      
+
       await waitFor(() => {
         expect(screen.getByText(/excellent/i)).toBeInTheDocument();
       });
@@ -233,13 +246,13 @@ describe('EnhancedAnalyticsDashboard Component', () => {
         {
           ...mockAlerts[0],
           id: 'alert-critical-1',
-          severity: 'critical' as const
+          severity: 'critical' as const,
         },
         {
           ...mockAlerts[1],
           id: 'alert-critical-2',
-          severity: 'critical' as const
-        }
+          severity: 'critical' as const,
+        },
       ];
 
       mockAnalyticsService.getActiveAlerts.mockResolvedValue(criticalAlerts);
@@ -270,7 +283,7 @@ describe('EnhancedAnalyticsDashboard Component', () => {
 
     test('shows last updated timestamp', async () => {
       render(<EnhancedAnalyticsDashboard />);
-      
+
       await waitFor(() => {
         expect(screen.getByText(/Last updated:/)).toBeInTheDocument();
       });
@@ -280,7 +293,7 @@ describe('EnhancedAnalyticsDashboard Component', () => {
   describe('Active Alerts', () => {
     test('displays active alerts when present', async () => {
       render(<EnhancedAnalyticsDashboard />);
-      
+
       await waitFor(() => {
         expect(screen.getByText('Active Alerts (2)')).toBeInTheDocument();
         expect(screen.getByText('Slow Sync Performance')).toBeInTheDocument();
@@ -290,7 +303,7 @@ describe('EnhancedAnalyticsDashboard Component', () => {
 
     test('shows alert severity badges', async () => {
       render(<EnhancedAnalyticsDashboard />);
-      
+
       await waitFor(() => {
         expect(screen.getByText('high')).toBeInTheDocument();
         expect(screen.getByText('critical')).toBeInTheDocument();
@@ -301,13 +314,13 @@ describe('EnhancedAnalyticsDashboard Component', () => {
       const manyAlerts = Array.from({ length: 10 }, (_, i) => ({
         ...mockAlerts[0],
         id: `alert-${i}`,
-        title: `Alert ${i}`
+        title: `Alert ${i}`,
       }));
-      
+
       mockAnalyticsService.getActiveAlerts.mockResolvedValue(manyAlerts);
-      
+
       render(<EnhancedAnalyticsDashboard />);
-      
+
       await waitFor(() => {
         expect(screen.getByText('Active Alerts (10)')).toBeInTheDocument();
         // Should only show first 5 alerts in the list
@@ -321,7 +334,7 @@ describe('EnhancedAnalyticsDashboard Component', () => {
   describe('Auto-refresh Functionality', () => {
     test('enables auto-refresh by default', async () => {
       render(<EnhancedAnalyticsDashboard />);
-      
+
       await waitFor(() => {
         const autoRefreshSwitch = screen.getByRole('switch');
         expect(autoRefreshSwitch).toBeChecked();
@@ -330,7 +343,7 @@ describe('EnhancedAnalyticsDashboard Component', () => {
 
     test('can toggle auto-refresh', async () => {
       render(<EnhancedAnalyticsDashboard />);
-      
+
       await waitFor(() => {
         const autoRefreshSwitch = screen.getByRole('switch');
         fireEvent.click(autoRefreshSwitch);
@@ -340,7 +353,7 @@ describe('EnhancedAnalyticsDashboard Component', () => {
 
     test('automatically refreshes data when enabled', async () => {
       render(<EnhancedAnalyticsDashboard />);
-      
+
       await waitFor(() => {
         expect(mockAnalyticsService.getMetrics).toHaveBeenCalledTimes(1);
       });
@@ -357,11 +370,11 @@ describe('EnhancedAnalyticsDashboard Component', () => {
 
     test('stops auto-refresh when disabled', async () => {
       render(<EnhancedAnalyticsDashboard />);
-      
+
       await waitFor(() => {
         const autoRefreshSwitch = screen.getByRole('switch');
         fireEvent.click(autoRefreshSwitch);
-        
+
         expect(mockAnalyticsService.getMetrics).toHaveBeenCalledTimes(1);
       });
 
@@ -378,7 +391,7 @@ describe('EnhancedAnalyticsDashboard Component', () => {
   describe('Tab Navigation', () => {
     test('renders all main tabs', async () => {
       render(<EnhancedAnalyticsDashboard />);
-      
+
       await waitFor(() => {
         expect(screen.getByText('Overview')).toBeInTheDocument();
         expect(screen.getByText('Performance')).toBeInTheDocument();
@@ -388,22 +401,22 @@ describe('EnhancedAnalyticsDashboard Component', () => {
 
     test('switches to performance tab and renders PerformanceGraphs', async () => {
       render(<EnhancedAnalyticsDashboard />);
-      
+
       await waitFor(() => {
         const performanceTab = screen.getByText('Performance');
         fireEvent.click(performanceTab);
-        
+
         expect(screen.getByTestId('performance-graphs')).toBeInTheDocument();
       });
     });
 
     test('switches to users tab and renders UserActivityMonitor', async () => {
       render(<EnhancedAnalyticsDashboard />);
-      
+
       await waitFor(() => {
         const usersTab = screen.getByText('Users');
         fireEvent.click(usersTab);
-        
+
         expect(screen.getByTestId('user-activity-monitor')).toBeInTheDocument();
       });
     });
@@ -436,7 +449,7 @@ describe('EnhancedAnalyticsDashboard Component', () => {
 
     test('displays performance summary cards', async () => {
       render(<EnhancedAnalyticsDashboard />);
-      
+
       await waitFor(() => {
         expect(screen.getByText('Success Rate')).toBeInTheDocument();
         expect(screen.getByText('95.5%')).toBeInTheDocument();
@@ -449,7 +462,7 @@ describe('EnhancedAnalyticsDashboard Component', () => {
 
     test('shows bandwidth usage with compression ratio', async () => {
       render(<EnhancedAnalyticsDashboard />);
-      
+
       await waitFor(() => {
         expect(screen.getByText('Bandwidth')).toBeInTheDocument();
         expect(screen.getByText('5.0MB')).toBeInTheDocument();
@@ -461,7 +474,7 @@ describe('EnhancedAnalyticsDashboard Component', () => {
   describe('Manual Refresh', () => {
     test('provides manual refresh button', async () => {
       render(<EnhancedAnalyticsDashboard />);
-      
+
       await waitFor(() => {
         expect(screen.getByText('Refresh')).toBeInTheDocument();
       });
@@ -469,10 +482,10 @@ describe('EnhancedAnalyticsDashboard Component', () => {
 
     test('refreshes data when manual refresh is clicked', async () => {
       render(<EnhancedAnalyticsDashboard />);
-      
+
       await waitFor(() => {
         expect(mockAnalyticsService.getMetrics).toHaveBeenCalledTimes(1);
-        
+
         const refreshButton = screen.getByText('Refresh');
         fireEvent.click(refreshButton);
       });
@@ -486,7 +499,7 @@ describe('EnhancedAnalyticsDashboard Component', () => {
   describe('Data Export', () => {
     test('provides export functionality', async () => {
       render(<EnhancedAnalyticsDashboard />);
-      
+
       await waitFor(() => {
         expect(screen.getByText('Export')).toBeInTheDocument();
       });
@@ -494,7 +507,7 @@ describe('EnhancedAnalyticsDashboard Component', () => {
 
     test('exports comprehensive dashboard data', async () => {
       render(<EnhancedAnalyticsDashboard />);
-      
+
       await waitFor(() => {
         const exportButton = screen.getByText('Export');
         fireEvent.click(exportButton);
@@ -507,14 +520,15 @@ describe('EnhancedAnalyticsDashboard Component', () => {
 
     test('includes all dashboard data in export', async () => {
       render(<EnhancedAnalyticsDashboard />);
-      
+
       await waitFor(() => {
         const exportButton = screen.getByText('Export');
         fireEvent.click(exportButton);
       });
 
       // Verify that the blob was created with comprehensive data
-      const blobCall = (global.URL.createObjectURL as ReturnType<typeof vi.fn>).mock.calls[0][0] as Blob;
+      const blobCall = (global.URL.createObjectURL as ReturnType<typeof vi.fn>).mock
+        .calls[0][0] as Blob;
       expect(blobCall.type).toBe('application/json');
     });
   });
@@ -522,7 +536,7 @@ describe('EnhancedAnalyticsDashboard Component', () => {
   describe('Full Screen Mode', () => {
     test('provides full screen toggle for tabs', async () => {
       render(<EnhancedAnalyticsDashboard />);
-      
+
       await waitFor(() => {
         expect(screen.getByText('Full Screen')).toBeInTheDocument();
       });
@@ -543,14 +557,14 @@ describe('EnhancedAnalyticsDashboard Component', () => {
 
     test('exits full screen mode when exit button is clicked', async () => {
       render(<EnhancedAnalyticsDashboard />);
-      
+
       await waitFor(() => {
         const fullScreenButton = screen.getByText('Full Screen');
         fireEvent.click(fullScreenButton);
-        
+
         const exitButton = screen.getByText('Exit Full Screen');
         fireEvent.click(exitButton);
-        
+
         expect(screen.queryByText('Exit Full Screen')).not.toBeInTheDocument();
       });
     });
@@ -602,14 +616,14 @@ describe('EnhancedAnalyticsDashboard Component', () => {
   describe('Performance Optimization', () => {
     test('memoizes expensive calculations', async () => {
       const { rerender } = render(<EnhancedAnalyticsDashboard />);
-      
+
       await waitFor(() => {
         expect(screen.getByText('Analytics Dashboard')).toBeInTheDocument();
       });
 
       // Re-render should not cause additional service calls
       rerender(<EnhancedAnalyticsDashboard />);
-      
+
       expect(mockAnalyticsService.getMetrics).toHaveBeenCalledTimes(1);
     });
   });
@@ -617,7 +631,7 @@ describe('EnhancedAnalyticsDashboard Component', () => {
   describe('Accessibility', () => {
     test('includes proper ARIA labels and roles', async () => {
       render(<EnhancedAnalyticsDashboard />);
-      
+
       await waitFor(() => {
         expect(screen.getByRole('tablist')).toBeInTheDocument();
         expect(screen.getAllByRole('tab')).toHaveLength(3);
@@ -627,7 +641,7 @@ describe('EnhancedAnalyticsDashboard Component', () => {
 
     test('supports keyboard navigation', async () => {
       render(<EnhancedAnalyticsDashboard />);
-      
+
       await waitFor(() => {
         const firstTab = screen.getAllByRole('tab')[0];
         firstTab.focus();

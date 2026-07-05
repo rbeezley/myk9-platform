@@ -10,8 +10,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { auditService } from '@/services/AuditService';
 import { UserRole } from '@/types/auth-types';
 import { AuditAction } from '@/types/audit-types';
-import { Users, AlertCircle, Download, Loader2 } from 'lucide-react';
+import { Users, AlertCircle, Download } from 'lucide-react';
 import { SecretaryAddEntriesDecision } from '@/features/registration/SecretaryAddEntriesDecision';
+import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 
 import { useEntryManagementData } from '@/hooks/useEntryManagementData';
 import { useEntryManagementFilters } from '@/hooks/useEntryManagementFilters';
@@ -286,10 +287,16 @@ const EntryManagementPage: React.FC = () => {
             </Card>
           )}
 
-          {/* Loading State */}
+          {/*
+            Loading State — a table-shaped skeleton (not a bare spinner) so the
+            pending UI previews the entries table's layout. Motion-language
+            policy: page/section loads use Skeleton; animate-spin is reserved for
+            inline button/pending states. Error + empty states below stay
+            distinct (never a skeleton that shimmers forever).
+          */}
           {isLoading && selectedShowId && (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <div role="status" aria-label="Loading entries" className="py-4">
+              <TableSkeleton rows={8} columns={5} />
             </div>
           )}
 

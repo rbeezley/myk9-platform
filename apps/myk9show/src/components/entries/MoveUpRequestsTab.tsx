@@ -42,6 +42,7 @@ import {
   Trophy,
   Users,
 } from 'lucide-react';
+import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 import {
   getPendingMoveUpRequests,
   getClassesWithCapacity,
@@ -258,9 +259,11 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
     getAvailableMoveUpTargets(classes, request.class_id, registryId);
 
   if (isLoading) {
+    // Section load = table skeleton (previews the move-up requests table).
+    // The inline "Processing…" button spinners below stay animate-spin.
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div role="status" aria-label="Loading move-up requests" className="py-4">
+        <TableSkeleton rows={6} columns={4} />
       </div>
     );
   }

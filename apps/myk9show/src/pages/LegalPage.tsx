@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { sanitizeHTML } from '@/utils/sanitization';
 
 interface LegalPageProps {
@@ -47,8 +48,16 @@ const LegalPage: React.FC<LegalPageProps> = ({ title, markdownPath }) => {
         </div>
 
         {loading && (
-          <div className="flex items-center justify-center py-20">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <div role="status" aria-label={`Loading ${title}`} className="space-y-4 py-8">
+            <Skeleton className="h-9 w-64" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-5/6" />
+            <Skeleton className="h-6 w-40" />
+            <div className="space-y-2">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <Skeleton key={index} className="h-4 w-full" />
+              ))}
+            </div>
           </div>
         )}
 

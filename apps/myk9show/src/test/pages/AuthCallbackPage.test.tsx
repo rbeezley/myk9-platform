@@ -45,7 +45,8 @@ describe('AuthCallbackPage', () => {
     it('shows loading state during verification', () => {
       mockVerifyOtp.mockReturnValue(new Promise(() => {}));
       renderWithRouter('?token_hash=abc&type=signup');
-      expect(screen.getByText(/verifying/i)).toBeInTheDocument();
+      expect(screen.getByRole('status', { name: /verifying your email/i })).toBeInTheDocument();
+      expect(document.querySelector('.animate-spin')).toBeNull();
     });
 
     it('redirects to home on successful signup verification', async () => {
@@ -72,7 +73,8 @@ describe('AuthCallbackPage', () => {
   describe('OAuth callback flow', () => {
     it('shows loading state for OAuth callback (no query params)', () => {
       renderWithRouter('');
-      expect(screen.getByText(/verifying/i)).toBeInTheDocument();
+      expect(screen.getByRole('status', { name: /verifying your email/i })).toBeInTheDocument();
+      expect(document.querySelector('.animate-spin')).toBeNull();
     });
 
     it('redirects to home when session is already available', async () => {
@@ -132,7 +134,8 @@ describe('AuthCallbackPage', () => {
       vi.useFakeTimers();
       renderWithRouter('');
 
-      expect(screen.getByText(/verifying/i)).toBeInTheDocument();
+      expect(screen.getByRole('status', { name: /verifying your email/i })).toBeInTheDocument();
+      expect(document.querySelector('.animate-spin')).toBeNull();
 
       await act(async () => {
         vi.advanceTimersByTime(10000);

@@ -79,9 +79,8 @@ describe('ProfilePage', () => {
 
     renderPage();
 
-    // The Loader2 spinner has animate-spin class
-    const spinner = document.querySelector('.animate-spin');
-    expect(spinner).toBeTruthy();
+    expect(screen.getByRole('status', { name: 'Loading profile' })).toBeInTheDocument();
+    expect(document.querySelector('.animate-spin')).toBeNull();
   });
 
   it('renders error state when no person record found', () => {

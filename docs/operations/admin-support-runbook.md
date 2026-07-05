@@ -1,11 +1,26 @@
 # Admin Support Runbook
 
 > **Status:** Active
-> **Audience:** Platform owner / site-admin. Last reviewed 2026-06-25.
+> **Audience:** Platform owner / site-admin. Last reviewed 2026-07-05.
 
-Covers the privileged support actions that have **no dedicated in-app UI** for the fall launch. Most admin support is in-app (see the surfaces table at the bottom); this runbook documents only the SQL/dashboard paths that are **explicitly accepted for fall** rather than blocking launch on new UI.
+General support now runs through the in-app ticket queue at `/admin/support`. The remaining sections cover the privileged support actions that still have **no dedicated in-app UI** for the fall launch and are explicitly accepted for fall rather than blocking launch on new UI.
 
 Two operations live here: **user impersonation / "see as a user"** and **manual data repair**. Both are deliberately not exposed as one-click admin actions — they are rare, high-blast-radius, and safer behind a deliberate procedure.
+
+---
+
+## 0. Working the in-app support inbox
+
+Use `/admin/support` for customer help before reaching for SQL, Supabase dashboards, or email.
+
+1. Open `/admin/support`. The default queue is **Open**; use the status filters for Waiting, Resolved, or All.
+2. Triage **Show-day priority** tickets first. These are raised from secretary show-day contexts and should interrupt normal backlog work.
+3. Read the diagnostic panel before replying: route, show/trial/entry context, online state, replication status, queue size, conflict count, and captured client errors.
+4. Reply in the ticket thread. Operator replies move the ticket to **Waiting** and notify the ticket owner by in-app link, push, and email where available.
+5. When the customer replies, the ticket returns to **Open** and site admins are notified. Mark it **Resolved** only after the user confirms or the issue is clearly closed.
+6. Payment/refund questions must stay human-reviewed. The support-mode AskQ path escalates those instead of auto-answering; use the Stripe and entry-management runbooks for the actual decision.
+
+Do not create a parallel email reply-to workflow for myK9Show support tickets. Email notifications link back into the in-app ticket.
 
 ---
 
@@ -27,7 +42,7 @@ There is **no in-app impersonation** for fall. The audit-event scaffolding (`IMP
 Accepted fall procedure, in order of preference:
 
 1. **Same-role test account (preferred).** Use or create an `e2e-*@test.myk9.com` staging account (the named `admin@`/`secretary@myk9t.com` accounts have **no auth row** — see [[project_staging_named_accounts_no_auth]]) and grant it the same roles/scopes as the affected user. Walk the broken flow. This reproduces what the user sees with zero impact on their account.
-2. **Supabase Auth recovery link (only with user consent).** If you must enter the *actual* user's account (e.g. data is account-specific and not reproducible), use the Supabase dashboard → Authentication → the user → "Send recovery / magic link," **with the user's explicit consent**, and have them screen-share instead if at all possible. Never silently assume a live session.
+2. **Supabase Auth recovery link (only with user consent).** If you must enter the _actual_ user's account (e.g. data is account-specific and not reproducible), use the Supabase dashboard → Authentication → the user → "Send recovery / magic link," **with the user's explicit consent**, and have them screen-share instead if at all possible. Never silently assume a live session.
 3. **Log it.** Whichever path, record who/why/when in your support log. When the impersonation UI ships post-launch, this manual path retires.
 
 ## 3. Manual data repair (SQL, accepted for fall)
@@ -62,13 +77,14 @@ If a repair needs more than a single-row, transaction-wrapped fix — bulk updat
 
 For reference — these support actions have working UI and don't need this document:
 
-| Need | Surface |
-| --- | --- |
-| See shows & users | `/admin/dashboard`, `/admin/users` |
-| Roles / access fixes | `/admin/permissions/*`, `/admin/role-requests` |
-| Payments / payouts | `/admin/payouts` (+ Stripe dashboard for failed-charge detail, per [`stripe-platform-setup.md`](stripe-platform-setup.md)) |
-| Sync / replication health | `/admin/sync` |
-| Onboarding requests | `/admin/onboarding` |
-| App performance / alerts | `/admin/performance`, `/admin/alerts` |
+| Need                      | Surface                                                                                                                                                           |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Customer support tickets  | `/admin/support`                                                                                                                                                  |
+| See shows & users         | `/admin/dashboard`, `/admin/users`                                                                                                                                |
+| Roles / access fixes      | `/admin/permissions/*`, `/admin/role-requests`                                                                                                                    |
+| Payments / payouts        | `/admin/payouts` (+ Stripe dashboard for failed-charge detail, per [`stripe-platform-setup.md`](stripe-platform-setup.md))                                        |
+| Sync / replication health | `/admin/sync`                                                                                                                                                     |
+| Onboarding requests       | `/admin/onboarding`                                                                                                                                               |
+| App performance / alerts  | `/admin/performance`, `/admin/alerts`                                                                                                                             |
 | Deploy / migration health | [`ci-vercel-deploys.md`](ci-vercel-deploys.md), [`edge-function-deploy-drift-2026-06-23.md`](edge-function-deploy-drift-2026-06-23.md), `supabase migration list` |
-| Soft-delete restore | `/admin/data-lifecycle` |
+| Soft-delete restore       | `/admin/data-lifecycle`                                                                                                                                           |

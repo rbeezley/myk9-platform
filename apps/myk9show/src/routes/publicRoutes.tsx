@@ -70,6 +70,7 @@ const RegistrationWizardPage = lazy(() => import('@/pages/RegistrationWizardPage
 const SubscriptionPage = lazy(() => import('@/pages/SubscriptionPage'));
 const LegalPage = lazy(() => import('@/pages/LegalPage'));
 const CredentialsHelpPage = lazy(() => import('@/pages/CredentialsHelpPage'));
+const SupportTicketPage = lazy(() => import('@/pages/SupportTicketPage'));
 
 // Account (merged profile + preferences + settings)
 const AccountPage = lazy(() => import('@/pages/AccountPage'));
@@ -117,9 +118,7 @@ function ShowManagementSectionRoute({ children }: { children: ReactNode }) {
 
   // Secretary and site admin are authorized without needing show data.
   if (isSecretary || isSiteAdmin) {
-    return (
-      <RoleSurfaceErrorBoundary surface="secretary">{children}</RoleSurfaceErrorBoundary>
-    );
+    return <RoleSurfaceErrorBoundary surface="secretary">{children}</RoleSurfaceErrorBoundary>;
   }
 
   // Club admin check requires the show's clubId to enforce club-scoping.
@@ -258,6 +257,19 @@ export const PublicRoutes = () => (
     {/* Backwards-compat redirects for old URLs */}
     <Route path="/browse-shows" element={<Navigate to="/shows" replace />} />
     <Route path="/shows/browse" element={<Navigate to="/shows" replace />} />
+
+    <Route
+      path="/support"
+      element={
+        <ProtectedRoute>
+          <SuspenseWrapper>
+            <PageTransition>
+              <SupportTicketPage />
+            </PageTransition>
+          </SuspenseWrapper>
+        </ProtectedRoute>
+      }
+    />
 
     {/* My Shows - exhibitor's show hub; entries are one section inside it. */}
     <Route

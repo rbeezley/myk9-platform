@@ -8,7 +8,7 @@
  */
 
 import { Link } from 'react-router-dom';
-import { Activity, ChevronRight, Settings, Users } from 'lucide-react';
+import { Activity, ChevronRight, LifeBuoy, Settings, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { PlatformAdministrationSectionProps } from './admin-dashboard-types';
 
@@ -62,7 +62,7 @@ export function PlatformAdministrationSection({ userCount }: PlatformAdministrat
           </p>
         </div>
       </div>
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
         <AdminCard
           title="User Management"
           description="Manage platform users, roles, and permissions"
@@ -75,6 +75,12 @@ export function PlatformAdministrationSection({ userCount }: PlatformAdministrat
           description="View system alerts and notifications"
           icon={Activity}
           href="/admin/alerts"
+        />
+        <AdminCard
+          title="Support Inbox"
+          description="Review customer tickets and diagnostics"
+          icon={LifeBuoy}
+          href="/admin/support"
         />
         <AdminCard
           title="Roles & Permissions"

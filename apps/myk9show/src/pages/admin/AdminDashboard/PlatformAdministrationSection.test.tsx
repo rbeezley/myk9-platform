@@ -3,7 +3,7 @@ import { render, screen } from '@/test/utils/testUtils';
 import { PlatformAdministrationSection } from './PlatformAdministrationSection';
 
 describe('PlatformAdministrationSection', () => {
-  it('renders the three admin cards linking to their destinations', () => {
+  it('renders the admin cards linking to their destinations', () => {
     render(<PlatformAdministrationSection userCount={7} />, { initialRoute: '/admin/dashboard' });
 
     const userLink = screen.getByRole('link', { name: /User Management/i });
@@ -11,6 +11,9 @@ describe('PlatformAdministrationSection', () => {
 
     const alertsLink = screen.getByRole('link', { name: /Alerts & Monitoring/i });
     expect(alertsLink).toHaveAttribute('href', '/admin/alerts');
+
+    const supportLink = screen.getByRole('link', { name: /Support Inbox/i });
+    expect(supportLink).toHaveAttribute('href', '/admin/support');
 
     const permsLink = screen.getByRole('link', { name: /Roles & Permissions/i });
     expect(permsLink).toHaveAttribute('href', '/admin/permissions');

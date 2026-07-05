@@ -4,6 +4,10 @@ import { handle } from '../_shared/http/handler.ts';
 import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import { assertSendEmailAuthorization, assertSendEmailRateLimit } from './authz.ts';
+import {
+  generateSupportNotificationEmail,
+  type SupportNotificationData,
+} from './supportNotificationEmail.ts';
 
 // Email sender configuration
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
@@ -91,7 +95,8 @@ type EmailData =
   | PaymentReceiptData
   | WelcomeEmailData
   | WaitlistOfferData
-  | EntryDecisionData;
+  | EntryDecisionData
+  | SupportNotificationData;
 
 handle<EmailData>(
   { auth: 'jwt', origins: MYK9SHOW_ORIGINS },
@@ -145,6 +150,11 @@ handle<EmailData>(
         html = generateEntryDecisionEmail(data);
         break;
 
+      case 'support_notification':
+        subject = `Support update: ${data.ticketSubject}`;
+        html = generateSupportNotificationEmail(data);
+        break;
+
       default:
         throw new HttpError(400, `Unknown email type: ${(data as EmailData).type}`);
     }
@@ -185,6 +195,9 @@ handle<EmailData>(
     };
     if ('registrationId' in data && data.registrationId) {
       logRow.related_id = data.registrationId;
+    }
+    if ('ticketId' in data && data.ticketId) {
+      logRow.related_id = data.ticketId;
     }
     await supabase
       .from('email_log')

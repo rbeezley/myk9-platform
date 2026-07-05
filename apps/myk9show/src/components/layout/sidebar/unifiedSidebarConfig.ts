@@ -35,6 +35,7 @@ import {
   Wallet,
   Radio,
   Activity,
+  LifeBuoy,
 } from 'lucide-react';
 import { UserRole } from '@/types/auth-types';
 import { isWizardSurface, isPathInWizardAllowlist } from '@/config/surface';
@@ -169,6 +170,12 @@ export function buildUnifiedSidebarConfig(
             href: '/admin/payouts',
             icon: Wallet,
             description: 'Platform fee + payout ledger',
+          },
+          {
+            title: 'Support',
+            href: '/admin/support',
+            icon: LifeBuoy,
+            description: 'Customer ticket inbox',
           },
           {
             title: 'Help',

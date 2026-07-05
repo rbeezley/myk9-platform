@@ -5,7 +5,7 @@ import { UserRole } from '@/types/auth-types';
 
 describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
   // ── Admin ────────────────────────────────────────────────────────────────
-  it('admin sidebar contains Dashboard, System Health, Users, Role Requests, Roles & Permissions, Payments, Help', () => {
+  it('admin sidebar contains Dashboard, System Health, Users, Role Requests, Roles & Permissions, Payments, Support, Help', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN]);
     const adminGroup = config.groups.find(g => g.title === 'Admin');
     const titles = adminGroup?.items.map(i => i.title) ?? [];
@@ -16,6 +16,7 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
       'Role Requests',
       'Roles & Permissions',
       'Payments',
+      'Support',
       'Help',
     ]);
   });
@@ -259,12 +260,15 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     ['secretary', [UserRole.SECRETARY]],
     ['judge', [UserRole.JUDGE]],
     ['club admin', [UserRole.CLUB_ADMIN]],
-  ] as const)('multi-role sidebar (%s) has a Show Day group with Ringside → /at-show', (_label, roles) => {
-    const config = buildUnifiedSidebarConfig([...roles]);
-    const group = config.groups.find(g => g.title === 'Show Day');
-    expect(group?.items.map(i => i.title)).toEqual(['Ringside']);
-    expect(group?.items[0]?.href).toBe('/at-show');
-  });
+  ] as const)(
+    'multi-role sidebar (%s) has a Show Day group with Ringside → /at-show',
+    (_label, roles) => {
+      const config = buildUnifiedSidebarConfig([...roles]);
+      const group = config.groups.find(g => g.title === 'Show Day');
+      expect(group?.items.map(i => i.title)).toEqual(['Ringside']);
+      expect(group?.items[0]?.href).toBe('/at-show');
+    }
+  );
 
   it('Show Day group appears immediately after Manage for a secretary', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);

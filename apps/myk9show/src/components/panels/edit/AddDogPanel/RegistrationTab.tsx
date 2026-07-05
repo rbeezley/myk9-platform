@@ -38,7 +38,12 @@ export const RegistrationTab: React.FC<RegistrationTabProps> = ({
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              No registrations added yet. Click "Add New Registration" to add one.
+              {/* 4.E: name the fallback out loud instead of silently defaulting
+                  the breed to "Mixed Breed". A registration is optional and can
+                  be added later. */}
+              No registration yet — that's fine. Without one, this dog is saved as{' '}
+              <span className="font-medium text-foreground">Mixed Breed</span> for now; you can add
+              a registration (and its breed) anytime later.
             </AlertDescription>
           </Alert>
         ) : (

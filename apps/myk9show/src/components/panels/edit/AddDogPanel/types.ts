@@ -9,6 +9,13 @@ export interface AddDogPanelProps {
   userRole?: UserRole | undefined;
   currentUserPersonId?: string | undefined;
   variant?: EditPanelVariant;
+  /**
+   * When provided, the "Dog saved" confirmation toast gains an "Enter a show"
+   * next-action that calls this with the new dog (4.E). Opt-in per caller so it
+   * only appears where entering a show is the natural next step (the standalone
+   * Dogs page) — not mid-registration, where the dog is already being entered.
+   */
+  onEnterShowWithDog?: ((dog: DogType) => void) | undefined;
 }
 
 export interface DogFormData extends Record<string, unknown> {

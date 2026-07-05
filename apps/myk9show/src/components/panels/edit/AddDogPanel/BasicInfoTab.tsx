@@ -134,10 +134,12 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                 form.touchField('gender');
               }}
             >
-              <SelectTrigger
-                {...form.getFieldProps('gender')}
-                onBlur={() => form.touchField('gender')}
-              >
+              {/* 4.E: no onBlur→touchField here. Opening the dropdown blurs the
+                  trigger (focus moves to the listbox), which used to mark the
+                  field touched and flash "Please select a gender" before the
+                  novice had a chance to pick. onValueChange marks it touched on
+                  an actual selection; submit marks everything touched. */}
+              <SelectTrigger {...form.getFieldProps('gender')}>
                 <SelectValue placeholder="Choose gender" />
               </SelectTrigger>
               <SelectContent className="bg-popover/95 backdrop-blur-xl border border-border/30 rounded-xl shadow-2xl">
@@ -162,6 +164,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             fieldId="dateOfBirth"
             required
             error={form.getError('dateOfBirth')}
+            hint="Not sure of the exact date? An approximate one is fine."
           >
             <Input
               id="dateOfBirth"
@@ -209,10 +212,9 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               }}
               disabled={isPeopleLoading}
             >
-              <SelectTrigger
-                {...form.getFieldProps('ownerId')}
-                onBlur={() => form.touchField('ownerId')}
-              >
+              {/* 4.E: same as gender — no onBlur→touchField; opening the list
+                  must not flag "Please select an owner" pre-selection. */}
+              <SelectTrigger {...form.getFieldProps('ownerId')}>
                 {isPeopleLoading ? (
                   <span className="flex items-center gap-2 text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />

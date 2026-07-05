@@ -4,9 +4,12 @@ import { Heart, FileText, Settings, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface TabNavigationProps {
+  /** The Essential tab holds the only required fields — a check means "done". */
   isBasicValid: boolean;
+  /** Registration is optional; only a *started* (non-empty) registration set
+   *  can be "complete" or "incomplete". Empty = untouched, no indicator. */
+  hasRegistrations: boolean;
   isRegistrationValid: boolean;
-  isOptionalValid: boolean;
 }
 
 const TAB_TRIGGER_BASE = cn(
@@ -18,9 +21,16 @@ const TAB_TRIGGER_BASE = cn(
 
 export const TabNavigation: React.FC<TabNavigationProps> = ({
   isBasicValid,
+  hasRegistrations,
   isRegistrationValid,
-  isOptionalValid,
 }) => {
+  // A green check reads as "this section is done". Only show it where "done"
+  // is meaningful: the required Essential tab, and a registration the user has
+  // actually started and completed. The Optional tab never earns a check —
+  // there is nothing there to complete (4.E: no false "complete" on untouched
+  // tabs). Red only flags a *started-but-incomplete* registration.
+  const showRegistrationCheck = hasRegistrations && isRegistrationValid;
+  const showRegistrationError = hasRegistrations && !isRegistrationValid;
   return (
     <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 backdrop-blur-xl">
       <TabsTrigger
@@ -38,23 +48,16 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
         value="registration"
         className={cn(
           TAB_TRIGGER_BASE,
-          !isRegistrationValid && "text-destructive/80 data-[state=active]:text-destructive"
+          showRegistrationError && "text-destructive/80 data-[state=active]:text-destructive"
         )}
       >
         <FileText className="h-4 w-4" />
         <span className="font-medium">Registration</span>
-        {isRegistrationValid && <CheckCircle className="h-4 w-4 text-emerald-500 animate-in zoom-in-0 duration-200" />}
+        {showRegistrationCheck && <CheckCircle className="h-4 w-4 text-emerald-500 animate-in zoom-in-0 duration-200" />}
       </TabsTrigger>
-      <TabsTrigger
-        value="optional"
-        className={cn(
-          TAB_TRIGGER_BASE,
-          !isOptionalValid && "text-destructive/80 data-[state=active]:text-destructive"
-        )}
-      >
+      <TabsTrigger value="optional" className={TAB_TRIGGER_BASE}>
         <Settings className="h-4 w-4" />
-        <span className="font-medium">Additional</span>
-        {isOptionalValid && <CheckCircle className="h-4 w-4 text-emerald-500 animate-in zoom-in-0 duration-200" />}
+        <span className="font-medium">Optional details</span>
       </TabsTrigger>
     </TabsList>
   );

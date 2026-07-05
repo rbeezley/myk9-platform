@@ -15,6 +15,7 @@ import { getErrorMessage } from '@myk9/core';
 import type { AddDogPanelProps, DogFormData } from './types';
 import { createInitialFormData } from './types';
 import { addDogSchema, isTabValid } from './validation';
+import { buildDogSavedToast } from './dogSavedToast';
 import { useAddDogForm } from './useAddDogForm';
 import { TabNavigation } from './TabNavigation';
 import { BasicInfoTab } from './BasicInfoTab';
@@ -34,6 +35,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   userRole = UserRole.EXHIBITOR,
   currentUserPersonId,
   variant = 'panel',
+  onEnterShowWithDog,
 }) => {
   const { addDog, isLoading: isSaving, error: saveError } = useDogStoreCompat();
   const [localSaveError, setLocalSaveError] = useState<string | null>(null);
@@ -85,6 +87,13 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
       setLocalSaveError(getErrorMessage(error));
       throw error;
     }
+    // 4.E: a durable "Dog saved" confirmation. The panel used to just close
+    // silently, leaving a novice unsure the save worked. Fire before the
+    // parent callback (which may navigate) so the toast survives the route
+    // change; sonner keeps it on screen. The optional "Enter a show" action
+    // only appears where the caller opts in (standalone Dogs page).
+    const savedToast = buildDogSavedToast(formData.callName, newDog, onEnterShowWithDog);
+    notifications.success(savedToast.message, savedToast.options);
     // Once the dog is persisted, a failure in the parent callback must not
     // bubble up as a save error — the dog already exists in the DB.
     try {
@@ -194,10 +203,11 @@ const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
 
   const formData = form.data;
 
-  // Tab validity for navigation indicators
+  // Tab validity for navigation indicators. The Optional tab has no required
+  // fields, so it carries no completion indicator (4.E).
   const isBasicValid = isTabValid('basic', formData);
+  const hasRegistrations = formData.registrations.length > 0;
   const isRegistrationValid = isTabValid('registration', formData);
-  const isOptionalValid = isTabValid('optional', formData);
 
   return (
     <>
@@ -217,8 +227,8 @@ const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
         >
           <TabNavigation
             isBasicValid={isBasicValid}
+            hasRegistrations={hasRegistrations}
             isRegistrationValid={isRegistrationValid}
-            isOptionalValid={isOptionalValid}
           />
 
           <TabsContent

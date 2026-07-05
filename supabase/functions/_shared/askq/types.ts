@@ -104,6 +104,7 @@ export interface UserContext {
 export interface AskQShowRequest {
   message: string;
   showId?: string;
+  supportMode?: boolean;
 }
 
 export interface RateLimitInfo {
@@ -113,6 +114,6 @@ export interface RateLimitInfo {
 }
 
 export interface StreamEvent {
-  event: 'tools_used' | 'sources' | 'token' | 'meta' | 'done' | 'error';
+  event: 'tools_used' | 'sources' | 'token' | 'meta' | 'support_escalation' | 'done' | 'error';
   data: unknown;
 }

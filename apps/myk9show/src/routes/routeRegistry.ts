@@ -38,6 +38,7 @@ export const adminRouteComponents: Record<string, ImportFunction> = {
   '/admin/role-requests': () => import('@/pages/admin/RoleRequestsPage'),
   '/admin/users': () => import('@/pages/admin/UserManagementPage'),
   '/admin/payouts': () => import('@/pages/admin/PayoutLedgerPage'),
+  '/admin/support': () => import('@/pages/admin/SupportInboxPage'),
   // Permission management
   '/admin/permissions': () => import('@/pages/admin/permissions/PermissionManagementPage'),
   '/admin/permissions/roles': () => import('@/pages/admin/permissions/RoleListPage'),
@@ -91,6 +92,7 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
   '/my-entries': () => import('@/pages/MyEntriesPage'),
 
   // Exhibitor pages
+  '/support': () => import('@/pages/SupportTicketPage'),
   '/exhibitor/entries': () => import('@/pages/MyEntriesPage'),
   '/exhibitor/show-day': () => import('@/features/at-show/AtShowClassListPage'),
   '/exhibitor/check-in/:entryId': () => import('@/pages/MyEntriesPage'),

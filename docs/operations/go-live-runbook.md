@@ -17,15 +17,15 @@ this document is the sequence, the gates, and the verification commands.
 
 ## Gate summary (the launch decision at a glance)
 
-| # | Gate | Blocks | Status check |
-| - | ---- | ------ | ------------ |
-| G1 | Security remediation complete (SA-006/008/011 + plan 003) | Phase 1 | `pnpm exec openspec status --change <name>` for each; OPEN-TODOS § Security Remediation |
-| G2 | Pending deploys/migrations reconciled (`ask-myk9show`, withdrawal migrations, edge-fn drift) | Phase 1 | Phase 0 verification commands below |
-| G3 | Money-path hardening Phases 1–3 merged + deployed (MP-01…MP-04) | Phase 3 (Stripe cutover) | [`docs/plan-money-path-hardening.md`](../plan-money-path-hardening.md) phase table; PRs merged + fns redeployed |
-| G4 | CI-gated production deploys active | Phase 4 | Deploy Production workflow green on `main`; Git auto-deploy off |
-| G5 | Passcode ringside walk passes cold (`jh3k9`/`s7m2p`) | Phase 4 | Phase 2 step 2.3 |
-| G6 | Show-day re-walk + offline rehearsal + venue print test pass | Phase 5 | Phase 4 evidence links |
-| G7 | Real-user testing complete, no confusion-level findings | Launch | Lane 1.7 session results filed; scorecard UX-clarity row Green |
+| #   | Gate                                                                                         | Blocks                   | Status check                                                                                                    |
+| --- | -------------------------------------------------------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| G1  | Security remediation complete (SA-006/008/011 + plan 003)                                    | Phase 1                  | `pnpm exec openspec status --change <name>` for each; OPEN-TODOS § Security Remediation                         |
+| G2  | Pending deploys/migrations reconciled (`ask-myk9show`, withdrawal migrations, edge-fn drift) | Phase 1                  | Phase 0 verification commands below                                                                             |
+| G3  | Money-path hardening Phases 1–3 merged + deployed (MP-01…MP-04)                              | Phase 3 (Stripe cutover) | [`docs/plan-money-path-hardening.md`](../plan-money-path-hardening.md) phase table; PRs merged + fns redeployed |
+| G4  | CI-gated production deploys active                                                           | Phase 4                  | Deploy Production workflow green on `main`; Git auto-deploy off                                                 |
+| G5  | Passcode ringside walk passes cold (`jh3k9`/`s7m2p`)                                         | Phase 4                  | Phase 2 step 2.3                                                                                                |
+| G6  | Show-day re-walk + offline rehearsal + venue print test pass                                 | Phase 5                  | Phase 4 evidence links                                                                                          |
+| G7  | Real-user testing complete, no confusion-level findings                                      | Launch                   | Lane 1.7 session results filed; scorecard UX-clarity row Green                                                  |
 
 Launch = all seven gates green + scorecard shows **no Red, no open P0/P1** in
 [`docs/goals/fall-2026-launch-readiness-scorecard.md`](../goals/fall-2026-launch-readiness-scorecard.md).
@@ -262,7 +262,7 @@ product).
 > covers the automated checks; a stale or missing run is itself a failure signal.
 > **Automated so far:** payout-cron health (5.4), the other background crons, and a migrations proxy
 > (5.2 — newest-applied version only, not full local↔remote parity). **Still manual:** 5.1, 5.3,
-> 5.5–5.9. Note the runner reports a `net.http_post` cron as *dispatched*, not that its Edge Function
+> 5.5–5.9. Note the runner reports a `net.http_post` cron as _dispatched_, not that its Edge Function
 > returned 2xx — so 5.4/5.9 downstream failures still surface via `show_payouts.failure_reason`, not
 > this board. The runner is **merged but only populates the board once deployed** (the two migrations
 > pushed after the table, the `daily-health-check` cron scheduled, and `health_cron_secret` set in
@@ -278,11 +278,12 @@ product).
       at/after its last code change; no deployed-ahead drift.
 - [ ] **5.4** Payout cron healthy overnight (query in Phase 3 ongoing checks).
 - [ ] **5.5** Admin surfaces walk: `/admin/dashboard`, `/health`, `/users`, `/permissions/*`,
-      `/role-requests`, `/payouts`, `/sync`, `/onboarding`, `/performance`, `/alerts`,
+      `/role-requests`, `/payouts`, `/support`, `/sync`, `/onboarding`, `/performance`, `/alerts`,
       `/data-lifecycle` all render for the site-admin account.
-- [ ] **5.6** Support posture: [`admin-support-runbook.md`](admin-support-runbook.md) at hand;
-      the two accepted SQL-only gaps (impersonation, arbitrary repair) understood; Sentry +
-      Supabase logs dashboards open.
+- [ ] **5.6** Support posture: `/admin/support` is the primary myK9Show ticket queue;
+      [`admin-support-runbook.md`](admin-support-runbook.md) is at hand; the two accepted
+      SQL-only gaps (impersonation, arbitrary repair) understood; Sentry + Supabase logs
+      dashboards open. Fluent is not part of the myK9Show launch support path.
 - [ ] **5.7** Kill-switch flip procedure re-read (Rollback appendix); Vercel env page bookmarked.
 - [ ] **5.8** Auth email: one real signup succeeds end-to-end (branded template, no rate limit).
 - [ ] **5.9** Money: one real entry payment succeeds; refund path confirmed once post-launch
@@ -296,16 +297,16 @@ product).
 prior build → migration revert → Stripe mode rotate-back. Roll back the smallest layer that
 stops the bleeding.
 
-| Failure | Action | Time |
-| ------- | ------ | ---- |
-| Realtime show-day feature misbehaving (presence/live-sync/edit-awareness/conflict toasts) | Set the matching `VITE_SHOW_*=false` in Vercel env → redeploy → hard refresh. No code change. | ~5 min |
-| Bad frontend build | Vercel dashboard → Deployments → promote the previous production deployment. | ~2 min |
-| CI-gated deploy pipeline itself broken | Set `PRODUCTION_DEPLOY_ENABLED=false`; temporarily revert `git.deploymentEnabled.main` to `true` to restore auto-deploy. | ~10 min |
-| Bad migration | Never edit an applied migration. Write a new reverting migration and `supabase db push` it. If data was corrupted, use PITR via Supabase support as last resort. | 15 min+ |
-| Edge function regression | Redeploy the prior version from the last-good commit (`git show <sha>:… > tmp` then deploy), per the drift runbook. | ~10 min |
-| Stripe live cutover failing (webhooks erroring, checkout broken) | Rotate `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` back to test values and disable the live payment surfaces; announce a payments pause. Do NOT purge live customer rows. | ~10 min |
-| Payout misfire | Payouts are Manual-schedule + cron-gated: unset the Vault `payout_cron_secret` to hard-stop the cron, reconcile via `/admin/payouts` + `show_payouts.failure_reason`. | ~5 min |
-| Auth email broken | Restore the auth-config backup JSON (SMTP + rate limit) and/or redeploy prior `send-auth-email` + prior hook secret in one window. | ~10 min |
+| Failure                                                                                   | Action                                                                                                                                                                    | Time    |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| Realtime show-day feature misbehaving (presence/live-sync/edit-awareness/conflict toasts) | Set the matching `VITE_SHOW_*=false` in Vercel env → redeploy → hard refresh. No code change.                                                                             | ~5 min  |
+| Bad frontend build                                                                        | Vercel dashboard → Deployments → promote the previous production deployment.                                                                                              | ~2 min  |
+| CI-gated deploy pipeline itself broken                                                    | Set `PRODUCTION_DEPLOY_ENABLED=false`; temporarily revert `git.deploymentEnabled.main` to `true` to restore auto-deploy.                                                  | ~10 min |
+| Bad migration                                                                             | Never edit an applied migration. Write a new reverting migration and `supabase db push` it. If data was corrupted, use PITR via Supabase support as last resort.          | 15 min+ |
+| Edge function regression                                                                  | Redeploy the prior version from the last-good commit (`git show <sha>:… > tmp` then deploy), per the drift runbook.                                                       | ~10 min |
+| Stripe live cutover failing (webhooks erroring, checkout broken)                          | Rotate `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` back to test values and disable the live payment surfaces; announce a payments pause. Do NOT purge live customer rows. | ~10 min |
+| Payout misfire                                                                            | Payouts are Manual-schedule + cron-gated: unset the Vault `payout_cron_secret` to hard-stop the cron, reconcile via `/admin/payouts` + `show_payouts.failure_reason`.     | ~5 min  |
+| Auth email broken                                                                         | Restore the auth-config backup JSON (SMTP + rate limit) and/or redeploy prior `send-auth-email` + prior hook secret in one window.                                        | ~10 min |
 
 **Abort criteria (call it, don't push through):** any P0 (data loss, money mis-charged,
 cross-tenant read) on launch day → roll back the offending layer, close entries if needed via
@@ -316,16 +317,16 @@ delayed launch always beats a corrupted first impression.
 
 ## Source documents
 
-| Topic | Doc |
-| ----- | --- |
-| Launch sequencing (lanes) | [`docs/plan-launch-execution-lanes.md`](../plan-launch-execution-lanes.md) |
-| Scorecard + pass thresholds | [`docs/goals/fall-2026-launch-readiness-scorecard.md`](../goals/fall-2026-launch-readiness-scorecard.md) |
-| Money-path code fixes (MP-01…14) | [`docs/plan-money-path-hardening.md`](../plan-money-path-hardening.md) |
-| Stripe operator setup + Task 6.3 | [`stripe-platform-setup.md`](stripe-platform-setup.md) |
-| Treasurer onboarding (customer-facing) | [`stripe-treasurer-guide.md`](stripe-treasurer-guide.md) |
-| CI-gated Vercel deploys | [`ci-vercel-deploys.md`](ci-vercel-deploys.md) |
-| Auth email / SMTP / rate limits | [`supabase-auth-email.md`](supabase-auth-email.md) |
-| Edge-function drift method | [`edge-function-deploy-drift-2026-06-23.md`](edge-function-deploy-drift-2026-06-23.md) |
-| Admin support actions | [`admin-support-runbook.md`](admin-support-runbook.md) |
-| Staging seed verification | [`staging-reseed.md`](staging-reseed.md) |
-| Passcode ringside Phase E | [`docs/plan-ringside-entries-read-authz.md`](../plan-ringside-entries-read-authz.md) |
+| Topic                                  | Doc                                                                                                      |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Launch sequencing (lanes)              | [`docs/plan-launch-execution-lanes.md`](../plan-launch-execution-lanes.md)                               |
+| Scorecard + pass thresholds            | [`docs/goals/fall-2026-launch-readiness-scorecard.md`](../goals/fall-2026-launch-readiness-scorecard.md) |
+| Money-path code fixes (MP-01…14)       | [`docs/plan-money-path-hardening.md`](../plan-money-path-hardening.md)                                   |
+| Stripe operator setup + Task 6.3       | [`stripe-platform-setup.md`](stripe-platform-setup.md)                                                   |
+| Treasurer onboarding (customer-facing) | [`stripe-treasurer-guide.md`](stripe-treasurer-guide.md)                                                 |
+| CI-gated Vercel deploys                | [`ci-vercel-deploys.md`](ci-vercel-deploys.md)                                                           |
+| Auth email / SMTP / rate limits        | [`supabase-auth-email.md`](supabase-auth-email.md)                                                       |
+| Edge-function drift method             | [`edge-function-deploy-drift-2026-06-23.md`](edge-function-deploy-drift-2026-06-23.md)                   |
+| Admin support actions                  | [`admin-support-runbook.md`](admin-support-runbook.md)                                                   |
+| Staging seed verification              | [`staging-reseed.md`](staging-reseed.md)                                                                 |
+| Passcode ringside Phase E              | [`docs/plan-ringside-entries-read-authz.md`](../plan-ringside-entries-read-authz.md)                     |

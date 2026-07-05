@@ -154,7 +154,7 @@ describe('DogSelectionStep', () => {
 
     render(<DogSelectionStep selectedDogs={[]} onSelectionChange={() => {}} />);
 
-    expect(screen.getByText(/loading your dogs/i)).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: /loading your dogs/i })).toBeInTheDocument();
   });
 
   it('shows empty state when no eligible dogs exist', () => {

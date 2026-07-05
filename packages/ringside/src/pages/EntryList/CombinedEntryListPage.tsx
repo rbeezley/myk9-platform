@@ -27,6 +27,7 @@ import type { SortOrder } from './types';
 import type { PrintSortOrder } from './dialogSlots';
 import { EntryListHeader, EntryListContent } from './components';
 import { CombinedEntryListDialogs } from './CombinedEntryListDialogs';
+import { useAutoDismiss } from './hooks/useAutoDismiss';
 
 export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
   classIds,
@@ -89,6 +90,10 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
   } = derived;
   const { sensors, handleDragStart, handleDragEnd } = drag;
 
+  // Success toast with a correctly-managed auto-dismiss (clears on unmount,
+  // resets on rapid consecutive saves) — replaces a fire-and-forget setTimeout.
+  const showSuccess = useAutoDismiss(setShowSuccessMessage, 2000);
+
   // Score click — combined view navigates with paired classId in
   // state so the scoresheet knows about the other class.
   const handleScoreClick = useCallback(
@@ -143,14 +148,13 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
       try {
         await onApplyRunOrder(preset, scope, renumberMode);
         setRunOrderDialogOpen(false);
-        setShowSuccessMessage(true);
+        showSuccess();
         setSortOrder('run');
-        setTimeout(() => setShowSuccessMessage(false), 2000);
       } catch {
         setRunOrderDialogOpen(false);
       }
     },
-    [onApplyRunOrder, setRunOrderDialogOpen, setShowSuccessMessage, setSortOrder]
+    [onApplyRunOrder, setRunOrderDialogOpen, showSuccess, setSortOrder]
   );
 
   // Open drag mode — closes the run-order dialog, snapshots the

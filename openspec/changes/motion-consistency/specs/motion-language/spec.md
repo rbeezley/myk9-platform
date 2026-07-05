@@ -67,8 +67,8 @@ The ringside entry-list save confirmation (`SuccessToast`) SHALL render as a sty
 #### Scenario: Save confirmation shown
 
 - **WHEN** a run-order/save action on the ringside entry list succeeds
-- **THEN** a visibly styled toast appears fixed at bottom-center with a fade + rise animation
-- **AND** it is not a bare unstyled `<div>` (a `.success-toast` rule, or equivalent shipped CSS, resolves)
+- **THEN** a visibly styled toast appears fixed at bottom-center with a fade + rise animation (Tailwind utilities on the markup — the ringside styling idiom — using the shared `duration-enter`/`ease-enter` motion tokens)
+- **AND** it is not a bare unstyled `<div>` — it carries resolvable styling (surface, position, motion), not a semantic class with no matching rule
 
 #### Scenario: Rapid consecutive saves
 

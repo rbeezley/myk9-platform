@@ -14,10 +14,10 @@
 
 ## 3. Phase 3 — Fix ringside SuccessToast (bug + motion)
 
-- [ ] 3.1 Add a `.success-toast` rule via plain shipped CSS in the ringside stylesheet (fixed bottom-center; fade + 4–8px rise over 250ms enter; fade-out leave; `@media (prefers-reduced-motion: reduce)` disables transform/opacity but keeps visibility). No framer-motion in `packages/ringside`.
-- [ ] 3.2 Move the auto-dismiss timer to the owning parent state (`EntryListPage` / `CombinedEntryListDialogs`): clear on unmount, reset on rapid consecutive saves (drive dismissal from hook/state, not a component-body `setTimeout`).
-- [ ] 3.3 Audit the ringside scoring save path for an acknowledgment cue; if none exists, add a ~300ms CSS check-draw/background flash on the scored row using the same CSS approach.
-- [ ] 3.4 Verify CSS delivery in-browser (preview/`/at-show`) — the rendered toast, not the source diff (#432 footgun check).
+- [x] 3.1 Add a `.success-toast` rule via plain shipped CSS in the ringside stylesheet (fixed bottom-center; fade + 4–8px rise over 250ms enter; fade-out leave; `@media (prefers-reduced-motion: reduce)` disables transform/opacity but keeps visibility). No framer-motion in `packages/ringside`.
+- [x] 3.2 Move the auto-dismiss timer to the owning parent state (`EntryListPage` / `CombinedEntryListDialogs`): clear on unmount, reset on rapid consecutive saves (drive dismissal from hook/state, not a component-body `setTimeout`).
+- [x] 3.3 Audit the ringside scoring save path for an acknowledgment cue; if none exists, add a ~300ms CSS check-draw/background flash on the scored row using the same CSS approach.
+- [x] 3.4 Verify CSS delivery in-browser (preview/`/at-show`) — the rendered toast, not the source diff (#432 footgun check).
 
 ## 4. Phase 5 — Status-change + reorder motion
 
@@ -29,7 +29,7 @@
 ## 5. Testing
 
 - [x] 5.1 Source-text unit test pinning the token names/values in `tailwind.config.js` (`feedback_source_text_regression_tests`).
-- [ ] 5.2 Ringside `SuccessToast` tests: renders message + visibility toggle; fake-timer auto-dismiss; rapid-retrigger reset; unmount clears timer. (`window.matchMedia` already mocked in `src/test/setup.ts`.)
+- [x] 5.2 Ringside `SuccessToast` tests: renders message + visibility toggle; fake-timer auto-dismiss; rapid-retrigger reset; unmount clears timer. (`window.matchMedia` already mocked in `src/test/setup.ts`.)
 - [ ] 5.3 Reduced-motion gating assertion where a hook decision is involved (reorder/crossfade fallback path).
 - [ ] 5.4 Unit tests for any pure helpers extracted in Phase 5.
 - [ ] 5.5 Grep proves zero remaining imports of every deleted name; full myK9Show `vitest` + `pnpm typecheck` + `pnpm lint` green.

@@ -55,6 +55,13 @@ No rulebook was selected. If the user asks an official rules question, ask which
   return sections.join('\n\n');
 }
 
+export function getRulebooksForDocumentContext(
+  allRulebooks: AskQRulebookAsset[],
+  showRulebooks: AskQRulebookAsset[]
+): AskQRulebookAsset[] {
+  return showRulebooks.length > 0 ? showRulebooks : allRulebooks;
+}
+
 export function normalizeSportCode(
   sportCode: string | undefined,
   organizationCode?: string

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildDocumentContext,
+  getRulebooksForDocumentContext,
   selectRulebook,
   type AskQGuideAsset,
   type AskQRulebookAsset,
@@ -61,5 +62,12 @@ describe('AskQ document context', () => {
 
     expect(context).toContain('AKC Scent Work Regulations');
     expect(context).toContain('UKC Nose Work Rules');
+  });
+
+  it('falls back to all bundled rulebooks when no show context selects one', () => {
+    const selectedRulebooks = rulebooks.slice(0, 1);
+
+    expect(getRulebooksForDocumentContext(rulebooks, [])).toEqual(rulebooks);
+    expect(getRulebooksForDocumentContext(rulebooks, selectedRulebooks)).toEqual(selectedRulebooks);
   });
 });

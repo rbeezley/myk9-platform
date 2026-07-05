@@ -1,10 +1,12 @@
 # Motion Consistency — one motion language across myK9Show + ringside
 
-> **Status:** Active
+> **Status:** Complete
 
 **Goal:** every animation in the app communicates a state change, uses the same durations/easings, and respects `prefers-reduced-motion` — so users learn once what motion means and it never surprises them.
 
 **Audit date:** 2026-07-03. Findings below are verified against the working tree, not assumed.
+
+**Completion date:** 2026-07-05. Phases 1-3 and 5 shipped in [#1143](https://github.com/rbeezley/myk9-platform/pull/1143). Phase 4 shipped incrementally in [#1152](https://github.com/rbeezley/myk9-platform/pull/1152), [#1153](https://github.com/rbeezley/myk9-platform/pull/1153), [#1154](https://github.com/rbeezley/myk9-platform/pull/1154), and final sweep [#1157](https://github.com/rbeezley/myk9-platform/pull/1157). The plan is fully implemented; remaining `animate-spin` usage is limited to inline/action/progress contexts allowed by the motion spec.
 
 ---
 

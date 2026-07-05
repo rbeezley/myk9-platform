@@ -124,10 +124,22 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   }
 
   async sync(licenseKey: string): Promise<SyncResult> {
+    const showScope = licenseKey.trim();
+    if (!showScope) {
+      logger.warn(`[${this.getTableName()}] Skipping remote sync without show scope`);
+      return {
+        tableName: this.getTableName(),
+        success: true,
+        operation: 'incremental-sync',
+        rowsAffected: 0,
+        duration: 0,
+      };
+    }
+
     logger.log(`[${this.getTableName()}] Starting sync`);
 
     const adapter: SyncReplicatedTableAdapter<EntryRow, ReplicatedEntry> = {
-      fetchRemoteRows: async ({ scope, since }) => {
+      fetchRemoteRows: async ({ since }) => {
         // Filter by show_id if provided. In myK9Show this scope value is the Show ID.
         // Read through the authenticated result view instead of public.entries:
         // managers receive raw scored fields, while exhibitors only receive
@@ -139,9 +151,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
           .gt('updated_at', new Date(since).toISOString())
           .order('updated_at', { ascending: true });
 
-        if (scope.value) {
-          query = query.eq('show_id', scope.value);
-        }
+        query = query.eq('show_id', showScope);
 
         const { data, error } = await query;
 
@@ -194,7 +204,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     const result = await syncReplicatedTable(
       this,
       adapter,
-      { value: licenseKey },
+      { value: showScope },
       {
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
       }

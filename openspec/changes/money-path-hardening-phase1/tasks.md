@@ -63,7 +63,7 @@
 - [x] 5.2 Run `opsx:verify` for `money-path-hardening-phase1` and resolve critical findings.
       Result: no implementation-critical findings; lifecycle gates remain for DB push/staging
       verification, post-merge tracking, PR review, CI, and merge.
-- [ ] 5.3 Open a PR that cites `Tracked in openspec change: money-path-hardening-phase1`.
+- [x] 5.3 Open a PR that cites `Tracked in openspec change: money-path-hardening-phase1`.
 - [ ] 5.4 Run the required Codex/security/migration second-opinion review for money-path and
       database-trigger changes.
 - [ ] 5.5 Let CI pass and merge the PR before archive.

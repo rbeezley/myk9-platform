@@ -38,6 +38,7 @@ import {
   Trophy,
   DollarSign,
 } from 'lucide-react';
+import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 import {
   getPendingPullRequests,
   getPulledEntries,
@@ -206,9 +207,11 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
   };
 
   if (isLoading) {
+    // Section load = table skeleton (previews the pulled-entries table).
+    // The inline "Processing…" button spinners below stay animate-spin.
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div role="status" aria-label="Loading pulled entries" className="py-4">
+        <TableSkeleton rows={6} columns={4} />
       </div>
     );
   }

@@ -70,3 +70,17 @@ describe('PullManagementTab — approve dialog', () => {
     });
   });
 });
+
+describe('PullManagementTab — loading state (Phase 4 skeleton convergence)', () => {
+  it('renders the table skeleton (not a spinner) while pulls are loading', () => {
+    // isLoading starts true; the mocked fetch resolves on a later microtask,
+    // so the section skeleton is present on the initial synchronous render.
+    render(<PullManagementTab showId="show-1" />);
+
+    expect(
+      screen.getByRole('status', { name: /loading pulled entries/i })
+    ).toBeInTheDocument();
+    // Section load must be a skeleton, never the old bare spinner.
+    expect(document.querySelector('.animate-spin')).toBeNull();
+  });
+});

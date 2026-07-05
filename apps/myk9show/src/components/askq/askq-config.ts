@@ -12,6 +12,7 @@ export const EXAMPLE_QUERIES: ExampleQuery[] = [
   { text: 'How many dogs qualified in Buried?', category: 'show-data' },
   { text: 'How do I add a mail-in entry?', category: 'app-help' },
   { text: 'Where do I find my armband number?', category: 'app-help' },
+  { text: 'I need help with a payment or refund', category: 'app-help' },
 ];
 
 export const CATEGORY_LABELS: Record<ExampleQuery['category'], string> = {

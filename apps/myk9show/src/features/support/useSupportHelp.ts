@@ -66,6 +66,22 @@ export function useSupportHelp(user: User | null, userWithRoles: UserWithRoles |
       if (!trimmed) return;
 
       abortRef.current?.abort();
+
+      if (!user) {
+        setState({
+          ...INITIAL_STATE,
+          status: 'escalating',
+          question: trimmed,
+          route: {
+            kind: 'escalate',
+            reason: 'low_confidence',
+            message: 'Sign in to create a support ticket.',
+            question: trimmed,
+          },
+        });
+        return;
+      }
+
       const controller = new AbortController();
       abortRef.current = controller;
 
@@ -138,7 +154,7 @@ export function useSupportHelp(user: User | null, userWithRoles: UserWithRoles |
         }
       }
     },
-    [routeContext.showId]
+    [routeContext.showId, user]
   );
 
   const startEscalation = useCallback(() => {
@@ -159,10 +175,12 @@ export function useSupportHelp(user: User | null, userWithRoles: UserWithRoles |
 
   const createTicket = useCallback(
     async (body: string) => {
-      if (!user) throw new Error('Sign in before sending a support request.');
-
       setState(prev => ({ ...prev, status: 'submitting', error: null }));
       try {
+        if (!user) {
+          throw new Error('Sign in before sending a support request.');
+        }
+
         const input: CreateSupportTicketInput = {
           ownerId: user.id,
           body,

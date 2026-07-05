@@ -19,7 +19,6 @@ import type { RoleScope } from '@/types/auth-types';
 import { useClubStore } from '@/store/clubStore';
 import { useShowStore } from '@/store/showStore';
 import { AskQPanel } from '@/components/askq/AskQPanel';
-import { SupportHelpLauncher } from '@/features/support/SupportHelpLauncher';
 import { useRegisterAppShellMobileNav } from './useAppShellMobileNav';
 import { buildUnifiedSidebarConfig } from './sidebar/unifiedSidebarConfig';
 import type { ClubContext, NextShowContext } from './sidebar/unifiedSidebarConfig';
@@ -98,7 +97,6 @@ export const UnifiedAppLayout: React.FC = () => {
       </SidebarLayout>
       {/* AskQ AI Assistant Panel */}
       <AskQPanel />
-      <SupportHelpLauncher />
     </>
   );
 };

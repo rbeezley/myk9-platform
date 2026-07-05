@@ -18,17 +18,18 @@ describe('AskQExampleQueries', () => {
     expect(screen.getByText('How do I add a mail-in entry?')).toBeInTheDocument();
   });
 
-  it('calls onSelectQuery when a chip is clicked', async () => {
+  it('calls onSelectQuery with the query category when a chip is clicked', async () => {
     const onSelect = vi.fn();
     const { user } = render(<AskQExampleQueries onSelectQuery={onSelect} />);
 
     await user.click(screen.getByText('How did my dog do today?'));
-    expect(onSelect).toHaveBeenCalledWith('How did my dog do today?');
+    expect(onSelect).toHaveBeenCalledWith('How did my dog do today?', 'show-data');
   });
 
-  it('shows App Help examples from the bundled guide corpus', () => {
+  it('renders App Help as an active support category', () => {
     render(<AskQExampleQueries onSelectQuery={vi.fn()} />);
     expect(screen.queryByText('Coming soon...')).not.toBeInTheDocument();
     expect(screen.getByText('Where do I find my armband number?')).toBeInTheDocument();
+    expect(screen.getByText('I need help with a payment or refund')).toBeInTheDocument();
   });
 });

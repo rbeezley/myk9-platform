@@ -1,7 +1,7 @@
 import { EXAMPLE_QUERIES, CATEGORY_LABELS, type ExampleQuery } from './askq-config';
 
 interface AskQExampleQueriesProps {
-  onSelectQuery: (query: string) => void;
+  onSelectQuery: (query: string, category: ExampleQuery['category']) => void;
 }
 
 const CATEGORIES: ExampleQuery['category'][] = ['rules', 'show-data', 'app-help'];
@@ -26,7 +26,7 @@ export function AskQExampleQueries({ onSelectQuery }: AskQExampleQueriesProps) {
                 queries.map(query => (
                   <button
                     key={query.text}
-                    onClick={() => onSelectQuery(query.text)}
+                    onClick={() => onSelectQuery(query.text, query.category)}
                     className="px-3 py-1.5 rounded-full text-xs bg-muted hover:bg-muted/80 text-muted-foreground transition-colors cursor-pointer text-left"
                   >
                     {query.text}

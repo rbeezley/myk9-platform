@@ -210,7 +210,6 @@ export function useMyEntriesData({
       totalFee: (entry.entry_fee as number) || 0,
       entryStatus,
       paymentStatus: mapPaymentStatus(effectivePaymentStatus),
-      paymentMethod: (entry.payment_method as MyEntry['paymentMethod']) ?? undefined,
       confirmationNumber,
       entryCloseDate: show?.entry_close_date ? new Date(show.entry_close_date) : undefined,
       submittedAt: new Date((entry.submitted_at as string) || (entry.created_at as string)),

@@ -22,7 +22,6 @@ import {
   User,
   CreditCard,
   MessageSquare,
-  Wallet,
 } from 'lucide-react';
 import { formatDistanceToNow, format, isToday, isTomorrow, differenceInDays } from 'date-fns';
 import { ResultBadge } from '@/components/common/ResultBadge';
@@ -34,7 +33,6 @@ import {
 } from '@/features/result-card';
 import { buildVenueMapsUrls, formatVenueAddress } from '@/utils/venueMaps';
 import { buildFinishPaymentHref } from '@/features/payments/finishPaymentHref';
-import { getEntryPaymentPrompt } from '@/features/payments/entryPaymentPrompt';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
 import type { MyEntry, EntryClass } from './my-entries-types';
 import {
@@ -138,16 +136,8 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
   // it isn't editable while awaiting secretary approval. Waitlisted entries stay
   // out — they pay on promotion, not before.
   const canPayStatus = hasEditableStatus || entry.entryStatus === EntryStatus.MOVE_UP_REQUESTED;
-  // "Finish Payment" is an ONLINE action — cash/check exhibitors chose to pay at
-  // the show and must see a calm status, not a debt CTA (4.C). No payment prompt
-  // at all unless the entry status is one that can still owe its fee.
-  const paymentPrompt = canPayStatus
-    ? getEntryPaymentPrompt({
-        paymentMethod: entry.paymentMethod,
-        paymentStatus: entry.paymentStatus,
-        totalFee: entry.totalFee,
-      })
-    : ({ kind: 'none' } as const);
+  const canFinishPayment =
+    canPayStatus && entry.paymentStatus === PaymentStatus.PENDING && entry.totalFee > 0;
 
   // Build a "Get directions" link from the full venue address (venue, city,
   // state) while the card still displays the shorter "city, state" label.
@@ -191,10 +181,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
         </div>
         <div className="myk9-entries-badges">
           {getEntryStatusBadge(entry.entryStatus, { isPastShow })}
-          {/* Cash/check "pay at show" entries carry their own calm status line
-              below — the red "Payment Due" debt chip would contradict it (4.C). */}
-          {paymentPrompt.kind !== 'pay-at-show' &&
-            getPaymentStatusBadge(entry.paymentStatus, { isPastShow })}
+          {getPaymentStatusBadge(entry.paymentStatus, { isPastShow })}
         </div>
       </div>
 
@@ -400,20 +387,13 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
             </Link>
           </Button>
 
-          {paymentPrompt.kind === 'finish-online' && (
+          {canFinishPayment && (
             <Button asChild className="min-h-[44px] transition-all duration-200">
               <Link to={buildEntryPaymentHref(entry)}>
                 <CreditCard className="h-5 w-5 mr-1.5" />
                 Finish Payment
               </Link>
             </Button>
-          )}
-
-          {paymentPrompt.kind === 'pay-at-show' && (
-            <p className="flex min-h-[44px] items-center gap-1.5 text-sm text-muted-foreground">
-              <Wallet className="h-4 w-4 flex-shrink-0" />
-              {paymentPrompt.text}
-            </p>
           )}
 
           {canEdit && (

@@ -15,21 +15,20 @@ describe('AskQExampleQueries', () => {
     render(<AskQExampleQueries onSelectQuery={vi.fn()} />);
     expect(screen.getByText('What are the time limits for Excellent?')).toBeInTheDocument();
     expect(screen.getByText('How did my dog do today?')).toBeInTheDocument();
+    expect(screen.getByText('How do I enter a show?')).toBeInTheDocument();
   });
 
-  it('calls onSelectQuery when a chip is clicked', async () => {
+  it('calls onSelectQuery with the query category when a chip is clicked', async () => {
     const onSelect = vi.fn();
     const { user } = render(<AskQExampleQueries onSelectQuery={onSelect} />);
 
     await user.click(screen.getByText('How did my dog do today?'));
-    expect(onSelect).toHaveBeenCalledWith('How did my dog do today?');
+    expect(onSelect).toHaveBeenCalledWith('How did my dog do today?', 'show-data');
   });
 
-  it('keeps App Help empty state general-purpose', () => {
+  it('renders App Help as an active support category', () => {
     render(<AskQExampleQueries onSelectQuery={vi.fn()} />);
-    expect(screen.getByText('Coming soon...')).toBeInTheDocument();
-    expect(
-      screen.queryByText('What should I check before submitting final results after the show?')
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText('Coming soon...')).not.toBeInTheDocument();
+    expect(screen.getByText('I need help with a payment or refund')).toBeInTheDocument();
   });
 });

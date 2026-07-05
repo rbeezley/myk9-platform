@@ -13,7 +13,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Loader2, AlertCircle, User, ChevronRight, Star, ArrowLeft } from 'lucide-react';
+import { AlertCircle, User, ChevronRight, Star, ArrowLeft } from 'lucide-react';
 import {
   groupSectionedClasses,
   getClassIds,
@@ -24,6 +24,7 @@ import {
 import { formatTrialDate } from '@myk9/core';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { cn } from '@/lib/utils';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
@@ -40,6 +41,43 @@ const LIVE_CLASS_STATUSES = new Set<ClassEntry['class_status']>([
   'in_progress',
   'offline-scoring',
 ]);
+
+function AtShowClassListSkeleton() {
+  return (
+    <div
+      role="status"
+      aria-label="Loading at-show classes"
+      className="ringside-root mx-auto max-w-2xl px-4 py-4"
+    >
+      <Skeleton className="mb-4 h-11 w-40" />
+      <Skeleton className="mx-auto mb-5 h-6 w-56" />
+      {Array.from({ length: 2 }).map((_, trialIndex) => (
+        <div key={trialIndex} className="mb-6">
+          <div className="mb-2 flex min-h-11 items-center gap-2 px-1">
+            <Skeleton className="h-4 w-4 shrink-0" />
+            <Skeleton className="h-4 flex-1" />
+            <Skeleton className="h-5 w-8 rounded-full" />
+          </div>
+          <div className="space-y-2">
+            {Array.from({ length: trialIndex === 0 ? 3 : 2 }).map((__, classIndex) => (
+              <div
+                key={classIndex}
+                className="flex min-h-12 items-center gap-3 rounded-xl border bg-card px-4 py-3 shadow-sm"
+              >
+                <Skeleton className="h-6 w-6 rounded-full" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+                <Skeleton className="h-6 w-20 rounded-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function classScanPriority(entry: ClassEntry): number {
   if (entry.is_favorite) return 0;
@@ -80,11 +118,7 @@ function BackToRingsideExitButton({
   const target = canUseShowDesk && showId ? `/shows/${showId}/show-desk` : '/at-show';
 
   return (
-    <Button
-      variant="ghost"
-      className="min-h-11 gap-2 px-3"
-      onClick={() => navigate(target)}
-    >
+    <Button variant="ghost" className="min-h-11 gap-2 px-3" onClick={() => navigate(target)}>
       <ArrowLeft className="h-4 w-4" aria-hidden />
       {label}
     </Button>
@@ -158,12 +192,7 @@ export const AtShowClassListPage: React.FC = () => {
     areReplicationTablesPendingFirstSync(syncStatus, ['shows', 'trials', 'classes', 'entries']);
 
   if (isLoading || isClassDataStillSyncing) {
-    return (
-      <div className="ringside-root flex flex-col items-center justify-center h-96 gap-3 px-4 text-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">Loading your classes...</p>
-      </div>
-    );
+    return <AtShowClassListSkeleton />;
   }
 
   if (error) {

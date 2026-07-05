@@ -172,7 +172,8 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       tablesStatus: { classes: 'syncing', entries: 'idle', dogs: 'idle', trials: 'idle' },
     });
 
-    expect(await screen.findByText('Loading the scoresheet...')).toBeInTheDocument();
+    expect(await screen.findByRole('status', { name: 'Loading scoresheet' })).toBeInTheDocument();
+    expect(document.querySelector('.animate-spin')).toBeNull();
     expect(screen.queryByText('Class not found')).not.toBeInTheDocument();
   });
 
@@ -236,7 +237,8 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'switch scoresheet' }));
 
-    expect(await screen.findByText('Loading the scoresheet...')).toBeInTheDocument();
+    expect(await screen.findByRole('status', { name: 'Loading scoresheet' })).toBeInTheDocument();
+    expect(document.querySelector('.animate-spin')).toBeNull();
     expect(screen.queryByText('Live scoresheet for #105')).not.toBeInTheDocument();
   });
 

@@ -20,7 +20,7 @@
 import React, { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TabBar, type Tab } from '@myk9/ui';
-import { Clock, CheckCircle, ArrowUpDown, Trophy, RefreshCw } from 'lucide-react';
+import { Clock, CheckCircle, ArrowUpDown, Trophy } from 'lucide-react';
 import type { Entry } from '../../stores/entryStore';
 import type { CombinedEntryListPageProps, FilterPanelSortOption } from './pageProps';
 import type { SortOrder } from './types';
@@ -28,6 +28,46 @@ import type { PrintSortOrder } from './dialogSlots';
 import { EntryListHeader, EntryListContent } from './components';
 import { CombinedEntryListDialogs } from './CombinedEntryListDialogs';
 import { useAutoDismiss } from './hooks/useAutoDismiss';
+
+function CombinedEntryListSkeleton() {
+  return (
+    <div role="status" aria-label="Loading combined entries" className="space-y-4 p-3">
+      <div className="rounded-xl border bg-card p-3 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div className="space-y-2">
+            <div className="h-5 w-44 animate-pulse rounded-md bg-muted" />
+            <div className="h-4 w-28 animate-pulse rounded-md bg-muted" />
+          </div>
+          <div className="h-10 w-10 animate-pulse rounded-full bg-muted" />
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div key={index} className="h-10 animate-pulse rounded-lg bg-muted" />
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {Array.from({ length: 2 }).map((_, index) => (
+          <div key={index} className="h-10 animate-pulse rounded-lg bg-muted" />
+        ))}
+      </div>
+      <div className="space-y-2">
+        {Array.from({ length: 5 }).map((_, index) => (
+          <div key={index} className="rounded-xl border bg-card p-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-12 animate-pulse rounded-lg bg-muted" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="h-4 w-3/4 animate-pulse rounded-md bg-muted" />
+                <div className="h-3 w-1/2 animate-pulse rounded-md bg-muted" />
+              </div>
+              <div className="h-7 w-16 animate-pulse rounded-full bg-muted" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
   classIds,
@@ -219,16 +259,7 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
 
   // Loading state
   if (!entries.length && !fetchError) {
-    return (
-      <div className="p-3">
-        <div className="flex items-center justify-center" style={{ minHeight: '50vh' }}>
-          <div className="text-center">
-            <RefreshCw className="h-8 w-8 text-muted-foreground animate-spin mx-auto mb-2" />
-            <p className="text-muted-foreground">Loading combined entries...</p>
-          </div>
-        </div>
-      </div>
-    );
+    return <CombinedEntryListSkeleton />;
   }
 
   // Error state

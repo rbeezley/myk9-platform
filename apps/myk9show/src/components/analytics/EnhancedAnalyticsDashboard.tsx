@@ -32,6 +32,7 @@ import { PerformanceGraphs } from './PerformanceGraphs';
 import { UserActivityMonitor } from './UserActivityMonitor';
 import { SyncAnalyticsService } from '@/services/analytics/SyncAnalyticsService';
 import { SyncMetrics, SyncAlert, HealthCheckResult } from '@/types/analytics-types';
+import { DashboardSkeleton } from '@/components/common/SkeletonLoaders';
 
 interface EnhancedAnalyticsDashboardProps {
   className?: string;
@@ -191,13 +192,13 @@ export function EnhancedAnalyticsDashboard({ className }: EnhancedAnalyticsDashb
 
   if (loading) {
     return (
-      <div className={cn('space-y-6', className)}>
-        <div className="flex items-center justify-center h-64">
-          <div
-            className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"
-            data-testid="loading-spinner"
-          ></div>
-        </div>
+      <div
+        role="status"
+        aria-label="Loading analytics dashboard"
+        data-testid="loading-skeleton"
+        className={cn('space-y-6', className)}
+      >
+        <DashboardSkeleton />
       </div>
     );
   }

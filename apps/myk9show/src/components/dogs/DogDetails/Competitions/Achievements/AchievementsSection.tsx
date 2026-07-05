@@ -15,6 +15,7 @@ import {
   useDeleteAchievement,
 } from '@/hooks/queries/useAchievementsDatabase';
 import { Eye, Pencil, Trash2, Trophy } from 'lucide-react';
+import { Skeleton } from '@/components/common/SkeletonLoaders';
 
 interface AchievementsSectionProps {
   dogId: string;
@@ -75,8 +76,12 @@ const AchievementsSection: React.FC<AchievementsSectionProps> = ({
 
   if (isLoading) {
     return (
-      <div className="bg-card rounded-xl p-6 flex items-center justify-center py-12 text-muted-foreground">
-        Loading achievements...
+      <div role="status" aria-label="Loading achievements" className="bg-card rounded-xl p-6">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-36 rounded-lg" />
+          ))}
+        </div>
       </div>
     );
   }

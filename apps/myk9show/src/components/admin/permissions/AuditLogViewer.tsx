@@ -39,6 +39,7 @@ import { auditService } from '@/services/AuditService';
 import { rbacService } from '@/services/rbac/RBACService';
 import { AuditSearchFilters, AuditEntry, AuditAction } from '@/types/audit-types';
 import { AuditLogEntry } from '@/types/rbac-types';
+import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 
 interface AuditLogViewerProps {
   entityType?: string;
@@ -421,9 +422,8 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
         <CardContent>
           <div className="space-y-3" style={{ maxHeight, overflowY: 'auto' }}>
             {isLoading ? (
-              <div className="flex items-center justify-center h-32">
-                <RefreshCw className="h-6 w-6 animate-spin mr-2" />
-                <span>Loading audit entries...</span>
+              <div role="status" aria-label="Loading audit entries">
+                <TableSkeleton rows={5} columns={4} />
               </div>
             ) : filteredEntries.length === 0 ? (
               <div className="text-center py-8">

@@ -6,6 +6,7 @@ import SportTitleGroup from './SportTitleGroup';
 import LogManualResultPanel from '@/components/panels/edit/LogManualResultPanel';
 import type { SportTemplateRow } from '@/types/sport-template-types';
 import type { TitleProgressResult } from '@/services/titleEngine';
+import { Skeleton } from '@/components/common/SkeletonLoaders';
 
 interface TitleProgressSectionProps {
   dogId: string;
@@ -36,8 +37,10 @@ const TitleProgressSection: React.FC<TitleProgressSectionProps> = ({ dogId, owne
       <div className="mb-6">
         <div className="bg-background rounded-xl border p-6">
           {header}
-          <div className="flex items-center justify-center py-12 text-muted-foreground">
-            Loading title progress...
+          <div role="status" aria-label="Loading title progress" className="space-y-3 py-2">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <Skeleton key={index} className="h-24 rounded-lg" />
+            ))}
           </div>
         </div>
       </div>

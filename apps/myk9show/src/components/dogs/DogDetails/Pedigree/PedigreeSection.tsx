@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import {
   usePedigreeQuery,
@@ -17,6 +17,7 @@ import PedigreeAncestorAddDialog from './PedigreeAncestorAddDialog';
 import PedigreeAncestorEditDialog from './PedigreeAncestorEditDialog';
 import PedigreeAncestorDetailsDialog from './PedigreeAncestorDetailsDialog';
 import DeleteAncestorDialog from './DeleteAncestorDialog';
+import { Skeleton } from '@/components/common/SkeletonLoaders';
 
 interface PedigreeSectionProps {
   dogId: string;
@@ -105,8 +106,17 @@ export default function PedigreeSection({ dogId }: PedigreeSectionProps) {
 
   if (isLoading) {
     return (
-      <div className="bg-background rounded-xl shadow-sm p-6 border flex items-center justify-center min-h-[200px]">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div
+        role="status"
+        aria-label="Loading pedigree"
+        className="bg-background rounded-xl shadow-sm p-6 border space-y-4"
+      >
+        <Skeleton className="h-6 w-32" />
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-20 rounded-lg" />
+          ))}
+        </div>
       </div>
     );
   }

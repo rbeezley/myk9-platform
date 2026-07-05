@@ -18,39 +18,53 @@ vi.mock('@/services/analytics/SyncAnalyticsService', () => ({
     getInstance: vi.fn(() => ({
       initialize: vi.fn().mockResolvedValue(undefined),
       getMetrics: vi.fn().mockResolvedValue(undefined),
-      exportData: vi.fn().mockResolvedValue(new Blob(['test data'], { type: 'application/json' }))
-    }))
-  }
+      exportData: vi.fn().mockResolvedValue(new Blob(['test data'], { type: 'application/json' })),
+    })),
+  },
 }));
 
 // Mock recharts components to avoid canvas issues in tests
 vi.mock('recharts', () => ({
-  LineChart: ({ children }: React.ComponentProps<'div'>) => <div data-testid="line-chart">{children}</div>,
+  LineChart: ({ children }: React.ComponentProps<'div'>) => (
+    <div data-testid="line-chart">{children}</div>
+  ),
   Line: () => <div data-testid="line" />,
-  AreaChart: ({ children }: React.ComponentProps<'div'>) => <div data-testid="area-chart">{children}</div>,
+  AreaChart: ({ children }: React.ComponentProps<'div'>) => (
+    <div data-testid="area-chart">{children}</div>
+  ),
   Area: () => <div data-testid="area" />,
-  BarChart: ({ children }: React.ComponentProps<'div'>) => <div data-testid="bar-chart">{children}</div>,
+  BarChart: ({ children }: React.ComponentProps<'div'>) => (
+    <div data-testid="bar-chart">{children}</div>
+  ),
   Bar: () => <div data-testid="bar" />,
-  ScatterChart: ({ children }: React.ComponentProps<'div'>) => <div data-testid="scatter-chart">{children}</div>,
+  ScatterChart: ({ children }: React.ComponentProps<'div'>) => (
+    <div data-testid="scatter-chart">{children}</div>
+  ),
   Scatter: () => <div data-testid="scatter" />,
-  ComposedChart: ({ children }: React.ComponentProps<'div'>) => <div data-testid="composed-chart">{children}</div>,
-  PieChart: ({ children }: React.ComponentProps<'div'>) => <div data-testid="pie-chart">{children}</div>,
+  ComposedChart: ({ children }: React.ComponentProps<'div'>) => (
+    <div data-testid="composed-chart">{children}</div>
+  ),
+  PieChart: ({ children }: React.ComponentProps<'div'>) => (
+    <div data-testid="pie-chart">{children}</div>
+  ),
   Pie: () => <div data-testid="pie" />,
   XAxis: () => <div data-testid="x-axis" />,
   YAxis: () => <div data-testid="y-axis" />,
   CartesianGrid: () => <div data-testid="cartesian-grid" />,
   Tooltip: () => <div data-testid="tooltip" />,
   Legend: () => <div data-testid="legend" />,
-  ResponsiveContainer: ({ children }: React.ComponentProps<'div'>) => <div data-testid="responsive-container">{children}</div>,
+  ResponsiveContainer: ({ children }: React.ComponentProps<'div'>) => (
+    <div data-testid="responsive-container">{children}</div>
+  ),
   ReferenceLine: () => <div data-testid="reference-line" />,
-  Cell: () => <div data-testid="cell" />
+  Cell: () => <div data-testid="cell" />,
 }));
 
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }: React.ComponentProps<'div'>) => <div {...props}>{children}</div>
-  }
+    div: ({ children, ...props }: React.ComponentProps<'div'>) => <div {...props}>{children}</div>,
+  },
 }));
 
 // Mock LoggingService
@@ -65,11 +79,29 @@ vi.mock('@/services/LoggingService', () => ({
 
 // Mock Select with simple HTML elements (avoids floating-ui/ResizeObserver issues)
 vi.mock('@/components/ui/select', () => ({
-  Select: ({ children, value, onValueChange }: { children: React.ReactNode; value?: string; onValueChange?: (v: string) => void }) => {
-    return <div data-testid="select-root" data-value={value} data-onvaluechange={onValueChange ? 'true' : 'false'}>{children}</div>;
+  Select: ({
+    children,
+    value,
+    onValueChange,
+  }: {
+    children: React.ReactNode;
+    value?: string;
+    onValueChange?: (v: string) => void;
+  }) => {
+    return (
+      <div
+        data-testid="select-root"
+        data-value={value}
+        data-onvaluechange={onValueChange ? 'true' : 'false'}
+      >
+        {children}
+      </div>
+    );
   },
   SelectTrigger: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <button role="combobox" className={className}>{children}</button>
+    <button role="combobox" className={className}>
+      {children}
+    </button>
   ),
   SelectValue: () => null,
   SelectContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -80,12 +112,20 @@ vi.mock('@/components/ui/select', () => ({
 
 // Mock Switch with native checkbox for testability
 vi.mock('@/components/ui/switch', () => ({
-  Switch: ({ checked, onCheckedChange, ...props }: { checked?: boolean; onCheckedChange?: (checked: boolean) => void; [key: string]: unknown }) => (
+  Switch: ({
+    checked,
+    onCheckedChange,
+    ...props
+  }: {
+    checked?: boolean;
+    onCheckedChange?: (checked: boolean) => void;
+    [key: string]: unknown;
+  }) => (
     <input
       type="checkbox"
       role="switch"
       checked={checked}
-      onChange={(e) => onCheckedChange?.(e.target.checked)}
+      onChange={e => onCheckedChange?.(e.target.checked)}
       {...props}
     />
   ),
@@ -93,9 +133,20 @@ vi.mock('@/components/ui/switch', () => ({
 
 // Mock Tabs with simple HTML elements for testability
 vi.mock('@/components/ui/tabs', () => {
-  const TabsContext = React.createContext<{ value: string; onChange: (v: string) => void }>({ value: '', onChange: () => {} });
+  const TabsContext = React.createContext<{ value: string; onChange: (v: string) => void }>({
+    value: '',
+    onChange: () => {},
+  });
 
-  function Tabs({ defaultValue, children, className }: { defaultValue?: string; children: React.ReactNode; className?: string }) {
+  function Tabs({
+    defaultValue,
+    children,
+    className,
+  }: {
+    defaultValue?: string;
+    children: React.ReactNode;
+    className?: string;
+  }) {
     const [value, setValue] = React.useState(defaultValue || '');
     return (
       <TabsContext.Provider value={{ value, onChange: setValue }}>
@@ -105,7 +156,11 @@ vi.mock('@/components/ui/tabs', () => {
   }
 
   function TabsList({ children, className }: { children: React.ReactNode; className?: string }) {
-    return <div role="tablist" className={className}>{children}</div>;
+    return (
+      <div role="tablist" className={className}>
+        {children}
+      </div>
+    );
   }
 
   function TabsTrigger({ value, children }: { value: string; children: React.ReactNode }) {
@@ -122,10 +177,22 @@ vi.mock('@/components/ui/tabs', () => {
     );
   }
 
-  function TabsContent({ value, children, className }: { value: string; children: React.ReactNode; className?: string }) {
+  function TabsContent({
+    value,
+    children,
+    className,
+  }: {
+    value: string;
+    children: React.ReactNode;
+    className?: string;
+  }) {
     const ctx = React.useContext(TabsContext);
     if (ctx.value !== value) return null;
-    return <div role="tabpanel" className={className}>{children}</div>;
+    return (
+      <div role="tabpanel" className={className}>
+        {children}
+      </div>
+    );
   }
 
   return { Tabs, TabsList, TabsTrigger, TabsContent };
@@ -180,7 +247,7 @@ const mockMetrics: SyncMetrics = {
       status: 'completed',
       collectionName: 'dogs',
       recordCount: 10,
-      bytesTransferred: 1024
+      bytesTransferred: 1024,
     },
     {
       id: 'event-2',
@@ -190,29 +257,29 @@ const mockMetrics: SyncMetrics = {
       status: 'completed',
       collectionName: 'shows',
       recordCount: 5,
-      bytesTransferred: 512
-    }
+      bytesTransferred: 512,
+    },
   ],
   syncTimeTrend: [
     { timestamp: new Date('2024-01-01T10:00:00Z'), value: 2.1 },
     { timestamp: new Date('2024-01-01T11:00:00Z'), value: 2.3 },
-    { timestamp: new Date('2024-01-01T12:00:00Z'), value: 2.0 }
+    { timestamp: new Date('2024-01-01T12:00:00Z'), value: 2.0 },
   ],
   successRateTrend: [
     { timestamp: new Date('2024-01-01T10:00:00Z'), value: 96.0 },
     { timestamp: new Date('2024-01-01T11:00:00Z'), value: 95.5 },
-    { timestamp: new Date('2024-01-01T12:00:00Z'), value: 97.0 }
+    { timestamp: new Date('2024-01-01T12:00:00Z'), value: 97.0 },
   ],
   conflictRateTrend: [
     { timestamp: new Date('2024-01-01T10:00:00Z'), value: 3.0 },
     { timestamp: new Date('2024-01-01T11:00:00Z'), value: 3.5 },
-    { timestamp: new Date('2024-01-01T12:00:00Z'), value: 2.8 }
+    { timestamp: new Date('2024-01-01T12:00:00Z'), value: 2.8 },
   ],
   bandwidthTrend: [
     { timestamp: new Date('2024-01-01T10:00:00Z'), value: 1.5 },
     { timestamp: new Date('2024-01-01T11:00:00Z'), value: 2.1 },
-    { timestamp: new Date('2024-01-01T12:00:00Z'), value: 1.8 }
-  ]
+    { timestamp: new Date('2024-01-01T12:00:00Z'), value: 1.8 },
+  ],
 };
 
 describe('PerformanceGraphs Component', () => {
@@ -229,10 +296,12 @@ describe('PerformanceGraphs Component', () => {
     mockAnalyticsService = {
       initialize: vi.fn().mockResolvedValue(undefined),
       getMetrics: vi.fn().mockResolvedValue(mockMetrics),
-      exportData: vi.fn().mockResolvedValue(new Blob(['test data'], { type: 'application/json' }))
+      exportData: vi.fn().mockResolvedValue(new Blob(['test data'], { type: 'application/json' })),
     };
 
-    (SyncAnalyticsService.getInstance as ReturnType<typeof vi.fn>).mockReturnValue(mockAnalyticsService);
+    (SyncAnalyticsService.getInstance as ReturnType<typeof vi.fn>).mockReturnValue(
+      mockAnalyticsService
+    );
 
     // Mock URL.createObjectURL/revokeObjectURL (preserve the rest of URL)
     global.URL.createObjectURL = vi.fn(() => 'mock-url');
@@ -241,14 +310,16 @@ describe('PerformanceGraphs Component', () => {
     // Mock document.createElement to intercept 'a' elements for download testing
     // while allowing all other elements to be created normally (needed by React)
     const realCreateElement = document.createElement.bind(document);
-    createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tagName: string, options?: ElementCreationOptions) => {
-      if (tagName === 'a') {
-        mockAnchorElement = realCreateElement('a');
-        mockAnchorElement.click = vi.fn();
-        return mockAnchorElement;
-      }
-      return realCreateElement(tagName, options);
-    });
+    createElementSpy = vi
+      .spyOn(document, 'createElement')
+      .mockImplementation((tagName: string, options?: ElementCreationOptions) => {
+        if (tagName === 'a') {
+          mockAnchorElement = realCreateElement('a');
+          mockAnchorElement.click = vi.fn();
+          return mockAnchorElement;
+        }
+        return realCreateElement(tagName, options);
+      });
   });
 
   afterEach(() => {
@@ -260,7 +331,10 @@ describe('PerformanceGraphs Component', () => {
     test('renders loading state initially', () => {
       render(<PerformanceGraphs />);
 
-      expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
+      expect(screen.getByTestId('loading-skeleton')).toBeInTheDocument();
+      expect(
+        screen.getByRole('status', { name: 'Loading performance graphs' })
+      ).toBeInTheDocument();
     });
 
     test('initializes analytics service and loads metrics', async () => {
@@ -509,8 +583,8 @@ describe('PerformanceGraphs Component', () => {
         syncTimeTrend: [
           { timestamp: new Date('2024-01-01T10:00:00Z'), value: 3.0 },
           { timestamp: new Date('2024-01-01T11:00:00Z'), value: 2.5 },
-          { timestamp: new Date('2024-01-01T12:00:00Z'), value: 2.0 }
-        ]
+          { timestamp: new Date('2024-01-01T12:00:00Z'), value: 2.0 },
+        ],
       };
 
       mockAnalyticsService.getMetrics.mockResolvedValue(improvingMetrics);

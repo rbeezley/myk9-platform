@@ -38,6 +38,7 @@ import {
   DogCartSummary,
   OverallCartSummary,
 } from './ClassSelectionStep.components';
+import { Skeleton } from '@/components/common/SkeletonLoaders';
 import '@/styles/myk9-registration-workflow.css';
 
 export type { ClassSelectionStepProps } from './ClassSelectionStep.types';
@@ -348,9 +349,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList
-          className="flex gap-0 border-0 border-b border-border bg-transparent h-auto p-0 overflow-x-auto"
-        >
+        <TabsList className="flex gap-0 border-0 border-b border-border bg-transparent h-auto p-0 overflow-x-auto">
           {selectedDogs.map(dogId => (
             <DogTabTrigger
               key={dogId}
@@ -371,8 +370,10 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
               <Card>
                 <CardContent className="pt-4">
                   {showTrials.length === 0 && isTrialsSyncing ? (
-                    <div className="text-sm text-muted-foreground py-4 text-center">
-                      Loading trials…
+                    <div role="status" aria-label="Loading trials" className="space-y-3 py-2">
+                      {Array.from({ length: 3 }).map((_, index) => (
+                        <Skeleton key={index} className="h-24 rounded-lg" />
+                      ))}
                     </div>
                   ) : showTrials.length === 0 ? (
                     <NoTrialsAlert isOrganizer={isSecretary || isAdmin} />

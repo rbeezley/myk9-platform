@@ -13,6 +13,7 @@ import {
   deriveClassLifecycleValue,
   type ClassLifecycleValue,
 } from '@/lib/status/classLifecycle';
+import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 import { useJudgesWithQualifications } from '@/hooks/queries/useJudgesWithQualifications';
 import { upsertClassJudgeAssignment } from '@/services/database/judges';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -464,7 +465,9 @@ export const ClassManagementPage: React.FC = () => {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-center py-12 text-muted-foreground">Loading classes…</div>
+            <div role="status" aria-label="Loading classes">
+              <TableSkeleton rows={6} columns={5} />
+            </div>
           ) : filteredClasses.length > 0 ? (
             <div className="space-y-2">
               {filteredClasses.map(cls => {

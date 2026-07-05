@@ -40,6 +40,7 @@ import {
   AlertThreshold,
 } from '../../types/alert-types';
 import { cn } from '../../lib/utils';
+import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 
 interface AlertRuleManagerProps {
   className?: string;
@@ -269,11 +270,8 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading alert rules...</p>
-        </div>
+      <div role="status" aria-label="Loading alert rules">
+        <TableSkeleton rows={5} columns={4} />
       </div>
     );
   }

@@ -1,9 +1,10 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { ReactNode, useEffect, useState } from 'react';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { useStoreProvider } from '@/providers/StoreProvider';
 import { StoreName } from '@/store/store-categories';
 import { logger } from '@/services/LoggingService';
+import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 
 interface StoreLoadingBoundaryProps {
   children: ReactNode;
@@ -68,7 +69,7 @@ export const StoreLoadingBoundary: React.FC<StoreLoadingBoundaryProps> = ({
         retryLoadingStores
       );
     }
-    
+
     return <StoreErrorFallback errors={storeErrors} onRetry={retryLoadingStores} />;
   }
 
@@ -86,11 +87,8 @@ export const StoreLoadingBoundary: React.FC<StoreLoadingBoundaryProps> = ({
  */
 const StoreLoadingSkeleton: React.FC = () => {
   return (
-    <div className="flex items-center justify-center p-8">
-      <div className="flex items-center gap-3">
-        <RefreshCw className="h-5 w-5 animate-spin text-primary" />
-        <div className="text-sm text-muted-foreground">Loading stores...</div>
-      </div>
+    <div role="status" aria-label="Loading stores" className="p-8">
+      <TableSkeleton rows={4} columns={4} />
     </div>
   );
 };
@@ -111,9 +109,7 @@ const StoreErrorFallback: React.FC<StoreErrorFallbackProps> = ({ errors, onRetry
           <AlertCircle className="h-6 w-6 text-destructive" />
         </div>
         <h3 className="text-lg font-semibold mb-2">Store Loading Error</h3>
-        <p className="text-sm text-muted-foreground mb-4">
-          Failed to load the following stores:
-        </p>
+        <p className="text-sm text-muted-foreground mb-4">Failed to load the following stores:</p>
         <ul className="text-sm text-muted-foreground mb-4 space-y-1">
           {errors.map(({ storeName, error }) => (
             <li key={storeName} className="font-mono">

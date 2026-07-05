@@ -128,7 +128,7 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     expect(screen.getByText('Jane Handler')).toBeInTheDocument();
   });
 
-  it('keeps showing loading copy instead of No Entries Yet while first sync is pending', async () => {
+  it('keeps showing the loading skeleton instead of No Entries Yet while first sync is pending', async () => {
     vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
 
     renderPage({
@@ -137,7 +137,7 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
       tablesStatus: { shows: 'success', trials: 'success', classes: 'success', entries: 'syncing' },
     });
 
-    expect(await screen.findByText('Loading entries...')).toBeInTheDocument();
+    expect(await screen.findByRole('status', { name: 'Loading entries' })).toBeInTheDocument();
     expect(screen.queryByText('No Entries Yet')).not.toBeInTheDocument();
   });
 

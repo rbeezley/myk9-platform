@@ -54,6 +54,7 @@ import { rbacService } from '@/services/rbac/RBACService';
 import { UserRole, Role } from '@/types/rbac-types';
 import { UserRoleAssignmentDialog } from '@/components/admin/permissions/UserRoleAssignmentDialog';
 import { notifications } from '@/lib/notifications';
+import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 
 const USER_ROLE_TAB_IDS = ['assignments', 'roles'] as const;
 
@@ -283,11 +284,8 @@ const UserRoleManagementPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          <span className="ml-2">Loading user roles...</span>
-        </div>
+      <div className="container mx-auto p-6" role="status" aria-label="Loading user roles">
+        <TableSkeleton rows={6} columns={6} />
       </div>
     );
   }

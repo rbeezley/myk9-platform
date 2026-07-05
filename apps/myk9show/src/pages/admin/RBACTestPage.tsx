@@ -33,6 +33,7 @@ import {
   Settings,
   TestTube,
 } from 'lucide-react';
+import { DashboardSkeleton } from '@/components/common/SkeletonLoaders';
 
 export const RBACTestPage: React.FC = () => {
   const {
@@ -187,11 +188,8 @@ export const RBACTestPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin mr-2" />
-          <span>Loading RBAC data...</span>
-        </div>
+      <div role="status" aria-label="Loading RBAC data">
+        <DashboardSkeleton />
       </div>
     );
   }

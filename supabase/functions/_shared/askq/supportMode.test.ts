@@ -66,6 +66,8 @@ describe('AskQ support mode', () => {
   it('rejects unsupported questions that overlap with real guide vocabulary', () => {
     expect(findSupportGuideEvidence('Can I delete my account?', ASKQ_GUIDES)).toEqual([]);
     expect(findSupportGuideEvidence('Do you support agility trials?', ASKQ_GUIDES)).toEqual([]);
+    expect(findSupportGuideEvidence('How do I remove a dog?', ASKQ_GUIDES)).toEqual([]);
+    expect(findSupportGuideEvidence('How do I delete my dog profile?', ASKQ_GUIDES)).toEqual([]);
   });
 
   it('finds evidence for documented support-guide workflows', () => {

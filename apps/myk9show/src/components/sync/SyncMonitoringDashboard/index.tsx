@@ -22,6 +22,7 @@ import { PerformanceTab } from './PerformanceTab';
 import { ConflictsTab } from './ConflictsTab';
 import { NetworkTab } from './NetworkTab';
 import { DashboardSettings } from './DashboardSettings';
+import { DashboardSkeleton } from '@/components/common/SkeletonLoaders';
 
 const SyncMonitoringDashboard: React.FC = () => {
   const analyticsService = useMemo(() => SyncAnalyticsService.getInstance(), []);
@@ -111,11 +112,8 @@ const SyncMonitoringDashboard: React.FC = () => {
 
   if (!metrics) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center space-y-4">
-          <RefreshCw className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
-          <p className="text-muted-foreground">Loading sync metrics...</p>
-        </div>
+      <div role="status" aria-label="Loading sync metrics">
+        <DashboardSkeleton />
       </div>
     );
   }

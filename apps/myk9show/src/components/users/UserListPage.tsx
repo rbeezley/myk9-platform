@@ -13,6 +13,7 @@ import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
+import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 
 const UserListPage: React.FC = () => {
   // State hooks
@@ -69,8 +70,8 @@ const UserListPage: React.FC = () => {
   });
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+      <div role="status" aria-label="Loading users" className="p-6">
+        <TableSkeleton rows={6} columns={5} />
       </div>
     );
   }

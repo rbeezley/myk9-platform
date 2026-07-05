@@ -32,6 +32,7 @@ import { rbacService } from '@/services/rbac/RBACService';
 import { Role, Permission, RolePermission } from '@/types/rbac-types';
 import { RolePermissionsEditor } from '@/components/admin/permissions/RolePermissionsEditor';
 import { PermissionGrid } from '@/components/admin/permissions/PermissionGrid';
+import { FormSkeleton } from '@/components/common/SkeletonLoaders';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -153,11 +154,8 @@ const RoleEditPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          <span className="ml-2">Loading role data...</span>
-        </div>
+      <div className="container mx-auto p-6" role="status" aria-label="Loading role data">
+        <FormSkeleton />
       </div>
     );
   }

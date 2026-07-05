@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { X, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { FormSkeleton } from '@/components/common/SkeletonLoaders';
 
 export interface SlideOverPanelProps {
   open: boolean;
@@ -22,7 +23,7 @@ export interface SlideOverPanelProps {
 
 const sizeClasses = {
   sm: 'max-w-md w-full',
-  md: 'max-w-lg w-full', 
+  md: 'max-w-lg w-full',
   lg: 'max-w-2xl w-full',
   xl: 'max-w-4xl w-full',
 };
@@ -209,39 +210,26 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
         tabIndex={-1}
       >
         {/* Clean Header - consistent with design system */}
-        <div className={cn(
-          'flex-shrink-0',
-          appleDesign.headerBackground,
-          appleDesign.headerBorder
-        )}>
-          <div className="flex items-center justify-between px-6 py-5"> {/* Increased padding for proper spacing */}
+        <div
+          className={cn('flex-shrink-0', appleDesign.headerBackground, appleDesign.headerBorder)}
+        >
+          <div className="flex items-center justify-between px-6 py-5">
+            {' '}
+            {/* Increased padding for proper spacing */}
             <div className="flex items-center gap-3 min-w-0 flex-1">
               {showBackButton && onBack && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onBack}
-                  className="gap-1 -ml-2"
-                >
+                <Button variant="ghost" size="sm" onClick={onBack} className="gap-1 -ml-2">
                   <ChevronLeft className="h-4 w-4" />
                   Back
                 </Button>
               )}
               <div className="min-w-0 flex-1">
-                <h2 
-                  id="panel-title"
-                  className={appleDesign.typography.title}
-                >
+                <h2 id="panel-title" className={appleDesign.typography.title}>
                   {title}
                 </h2>
-                {subtitle && (
-                  <p className={appleDesign.typography.subtitle}>
-                    {subtitle}
-                  </p>
-                )}
+                {subtitle && <p className={appleDesign.typography.subtitle}>{subtitle}</p>}
               </div>
             </div>
-            
             <div className="flex items-center gap-2 flex-shrink-0">
               {headerActions}
               {!preventClose && (
@@ -262,8 +250,8 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
         {/* Content */}
         <div className="flex-1 overflow-auto">
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+            <div role="status" aria-label={`Loading ${title}`} className="p-6">
+              <FormSkeleton />
             </div>
           ) : (
             children
@@ -272,11 +260,13 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
 
         {/* Clean Footer - consistent with design system */}
         {footer && (
-          <div className={cn(
-            'flex-shrink-0 px-6 py-4',
-            appleDesign.footerBackground,
-            appleDesign.footerBorder
-          )}>
+          <div
+            className={cn(
+              'flex-shrink-0 px-6 py-4',
+              appleDesign.footerBackground,
+              appleDesign.footerBorder
+            )}
+          >
             {footer}
           </div>
         )}

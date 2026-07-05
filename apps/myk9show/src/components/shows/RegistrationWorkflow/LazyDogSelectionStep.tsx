@@ -4,13 +4,14 @@ import { Input } from '../../ui/input';
 import { Button } from '../../ui/button';
 import { Badge } from '../../ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select';
-import { Search, Filter, X, Dog, Users, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { Search, Filter, X, Dog, Users, AlertCircle, CheckCircle } from 'lucide-react';
 import { LazyDogCard } from '../../dogs/LazyDogCard';
 import { useLazyLoading } from '../../../hooks/useLazyLoading';
 import { LazyLoadTrigger } from '../../common/LazyLoadTrigger';
 import { useDebounce } from '@myk9/scoring-ui';
 import { useDogStoreCompat } from '../../../hooks/useDogStoreCompat';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Skeleton } from '@/components/common/SkeletonLoaders';
 
 interface LazyDogSelectionStepProps {
   selectedDogs: string[];
@@ -369,11 +370,10 @@ export function LazyDogSelectionStep({
       <div className="space-y-4">
         {/* Initial Loading */}
         {isInitialLoad && (
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-              <p className="text-muted-foreground">Loading dogs...</p>
-            </div>
+          <div role="status" aria-label="Loading dogs" className="space-y-3">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton key={index} className="h-24 rounded-lg" />
+            ))}
           </div>
         )}
 

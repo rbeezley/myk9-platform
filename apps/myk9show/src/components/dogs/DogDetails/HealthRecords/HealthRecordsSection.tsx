@@ -33,6 +33,7 @@ import type {
   VaccinationRecord,
   VetVisitRecord,
 } from '@/types/health';
+import { Skeleton } from '@/components/common/SkeletonLoaders';
 
 const AddHealthItemDialog = lazy(() => import('./AddHealthItemDialog'));
 
@@ -212,12 +213,22 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
 
   if (isLoading) {
     return (
-      <div className="myk9-section-card">
-        <div className="flex items-center justify-center py-12">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading health records...</p>
+      <div
+        role="status"
+        aria-label="Loading health records"
+        className="myk9-section-card space-y-4"
+      >
+        <div className="flex items-center justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-44" />
+            <Skeleton className="h-4 w-64 max-w-full" />
           </div>
+          <Skeleton className="h-10 w-32" />
+        </div>
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-16 rounded-lg" />
+          ))}
         </div>
       </div>
     );

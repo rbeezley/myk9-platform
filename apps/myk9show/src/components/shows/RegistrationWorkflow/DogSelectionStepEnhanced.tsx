@@ -45,6 +45,7 @@ import {
   removeVisibleDogSelections,
 } from './DogSelectionStepEnhanced.helpers';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/common/SkeletonLoaders';
 
 type SortColumn = 'callName' | 'breed' | 'owner' | 'regNumber';
 
@@ -467,9 +468,16 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
 
   if (dogsLoading) {
     return (
-      <div className="text-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
-        <p className="text-sm text-muted-foreground">Loading dogs...</p>
+      <div role="status" aria-label="Loading dogs" className="space-y-4 py-2">
+        <div className="space-y-2">
+          <Skeleton className="h-6 w-56" />
+          <Skeleton className="h-4 w-80 max-w-full" />
+        </div>
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-24 rounded-lg" />
+          ))}
+        </div>
       </div>
     );
   }

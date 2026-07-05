@@ -11,19 +11,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  AlertTriangle,
-  RefreshCw,
-  Download,
-  Users,
-  Zap,
-  CheckCircle2,
-  Siren
-} from 'lucide-react';
+import { AlertTriangle, RefreshCw, Download, Users, Zap, CheckCircle2, Siren } from 'lucide-react';
 
 import { performanceMetrics } from '@/services/analytics/PerformanceMetricsService';
 import { errorAnalytics, ErrorSeverity } from '@/services/analytics/ErrorAnalyticsService';
 import { getStateActivitySummary } from '@/utils/stateLoggingMiddleware';
+import { DashboardSkeleton } from '@/components/common/SkeletonLoaders';
 
 /**
  * Dashboard overview metrics
@@ -68,7 +61,7 @@ export interface MonitoringDashboardProps {
 export const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({
   showDevFeatures = import.meta.env.DEV,
   refreshInterval = 30000,
-  autoRefresh = true
+  autoRefresh = true,
 }) => {
   const [dashboardMetrics, setDashboardMetrics] = useState<DashboardMetrics | null>(null);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
@@ -84,24 +77,26 @@ export const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({
 
       // Get performance metrics
       const perfMetrics = performanceMetrics.getAllMetrics();
-      
+
       // Get error statistics
       const errorStats = errorAnalytics.getErrorStatistics();
-      
+
       // Get state activity
       const stateActivity = getStateActivitySummary();
-      
+
       // Calculate metrics
       const metrics: DashboardMetrics = {
         uptime: Math.floor((Date.now() - (performance.timeOrigin || Date.now())) / 1000),
         totalUsers: Object.keys(stateActivity).length, // Approximation based on active stores
-        activeUsers: Object.values(stateActivity).filter(activity => 
-          Date.now() - activity.lastActivity < 5 * 60 * 1000 // Active in last 5 minutes
+        activeUsers: Object.values(stateActivity).filter(
+          activity => Date.now() - activity.lastActivity < 5 * 60 * 1000 // Active in last 5 minutes
         ).length,
         errorRate: errorStats.errorRate,
         averageLoadTime: perfMetrics.webVitals.lcp || 0,
-        memoryUsage: (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize || 0,
-        cacheHitRate: calculateCacheHitRate()
+        memoryUsage:
+          (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory
+            ?.usedJSHeapSize || 0,
+        cacheHitRate: calculateCacheHitRate(),
       };
 
       // Determine system status
@@ -110,27 +105,35 @@ export const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({
         services: [
           {
             name: 'Performance',
-            status: metrics.averageLoadTime > 4000 ? 'critical' : 
-                   metrics.averageLoadTime > 2500 ? 'warning' : 'healthy',
-            message: `Avg load time: ${Math.round(metrics.averageLoadTime)}ms`
+            status:
+              metrics.averageLoadTime > 4000
+                ? 'critical'
+                : metrics.averageLoadTime > 2500
+                  ? 'warning'
+                  : 'healthy',
+            message: `Avg load time: ${Math.round(metrics.averageLoadTime)}ms`,
           },
           {
             name: 'Error Rate',
-            status: errorStats.criticalErrors > 0 ? 'critical' :
-                   errorStats.errorRate > 5 ? 'warning' : 'healthy',
-            message: `${errorStats.totalErrors} errors, ${errorStats.criticalErrors} critical`
+            status:
+              errorStats.criticalErrors > 0
+                ? 'critical'
+                : errorStats.errorRate > 5
+                  ? 'warning'
+                  : 'healthy',
+            message: `${errorStats.totalErrors} errors, ${errorStats.criticalErrors} critical`,
           },
           {
             name: 'Memory',
             status: metrics.memoryUsage > 100 * 1024 * 1024 ? 'warning' : 'healthy',
-            message: `${formatBytes(metrics.memoryUsage)} used`
+            message: `${formatBytes(metrics.memoryUsage)} used`,
           },
           {
             name: 'Storage',
             status: 'healthy', // Would check IndexedDB status in real implementation
-            message: 'IndexedDB operational'
-          }
-        ]
+            message: 'IndexedDB operational',
+          },
+        ],
       };
 
       setDashboardMetrics(metrics);
@@ -138,9 +141,10 @@ export const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({
       setLastUpdated(new Date());
 
       logger.debug('Dashboard data loaded', 'monitoring', { metrics, status });
-
     } catch (error) {
-      logger.error('Failed to load dashboard data', 'monitoring', { error: error instanceof Error ? error.message : String(error) });
+      logger.error('Failed to load dashboard data', 'monitoring', {
+        error: error instanceof Error ? error.message : String(error),
+      });
     } finally {
       setIsLoading(false);
     }
@@ -168,7 +172,7 @@ export const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({
       status: systemStatus,
       performance: performanceMetrics.getAllMetrics(),
       errors: errorAnalytics.generateErrorReport(),
-      logs: logger.getLocalLogs().slice(-100) // Last 100 logs
+      logs: logger.getLocalLogs().slice(-100), // Last 100 logs
     };
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -193,10 +197,15 @@ export const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">System Status</CardTitle>
-            <Badge variant={
-              systemStatus.overall === 'healthy' ? 'default' :
-              systemStatus.overall === 'warning' ? 'secondary' : 'destructive'
-            }>
+            <Badge
+              variant={
+                systemStatus.overall === 'healthy'
+                  ? 'default'
+                  : systemStatus.overall === 'warning'
+                    ? 'secondary'
+                    : 'destructive'
+              }
+            >
               {systemStatus.overall}
             </Badge>
           </CardHeader>
@@ -238,9 +247,7 @@ export const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({
             <div className="text-2xl font-bold">
               {Math.round(dashboardMetrics.averageLoadTime)}ms
             </div>
-            <p className="text-xs text-muted-foreground">
-              Avg load time
-            </p>
+            <p className="text-xs text-muted-foreground">Avg load time</p>
           </CardContent>
         </Card>
 
@@ -250,12 +257,8 @@ export const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {dashboardMetrics.errorRate.toFixed(2)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Errors per session
-            </p>
+            <div className="text-2xl font-bold">{dashboardMetrics.errorRate.toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground">Errors per session</p>
           </CardContent>
         </Card>
       </div>
@@ -264,9 +267,8 @@ export const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({
 
   if (isLoading && !dashboardMetrics) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <RefreshCw className="h-8 w-8 animate-spin" />
-        <span className="ml-2">Loading monitoring data...</span>
+      <div role="status" aria-label="Loading monitoring data">
+        <DashboardSkeleton />
       </div>
     );
   }
@@ -277,9 +279,7 @@ export const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Monitoring Dashboard</h1>
-          <p className="text-muted-foreground">
-            Real-time application monitoring and analytics
-          </p>
+          <p className="text-muted-foreground">Real-time application monitoring and analytics</p>
         </div>
         <div className="flex items-center space-x-2">
           <Button variant="outline" size="sm" onClick={loadDashboardData}>
@@ -302,10 +302,9 @@ export const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>System Alert</AlertTitle>
           <AlertDescription>
-            {systemStatus.overall === 'warning' 
+            {systemStatus.overall === 'warning'
               ? 'Some services require attention'
-              : 'Critical issues detected requiring immediate action'
-            }
+              : 'Critical issues detected requiring immediate action'}
           </AlertDescription>
         </Alert>
       )}
@@ -436,9 +435,7 @@ const ErrorsTab: React.FC = () => {
             <div className="text-3xl font-bold text-red-600">
               {errorReport.summary.criticalErrors}
             </div>
-            <p className="text-sm text-muted-foreground">
-              Requires immediate attention
-            </p>
+            <p className="text-sm text-muted-foreground">Requires immediate attention</p>
           </CardContent>
         </Card>
 
@@ -447,12 +444,8 @@ const ErrorsTab: React.FC = () => {
             <CardTitle className="text-lg">Error Rate</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">
-              {errorReport.summary.errorRate.toFixed(2)}
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Errors per session
-            </p>
+            <div className="text-3xl font-bold">{errorReport.summary.errorRate.toFixed(2)}</div>
+            <p className="text-sm text-muted-foreground">Errors per session</p>
           </CardContent>
         </Card>
       </div>
@@ -465,7 +458,7 @@ const ErrorsTab: React.FC = () => {
         <CardContent>
           <ScrollArea className="h-[400px]">
             <div className="space-y-2">
-              {errorReport.topErrors.map((error) => (
+              {errorReport.topErrors.map(error => (
                 <div key={error.id} className="border rounded-lg p-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="font-medium text-sm">{error.message}</span>
@@ -542,16 +535,21 @@ const SystemTab: React.FC<{ systemStatus: SystemStatus | null }> = ({ systemStat
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {systemStatus?.services.map((service) => (
+            {systemStatus?.services.map(service => (
               <div key={service.name} className="flex items-center justify-between">
                 <div>
                   <div className="font-medium">{service.name}</div>
                   <div className="text-sm text-muted-foreground">{service.message}</div>
                 </div>
-                <Badge variant={
-                  service.status === 'healthy' ? 'default' :
-                  service.status === 'warning' ? 'secondary' : 'destructive'
-                }>
+                <Badge
+                  variant={
+                    service.status === 'healthy'
+                      ? 'default'
+                      : service.status === 'warning'
+                        ? 'secondary'
+                        : 'destructive'
+                  }
+                >
                   {service.status}
                 </Badge>
               </div>
@@ -590,9 +588,7 @@ const DebugTab: React.FC = () => {
               <div key={store} className="flex items-center justify-between p-2 border rounded">
                 <div>
                   <div className="font-medium">{store}</div>
-                  <div className="text-sm text-muted-foreground">
-                    {activity.mostRecentAction}
-                  </div>
+                  <div className="text-sm text-muted-foreground">{activity.mostRecentAction}</div>
                 </div>
                 <div className="text-right text-sm">
                   <div>{activity.totalChanges} changes</div>
@@ -610,7 +606,10 @@ const DebugTab: React.FC = () => {
 };
 
 // Utility functions
-function determineOverallStatus(metrics: DashboardMetrics, errorStats: { criticalErrors: number; errorRate: number }): 'healthy' | 'warning' | 'critical' {
+function determineOverallStatus(
+  metrics: DashboardMetrics,
+  errorStats: { criticalErrors: number; errorRate: number }
+): 'healthy' | 'warning' | 'critical' {
   if (errorStats.criticalErrors > 0 || metrics.errorRate > 10) return 'critical';
   if (errorStats.errorRate > 5 || metrics.averageLoadTime > 4000) return 'warning';
   return 'healthy';
@@ -635,17 +634,17 @@ function formatMetricName(name: string): string {
 
 function getPerformanceBadgeVariant(metric: string, value?: number) {
   if (!value) return 'secondary';
-  
+
   const thresholds: Record<string, { good: number; fair: number }> = {
     fcp: { good: 1800, fair: 3000 },
     lcp: { good: 2500, fair: 4000 },
     fid: { good: 100, fair: 300 },
-    cls: { good: 0.1, fair: 0.25 }
+    cls: { good: 0.1, fair: 0.25 },
   };
-  
+
   const threshold = thresholds[metric];
   if (!threshold) return 'secondary';
-  
+
   if (value <= threshold.good) return 'default';
   if (value <= threshold.fair) return 'secondary';
   return 'destructive';
@@ -653,21 +652,32 @@ function getPerformanceBadgeVariant(metric: string, value?: number) {
 
 function getErrorSeverityVariant(severity: ErrorSeverity) {
   switch (severity) {
-    case ErrorSeverity.CRITICAL: return 'destructive';
-    case ErrorSeverity.HIGH: return 'destructive';
-    case ErrorSeverity.MEDIUM: return 'secondary';
-    case ErrorSeverity.LOW: return 'outline';
-    default: return 'secondary';
+    case ErrorSeverity.CRITICAL:
+      return 'destructive';
+    case ErrorSeverity.HIGH:
+      return 'destructive';
+    case ErrorSeverity.MEDIUM:
+      return 'secondary';
+    case ErrorSeverity.LOW:
+      return 'outline';
+    default:
+      return 'secondary';
   }
 }
 
 function getLogLevelColor(level: number): string {
   switch (level) {
-    case 0: return 'bg-gray-100'; // DEBUG
-    case 1: return 'bg-blue-50'; // INFO
-    case 2: return 'bg-yellow-50'; // WARN
-    case 3: return 'bg-red-50'; // ERROR
-    case 4: return 'bg-red-100'; // FATAL
-    default: return 'bg-gray-50';
+    case 0:
+      return 'bg-gray-100'; // DEBUG
+    case 1:
+      return 'bg-blue-50'; // INFO
+    case 2:
+      return 'bg-yellow-50'; // WARN
+    case 3:
+      return 'bg-red-50'; // ERROR
+    case 4:
+      return 'bg-red-100'; // FATAL
+    default:
+      return 'bg-gray-50';
   }
 }

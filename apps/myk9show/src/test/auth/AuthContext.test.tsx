@@ -470,7 +470,7 @@ describe('AuthContext', () => {
   describe('ProtectedRoute', () => {
     const TestPage = () => <div data-testid="protected-content">Protected Content</div>;
 
-    it('should show loading spinner when loading', () => {
+    it('should show loading skeleton when loading', () => {
       mockUseAuth.mockReturnValue({
         ...mockAuthReturn,
         loading: true,
@@ -482,7 +482,8 @@ describe('AuthContext', () => {
         </ProtectedRoute>
       );
 
-      expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
+      expect(screen.getByTestId('loading-skeleton')).toBeInTheDocument();
+      expect(screen.getByRole('status', { name: 'Loading protected page' })).toBeInTheDocument();
     });
 
     it('should redirect to sign-in with redirectTo when no user', () => {

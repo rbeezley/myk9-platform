@@ -56,13 +56,13 @@ describe('RingsideEntryPage', () => {
   it('shows a spinner while auth is still loading', () => {
     mockAuth.mockReturnValue({ user: null, loading: true } as never);
     renderPage();
-    expect(screen.getByText('Loading ringside…')).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Loading ringside…' })).toBeInTheDocument();
   });
 
   it('shows a spinner while the user\'s shows are resolving', () => {
     mockShows.mockReturnValue({ ...NO_SHOWS, isLoading: true });
     renderPage();
-    expect(screen.getByText('Finding your show…')).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Finding your show…' })).toBeInTheDocument();
   });
 
   it('auto-jumps into the ring when exactly one show is live', () => {

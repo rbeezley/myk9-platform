@@ -29,6 +29,7 @@ import {
   Bell,
   BellOff,
 } from 'lucide-react';
+import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 
 interface ConflictNotificationsProps {
   entityType?: string;
@@ -142,11 +143,8 @@ export function ConflictNotifications({
   if (isLoading) {
     return (
       <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
-            <span className="ml-2">Loading conflicts...</span>
-          </div>
+        <CardContent role="status" aria-label="Loading conflicts" className="p-6">
+          <TableSkeleton rows={4} columns={4} />
         </CardContent>
       </Card>
     );

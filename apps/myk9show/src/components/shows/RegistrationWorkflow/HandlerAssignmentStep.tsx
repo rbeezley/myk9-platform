@@ -10,10 +10,10 @@ import { ClassSelectionData, HandlerInfo, makeHandlerKey } from '@/types/show-re
 import { getDogDisplayName } from '@/types/dog-types';
 import { compareLevels } from '@/utils/schedule-summary';
 import { HandlerSelectionDialog } from './HandlerSelectionDialog';
+import { Skeleton } from '@/components/common/SkeletonLoaders';
 
 type EditingTarget =
-  | { kind: 'single'; entryKey: string; dogId: string }
-  | { kind: 'all'; dogId: string };
+  { kind: 'single'; entryKey: string; dogId: string } | { kind: 'all'; dogId: string };
 
 interface HandlerAssignmentStepProps {
   selectedDogs: string[];
@@ -43,29 +43,31 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
         if (!dog) return null;
 
         const dogClassSelections = classSelections.filter(s => s.dogId === dogId);
-        const entries = dogClassSelections.flatMap(s =>
-          s.selectedClasses.map(cls => {
-            const classData = classMap.get(cls.classId);
-            const key = makeHandlerKey(dogId, cls.classId);
-            const handler = handlerAssignments[key];
-            return {
-              key,
-              classId: cls.classId,
-              className: classData?.className || classData?.element || 'Unknown Class',
-              element: classData?.element ?? '',
-              level: classData?.level ?? '',
-              section: classData?.section ?? '',
-              handler,
-              hasHandler: !!handler?.handlerName,
-            };
-          })
-        ).sort((a, b) => {
-          const elemCmp = a.element.localeCompare(b.element);
-          if (elemCmp !== 0) return elemCmp;
-          const levelCmp = compareLevels(a.level, b.level);
-          if (levelCmp !== 0) return levelCmp;
-          return a.section.localeCompare(b.section);
-        });
+        const entries = dogClassSelections
+          .flatMap(s =>
+            s.selectedClasses.map(cls => {
+              const classData = classMap.get(cls.classId);
+              const key = makeHandlerKey(dogId, cls.classId);
+              const handler = handlerAssignments[key];
+              return {
+                key,
+                classId: cls.classId,
+                className: classData?.className || classData?.element || 'Unknown Class',
+                element: classData?.element ?? '',
+                level: classData?.level ?? '',
+                section: classData?.section ?? '',
+                handler,
+                hasHandler: !!handler?.handlerName,
+              };
+            })
+          )
+          .sort((a, b) => {
+            const elemCmp = a.element.localeCompare(b.element);
+            if (elemCmp !== 0) return elemCmp;
+            const levelCmp = compareLevels(a.level, b.level);
+            if (levelCmp !== 0) return levelCmp;
+            return a.section.localeCompare(b.section);
+          });
 
         return { dog, entries };
       })
@@ -114,8 +116,16 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
 
   if (isLoading) {
     return (
-      <div className="text-center py-8 text-muted-foreground">
-        <p>Loading dog information...</p>
+      <div role="status" aria-label="Loading dog information" className="space-y-4 py-2">
+        <div className="space-y-2">
+          <Skeleton className="h-6 w-56" />
+          <Skeleton className="h-4 w-80 max-w-full" />
+        </div>
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <Skeleton key={index} className="h-20 rounded-lg" />
+          ))}
+        </div>
       </div>
     );
   }

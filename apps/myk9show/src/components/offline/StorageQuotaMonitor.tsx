@@ -1,6 +1,6 @@
 /**
  * StorageQuotaMonitor - Real-time storage quota tracking and management
- * 
+ *
  * Provides:
  * - Real-time storage usage monitoring
  * - Visual storage breakdown by entity type
@@ -16,13 +16,8 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { logger } from '@/services/LoggingService';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import { 
   HardDrive,
   AlertTriangle,
   TrendingUp,
@@ -35,9 +30,10 @@ import {
   Database,
   FileText,
   Image,
-  Settings
+  Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/common/SkeletonLoaders';
 
 export interface StorageInfo {
   used: number;
@@ -75,7 +71,7 @@ export function StorageQuotaMonitor({
   showAlerts = true,
   showBreakdown = true,
   refreshInterval = 30000, // 30 seconds
-  onStorageAction
+  onStorageAction,
 }: StorageQuotaMonitorProps) {
   const [storageInfo, setStorageInfo] = useState<StorageInfo | null>(null);
   const [entityUsage, setEntityUsage] = useState<EntityStorageUsage[]>([]);
@@ -83,90 +79,96 @@ export function StorageQuotaMonitor({
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
   // Mock storage data for demonstration
-  const mockStorageInfo: StorageInfo = useMemo(() => ({
-    used: 52428800, // 50MB
-    available: 157286400, // 150MB
-    total: 209715200, // 200MB
-    usagePercentage: 25,
-    trend: 'increasing',
-    trendValue: 5.2,
-    lastUpdated: new Date()
-  }), []);
+  const mockStorageInfo: StorageInfo = useMemo(
+    () => ({
+      used: 52428800, // 50MB
+      available: 157286400, // 150MB
+      total: 209715200, // 200MB
+      usagePercentage: 25,
+      trend: 'increasing',
+      trendValue: 5.2,
+      lastUpdated: new Date(),
+    }),
+    []
+  );
 
-  const mockEntityUsage: EntityStorageUsage[] = useMemo(() => [
-    {
-      entityType: 'entries',
-      name: 'Show Entries',
-      icon: <FileText className="h-4 w-4" />,
-      size: 31457280, // 30MB
-      percentage: 60,
-      itemCount: 1250,
-      trend: 'up',
-      trendValue: 8.5,
-      canCompress: true,
-      canArchive: true
-    },
-    {
-      entityType: 'dogs',
-      name: 'Dog Records',
-      icon: <Database className="h-4 w-4" />,
-      size: 10485760, // 10MB
-      percentage: 20,
-      itemCount: 450,
-      trend: 'stable',
-      trendValue: 0,
-      canCompress: true,
-      canArchive: false
-    },
-    {
-      entityType: 'shows',
-      name: 'Show Data',
-      icon: <Archive className="h-4 w-4" />,
-      size: 5242880, // 5MB
-      percentage: 10,
-      itemCount: 25,
-      trend: 'up',
-      trendValue: 2.1,
-      canCompress: false,
-      canArchive: true
-    },
-    {
-      entityType: 'images',
-      name: 'Images & Media',
-      icon: <Image className="h-4 w-4" />,
-      size: 3145728, // 3MB
-      percentage: 6,
-      itemCount: 120,
-      trend: 'down',
-      trendValue: -1.5,
-      canCompress: true,
-      canArchive: true
-    },
-    {
-      entityType: 'cache',
-      name: 'Cache & Temp',
-      icon: <Zap className="h-4 w-4" />,
-      size: 1572864, // 1.5MB
-      percentage: 3,
-      itemCount: 0,
-      trend: 'stable',
-      trendValue: 0,
-      canCompress: false,
-      canArchive: false
-    },
-    {
-      entityType: 'settings',
-      name: 'Settings & Config',
-      icon: <Settings className="h-4 w-4" />,
-      size: 524288, // 0.5MB
-      percentage: 1,
-      itemCount: 1,
-      trend: 'stable',
-      trendValue: 0,
-      canCompress: false,
-      canArchive: false
-    }
-  ], []);
+  const mockEntityUsage: EntityStorageUsage[] = useMemo(
+    () => [
+      {
+        entityType: 'entries',
+        name: 'Show Entries',
+        icon: <FileText className="h-4 w-4" />,
+        size: 31457280, // 30MB
+        percentage: 60,
+        itemCount: 1250,
+        trend: 'up',
+        trendValue: 8.5,
+        canCompress: true,
+        canArchive: true,
+      },
+      {
+        entityType: 'dogs',
+        name: 'Dog Records',
+        icon: <Database className="h-4 w-4" />,
+        size: 10485760, // 10MB
+        percentage: 20,
+        itemCount: 450,
+        trend: 'stable',
+        trendValue: 0,
+        canCompress: true,
+        canArchive: false,
+      },
+      {
+        entityType: 'shows',
+        name: 'Show Data',
+        icon: <Archive className="h-4 w-4" />,
+        size: 5242880, // 5MB
+        percentage: 10,
+        itemCount: 25,
+        trend: 'up',
+        trendValue: 2.1,
+        canCompress: false,
+        canArchive: true,
+      },
+      {
+        entityType: 'images',
+        name: 'Images & Media',
+        icon: <Image className="h-4 w-4" />,
+        size: 3145728, // 3MB
+        percentage: 6,
+        itemCount: 120,
+        trend: 'down',
+        trendValue: -1.5,
+        canCompress: true,
+        canArchive: true,
+      },
+      {
+        entityType: 'cache',
+        name: 'Cache & Temp',
+        icon: <Zap className="h-4 w-4" />,
+        size: 1572864, // 1.5MB
+        percentage: 3,
+        itemCount: 0,
+        trend: 'stable',
+        trendValue: 0,
+        canCompress: false,
+        canArchive: false,
+      },
+      {
+        entityType: 'settings',
+        name: 'Settings & Config',
+        icon: <Settings className="h-4 w-4" />,
+        size: 524288, // 0.5MB
+        percentage: 1,
+        itemCount: 1,
+        trend: 'stable',
+        trendValue: 0,
+        canCompress: false,
+        canArchive: false,
+      },
+    ],
+    []
+  );
 
   // Load storage information
   const loadStorageInfo = useCallback(async () => {
@@ -174,7 +176,7 @@ export function StorageQuotaMonitor({
     try {
       // Simulate API call or actual storage calculation
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       setStorageInfo(mockStorageInfo);
       setEntityUsage(mockEntityUsage);
       setLastRefresh(new Date());
@@ -188,7 +190,7 @@ export function StorageQuotaMonitor({
   // Auto-refresh storage info
   useEffect(() => {
     loadStorageInfo();
-    
+
     const interval = setInterval(loadStorageInfo, refreshInterval);
     return () => clearInterval(interval);
   }, [refreshInterval, loadStorageInfo]);
@@ -205,7 +207,7 @@ export function StorageQuotaMonitor({
   // Get storage status
   const getStorageStatus = () => {
     if (!storageInfo) return { level: 'unknown', color: 'gray', message: 'Loading...' };
-    
+
     if (storageInfo.usagePercentage >= 90) {
       return { level: 'critical', color: 'red', message: 'Storage critically full' };
     }
@@ -233,7 +235,7 @@ export function StorageQuotaMonitor({
     return {
       compression: compressibleSize,
       archiving: archivableSize,
-      total: compressibleSize + archivableSize
+      total: compressibleSize + archivableSize,
     };
   }, [entityUsage]);
 
@@ -241,17 +243,26 @@ export function StorageQuotaMonitor({
   const handleStorageAction = (action: string, entityType?: string) => {
     logger.debug(`Storage action: ${action}`, 'offline', { data: entityType });
     onStorageAction?.(action, entityType);
-    
+
     // Refresh data after action
     setTimeout(loadStorageInfo, 1000);
   };
 
   if (isLoading) {
     return (
-      <Card className={cn("", className)}>
-        <CardContent className="flex items-center justify-center p-8">
-          <RefreshCw className="h-6 w-6 animate-spin mr-2" />
-          <span>Loading storage information...</span>
+      <Card className={cn('', className)}>
+        <CardContent
+          role="status"
+          aria-label="Loading storage information"
+          className="space-y-4 p-6"
+        >
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-4 w-72 max-w-full" />
+          <Skeleton className="h-3 w-full rounded-full" />
+          <div className="grid grid-cols-2 gap-3">
+            <Skeleton className="h-20 rounded-lg" />
+            <Skeleton className="h-20 rounded-lg" />
+          </div>
         </CardContent>
       </Card>
     );
@@ -259,7 +270,7 @@ export function StorageQuotaMonitor({
 
   if (!storageInfo) {
     return (
-      <Card className={cn("", className)}>
+      <Card className={cn('', className)}>
         <CardContent className="flex items-center justify-center p-8 text-muted-foreground">
           <AlertTriangle className="h-6 w-6 mr-2" />
           <span>Failed to load storage information</span>
@@ -269,7 +280,7 @@ export function StorageQuotaMonitor({
   }
 
   return (
-    <div className={cn("space-y-6", className)}>
+    <div className={cn('space-y-6', className)}>
       {/* Storage Overview */}
       <Card>
         <CardHeader>
@@ -279,8 +290,14 @@ export function StorageQuotaMonitor({
               Storage Usage
             </CardTitle>
             <div className="flex items-center gap-2">
-              <Badge 
-                variant={status.level === 'good' ? 'default' : status.level === 'warning' ? 'secondary' : 'destructive'}
+              <Badge
+                variant={
+                  status.level === 'good'
+                    ? 'default'
+                    : status.level === 'warning'
+                      ? 'secondary'
+                      : 'destructive'
+                }
               >
                 {status.message}
               </Badge>
@@ -315,26 +332,29 @@ export function StorageQuotaMonitor({
                     ) : (
                       <TrendingDown className="h-3 w-3 text-green-500" />
                     )}
-                    <span className={cn(
-                      "text-xs",
-                      storageInfo.trend === 'increasing' ? 'text-red-500' : 'text-green-500'
-                    )}>
+                    <span
+                      className={cn(
+                        'text-xs',
+                        storageInfo.trend === 'increasing' ? 'text-red-500' : 'text-green-500'
+                      )}
+                    >
                       {storageInfo.trendValue}%
                     </span>
                   </div>
                 )}
               </div>
             </div>
-            <Progress 
-              value={storageInfo.usagePercentage} 
+            <Progress
+              value={storageInfo.usagePercentage}
               className={cn(
-                "h-3",
-                status.level === 'critical' && "bg-red-100",
-                status.level === 'warning' && "bg-orange-100"
+                'h-3',
+                status.level === 'critical' && 'bg-red-100',
+                status.level === 'warning' && 'bg-orange-100'
               )}
             />
             <div className="text-xs text-muted-foreground">
-              {formatFileSize(storageInfo.available)} available • Last updated: {lastRefresh?.toLocaleTimeString()}
+              {formatFileSize(storageInfo.available)} available • Last updated:{' '}
+              {lastRefresh?.toLocaleTimeString()}
             </div>
           </div>
 
@@ -347,7 +367,8 @@ export function StorageQuotaMonitor({
                   <p>{status.message}. Consider cleaning up old data or compressing large files.</p>
                   {optimizationPotential.total > 0 && (
                     <p className="text-sm">
-                      Potential savings: {formatFileSize(optimizationPotential.total)} through compression and archiving.
+                      Potential savings: {formatFileSize(optimizationPotential.total)} through
+                      compression and archiving.
                     </p>
                   )}
                 </div>
@@ -357,27 +378,15 @@ export function StorageQuotaMonitor({
 
           {/* Quick Actions */}
           <div className="flex items-center gap-2 pt-2">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => handleStorageAction('cleanup')}
-            >
+            <Button variant="outline" size="sm" onClick={() => handleStorageAction('cleanup')}>
               <Trash2 className="h-4 w-4 mr-2" />
               Clean Up
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => handleStorageAction('compress')}
-            >
+            <Button variant="outline" size="sm" onClick={() => handleStorageAction('compress')}>
               <Archive className="h-4 w-4 mr-2" />
               Compress
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => handleStorageAction('optimize')}
-            >
+            <Button variant="outline" size="sm" onClick={() => handleStorageAction('optimize')}>
               <Zap className="h-4 w-4 mr-2" />
               Optimize
             </Button>
@@ -393,7 +402,7 @@ export function StorageQuotaMonitor({
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {entityUsage.map((entity) => (
+              {entityUsage.map(entity => (
                 <div key={entity.entityType} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -409,10 +418,12 @@ export function StorageQuotaMonitor({
                             ) : (
                               <TrendingDown className="h-3 w-3 text-green-500" />
                             )}
-                            <span className={cn(
-                              "text-xs",
-                              entity.trend === 'up' ? 'text-red-500' : 'text-green-500'
-                            )}>
+                            <span
+                              className={cn(
+                                'text-xs',
+                                entity.trend === 'up' ? 'text-red-500' : 'text-green-500'
+                              )}
+                            >
                               {entity.trendValue}%
                             </span>
                           </div>
@@ -429,24 +440,22 @@ export function StorageQuotaMonitor({
                         )}
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-4">
                       <div className="text-right">
-                        <div className="text-sm font-medium">
-                          {formatFileSize(entity.size)}
-                        </div>
+                        <div className="text-sm font-medium">{formatFileSize(entity.size)}</div>
                         <div className="text-xs text-muted-foreground">
                           {entity.itemCount > 0 ? `${entity.itemCount} items` : 'System data'}
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center gap-1">
                         {entity.canCompress && (
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
+                                <Button
+                                  variant="ghost"
                                   size="sm"
                                   onClick={() => handleStorageAction('compress', entity.entityType)}
                                 >
@@ -457,13 +466,13 @@ export function StorageQuotaMonitor({
                             </Tooltip>
                           </TooltipProvider>
                         )}
-                        
+
                         {entity.canArchive && (
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
+                                <Button
+                                  variant="ghost"
                                   size="sm"
                                   onClick={() => handleStorageAction('archive', entity.entityType)}
                                 >
@@ -474,13 +483,13 @@ export function StorageQuotaMonitor({
                             </Tooltip>
                           </TooltipProvider>
                         )}
-                        
+
                         {entity.entityType === 'cache' && (
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
+                                <Button
+                                  variant="ghost"
                                   size="sm"
                                   onClick={() => handleStorageAction('clear', entity.entityType)}
                                 >
@@ -494,7 +503,7 @@ export function StorageQuotaMonitor({
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-2">
                     <Progress value={entity.percentage} className="flex-1 h-1.5" />
                     <span className="text-xs text-muted-foreground w-10 text-right">
@@ -514,10 +523,15 @@ export function StorageQuotaMonitor({
                 </div>
                 <div className="space-y-1 text-sm text-muted-foreground">
                   {optimizationPotential.compression > 0 && (
-                    <div>• Save ~{formatFileSize(optimizationPotential.compression)} through compression</div>
+                    <div>
+                      • Save ~{formatFileSize(optimizationPotential.compression)} through
+                      compression
+                    </div>
                   )}
                   {optimizationPotential.archiving > 0 && (
-                    <div>• Save ~{formatFileSize(optimizationPotential.archiving)} through archiving</div>
+                    <div>
+                      • Save ~{formatFileSize(optimizationPotential.archiving)} through archiving
+                    </div>
                   )}
                   <div className="font-medium pt-1">
                     Total potential savings: {formatFileSize(optimizationPotential.total)}

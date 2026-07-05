@@ -12,6 +12,7 @@ import {
   useUpdateTrainingGoalMutation,
 } from '@/hooks/queries/useTrainingDatabase';
 import type { TrainingJournalEntry, TrainingAssessment, TrainingGoal } from '@/types/training';
+import { Skeleton } from '@/components/common/SkeletonLoaders';
 
 // Map DB assessment to UI progress labels
 const assessmentToProgress: Record<TrainingAssessment, string> = {
@@ -147,10 +148,20 @@ export default function TrainingSection({ dogId }: TrainingSectionProps) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading training journal...</p>
+      <div role="status" aria-label="Loading training journal" className="space-y-4 py-4">
+        <div className="rounded-xl border bg-card p-6">
+          <div className="mb-5 flex items-center justify-between gap-4">
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-4 w-72 max-w-full" />
+            </div>
+            <Skeleton className="h-10 w-28" />
+          </div>
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <Skeleton key={index} className="h-20 rounded-lg" />
+            ))}
+          </div>
         </div>
       </div>
     );

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertTriangle, Wifi, WifiOff, RefreshCw, Activity } from 'lucide-react';
+import { AlertTriangle, Wifi, WifiOff, Activity } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 
 import { offlineCheckInService } from '@/services/offline-checkin/OfflineCheckInService';
@@ -26,6 +26,7 @@ import { CheckInDialog } from './CheckInDialog';
 import type { CheckInFormState } from './CheckInDialog';
 import { ValidationResultsDialog } from './ValidationResultsDialog';
 import { StatisticsPanel } from './StatisticsPanel';
+import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 
 interface OfflineCheckInInterfaceProps {
   gateId: string;
@@ -421,9 +422,8 @@ export const OfflineCheckInInterface: React.FC<OfflineCheckInInterfaceProps> = (
 
   if (loading && !entries.length) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-        <span className="ml-2 text-muted-foreground">Loading check-in interface...</span>
+      <div role="status" aria-label="Loading check-in interface" className="p-6">
+        <TableSkeleton rows={6} columns={5} />
       </div>
     );
   }

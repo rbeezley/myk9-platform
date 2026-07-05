@@ -71,7 +71,7 @@ describe('JudgeDashboard', () => {
 
     render(<JudgeDashboard />);
 
-    expect(screen.getByText(/loading your assignments/i)).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: /loading your assignments/i })).toBeInTheDocument();
   });
 
   it('shows a plain-English error state and retries on click', async () => {

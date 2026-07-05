@@ -18,6 +18,7 @@ import {
   TestTube,
   FileText,
 } from 'lucide-react';
+import { DetailPageSkeleton } from '@/components/common/SkeletonLoaders';
 
 export const TemplateTestingPage: React.FC = () => {
   const { templateId } = useParams<{ templateId: string }>();
@@ -136,13 +137,8 @@ export const TemplateTestingPage: React.FC = () => {
 
   if (!template) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading template...</p>
-          </div>
-        </div>
+      <div role="status" aria-label="Loading template">
+        <DetailPageSkeleton />
       </div>
     );
   }

@@ -34,6 +34,7 @@ import { PermissionWithRole } from '@/types/rbac-types';
 import { ensureError } from '@myk9/core';
 import { notifications } from '@/lib/notifications';
 import { buildSignInPathForRedirect } from '@/pages/SignInPage.helpers';
+import { Skeleton } from '@/components/common/SkeletonLoaders';
 
 // Type for user role with details from RBAC service
 export interface UserRoleWithDetails {
@@ -664,11 +665,24 @@ export function ProtectedRoute({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div
-          data-testid="loading-spinner"
-          className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"
-        ></div>
+      <div
+        role="status"
+        aria-label="Loading protected page"
+        data-testid="loading-skeleton"
+        className="min-h-screen p-6"
+      >
+        <div className="mx-auto w-full max-w-5xl space-y-6">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-56" />
+            <Skeleton className="h-4 w-72 max-w-full" />
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <Skeleton key={index} className="h-32 rounded-lg" />
+            ))}
+          </div>
+          <Skeleton className="h-64 rounded-lg" />
+        </div>
       </div>
     );
   }

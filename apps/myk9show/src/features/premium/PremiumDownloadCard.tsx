@@ -85,7 +85,9 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
         </div>
         <div className="flex-1">
           <h3 className="font-semibold text-sm">Premium List</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">Not yet published</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Premium PDF is not published yet
+          </p>
         </div>
         <Button
           size="sm"
@@ -131,7 +133,9 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
             </span>
           )}
         </div>
-        <p className="text-xs text-muted-foreground mt-0.5">Published {publishedLabel}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Premium PDF published {publishedLabel}
+        </p>
       </div>
       <a
         href={publishedUrl}

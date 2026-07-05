@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { formatSyncFailureToast, formatDownloadFailureToast } from '../replicationSyncFormatters';
 
 describe('formatSyncFailureToast', () => {
-  it('renders the first failing mutation including its error detail', () => {
+  it('renders a plain-English object and action without raw DB details', () => {
     const msg = formatSyncFailureToast({
       count: 1,
       mutations: [
@@ -15,9 +15,8 @@ describe('formatSyncFailureToast', () => {
       message: 'generic fallback',
     });
 
-    expect(msg).toBe(
-      "Failed to save 1 change. shows insert: new row violates row-level security policy for table 'shows'"
-    );
+    expect(msg).toBe("We couldn't create this show. Retry or discard this change.");
+    expect(msg).not.toMatch(/row-level security|table|shows insert/i);
   });
 
   it('pluralizes "changes" when more than one mutation failed', () => {
@@ -27,37 +26,57 @@ describe('formatSyncFailureToast', () => {
       message: '',
     });
 
-    expect(msg.startsWith('Failed to save 3 changes.')).toBe(true);
+    expect(msg).toBe("We couldn't save 3 changes. Retry or discard these changes.");
   });
 
-  it('falls back to the generic message when no mutations are supplied', () => {
+  it('keeps multiple failures plain even when no mutations are supplied', () => {
     const msg = formatSyncFailureToast({
       count: 2,
       mutations: [],
       message: 'Network unreachable',
     });
 
-    expect(msg).toBe('Failed to save 2 changes. Network unreachable');
+    expect(msg).toBe("We couldn't save 2 changes. Retry or discard these changes.");
   });
 
-  it('omits the trailing colon when a mutation has no error string', () => {
+  it('uses the object label when a mutation has no error string', () => {
     const msg = formatSyncFailureToast({
       count: 1,
       mutations: [{ tableName: 'dogs', operation: 'DELETE' }],
       message: '',
     });
 
-    expect(msg).toBe('Failed to save 1 change. dogs delete');
+    expect(msg).toBe("We couldn't delete this dog. Retry or discard this change.");
+  });
+
+  it('does not leak RPC, Supabase, or retry-internal language', () => {
+    const msg = formatSyncFailureToast({
+      count: 1,
+      mutations: [
+        {
+          tableName: 'entries',
+          operation: 'UPDATE',
+          error: 'Supabase query failed: ringside_update_entry timed out after retry 3',
+        },
+      ],
+      message: '',
+    });
+
+    expect(msg).toBe("We couldn't update this entry. Retry or discard this change.");
+    expect(msg).not.toMatch(/supabase|rpc|ringside_update_entry|retry 3|timeout/i);
   });
 });
 
 describe('formatDownloadFailureToast', () => {
-  it('names the first failing table and its error', () => {
+  it('names the first failing object without raw server details', () => {
     const msg = formatDownloadFailureToast([
       { name: 'shows', error: 'permission denied for table shows' },
     ]);
 
-    expect(msg).toBe('Failed to load data from server. shows: permission denied for table shows');
+    expect(msg).toBe(
+      "We couldn't refresh show data. You can keep using the saved copy while we try again."
+    );
+    expect(msg).not.toMatch(/permission denied|table shows/i);
   });
 
   it('indicates how many additional tables also failed', () => {
@@ -67,6 +86,19 @@ describe('formatDownloadFailureToast', () => {
       { name: 'entries', error: 'network error' },
     ]);
 
-    expect(msg).toBe('Failed to load data from server. shows: RLS violation (and 2 more)');
+    expect(msg).toBe(
+      "We couldn't refresh show data. You can keep using the saved copy while we try again. 2 more areas also need to refresh."
+    );
+  });
+
+  it('uses singular grammar for one additional failing table', () => {
+    const msg = formatDownloadFailureToast([
+      { name: 'shows', error: 'RLS violation' },
+      { name: 'trials', error: 'timeout' },
+    ]);
+
+    expect(msg).toBe(
+      "We couldn't refresh show data. You can keep using the saved copy while we try again. 1 more area also needs to refresh."
+    );
   });
 });

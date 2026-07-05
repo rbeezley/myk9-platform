@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -12,14 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,12 +29,11 @@ import { useAKCSubmissionData } from '@/hooks/queries/useAKCSubmissionData';
 import { useResultSubmission, useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
 import {
   buildFilename,
+  buildAKCSubmissionReadiness,
   downloadXml,
-  statusVariant,
-  statusLabel,
   formatFormatterLabel,
 } from './helpers';
-import { formatEntryDateTime } from '@/lib/format/dates';
+import { SubmissionHistory } from './SubmissionHistory';
 
 // ---------------------------------------------------------------------------
 // Component
@@ -81,6 +71,14 @@ export default function ResultsSubmissionPage() {
   // Pre-flight: count entries missing AKC reg numbers
   const missingAKCCount = akcData ? akcData.entries.filter(e => !e.registrationNumber).length : 0;
   const hasBlockingAKCPreflightIssue = isAKCScentWork && missingAKCCount > 0;
+  const akcReadiness = akcData
+    ? buildAKCSubmissionReadiness({
+        entryCount: akcData.entries.length,
+        missingRegistrationNumberCount: missingAKCCount,
+      })
+    : null;
+  const sendBlockedReason =
+    isAKCScentWork && akcReadiness && !akcReadiness.canSend ? akcReadiness.verdict : null;
 
   const filename = show ? buildFilename(show.name) : 'results.xml';
 
@@ -233,6 +231,8 @@ export default function ResultsSubmissionPage() {
                 className="min-h-[44px]"
                 onClick={() => setShowConfirm(true)}
                 disabled={!xmlPreview || isSending || hasBlockingAKCPreflightIssue}
+                aria-describedby={sendBlockedReason ? 'send-results-disabled-reason' : undefined}
+                title={sendBlockedReason ?? undefined}
                 data-testid="send-btn"
               >
                 {isSending ? 'Sending...' : `Send to ${activeFormatter.organization}`}
@@ -268,7 +268,7 @@ export default function ResultsSubmissionPage() {
             disabled={!xmlPreview}
             data-testid="download-btn"
           >
-            Download XML
+            {hasBlockingAKCPreflightIssue ? 'Download draft XML' : 'Download XML'}
           </Button>
 
           {/* Divider sets the record-keeping action apart from the deliver-the-
@@ -358,9 +358,18 @@ export default function ResultsSubmissionPage() {
           data-testid="preflight-warning"
         >
           {missingAKCCount} {missingAKCCount === 1 ? 'entry is' : 'entries are'} missing AKC
-          registration numbers and will export with a blank akcDogRegnum. Verify dog registrations
-          before submitting.
+          registration {missingAKCCount === 1 ? 'number' : 'numbers'}. Add the missing dog
+          registration {missingAKCCount === 1 ? 'number' : 'numbers'} before sending to AKC.
         </div>
+      )}
+      {sendBlockedReason && (
+        <p
+          id="send-results-disabled-reason"
+          className="text-sm text-muted-foreground"
+          data-testid="send-disabled-reason"
+        >
+          {sendBlockedReason}
+        </p>
       )}
 
       {/* Submission summary — lead with a human checklist; the raw electronic
@@ -387,11 +396,12 @@ export default function ResultsSubmissionPage() {
         ) : (
           <ul className="space-y-2 text-sm" data-testid="submission-checklist">
             <li className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
-              <span>
-                <strong>{akcData.entries.length}</strong>{' '}
-                {akcData.entries.length === 1 ? 'entry' : 'entries'} ready to submit
-              </span>
+              {akcReadiness?.canSend ? (
+                <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
+              ) : (
+                <AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" />
+              )}
+              <span>{akcReadiness?.verdict}</span>
             </li>
             <li className="flex items-center gap-2">
               {missingAKCCount === 0 ? (
@@ -414,12 +424,12 @@ export default function ResultsSubmissionPage() {
               {hasBlockingAKCPreflightIssue ? (
                 <>
                   <AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" />
-                  <span>Add the missing registration numbers before sending</span>
+                  <span>{akcReadiness?.details}</span>
                 </>
               ) : (
                 <>
                   <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
-                  <span>Submission file is ready to send or download</span>
+                  <span>{akcReadiness?.details}</span>
                 </>
               )}
             </li>
@@ -448,45 +458,7 @@ export default function ResultsSubmissionPage() {
         </details>
       </div>
 
-      {/* Submission history */}
-      <div className="space-y-3">
-        <h2 className="text-base font-semibold">Submission History</h2>
-
-        {historyLoading ? (
-          <p className="text-sm text-muted-foreground">Loading history...</p>
-        ) : history.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No submissions recorded for this show.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <Table data-testid="history-table">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Organization</TableHead>
-                  <TableHead>Sport</TableHead>
-                  <TableHead>Submitted At</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {history.map(row => (
-                  <TableRow key={row.id}>
-                    <TableCell>{row.organization}</TableCell>
-                    <TableCell className="capitalize">
-                      {row.sport_type.replace(/_/g, ' ')}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {formatEntryDateTime(row.submitted_at) || row.submitted_at}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant(row.status)}>{statusLabel(row.status)}</Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </div>
+      <SubmissionHistory history={history} isLoading={historyLoading} />
     </div>
   );
 }

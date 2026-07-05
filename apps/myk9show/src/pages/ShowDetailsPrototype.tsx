@@ -553,7 +553,7 @@ export default function ShowDetailsPrototype() {
 
         {/* Exhibitor entry states */}
         {!isSecretary && (
-          <div className="flex items-center gap-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-1">
             <span className="text-xs text-muted-foreground mr-1">State:</span>
             {(Object.keys(STATE_CONFIGS) as EntryState[]).map(s => (
               <button
@@ -574,7 +574,7 @@ export default function ShowDetailsPrototype() {
 
         {/* Secretary show status */}
         {isSecretary && (
-          <div className="flex items-center gap-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-1">
             <span className="text-xs text-muted-foreground mr-1">Show status:</span>
             {(['draft', 'published', 'upcoming', 'in_progress'] as ShowStatus[]).map(s => (
               <button

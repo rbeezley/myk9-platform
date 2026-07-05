@@ -156,13 +156,11 @@ export function useAtShowEntryListHandlers(
         toast.error('You do not have permission to score entries.');
         return;
       }
-      // INTENT (spike): the tryApplyFixedMaxTime / MaxTimeDialog gate is
-      // STUBBED. We optimistically mark in-ring and navigate; the scoresheet
-      // route is wired in Phase 1h (may 404 until then).
-      void actions.handleMarkInRing(entry.id, entry.status);
+      // INTENT: A card tap is a view/navigation intent. It must not enqueue a
+      // ringside status mutation; explicit in-ring controls own that write.
       navigate(buildScoreSheetRoute(entry));
     },
-    [actions, hasPermission, navigate, buildScoreSheetRoute]
+    [hasPermission, navigate, buildScoreSheetRoute]
   );
 
   // INTENT (spike): no prefetch cache in myK9Show yet — pure no-op.

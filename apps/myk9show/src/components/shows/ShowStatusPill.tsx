@@ -28,7 +28,7 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
     className: 'bg-warning/10 border border-warning/30 text-warning ',
   },
   published: {
-    label: 'Published',
+    label: 'Published show',
     className: 'bg-success/10 border border-success/30 text-success ',
   },
   upcoming: {

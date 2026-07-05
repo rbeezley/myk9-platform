@@ -156,7 +156,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
         const { data, error } = await query;
 
         if (error) {
-          throw new Error(`Supabase query failed: ${error.message}`);
+          throw new Error(`Entries refresh failed: ${error.message}`);
         }
 
         return (data ?? []) as unknown as EntryRow[];

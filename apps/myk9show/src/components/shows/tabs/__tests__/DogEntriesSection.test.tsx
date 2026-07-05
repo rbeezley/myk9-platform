@@ -37,6 +37,23 @@ describe('DogEntriesSection', () => {
     expect(screen.getByText('42')).toBeInTheDocument();
   });
 
+  it('uses plain pending labels when schedule details are not posted yet', () => {
+    render(
+      <DogEntriesSection
+        group={{
+          ...group,
+          entries: [{ ...group.entries[0], armband: '', startTime: '' }],
+        }}
+        showId="show-1"
+      />
+    );
+
+    expect(screen.getByText('Time pending')).toBeInTheDocument();
+    expect(screen.getByText('Armband pending')).toBeInTheDocument();
+    expect(screen.queryByText('TBD')).not.toBeInTheDocument();
+    expect(screen.queryByText('No #')).not.toBeInTheDocument();
+  });
+
   it('labels past entries without results as awaiting results, not upcoming', () => {
     render(
       <DogEntriesSection

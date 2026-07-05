@@ -26,10 +26,10 @@ describe('SecretaryAddEntriesDecision', () => {
     expect(navigateMock).toHaveBeenCalledWith('/shows/show-1/register');
   });
 
-  it('routes exhibitor or paper entries to secretary registration', async () => {
+  it('routes mail-in entries to secretary registration', async () => {
     const { user } = render(<SecretaryAddEntriesDecision showId="show 1/mail" />);
 
-    await user.click(screen.getByRole('button', { name: 'Record exhibitor or paper entry' }));
+    await user.click(screen.getByRole('button', { name: 'Add mail-in entry' }));
 
     expect(navigateMock).toHaveBeenCalledWith('/secretary/register/show%201%2Fmail');
   });
@@ -38,6 +38,6 @@ describe('SecretaryAddEntriesDecision', () => {
     render(<SecretaryAddEntriesDecision showId={null} />);
 
     expect(screen.getByRole('button', { name: 'Enter my own dogs' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Record exhibitor or paper entry' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Add mail-in entry' })).toBeDisabled();
   });
 });

@@ -26,6 +26,18 @@ function formatPercent(current: number, limit: number | null): number {
   return Math.min(100, Math.round((current / limit) * 100));
 }
 
+function formatTimezoneName(timezone: string): string {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      timeZoneName: 'long',
+    }).formatToParts(new Date());
+    return parts.find(part => part.type === 'timeZoneName')?.value ?? timezone;
+  } catch {
+    return timezone;
+  }
+}
+
 function feeAmountParts(amount: string): { dollars: string; cents: string } {
   const match = amount.match(/^(\$?\d+)(\.\d{2})?$/);
   return { dollars: match?.[1] ?? amount, cents: match?.[2] ?? '' };
@@ -265,8 +277,8 @@ function Particulars({ data }: { data: HeritageLandingData }) {
 }
 
 function Roster({ data }: { data: HeritageLandingData }) {
+  const hasLimit = typeof data.entryLimit === 'number' && data.entryLimit > 0;
   const pct = formatPercent(data.entryCount, data.entryLimit);
-  const limit = data.entryLimit ?? 0;
 
   return (
     <section className="hd-section" id="roster">
@@ -279,12 +291,12 @@ function Roster({ data }: { data: HeritageLandingData }) {
           <div className="hd-capacity-head">
             <div className="nums">
               {data.entryCount}
-              <span className="of">/{limit || 'TBD'}</span>
+              {hasLimit && <span className="of">/{data.entryLimit}</span>}
             </div>
             <div className="lbl">
               Runs claimed
               <br />
-              <span className="accent">{pct}% full</span>
+              <span className="accent">{hasLimit ? `${pct}% full` : 'Limit not posted yet'}</span>
             </div>
           </div>
           <div className="bar">
@@ -311,8 +323,8 @@ function Roster({ data }: { data: HeritageLandingData }) {
                 </td>
               </tr>
               <tr>
-                <th>Timezone</th>
-                <td>{data.timezone}</td>
+                <th>Times shown in</th>
+                <td>{formatTimezoneName(data.timezone)}</td>
               </tr>
             </tbody>
           </table>

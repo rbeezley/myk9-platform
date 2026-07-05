@@ -261,14 +261,13 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
     expect(screen.queryByText('AKC DN12345678')).not.toBeInTheDocument();
   });
 
-  it('uses "Gender" label on filter chip (not "Sex")', () => {
+  it('uses "Sex" consistently for the filter and table column', () => {
     localStorage.setItem('view-pref-dogs', 'cards');
 
     renderPage();
 
-    // The filter chip for sex should use the label "Gender"
-    expect(screen.getByText('Gender')).toBeInTheDocument();
-    expect(screen.queryByText('Sex')).not.toBeInTheDocument();
+    expect(screen.getByText('Sex')).toBeInTheDocument();
+    expect(screen.queryByText('Gender')).not.toBeInTheDocument();
   });
 
   it('renders SearchBar with correct placeholder', () => {

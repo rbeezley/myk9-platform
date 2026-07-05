@@ -101,6 +101,8 @@ interface EntryRowProps {
 function EntryRow({ entry, showId }: EntryRowProps) {
   const { icon: Icon, bg, fg } = getElementIcon(entry.element);
   const href = `/shows/${showId}/trials/${entry.trialId}/classes/${entry.classId}`;
+  const startTimeLabel = entry.startTime || 'Time pending';
+  const armbandLabel = entry.armband || 'Armband pending';
 
   const meta = [entry.dayLabel, entry.startTime, entry.judgeName ? `Judge ${entry.judgeName}` : '']
     .filter(Boolean)
@@ -127,14 +129,16 @@ function EntryRow({ entry, showId }: EntryRowProps) {
         )}
       </div>
 
-      <div className="hidden shrink-0 flex-col items-end gap-0.5 text-right sm:flex">
-        <span className="inline-flex items-center gap-1 font-mono text-sm font-semibold tabular-nums text-foreground">
+      <div className="hidden w-28 shrink-0 flex-col items-end gap-0.5 text-right sm:flex">
+        <span className="inline-flex max-w-full items-center gap-1 text-sm font-semibold tabular-nums text-foreground">
           <Clock className="h-3.5 w-3.5 text-primary" />
-          {entry.startTime || 'TBD'}
+          <span className={entry.startTime ? 'font-mono' : 'truncate text-xs font-medium'}>
+            {startTimeLabel}
+          </span>
         </span>
-        <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
+        <span className="inline-flex max-w-full items-center gap-1 text-xs font-medium text-muted-foreground">
           <Hash className="h-3 w-3" />
-          {entry.armband || 'No #'}
+          <span className="truncate">{armbandLabel}</span>
         </span>
       </div>
 

@@ -57,7 +57,7 @@ import { autoAssignHandlers } from './autoAssignHandlers';
 // (secretary/admin/club) can't use card checkout, so they start unset and must
 // choose explicitly. Shared by the initial state and the mode-change reset.
 export const defaultPaymentForMode = (mode: WorkflowMode): PaymentMethod | undefined =>
-  mode === 'exhibitor' ? 'credit_card' : undefined;
+  mode === 'exhibitor' ? 'credit_card' : mode === 'secretary_new' ? 'secretary_paid' : undefined;
 
 export function useRegistrationWizardState() {
   const { showId: showIdParam } = useParams<{ showId: string }>();
@@ -70,13 +70,14 @@ export function useRegistrationWizardState() {
   const workflowLabel = isLateEntryMode
     ? 'Late entry'
     : isInsideSidebar
-      ? 'Add entries'
+      ? 'Mail-in entry'
       : 'Register';
   const sidebarTitle = isLateEntryMode
-    ? 'Late entry'
+    ? 'Add late entry'
     : isInsideSidebar
-      ? 'Add entries for exhibitor'
+      ? 'Add mail-in entry'
       : 'Register for Show';
+  const workflowSubtitle = isInsideSidebar ? 'Enter on behalf of an exhibitor.' : undefined;
   const exitTarget = resolveRegistrationExit(showId, { isLateEntryMode, isInsideSidebar });
 
   // Auth and permissions
@@ -376,6 +377,7 @@ export function useRegistrationWizardState() {
     exitTarget,
     workflowLabel,
     sidebarTitle,
+    workflowSubtitle,
     scrollTopRef,
 
     // Identity / permissions

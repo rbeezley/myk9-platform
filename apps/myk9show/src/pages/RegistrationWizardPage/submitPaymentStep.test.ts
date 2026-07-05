@@ -30,6 +30,7 @@ function makeContextAndOrder(overrides: Partial<SubmitPaymentStepContext> = {}):
     userId: 'user-1',
     registrationId: 'registration-1',
     previousStatus: 'draft',
+    isLateEntryMode: false,
     currentWorkflowMode: 'exhibitor',
     paymentMethod: 'check',
     paymentDetails: {},
@@ -122,5 +123,41 @@ describe('submitPaymentStep', () => {
     expect(notificationErrorMock).toHaveBeenCalledWith(
       'Online card checkout is only available when an exhibitor pays for their own entries. For on-behalf entries, record the payment as check, cash, or mark it as paid.'
     );
+  });
+
+  it('blocks non-late submissions after entries close before writing entries', async () => {
+    const { ctx } = makeContextAndOrder({
+      showFeeInfo: {
+        preEntryFee: '25',
+        startDate: '2026-08-01',
+        entryCloseDate: '2020-01-01',
+      },
+    });
+
+    await submitPaymentStep(ctx);
+
+    expect(submitShowRegistrationMock).not.toHaveBeenCalled();
+    expect(ctx.cart.clearCart).not.toHaveBeenCalled();
+    expect(notificationErrorMock).toHaveBeenCalledWith(
+      'Entries are closed for this show. Contact the trial secretary for late-entry help.'
+    );
+  });
+
+  it('allows secretary late-entry mode after entries close', async () => {
+    const { ctx } = makeContextAndOrder({
+      isLateEntryMode: true,
+      currentWorkflowMode: 'secretary_new',
+      paymentMethod: 'secretary_paid',
+      showFeeInfo: {
+        preEntryFee: '25',
+        startDate: '2026-08-01',
+        entryCloseDate: '2020-01-01',
+      },
+    });
+
+    await submitPaymentStep(ctx);
+
+    expect(submitShowRegistrationMock).toHaveBeenCalledTimes(1);
+    expect(ctx.cart.clearCart).toHaveBeenCalledTimes(1);
   });
 });

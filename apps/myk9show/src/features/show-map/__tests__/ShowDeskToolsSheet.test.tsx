@@ -60,8 +60,8 @@ describe('ShowDeskToolsSheet', () => {
       },
       {
         id: 'broadcast',
-        title: 'Broadcast',
-        summary: 'Send show-day updates',
+        title: 'Schedule slip script',
+        summary: 'Draft calm wording for schedule changes',
         content: <div data-testid="broadcast-tool">Broadcast content</div>,
       },
     ];
@@ -111,7 +111,7 @@ describe('ShowDeskToolsSheet', () => {
       'aria-expanded',
       'true'
     );
-    expect(screen.getByRole('button', { name: /broadcast/i })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /schedule slip script/i })).toHaveAttribute(
       'aria-expanded',
       'false'
     );
@@ -183,9 +183,9 @@ describe('ShowDeskToolsSheet', () => {
     const { user } = renderSheet();
 
     await user.click(screen.getByRole('button', { name: /open tools panel/i }));
-    await user.click(screen.getByRole('button', { name: /broadcast/i }));
+    await user.click(screen.getByRole('button', { name: /schedule slip script/i }));
 
-    expect(screen.getByRole('button', { name: /broadcast/i })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /schedule slip script/i })).toHaveAttribute(
       'aria-expanded',
       'true'
     );
@@ -205,8 +205,8 @@ describe('ShowDeskToolsSheet', () => {
     const { user } = renderSheet();
 
     await user.click(screen.getByRole('button', { name: /open tools panel/i }));
-    const broadcast = screen.getByRole('button', { name: /broadcast/i });
-    broadcast.focus();
+    const scheduleSlipScript = screen.getByRole('button', { name: /schedule slip script/i });
+    scheduleSlipScript.focus();
     await user.keyboard('{Enter}');
 
     expect(screen.getByTestId('broadcast-tool')).toBeInTheDocument();
@@ -216,7 +216,7 @@ describe('ShowDeskToolsSheet', () => {
     const { user, unmount } = renderSheet({ showId: 'show-1' });
 
     await user.click(screen.getByRole('button', { name: /open tools panel/i }));
-    await user.click(screen.getByRole('button', { name: /broadcast/i }));
+    await user.click(screen.getByRole('button', { name: /schedule slip script/i }));
     unmount();
 
     const second = renderSheet({ showId: 'show-1' });

@@ -92,7 +92,7 @@ export function ShowDeskToolsSheet({
           type="button"
           variant="outline"
           size="sm"
-          className="gap-2"
+          className="min-h-11 gap-2"
           aria-label="Open tools panel"
         >
           <Wrench className="h-4 w-4" aria-hidden="true" />

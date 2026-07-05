@@ -53,24 +53,28 @@ interface TimelineRowProps {
 
 function TimelineRow({ entry, showId }: TimelineRowProps) {
   const href = `/shows/${showId}/trials/${entry.trialId}/classes/${entry.classId}`;
+  const startTimeLabel = entry.startTime || 'Time pending';
+  const armbandLabel = entry.armband || 'Armband pending';
 
   return (
     <Link
       to={href}
       className="flex items-center gap-3 rounded-lg bg-muted/40 px-3 py-3 transition-colors hover:bg-muted/70"
-      aria-label={`${entry.classTitle} — ${entry.dayLabel} ${entry.startTime}`}
+      aria-label={`${entry.classTitle} — ${entry.dayLabel} ${startTimeLabel}`}
     >
-      <span className="flex w-20 shrink-0 flex-col gap-1">
-        <span className="inline-flex items-center gap-1 font-mono text-sm font-semibold tabular-nums text-foreground">
+      <span className="flex w-28 shrink-0 flex-col gap-1">
+        <span className="inline-flex min-w-0 items-center gap-1 text-sm font-semibold tabular-nums text-foreground">
           <Clock className="h-3.5 w-3.5 text-primary" />
-          {entry.startTime || 'TBD'}
+          <span className={entry.startTime ? 'font-mono' : 'truncate text-xs font-medium'}>
+            {startTimeLabel}
+          </span>
         </span>
         <span
-          className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground"
-          aria-label={entry.armband ? `Armband ${entry.armband}` : 'No armband assigned'}
+          className="inline-flex min-w-0 items-center gap-1 text-xs font-medium text-muted-foreground"
+          aria-label={entry.armband ? `Armband ${entry.armband}` : armbandLabel}
         >
           <Hash className="h-3 w-3" />
-          {entry.armband || 'No #'}
+          <span className="truncate">{armbandLabel}</span>
         </span>
       </span>
 

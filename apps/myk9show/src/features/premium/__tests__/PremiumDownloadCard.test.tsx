@@ -58,6 +58,7 @@ describe('PremiumDownloadCard', () => {
     expect(
       await screen.findByRole('button', { name: /generate & publish premium/i })
     ).toBeInTheDocument();
+    expect(screen.getByText('Premium PDF is not published yet')).toBeInTheDocument();
   });
 
   it('opens published premium lists in a new tab', async () => {
@@ -77,5 +78,6 @@ describe('PremiumDownloadCard', () => {
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     expect(link).not.toHaveAttribute('download');
+    expect(screen.getByText(/premium pdf published may 9, 2026/i)).toBeInTheDocument();
   });
 });

@@ -61,3 +61,38 @@ export function formatFormatterLabel(f: { organization: string; sportType: strin
     .join(' ');
   return `${f.organization} ${sport}`.trim();
 }
+
+export interface AKCSubmissionReadiness {
+  verdict: string;
+  details: string;
+  canSend: boolean;
+}
+
+export function buildAKCSubmissionReadiness(input: {
+  entryCount: number;
+  missingRegistrationNumberCount: number;
+}): AKCSubmissionReadiness {
+  if (input.entryCount === 0) {
+    return {
+      verdict: 'No entries are ready to send yet.',
+      details: 'Score entries first, then return here to prepare the AKC file.',
+      canSend: false,
+    };
+  }
+
+  if (input.missingRegistrationNumberCount > 0) {
+    return {
+      verdict: `${input.missingRegistrationNumberCount} ${
+        input.missingRegistrationNumberCount === 1 ? 'entry needs' : 'entries need'
+      } AKC registration ${input.missingRegistrationNumberCount === 1 ? 'number' : 'numbers'} before sending.`,
+      details: 'You can still download a draft XML file, but Send to AKC stays disabled until the missing registration numbers are added.',
+      canSend: false,
+    };
+  }
+
+  return {
+    verdict: `${input.entryCount} ${input.entryCount === 1 ? 'entry is' : 'entries are'} ready to send to AKC.`,
+    details: 'Submission file is ready to send or download.',
+    canSend: true,
+  };
+}

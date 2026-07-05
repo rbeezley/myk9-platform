@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { useClubStore } from '@/store/clubStore';
 import { useShowStore } from '@/store/showStore';
 import type { Club } from '@/types/club-types';
+import { filterVisibleBrowseClubs } from './browseClubsVisibility';
 
 export interface ClubFilters {
   search: string;
@@ -33,6 +35,11 @@ export function useBrowseClubsData(): BrowseClubsData {
   const error = useClubStore(state => state.error);
   const loadClubs = useClubStore(state => state.loadClubs);
   const shows = useShowStore(state => state.shows);
+  const { userWithRoles } = useAuthContext();
+  const visibleClubs = useMemo(
+    () => filterVisibleBrowseClubs(clubs, userWithRoles?.roles),
+    [clubs, userWithRoles?.roles]
+  );
 
   const hasError = !!error;
   const handleRetry = useCallback(() => {
@@ -60,7 +67,7 @@ export function useBrowseClubsData(): BrowseClubsData {
 
   // Filter clubs by search text and club type
   const filteredClubs = useMemo(() => {
-    let result = clubs;
+    let result = visibleClubs;
 
     // Search filter: match name, city, or state
     if (filters.search.trim()) {
@@ -80,7 +87,7 @@ export function useBrowseClubsData(): BrowseClubsData {
 
     // Sort alphabetically by name
     return [...result].sort((a, b) => a.name.localeCompare(b.name));
-  }, [clubs, filters]);
+  }, [visibleClubs, filters]);
 
   const hasActiveFilters = filters.search.trim() !== '' || filters.clubType !== 'all';
 
@@ -89,7 +96,7 @@ export function useBrowseClubsData(): BrowseClubsData {
   }, []);
 
   return {
-    clubs,
+    clubs: visibleClubs,
     filteredClubs,
     isLoading,
     hasError,

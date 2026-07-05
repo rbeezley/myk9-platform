@@ -1,6 +1,6 @@
 # UX Audit: Secretary Journey — Full App Walkthrough
 
-> **Status:** Active
+> **Status:** Remediated — verified 2026-07-05
 
 **Date:** 2026-07-01
 **Auditor:** Claude (live browser walkthrough, desktop 1280×800 + mobile 375×812 spot-check)
@@ -10,6 +10,8 @@
 **Cross-review:** Merged with agreed findings from the independent Codex walk of the same account/date ([secretary-major-paths-ux-audit.md](2026-07-ux-browser-walk/secretary-major-paths-ux-audit.md)). Merged items are marked **[Codex]**; findings both walks hit independently are marked **[×2]**.
 
 **Calibration caveat:** This walk was driven by automation. Synthetic clicks did not register on several shadcn popover/menu/checkbox widgets (entry-row kebab, bulk-select checkboxes, search palette, theme toggle, date pickers). Those are **not** reported as findings — code inspection confirmed the underlying actions exist and are wired. Everything below was either observed rendering live or verified in source.
+
+**Post-remediation verification (2026-07-05, Codex):** The Critical/High secretary findings tracked by `docs/plan-ux-walk-remediation-2026-07.md` were remediated and rechecked with focused unit coverage, `pnpm typecheck`, `pnpm lint`, `src/test/e2e/uat/secretary/critical-path.spec.ts`, `src/test/e2e/registration/secretaryNewUsers.spec.ts`, `src/test/e2e/shell-integrity-responsive.spec.ts`, and `src/test/e2e/a11y-smoke.spec.ts` on Chromium. The historical findings below remain as the original audit evidence.
 
 **What works well (keep):**
 

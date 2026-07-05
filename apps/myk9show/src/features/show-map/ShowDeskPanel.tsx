@@ -246,6 +246,16 @@ export default function ShowDeskPanel({
           ) : undefined
         }
       />
+      {desk.status === 'setup' && (
+        <div
+          className="rounded-md border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground"
+          role="status"
+          data-testid="show-desk-dormant-notice"
+        >
+          Show-day sections are waiting until the show window opens. Setup work stays in Setup;
+          entries and readiness links remain available here.
+        </div>
+      )}
       <ShowDeskAdaptiveHeader
         showStatus={desk.status}
         statusSummary={desk.summary}

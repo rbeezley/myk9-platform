@@ -30,6 +30,7 @@ import type {
   ShowRegistration,
 } from '@/types/show-registration-types';
 import type { CartWithDetails, NewCartItem } from '@/store/cartStore';
+import { getEntryCloseSubmitBlocker } from './entryCloseGuard';
 
 /** Subset of the cart store actions the checkout handoff needs. */
 export interface PaymentStepCartDeps {
@@ -45,6 +46,7 @@ export interface PaymentStepShowFeeInfo {
   preEntryFee: string;
   dayOfShowFee?: string | undefined;
   startDate: string;
+  entryCloseDate?: string | undefined;
 }
 
 export interface SubmitPaymentStepContext {
@@ -54,6 +56,7 @@ export interface SubmitPaymentStepContext {
   registrationId: string;
   /** The registration's status before submission, restored on failure. */
   previousStatus: ShowRegistration['status'];
+  isLateEntryMode: boolean;
   currentWorkflowMode: WorkflowMode;
   paymentMethod: PaymentMethod | undefined;
   paymentDetails: PaymentDetails;
@@ -91,6 +94,16 @@ export interface SubmitPaymentStepContext {
 export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<void> {
   ctx.setIsSubmitting(true);
   try {
+    const entryCloseBlocker = getEntryCloseSubmitBlocker({
+      startDate: ctx.showFeeInfo.startDate,
+      entryCloseDate: ctx.showFeeInfo.entryCloseDate,
+      isLateEntryMode: ctx.isLateEntryMode,
+      workflowMode: ctx.currentWorkflowMode,
+    });
+    if (entryCloseBlocker) {
+      throw new Error(entryCloseBlocker);
+    }
+
     if (ctx.paymentMethod === 'credit_card') {
       // Card checkout is exhibitor-self-service only. Stripe-hosted checkout
       // runs under the logged-in user's account and stripe-checkout 403s any

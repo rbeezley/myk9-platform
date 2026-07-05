@@ -160,6 +160,11 @@ describe('ResultsSubmissionPage', () => {
     expect(warning.className).toContain('bg-warning/10');
     expect(warning.className).toContain('text-warning');
     expect(warning).toHaveAttribute('role', 'alert');
+    expect(warning).not.toHaveTextContent('akcDogRegnum');
+    expect(screen.getByTestId('send-disabled-reason')).toHaveTextContent(
+      '1 entry needs AKC registration number before sending.'
+    );
+    expect(screen.getByTestId('download-btn')).toHaveTextContent('Download draft XML');
   });
 
   it('blocks sending to AKC when entries are missing registration numbers', async () => {
@@ -408,7 +413,7 @@ describe('ResultsSubmissionPage', () => {
 
       await waitFor(() => expect(screen.getByTestId('submission-checklist')).toBeInTheDocument());
       const checklist = screen.getByTestId('submission-checklist');
-      expect(checklist.textContent).toMatch(/1 entry ready to submit/);
+      expect(checklist.textContent).toMatch(/1 entry is ready to send to AKC/);
       expect(checklist.textContent).toMatch(/All entries have AKC registration numbers/);
 
       // XML lives behind the disclosure rather than leading the page.
@@ -423,7 +428,7 @@ describe('ResultsSubmissionPage', () => {
 
       const checklist = await screen.findByTestId('submission-checklist');
       expect(checklist.textContent).toMatch(/1 entry is missing AKC registration numbers/);
-      expect(checklist.textContent).toMatch(/Add the missing registration numbers before sending/);
+      expect(checklist.textContent).toMatch(/Send to AKC stays disabled/);
     });
   });
 });

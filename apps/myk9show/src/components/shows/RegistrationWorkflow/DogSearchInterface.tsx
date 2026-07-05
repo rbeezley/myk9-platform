@@ -14,7 +14,6 @@ import { Dog } from '@/types/dog-types';
 import { useDebounce } from '@myk9/scoring-ui';
 import { useRecentSearches } from '@/hooks/useRecentSearches';
 import { SearchSuggestions } from '@/components/common/RecentSearches';
-import { SearchPerformanceIndicator } from '@/components/common/SearchPerformanceMonitor';
 
 interface DogSearchInterfaceProps {
   dogs: Dog[];
@@ -76,16 +75,8 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Performance tracking
-  const searchStartTimeRef = useRef(0);
-  const [searchResponseTime, setSearchResponseTime] = useState(0);
-
   // Debounced search query for performance
   const debouncedSearchQuery = useDebounce(filters.searchQuery, 300);
-
-  // Derive isSearching from query state - searching when there's a pending debounced query
-  const isSearching =
-    filters.searchQuery.trim() !== '' && filters.searchQuery !== debouncedSearchQuery;
 
   // Quick filters for common use cases
   const quickFilters: QuickFilter[] = useMemo(
@@ -246,13 +237,6 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
     onActiveFilterChange?.(filters.quickFilter);
   }, [filters.quickFilter, onActiveFilterChange]);
 
-  // Track search start time using ref (no setState needed)
-  useEffect(() => {
-    if (debouncedSearchQuery.trim()) {
-      searchStartTimeRef.current = Date.now();
-    }
-  }, [debouncedSearchQuery]);
-
   // Track search completion and add to recent searches
   const searchKey = `${debouncedSearchQuery}-${filteredDogs.length}`;
   const prevSearchKeyRef = useRef(searchKey);
@@ -263,15 +247,6 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
       enablePersistence
     ) {
       prevSearchKeyRef.current = searchKey;
-      const endTime = Date.now();
-      const responseTime =
-        searchStartTimeRef.current > 0 ? endTime - searchStartTimeRef.current : 0;
-
-      // Use queueMicrotask to defer state update (avoids synchronous setState in effect)
-      queueMicrotask(() => {
-        setSearchResponseTime(responseTime);
-      });
-
       addSearch(debouncedSearchQuery, {
         resultCount: filteredDogs.length,
         filters: {
@@ -590,15 +565,6 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
         </div>
       )}
 
-      {/* Performance Indicator */}
-      {debouncedSearchQuery.trim() && (
-        <SearchPerformanceIndicator
-          isSearching={isSearching}
-          responseTime={searchResponseTime}
-          cacheHit={false}
-          resultCount={filteredDogs.length}
-        />
-      )}
     </div>
   );
 };

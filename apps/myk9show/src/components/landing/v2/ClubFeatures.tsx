@@ -18,7 +18,7 @@ const CARDS: FeatureCard[] = [
       </>
     ),
     body: 'Set the trial up online. Judges score at the ring even when signal is weak or gone. Scores sync to your laptop the moment LTE returns — no lost work when the venue Wi-Fi dies.',
-    footLeft: 'PWA · local-first',
+    footLeft: 'Works without signal',
     badge: 'Ringside-resilient',
   },
   {

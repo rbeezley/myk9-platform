@@ -40,18 +40,22 @@ describe('show-registrations', () => {
     });
 
     it('falls back to existing registration on unique violation (23505)', async () => {
-      // First call (insert) fails with unique violation
+      // First call (preflight select) finds no existing registration
+      const preflightQuery = createChainableQuery({ data: null, error: null });
+      // Second call (insert) fails with unique violation
       const insertQuery = createChainableQuery({
         data: null,
         error: { message: 'duplicate key', code: '23505' },
       });
-      // Second call (select fallback) succeeds
+      // Third call (select fallback) succeeds
       const selectQuery = createChainableQuery({ data: MOCK_DB_ROW, error: null });
 
       let callCount = 0;
       mockSupabase.from.mockImplementation(() => {
         callCount++;
-        return callCount === 1 ? insertQuery : selectQuery;
+        if (callCount === 1) return preflightQuery;
+        if (callCount === 2) return insertQuery;
+        return selectQuery;
       });
 
       const result = await createShowRegistration('show-abc', 'handler-xyz');

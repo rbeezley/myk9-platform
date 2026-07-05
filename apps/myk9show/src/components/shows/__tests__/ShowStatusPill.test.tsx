@@ -50,9 +50,9 @@ describe('ShowStatusPill', () => {
     expect(screen.getByText('Draft')).toBeInTheDocument();
   });
 
-  it('renders "Published" label for published status', () => {
+  it('renders a qualified label for published status', () => {
     render(<ShowStatusPill showId="show-1" status="published" />);
-    expect(screen.getByText('Published')).toBeInTheDocument();
+    expect(screen.getByText('Published show')).toBeInTheDocument();
   });
 
   it('renders "Upcoming" label for upcoming status', () => {

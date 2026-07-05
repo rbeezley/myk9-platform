@@ -46,7 +46,7 @@ export function SecretaryAddEntriesDecision({
         onClick={() => handleNavigate(buildSecretaryRegistrationPath)}
       >
         <FileText className="h-4 w-4 mr-2" />
-        Record exhibitor or paper entry
+        Add mail-in entry
       </Button>
     </div>
   );

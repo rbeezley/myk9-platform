@@ -49,6 +49,14 @@ export const createShowRegistration = async (
   const startTime = Date.now();
 
   try {
+    const existing = await getRegistrationByShowAndHandler(showId, handlerId);
+    if (existing.error) {
+      return existing;
+    }
+    if (existing.data) {
+      return existing;
+    }
+
     const { data, error } = await supabase
       .from('enrollments')
       .insert({

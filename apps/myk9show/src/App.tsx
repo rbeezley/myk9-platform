@@ -43,10 +43,10 @@ import { WizardSurfaceGate } from './components/WizardSurfaceGate';
 // Components
 import AppHeader from './components/layout/AppHeader';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import { PageLoadingFallback } from './components/common/PageLoadingFallback';
 import { RoleSurfaceErrorBoundary } from './components/common/RoleSurfaceErrorBoundary';
 import { PageTransition } from './components/common/PageTransition';
 import { NetworkStatusProvider } from './components/common/NetworkStatusProvider';
-import { Skeleton } from '@/components/common/SkeletonLoaders';
 
 // Context
 import { AuthProvider } from './context/AuthContext';
@@ -107,27 +107,6 @@ setupQueryPerformanceMonitoring(queryClient);
 if (typeof window !== 'undefined') {
   setTimeout(() => prefetchCriticalData(queryClient), 1000);
 }
-
-// Page loading fallback component
-const PageLoadingFallback = () => (
-  <div role="status" aria-label="Loading page" className="min-h-[60vh] p-6">
-    <div className="mx-auto w-full max-w-5xl space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div className="space-y-2">
-          <Skeleton className="h-8 w-56" />
-          <Skeleton className="h-4 w-72 max-w-full" />
-        </div>
-        <Skeleton className="h-10 w-28" />
-      </div>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <Skeleton key={index} className="h-32 rounded-lg" />
-        ))}
-      </div>
-      <Skeleton className="h-56 rounded-lg" />
-    </div>
-  </div>
-);
 
 // Redirect authenticated users to their role dashboard, show landing page for guests
 const HomeRedirect = () => {

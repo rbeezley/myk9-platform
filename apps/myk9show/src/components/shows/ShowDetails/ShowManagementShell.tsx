@@ -34,6 +34,7 @@ import { useShowStore, type ShowInput } from '@/store/showStore';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import { SHOW_MANAGEMENT_SECTIONS } from '@/routes/showManagementSections';
 import { SETUP_PUBLISH_ANCHOR } from '@/features/show-workbench/setupReadinessSignals';
+import { SHOW_STATUS_CONTROL_ANCHOR } from '@/features/show-workbench/publishReadiness';
 import { notifications } from '@/lib/notifications';
 import { cn } from '@/lib/utils';
 import type { Show } from '@/types/show-types';
@@ -161,7 +162,9 @@ export function ShowManagementShell({
             <>
               <LiveUpdateIndicator />
               <ShowPresenceStack />
-              <ShowStatusPill showId={show.id} status={show.status} />
+              <span id={SHOW_STATUS_CONTROL_ANCHOR} className="scroll-mt-20">
+                <ShowStatusPill showId={show.id} status={show.status} />
+              </span>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button

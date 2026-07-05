@@ -38,6 +38,11 @@ export function CheckInStatusBadge({
 
   const sharedClasses = cn(
     'inline-flex items-center gap-1 font-semibold rounded-md whitespace-nowrap',
+    // Status changed in place = a 200ms color crossfade (never a snap). The
+    // status colors are applied via CSS-var inline styles that change with the
+    // status, so transition-colors animates the swap. See the motion language
+    // in DESIGN.md / docs/plan-motion-consistency.md.
+    'transition-colors duration-state motion-reduce:transition-none',
     sizeClasses,
     className
   );

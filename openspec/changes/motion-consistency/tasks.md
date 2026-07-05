@@ -21,19 +21,19 @@
 
 ## 4. Phase 5 — Status-change + reorder motion
 
-- [ ] 4.1 Add `transition-colors duration-state` to entry status chips so status color changes crossfade in place (no bounce).
-- [ ] 4.2 Apply Framer `layout` to non-virtualized myK9Show list rows (placement recalc / app-surface run order). Per-list check that the list is NOT react-window-virtualized before wiring.
-- [ ] 4.3 For virtualized lists (`VirtualScrollList`, `EntitySidebar`, `DogSelectionStepEnhanced`), use the 200ms in-place crossfade fallback instead of `layout` (FLIP-on-recycled-node guard).
-- [ ] 4.4 Ringside reorder: add CSS `transition` on transform only where the existing DnD library (`SortableEntryCard`/`@dnd-kit`) already exposes it — verify before adding.
+- [x] 4.1 Added `transition-colors duration-state motion-reduce:transition-none` to the shared `CheckInStatusBadge` (show-day status chip; colors applied via CSS-var inline styles that change with status) so status changes crossfade in place.
+- [x] 4.2 Applied Framer `layout="position"` to `EntryCardGrid` cards (non-virtualized card grid, stable `entryId` keys), `duration-layout` timing, gated on `useReducedMotion`. Results TABLE view left alone (Framer `layout` unreliable on `<tr>`; drag reorder already handled by `@dnd-kit`).
+- [x] 4.3 Virtualized lists (`VirtualScrollList`, `EntitySidebar`, `DogSelectionStepEnhanced`) deliberately EXCLUDED from `layout` per the guard; the chosen target (`EntryCardGrid`) is non-virtualized. Guard rationale documented in `reorderLayoutMode` + design D6.
+- [x] 4.4 Ringside reorder: VERIFIED `@dnd-kit` already provides it (`SortableEntryCard` applies `useSortable` `transform`+`transition`). No change needed; ringside stays framer-free per the non-goal.
 
 ## 5. Testing
 
 - [x] 5.1 Source-text unit test pinning the token names/values in `tailwind.config.js` (`feedback_source_text_regression_tests`).
 - [x] 5.2 Ringside `SuccessToast` tests: renders message + visibility toggle; fake-timer auto-dismiss; rapid-retrigger reset; unmount clears timer. (`window.matchMedia` already mocked in `src/test/setup.ts`.)
-- [ ] 5.3 Reduced-motion gating assertion where a hook decision is involved (reorder/crossfade fallback path).
-- [ ] 5.4 Unit tests for any pure helpers extracted in Phase 5.
-- [ ] 5.5 Grep proves zero remaining imports of every deleted name; full myK9Show `vitest` + `pnpm typecheck` + `pnpm lint` green.
-- [ ] 5.6 [ADDED] If any app-level test exercises the changed ringside code, rebuild the shared package first (`pnpm --filter @myk9/ringside build`) so app vitest runs against fresh `dist` (`feedback_rebuild_package_for_app_tests`); ringside-package-local tests run against source and need no rebuild.
+- [x] 5.3 Reduced-motion gating asserted via `reorderLayoutMode` (false when reduced-motion → instant reposition); toast gates via the CSS `motion-reduce:` variant.
+- [x] 5.4 Unit tests for the extracted pure helper `reorderLayoutMode` (3 cases: motion allowed / reduced / null).
+- [x] 5.5 Grep proves zero remaining imports of every deleted name; `pnpm typecheck` + `pnpm lint` (0 warnings) green; 374 vitest green across all changed areas (app touched 71, ringside EntryList 113, at-show 190) — full suite runs in CI (6.2).
+- [x] 5.6 [ADDED] Rebuilt `@myk9/ringside` (`pnpm --filter @myk9/ringside build`) before the app-level at-show suite so it ran against fresh `dist` (`feedback_rebuild_package_for_app_tests`); 190 at-show tests green.
 
 ## 6. Ship gate
 

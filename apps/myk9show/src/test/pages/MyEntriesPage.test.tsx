@@ -501,7 +501,9 @@ describe('MyEntriesPage UI Improvements', () => {
 
       expect(mockUseCheckInMutation).toHaveBeenCalledWith({ writer: 'self-checkin-rpc' });
       await screen.findByText('Spring Trial');
-      await user.click(screen.getByRole('button', { name: /update check-in for koda in novice a/i }));
+      await user.click(
+        screen.getByRole('button', { name: /update check-in for koda in novice a/i })
+      );
       const statusOptions = await screen.findAllByRole('radio', { name: /checked in/i });
       const checkedInOption = statusOptions.find(
         option => option.getAttribute('aria-labelledby') === 'checked-in-label'
@@ -692,7 +694,7 @@ describe('Receipt Button Visibility', () => {
   });
 });
 
-describe('Status Stepper Integration', () => {
+describe('Current Status Integration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -702,14 +704,15 @@ describe('Status Stepper Integration', () => {
     });
   });
 
-  it('should use EntryStatusStepper instead of progress bar', async () => {
+  it('should use direct status labels without progress bars or lifecycle steppers', async () => {
     seedLoadedEntry();
-    renderWithProviders(<MyEntriesPage />);
+    const { container } = renderWithProviders(<MyEntriesPage />);
 
     await screen.findByRole('tablist');
 
     // Should NOT have the old progress elements
     expect(screen.queryByText('Entry Progress')).not.toBeInTheDocument();
     expect(screen.queryByText(/\d+%$/)).not.toBeInTheDocument(); // No percentage displays
+    expect(container.querySelector('.entry-status-stepper')).not.toBeInTheDocument();
   });
 });

@@ -710,8 +710,9 @@
     flex-wrap: wrap;
   }
 
-  .myk9-entries-class-item:hover {
-    transform: none;
+  .myk9-entries-class-row {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 
@@ -818,24 +819,25 @@
   @apply relative overflow-hidden;
   background: var(--card);
   border: 0.5px solid var(--border);
-  border-radius: 20px;
-  padding: 24px;
-  margin-bottom: 24px;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 16px;
   backdrop-filter: blur(20px);
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transition:
+    box-shadow 150ms ease,
+    border-color 150ms ease;
 }
 
 .myk9-entries-card:hover {
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.1);
   border-color: color-mix(in srgb, var(--primary) 30%, transparent);
-  transform: scale(1.01);
 }
 
 .myk9-entries-card::before {
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 20px;
+  border-radius: 8px;
   padding: 0.5px;
   background: linear-gradient(
     135deg,
@@ -855,7 +857,8 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 20px;
+  gap: 16px;
+  margin-bottom: 14px;
   position: relative;
   z-index: 10;
 }
@@ -879,9 +882,11 @@
 
 .myk9-entries-badges {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: flex-end;
+  justify-content: flex-end;
 }
 
 .myk9-entries-progress-section {
@@ -916,11 +921,11 @@
 .myk9-entries-details-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-  margin: 20px 0;
-  padding: 16px;
+  gap: 10px 14px;
+  margin: 14px 0;
+  padding: 12px;
   background: color-mix(in srgb, var(--muted) 20%, transparent);
-  border-radius: 12px;
+  border-radius: 8px;
 }
 
 .myk9-entries-detail-item {
@@ -936,7 +941,7 @@
 }
 
 .myk9-entries-classes-section {
-  margin: 20px 0;
+  margin: 14px 0;
 }
 
 .myk9-entries-classes-title {
@@ -946,29 +951,23 @@
   margin-bottom: 12px;
 }
 
-.myk9-entries-classes-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 12px;
+.myk9-entries-classes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.myk9-entries-class-item {
+.myk9-entries-class-row {
   display: flex;
   gap: 12px;
   justify-content: space-between;
   align-items: center;
   min-width: 0;
-  padding: 16px;
-  background: var(--card);
+  min-height: 52px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--muted) 14%, transparent);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  transition: all 0.2s ease;
-}
-
-.myk9-entries-class-item:hover {
-  background: color-mix(in srgb, var(--muted) 30%, transparent);
-  border-color: color-mix(in srgb, var(--primary) 20%, transparent);
-  transform: translateY(-1px);
+  border-radius: 8px;
 }
 
 .myk9-entries-class-name {
@@ -990,9 +989,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 20px;
+  padding-top: 14px;
   border-top: 1px solid var(--border);
-  margin-top: 20px;
+  margin-top: 14px;
 }
 
 .myk9-entries-last-updated {
@@ -1015,7 +1014,7 @@
    polish. Keep mobile overrides last. */
 @media (max-width: 768px) {
   .myk9-entries-card {
-    padding: 16px;
+    padding: 14px;
   }
 
   .myk9-entries-card:hover {
@@ -1028,9 +1027,8 @@
   }
 
   .myk9-entries-badges {
-    flex-direction: row;
-    flex-wrap: wrap;
     align-items: flex-start;
+    justify-content: flex-start;
   }
 
   .myk9-entries-actions {
@@ -1043,13 +1041,9 @@
     flex-wrap: wrap;
   }
 
-  .myk9-entries-class-item {
+  .myk9-entries-class-row {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .myk9-entries-class-item:hover {
-    transform: none;
   }
 }
 

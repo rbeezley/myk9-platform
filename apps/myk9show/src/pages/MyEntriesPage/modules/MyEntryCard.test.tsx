@@ -50,53 +50,65 @@ function renderCard(entry: MyEntry) {
   );
 }
 
-describe('MyEntryCard stepper visibility', () => {
-  it('hides the stepper when the entry is accepted and paid online', () => {
+describe('MyEntryCard current status summary', () => {
+  it('does not render the four-step lifecycle strip for an accepted paid online entry', () => {
     const { container } = renderCard(makeEntry({ paymentStatus: PaymentStatus.PAID_ONLINE }));
     expect(container.querySelector('.entry-status-stepper')).not.toBeInTheDocument();
+    expect(screen.getByText('Accepted')).toBeInTheDocument();
+    expect(screen.getByText('Paid')).toBeInTheDocument();
+    expect(screen.getByText('Test Show')).toBeInTheDocument();
+    expect(screen.getByText('Rex')).toBeInTheDocument();
   });
 
-  it('hides the stepper when the entry is accepted and paid by check', () => {
+  it('does not render the four-step lifecycle strip when the entry is accepted and paid by check', () => {
     const { container } = renderCard(makeEntry({ paymentStatus: PaymentStatus.PAID_BY_CHECK }));
     expect(container.querySelector('.entry-status-stepper')).not.toBeInTheDocument();
   });
 
-  it('hides the stepper when the entry is accepted and paid by cash', () => {
+  it('does not render the four-step lifecycle strip when the entry is accepted and paid by cash', () => {
     const { container } = renderCard(makeEntry({ paymentStatus: PaymentStatus.PAID_BY_CASH }));
     expect(container.querySelector('.entry-status-stepper')).not.toBeInTheDocument();
   });
 
-  it('shows the stepper when accepted but payment is pending', () => {
+  it('uses direct status labels for pending payment without numbered lifecycle steps', () => {
     const { container } = renderCard(
       makeEntry({ entryStatus: EntryStatus.ACCEPTED, paymentStatus: PaymentStatus.PENDING })
     );
-    expect(container.querySelector('.entry-status-stepper')).toBeInTheDocument();
+    expect(container.querySelector('.entry-status-stepper')).not.toBeInTheDocument();
+    expect(screen.getByText('Accepted')).toBeInTheDocument();
+    expect(screen.getByText('Payment Due')).toBeInTheDocument();
+    expect(screen.queryByText('Submitted')).not.toBeInTheDocument();
+    expect(screen.queryByText('Review')).not.toBeInTheDocument();
+    expect(screen.queryByText('Paid')).not.toBeInTheDocument();
   });
 
-  it('shows the stepper for a pending entry', () => {
+  it('uses direct status labels for pending review and payment due', () => {
     const { container } = renderCard(
       makeEntry({ entryStatus: EntryStatus.PENDING, paymentStatus: PaymentStatus.PENDING })
     );
-    expect(container.querySelector('.entry-status-stepper')).toBeInTheDocument();
+    expect(container.querySelector('.entry-status-stepper')).not.toBeInTheDocument();
+    expect(screen.getByText('Pending Review')).toBeInTheDocument();
+    expect(screen.getByText('Payment Due')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Finish Payment/i })).toHaveAttribute(
+      'href',
+      '/cart?showId=s1&entryIds=e1'
+    );
   });
 
-  it('shows the stepper for a waitlisted entry', () => {
+  it('does not render the four-step lifecycle strip for a waitlisted entry', () => {
     const { container } = renderCard(
       makeEntry({ entryStatus: EntryStatus.WAITLIST, paymentStatus: PaymentStatus.PENDING })
     );
-    expect(container.querySelector('.entry-status-stepper')).toBeInTheDocument();
+    expect(container.querySelector('.entry-status-stepper')).not.toBeInTheDocument();
+    expect(screen.getByText('Waitlist')).toBeInTheDocument();
   });
 
-  it('shows the stepper for a rejected entry', () => {
+  it('does not render the four-step lifecycle strip for a rejected entry', () => {
     const { container } = renderCard(
       makeEntry({ entryStatus: EntryStatus.REJECTED, paymentStatus: PaymentStatus.PENDING })
     );
-    expect(container.querySelector('.entry-status-stepper')).toBeInTheDocument();
-  });
-
-  it('still renders the show name and status badges when stepper is hidden', () => {
-    renderCard(makeEntry({ paymentStatus: PaymentStatus.PAID_ONLINE }));
-    expect(screen.getByText('Test Show')).toBeInTheDocument();
+    expect(container.querySelector('.entry-status-stepper')).not.toBeInTheDocument();
+    expect(screen.getByText('Rejected')).toBeInTheDocument();
   });
 });
 
@@ -742,6 +754,68 @@ describe('MyEntryCard class detail display', () => {
     expect(screen.getByText('Sep 2')).toBeInTheDocument();
     expect(screen.getByText('Trial 2')).toBeInTheDocument();
     expect(screen.queryByText('$25')).not.toBeInTheDocument();
+  });
+
+  it('renders multiple entered classes as compact rows with class context and check-in controls', () => {
+    const { container } = renderCard(
+      makeEntry({
+        classes: [
+          makeClass({
+            id: 'c1',
+            classId: 'class-1',
+            name: 'Container Search',
+            trialDate: new Date('2026-09-01T00:00:00'),
+            trialNumber: '1',
+          }),
+          makeClass({
+            id: 'c2',
+            classId: 'class-2',
+            name: 'Exterior Search',
+            trialDate: new Date('2026-09-02T00:00:00'),
+            trialNumber: '2',
+          }),
+          makeClass({
+            id: 'c3',
+            classId: 'class-3',
+            name: 'Buried Search',
+            trialDate: new Date('2026-09-03T00:00:00'),
+            trialNumber: '3',
+          }),
+        ],
+      })
+    );
+
+    expect(container.querySelectorAll('.myk9-entries-class-row')).toHaveLength(3);
+    expect(container.querySelector('.myk9-entries-classes-grid')).not.toBeInTheDocument();
+    expect(screen.getByText('Container Search #101')).toBeInTheDocument();
+    expect(screen.getByText('Exterior Search #101')).toBeInTheDocument();
+    expect(screen.getByText('Buried Search #101')).toBeInTheDocument();
+    expect(screen.getByText('Sep 1')).toBeInTheDocument();
+    expect(screen.getByText('Trial 3')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Update check-in for Rex in Container Search/i })
+    ).toHaveClass('min-h-[44px]');
+  });
+
+  it('keeps long class names in a stable row without hiding the status control', () => {
+    const longClassName =
+      'Excellent Master Detective Container Search With An Extraordinarily Long Name';
+
+    const { container } = renderCard(
+      makeEntry({
+        classes: [makeClass({ name: longClassName, jumpHeight: '24 in' })],
+      })
+    );
+
+    const className = screen.getByText(`${longClassName} #101 (24 in)`);
+    expect(className).toHaveClass('myk9-entries-class-name');
+    expect(className).toHaveAttribute('title', `${longClassName} #101 (24 in)`);
+    expect(container.querySelector('.myk9-entries-class-row')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: new RegExp(`Update check-in for Rex in ${longClassName}`),
+      })
+    ).toBeInTheDocument();
   });
 });
 

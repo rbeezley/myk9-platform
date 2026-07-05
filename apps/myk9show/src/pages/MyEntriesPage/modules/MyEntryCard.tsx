@@ -9,7 +9,6 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { CheckInStatusIndicator } from '@/components/common/CheckInStatusIndicator';
-import { EntryStatusStepper } from '@/components/entries/EntryStatusStepper';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import {
   Calendar,
@@ -44,6 +43,7 @@ import {
   getContextualStatusMessage,
 } from './myEntriesUtils';
 import { isPastShowEntry } from './myEntriesStats.helpers';
+import { formatEntryDate, formatMonthDay, formatShortDate } from '@/lib/format/dates';
 
 interface MyEntryCardProps {
   entry: MyEntry;
@@ -97,14 +97,6 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
     entry.paymentStatus === PaymentStatus.PAID_ONLINE ||
     entry.paymentStatus === PaymentStatus.PAID_BY_CHECK ||
     entry.paymentStatus === PaymentStatus.PAID_BY_CASH;
-
-  // The registration stepper has nothing left to show once an entry is scored,
-  // or accepted/move-up-requested and paid — the header badges carry that state.
-  const isFullyComplete =
-    entry.entryStatus === EntryStatus.COMPLETED ||
-    (isPaid &&
-      (entry.entryStatus === EntryStatus.ACCEPTED ||
-        entry.entryStatus === EntryStatus.MOVE_UP_REQUESTED));
 
   const isPastEntryDeadline = entry.entryCloseDate
     ? entry.entryCloseDate.getTime() < currentTime
@@ -198,18 +190,11 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
         </div>
       </div>
 
-      {/* Status Stepper — hidden once accepted + paid; header badges carry that state */}
-      {!isFullyComplete && (
-        <div className="py-4 px-1">
-          <EntryStatusStepper entryStatus={entry.entryStatus} paymentStatus={entry.paymentStatus} />
-        </div>
-      )}
-
       {/* Show Details */}
       <div className="myk9-entries-details-grid">
         <div className="myk9-entries-detail-item">
           <Calendar className="h-4 w-4" />
-          <span>{entry.showDate.toLocaleDateString()}</span>
+          <span>{formatEntryDate(entry.showDate)}</span>
         </div>
 
         {entry.entryCloseDate && (
@@ -217,7 +202,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
             <Calendar className="h-4 w-4" />
             <span>
               <span className="text-sm text-muted-foreground">Entries close </span>
-              {entry.entryCloseDate.toLocaleDateString()}
+              {formatShortDate(entry.entryCloseDate)}
             </span>
           </div>
         )}
@@ -251,7 +236,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
       {/* Classes */}
       <div className="myk9-entries-classes-section">
         <h5 className="myk9-entries-classes-title">Classes Entered:</h5>
-        <div className="myk9-entries-classes-grid">
+        <div className="myk9-entries-classes-list">
           {entry.classes.map(cls => {
             const resultModel = buildResultCardModel({
               entry,
@@ -263,8 +248,8 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
             const showResultCardAction = resultModel != null && onResultRevealClick != null;
 
             return (
-              <div key={cls.id} className="myk9-entries-class-item">
-                <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+              <div key={cls.id} className="myk9-entries-class-row">
+                <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center">
                   <div className="flex min-w-0 flex-1 flex-col">
                     <span
                       className="myk9-entries-class-name"
@@ -281,7 +266,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
                         {cls.trialDate && (
                           <span className="inline-flex items-center gap-1 rounded-md bg-muted/70 px-2 py-1 font-medium">
                             <CalendarDays className="h-3 w-3" />
-                            {format(cls.trialDate, 'MMM d')}
+                            {formatMonthDay(cls.trialDate)}
                           </span>
                         )}
                         {cls.trialNumber && (
@@ -343,7 +328,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
                         type="button"
                         onClick={() => onCheckInClick(entry, cls)}
                         aria-label={`Update check-in for ${entry.dogName} in ${cls.name}`}
-                        className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded px-1 hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 transition-transform"
+                        className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md border border-border/60 bg-background px-2 active:scale-95 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 transition-transform"
                       >
                         <CheckInStatusIndicator
                           status={cls.checkInStatus || 'no-status'}

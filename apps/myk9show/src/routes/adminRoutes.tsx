@@ -26,6 +26,11 @@ const PayoutLedgerPage = createEnhancedLazy(() => import('@/pages/admin/PayoutLe
   displayName: 'PayoutLedgerPage',
 });
 
+const SupportInboxPage = createEnhancedLazy(() => import('@/pages/admin/SupportInboxPage'), {
+  ...RouteLazyPresets.mediumPriority,
+  displayName: 'SupportInboxPage',
+});
+
 // Medium priority: Template management (common workflow)
 const TemplateManagementPage = createEnhancedLazy(
   () => import('@/pages/admin/TemplateManagementPage'),
@@ -184,6 +189,18 @@ export const AdminRoutes = () => (
         <SuspenseWrapper>
           <PageTransition>
             <PayoutLedgerPage />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
+    />
+
+    {/* Support Inbox */}
+    <Route
+      path="/admin/support"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <SupportInboxPage />
           </PageTransition>
         </SuspenseWrapper>
       )}

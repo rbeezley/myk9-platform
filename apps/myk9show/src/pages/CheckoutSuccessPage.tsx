@@ -7,19 +7,12 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import {
-  CheckCircle,
-  Loader2,
-  AlertCircle,
-  Receipt,
-  Calendar,
-  Dog,
-  ArrowRight,
-} from 'lucide-react';
+import { CheckCircle, AlertCircle, Receipt, Calendar, Dog, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { verifyCheckoutSession } from '@/lib/stripe';
 import { useCartStore } from '@/store/cartStore';
 import { supabase } from '@/lib/supabase';
@@ -227,13 +220,11 @@ export default function CheckoutSuccessPage() {
     return (
       <div className="bg-background pt-6">
         <div className="max-w-2xl mx-auto px-4 py-16">
-          <Card>
+          <Card role="status" aria-label="Verifying payment">
             <CardContent className="py-16 text-center">
-              <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
-              <h2 className="text-xl font-semibold mb-2">Verifying your payment...</h2>
-              <p className="text-muted-foreground">
-                Please wait while we confirm your entry submission.
-              </p>
+              <Skeleton className="mx-auto mb-4 h-12 w-12 rounded-full" />
+              <Skeleton className="mx-auto mb-3 h-6 w-56" />
+              <Skeleton className="mx-auto h-4 w-80 max-w-full" />
             </CardContent>
           </Card>
         </div>

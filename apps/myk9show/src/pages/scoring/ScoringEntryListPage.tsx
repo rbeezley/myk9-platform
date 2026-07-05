@@ -12,7 +12,7 @@ import { DndContext, closestCenter, DragOverlay } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useEntryListFilters, useDragAndDropEntries } from '@myk9/scoring-ui';
 import { cn } from '@/lib/utils';
-import { Search, Filter, GripVertical, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
+import { Search, Filter, GripVertical, AlertCircle, RefreshCw } from 'lucide-react';
 
 // UI Components
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
+import { ScoringEntryListLoadingSkeleton } from '@/components/scoring/ScoringLoadingSkeletons';
 
 // Replication
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
@@ -191,11 +192,7 @@ export function ScoringEntryListPage() {
 
   // Loading state
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <ScoringEntryListLoadingSkeleton label="Loading scoring entries" />;
   }
 
   // Error state
@@ -314,10 +311,12 @@ export function ScoringEntryListPage() {
 
       {/* Tabs */}
       <PrimaryTabs
-        tabs={[
-          { id: 'pending', label: 'Pending', count: entryCounts.pending },
-          { id: 'completed', label: 'Completed', count: entryCounts.completed },
-        ] satisfies PrimaryTabDef[]}
+        tabs={
+          [
+            { id: 'pending', label: 'Pending', count: entryCounts.pending },
+            { id: 'completed', label: 'Completed', count: entryCounts.completed },
+          ] satisfies PrimaryTabDef[]
+        }
         value={activeTab}
         onValueChange={v => setActiveTab(v as typeof activeTab)}
       />

@@ -47,6 +47,17 @@ beforeEach(() => {
 });
 
 describe('EntryEditDialog — jump height visibility by discipline', () => {
+  it('renders a form skeleton while modification eligibility is loading', () => {
+    entryServiceMocks.canModifyEntry.mockReturnValue(new Promise(() => {}));
+
+    render(
+      <EntryEditDialog open entry={makeEntry('Scent Work')} onOpenChange={noop} onUpdate={noop} />
+    );
+
+    expect(screen.getByRole('status', { name: /loading entry edit form/i })).toBeInTheDocument();
+    expect(document.querySelector('.animate-spin')).toBeNull();
+  });
+
   it('hides the Jump Height field for scent work entries', async () => {
     render(
       <EntryEditDialog open entry={makeEntry('Scent Work')} onOpenChange={noop} onUpdate={noop} />
@@ -54,7 +65,25 @@ describe('EntryEditDialog — jump height visibility by discipline', () => {
 
     // Wait for the modify-eligibility check to resolve and the class to render.
     expect(await screen.findByText(/Container Novice A/)).toBeInTheDocument();
+    expect(
+      screen.queryByRole('status', { name: /loading entry edit form/i })
+    ).not.toBeInTheDocument();
     expect(screen.queryByText('Jump Height:')).not.toBeInTheDocument();
+  });
+
+  it('does not keep the skeleton when the eligibility check fails', async () => {
+    entryServiceMocks.canModifyEntry.mockRejectedValue(new Error('network unavailable'));
+
+    render(
+      <EntryEditDialog open entry={makeEntry('Scent Work')} onOpenChange={noop} onUpdate={noop} />
+    );
+
+    expect(
+      await screen.findByText(/couldn't check whether this entry can be modified/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('status', { name: /loading entry edit form/i })
+    ).not.toBeInTheDocument();
   });
 
   it('shows the Jump Height field for agility entries', async () => {

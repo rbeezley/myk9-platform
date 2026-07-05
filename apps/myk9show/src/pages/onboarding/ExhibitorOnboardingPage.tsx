@@ -13,6 +13,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { useNavigate } from 'react-router-dom';
 import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile, CreateExhibitorProfileData } from '@/hooks/useExhibitorProfile';
 import { getDashboardRoute } from '@/hooks/roleUtils';
@@ -66,8 +67,23 @@ export default function ExhibitorOnboardingPage() {
 
   if (!user || ((authLoading || rbacLoading) && user)) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <p className="text-sm text-muted-foreground">Loading your dashboard...</p>
+      <div
+        role="status"
+        aria-label="Loading exhibitor onboarding"
+        className="flex min-h-screen items-center justify-center bg-background p-4"
+      >
+        <div className="w-full max-w-2xl space-y-6">
+          <Skeleton className="h-3 w-full rounded-full" />
+          <div className="rounded-xl border bg-card p-6">
+            <Skeleton className="mb-3 h-7 w-56" />
+            <Skeleton className="mb-6 h-4 w-80 max-w-full" />
+            <div className="space-y-3">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <Skeleton key={index} className="h-11 w-full" />
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

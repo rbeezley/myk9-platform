@@ -5,6 +5,7 @@ const FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ask-myk9
 export interface AskQRequest {
   message: string;
   showId?: string;
+  supportMode?: boolean;
 }
 
 export interface AskQFeedback {

@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { FormSkeleton } from '@/components/common/SkeletonLoaders';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -118,10 +119,22 @@ export function EntryEditDialog({ open, onOpenChange, entry, onUpdate }: EntryEd
       setIsLoading(true);
       setError(null);
 
-      const result = await canModifyEntry(entry.showId);
-      setCanModify(result.canModify);
-      setModifyReason(result.reason);
-      setIsLoading(false);
+      try {
+        const result = await canModifyEntry(entry.showId);
+        setCanModify(result.canModify);
+        setModifyReason(result.reason);
+      } catch (err) {
+        logger.error(
+          'Failed to check entry modification eligibility:',
+          'entries',
+          {},
+          err as Error
+        );
+        setCanModify(false);
+        setModifyReason("We couldn't check whether this entry can be modified. Please try again.");
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     if (open && entry.showId) {
@@ -258,8 +271,8 @@ export function EntryEditDialog({ open, onOpenChange, entry, onUpdate }: EntryEd
 
           <SheetBody>
             {isLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <div role="status" aria-label="Loading entry edit form" className="py-4">
+                <FormSkeleton />
               </div>
             ) : !canModify ? (
               <Alert variant="destructive">

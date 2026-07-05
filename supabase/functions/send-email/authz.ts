@@ -8,6 +8,7 @@ export const SEND_EMAIL_CALLER_ROLE_SELECT =
 export interface SendEmailAuthData {
   type?: string;
   registrationId?: string;
+  ticketId?: string;
 }
 
 export interface CallerRoleSource {
@@ -88,6 +89,11 @@ export async function assertSendEmailAuthorization(args: {
     throw new HttpError(401, 'Unauthorized');
   }
 
+  if (args.data.type === 'support_notification') {
+    await assertSupportNotificationAuthorization(args);
+    return;
+  }
+
   if (args.data.type !== 'entry_decision') {
     throw new HttpError(403, 'Forbidden: show official role required');
   }
@@ -127,5 +133,46 @@ export async function assertSendEmailAuthorization(args: {
 
   if (!canSend) {
     throw new HttpError(403, 'Forbidden: show official role required');
+  }
+}
+
+async function assertSupportNotificationAuthorization(args: {
+  supabase: SendEmailSupabaseClient;
+  user: User | { id: string } | undefined;
+  data: SendEmailAuthData;
+}): Promise<void> {
+  if (!args.data.ticketId) {
+    throw new HttpError(400, 'ticketId is required');
+  }
+
+  const { data: ticket, error: ticketError } = (await args.supabase
+    .from('support_tickets')
+    .select('id, owner_id')
+    .eq('id', args.data.ticketId)
+    .maybeSingle()) as SupabaseQueryResult<{ id: string; owner_id: string }>;
+
+  if (ticketError) {
+    throw new HttpError(500, 'Failed to verify support email authorization');
+  }
+  if (!ticket) {
+    throw new HttpError(404, 'Support ticket not found');
+  }
+  if (ticket.owner_id === args.user?.id) return;
+
+  const { data: callerRoles, error: callerRolesError } = await args.supabase
+    .from('user_roles')
+    .select(SEND_EMAIL_CALLER_ROLE_SELECT)
+    .eq('auth_user_id', args.user?.id)
+    .eq('is_active', true);
+
+  if (callerRolesError) {
+    throw new HttpError(500, 'Failed to verify support email authorization');
+  }
+
+  const isSiteAdmin = ((callerRoles ?? []) as CallerRoleSource[]).some(
+    role => role.roles?.name === 'site_admin'
+  );
+  if (!isSiteAdmin) {
+    throw new HttpError(403, 'Forbidden: support ticket access required');
   }
 }

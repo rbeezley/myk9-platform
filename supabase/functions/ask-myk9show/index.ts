@@ -9,6 +9,14 @@ import { TOOLS } from '../_shared/askq/toolDefinitions.ts';
 import { executeTool } from '../_shared/askq/toolExecutor.ts';
 import { collectSource } from '../_shared/askq/responseFormatter.ts';
 import { callClaude } from '../_shared/askq/promptBuilder.ts';
+import {
+  buildSupportModePrompt,
+  getSupportEscalationForAnswer,
+  getSupportEscalationForQuestion,
+  getSupportModeTools,
+  isSupportModeEnabled,
+  type SupportEscalationPayload,
+} from '../_shared/askq/supportMode.ts';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? 'http://localhost:5173',
@@ -24,6 +32,31 @@ function jsonResponse(body: Record<string, unknown>, status: number) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+  });
+}
+
+function eventStreamResponse(
+  sendEvents: (send: (event: string, data: unknown) => void) => void
+): Response {
+  const stream = new ReadableStream({
+    start(controller) {
+      const encoder = new TextEncoder();
+      const send = (event: string, data: unknown) => {
+        controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+      };
+
+      sendEvents(send);
+      controller.close();
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      ...CORS_HEADERS,
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    },
   });
 }
 
@@ -78,6 +111,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const { message, showId } = body;
+    const supportMode = isSupportModeEnabled(body.supportMode);
     if (!message?.trim()) {
       return jsonResponse({ error: 'Message is required' }, 400);
     }
@@ -143,6 +177,29 @@ Deno.serve(async (req: Request) => {
       .select('id')
       .single();
 
+    const remaining = limit - used - 1;
+    const supportQuestionEscalation = supportMode ? getSupportEscalationForQuestion(message) : null;
+
+    if (supportQuestionEscalation) {
+      const responseTimeMs = Date.now() - startTime;
+      if (logRow?.id) {
+        await serviceClient
+          .from('chatbot_query_log')
+          .update({
+            tools_used: ['support_escalation'],
+            response_time_ms: responseTimeMs,
+          })
+          .eq('id', logRow.id);
+      }
+
+      return buildSupportEscalationStream(supportQuestionEscalation, {
+        remaining,
+        limit,
+        responseTimeMs,
+        queryLogId: logRow?.id ?? null,
+      });
+    }
+
     const personId = personData?.id;
     const displayName = personData
       ? [personData.first_name, personData.last_name].filter(Boolean).join(' ')
@@ -199,13 +256,15 @@ Deno.serve(async (req: Request) => {
       showName,
     };
 
-    const systemPrompt = buildMyK9ShowPrompt(userContext);
+    const baseSystemPrompt = buildMyK9ShowPrompt(userContext);
+    const systemPrompt = supportMode ? buildSupportModePrompt(baseSystemPrompt) : baseSystemPrompt;
+    const activeTools = supportMode ? getSupportModeTools(TOOLS) : TOOLS;
 
     const messages = [{ role: 'user' as const, content: message }];
     const toolsUsed: string[] = [];
     const sources: ChatResponse['sources'] = {};
 
-    let result = await callClaude(messages, anthropicKey, TOOLS, systemPrompt);
+    let result = await callClaude(messages, anthropicKey, activeTools, systemPrompt);
     let iterations = 0;
 
     while (result.stop_reason === 'tool_use') {
@@ -239,64 +298,72 @@ Deno.serve(async (req: Request) => {
         }
       }
       messages.push({ role: 'user' as const, content: toolResults });
-      result = await callClaude(messages, anthropicKey, TOOLS, systemPrompt);
+      result = await callClaude(messages, anthropicKey, activeTools, systemPrompt);
     }
 
     const responseTimeMs = Date.now() - startTime;
-    const remaining = limit - used - 1;
-
     // Update the provisional log row with actual data
+    const supportAnswerEscalation = supportMode
+      ? getSupportEscalationForAnswer(toolsUsed, sources)
+      : null;
+    const loggedTools = supportAnswerEscalation
+      ? [...new Set([...toolsUsed, 'support_escalation'])]
+      : [...new Set(toolsUsed)];
+
     if (logRow?.id) {
       await serviceClient
         .from('chatbot_query_log')
         .update({
-          tools_used: [...new Set(toolsUsed)],
+          tools_used: loggedTools,
           response_time_ms: responseTimeMs,
         })
         .eq('id', logRow.id);
     }
 
-    const stream = new ReadableStream({
-      start(controller) {
-        const encoder = new TextEncoder();
-        const send = (event: string, data: unknown) => {
-          controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
-        };
+    if (supportAnswerEscalation) {
+      return buildSupportEscalationStream(supportAnswerEscalation, {
+        remaining,
+        limit,
+        responseTimeMs,
+        queryLogId: logRow?.id ?? null,
+      });
+    }
 
-        if (toolsUsed.length > 0) {
-          send('tools_used', [...new Set(toolsUsed)]);
-        }
-        const hasAnySources = Object.values(sources).some(s => s && (s as unknown[]).length > 0);
-        if (hasAnySources) {
-          send('sources', sources);
-        }
+    return eventStreamResponse(send => {
+      if (toolsUsed.length > 0) {
+        send('tools_used', [...new Set(toolsUsed)]);
+      }
+      const hasAnySources = Object.values(sources).some(s => s && (s as unknown[]).length > 0);
+      if (hasAnySources) {
+        send('sources', sources);
+      }
 
-        const textBlock = result.content.find(b => b.type === 'text');
-        const fullText = textBlock?.text ?? '';
-        const CHUNK_SIZE = 4;
-        for (let i = 0; i < fullText.length; i += CHUNK_SIZE) {
-          send('token', fullText.slice(i, i + CHUNK_SIZE));
-        }
+      const textBlock = result.content.find(b => b.type === 'text');
+      const fullText = textBlock?.text ?? '';
+      const CHUNK_SIZE = 4;
+      for (let i = 0; i < fullText.length; i += CHUNK_SIZE) {
+        send('token', fullText.slice(i, i + CHUNK_SIZE));
+      }
 
-        send('meta', { remaining, limit, responseTimeMs, queryLogId: logRow?.id ?? null });
-        send('done', {});
-        controller.close();
-      },
-    });
-
-    return new Response(stream, {
-      headers: {
-        ...CORS_HEADERS,
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive',
-      },
+      send('meta', { remaining, limit, responseTimeMs, queryLogId: logRow?.id ?? null });
+      send('done', {});
     });
   } catch (error) {
     console.error('ask-myk9show error:', (error as Error).message);
     return jsonResponse({ error: 'Internal server error' }, 500);
   }
 });
+
+function buildSupportEscalationStream(
+  escalation: SupportEscalationPayload,
+  meta: { remaining: number; limit: number; responseTimeMs: number; queryLogId: string | null }
+): Response {
+  return eventStreamResponse(send => {
+    send('support_escalation', escalation);
+    send('meta', meta);
+    send('done', {});
+  });
+}
 
 function buildMyK9ShowPrompt(ctx: UserContext): string {
   let userPreamble = '';

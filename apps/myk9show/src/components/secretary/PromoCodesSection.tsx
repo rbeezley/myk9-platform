@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -20,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Trash2, Loader2, Tag } from 'lucide-react';
+import { Plus, Trash2, Tag } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import {
   usePromoCodesByTrialQuery,
@@ -33,8 +34,7 @@ import type { PromoCode, PromoCodeFormData, PromoCodeTarget } from '@/types/prom
 
 /** Exactly one of showId or trialId must be provided */
 type PromoCodesSectionProps =
-  | { showId: string; trialId?: never }
-  | { showId?: never; trialId: string };
+  { showId: string; trialId?: never } | { showId?: never; trialId: string };
 
 const getStatusBadge = (promoCode: PromoCode) => {
   const isExpired = promoCode.expires_at && new Date(promoCode.expires_at) < new Date();
@@ -118,8 +118,8 @@ export const PromoCodesSection: React.FC<PromoCodesSectionProps> = ({ showId, tr
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div role="status" aria-label="Loading promo codes" className="py-4">
+        <TableSkeleton rows={4} columns={isShowMode ? 7 : 6} />
       </div>
     );
   }

@@ -37,6 +37,7 @@ import { DetailHero } from '@/components/common/DetailHero';
 import { getStatusBadge } from '@/components/common/detailHeroUtils';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { ErrorState } from '@/components/common/ErrorState';
+import { DetailPageSkeleton } from '@/components/common/SkeletonLoaders';
 import { useUrlTab } from '@/hooks/useUrlTab';
 
 // Extracted hooks
@@ -357,11 +358,8 @@ const TrialDetailsPage: React.FC = () => {
           </PrimaryTabs>
         </>
       ) : (
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
-            <p className="text-muted-foreground text-lg">Loading trial...</p>
-          </div>
+        <div role="status" aria-label="Loading trial details">
+          <DetailPageSkeleton />
         </div>
       )}
 

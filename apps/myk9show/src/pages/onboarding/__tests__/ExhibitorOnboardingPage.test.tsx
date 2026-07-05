@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
+import type { User } from '@supabase/supabase-js';
 import { UserRole } from '@/types/auth-types';
 import ExhibitorOnboardingPage from '../ExhibitorOnboardingPage';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -67,6 +68,22 @@ beforeEach(() => {
 });
 
 describe('ExhibitorOnboardingPage', () => {
+  it('shows a skeleton while authenticated exhibitor context is still loading', () => {
+    mockUseAuthContext.mockReturnValue({
+      user: { id: 'auth-user-id' } as User,
+      userWithRoles: null,
+      loading: true,
+      rbacLoading: true,
+    } as ReturnType<typeof useAuthContext>);
+
+    render(<ExhibitorOnboardingPage />);
+
+    expect(
+      screen.getByRole('status', { name: 'Loading exhibitor onboarding' })
+    ).toBeInTheDocument();
+    expect(document.querySelector('.animate-spin')).toBeNull();
+  });
+
   it('redirects secretary users to the secretary dashboard instead of rendering exhibitor onboarding', async () => {
     setupAuth([UserRole.SECRETARY]);
 

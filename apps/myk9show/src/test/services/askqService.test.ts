@@ -58,6 +58,24 @@ describe('askqService', () => {
 
       expect(sources).toEqual({ rules: [{ title: 'Time limits' }] });
     });
+
+    it('parses support escalation events', async () => {
+      let escalation: unknown;
+      const stream = createMockSSEStream([
+        'event: support_escalation\ndata: {"escalate":true,"reason":"payment_or_refund","message":"Needs review"}\n\n',
+        'event: done\ndata: {}\n\n',
+      ]);
+
+      await parseSSEStream(stream, (event, data) => {
+        if (event === 'support_escalation') escalation = data;
+      });
+
+      expect(escalation).toEqual({
+        escalate: true,
+        reason: 'payment_or_refund',
+        message: 'Needs review',
+      });
+    });
   });
 });
 

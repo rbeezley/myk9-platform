@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { ProfilePageSkeleton } from '@/components/common/SkeletonLoaders';
 import { getInitials } from '@/lib/utils';
 import { useProfileForm } from '@/hooks/useProfileForm';
 import { useAvatarUpload } from '@/hooks/useAvatarUpload';
@@ -38,8 +39,8 @@ export default function ProfilePage() {
 
   if (form.isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div role="status" aria-label="Loading profile">
+        <ProfilePageSkeleton />
       </div>
     );
   }

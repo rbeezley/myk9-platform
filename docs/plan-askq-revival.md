@@ -109,6 +109,7 @@ Recommendation: **(A) if the bundle fits**, else **(B)**. Either way, the existi
 ## Open questions
 
 - ~~**Is `ask-myk9q` still wired to anything?**~~ **RESOLVED — retired.** No live caller (frontend uses only `ask-myk9show`; `apps/myk9q` was deleted; myK9Qv3/`myk9q.com` runs its own AskQ on a separate Supabase project). Source removed ([#1049](https://github.com/rbeezley/myk9-platform/pull/1049)) and the deployed function deleted. AskQ is now a single surface (`ask-myk9show`); Phases 1–2 target it only.
+- **Support-mode rate-limit sharing — decision 2026-07-05.** In-app support deflection reuses the existing AskQ rate limit instead of adding a separate support-only quota. If the shared limit is hit, the Get Help panel escalates directly to a human ticket, preserving support access while capping AI spend. Revisit if support-mode tickets become a material share of AskQ usage during staging/live support rehearsals, or before increasing onboarding volume.
 - **Rulebook source of truth & cadence.** Where do the canonical rulebook files live, and who re-ingests when a sanctioning body publishes a new edition?
 - **Which rulebooks are in scope for V1?** Start with AKC Scent Work (the one we have); enumerate the rest.
 

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -9,6 +9,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FormField } from '@/components/common/FormField';
+import { SearchablePopover } from '@/components/ui/searchable-popover';
+import { Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import {
   Select,
   SelectContent,
@@ -141,6 +144,17 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
     return getBreedNamesForOrganization(orgCode);
   }, [form.data.organization, orgCode]);
 
+  // 4.E: the breed list is ~200 options — a bare dropdown is unnavigable for a
+  // novice. Make it a searchable popover. Items must be { id } shaped.
+  const [breedPickerOpen, setBreedPickerOpen] = useState(false);
+  const [breedSearch, setBreedSearch] = useState('');
+  const filteredBreeds = useMemo(() => {
+    const q = breedSearch.trim().toLowerCase();
+    return availableBreeds
+      .filter(breed => !q || breed.toLowerCase().includes(q))
+      .map(breed => ({ id: breed }));
+  }, [availableBreeds, breedSearch]);
+
   // Get varieties for the selected breed
   const availableVarieties = useMemo(() => {
     if (!form.data.organization || !form.data.breed) return [];
@@ -242,30 +256,49 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField label="Registered Breed" fieldId="breed" required error={breedError}>
-              <Select
-                value={form.data.breed}
-                onValueChange={handleBreedChange}
-                disabled={!form.data.organization}
-              >
-                <SelectTrigger
+              {form.data.organization ? (
+                <SearchablePopover
                   id="breed"
-                  aria-invalid={!!breedError}
-                  aria-describedby={breedError ? 'breed-error' : undefined}
+                  open={breedPickerOpen}
+                  onOpenChange={next => {
+                    setBreedPickerOpen(next);
+                    if (!next) setBreedSearch('');
+                  }}
+                  triggerLabel={form.data.breed || 'Select breed'}
+                  searchPlaceholder="Search breeds…"
+                  searchTerm={breedSearch}
+                  onSearchChange={setBreedSearch}
+                  items={filteredBreeds}
+                  emptyMessage="No breeds match your search"
+                  renderItem={breed => (
+                    <button
+                      type="button"
+                      className={cn(
+                        'flex w-full items-center justify-between gap-2 p-3 text-left text-sm hover:bg-muted border-b last:border-b-0',
+                        breed.id === form.data.breed && 'bg-muted/60 font-medium'
+                      )}
+                      onClick={() => {
+                        handleBreedChange(breed.id);
+                        setBreedPickerOpen(false);
+                        setBreedSearch('');
+                      }}
+                    >
+                      {breed.id}
+                      {breed.id === form.data.breed && <Check className="h-4 w-4 text-primary" />}
+                    </button>
+                  )}
+                />
+              ) : (
+                <Button
+                  id="breed"
+                  type="button"
+                  variant="outline"
+                  disabled
+                  className="w-full justify-start text-muted-foreground"
                 >
-                  <SelectValue
-                    placeholder={
-                      form.data.organization ? 'Select breed' : 'Select organization first'
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  {availableBreeds.map(breed => (
-                    <SelectItem key={breed} value={breed}>
-                      {breed}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  Select organization first
+                </Button>
+              )}
             </FormField>
 
             <FormField label="Variety" fieldId="variety">

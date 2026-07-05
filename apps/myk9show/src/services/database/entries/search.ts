@@ -168,6 +168,21 @@ async function postgrestGetUserEntries() {
   return { data: data || [], error: null };
 }
 
+function isOfflineFetchError(error: unknown): boolean {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return true;
+  }
+
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'object' && error !== null && 'message' in error
+        ? String(error.message)
+        : String(error);
+
+  return /Failed to fetch|NetworkError|Load failed/i.test(message);
+}
+
 const SEARCH_ENTRIES_SELECT = `
   id,
   dog_id,
@@ -343,21 +358,6 @@ export const getUserEntries = async (userId: string) => {
       e => e.handlerId === userId || (e.dogId ? ownedDogIds.has(e.dogId) : false)
     );
 
-    if (filtered.length === 0) {
-      try {
-        // Account-level exhibitor pages do not have a show sync scope, so a cold
-        // entries replica can be empty even while Supabase has the user's entries.
-        // Treat empty local as "not hydrated yet" when online; if the view is
-        // unreachable, keep the offline empty result.
-        const result = await postgrestGetUserEntries();
-        logQuery('entries', 'select_user_entries_empty_replica_fallback', Date.now() - startTime);
-        return result;
-      } catch {
-        logQuery('entries', 'select_user_entries_empty_replica_offline', Date.now() - startTime);
-        return { data: [], error: null };
-      }
-    }
-
     // If entry rows have synced before their joined class/show/dog rows, the
     // first render can show the entry card without classes. Prefer the complete
     // online join when available, but keep the partial replicated result if the
@@ -377,16 +377,33 @@ export const getUserEntries = async (userId: string) => {
     // replication rows — safe-by-default: withheld results never leak.
     const hasScoredEntries = filtered.some(hasScoredResult);
 
-    if (missingRelations.length > 0 || hasScoredEntries) {
+    if (filtered.length === 0 || missingRelations.length > 0 || hasScoredEntries) {
       try {
         // postgrestGetUserEntries scopes to own entries in SQL
         // (is_own_entry = true), so this returns the complete authoritative set
         // — including own entries not yet in the local replication snapshot —
         // without leaking manageable-not-own rows.
         const result = await postgrestGetUserEntries();
-        logQuery('entries', 'select_user_entries_fallback', Date.now() - startTime);
+        logQuery(
+          'entries',
+          filtered.length === 0
+            ? 'select_user_entries_empty_replica_fallback'
+            : 'select_user_entries_fallback',
+          Date.now() - startTime
+        );
         return result;
-      } catch {
+      } catch (error) {
+        if (filtered.length === 0 && !isOfflineFetchError(error)) {
+          const dbError = createDatabaseError(error, 'entries', 'select_user_entries');
+          logQuery(
+            'entries',
+            'select_user_entries_empty_replica_error',
+            Date.now() - startTime,
+            dbError.message
+          );
+          return { data: [], error: dbError as DatabaseError };
+        }
+
         // Permanently-missing relation rows will try the online join on each
         // load; when offline or blocked, the replicated rows still keep the
         // exhibitor's entries available.
@@ -396,7 +413,13 @@ export const getUserEntries = async (userId: string) => {
           showsMap,
           trialsMap,
         });
-        logQuery('entries', 'select_user_entries_partial', Date.now() - startTime);
+        logQuery(
+          'entries',
+          filtered.length === 0
+            ? 'select_user_entries_empty_replica_offline'
+            : 'select_user_entries_partial',
+          Date.now() - startTime
+        );
         return partialReplicationResult;
       }
     }

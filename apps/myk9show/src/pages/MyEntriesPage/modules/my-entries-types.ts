@@ -4,6 +4,7 @@
  */
 
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import type { PaymentMethod } from '@/types/show-registration-types';
 import { CheckInStatus } from '@/types/check-in-types';
 import type { ResultStatus } from '@/components/common/ResultBadge';
 
@@ -71,6 +72,9 @@ export interface MyEntry {
   totalFee: number;
   entryStatus: EntryStatus;
   paymentStatus: PaymentStatus;
+  /** How the exhibitor intends to pay — drives cash/check "pay at show" status
+   * copy vs the online "Finish Payment" CTA (UX walk remediation 4.C). */
+  paymentMethod?: PaymentMethod | undefined;
   confirmationNumber?: string | undefined;
   entryCloseDate?: Date | undefined;
   submittedAt: Date;

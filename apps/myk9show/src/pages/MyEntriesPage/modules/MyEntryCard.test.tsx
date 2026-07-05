@@ -164,6 +164,51 @@ describe('MyEntryCard payment recovery', () => {
   });
 });
 
+describe('MyEntryCard — cash/check is a status, not a debt (4.C)', () => {
+  it('shows a calm "pay at show" status for a pending CASH entry — no Finish Payment, no Payment Due chip', () => {
+    renderCard(
+      makeEntry({
+        entryStatus: EntryStatus.PENDING,
+        paymentStatus: PaymentStatus.PENDING,
+        paymentMethod: 'cash',
+        totalFee: 30,
+      })
+    );
+
+    expect(screen.getByText('Bring $30.00 cash to check-in')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Finish Payment/i })).not.toBeInTheDocument();
+    expect(screen.queryByText('Payment Due')).not.toBeInTheDocument();
+  });
+
+  it('shows a "mail your check" status for a pending CHECK entry', () => {
+    renderCard(
+      makeEntry({
+        entryStatus: EntryStatus.PENDING,
+        paymentStatus: PaymentStatus.PENDING,
+        paymentMethod: 'check',
+        totalFee: 30,
+      })
+    );
+
+    expect(screen.getByText('Mail your $30.00 check to the club')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Finish Payment/i })).not.toBeInTheDocument();
+  });
+
+  it('still shows Finish Payment (and the balance chip) for a pending ONLINE-card entry', () => {
+    renderCard(
+      makeEntry({
+        entryStatus: EntryStatus.PENDING,
+        paymentStatus: PaymentStatus.PENDING,
+        paymentMethod: 'credit_card',
+        totalFee: 30,
+      })
+    );
+
+    expect(screen.getByRole('link', { name: /Finish Payment/i })).toBeInTheDocument();
+    expect(screen.queryByText(/cash to check-in/i)).not.toBeInTheDocument();
+  });
+});
+
 describe('MyEntryCard history status clarity', () => {
   it('uses past-show labels for unresolved history cards instead of active workflow labels', () => {
     renderCard(

@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from '@/test/utils/testUtils';
@@ -172,6 +174,23 @@ describe('BasicInfoTab', () => {
       await waitFor(() => {
         expect(screen.getByText('Please select an owner')).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('Novice-friendly fields (4.E)', () => {
+    it('shows a reassuring DOB hint so novices are not blocked by an exact date', () => {
+      mockSupabasePeople([]);
+      renderBasicInfoTab(UserRole.EXHIBITOR, 'person-123');
+      expect(screen.getByText(/approximate one is fine/i)).toBeInTheDocument();
+    });
+
+    it('does not mark gender/owner touched on dropdown open (no onBlur→touchField)', () => {
+      // Regression guard for the "Please select a gender" flash on open. Opening
+      // a Base UI Select blurs the trigger; wiring onBlur→touchField there marked
+      // the still-empty field touched and surfaced its error pre-selection.
+      const source = readFileSync(join(__dirname, '../BasicInfoTab.tsx'), 'utf8');
+      expect(source).not.toContain("onBlur={() => form.touchField('gender')}");
+      expect(source).not.toContain("onBlur={() => form.touchField('ownerId')}");
     });
   });
 

@@ -194,10 +194,11 @@ const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
 
   const formData = form.data;
 
-  // Tab validity for navigation indicators
+  // Tab validity for navigation indicators. The Optional tab has no required
+  // fields, so it carries no completion indicator (4.E).
   const isBasicValid = isTabValid('basic', formData);
+  const hasRegistrations = formData.registrations.length > 0;
   const isRegistrationValid = isTabValid('registration', formData);
-  const isOptionalValid = isTabValid('optional', formData);
 
   return (
     <>
@@ -217,8 +218,8 @@ const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
         >
           <TabNavigation
             isBasicValid={isBasicValid}
+            hasRegistrations={hasRegistrations}
             isRegistrationValid={isRegistrationValid}
-            isOptionalValid={isOptionalValid}
           />
 
           <TabsContent

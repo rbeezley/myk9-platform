@@ -44,5 +44,5 @@
 ## 7. Finish
 
 - [x] 7.1 Update relevant tracking docs if this closes or supersedes an existing TODO/audit item. No specific active tracking item was superseded; broad exhibitor golden-path QA remains open.
-- [ ] 7.2 Open a PR with the OPSX change name and verification results.
+- [x] 7.2 Open a PR with the OPSX change name and verification results.
 - [ ] 7.3 Wait for CI/review, address feedback, merge, then archive the OpenSpec change.

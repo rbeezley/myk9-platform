@@ -96,6 +96,28 @@ describe('support diagnostics', () => {
     expect(errors.at(-1)?.message).toContain('Bearer [redacted]');
   });
 
+  it('redacts bare JWTs and auth token params before storing diagnostics', () => {
+    const jwt =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjMifQ.signature_123';
+    captureSupportClientError(
+      new Error(
+        `Failed to refresh session ${jwt} id_token=bare-id-token token=bare-token https://app/#id_token=${jwt}&token=plain`
+      ),
+      'auth-flow'
+    );
+
+    const message = getSupportClientErrors().at(-1)?.message ?? '';
+    expect(message).not.toContain(jwt);
+    expect(message).not.toContain('plain');
+    expect(message).not.toContain('bare-id-token');
+    expect(message).not.toContain('bare-token');
+    expect(message).toContain('[redacted-jwt]');
+    expect(message).toContain('id_token=[redacted]');
+    expect(message).toContain('token=[redacted]');
+    expect(message).toContain('#id_token=[redacted]');
+    expect(message).toContain('&token=[redacted]');
+  });
+
   it('survives hostile inputs', () => {
     const input = {
       get userId() {

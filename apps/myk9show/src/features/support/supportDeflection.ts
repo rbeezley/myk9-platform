@@ -1,6 +1,8 @@
 const GUIDE_TOOL = 'search_user_guide';
-const PAYMENT_REFUND_PATTERN =
-  /\b(payment|payments|paid|paying|charge|charged|charges|refund|refunded|refunds|stripe|checkout|credit card|debit card|card declined|invoice|billing|payout|withdrawal|transaction|receipt)\b/i;
+export const SUPPORT_PAYMENT_REFUND_PATTERN_SOURCE =
+  String.raw`\b(payment|payments|paid|paying|charge|charged|charges|refund|refunded|refunds|stripe|checkout|credit card|debit card|card declined|invoice|billing|payout|withdrawal|transaction|receipt)\b`;
+
+const PAYMENT_REFUND_PATTERN = new RegExp(SUPPORT_PAYMENT_REFUND_PATTERN_SOURCE, 'i');
 
 export type SupportEscalationReason = 'payment_or_refund' | 'low_confidence';
 

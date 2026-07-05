@@ -1,8 +1,23 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
+  SUPPORT_PAYMENT_REFUND_PATTERN_SOURCE,
   isSupportPaymentOrRefundQuestion,
   routeSupportDeflection,
   type SupportEscalationEvent,
 } from './supportDeflection';
+
+function extractServerPatternSource(): string {
+  const serverSource = readFileSync(
+    resolve(__dirname, '../../../../../supabase/functions/_shared/askq/supportMode.ts'),
+    'utf8'
+  );
+  const match = serverSource.match(
+    /SUPPORT_PAYMENT_REFUND_PATTERN_SOURCE\s*=\s*String\.raw`([^`]+)`/
+  );
+  expect(match?.[1]).toBeTruthy();
+  return match?.[1] ?? '';
+}
 
 describe('support deflection routing', () => {
   it('escalates payment and refund questions even if an answer was streamed', () => {
@@ -73,5 +88,9 @@ describe('support deflection routing', () => {
         sources: {},
       })
     ).toMatchObject({ kind: 'escalate', reason: 'low_confidence' });
+  });
+
+  it('keeps the client payment hint aligned with the server support-mode gate', () => {
+    expect(SUPPORT_PAYMENT_REFUND_PATTERN_SOURCE).toBe(extractServerPatternSource());
   });
 });

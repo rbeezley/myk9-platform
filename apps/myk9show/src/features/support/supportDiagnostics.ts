@@ -3,9 +3,9 @@ import { UserRole } from '@/types/auth-types';
 const MAX_ERROR_ENTRIES = 10;
 const MAX_TEXT_LENGTH = 500;
 const SECRET_PATTERN =
-  /(access_token|refresh_token|authorization|apikey|api_key|secret|password|stripe|payment_intent|client_secret)=([^&\s]+)/gi;
+  /(access_token|refresh_token|id_token|token|token_hash|authorization|apikey|api_key|secret|password|stripe|payment_intent|client_secret)=([^&#\s]+)/gi;
 const URL_TOKEN_PARAM_PATTERN =
-  /([?#&](?:access_token|refresh_token|id_token|token)=)([^&#\s]+)/gi;
+  /([?#&](?:access_token|refresh_token|id_token|token|token_hash)=)([^&#\s]+)/gi;
 const JWT_PATTERN = /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

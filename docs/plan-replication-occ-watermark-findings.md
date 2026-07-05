@@ -2,6 +2,50 @@
 
 > **Status:** Complete
 
+## Re-check and UI Matrix Fold-in (2026-07-04)
+
+This pass re-ran the Plan 005 investigation against current `main` and folded in
+the UI verification matrix Criticals S1/S2. The original OCC spike is still
+closed: PR #1098's fixes are present, and none of Leads A-E still requires a
+replication-source follow-up. The remaining launch-reliability gap is the
+entries read-path/operator-facing error behavior from S2.
+
+Current drift check:
+`git diff --stat 929240192..HEAD -- packages/replication` now shows package
+changes in `MutationManager.ts`, `ReplicatedTable.ts`,
+`syncReplicatedTable.test.ts`, and related OCC tests. That drift is the expected
+PR #1098 fix set, so this re-check uses today's code, not the 2026-07-02
+baseline.
+
+### Current Verdicts
+
+| Item | Current verdict | Evidence |
+|------|-----------------|----------|
+| Lead A - non-entry full-row UPDATE token/payload refresh | NOT A BUG (fixed) | Non-entry adapters now supply `rebuildUpdatePayload`, for example classes (`apps/myk9show/src/services/replication/ReplicatedClassesTable.ts:310`, `:373`), dogs (`ReplicatedDogsTable.ts:124`, `:154`), shows (`ReplicatedShowsTable.ts:189`, `:222`), trials (`ReplicatedTrialsTable.ts:159`, `:189`), clubs (`ReplicatedClubsTable.ts:139`, `:168`), armbands (`ReplicatedArmbandsTable.ts:99`, `:147`), and judge assignments (`ReplicatedJudgeAssignmentsTable.ts:153`, `:194`). The queue still refuses to advance a full-row mutation without a rebuilt payload (`packages/replication/src/MutationManager.ts:331-343`), which is now the safe invariant. |
+| Lead B - scoped/global watermark mixing | NOT A BUG | Scoped reads project `scopes[scopeValue]` and only `scopeValue === undefined` reads the table-global row (`packages/replication/src/core/ReplicatedTableCache.ts:390-410`). Scoped writes route watermarks into `scopes[scopeValue]` and only mirror a global informational watermark that scoped reads do not consult (`ReplicatedTableCache.ts:459-489`). Empty-string calls such as `replicatedClassesTable.sync('')` stay scoped because `'' !== undefined` (`apps/myk9show/src/components/trials/TrialDetail/TrialManagementDialogs.tsx:205-207`, `apps/myk9show/src/pages/ClassDetailsPage/index.tsx:139-141`). |
+| Lead C - local INSERT with no base snapshot | NOT A BUG (pinned invariant) | A new dirty row has no base until a prior clean row exists (`packages/replication/src/core/ReplicatedTableRowState.ts:23-37`). The no-base dirty sync path deliberately avoids merge/token promotion (`packages/replication/src/syncReplicatedTable.ts:222-295`), and the package test pins that invariant: "preserves a locally-created dirty row without promoting the matching remote row to a base" (`packages/replication/src/syncReplicatedTable.test.ts:568-587`). |
+| Lead D - server-added fields clobbered after keep-local | NOT A BUG (fixed) | The current dirty reconciliation path merges server-changed untouched fields (`packages/replication/src/conflict/detectDirtyRowConflict.ts:74-104`), advances the row base/token, and reconciles queued full-row payloads (`packages/replication/src/core/ReplicatedTable.ts:574-618`). Existing tests assert the server field is not clobbered and the queued payload is rebuilt (`packages/replication/src/syncReplicatedTable.test.ts:431-462`, `:589-620`). |
+| Lead E - failed OCC re-check becomes row-deleted | NOT A BUG (fixed) | Direct UPDATE re-check errors are threaded into `classifyEmptyUpdateResult` (`packages/replication/src/MutationManager.ts:776-800`), and the classifier returns an RLS/auth error on failed re-check instead of row-deleted (`packages/replication/src/mutation-occ.ts:78-84`). Ringside RPC writes still avoid direct table re-check by carrying the current version in RPC conflict detail (`packages/replication/src/MutationManager.ts:736-754`; `supabase/migrations/20260625190000_ringside_update_entry_surface_conflict_version.sql:5-19`). |
+| UI S1 - cold first paint shows false empty/error states | NOT A BUG for the named current at-show/My Entries surfaces | At-show class list, entry list, scoresheet, and My Entries now gate empty/error states on `areReplicationTablesPendingFirstSync` (`apps/myk9show/src/utils/replicationSyncEmptyState.ts:7-13`; `AtShowClassListPage.tsx:156-166`; `AtShowEntryListPage.tsx:136-141`; `useAtShowScoresheet.ts:68-120`; `MyEntriesPage/index.tsx:155-158`, `:306-318`). Targeted tests cover the former false-empty copy (`AtShowClassListPage.test.tsx:164-172`, `AtShowEntryListPage.test.tsx:131-141`, `AtShowScoresheetPage.test.tsx:166-176`). |
+| UI S2 - entries read timeout + raw vendor toast | CONFIRMED follow-up | The secretary entry-management read first uses replicated data, but falls back to direct PostgREST when the local store is cold or the replicated read fails (`apps/myk9show/src/services/database/entries/secretary.ts:71-107`). That fallback still hits `entries` with a wide joined select (`secretaryPostgrest.ts:3-75`), so a statement timeout remains possible on the same family of secretary surfaces. Separately, replication download failures are surfaced through `notifications.error(formatDownloadFailureToast(downloadFailures))` (`ReplicationSyncProvider.tsx:345-350`), and the formatter includes the raw table name plus raw error string (`replicationSyncFormatters.ts:15-21`), while replicated table adapters still produce strings like `Supabase query failed: ${error.message}` (`ReplicatedEntriesTable.ts:146-150`, `:203-205`). |
+
+### Follow-up Scope for S2
+
+Create a small follow-up plan/PR for the entries read path:
+
+- Add a focused unit test for `formatDownloadFailureToast` proving database/vendor
+  details such as `Supabase query failed` and `statement timeout` are not shown
+  to users; expected copy should be calm, actionable, and table-agnostic.
+- Add a focused test around `getEntriesForShow` showing a cold replicated store
+  fallback failure returns a page error without overwriting existing entries with
+  a confident zero.
+- Investigate the direct fallback query with `EXPLAIN`/database evidence before
+  changing schema or indexes. The likely code target is the wide
+  `SECRETARY_ENTRIES_SELECT` in `secretaryPostgrest.ts`, but this spike did not
+  run live DB diagnostics.
+- Keep the already-fixed stale OCC-token root cause closed; S2 is now a
+  read-performance and user-facing error-message follow-up, not a new OCC storm.
+
 ## Resolution (2026-07-03)
 
 All five leads are resolved. Leads **A, D, E** (the three CONFIRMED bugs) were
@@ -25,9 +69,10 @@ This is the findings document for
 [`improve-audit-2026-07/005-replication-occ-watermark-spike.md`](improve-audit-2026-07/005-replication-occ-watermark-spike.md).
 It is read-only investigation output; no replication source was changed.
 
-Drift check: `git diff --stat 929240192..HEAD -- packages/replication`
-returned no package diff, so the leads below were verified against the live code
-with no package drift from the plan baseline.
+Original drift check (2026-07-03):
+`git diff --stat 929240192..HEAD -- packages/replication` returned no package
+diff when the first findings document was authored. The 2026-07-04 re-check
+above supersedes that baseline note.
 
 Settled leads recorded from the plan:
 
@@ -37,7 +82,7 @@ Settled leads recorded from the plan:
   `MutationManager.executeMutation` treats duplicate client-generated INSERTs as
   success (`packages/replication/src/MutationManager.ts:700`).
 
-## Verdict Table
+## Original Verdict Table (Pre-PR #1098)
 
 | Lead | Verdict | Summary |
 |------|---------|---------|

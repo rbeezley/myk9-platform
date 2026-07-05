@@ -3,7 +3,7 @@ import type { GeneratedPremium } from '../../../types/premium-types';
 import { compareLevelsByProgression } from './bodies/classOrder';
 import type { RegistryId } from '@/features/registries';
 import type { StyleTokens } from './pdfStyles';
-import { formatDate } from './pdfStyles';
+import { formatPremiumDate } from './pdfStyles';
 
 interface Props {
   data: GeneratedPremium;
@@ -113,7 +113,7 @@ function buildRows(data: GeneratedPremium): Row[] {
   const trials = data.trials ?? [];
 
   if (trials.length > 0) {
-    const dates = trials.map(t => formatDate(t.date));
+    const dates = trials.map(t => formatPremiumDate(t.date));
     const uniqueDates = Array.from(new Set(dates));
     rows.push({
       label: 'Trials',
@@ -145,7 +145,7 @@ function buildRows(data: GeneratedPremium): Row[] {
   if (data.show.entryCloseDate) {
     rows.push({
       label: 'Entries Close',
-      value: formatDate(data.show.entryCloseDate),
+      value: formatPremiumDate(data.show.entryCloseDate),
     });
   }
 

@@ -1,6 +1,6 @@
 import { Clock, GitBranch, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { formatValue, formatDate } from '../conflict-resolution-utils';
+import { formatValue, formatRelativeModifiedTime } from '../conflict-resolution-utils';
 import type { NormalizedConflict } from '../conflict-resolution-types';
 
 interface LegacyConflictViewProps {
@@ -28,7 +28,7 @@ export function LegacyConflictView({
               <div className="text-xs text-muted-foreground space-y-1">
                 <div className="flex items-center gap-2">
                   <Clock className="h-3 w-3" />
-                  Modified: {formatDate(normalizedConflict.lastModified.local)}
+                  Modified: {formatRelativeModifiedTime(normalizedConflict.lastModified.local)}
                 </div>
                 {normalizedConflict.lastModifiedBy && (
                   <div>By: {String(normalizedConflict.lastModifiedBy.local)}</div>
@@ -44,7 +44,7 @@ export function LegacyConflictView({
               <div className="text-xs text-muted-foreground space-y-1">
                 <div className="flex items-center gap-2">
                   <Clock className="h-3 w-3" />
-                  Modified: {formatDate(normalizedConflict.lastModified.remote)}
+                  Modified: {formatRelativeModifiedTime(normalizedConflict.lastModified.remote)}
                 </div>
                 {normalizedConflict.lastModifiedBy && (
                   <div>By: {String(normalizedConflict.lastModifiedBy.remote)}</div>
@@ -57,7 +57,7 @@ export function LegacyConflictView({
 
       {/* Field-by-Field Comparison */}
       <div className="space-y-4">
-        {normalizedConflict.conflictFields.map((field) => (
+        {normalizedConflict.conflictFields.map(field => (
           <div key={field} className="border border-border/50 rounded-lg overflow-hidden">
             <div className="bg-muted/20 px-4 py-2 border-b border-border/50">
               <h4 className="font-medium text-sm capitalize">

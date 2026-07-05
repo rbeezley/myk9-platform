@@ -13,8 +13,12 @@ export function isExtendedConflict(c: unknown): c is ExtendedConflict {
   return Boolean(c && typeof c === 'object' && 'id' in c && 'localData' in c && 'remoteData' in c);
 }
 
-export function isStandardConflict(c: unknown): c is { localEntity: unknown; remoteEntity: unknown; details: unknown } {
-  return Boolean(c && typeof c === 'object' && 'localEntity' in c && 'remoteEntity' in c && 'details' in c);
+export function isStandardConflict(
+  c: unknown
+): c is { localEntity: unknown; remoteEntity: unknown; details: unknown } {
+  return Boolean(
+    c && typeof c === 'object' && 'localEntity' in c && 'remoteEntity' in c && 'details' in c
+  );
 }
 
 export function normalizeConflict(
@@ -23,7 +27,7 @@ export function normalizeConflict(
   if (!conflict) return null;
 
   if (isStandardConflict(conflict)) {
-    const standardConflict = (conflict as unknown) as {
+    const standardConflict = conflict as unknown as {
       entityType: string;
       entityId: string;
       localEntity: Record<string, unknown>;
@@ -39,8 +43,14 @@ export function normalizeConflict(
       remote: standardConflict.remoteEntity,
       conflictFields: standardConflict.details.map((d: { field: string }) => d.field),
       lastModified: {
-        local: new Date((standardConflict.localEntity._lastModified as string | number | Date) || standardConflict.detectedAt),
-        remote: new Date((standardConflict.remoteEntity._lastModified as string | number | Date) || standardConflict.detectedAt),
+        local: new Date(
+          (standardConflict.localEntity._lastModified as string | number | Date) ||
+            standardConflict.detectedAt
+        ),
+        remote: new Date(
+          (standardConflict.remoteEntity._lastModified as string | number | Date) ||
+            standardConflict.detectedAt
+        ),
       },
       lastModifiedBy: {
         local: (standardConflict.localEntity._lastModifiedBy as string) || 'Unknown',
@@ -53,10 +63,14 @@ export function normalizeConflict(
     const extendedConflict = conflict as ExtendedConflict;
     return {
       ...extendedConflict,
-      entityName: extendedConflict.entityName || `${extendedConflict.entityType} ${extendedConflict.entityId}`,
+      entityName:
+        extendedConflict.entityName ||
+        `${extendedConflict.entityType} ${extendedConflict.entityId}`,
       local: extendedConflict.localData,
       remote: extendedConflict.remoteData,
-      conflictFields: extendedConflict.conflictFields || Object.keys({ ...extendedConflict.localData, ...extendedConflict.remoteData }),
+      conflictFields:
+        extendedConflict.conflictFields ||
+        Object.keys({ ...extendedConflict.localData, ...extendedConflict.remoteData }),
     };
   }
 
@@ -68,7 +82,11 @@ export function getConfidenceScore(
   conflictResolver: ConflictResolutionDialogProps['conflictResolver'],
   conflict: ConflictResolutionDialogProps['conflict']
 ): number {
-  if (conflictResolver && isExtendedConflict(conflict) && typeof conflictResolver.suggestResolution === 'function') {
+  if (
+    conflictResolver &&
+    isExtendedConflict(conflict) &&
+    typeof conflictResolver.suggestResolution === 'function'
+  ) {
     try {
       const suggestion = conflictResolver.suggestResolution(conflict);
       if (suggestion?.strategy === strategy) {
@@ -86,7 +104,11 @@ export function isRecommended(
   conflictResolver: ConflictResolutionDialogProps['conflictResolver'],
   conflict: ConflictResolutionDialogProps['conflict']
 ): boolean {
-  if (conflictResolver && isExtendedConflict(conflict) && typeof conflictResolver.suggestResolution === 'function') {
+  if (
+    conflictResolver &&
+    isExtendedConflict(conflict) &&
+    typeof conflictResolver.suggestResolution === 'function'
+  ) {
     try {
       const suggestion = conflictResolver.suggestResolution(conflict);
       return suggestion?.strategy === strategy && (suggestion?.confidence || 0) > 80;
@@ -118,7 +140,7 @@ export function getPriorityColor(priority: string): string {
   }
 }
 
-export function formatDate(date: string | Date): string {
+export function formatRelativeModifiedTime(date: string | Date): string {
   try {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     return formatDistanceToNow(dateObj, { addSuffix: true });

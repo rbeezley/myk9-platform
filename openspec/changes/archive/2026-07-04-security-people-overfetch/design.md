@@ -70,7 +70,19 @@ Evidence: `docs/security-audit-2026-07-03.md` SA-008 (MEDIUM).
 4. No database migration; purely a client change, no deploy coupling.
 5. Rollback: revert the client commit; no schema state to unwind.
 
+## Offline-first / replication impact
+
+None. The `people`-directory fetch is a plain PostgREST read via
+`userStore.loadUsers()`, not routed through `@myk9/replication`, and holds no
+show-day persistent/offline-scoped data (it backs admin/secretary directory
+surfaces, not ringside scoring or entry mutation). Gating the call and narrowing
+its column list touches no replicated table, mutation queue, or sync path, so
+there is no offline-first behavior to preserve or regress here.
+
 ## Open Questions
 
 - Are there any exhibitor-reachable consumers of `userStore`'s people data today?
-  (Expected: none — confirm during mapping, not assume.)
+  (Expected: none — confirm during mapping, not assume.) **Resolution owned by
+  Task 1.4**: if any are found, repoint them at the scoped per-id lookup
+  (`reads.ts:190-193`) rather than the bulk `select('*')` load; if none, record
+  that finding to close this question.

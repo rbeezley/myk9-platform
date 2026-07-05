@@ -41,7 +41,7 @@ export function ParticularsSection({
 }: ParticularsSectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
 
-  const formatDate = (iso: string | null) =>
+  const formatParticularDate = (iso: string | null) =>
     iso ? formatDateInTimezone(iso, timezone, 'short') : null;
 
   const rows: ParticularRow[] = [
@@ -56,13 +56,13 @@ export function ParticularsSection({
           </>
         ) : null,
     },
-    { label: 'Entries open', value: formatDate(entryOpenDate) },
-    { label: 'Entries close', value: formatDate(entryCloseDate) },
+    { label: 'Entries open', value: formatParticularDate(entryOpenDate) },
+    { label: 'Entries close', value: formatParticularDate(entryCloseDate) },
     {
       label: 'Confirmation',
       value: confirmationDate ? (
         <>
-          {formatDate(confirmationDate)}
+          {formatParticularDate(confirmationDate)}
           <span style={ITALIC_BRONZE}> · emailed to all entrants</span>
         </>
       ) : null,

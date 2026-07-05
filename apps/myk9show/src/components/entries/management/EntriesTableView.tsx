@@ -5,11 +5,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { DataTable, type DataTableColumnMeta } from '@/components/ui/data-table';
 import {
   getEffectivePaymentStatus,
-  getEntryStatusBadge,
   getPaymentStatusBadge,
 } from '@/utils/entryManagementUtils';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { EmailStatusIcon } from '@/components/entries/EmailStatusIcon';
+import { EntryStatusLine } from '@/components/entries/EntryStatusLine';
 import type { EmailLogEntry } from '@/hooks/useEmailStatus';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { EntryStatus } from '@/types/show-registration-types';
@@ -152,8 +152,14 @@ function buildColumns(
       header: 'Status',
       accessorFn: entry => (entry.entryStatus ?? '').toLowerCase(),
       cell: ({ row }) => (
-        <div className="flex items-center gap-1">
-          {getEntryStatusBadge(row.original.entryStatus)}
+        <div className="flex items-start gap-1">
+          <EntryStatusLine
+            viewer="secretary"
+            rawEntryStatus={row.original.rawEntryStatus}
+            paymentStatus={row.original.paymentStatus}
+            refundAmount={row.original.refundAmount}
+            refundedAt={row.original.refundedAt}
+          />
           {getPaymentStatusBadge(getEffectivePaymentStatus(row.original))}
           {emailStatusMap && (
             <EmailStatusIcon

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/common/PageHeader';
 import { PageShell } from '@/components/common/PageShell';
 import { useClubsQuery } from '@/hooks/queries/useClubsDatabase';
+import { formatShortDate } from '@/lib/format/dates';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 import {
@@ -14,13 +15,11 @@ import {
   type RoleRequest,
   type RoleRequestStatus,
 } from '@/services/database/role-requests';
-
-const statusLabels: Record<RoleRequestStatus | 'all', string> = {
-  all: 'All',
-  pending: 'Pending',
-  approved: 'Approved',
-  denied: 'Denied',
-};
+import {
+  getRoleRequestFilterLabel,
+  getRoleRequestStatusPresentation,
+  ROLE_REQUEST_STATUS_FILTERS,
+} from './adminStatusPresentation';
 
 const roleLabels: Record<RoleRequest['requestedRole'], string> = {
   club_admin: 'Club admin',
@@ -28,27 +27,15 @@ const roleLabels: Record<RoleRequest['requestedRole'], string> = {
 };
 
 function StatusBadge({ status }: { status: RoleRequestStatus }) {
-  const styles: Record<RoleRequestStatus, string> = {
-    pending: 'border-warning/30 bg-warning/10 text-warning',
-    approved: 'border-success/30 bg-success/10 text-success',
-    denied: 'border-destructive/30 bg-destructive/10 text-destructive',
-  };
+  const presentation = getRoleRequestStatusPresentation(status);
 
   return (
     <span
-      className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${styles[status]}`}
+      className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${presentation.className}`}
     >
-      {statusLabels[status]}
+      {presentation.label}
     </span>
   );
-}
-
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
 }
 
 export default function RoleRequestsPage() {
@@ -156,7 +143,7 @@ export default function RoleRequestsPage() {
       </div>
 
       <div className="mb-6 flex flex-wrap gap-2">
-        {(['all', 'pending', 'approved', 'denied'] as const).map(status => (
+        {ROLE_REQUEST_STATUS_FILTERS.map(status => (
           <button
             key={status}
             type="button"
@@ -168,7 +155,9 @@ export default function RoleRequestsPage() {
                 : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground'
             }`}
           >
-            {statusLabels[status]} ({status === 'all' ? requests.length : (counts[status] ?? 0)})
+            {`${getRoleRequestFilterLabel(status)} (${
+              status === 'all' ? requests.length : (counts[status] ?? 0)
+            })`}
           </button>
         ))}
       </div>
@@ -187,7 +176,7 @@ export default function RoleRequestsPage() {
         <div className="rounded-md border border-border bg-card px-6 py-12 text-center">
           <ShieldCheck className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
           <h2 className="text-lg font-semibold">
-            No {statusLabels[filter].toLowerCase()} requests
+            No {getRoleRequestFilterLabel(filter).toLowerCase()} requests
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             New elevated signup requests will appear here for site-admin review.
@@ -216,7 +205,7 @@ export default function RoleRequestsPage() {
                     </div>
                     <div className="mt-1 text-sm text-muted-foreground">
                       {request.requesterEmail ?? 'No email'} · Requested{' '}
-                      {formatDate(request.createdAt)}
+                      {formatShortDate(request.createdAt)}
                       {request.clubName ? ` · ${request.clubName}` : ''}
                     </div>
                     {request.requesterNote && (
@@ -228,13 +217,13 @@ export default function RoleRequestsPage() {
                   {request.status === 'approved' && (
                     <div className="inline-flex items-center gap-2 text-sm text-success">
                       <CheckCircle2 className="h-4 w-4" />
-                      Approved {request.reviewedAt ? formatDate(request.reviewedAt) : ''}
+                      Approved {request.reviewedAt ? formatShortDate(request.reviewedAt) : ''}
                     </div>
                   )}
                   {request.status === 'denied' && (
                     <div className="inline-flex items-center gap-2 text-sm text-destructive">
                       <XCircle className="h-4 w-4" />
-                      Denied {request.reviewedAt ? formatDate(request.reviewedAt) : ''}
+                      Denied {request.reviewedAt ? formatShortDate(request.reviewedAt) : ''}
                     </div>
                   )}
                   {request.status === 'pending' && (

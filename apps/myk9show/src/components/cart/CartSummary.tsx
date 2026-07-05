@@ -6,17 +6,9 @@
  */
 
 import { useNavigate } from 'react-router-dom';
-import {
-  Clock,
-  CreditCard,
-  AlertTriangle,
-  ShoppingCart,
-  ArrowRight,
-  Loader2,
-} from 'lucide-react';
+import { CreditCard, AlertTriangle, ShoppingCart, ArrowRight, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { useCartStore } from '@/store/cartStore';
@@ -44,18 +36,13 @@ export function CartSummary({
   const getItemCount = useCartStore(state => state.getItemCount);
   const feePercent = usePlatformFeePercent();
 
-  const {
-    timeRemainingFormatted,
-    showWarning,
-    showUrgentWarning,
-    extendExpiration,
-    percentRemaining,
-  } = useCartExpirationTimer({
-    onExpired: () => {
-      // Redirect to browse shows when cart expires
-      navigate('/shows');
-    },
-  });
+  // INTENT: Entry carts are a calm flow, not a time-pressured checkout. We do
+  // NOT surface a constant ticking countdown, and expiry must NOT strand the
+  // user by redirecting to /shows mid-payment (UX walk remediation 4.B). The
+  // timer still runs so we can show an ACTIONABLE heads-up (with one-tap Extend)
+  // only as the hold nears its end — never a clock counting the whole time.
+  const { timeRemainingFormatted, showWarning, showUrgentWarning, extendExpiration } =
+    useCartExpirationTimer();
 
   const formatCurrency = (cents: number) => {
     return `$${(cents / 100).toFixed(2)}`;
@@ -126,20 +113,6 @@ export function CartSummary({
             >
               Extend
             </Button>
-          </div>
-        )}
-
-        {/* Expiration Progress (when not warning) */}
-        {!showWarning && !showUrgentWarning && timeRemainingFormatted && (
-          <div className="space-y-1">
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <div className="flex items-center gap-1.5">
-                <Clock className="h-4 w-4" />
-                <span>Cart expires in</span>
-              </div>
-              <span className="font-medium">{timeRemainingFormatted}</span>
-            </div>
-            <Progress value={percentRemaining} className="h-1.5" />
           </div>
         )}
 

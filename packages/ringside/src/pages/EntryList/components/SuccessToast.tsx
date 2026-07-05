@@ -13,41 +13,44 @@ export interface SuccessToastProps {
  * Success toast notification for entry list actions.
  * Shared between EntryList and CombinedEntryList.
  *
- * Styled with Tailwind utilities on the markup (the ringside styling idiom —
- * the host app's Tailwind build scans packages/ringside/src). Motion uses the
- * shared motion tokens (`duration-enter`/`ease-enter`) and is gated on
- * `prefers-reduced-motion` via the `motion-reduce:` variant. The element stays
- * mounted and toggles opacity/translate so it both fades+rises IN and fades OUT
- * (a conditional unmount could only animate the enter).
+ * Ringside authors styling as Tailwind utilities on the markup — the host app's
+ * Tailwind build scans packages/ringside/src and generates these classes (see
+ * src/styles/index.css). The legacy `.success-toast` semantic class had no
+ * matching CSS rule after the Tailwind migration, so the toast rendered
+ * unstyled.
+ *
+ * Conditionally rendered (returns null when hidden) so the `role="status"` live
+ * region mounts fresh with its message each time — that is what makes screen
+ * readers announce the success. Positioned top-center to clear the bottom-center
+ * FloatingDoneButton, which can render at the same time.
+ *
+ * The wrapper centers via flexbox (NOT `-translate-x-1/2`) so the entrance
+ * animation — which animates `transform` — cannot overwrite the horizontal
+ * centering. Motion follows the shared motion language: a fade + small rise over
+ * `duration-enter` with `ease-enter` (no bounce), gated on reduced motion.
  */
 export const SuccessToast: React.FC<SuccessToastProps> = ({
   isVisible,
   message,
 }) => {
+  if (!isVisible) {
+    return null;
+  }
+
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      aria-hidden={!isVisible}
-      data-visible={isVisible}
-      className={cn(
-        'pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] z-50',
-        'mx-auto flex w-fit items-center gap-2 rounded-full px-5 py-3',
-        'bg-success text-sm font-semibold text-success-foreground shadow-lg',
-        'transition duration-enter ease-enter motion-reduce:transition-none',
-        // Hidden state uses opacity/translate only (NOT `invisible`): Tailwind's
-        // `transition` does not animate `visibility`, so toggling visibility
-        // would snap the fade-OUT away instead of animating it. The always-on
-        // `pointer-events-none` + `aria-hidden` keep the idle toast inert and
-        // out of the a11y tree without killing the exit transition.
-        isVisible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
-      )}
-    >
-      <CheckCircle
-        size={20}
-        style={{ width: '20px', height: '20px', flexShrink: 0 }}
-      />
-      <span>{message}</span>
+    <div className="pointer-events-none fixed inset-x-0 top-6 z-50 flex justify-center animate-in fade-in slide-in-from-top-2 duration-enter ease-enter motion-reduce:animate-none">
+      <div
+        role="status"
+        aria-live="polite"
+        className={cn(
+          'inline-flex items-center gap-2 rounded-full',
+          'bg-success px-4 py-3 text-sm font-medium text-success-foreground',
+          'shadow-lg',
+        )}
+      >
+        <CheckCircle size={20} className="shrink-0" />
+        <span>{message}</span>
+      </div>
     </div>
   );
 };

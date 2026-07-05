@@ -1,5 +1,5 @@
 import { Page, Text, View } from '@react-pdf/renderer';
-import { formatDate } from '../pdfStyles';
+import { formatPremiumDate } from '../pdfStyles';
 import type { CoverContext } from './coverContext';
 import { PdfFooter } from '../PdfFooter';
 
@@ -255,7 +255,7 @@ export function composeMetaStrip(ctx: CoverContext): string {
     parts.push(`SECRETARY: ${ctx.data.secretary.name.toUpperCase()}`);
   }
   if (ctx.data.show.entryCloseDate) {
-    parts.push(`CLOSING: ${formatDate(ctx.data.show.entryCloseDate).toUpperCase()}`);
+    parts.push(`CLOSING: ${formatPremiumDate(ctx.data.show.entryCloseDate).toUpperCase()}`);
   }
   // Always emit something — a bare org+year keeps the strip from looking empty
   // for sparse fixtures.
@@ -283,7 +283,7 @@ interface ClosingDisplay {
 function composeClosing(entryCloseDate: string | null): ClosingDisplay {
   if (!entryCloseDate) return { date: null, detail: null };
   return {
-    date: formatDate(entryCloseDate),
+    date: formatPremiumDate(entryCloseDate),
     detail: formatClosingTime(entryCloseDate),
   };
 }
@@ -292,7 +292,7 @@ function composeClosing(entryCloseDate: string | null): ClosingDisplay {
  * Extract a friendly closing time from `entryCloseDate`. Returns null when
  * the source is missing, unparsable, or carries no time component (e.g., a
  * date-only column like `'2026-06-13'`). Renders in UTC to match
- * `formatDate`'s convention so date-only columns don't roll backward in
+ * `formatPremiumDate`'s convention so date-only columns don't roll backward in
  * negative-offset timezones.
  *
  * Exported for tests.

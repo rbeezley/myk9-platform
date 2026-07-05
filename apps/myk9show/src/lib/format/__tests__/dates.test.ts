@@ -2,8 +2,12 @@ import { afterEach, describe, it, expect } from 'vitest';
 import {
   formatShowDateRange,
   formatEntryDate,
+  formatLongDate,
+  formatMonthDay,
+  formatWeekdayMonthDay,
   formatShortDate,
   formatEntryDateTime,
+  formatRecordDateTime,
   formatTime,
 } from '../dates';
 
@@ -86,6 +90,36 @@ describe('formatEntryDate', () => {
   });
 });
 
+describe('date-only supporting styles', () => {
+  it.each(['America/Chicago', 'America/New_York'])(
+    'renders DATE-only values as their true local calendar day in %s',
+    timezone => {
+      process.env.TZ = timezone;
+
+      expect(formatLongDate('2026-08-01')).toBe('August 1, 2026');
+      expect(formatMonthDay('2026-08-01')).toBe('Aug 1');
+      expect(formatWeekdayMonthDay('2026-08-01')).toBe('Sat, Aug 1');
+    }
+  );
+
+  it('accepts Date instances', () => {
+    const value = new Date(2026, 7, 1);
+
+    expect(formatLongDate(value)).toBe('August 1, 2026');
+    expect(formatMonthDay(value)).toBe('Aug 1');
+    expect(formatWeekdayMonthDay(value)).toBe('Sat, Aug 1');
+  });
+
+  it('returns an empty string for missing or unparseable input', () => {
+    expect(formatLongDate(undefined)).toBe('');
+    expect(formatLongDate(null)).toBe('');
+    expect(formatLongDate('')).toBe('');
+    expect(formatLongDate('not-a-date')).toBe('');
+    expect(formatMonthDay('not-a-date')).toBe('');
+    expect(formatWeekdayMonthDay('not-a-date')).toBe('');
+  });
+});
+
 describe('formatShortDate', () => {
   it('renders a compact record date with no weekday', () => {
     expect(formatShortDate('2026-07-03T18:00:00Z')).toBe('Jul 3, 2026');
@@ -127,6 +161,23 @@ describe('formatEntryDateTime', () => {
     expect(formatEntryDateTime(null)).toBe('');
     expect(formatEntryDateTime('')).toBe('');
     expect(formatEntryDateTime('not-a-date')).toBe('');
+  });
+});
+
+describe('formatRecordDateTime', () => {
+  it('renders a record date and time with year for printable or audit-like output', () => {
+    expect(formatRecordDateTime('2026-07-03T14:00:00')).toBe('Jul 3, 2026, 2:00 PM');
+  });
+
+  it('accepts a Date instance', () => {
+    expect(formatRecordDateTime(new Date('2026-07-03T14:00:00'))).toBe('Jul 3, 2026, 2:00 PM');
+  });
+
+  it('returns an empty string for missing or unparseable input', () => {
+    expect(formatRecordDateTime(undefined)).toBe('');
+    expect(formatRecordDateTime(null)).toBe('');
+    expect(formatRecordDateTime('')).toBe('');
+    expect(formatRecordDateTime('not-a-time')).toBe('');
   });
 });
 

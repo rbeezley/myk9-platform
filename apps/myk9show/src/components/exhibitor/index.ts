@@ -4,7 +4,3 @@ export { CompactStatsRow } from './CompactStatsRow';
 export { FirstRunZeroState } from './FirstRunZeroState';
 export { CheckInStatusBadge } from './CheckInStatusBadge';
 export { CheckInStatusMenu } from './CheckInStatusMenu';
-export { EntryRow } from './EntryRow';
-export type { DashboardEntry } from './EntryRow';
-export { ResultRow } from './ResultRow';
-export type { ResultRowData } from './ResultRow';

@@ -890,6 +890,14 @@ describe('ReplicatedEntriesTable', () => {
       supabaseMock = supabase as unknown as { from: ReturnType<typeof vi.fn> };
     });
 
+    it('skips remote reads when no show scope is provided', async () => {
+      const result = await table.sync('');
+
+      expect(result.success).toBe(true);
+      expect(result.rowsAffected).toBe(0);
+      expect(supabaseMock.from).not.toHaveBeenCalled();
+    });
+
     it('should sync successfully with no remote changes', async () => {
       // Mock empty response with proper query chain
       const mockQueryChain = {

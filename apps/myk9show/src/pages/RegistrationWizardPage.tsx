@@ -22,8 +22,10 @@ import { DraftManager } from '@/components/shows/RegistrationWorkflow/DraftManag
 import { RegistrationProvider } from '@/context/RegistrationContext';
 import HorizontalProgressIndicator from '@/components/shows/wizard/components/HorizontalProgressIndicator';
 import WizardNavigation from '@/components/shows/wizard/components/WizardNavigation';
+import { ReceiptExits } from '@/components/shows/wizard/components/ReceiptExits';
 import { WorkflowStepContent } from '@/components/shows/RegistrationWorkflow/WorkflowStepContent';
 import { useRegistrationWizard } from './RegistrationWizardPage/useRegistrationWizard';
+import { getPaymentSubmitLabel } from './RegistrationWizardPage/commitLabels';
 
 function RegistrationWizardContent() {
   const wiz = useRegistrationWizard();
@@ -38,6 +40,7 @@ function RegistrationWizardContent() {
     completedSteps,
     currentStepId,
     isLastStep,
+    currentWorkflowMode,
     handleStepClick,
     draftSave,
     draftLoad,
@@ -216,17 +219,33 @@ function RegistrationWizardContent() {
                   {proceedBlocked}
                 </p>
               )}
-              <WizardNavigation
-                currentStep={currentStep}
-                totalSteps={steps.length}
-                canGoBack={true}
-                canGoNext={canProceed()}
-                onBack={handleBack}
-                onNext={handleNext}
-                nextLabel={isLastStep ? 'Finish' : 'Next'}
-                backLabel={currentStep === 0 ? 'Cancel' : 'Back'}
-                isLoading={isSubmitting}
-              />
+              {isLastStep ? (
+                // The entry is already committed — this is the Receipt. No "Back"
+                // (it implied the submit could be undone); forward exits only (4.A).
+                <ReceiptExits
+                  isExhibitor={currentWorkflowMode === 'exhibitor'}
+                  showId={showId}
+                  onDone={handleNext}
+                  isLoading={isSubmitting}
+                />
+              ) : (
+                <WizardNavigation
+                  currentStep={currentStep}
+                  totalSteps={steps.length}
+                  canGoBack={true}
+                  canGoNext={canProceed()}
+                  onBack={handleBack}
+                  onNext={handleNext}
+                  // The Payment "Next" IS the commit — say so, method-aware (4.A).
+                  nextLabel={
+                    currentStepId === 'payment'
+                      ? getPaymentSubmitLabel(registrationData.paymentMethod)
+                      : 'Next'
+                  }
+                  backLabel={currentStep === 0 ? 'Cancel' : 'Back'}
+                  isLoading={isSubmitting}
+                />
+              )}
             </div>
           </div>
         </div>

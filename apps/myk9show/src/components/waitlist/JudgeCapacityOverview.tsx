@@ -1,19 +1,12 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import type { JudgeDayCapacity } from '@/types/waitlist-types';
 
 interface JudgeCapacityOverviewProps {
   judgeDays: JudgeDayCapacity[];
   onViewWaitList: (judgeId: string, showDate: string) => void;
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  });
 }
 
 function getBarColor(confirmedCount: number, capacity: number): string {
@@ -49,7 +42,7 @@ export function JudgeCapacityOverview({ judgeDays, onViewWaitList }: JudgeCapaci
                   </Badge>
                 )}
               </div>
-              <p className="text-muted-foreground text-sm">{formatDate(day.showDate)}</p>
+              <p className="text-muted-foreground text-sm">{formatWeekdayMonthDay(day.showDate)}</p>
             </CardHeader>
 
             <CardContent className="space-y-3">

@@ -12,6 +12,22 @@ export interface SuccessToastProps {
 /**
  * Success toast notification for entry list actions.
  * Shared between EntryList and CombinedEntryList.
+ *
+ * Ringside authors styling as Tailwind utilities on the markup — the host app's
+ * Tailwind build scans packages/ringside/src and generates these classes (see
+ * src/styles/index.css). The legacy `.success-toast` semantic class had no
+ * matching CSS rule after the Tailwind migration, so the toast rendered
+ * unstyled.
+ *
+ * Conditionally rendered (returns null when hidden) so the `role="status"` live
+ * region mounts fresh with its message each time — that is what makes screen
+ * readers announce the success. Positioned top-center to clear the bottom-center
+ * FloatingDoneButton, which can render at the same time.
+ *
+ * The wrapper centers via flexbox (NOT `-translate-x-1/2`) so the entrance
+ * animation — which animates `transform` — cannot overwrite the horizontal
+ * centering. Motion follows the shared motion language: a fade + small rise over
+ * `duration-enter` with `ease-enter` (no bounce), gated on reduced motion.
  */
 export const SuccessToast: React.FC<SuccessToastProps> = ({
   isVisible,
@@ -22,17 +38,7 @@ export const SuccessToast: React.FC<SuccessToastProps> = ({
   }
 
   return (
-    // Ringside authors styling as Tailwind utilities on the markup — the host
-    // app's Tailwind build scans packages/ringside/src and generates these
-    // classes (see src/styles/index.css). The legacy `.success-toast` semantic
-    // class had no matching CSS rule after the Tailwind migration, so the toast
-    // rendered unstyled. Positioned top-center to clear the bottom-center
-    // FloatingDoneButton, which can render at the same time.
-    //
-    // The wrapper centers via flexbox (NOT `-translate-x-1/2`) so the
-    // `animate-slide-up` token — which animates `transform` with `forwards`
-    // fill — cannot overwrite the horizontal centering.
-    <div className="pointer-events-none fixed inset-x-0 top-6 z-50 flex justify-center animate-slide-up motion-reduce:animate-none">
+    <div className="pointer-events-none fixed inset-x-0 top-6 z-50 flex justify-center animate-in fade-in slide-in-from-top-2 duration-enter ease-enter motion-reduce:animate-none">
       <div
         role="status"
         aria-live="polite"

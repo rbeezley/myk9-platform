@@ -258,6 +258,10 @@ Calm and tactile: soft 8px corners, generous touch targets, gentle 1px hover lif
 
 Result celebrations get the fullest editorial voice: Fraunces on the class title and the dog's name (`.celebration-serif`), placement medal colors, and the only sanctioned use of playful motion (`wag`, `happy-bounce`, the spring curve). Delight concentrates here — at the moment a dog earns it — instead of leaking into the workday screens.
 
+### Motion language
+
+One learnable motion vocabulary across myK9Show + ringside. **Durations and easings are tokens, not literals** — reference `duration-{micro|state|enter|layout}` and `ease-enter`/`ease-exit` (defined in `apps/myk9show/tailwind.config.js`); never hardcode a new duration. The rules users learn once: **appear** = fade + 4–8px rise (`duration-enter`/`ease-enter`); **state changed in place** = a `duration-state` color crossfade, never a bounce; **moved** = an animated layout shift (`duration-layout`), rows never teleport; **loading** = skeleton + `shimmer` (spinners only inline in buttons); **celebration** = confetti/`wag`, exhibitor-earned moments only. Everything gates on reduced motion. Shared packages (`ringside`/`scoring-ui`/`ui`) use CSS keyframes only — no framer-motion. Full spec + category table: [`docs/plan-motion-consistency.md`](docs/plan-motion-consistency.md).
+
 ## 6. Do's and Don'ts
 
 ### Do:

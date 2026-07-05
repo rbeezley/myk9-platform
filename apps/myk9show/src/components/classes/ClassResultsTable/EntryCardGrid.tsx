@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import type { ScentWorkEntry } from '@/types/scent-work-types';
 import { EntryCard, type EntryCardEntry } from './EntryCard';
+import { REORDER_TRANSITION, reorderLayoutMode } from './reorderLayoutMode';
 
 interface EntryCardGridProps {
   entries: ScentWorkEntry[];
@@ -21,6 +23,8 @@ function toCardEntry(entry: ScentWorkEntry): EntryCardEntry {
 
 export function EntryCardGrid({ entries, classId, onStatusClick }: EntryCardGridProps) {
   const cardEntries = useMemo(() => entries.map(toCardEntry), [entries]);
+  const prefersReducedMotion = useReducedMotion();
+  const layout = reorderLayoutMode(prefersReducedMotion);
 
   if (cardEntries.length === 0) {
     return <div className="py-12 text-center text-muted-foreground">No entries in this class.</div>;
@@ -29,12 +33,13 @@ export function EntryCardGrid({ entries, classId, onStatusClick }: EntryCardGrid
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
       {cardEntries.map(entry => (
-        <EntryCard
-          key={entry.entryId}
-          entry={entry}
-          scoringRoute={`/scoring/classes/${classId}/entries/${entry.entryId}`}
-          {...(onStatusClick != null && { onStatusClick })}
-        />
+        <motion.div key={entry.entryId} layout={layout} transition={REORDER_TRANSITION}>
+          <EntryCard
+            entry={entry}
+            scoringRoute={`/scoring/classes/${classId}/entries/${entry.entryId}`}
+            {...(onStatusClick != null && { onStatusClick })}
+          />
+        </motion.div>
       ))}
     </div>
   );

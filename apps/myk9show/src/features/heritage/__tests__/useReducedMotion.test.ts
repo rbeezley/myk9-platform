@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useReducedMotion } from '../../_shared/hooks/useReducedMotion';
 
 interface FakeMql {
   matches: boolean;

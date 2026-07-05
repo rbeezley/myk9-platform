@@ -2,7 +2,7 @@ import { HeritageSectionFolio } from '../../components/HeritageSectionFolio';
 import { HeritageHeading } from '../../components/HeritageHeading';
 import { HeritageOrnamentRule } from '../../components/HeritageOrnamentRule';
 import { useRevealOnScroll } from '../../hooks/useRevealOnScroll';
-import { useReducedMotion } from '../../hooks/useReducedMotion';
+import { useReducedMotion } from '../../../_shared/hooks/useReducedMotion';
 import { formatJourneyDate } from '../utils/dateFormat';
 import type { HeritageJourneyStep } from '../types';
 

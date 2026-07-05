@@ -38,6 +38,14 @@ export function CheckInStatusBadge({
 
   const sharedClasses = cn(
     'inline-flex items-center gap-1 font-semibold rounded-md whitespace-nowrap',
+    // Status changed in place = a 200ms color crossfade (never a snap). The
+    // status colors are applied via CSS-var inline styles that change with the
+    // status, so transitioning color/background-color animates the swap. Include
+    // `opacity` in one property list so the interactive (onClick) variant's
+    // hover:opacity-80 also transitions — a separate `transition-opacity` there
+    // would override `transition-colors` and snap the color change on the very
+    // path users use to change status. See DESIGN.md / docs/plan-motion-consistency.md.
+    'transition-[color,background-color,opacity] duration-state motion-reduce:transition-none',
     sizeClasses,
     className
   );
@@ -50,7 +58,7 @@ export function CheckInStatusBadge({
           e.stopPropagation();
           onClick();
         }}
-        className={cn(sharedClasses, 'cursor-pointer hover:opacity-80 transition-opacity')}
+        className={cn(sharedClasses, 'cursor-pointer hover:opacity-80')}
         style={badgeStyle}
       >
         {badgeContent}

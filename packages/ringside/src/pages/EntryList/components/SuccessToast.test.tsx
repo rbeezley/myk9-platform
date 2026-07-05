@@ -1,14 +1,13 @@
 /**
  * Tests for `SuccessToast`.
  *
- * Guards against two regressions:
- *  1. The toast rendered with the legacy `success-toast` semantic class, which
- *     had NO matching CSS rule after the ringside Tailwind migration — leaving
- *     the success notification bare.
- *  2. The entrance `animate-slide-up` (which animates `transform` with
- *     `forwards` fill) shared an element with transform-based centering
- *     (`-translate-x-1/2`), so the animation overwrote the centering. The fix
- *     centers via flexbox on a wrapper.
+ * Guards against:
+ *  1. The legacy `success-toast` semantic class, which had NO matching CSS rule
+ *     after the ringside Tailwind migration — leaving the toast unstyled.
+ *  2. A transform-based entrance animation clobbering transform-based centering:
+ *     the wrapper centers via flexbox, never `-translate-x-1/2`.
+ *  3. The entrance following the shared motion language (duration-enter/ease-enter
+ *     tokens, no bounce) and gating on reduced motion.
  *
  * Uses vanilla vitest assertions (no @testing-library/jest-dom in ringside).
  */
@@ -50,22 +49,26 @@ describe('SuccessToast', () => {
     expect(wrapper?.className).toContain('fixed');
   });
 
-  it('centers via flexbox without a transform that animate-slide-up would clobber', () => {
+  it('centers via flexbox without a transform that the entrance animation would clobber', () => {
     render(<SuccessToast isVisible message="Saved" />);
     const wrapper = screen.getByRole('status').parentElement;
 
     // Entrance animation lives on the wrapper, which centers with flexbox.
-    expect(wrapper?.className).toContain('animate-slide-up');
     expect(wrapper?.className).toContain('justify-center');
 
-    // The bug: `animate-slide-up` (transform, forwards) must NOT co-exist with
+    // The bug: a transform-animating entrance must NOT co-exist with
     // transform-based centering on the same element.
     expect(wrapper?.className).not.toContain('-translate-x-1/2');
   });
 
-  it('gates its motion on motion-reduce', () => {
+  it('uses the shared motion tokens for its entrance and gates on reduced motion', () => {
     render(<SuccessToast isVisible message="Saved" />);
     const wrapper = screen.getByRole('status').parentElement;
+
+    // Motion-language entrance: fade + small rise, duration-enter token, no bounce.
+    expect(wrapper?.className).toContain('animate-in');
+    expect(wrapper?.className).toContain('duration-enter');
+    expect(wrapper?.className).toContain('ease-enter');
     expect(wrapper?.className).toContain('motion-reduce:animate-none');
   });
 });

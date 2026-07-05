@@ -1,5 +1,5 @@
 import { GazetteDropCap } from '../../components/GazetteDropCap';
-import { useReducedMotion } from '@/features/heritage/hooks/useReducedMotion';
+import { useReducedMotion } from '@/features/_shared/hooks/useReducedMotion';
 import { formatDateInTimezone } from '../utils/dateFormat';
 
 interface LeadArticleSectionProps {

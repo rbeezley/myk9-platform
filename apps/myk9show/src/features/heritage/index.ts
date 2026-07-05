@@ -25,7 +25,7 @@ export {
   ensureHeritageFontsLoaded,
 } from './fonts';
 
-export { useReducedMotion } from './hooks/useReducedMotion';
+export { useReducedMotion } from '../_shared/hooks/useReducedMotion';
 export { useRevealOnScroll } from './hooks/useRevealOnScroll';
 
 export { HeritageOrnamentRule } from './components/HeritageOrnamentRule';

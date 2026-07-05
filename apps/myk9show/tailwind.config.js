@@ -166,6 +166,19 @@ export default {
       transitionTimingFunction: {
         apple: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
         bounce: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+        // Motion-language easings — see docs/plan-motion-consistency.md.
+        // Utilities: `ease-enter` (anything appearing), `ease-exit` (anything leaving).
+        enter: 'cubic-bezier(0.16, 1, 0.3, 1)',
+        exit: 'ease-in',
+      },
+      // Motion-language duration tokens — the single source of truth for animation
+      // timing. Never hardcode a new duration; reference `duration-{micro|state|enter|layout}`.
+      // See docs/plan-motion-consistency.md for the category rules.
+      transitionDuration: {
+        micro: '150ms', // hover, focus, pressed states
+        state: '200ms', // in-place status/color/toggle crossfade
+        enter: '250ms', // dialogs, sheets, toasts entering
+        layout: '350ms', // row reorder, expand/collapse, list layout shift
       },
     },
   },

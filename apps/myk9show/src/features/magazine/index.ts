@@ -25,7 +25,7 @@ export {
   ensureMagazineFontsLoaded,
 } from './fonts';
 
-export { useReducedMotion } from './hooks/useReducedMotion';
+export { useReducedMotion } from '../_shared/hooks/useReducedMotion';
 export { useRevealOnScroll } from './hooks/useRevealOnScroll';
 export { useCountdown, type CountdownValue } from './hooks/useCountdown';
 

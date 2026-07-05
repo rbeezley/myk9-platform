@@ -96,6 +96,22 @@ describe('support diagnostics', () => {
     expect(errors.at(-1)?.message).toContain('Bearer [redacted]');
   });
 
+  it('redacts bare JWTs and URL fragment tokens before storing diagnostics', () => {
+    const jwt =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjMifQ.signature_123';
+    captureSupportClientError(
+      new Error(`Failed to refresh session ${jwt} https://app/#id_token=${jwt}&token=plain`),
+      'auth-flow'
+    );
+
+    const message = getSupportClientErrors().at(-1)?.message ?? '';
+    expect(message).not.toContain(jwt);
+    expect(message).not.toContain('plain');
+    expect(message).toContain('[redacted-jwt]');
+    expect(message).toContain('#id_token=[redacted]');
+    expect(message).toContain('&token=[redacted]');
+  });
+
   it('survives hostile inputs', () => {
     const input = {
       get userId() {

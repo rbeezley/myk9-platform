@@ -34,6 +34,12 @@ describe('support tickets RLS contract', () => {
     expect(migration).toContain(
       'grant select, insert, update on public.support_ticket_messages to authenticated'
     );
+    expect(migration).toContain(
+      'grant select, insert, update on public.support_tickets to service_role'
+    );
+    expect(migration).toContain(
+      'grant select, insert, update on public.support_ticket_messages to service_role'
+    );
     expect(migration).toContain('revoke all on public.support_tickets from anon');
     expect(migration).toContain('revoke all on public.support_ticket_messages from anon');
   });

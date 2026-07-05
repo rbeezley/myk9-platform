@@ -47,6 +47,8 @@ alter table public.support_ticket_messages enable row level security;
 
 grant select, insert, update on public.support_tickets to authenticated;
 grant select, insert, update on public.support_ticket_messages to authenticated;
+grant select, insert, update on public.support_tickets to service_role;
+grant select, insert, update on public.support_ticket_messages to service_role;
 revoke all on public.support_tickets from anon;
 revoke all on public.support_ticket_messages from anon;
 

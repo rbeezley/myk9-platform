@@ -16,8 +16,8 @@ The tokens SHALL be:
 #### Scenario: Tokens exist in the Tailwind config
 
 - **WHEN** the Tailwind theme is inspected (or a source-text test reads `tailwind.config.js`)
-- **THEN** `transitionDuration` contains `micro`/`state`/`enter`/`layout` with the values above
-- **AND** `transitionTimingFunction` contains `ease-enter` (`cubic-bezier(0.16, 1, 0.3, 1)`) and `ease-exit`
+- **THEN** `theme.extend.transitionDuration` contains `micro` (150ms), `state` (200ms), `enter` (250ms), `layout` (350ms)
+- **AND** `theme.extend.transitionTimingFunction` contains `enter` (`cubic-bezier(0.16, 1, 0.3, 1)`) and `exit` (`ease-in`), yielding the utilities `duration-micro`/`duration-state`/`duration-enter`/`duration-layout` and `ease-enter`/`ease-exit`
 
 #### Scenario: New motion references a token, not a literal
 

@@ -9,8 +9,8 @@
 
 ## 2. Phase 2 — Motion tokens + spec doc
 
-- [ ] 2.1 Add `transitionDuration` (`micro` 150ms, `state` 200ms, `enter` 250ms, `layout` 350ms) and `transitionTimingFunction` (`ease-enter` `cubic-bezier(0.16, 1, 0.3, 1)`, `ease-exit` `ease-in`) under `theme.extend` in `apps/myk9show/tailwind.config.js`.
-- [ ] 2.2 Link the plan's motion-spec table from `DESIGN.md` (docs-only edit) as the human-readable source of truth.
+- [x] 2.1 Add `transitionDuration` (`micro` 150ms, `state` 200ms, `enter` 250ms, `layout` 350ms) and `transitionTimingFunction` (`ease-enter` `cubic-bezier(0.16, 1, 0.3, 1)`, `ease-exit` `ease-in`) under `theme.extend` in `apps/myk9show/tailwind.config.js`.
+- [x] 2.2 Link the plan's motion-spec table from `DESIGN.md` (docs-only edit) as the human-readable source of truth.
 
 ## 3. Phase 3 — Fix ringside SuccessToast (bug + motion)
 
@@ -28,7 +28,7 @@
 
 ## 5. Testing
 
-- [ ] 5.1 Source-text unit test pinning the token names/values in `tailwind.config.js` (`feedback_source_text_regression_tests`).
+- [x] 5.1 Source-text unit test pinning the token names/values in `tailwind.config.js` (`feedback_source_text_regression_tests`).
 - [ ] 5.2 Ringside `SuccessToast` tests: renders message + visibility toggle; fake-timer auto-dismiss; rapid-retrigger reset; unmount clears timer. (`window.matchMedia` already mocked in `src/test/setup.ts`.)
 - [ ] 5.3 Reduced-motion gating assertion where a hook decision is involved (reorder/crossfade fallback path).
 - [ ] 5.4 Unit tests for any pure helpers extracted in Phase 5.

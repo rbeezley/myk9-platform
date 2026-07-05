@@ -11,6 +11,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, AlertCircle, ArrowLeft, WifiOff } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { ScoresheetLoadingSkeleton } from '@/components/scoring/ScoringLoadingSkeletons';
 import { useOptimisticScoring } from '@/hooks/useOptimisticScoring';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
@@ -151,11 +152,7 @@ export function ScoresheetPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <ScoresheetLoadingSkeleton label="Loading scoresheet" />;
   }
 
   if (error || !entry || !classInfo || !rules) {

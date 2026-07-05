@@ -95,6 +95,14 @@ describe('AskQ support mode', () => {
         }),
       ])
     );
+    expect(findSupportGuideEvidence('How do I manage the waitlist?', ASKQ_GUIDES)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'secretary-guide',
+          matchedTerms: expect.arrayContaining(['manage', 'waitlist']),
+        }),
+      ])
+    );
   });
 
   it('fails closed unless a marked answer also has server-side guide evidence', () => {

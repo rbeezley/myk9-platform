@@ -19,6 +19,7 @@ const SUPPORT_TERM_NORMALIZATIONS: Record<string, string> = {
   creating: 'create',
   deleted: 'delete',
   deletes: 'delete',
+  managing: 'manage',
   removing: 'remove',
 };
 const SUPPORT_DOMAIN_TERMS = new Set([
@@ -37,6 +38,7 @@ const SUPPORT_DOMAIN_TERMS = new Set([
   'exhibitor',
   'judge',
   'mail',
+  'manage',
   'message',
   'premium',
   'report',
@@ -50,6 +52,7 @@ const SUPPORT_DOMAIN_TERMS = new Set([
   'send',
   'show',
   'steward',
+  'waitlist',
 ]);
 
 export type SupportEscalationReason = 'payment_or_refund' | 'low_confidence';

@@ -1,3 +1,4 @@
+import type { AskQGuideAsset } from './documentContext.ts';
 import type { ToolDefinition } from './types.ts';
 
 export const SUPPORT_HANDOFF_MESSAGE = 'I need to get a person to help with that.';
@@ -15,6 +16,13 @@ export interface SupportEscalationPayload {
   escalate: true;
   reason: SupportEscalationReason;
   message: string;
+}
+
+export interface SupportGuideEvidence {
+  id: string;
+  title: string;
+  audience: string;
+  matchedTerms: string[];
 }
 
 export function isSupportModeEnabled(value: unknown): boolean {
@@ -55,9 +63,35 @@ export interface ParsedSupportAnswer {
   escalation: SupportEscalationPayload | null;
 }
 
-export function parseSupportAnswer(answerText: string): ParsedSupportAnswer {
+export function findSupportGuideEvidence(
+  message: string,
+  guides: AskQGuideAsset[]
+): SupportGuideEvidence[] {
+  const terms = tokenizeSupportQuery(message);
+  if (terms.length === 0) return [];
+
+  return guides
+    .map(guide => {
+      const haystack = `${guide.title} ${guide.audience} ${guide.content}`.toLowerCase();
+      const matchedTerms = terms.filter(term => haystack.includes(term));
+      return {
+        id: guide.id,
+        title: guide.title,
+        audience: guide.audience,
+        matchedTerms,
+      };
+    })
+    .filter(evidence => evidence.matchedTerms.length > 0)
+    .sort((a, b) => b.matchedTerms.length - a.matchedTerms.length)
+    .slice(0, 3);
+}
+
+export function parseSupportAnswer(
+  answerText: string,
+  hasGuideEvidence = false
+): ParsedSupportAnswer {
   const trimmed = answerText.trim();
-  if (trimmed.startsWith(SUPPORT_ANSWER_MARKER)) {
+  if (hasGuideEvidence && trimmed.startsWith(SUPPORT_ANSWER_MARKER)) {
     const stripped = trimmed.slice(SUPPORT_ANSWER_MARKER.length).trim();
     if (stripped) return { answerText: stripped, escalation: null };
   }
@@ -68,9 +102,16 @@ export function parseSupportAnswer(answerText: string): ParsedSupportAnswer {
   };
 }
 
-export function getSupportEscalationForAnswer(answerText: string): SupportEscalationPayload | null {
+export function getSupportEscalationForAnswer(
+  answerText: string,
+  hasGuideEvidence = false
+): SupportEscalationPayload | null {
   const trimmed = answerText.trim();
-  if (trimmed.startsWith(SUPPORT_ANSWER_MARKER) && trimmed.slice(SUPPORT_ANSWER_MARKER.length).trim()) {
+  if (
+    hasGuideEvidence &&
+    trimmed.startsWith(SUPPORT_ANSWER_MARKER) &&
+    trimmed.slice(SUPPORT_ANSWER_MARKER.length).trim()
+  ) {
     return null;
   }
 
@@ -79,4 +120,40 @@ export function getSupportEscalationForAnswer(answerText: string): SupportEscala
     reason: 'low_confidence',
     message: 'I could not find a verified guide answer for that question.',
   };
+}
+
+function tokenizeSupportQuery(message: string): string[] {
+  const stopWords = new Set([
+    'about',
+    'another',
+    'could',
+    'does',
+    'find',
+    'from',
+    'help',
+    'into',
+    'need',
+    'please',
+    'show',
+    'that',
+    'their',
+    'there',
+    'this',
+    'what',
+    'when',
+    'where',
+    'which',
+    'with',
+    'would',
+    'your',
+  ]);
+
+  return [
+    ...new Set(
+      message
+        .toLowerCase()
+        .match(/[a-z0-9]+/g)
+        ?.filter(term => term.length >= 3 && !stopWords.has(term)) ?? []
+    ),
+  ];
 }

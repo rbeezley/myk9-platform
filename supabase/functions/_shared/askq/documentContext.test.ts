@@ -64,10 +64,13 @@ describe('AskQ document context', () => {
     expect(context).toContain('UKC Nose Work Rules');
   });
 
-  it('falls back to all bundled rulebooks when no show context selects one', () => {
+  it('falls back to all bundled rulebooks only when no verified show context exists', () => {
     const selectedRulebooks = rulebooks.slice(0, 1);
 
-    expect(getRulebooksForDocumentContext(rulebooks, [])).toEqual(rulebooks);
-    expect(getRulebooksForDocumentContext(rulebooks, selectedRulebooks)).toEqual(selectedRulebooks);
+    expect(getRulebooksForDocumentContext(rulebooks, [], false)).toEqual(rulebooks);
+    expect(getRulebooksForDocumentContext(rulebooks, selectedRulebooks, false)).toEqual(
+      selectedRulebooks
+    );
+    expect(getRulebooksForDocumentContext(rulebooks, [], true)).toEqual([]);
   });
 });

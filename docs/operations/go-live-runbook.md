@@ -233,9 +233,14 @@ product).
 - [ ] **4.3 Venue hardware print test** — CheckInSheet, ScoresheetReport, ResultLabels,
       ArmbandLabelsReport on a real label printer + standard laser; capture margin/scaling/duplex
       issues. Owner: Operator (at venue). Flips **Reports and official forms**.
-- [ ] **4.4 Exhibitor at-show awareness walk** — exhibitor-account walk with a multiple-own-entry
+- [x] **4.4 Exhibitor at-show awareness walk** — exhibitor-account walk with a multiple-own-entry
       fixture: own-dog highlight, dogs-ahead pill counts down live, conflict chip on both entries
-      (merged #639, never live-verified).
+      (merged #639; live-verified 2026-07-04 on staging after
+      `20260704200000_at_show_exhibitor_queue_read.sql`). Evidence:
+      `/private/tmp/at-show-awareness-2026-07-04/02-class-a-before.png`,
+      `/private/tmp/at-show-awareness-2026-07-04/03-class-a-countdown-live-update.png`,
+      `/private/tmp/at-show-awareness-2026-07-04/04-class-a-after-live-update.png`,
+      `/private/tmp/at-show-awareness-2026-07-04/05-class-b-conflict.png`.
 - [ ] **4.5 Real-user testing (G7, the final gate)** — recruit 2–3 non-technical users (one
       secretary, one–two exhibitors); written tasks; watch silently; log every hesitation; fix
       each before the next user. Sole closer for the "real-user testing completed" launch

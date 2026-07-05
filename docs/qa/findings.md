@@ -337,6 +337,22 @@ Copy this block for each new finding.
 
 ## Closed Findings
 
+### QA-ROLE-RLS-MISMATCH-033
+
+- **Status:** fixed
+- **Severity:** high
+- **Role:** exhibitor
+- **Surface:** `/at-show/:showId`, `public.view_authenticated_entry_results`, entries replication.
+- **Suite category:** feature-audit
+- **Pattern:** role-rls-mismatch
+- **Detected by:** qa-feature manual browser walk
+- **Evidence:** 2026-07-04 at-show exhibitor awareness walk against fixture `QA At-Show Awareness Fixture 2026-07-04` showed Buddy as `You're next` before the fix because `view_authenticated_entry_results` returned only own entries to the exhibitor account. After migration `20260704200000_at_show_exhibitor_queue_read.sql`, the same fixture shows the full queue and conflict context. Screenshot artifacts: `/private/tmp/at-show-awareness-2026-07-04/02-class-a-before.png`, `/private/tmp/at-show-awareness-2026-07-04/03-class-a-countdown-live-update.png`, `/private/tmp/at-show-awareness-2026-07-04/04-class-a-after-live-update.png`, `/private/tmp/at-show-awareness-2026-07-04/05-class-b-conflict.png`.
+- **User impact:** Exhibitors could be told they were next when non-owned dogs were still ahead, making show-day timing guidance unreliable.
+- **Intent check:** Restores exhibitor confidence that at-show guidance is calm, timely, and trustworthy.
+- **Fix owner:** `supabase/migrations/20260704200000_at_show_exhibitor_queue_read.sql`, `apps/myk9show/src/services/replication/ReplicatedEntriesTable.ts`.
+- **Proof required:** `pnpm exec vitest run src/test/database/atShowExhibitorQueueReadRlsContract.test.ts`; `pnpm exec vitest run src/services/replication/__tests__/ReplicatedEntriesTable.test.ts`; manual Playwright fixture walk proving `2 dogs ahead -> 1 dog ahead -> You're next`, conflict chip on both entries, and no console/network errors.
+- **Notes:** Fixed 2026-07-04. The migration widens row admission for exhibitors entered in the same show while keeping `can_view_admin` as managers + own entries only and keeping raw scores behind existing score gates. A follow-up browser run found an app-wide unscoped entries sync timeout; `ReplicatedEntriesTable.sync('')` now no-ops before constructing a global `view_authenticated_entry_results` query. Final browser proof output: `beforeMatched=true`, `countdownMatched=true`, `liveCountdownMatched=true`, `classBConflictMatched=true`, `consoleErrors=[]`, `networkErrors=[]`.
+
 ### QA-MOBILE-LAYOUT-BREAK-022
 
 - **Status:** fixed

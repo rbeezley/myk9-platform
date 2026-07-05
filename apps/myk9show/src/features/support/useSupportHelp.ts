@@ -159,10 +159,12 @@ export function useSupportHelp(user: User | null, userWithRoles: UserWithRoles |
 
   const createTicket = useCallback(
     async (body: string) => {
-      if (!user) throw new Error('Sign in before sending a support request.');
-
       setState(prev => ({ ...prev, status: 'submitting', error: null }));
       try {
+        if (!user) {
+          throw new Error('Sign in before sending a support request.');
+        }
+
         const input: CreateSupportTicketInput = {
           ownerId: user.id,
           body,

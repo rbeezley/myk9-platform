@@ -36,6 +36,9 @@ export function AskQPanel() {
 
   const limit = isPremium ? RATE_LIMIT_DEFAULTS.premium : RATE_LIMIT_DEFAULTS.free;
   const remaining = askq.remaining ?? limit;
+  const signInHref = `/sign-in?returnTo=${encodeURIComponent(
+    `${location.pathname}${location.search}`
+  )}`;
 
   const handleSubmit = useCallback(
     (query: string) => {
@@ -100,6 +103,14 @@ export function AskQPanel() {
   const footer = useMemo(() => {
     if (mode === 'app-help') {
       if (support.state.status === 'escalating' || support.state.status === 'submitting') {
+        if (!user) {
+          return (
+            <Button asChild className="w-full">
+              <Link to={signInHref}>Sign in to create a ticket</Link>
+            </Button>
+          );
+        }
+
         return (
           <form onSubmit={handleTicketSubmit} className="space-y-3">
             <textarea
@@ -158,8 +169,10 @@ export function AskQPanel() {
     handleTicketSubmit,
     mode,
     promptRequestId,
+    signInHref,
     suggestedPrompt,
     support.state.status,
+    user,
   ]);
 
   const isAskQMode = mode === 'askq';
@@ -289,9 +302,11 @@ function AskQAppHelpContent({
       {state.status === 'escalating' && (
         <Alert>
           <AlertDescription>
-            {state.route?.kind === 'escalate'
-              ? state.route.message
-              : 'A person can help with that.'}
+            {currentUserId
+              ? state.route?.kind === 'escalate'
+                ? state.route.message
+                : 'A person can help with that.'
+              : 'Sign in to create a support ticket so we can reply in the app.'}
           </AlertDescription>
         </Alert>
       )}

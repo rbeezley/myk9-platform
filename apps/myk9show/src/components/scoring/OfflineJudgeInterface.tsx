@@ -9,6 +9,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import '@/styles/myk9-show-details.css';
+import { JudgeClassLoadingSkeleton } from './ScoringLoadingSkeletons';
 
 // Store and service integration
 import { logger } from '@/services/LoggingService';
@@ -284,12 +285,7 @@ export function OfflineJudgeInterface({
 
   if (isLoading) {
     return (
-      <div className={cn('min-h-screen bg-background flex items-center justify-center', className)}>
-        <div className="text-center space-y-4">
-          <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto"></div>
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
+      <JudgeClassLoadingSkeleton label="Loading offline judge workflow" className={className} />
     );
   }
 

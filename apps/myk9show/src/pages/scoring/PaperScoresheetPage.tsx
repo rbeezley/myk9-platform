@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Loader2, AlertCircle, List, PanelTop } from 'lucide-react';
+import { ArrowLeft, AlertCircle, List, PanelTop } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
+import { ScoresheetLoadingSkeleton } from '@/components/scoring/ScoringLoadingSkeletons';
 import { useScoringBreadcrumb } from './useScoringBreadcrumb';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
@@ -205,11 +206,7 @@ export function PaperScoresheetPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <ScoresheetLoadingSkeleton label="Loading paper scoresheet" />;
   }
 
   if (error) {

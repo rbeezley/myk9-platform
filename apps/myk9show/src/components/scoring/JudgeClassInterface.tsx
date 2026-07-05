@@ -16,6 +16,7 @@ import '@/styles/myk9-show-details.css';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { SyncStatusIndicator } from '@/components/sync/SyncStatusIndicator';
+import { JudgeClassLoadingSkeleton } from './ScoringLoadingSkeletons';
 
 // Feature Components
 import { ResultEntryNavigation, type EntryWithResult } from './ResultEntryNavigation';
@@ -351,19 +352,7 @@ export function JudgeClassInterface({ classId: propClassId, className }: JudgeCl
 
   // Loading state
   if (isLoading) {
-    return (
-      <div
-        className={cn(
-          'min-h-screen bg-gray-50 dark:bg-warm-950 flex items-center justify-center',
-          className
-        )}
-      >
-        <div className="text-center space-y-4">
-          <div className="animate-spin h-8 w-8 border-2 border-blue-600 border-t-transparent rounded-full mx-auto"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading class data...</p>
-        </div>
-      </div>
-    );
+    return <JudgeClassLoadingSkeleton label="Loading judge class data" className={className} />;
   }
 
   // Error state

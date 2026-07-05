@@ -33,3 +33,24 @@ describe('CartSummary source', () => {
     expect(source).toMatch(/min-h-\[44px\][\s\S]{0,60}>\s*Extend/);
   });
 });
+
+/**
+ * UX walk remediation 4.B — entry carts must not time-pressure the user.
+ * No constant ticking countdown, and expiry must not strand the user by
+ * redirecting to /shows mid-payment. Only the actionable near-expiry warning
+ * (with one-tap Extend) remains.
+ */
+describe('CartSummary — de-panicked entry cart (4.B)', () => {
+  it('shows no constant "Cart expires in" countdown', () => {
+    expect(source).not.toContain('Cart expires in');
+  });
+
+  it('does not strand the user on expiry (no onExpired redirect)', () => {
+    expect(source).not.toContain('onExpired');
+  });
+
+  it('still surfaces the actionable near-expiry warning and Extend', () => {
+    expect(source).toContain('showWarning');
+    expect(source).toMatch(/>\s*Extend/);
+  });
+});

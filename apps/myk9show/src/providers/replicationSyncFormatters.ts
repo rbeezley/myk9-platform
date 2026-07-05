@@ -4,19 +4,49 @@ export interface SyncFailedEventDetail {
   message: string;
 }
 
+const TABLE_LABELS: Record<string, string> = {
+  shows: 'show',
+  trials: 'trial',
+  classes: 'class',
+  entries: 'entry',
+  dogs: 'dog',
+  clubs: 'club',
+  judge_assignments: 'judge assignment',
+  armbands: 'armband',
+  waitlist_entries: 'waitlist entry',
+};
+
+const OPERATION_LABELS: Record<string, string> = {
+  INSERT: 'create',
+  UPDATE: 'update',
+  DELETE: 'delete',
+};
+
+function objectLabel(tableName: string | undefined): string {
+  if (!tableName) return 'change';
+  return TABLE_LABELS[tableName] ?? 'change';
+}
+
+function actionLabel(operation: string | undefined): string {
+  if (!operation) return 'save';
+  return OPERATION_LABELS[operation.toUpperCase()] ?? 'save';
+}
+
 export function formatSyncFailureToast(detail: SyncFailedEventDetail): string {
   const first = detail.mutations[0];
-  const detailText = first
-    ? `${first.tableName} ${first.operation.toLowerCase()}${first.error ? `: ${first.error}` : ''}`
-    : detail.message;
-  return `Failed to save ${detail.count} change${detail.count === 1 ? '' : 's'}. ${detailText}`;
+  if (detail.count === 1 && first) {
+    return `We couldn't ${actionLabel(first.operation)} this ${objectLabel(first.tableName)}. Retry or discard this change.`;
+  }
+
+  return `We couldn't save ${detail.count} changes. Retry or discard these changes.`;
 }
 
 export function formatDownloadFailureToast(
   failures: Array<{ name: string; error: string }>
 ): string {
   const first = failures[0];
-  const tail = failures.length > 1 ? ` (and ${failures.length - 1} more)` : '';
-  const detail = first ? `${first.name}: ${first.error}` : '';
-  return `Failed to load data from server. ${detail}${tail}`;
+  const label = first ? objectLabel(first.name) : 'show data';
+  const tail =
+    failures.length > 1 ? ` ${failures.length - 1} more area${failures.length === 2 ? '' : 's'} also need to refresh.` : '';
+  return `We couldn't refresh ${label} data. You can keep using the saved copy while we try again.${tail}`;
 }

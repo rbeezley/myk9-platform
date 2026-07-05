@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { type ColumnDef, type DisplayColumnDef } from '@tanstack/react-table';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DataTable, type DataTableColumnMeta } from '@/components/ui/data-table';
 import {
@@ -45,6 +46,8 @@ interface EntriesTableViewProps {
   /** When provided, renders a leading checkbox select column wired to this selection. */
   selection?: EntriesTableSelection | undefined;
   emptyState?: React.ReactNode;
+  /** Review-mode fast path: visible row Accept/Reject buttons. */
+  showReviewActions?: boolean | undefined;
 }
 
 function buildSelectColumn(
@@ -75,11 +78,57 @@ function buildSelectColumn(
   };
 }
 
+function buildReviewActionsColumn(
+  onStatusChange: (entryId: string, status: EntryStatus) => void
+): DisplayColumnDef<EntryManagementEntry, unknown> {
+  return {
+    id: '_review_actions',
+    header: 'Review',
+    cell: ({ row }) => {
+      const entry = row.original;
+      const canAccept = entry.entryStatus !== EntryStatus.ACCEPTED;
+      const canReject = entry.entryStatus !== EntryStatus.REJECTED;
+
+      return (
+        <div className="flex flex-wrap items-center gap-2" onClick={e => e.stopPropagation()}>
+          {canAccept && (
+            <Button
+              type="button"
+              size="sm"
+              className="min-h-11"
+              aria-label={`Accept ${entry.dogName}`}
+              onClick={() => onStatusChange(entry.id, EntryStatus.ACCEPTED)}
+            >
+              Accept
+            </Button>
+          )}
+          {canReject && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="min-h-11 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              aria-label={`Reject ${entry.dogName}`}
+              onClick={() => onStatusChange(entry.id, EntryStatus.REJECTED)}
+            >
+              Reject
+            </Button>
+          )}
+        </div>
+      );
+    },
+    enableSorting: false,
+    enableHiding: false,
+    meta: { interactive: true, exportDisabled: true } satisfies DataTableColumnMeta,
+  };
+}
+
 function buildColumns(
   emailStatusMap?: Record<string, EmailLogEntry>,
   onResendEmail?: (registrationId: string) => void,
   isResendDisabled?: (registrationId: string) => boolean,
-  actionHandlers?: Omit<EntryRowActionMenuProps, 'entry'> | undefined
+  actionHandlers?: Omit<EntryRowActionMenuProps, 'entry'> | undefined,
+  showReviewActions?: boolean
 ): ColumnDef<EntryManagementEntry, unknown>[] {
   const columns: ColumnDef<EntryManagementEntry, unknown>[] = [
     {
@@ -205,6 +254,10 @@ function buildColumns(
     },
   ];
 
+  if (showReviewActions && actionHandlers?.onStatusChange) {
+    columns.push(buildReviewActionsColumn(actionHandlers.onStatusChange));
+  }
+
   if (actionHandlers) {
     columns.push({
       id: '_actions',
@@ -239,6 +292,7 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
   onEntryRefunded,
   selection,
   emptyState,
+  showReviewActions = false,
 }) => {
   const [requestPaymentEntry, setRequestPaymentEntry] = useState<EntryManagementEntry | null>(null);
   const openRequestPayment = useCallback(
@@ -278,7 +332,8 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
       emailStatusMap,
       onResendEmail,
       isResendDisabled,
-      actionHandlers
+      actionHandlers,
+      showReviewActions
     );
     return selection ? [buildSelectColumn(selection), ...dataColumns] : dataColumns;
   }, [
@@ -294,6 +349,7 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
     selection,
     openRequestPayment,
     openRefund,
+    showReviewActions,
   ]);
 
   return (

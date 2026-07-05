@@ -45,6 +45,23 @@ const mockClassStoreState = vi.hoisted(() => ({
       _syncStatus: 'synced',
     },
   ],
+  entries: [
+    {
+      id: 'entry-1',
+      classId: 'class-1',
+      armband: '101',
+      handler: 'Jane',
+      dog: 'Ranger',
+      status: 'pending',
+      score: '',
+      time: '',
+      placement: '',
+      _version: 1,
+      _lastModified: new Date(),
+      _lastModifiedBy: '',
+      _syncStatus: 'synced',
+    },
+  ],
 }));
 
 vi.mock('@/store/classStore', () => ({
@@ -193,6 +210,38 @@ describe('ResultsControlPage', () => {
         _syncStatus: 'synced',
       },
     ];
+    mockClassStoreState.entries = [
+      {
+        id: 'entry-1',
+        classId: 'class-1',
+        armband: '101',
+        handler: 'Jane',
+        dog: 'Ranger',
+        status: 'pending',
+        score: '',
+        time: '',
+        placement: '',
+        _version: 1,
+        _lastModified: new Date(),
+        _lastModifiedBy: '',
+        _syncStatus: 'synced',
+      },
+    ];
+  });
+
+  it('shows a results readiness summary above the settings', () => {
+    renderPage();
+
+    expect(screen.getByRole('heading', { name: 'Results readiness' })).toBeInTheDocument();
+    expect(screen.getByTestId('results-readiness-verdict')).toHaveTextContent(
+      "Here's what is still blocking closeout."
+    );
+    expect(screen.getByText((_content, element) => element?.textContent === '1 unscored entry'))
+      .toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Download draft XML' })).toHaveAttribute(
+      'href',
+      '/shows/show-1/submit-results'
+    );
   });
 
   it('renders page title', () => {

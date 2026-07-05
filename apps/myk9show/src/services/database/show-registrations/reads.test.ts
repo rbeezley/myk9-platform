@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PaymentStatus } from '@/types/show-registration-types';
-import { updateEnrollmentPaymentStatus } from './reads';
+import { createShowRegistration, updateEnrollmentPaymentStatus } from './reads';
 
 const mocks = vi.hoisted(() => ({
   from: vi.fn(),
@@ -47,6 +47,66 @@ function makeEntriesUpdateQuery(result = { data: null, error: null as Error | nu
   };
   return query;
 }
+
+function makeExistingEnrollmentQuery() {
+  return {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    maybeSingle: vi.fn().mockResolvedValue({
+      data: {
+        id: 'enrollment-existing',
+        show_id: 'show-1',
+        handler_id: 'handler-1',
+        confirmation_number: 'MK9-000123',
+        status: 'draft',
+        total_fees: 0,
+        payment_status: 'pending',
+        payment_method: null,
+        payment_reference: null,
+        created_at: '2026-07-05T00:00:00Z',
+        updated_at: '2026-07-05T00:00:00Z',
+      },
+      error: null,
+    }),
+    insert: vi.fn().mockReturnThis(),
+    single: vi.fn().mockResolvedValue({
+      data: {
+        id: 'enrollment-new',
+        show_id: 'show-1',
+        handler_id: 'handler-1',
+        confirmation_number: 'MK9-999999',
+        status: 'draft',
+        total_fees: 0,
+        payment_status: 'pending',
+        payment_method: null,
+        payment_reference: null,
+        created_at: '2026-07-05T00:00:00Z',
+        updated_at: '2026-07-05T00:00:00Z',
+      },
+      error: null,
+    }),
+  };
+}
+
+describe('createShowRegistration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns an existing enrollment before insert to avoid the handled 409 path', async () => {
+    const query = makeExistingEnrollmentQuery();
+    mocks.from.mockReturnValue(query);
+
+    const result = await createShowRegistration('show-1', 'handler-1');
+
+    expect(result.error).toBeNull();
+    expect(result.data?.id).toBe('enrollment-existing');
+    expect(query.insert).not.toHaveBeenCalled();
+    expect(query.select).toHaveBeenCalledWith('*');
+    expect(query.eq).toHaveBeenCalledWith('show_id', 'show-1');
+    expect(query.eq).toHaveBeenCalledWith('handler_id', 'handler-1');
+  });
+});
 
 describe('updateEnrollmentPaymentStatus', () => {
   beforeEach(() => {

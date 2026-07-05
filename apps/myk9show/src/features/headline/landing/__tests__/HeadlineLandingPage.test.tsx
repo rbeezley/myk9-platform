@@ -5,6 +5,8 @@ import { HeadlineLandingPage } from '../HeadlineLandingPage';
 
 const landingDataState = vi.hoisted(() => ({
   showName: 'Spring Scent Work Trial',
+  entryCount: 137,
+  entryLimit: 360 as number | null,
 }));
 
 vi.mock('@/features/headline/fonts', () => ({
@@ -51,8 +53,8 @@ vi.mock('@/features/heritage/landing/useHeritageLandingData', () => ({
         elements: ['Containers', 'Interiors'],
       },
     ],
-    entryCount: 137,
-    entryLimit: 360,
+    entryCount: landingDataState.entryCount,
+    entryLimit: landingDataState.entryLimit,
     fees: [{ label: 'First entry', amount: '$25.00' }],
     officers: [{ title: 'Trial Chair', name: 'Sarah Whitman' }],
     accommodations: [{ name: 'Hampton Inn Live Oak', address: '0.4 mi', phone: '(210) 555-0100' }],
@@ -80,6 +82,8 @@ describe('HeadlineLandingPage', () => {
 
   afterEach(() => {
     landingDataState.showName = 'Spring Scent Work Trial';
+    landingDataState.entryCount = 137;
+    landingDataState.entryLimit = 360;
     if (originalTimezone) {
       process.env.TZ = originalTimezone;
     } else {
@@ -166,5 +170,17 @@ describe('HeadlineLandingPage', () => {
         'The secretary still needs to assign classes before online entry is available.'
       ).length
     ).toBeGreaterThan(0);
+  });
+
+  it('does not present unknown entry limits as a false percentage', () => {
+    landingDataState.entryCount = 21;
+    landingDataState.entryLimit = null;
+
+    render(<HeadlineLandingPage show={null} trial={null} allTrials={[]} />);
+
+    expect(screen.getByText('21')).toBeTruthy();
+    expect(screen.getAllByText('Limit not posted yet').length).toBeGreaterThan(0);
+    expect(screen.queryByText('/TBD')).toBeNull();
+    expect(screen.queryByText('0% full')).toBeNull();
   });
 });

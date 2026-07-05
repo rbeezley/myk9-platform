@@ -35,6 +35,7 @@ function RegistrationWizardContent() {
     exitTarget,
     workflowLabel,
     sidebarTitle,
+    workflowSubtitle,
     currentShow,
     steps,
     currentStep,
@@ -126,6 +127,9 @@ function RegistrationWizardContent() {
             {/* Title + horizontal step indicator */}
             <div className="mt-3">
               <h2 className="text-base font-semibold text-foreground">{sidebarTitle}</h2>
+              {workflowSubtitle && (
+                <p className="text-sm text-muted-foreground">{workflowSubtitle}</p>
+              )}
               {currentShow && (
                 <p className="text-xs text-muted-foreground truncate">{currentShow.name}</p>
               )}

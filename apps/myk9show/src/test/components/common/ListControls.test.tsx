@@ -81,6 +81,26 @@ describe('ListControls', () => {
     expect(onFilterChange).toHaveBeenCalledWith('role', 'judge');
   });
 
+  it('opens mobile filters in a sheet and reports the same filter changes', async () => {
+    const user = userEvent.setup();
+    const { onFilterChange } = setup();
+
+    await user.click(screen.getByRole('button', { name: 'Open filters' }));
+    expect(screen.getByRole('heading', { name: 'Filters' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Judge' }));
+
+    expect(onFilterChange).toHaveBeenCalledWith('role', 'judge');
+  });
+
+  it('shows the active filter count on the mobile filter button', () => {
+    setup({ filterValues: { role: 'judge' } });
+
+    const button = screen.getByRole('button', { name: 'Open filters' });
+    expect(button).toHaveTextContent('Filters');
+    expect(button).toHaveTextContent('1');
+  });
+
   it('shows the result count with the filtered indicator', () => {
     setup();
     expect(screen.getByText(/12 of 40 people/)).toBeInTheDocument();
@@ -102,5 +122,9 @@ describe('ListControls', () => {
     const tableToggle = screen.getByLabelText('Table view').parentElement;
     expect(tableToggle?.className).toContain('self-end');
     expect(tableToggle?.className).toContain('sm:ml-auto');
+
+    const mobileFilterButton = screen.getByRole('button', { name: 'Open filters' });
+    expect(mobileFilterButton.className).toContain('min-h-11');
+    expect(mobileFilterButton.className).toContain('sm:hidden');
   });
 });

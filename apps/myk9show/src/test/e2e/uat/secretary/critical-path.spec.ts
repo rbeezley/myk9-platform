@@ -71,9 +71,10 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
   }) => {
     await signInAsSecretary(page, `/secretary/register/${SHOW_ID}`);
 
-    await expect(page.getByRole('heading', { name: 'Add entries for exhibitor' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Add mail-in entry' })).toBeVisible({
       timeout: 15000,
     });
+    await expect(page.getByText('Enter on behalf of an exhibitor.')).toBeVisible();
     await expect(page.getByText(/Step 1 of 5/).first()).toBeVisible();
 
     const search = page.getByPlaceholder(/Search all dogs/i);
@@ -102,7 +103,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible({
       timeout: 15000,
     });
-    await expect(page.getByRole('button', { name: 'New Entry' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Add mail-in entry' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Export CSV' })).toBeVisible();
     await expect(page.getByText('Total Entries', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('Need review', { exact: true })).toBeVisible();

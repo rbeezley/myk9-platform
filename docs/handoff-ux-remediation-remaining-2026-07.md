@@ -1,11 +1,11 @@
 # UX Walk Remediation — Remaining-Work Handoff
 
-> **Status:** Active
+> **Status:** Complete — remediated and verified 2026-07-05
 > **Date:** 2026-07-05
 > **Source of truth:** [`docs/plan-ux-walk-remediation-2026-07.md`](plan-ux-walk-remediation-2026-07.md) (this handoff is a navigational snapshot; the plan's checkboxes remain canonical)
 > **OpenSpec change:** `ux-shell-integrity-followups`
 
-This handoff enumerates what is **left** in the July 2026 UX walk remediation and gives enough context to pick up each item cold. It is a companion to the plan, not a replacement.
+This handoff originally enumerated what was **left** in the July 2026 UX walk remediation. The remaining implementation, docs, and focused verification work is now complete; the canonical closure record is [`docs/plan-ux-walk-remediation-2026-07.md`](plan-ux-walk-remediation-2026-07.md).
 
 ---
 
@@ -14,18 +14,20 @@ This handoff enumerates what is **left** in the July 2026 UX walk remediation an
 | Phase | State |
 | --- | --- |
 | **0 — Root-cause spikes** | ✅ Complete (all verdicts closed) |
-| **1 — Money & trust criticals** | ✅ Implementation complete · ⏳ testing checklist open (E2E specs) |
-| **2 — One source of truth** | ✅ Complete · ⏳ testing checklist open (module unit + source-text pins) |
+| **1 — Money & trust criticals** | ✅ Complete + focused E2E verification |
+| **2 — One source of truth** | ✅ Complete + module/source-text pins |
 | **3 — Shell & interaction integrity** | ✅ Complete **and merged** (#1114, 2026-07-04) |
-| **4 — Golden-path flow integrity** | 🟡 **Exhibitor thread complete** (4.A–4.E). **Secretary thread (4.F–4.J) NOT started.** Phase 4 testing not started. |
-| **5 — Language, states, visual polish** | ⬜ Not started (5.A–5.F + testing) |
-| **6 — Verification & sign-off** | ⬜ Not started (6.A–6.E) |
+| **4 — Golden-path flow integrity** | ✅ Complete (4.A–4.J + focused E2E/unit/regression coverage) |
+| **5 — Language, states, visual polish** | ✅ Complete (5.A–5.F + unit/source/browser verification) |
+| **6 — Verification & sign-off** | ✅ Complete (audit notes, shell matrix, a11y, golden-path E2E smoke) |
 
-**Exhibitor thread detail (shipped 2026-07-04/05):** 4.A honest commit moment (#1137), 4.B one thread through payment (#1137), 4.C cash/check is a status (#1144), 4.D entry-point labels (#1145), 4.E Add Dog respects the novice (#1147). The 4.A and 4.B **checkboxes remain unchecked** only because each carries a consciously deferred remainder (see "Immediate finish-outs" below); their user-facing UX is done.
+**Closure evidence (2026-07-05, Codex):** focused Vitest 36 files / 340 tests, `pnpm typecheck`, `pnpm lint`, Chromium `a11y-smoke`, Chromium `shell-integrity-responsive`, signed-out entry intent E2E, single-dog exhibitor registration E2E, secretary mail-in new-user E2E, and secretary UAT critical path all passed.
 
 ---
 
-## Remaining work, in recommended execution order
+## Completed Work
+
+The sections below are retained as the historical scope that was closed in this pass; use the plan file for the authoritative checked-off record.
 
 ### A. Immediate finish-outs (small; close dangling checkboxes)
 
@@ -82,4 +84,4 @@ The registration wizard (`RegistrationWizardPage` + `RegistrationWizardPage/*`) 
 
 ## Suggested next pickup
 
-**4.F (mail-in mode)** — it builds directly on the wizard just hardened in 4.A–4.E, and pairs cleanly with the deferred 0.F (both touch the secretary/late-entry path). Doing them together closes 4.F, 0.F, and advances 4.A's remainder in one wizard-focused pass.
+No remaining work from this handoff. Archive the canonical plan after merge.

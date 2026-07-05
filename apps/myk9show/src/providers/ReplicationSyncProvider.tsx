@@ -176,6 +176,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   const hasInitialSynced = useRef(false);
   const triggerSyncRef = useRef<(() => Promise<void>) | undefined>(undefined);
   const syncInFlightRef = useRef(false);
+  const failedSyncToastIdsRef = useRef<string[]>([]);
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const prevIsAuthenticated = useRef(false);
@@ -526,6 +527,17 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
 
       const ids = detail.mutations.map(m => m.id).filter(Boolean);
       const toastId = `sync-failed:${ids[0] ?? 'unknown'}`;
+      if (!failedSyncToastIdsRef.current.includes(toastId)) {
+        failedSyncToastIdsRef.current.push(toastId);
+      }
+      while (failedSyncToastIdsRef.current.length > 3) {
+        const oldest = failedSyncToastIdsRef.current.shift();
+        if (oldest) toast.dismiss(oldest);
+      }
+      const clearToastId = () => {
+        failedSyncToastIdsRef.current = failedSyncToastIdsRef.current.filter(id => id !== toastId);
+        toast.dismiss(toastId);
+      };
       toast.error(formatSyncFailureToast(detail), {
         id: toastId,
         // INTENT: Failure toasts persist until the user makes an explicit
@@ -536,14 +548,14 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           label: 'Retry',
           onClick: () => {
             void Promise.allSettled(ids.map(id => mutationManager.retryFailedMutation(id)));
-            toast.dismiss(toastId);
+            clearToastId();
           },
         },
         cancel: {
           label: 'Discard',
           onClick: () => {
             void Promise.allSettled(ids.map(id => mutationManager.discardFailedMutation(id)));
-            toast.dismiss(toastId);
+            clearToastId();
           },
         },
       });

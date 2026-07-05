@@ -120,13 +120,33 @@ describe('ReplicationSyncProvider — replication:sync-failed listener', () => {
 
     expect(toast.error).toHaveBeenCalledTimes(1);
     expect(toast.error).toHaveBeenCalledWith(
-      "Failed to save 1 change. shows insert: new row violates row-level security policy for table 'shows'",
+      "We couldn't create this show. Retry or discard this change.",
       expect.objectContaining({
         duration: Infinity,
         action: expect.objectContaining({ label: 'Retry' }),
         cancel: expect.objectContaining({ label: 'Discard' }),
       })
     );
+  });
+
+  it('caps failed-sync toasts so repeated failures do not stack endlessly', () => {
+    renderProvider();
+
+    act(() => {
+      for (const id of ['mut-1', 'mut-2', 'mut-3', 'mut-4']) {
+        window.dispatchEvent(
+          new CustomEvent('replication:sync-failed', {
+            detail: {
+              count: 1,
+              mutations: [{ id, tableName: 'entries', operation: 'UPDATE', error: 'timeout' }],
+              message: '',
+            },
+          })
+        );
+      }
+    });
+
+    expect(toast.dismiss).toHaveBeenCalledWith('sync-failed:mut-1');
   });
 
   it('Retry re-queues the failed mutations and dismisses the toast', () => {

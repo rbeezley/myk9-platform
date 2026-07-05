@@ -101,6 +101,8 @@ Our users are not 25-year-old engineers. Many are retired, with varying levels o
 - **Large touch targets** — minimum 44x44px, prefer 48x48px on tablet views
 - **High contrast text** — WCAG AA minimum, prefer AAA for primary content
 - **Readable font sizes** — 16px body minimum, never below 14px for anything
+  - In myK9Show, the `text-xs` Tailwind token is intentionally raised to 14px.
+  - Exception: print/export templates may use smaller fixed sizes when fitting official forms.
 - **No hover-only interactions** — everything must work on touch devices
 - **No gesture-only actions** — swipe is a shortcut, never the only way
 

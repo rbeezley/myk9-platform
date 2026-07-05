@@ -267,8 +267,8 @@ export function ShowWorkbenchShowDeskPage() {
       },
       {
         id: 'schedule-slip',
-        title: 'Delay scripts',
-        summary: 'Draft calm wording for schedule slips',
+        title: 'Schedule slip script',
+        summary: 'Draft calm wording for schedule changes',
         content: (
           <ScheduleSlipScriptCard
             showId={currentShow.id}

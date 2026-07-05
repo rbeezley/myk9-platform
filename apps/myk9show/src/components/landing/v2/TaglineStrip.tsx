@@ -6,7 +6,7 @@ export function TaglineStrip() {
       <div className="l-container l-tagline-inner">
         <span className="l-tag">
           <Wifi aria-hidden="true" />
-          Local-first PWA · ringside works without signal
+          Ringside works without signal at the show site
         </span>
         <span className="l-tag-sep" aria-hidden="true" />
         <span className="l-tag">

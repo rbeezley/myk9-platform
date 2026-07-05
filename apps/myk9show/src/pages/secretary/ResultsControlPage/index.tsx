@@ -6,12 +6,12 @@
  */
 
 import { useEffect, useMemo, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { SlidersHorizontal, AlertCircle } from 'lucide-react';
+import { SlidersHorizontal, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useTrialStore } from '@/store/trialStore';
 import { useClassStore } from '@/store/classStore';
 import {
@@ -25,6 +25,7 @@ import { PresetSelector } from './PresetSelector';
 import { ShowCheckinToggle } from './ShowCheckinToggle';
 import { OverrideTree } from './OverrideTree';
 import { BulkOperationsBar } from './BulkOperationsBar';
+import { buildResultsReadinessSummary } from './readinessSummary';
 
 const getClassId = (c: { id: string }) => c.id;
 
@@ -47,7 +48,7 @@ export default function ResultsControlPage() {
   const params = useParams<{ showId?: string; id?: string }>();
   const showId = params.showId ?? params.id ?? '';
   const { trials } = useTrialStore();
-  const { classes } = useClassStore();
+  const { classes, entries } = useClassStore();
 
   const showTrials = useMemo(() => trials.filter(t => t.showId === showId), [trials, showId]);
   const showTrialIds = useMemo(() => new Set(showTrials.map(t => t.id)), [showTrials]);
@@ -63,6 +64,10 @@ export default function ResultsControlPage() {
   }, [showId]); // eslint-disable-line react-hooks/exhaustive-deps -- intentionally only on show change
 
   const allClassIds = useMemo(() => showClasses.map(c => c.id), [showClasses]);
+  const readiness = useMemo(
+    () => buildResultsReadinessSummary(showClasses, entries),
+    [showClasses, entries]
+  );
 
   const {
     data: settings,
@@ -177,6 +182,47 @@ export default function ResultsControlPage() {
   return (
     <div className="container mx-auto py-6 space-y-8 pb-44 sm:pb-28">
       <h1 className="text-3xl font-bold tracking-tight">Results &amp; Check-In</h1>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            {readiness.safeToSend ? (
+              <CheckCircle2 className="h-5 w-5 text-success" aria-hidden="true" />
+            ) : (
+              <AlertCircle className="h-5 w-5 text-warning" aria-hidden="true" />
+            )}
+            <CardTitle>Results readiness</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          <p className="font-medium" data-testid="results-readiness-verdict">
+            {readiness.safeToSend
+              ? 'Results are released and ready to submit.'
+              : "Here's what is still blocking closeout."}
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <span className="font-semibold">{readiness.unscoredEntries}</span> unscored{' '}
+              {readiness.unscoredEntries === 1 ? 'entry' : 'entries'}
+            </div>
+            <div>
+              <span className="font-semibold">{readiness.unreleasedClasses}</span> unreleased{' '}
+              {readiness.unreleasedClasses === 1 ? 'class' : 'classes'}
+            </div>
+            <div>Judge signatures: verify paper reports before sending</div>
+            <div>{readiness.totalEntries} entries in {readiness.totalClasses} classes</div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link to={`/shows/${showId}/submit-results`}>Download draft XML</Link>
+            </Button>
+            <p className="text-muted-foreground">
+              To release results, select classes below and use the sticky{' '}
+              <span className="font-medium">Release Results</span> bar.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Query error state */}
       {isError && (

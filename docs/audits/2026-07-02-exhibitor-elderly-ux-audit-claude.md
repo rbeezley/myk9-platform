@@ -1,5 +1,7 @@
 # UX Audit: myK9Show Exhibitor Journey — Elderly Low-Tech Persona (Claude walk)
 
+> **Status:** Remediated — verified 2026-07-05
+
 **Date:** 2026-07-02
 **Auditor:** Claude (browser walk via playwright-cli, desktop 1280×720)
 **Sources:** Live walkthrough on `http://localhost:5173` as `e2e-exhibitor@test.myk9.com`; `docs/INTENT.md`; cross-referenced against `docs/audits/2026-07-01-secretary-journey-ux-audit.md` (inconsistency IDs C1–C7) and the Codex exhibitor audit `docs/audits/2026-07-02-exhibitor-elderly-ux-audit.md`.
@@ -7,6 +9,8 @@
 **Tasks completed:** Signed in, added a new dog (**Buddy**, Golden Retriever, AKC SR12345678), entered him in Container Novice A at Heartland Scent Work Classic (cash at show), then walked My Shows, My Dogs, dog profile, My Stats, My Payments, Ringside, account menu, and global search.
 
 **Known issues honored (not re-litigated):** tapping a ringside entry card queues a failing `ringside_update_entry` write (known, reproduced ×2 previously — entry cards were deliberately not tapped on this walk); the wizard Step-1 silent-Next was fixed on `main` (#1073) and the fixed behavior (disabled Next with visible explanation) was observed working.
+
+**Post-remediation verification (2026-07-05, Codex):** The Critical/High exhibitor findings tracked by `docs/plan-ux-walk-remediation-2026-07.md` were remediated and rechecked with focused unit coverage, `pnpm typecheck`, `pnpm lint`, `src/test/e2e/entry-intent-sign-in-redirect.spec.ts`, `src/test/e2e/registration/singleDogSingleClass.spec.ts`, `src/test/e2e/shell-integrity-responsive.spec.ts`, and `src/test/e2e/a11y-smoke.spec.ts` on Chromium. The historical findings below remain as the original audit evidence.
 
 **Merge note (2026-07-02):** After a review of the Codex exhibitor audit, findings I agree with but missed on my walk have been folded in below, tagged **[Codex]**. Codex walked mobile and the signed-out entry path; I walked desktop signed-in — the two are complementary, and the [Codex] items are adopted on judgment, not independently reproduced unless noted.
 

@@ -163,6 +163,13 @@ export default {
         display: ['Fraunces', 'Georgia', 'serif'],
         mono: ['"JetBrains Mono"', '"SF Mono"', 'Consolas', 'monospace'],
       },
+      // INTENT: myK9Show's working UI has a 14px floor. Tailwind's default
+      // text-xs is 12px, which is too small for show-day tablet use and retired
+      // exhibitors. Print/export templates may still use smaller inline sizes
+      // when fitting official fixed-format forms.
+      fontSize: {
+        xs: ['0.875rem', { lineHeight: '1.25rem' }],
+      },
       transitionTimingFunction: {
         apple: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
         bounce: 'cubic-bezier(0.34, 1.56, 0.64, 1)',

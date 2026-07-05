@@ -9,6 +9,7 @@ import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
 import { PhaseShell } from '@/features/show-workbench/PhaseShell';
+import { PublishReadinessBlock } from '@/features/show-workbench/PublishReadinessBlock';
 import { SetupAdaptiveHeader } from '@/features/show-workbench/SetupAdaptiveHeader';
 import { computeSetupReadinessSignals } from '@/features/show-workbench/setupReadinessSignals';
 import { useTrialStore } from '@/store/trialStore';
@@ -100,6 +101,7 @@ export function ShowWorkbenchSetupPage() {
             anchor is in the same document while /shows/:id/setup is active,
             so the premium-list chip below resolves to it. */}
         <SetupAdaptiveHeader signals={setupSignals} />
+        <PublishReadinessBlock show={currentShow} />
         <div className="setup-detail-grid">
           <div className="space-y-6">
             <ScheduleSummary showId={currentShow.id} />

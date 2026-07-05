@@ -49,4 +49,8 @@ describe('secretary surfaces — a11y + responsive guards', () => {
   it('the search "Clear All" control dark-adapts', () => {
     expect(dogSearch).toContain('text-destructive');
   });
+
+  it('dog search does not show technical latency metadata in the mail-in flow', () => {
+    expect(dogSearch).not.toContain('SearchPerformanceIndicator');
+  });
 });

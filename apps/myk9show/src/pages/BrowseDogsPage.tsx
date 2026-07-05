@@ -63,7 +63,7 @@ const BrowseDogsPage: React.FC = () => {
       },
       {
         key: 'sex',
-        label: 'Gender',
+        label: 'Sex',
         options: [
           { label: 'Male', value: 'male' },
           { label: 'Female', value: 'female' },

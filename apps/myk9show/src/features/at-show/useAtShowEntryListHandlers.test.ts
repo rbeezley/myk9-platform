@@ -55,6 +55,7 @@ function makeActions(): EntryListActions {
 }
 
 function renderHandlers(localEntries: Entry[], actions: EntryListActions) {
+  const navigate = vi.fn();
   return renderHook(() =>
     useAtShowEntryListHandlers({
       actions,
@@ -62,7 +63,7 @@ function renderHandlers(localEntries: Entry[], actions: EntryListActions) {
       classId: 'class-1',
       localEntries,
       hasPermission: () => true,
-      navigate: vi.fn(),
+      navigate,
       buildScoreSheetRoute: () => '/route',
       refresh: vi.fn(() => Promise.resolve()),
       setActiveStatusPopup: vi.fn(),
@@ -192,6 +193,25 @@ describe('useAtShowEntryListHandlers — setDogInRingStatus exclusivity', () => 
       await Promise.all([p1, p2]);
     });
     expect(actions.handleMarkInRing).toHaveBeenCalledWith('C');
+  });
+});
+
+describe('useAtShowEntryListHandlers — entry-card view intent', () => {
+  let actions: EntryListActions;
+
+  beforeEach(() => {
+    actions = makeActions();
+  });
+
+  it('navigates to the scoresheet without optimistically enqueuing an in-ring write', () => {
+    const { result } = renderHandlers([makeEntry({ id: 'entry-1' })], actions);
+
+    act(() => {
+      result.current.handleEntryClick(makeEntry({ id: 'entry-1' }));
+    });
+
+    expect(actions.handleMarkInRing).not.toHaveBeenCalled();
+    expect(actions.handleToggleInRing).not.toHaveBeenCalled();
   });
 });
 

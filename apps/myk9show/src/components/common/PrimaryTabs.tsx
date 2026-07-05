@@ -62,14 +62,14 @@ export function PrimaryTabs({
                 key={tab.id}
                 value={tab.id}
                 className={cn(
-                  'inline-flex min-w-max items-center gap-1.5 min-h-[48px] px-4 py-2 text-sm font-medium',
+                  'inline-flex min-h-[48px] min-w-0 flex-1 items-center justify-center gap-1.5 px-2 py-2 text-xs font-medium sm:min-w-max sm:flex-none sm:px-4 sm:text-sm',
                   'text-muted-foreground border-b-2 border-transparent rounded-none bg-transparent',
                   'aria-selected:text-primary aria-selected:border-primary',
                   'hover:text-foreground transition-colors whitespace-nowrap'
                 )}
               >
                 {Icon && <Icon className="h-4 w-4" />}
-                {tab.label}
+                <span className="truncate">{tab.label}</span>
                 {tab.locked && (
                   <Lock className="ml-0.5 h-3 w-3 opacity-40" aria-label="Premium feature" />
                 )}

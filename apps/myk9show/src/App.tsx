@@ -43,6 +43,7 @@ import { WizardSurfaceGate } from './components/WizardSurfaceGate';
 // Components
 import AppHeader from './components/layout/AppHeader';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import { PageLoadingFallback } from './components/common/PageLoadingFallback';
 import { RoleSurfaceErrorBoundary } from './components/common/RoleSurfaceErrorBoundary';
 import { PageTransition } from './components/common/PageTransition';
 import { NetworkStatusProvider } from './components/common/NetworkStatusProvider';
@@ -106,14 +107,6 @@ setupQueryPerformanceMonitoring(queryClient);
 if (typeof window !== 'undefined') {
   setTimeout(() => prefetchCriticalData(queryClient), 1000);
 }
-
-// Page loading fallback component
-const PageLoadingFallback = () => (
-  <div className="flex flex-col items-center justify-center min-h-[60vh] p-4">
-    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-    <p className="text-sm text-muted-foreground">Loading page...</p>
-  </div>
-);
 
 // Redirect authenticated users to their role dashboard, show landing page for guests
 const HomeRedirect = () => {

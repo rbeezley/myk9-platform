@@ -137,6 +137,31 @@ describe('EntriesTableView selection column', () => {
     expect(screen.getAllByRole('button', { name: /actions for/i })).toHaveLength(entries.length);
   });
 
+  it('shows visible Accept and Reject row actions in review mode', async () => {
+    const onStatusChange = vi.fn();
+    const { user } = render(
+      <EntriesTableView
+        entries={entries}
+        onStatusChange={onStatusChange}
+        showReviewActions={true}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /accept willow/i }));
+    expect(onStatusChange).toHaveBeenCalledWith('e1', EntryStatus.ACCEPTED);
+
+    await user.click(screen.getByRole('button', { name: /reject willow/i }));
+    expect(onStatusChange).toHaveBeenCalledWith('e1', EntryStatus.REJECTED);
+    expect(screen.getAllByRole('button', { name: /actions for/i })).toHaveLength(entries.length);
+  });
+
+  it('keeps review actions hidden outside review mode', () => {
+    render(<EntriesTableView entries={entries} onStatusChange={vi.fn()} />);
+
+    expect(screen.queryByRole('button', { name: /accept willow/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /reject willow/i })).not.toBeInTheDocument();
+  });
+
   it('renders filter-aware empty copy when no entries are shown', () => {
     render(<EntriesTableView entries={[]} emptyState="No waitlist entries right now." />);
 

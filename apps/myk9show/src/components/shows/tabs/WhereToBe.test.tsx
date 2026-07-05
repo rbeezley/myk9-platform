@@ -135,10 +135,10 @@ describe('WhereToBe', () => {
     expect(screen.getByLabelText('Armband 104')).toHaveTextContent('104');
   });
 
-  it('shows explicit fallbacks when armband and start time are empty', () => {
+  it('uses plain pending labels when armband and start time are empty', () => {
     render(<WhereToBe entries={[makeEntry({ armband: '', startTime: '' })]} showId={SHOW_ID} />);
-    expect(screen.getByLabelText('No armband assigned')).toHaveTextContent('No #');
-    expect(screen.getByText('TBD')).toBeInTheDocument();
+    expect(screen.getByLabelText('Armband pending')).toHaveTextContent('Armband pending');
+    expect(screen.getByText('Time pending')).toBeInTheDocument();
   });
 
   it('excludes withdrawn, moved source, and scratched rows from the runnable schedule', () => {

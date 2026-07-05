@@ -306,6 +306,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
           onEntryRefunded={onRefresh}
           selection={tableSelection}
           emptyState={emptyStateMessage}
+          showReviewActions={workMode === 'review'}
         />
       ) : (
         enrollmentCardList

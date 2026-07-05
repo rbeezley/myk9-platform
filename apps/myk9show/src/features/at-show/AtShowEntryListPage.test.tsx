@@ -3,10 +3,8 @@
  *
  * Exercises the full shim wiring end-to-end against a mocked replication
  * layer: data adapter → useEntryListData → filters → ringside EntryListPage
- * render, and the card-click path → handlers → actions → the shared
- * replicated check-in writer. Assertion-first on the
- * value-sensitive bit (the in-ring enum lands at the shared replicated
- * check-in status writer), per CLAUDE.md.
+ * render, and the card-click path. Assertion-first on the value-sensitive bit:
+ * a view-intent card tap must not enqueue an in-ring write.
  *
  * Also pins that `AtShowRoutes()` registers its routes unconditionally. The
  * surface is available for every show — the old `unified_ringside_enabled`
@@ -16,7 +14,7 @@
 
 import { Routes, Route } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@/test/utils/testUtils';
+import { render, screen, fireEvent } from '@/test/utils/testUtils';
 import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 import { AtShowEntryListPage } from './AtShowEntryListPage';
@@ -141,15 +139,13 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     expect(screen.queryByText('No Entries Yet')).not.toBeInTheDocument();
   });
 
-  it('writes the in-ring check-in status through the replicated status writer when a pending card is tapped', async () => {
+  it('does not write in-ring status when a pending card is tapped for viewing', async () => {
     renderPage();
     const card = await screen.findByText('Rex');
 
     fireEvent.click(card);
 
-    await waitFor(() =>
-      expect(replicatedEntriesTable.updateCheckInStatus).toHaveBeenCalledWith('entry-1', 'in-ring')
-    );
+    expect(replicatedEntriesTable.updateCheckInStatus).not.toHaveBeenCalled();
   });
 
   it('favorites a dog by armband without opening the scoresheet flow', async () => {

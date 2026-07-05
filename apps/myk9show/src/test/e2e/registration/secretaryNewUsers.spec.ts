@@ -129,7 +129,7 @@ test('secretary can create a mail-in exhibitor and dog without auth user creatio
   await signInAsSecretary(page, `/secretary/register/${SHOW_ID}`);
   await page.goto(`/secretary/register/${SHOW_ID}`, { waitUntil: 'domcontentloaded' });
 
-  await expect(page.getByRole('heading', { name: 'Add entries for exhibitor' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Add mail-in entry' })).toBeVisible({
     timeout: 15000,
   });
   await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible();
@@ -169,8 +169,9 @@ test('secretary can create a mail-in exhibitor and dog without auth user creatio
   await registrationDialog.getByRole('combobox').nth(0).click();
   await page.getByRole('option', { name: /AKC \(American Kennel Club\)/i }).click();
   await registrationDialog.getByLabel(/Registered Name/i).fill('Mailbox Special Delivery');
-  await registrationDialog.getByRole('combobox').nth(1).click();
-  await page.getByRole('option', { name: 'Golden Retriever' }).click();
+  await registrationDialog.getByLabel(/Registered Breed/i).click();
+  await page.getByPlaceholder('Search breeds…').fill('Golden Retriever');
+  await page.getByRole('button', { name: 'Golden Retriever' }).click();
   await registrationDialog.getByLabel(/Registration Number/i).fill('DN12345601');
   await registrationDialog.getByRole('button', { name: 'Save Registration' }).click();
 

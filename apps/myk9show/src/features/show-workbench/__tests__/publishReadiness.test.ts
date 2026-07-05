@@ -1,0 +1,86 @@
+import { describe, expect, it } from 'vitest';
+import type { Show } from '@/types/show-types';
+import { SETUP_PUBLISH_ANCHOR } from '../setupReadinessSignals';
+import {
+  SHOW_STATUS_CONTROL_ANCHOR,
+  buildPublishReadinessItems,
+} from '../publishReadiness';
+
+function show(overrides: Partial<Show> = {}): Show {
+  return {
+    id: 'show-1',
+    name: 'Heartland Classic',
+    organization: 'Heartland Club',
+    startDate: '2026-08-01',
+    endDate: '2026-08-03',
+    location: 'Springfield, IL',
+    status: 'draft',
+    events: [],
+    source: 'myK9Show',
+    entryOpenDate: '2026-07-01',
+    entryCloseDate: '2026-07-20',
+    preEntryFee: '30',
+    clubId: 'club-1',
+    clubName: 'Heartland Club',
+    clubAddress: '',
+    clubEmail: '',
+    logoUrl: '',
+    coverImageUrl: '',
+    accentColor: '',
+    assignedJudges: [],
+    stats: [],
+    trials: [],
+    ...overrides,
+  };
+}
+
+describe('buildPublishReadinessItems', () => {
+  it('names all three publish states with qualified labels and actions', () => {
+    const items = buildPublishReadinessItems(show());
+
+    expect(items).toHaveLength(3);
+    expect(items.map(item => item.title)).toEqual([
+      'Show listing',
+      'Premium PDF',
+      'Landing page content',
+    ]);
+    expect(items.map(item => item.state)).toEqual([
+      'Show listing is still draft',
+      'Premium PDF is not published yet',
+      'Landing page content is not published yet',
+    ]);
+    expect(items[0]?.href).toBe(`#${SHOW_STATUS_CONTROL_ANCHOR}`);
+    expect(items[1]?.href).toBe(`#${SETUP_PUBLISH_ANCHOR}`);
+    expect(items[2]?.href).toBe(`#${SETUP_PUBLISH_ANCHOR}`);
+  });
+
+  it('marks each state ready independently', () => {
+    const items = buildPublishReadinessItems(
+      show({
+        status: 'published',
+        publishedPremiumAt: '2026-07-01T12:00:00.000Z',
+        experienceIsPublished: true,
+      })
+    );
+
+    expect(items.map(item => item.isReady)).toEqual([true, true, true]);
+    expect(items.map(item => item.state)).toEqual([
+      'Show listing is live',
+      'Premium PDF is published',
+      'Landing page content is published',
+    ]);
+  });
+
+  it('does not treat the premium PDF as the same state as landing page content', () => {
+    const items = buildPublishReadinessItems(
+      show({
+        status: 'published',
+        publishedPremiumUrl: 'https://example.test/premium.pdf',
+        experienceIsPublished: false,
+      })
+    );
+
+    expect(items.find(item => item.id === 'premium-pdf')?.isReady).toBe(true);
+    expect(items.find(item => item.id === 'landing-content')?.isReady).toBe(false);
+  });
+});

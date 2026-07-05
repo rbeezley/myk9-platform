@@ -193,7 +193,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
   /**
    * Sync shows from Supabase
    */
-  async sync(licenseKey: string): Promise<SyncResult> {
+  async sync(syncScopeId: string): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
     const adapter: SyncReplicatedTableAdapter<ShowRow, ReplicatedShow> = {
@@ -225,7 +225,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       resolveConflict: (_local, remote) => remote,
     };
 
-    const result = await syncReplicatedTable(this, adapter, { value: licenseKey }, {
+    const result = await syncReplicatedTable(this, adapter, { value: syncScopeId }, {
       incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
     });
 

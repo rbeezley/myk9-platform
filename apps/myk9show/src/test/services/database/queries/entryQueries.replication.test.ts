@@ -230,6 +230,7 @@ function setupListMocks(
 describe('entryQueries (replication)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockViewRows.current = [];
   });
 
   // -----------------------------------------------------------------------

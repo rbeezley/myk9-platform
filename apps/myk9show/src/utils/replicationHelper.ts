@@ -22,7 +22,7 @@ interface IReplicatedTable<T> {
     get(id: string): Promise<T | undefined>;
     getAll(): Promise<T[]>;
     set(id: string, item: T): Promise<void>;
-    sync(licenseKey: string): Promise<SyncResult>;
+    sync(syncScopeId: string): Promise<SyncResult>;
 }
 
 // Type mapping for table names to their data types
@@ -61,10 +61,10 @@ class ReplicationManager {
     /**
      * Trigger sync for a specific table
      */
-    async syncTable(name: TableName, licenseKey: string = ''): Promise<SyncResult> {
+    async syncTable(name: TableName, syncScopeId: string = ''): Promise<SyncResult> {
         const table = this.tables[name];
         if (table && typeof table.sync === 'function') {
-            return await table.sync(licenseKey);
+            return await table.sync(syncScopeId);
         }
         return { success: false, error: `Table ${name} not found or sync not supported` };
     }

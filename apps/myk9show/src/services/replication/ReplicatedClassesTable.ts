@@ -311,7 +311,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     return this.toSupabaseRow(cls);
   }
 
-  async sync(licenseKey: string): Promise<SyncResult> {
+  async sync(syncScopeId: string): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
     // Carry visibility enrichment fields through fetchRemoteRows → toLocalRow.
@@ -379,7 +379,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     const result = await syncReplicatedTable(
       this,
       adapter,
-      { value: licenseKey },
+      { value: syncScopeId },
       {
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
       }

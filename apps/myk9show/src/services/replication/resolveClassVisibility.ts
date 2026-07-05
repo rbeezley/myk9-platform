@@ -124,7 +124,7 @@ function applyTimingOverride(base: FieldTimings, row: VisRow | null | undefined)
 /**
  * Resolve visibility for a batch of raw class rows, grouping by each row's OWN
  * `trial_id` (so it works for scoped AND unscoped syncs, independent of the sync
- * licenseKey). Returns a classId → resolved-visibility map. Rows without a
+ * scope id). Returns a classId → resolved-visibility map. Rows without a
  * trial_id are skipped. The caller is responsible for best-effort error handling.
  */
 export async function resolveVisibilityForClassRows(

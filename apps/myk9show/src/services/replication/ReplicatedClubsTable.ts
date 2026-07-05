@@ -144,7 +144,7 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
    * Sync clubs from Supabase.
    * Note: clubs have no license_key scope — all clubs are visible.
    */
-  async sync(_licenseKey?: string): Promise<SyncResult> {
+  async sync(_syncScopeId?: string): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
     const adapter: SyncReplicatedTableAdapter<ClubRow, ReplicatedClub> = {

@@ -244,6 +244,7 @@ describe('getUserEntries replicated relation completeness', () => {
 
   function mockReplicatedStores(
     options: {
+      entries?: Array<Record<string, unknown>>;
       classes?: Array<Record<string, unknown>>;
       entriesThrows?: boolean;
     } = {}
@@ -251,7 +252,7 @@ describe('getUserEntries replicated relation completeness', () => {
     if (options.entriesThrows) {
       mocks.replicatedEntriesGetAll.mockRejectedValue(new Error('replication unavailable'));
     } else {
-      mocks.replicatedEntriesGetAll.mockResolvedValue([replicatedEntry]);
+      mocks.replicatedEntriesGetAll.mockResolvedValue(options.entries ?? [replicatedEntry]);
     }
     mocks.replicatedDogsGetAllDogs.mockResolvedValue([replicatedDog]);
     mocks.replicatedClassesGetAll.mockResolvedValue(options.classes ?? [replicatedClass]);
@@ -309,6 +310,79 @@ describe('getUserEntries replicated relation completeness', () => {
     expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('entries');
     expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('dogs');
     expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('enrollments');
+    expect(mocks.mapReplicatedEntryToDbRow).not.toHaveBeenCalled();
+  });
+
+  it('prefers the online view when the local entry replica is empty on an account-level page', async () => {
+    mockReplicatedStores({ entries: [] });
+    const onlineRows = [{ id: 'online-entry', dog: { id: 'dog-1', call_name: 'Tera' } }];
+    const { viewQuery } = mockSupabaseTables({
+      viewEntryRows: onlineRows,
+    });
+
+    const result = await getUserEntries('user-1');
+
+    expect(result).toEqual({ data: onlineRows, error: null });
+    expect(mocks.supabaseFrom).toHaveBeenCalledWith('view_authenticated_entry_results');
+    expect(viewQuery.eq).toHaveBeenCalledWith('is_own_entry', true);
+    expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('enrollments');
+    expect(mocks.mapReplicatedEntryToDbRow).not.toHaveBeenCalled();
+  });
+
+  it('prefers the online view when account-scope local entries filter down to empty', async () => {
+    mockReplicatedStores({
+      entries: [
+        {
+          id: 'other-entry',
+          classId: 'class-1',
+          dogId: 'other-dog',
+          showId: 'show-1',
+          handlerId: 'other-user',
+          registrationId: 'reg-1',
+        },
+      ],
+    });
+    const onlineRows = [{ id: 'online-entry', dog: { id: 'dog-1', call_name: 'Tera' } }];
+    const { viewQuery } = mockSupabaseTables({
+      viewEntryRows: onlineRows,
+    });
+
+    const result = await getUserEntries('user-1');
+
+    expect(result).toEqual({ data: onlineRows, error: null });
+    expect(mocks.supabaseFrom).toHaveBeenCalledWith('view_authenticated_entry_results');
+    expect(viewQuery.eq).toHaveBeenCalledWith('is_own_entry', true);
+    expect(mocks.mapReplicatedEntryToDbRow).not.toHaveBeenCalled();
+  });
+
+  it('keeps an empty local result when the account-level online check fails offline', async () => {
+    mockReplicatedStores({ entries: [] });
+    mockSupabaseTables({
+      viewEntriesError: new Error('Failed to fetch'),
+    });
+
+    const result = await getUserEntries('user-1');
+
+    expect(result).toEqual({ data: [], error: null });
+    expect(mocks.supabaseFrom).toHaveBeenCalledWith('view_authenticated_entry_results');
+    expect(mocks.mapReplicatedEntryToDbRow).not.toHaveBeenCalled();
+  });
+
+  it('surfaces backend errors when an empty account-level replica cannot be verified', async () => {
+    mockReplicatedStores({ entries: [] });
+    mockSupabaseTables({
+      viewEntriesError: new Error('RLS policy denied'),
+    });
+
+    const result = await getUserEntries('user-1');
+
+    expect(result.data).toEqual([]);
+    expect(result.error).toMatchObject({
+      message: 'RLS policy denied',
+      table: 'entries',
+      operation: 'select_user_entries',
+    });
+    expect(mocks.supabaseFrom).toHaveBeenCalledWith('view_authenticated_entry_results');
     expect(mocks.mapReplicatedEntryToDbRow).not.toHaveBeenCalled();
   });
 

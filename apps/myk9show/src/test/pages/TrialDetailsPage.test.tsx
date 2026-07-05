@@ -68,6 +68,7 @@ vi.mock('@/hooks/useClassStoreCompat', () => ({
 
 // The by-id fallback queries — capture args to assert the store-first gating.
 let mockFallbackTrial: Trial | null = null;
+let mockFallbackTrialPending = false;
 let mockTrialQueryError = false;
 const trialQueryCalls: Array<string | undefined> = [];
 vi.mock('@/hooks/queries/useTrialsDatabase', () => ({
@@ -75,6 +76,9 @@ vi.mock('@/hooks/queries/useTrialsDatabase', () => ({
     trialQueryCalls.push(id);
     if (!id) {
       // Disabled (warm store) — never resolves on its own.
+      return { data: undefined, isSuccess: false, isError: false, refetch: vi.fn() };
+    }
+    if (mockFallbackTrialPending) {
       return { data: undefined, isSuccess: false, isError: false, refetch: vi.fn() };
     }
     if (mockTrialQueryError) {
@@ -128,7 +132,13 @@ vi.mock('@/components/common/PageHeader', () => ({
   PageHeader: ({ title }: { title: string }) => <div data-testid="page-header">{title}</div>,
 }));
 vi.mock('@/components/common/DetailHero', () => ({
-  DetailHero: ({ name, secondaryActions }: { name: string; secondaryActions?: React.ReactNode }) => (
+  DetailHero: ({
+    name,
+    secondaryActions,
+  }: {
+    name: string;
+    secondaryActions?: React.ReactNode;
+  }) => (
     <div data-testid="detail-hero">
       <span data-testid="hero-name">{name}</span>
       <div data-testid="hero-secondary">{secondaryActions}</div>
@@ -174,6 +184,7 @@ describe('TrialDetailsPage', () => {
     mockSelectedTrialId = null;
     mockShows = [];
     mockFallbackTrial = null;
+    mockFallbackTrialPending = false;
     mockTrialQueryError = false;
     mockFallbackShow = null;
     trialQueryCalls.length = 0;
@@ -185,6 +196,18 @@ describe('TrialDetailsPage', () => {
     mockAuthContext.hasRole.mockReturnValue(false);
   });
 
+  it('renders a skeleton while the trial fallback is still loading', () => {
+    mockTrials = [];
+    mockSelectedTrialId = null;
+    mockFallbackTrialPending = true;
+
+    renderPage();
+
+    expect(screen.getByRole('status', { name: 'Loading trial details' })).toBeInTheDocument();
+    expect(document.querySelector('.animate-spin')).toBeNull();
+    expect(screen.queryByText('Loading trial...')).not.toBeInTheDocument();
+  });
+
   it('renders the trial for a cold anon visitor via the by-id fallback (not stuck loading)', () => {
     // Cold store: guest never synced.
     mockTrials = [];
@@ -194,7 +217,7 @@ describe('TrialDetailsPage', () => {
 
     renderPage();
 
-    expect(screen.queryByText('Loading trial...')).not.toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: 'Loading trial details' })).not.toBeInTheDocument();
     expect(screen.getByTestId('hero-name')).toHaveTextContent('Scent Work');
     // The fallback query was enabled with the URL trial id…
     expect(trialQueryCalls).toContain('trial-1');

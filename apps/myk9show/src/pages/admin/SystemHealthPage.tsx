@@ -7,10 +7,11 @@
 // neutral indicators.
 
 import { useState } from 'react';
-import { Activity, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Activity, AlertTriangle } from 'lucide-react';
 import { StatusBadge } from '@myk9/ui';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { useSystemHealthSnapshots } from '@/features/admin-system-health/useSystemHealthSnapshots';
 import {
   deriveEffectiveStatus,
@@ -132,7 +133,7 @@ function HistoryStrip({ history }: { history: SystemHealthSnapshot[] }) {
     <div className="flex items-center gap-2" aria-label="Recent run history">
       <span className="text-xs text-muted-foreground">Recent runs:</span>
       <div className="flex items-center gap-1.5">
-        {history.map((run) => (
+        {history.map(run => (
           <span
             key={run.id}
             role="status"
@@ -183,9 +184,17 @@ export default function SystemHealthPage() {
   if (isLoading) {
     return (
       <PageShell>
-        <div className="flex items-center gap-3 text-muted-foreground">
-          <RefreshCw className="h-5 w-5 animate-spin" aria-hidden="true" />
-          <span>Loading the latest health snapshot…</span>
+        <div role="status" aria-label="Loading system health" className="space-y-6">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-96 max-w-full" />
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <Skeleton key={index} className="h-32 rounded-lg" />
+            ))}
+          </div>
+          <Skeleton className="h-24 rounded-lg" />
         </div>
       </PageShell>
     );
@@ -222,7 +231,7 @@ export default function SystemHealthPage() {
           <CardContent>
             {latest && latest.checks.length > 0 ? (
               <div>
-                {latest.checks.map((check) => (
+                {latest.checks.map(check => (
                   <CheckRow key={check.key} check={check} now={now} />
                 ))}
               </div>

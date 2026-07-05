@@ -15,6 +15,7 @@ import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { PageTransition } from '@/components/common/PageTransition';
+import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 import { Users, Plus, Shield, Search, AlertTriangle } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useClubStore } from '@/store/clubStore';
@@ -234,12 +235,16 @@ const ClubMembersPage: React.FC = () => {
   if (membersQuery.isLoading) {
     return (
       <PageTransition>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div
-            className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"
-            role="status"
-            aria-label="Loading members"
-          />
+        <div role="status" aria-label="Loading club members" className="space-y-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-2">
+              <div className="h-8 w-64 animate-pulse rounded-md bg-muted" />
+              <div className="h-4 w-80 max-w-full animate-pulse rounded-md bg-muted" />
+            </div>
+            <div className="h-10 w-32 animate-pulse rounded-md bg-muted" />
+          </div>
+          <div className="h-10 w-full animate-pulse rounded-md bg-muted" />
+          <TableSkeleton rows={5} columns={4} />
         </div>
       </PageTransition>
     );
@@ -318,7 +323,6 @@ const ClubMembersPage: React.FC = () => {
               value={selectedTab}
               onValueChange={setSelectedTab}
             >
-
               {/* Members Tab */}
               <TabsContent value="members" className="mt-6 space-y-4">
                 {/* Search */}

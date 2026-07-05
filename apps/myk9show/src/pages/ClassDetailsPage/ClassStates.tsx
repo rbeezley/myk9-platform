@@ -7,6 +7,7 @@
 import { startTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { Plus, ArrowLeft } from 'lucide-react';
 
 /**
@@ -85,17 +86,40 @@ export function EmptyClassState() {
  */
 export function LoadingClassState() {
   return (
-    <div className="flex min-h-screen bg-background">
+    <div
+      role="status"
+      aria-label="Loading class details"
+      className="flex min-h-screen bg-background"
+    >
       <div className="w-80 border-r border-border bg-card">
-        <div className="p-4">
-          <div className="text-sm text-muted-foreground">Loading classes...</div>
+        <div className="space-y-3 p-4">
+          <Skeleton className="h-4 w-32" />
+          {Array.from({ length: 6 }).map((_, index) => (
+            <Skeleton key={index} className="h-12 rounded-lg" />
+          ))}
         </div>
       </div>
       <main className="flex-1 overflow-auto">
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <h1 className="text-xl font-medium text-foreground">Loading class details...</h1>
+        <div className="space-y-6 p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-3">
+              <Skeleton className="h-8 w-64" />
+              <Skeleton className="h-4 w-96 max-w-full" />
+            </div>
+            <Skeleton className="h-10 w-32" />
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <Skeleton key={index} className="h-28 rounded-lg" />
+            ))}
+          </div>
+          <div className="rounded-lg border bg-card p-6">
+            <Skeleton className="mb-4 h-6 w-40" />
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <Skeleton key={index} className="h-5 w-full" />
+              ))}
+            </div>
           </div>
         </div>
       </main>

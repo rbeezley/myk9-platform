@@ -34,8 +34,20 @@ function freshSnapshot(overrides: Partial<SystemHealthSnapshot> = {}): SystemHea
     source: 'daily-health-check',
     overallStatus: 'ok',
     checks: [
-      { key: 'migrations', label: 'Migration parity', status: 'ok', detail: 'local and remote agree', checkedAt: nowIso },
-      { key: 'edge-fns', label: 'Edge-function parity', status: 'warn', detail: 'one function drifted', checkedAt: nowIso },
+      {
+        key: 'migrations',
+        label: 'Migration parity',
+        status: 'ok',
+        detail: 'local and remote agree',
+        checkedAt: nowIso,
+      },
+      {
+        key: 'edge-fns',
+        label: 'Edge-function parity',
+        status: 'warn',
+        detail: 'one function drifted',
+        checkedAt: nowIso,
+      },
     ],
     runDurationMs: 1500,
     ...overrides,
@@ -97,7 +109,9 @@ describe('SystemHealthPage', () => {
 
     render(<SystemHealthPage />);
 
-    expect(screen.getByText(/loading the latest health snapshot/i)).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Loading system health' })).toBeInTheDocument();
+    expect(document.querySelector('.animate-spin')).toBeNull();
+    expect(screen.queryByText(/loading the latest health snapshot/i)).not.toBeInTheDocument();
   });
 
   it('renders the recent-run history strip', () => {

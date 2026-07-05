@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useTrialEntries } from '@/hooks/queries/useTrialEntries';
 import { exportToCSV } from '@/lib/export';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardGridSkeleton, TableSkeleton } from '@/components/common/SkeletonLoaders';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -21,25 +22,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Download, DollarSign, Users, Tag, Gift, Loader2, Search } from 'lucide-react';
+import { Download, DollarSign, Users, Tag, Gift, Search } from 'lucide-react';
 import { paymentStatusColors } from '@/lib/financial-constants';
+import type { TrialFinancialEntryRow } from './financialSummaryTypes';
 
 interface FinancialSummaryProps {
   trialId: string;
-}
-
-interface EntryRow {
-  id: string;
-  handler: string | null;
-  dogName: string;
-  ownerName: string;
-  className: string;
-  entryFee: number;
-  discountAmount: number;
-  promoCode: string | null;
-  paymentStatus: string;
-  comped: boolean;
-  compedReason: string | null;
 }
 
 export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) => {
@@ -49,7 +37,7 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
   const { data: rawEntries = [], isLoading } = useTrialEntries(trialId);
 
   // Map raw entries to display rows
-  const entries: EntryRow[] = useMemo(
+  const entries: TrialFinancialEntryRow[] = useMemo(
     () =>
       rawEntries.map(e => {
         const dog = e.dog;
@@ -158,8 +146,9 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div role="status" aria-label="Loading financial summary" className="space-y-4">
+        <CardGridSkeleton items={5} />
+        <TableSkeleton rows={6} columns={5} />
       </div>
     );
   }

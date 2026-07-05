@@ -1,4 +1,5 @@
 import { StyleSheet } from '@react-pdf/renderer';
+import { formatLongDate } from '@/lib/format/dates';
 import type { PremiumStyle } from '../../../types/premium-types';
 
 // Side-effect import: registers all custom font families with @react-pdf.
@@ -130,17 +131,8 @@ export function buildStyles(style: PremiumStyle, opts?: BuildStylesOptions) {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-export function formatDate(d: string) {
-  const date = new Date(d);
-  if (Number.isNaN(date.getTime())) return d;
-  // Format in UTC so DATE-only columns (e.g., '2026-06-13', which JS parses as
-  // midnight UTC) don't roll backward a day in negative-offset timezones.
-  return date.toLocaleDateString('en-US', {
-    timeZone: 'UTC',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+export function formatPremiumDate(d: string) {
+  return formatLongDate(d) || d;
 }
 
 // Build a typographic monogram from a club name. Strips honorifics + trailing

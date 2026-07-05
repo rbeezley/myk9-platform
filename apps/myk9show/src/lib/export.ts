@@ -31,7 +31,7 @@ export function convertToCSV<T extends Record<string, unknown>>(
       // Handle different data types
       if (value === null || value === undefined) return '""';
       if (typeof value === 'string') return `"${value.replace(/"/g, '""')}"`;
-      if (value instanceof Date) return `"${formatDate(value, options.dateFormat)}"`;
+      if (value instanceof Date) return `"${formatExportDate(value, options.dateFormat)}"`;
       return `"${String(value)}"`;
     });
     csvRows.push(values.join(','));
@@ -46,7 +46,7 @@ export function convertToJSON<T>(data: T[], formatted = true): string {
 }
 
 // Format date based on options
-function formatDate(date: Date, format: ExportOptions['dateFormat'] = 'YYYY-MM-DD'): string {
+function formatExportDate(date: Date, format: ExportOptions['dateFormat'] = 'YYYY-MM-DD'): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');

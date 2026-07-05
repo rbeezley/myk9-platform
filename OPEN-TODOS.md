@@ -91,15 +91,6 @@ Lower priority / post-launch (parked): judge-to-show matching + availability bla
 
 ---
 
-## UX Date/Status Consistency — deferred findings — 2026-07-03
-
-Source: [`openspec/changes/archive/2026-07-03-ux-date-status-consistency/`](openspec/changes/archive/2026-07-03-ux-date-status-consistency/) (proposal.md/design.md have full detail; change archived). Consolidated date formatting, fixed a systemic "Closes {date}" gating bug across 8 landing-page files. These three items surfaced during that work but are out of its scope:
-
-- [x] **Revert dev-DB test-verification state on `Heartland Scent Work Classic`** (`dededede-0000-0000-0000-000000000010`) — **DONE, no action needed** — live-verifying the "Closes {date}" fix required temporarily publishing this show and backdating `entry_close_date` (current: `entry_close_date=2026-07-01`, `experience_is_published=true`, `experience_published_style='monogram'`; original: `entry_close_date=2026-09-01`, `experience_is_published=false`, `experience_published_style=null`). User decided 2026-07-03 this doesn't need reverting; leaving as-is.
-- [ ] **`formatDate` duplication is bigger than this change scoped** — a repo-wide grep during wrap-up turned up 10+ _additional_ module-local `formatDate` functions never touched by this change (`features/premium/pdf/pdfStyles.ts`, `components/waitlist/JudgeCapacityOverview.tsx`, `components/dogs/LazyDogCard.tsx`, `components/entries/{EntryReceipt,PullManagementTab,MoveUpRequestsTab}.tsx`, `components/analytics/ClassBreakdownTable.tsx`, `lib/export.ts`, `pages/admin/RoleRequestsPage.tsx`, a local const in `features/monogram/landing/sections/ParticularsSection.tsx`). None reference the functions this change deleted, so nothing broke — but the true scope of date-format fragmentation is larger than the original proposal's "~9 functions" estimate. Worth its own follow-up audit/pass.
-
----
-
 ## Code-Quality Audit Follow-ups — 2026-06-12
 
 Source: PR [#642](https://github.com/rbeezley/myk9-platform/pull/642), PR [#647](https://github.com/rbeezley/myk9-platform/pull/647), `docs/audits/2026-06-code-quality/`.

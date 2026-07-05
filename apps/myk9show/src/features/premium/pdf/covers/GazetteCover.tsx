@@ -1,6 +1,6 @@
 import { Image, Page, Text, View } from '@react-pdf/renderer';
 import type { CoverContext } from './coverContext';
-import { formatDate } from '../pdfStyles';
+import { formatPremiumDate } from '../pdfStyles';
 import {
   MIDDOT,
   buildJudgeStrip,
@@ -76,7 +76,7 @@ export function renderGazetteCover(ctx: CoverContext) {
   if (trials.length > 0) {
     atAGlanceLines.push({
       label: 'Trials',
-      value: `${trials.length} ${MIDDOT} ${formatDate(data.show.startDate)}`,
+      value: `${trials.length} ${MIDDOT} ${formatPremiumDate(data.show.startDate)}`,
     });
   }
   if (elements.length > 0) {
@@ -89,7 +89,7 @@ export function renderGazetteCover(ctx: CoverContext) {
   if (data.show.entryCloseDate) {
     atAGlanceLines.push({
       label: 'Entries Close',
-      value: formatDate(data.show.entryCloseDate),
+      value: formatPremiumDate(data.show.entryCloseDate),
     });
   }
 
@@ -137,7 +137,7 @@ export function renderGazetteCover(ctx: CoverContext) {
           marginBottom: 4,
         }}
       >
-        VOL. I {MIDDOT} {formatDate(data.show.startDate)}
+        VOL. I {MIDDOT} {formatPremiumDate(data.show.startDate)}
         {cityState ? ` ${MIDDOT} ${cityState}` : ''}
         {akcLicenseNumber ? ` ${MIDDOT} LICENSE NO. ${akcLicenseNumber}` : ''}
       </Text>

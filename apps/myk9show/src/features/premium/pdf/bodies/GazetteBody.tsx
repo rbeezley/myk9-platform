@@ -6,7 +6,7 @@
 // classifieds don't split mid-row.
 import { Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../../types/premium-types';
-import { formatDate, formatPhone, type StyleTokens } from '../pdfStyles';
+import { formatPremiumDate, formatPhone, type StyleTokens } from '../pdfStyles';
 import { PdfFooter } from '../PdfFooter';
 import { makeClassComparator } from './classOrder';
 import type { RegistryId } from '@/features/registries';
@@ -85,7 +85,9 @@ export function GazetteBody({ data, tokens }: Props) {
               <Text style={bodyTextStyle}>Chair Email: {officials.chairman.email}</Text>
             )}
             {officials.chairman?.phone && (
-              <Text style={bodyTextStyle}>Chair Phone: {formatPhone(officials.chairman.phone)}</Text>
+              <Text style={bodyTextStyle}>
+                Chair Phone: {formatPhone(officials.chairman.phone)}
+              </Text>
             )}
             {secretary.name && <Text style={bodyTextStyle}>Secretary: {secretary.name}</Text>}
           </View>
@@ -160,10 +162,10 @@ export function GazetteBody({ data, tokens }: Props) {
             <Text style={{ ...bodyTextStyle, fontWeight: 700 }}>Online entries via myK9Show</Text>
             <Text style={bodyTextStyle}>myk9show.com</Text>
             {show.entryOpenDate && (
-              <Text style={bodyTextStyle}>Opens: {formatDate(show.entryOpenDate)}</Text>
+              <Text style={bodyTextStyle}>Opens: {formatPremiumDate(show.entryOpenDate)}</Text>
             )}
             {show.entryCloseDate && (
-              <Text style={bodyTextStyle}>Closes: {formatDate(show.entryCloseDate)}</Text>
+              <Text style={bodyTextStyle}>Closes: {formatPremiumDate(show.entryCloseDate)}</Text>
             )}
             {(secretary.email || secretary.mailingAddress || secretary.phone) && (
               <Text style={{ ...bodyTextStyle, marginTop: 6, color: tokens.secondaryColor }}>

@@ -102,8 +102,8 @@ export default function RegistrationsSection({
     setSelectedRegistration(null);
   };
 
-  // Helper function to format date as mm/dd/yyyy without timezone shift
-  function formatDateMMDDYYYY(dateStr?: string) {
+  // Registration docs use padded numeric dates and a dash for missing values.
+  function formatRegistrationDate(dateStr?: string) {
     if (!dateStr) return '-';
     // If dateStr is in YYYY-MM-DD, split and format directly
     const parts = dateStr.split('-');
@@ -288,7 +288,7 @@ export default function RegistrationsSection({
                   <div>
                     <div className="text-xs text-muted-foreground">Registration Date</div>
                     <div className="font-semibold">
-                      {formatDateMMDDYYYY(reg.registrationDate || reg.registration_date)}
+                      {formatRegistrationDate(reg.registrationDate || reg.registration_date)}
                     </div>
                   </div>
                 </div>
@@ -296,7 +296,7 @@ export default function RegistrationsSection({
                   <div className="mt-2">
                     <div className="text-xs text-muted-foreground">Submission Date</div>
                     <div className="font-semibold">
-                      {formatDateMMDDYYYY(reg.submissionDate || reg.submission_date)}
+                      {formatRegistrationDate(reg.submissionDate || reg.submission_date)}
                     </div>
                   </div>
                 )}

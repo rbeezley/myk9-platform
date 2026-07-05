@@ -9,6 +9,7 @@ import {
   isPaymentOrRefundQuestion,
   parseSupportAnswer,
 } from './supportMode.ts';
+import { ASKQ_GUIDES } from './documentAssets.ts';
 import type { AskQGuideAsset } from './documentContext.ts';
 import type { ToolDefinition } from './types.ts';
 
@@ -60,6 +61,11 @@ describe('AskQ support mode', () => {
       }),
     ]);
     expect(findSupportGuideEvidence('How do I get a refund?', guides)).toEqual([]);
+  });
+
+  it('rejects unsupported questions that overlap with real guide vocabulary', () => {
+    expect(findSupportGuideEvidence('Can I delete my account?', ASKQ_GUIDES)).toEqual([]);
+    expect(findSupportGuideEvidence('Do you support agility trials?', ASKQ_GUIDES)).toEqual([]);
   });
 
   it('fails closed unless a marked answer also has server-side guide evidence', () => {

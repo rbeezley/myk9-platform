@@ -9,6 +9,32 @@ export const SUPPORT_PAYMENT_REFUND_PATTERN_SOURCE =
   String.raw`\b(payment|payments|paid|paying|charge|charged|charges|refund|refunded|refunds|stripe|checkout|credit card|debit card|card declined|invoice|billing|payout|withdrawal|transaction|receipt)\b`;
 
 const PAYMENT_REFUND_PATTERN = new RegExp(SUPPORT_PAYMENT_REFUND_PATTERN_SOURCE, 'i');
+const MIN_GUIDE_EVIDENCE_MATCHES = 2;
+const SUPPORT_DOMAIN_TERMS = new Set([
+  'add',
+  'armband',
+  'catalog',
+  'checkin',
+  'class',
+  'classes',
+  'dog',
+  'dogs',
+  'entry',
+  'entries',
+  'exhibitor',
+  'judge',
+  'mail',
+  'premium',
+  'report',
+  'reports',
+  'result',
+  'results',
+  'schedule',
+  'score',
+  'scoring',
+  'secretary',
+  'steward',
+]);
 
 export type SupportEscalationReason = 'payment_or_refund' | 'low_confidence';
 
@@ -72,8 +98,8 @@ export function findSupportGuideEvidence(
 
   return guides
     .map(guide => {
-      const haystack = `${guide.title} ${guide.audience} ${guide.content}`.toLowerCase();
-      const matchedTerms = terms.filter(term => haystack.includes(term));
+      const guideTerms = new Set(tokenizeGuideText(guide));
+      const matchedTerms = terms.filter(term => guideTerms.has(term));
       return {
         id: guide.id,
         title: guide.title,
@@ -81,7 +107,11 @@ export function findSupportGuideEvidence(
         matchedTerms,
       };
     })
-    .filter(evidence => evidence.matchedTerms.length > 0)
+    .filter(
+      evidence =>
+        evidence.matchedTerms.length >= MIN_GUIDE_EVIDENCE_MATCHES &&
+        evidence.matchedTerms.some(term => SUPPORT_DOMAIN_TERMS.has(term))
+    )
     .sort((a, b) => b.matchedTerms.length - a.matchedTerms.length)
     .slice(0, 3);
 }
@@ -126,15 +156,29 @@ function tokenizeSupportQuery(message: string): string[] {
   const stopWords = new Set([
     'about',
     'another',
+    'are',
     'could',
+    'can',
+    'did',
     'does',
+    'doing',
+    'done',
+    'get',
+    'gets',
+    'getting',
+    'got',
     'find',
     'from',
     'help',
+    'how',
     'into',
     'need',
     'please',
     'show',
+    'support',
+    'supports',
+    'supported',
+    'supporting',
     'that',
     'their',
     'there',
@@ -145,6 +189,7 @@ function tokenizeSupportQuery(message: string): string[] {
     'which',
     'with',
     'would',
+    'you',
     'your',
   ]);
 
@@ -156,4 +201,12 @@ function tokenizeSupportQuery(message: string): string[] {
         ?.filter(term => term.length >= 3 && !stopWords.has(term)) ?? []
     ),
   ];
+}
+
+function tokenizeGuideText(guide: AskQGuideAsset): string[] {
+  return (
+    `${guide.title} ${guide.audience} ${guide.content}`
+      .toLowerCase()
+      .match(/[a-z0-9]+/g) ?? []
+  );
 }

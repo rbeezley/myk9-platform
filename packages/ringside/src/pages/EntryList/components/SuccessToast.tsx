@@ -35,9 +35,12 @@ export const SuccessToast: React.FC<SuccessToastProps> = ({
         'mx-auto flex w-fit items-center gap-2 rounded-full px-5 py-3',
         'bg-success text-sm font-semibold text-success-foreground shadow-lg',
         'transition duration-enter ease-enter motion-reduce:transition-none',
-        isVisible
-          ? 'translate-y-0 opacity-100'
-          : 'invisible translate-y-2 opacity-0'
+        // Hidden state uses opacity/translate only (NOT `invisible`): Tailwind's
+        // `transition` does not animate `visibility`, so toggling visibility
+        // would snap the fade-OUT away instead of animating it. The always-on
+        // `pointer-events-none` + `aria-hidden` keep the idle toast inert and
+        // out of the a11y tree without killing the exit transition.
+        isVisible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
       )}
     >
       <CheckCircle

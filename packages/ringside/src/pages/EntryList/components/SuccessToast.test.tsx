@@ -31,7 +31,10 @@ describe('SuccessToast', () => {
     expect(el.getAttribute('data-visible')).toBe('false');
     expect(el.getAttribute('aria-hidden')).toBe('true');
     expect(el.className).toContain('opacity-0');
-    expect(el.className).toContain('invisible');
+    // NOT `invisible` — visibility can't be transitioned, so the fade-out would
+    // snap. Inertness comes from the always-on pointer-events-none + aria-hidden.
+    expect(el.className).not.toContain('invisible');
+    expect(el.className).toContain('pointer-events-none');
   });
 
   it('uses the shared motion tokens and gates on reduced motion', () => {

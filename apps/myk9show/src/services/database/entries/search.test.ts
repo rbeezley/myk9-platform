@@ -136,6 +136,9 @@ describe('USER_ENTRIES_SELECT (getUserEntries PostgREST fallback shape)', () => 
     'check_in_status',
     'entry_status',
     'payment_status',
+    // 4.C: cash/check "pay at show" vs online "Finish Payment" depends on this
+    // reaching the client — pin it so a future select edit can't drop it.
+    'payment_method',
     'entry_fee',
     'armband',
     'is_scored',

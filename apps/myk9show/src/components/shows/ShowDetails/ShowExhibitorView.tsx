@@ -107,7 +107,10 @@ export function ShowExhibitorView({
               // broke under Grove/Dusk/Heather. Filled vs the outline
               // siblings keeps it the dominant action.
               <Button size="sm" className="min-h-[44px] sm:min-h-8" onClick={onRegister}>
-                {hasUserEntries ? 'Manage Entry' : 'Enter This Show'}
+                {/* UX walk 4.D — the label states what the tap does. "Manage
+                    Entry" was vague (and singular when they may hold several);
+                    "Add or Change Entries" names both jobs this CTA opens. */}
+                {hasUserEntries ? 'Add or Change Entries' : 'Enter This Show'}
               </Button>
             ) : hasUserEntries ? (
               <Button

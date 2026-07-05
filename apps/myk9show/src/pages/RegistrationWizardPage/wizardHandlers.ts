@@ -33,7 +33,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     userId,
     navigate,
     isLateEntryMode,
-    exitPath,
+    exitTarget,
     canAssignArmbands,
     exhibitorProfile,
     triggerSync,
@@ -87,8 +87,10 @@ export function createWizardHandlers(state: RegistrationWizardState) {
 
   // Navigation handlers
   const handleExit = () => {
-    if (exitPath) {
-      navigate(exitPath);
+    // Destination + label come from one resolver (resolveRegistrationExit) so
+    // the button copy can never claim a place the navigation doesn't go.
+    if (exitTarget.path) {
+      navigate(exitTarget.path);
       return;
     }
     navigate(-1);

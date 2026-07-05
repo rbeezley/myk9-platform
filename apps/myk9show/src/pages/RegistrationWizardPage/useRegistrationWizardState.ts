@@ -47,7 +47,7 @@ import {
 } from '@/features/registration/selectedDogsOwner';
 import {
   isShowDeskLateEntryMode,
-  resolveRegistrationExitPath,
+  resolveRegistrationExit,
 } from '../RegistrationWizardPage.routes';
 import { proceedBlockedReason } from './proceedGating';
 import { buildDraftFormData } from './buildDraftFormData';
@@ -77,7 +77,7 @@ export function useRegistrationWizardState() {
     : isInsideSidebar
       ? 'Add entries for exhibitor'
       : 'Register for Show';
-  const exitPath = resolveRegistrationExitPath(showId, isLateEntryMode);
+  const exitTarget = resolveRegistrationExit(showId, { isLateEntryMode, isInsideSidebar });
 
   // Auth and permissions
   const { isSecretary, isClubAdmin, isSiteAdmin, canAssignArmbands } = useRegistrationPermissions();
@@ -373,7 +373,7 @@ export function useRegistrationWizardState() {
     navigate,
     isInsideSidebar,
     isLateEntryMode,
-    exitPath,
+    exitTarget,
     workflowLabel,
     sidebarTitle,
     scrollTopRef,

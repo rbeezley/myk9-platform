@@ -18,6 +18,16 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-07-05
+
+- **Playwright command:** fail/stopped after one low-risk test repair. Phase 1 promoted Vitest initially failed before bootstrap because the isolated worktree had no dependencies, then passed after `bash scripts/bootstrap-worktree.sh` (`18/18`). Phase 2 exact active Playwright command exceeded the 30-minute global Nightly budget and was stopped at `23 passed, 3 failed, 1 interrupted, 1 skipped, 25 did not run (32.4m, --retries=0)`.
+- **Route sweep:** fail/partial in the full command, then focused route-health replay passed. The committed `route-health-by-role.spec.ts` ran inside Phase 2; public, exhibitor, secretary, and club-admin completed before the stop, judge timed out, and admin was interrupted by the manual budget stop. Focused replay passed judge (`1/1`) and admin/club-admin (`2/2`) on the same isolated port. Standalone Phase 3 was skipped because Phase 2 had already exceeded the global Nightly budget.
+- **Active specs:** Vitest `18/18`; active Playwright `23/53` passed before the budget stop, with `1` skipped and `25` not run.
+- **Failures:** Updated `QA-TEST-FLAKE-032`. Initial failures were `public-shows-responsive.spec.ts:22` waiting for the public `Shows` heading while the shell rendered with empty main content, `registration/exhibitorSelfRegistration.spec.ts:122` waiting for stale `Next` copy on the payment step while the current CTA is `Submit & pay`, and `route-health-by-role.spec.ts:289` judge route-health timeout. Admin route-health was interrupted by the budget stop. Evidence paths: `apps/myk9show/test-results/public-shows-responsive-Pu-4ee45-ls-touch-friendly-on-mobile-chromium/error-context.md`, `apps/myk9show/test-results/registration-exhibitorSelf-efb7d-t-without-enrollment-writes-chromium/error-context.md`, and `apps/myk9show/test-results/route-health-by-role-Route-a87b6-e-judge-routes-render-clean-chromium/error-context.md`.
+- **Fixes made:** test-only + docs. `registration/exhibitorSelfRegistration.spec.ts` now asserts/clicks the current `Submit & pay` checkout CTA. Focused proof passed with `--retries=0`: `exhibitorSelfRegistration.spec.ts` `1/1`, `public-shows-responsive.spec.ts` `2/2`, judge route-health `1/1`, and admin/club-admin route-health `2/2`.
+- **Demotions/promotions:** none.
+- **Notes:** Ran from isolated detached worktree `.worktrees/nightly-qa-2026-07-05-023305` on `origin/main` `bfa91c03db7ef5464de0e5742cc3f79d58a6f182`, using `PLAYWRIGHT_PORT=6391`, `PLAYWRIGHT_BASE_URL=http://127.0.0.1:6391`, and `PLAYWRIGHT_HMR_PORT=26391`. The primary checkout was clean. Keep `QA-TEST-FLAKE-032` open because the exact Phase 2 command and standalone Phase 3 route-health still need full passing proof inside the Nightly budget.
+
 ### 2026-07-04
 
 - **Playwright command:** fail. Phase 1 promoted Vitest passed (`18/18`). Phase 2 exact active Playwright command failed with `41 passed, 9 failed, 1 skipped, 2 did not run (1.4h, --retries=0)`, exceeding the 30-minute global Nightly budget.

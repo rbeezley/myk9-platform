@@ -149,9 +149,10 @@ test('exhibitor card entry hands off to cart checkout without enrollment writes'
   const agreement = page.getByText(/I have read and agree to the .* entry agreement/i);
   await expect(agreement).toBeVisible({ timeout: 15000 });
   await agreement.click();
-  await expect(page.getByRole('button', { name: /^Next$/ })).toBeEnabled();
+  const submitAndPay = page.getByRole('button', { name: /^Submit & pay$/ });
+  await expect(submitAndPay).toBeEnabled();
 
-  await page.getByRole('button', { name: /^Next$/ }).click();
+  await submitAndPay.click();
 
   await expect(page).toHaveURL(/\/cart$/, { timeout: 15000 });
 

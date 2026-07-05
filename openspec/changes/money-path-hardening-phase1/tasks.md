@@ -64,6 +64,9 @@
       Result: no implementation-critical findings; lifecycle gates remain for DB push/staging
       verification, post-merge tracking, PR review, CI, and merge.
 - [x] 5.3 Open a PR that cites `Tracked in openspec change: money-path-hardening-phase1`.
-- [ ] 5.4 Run the required Codex/security/migration second-opinion review for money-path and
+- [x] 5.4 Run the required Codex/security/migration second-opinion review for money-path and
       database-trigger changes.
+      Result: one medium residual risk accepted for this PR: source-level tests do not execute
+      the trigger against real rows/roles. Runtime proof remains gated by task 3.6 after a
+      confirmed DB push, because the repo has no local SQL harness for this trigger path.
 - [ ] 5.5 Let CI pass and merge the PR before archive.

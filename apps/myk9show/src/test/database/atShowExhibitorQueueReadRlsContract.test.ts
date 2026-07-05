@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 const migration = readFileSync(
   resolve(
     __dirname,
-    '../../../../../supabase/migrations/20260704200000_at_show_exhibitor_queue_read.sql'
+    '../../../../../supabase/migrations/20260704201000_at_show_co_owner_queue_only.sql'
   ),
   'utf8'
 );
@@ -35,17 +35,29 @@ describe('at-show exhibitor queue read — RLS contract', () => {
     expect(view).toContain('OR access.is_show_exhibitor');
   });
 
-  it('still marks own entries only for handler, owner, or co-owner rows', () => {
-    expect(view).toContain('p.id = e.handler_id');
-    expect(view).toContain('owned_dog.owner_id = p.id');
-    expect(view).toContain('owned_dog.co_owner_id = p.id');
+  it('keeps the admin/own-entry gate to handler or primary owner rows', () => {
+    const ownEntryGate = sliceBetween(
+      view,
+      '    (\n      EXISTS (\n        SELECT 1\n        FROM public.people p',
+      '    ) AS is_own_entry'
+    );
+
+    expect(ownEntryGate).toContain('p.id = e.handler_id');
+    expect(ownEntryGate).toContain('owned_dog.owner_id = p.id');
+    expect(ownEntryGate).not.toContain('co_owner_id');
     expect(view).toContain('access.is_own_entry AS is_own_entry');
   });
 
-  it('does not widen financial, PII, or unreleased-score visibility to show exhibitors', () => {
-    const access = sliceBetween(view, 'CROSS JOIN LATERAL (\n  SELECT', ') AS access');
+  it('does not widen financial, PII, or unreleased-score visibility to show exhibitors or co-owners', () => {
+    const access = sliceBetween(
+      view,
+      'CROSS JOIN LATERAL (\n  SELECT\n    flags.can_manage',
+      ') AS access'
+    );
 
     expect(access).toContain('(flags.can_manage OR flags.is_own_entry) AS can_view_admin');
+    expect(access).not.toContain('is_show_exhibitor) AS can_view_admin');
+    expect(access).not.toContain('co_owner_id');
     const canViewScores = sliceBetween(access, '(\n      flags.can_manage', ') AS can_view_scores');
     expect(canViewScores).not.toContain('is_show_exhibitor');
 

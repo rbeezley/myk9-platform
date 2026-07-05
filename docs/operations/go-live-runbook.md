@@ -236,7 +236,8 @@ product).
 - [x] **4.4 Exhibitor at-show awareness walk** — exhibitor-account walk with a multiple-own-entry
       fixture: own-dog highlight, dogs-ahead pill counts down live, conflict chip on both entries
       (merged #639; live-verified 2026-07-04 on staging after
-      `20260704200000_at_show_exhibitor_queue_read.sql`). Evidence:
+      `20260704200000_at_show_exhibitor_queue_read.sql`; co-owner admin visibility tightened by
+      `20260704201000_at_show_co_owner_queue_only.sql`). Evidence:
       `/private/tmp/at-show-awareness-2026-07-04/02-class-a-before.png`,
       `/private/tmp/at-show-awareness-2026-07-04/03-class-a-countdown-live-update.png`,
       `/private/tmp/at-show-awareness-2026-07-04/04-class-a-after-live-update.png`,

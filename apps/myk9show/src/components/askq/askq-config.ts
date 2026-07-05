@@ -10,8 +10,8 @@ export const EXAMPLE_QUERIES: ExampleQuery[] = [
   { text: 'Show me the trial schedule', category: 'show-data' },
   { text: 'What classes are running right now?', category: 'show-data' },
   { text: 'How many dogs qualified in Buried?', category: 'show-data' },
-  { text: 'How do I enter a show?', category: 'app-help' },
-  { text: 'Where do I find my armband?', category: 'app-help' },
+  { text: 'How do I add a mail-in entry?', category: 'app-help' },
+  { text: 'Where do I find my armband number?', category: 'app-help' },
   { text: 'I need help with a payment or refund', category: 'app-help' },
 ];
 
@@ -27,12 +27,10 @@ export const RATE_LIMIT_DEFAULTS = {
 };
 
 export const TOOL_LABELS: Record<string, string> = {
-  search_rules: 'Rules',
   get_class_summary: 'Classes',
   get_entry_results: 'Results',
   get_trial_overview: 'Trials',
   search_entries: 'Entries',
-  search_user_guide: 'Guide',
 };
 
 export const SOURCE_LABELS: Record<string, string> = {

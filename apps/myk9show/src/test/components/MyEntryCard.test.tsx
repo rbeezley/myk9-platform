@@ -3,6 +3,7 @@ import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { MyEntryCard } from '@/pages/MyEntriesPage/modules/MyEntryCard';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import { formatShortDate } from '@/lib/format/dates';
 import type { MyEntry } from '@/pages/MyEntriesPage/modules/my-entries-types';
 
 vi.mock('@/components/common/CheckInStatusIndicator', () => ({
@@ -46,7 +47,9 @@ describe('MyEntryCard — entry close date label', () => {
     );
 
     expect(screen.getByText('Entries close')).toBeInTheDocument();
-    expect(screen.getByText(closeDate.toLocaleDateString())).toBeInTheDocument();
+    expect(screen.getByText('Entries close').parentElement).toHaveTextContent(
+      formatShortDate(closeDate)
+    );
   });
 
   it('does not render the close date row when entryCloseDate is absent', () => {

@@ -15,7 +15,7 @@ describe('AskQExampleQueries', () => {
     render(<AskQExampleQueries onSelectQuery={vi.fn()} />);
     expect(screen.getByText('What are the time limits for Excellent?')).toBeInTheDocument();
     expect(screen.getByText('How did my dog do today?')).toBeInTheDocument();
-    expect(screen.getByText('How do I enter a show?')).toBeInTheDocument();
+    expect(screen.getByText('How do I add a mail-in entry?')).toBeInTheDocument();
   });
 
   it('calls onSelectQuery with the query category when a chip is clicked', async () => {
@@ -29,6 +29,7 @@ describe('AskQExampleQueries', () => {
   it('renders App Help as an active support category', () => {
     render(<AskQExampleQueries onSelectQuery={vi.fn()} />);
     expect(screen.queryByText('Coming soon...')).not.toBeInTheDocument();
+    expect(screen.getByText('Where do I find my armband number?')).toBeInTheDocument();
     expect(screen.getByText('I need help with a payment or refund')).toBeInTheDocument();
   });
 });

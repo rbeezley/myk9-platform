@@ -9,6 +9,7 @@
     "build:show": "turbo build --filter=@myk9/show",
     "typecheck": "turbo typecheck",
     "lint": "turbo lint",
+    "askq:prepare-docs": "node scripts/prepare-askq-documents.mjs",
     "openspec": "OPENSPEC_TELEMETRY=0 DO_NOT_TRACK=1 openspec",
     "qa:e2e-map:check": "node scripts/check-e2e-suite-map.js",
     "qa:doc-staleness": "node scripts/check-doc-staleness.js",

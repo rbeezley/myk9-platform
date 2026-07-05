@@ -9,7 +9,7 @@ import { signInAsExhibitor } from './helpers/testUsers';
  * - No fake trend data in stat cards
  * - "Enter a Show" primary CTA button
  * - Mobile-friendly scrollable tabs
- * - Status stepper instead of progress bar
+ * - Direct status labels instead of progress bars or lifecycle steppers
  * - Context-aware "last updated" messaging
  * - Receipt button only for paid entries
  */
@@ -178,7 +178,7 @@ test.describe('My Shows Page - Mobile Tab Usability', () => {
   });
 });
 
-test.describe('My Shows Page - Status Stepper', () => {
+test.describe('My Shows Page - Current Status', () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
     await navigateToMyShows(page);
@@ -194,21 +194,23 @@ test.describe('My Shows Page - Status Stepper', () => {
     await expect(percentageDisplay).toHaveCount(0);
   });
 
-  test('should display entry status stepper if entries exist', async ({ page }) => {
+  test('should display direct entry status labels if entries exist', async ({ page }) => {
     // Wait for content to load
     await page.waitForTimeout(1000);
 
-    // If there are entries, status stepper should be visible
-    const entryCount = await page.getByRole('button', { name: /Edit Entry/i }).count();
+    const entryCards = page.locator('.myk9-entries-card');
+    const entryCount = await entryCards.count();
 
     if (entryCount > 0) {
-      const statusStepper = page.locator('.entry-status-stepper').first();
-
-      await expect(statusStepper).toBeVisible();
-      await expect(statusStepper.getByText('Submitted')).toBeVisible();
-      await expect(statusStepper.getByText('Review')).toBeVisible();
-      await expect(statusStepper.getByText('Accepted')).toBeVisible();
-      await expect(statusStepper.getByText('Paid')).toBeVisible();
+      await expect(page.locator('.entry-status-stepper')).toHaveCount(0);
+      await expect(
+        entryCards
+          .first()
+          .getByText(
+            /Accepted|Pending Review|Review incomplete|Waitlist|Rejected|Withdrawn|Scored|Move-Up Requested|Unknown/
+          )
+          .first()
+      ).toBeVisible();
     }
   });
 });

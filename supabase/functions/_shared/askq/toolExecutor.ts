@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import type { ClassSummary, EntryResult, TrialSummary, UserContext } from './types.ts';
-import { executeSearchRules, parseAndResolveDate } from './ruleLookup.ts';
+import { parseAndResolveDate } from './ruleLookup.ts';
 import { applyShowScope, type ShowScope } from './showScope.ts';
 
 type SupabaseClient = ReturnType<typeof createClient>;
@@ -356,30 +356,6 @@ async function executeSearchEntries(
   }
 }
 
-async function executeSearchUserGuide(
-  supabaseClient: SupabaseClient,
-  input: { query: string }
-): Promise<{ data: unknown[]; error?: string }> {
-  try {
-    const { data, error } = await supabaseClient
-      .from('user_guide')
-      .select('id, section, title, content')
-      .textSearch('search_vector', input.query, { type: 'websearch' })
-      .limit(5);
-    if (error) return { data: [], error: error.message };
-    if (!data || data.length === 0) {
-      return {
-        data: [],
-        error:
-          'The user guide is not yet available. Try asking about rules or your show data instead.',
-      };
-    }
-    return { data };
-  } catch (err) {
-    return { data: [], error: `User guide search failed: ${(err as Error).message}` };
-  }
-}
-
 export async function executeTool(
   toolName: string,
   toolInput: Record<string, unknown>,
@@ -389,6 +365,9 @@ export async function executeTool(
   sportCode?: string,
   userContext?: UserContext | null
 ): Promise<{ result: unknown; error?: string }> {
+  void organizationCode;
+  void sportCode;
+
   // Build scope: prefer showId (myK9Show) over licenseKey (myK9Q)
   const scope: ShowScope = {};
   if (userContext?.showId) {
@@ -399,14 +378,6 @@ export async function executeTool(
   }
 
   switch (toolName) {
-    case 'search_rules':
-      return executeSearchRules(
-        toolInput as { query: string; level?: string; element?: string },
-        supabase,
-        organizationCode,
-        sportCode
-      ).then(r => ({ result: r.data, error: r.error }));
-
     case 'get_class_summary':
       return executeGetClassSummary(
         toolInput as {
@@ -446,12 +417,6 @@ export async function executeTool(
         supabase,
         scope
       ).then(r => ({ result: r.data, error: r.error }));
-
-    case 'search_user_guide':
-      return executeSearchUserGuide(supabase, toolInput as { query: string }).then(r => ({
-        result: r.data,
-        error: r.error,
-      }));
 
     default:
       return { result: null, error: `Unknown tool: ${toolName}` };

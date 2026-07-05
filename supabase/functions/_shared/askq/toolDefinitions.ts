@@ -2,31 +2,6 @@ import type { ToolDefinition } from './types.ts';
 
 export const TOOLS: ToolDefinition[] = [
   {
-    name: 'search_rules',
-    description:
-      'Search the rulebook for regulations, requirements, time limits, area sizes, hide counts, or procedures. Use for ANY question about rules or regulations.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        query: {
-          type: 'string',
-          description: 'The search query for finding rules',
-        },
-        level: {
-          type: 'string',
-          enum: ['Novice', 'Advanced', 'Excellent', 'Master'],
-          description: 'Filter by competition level if mentioned',
-        },
-        element: {
-          type: 'string',
-          enum: ['Container', 'Interior', 'Exterior', 'Buried'],
-          description: 'Filter by element type if mentioned',
-        },
-      },
-      required: ['query'],
-    },
-  },
-  {
     name: 'get_class_summary',
     description:
       'Get summary of classes including entry counts, status, judges, and scoring progress. Use for questions about class schedules, how many dogs are entered, which classes are running, judges, etc.',
@@ -131,21 +106,6 @@ export const TOOLS: ToolDefinition[] = [
         },
       },
       required: [],
-    },
-  },
-  {
-    name: 'search_user_guide',
-    description:
-      'Search the myK9Show user guide for how-to instructions and app help. Use when users ask how to do something in the app, or need help with features.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        query: {
-          type: 'string',
-          description: 'Search query for the user guide',
-        },
-      },
-      required: ['query'],
     },
   },
 ];

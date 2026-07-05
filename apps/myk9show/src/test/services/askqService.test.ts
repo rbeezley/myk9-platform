@@ -5,7 +5,7 @@ describe('askqService', () => {
     it('parses tools_used event', async () => {
       const events: Array<{ event: string; data: unknown }> = [];
       const stream = createMockSSEStream([
-        'event: tools_used\ndata: ["search_rules"]\n\n',
+        'event: tools_used\ndata: ["get_class_summary"]\n\n',
         'event: done\ndata: {}\n\n',
       ]);
 
@@ -13,7 +13,7 @@ describe('askqService', () => {
         events.push({ event, data });
       });
 
-      expect(events[0]).toEqual({ event: 'tools_used', data: ['search_rules'] });
+      expect(events[0]).toEqual({ event: 'tools_used', data: ['get_class_summary'] });
     });
 
     it('accumulates token events', async () => {

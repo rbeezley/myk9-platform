@@ -38,7 +38,7 @@ describe('useAskQ', () => {
 
   it('streams an answer from the service', async () => {
     const mockStream = createMockStream([
-      { event: 'tools_used', data: ['search_rules'] },
+      { event: 'tools_used', data: ['get_class_summary'] },
       { event: 'token', data: 'Hello' },
       { event: 'token', data: ' world' },
       { event: 'meta', data: { remaining: 9, limit: 10, responseTimeMs: 500 } },
@@ -52,7 +52,7 @@ describe('useAskQ', () => {
     });
 
     expect(result.current.answer).toBe('Hello world');
-    expect(result.current.toolsUsed).toEqual(['search_rules']);
+    expect(result.current.toolsUsed).toEqual(['get_class_summary']);
     expect(result.current.remaining).toBe(9);
     expect(result.current.status).toBe('done');
   });

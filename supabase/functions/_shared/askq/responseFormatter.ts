@@ -1,7 +1,6 @@
 import type {
   ChatResponse,
   ClaudeContentBlock,
-  Rule,
   ClassSummary,
   EntryResult,
   TrialSummary,
@@ -15,9 +14,6 @@ export function collectSource(
   if (!sources) return;
 
   switch (toolName) {
-    case 'search_rules':
-      sources.rules = result as Rule[];
-      break;
     case 'get_class_summary':
       sources.classes = result as ClassSummary[];
       break;
@@ -28,13 +24,6 @@ export function collectSource(
     case 'get_trial_overview':
       sources.trials = result as TrialSummary[];
       break;
-    case 'search_user_guide': {
-      const guideData = result as unknown[];
-      if (guideData?.length > 0) {
-        sources.guide = guideData;
-      }
-      break;
-    }
   }
 }
 

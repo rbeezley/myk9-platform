@@ -24,8 +24,8 @@ describe('support deflection routing', () => {
     const route = routeSupportDeflection({
       question: 'Can you refund the card I paid with?',
       answer: 'Open My Entries and click...',
-      toolsUsed: ['search_user_guide'],
-      sources: { guide: [{ title: 'Entries', content: 'My Entries' }] },
+      toolsUsed: [],
+      sources: {},
     });
 
     expect(isSupportPaymentOrRefundQuestion('Stripe checkout charged me twice')).toBe(true);
@@ -58,19 +58,12 @@ describe('support deflection routing', () => {
     });
   });
 
-  it('routes grounded guide answers with a useful deep link', () => {
+  it('routes bundled-guide answers with a useful deep link', () => {
     const route = routeSupportDeflection({
       question: 'Where do I see my armband number?',
       answer: 'Open My Entries to see your armband number.',
-      toolsUsed: ['search_user_guide'],
-      sources: {
-        guide: [
-          {
-            title: 'Finding armband numbers',
-            content: 'Use My Entries for armband numbers.',
-          },
-        ],
-      },
+      toolsUsed: [],
+      sources: {},
     });
 
     expect(route).toMatchObject({
@@ -79,11 +72,11 @@ describe('support deflection routing', () => {
     });
   });
 
-  it('escalates ungrounded answers', () => {
+  it('escalates empty answers', () => {
     expect(
       routeSupportDeflection({
         question: 'How do I do a thing not in the guides?',
-        answer: 'Try this unsupported workaround.',
+        answer: '',
         toolsUsed: [],
         sources: {},
       })

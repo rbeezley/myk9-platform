@@ -26,11 +26,11 @@ describe('AskQAnswer', () => {
       <AskQAnswer
         query="test"
         answer="Answer text"
-        toolsUsed={['search_rules', 'get_entry_results']}
+        toolsUsed={['get_class_summary', 'get_entry_results']}
         isStreaming={false}
       />
     );
-    expect(screen.getByText('Rules')).toBeInTheDocument();
+    expect(screen.getByText('Classes')).toBeInTheDocument();
     expect(screen.getByText('Results')).toBeInTheDocument();
   });
 

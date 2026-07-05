@@ -26,8 +26,8 @@ const rulebooks: AskQRulebookAsset[] = [
 ];
 
 describe('AskQ document context', () => {
-  it('selects one rulebook by registry and sport without text search', () => {
-    expect(selectRulebook(rulebooks, 'AKC', 'scent_work')).toMatchObject({
+  it('selects one rulebook by registry and current trial_type label without text search', () => {
+    expect(selectRulebook(rulebooks, 'AKC', 'Scent Work')).toMatchObject({
       id: 'akc-scent-work',
       title: 'AKC Scent Work Regulations',
     });

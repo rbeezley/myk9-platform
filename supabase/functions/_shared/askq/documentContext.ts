@@ -61,7 +61,7 @@ export function normalizeSportCode(
 ): string | undefined {
   if (!sportCode?.trim()) return undefined;
 
-  const normalized = sportCode.trim().toLowerCase().replace(/_/g, '-');
+  const normalized = sportCode.trim().toLowerCase().replace(/[_\s]+/g, '-');
   if (normalized === 'scent-work' && organizationCode) {
     return `${organizationCode.toLowerCase()}-scent-work`;
   }

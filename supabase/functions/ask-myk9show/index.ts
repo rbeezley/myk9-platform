@@ -16,10 +16,10 @@ import {
 } from '../_shared/askq/documentContext.ts';
 import {
   buildSupportModePrompt,
-  getSupportEscalationForAnswer,
   getSupportEscalationForQuestion,
   getSupportModeTools,
   isSupportModeEnabled,
+  parseSupportAnswer,
   type SupportEscalationPayload,
 } from '../_shared/askq/supportMode.ts';
 
@@ -254,13 +254,13 @@ Deno.serve(async (req: Request) => {
         showName = showData.show_name;
         const { data: trialContext } = await serviceClient
           .from('trials')
-          .select('registry_id, sport_type')
+          .select('registry_id, trial_type')
           .eq('show_id', showId)
           .order('trial_number', { ascending: true })
           .limit(1)
           .maybeSingle();
         rulesOrganizationCode = trialContext?.registry_id ?? undefined;
-        rulesSportCode = trialContext?.sport_type ?? undefined;
+        rulesSportCode = trialContext?.trial_type ?? undefined;
       }
     }
 
@@ -323,9 +323,11 @@ Deno.serve(async (req: Request) => {
 
     const textBlock = result.content.find(b => b.type === 'text');
     const fullText = textBlock?.text ?? '';
+    const parsedSupportAnswer = supportMode ? parseSupportAnswer(fullText) : null;
+    const responseText = parsedSupportAnswer?.answerText ?? fullText;
     const responseTimeMs = Date.now() - startTime;
     // Update the provisional log row with actual data
-    const supportAnswerEscalation = supportMode ? getSupportEscalationForAnswer(fullText) : null;
+    const supportAnswerEscalation = parsedSupportAnswer?.escalation ?? null;
     const loggedTools = supportAnswerEscalation
       ? [...new Set([...toolsUsed, 'support_escalation'])]
       : [...new Set(toolsUsed)];
@@ -359,8 +361,8 @@ Deno.serve(async (req: Request) => {
       }
 
       const CHUNK_SIZE = 4;
-      for (let i = 0; i < fullText.length; i += CHUNK_SIZE) {
-        send('token', fullText.slice(i, i + CHUNK_SIZE));
+      for (let i = 0; i < responseText.length; i += CHUNK_SIZE) {
+        send('token', responseText.slice(i, i + CHUNK_SIZE));
       }
 
       send('meta', { remaining, limit, responseTimeMs, queryLogId: logRow?.id ?? null });

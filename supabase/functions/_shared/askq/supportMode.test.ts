@@ -6,6 +6,7 @@ import {
   getSupportEscalationForQuestion,
   getSupportModeTools,
   isPaymentOrRefundQuestion,
+  parseSupportAnswer,
 } from './supportMode.ts';
 import type { ToolDefinition } from './types.ts';
 
@@ -36,13 +37,28 @@ describe('AskQ support mode', () => {
     expect(prompt).toContain('Never answer questions about payments');
     expect(prompt).toContain('must escalate to a human ticket');
     expect(prompt).toContain('verified user-guide context');
+    expect(prompt).toContain('SUPPORT_ANSWER');
+    expect(prompt).toContain('SUPPORT_HANDOFF');
   });
 
-  it('escalates only when the bundled-guide answer asks for a person', () => {
-    expect(getSupportEscalationForAnswer('Open Entries Management and select Add entry.')).toBeNull();
+  it('fails closed unless the model marks the response as a guide-backed answer', () => {
+    expect(getSupportEscalationForAnswer('SUPPORT_ANSWER\nOpen Entries Management.')).toBeNull();
     expect(getSupportEscalationForAnswer(SUPPORT_HANDOFF_MESSAGE)).toMatchObject({
       reason: 'low_confidence',
     });
+    expect(getSupportEscalationForAnswer('Open Entries Management.')).toMatchObject({
+      reason: 'low_confidence',
+    });
     expect(getSupportEscalationForAnswer('')).toMatchObject({ reason: 'low_confidence' });
+  });
+
+  it('strips the support answer marker before streaming the response', () => {
+    expect(parseSupportAnswer('SUPPORT_ANSWER\nOpen Entries Management.')).toEqual({
+      answerText: 'Open Entries Management.',
+      escalation: null,
+    });
+    expect(parseSupportAnswer('SUPPORT_HANDOFF\nI need help.').escalation).toMatchObject({
+      reason: 'low_confidence',
+    });
   });
 });

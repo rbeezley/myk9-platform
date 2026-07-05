@@ -45,7 +45,7 @@ the UX plan's own model-guidance policy).
 
 ## Relationship to the in-flight UX walk remediation
 
-`docs/plan-ux-walk-remediation-2026-07.md` is open and being worked (phase state
+`docs/archive/plan-ux-walk-remediation-2026-07.md` is complete and archived (phase state
 at handoff: Phases 0–1 **done**, Phases 2–3 **in flight**, Phases 4–6 not
 started). This audit is a **different lens** — correctness/security/data
 integrity, not usability — so 001/002/005 are net-new (a UX walk can't find a

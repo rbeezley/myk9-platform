@@ -67,7 +67,7 @@ execute.
 
 ## Reconciliation with in-flight work (read before executing)
 
-- **UX walk remediation** ([`../plan-ux-walk-remediation-2026-07.md`](../plan-ux-walk-remediation-2026-07.md))
+- **UX walk remediation** ([`../archive/plan-ux-walk-remediation-2026-07.md`](../archive/plan-ux-walk-remediation-2026-07.md))
   touches client UI only (formatters, shell/nav) and states it expects **no DB
   migrations or edge-function deploys**. The security RLS/edge-fn plans here are a
   **disjoint file set** — safe to run in parallel. The one client-side overlap risk

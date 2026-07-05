@@ -2,10 +2,10 @@
 
 > **Status:** Complete — remediated and verified 2026-07-05
 > **Date:** 2026-07-05
-> **Source of truth:** [`docs/plan-ux-walk-remediation-2026-07.md`](plan-ux-walk-remediation-2026-07.md) (this handoff is a navigational snapshot; the plan's checkboxes remain canonical)
+> **Source of truth:** [`docs/archive/plan-ux-walk-remediation-2026-07.md`](plan-ux-walk-remediation-2026-07.md) (this handoff is a navigational snapshot; the plan's checkboxes remain canonical)
 > **OpenSpec change:** `ux-shell-integrity-followups`
 
-This handoff originally enumerated what was **left** in the July 2026 UX walk remediation. The remaining implementation, docs, and focused verification work is now complete; the canonical closure record is [`docs/plan-ux-walk-remediation-2026-07.md`](plan-ux-walk-remediation-2026-07.md).
+This handoff originally enumerated what was **left** in the July 2026 UX walk remediation. The remaining implementation, docs, and focused verification work is now complete; the canonical closure record is [`docs/archive/plan-ux-walk-remediation-2026-07.md`](plan-ux-walk-remediation-2026-07.md).
 
 ---
 

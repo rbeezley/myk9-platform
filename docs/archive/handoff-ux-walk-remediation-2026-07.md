@@ -5,7 +5,7 @@
 **Date:** 2026-07-02
 **From:** planning sessions (Claude walks + Codex cross-reviews, 2026-07-01/02)
 **To:** the implementing session(s)/agent(s)
-**The execution list:** [`docs/plan-ux-walk-remediation-2026-07.md`](../plan-ux-walk-remediation-2026-07.md) — this handoff adds historical context; it does **not** add tasks. If this file and the plan disagree, the plan wins.
+**The execution list:** [`docs/archive/plan-ux-walk-remediation-2026-07.md`](plan-ux-walk-remediation-2026-07.md) — this handoff adds historical context; it does **not** add tasks. If this file and the plan disagree, the plan wins.
 
 ---
 

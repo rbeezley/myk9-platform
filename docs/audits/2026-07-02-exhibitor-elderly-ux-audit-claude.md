@@ -10,7 +10,7 @@
 
 **Known issues honored (not re-litigated):** tapping a ringside entry card queues a failing `ringside_update_entry` write (known, reproduced ×2 previously — entry cards were deliberately not tapped on this walk); the wizard Step-1 silent-Next was fixed on `main` (#1073) and the fixed behavior (disabled Next with visible explanation) was observed working.
 
-**Post-remediation verification (2026-07-05, Codex):** The Critical/High exhibitor findings tracked by `docs/plan-ux-walk-remediation-2026-07.md` were remediated and rechecked with focused unit coverage, `pnpm typecheck`, `pnpm lint`, `src/test/e2e/entry-intent-sign-in-redirect.spec.ts`, `src/test/e2e/registration/singleDogSingleClass.spec.ts`, `src/test/e2e/shell-integrity-responsive.spec.ts`, and `src/test/e2e/a11y-smoke.spec.ts` on Chromium. The historical findings below remain as the original audit evidence.
+**Post-remediation verification (2026-07-05, Codex):** The Critical/High exhibitor findings tracked by `docs/archive/plan-ux-walk-remediation-2026-07.md` were remediated and rechecked with focused unit coverage, `pnpm typecheck`, `pnpm lint`, `src/test/e2e/entry-intent-sign-in-redirect.spec.ts`, `src/test/e2e/registration/singleDogSingleClass.spec.ts`, `src/test/e2e/shell-integrity-responsive.spec.ts`, and `src/test/e2e/a11y-smoke.spec.ts` on Chromium. The historical findings below remain as the original audit evidence.
 
 **Merge note (2026-07-02):** After a review of the Codex exhibitor audit, findings I agree with but missed on my walk have been folded in below, tagged **[Codex]**. Codex walked mobile and the signed-out entry path; I walked desktop signed-in — the two are complementary, and the [Codex] items are adopted on judgment, not independently reproduced unless noted.
 

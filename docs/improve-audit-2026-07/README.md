@@ -66,7 +66,7 @@ replication work — it changes no code and can run in parallel with the others.
 
 ## Relationship to the UX walk remediation plan (READ THIS BEFORE EXECUTING)
 
-This audit was run while [`docs/plan-ux-walk-remediation-2026-07.md`](../plan-ux-walk-remediation-2026-07.md)
+This audit was run while [`docs/archive/plan-ux-walk-remediation-2026-07.md`](../archive/plan-ux-walk-remediation-2026-07.md)
 (49 tasks, Phases 0–6, no implementation code written yet) is still open. The
 two are **complementary lenses**, not duplicates — a UX role-walk evaluates what
 a user sees/feels; it does not read RLS scoping or write-ordering. But three of

@@ -215,6 +215,9 @@ const BrowseDogsPage: React.FC = () => {
         onDogCreated={handleDogCreated}
         userRole={getPrimaryRole(getUserRoles())}
         currentUserPersonId={currentUserPersonId || undefined}
+        // 4.E: from the standalone Dogs page, entering a show is the natural
+        // next step after adding a dog. Surfaced as the saved-toast action.
+        onEnterShowWithDog={() => navigate('/shows')}
       />
     </PageShell>
   );

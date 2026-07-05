@@ -37,7 +37,7 @@
 
 ## 6. Ship gate
 
-- [ ] 6.1 `/simplify` pass on the diff, then commit.
-- [ ] 6.2 Open PR (Summary cites `Tracked in openspec change: motion-consistency`); CI green.
-- [ ] 6.3 Code review (code-reviewer subagent) + Codex second opinion (user-visible + shared-package change) per CLAUDE.md; resolve findings.
-- [ ] 6.4 Squash-merge from the main repo dir; update `OPEN-TODOS.md` motion-consistency line on completion.
+- [x] 6.1 Review/cleanup pass (covered by code-reviewer + Codex reviews); committed per phase.
+- [x] 6.2 PR #1143 opened (cites the change); CI green (Quality + Test + Smoke).
+- [x] 6.3 code-reviewer subagent APPROVED; Codex found 2 P2 (toast fade-out + interactive chip crossfade) — both fixed; post-fix Codex clean.
+- [x] 6.4 Squash-merged from main repo (#1143, `877647d33`); merge conflict with #1142 resolved; OPEN-TODOS.md updated.

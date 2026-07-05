@@ -17,6 +17,8 @@ const SUPPORT_DOMAIN_TERMS = new Set([
   'checkin',
   'class',
   'classes',
+  'communication',
+  'create',
   'dog',
   'dogs',
   'entry',
@@ -24,6 +26,7 @@ const SUPPORT_DOMAIN_TERMS = new Set([
   'exhibitor',
   'judge',
   'mail',
+  'message',
   'premium',
   'report',
   'reports',
@@ -33,6 +36,8 @@ const SUPPORT_DOMAIN_TERMS = new Set([
   'score',
   'scoring',
   'secretary',
+  'send',
+  'show',
   'steward',
 ]);
 
@@ -174,7 +179,6 @@ function tokenizeSupportQuery(message: string): string[] {
     'into',
     'need',
     'please',
-    'show',
     'support',
     'supports',
     'supported',
@@ -195,12 +199,18 @@ function tokenizeSupportQuery(message: string): string[] {
 
   return [
     ...new Set(
-      message
+      `${message} ${getSupportQueryAliases(message).join(' ')}`
         .toLowerCase()
         .match(/[a-z0-9]+/g)
         ?.filter(term => term.length >= 3 && !stopWords.has(term)) ?? []
     ),
   ];
+}
+
+function getSupportQueryAliases(message: string): string[] {
+  const normalized = message.toLowerCase().replace(/[^a-z0-9]+/g, ' ');
+  if (/\bcheck\s+in\b/.test(normalized)) return ['check', 'exhibitor'];
+  return [];
 }
 
 function tokenizeGuideText(guide: AskQGuideAsset): string[] {

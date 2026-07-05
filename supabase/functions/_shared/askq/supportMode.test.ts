@@ -68,6 +68,33 @@ describe('AskQ support mode', () => {
     expect(findSupportGuideEvidence('Do you support agility trials?', ASKQ_GUIDES)).toEqual([]);
   });
 
+  it('finds evidence for documented support-guide workflows', () => {
+    expect(findSupportGuideEvidence('How do I create a show?', ASKQ_GUIDES)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'secretary-guide',
+          matchedTerms: expect.arrayContaining(['create', 'show']),
+        }),
+      ])
+    );
+    expect(findSupportGuideEvidence('How do I send a message?', ASKQ_GUIDES)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'secretary-guide',
+          matchedTerms: expect.arrayContaining(['send', 'message']),
+        }),
+      ])
+    );
+    expect(findSupportGuideEvidence('How do I check in?', ASKQ_GUIDES)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'secretary-guide',
+          matchedTerms: expect.arrayContaining(['check', 'exhibitor']),
+        }),
+      ])
+    );
+  });
+
   it('fails closed unless a marked answer also has server-side guide evidence', () => {
     expect(getSupportEscalationForAnswer('SUPPORT_ANSWER\nOpen Entries Management.')).toMatchObject(
       {

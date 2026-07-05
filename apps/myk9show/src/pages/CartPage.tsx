@@ -7,9 +7,10 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { ShoppingCart, ArrowLeft, Trash2, AlertCircle, Eye, Info, X, Loader2 } from 'lucide-react';
+import { ShoppingCart, ArrowLeft, Trash2, AlertCircle, Eye, Info, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Skeleton } from '@/components/common/SkeletonLoaders';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -248,13 +249,17 @@ export default function CartPage() {
     return (
       <div className="bg-background pt-6">
         <div className="max-w-4xl mx-auto px-4 py-8">
-          <div
-            className="flex flex-col items-center justify-center py-16 text-center"
-            role="status"
-            aria-live="polite"
-          >
-            <Loader2 className="h-10 w-10 text-muted-foreground animate-spin mb-4" />
-            <p className="text-muted-foreground">Loading your cart…</p>
+          <div className="space-y-6 py-8" role="status" aria-label="Loading cart">
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-44" />
+              <Skeleton className="h-4 w-72 max-w-full" />
+            </div>
+            <div className="space-y-3">
+              {Array.from({ length: 2 }).map((_, index) => (
+                <Skeleton key={index} className="h-32 rounded-lg" />
+              ))}
+            </div>
+            <Skeleton className="ml-auto h-44 w-full max-w-sm rounded-lg" />
           </div>
         </div>
       </div>

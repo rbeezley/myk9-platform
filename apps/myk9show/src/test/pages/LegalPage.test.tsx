@@ -9,7 +9,7 @@ describe('LegalPage', () => {
     vi.restoreAllMocks();
   });
 
-  it('shows loading spinner initially', () => {
+  it('shows loading skeleton initially', () => {
     vi.spyOn(global, 'fetch').mockReturnValue(new Promise(() => {}));
 
     render(
@@ -19,6 +19,8 @@ describe('LegalPage', () => {
     );
 
     expect(screen.getByText(/back to myk9show/i)).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Loading Terms of Service' })).toBeInTheDocument();
+    expect(document.querySelector('.animate-spin')).toBeNull();
   });
 
   it('renders markdown content after loading', async () => {

@@ -54,14 +54,16 @@ describe('CartPage hydration gate', () => {
   it('shows the loading state, not the empty zero-state, while the cart store hydrates', () => {
     cartState.isLoading = true;
     render(<CartPage />);
-    expect(screen.getByText('Loading your cart…')).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Loading cart' })).toBeInTheDocument();
+    expect(document.querySelector('.animate-spin')).toBeNull();
     expect(screen.queryByText('Your cart is empty')).not.toBeInTheDocument();
   });
 
   it('shows the loading state while the exhibitor profile is still resolving', () => {
     profileState.isLoading = true;
     render(<CartPage />);
-    expect(screen.getByText('Loading your cart…')).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Loading cart' })).toBeInTheDocument();
+    expect(document.querySelector('.animate-spin')).toBeNull();
     expect(screen.queryByText('Your cart is empty')).not.toBeInTheDocument();
   });
 
@@ -76,7 +78,8 @@ describe('CartPage hydration gate', () => {
     cartState.loadInitiated = false;
     cartState.items = [];
     render(<CartPage />);
-    expect(screen.getByText('Loading your cart…')).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Loading cart' })).toBeInTheDocument();
+    expect(document.querySelector('.animate-spin')).toBeNull();
     expect(screen.queryByText('Your cart is empty')).not.toBeInTheDocument();
   });
 
@@ -90,7 +93,7 @@ describe('CartPage hydration gate', () => {
     cartState.items = [];
     render(<CartPage />);
     expect(screen.getByText('Your cart is empty')).toBeInTheDocument();
-    expect(screen.queryByText('Loading your cart…')).not.toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: 'Loading cart' })).not.toBeInTheDocument();
   });
 
   it('shows the empty zero-state for a visitor with no exhibitor profile', () => {
@@ -99,6 +102,6 @@ describe('CartPage hydration gate', () => {
     profileState.isLoading = false;
     render(<CartPage />);
     expect(screen.getByText('Your cart is empty')).toBeInTheDocument();
-    expect(screen.queryByText('Loading your cart…')).not.toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: 'Loading cart' })).not.toBeInTheDocument();
   });
 });

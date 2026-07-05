@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
+import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { supabase } from '@/lib/supabase';
 import { consumePersistedSignInRedirect, getSignInReturnTo } from './SignInPage.helpers';
 
@@ -17,8 +18,7 @@ const AuthCallbackPage = () => {
   }, [searchParams]);
   const redirectTarget = useMemo(() => getSignInReturnTo(searchParams), [searchParams]);
   const oauthRedirectTarget = useMemo(
-    () =>
-      searchParams.has('redirectTo') || searchParams.has('returnTo') ? redirectTarget : null,
+    () => (searchParams.has('redirectTo') || searchParams.has('returnTo') ? redirectTarget : null),
     [redirectTarget, searchParams]
   );
 
@@ -98,9 +98,16 @@ const AuthCallbackPage = () => {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      <p className="mt-4 text-muted-foreground">Verifying your email...</p>
+    <div
+      role="status"
+      aria-label="Verifying your email"
+      className="flex min-h-screen items-center justify-center bg-background px-4"
+    >
+      <div className="w-full max-w-md space-y-4 rounded-2xl border bg-card p-8 shadow-xl">
+        <Skeleton className="mx-auto h-12 w-12 rounded-full" />
+        <Skeleton className="mx-auto h-6 w-48" />
+        <Skeleton className="mx-auto h-4 w-64 max-w-full" />
+      </div>
     </div>
   );
 };

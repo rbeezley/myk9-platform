@@ -46,6 +46,18 @@ describe('CheckoutSuccessPage split checkout summary', () => {
     entriesRows.value = [];
   });
 
+  it('uses a skeleton, not a spinner, while payment verification is pending', () => {
+    verifyCheckoutSessionMock.mockReturnValue(new Promise(() => {}));
+
+    render(<CheckoutSuccessPage />, {
+      initialRoute: '/checkout/success?session_id=cs_test_loading',
+    });
+
+    expect(screen.getByRole('status', { name: 'Verifying payment' })).toBeInTheDocument();
+    expect(document.querySelector('.animate-spin')).toBeNull();
+    expect(screen.queryByText('Verifying your payment...')).not.toBeInTheDocument();
+  });
+
   it('shows the paid and waitlisted split after a mixed checkout returns from Stripe', async () => {
     sessionStorage.setItem(
       STORAGE_KEYS.CART_SPLIT_CHECKOUT,

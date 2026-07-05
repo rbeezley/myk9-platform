@@ -125,7 +125,7 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
     return this.toSupabaseRow(dog);
   }
 
-  async sync(licenseKey: string): Promise<SyncResult> {
+  async sync(syncScopeId: string): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
     const adapter: SyncReplicatedTableAdapter<DogRow, ReplicatedDog> = {
@@ -157,7 +157,7 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
       resolveConflict: (local, remote) => this.resolveConflict(local, remote),
     };
 
-    const result = await syncReplicatedTable(this, adapter, { value: licenseKey }, {
+    const result = await syncReplicatedTable(this, adapter, { value: syncScopeId }, {
       incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
     });
 
@@ -175,7 +175,7 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
     // failed sync.
     if (result.success) {
       try {
-        const removed = await this.reconcileDeleted(licenseKey || undefined);
+        const removed = await this.reconcileDeleted(syncScopeId || undefined);
         if (removed > 0) {
           logger.log(`[${this.getTableName()}] reconcileDeleted removed ${removed} stale rows`);
         }

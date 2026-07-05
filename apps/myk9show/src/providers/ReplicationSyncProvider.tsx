@@ -62,8 +62,13 @@ interface SyncStatus {
 
 interface ReplicationSyncProviderProps {
   children: React.ReactNode;
-  /** License key for multi-tenant isolation (optional) */
-  licenseKey?: string;
+  /**
+   * Optional replication scope. The meaning is table-specific: entries/trials
+   * use show id, classes use trial id, dogs use owner id, and an empty scope
+   * means "sync the globally visible/account-visible rows" for tables that
+   * support unscoped sync.
+   */
+  syncScopeId?: string;
   /** Whether to sync automatically on startup */
   autoSync?: boolean;
   /** Whether to sync when coming back online */
@@ -166,7 +171,7 @@ async function ensureAuthenticatedEntryResultReplicaVersion(): Promise<void> {
 
 export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = ({
   children,
-  licenseKey = '',
+  syncScopeId = '',
   autoSync = true,
   syncOnReconnect = true,
 }) => {
@@ -219,7 +224,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       }));
 
       try {
-        const result = await tableConfig.table.sync(licenseKey);
+        const result = await tableConfig.table.sync(syncScopeId);
 
         if (result.success) {
           logger.info('Table synced', 'replication', {
@@ -251,7 +256,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         }));
       }
     },
-    [licenseKey, queryClient]
+    [syncScopeId, queryClient]
   );
 
   /**
@@ -304,7 +309,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       const syncResults = await Promise.all(
         REPLICATED_TABLES.map(async ({ name, table }) => {
           try {
-            const result = await table.sync(licenseKey);
+            const result = await table.sync(syncScopeId);
             return {
               name,
               ok: result.success,
@@ -373,7 +378,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       }));
       syncInFlightRef.current = false;
     }
-  }, [isAuthenticated, isOnline, status.isSyncing, licenseKey, queryClient]);
+  }, [isAuthenticated, isOnline, status.isSyncing, syncScopeId, queryClient]);
 
   // Keep ref in sync so effects always call latest version without re-triggering
   useEffect(() => {

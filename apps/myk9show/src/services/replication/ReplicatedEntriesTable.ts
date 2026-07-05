@@ -123,9 +123,9 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     return this.toSupabaseRow(entry);
   }
 
-  async sync(licenseKey: string): Promise<SyncResult> {
-    const showScope = licenseKey.trim();
-    if (!showScope) {
+  async sync(syncScopeId: string): Promise<SyncResult> {
+    const showScopeId = syncScopeId.trim();
+    if (!showScopeId) {
       logger.warn(`[${this.getTableName()}] Skipping remote sync without show scope`);
       return {
         tableName: this.getTableName(),
@@ -151,7 +151,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
           .gt('updated_at', new Date(since).toISOString())
           .order('updated_at', { ascending: true });
 
-        query = query.eq('show_id', showScope);
+        query = query.eq('show_id', showScopeId);
 
         const { data, error } = await query;
 
@@ -204,7 +204,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     const result = await syncReplicatedTable(
       this,
       adapter,
-      { value: showScope },
+      { value: showScopeId },
       {
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
       }

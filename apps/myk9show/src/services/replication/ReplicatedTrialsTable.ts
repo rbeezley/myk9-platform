@@ -160,7 +160,7 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
     return this.toSupabaseRow(trial);
   }
 
-  async sync(licenseKey: string): Promise<SyncResult> {
+  async sync(syncScopeId: string): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
     const adapter: SyncReplicatedTableAdapter<TrialRow, ReplicatedTrial> = {
@@ -195,7 +195,7 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
     const result = await syncReplicatedTable(
       this,
       adapter,
-      { value: licenseKey },
+      { value: syncScopeId },
       {
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
       }

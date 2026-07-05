@@ -343,6 +343,21 @@ export const getUserEntries = async (userId: string) => {
       e => e.handlerId === userId || (e.dogId ? ownedDogIds.has(e.dogId) : false)
     );
 
+    if (filtered.length === 0) {
+      try {
+        // Account-level exhibitor pages do not have a show sync scope, so a cold
+        // entries replica can be empty even while Supabase has the user's entries.
+        // Treat empty local as "not hydrated yet" when online; if the view is
+        // unreachable, keep the offline empty result.
+        const result = await postgrestGetUserEntries();
+        logQuery('entries', 'select_user_entries_empty_replica_fallback', Date.now() - startTime);
+        return result;
+      } catch {
+        logQuery('entries', 'select_user_entries_empty_replica_offline', Date.now() - startTime);
+        return { data: [], error: null };
+      }
+    }
+
     // If entry rows have synced before their joined class/show/dog rows, the
     // first render can show the entry card without classes. Prefer the complete
     // online join when available, but keep the partial replicated result if the

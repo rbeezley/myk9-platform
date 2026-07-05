@@ -94,7 +94,7 @@ export class ReplicatedWaitlistEntriesTable extends ReplicatedTable<ReplicatedWa
    * Sync waitlist entries from Supabase.
    * Incremental sync using updated_at column.
    */
-  async sync(_licenseKey?: string): Promise<SyncResult> {
+  async sync(_syncScopeId?: string): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
     const adapter: SyncReplicatedTableAdapter<WaitlistEntryRow, ReplicatedWaitlistEntry> = {

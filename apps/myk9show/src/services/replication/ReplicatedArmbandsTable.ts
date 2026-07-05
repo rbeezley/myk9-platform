@@ -125,7 +125,7 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
    * Sync armbands from Supabase.
    * Full sync — armbands table has no updated_at column.
    */
-  async sync(_licenseKey?: string): Promise<SyncResult> {
+  async sync(_syncScopeId?: string): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting full sync`);
 
     const adapter: SyncReplicatedTableAdapter<ArmbandRow, ReplicatedArmband> = {

@@ -158,10 +158,10 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
 
   /**
    * Sync judge assignments from Supabase.
-   * No licenseKey filter — syncs all rows (table is small).
+   * No sync scope filter — syncs all rows (table is small).
    * No deleted_at filter — judge_assignments uses hard deletes (ON DELETE CASCADE).
    */
-  async sync(_licenseKey?: string): Promise<SyncResult> {
+  async sync(_syncScopeId?: string): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
     const adapter: SyncReplicatedTableAdapter<JudgeAssignmentJoinedRow, ReplicatedJudgeAssignment> =

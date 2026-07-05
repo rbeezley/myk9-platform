@@ -71,21 +71,22 @@ Recommendation: **(A) if the bundle fits**, else **(B)**. Either way, the existi
 
 **Files:** `_shared/askq/promptBuilder.ts` (or a new `_shared/askq/guides.ts`), a build/prepare step, `apps/myk9show/src/components/askq/askq-config.ts` (enable the app-help examples), tests.
 
-- [ ] Add a build/deploy step that emits the concatenated `docs/user-guides/*.md` as a function-bundled asset (mirror the docs site's `apps/docs/scripts/prepare-content.mjs`). No `user_guide` table.
-- [ ] In the system prompt, include the bundled guides as context and instruct: answer how-to **only** from the guides; if not covered, say so and link the relevant page.
-- [ ] Replace the `search_user_guide` tool path with the bundled-context approach.
-- [ ] Enable the "app-help" example queries in the UI (remove "Coming soon…").
-- [ ] **Tests:** unit-test the guide-bundling/assembly; assert the system prompt contains the secretary guide text; a smoke question ("how does a secretary add a mail-in entry?") returns guide-grounded steps.
+- [x] Add a build/deploy step that emits the concatenated `docs/user-guides/*.md` as a function-bundled asset (mirror the docs site's `apps/docs/scripts/prepare-content.mjs`). No `user_guide` table.
+- [x] In the system prompt, include the bundled guides as context and instruct: answer how-to **only** from the guides; if not covered, say so and link the relevant page.
+- [x] Replace the `search_user_guide` tool path with the bundled-context approach.
+- [x] Enable the "app-help" example queries in the UI (remove "Coming soon…").
+- [x] **Tests:** unit-test the guide-bundling/assembly; assert the system prompt contains the secretary guide text; a smoke question ("how does a secretary add a mail-in entry?") returns guide-grounded steps.
 
 ## Phase 2 — Turn on rules
 
 **Files:** `_shared/askq/ruleLookup.ts` (rewrite), rulebook source (per storage decision), `_shared/askq/toolDefinitions.ts`, tests.
 
-- [ ] **Resolve the storage decision** (A bundle vs. B `rulebooks` table). If (B), the migration must include explicit GRANTs (see CLAUDE.md DB rules).
-- [ ] Extract AKC Scent Work (and any other in-scope) rulebook text from the source PDFs into the chosen store.
-- [ ] Implement **rulebook selection** by `(org, sport)` from the show/trial registry context already available in `ask-myk9show`.
+- [x] **Interim production unblock (2026-07-05):** route `search_rules` away from the broken `rules.search_vector` path and answer structured class-requirement questions from `sport_class_rules` using the verified show's registry/sport context. Superseded in this branch by selected whole-rulebook context.
+- [x] **Resolve the storage decision** (A bundle vs. B `rulebooks` table). Decision: A, function-bundled rulebook assets generated from `docs/rulebooks`.
+- [x] Extract AKC Scent Work (and any other in-scope) rulebook text from the source PDFs into the chosen store.
+- [x] Implement **rulebook selection** by `(org, sport)` from the show/trial registry context already available in `ask-myk9show`.
 - [ ] Pass the selected rulebook to Claude with a `cache_control` breakpoint (prompt caching). Consider a 1-hour TTL or a re-warm for show-day bursts.
-- [ ] **Remove the broken `search_rules` FTS path** (`.textSearch('search_vector', …)` on `rules`).
+- [x] **Remove the broken `search_rules` FTS path** (`.textSearch('search_vector', …)` on `rules`).
 - [ ] **Tests:** unit-test rulebook selection (org+sport → correct rulebook); assert `cache_read_input_tokens > 0` on the second identical-prefix request (caching actually engages); a smoke rule question returns a grounded answer with the right time limit.
 
 ## Phase 3 — Delete the dead infrastructure
@@ -95,7 +96,7 @@ Recommendation: **(A) if the bundle fits**, else **(B)**. Either way, the existi
 - [ ] Drop the `user_guide` table (and its trigger/index) once Phase 1 ships.
 - [ ] Drop the unused `rules.embedding` column; drop `rules`/`rules_*` tables if fully replaced by the rulebook store.
 - [ ] Remove `pgvector` usage if nothing else in the schema depends on it (verify first).
-- [ ] Remove `search_user_guide` / `search_rules` from `toolDefinitions.ts` and `toolExecutor.ts`.
+- [x] Remove `search_user_guide` / `search_rules` from `toolDefinitions.ts` and `toolExecutor.ts`.
 - [ ] **Tests:** confirm the remaining tool set still validates; no references to removed tables/tools.
 
 ## Phase 4 — Verify & tune

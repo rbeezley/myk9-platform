@@ -1,4 +1,3 @@
-const GUIDE_TOOL = 'search_user_guide';
 export const SUPPORT_PAYMENT_REFUND_PATTERN_SOURCE =
   String.raw`\b(payment|payments|paid|paying|charge|charged|charges|refund|refunded|refunds|stripe|checkout|credit card|debit card|card declined|invoice|billing|payout|withdrawal|transaction|receipt)\b`;
 
@@ -71,17 +70,15 @@ export function routeSupportDeflection(input: SupportDeflectionInput): SupportDe
     return escalate(input, input.escalation.reason, input.escalation.message);
   }
 
-  const guideSources = Array.isArray(input.sources.guide) ? input.sources.guide : [];
   const answer = input.answer.trim();
-  const isGrounded = input.toolsUsed.includes(GUIDE_TOOL) && guideSources.length > 0;
-  if (!answer || !isGrounded) {
+  if (!answer) {
     return escalate(input, 'low_confidence', 'No verified guide answer was found.');
   }
 
   return {
     kind: 'answer',
     answer,
-    deepLink: inferSupportDeepLink(answer, guideSources),
+    deepLink: inferSupportDeepLink(answer, input.sources.guide),
     sources: input.sources,
   };
 }
@@ -99,8 +96,9 @@ function escalate(
   };
 }
 
-function inferSupportDeepLink(answer: string, guideSources: unknown[]): SupportDeepLink | null {
-  const sourceText = guideSources
+function inferSupportDeepLink(answer: string, guideSources: unknown): SupportDeepLink | null {
+  const sources = Array.isArray(guideSources) ? guideSources : [];
+  const sourceText = sources
     .map(source => {
       if (!source || typeof source !== 'object') return '';
       const values = source as Record<string, unknown>;

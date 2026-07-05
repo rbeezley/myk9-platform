@@ -259,6 +259,8 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
               {form.data.organization ? (
                 <SearchablePopover
                   id="breed"
+                  aria-invalid={!!breedError}
+                  aria-describedby={breedError ? 'breed-error' : undefined}
                   open={breedPickerOpen}
                   onOpenChange={next => {
                     setBreedPickerOpen(next);

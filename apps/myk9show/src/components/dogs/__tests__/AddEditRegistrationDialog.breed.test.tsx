@@ -75,6 +75,21 @@ describe('AddEditRegistrationDialog breed picker (4.E — searchable)', () => {
     expect(screen.getByText(/no breeds match your search/i)).toBeInTheDocument();
   });
 
+  it('associates the required-breed error with the trigger for assistive tech', () => {
+    // akcRegistration has an empty breed; submitting surfaces the breed error,
+    // which must stay wired to the control via aria-invalid / aria-describedby
+    // (parity with the native SelectTrigger it replaced).
+    renderDialog(akcRegistration);
+    fireEvent.click(screen.getByRole('button', { name: /save registration/i }));
+
+    const trigger = document.getElementById('breed');
+    expect(trigger).not.toBeNull();
+    expect(trigger).toHaveAttribute('aria-invalid', 'true');
+    expect(trigger).toHaveAttribute('aria-describedby', 'breed-error');
+    // The error node it points at exists.
+    expect(document.getElementById('breed-error')).toBeInTheDocument();
+  });
+
   it('selecting a breed updates the trigger label', () => {
     renderDialog(akcRegistration);
     fireEvent.change(screen.getByPlaceholderText(/search breeds/i), {

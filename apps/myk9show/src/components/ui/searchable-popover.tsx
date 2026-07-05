@@ -16,6 +16,13 @@ interface SearchablePopoverProps<T> {
   emptyMessage: string;
   /** id on the trigger button so a sibling <label htmlFor> connects for a11y. */
   id?: string | undefined;
+  /**
+   * Optional ARIA wiring for the trigger so a field error stays associated with
+   * the control — parity with a native SelectTrigger when this popover stands in
+   * for a required Select inside a FormField.
+   */
+  'aria-invalid'?: boolean | undefined;
+  'aria-describedby'?: string | undefined;
 }
 
 function SearchablePopover<T extends { id: string }>({
@@ -29,12 +36,16 @@ function SearchablePopover<T extends { id: string }>({
   renderItem,
   emptyMessage,
   id,
+  'aria-invalid': ariaInvalid,
+  'aria-describedby': ariaDescribedBy,
 }: SearchablePopoverProps<T>) {
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
         <Button
           {...(id !== undefined && { id })}
+          {...(ariaInvalid !== undefined && { 'aria-invalid': ariaInvalid })}
+          {...(ariaDescribedBy !== undefined && { 'aria-describedby': ariaDescribedBy })}
           variant="outline"
           className="w-full justify-start"
         >

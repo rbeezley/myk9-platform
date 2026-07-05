@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Printer, X } from 'lucide-react';
 import { CONFIRMATION_NUMBER_LABEL } from '@/features/registration/confirmationNumberDisplay';
+import { formatEntryDate, formatRecordDateTime } from '@/lib/format/dates';
 
 interface EntryClass {
   id: string;
@@ -257,26 +258,6 @@ export function EntryReceipt({
     }, 250);
   };
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
-
-  const formatDateTime = (date: Date) => {
-    return date.toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
-  };
-
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -333,7 +314,9 @@ export function EntryReceipt({
               </div>
               <div className="info-item">
                 <div className="info-label text-xs text-muted-foreground">Date</div>
-                <div className="info-value font-medium">{formatDate(entry.showDate)}</div>
+                <div className="info-value font-medium">
+                  {formatEntryDate(entry.showDate, { style: 'long' })}
+                </div>
               </div>
               <div className="info-item col-span-2">
                 <div className="info-label text-xs text-muted-foreground">Location</div>
@@ -366,7 +349,9 @@ export function EntryReceipt({
               )}
               <div className="info-item">
                 <div className="info-label text-xs text-muted-foreground">Submitted</div>
-                <div className="info-value font-medium">{formatDateTime(entry.submittedAt)}</div>
+                <div className="info-value font-medium">
+                  {formatRecordDateTime(entry.submittedAt)}
+                </div>
               </div>
             </div>
           </div>
@@ -446,7 +431,7 @@ export function EntryReceipt({
           <div className="footer mt-8 pt-4 border-t text-center text-xs text-muted-foreground">
             <p>Thank you for your entry!</p>
             <p className="mt-1">Entry ID: {entry.id}</p>
-            <p className="mt-1">Generated on {formatDateTime(new Date())}</p>
+            <p className="mt-1">Generated on {formatRecordDateTime(new Date())}</p>
           </div>
         </div>
 

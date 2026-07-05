@@ -19,6 +19,7 @@ import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useIntersectionObserver } from '../../hooks/useIntersectionObserver';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
+import { formatShortDate } from '@/lib/format/dates';
 import { SyncStatusIndicator } from '@/components/sync/SyncStatusIndicator';
 import type { SyncStatus } from '@/components/sync/SyncStatusIndicator';
 import { getDogDisplayName } from '@/types/dog-types';
@@ -233,10 +234,6 @@ export function LazyDogCard({
     );
   }
 
-  const formatDate = (date: Date | string) => {
-    return new Date(date).toLocaleDateString();
-  };
-
   const calculateAge = (birthDate: Date | string) => {
     const birth = new Date(birthDate);
     const today = new Date();
@@ -380,7 +377,7 @@ export function LazyDogCard({
                             <div className="space-y-1">
                               {detailsData.healthRecords.slice(0, 2).map(record => (
                                 <div key={record.id} className="text-xs text-muted-foreground">
-                                  {record.description} - {formatDate(record.date)}
+                                  {record.description} - {formatShortDate(record.date)}
                                 </div>
                               ))}
                             </div>

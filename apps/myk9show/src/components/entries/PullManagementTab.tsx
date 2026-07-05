@@ -24,6 +24,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
+import { formatEntryDateTime } from '@/lib/format/dates';
 import {
   Search,
   XCircle,
@@ -175,15 +176,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
   const filteredPending = filterRequests(pendingRequests);
   const filteredProcessed = filterRequests(processedPulls);
 
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return 'N/A';
-    return new Date(dateStr).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  };
+  const formatPullDateTime = (dateStr: string | null) => formatEntryDateTime(dateStr) || 'N/A';
 
   const formatCurrency = (cents: number) => {
     return `$${(cents / 100).toFixed(2)}`;
@@ -329,7 +322,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
 
                         <div className="text-sm text-muted-foreground flex items-center gap-1">
                           <Clock className="h-4 w-4" />
-                          {formatDate(request.created_at)}
+                          {formatPullDateTime(request.created_at)}
                         </div>
 
                         <div className="flex items-center gap-2">
@@ -401,7 +394,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
                         {getPullTimingBadge(pull.pull_timing)}
 
                         <div className="text-sm text-muted-foreground">
-                          Pulled: {formatDate(pull.pulled_at ?? pull.updated_at)}
+                          Pulled: {formatPullDateTime(pull.pulled_at ?? pull.updated_at)}
                         </div>
                       </div>
                     </div>

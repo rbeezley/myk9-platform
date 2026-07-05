@@ -1,6 +1,6 @@
 import { Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../../types/premium-types';
-import { formatDate, formatPhone, type StyleTokens } from '../pdfStyles';
+import { formatPremiumDate, formatPhone, type StyleTokens } from '../pdfStyles';
 import { PdfFooter } from '../PdfFooter';
 import { makeClassComparator } from './classOrder';
 import type { RegistryId } from '@/features/registries';
@@ -90,8 +90,8 @@ export function PosterBody({ data, tokens }: Props) {
           {[show.acceptChecks && 'Checks', show.acceptCash && 'Cash'].filter(Boolean).join(', ') ||
             'Payment methods TBD'}
           .{'\n'}
-          Opens {show.entryOpenDate ? formatDate(show.entryOpenDate) : REQUIRED} · Closes{' '}
-          {show.entryCloseDate ? formatDate(show.entryCloseDate) : REQUIRED}.
+          Opens {show.entryOpenDate ? formatPremiumDate(show.entryOpenDate) : REQUIRED} · Closes{' '}
+          {show.entryCloseDate ? formatPremiumDate(show.entryCloseDate) : REQUIRED}.
         </Text>
       </View>
 
@@ -131,7 +131,7 @@ export function PosterBody({ data, tokens }: Props) {
               {trial.name}
             </Text>
             <Text style={{ ...bodyStyle, marginBottom: 4 }}>
-              {formatDate(trial.date)}
+              {formatPremiumDate(trial.date)}
               {trial.startTime ? ` at ${trial.startTime}` : ''}
               {trial.eventNumber ? ` · Event ${trial.eventNumber}` : ''}
             </Text>
@@ -244,7 +244,7 @@ export function PosterBody({ data, tokens }: Props) {
             lineHeight: 1.05,
           }}
         >
-          {show.entryCloseDate ? formatDate(show.entryCloseDate) : 'TBD'}
+          {show.entryCloseDate ? formatPremiumDate(show.entryCloseDate) : 'TBD'}
         </Text>
       </View>
     </Page>

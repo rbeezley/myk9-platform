@@ -1,7 +1,7 @@
 // Shared body for both AKC and UKC. The 'org' prop is the seam for future org-specific divergence; today both orgs render identically.
 import { Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../../types/premium-types';
-import { buildStyles, formatDate, formatPhone, resolveTokens } from '../pdfStyles';
+import { buildStyles, formatPremiumDate, formatPhone, resolveTokens } from '../pdfStyles';
 import { SectionDivider } from '../SectionDivider';
 import { PdfFooter } from '../PdfFooter';
 import { makeClassComparator } from './classOrder';
@@ -53,13 +53,13 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
       <View style={s.row}>
         <Text style={s.label}>Entry Opens</Text>
         <Text style={s.value}>
-          {show.entryOpenDate ? formatDate(show.entryOpenDate) : REQUIRED}
+          {show.entryOpenDate ? formatPremiumDate(show.entryOpenDate) : REQUIRED}
         </Text>
       </View>
       <View style={s.row}>
         <Text style={s.label}>Entry Closes</Text>
         <Text style={s.value}>
-          {show.entryCloseDate ? formatDate(show.entryCloseDate) : REQUIRED}
+          {show.entryCloseDate ? formatPremiumDate(show.entryCloseDate) : REQUIRED}
         </Text>
       </View>
 
@@ -135,7 +135,7 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
           <View style={s.row}>
             <Text style={s.label}>Date</Text>
             <Text style={s.value}>
-              {formatDate(trial.date)}
+              {formatPremiumDate(trial.date)}
               {trial.startTime ? ` at ${trial.startTime}` : ''}
             </Text>
           </View>

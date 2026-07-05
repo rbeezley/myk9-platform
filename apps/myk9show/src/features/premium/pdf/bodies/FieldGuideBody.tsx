@@ -3,7 +3,7 @@
 // long sections flow vertically and react-pdf paginates.
 import { Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../../types/premium-types';
-import { formatDate, formatPhone, type StyleTokens } from '../pdfStyles';
+import { formatPremiumDate, formatPhone, type StyleTokens } from '../pdfStyles';
 import { PdfFooter } from '../PdfFooter';
 import { makeClassComparator } from './classOrder';
 import type { RegistryId } from '@/features/registries';
@@ -169,7 +169,7 @@ export function FieldGuideBody({ data, tokens }: Props) {
           {trials.map((trial, i) => (
             <View key={i} style={{ marginBottom: 6 }}>
               <Text style={{ ...bodyStyle, fontWeight: 700, marginBottom: 2 }}>
-                {trial.name} — {formatDate(trial.date)}
+                {trial.name} — {formatPremiumDate(trial.date)}
               </Text>
               {(trial.classes?.length ?? 0) > 0 && (
                 <Text style={bodyStyle}>
@@ -197,13 +197,13 @@ export function FieldGuideBody({ data, tokens }: Props) {
           {show.entryOpenDate && (
             <View style={rowStyle}>
               <Text style={labelStyle}>Opens</Text>
-              <Text style={valueStyle}>{formatDate(show.entryOpenDate)}</Text>
+              <Text style={valueStyle}>{formatPremiumDate(show.entryOpenDate)}</Text>
             </View>
           )}
           {show.entryCloseDate && (
             <View style={rowStyle}>
               <Text style={labelStyle}>Closes</Text>
-              <Text style={valueStyle}>{formatDate(show.entryCloseDate)}</Text>
+              <Text style={valueStyle}>{formatPremiumDate(show.entryCloseDate)}</Text>
             </View>
           )}
           {(show.preEntryFee || show.dayOfFee) && (

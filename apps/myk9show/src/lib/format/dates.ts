@@ -10,10 +10,16 @@
  *   dog profile, My Shows rows): weekday compact — "Sat, Aug 1, 2026" — via
  *   {@link formatEntryDate}. Detail/confirmation headers use the long style —
  *   "Saturday, August 1, 2026" — via `formatEntryDate(date, { style: 'long' })`.
+ * - Date-only supporting text, no weekday: "August 1, 2026" via
+ *   {@link formatLongDate}, "Aug 1" via {@link formatMonthDay}, or
+ *   "Sat, Aug 1" via {@link formatWeekdayMonthDay}.
  * - Compact table/record date (e.g. a row's created/submitted date, no
  *   competition-day significance): "Jul 3, 2026" — via {@link formatShortDate}.
  * - Record date + time together (e.g. a row's created/submitted instant):
  *   "Jul 3, 2:00 PM" — via {@link formatEntryDateTime}.
+ * - Full record date + time where the year matters (printable receipts,
+ *   audit-like output): "Jul 3, 2026, 2:00 PM" — via
+ *   {@link formatRecordDateTime}.
  * - Clock times (trial start, briefing, check-in): "8:30 AM" — via
  *   {@link formatTime}, passing the trial's IANA zone from
  *   `getTrialTimezone(trial)` (`@/features/registries`).
@@ -31,8 +37,12 @@ import { formatDateRange, toLocalDate, toLocalDateOnly } from '@/utils/date-form
 
 export { toLocalDate, toLocalDateOnly };
 
-function isRenderableDate(isoStr: string): boolean {
-  return !isNaN(toLocalDate(isoStr).getTime());
+function resolveCalendarDate(value: string | Date): Date {
+  return value instanceof Date ? value : toLocalDate(value);
+}
+
+function isRenderableCalendarDate(value: string | Date): boolean {
+  return !isNaN(resolveCalendarDate(value).getTime());
 }
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
@@ -50,13 +60,10 @@ function resolveInstant(value: string | Date): Date {
 }
 
 /** Compact show date range: "Aug 1–3, 2026" (single day: "Aug 1, 2026"). */
-export function formatShowDateRange(
-  startDate?: string | null,
-  endDate?: string | null
-): string {
+export function formatShowDateRange(startDate?: string | null, endDate?: string | null): string {
   if (!startDate) return '';
   const end = endDate || startDate;
-  if (!isRenderableDate(startDate) || !isRenderableDate(end)) return '';
+  if (!isRenderableCalendarDate(startDate) || !isRenderableCalendarDate(end)) return '';
   return formatDateRange(startDate, end, 'short', true);
 }
 
@@ -67,11 +74,11 @@ export type EntryDateStyle = 'weekday' | 'long';
  * "Saturday, August 1, 2026" (long — detail/confirmation headers).
  */
 export function formatEntryDate(
-  date?: string | null,
+  date?: string | Date | null,
   opts: { style?: EntryDateStyle } = {}
 ): string {
-  if (!date || !isRenderableDate(date)) return '';
-  const parsed = toLocalDate(date);
+  if (!date || !isRenderableCalendarDate(date)) return '';
+  const parsed = resolveCalendarDate(date);
   const style = opts.style ?? 'weekday';
   return parsed.toLocaleDateString(
     'en-US',
@@ -79,6 +86,35 @@ export function formatEntryDate(
       ? { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }
       : { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }
   );
+}
+
+/** A date-only value without weekday: "August 1, 2026". */
+export function formatLongDate(value?: string | Date | null): string {
+  if (!value || !isRenderableCalendarDate(value)) return '';
+  return resolveCalendarDate(value).toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+/** A tight date label without year: "Aug 1". */
+export function formatMonthDay(value?: string | Date | null): string {
+  if (!value || !isRenderableCalendarDate(value)) return '';
+  return resolveCalendarDate(value).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+/** A tight date label with weekday but no year: "Sat, Aug 1". */
+export function formatWeekdayMonthDay(value?: string | Date | null): string {
+  if (!value || !isRenderableCalendarDate(value)) return '';
+  return resolveCalendarDate(value).toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
 }
 
 /**
@@ -110,6 +146,26 @@ export function formatEntryDateTime(value?: string | Date | null): string {
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
+    })
+    .replace(/\u202f/g, ' ');
+}
+
+/**
+ * Full record date + time where the year matters (printable receipts,
+ * audit-like output): "Jul 3, 2026, 2:00 PM".
+ */
+export function formatRecordDateTime(value?: string | Date | null): string {
+  if (!value) return '';
+  const instant = resolveInstant(value);
+  if (isNaN(instant.getTime())) return '';
+  return instant
+    .toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
     })
     .replace(/\u202f/g, ' ');
 }

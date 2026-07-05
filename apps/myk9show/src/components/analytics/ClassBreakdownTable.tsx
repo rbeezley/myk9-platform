@@ -1,16 +1,11 @@
 import { ListChecks } from 'lucide-react';
 import { Card } from '@/components/ui/card';
+import { formatMonthDay } from '@/lib/format/dates';
 import { msToDisplay } from '@/lib/timeUtils';
 import type { ClassBreakdownEntry } from './analytics-utils';
 
 interface ClassBreakdownTableProps {
   classes: ClassBreakdownEntry[];
-}
-
-function formatDate(isoDate: string): string {
-  if (!isoDate) return '';
-  const d = new Date(isoDate + 'T00:00:00');
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 function formatTime(seconds: number | null): string {
@@ -43,7 +38,7 @@ export function ClassBreakdownTable({ classes }: ClassBreakdownTableProps) {
             {classes.map(cls => (
               <tr key={cls.classId} className="border-b last:border-0 hover:bg-muted/30">
                 <td className="px-4 py-2 whitespace-nowrap">
-                  <span className="text-muted-foreground">{formatDate(cls.trialDate)}</span>
+                  <span className="text-muted-foreground">{formatMonthDay(cls.trialDate)}</span>
                   {cls.trialNumber && (
                     <span className="ml-1.5 text-xs text-muted-foreground/70">
                       #{cls.trialNumber}

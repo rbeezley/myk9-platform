@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
+import { formatEntryDateTime } from '@/lib/format/dates';
 import {
   Search,
   ArrowUpCircle,
@@ -256,15 +257,6 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
   const getAvailableTargetClasses = (request: MoveUpRequest) =>
     getAvailableMoveUpTargets(classes, request.class_id, registryId);
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -379,7 +371,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
                     {/* Request Time */}
                     <div className="text-sm text-muted-foreground flex items-center gap-1">
                       <Clock className="h-4 w-4" />
-                      {request.created_at ? formatDate(request.created_at) : 'N/A'}
+                      {request.created_at ? formatEntryDateTime(request.created_at) : 'N/A'}
                     </div>
 
                     {/* Actions */}

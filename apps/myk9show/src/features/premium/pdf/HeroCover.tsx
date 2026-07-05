@@ -1,4 +1,4 @@
-import { resolveTokens, buildMonogram, formatDate } from './pdfStyles';
+import { resolveTokens, buildMonogram, formatPremiumDate } from './pdfStyles';
 import type { GeneratedPremium } from '../../../types/premium-types';
 import type { CoverContext } from './covers/coverContext';
 import { renderCenteredCover } from './covers/CenteredCover';
@@ -27,8 +27,8 @@ export function HeroCover({ data, inkSaver = false }: HeroCoverProps) {
   const t = resolveTokens(data.style, { inkSaver });
   const dateRange =
     data.show.endDate && data.show.endDate !== data.show.startDate
-      ? `${formatDate(data.show.startDate)} – ${formatDate(data.show.endDate)}`
-      : formatDate(data.show.startDate);
+      ? `${formatPremiumDate(data.show.startDate)} – ${formatPremiumDate(data.show.endDate)}`
+      : formatPremiumDate(data.show.startDate);
   const club = data.club.name ?? 'Host Club';
   const venue = data.show.venue ?? '';
   const org = data.org;

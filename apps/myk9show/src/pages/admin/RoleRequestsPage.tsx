@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/common/PageHeader';
 import { PageShell } from '@/components/common/PageShell';
 import { useClubsQuery } from '@/hooks/queries/useClubsDatabase';
+import { formatShortDate } from '@/lib/format/dates';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 import {
@@ -35,14 +36,6 @@ function StatusBadge({ status }: { status: RoleRequestStatus }) {
       {presentation.label}
     </span>
   );
-}
-
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
 }
 
 export default function RoleRequestsPage() {
@@ -212,7 +205,7 @@ export default function RoleRequestsPage() {
                     </div>
                     <div className="mt-1 text-sm text-muted-foreground">
                       {request.requesterEmail ?? 'No email'} · Requested{' '}
-                      {formatDate(request.createdAt)}
+                      {formatShortDate(request.createdAt)}
                       {request.clubName ? ` · ${request.clubName}` : ''}
                     </div>
                     {request.requesterNote && (
@@ -224,13 +217,13 @@ export default function RoleRequestsPage() {
                   {request.status === 'approved' && (
                     <div className="inline-flex items-center gap-2 text-sm text-success">
                       <CheckCircle2 className="h-4 w-4" />
-                      Approved {request.reviewedAt ? formatDate(request.reviewedAt) : ''}
+                      Approved {request.reviewedAt ? formatShortDate(request.reviewedAt) : ''}
                     </div>
                   )}
                   {request.status === 'denied' && (
                     <div className="inline-flex items-center gap-2 text-sm text-destructive">
                       <XCircle className="h-4 w-4" />
-                      Denied {request.reviewedAt ? formatDate(request.reviewedAt) : ''}
+                      Denied {request.reviewedAt ? formatShortDate(request.reviewedAt) : ''}
                     </div>
                   )}
                   {request.status === 'pending' && (

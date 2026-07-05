@@ -1,3 +1,4 @@
+import type { AskQGuideAsset } from './documentContext.ts';
 import type { ToolDefinition } from './types.ts';
 
 export const SUPPORT_HANDOFF_MESSAGE = 'I need to get a person to help with that.';
@@ -8,6 +9,51 @@ export const SUPPORT_PAYMENT_REFUND_PATTERN_SOURCE =
   String.raw`\b(payment|payments|paid|paying|charge|charged|charges|refund|refunded|refunds|stripe|checkout|credit card|debit card|card declined|invoice|billing|payout|withdrawal|transaction|receipt)\b`;
 
 const PAYMENT_REFUND_PATTERN = new RegExp(SUPPORT_PAYMENT_REFUND_PATTERN_SOURCE, 'i');
+const MIN_GUIDE_EVIDENCE_MATCHES = 2;
+const MAX_GUIDE_EVIDENCE_SPAN = 4;
+const DESTRUCTIVE_ACTION_TERMS = new Set(['delete', 'remove']);
+const DESTRUCTIVE_ACTION_TARGETS = new Set(['access', 'entry', 'member']);
+const SUPPORT_TERM_NORMALIZATIONS: Record<string, string> = {
+  adding: 'add',
+  creates: 'create',
+  creating: 'create',
+  deleted: 'delete',
+  deletes: 'delete',
+  managing: 'manage',
+  removing: 'remove',
+};
+const SUPPORT_DOMAIN_TERMS = new Set([
+  'add',
+  'armband',
+  'catalog',
+  'checkin',
+  'class',
+  'classes',
+  'communication',
+  'create',
+  'dog',
+  'dogs',
+  'entry',
+  'entries',
+  'exhibitor',
+  'judge',
+  'mail',
+  'manage',
+  'message',
+  'premium',
+  'report',
+  'reports',
+  'result',
+  'results',
+  'schedule',
+  'score',
+  'scoring',
+  'secretary',
+  'send',
+  'show',
+  'steward',
+  'waitlist',
+]);
 
 export type SupportEscalationReason = 'payment_or_refund' | 'low_confidence';
 
@@ -15,6 +61,13 @@ export interface SupportEscalationPayload {
   escalate: true;
   reason: SupportEscalationReason;
   message: string;
+}
+
+export interface SupportGuideEvidence {
+  id: string;
+  title: string;
+  audience: string;
+  matchedTerms: string[];
 }
 
 export function isSupportModeEnabled(value: unknown): boolean {
@@ -55,9 +108,67 @@ export interface ParsedSupportAnswer {
   escalation: SupportEscalationPayload | null;
 }
 
-export function parseSupportAnswer(answerText: string): ParsedSupportAnswer {
+export function findSupportGuideEvidence(
+  message: string,
+  guides: AskQGuideAsset[]
+): SupportGuideEvidence[] {
+  const terms = tokenizeSupportQuery(message);
+  if (terms.length === 0) return [];
+
+  return guides
+    .map(guide => {
+      const matchedTerms = findCloseGuideMatchedTerms(terms, tokenizeGuideText(guide));
+      return {
+        id: guide.id,
+        title: guide.title,
+        audience: guide.audience,
+        matchedTerms,
+      };
+    })
+    .filter(
+      evidence =>
+        evidence.matchedTerms.length >= MIN_GUIDE_EVIDENCE_MATCHES &&
+        evidence.matchedTerms.some(term => SUPPORT_DOMAIN_TERMS.has(term))
+    )
+    .sort((a, b) => b.matchedTerms.length - a.matchedTerms.length)
+    .slice(0, 3);
+}
+
+function findCloseGuideMatchedTerms(queryTerms: string[], guideTerms: string[]): string[] {
+  let bestMatchedTerms: string[] = [];
+  for (let start = 0; start < guideTerms.length; start += 1) {
+    const windowTerms = new Set(guideTerms.slice(start, start + MAX_GUIDE_EVIDENCE_SPAN + 1));
+    const matchedTerms = queryTerms.filter(term => windowTerms.has(term));
+    if (
+      matchedTerms.length >= MIN_GUIDE_EVIDENCE_MATCHES &&
+      matchedTerms.some(term => SUPPORT_DOMAIN_TERMS.has(term)) &&
+      hasSupportedDestructiveIntent(queryTerms, matchedTerms)
+    ) {
+      if (matchedTerms.length > bestMatchedTerms.length) {
+        bestMatchedTerms = matchedTerms;
+      }
+    }
+  }
+
+  return bestMatchedTerms;
+}
+
+function hasSupportedDestructiveIntent(queryTerms: string[], matchedTerms: string[]): boolean {
+  const destructiveTerms = queryTerms.filter(term => DESTRUCTIVE_ACTION_TERMS.has(term));
+  if (destructiveTerms.length === 0) return true;
+
+  return (
+    destructiveTerms.some(term => matchedTerms.includes(term)) &&
+    matchedTerms.some(term => DESTRUCTIVE_ACTION_TARGETS.has(term))
+  );
+}
+
+export function parseSupportAnswer(
+  answerText: string,
+  hasGuideEvidence = false
+): ParsedSupportAnswer {
   const trimmed = answerText.trim();
-  if (trimmed.startsWith(SUPPORT_ANSWER_MARKER)) {
+  if (hasGuideEvidence && trimmed.startsWith(SUPPORT_ANSWER_MARKER)) {
     const stripped = trimmed.slice(SUPPORT_ANSWER_MARKER.length).trim();
     if (stripped) return { answerText: stripped, escalation: null };
   }
@@ -68,9 +179,16 @@ export function parseSupportAnswer(answerText: string): ParsedSupportAnswer {
   };
 }
 
-export function getSupportEscalationForAnswer(answerText: string): SupportEscalationPayload | null {
+export function getSupportEscalationForAnswer(
+  answerText: string,
+  hasGuideEvidence = false
+): SupportEscalationPayload | null {
   const trimmed = answerText.trim();
-  if (trimmed.startsWith(SUPPORT_ANSWER_MARKER) && trimmed.slice(SUPPORT_ANSWER_MARKER.length).trim()) {
+  if (
+    hasGuideEvidence &&
+    trimmed.startsWith(SUPPORT_ANSWER_MARKER) &&
+    trimmed.slice(SUPPORT_ANSWER_MARKER.length).trim()
+  ) {
     return null;
   }
 
@@ -79,4 +197,74 @@ export function getSupportEscalationForAnswer(answerText: string): SupportEscala
     reason: 'low_confidence',
     message: 'I could not find a verified guide answer for that question.',
   };
+}
+
+function tokenizeSupportQuery(message: string): string[] {
+  const stopWords = new Set([
+    'about',
+    'another',
+    'are',
+    'could',
+    'can',
+    'did',
+    'does',
+    'doing',
+    'done',
+    'get',
+    'gets',
+    'getting',
+    'got',
+    'find',
+    'from',
+    'help',
+    'how',
+    'into',
+    'need',
+    'please',
+    'support',
+    'supports',
+    'supported',
+    'supporting',
+    'that',
+    'their',
+    'there',
+    'this',
+    'what',
+    'when',
+    'where',
+    'which',
+    'with',
+    'would',
+    'you',
+    'your',
+  ]);
+
+  return [
+    ...new Set(
+      `${message} ${getSupportQueryAliases(message).join(' ')}`
+        .toLowerCase()
+        .match(/[a-z0-9]+/g)
+        ?.map(normalizeSupportTerm)
+        .filter(term => term.length >= 3 && !stopWords.has(term)) ?? []
+    ),
+  ];
+}
+
+function getSupportQueryAliases(message: string): string[] {
+  const normalized = message.toLowerCase().replace(/[^a-z0-9]+/g, ' ');
+  if (/\bcheck\s+in\b/.test(normalized)) return ['check', 'exhibitor'];
+  return [];
+}
+
+function tokenizeGuideText(guide: AskQGuideAsset): string[] {
+  return (
+    `${guide.title} ${guide.audience} ${guide.content}`
+      .toLowerCase()
+      .match(/[a-z0-9]+/g)
+      ?.map(normalizeSupportTerm) ?? []
+  );
+}
+
+function normalizeSupportTerm(term: string): string {
+  return SUPPORT_TERM_NORMALIZATIONS[term] ?? term;
 }

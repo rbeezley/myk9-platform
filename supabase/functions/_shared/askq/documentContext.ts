@@ -57,8 +57,10 @@ No rulebook was selected. If the user asks an official rules question, ask which
 
 export function getRulebooksForDocumentContext(
   allRulebooks: AskQRulebookAsset[],
-  showRulebooks: AskQRulebookAsset[]
+  showRulebooks: AskQRulebookAsset[],
+  hasVerifiedShowContext: boolean
 ): AskQRulebookAsset[] {
+  if (hasVerifiedShowContext) return showRulebooks;
   return showRulebooks.length > 0 ? showRulebooks : allRulebooks;
 }
 

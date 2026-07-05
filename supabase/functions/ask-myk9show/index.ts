@@ -18,6 +18,8 @@ import {
 } from '../_shared/askq/documentContext.ts';
 import {
   buildSupportModePrompt,
+  findSupportGuideEvidence,
+  getSupportEscalationForAnswer,
   getSupportEscalationForQuestion,
   getSupportModeTools,
   isSupportModeEnabled,
@@ -186,6 +188,7 @@ Deno.serve(async (req: Request) => {
 
     const remaining = limit - used - 1;
     const supportQuestionEscalation = supportMode ? getSupportEscalationForQuestion(message) : null;
+    const supportGuideEvidence = supportMode ? findSupportGuideEvidence(message, ASKQ_GUIDES) : [];
 
     if (supportQuestionEscalation) {
       const responseTimeMs = Date.now() - startTime;
@@ -200,6 +203,31 @@ Deno.serve(async (req: Request) => {
       }
 
       return buildSupportEscalationStream(supportQuestionEscalation, {
+        remaining,
+        limit,
+        responseTimeMs,
+        queryLogId: logRow?.id ?? null,
+      });
+    }
+
+    if (supportMode && supportGuideEvidence.length === 0) {
+      const responseTimeMs = Date.now() - startTime;
+      if (logRow?.id) {
+        await serviceClient
+          .from('chatbot_query_log')
+          .update({
+            tools_used: ['support_escalation'],
+            response_time_ms: responseTimeMs,
+          })
+          .eq('id', logRow.id);
+      }
+
+      const lowConfidenceEscalation = getSupportEscalationForAnswer('');
+      if (!lowConfidenceEscalation) {
+        return jsonResponse({ error: 'Internal server error' }, 500);
+      }
+
+      return buildSupportEscalationStream(lowConfidenceEscalation, {
         remaining,
         limit,
         responseTimeMs,
@@ -272,7 +300,11 @@ Deno.serve(async (req: Request) => {
 
     const documentContext = buildDocumentContext({
       guides: ASKQ_GUIDES,
-      rulebooks: getRulebooksForDocumentContext(ASKQ_RULEBOOKS, showRulebooks),
+      rulebooks: getRulebooksForDocumentContext(
+        ASKQ_RULEBOOKS,
+        showRulebooks,
+        verifiedShowId !== null
+      ),
     });
     const baseSystemPrompt = buildMyK9ShowPrompt(userContext, documentContext);
     const systemPrompt = supportMode ? buildSupportModePrompt(baseSystemPrompt) : baseSystemPrompt;
@@ -281,6 +313,9 @@ Deno.serve(async (req: Request) => {
     const messages = [{ role: 'user' as const, content: message }];
     const toolsUsed: string[] = [];
     const sources: ChatResponse['sources'] = {};
+    if (supportGuideEvidence.length > 0) {
+      sources.guide = supportGuideEvidence;
+    }
 
     let result = await callClaude(messages, anthropicKey, activeTools, systemPrompt);
     let iterations = 0;
@@ -321,7 +356,9 @@ Deno.serve(async (req: Request) => {
 
     const textBlock = result.content.find(b => b.type === 'text');
     const fullText = textBlock?.text ?? '';
-    const parsedSupportAnswer = supportMode ? parseSupportAnswer(fullText) : null;
+    const parsedSupportAnswer = supportMode
+      ? parseSupportAnswer(fullText, supportGuideEvidence.length > 0)
+      : null;
     const responseText = parsedSupportAnswer?.answerText ?? fullText;
     const responseTimeMs = Date.now() - startTime;
     // Update the provisional log row with actual data

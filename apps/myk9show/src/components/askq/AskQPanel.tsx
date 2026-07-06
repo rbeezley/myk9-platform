@@ -75,7 +75,8 @@ export function AskQPanel() {
         return;
       }
 
-      askq.submitQuery(query, buildSubmitOptions(mode ?? undefined));
+      const questionMode = mode === 'rules' || mode === 'show-data' ? mode : undefined;
+      askq.submitQuery(query, buildSubmitOptions(questionMode));
       clearSuggestedPrompt();
     },
     [activeMode, askq, buildSubmitOptions, clearSuggestedPrompt, mode, support]

@@ -26,6 +26,8 @@
     "qa:code-quality-ratchet:test": "vitest run scripts/qa/code-quality-ratchet.test.ts",
     "qa:go-live:phase1": "tsx scripts/go-live/phase-1-platform-deploy.ts",
     "qa:go-live:phase1:test": "vitest run scripts/go-live/phase-1-platform-deploy.test.ts",
+    "qa:go-live:phase2": "tsx scripts/go-live/phase-2-data-access.ts",
+    "qa:go-live:phase2:test": "vitest run scripts/go-live/phase-2-data-access.test.ts",
     "qa:rls-smoke": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/rls-smoke/rls-recursion-smoke.ts",
     "qa:rls-smoke:test": "vitest run scripts/qa/rls-smoke/*.test.ts",
     "test:mutation": "tsx scripts/qa/mutation/run-mutation-targets.ts",

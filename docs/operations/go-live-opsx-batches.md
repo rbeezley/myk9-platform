@@ -31,6 +31,11 @@ Overnight/autonomous work must pause for approval before:
 When an approval gate blocks one item, continue with independent items in the same batch if safe.
 Document the blocked command, evidence gathered so far, and exact approval needed.
 
+An approval gate pauses only that action. It must not stop the overnight run while any independent
+agent-owned Phase 0-4 work remains. Record the blocked gate in the OpenSpec tasks, PR body, and
+morning checklist, then advance to the next independent task. If the current batch is exhausted,
+continue with the next earliest batch that has safe agent-owned work.
+
 ## Batch Queue
 
 ### B0 - Phase 0 Engineering Blockers
@@ -55,6 +60,40 @@ Ready for morning review when:
 - implementation PRs are open with test plans and approval-gated commands listed
 - migration/function dry-runs are attached when relevant
 - runbook items are marked complete only when merged, deployed/pushed, and verified
+
+Current B0 run — 2026-07-06:
+
+- OpenSpec change `go-live-phase-0-engineering-blockers` created and validated.
+- MP-03 duplicate payment-link delivery hardening prepared with assertion-first tests.
+- MP-04 mode-scoped Stripe customer/account migration and function changes prepared.
+- Focused tests: `pnpm vitest run supabase/functions/_shared/entryPaymentReconcile.test.ts
+supabase/functions/_shared/entryPaymentUpdateReconcile.test.ts
+supabase/functions/_shared/stripeMode.test.ts
+supabase/functions/_shared/connectAccountMapper.test.ts
+src/test/database/stripeWebhookEntryPaymentRequest.source.test.ts
+src/test/database/stripeLivemodeScoping.source.test.ts` — 38 passed.
+- Typecheck: `pnpm typecheck` — passed.
+- Migration dry-run: `supabase db push --dry-run` would push only
+  `20260706013906_stripe_livemode_scoped_ids.sql`.
+- Edge-function inventory: 29 matched, deployed-only `send-notification`, repo-only
+  `push-trigger-support-message`.
+- Byte-level runtime diff downloaded to `/private/tmp/myk9-edge-functions-20260706`:
+  repo-ahead `ask-myk9show`, `send-email`, and the expected B0 Stripe function changes
+  (`stripe-checkout`, `stripe-connect-onboard`, `stripe-customer-portal`, `stripe-webhook`,
+  `cron-process-payouts`).
+
+Morning approval checklist:
+
+- Review and merge the B0 implementation PR after CI/review passes.
+- After merge, approve real `supabase db push` for
+  `20260706013906_stripe_livemode_scoped_ids.sql`.
+- After the DB push, approve redeploying the affected app-scoped Stripe functions with
+  `--workdir apps/myk9show --no-verify-jwt`: `stripe-checkout`, `stripe-connect-onboard`,
+  `stripe-customer-portal`, `stripe-webhook`, `cron-process-payouts`.
+- Decide recovery/retirement for deployed-only `send-notification` before any blind function batch.
+- Decide deploy/smoke timing for repo-only `push-trigger-support-message` and repo-ahead root
+  functions `ask-myk9show` and `send-email`.
+- Keep Go Live Runbook 0.4/0.5/0.7 unchecked until deploy/push/staging evidence is recorded.
 
 ### B1 - Phase 1 Platform And Deploy Pipeline
 
@@ -126,6 +165,31 @@ Ready for morning review when:
 - missing operator inputs are explicit
 - seed/access checks have runnable commands
 - any generated migration has a dry-run result
+
+Current run, 2026-07-06:
+
+- OpenSpec change `go-live-phase-2-data-access` created.
+- Implementation PR: #1172.
+- Added source/read-only verifier command: `pnpm qa:go-live:phase2 --allow-blocked`.
+- Added focused test command: `pnpm qa:go-live:phase2:test`.
+- Added read-only DB evidence SQL: `scripts/go-live/phase-2-data-access.sql`.
+- Local verifier evidence:
+  - `fail judge_csv_data_rows: 0 judge data rows after header`
+  - `ok judge_importer_present: scripts/import-judges.ts`
+  - `ok seed_demo_phase2_tokens: seed-demo.sql references required Phase 2 demo data`
+  - `ok stale_anon_cleanup_source: cleanup_stale_ringside_anon_users migration source check`
+- No shared-system mutation was run. No judge preload migration was generated because real judge
+  exports are still missing.
+
+Morning/operator checklist:
+
+- Provide real AKC + UKC judge exports before asking the agent to generate the preload migration.
+- Run staging DB evidence with a read-capable URL:
+  `pnpm qa:go-live:phase2 --db-url "$DATABASE_URL"`.
+- If any seed/access row fails, approve the appropriate repair action, such as rerunning
+  `supabase/seed-demo.sql`.
+- Prove Supabase anonymous sign-ins are ON in staging/prod before cold passcode walks.
+- Run cold incognito judge (`jh3k9`) and steward (`s7m2p`) walks after Phase 1 gates are green.
 
 ### B3 - Phase 3 Stripe Live Cutover
 

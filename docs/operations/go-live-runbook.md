@@ -123,6 +123,11 @@ auto-deploy still ON before turning it off.
       _Verify:_ a push to `main` no longer auto-deploys; only the workflow does.
       _Rollback:_ revert that commit.
 - [ ] **d.** Follow-up (non-gating): gate the `apps/docs` guides Vercel project the same way.
+      _Audit 2026-07-06:_ `pnpm qa:go-live:phase1` verifies the production deploy workflow
+      source is staged, CI-gated, constrained to successful `main` push CI runs, gated by
+      `PRODUCTION_DEPLOY_ENABLED`, and wired to Vercel secrets. The same verifier reports
+      `warn vercel_git_auto_deploy_disable` because `git.deploymentEnabled.main=false` is
+      intentionally not present until one CI-gated production deploy is validated.
 
 ### 1.2 Auth email cutover (Resend hook + Custom SMTP rate limit)
 
@@ -143,6 +148,9 @@ caps auth emails at ~2/hour — a launch-day signup wall.
       _Rollback:_ restore from the config backup JSON.
       _Audit 2026-07-05:_ still open; `supabase-auth-email.md` still documents the Custom
       SMTP slot as empty and the GoTrue cap as active until this patch is applied.
+      _Audit 2026-07-06:_ `pnpm qa:go-live:phase1` verifies the runbook still documents the
+      Management API PATCH path with Resend SMTP fields and `rate_limit_email_sent: 100`;
+      no Management API write has been run in this batch.
 
 ### 1.3 Kill-switch posture check
 
@@ -155,6 +163,8 @@ as no-redeploy safety valves: `showPresence`, `showLiveSync`, `showEditAwareness
       either unset or `true` in Vercel.
       _Audit 2026-07-05:_ code defaults are `true` in
       `apps/myk9show/src/config/features.ts`; production Vercel env still needs dashboard proof.
+      _Audit 2026-07-06:_ `pnpm qa:go-live:phase1` re-verifies all four source defaults are
+      `true`; production Vercel env proof remains open.
 - [ ] _Rehearse the flip once:_ set one var to `false` in Vercel env → redeploy (~5 min) → hard
       refresh → feature silently off, fallback behavior active → restore. This is the launch-day
       rollback for realtime misbehavior (see Rollback appendix).

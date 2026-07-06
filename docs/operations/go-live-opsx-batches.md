@@ -117,6 +117,32 @@ Ready for morning review when:
 - operator dashboard steps are checklist-ready
 - rollback steps are linked and current
 
+Current run, 2026-07-06:
+
+- OpenSpec change `go-live-phase-1-platform-deploy` created.
+- Implementation PR: #1173.
+- Added source verifier command: `pnpm qa:go-live:phase1`.
+- Added focused test command: `pnpm qa:go-live:phase1:test`.
+- Local verifier evidence:
+  - `ok deploy_workflow_ci_gate: CI-gated production deploy workflow source is staged`
+  - `warn vercel_git_auto_deploy_disable: not yet set; expected until one CI-gated production deploy is validated`
+  - `ok auth_email_management_patch_runbook: Management API PATCH procedure is documented`
+  - `ok show_day_kill_switch_source_defaults: all four show-day realtime source defaults are true`
+  - `ok send_auth_email_hook_source: hook source references signature and Resend secrets`
+- No GitHub, Vercel, or Supabase shared-system mutation was run.
+
+Morning/operator checklist:
+
+- Add GitHub Actions secrets: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`.
+- Set repo variable `PRODUCTION_DEPLOY_ENABLED=true`, then validate one successful post-CI
+  Deploy Production run while Vercel Git auto-deploy remains ON.
+- Only after that validation, land the `apps/myk9show/vercel.json` config-as-code change
+  setting `git.deploymentEnabled.main=false`.
+- Back up Supabase Auth config and apply the Management API PATCH for Resend Custom SMTP +
+  `rate_limit_email_sent: 100`.
+- Prove production `VITE_SHOW_*` env vars are unset/true, then rehearse one false/restore
+  kill-switch flip.
+
 ### B2 - Phase 2 Data, Seeds, And Access
 
 OpenSpec change: `go-live-phase-2-data-access`

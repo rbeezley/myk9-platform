@@ -4,32 +4,40 @@
 
 > **Source:** [`docs/security-audit-2026-07-03-money-path.md`](security-audit-2026-07-03-money-path.md) (scoped red-team, 2026-07-03). 0 CRITICAL, 4 HIGH, 4 MEDIUM, 6 LOW. This plan sequences the fixes; the audit holds the evidence.
 
-> **For agentic workers:** Every phase touches Stripe / refund-amount math or an RLS/trigger money guard. Run `/codex:review` alongside `/review` before every merge. Any migration goes through `migration-auditor` before `db push`, and `db push` is confirmation-gated (shared staging DB — see CLAUDE.md "Auto Mode — shared-system writes"). Redeploy affected Stripe functions only after the schema is live. All tests are **assertion-first** — write the `toHaveBeenCalledWith` / DB-state assertion red *before* touching the implementation (see CLAUDE.md "Assertion-first for value-sensitive bugs").
+> **For agentic workers:** Every phase touches Stripe / refund-amount math or an RLS/trigger money guard. Run `/codex:review` alongside `/review` before every merge. Any migration goes through `migration-auditor` before `db push`, and `db push` is confirmation-gated (shared staging DB — see CLAUDE.md "Auto Mode — shared-system writes"). Redeploy affected Stripe functions only after the schema is live. All tests are **assertion-first** — write the `toHaveBeenCalledWith` / DB-state assertion red _before_ touching the implementation (see CLAUDE.md "Assertion-first for value-sensitive bugs").
+
+## Implementation status
+
+| Phase           | Status                                                               | Evidence                                                                                                                                                                                                                                                                           |
+| --------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 — MP-01/MP-02 | Merged + DB-pushed                                                   | PR #1165; migration `20260705200000_entries_protect_payment_status.sql`; staging `supabase db push` applied 2026-07-06.                                                                                                                                                            |
+| 2 — MP-03       | In progress in OpenSpec batch `go-live-phase-0-engineering-blockers` | Assertion-first focused tests red then green: `pnpm vitest run supabase/functions/_shared/entryPaymentReconcile.test.ts supabase/functions/_shared/entryPaymentUpdateReconcile.test.ts src/test/database/stripeWebhookEntryPaymentRequest.source.test.ts` (27 passed). PR pending. |
+| 3 — MP-04/MP-14 | Prepared in OpenSpec batch `go-live-phase-0-engineering-blockers`    | Migration `20260706013906_stripe_livemode_scoped_ids.sql`; focused MP-03/MP-04 tests green (38 passed); `supabase db push --dry-run` would push only this migration. Real DB push and function redeploy approval-gated.                                                            |
 
 ---
 
 ## Problem
 
-The payout *mechanism* and the *cart* payment flow are well-built and were verified clean (idempotency latch, crash recovery, atomic stamping, constant-time cron auth). Every money-loss finding concentrates in two seams the hardening never reached:
+The payout _mechanism_ and the _cart_ payment flow are well-built and were verified clean (idempotency latch, crash recovery, atomic stamping, constant-time cron auth). Every money-loss finding concentrates in two seams the hardening never reached:
 
 1. **Amount integrity feeding the payout** — the payout eligibility predicate keys on `entries.payment_status`, the one payment field with no write-guard, and `submit_show_entries` defaults every entry to `payment_method='online'`. Chained, they transfer platform money to a club for fees never collected through Stripe. **MP-01 fires in the ordinary mail-in secretary workflow.**
 2. **The payment-link path never inherited the cart path's hardening** — a duplicate `checkout.session.completed` delivery auto-refunds a legitimate charge (MP-03), and the persisted-Stripe-ID layer is mode-blind, guaranteed to re-break checkout at the test→live cutover (MP-04, the 2026-06-10 incident shape).
 
-**Root theme (guides every fix):** the codebase hardened payment *identity* fields (`entry_fee`, `payment_method`, `stripe_payment_intent_id`) against forgery but left the money-math *input* (`payment_status`) unguarded — `payoutCalc.ts:14-18` even documents knowing this. Guard the inputs the payout sums, not adjacent fields.
+**Root theme (guides every fix):** the codebase hardened payment _identity_ fields (`entry_fee`, `payment_method`, `stripe_payment_intent_id`) against forgery but left the money-math _input_ (`payment_status`) unguarded — `payoutCalc.ts:14-18` even documents knowing this. Guard the inputs the payout sums, not adjacent fields.
 
 ---
 
 ## Finding → phase map
 
-| Phase | Findings | Severity | Surface | Review gate |
-|-------|----------|----------|---------|-------------|
-| 1 | MP-01, MP-02 | HIGH×2 | migrations (RPC INSERT + payment_status trigger) | auditor + Codex + confirmation-gated push |
-| 2 | MP-03 | HIGH | `stripe-webhook` payment-link path | Codex (refund logic) |
-| 3 | MP-04, MP-14 | HIGH + LOW | migration + `stripe-checkout`/`portal`/`connect-onboard` + cron | auditor + Codex + push; **must precede live cutover** |
-| 4 | MP-06, MP-10 | MEDIUM + LOW | `stripe-webhook` `charge.refunded` allowlist | Codex |
-| 5 | MP-05, MP-07 | MEDIUM×2 | `stripe-checkout` + `stripe-webhook` link path | Codex |
-| 6 | MP-08 | MEDIUM | new `operator_alerts` table + admin surface | auditor + Codex + push |
-| 7 | MP-09, MP-11, MP-12, MP-13 | LOW×4 | refund fns + webhook + RefundAllEntriesCard | Codex |
+| Phase | Findings                   | Severity     | Surface                                                         | Review gate                                           |
+| ----- | -------------------------- | ------------ | --------------------------------------------------------------- | ----------------------------------------------------- |
+| 1     | MP-01, MP-02               | HIGH×2       | migrations (RPC INSERT + payment_status trigger)                | auditor + Codex + confirmation-gated push             |
+| 2     | MP-03                      | HIGH         | `stripe-webhook` payment-link path                              | Codex (refund logic)                                  |
+| 3     | MP-04, MP-14               | HIGH + LOW   | migration + `stripe-checkout`/`portal`/`connect-onboard` + cron | auditor + Codex + push; **must precede live cutover** |
+| 4     | MP-06, MP-10               | MEDIUM + LOW | `stripe-webhook` `charge.refunded` allowlist                    | Codex                                                 |
+| 5     | MP-05, MP-07               | MEDIUM×2     | `stripe-checkout` + `stripe-webhook` link path                  | Codex                                                 |
+| 6     | MP-08                      | MEDIUM       | new `operator_alerts` table + admin surface                     | auditor + Codex + push                                |
+| 7     | MP-09, MP-11, MP-12, MP-13 | LOW×4        | refund fns + webhook + RefundAllEntriesCard                     | Codex                                                 |
 
 Each phase = one PR. Land in order (Phase 1→2 close the routine/highest money-loss paths; Phase 3 must merge before any live-mode payout). Phases 4–7 can be batched if review bandwidth allows, but keep one PR per phase for clean revert boundaries.
 
@@ -44,24 +52,29 @@ This plan closes the **code/schema** money-path findings (MP-01…MP-14). It doe
 **Why first:** MP-01 loses money in the ordinary mail-in workflow; MP-02 is the compounding malicious/accidental flip. Together they are the only findings that silently move real platform money with no alert.
 
 ### 1a. MP-01 — persist `payment_method` in `submit_show_entries`
+
 - New migration redefining `submit_show_entries` (current def: `182_submit_entries_add_trial_id.sql`). Add `payment_method` to the `INSERT INTO public.entries (...)` column list, valued from the per-entry element (`p_payment_method` / per-entry payload). **Keep** the existing waived/`secretary_paid` authorization check (`:69`) and the `payment_status` CASE unchanged.
 - **Backfill audit (manual, before go-live):** query existing `payment_method='online'` rows with `stripe_payment_intent_id IS NULL` — these are the mislabeled desk/mail-in entries. Decide per-row whether to correct `payment_method`. Do NOT blanket-update; some may be genuinely-online-but-unpaid.
 
 ### 1b. MP-02 — guard `entries.payment_status` transitions
+
 - New migration adding a `before update` trigger on `public.entries`, `when (new.payment_status is distinct from old.payment_status)`, that **blocks a non-`service_role` writer from moving `payment_status` into `paid`/`refunded` for a `payment_method='online'` row.** Desk methods (`cash`/`check`/`waived`/`secretary_paid`) may still be marked paid by staff.
 - Mirror the `current_setting('role', true) = 'service_role'` bypass used by `20260611240000_entries_protect_payment_fields.sql`. Model the transition guard on `migration 110_restrict_payment_status_column.sql` (which does this for `registrations`, not `entries`).
 
 ### Phase 1 testing
+
 - **Assertion-first RPC test:** call `submit_show_entries` with `p_payment_method='check'`; assert the persisted row has `payment_method='check'` (red before 1a, green after).
 - **Trigger test:** as an authenticated manage-show role (not service_role), attempt `UPDATE entries SET payment_status='paid'` on an `online`/`pending` row → expect rejection; the same update on a `check` row → allowed; a service_role update (webhook path) → allowed.
 - **Regression (CRITICAL — the trigger's blast radius is live payments):** existing online cart payment (webhook `create_online_paid_entry` / paid-marking) still succeeds — the service_role bypass must not break the legitimate paid path. This test must pass before push; if it can't be proven at the RPC/webhook level, do not push.
 - `pnpm typecheck` + app `vitest` for any touched TS; migration-auditor clean.
 
 ### [ADDED] Phase 1 rollback / recovery
+
 - **Trigger (1b) is the high-risk change** — a false rejection of the service_role paid path silently halts online payment recording. Mitigation: (a) the regression test above is a hard gate; (b) the trigger is a standalone object — rollback is a one-line `DROP TRIGGER trg_entries_protect_payment_status ON public.entries;` in a follow-up migration (never edit the applied migration), which restores today's behavior exactly (payment_status simply unguarded again). (c) After push, verify on staging with a real online cart payment before considering the phase done.
 - **RPC (1a)** is a `CREATE OR REPLACE FUNCTION` — rollback = re-apply the prior definition (`182_submit_entries_add_trial_id.sql`) in a new migration. No data change, so no data rollback needed.
 
 ### [ADDED] Phase 1a backfill verification
+
 - The backfill is decision-based, not mechanical, so it needs a closing assertion. After the per-row corrections, run and record: `SELECT count(*) FROM entries WHERE payment_method='online' AND stripe_payment_intent_id IS NULL AND payment_status IN ('paid','refunded')` — every remaining row must have a documented reason (e.g. legitimately waived-then-online, or a known migration artifact). A non-zero unexplained count means mislabeled rows are still feeding `payoutCalc`; do not go live until it is zero-or-explained.
 
 ---
@@ -90,7 +103,7 @@ This plan closes the **code/schema** money-path findings (MP-01…MP-14). It doe
 
 ## Phase 4 — alert-channel integrity (MP-06 + MP-10) — MEDIUM + LOW
 
-- In `stripe-webhook/index.ts` `handleChargeRefunded`, extend the `allFromAppRefund` allowlist to recognize `r.metadata?.show_refund`. **Smart variant (do this one):** for `show_refund`-tagged refunds, `alertAdmin` only when the intent's entries are *unstamped* (`refund_amount IS NULL`) — this de-noises the ~200-false-critical flood (MP-06) **and** becomes the exact post-mortem detector for a mid-bulk process kill (MP-10), arriving via webhook so it survives the function's death.
+- In `stripe-webhook/index.ts` `handleChargeRefunded`, extend the `allFromAppRefund` allowlist to recognize `r.metadata?.show_refund`. **Smart variant (do this one):** for `show_refund`-tagged refunds, `alertAdmin` only when the intent's entries are _unstamped_ (`refund_amount IS NULL`) — this de-noises the ~200-false-critical flood (MP-06) **and** becomes the exact post-mortem detector for a mid-bulk process kill (MP-10), arriving via webhook so it survives the function's death.
 - **Assertion-first test:** a fully-stamped `show_refund` charge → no alert; an unstamped one → exactly one alert. Confirm a 200-entry bulk cancellation no longer floods.
 - Codex review. No migration.
 

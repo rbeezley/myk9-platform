@@ -56,6 +56,40 @@ Ready for morning review when:
 - migration/function dry-runs are attached when relevant
 - runbook items are marked complete only when merged, deployed/pushed, and verified
 
+Current B0 run — 2026-07-06:
+
+- OpenSpec change `go-live-phase-0-engineering-blockers` created and validated.
+- MP-03 duplicate payment-link delivery hardening prepared with assertion-first tests.
+- MP-04 mode-scoped Stripe customer/account migration and function changes prepared.
+- Focused tests: `pnpm vitest run supabase/functions/_shared/entryPaymentReconcile.test.ts
+supabase/functions/_shared/entryPaymentUpdateReconcile.test.ts
+supabase/functions/_shared/stripeMode.test.ts
+supabase/functions/_shared/connectAccountMapper.test.ts
+src/test/database/stripeWebhookEntryPaymentRequest.source.test.ts
+src/test/database/stripeLivemodeScoping.source.test.ts` — 38 passed.
+- Typecheck: `pnpm typecheck` — passed.
+- Migration dry-run: `supabase db push --dry-run` would push only
+  `20260706013906_stripe_livemode_scoped_ids.sql`.
+- Edge-function inventory: 29 matched, deployed-only `send-notification`, repo-only
+  `push-trigger-support-message`.
+- Byte-level runtime diff downloaded to `/private/tmp/myk9-edge-functions-20260706`:
+  repo-ahead `ask-myk9show`, `send-email`, and the expected B0 Stripe function changes
+  (`stripe-checkout`, `stripe-connect-onboard`, `stripe-customer-portal`, `stripe-webhook`,
+  `cron-process-payouts`).
+
+Morning approval checklist:
+
+- Review and merge the B0 implementation PR after CI/review passes.
+- After merge, approve real `supabase db push` for
+  `20260706013906_stripe_livemode_scoped_ids.sql`.
+- After the DB push, approve redeploying the affected app-scoped Stripe functions with
+  `--workdir apps/myk9show --no-verify-jwt`: `stripe-checkout`, `stripe-connect-onboard`,
+  `stripe-customer-portal`, `stripe-webhook`, `cron-process-payouts`.
+- Decide recovery/retirement for deployed-only `send-notification` before any blind function batch.
+- Decide deploy/smoke timing for repo-only `push-trigger-support-message` and repo-ahead root
+  functions `ask-myk9show` and `send-email`.
+- Keep Go Live Runbook 0.4/0.5/0.7 unchecked until deploy/push/staging evidence is recorded.
+
 ### B1 - Phase 1 Platform And Deploy Pipeline
 
 OpenSpec change: `go-live-phase-1-platform-deploy`

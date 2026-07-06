@@ -2,20 +2,23 @@ import { EXAMPLE_QUERIES, CATEGORY_LABELS, type ExampleQuery } from './askq-conf
 
 interface AskQExampleQueriesProps {
   onSelectQuery: (query: string, category: ExampleQuery['category']) => void;
+  category?: ExampleQuery['category'];
 }
 
 const CATEGORIES: ExampleQuery['category'][] = ['rules', 'show-data', 'app-help'];
 
-export function AskQExampleQueries({ onSelectQuery }: AskQExampleQueriesProps) {
+export function AskQExampleQueries({ onSelectQuery, category }: AskQExampleQueriesProps) {
+  const categories = category ? [category] : CATEGORIES;
+
   return (
     <div className="space-y-4">
-      {CATEGORIES.map(category => {
-        const queries = EXAMPLE_QUERIES.filter(q => q.category === category);
+      {categories.map(currentCategory => {
+        const queries = EXAMPLE_QUERIES.filter(q => q.category === currentCategory);
 
         return (
-          <div key={category}>
+          <div key={currentCategory}>
             <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
-              {CATEGORY_LABELS[category]}
+              {CATEGORY_LABELS[currentCategory]}
             </p>
             <div className="flex flex-wrap gap-1.5">
               {queries.length === 0 ? (

@@ -1,8 +1,14 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { sendAskQQuery, parseSSEStream, RateLimitError } from '@/services/askqService';
-import type { AskQRequest } from '@/services/askqService';
+import type { AskQQuestionMode, AskQRequest, AskQRulebookScope } from '@/services/askqService';
 
 export type AskQStatus = 'idle' | 'streaming' | 'done' | 'error' | 'rate-limited';
+
+interface SubmitAskQOptions {
+  showId?: string;
+  questionMode?: AskQQuestionMode;
+  rulebookScope?: AskQRulebookScope;
+}
 
 interface AskQState {
   status: AskQStatus;
@@ -52,7 +58,7 @@ export function useAskQ() {
   }, []);
 
   const submitQuery = useCallback(
-    async (message: string, showId?: string) => {
+    async (message: string, options: SubmitAskQOptions = {}) => {
       if (abortRef.current) {
         abortRef.current.abort();
       }
@@ -74,7 +80,12 @@ export function useAskQ() {
       }));
 
       try {
-        const request: AskQRequest = showId ? { message, showId } : { message };
+        const request: AskQRequest = {
+          message,
+          ...(options.showId ? { showId: options.showId } : {}),
+          ...(options.questionMode ? { questionMode: options.questionMode } : {}),
+          ...(options.rulebookScope ? { rulebookScope: options.rulebookScope } : {}),
+        };
         const stream = await sendAskQQuery(request, signal);
 
         let answer = '';
@@ -150,7 +161,7 @@ export function useAskQ() {
         }
       }
     },
-     
+
     []
   );
 

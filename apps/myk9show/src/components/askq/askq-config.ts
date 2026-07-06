@@ -3,9 +3,17 @@ export interface ExampleQuery {
   category: 'rules' | 'show-data' | 'app-help';
 }
 
+export type AskQPanelMode = ExampleQuery['category'];
+
+export interface RulebookScopeOption {
+  label: string;
+  organizationCode: string;
+  sportCode: string;
+}
+
 export const EXAMPLE_QUERIES: ExampleQuery[] = [
-  { text: 'What are the time limits for Excellent?', category: 'rules' },
-  { text: 'Ring size requirements for Novice', category: 'rules' },
+  { text: 'What are the AKC time limits for Excellent Containers?', category: 'rules' },
+  { text: 'What are the UKC rules for Excellent Containers?', category: 'rules' },
   { text: 'How did my dog do today?', category: 'show-data' },
   { text: 'Show me the trial schedule', category: 'show-data' },
   { text: 'What classes are running right now?', category: 'show-data' },
@@ -20,6 +28,18 @@ export const CATEGORY_LABELS: Record<ExampleQuery['category'], string> = {
   'show-data': 'Show Data',
   'app-help': 'App Help',
 };
+
+export const QUESTION_MODE_LABELS: Record<AskQPanelMode, string> = {
+  'app-help': 'App help',
+  rules: 'Rules',
+  'show-data': 'This show',
+};
+
+export const RULEBOOK_SCOPE_OPTIONS: RulebookScopeOption[] = [
+  { label: 'AKC Scent Work', organizationCode: 'AKC', sportCode: 'akc-scent-work' },
+  { label: 'UKC Nose Work', organizationCode: 'UKC', sportCode: 'ukc-nosework' },
+  { label: 'ASCA Scent Detection', organizationCode: 'ASCA', sportCode: 'asca-scent-detection' },
+];
 
 export const RATE_LIMIT_DEFAULTS = {
   free: 10,

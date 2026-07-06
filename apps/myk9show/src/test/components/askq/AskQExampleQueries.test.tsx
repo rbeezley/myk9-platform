@@ -13,7 +13,9 @@ describe('AskQExampleQueries', () => {
 
   it('renders example query chips', () => {
     render(<AskQExampleQueries onSelectQuery={vi.fn()} />);
-    expect(screen.getByText('What are the time limits for Excellent?')).toBeInTheDocument();
+    expect(
+      screen.getByText('What are the AKC time limits for Excellent Containers?')
+    ).toBeInTheDocument();
     expect(screen.getByText('How did my dog do today?')).toBeInTheDocument();
     expect(screen.getByText('How do I add a mail-in entry?')).toBeInTheDocument();
   });
@@ -31,5 +33,12 @@ describe('AskQExampleQueries', () => {
     expect(screen.queryByText('Coming soon...')).not.toBeInTheDocument();
     expect(screen.getByText('Where do I find my armband number?')).toBeInTheDocument();
     expect(screen.getByText('I need help with a payment or refund')).toBeInTheDocument();
+  });
+
+  it('can render one category for the selected mode', () => {
+    render(<AskQExampleQueries onSelectQuery={vi.fn()} category="rules" />);
+    expect(screen.getByText('Rules')).toBeInTheDocument();
+    expect(screen.queryByText('Show Data')).not.toBeInTheDocument();
+    expect(screen.queryByText('App Help')).not.toBeInTheDocument();
   });
 });

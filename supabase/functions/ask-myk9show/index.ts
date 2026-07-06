@@ -1,8 +1,10 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import type {
+  AskQQuestionMode,
   AskQShowRequest,
   ChatResponse,
   ClaudeContentBlock,
+  ToolDefinition,
   UserContext,
 } from '../_shared/askq/types.ts';
 import { TOOLS } from '../_shared/askq/toolDefinitions.ts';
@@ -13,15 +15,18 @@ import { ASKQ_GUIDES, ASKQ_RULEBOOKS } from '../_shared/askq/documentAssets.ts';
 import {
   type AskQRulebookAsset,
   buildDocumentContext,
-  getRulebooksForDocumentContext,
   selectRulebook,
 } from '../_shared/askq/documentContext.ts';
+import {
+  buildModePrompt,
+  parseAskQRouting,
+  resolveRulebookContext,
+} from '../_shared/askq/requestRouting.ts';
 import {
   buildSupportModePrompt,
   findSupportGuideEvidence,
   getSupportEscalationForAnswer,
   getSupportEscalationForQuestion,
-  getSupportModeTools,
   isSupportModeEnabled,
   parseSupportAnswer,
   type SupportEscalationPayload,
@@ -121,6 +126,12 @@ Deno.serve(async (req: Request) => {
 
     const { message, showId } = body;
     const supportMode = isSupportModeEnabled(body.supportMode);
+    const routing = parseAskQRouting(body.questionMode, body.rulebookScope, supportMode);
+    if (!routing.ok) {
+      return jsonResponse({ error: routing.error }, 400);
+    }
+    const questionMode = routing.questionMode;
+    const effectiveSupportMode = supportMode || questionMode === 'app-help';
     if (!message?.trim()) {
       return jsonResponse({ error: 'Message is required' }, 400);
     }
@@ -187,8 +198,12 @@ Deno.serve(async (req: Request) => {
       .single();
 
     const remaining = limit - used - 1;
-    const supportQuestionEscalation = supportMode ? getSupportEscalationForQuestion(message) : null;
-    const supportGuideEvidence = supportMode ? findSupportGuideEvidence(message, ASKQ_GUIDES) : [];
+    const supportQuestionEscalation = effectiveSupportMode
+      ? getSupportEscalationForQuestion(message)
+      : null;
+    const supportGuideEvidence = effectiveSupportMode
+      ? findSupportGuideEvidence(message, ASKQ_GUIDES)
+      : [];
 
     if (supportQuestionEscalation) {
       const responseTimeMs = Date.now() - startTime;
@@ -210,7 +225,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    if (supportMode && supportGuideEvidence.length === 0) {
+    if (effectiveSupportMode && supportGuideEvidence.length === 0) {
       const responseTimeMs = Date.now() - startTime;
       if (logRow?.id) {
         await serviceClient
@@ -298,17 +313,44 @@ Deno.serve(async (req: Request) => {
       showName,
     };
 
-    const documentContext = buildDocumentContext({
-      guides: ASKQ_GUIDES,
-      rulebooks: getRulebooksForDocumentContext(
-        ASKQ_RULEBOOKS,
-        showRulebooks,
-        verifiedShowId !== null
-      ),
+    const rulebookResolution = resolveRulebookContext({
+      allRulebooks: ASKQ_RULEBOOKS,
+      showRulebooks,
+      hasVerifiedShowContext: verifiedShowId !== null,
+      questionMode,
+      message,
+      rulebookScope: routing.rulebookScope,
     });
-    const baseSystemPrompt = buildMyK9ShowPrompt(userContext, documentContext);
-    const systemPrompt = supportMode ? buildSupportModePrompt(baseSystemPrompt) : baseSystemPrompt;
-    const activeTools = supportMode ? getSupportModeTools(TOOLS) : TOOLS;
+
+    if (rulebookResolution.clarification) {
+      const responseTimeMs = Date.now() - startTime;
+      if (logRow?.id) {
+        await serviceClient
+          .from('chatbot_query_log')
+          .update({
+            tools_used: [],
+            response_time_ms: responseTimeMs,
+          })
+          .eq('id', logRow.id);
+      }
+
+      return buildTextStream(rulebookResolution.clarification, {
+        remaining,
+        limit,
+        responseTimeMs,
+        queryLogId: logRow?.id ?? null,
+      });
+    }
+
+    const documentContext = buildDocumentContext({
+      guides: getDocumentGuides(questionMode),
+      rulebooks: getDocumentRulebooks(questionMode, rulebookResolution.rulebooks),
+    });
+    const baseSystemPrompt = `${buildMyK9ShowPrompt(userContext, documentContext)}${buildModePrompt(questionMode)}`;
+    const systemPrompt = effectiveSupportMode
+      ? buildSupportModePrompt(baseSystemPrompt)
+      : baseSystemPrompt;
+    const activeTools = getActiveTools(questionMode, effectiveSupportMode);
 
     const messages = [{ role: 'user' as const, content: message }];
     const toolsUsed: string[] = [];
@@ -356,7 +398,7 @@ Deno.serve(async (req: Request) => {
 
     const textBlock = result.content.find(b => b.type === 'text');
     const fullText = textBlock?.text ?? '';
-    const parsedSupportAnswer = supportMode
+    const parsedSupportAnswer = effectiveSupportMode
       ? parseSupportAnswer(fullText, supportGuideEvidence.length > 0)
       : null;
     const responseText = parsedSupportAnswer?.answerText ?? fullText;
@@ -418,6 +460,41 @@ function buildSupportEscalationStream(
     send('meta', meta);
     send('done', {});
   });
+}
+
+function buildTextStream(
+  text: string,
+  meta: { remaining: number; limit: number; responseTimeMs: number; queryLogId: string | null }
+): Response {
+  return eventStreamResponse(send => {
+    const CHUNK_SIZE = 4;
+    for (let i = 0; i < text.length; i += CHUNK_SIZE) {
+      send('token', text.slice(i, i + CHUNK_SIZE));
+    }
+    send('meta', meta);
+    send('done', {});
+  });
+}
+
+function getActiveTools(
+  questionMode: AskQQuestionMode | null,
+  effectiveSupportMode: boolean
+): ToolDefinition[] {
+  if (effectiveSupportMode || questionMode === 'rules') return [];
+  return TOOLS;
+}
+
+function getDocumentGuides(questionMode: AskQQuestionMode | null) {
+  if (questionMode === 'rules' || questionMode === 'show-data') return [];
+  return ASKQ_GUIDES;
+}
+
+function getDocumentRulebooks(
+  questionMode: AskQQuestionMode | null,
+  rulebooks: AskQRulebookAsset[]
+): AskQRulebookAsset[] {
+  if (questionMode === 'app-help' || questionMode === 'show-data') return [];
+  return rulebooks;
 }
 
 function selectUniqueRulebooksForTrials(

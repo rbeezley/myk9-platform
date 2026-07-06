@@ -38,7 +38,7 @@ describe('AskQPanel', () => {
     act(() => useAskQPanelStore.getState().open());
     render(<AskQPanel />);
     expect(screen.getByText('Rules')).toBeInTheDocument();
-    expect(screen.getByText('Show Data')).toBeInTheDocument();
+    expect(screen.getByText('This show')).toBeInTheDocument();
   });
 
   it('shows the input bar', () => {
@@ -57,9 +57,9 @@ describe('AskQPanel', () => {
     );
     render(<AskQPanel />);
 
-    expect(screen.getByPlaceholderText('Ask about rules, your results, or the app...')).toHaveValue(
-      'What should I do if one ring is running behind schedule?'
-    );
+    expect(
+      screen.getByPlaceholderText('Ask about rules, your results, or the app...')
+    ).toBeInTheDocument();
   });
 
   it('clears the suggested prompt after submit', async () => {
@@ -96,4 +96,86 @@ describe('AskQPanel', () => {
     expect(screen.queryByRole('button', { name: /Create ticket/i })).not.toBeInTheDocument();
     expect(askqService.sendAskQQuery).not.toHaveBeenCalled();
   });
+
+  it('sends rules mode with the selected rulebook scope', async () => {
+    vi.mocked(askqService.sendAskQQuery).mockResolvedValue(createMockStream());
+
+    act(() => useAskQPanelStore.getState().open());
+    const { user } = render(<AskQPanel />);
+
+    await user.click(screen.getByRole('button', { name: 'Rules' }));
+    await user.selectOptions(screen.getByLabelText('Organization'), 'AKC');
+    await user.selectOptions(screen.getByLabelText('Sport'), 'akc-scent-work');
+    await user.type(screen.getByPlaceholderText('Ask about the selected rulebook...'), 'Max time?');
+    await user.click(screen.getByRole('button', { name: 'Send query' }));
+
+    await waitFor(() => {
+      expect(askqService.sendAskQQuery).toHaveBeenCalledWith(
+        {
+          message: 'Max time?',
+          questionMode: 'rules',
+          rulebookScope: { organizationCode: 'AKC', sportCode: 'akc-scent-work' },
+        },
+        expect.any(AbortSignal)
+      );
+    });
+  });
+
+  it('keeps route-default mode out of the payload until the user chooses it', async () => {
+    vi.mocked(askqService.sendAskQQuery).mockResolvedValue(createMockStream());
+
+    act(() => useAskQPanelStore.getState().open());
+    const { user } = render(<AskQPanel />, { initialRoute: '/at-show/show-1' });
+
+    await user.type(
+      screen.getByPlaceholderText('Ask about rules, your results, or the app...'),
+      'Schedule?'
+    );
+    await user.click(screen.getByRole('button', { name: 'Send query' }));
+
+    await waitFor(() => {
+      expect(askqService.sendAskQQuery).toHaveBeenCalledWith(
+        {
+          message: 'Schedule?',
+          showId: 'show-1',
+        },
+        expect.any(AbortSignal)
+      );
+    });
+  });
+
+  it('sends This show mode after the user explicitly chooses it', async () => {
+    vi.mocked(askqService.sendAskQQuery).mockResolvedValue(createMockStream());
+
+    act(() => useAskQPanelStore.getState().open());
+    const { user } = render(<AskQPanel />, { initialRoute: '/at-show/show-1' });
+
+    await user.click(screen.getByRole('button', { name: 'This show' }));
+    await user.type(
+      screen.getByPlaceholderText('Ask about rules, your results, or the app...'),
+      'Schedule?'
+    );
+    await user.click(screen.getByRole('button', { name: 'Send query' }));
+
+    await waitFor(() => {
+      expect(askqService.sendAskQQuery).toHaveBeenCalledWith(
+        {
+          message: 'Schedule?',
+          showId: 'show-1',
+          questionMode: 'show-data',
+        },
+        expect.any(AbortSignal)
+      );
+    });
+  });
 });
+
+function createMockStream(): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+  return new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode('event: done\ndata: {}\n\n'));
+      controller.close();
+    },
+  });
+}

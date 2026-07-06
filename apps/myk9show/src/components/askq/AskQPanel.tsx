@@ -12,12 +12,16 @@ import { AskQInput } from './AskQInput';
 import { AskQAnswer } from './AskQAnswer';
 import { AskQSources } from './AskQSources';
 import { AskQFeedback } from './AskQFeedback';
-import { RATE_LIMIT_DEFAULTS, type ExampleQuery } from './askq-config';
+import {
+  QUESTION_MODE_LABELS,
+  RATE_LIMIT_DEFAULTS,
+  RULEBOOK_SCOPE_OPTIONS,
+  type AskQPanelMode,
+  type ExampleQuery,
+} from './askq-config';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { SupportTicketThread } from '@/features/support/SupportTicketThread';
 import { useSupportHelp } from '@/features/support/useSupportHelp';
-
-type AskQPanelMode = 'askq' | 'app-help';
 
 export function AskQPanel() {
   const { isOpen, close, suggestedPrompt, promptRequestId, clearSuggestedPrompt } =
@@ -27,18 +31,41 @@ export function AskQPanel() {
   const { user, userWithRoles } = useAuthContext();
   const askq = useAskQ();
   const support = useSupportHelp(user, userWithRoles);
-  const [mode, setMode] = useState<AskQPanelMode>('askq');
 
   const showId = useMemo(
-    () => location.pathname.match(/\/(?:secretary\/)?shows\/([^/]+)/)?.[1],
+    () =>
+      location.pathname.match(/\/(?:secretary\/)?shows\/([^/]+)/)?.[1] ??
+      location.pathname.match(/\/at-show\/([^/]+)/)?.[1],
     [location.pathname]
   );
+  const defaultMode: AskQPanelMode = showId ? 'show-data' : 'app-help';
+  const [mode, setMode] = useState<AskQPanelMode | null>(null);
+  const [rulebookOrganization, setRulebookOrganization] = useState('');
+  const [rulebookSport, setRulebookSport] = useState('');
+  const activeMode: AskQPanelMode =
+    mode === 'show-data' && !showId ? 'app-help' : (mode ?? defaultMode);
 
   const limit = isPremium ? RATE_LIMIT_DEFAULTS.premium : RATE_LIMIT_DEFAULTS.free;
   const remaining = askq.remaining ?? limit;
   const signInHref = `/sign-in?returnTo=${encodeURIComponent(
     `${location.pathname}${location.search}`
   )}`;
+
+  const buildSubmitOptions = useCallback(
+    (questionMode?: Exclude<AskQPanelMode, 'app-help'>) => ({
+      ...(showId ? { showId } : {}),
+      ...(questionMode ? { questionMode } : {}),
+      ...(questionMode === 'rules' && (rulebookOrganization || rulebookSport)
+        ? {
+            rulebookScope: {
+              ...(rulebookOrganization ? { organizationCode: rulebookOrganization } : {}),
+              ...(rulebookSport ? { sportCode: rulebookSport } : {}),
+            },
+          }
+        : {}),
+    }),
+    [rulebookOrganization, rulebookSport, showId]
+  );
 
   const handleSubmit = useCallback(
     (query: string) => {
@@ -48,28 +75,27 @@ export function AskQPanel() {
         return;
       }
 
-      askq.submitQuery(query, showId);
+      askq.submitQuery(query, buildSubmitOptions(mode ?? undefined));
       clearSuggestedPrompt();
     },
-    [askq, clearSuggestedPrompt, mode, showId, support]
+    [askq, buildSubmitOptions, clearSuggestedPrompt, mode, support]
   );
 
   const handleExampleQuery = useCallback(
     (query: string, category: ExampleQuery['category']) => {
+      setMode(category);
       if (category === 'app-help') {
         askq.reset();
-        setMode('app-help');
         void support.askForHelp(query);
         clearSuggestedPrompt();
         return;
       }
 
       support.reset();
-      setMode('askq');
-      askq.submitQuery(query, showId);
+      askq.submitQuery(query, buildSubmitOptions(category));
       clearSuggestedPrompt();
     },
-    [askq, clearSuggestedPrompt, showId, support]
+    [askq, buildSubmitOptions, clearSuggestedPrompt, support]
   );
 
   const handleTicketSubmit = useCallback(
@@ -81,16 +107,26 @@ export function AskQPanel() {
     [support]
   );
 
+  const handleModeChange = useCallback(
+    (nextMode: AskQPanelMode) => {
+      if (nextMode === 'show-data' && !showId) return;
+      if (nextMode === 'app-help') askq.reset();
+      else support.reset();
+      setMode(nextMode);
+    },
+    [askq, showId, support]
+  );
+
   const handleClose = useCallback(() => {
     askq.reset();
     support.reset();
-    setMode('askq');
+    setMode(null);
     close();
   }, [askq, close, support]);
 
   const handleDone = useCallback(() => {
     support.reset();
-    setMode('askq');
+    setMode(null);
   }, [support]);
 
   const startEscalation = useCallback(() => {
@@ -98,7 +134,9 @@ export function AskQPanel() {
   }, [support]);
 
   const escalationQuestion =
-    support.state.route?.kind === 'escalate' ? support.state.route.question : support.state.question;
+    support.state.route?.kind === 'escalate'
+      ? support.state.route.question
+      : support.state.question;
 
   const footer = useMemo(() => {
     if (mode === 'app-help') {
@@ -144,21 +182,25 @@ export function AskQPanel() {
 
     return (
       <AskQInput
-        key={`${mode}-${promptRequestId}`}
+        key={`${activeMode}-${promptRequestId}`}
         onSubmit={handleSubmit}
         disabled={
           mode === 'app-help'
             ? support.state.status === 'streaming'
             : askq.status === 'streaming' || askq.status === 'rate-limited'
         }
-        initialValue={mode === 'askq' ? (suggestedPrompt ?? '') : ''}
+        initialValue={suggestedPrompt ?? ''}
         {...(mode === 'app-help'
           ? { placeholder: 'Ask about using myK9Show...' }
-          : askq.status === 'rate-limited'
-            ? { placeholder: 'Daily limit reached. Resets at midnight.' }
-            : askq.status === 'done'
-              ? { placeholder: 'Ask another question...' }
-              : {})}
+          : mode === null
+            ? { placeholder: 'Ask about rules, your results, or the app...' }
+            : activeMode === 'rules'
+              ? { placeholder: 'Ask about the selected rulebook...' }
+              : askq.status === 'rate-limited'
+                ? { placeholder: 'Daily limit reached. Resets at midnight.' }
+                : askq.status === 'done'
+                  ? { placeholder: 'Ask another question...' }
+                  : {})}
       />
     );
   }, [
@@ -167,6 +209,7 @@ export function AskQPanel() {
     handleDone,
     handleSubmit,
     handleTicketSubmit,
+    activeMode,
     mode,
     promptRequestId,
     signInHref,
@@ -175,11 +218,56 @@ export function AskQPanel() {
     user,
   ]);
 
-  const isAskQMode = mode === 'askq';
+  const organizations = [...new Set(RULEBOOK_SCOPE_OPTIONS.map(option => option.organizationCode))];
+  const sportOptions = RULEBOOK_SCOPE_OPTIONS.filter(
+    option => !rulebookOrganization || option.organizationCode === rulebookOrganization
+  );
+
+  const isAskQMode = mode !== 'app-help';
 
   const content = isAskQMode ? (
     <>
-      {askq.status === 'idle' && <AskQExampleQueries onSelectQuery={handleExampleQuery} />}
+      {activeMode === 'rules' && (
+        <div className="grid grid-cols-2 gap-2">
+          <label className="space-y-1 text-xs text-muted-foreground">
+            <span>Organization</span>
+            <select
+              value={rulebookOrganization}
+              onChange={event => {
+                setRulebookOrganization(event.target.value);
+                setRulebookSport('');
+              }}
+              className="h-9 w-full rounded-md border bg-background px-2 text-sm text-foreground"
+            >
+              <option value="">Choose</option>
+              {organizations.map(organization => (
+                <option key={organization} value={organization}>
+                  {organization}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="space-y-1 text-xs text-muted-foreground">
+            <span>Sport</span>
+            <select
+              value={rulebookSport}
+              onChange={event => setRulebookSport(event.target.value)}
+              className="h-9 w-full rounded-md border bg-background px-2 text-sm text-foreground"
+            >
+              <option value="">Choose</option>
+              {sportOptions.map(option => (
+                <option key={option.sportCode} value={option.sportCode}>
+                  {option.label.replace(`${option.organizationCode} `, '')}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
+
+      {askq.status === 'idle' && (
+        <AskQExampleQueries onSelectQuery={handleExampleQuery} category={activeMode} />
+      )}
 
       {askq.query && (
         <>
@@ -204,7 +292,12 @@ export function AskQPanel() {
           <AlertDescription className="flex items-center justify-between">
             <span>{askq.error}</span>
             <button
-              onClick={() => askq.submitQuery(askq.query, showId)}
+              onClick={() =>
+                askq.submitQuery(
+                  askq.query,
+                  buildSubmitOptions(mode === 'rules' || mode === 'show-data' ? mode : undefined)
+                )
+              }
               className="text-xs underline"
             >
               Try again
@@ -225,11 +318,16 @@ export function AskQPanel() {
       )}
     </>
   ) : (
-    <AskQAppHelpContent
-      currentUserId={user?.id ?? null}
-      onEscalate={startEscalation}
-      state={support.state}
-    />
+    <>
+      {support.state.status === 'idle' && (
+        <AskQExampleQueries onSelectQuery={handleExampleQuery} category="app-help" />
+      )}
+      <AskQAppHelpContent
+        currentUserId={user?.id ?? null}
+        onEscalate={startEscalation}
+        state={support.state}
+      />
+    </>
   );
 
   return (
@@ -245,7 +343,26 @@ export function AskQPanel() {
       }
       footer={footer}
     >
-      <div className="space-y-4 p-4">{content}</div>
+      <div className="space-y-4 p-4">
+        <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
+          {(['app-help', 'rules', 'show-data'] as AskQPanelMode[]).map(option => (
+            <button
+              key={option}
+              type="button"
+              onClick={() => handleModeChange(option)}
+              disabled={option === 'show-data' && !showId}
+              className={`rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
+                activeMode === option
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45'
+              }`}
+            >
+              {QUESTION_MODE_LABELS[option]}
+            </button>
+          ))}
+        </div>
+        {content}
+      </div>
     </SlideOverPanel>
   );
 }
@@ -261,7 +378,9 @@ function AskQAppHelpContent({
 }) {
   return (
     <>
-      {state.question && <AskQAnswer query={state.question} answer="" toolsUsed={[]} isStreaming={false} />}
+      {state.question && (
+        <AskQAnswer query={state.question} answer="" toolsUsed={[]} isStreaming={false} />
+      )}
 
       {state.status === 'streaming' && (
         <div className="rounded-xl rounded-tl-sm bg-muted/50 px-3.5 py-3">

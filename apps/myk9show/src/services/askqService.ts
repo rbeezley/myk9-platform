@@ -6,6 +6,15 @@ export interface AskQRequest {
   message: string;
   showId?: string;
   supportMode?: boolean;
+  questionMode?: AskQQuestionMode;
+  rulebookScope?: AskQRulebookScope;
+}
+
+export type AskQQuestionMode = 'app-help' | 'rules' | 'show-data';
+
+export interface AskQRulebookScope {
+  organizationCode?: string;
+  sportCode?: string;
 }
 
 export interface AskQFeedback {

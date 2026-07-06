@@ -80,9 +80,11 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       and merged PRs.
       _Batch evidence 2026-07-06:_ Phase 1 is merged and DB-pushed. MP-03/MP-04 source changes
       merged in PR #1170 under OpenSpec change `go-live-phase-0-engineering-blockers`; focused
-      tests, typecheck, lint, OpenSpec validation, and the MP-04 verifier passed. Keep this item
-      open until real DB push approval applies `20260706013906_stripe_livemode_scoped_ids.sql`,
-      affected Stripe functions are redeployed, and staging payment verification is recorded.
+      tests, typecheck, lint, OpenSpec validation, and the MP-04 verifier passed. Real DB push
+      applied `20260706013906_stripe_livemode_scoped_ids.sql`, and the affected Stripe functions
+      (`stripe-checkout`, `stripe-connect-onboard`, `stripe-customer-portal`, `stripe-webhook`,
+      `cron-process-payouts`) redeployed as `ACTIVE` at `2026-07-06 14:21:03 UTC`. Keep this item
+      open until staging payment verification is recorded.
 - [x] **0.6 Class-mgmt mutation-error surfacing (plan 003)** — DONE 2026-07-04.
       OpenSpec change `class-mgmt-mutation-error-surfacing` is archived under
       `openspec/changes/archive/2026-07-04-class-mgmt-mutation-error-surfacing/`. Owner: Agent.

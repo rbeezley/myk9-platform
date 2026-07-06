@@ -24,5 +24,5 @@
 
 - [x] 5.1 Run `pnpm openspec validate --changes go-live-phase-1-platform-deploy`.
 - [x] 5.2 Run `git diff --check`.
-- [ ] 5.3 Commit, push, and open a PR citing `Tracked in openspec change: go-live-phase-1-platform-deploy`.
+- [x] 5.3 Commit, push, and open a PR citing `Tracked in openspec change: go-live-phase-1-platform-deploy`.
 - [x] 5.4 Leave GitHub secrets/variables, Vercel env/config flips, Supabase Management API PATCH, and real production deploy verification as morning/operator gates.

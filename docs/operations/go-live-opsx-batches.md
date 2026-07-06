@@ -81,6 +81,7 @@ Ready for morning review when:
 Current run, 2026-07-06:
 
 - OpenSpec change `go-live-phase-1-platform-deploy` created.
+- Implementation PR: #1173.
 - Added source verifier command: `pnpm qa:go-live:phase1`.
 - Added focused test command: `pnpm qa:go-live:phase1:test`.
 - Local verifier evidence:

@@ -140,6 +140,21 @@ describe('AskQPanel', () => {
     });
   });
 
+  it('shows an answer skeleton while waiting for the first AskQ response token', async () => {
+    vi.mocked(askqService.sendAskQQuery).mockReturnValue(
+      new Promise<ReadableStream<Uint8Array>>(() => {})
+    );
+
+    act(() => useAskQPanelStore.getState().open());
+    const { user } = render(<AskQPanel />);
+
+    await user.click(screen.getByRole('button', { name: 'Rules' }));
+    await user.type(screen.getByPlaceholderText('Ask about the selected rulebook...'), 'Max time?');
+    await user.click(screen.getByRole('button', { name: 'Send query' }));
+
+    expect(await screen.findByRole('status', { name: 'AskQ is answering' })).toBeInTheDocument();
+  });
+
   it('keeps route-default mode out of the payload until the user chooses it', async () => {
     vi.mocked(askqService.sendAskQQuery).mockResolvedValue(createMockStream());
 

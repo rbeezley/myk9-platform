@@ -43,8 +43,8 @@
 - [x] 5.2 Run relevant typecheck/lint/OpenSpec validation for the touched areas unless blocked by a
       known hang or unrelated failure.
 - [ ] 5.3 Run required second-opinion review for payment/RLS/migration changes before merge.
-- [ ] 5.4 Commit, push the feature branch, and open an implementation PR with `Tracked in openspec
-  change: go-live-phase-0-engineering-blockers`.
+- [x] 5.4 Commit, push the feature branch, and open an implementation PR with `Tracked in openspec
+      change: go-live-phase-0-engineering-blockers`.
 - [x] 5.5 Leave a morning approval checklist for any blocked shared-system mutations, deploys, merges,
       or operator evidence gates.
 

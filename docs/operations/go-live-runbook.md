@@ -1,6 +1,9 @@
 # Go-Live Runbook — myK9Show Fall 2026 Launch
 
 > **Status:** Active
+> **Last Phase 0-4 audit:** 2026-07-05. Only items with repo/tracking evidence proving
+> 100% completion are checked; operator-only dashboard, venue, live-money, and real-user
+> evidence gates remain open until re-verified at execution time.
 
 **The single ordered, gated launch document.** Consolidates every operator-executable step
 previously scattered across OPEN-TODOS.md, the launch-execution-lanes plan, and the
@@ -37,10 +40,12 @@ Launch = all seven gates green + scorecard shows **no Red, no open P0/P1** in
 These are the open engineering items that must land before the operator sequence starts. Each is
 tracked elsewhere; this list is the gate inventory, not the tracker.
 
-- [ ] **0.1 Security remediation** — execute the three open OpenSpec changes:
-      `security-role-map-disclosure` (SA-006), `security-people-overfetch` (SA-008),
-      `security-passcode-throttle` (SA-011). Owner: Agent.
-      _Verify:_ `pnpm exec openspec status --change <name>` shows all tasks done; changes archived.
+- [x] **0.1 Security remediation** — DONE 2026-07-04. The three listed OpenSpec
+      changes are complete and archived: `security-role-map-disclosure` (SA-006),
+      `security-people-overfetch` (SA-008), and `security-passcode-throttle`
+      (SA-011). Owner: Agent.
+      _Verify:_ archive dirs exist under `openspec/changes/archive/2026-07-04-*`;
+      OPEN-TODOS § Security Remediation marks all three done/deployed/verified.
 - [x] **0.2 Deploy the `ask-myk9show` fix** — DONE 2026-07-04. The AskQ
       cross-tenant scope-leak fix (#1089) is deployed live. Owner: Agent.
       _Do:_ `supabase functions deploy ask-myk9show --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt`
@@ -56,17 +61,25 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       batches with smoke checks; `send-auth-email` is highest-care (see Phase 1.2). If any
       function is **deployed-ahead** (matches no commit), STOP — recover it to source first,
       do not clobber. Owner: Agent (confirmation-gated).
+      _Audit 2026-07-05:_ name inventory is not clean:
+      `pnpm qa:db-drift:functions` reports deployed-only `send-notification` and repo-only
+      `push-trigger-support-message`; byte-level download/diff still needs a fresh pass.
 - [ ] **0.5 Money-path hardening Phases 1–3** — MP-01/02 (amount integrity), MP-03
       (payment-link duplicate delivery), MP-04 (mode-scoped Stripe IDs). One PR per phase per
       [`docs/plan-money-path-hardening.md`](../plan-money-path-hardening.md). **Phase 3 is the
       hard gate for Phase 3 of this runbook** (live cutover); Phases 4–7 may land later. Owner: Agent.
       _Verify at execution time_ — do not trust this doc's snapshot; check the plan's phase table
       and merged PRs.
-- [ ] **0.6 Class-mgmt mutation-error surfacing (plan 003)** — silent judge-assign/bulk-status
-      failures; apply-ready OpenSpec change `class-mgmt-mutation-error-surfacing`. Owner: Agent.
+- [x] **0.6 Class-mgmt mutation-error surfacing (plan 003)** — DONE 2026-07-04.
+      OpenSpec change `class-mgmt-mutation-error-surfacing` is archived under
+      `openspec/changes/archive/2026-07-04-class-mgmt-mutation-error-surfacing/`. Owner: Agent.
 - [ ] **0.7 Motion-consistency + remaining Yellow-dimension code work** — per OPEN-TODOS; not
       launch-gating individually, but anything user-visible should land before Phase 4's
       real-user test so users test a near-final product.
+      _Audit 2026-07-05:_ motion consistency is complete (`docs/plan-motion-consistency.md`;
+      PRs #1143/#1152/#1153/#1154/#1157), and the July UX remediation plan is archived
+      complete. Keep this open until the scorecard's remaining Yellow evidence gates are
+      closed or explicitly accepted.
 
 ---
 
@@ -99,9 +112,10 @@ auto-deploy still ON before turning it off.
 Full detail: [`supabase-auth-email.md`](supabase-auth-email.md). Without Custom SMTP, GoTrue
 caps auth emails at ~2/hour — a launch-day signup wall.
 
-- [ ] **a.** Deploy-coupled hook secret: set `SEND_EMAIL_HOOK_SECRET`, deploy `send-auth-email`
-      (`--no-verify-jwt`), save the dashboard hook registration — all in one cutover window.
-      _Verify:_ one real signup/password-reset email arrives from the branded template.
+- [x] **a.** DONE 2026-07-04. Deploy-coupled hook secret: `SEND_EMAIL_HOOK_SECRET`
+      matches the dashboard Send Email Hook secret, `send-auth-email` is deployed as v45,
+      and one real password-reset email verified the branded template path (`send-auth-email`
+      200 signature-verified + `resend-webhook` 200).
       _Rollback:_ redeploy prior function version + restore prior hook secret in the same window.
 - [ ] **b.** Raise the rate limit via Management API PATCH (NOT `supabase config push`): back up
       `GET /v1/projects/$REF/config/auth` first, then patch `smtp_*` (Resend:
@@ -110,6 +124,8 @@ caps auth emails at ~2/hour — a launch-day signup wall.
       Exact curl commands in the runbook.
       _Verify:_ rapid signups no longer hit "email rate limit exceeded"; template still branded.
       _Rollback:_ restore from the config backup JSON.
+      _Audit 2026-07-05:_ still open; `supabase-auth-email.md` still documents the Custom
+      SMTP slot as empty and the GoTrue cap as active until this patch is applied.
 
 ### 1.3 Kill-switch posture check
 
@@ -120,6 +136,8 @@ as no-redeploy safety valves: `showPresence`, `showLiveSync`, `showEditAwareness
 
 - [ ] _Verify:_ all four read `true` in the production build; the four `VITE_SHOW_*` env vars are
       either unset or `true` in Vercel.
+      _Audit 2026-07-05:_ code defaults are `true` in
+      `apps/myk9show/src/config/features.ts`; production Vercel env still needs dashboard proof.
 - [ ] _Rehearse the flip once:_ set one var to `false` in Vercel env → redeploy (~5 min) → hard
       refresh → feature silently off, fallback behavior active → restore. This is the launch-day
       rollback for realtime misbehavior (see Rollback appendix).
@@ -140,6 +158,7 @@ Importer tooling shipped (#833); the CSV is still header-only.
       and push (idempotent `people` + `judge_qualifications`). Owner: Agent (confirmation-gated).
       _Verify:_ `select count(*) from judge_qualifications;` > 0; spot-check a known judge by name
       in the show-wizard judge picker.
+      _Audit 2026-07-05:_ CSV is still header-only; no preload migration found.
 
 ### 2.2 Seed / fixture verification (staging, and prod if demo data is wanted)
 

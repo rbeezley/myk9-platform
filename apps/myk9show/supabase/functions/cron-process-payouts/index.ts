@@ -466,6 +466,7 @@ Deno.serve(async req => {
     skipped_no_online_money: 0,
     stale_recovered: 0,
     mode_mismatch: 0,
+    money_lock_busy: 0,
   };
 
   try {

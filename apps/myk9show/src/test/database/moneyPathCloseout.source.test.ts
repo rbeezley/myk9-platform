@@ -14,6 +14,10 @@ const refundEntrySource = readFileSync(
   resolve(__dirname, '../../../supabase/functions/stripe-refund-entry/index.ts'),
   'utf8'
 );
+const refundShowSource = readFileSync(
+  resolve(__dirname, '../../../supabase/functions/stripe-refund-show/index.ts'),
+  'utf8'
+);
 const payoutSource = readFileSync(
   resolve(__dirname, '../../../supabase/functions/cron-process-payouts/index.ts'),
   'utf8'
@@ -42,8 +46,11 @@ describe('money-path closeout source contracts', () => {
   it('serializes per-show refund and payout critical sections with show_money_locks', () => {
     expect(refundEntrySource).toContain('acquireShowMoneyLock');
     expect(refundEntrySource).toContain("holder: 'stripe-refund-entry'");
+    expect(refundShowSource).toContain('acquireShowMoneyLock');
+    expect(refundShowSource).toContain("holder: 'stripe-refund-show'");
     expect(payoutSource).toContain('acquireShowMoneyLock');
     expect(payoutSource).toContain("holder: 'cron-process-payouts'");
+    expect(payoutSource).toContain('money_lock_busy: 0');
   });
 
   it('does not overwrite a stronger existing entry refund stamp', () => {

@@ -8,6 +8,7 @@ import {
 } from '../_shared/showRefundPlan.ts';
 import { findReusableShowRefund, showRefundAttemptCount } from '../_shared/showRefundReuse.ts';
 import { alertAdmin } from '../_shared/alertAdmin.ts';
+import { acquireShowMoneyLock } from '../_shared/showMoneyLock.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -101,7 +102,9 @@ async function fetchShowEntries(showId: string): Promise<ShowRefundEntry[] | nul
   for (let from = 0; ; from += ENTRY_PAGE) {
     const { data, error } = await supabase
       .from('entries')
-      .select('id, entry_fee, payment_method, payment_status, refund_amount, stripe_payment_intent_id')
+      .select(
+        'id, entry_fee, payment_method, payment_status, refund_amount, stripe_payment_intent_id'
+      )
       .eq('show_id', showId)
       .order('id')
       .range(from, from + ENTRY_PAGE - 1);
@@ -205,7 +208,9 @@ async function refundIntent(
         // platform fee = make-whole). Tagged so a re-run reuses it.
         const refund = await stripe.refunds.create(
           { payment_intent: intentId, metadata: { show_refund: showId } },
-          { idempotencyKey: `refund-show-${showId}-${intentId}-${showRefundAttemptCount(prior.data, showId)}` }
+          {
+            idempotencyKey: `refund-show-${showId}-${intentId}-${showRefundAttemptCount(prior.data, showId)}`,
+          }
         );
         amountCents = refund.amount;
       } catch (err) {
@@ -216,7 +221,9 @@ async function refundIntent(
         const code = (err as { code?: string })?.code;
         if (code !== 'charge_already_refunded') {
           const message = err instanceof Error ? err.message : 'Refund failed';
-          return { failed: { paymentIntentId: intentId, entryIds: group.entryIds, error: message } };
+          return {
+            failed: { paymentIntentId: intentId, entryIds: group.entryIds, error: message },
+          };
         }
         amountCents = prior.data
           .filter(r => r.status !== 'failed' && r.status !== 'canceled')
@@ -318,65 +325,85 @@ Deno.serve(async req => {
       return corsResponse({ error: 'show_not_cancelled' }, 422);
     }
 
-    // Payout guard: once the club has been (or is being) paid, refunds can't be
-    // clawed back automatically — settle with the club directly. (Re-checked
-    // per-intent in refundIntent for the mid-run race.)
-    const block = await readPayoutBlock(show_id);
-    if (block && 'error' in block) {
+    const moneyLock = await acquireShowMoneyLock(supabase, show_id, {
+      holder: 'stripe-refund-show',
+      ttlMs: 15 * 60 * 1000,
+    });
+    if (!moneyLock.ok) {
       return corsResponse(
-        { error: 'Could not verify the show’s payout state — try again in a moment.' },
-        500
+        {
+          error:
+            moneyLock.reason === 'locked' ? 'money_operation_in_progress' : 'money_lock_failed',
+        },
+        moneyLock.reason === 'locked' ? 409 : 500
       );
     }
-    if (block) return corsResponse({ error: block.code }, 422);
 
-    const entries = await fetchShowEntries(show_id);
-    if (entries === null) {
-      return corsResponse({ error: 'Could not load the show’s entries — try again.' }, 500);
-    }
-
-    const plan = buildShowRefundPlan(entries);
-    const skipped: SkippedResult[] = [...plan.skipped];
-
-    // Single-show guard: drop intents that also paid for OTHER shows' entries
-    // (a full-intent refund would over-refund them); list for manual handling.
-    const crossShow = await findCrossShowIntents(
-      plan.intents.map(i => i.paymentIntentId),
-      show_id
-    );
-    const refundable = plan.intents.filter(group => {
-      if (crossShow.has(group.paymentIntentId)) {
-        group.entryIds.forEach(entryId => skipped.push({ entryId, reason: 'intent_spans_shows' }));
-        return false;
+    try {
+      // Payout guard: once the club has been (or is being) paid, refunds can't be
+      // clawed back automatically — settle with the club directly. (Re-checked
+      // per-intent in refundIntent for the mid-run race.)
+      const block = await readPayoutBlock(show_id);
+      if (block && 'error' in block) {
+        return corsResponse(
+          { error: 'Could not verify the show’s payout state — try again in a moment.' },
+          500
+        );
       }
-      return true;
-    });
+      if (block) return corsResponse({ error: block.code }, 422);
 
-    const outcomes = await mapWithConcurrency(refundable, CONCURRENCY, group =>
-      refundIntent(group, show_id, notes)
-    );
+      const entries = await fetchShowEntries(show_id);
+      if (entries === null) {
+        return corsResponse({ error: 'Could not load the show’s entries — try again.' }, 500);
+      }
 
-    const refunded = outcomes.flatMap(o => (o.refunded ? [o.refunded] : []));
-    const failed = outcomes.flatMap(o => (o.failed ? [o.failed] : []));
+      const plan = buildShowRefundPlan(entries);
+      const skipped: SkippedResult[] = [...plan.skipped];
 
-    const refundedEntryCount = refunded.reduce((n, r) => n + r.entryIds.length, 0);
-    console.log(
-      `Show ${show_id} make-whole refund by ${user.id}: ` +
-        `${refunded.length} intents / ${refundedEntryCount} entries refunded, ` +
-        `${skipped.length} skipped, ${failed.length} failed`
-    );
+      // Single-show guard: drop intents that also paid for OTHER shows' entries
+      // (a full-intent refund would over-refund them); list for manual handling.
+      const crossShow = await findCrossShowIntents(
+        plan.intents.map(i => i.paymentIntentId),
+        show_id
+      );
+      const refundable = plan.intents.filter(group => {
+        if (crossShow.has(group.paymentIntentId)) {
+          group.entryIds.forEach(entryId =>
+            skipped.push({ entryId, reason: 'intent_spans_shows' })
+          );
+          return false;
+        }
+        return true;
+      });
 
-    return corsResponse({
-      refunded,
-      skipped,
-      failed,
-      summary: {
-        intentsRefunded: refunded.length,
-        entriesRefunded: refundedEntryCount,
-        skipped: skipped.length,
-        failed: failed.length,
-      },
-    });
+      const outcomes = await mapWithConcurrency(refundable, CONCURRENCY, group =>
+        refundIntent(group, show_id, notes)
+      );
+
+      const refunded = outcomes.flatMap(o => (o.refunded ? [o.refunded] : []));
+      const failed = outcomes.flatMap(o => (o.failed ? [o.failed] : []));
+
+      const refundedEntryCount = refunded.reduce((n, r) => n + r.entryIds.length, 0);
+      console.log(
+        `Show ${show_id} make-whole refund by ${user.id}: ` +
+          `${refunded.length} intents / ${refundedEntryCount} entries refunded, ` +
+          `${skipped.length} skipped, ${failed.length} failed`
+      );
+
+      return corsResponse({
+        refunded,
+        skipped,
+        failed,
+        summary: {
+          intentsRefunded: refunded.length,
+          entriesRefunded: refundedEntryCount,
+          skipped: skipped.length,
+          failed: failed.length,
+        },
+      });
+    } finally {
+      await moneyLock.release();
+    }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('stripe-refund-show error:', message);

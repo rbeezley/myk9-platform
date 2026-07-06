@@ -9,6 +9,7 @@
  *    keys, full checkout URLs) never leave the server even if a query
  *    accidentally selects a column that contains one.
  */
+import { redactSecretLikeString, redactSecretLikeValue } from '@myk9/core';
 
 /** Mask an email to first-initial + domain, e.g. `handler@example.com` → `h***@example.com`. */
 export function redactEmail(email: string | null | undefined): string | null {
@@ -50,28 +51,17 @@ export function shortenProviderId(id: string | null | undefined): string | null 
   return `${prefix}…${trimmed.slice(-4)}`;
 }
 
-// Supabase anon/service-role keys and any other JWT (header starts with `eyJ`).
-const JWT_RE = /eyJ[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}/g;
-// Stripe secret + webhook signing keys, and the newer Supabase secret key format.
-const SECRET_KEY_RE =
-  /\b(?:sk_(?:live|test)_[A-Za-z0-9]{8,}|whsec_[A-Za-z0-9]{8,}|sb_secret_[A-Za-z0-9_-]{8,})\b/g;
-// Full Stripe Checkout / billing-portal URLs can embed session secrets.
-const STRIPE_URL_RE = /https?:\/\/(?:checkout|billing)\.stripe\.com\/\S+/gi;
-
 /**
  * Replace any secret-shaped substring with a labeled placeholder. Idempotent
  * and safe to apply to every string value before it leaves the server.
  */
 export function redactSensitive(value: string): string {
-  return value
-    .replace(JWT_RE, '[redacted-token]')
-    .replace(SECRET_KEY_RE, '[redacted-secret]')
-    .replace(STRIPE_URL_RE, '[redacted-url]');
+  return redactSecretLikeString(value);
 }
 
 /** Apply {@link redactSensitive} to string evidence values; pass others through. */
 export function redactEvidenceValue(
-  value: string | number | boolean | null,
+  value: string | number | boolean | null
 ): string | number | boolean | null {
-  return typeof value === 'string' ? redactSensitive(value) : value;
+  return redactSecretLikeValue(value);
 }

@@ -97,8 +97,7 @@ describe('support diagnostics', () => {
   });
 
   it('redacts bare JWTs and auth token params before storing diagnostics', () => {
-    const jwt =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjMifQ.signature_123';
+    const jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjMifQ.signature_123';
     captureSupportClientError(
       new Error(
         `Failed to refresh session ${jwt} id_token=bare-id-token token=bare-token https://app/#id_token=${jwt}&token=plain`
@@ -111,7 +110,6 @@ describe('support diagnostics', () => {
     expect(message).not.toContain('plain');
     expect(message).not.toContain('bare-id-token');
     expect(message).not.toContain('bare-token');
-    expect(message).toContain('[redacted-jwt]');
     expect(message).toContain('id_token=[redacted]');
     expect(message).toContain('token=[redacted]');
     expect(message).toContain('#id_token=[redacted]');

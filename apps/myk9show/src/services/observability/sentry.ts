@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/react';
 import type { BrowserOptions, ErrorEvent as SentryErrorEvent, EventHint } from '@sentry/react';
+import { redactSecretLikeString } from '@myk9/core';
 import type { ErrorInfo } from 'react';
 
 const FILTERED = '[Filtered]';
@@ -24,7 +25,15 @@ const SENSITIVE_KEYS = new Set([
   'microchipnumber',
   'phone',
   'registrationnumber',
+  'accesstoken',
+  'apikey',
+  'clientsecret',
+  'idtoken',
+  'password',
+  'refreshtoken',
+  'secret',
   'token',
+  'tokenhash',
   'username',
 ]);
 
@@ -57,7 +66,7 @@ function stripUrlDetails(url: string | undefined): string | undefined {
 }
 
 function redactString(value: string): string {
-  return value
+  return redactSecretLikeString(value)
     .replace(/\bHandler\s+[A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+)+/g, 'Handler [Filtered]')
     .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, FILTERED)
     .replace(/\b(?:\+?1[-.\s]?)?(?:\(?\d{3}\)?[-.\s]?)\d{3}[-.\s]?\d{4}\b/g, FILTERED)
@@ -95,8 +104,7 @@ export function scrubSentryEvent(event: SentryErrorEvent, _hint?: EventHint): Se
     const scrubbedRequest = { ...scrubbed.request };
     const scrubbedUrl = stripUrlDetails(scrubbedRequest.url);
     const scrubbedHeaders = scrubValue(scrubbedRequest.headers) as
-      | Record<string, string>
-      | undefined;
+      Record<string, string> | undefined;
 
     if (scrubbedUrl) {
       scrubbedRequest.url = scrubbedUrl;

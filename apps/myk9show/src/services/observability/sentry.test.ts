@@ -91,6 +91,27 @@ describe('Sentry observability helpers', () => {
     });
   });
 
+  it('scrubs secret-shaped strings even outside known sensitive keys', () => {
+    const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjMifQ.signature_123';
+    const event: SentryErrorEvent = {
+      message: `Auth refresh failed ${jwt} sk_live_abcdefgh12345678`,
+      extra: {
+        checkout: 'https://checkout.stripe.com/c/pay/cs_test_a1b2c3#fidSecret',
+        callback: `https://app.example/auth#id_token=${jwt}&token=plain`,
+        accessToken: 'safe-looking-but-sensitive',
+      },
+    };
+
+    const scrubbed = scrubSentryEvent(event);
+
+    expect(scrubbed.message).toBe('Auth refresh failed [redacted-token] [redacted-secret]');
+    expect(scrubbed.extra).toEqual({
+      checkout: '[redacted-url]',
+      callback: 'https://app.example/auth#id_token=[redacted]&token=[redacted]',
+      accessToken: '[Filtered]',
+    });
+  });
+
   it('builds conservative runtime options from env config', () => {
     const options = buildSentryInitOptions({
       dsn: 'https://public@sentry.example/1',

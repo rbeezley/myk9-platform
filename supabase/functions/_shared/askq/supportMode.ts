@@ -1,14 +1,11 @@
 import type { AskQGuideAsset } from './documentContext.ts';
+import { isPaymentOrRefundQuestion } from './supportPaymentPolicy.ts';
 import type { ToolDefinition } from './types.ts';
 
 export const SUPPORT_HANDOFF_MESSAGE = 'I need to get a person to help with that.';
 const SUPPORT_ANSWER_MARKER = 'SUPPORT_ANSWER';
 const SUPPORT_HANDOFF_MARKER = 'SUPPORT_HANDOFF';
 
-export const SUPPORT_PAYMENT_REFUND_PATTERN_SOURCE =
-  String.raw`\b(payment|payments|paid|paying|charge|charged|charges|refund|refunded|refunds|stripe|checkout|credit card|debit card|card declined|invoice|billing|payout|withdrawal|transaction|receipt)\b`;
-
-const PAYMENT_REFUND_PATTERN = new RegExp(SUPPORT_PAYMENT_REFUND_PATTERN_SOURCE, 'i');
 const MIN_GUIDE_EVIDENCE_MATCHES = 2;
 const MAX_GUIDE_EVIDENCE_SPAN = 4;
 const DESTRUCTIVE_ACTION_TERMS = new Set(['delete', 'remove']);
@@ -72,10 +69,6 @@ export interface SupportGuideEvidence {
 
 export function isSupportModeEnabled(value: unknown): boolean {
   return value === true;
-}
-
-export function isPaymentOrRefundQuestion(message: string): boolean {
-  return PAYMENT_REFUND_PATTERN.test(message);
 }
 
 export function getSupportModeTools(tools: ToolDefinition[]): ToolDefinition[] {

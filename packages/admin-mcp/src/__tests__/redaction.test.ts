@@ -39,9 +39,8 @@ describe('shortenProviderId', () => {
 
 describe('redactSensitive', () => {
   it('redacts a service-role / JWT-looking token', () => {
-    const jwt =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.abcDEF123456';
-    const out = redactSensitive(`token=${jwt}`);
+    const jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.abcDEF123456';
+    const out = redactSensitive(`raw ${jwt}`);
     expect(out).not.toContain(jwt);
     expect(out).toContain('[redacted-token]');
   });

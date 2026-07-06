@@ -265,6 +265,30 @@ Ready for morning review when:
 - unresolved operator evidence gates are listed
 - scorecard changes only mark rows green when evidence exists
 
+Current run, 2026-07-06:
+
+- OpenSpec change `go-live-phase-4-evidence-pass` created.
+- Implementation PR: #1175.
+- Added evidence checklist: `docs/operations/go-live-phase-4-evidence-checklist.md`.
+- Added verifier command: `pnpm qa:go-live:phase4 --allow-blocked`.
+- Added focused test command: `pnpm qa:go-live:phase4:test`.
+- Local verifier evidence:
+  - `ok phase4_checklist_coverage: operator checklist covers all Phase 4 gates`
+  - `ok phase4_runbook_coverage: runbook lists all Phase 4 evidence gates`
+  - `ok scorecard_yellow_gate_tracking: scorecard still tracks Phase 4 evidence dimensions`
+  - `ok print_report_source_test_coverage: representative report tests exist; hardware proof still required`
+  - `fail phase4_live_evidence_recorded: missing evidence slots: show-day re-walk evidence:, offline reconnect evidence:, venue hardware print evidence:, real-user testing evidence:, scorecard close-out evidence:`
+
+Morning/operator checklist:
+
+- Run show-day re-walk on staging and record: show-day re-walk evidence: `<link>`.
+- Run two-browser offline reconnect rehearsal and record: offline reconnect evidence: `<link>`.
+- Run venue hardware print test and record: venue hardware print evidence: `<link>`.
+- Run real-user testing with one secretary and one or two exhibitors, then record:
+  real-user testing evidence: `<link>`.
+- Only after the above passes, update the scorecard and record:
+  scorecard close-out evidence: `<link>`.
+
 ### B5 - Phase 5 Launch-Day Verification
 
 OpenSpec change: `go-live-phase-5-launch-day`

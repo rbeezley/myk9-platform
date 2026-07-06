@@ -23,6 +23,9 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { SupportTicketThread } from '@/features/support/SupportTicketThread';
 import { useSupportHelp } from '@/features/support/useSupportHelp';
 
+const SUPPORT_TICKET_NEXT_STEP =
+  'Use the box below, then click Create ticket so we can follow up in the app.';
+
 export function AskQPanel() {
   const { isOpen, close, suggestedPrompt, promptRequestId, clearSuggestedPrompt } =
     useAskQPanelStore();
@@ -421,12 +424,19 @@ function AskQAppHelpContent({
 
       {state.status === 'escalating' && (
         <Alert>
-          <AlertDescription>
-            {currentUserId
-              ? state.route?.kind === 'escalate'
-                ? state.route.message
-                : 'A person can help with that.'
-              : 'Sign in to create a support ticket so we can reply in the app.'}
+          <AlertDescription className="space-y-1">
+            {currentUserId ? (
+              <>
+                <p>
+                  {state.route?.kind === 'escalate'
+                    ? state.route.message
+                    : "I couldn't answer that confidently."}
+                </p>
+                <p>{SUPPORT_TICKET_NEXT_STEP}</p>
+              </>
+            ) : (
+              'Sign in to create a support ticket so we can reply in the app.'
+            )}
           </AlertDescription>
         </Alert>
       )}

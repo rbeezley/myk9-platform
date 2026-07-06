@@ -116,6 +116,25 @@ describe('AskQPanel', () => {
     });
   });
 
+  it('gives a clear next step when App Help escalates to ticket creation', async () => {
+    vi.mocked(askqService.sendAskQQuery).mockResolvedValue(createMockStream());
+
+    act(() => useAskQPanelStore.getState().open());
+    const { user } = render(<AskQPanel />, { initialRoute: '/exhibitor/entries' });
+
+    await user.type(
+      screen.getByPlaceholderText('Ask about using myK9Show...'),
+      'Where are my entries?'
+    );
+    await user.click(screen.getByRole('button', { name: 'Send query' }));
+
+    expect(await screen.findByText("I couldn't find a reliable answer for that.")).toBeInTheDocument();
+    expect(
+      screen.getByText('Use the box below, then click Create ticket so we can follow up in the app.')
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Create ticket/i })).toBeInTheDocument();
+  });
+
   it('sends rules mode with the selected rulebook scope', async () => {
     vi.mocked(askqService.sendAskQQuery).mockResolvedValue(createMockStream());
 
@@ -189,10 +208,13 @@ describe('AskQPanel', () => {
   });
 });
 
-function createMockStream(): ReadableStream<Uint8Array> {
+function createMockStream(answer?: string): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
   return new ReadableStream({
     start(controller) {
+      if (answer) {
+        controller.enqueue(encoder.encode(`event: token\ndata: ${JSON.stringify(answer)}\n\n`));
+      }
       controller.enqueue(encoder.encode('event: done\ndata: {}\n\n'));
       controller.close();
     },

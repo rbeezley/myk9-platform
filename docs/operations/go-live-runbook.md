@@ -338,6 +338,7 @@ delayed launch always beats a corrupted first impression.
 
 | Topic                                  | Doc                                                                                                      |
 | -------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| OpsX batch execution plan              | [`go-live-opsx-batches.md`](go-live-opsx-batches.md)                                                     |
 | Launch sequencing (lanes)              | [`docs/plan-launch-execution-lanes.md`](../plan-launch-execution-lanes.md)                               |
 | Scorecard + pass thresholds            | [`docs/goals/fall-2026-launch-readiness-scorecard.md`](../goals/fall-2026-launch-readiness-scorecard.md) |
 | Money-path code fixes (MP-01…14)       | [`docs/plan-money-path-hardening.md`](../plan-money-path-hardening.md)                                   |

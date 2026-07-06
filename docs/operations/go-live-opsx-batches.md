@@ -149,6 +149,7 @@ Ready for morning review when:
 Current run, 2026-07-06:
 
 - OpenSpec change `go-live-phase-4-evidence-pass` created.
+- Implementation PR: #1175.
 - Added evidence checklist: `docs/operations/go-live-phase-4-evidence-checklist.md`.
 - Added verifier command: `pnpm qa:go-live:phase4 --allow-blocked`.
 - Added focused test command: `pnpm qa:go-live:phase4:test`.

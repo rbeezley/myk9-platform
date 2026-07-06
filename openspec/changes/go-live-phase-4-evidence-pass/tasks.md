@@ -24,5 +24,5 @@
 
 - [x] 5.1 Run `pnpm openspec validate --changes go-live-phase-4-evidence-pass`.
 - [x] 5.2 Run `git diff --check`.
-- [ ] 5.3 Commit, push, and open a PR citing `Tracked in openspec change: go-live-phase-4-evidence-pass`.
+- [x] 5.3 Commit, push, and open a PR citing `Tracked in openspec change: go-live-phase-4-evidence-pass`.
 - [x] 5.4 Leave staging walks, offline rehearsal, hardware print testing, real-user testing, and scorecard Green flips as morning/operator gates.

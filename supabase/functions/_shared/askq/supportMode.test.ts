@@ -6,11 +6,11 @@ import {
   getSupportEscalationForAnswer,
   getSupportEscalationForQuestion,
   getSupportModeTools,
-  isPaymentOrRefundQuestion,
   parseSupportAnswer,
 } from './supportMode.ts';
 import { ASKQ_GUIDES } from './documentAssets.ts';
 import type { AskQGuideAsset } from './documentContext.ts';
+import { isPaymentOrRefundQuestion } from './supportPaymentPolicy.ts';
 import type { ToolDefinition } from './types.ts';
 
 const tools: ToolDefinition[] = [
@@ -111,7 +111,9 @@ describe('AskQ support mode', () => {
         reason: 'low_confidence',
       }
     );
-    expect(getSupportEscalationForAnswer('SUPPORT_ANSWER\nOpen Entries Management.', true)).toBeNull();
+    expect(
+      getSupportEscalationForAnswer('SUPPORT_ANSWER\nOpen Entries Management.', true)
+    ).toBeNull();
     expect(getSupportEscalationForAnswer(SUPPORT_HANDOFF_MESSAGE)).toMatchObject({
       reason: 'low_confidence',
     });

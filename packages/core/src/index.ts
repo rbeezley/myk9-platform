@@ -106,6 +106,9 @@ export {
 // Error handling utilities
 export { ensureError, isErrorLike, getErrorMessage } from './utils/errors';
 
+// Redaction utilities
+export { redactSecretLikeString, redactSecretLikeValue } from './utils/redaction';
+
 // Type guard utilities
 export {
   isDefined,

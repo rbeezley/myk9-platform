@@ -1,7 +1,4 @@
-export const SUPPORT_PAYMENT_REFUND_PATTERN_SOURCE =
-  String.raw`\b(payment|payments|paid|paying|charge|charged|charges|refund|refunded|refunds|stripe|checkout|credit card|debit card|card declined|invoice|billing|payout|withdrawal|transaction|receipt)\b`;
-
-const PAYMENT_REFUND_PATTERN = new RegExp(SUPPORT_PAYMENT_REFUND_PATTERN_SOURCE, 'i');
+import { isPaymentOrRefundQuestion } from '../../../../../supabase/functions/_shared/askq/supportPaymentPolicy.ts';
 
 export type SupportEscalationReason = 'payment_or_refund' | 'low_confidence';
 
@@ -58,7 +55,7 @@ const DEEP_LINK_RULES: Array<{ pattern: RegExp; link: SupportDeepLink }> = [
 ];
 
 export function isSupportPaymentOrRefundQuestion(question: string): boolean {
-  return PAYMENT_REFUND_PATTERN.test(question);
+  return isPaymentOrRefundQuestion(question);
 }
 
 export function routeSupportDeflection(input: SupportDeflectionInput): SupportDeflectionRoute {

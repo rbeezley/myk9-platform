@@ -69,4 +69,6 @@
       Result: one medium residual risk accepted for this PR: source-level tests do not execute
       the trigger against real rows/roles. Runtime proof remains gated by task 3.6 after a
       confirmed DB push, because the repo has no local SQL harness for this trigger path.
-- [ ] 5.5 Let CI pass and merge the PR before archive.
+- [x] 5.5 Let CI pass and merge the PR before archive.
+      Result: PR #1165 merged on 2026-07-06; GitHub Actions passed, Vercel preview checks were
+      admin-bypassed because Vercel was deployment-rate-limited.

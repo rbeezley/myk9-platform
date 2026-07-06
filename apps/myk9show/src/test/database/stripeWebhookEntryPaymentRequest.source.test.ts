@@ -53,12 +53,14 @@ describe('stripe-webhook entry_payment_request branch', () => {
     expect(source).toContain('entry_payment_links');
     // closes the link so a re-delivered event is a no-op
     expect(source).toContain("status: 'paid'");
+    expect(source).toContain('closedLinks');
+    expect(source).toContain('linkCloseError');
+    expect(source).toContain('already closed by another webhook handler');
   });
 
   it('latches successful expired promotion claims to paid so Stripe retries do not refund them', () => {
-    expect(source).toContain(
-      "link.status === 'expired' && paidIds.length > 0 ? 'expired' : 'open'"
-    );
+    expect(source).toContain("link.status === 'expired' && paidIds.length > 0");
+    expect(source).toContain("link.status === 'expired' ? 'expired' : 'open'");
     expect(source).toContain(".eq('status', linkCloseStatus)");
   });
 
@@ -110,8 +112,15 @@ describe('stripe-webhook entry_payment_request branch', () => {
 
   it('re-reads no-op patch ids so races become invalid refund candidates', () => {
     expect(source).toContain('noOpPatchIds');
-    expect(source).toContain(".select('id, payment_status, entry_status')");
+    expect(source).toContain(
+      ".select('id, payment_status, entry_status, stripe_payment_intent_id')"
+    );
     expect(source).toContain('rereadNoOpEntries');
     expect(source).toContain('invalidEntryIds = updateOutcome.invalidEntryIds');
+  });
+
+  it('classifies same-intent paid rows as idempotent success instead of refund candidates', () => {
+    expect(source).toContain('initialSameIntentPaidEntryIds: result.sameIntentPaidEntryIds');
+    expect(source).toContain('stripe_payment_intent_id');
   });
 });

@@ -106,6 +106,26 @@ describe('reconcileEntryPaymentRequest', () => {
     expect(r.action).toBe('apply');
   });
 
+  it('treats an already-paid entry stamped by this same payment intent as idempotent success', () => {
+    const r = reconcileEntryPaymentRequest({
+      ...base,
+      expectedEntryIds: ['same-intent'],
+      entries: [
+        {
+          id: 'same-intent',
+          payment_status: 'paid',
+          entry_status: 'confirmed',
+          stripe_payment_intent_id: 'pi_123',
+        },
+      ],
+    });
+
+    expect(r.action).toBe('apply');
+    expect(r.patches).toEqual([]);
+    expect(r.alreadyPaidEntryIds).toEqual([]);
+    expect(r.sameIntentPaidEntryIds).toEqual(['same-intent']);
+  });
+
   it('treats a null payment intent as null on the patch (caller alerts; never crashes)', () => {
     const r = reconcileEntryPaymentRequest({ ...base, paymentIntentId: null });
     expect(r.patches[0].stripe_payment_intent_id).toBeNull();

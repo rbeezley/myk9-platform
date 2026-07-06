@@ -8,6 +8,7 @@ export interface EntryPaymentNoOpRow {
   id: string;
   payment_status: string | null;
   entry_status: string | null;
+  stripe_payment_intent_id?: string | null;
 }
 
 export interface ReconcileEntryPaymentUpdateOutcomeInput {
@@ -17,6 +18,7 @@ export interface ReconcileEntryPaymentUpdateOutcomeInput {
   initialMissingEntryIds: string[];
   initialInactiveEntryIds: string[];
   initialAlreadyPaidEntryIds: string[];
+  initialSameIntentPaidEntryIds: string[];
   paymentIntentId: string | null;
   sessionAmountTotalCents: number | null;
   entryFeesById: Map<string, number>;
@@ -28,6 +30,7 @@ export interface ReconcileEntryPaymentUpdateOutcomeResult {
   missingEntryIds: string[];
   inactiveEntryIds: string[];
   alreadyPaidEntryIds: string[];
+  sameIntentPaidEntryIds: string[];
   unknownNoOpEntryIds: string[];
   invalidEntryIds: string[];
   refundDecision: EntryPaymentAutoRefundDecision;
@@ -43,12 +46,19 @@ export function reconcileEntryPaymentUpdateOutcome(
   const missingFromNoOp: string[] = [];
   const inactiveFromNoOp: string[] = [];
   const alreadyPaidFromNoOp: string[] = [];
+  const sameIntentPaidFromNoOp: string[] = [];
   const unknownNoOpEntryIds: string[] = [];
 
   for (const id of noOpPatchIds) {
     const entry = rereadById.get(id);
     if (!entry) {
       missingFromNoOp.push(id);
+    } else if (
+      entry.payment_status === 'paid' &&
+      input.paymentIntentId &&
+      entry.stripe_payment_intent_id === input.paymentIntentId
+    ) {
+      sameIntentPaidFromNoOp.push(id);
     } else if (entry.payment_status === 'paid') {
       alreadyPaidFromNoOp.push(id);
     } else if (INACTIVE_ENTRY_STATUSES.has(entry.entry_status ?? '')) {
@@ -61,13 +71,20 @@ export function reconcileEntryPaymentUpdateOutcome(
   const missingEntryIds = unique([...input.initialMissingEntryIds, ...missingFromNoOp]);
   const inactiveEntryIds = unique([...input.initialInactiveEntryIds, ...inactiveFromNoOp]);
   const alreadyPaidEntryIds = unique([...input.initialAlreadyPaidEntryIds, ...alreadyPaidFromNoOp]);
+  const sameIntentPaidEntryIds = unique([
+    ...input.initialSameIntentPaidEntryIds,
+    ...sameIntentPaidFromNoOp,
+  ]);
   const invalidEntryIds = unique([
     ...missingEntryIds,
     ...inactiveEntryIds,
     ...alreadyPaidEntryIds,
     ...unknownNoOpEntryIds,
   ]);
-  const paidEntryIds = input.plannedPatchIds.filter(id => updated.has(id));
+  const paidEntryIds = unique([
+    ...input.plannedPatchIds.filter(id => updated.has(id)),
+    ...sameIntentPaidEntryIds,
+  ]);
 
   return {
     paidEntryIds,
@@ -75,6 +92,7 @@ export function reconcileEntryPaymentUpdateOutcome(
     missingEntryIds,
     inactiveEntryIds,
     alreadyPaidEntryIds,
+    sameIntentPaidEntryIds,
     unknownNoOpEntryIds,
     invalidEntryIds,
     refundDecision: decideEntryPaymentAutoRefund({

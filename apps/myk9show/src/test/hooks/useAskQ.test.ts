@@ -57,6 +57,43 @@ describe('useAskQ', () => {
     expect(result.current.status).toBe('done');
   });
 
+  it('sends selected question mode and rulebook scope to the service', async () => {
+    const mockStream = createMockStream([{ event: 'done', data: {} }]);
+    vi.mocked(askqService.sendAskQQuery).mockResolvedValue(mockStream);
+
+    const { result } = renderHook(() => useAskQ());
+    await act(async () => {
+      await result.current.submitQuery('What is max time?', {
+        questionMode: 'rules',
+        rulebookScope: { organizationCode: 'AKC', sportCode: 'akc-scent-work' },
+      });
+    });
+
+    expect(askqService.sendAskQQuery).toHaveBeenCalledWith(
+      {
+        message: 'What is max time?',
+        questionMode: 'rules',
+        rulebookScope: { organizationCode: 'AKC', sportCode: 'akc-scent-work' },
+      },
+      expect.any(AbortSignal)
+    );
+  });
+
+  it('keeps omitted mode backward compatible', async () => {
+    const mockStream = createMockStream([{ event: 'done', data: {} }]);
+    vi.mocked(askqService.sendAskQQuery).mockResolvedValue(mockStream);
+
+    const { result } = renderHook(() => useAskQ());
+    await act(async () => {
+      await result.current.submitQuery('test question');
+    });
+
+    expect(askqService.sendAskQQuery).toHaveBeenCalledWith(
+      { message: 'test question' },
+      expect.any(AbortSignal)
+    );
+  });
+
   it('handles rate limit errors', async () => {
     vi.mocked(askqService.sendAskQQuery).mockRejectedValue(
       new askqService.RateLimitError(0, 10, '2026-04-02T00:00:00Z')

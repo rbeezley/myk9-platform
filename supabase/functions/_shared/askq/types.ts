@@ -101,10 +101,19 @@ export interface UserContext {
   showName: string | null;
 }
 
+export type AskQQuestionMode = 'app-help' | 'rules' | 'show-data';
+
+export interface AskQRulebookScope {
+  organizationCode?: string;
+  sportCode?: string;
+}
+
 export interface AskQShowRequest {
   message: string;
   showId?: string;
   supportMode?: boolean;
+  questionMode?: AskQQuestionMode;
+  rulebookScope?: AskQRulebookScope;
 }
 
 export interface RateLimitInfo {

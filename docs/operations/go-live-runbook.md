@@ -1,7 +1,7 @@
 # Go-Live Runbook — myK9Show Fall 2026 Launch
 
 > **Status:** Active
-> **Last Phase 0-4 audit:** 2026-07-05. Only items with repo/tracking evidence proving
+> **Last Phase 0-4 audit:** 2026-07-06. Only items with repo/tracking evidence proving
 > 100% completion are checked; operator-only dashboard, venue, live-money, and real-user
 > evidence gates remain open until re-verified at execution time.
 
@@ -78,11 +78,11 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       hard gate for Phase 3 of this runbook** (live cutover); Phases 4–7 may land later. Owner: Agent.
       _Verify at execution time_ — do not trust this doc's snapshot; check the plan's phase table
       and merged PRs.
-      _Batch evidence 2026-07-06:_ Phase 1 is merged and DB-pushed. MP-03/MP-04 are prepared in
-      OpenSpec change `go-live-phase-0-engineering-blockers` with focused tests passing and MP-04
-      migration dry-run showing only `20260706013906_stripe_livemode_scoped_ids.sql` pending.
-      Still open until PR review/merge, real DB push approval, affected Stripe function redeploys,
-      and staging payment verification complete.
+      _Batch evidence 2026-07-06:_ Phase 1 is merged and DB-pushed. MP-03/MP-04 source changes
+      merged in PR #1170 under OpenSpec change `go-live-phase-0-engineering-blockers`; focused
+      tests, typecheck, lint, OpenSpec validation, and the MP-04 verifier passed. Keep this item
+      open until real DB push approval applies `20260706013906_stripe_livemode_scoped_ids.sql`,
+      affected Stripe functions are redeployed, and staging payment verification is recorded.
 - [x] **0.6 Class-mgmt mutation-error surfacing (plan 003)** — DONE 2026-07-04.
       OpenSpec change `class-mgmt-mutation-error-surfacing` is archived under
       `openspec/changes/archive/2026-07-04-class-mgmt-mutation-error-surfacing/`. Owner: Agent.
@@ -123,7 +123,8 @@ auto-deploy still ON before turning it off.
       _Verify:_ a push to `main` no longer auto-deploys; only the workflow does.
       _Rollback:_ revert that commit.
 - [ ] **d.** Follow-up (non-gating): gate the `apps/docs` guides Vercel project the same way.
-      _Audit 2026-07-06:_ `pnpm qa:go-live:phase1` verifies the production deploy workflow
+      _Audit 2026-07-06:_ PR #1173 merged the Phase 1 verifier tooling. `pnpm qa:go-live:phase1`
+      verifies the production deploy workflow
       source is staged, CI-gated, constrained to successful `main` push CI runs, gated by
       `PRODUCTION_DEPLOY_ENABLED`, and wired to Vercel secrets. The same verifier reports
       `warn vercel_git_auto_deploy_disable` because `git.deploymentEnabled.main=false` is
@@ -199,7 +200,7 @@ Run the post-reseed checks from [`staging-reseed.md`](staging-reseed.md):
       `dededede-…-0010`)
 - [ ] Demo show + classes present
       _Rollback/repair:_ re-run `supabase/seed-demo.sql` (idempotent; 11 protected accounts).
-      _Audit 2026-07-06:_ source-level verifier added in PR prep:
+      _Audit 2026-07-06:_ PR #1172 merged the Phase 2 verifier tooling. Source-level verifier:
       `pnpm qa:go-live:phase2 --allow-blocked` confirms `seed-demo.sql` references the required
       Phase 2 sections and `scripts/go-live/phase-2-data-access.sql` contains the read-only
       staging/prod checklist. Live DB evidence is still open until run with `--db-url`.
@@ -231,10 +232,10 @@ redeployed** (`--workdir apps/myk9show`). Full detail:
 [`stripe-platform-setup.md`](stripe-platform-setup.md) Task 6.3. Owner: Operator except where
 noted. Do this only when ready to take real money — there is no half-live state.
 
-_Audit 2026-07-06:_ `pnpm qa:go-live:phase3 --allow-blocked` confirms the Phase 3 runbook
-and Stripe platform runbook cover the live cutover steps, but reports
-`fail mp04_mode_scoping_source_gate` on this branch. Keep every Phase 3 item unchecked until
-the MP-04 implementation is merged/deployed and the live-money/operator evidence below is
+_Audit 2026-07-06:_ PR #1174 merged the Phase 3 Stripe cutover preflight tooling. After PR #1170
+merged, `pnpm qa:go-live:phase3 --allow-blocked` passes all source preflight checks, including
+`mp04_mode_scoping_source_gate`. Keep every Phase 3 item unchecked until the MP-04 migration is
+pushed, affected Stripe functions are redeployed, and the live-money/operator evidence below is
 recorded.
 
 - [ ] **3.1** Toggle Stripe Dashboard to **Live mode**; enable **Connect** in live mode (may
@@ -283,7 +284,8 @@ spot-check (keep a few hundred dollars available for same-week refunds).
 **Gate in:** Phases 1–3 done; all launch-affecting code merged (users must test a near-final
 product).
 
-_Audit 2026-07-06:_ `pnpm qa:go-live:phase4 --allow-blocked` verifies the Phase 4
+_Audit 2026-07-06:_ PR #1175 merged the Phase 4 evidence checklist and verifier tooling.
+`pnpm qa:go-live:phase4 --allow-blocked` verifies the Phase 4
 operator checklist exists at [`go-live-phase-4-evidence-checklist.md`](go-live-phase-4-evidence-checklist.md),
 the runbook lists all evidence gates, the scorecard still tracks the Yellow dimensions, and
 representative report tests exist. It also correctly reports missing live evidence slots for the

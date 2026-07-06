@@ -23,6 +23,7 @@ import {
   decideCartOverflowRefund,
   type CartOverflowRefundDecision,
 } from '../_shared/cartOverflowRefund.ts';
+import { isStripeLiveMode } from '../_shared/stripeMode.ts';
 
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
@@ -42,6 +43,7 @@ const stripe = new Stripe(stripeSecret, {
     version: '1.0.0',
   },
 });
+const stripeLivemode = isStripeLiveMode(stripeSecret);
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -338,7 +340,8 @@ async function handleAccountDeauthorized(accountId: string | undefined) {
   const { error } = await supabase
     .from('club_stripe_accounts')
     .update({ onboarding_complete: false, payouts_enabled: false })
-    .eq('stripe_account_id', accountId);
+    .eq('stripe_account_id', accountId)
+    .eq('livemode', stripeLivemode);
 
   if (error) {
     console.error(`Error disabling deauthorized account ${accountId}:`, error);
@@ -701,6 +704,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     .from('stripe_customers')
     .select('id')
     .eq('person_id', cart.exhibitor.person_id)
+    .eq('livemode', stripeLivemode)
     .single();
 
   // Resolve each class's trial: entries carry denormalized show_id/trial_id
@@ -994,7 +998,7 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
   const entryIds = (link.entry_ids as string[] | null) ?? [];
   const { data: entriesData, error: entriesError } = await supabase
     .from('entries')
-    .select('id, payment_status, entry_status')
+    .select('id, payment_status, entry_status, stripe_payment_intent_id')
     .in('id', entryIds);
   if (entriesError) {
     console.error('Failed to load entries for payment link:', entriesError);
@@ -1015,6 +1019,7 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       id: string;
       payment_status: string | null;
       entry_status: string | null;
+      stripe_payment_intent_id: string | null;
     }[],
     paymentIntentId,
   });
@@ -1103,11 +1108,12 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     id: string;
     payment_status: string | null;
     entry_status: string | null;
+    stripe_payment_intent_id: string | null;
   }[] = [];
   if (noOpPatchIds.length > 0) {
     const { data: noOpEntriesData, error: noOpEntriesError } = await supabase
       .from('entries')
-      .select('id, payment_status, entry_status')
+      .select('id, payment_status, entry_status, stripe_payment_intent_id')
       .in('id', noOpPatchIds);
     if (noOpEntriesError) {
       console.error('Failed to re-read no-op entry payment patches:', noOpEntriesError);
@@ -1124,6 +1130,7 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
         id: string;
         payment_status: string | null;
         entry_status: string | null;
+        stripe_payment_intent_id: string | null;
       }[];
     }
   }
@@ -1143,6 +1150,7 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     initialMissingEntryIds: result.missingEntryIds,
     initialInactiveEntryIds: result.inactiveEntryIds,
     initialAlreadyPaidEntryIds: result.alreadyPaidEntryIds,
+    initialSameIntentPaidEntryIds: result.sameIntentPaidEntryIds,
     paymentIntentId,
     sessionAmountTotalCents: session.amount_total ?? null,
     entryFeesById,
@@ -1151,15 +1159,34 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
   // Payment history. Idempotent via the UNIQUE stripe_payment_intent_id /
   // stripe_checkout_session_id; a benign retry hits 23505 and is ignored.
   const paidIds = updateOutcome.paidEntryIds;
-  // Close the link (idempotency latch). Expired promotion claims are allowed to
-  // revive only when at least one entry was actually stamped paid; then the
-  // expired link must also latch to paid so Stripe retries cannot refund it.
-  const linkCloseStatus = link.status === 'expired' && paidIds.length > 0 ? 'expired' : 'open';
-  await supabase
-    .from('entry_payment_links')
-    .update({ status: 'paid', updated_at: new Date().toISOString() })
-    .eq('id', link.id)
-    .eq('status', linkCloseStatus);
+  // Close the link (idempotency latch) after reconciliation. Same-intent paid
+  // rows make concurrent Stripe deliveries idempotent without closing the retry
+  // path before entries are stamped. Expired promotion claims are allowed to
+  // revive only when at least one entry was actually stamped paid.
+  const shouldCloseLink =
+    link.status === 'open' || (link.status === 'expired' && paidIds.length > 0);
+  if (shouldCloseLink) {
+    const linkCloseStatus = link.status === 'expired' ? 'expired' : 'open';
+    const { data: closedLinks, error: linkCloseError } = await supabase
+      .from('entry_payment_links')
+      .update({ status: 'paid', updated_at: new Date().toISOString() })
+      .eq('id', link.id)
+      .eq('status', linkCloseStatus)
+      .select('id');
+
+    if (linkCloseError) {
+      console.error(`Payment link ${session.id} could not be closed:`, linkCloseError);
+      await alertAdmin(
+        'Payment link paid but the link could not be latched',
+        `<p>Session <code>${session.id}</code> reconciled entries, but updating
+         the <code>entry_payment_links</code> row to <code>paid</code> failed:</p>
+         <pre>${linkCloseError.message}</pre>
+         <p>Recovery: set the link row to paid after verifying the entry stamps.</p>`
+      );
+    } else if ((closedLinks ?? []).length === 0) {
+      console.log(`Payment link ${session.id} was already closed by another webhook handler`);
+    }
+  }
 
   await resolvePaidWaitlistOffers(paidIds, session.id);
 

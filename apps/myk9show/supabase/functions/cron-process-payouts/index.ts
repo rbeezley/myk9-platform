@@ -15,6 +15,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { calculateShowPayoutCents } from '../_shared/payoutCalc.ts';
+import { isStripeLiveMode } from '../_shared/stripeMode.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -31,6 +32,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 const stripe = new Stripe(stripeSecret, {
   appInfo: { name: 'myK9Show', version: '1.0.0' },
 });
+const stripeLivemode = isStripeLiveMode(stripeSecret);
 
 const PAYOUT_DELAY_DAYS = 3;
 const STALE_PROCESSING_HOURS = 24;
@@ -41,6 +43,13 @@ interface EligibleShow {
   name: string;
   club_id: string | null;
   end_date: string;
+}
+
+interface ClubStripeAccount {
+  id: string;
+  stripe_account_id: string;
+  payouts_enabled: boolean;
+  livemode: boolean;
 }
 
 async function sendEmail(to: string, subject: string, html: string) {
@@ -175,17 +184,39 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
     return;
   }
 
-  const { data: account } = await supabase
+  const { data: accounts } = await supabase
     .from('club_stripe_accounts')
-    .select('id, stripe_account_id, payouts_enabled')
+    .select('id, stripe_account_id, payouts_enabled, livemode')
     .eq('club_id', show.club_id)
-    .maybeSingle();
+    .limit(2);
+  const account = ((accounts ?? []) as ClubStripeAccount[]).find(
+    row => row.livemode === stripeLivemode
+  );
+  const mismatchedAccount = ((accounts ?? []) as ClubStripeAccount[]).find(
+    row => row.livemode !== stripeLivemode
+  );
 
   const { data: club } = await supabase
     .from('clubs')
     .select('name, email')
     .eq('id', show.club_id)
     .single();
+
+  if (!account && mismatchedAccount) {
+    summary.mode_mismatch++;
+    await alertAdmin(
+      `Payout skipped for Stripe mode mismatch: ${show.name}`,
+      `<p>Show <code>${show.id}</code> has payable online money, but club
+       <code>${show.club_id}</code> only has a ${
+         mismatchedAccount.livemode ? 'live' : 'test'
+       } Stripe account row while cron is running with a ${
+         stripeLivemode ? 'live' : 'test'
+       } key.</p>
+       <p>No transfer was attempted. Recovery: complete Connect onboarding in the
+       matching Stripe mode or rotate the function secret back to the intended mode.</p>`
+    );
+    return;
+  }
 
   // Club can't receive money yet: park (or keep) a pending row; nudge only on creation.
   if (!account?.payouts_enabled) {
@@ -376,9 +407,7 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
     summary.failed++;
     console.error(`Transfer failed for show ${show.id}: ${reason}`);
     await alertAdmin(
-      benign
-        ? `Payout deferred (benign): ${show.name}`
-        : `Payout FAILED: ${show.name}`,
+      benign ? `Payout deferred (benign): ${show.name}` : `Payout FAILED: ${show.name}`,
       `<p>Transfer of ${dollars(amountCents)} for <strong>${show.name}</strong> failed:</p>
        <pre>${reason}</pre>
        ${
@@ -421,6 +450,7 @@ Deno.serve(async req => {
     failed: 0,
     skipped_no_online_money: 0,
     stale_recovered: 0,
+    mode_mismatch: 0,
   };
 
   try {

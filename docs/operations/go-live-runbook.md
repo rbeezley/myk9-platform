@@ -241,6 +241,13 @@ spot-check (keep a few hundred dollars available for same-week refunds).
 **Gate in:** Phases 1–3 done; all launch-affecting code merged (users must test a near-final
 product).
 
+_Audit 2026-07-06:_ `pnpm qa:go-live:phase4 --allow-blocked` verifies the Phase 4
+operator checklist exists at [`go-live-phase-4-evidence-checklist.md`](go-live-phase-4-evidence-checklist.md),
+the runbook lists all evidence gates, the scorecard still tracks the Yellow dimensions, and
+representative report tests exist. It also correctly reports missing live evidence slots for the
+show-day re-walk, offline rehearsal, hardware print test, real-user testing, and scorecard
+close-out; keep those items unchecked until evidence is recorded.
+
 - [ ] **4.1 Show-day re-walk (judge/steward arc)** — full Phase A–F walk on staging against the
       seeded fixtures; confirms S1–S5 findings from the 2026-06-17 walk stay fixed
       (public `/results` deep link cold, judge dashboard assignments, passcode entry, withdrawn

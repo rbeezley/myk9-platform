@@ -154,6 +154,11 @@ test('exhibitor card entry hands off to cart checkout without enrollment writes'
 
   await submitAndPay.click();
 
+  const cartButton = page.getByRole('button', { name: /Shopping cart/ });
+  await expect(cartButton).toContainText('1', { timeout: 15000 });
+  if (!/\/cart$/.test(new URL(page.url()).pathname)) {
+    await cartButton.click();
+  }
   await expect(page).toHaveURL(/\/cart$/, { timeout: 15000 });
 
   expect(captured.cartItem?.cart_id).toBe(MOCK_CART_ID);

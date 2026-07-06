@@ -18,6 +18,16 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-07-06
+
+- **Playwright command:** fail, then focused repair proof passed for the failed surfaces. Phase 1 promoted Vitest passed after bootstrapping the isolated worktree (`18/18`). Initial Phase 2 exact active Playwright command failed within budget with `48 passed, 4 failed, 1 skipped (3.9m, --retries=0)`.
+- **Route sweep:** pass. The committed `route-health-by-role.spec.ts` passed inside Phase 2, and standalone Phase 3 route-health passed all role groups: public, exhibitor, secretary, judge, club-admin, and admin (`6/6`, `1.1m`, `--retries=0`). No role groups were skipped.
+- **Active specs:** Vitest `18/18`; initial active Playwright `48/53` passed before focused repairs.
+- **Failures:** Updated `QA-TEST-FLAKE-032`. Initial failures were `cross-role-workflows.spec.ts` waiting for stale `Browse Shows` link copy while the current exhibitor sidebar link is `Find Shows`; `registration/exhibitorSelfRegistration.spec.ts` expecting immediate `/cart` navigation after `Submit & pay` while the cart count was visible and hydrated; `secretary-entry-walk.spec.ts` expecting stale final `Next`/`Finish` copy and using a closed-entry mail-in path for a now-closed seeded show; and `uat/secretary/disposable-entry.spec.ts` losing a Base UI menu item during click after the menu re-rendered.
+- **Fixes made:** test-only. `cross-role-workflows.spec.ts` now asserts the current `Find Shows` discovery link. `exhibitorSelfRegistration.spec.ts` follows the visible cart button when checkout does not navigate immediately. `secretary-entry-walk.spec.ts` uses the Show Desk late-entry path, current `Submit entry`/`Done` copy, and DOM clicks for unstable payment/submit controls after visibility/enabled assertions. `disposable-entry.spec.ts` retries menu-item clicks only for the known detached-during-click failure shape.
+- **Demotions/promotions:** none.
+- **Notes:** Ran from isolated detached worktree `.worktrees/nightly-qa-2026-07-06-023331` on `origin/main` `2ed8f0ba8c009961a5540e4591137079281aecba`, using `PLAYWRIGHT_PORT=6107`, `PLAYWRIGHT_BASE_URL=http://127.0.0.1:6107`, and `PLAYWRIGHT_HMR_PORT=26107`. Focused proof passed with `--retries=0`: cross-role exhibitor `1/1`, exhibitor checkout `1/1`, secretary entry walk `1/1`, disposable-entry `1/1`. A first multi-spec focused replay hit a new public `/shows/browse` navigation timeout before the repaired specs completed, so `QA-TEST-FLAKE-032` remains open until the exact Phase 2 command also passes under budget after these repairs.
+
 ### 2026-07-05
 
 - **Playwright command:** fail/stopped after one low-risk test repair. Phase 1 promoted Vitest initially failed before bootstrap because the isolated worktree had no dependencies, then passed after `bash scripts/bootstrap-worktree.sh` (`18/18`). Phase 2 exact active Playwright command exceeded the 30-minute global Nightly budget and was stopped at `23 passed, 3 failed, 1 interrupted, 1 skipped, 25 did not run (32.4m, --retries=0)`.

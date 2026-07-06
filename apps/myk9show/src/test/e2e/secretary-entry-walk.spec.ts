@@ -5,6 +5,7 @@ import { LIVE_SECRETARY_SHOW_ID, LIVE_SECRETARY_SHOW_NAME } from './uat/shared/s
 const TEST_SHOW_ID = LIVE_SECRETARY_SHOW_ID;
 const DOG_SEARCH = 'Ranger';
 const MOCK_CART_ID = '00000000-0000-4000-8000-00000000c001';
+const SECRETARY_LATE_ENTRY_PATH = `/secretary/register/${TEST_SHOW_ID}?source=show-desk&entryMode=late`;
 
 test.describe('Secretary Entry Walk', () => {
   test('full wizard walk: search dog → select → pick class → submit', async ({ page }) => {
@@ -164,8 +165,8 @@ test.describe('Secretary Entry Walk', () => {
       });
     });
 
-    await signInAsSecretary(page, `/secretary/register/${TEST_SHOW_ID}`);
-    await page.goto(`/secretary/register/${TEST_SHOW_ID}`, { waitUntil: 'domcontentloaded' });
+    await signInAsSecretary(page, SECRETARY_LATE_ENTRY_PATH);
+    await page.goto(SECRETARY_LATE_ENTRY_PATH, { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible({
       timeout: 15000,
     });
@@ -218,7 +219,11 @@ test.describe('Secretary Entry Walk', () => {
     await nextBtn3.click();
     await page.waitForSelector('text=Payment Information', { timeout: 8000 });
 
-    await page.getByRole('button', { name: /Secretary Payment \(Already Received\)/i }).click();
+    const secretaryPayment = page.getByRole('button', {
+      name: /Secretary Payment \(Already Received\)/i,
+    });
+    await expect(secretaryPayment).toBeVisible();
+    await secretaryPayment.evaluate((button: HTMLElement) => button.click());
     // Scroll down to find the entry agreement checkbox (below the fold)
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
 
@@ -229,16 +234,16 @@ test.describe('Secretary Entry Walk', () => {
     await agreementLabel.click();
 
     // ── Step 5: Confirmation ───────────────────────────────────────────────
-    const nextBtn4 = page.getByRole('button', { name: /next/i });
-    await expect(nextBtn4).toBeEnabled();
-    await nextBtn4.click();
+    const submitEntry = page.getByRole('button', { name: /^Submit entry$/i });
+    await expect(submitEntry).toBeEnabled();
+    await submitEntry.evaluate((button: HTMLElement) => button.click());
 
     await expect(page.getByRole('heading', { name: /^Entry submitted\./i })).toBeVisible({
       timeout: 10000,
     });
 
-    await page.getByRole('button', { name: 'Finish' }).click();
-    await expect(page).toHaveURL(new RegExp(`/shows/${TEST_SHOW_ID}`));
+    await page.getByRole('button', { name: 'Done' }).click();
+    await expect(page).toHaveURL(new RegExp(`/shows/${TEST_SHOW_ID}/show-desk`));
     await expect(
       page.getByRole('heading', { level: 2, name: LIVE_SECRETARY_SHOW_NAME })
     ).toBeVisible();

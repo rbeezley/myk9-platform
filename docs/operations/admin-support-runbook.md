@@ -49,7 +49,7 @@ Accepted fall procedure, in order of preference:
 
 Prefer in-app repair before any SQL:
 
-- **Soft-deleted record** (show, trial, class, entry, dog, club, person) → restore at `/admin/data-lifecycle`. This goes through SECURITY DEFINER RPCs that handle the `deleted_at IS NULL` policy correctly (see [[project_restore_write_rls_rpcs]] / PR #790). Do **not** hand-write an `UPDATE ... SET deleted_at = NULL` — the SELECT policy makes it match zero rows.
+- **Soft-deleted record** (show, trial, class, entry, dog, club, person) → restore at `/admin/deleted-items`. This goes through SECURITY DEFINER RPCs that handle the `deleted_at IS NULL` policy correctly (see [[project_restore_write_rls_rpcs]] / PR #790). Do **not** hand-write an `UPDATE ... SET deleted_at = NULL` — the SELECT policy makes it match zero rows.
 - **Wrong role / access** → §1 above, in-app.
 
 For field-level fixes with no in-app surface (e.g. correct a typo'd email, re-point an entry's `class_id`), use the Supabase **SQL editor** with these guardrails:
@@ -84,7 +84,6 @@ For reference — these support actions have working UI and don't need this docu
 | Roles / access fixes      | `/admin/permissions/*`, `/admin/role-requests`                                                                                                                    |
 | Payments / payouts        | `/admin/payouts` (+ Stripe dashboard for failed-charge detail, per [`stripe-platform-setup.md`](stripe-platform-setup.md))                                        |
 | Sync / replication health | `/admin/sync`                                                                                                                                                     |
-| Onboarding requests       | `/admin/onboarding`                                                                                                                                               |
-| App performance / alerts  | `/admin/performance`, `/admin/alerts`                                                                                                                             |
+| App health                | `/admin/health`, `/admin/sync`, `/admin/support`                                                                                                                  |
 | Deploy / migration health | [`ci-vercel-deploys.md`](ci-vercel-deploys.md), [`edge-function-deploy-drift-2026-06-23.md`](edge-function-deploy-drift-2026-06-23.md), `supabase migration list` |
-| Soft-delete restore       | `/admin/data-lifecycle`                                                                                                                                           |
+| Soft-delete restore       | `/admin/deleted-items`                                                                                                                                            |

@@ -27,13 +27,13 @@ describe('DeleteDogDialog buildWarningText', () => {
 
   it('gives an admin the restore note, dog-only when there are no entries', () => {
     expect(buildWarningText(0, true)).toBe(
-      'The dog can be restored by an administrator from Admin → Data Lifecycle.'
+      'The dog can be restored by an administrator from Admin → Deleted Items.'
     );
   });
 
   it('gives an admin the restore note naming entries when they cascade', () => {
     expect(buildWarningText(3, true)).toBe(
-      'The dog and its entries can be restored by an administrator from Admin → Data Lifecycle.'
+      'The dog and its entries can be restored by an administrator from Admin → Deleted Items.'
     );
   });
 

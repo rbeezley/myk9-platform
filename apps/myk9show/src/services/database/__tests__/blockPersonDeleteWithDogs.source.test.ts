@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 
 // Source-level contract for the "can't delete a person who owns live dogs" guard.
 // The invariant lives in a DB trigger so it holds across every delete path (the
-// deleteUser service, the admin-delete-user edge fn, OrphanedRecordsCleaner). A
+// deleteUser service, admin-delete-user edge fn, or future cleanup tooling). A
 // regression here silently re-opens the orphaned-dog hole.
 const read = (rel: string) => readFileSync(resolve(__dirname, rel), 'utf8');
 

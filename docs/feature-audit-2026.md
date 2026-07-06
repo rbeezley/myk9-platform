@@ -17,7 +17,7 @@
 - If a page is real but not in either journey → **park** (unless auth/legal infrastructure)
 - If a page has "Demo", "Test", or "Sync" in the name and is not user-facing → **delete/hide**
 - Judge/steward pages → **park** (myK9Q is the primary judge surface for fall)
-- Admin: Dashboard, Users, Roles & Permissions → **critical-path**; Performance Mode, Load Testing, Sync, Data Lifecycle → **park**
+- Admin: Dashboard, Users, Roles & Permissions, Deleted Items → **critical-path**; Performance Mode, Load Testing, Sync → **park**
 
 ---
 
@@ -71,10 +71,9 @@
 | Page / Feature      | Route                    | Classification | Rationale                                                             |
 | ------------------- | ------------------------ | -------------- | --------------------------------------------------------------------- |
 | Dashboard           | /admin/dashboard         | critical-path  | Admin home; per classification rules                                  |
-| Alerts              | /admin/alerts            | park           | Real operational tool; not in critical-path list                      |
-| Performance         | /admin/performance       | park           | Real tool; not in critical-path list                                  |
-| Analytics           | /admin/analytics         | park           | Real tool; not in critical-path list                                  |
-| Data Lifecycle      | /admin/data-lifecycle    | park           | Per rules                                                             |
+| Alerts              | /admin/alerts            | delete         | Removed: browser-local alerts were not shared or actionable platform health |
+| Performance         | /admin/performance       | delete         | Removed: current-browser telemetry belonged in diagnostics, not admin health |
+| Deleted Items       | /admin/deleted-items     | critical-path  | Real admin restore/permanent-delete surface for soft-deleted records  |
 | Performance Mode    | /admin/performance-mode  | park           | Per rules; no active route in adminRoutes.tsx — nav item may be stale |
 | Load Testing        | /admin/load-testing      | park           | Per rules; already DEV-gated in adminRoutes.tsx                       |
 | Sync                | /admin/sync              | park           | Per rules                                                             |
@@ -82,7 +81,6 @@
 | Roles & Permissions | /admin/permissions       | critical-path  | Per classification rules                                              |
 | Permission Audit    | /admin/permissions/audit | park           | Useful ops tool; not in critical-path list                            |
 | Templates           | /admin/templates         | park           | Real feature (scoresheet templates); not in critical-path list        |
-| Onboarding          | /admin/onboarding        | park           | Real feature; not in critical-path list                               |
 
 ---
 

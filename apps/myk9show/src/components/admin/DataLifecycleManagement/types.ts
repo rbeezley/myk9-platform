@@ -1,11 +1,8 @@
 /**
- * Shared types for the DataLifecycleManagement module.
+ * Shared types for the deleted-items admin restore page.
  */
 
 import type React from 'react';
-
-import type { ArchiveStats } from '@/services/data-lifecycle/DataArchiveService';
-import type { CleanupReport } from '@/services/data-lifecycle/OrphanedRecordsCleaner';
 
 /** All entity types that support soft delete */
 export type EntityType = 'show' | 'trial' | 'class' | 'entry' | 'dog' | 'club' | 'person';
@@ -36,53 +33,3 @@ export interface EntitySectionConfig {
   restore: (id: string, restoredBy?: string) => Promise<unknown>;
   hardDelete: (id: string) => Promise<unknown>;
 }
-
-/** Props shared by overview/stats components */
-export interface OverviewCardsProps {
-  archiveStats: ArchiveStats | null;
-  schedulerStatus: Record<string, unknown> | null;
-  policyCount: number;
-}
-
-/** Props for the Overview tab panel */
-export interface OverviewTabProps {
-  archiveStats: ArchiveStats | null;
-  schedulerStatus: Record<string, unknown> | null;
-  isLoading: boolean;
-  onStartScheduler: () => void;
-  onStopScheduler: () => void;
-  onRunArchiveCheck: () => Promise<void>;
-}
-
-/** Props for the Archiving tab panel */
-export interface ArchivingTabProps {
-  archiveStats: ArchiveStats | null;
-  isLoading: boolean;
-  onRunArchiveCheck: () => Promise<void>;
-}
-
-/** Props for the Policies tab panel */
-export interface PoliciesTabProps {
-  policies: Array<{
-    id: string;
-    name: string;
-    description: string;
-    dataTypes: string[];
-    isActive: boolean;
-    priority: number;
-  }>;
-}
-
-/** Props for the Cleanup tab panel */
-export interface CleanupTabProps {
-  isLoading: boolean;
-  lastCleanupReport: CleanupReport | null;
-  onRunCleanup: (dryRun: boolean) => Promise<void>;
-}
-
-/** Props for the Export/Import tab panel */
-export interface ExportImportTabProps {
-  isLoading: boolean;
-  onExportData: () => Promise<void>;
-}
-

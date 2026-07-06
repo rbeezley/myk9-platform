@@ -48,18 +48,12 @@ export const adminRouteComponents: Record<string, ImportFunction> = {
   '/admin/permissions/users': () => import('@/pages/admin/permissions/UserRoleManagementPage'),
   '/admin/permissions/audit': () => import('@/pages/admin/permissions/PermissionAuditPage'),
 
-  // Performance and monitoring
-  '/admin/performance': () =>
-    import('@/components/admin/PerformanceDashboard').then(m => ({
-      default: m.PerformanceDashboard,
-    })),
-  '/admin/data-lifecycle': () =>
+  '/admin/deleted-items': () =>
     import('@/components/admin/DataLifecycleManagement').then(m => ({
       default: m.DataLifecycleManagement,
     })),
   '/admin/load-testing': () =>
     import('@/components/admin/LoadTestDashboard').then(m => ({ default: m.LoadTestDashboard })),
-  '/admin/alerts': () => import('@/pages/AlertsPage'),
   '/admin/help': () => import('@/features/admin-help').then(m => ({ default: m.AdminHelpPage })),
 } as const;
 
@@ -176,13 +170,7 @@ export const routeCategories = {
 
   high: ['/admin/templates', '/admin/sync', '/shows', '/dogs', '/calendar'],
 
-  medium: [
-    '/admin/performance',
-    '/exhibitor/analytics',
-    '/admin/alerts',
-    '/clubs',
-    '/subscription',
-  ],
+  medium: ['/admin/deleted-items', '/exhibitor/analytics', '/clubs', '/subscription'],
 
   low: ['/admin/load-testing', '/tv/:showId'],
 };
@@ -190,7 +178,7 @@ export const routeCategories = {
 // Common navigation patterns for intelligent preloading
 export const navigationPatterns = {
   // Admin workflow patterns
-  adminDashboard: ['/admin/templates', '/admin/permissions', '/admin/performance'],
+  adminDashboard: ['/admin/health', '/admin/support', '/admin/permissions'],
   templateManagement: ['/admin/templates/new', '/admin/dashboard'],
   permissionManagement: ['/admin/permissions/roles', '/admin/permissions/users'],
 

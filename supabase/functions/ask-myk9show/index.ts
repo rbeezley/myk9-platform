@@ -158,7 +158,7 @@ Deno.serve(async (req: Request) => {
         .eq('auth_user_id', user.id)
         .single(),
       showId
-        ? serviceClient.from('shows').select('show_name').eq('id', showId).single()
+        ? serviceClient.from('shows').select('name').eq('id', showId).single()
         : Promise.resolve({ data: null } as { data: null }),
     ]);
 
@@ -274,15 +274,16 @@ Deno.serve(async (req: Request) => {
     let verifiedShowId: string | null = null;
     let showName: string | null = null;
     let showRulebooks: AskQRulebookAsset[] = [];
-    if (showId && showData?.show_name) {
+    if (showId && showData?.name) {
       const dogIds = dogs.map(d => d.id);
       const [{ count: roleCount }, { count: entryCount }] = await Promise.all([
         serviceClient
           .from('user_roles')
           .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .eq('scope_type', 'show')
-          .eq('scope_id', showId),
+          .eq('auth_user_id', user.id)
+          .eq('show_id', showId)
+          .eq('is_active', true)
+          .or('expires_at.is.null,expires_at.gt.now()'),
         dogIds.length > 0
           ? serviceClient
               .from('entries')
@@ -295,7 +296,7 @@ Deno.serve(async (req: Request) => {
       const hasAccess = (roleCount ?? 0) > 0 || (entryCount ?? 0) > 0;
       if (hasAccess) {
         verifiedShowId = showId;
-        showName = showData.show_name;
+        showName = showData.name;
         const { data: trialContexts } = await serviceClient
           .from('trials')
           .select('registry_id, trial_type')

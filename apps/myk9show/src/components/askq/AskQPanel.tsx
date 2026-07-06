@@ -69,7 +69,7 @@ export function AskQPanel() {
 
   const handleSubmit = useCallback(
     (query: string) => {
-      if (mode === 'app-help') {
+      if (activeMode === 'app-help') {
         void support.askForHelp(query);
         clearSuggestedPrompt();
         return;
@@ -78,7 +78,7 @@ export function AskQPanel() {
       askq.submitQuery(query, buildSubmitOptions(mode ?? undefined));
       clearSuggestedPrompt();
     },
-    [askq, buildSubmitOptions, clearSuggestedPrompt, mode, support]
+    [activeMode, askq, buildSubmitOptions, clearSuggestedPrompt, mode, support]
   );
 
   const handleExampleQuery = useCallback(
@@ -139,7 +139,7 @@ export function AskQPanel() {
       : support.state.question;
 
   const footer = useMemo(() => {
-    if (mode === 'app-help') {
+    if (activeMode === 'app-help') {
       if (support.state.status === 'escalating' || support.state.status === 'submitting') {
         if (!user) {
           return (
@@ -185,12 +185,12 @@ export function AskQPanel() {
         key={`${activeMode}-${promptRequestId}`}
         onSubmit={handleSubmit}
         disabled={
-          mode === 'app-help'
+          activeMode === 'app-help'
             ? support.state.status === 'streaming'
             : askq.status === 'streaming' || askq.status === 'rate-limited'
         }
         initialValue={suggestedPrompt ?? ''}
-        {...(mode === 'app-help'
+        {...(activeMode === 'app-help'
           ? { placeholder: 'Ask about using myK9Show...' }
           : mode === null
             ? { placeholder: 'Ask about rules, your results, or the app...' }
@@ -223,7 +223,7 @@ export function AskQPanel() {
     option => !rulebookOrganization || option.organizationCode === rulebookOrganization
   );
 
-  const isAskQMode = mode !== 'app-help';
+  const isAskQMode = activeMode !== 'app-help';
 
   const content = isAskQMode ? (
     <>

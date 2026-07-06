@@ -44,9 +44,7 @@ describe('AskQPanel', () => {
   it('shows the input bar', () => {
     act(() => useAskQPanelStore.getState().open());
     render(<AskQPanel />);
-    expect(
-      screen.getByPlaceholderText('Ask about rules, your results, or the app...')
-    ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Ask about using myK9Show...')).toBeInTheDocument();
   });
 
   it('prefills the input from a workbench prompt', () => {
@@ -57,9 +55,7 @@ describe('AskQPanel', () => {
     );
     render(<AskQPanel />);
 
-    expect(
-      screen.getByPlaceholderText('Ask about rules, your results, or the app...')
-    ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Ask about using myK9Show...')).toBeInTheDocument();
   });
 
   it('clears the suggested prompt after submit', async () => {
@@ -95,6 +91,29 @@ describe('AskQPanel', () => {
     expect(screen.queryByLabelText('Support request')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Create ticket/i })).not.toBeInTheDocument();
     expect(askqService.sendAskQQuery).not.toHaveBeenCalled();
+  });
+
+  it('routes typed default App Help questions through support mode', async () => {
+    vi.mocked(askqService.sendAskQQuery).mockResolvedValue(createMockStream());
+
+    act(() => useAskQPanelStore.getState().open());
+    const { user } = render(<AskQPanel />, { initialRoute: '/exhibitor/entries' });
+
+    await user.type(
+      screen.getByPlaceholderText('Ask about using myK9Show...'),
+      'Where is my armband?'
+    );
+    await user.click(screen.getByRole('button', { name: 'Send query' }));
+
+    await waitFor(() => {
+      expect(askqService.sendAskQQuery).toHaveBeenCalledWith(
+        {
+          message: 'Where is my armband?',
+          supportMode: true,
+        },
+        expect.any(AbortSignal)
+      );
+    });
   });
 
   it('sends rules mode with the selected rulebook scope', async () => {

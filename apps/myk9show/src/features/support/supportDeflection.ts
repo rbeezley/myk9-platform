@@ -69,7 +69,7 @@ export function routeSupportDeflection(input: SupportDeflectionInput): SupportDe
 
   const answer = input.answer.trim();
   if (!answer) {
-    return escalate(input, 'low_confidence', 'No verified guide answer was found.');
+    return escalate(input, 'low_confidence', "I couldn't find a reliable answer for that.");
   }
 
   return {

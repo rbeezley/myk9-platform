@@ -50,6 +50,8 @@ const INITIAL_STATE: SupportHelpState = {
   error: null,
 };
 
+const GENERIC_ESCALATION_MESSAGE = "I couldn't answer that confidently.";
+
 export function useSupportHelp(user: User | null, userWithRoles: UserWithRoles | null) {
   const [state, setState] = useState<SupportHelpState>(INITIAL_STATE);
   const abortRef = useRef<AbortController | null>(null);
@@ -140,7 +142,7 @@ export function useSupportHelp(user: User | null, userWithRoles: UserWithRoles |
             route: {
               kind: 'escalate',
               reason: 'low_confidence',
-              message: 'A person can help with that.',
+              message: GENERIC_ESCALATION_MESSAGE,
               question: trimmed,
             },
             error: null,
@@ -161,13 +163,13 @@ export function useSupportHelp(user: User | null, userWithRoles: UserWithRoles |
     setState(prev => ({
       ...prev,
       status: 'escalating',
-      route:
+            route:
         prev.route?.kind === 'escalate'
           ? prev.route
           : {
               kind: 'escalate',
               reason: 'low_confidence',
-              message: 'A person can help with that.',
+              message: GENERIC_ESCALATION_MESSAGE,
               question: prev.question,
             },
     }));

@@ -66,9 +66,6 @@ import { ReplicationSyncProvider } from './providers/ReplicationSyncProvider';
 // Panel System
 import { PanelProvider } from './components/panels/PanelContext';
 
-// Alert System
-import { AlertInitializer } from './components/alerts';
-
 // Notification System
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 
@@ -286,8 +283,7 @@ function App() {
               <NotificationMonitorInitializer />
               <AudioSettingsProvider>
                 <PanelProvider>
-                  <AlertInitializer>
-                    <ExhibitorOnboardingChecker>
+                  <ExhibitorOnboardingChecker>
                       <ErrorBoundary
                         level="page"
                         context="Application"
@@ -437,7 +433,6 @@ function App() {
                         </AppShellMobileNavProvider>
                       </ErrorBoundary>
                     </ExhibitorOnboardingChecker>
-                  </AlertInitializer>
                 </PanelProvider>
               </AudioSettingsProvider>
             </AuthProvider>

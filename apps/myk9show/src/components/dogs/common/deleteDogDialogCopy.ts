@@ -22,7 +22,7 @@ export function buildImpactSuffix(activeEntryCount?: number): string {
 /**
  * The warning line under the primary sentence.
  *
- * The restore UI (`/admin/data-lifecycle`) is admin-only, so only an admin can
+ * The restore UI (`/admin/deleted-items`) is admin-only, so only an admin can
  * actually undo this delete. Non-admins (e.g. an exhibitor deleting their own
  * dog) genuinely can't reverse it themselves, so they get the honest "cannot be
  * undone." Admins get the restore note, naming entries too when they cascade.
@@ -34,5 +34,5 @@ export function buildWarningText(
   if (!canRestore) return 'This action cannot be undone.';
   const what =
     !activeEntryCount || activeEntryCount <= 0 ? 'The dog' : 'The dog and its entries';
-  return `${what} can be restored by an administrator from Admin → Data Lifecycle.`;
+  return `${what} can be restored by an administrator from Admin → Deleted Items.`;
 }

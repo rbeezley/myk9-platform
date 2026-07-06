@@ -22,8 +22,7 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 | ----------------------- | ---------------------------------------------- |
 | `/admin/load-testing`   | `classification: hidden`, dev-only             |
 | `/admin/sync`           | Internal telemetry                             |
-| `/admin/performance`    | Internal telemetry                             |
-| `/admin/data-lifecycle` | Internal admin only                            |
+| `/admin/deleted-items`  | Internal admin recovery tool                   |
 | `/browse-shows`         | Backwards-compat redirect                      |
 | `/my-entries`           | Backwards-compat redirect                      |
 | `/registration`         | Legacy alias / stub                            |
@@ -237,7 +236,9 @@ These exist in `pageDirectory.ts` for the Help page and are documented here for 
 | Role requests                | `/admin/role-requests`                            |
 | Payout ledger + platform fee | `/admin/payouts`                                  |
 | Templates                    | `/admin/templates`                                |
-| System alerts                | `/admin/alerts`                                   |
+| App health                   | `/admin/health` → `/admin/sync`                   |
+| Support troubleshooting      | `/admin/support`                                  |
+| Deleted item recovery        | `/admin/deleted-items`                            |
 
 ---
 

@@ -5,7 +5,7 @@
 **Found:** 2026-06-16, during a manual restore walk (deleting Dog 1 then trying to restore it).
 
 ## Problem
-The admin restore UI (`/admin/data-lifecycle` → Deleted Entities) works for only
+The admin restore UI (`/admin/deleted-items` → Deleted Items) works for only
 **1 of 7** entity types (Clubs). Two independent root causes:
 
 - **A — RLS-blocked reads (dogs, shows, classes, people).** Their `*_select`
@@ -32,8 +32,8 @@ The admin restore UI (`/admin/data-lifecycle` → Deleted Entities) works for on
   the parent show's `deleted_at`, not its own, so admins can see/update tombstones.
   `clubs`/`entries` have no SELECT block either, so their restore keeps working.
 
-This also makes PR #781's dialog copy ("can be restored by an administrator from
-Admin → Data Lifecycle") currently **false for dogs**.
+This also made PR #781's dialog copy ("can be restored by an administrator from
+Admin → Deleted Items") false for dogs before the restore RPC work.
 
 ## Approach
 Three surgical fixes, no change to normal (non-deleted) read paths:
@@ -71,7 +71,7 @@ Three surgical fixes, no change to normal (non-deleted) read paths:
    and a transactional restore round-trip per type. Unit-test the read wiring.
 4. **Verify** — walk all 7 types in the restore UI (list shows rows → restore →
    row returns). Reconcile #781 copy (now accurate). Decide separately whether to
-   surface "Data Lifecycle" in the admin sidebar (currently URL-only / parked).
+   surface "Deleted Items" in the admin sidebar.
 5. **Restore write RPCs (C)** — migration `20260617120000_restore_entity_rpcs.sql`
    adding `restore_dog/show/class/person` (SECURITY DEFINER, `is_platform_admin()`
    gate, `REVOKE … FROM PUBLIC` + `GRANT EXECUTE` to authenticated, cascade-restore
@@ -80,5 +80,5 @@ Three surgical fixes, no change to normal (non-deleted) read paths:
    tombstone in a `BEGIN … ROLLBACK` (dog + both entries restored, zero persistence).
 
 ## Out of scope
-- Sidebar discoverability of the Data Lifecycle page (parked by config) — a
+- Sidebar discoverability of the Deleted Items page — a
   separate IA decision, noted in Phase 4.

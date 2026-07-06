@@ -88,11 +88,14 @@ const CLUB_ADMIN_ROUTES: RouteSpec[] = [{ label: 'members', path: '/club-admin/m
 
 const ADMIN_ROUTES: RouteSpec[] = [
   { label: 'dashboard', path: '/admin/dashboard', check375: true },
+  { label: 'health', path: '/admin/health' },
+  { label: 'support', path: '/admin/support' },
   { label: 'users', path: '/admin/users' },
+  { label: 'payouts', path: '/admin/payouts' },
   { label: 'permissions', path: '/admin/permissions' },
+  { label: 'deleted-items', path: '/admin/deleted-items' },
   { label: 'templates', path: '/admin/templates' },
   { label: 'sync', path: '/admin/sync' },
-  { label: 'onboarding', path: '/admin/onboarding' },
   { label: 'role-requests', path: '/admin/role-requests' },
   { label: 'judges-analytics', path: '/admin/judges/analytics' },
   { label: 'help', path: '/admin/help' },

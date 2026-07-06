@@ -71,10 +71,10 @@ export function PlatformAdministrationSection({ userCount }: PlatformAdministrat
           href="/admin/users"
         />
         <AdminCard
-          title="Alerts & Monitoring"
-          description="View system alerts and notifications"
+          title="System Health"
+          description="Review platform health and go-live checks"
           icon={Activity}
-          href="/admin/alerts"
+          href="/admin/health"
         />
         <AdminCard
           title="Support Inbox"

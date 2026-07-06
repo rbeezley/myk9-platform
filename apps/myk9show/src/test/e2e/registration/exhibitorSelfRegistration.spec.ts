@@ -122,6 +122,7 @@ async function selectFirstAvailableClass(page: Page) {
 test('exhibitor card entry hands off to cart checkout without enrollment writes', async ({
   page,
 }) => {
+  await page.clock.setFixedTime(new Date('2026-05-15T12:00:00.000Z'));
   const captured: CapturedWrites = {};
   await preventSharedEntryWrites(page, captured);
   await signInAsExhibitor(page, `/shows/${SHOW_ID}/register`);
@@ -153,13 +154,9 @@ test('exhibitor card entry hands off to cart checkout without enrollment writes'
   await expect(submitAndPay).toBeEnabled();
 
   await submitAndPay.click();
-
+  await expect(page).toHaveURL(/\/cart$/, { timeout: 15000 });
   const cartButton = page.getByRole('button', { name: /Shopping cart/ });
   await expect(cartButton).toContainText('1', { timeout: 15000 });
-  if (!/\/cart$/.test(new URL(page.url()).pathname)) {
-    await cartButton.click();
-  }
-  await expect(page).toHaveURL(/\/cart$/, { timeout: 15000 });
 
   expect(captured.cartItem?.cart_id).toBe(MOCK_CART_ID);
   expect(typeof captured.cartItem?.entry_fee_cents).toBe('number');

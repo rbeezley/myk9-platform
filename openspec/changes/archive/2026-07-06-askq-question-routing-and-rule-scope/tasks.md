@@ -53,4 +53,4 @@
 - [x] 7.2 Run a subagent code review focused on grounding safety, rulebook ambiguity, and UX simplicity
 - [x] 7.3 Fix review findings and rerun focused tests
 - [x] 7.4 Open or update the PR with the test plan and screenshots if UI changed materially
-- [ ] 7.5 Merge only after required CI passes and OpenSpec verification is complete
+- [x] 7.5 Merge only after required CI passes and OpenSpec verification is complete

@@ -33,6 +33,9 @@ const ERROR_MESSAGES: Record<string, string> = {
     'The policy recorded at payment is not available. Enter the refund amount manually.',
   policy_snapshot_manual_review:
     'This policy needs manual review. Enter the refund amount before issuing the refund.',
+  money_operation_in_progress:
+    'Another payout or refund is already running for this show. Try again in a moment.',
+  money_lock_failed: 'We could not safely reserve this refund. Try again in a moment.',
 };
 
 /** Minimal shape required by RefundEntryDialog — a subset of EntryManagementEntry. */

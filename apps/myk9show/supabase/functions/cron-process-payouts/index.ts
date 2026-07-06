@@ -16,6 +16,7 @@ import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { calculateShowPayoutCents } from '../_shared/payoutCalc.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
+import { acquireShowMoneyLock } from '../_shared/showMoneyLock.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -248,42 +249,52 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
     return;
   }
 
-  // Claim: pending → processing with the fresh amount, or insert processing.
-  let rowId: string;
-  if (liveRow) {
-    const { data: claimed, error: claimError } = await supabase
-      .from('show_payouts')
-      .update({
-        status: 'processing',
-        amount_cents: amountCents,
-        club_stripe_account_id: account.id,
-      })
-      .eq('id', liveRow.id)
-      .eq('status', 'pending')
-      .select('id');
-    if (claimError || !claimed?.length) return; // raced by another run
-    rowId = claimed[0].id;
-  } else {
-    const { data: inserted, error: insertError } = await supabase
-      .from('show_payouts')
-      .insert({
-        show_id: show.id,
-        club_stripe_account_id: account.id,
-        amount_cents: amountCents,
-        status: 'processing',
-        scheduled_date: new Date().toISOString().slice(0, 10),
-      })
-      .select('id')
-      .single();
-    if (insertError || !inserted) {
-      // Unique-index conflict = another run already owns this show.
-      console.log(`Skipping show ${show.id}: live payout row already exists`);
-      return;
-    }
-    rowId = inserted.id;
+  const moneyLock = await acquireShowMoneyLock(supabase, show.id, {
+    holder: 'cron-process-payouts',
+    ttlMs: 15 * 60 * 1000,
+  });
+  if (!moneyLock.ok) {
+    summary.money_lock_busy++;
+    console.log(`Skipping show ${show.id}: money lock ${moneyLock.reason}`);
+    return;
   }
 
+  let rowId: string | null = null;
   try {
+    // Claim: pending → processing with the fresh amount, or insert processing.
+    if (liveRow) {
+      const { data: claimed, error: claimError } = await supabase
+        .from('show_payouts')
+        .update({
+          status: 'processing',
+          amount_cents: amountCents,
+          club_stripe_account_id: account.id,
+        })
+        .eq('id', liveRow.id)
+        .eq('status', 'pending')
+        .select('id');
+      if (claimError || !claimed?.length) return; // raced by another run
+      rowId = claimed[0].id;
+    } else {
+      const { data: inserted, error: insertError } = await supabase
+        .from('show_payouts')
+        .insert({
+          show_id: show.id,
+          club_stripe_account_id: account.id,
+          amount_cents: amountCents,
+          status: 'processing',
+          scheduled_date: new Date().toISOString().slice(0, 10),
+        })
+        .select('id')
+        .single();
+      if (insertError || !inserted) {
+        // Unique-index conflict = another run already owns this show.
+        console.log(`Skipping show ${show.id}: live payout row already exists`);
+        return;
+      }
+      rowId = inserted.id;
+    }
+
     // Authoritative amount: recomputed AFTER the claim. From the moment the
     // row is 'processing', validateRefund rejects new refunds
     // (payout_in_progress), so a refund committed between the routing
@@ -397,13 +408,15 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
   } catch (err) {
     const reason = err instanceof Error ? err.message : 'Unknown Stripe error';
     const benign = /insufficient.*balance|balance.*insufficient/i.test(reason);
-    await supabase
-      .from('show_payouts')
-      .update({
-        status: 'failed',
-        failure_reason: benign ? `insufficient_balance: ${reason}` : reason,
-      })
-      .eq('id', rowId);
+    if (rowId) {
+      await supabase
+        .from('show_payouts')
+        .update({
+          status: 'failed',
+          failure_reason: benign ? `insufficient_balance: ${reason}` : reason,
+        })
+        .eq('id', rowId);
+    }
     summary.failed++;
     console.error(`Transfer failed for show ${show.id}: ${reason}`);
     await alertAdmin(
@@ -416,6 +429,8 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
            : '<p>This will retry tomorrow, but a non-balance failure usually needs a look: check the show_payouts row and the Stripe dashboard.</p>'
        }`
     );
+  } finally {
+    await moneyLock.release();
   }
 }
 

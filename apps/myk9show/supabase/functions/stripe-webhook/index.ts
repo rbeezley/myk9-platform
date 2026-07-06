@@ -89,30 +89,21 @@ Deno.serve(async req => {
       });
     }
 
-    // Process event asynchronously. Stripe already has its 200, so an
-    // uncaught throw in any handler (e.g. a transient failure syncing a
-    // subscription) would otherwise vanish with no retry and no signal —
-    // the catch-all alert is the floor under every handler (round-13).
-    EdgeRuntime.waitUntil(
-      handleEvent(event).catch(async err => {
-        const message = err instanceof Error ? err.message : String(err);
-        console.error(`CRITICAL: unhandled error processing ${event.type} (${event.id}):`, err);
-        await alertAdmin(
-          `Webhook handler crashed: ${event.type}`,
-          `<p>Processing event <code>${event.id}</code> (<code>${event.type}</code>) threw
-           after Stripe already received its 200 — Stripe will NOT retry.</p>
-           <pre>${message}</pre>
-           <p>Recovery: open the event in the Stripe dashboard (Developers → Events),
-           inspect the object, and apply the corresponding state manually (the runbook's
-           Manual reconciliation section has the service-role SQL wrapper).</p>`
-        );
-      })
-    );
+    await handleEvent(event);
 
     return Response.json({ received: true });
   } catch (error: unknown) {
     console.error('Error processing webhook:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    try {
+      await alertAdmin(
+        'Webhook handler failed before acknowledgment',
+        `<p>A Stripe webhook handler failed before returning 2xx, so Stripe should retry it.</p>
+         <pre>${errorMessage}</pre>`
+      );
+    } catch (alertError) {
+      console.error('Webhook failure alert also failed:', alertError);
+    }
     return Response.json({ error: errorMessage }, { status: 500 });
   }
 });
@@ -508,6 +499,12 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   // per-item fees recomputed from show/class pricing. Runs BEFORE the claim
   // so a rejected cart stays active.
   const freshSession = await stripe.checkout.sessions.retrieve(session.id);
+  if (freshSession.payment_status !== 'paid') {
+    console.log(
+      `Checkout session ${session.id} is ${freshSession.payment_status ?? 'unknown'} after fresh retrieve — waiting for a paid event`
+    );
+    return;
+  }
   const freshTotalCents = freshSession.amount_total ?? null;
 
   const { data: showFees, error: showFeesError } = await supabase
@@ -619,18 +616,16 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   }
 
   // Idempotency latch: atomically claim the cart by flipping active → submitted.
-  // Stripe gets a 200 before this handler runs (EdgeRuntime.waitUntil), so a
-  // re-delivered event would otherwise create duplicate paid entries — which
+  // A re-delivered event would otherwise create duplicate paid entries — which
   // the payout cron would then pay the club for twice.
   // Expiry is already enforced in pure code by sessionMatchesCart above (the
   // cartExpiresAt < now check on the SAME cart.expires_at read), so the claim
   // only needs the status latch for idempotency. We deliberately do NOT
   // re-filter on expires_at here: a raw ISO timestamp inside PostgREST's .or()
   // mini-language misparses the dotted/colon'd value and the whole UPDATE
-  // fails with `column entry_carts.expires_at does not exist` — which, because
-  // Stripe already has its 200, silently charges the exhibitor with zero
-  // entries created. The TOCTOU window the .or() guarded is sub-millisecond
-  // and fully covered by the read-time check, so dropping it is safe.
+  // fails with `column entry_carts.expires_at does not exist`. The TOCTOU window
+  // the .or() guarded is sub-millisecond and fully covered by the read-time
+  // check, so dropping it is safe.
   const { data: claimed, error: claimError } = await supabase
     .from('entry_carts')
     .update({ status: 'submitted' })
@@ -639,9 +634,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     .select('id');
 
   if (claimError) {
-    // Stripe already got its 200 (waitUntil), so this event will NOT retry:
-    // the exhibitor paid but no entries exist. Same severity as the
-    // entries-shortfall below — email, don't just log.
+    // Same severity as the entries-shortfall below — email, don't just log.
     console.error(`CRITICAL: failed to claim cart ${cartId} after payment:`, claimError);
     await alertAdmin(
       'Paid cart could not be claimed — entries NOT created',

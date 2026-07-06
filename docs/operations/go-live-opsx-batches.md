@@ -104,6 +104,7 @@ Ready for morning review when:
 Current run, 2026-07-06:
 
 - OpenSpec change `go-live-phase-2-data-access` created.
+- Implementation PR: #1172.
 - Added source/read-only verifier command: `pnpm qa:go-live:phase2 --allow-blocked`.
 - Added focused test command: `pnpm qa:go-live:phase2:test`.
 - Added read-only DB evidence SQL: `scripts/go-live/phase-2-data-access.sql`.

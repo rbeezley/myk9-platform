@@ -26,5 +26,5 @@
 
 - [x] 5.1 Run `pnpm openspec validate --changes go-live-phase-2-data-access`.
 - [x] 5.2 Run `git diff --check`.
-- [ ] 5.3 Commit, push, and open a PR citing `Tracked in openspec change: go-live-phase-2-data-access`.
+- [x] 5.3 Commit, push, and open a PR citing `Tracked in openspec change: go-live-phase-2-data-access`.
 - [x] 5.4 Leave real judge exports, DB writes, seed repairs, dashboard anonymous sign-in proof, and live cold-session walks as morning/operator gates.

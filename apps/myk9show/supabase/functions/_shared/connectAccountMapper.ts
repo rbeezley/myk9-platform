@@ -6,9 +6,11 @@
 export function accountToRowPatch(account: {
   details_submitted?: boolean;
   payouts_enabled?: boolean;
-}): { onboarding_complete: boolean; payouts_enabled: boolean } {
+  livemode?: boolean;
+}): { onboarding_complete: boolean; payouts_enabled: boolean; livemode: boolean } {
   return {
     onboarding_complete: account.details_submitted === true,
     payouts_enabled: account.payouts_enabled === true,
+    livemode: account.livemode === true,
   };
 }

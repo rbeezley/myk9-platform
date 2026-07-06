@@ -4,6 +4,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { calculatePlatformFeeCents, resolvePlatformFeePercent } from '../_shared/platformFee.ts';
 import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
 import { buildEntryPaymentLinkSession } from '../_shared/entryPaymentLink.ts';
+import { isStripeLiveMode } from '../_shared/stripeMode.ts';
 import {
   resolveWithdrawalPolicy,
   describeWithdrawalPolicyText,
@@ -26,6 +27,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 const stripe = new Stripe(stripeSecret, {
   appInfo: { name: 'myK9Show', version: '1.0.0' },
 });
+const stripeLivemode = isStripeLiveMode(stripeSecret);
 
 // Stripe Checkout Sessions live at most 24h (min 30 min). A secretary's "pay
 // within N days" intent is tracked by the entry's own deadline, NOT the link —
@@ -216,6 +218,7 @@ Deno.serve(async req => {
       .from('club_stripe_accounts')
       .select('payouts_enabled')
       .eq('club_id', show.club_id)
+      .eq('livemode', stripeLivemode)
       .maybeSingle();
     if (connect?.payouts_enabled !== true) {
       return corsResponse(

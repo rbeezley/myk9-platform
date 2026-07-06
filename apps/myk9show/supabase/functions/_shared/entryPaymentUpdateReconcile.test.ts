@@ -6,10 +6,18 @@ describe('reconcileEntryPaymentUpdateOutcome', () => {
     const result = reconcileEntryPaymentUpdateOutcome({
       plannedPatchIds: ['fresh', 'raced-paid'],
       updatedEntryIds: ['fresh'],
-      rereadNoOpEntries: [{ id: 'raced-paid', payment_status: 'paid', entry_status: 'confirmed' }],
+      rereadNoOpEntries: [
+        {
+          id: 'raced-paid',
+          payment_status: 'paid',
+          entry_status: 'confirmed',
+          stripe_payment_intent_id: 'pi_other',
+        },
+      ],
       initialMissingEntryIds: [],
       initialInactiveEntryIds: [],
       initialAlreadyPaidEntryIds: [],
+      initialSameIntentPaidEntryIds: [],
       paymentIntentId: 'pi_123',
       sessionAmountTotalCents: 8500,
       entryFeesById: new Map([
@@ -36,6 +44,7 @@ describe('reconcileEntryPaymentUpdateOutcome', () => {
       initialMissingEntryIds: [],
       initialInactiveEntryIds: [],
       initialAlreadyPaidEntryIds: [],
+      initialSameIntentPaidEntryIds: [],
       paymentIntentId: 'pi_deleted',
       sessionAmountTotalCents: 4250,
       entryFeesById: new Map([['deleted', 4000]]),
@@ -61,6 +70,7 @@ describe('reconcileEntryPaymentUpdateOutcome', () => {
       initialMissingEntryIds: [],
       initialInactiveEntryIds: [],
       initialAlreadyPaidEntryIds: [],
+      initialSameIntentPaidEntryIds: [],
       paymentIntentId: 'pi_withdrawn',
       sessionAmountTotalCents: 4250,
       entryFeesById: new Map([['withdrawn', 4000]]),
@@ -73,5 +83,33 @@ describe('reconcileEntryPaymentUpdateOutcome', () => {
       amountCents: 4250,
       reason: 'full_make_whole',
     });
+  });
+
+  it('treats no-op rows already paid by this same intent as valid paid entries, not refund candidates', () => {
+    const result = reconcileEntryPaymentUpdateOutcome({
+      plannedPatchIds: ['same-intent'],
+      updatedEntryIds: [],
+      rereadNoOpEntries: [
+        {
+          id: 'same-intent',
+          payment_status: 'paid',
+          entry_status: 'confirmed',
+          stripe_payment_intent_id: 'pi_123',
+        },
+      ],
+      initialMissingEntryIds: [],
+      initialInactiveEntryIds: [],
+      initialAlreadyPaidEntryIds: [],
+      initialSameIntentPaidEntryIds: [],
+      paymentIntentId: 'pi_123',
+      sessionAmountTotalCents: 4250,
+      entryFeesById: new Map([['same-intent', 4000]]),
+    });
+
+    expect(result.paidEntryIds).toEqual(['same-intent']);
+    expect(result.sameIntentPaidEntryIds).toEqual(['same-intent']);
+    expect(result.alreadyPaidEntryIds).toEqual([]);
+    expect(result.invalidEntryIds).toEqual([]);
+    expect(result.refundDecision).toEqual({ action: 'none' });
   });
 });

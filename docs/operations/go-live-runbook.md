@@ -64,12 +64,25 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       _Audit 2026-07-05:_ name inventory is not clean:
       `pnpm qa:db-drift:functions` reports deployed-only `send-notification` and repo-only
       `push-trigger-support-message`; byte-level download/diff still needs a fresh pass.
+      _Audit 2026-07-06:_ fresh inventory still reports 29 matched, deployed-only
+      `send-notification`, and repo-only `push-trigger-support-message`. Byte-level runtime diff
+      downloaded to `/private/tmp/myk9-edge-functions-20260706` shows repo-ahead runtime changes for
+      `ask-myk9show` and `send-email`, plus expected repo-ahead changes for MP-04 functions in the
+      B0 branch (`stripe-checkout`, `stripe-connect-onboard`, `stripe-customer-portal`,
+      `stripe-webhook`, `cron-process-payouts`). Keep 0.4 open until `send-notification` is
+      recovered or explicitly retired and required repo-ahead deploys are approved, executed, and
+      smoke-checked.
 - [ ] **0.5 Money-path hardening Phases 1–3** — MP-01/02 (amount integrity), MP-03
       (payment-link duplicate delivery), MP-04 (mode-scoped Stripe IDs). One PR per phase per
       [`docs/plan-money-path-hardening.md`](../plan-money-path-hardening.md). **Phase 3 is the
       hard gate for Phase 3 of this runbook** (live cutover); Phases 4–7 may land later. Owner: Agent.
       _Verify at execution time_ — do not trust this doc's snapshot; check the plan's phase table
       and merged PRs.
+      _Batch evidence 2026-07-06:_ Phase 1 is merged and DB-pushed. MP-03/MP-04 are prepared in
+      OpenSpec change `go-live-phase-0-engineering-blockers` with focused tests passing and MP-04
+      migration dry-run showing only `20260706013906_stripe_livemode_scoped_ids.sql` pending.
+      Still open until PR review/merge, real DB push approval, affected Stripe function redeploys,
+      and staging payment verification complete.
 - [x] **0.6 Class-mgmt mutation-error surfacing (plan 003)** — DONE 2026-07-04.
       OpenSpec change `class-mgmt-mutation-error-surfacing` is archived under
       `openspec/changes/archive/2026-07-04-class-mgmt-mutation-error-surfacing/`. Owner: Agent.
@@ -80,6 +93,10 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       PRs #1143/#1152/#1153/#1154/#1157), and the July UX remediation plan is archived
       complete. Keep this open until the scorecard's remaining Yellow evidence gates are
       closed or explicitly accepted.
+      _Audit 2026-07-06:_ no additional repo code gap found for motion/JULY UX in B0. Remaining
+      closure evidence is still the scorecard's named Yellow gates: ringside show-day re-walk,
+      offline→reconnect rehearsal, data correctness reconciliation, venue print test, real-user
+      testing, and deploy/rollback operational readiness.
 
 ---
 
@@ -106,6 +123,11 @@ auto-deploy still ON before turning it off.
       _Verify:_ a push to `main` no longer auto-deploys; only the workflow does.
       _Rollback:_ revert that commit.
 - [ ] **d.** Follow-up (non-gating): gate the `apps/docs` guides Vercel project the same way.
+      _Audit 2026-07-06:_ `pnpm qa:go-live:phase1` verifies the production deploy workflow
+      source is staged, CI-gated, constrained to successful `main` push CI runs, gated by
+      `PRODUCTION_DEPLOY_ENABLED`, and wired to Vercel secrets. The same verifier reports
+      `warn vercel_git_auto_deploy_disable` because `git.deploymentEnabled.main=false` is
+      intentionally not present until one CI-gated production deploy is validated.
 
 ### 1.2 Auth email cutover (Resend hook + Custom SMTP rate limit)
 
@@ -126,6 +148,9 @@ caps auth emails at ~2/hour — a launch-day signup wall.
       _Rollback:_ restore from the config backup JSON.
       _Audit 2026-07-05:_ still open; `supabase-auth-email.md` still documents the Custom
       SMTP slot as empty and the GoTrue cap as active until this patch is applied.
+      _Audit 2026-07-06:_ `pnpm qa:go-live:phase1` verifies the runbook still documents the
+      Management API PATCH path with Resend SMTP fields and `rate_limit_email_sent: 100`;
+      no Management API write has been run in this batch.
 
 ### 1.3 Kill-switch posture check
 
@@ -138,6 +163,8 @@ as no-redeploy safety valves: `showPresence`, `showLiveSync`, `showEditAwareness
       either unset or `true` in Vercel.
       _Audit 2026-07-05:_ code defaults are `true` in
       `apps/myk9show/src/config/features.ts`; production Vercel env still needs dashboard proof.
+      _Audit 2026-07-06:_ `pnpm qa:go-live:phase1` re-verifies all four source defaults are
+      `true`; production Vercel env proof remains open.
 - [ ] _Rehearse the flip once:_ set one var to `false` in Vercel env → redeploy (~5 min) → hard
       refresh → feature silently off, fallback behavior active → restore. This is the launch-day
       rollback for realtime misbehavior (see Rollback appendix).
@@ -158,7 +185,9 @@ Importer tooling shipped (#833); the CSV is still header-only.
       and push (idempotent `people` + `judge_qualifications`). Owner: Agent (confirmation-gated).
       _Verify:_ `select count(*) from judge_qualifications;` > 0; spot-check a known judge by name
       in the show-wizard judge picker.
-      _Audit 2026-07-05:_ CSV is still header-only; no preload migration found.
+      _Audit 2026-07-06:_ `pnpm qa:go-live:phase2 --allow-blocked` reports `0 judge data
+      rows after header`; importer tooling is present, but no preload migration should be
+      generated or pushed until real AKC/UKC exports are added.
 
 ### 2.2 Seed / fixture verification (staging, and prod if demo data is wanted)
 
@@ -170,6 +199,10 @@ Run the post-reseed checks from [`staging-reseed.md`](staging-reseed.md):
       `dededede-…-0010`)
 - [ ] Demo show + classes present
       _Rollback/repair:_ re-run `supabase/seed-demo.sql` (idempotent; 11 protected accounts).
+      _Audit 2026-07-06:_ source-level verifier added in PR prep:
+      `pnpm qa:go-live:phase2 --allow-blocked` confirms `seed-demo.sql` references the required
+      Phase 2 sections and `scripts/go-live/phase-2-data-access.sql` contains the read-only
+      staging/prod checklist. Live DB evidence is still open until run with `--db-url`.
 
 ### 2.3 Passcode ringside identity — live verification (G5)
 
@@ -185,6 +218,9 @@ Code complete (#951–#954); this is **verify, not build**. Full checklist:
 - [ ] **d.** Stale-anon cleanup live: cron `cleanup_stale_ringside_anon_users` scheduled
       (04:00 UTC daily); spot-check `cron.job`.
 - [ ] Parked, non-gating: CAPTCHA hardening on the passcode form.
+      _Audit 2026-07-06:_ source-level verifier finds the stale-anon cleanup migration source;
+      Supabase anonymous sign-in dashboard proof, cold judge/steward incognito walks, and live
+      `cron.job` evidence remain operator/live-verification gates.
 
 ---
 
@@ -194,6 +230,12 @@ Code complete (#951–#954); this is **verify, not build**. Full checklist:
 redeployed** (`--workdir apps/myk9show`). Full detail:
 [`stripe-platform-setup.md`](stripe-platform-setup.md) Task 6.3. Owner: Operator except where
 noted. Do this only when ready to take real money — there is no half-live state.
+
+_Audit 2026-07-06:_ `pnpm qa:go-live:phase3 --allow-blocked` confirms the Phase 3 runbook
+and Stripe platform runbook cover the live cutover steps, but reports
+`fail mp04_mode_scoping_source_gate` on this branch. Keep every Phase 3 item unchecked until
+the MP-04 implementation is merged/deployed and the live-money/operator evidence below is
+recorded.
 
 - [ ] **3.1** Toggle Stripe Dashboard to **Live mode**; enable **Connect** in live mode (may
       require Stripe review — start this days ahead).

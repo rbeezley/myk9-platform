@@ -1,6 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
+import { isStripeLiveMode } from '../_shared/stripeMode.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -15,6 +16,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 const stripe = new Stripe(stripeSecret, {
   appInfo: { name: 'myK9Show', version: '1.0.0' },
 });
+const stripeLivemode = isStripeLiveMode(stripeSecret);
 
 // CORS configuration — same origins as stripe-checkout / stripe-customer-portal
 const ALLOWED_ORIGINS = [
@@ -56,8 +58,7 @@ interface OnboardRequest {
 
 /** Build an absolute URL on the request's (allowed) origin from an app-relative path. */
 function buildRedirectUrl(requestOrigin: string | null, path: string): string | null {
-  const origin =
-    requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin) ? requestOrigin : null;
+  const origin = requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin) ? requestOrigin : null;
   if (!origin) return null;
   if (!path.startsWith('/') || path.startsWith('//')) return null;
   return `${origin}${path}`;
@@ -102,11 +103,9 @@ Deno.serve(async req => {
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
-    const [{ data: isClubAdmin, error: clubAdminError }, { data: isSiteAdmin }] =
-      await Promise.all([
-        userClient.rpc('is_club_admin', { check_club_id: club_id }),
-        userClient.rpc('is_site_admin'),
-      ]);
+    const [{ data: isClubAdmin, error: clubAdminError }, { data: isSiteAdmin }] = await Promise.all(
+      [userClient.rpc('is_club_admin', { check_club_id: club_id }), userClient.rpc('is_site_admin')]
+    );
     if (clubAdminError) {
       console.error('Authorization check failed:', clubAdminError);
       return corsResponse({ error: 'Authorization check failed' }, 500);
@@ -128,6 +127,7 @@ Deno.serve(async req => {
       .from('club_stripe_accounts')
       .select('id, stripe_account_id')
       .eq('club_id', club_id)
+      .eq('livemode', stripeLivemode)
       .maybeSingle();
 
     let stripeAccountId = existing?.stripe_account_id;
@@ -156,6 +156,7 @@ Deno.serve(async req => {
       const { error: insertError } = await supabase.from('club_stripe_accounts').insert({
         club_id,
         stripe_account_id: stripeAccountId,
+        livemode: stripeLivemode,
       });
       if (insertError) {
         console.error(

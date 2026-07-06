@@ -10,6 +10,7 @@ export interface ReconcileEntryRow {
   id: string;
   payment_status: string | null;
   entry_status: string | null;
+  stripe_payment_intent_id?: string | null;
 }
 
 export interface ReconcileInput {
@@ -49,6 +50,8 @@ export interface ReconcileResult {
   /** Entries already paid before this event — duplicate-charge candidates for
    *  the Task 3.5 Step 2 auto-refund; empty on the happy path. */
   alreadyPaidEntryIds: string[];
+  /** Entries already paid by this same Checkout payment intent — webhook replay/race success. */
+  sameIntentPaidEntryIds: string[];
   /** Expected entries no longer present (deleted since the link was created) —
    *  paid-for-nothing; the caller alerts (Task 3.5 Step 3 refund). */
   missingEntryIds: string[];
@@ -69,7 +72,13 @@ export const INACTIVE_ENTRY_STATUSES = new Set([
 ]);
 
 export function reconcileEntryPaymentRequest(input: ReconcileInput): ReconcileResult {
-  const empty = { patches: [], alreadyPaidEntryIds: [], missingEntryIds: [], inactiveEntryIds: [] };
+  const empty = {
+    patches: [],
+    alreadyPaidEntryIds: [],
+    sameIntentPaidEntryIds: [],
+    missingEntryIds: [],
+    inactiveEntryIds: [],
+  };
 
   // The link row is the idempotency latch: once it leaves 'open' (we marked it
   // 'paid'/'expired'), a re-delivered event must not touch entries again.
@@ -89,6 +98,7 @@ export function reconcileEntryPaymentRequest(input: ReconcileInput): ReconcileRe
 
   const patches: EntryPaymentPatch[] = [];
   const alreadyPaidEntryIds: string[] = [];
+  const sameIntentPaidEntryIds: string[] = [];
   const inactiveEntryIds: string[] = [];
 
   for (const e of input.entries) {
@@ -128,6 +138,12 @@ export function reconcileEntryPaymentRequest(input: ReconcileInput): ReconcileRe
         patch.entry_status = 'confirmed';
       }
       patches.push(patch);
+    } else if (
+      e.payment_status === 'paid' &&
+      input.paymentIntentId &&
+      e.stripe_payment_intent_id === input.paymentIntentId
+    ) {
+      sameIntentPaidEntryIds.push(e.id);
     } else {
       // Already paid before this event — a second link was paid for the same
       // entry. The caller refunds it (make-whole) rather than keep an overcharge.
@@ -135,5 +151,12 @@ export function reconcileEntryPaymentRequest(input: ReconcileInput): ReconcileRe
     }
   }
 
-  return { action: 'apply', patches, alreadyPaidEntryIds, missingEntryIds, inactiveEntryIds };
+  return {
+    action: 'apply',
+    patches,
+    alreadyPaidEntryIds,
+    sameIntentPaidEntryIds,
+    missingEntryIds,
+    inactiveEntryIds,
+  };
 }

@@ -4,6 +4,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { calculatePlatformFeeCents, resolvePlatformFeePercent } from '../_shared/platformFee.ts';
 import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
 import { parsePremiumPriceIds } from '../_shared/premiumPrices.ts';
+import { isStripeLiveMode } from '../_shared/stripeMode.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -20,6 +21,7 @@ const stripe = new Stripe(stripeSecret, {
     version: '1.0.0',
   },
 });
+const stripeLivemode = isStripeLiveMode(stripeSecret);
 
 const RECOVERED_CART_EXPIRATION_MINUTES = 30;
 
@@ -202,6 +204,7 @@ async function getOrCreateStripeCustomer(
     .from('stripe_customers')
     .select('stripe_customer_id')
     .eq('person_id', personId)
+    .eq('livemode', stripeLivemode)
     .maybeSingle();
 
   if (lookupError) {
@@ -210,7 +213,34 @@ async function getOrCreateStripeCustomer(
   }
 
   if (existing?.stripe_customer_id) {
-    return existing.stripe_customer_id;
+    try {
+      const customer = await stripe.customers.retrieve(existing.stripe_customer_id);
+      if ('deleted' in customer && customer.deleted === true) {
+        await supabase
+          .from('stripe_customers')
+          .delete()
+          .eq('person_id', personId)
+          .eq('livemode', stripeLivemode);
+      } else {
+        return existing.stripe_customer_id;
+      }
+    } catch (error) {
+      if (isStripeResourceMissing(error)) {
+        await supabase
+          .from('stripe_customers')
+          .delete()
+          .eq('person_id', personId)
+          .eq('livemode', stripeLivemode);
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  if (existing?.stripe_customer_id) {
+    console.log(
+      `Recreating stale Stripe customer ${existing.stripe_customer_id} for person ${personId}`
+    );
   }
 
   // Create new Stripe customer
@@ -224,13 +254,14 @@ async function getOrCreateStripeCustomer(
     });
 
     // Save to stripe_customers table.
-    // stripe_customers.person_id is UNIQUE — a second concurrent checkout for
-    // the same person will hit a 23505 unique violation. In that case, delete
-    // the Stripe customer we just created (it would be orphaned) and re-query
-    // to return the winning row's stripe_customer_id.
+    // stripe_customers(person_id, livemode) is UNIQUE — a second concurrent
+    // checkout for the same person/mode will hit a 23505 unique violation. In
+    // that case, delete the Stripe customer we just created (it would be
+    // orphaned) and re-query to return the winning row's stripe_customer_id.
     const { error: insertError } = await supabase.from('stripe_customers').insert({
       person_id: personId,
       stripe_customer_id: stripeCustomer.id,
+      livemode: stripeLivemode,
       email: user.email,
     });
 
@@ -242,6 +273,7 @@ async function getOrCreateStripeCustomer(
           .from('stripe_customers')
           .select('stripe_customer_id')
           .eq('person_id', personId)
+          .eq('livemode', stripeLivemode)
           .single();
         return raceWinner?.stripe_customer_id ?? null;
       }
@@ -261,6 +293,15 @@ async function getOrCreateStripeCustomer(
     console.error('Error creating Stripe customer:', error);
     return null;
   }
+}
+
+function isStripeResourceMissing(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: string }).code === 'resource_missing'
+  );
 }
 
 /**
@@ -406,6 +447,7 @@ async function handleEntryCheckout(
           .from('club_stripe_accounts')
           .select('payouts_enabled')
           .eq('club_id', showFees.club_id)
+          .eq('livemode', stripeLivemode)
           .maybeSingle()
           .then(({ data }) => data?.payouts_enabled === true)
       : false;

@@ -158,7 +158,9 @@ Importer tooling shipped (#833); the CSV is still header-only.
       and push (idempotent `people` + `judge_qualifications`). Owner: Agent (confirmation-gated).
       _Verify:_ `select count(*) from judge_qualifications;` > 0; spot-check a known judge by name
       in the show-wizard judge picker.
-      _Audit 2026-07-05:_ CSV is still header-only; no preload migration found.
+      _Audit 2026-07-06:_ `pnpm qa:go-live:phase2 --allow-blocked` reports `0 judge data
+      rows after header`; importer tooling is present, but no preload migration should be
+      generated or pushed until real AKC/UKC exports are added.
 
 ### 2.2 Seed / fixture verification (staging, and prod if demo data is wanted)
 
@@ -170,6 +172,10 @@ Run the post-reseed checks from [`staging-reseed.md`](staging-reseed.md):
       `dededede-…-0010`)
 - [ ] Demo show + classes present
       _Rollback/repair:_ re-run `supabase/seed-demo.sql` (idempotent; 11 protected accounts).
+      _Audit 2026-07-06:_ source-level verifier added in PR prep:
+      `pnpm qa:go-live:phase2 --allow-blocked` confirms `seed-demo.sql` references the required
+      Phase 2 sections and `scripts/go-live/phase-2-data-access.sql` contains the read-only
+      staging/prod checklist. Live DB evidence is still open until run with `--db-url`.
 
 ### 2.3 Passcode ringside identity — live verification (G5)
 
@@ -185,6 +191,9 @@ Code complete (#951–#954); this is **verify, not build**. Full checklist:
 - [ ] **d.** Stale-anon cleanup live: cron `cleanup_stale_ringside_anon_users` scheduled
       (04:00 UTC daily); spot-check `cron.job`.
 - [ ] Parked, non-gating: CAPTCHA hardening on the passcode form.
+      _Audit 2026-07-06:_ source-level verifier finds the stale-anon cleanup migration source;
+      Supabase anonymous sign-in dashboard proof, cold judge/steward incognito walks, and live
+      `cron.job` evidence remain operator/live-verification gates.
 
 ---
 

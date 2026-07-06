@@ -42,7 +42,7 @@
 - [x] 5.1 Run focused tests for changed TypeScript, edge-function, or migration files.
 - [x] 5.2 Run relevant typecheck/lint/OpenSpec validation for the touched areas unless blocked by a
       known hang or unrelated failure.
-- [ ] 5.3 Run required second-opinion review for payment/RLS/migration changes before merge.
+- [x] 5.3 Run required second-opinion review for payment/RLS/migration changes before merge.
 - [x] 5.4 Commit, push the feature branch, and open an implementation PR with `Tracked in openspec
       change: go-live-phase-0-engineering-blockers`.
 - [x] 5.5 Leave a morning approval checklist for any blocked shared-system mutations, deploys, merges,
@@ -50,7 +50,7 @@
 
 ## 6. Archive After Merge
 
-- [ ] 6.1 After every required B0 implementation PR is merged or explicitly deferred, verify merge
+- [x] 6.1 After every required B0 implementation PR is merged or explicitly deferred, verify merge
       state with `gh pr view --json state`.
-- [ ] 6.2 Archive the OpenSpec change and sync specs only after merge/evidence gates are satisfied.
-- [ ] 6.3 Clean up the feature branch and worktree after archive.
+- [x] 6.2 Archive the OpenSpec change and sync specs only after merge/evidence gates are satisfied.
+- [x] 6.3 Clean up the feature branch and worktree after archive.

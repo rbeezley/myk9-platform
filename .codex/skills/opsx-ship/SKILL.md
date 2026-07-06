@@ -81,6 +81,26 @@ Still stop for explicit approval before shared-system mutations or irreversible 
 When blocked by an approval gate, keep moving on independent items in the same batch where
 safe. Leave a clear PR note and tracker entry for each queued approval.
 
+### Approval Gate Handling In Batch Mode
+
+An approval gate pauses only the gated action, not the overnight run. When a real DB push,
+function deploy, PR merge, dashboard change, external-service write, or other shared-system
+mutation needs approval:
+
+1. Record the blocked command or action in the OpenSpec tasks, PR body, and batch tracker.
+2. Record the evidence gathered so far, such as dry-run output, local tests, CI status, or
+   source-only validation.
+3. Mark the gated task as blocked or partially prepared; do not mark it complete.
+4. Immediately continue to the next independent agent-owned task in the current batch.
+5. If the current batch has no independent work left, continue to the next earliest Go Live
+   batch with agent-owned work.
+6. Leave a morning approval checklist that groups all blocked gates across batches.
+
+Do not end a batch-mode run solely because a PR is open, CI is pending, a merge is waiting for
+approval, or a shared-system command needs explicit approval. Stop only when every remaining
+Phase 0-4 item is blocked by operator input/shared-system approval, the same blocker repeats
+across three consecutive resumes, or the user explicitly pauses the run.
+
 ## Phase 0: Branch Safety
 
 1. Run `git branch --show-current` and `git rev-parse --git-dir --git-common-dir`.

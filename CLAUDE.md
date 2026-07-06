@@ -8,6 +8,15 @@ Keep responses concise, short, and to the point. Lead with the answer or action.
 
 This is a TypeScript monorepo. Always use TypeScript (not JavaScript). When fixing types, verify property names match the actual schema/interface definitions — do not guess.
 
+
+##Self Learning
+When I correct you or you catch yourself making a mistake, before continuing, add the lesson as a one-line rule under #LESSONS so it never happens again.
+
+
+##LESSONS
+
+
+
 ## Intent & Emotional Design
 
 **Before making UX-facing changes, read [`docs/INTENT.md`](docs/INTENT.md).** It defines the emotional intent behind each role's experience. Every optimization, refactoring, or "improvement" to user-facing code should preserve the target feeling for that role. If code has an `// INTENT:` comment, do not remove or change the described behavior without explicit approval.

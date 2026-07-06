@@ -42,16 +42,28 @@ export function AskQAnswer({ query, answer, toolsUsed, isStreaming }: AskQAnswer
           )}
         </div>
       ) : isStreaming ? (
-        <div
-          data-testid="answer-skeleton"
-          className="bg-muted/50 px-3.5 py-3 rounded-xl rounded-tl-sm"
-        >
-          <div className="space-y-2 animate-pulse">
-            <div className="h-3 bg-muted rounded w-3/4" />
-            <div className="h-3 bg-muted rounded w-1/2" />
-          </div>
-        </div>
+        <AskQAnswerSkeleton />
       ) : null}
+    </div>
+  );
+}
+
+export function AskQAnswerSkeleton() {
+  return (
+    <div
+      role="status"
+      aria-label="AskQ is answering"
+      data-testid="answer-skeleton"
+      className="rounded-xl rounded-tl-sm border border-border/60 bg-muted/45 px-3.5 py-3"
+    >
+      <div className="space-y-2.5 animate-pulse">
+        <div className="h-3 w-24 rounded-full bg-muted-foreground/20" />
+        <div className="space-y-2">
+          <div className="h-3 w-full rounded bg-muted-foreground/15" />
+          <div className="h-3 w-5/6 rounded bg-muted-foreground/15" />
+          <div className="h-3 w-2/3 rounded bg-muted-foreground/15" />
+        </div>
+      </div>
     </div>
   );
 }

@@ -125,6 +125,7 @@ Ready for morning review when:
 Current run, 2026-07-06:
 
 - OpenSpec change `go-live-phase-3-stripe-cutover` created.
+- Implementation PR: #1174.
 - Added preflight command: `pnpm qa:go-live:phase3 --allow-blocked`.
 - Added focused test command: `pnpm qa:go-live:phase3:test`.
 - Added read-only DB checklist: `scripts/go-live/phase-3-stripe-cutover.sql`.

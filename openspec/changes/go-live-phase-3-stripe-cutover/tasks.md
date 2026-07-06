@@ -24,5 +24,5 @@
 
 - [x] 5.1 Run `pnpm openspec validate --changes go-live-phase-3-stripe-cutover`.
 - [x] 5.2 Run `git diff --check`.
-- [ ] 5.3 Commit, push, and open a PR citing `Tracked in openspec change: go-live-phase-3-stripe-cutover`.
+- [x] 5.3 Commit, push, and open a PR citing `Tracked in openspec change: go-live-phase-3-stripe-cutover`.
 - [x] 5.4 Leave Stripe live mode, webhook creation, secret rotation, ID purge, payout settings, cron smoke, real payment/refund smoke, founding-member grants, and treasurer onboarding as morning/operator gates.

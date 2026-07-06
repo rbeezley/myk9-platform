@@ -8,6 +8,10 @@ import {
   refundAttemptCount,
 } from '../_shared/refundReuse.ts';
 import { alertAdmin } from '../_shared/alertAdmin.ts';
+import {
+  resolveWithdrawalRefundCents,
+  type WithdrawalPolicy,
+} from '../_shared/withdrawalPolicy.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -60,6 +64,8 @@ interface RefundRequest {
   entry_id: string;
   /** Omitted = full refund of the entry fee. */
   amount_cents?: number;
+  /** True = derive the amount from entries.withdrawal_policy_snapshot. */
+  use_policy_snapshot?: boolean;
   notes?: string;
 }
 
@@ -106,6 +112,9 @@ Deno.serve(async req => {
         payment_method,
         stripe_payment_intent_id,
         refunded_at,
+        withdrawal_policy_snapshot,
+        withdrawn_at,
+        trial:trial_id(timezone),
         show:show_id(id, club_id)
       `
       )
@@ -164,9 +173,33 @@ Deno.serve(async req => {
     }
 
     // entries.entry_fee is DECIMAL dollars; all validation runs in cents.
+    const entryFeeCents = Math.round((entry.entry_fee ?? 0) * 100);
+    let requestedCents = amount_cents;
+    if (body.use_policy_snapshot === true) {
+      const snapshot = (entry.withdrawal_policy_snapshot ?? null) as WithdrawalPolicy | null;
+      if (!snapshot) {
+        return corsResponse({ error: 'policy_snapshot_unavailable' }, 422);
+      }
+
+      const rawTrial = entry.trial as
+        { timezone?: string | null } | { timezone?: string | null }[] | null;
+      const trial = Array.isArray(rawTrial) ? rawTrial[0] : rawTrial;
+      const withdrawnAt = entry.withdrawn_at ? new Date(entry.withdrawn_at as string) : new Date();
+      const suggestion = resolveWithdrawalRefundCents(
+        snapshot,
+        entryFeeCents,
+        withdrawnAt,
+        trial?.timezone || 'America/New_York'
+      );
+      if (suggestion.requiresManual) {
+        return corsResponse({ error: 'policy_snapshot_manual_review' }, 422);
+      }
+      requestedCents = suggestion.refundCents;
+    }
+
     const validation = validateRefund({
-      entryFeeCents: Math.round((entry.entry_fee ?? 0) * 100),
-      requestedCents: amount_cents,
+      entryFeeCents,
+      requestedCents,
       paymentStatus: entry.payment_status,
       paymentMethod: entry.payment_method,
       stripePaymentIntentId: entry.stripe_payment_intent_id,

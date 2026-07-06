@@ -18,10 +18,22 @@ const webhookSource = readFileSync(
   resolve(__dirname, '../../../supabase/functions/stripe-webhook/index.ts'),
   'utf8'
 );
+const paymentLinkSource = readFileSync(
+  resolve(__dirname, '../../../supabase/functions/stripe-payment-link/index.ts'),
+  'utf8'
+);
 const payoutSource = readFileSync(
   resolve(__dirname, '../../../supabase/functions/cron-process-payouts/index.ts'),
   'utf8'
 );
+
+function requireSlice(source: string, start: string, end: string) {
+  const startIndex = source.indexOf(start);
+  expect(startIndex).toBeGreaterThanOrEqual(0);
+  const endIndex = source.indexOf(end, startIndex);
+  expect(endIndex).toBeGreaterThanOrEqual(0);
+  return source.slice(startIndex, endIndex);
+}
 
 describe('Stripe persisted-id mode scoping', () => {
   it('scopes checkout customer and club-account lookups by livemode', () => {
@@ -50,6 +62,30 @@ describe('Stripe persisted-id mode scoping', () => {
         'utf8'
       )
     ).toContain('livemode: account.livemode === true');
+  });
+
+  it('scopes secretary payment-link club-account readiness by livemode', () => {
+    const clubAccountLookup = requireSlice(
+      paymentLinkSource,
+      ".from('club_stripe_accounts')",
+      '.maybeSingle()'
+    );
+
+    expect(paymentLinkSource).toContain('isStripeLiveMode(stripeSecret)');
+    expect(clubAccountLookup).toContain(".eq('club_id', show.club_id)");
+    expect(clubAccountLookup).toContain(".eq('livemode', stripeLivemode)");
+  });
+
+  it('scopes cart payment history customer lookup by livemode', () => {
+    const cartCustomerLookup = requireSlice(
+      webhookSource,
+      '// Get stripe_customers record for this person',
+      "// Resolve each class's trial"
+    );
+
+    expect(cartCustomerLookup).toContain(".from('stripe_customers')");
+    expect(cartCustomerLookup).toContain(".eq('person_id', cart.exhibitor.person_id)");
+    expect(cartCustomerLookup).toContain(".eq('livemode', stripeLivemode)");
   });
 
   it('payout cron skips and alerts when the connected account mode mismatches the running key', () => {

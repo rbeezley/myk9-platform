@@ -704,6 +704,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     .from('stripe_customers')
     .select('id')
     .eq('person_id', cart.exhibitor.person_id)
+    .eq('livemode', stripeLivemode)
     .single();
 
   // Resolve each class's trial: entries carry denormalized show_id/trial_id

@@ -29,7 +29,12 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => authValue,
 }));
 
-let profileValue: { needsOnboarding: boolean; onboardingCompleted: boolean; isLoading: boolean };
+let profileValue: {
+  needsOnboarding: boolean;
+  onboardingCompleted: boolean;
+  isLoading: boolean;
+  error: Error | null;
+};
 vi.mock('@/hooks/useExhibitorProfile', () => ({
   useExhibitorProfile: () => profileValue,
 }));
@@ -45,7 +50,12 @@ describe('ExhibitorOnboardingChecker — anonymous exemption', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     authValue = { user: { id: 'u1' }, loading: false, isSecretary: false, hasRole: () => false };
-    profileValue = { needsOnboarding: true, onboardingCompleted: false, isLoading: false };
+    profileValue = {
+      needsOnboarding: true,
+      onboardingCompleted: false,
+      isLoading: false,
+      error: null,
+    };
   });
 
   it('does NOT redirect an anonymous (passcode ringside) user, even with needsOnboarding', () => {

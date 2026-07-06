@@ -24,6 +24,10 @@ vi.mock('@/hooks/useExhibitorProfile', () => ({
   useExhibitorProfile: vi.fn(),
 }));
 
+vi.mock('../steps/StepDogs', () => ({
+  StepDogs: () => <div>Add your dogs</div>,
+}));
+
 const mockUseAuthContext = vi.mocked(useAuthContext);
 const mockUseExhibitorProfile = vi.mocked(useExhibitorProfile);
 
@@ -60,6 +64,8 @@ beforeEach(() => {
   setupAuth([UserRole.EXHIBITOR]);
   mockUseExhibitorProfile.mockReturnValue({
     profile: null,
+    isLoading: false,
+    error: null,
     createProfileAsync: vi.fn(),
     isCreatingProfile: false,
     completeOnboarding: vi.fn(),
@@ -102,6 +108,36 @@ describe('ExhibitorOnboardingPage', () => {
 
     expect(screen.getByText('Tell us about yourself')).toBeInTheDocument();
     expect(navigateMock).not.toHaveBeenCalled();
+  });
+
+  it('starts at the dogs step when signup already created the exhibitor profile', () => {
+    setupAuth([UserRole.EXHIBITOR]);
+    mockUseExhibitorProfile.mockReturnValue({
+      profile: {
+        id: 'profile-id',
+        person_id: 'person-id',
+        auth_user_id: 'auth-user-id',
+        default_handler_id: null,
+        subscription_tier: 'free',
+        subscription_expires_at: null,
+        stripe_customer_id: null,
+        onboarding_completed_at: null,
+        created_at: '2026-07-06T00:00:00.000Z',
+        updated_at: '2026-07-06T00:00:00.000Z',
+      },
+      isLoading: false,
+      error: null,
+      createProfileAsync: vi.fn(),
+      isCreatingProfile: false,
+      completeOnboarding: vi.fn(),
+      isCompletingOnboarding: false,
+    } as unknown as ReturnType<typeof useExhibitorProfile>);
+
+    render(<ExhibitorOnboardingPage />);
+
+    expect(screen.getByText('Add your dogs')).toBeInTheDocument();
+    expect(screen.getByText('2 of 5')).toBeInTheDocument();
+    expect(screen.queryByText('Tell us about yourself')).not.toBeInTheDocument();
   });
 
   it('redirects unauthenticated users to sign in instead of showing profile creation', async () => {

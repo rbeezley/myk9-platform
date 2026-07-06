@@ -2,7 +2,7 @@
  * Component that checks if the current user needs to complete onboarding.
  * Wraps children and redirects to /onboarding when:
  *   - user is authenticated
- *   - no exhibitor_profiles row exists (needsOnboarding)
+ *   - no exhibitor_profiles row exists (needsOnboarding), OR
  *   - onboarding has not been completed (onboarding_completed_at is null)
  *
  * ExhibitorOnboardingModal is kept as dead code for edge-case reference
@@ -37,7 +37,12 @@ function isExemptPath(pathname: string): boolean {
 
 export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingCheckerProps) {
   const { user, loading: authLoading, isSecretary, hasRole } = useAuthContext();
-  const { needsOnboarding, onboardingCompleted, isLoading: profileLoading } = useExhibitorProfile();
+  const {
+    needsOnboarding,
+    onboardingCompleted,
+    isLoading: profileLoading,
+    error: profileError,
+  } = useExhibitorProfile();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -47,6 +52,7 @@ export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingChec
     if (isLoading) return;
     if (!user) return;
     if (isExemptPath(location.pathname)) return;
+    if (profileError) return;
 
     // Anonymous (passcode ringside) sessions are NOT exhibitors. As of migration
     // 20260625000000 they have no exhibitor_profiles row by design, so
@@ -60,11 +66,7 @@ export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingChec
     // rows — they are staff roles, not exhibitors. Never route them to exhibitor onboarding.
     if (isSecretary || hasRole('site_admin') || hasRole('judge') || hasRole('club_admin')) return;
 
-    // Only redirect users who have no profile row yet (brand new accounts).
-    // The !onboardingCompleted check is intentionally omitted until migration 125
-    // is deployed and all existing users have been given a chance to complete it —
-    // otherwise every user created before this feature shipped would be redirected.
-    if (needsOnboarding) {
+    if (needsOnboarding || !onboardingCompleted) {
       navigate('/onboarding', { replace: true });
     }
   }, [
@@ -72,6 +74,7 @@ export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingChec
     user,
     needsOnboarding,
     onboardingCompleted,
+    profileError,
     navigate,
     location.pathname,
     hasRole,

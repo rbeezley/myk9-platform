@@ -231,6 +231,12 @@ redeployed** (`--workdir apps/myk9show`). Full detail:
 [`stripe-platform-setup.md`](stripe-platform-setup.md) Task 6.3. Owner: Operator except where
 noted. Do this only when ready to take real money — there is no half-live state.
 
+_Audit 2026-07-06:_ `pnpm qa:go-live:phase3 --allow-blocked` confirms the Phase 3 runbook
+and Stripe platform runbook cover the live cutover steps, but reports
+`fail mp04_mode_scoping_source_gate` on this branch. Keep every Phase 3 item unchecked until
+the MP-04 implementation is merged/deployed and the live-money/operator evidence below is
+recorded.
+
 - [ ] **3.1** Toggle Stripe Dashboard to **Live mode**; enable **Connect** in live mode (may
       require Stripe review — start this days ahead).
 - [ ] **3.2** Create the two live webhook endpoints at

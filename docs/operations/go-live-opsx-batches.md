@@ -212,6 +212,35 @@ Ready for morning review when:
 - rollback path is current
 - live-money tasks are clearly separated from repo work
 
+Current run, 2026-07-06:
+
+- OpenSpec change `go-live-phase-3-stripe-cutover` created.
+- Implementation PR: #1174.
+- Added preflight command: `pnpm qa:go-live:phase3 --allow-blocked`.
+- Added focused test command: `pnpm qa:go-live:phase3:test`.
+- Added read-only DB checklist: `scripts/go-live/phase-3-stripe-cutover.sql`.
+- Local preflight evidence:
+  - `fail mp04_mode_scoping_source_gate: missing: livemode, .eq('livemode', resource_missing, mode_mismatch`
+  - `ok stripe_cutover_functions_present: required Stripe functions are present`
+  - `ok phase3_runbook_step_coverage: Phase 3 runbook step markers are present`
+  - `ok stripe_platform_runbook_coverage: Stripe platform live cutover markers are present`
+  - `ok connect_webhook_source: connected-account webhook source markers are present`
+- No Stripe, Supabase secret, database write, or live payment action was run.
+
+Morning/operator checklist:
+
+- Merge/deploy the MP-04 mode-scoped Stripe ID implementation and redeploy affected Stripe
+  functions before starting live cutover.
+- After approval, run the read-only DB checklist:
+  `psql "$DATABASE_URL" -f scripts/go-live/phase-3-stripe-cutover.sql`.
+- Toggle Stripe live mode and enable Connect only when ready to take real money.
+- Create live account-scoped and connected-account webhook endpoints and record both `whsec_...`
+  secrets.
+- Rotate `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`, verify rollback keys are available, then
+  purge sandbox-scoped Stripe IDs only after explicit approval.
+- Set live platform payout schedule to Manual, verify Vault/cron secrets, smoke cron, run one
+  low-value entry payment + refund, grant founding members, and concierge-onboard first clubs.
+
 ### B4 - Phase 4 Evidence Pass
 
 OpenSpec change: `go-live-phase-4-evidence-pass`

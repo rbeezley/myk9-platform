@@ -31,6 +31,11 @@ Overnight/autonomous work must pause for approval before:
 When an approval gate blocks one item, continue with independent items in the same batch if safe.
 Document the blocked command, evidence gathered so far, and exact approval needed.
 
+An approval gate pauses only that action. It must not stop the overnight run while any independent
+agent-owned Phase 0-4 work remains. Record the blocked gate in the OpenSpec tasks, PR body, and
+morning checklist, then advance to the next independent task. If the current batch is exhausted,
+continue with the next earliest batch that has safe agent-owned work.
+
 ## Batch Queue
 
 ### B0 - Phase 0 Engineering Blockers

@@ -6,6 +6,13 @@ const migration = readFileSync(
   resolve(__dirname, '../../../../../supabase/migrations/20260705013523_support_tickets.sql'),
   'utf8'
 );
+const messageInsertRlsFixMigration = readFileSync(
+  resolve(
+    __dirname,
+    '../../../../../supabase/migrations/20260706120000_fix_support_message_insert_rls.sql'
+  ),
+  'utf8'
+);
 
 function sliceBetween(source: string, start: string, end: string): string {
   const startIndex = source.indexOf(start);
@@ -82,6 +89,19 @@ describe('support tickets RLS contract', () => {
     expect(insertPolicy).toContain('from public.support_tickets t');
     expect(insertPolicy).toContain('t.owner_id = (select auth.uid())');
     expect(insertPolicy).toContain('(select public.is_site_admin())');
+  });
+
+  it('allows site admins to create customer-originated messages on their own tickets', () => {
+    expect(messageInsertRlsFixMigration).toContain(
+      'drop policy if exists "support_ticket_messages_insert_owner_or_site_admin"'
+    );
+    expect(messageInsertRlsFixMigration).toContain('is_from_operator = false');
+    expect(messageInsertRlsFixMigration).toContain('t.owner_id = (select auth.uid())');
+    expect(messageInsertRlsFixMigration).toContain('is_from_operator = true');
+    expect(messageInsertRlsFixMigration).toContain('(select public.is_site_admin())');
+    expect(messageInsertRlsFixMigration).not.toContain(
+      'is_from_operator = (select public.is_site_admin())'
+    );
   });
 
   it('prevents non-admin users from mutating ticket identity or diagnostics after creation', () => {

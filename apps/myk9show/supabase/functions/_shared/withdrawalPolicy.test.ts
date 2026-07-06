@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { resolveWithdrawalPolicy, describeWithdrawalPolicyText } from './withdrawalPolicy.ts';
+import {
+  resolveWithdrawalPolicy,
+  describeWithdrawalPolicyText,
+  resolveWithdrawalRefundCents,
+} from './withdrawalPolicy.ts';
 
 const club = {
   default_withdrawal_cutoff_date: '2026-05-01',
@@ -129,5 +133,67 @@ describe('describeWithdrawalPolicyText', () => {
         notes: null,
       })
     ).toContain('Service fees are non-refundable.');
+  });
+});
+
+describe('resolveWithdrawalRefundCents', () => {
+  it('refunds the exact snapshot amount after the cutoff', () => {
+    expect(
+      resolveWithdrawalRefundCents(
+        {
+          cutoffDate: '2026-06-01',
+          retentionType: 'flat',
+          retentionValue: 1000,
+          notes: null,
+        },
+        5000,
+        new Date('2026-06-02T12:00:00Z'),
+        'America/Chicago'
+      )
+    ).toEqual({
+      refundCents: 4000,
+      retainedCents: 1000,
+      requiresManual: false,
+      reason: 'after_cutoff',
+    });
+  });
+
+  it('uses the show timezone for the cutoff calendar day', () => {
+    expect(
+      resolveWithdrawalRefundCents(
+        {
+          cutoffDate: '2026-06-01',
+          retentionType: 'flat',
+          retentionValue: 1000,
+          notes: null,
+        },
+        5000,
+        new Date('2026-06-02T04:30:00Z'),
+        'America/Chicago'
+      )
+    ).toEqual({
+      refundCents: 5000,
+      retainedCents: 0,
+      requiresManual: false,
+      reason: 'before_cutoff',
+    });
+  });
+
+  it('rounds percent retention without losing cents', () => {
+    const result = resolveWithdrawalRefundCents(
+      {
+        cutoffDate: '2026-06-01',
+        retentionType: 'percent',
+        retentionValue: 25,
+        notes: null,
+      },
+      333,
+      new Date('2026-06-02T12:00:00Z'),
+      'America/New_York'
+    );
+
+    expect(result.retainedCents).toBe(83);
+    expect(result.refundCents).toBe(250);
+    expect(result.retainedCents + result.refundCents).toBe(333);
   });
 });

@@ -13,9 +13,13 @@ vi.mock('@/lib/supabase', async importOriginal => {
   const original = await importOriginal<typeof import('@/lib/supabase')>();
   return {
     ...original,
-    supabase: Object.assign(Object.create(Object.getPrototypeOf(original.supabase)), original.supabase, {
-      functions: { invoke: vi.fn() },
-    }),
+    supabase: Object.assign(
+      Object.create(Object.getPrototypeOf(original.supabase)),
+      original.supabase,
+      {
+        functions: { invoke: vi.fn() },
+      }
+    ),
   };
 });
 
@@ -50,7 +54,10 @@ beforeEach(() => {
 
 describe('RefundEntryDialog', () => {
   it('full refund invokes the function with NO amount (server refunds the exact fee)', async () => {
-    mockedInvoke.mockResolvedValue({ data: { refund_id: 're_1', amount_cents: 5000 }, error: null });
+    mockedInvoke.mockResolvedValue({
+      data: { refund_id: 're_1', amount_cents: 5000 },
+      error: null,
+    });
     const onRefunded = renderDialog();
     const user = userEvent.setup();
 
@@ -65,7 +72,10 @@ describe('RefundEntryDialog', () => {
   });
 
   it('partial refund sends the exact cents amount', async () => {
-    mockedInvoke.mockResolvedValue({ data: { refund_id: 're_1', amount_cents: 2050 }, error: null });
+    mockedInvoke.mockResolvedValue({
+      data: { refund_id: 're_1', amount_cents: 2050 },
+      error: null,
+    });
     renderDialog();
     const user = userEvent.setup();
 
@@ -115,7 +125,7 @@ describe('RefundEntryDialog', () => {
 });
 
 describe('RefundEntryDialog — withdrawal policy pre-fill', () => {
-  it('pre-fills the partial amount from an after-cutoff snapshot and shows the retained fee', async () => {
+  it('executes the accepted after-cutoff suggestion from the server snapshot', async () => {
     suggestionMock.mockReturnValue({
       data: {
         hasPolicy: true,
@@ -134,11 +144,43 @@ describe('RefundEntryDialog — withdrawal policy pre-fill', () => {
     expect(await screen.findByText(/\$10\.00 is retained/i)).toBeInTheDocument();
     expect((screen.getByLabelText(/amount \(max/i) as HTMLInputElement).value).toBe('40.00');
 
-    // Submitting as-is sends the suggested cents — the secretary accepted it.
+    // Submitting as-is asks the server to resolve the entry's stored snapshot.
     await user.click(screen.getByRole('button', { name: /issue refund/i }));
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith('stripe-refund-entry', {
-        body: { entry_id: 'entry-1', amount_cents: 4000, notes: undefined },
+        body: {
+          entry_id: 'entry-1',
+          amount_cents: undefined,
+          notes: undefined,
+          use_policy_snapshot: true,
+        },
+      });
+    });
+  });
+
+  it('sends an explicit amount when the secretary overrides the snapshot suggestion', async () => {
+    suggestionMock.mockReturnValue({
+      data: {
+        hasPolicy: true,
+        refundCents: 4000,
+        retainedCents: 1000,
+        requiresManual: false,
+        reason: 'after_cutoff',
+        policy: null,
+      },
+    });
+    mockedInvoke.mockResolvedValue({ data: { amount_cents: 4500 }, error: null });
+    renderDialog();
+    const user = userEvent.setup();
+
+    const amountInput = (await screen.findByLabelText(/amount \(max/i)) as HTMLInputElement;
+    await user.clear(amountInput);
+    await user.type(amountInput, '45.00');
+    await user.click(screen.getByRole('button', { name: /issue refund/i }));
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith('stripe-refund-entry', {
+        body: { entry_id: 'entry-1', amount_cents: 4500, notes: undefined },
       });
     });
   });
@@ -177,7 +219,16 @@ describe('RefundEntryDialog — withdrawal policy pre-fill', () => {
   });
 
   it('shows no policy message when the entry has no snapshot', () => {
-    suggestionMock.mockReturnValue({ data: { hasPolicy: false, refundCents: 5000, retainedCents: 0, requiresManual: true, reason: 'no_policy', policy: null } });
+    suggestionMock.mockReturnValue({
+      data: {
+        hasPolicy: false,
+        refundCents: 5000,
+        retainedCents: 0,
+        requiresManual: true,
+        reason: 'no_policy',
+        policy: null,
+      },
+    });
     renderDialog();
     expect(screen.queryByText(/withdrawal policy/i)).not.toBeInTheDocument();
   });

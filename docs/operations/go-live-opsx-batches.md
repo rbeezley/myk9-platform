@@ -140,6 +140,31 @@ Ready for morning review when:
 - seed/access checks have runnable commands
 - any generated migration has a dry-run result
 
+Current run, 2026-07-06:
+
+- OpenSpec change `go-live-phase-2-data-access` created.
+- Implementation PR: #1172.
+- Added source/read-only verifier command: `pnpm qa:go-live:phase2 --allow-blocked`.
+- Added focused test command: `pnpm qa:go-live:phase2:test`.
+- Added read-only DB evidence SQL: `scripts/go-live/phase-2-data-access.sql`.
+- Local verifier evidence:
+  - `fail judge_csv_data_rows: 0 judge data rows after header`
+  - `ok judge_importer_present: scripts/import-judges.ts`
+  - `ok seed_demo_phase2_tokens: seed-demo.sql references required Phase 2 demo data`
+  - `ok stale_anon_cleanup_source: cleanup_stale_ringside_anon_users migration source check`
+- No shared-system mutation was run. No judge preload migration was generated because real judge
+  exports are still missing.
+
+Morning/operator checklist:
+
+- Provide real AKC + UKC judge exports before asking the agent to generate the preload migration.
+- Run staging DB evidence with a read-capable URL:
+  `pnpm qa:go-live:phase2 --db-url "$DATABASE_URL"`.
+- If any seed/access row fails, approve the appropriate repair action, such as rerunning
+  `supabase/seed-demo.sql`.
+- Prove Supabase anonymous sign-ins are ON in staging/prod before cold passcode walks.
+- Run cold incognito judge (`jh3k9`) and steward (`s7m2p`) walks after Phase 1 gates are green.
+
 ### B3 - Phase 3 Stripe Live Cutover
 
 OpenSpec change: `go-live-phase-3-stripe-cutover`

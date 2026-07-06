@@ -9,7 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { AskQExampleQueries } from './AskQExampleQueries';
 import { AskQInput } from './AskQInput';
-import { AskQAnswer } from './AskQAnswer';
+import { AskQAnswer, AskQAnswerSkeleton } from './AskQAnswer';
 import { AskQSources } from './AskQSources';
 import { AskQFeedback } from './AskQFeedback';
 import {
@@ -386,18 +386,14 @@ function AskQAppHelpContent({
         <AskQAnswer query={state.question} answer="" toolsUsed={[]} isStreaming={false} />
       )}
 
-      {state.status === 'streaming' && (
-        <div className="rounded-xl rounded-tl-sm bg-muted/50 px-3.5 py-3">
-          {state.answer ? (
+      {state.status === 'streaming' &&
+        (state.answer ? (
+          <div className="rounded-xl rounded-tl-sm bg-muted/50 px-3.5 py-3">
             <p className="whitespace-pre-wrap text-sm leading-relaxed">{state.answer}</p>
-          ) : (
-            <div className="space-y-2 animate-pulse">
-              <div className="h-3 w-3/4 rounded bg-muted" />
-              <div className="h-3 w-1/2 rounded bg-muted" />
-            </div>
-          )}
-        </div>
-      )}
+          </div>
+        ) : (
+          <AskQAnswerSkeleton />
+        ))}
 
       {state.route?.kind === 'answer' && (
         <div className="space-y-3 rounded-xl rounded-tl-sm bg-muted/50 px-3.5 py-3">

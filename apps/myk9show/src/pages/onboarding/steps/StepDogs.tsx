@@ -19,6 +19,7 @@ interface StepDogsProps {
   onNext: () => void;
   onBack: () => void;
   onSkip: () => void;
+  canGoBack?: boolean;
 }
 
 // Intentionally bypasses useDogsQuery (which returns ALL dogs for site_admin).
@@ -39,7 +40,7 @@ function useMyDogs(personId: string) {
   });
 }
 
-export function StepDogs({ personId, onNext, onBack, onSkip }: StepDogsProps) {
+export function StepDogs({ personId, onNext, onBack, onSkip, canGoBack = true }: StepDogsProps) {
   const [addPanelOpen, setAddPanelOpen] = useState(false);
   const { data: dogs = [], isLoading, refetch } = useMyDogs(personId);
 
@@ -102,9 +103,13 @@ export function StepDogs({ personId, onNext, onBack, onSkip }: StepDogsProps) {
       />
 
       <div className="flex items-center justify-between pt-2">
-        <Button type="button" variant="ghost" onClick={onBack}>
-          Back
-        </Button>
+        {canGoBack ? (
+          <Button type="button" variant="ghost" onClick={onBack}>
+            Back
+          </Button>
+        ) : (
+          <span aria-hidden="true" />
+        )}
         <div className="flex items-center gap-2">
           <Button type="button" variant="ghost" onClick={onSkip}>
             Skip for now

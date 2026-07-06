@@ -47,6 +47,7 @@ function setupMocks({
     needsOnboarding,
     onboardingCompleted,
     isLoading: profileLoading,
+    error: null,
   });
 }
 
@@ -76,8 +77,24 @@ describe('ExhibitorOnboardingChecker', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
   });
 
-  it('does not redirect when profile exists but onboarding not completed (omitted until migration 125)', () => {
+  it('redirects when profile exists but onboarding is not complete', () => {
     setupMocks({ needsOnboarding: false, onboardingCompleted: false });
+    render(
+      <ExhibitorOnboardingChecker>
+        <div>Dashboard content</div>
+      </ExhibitorOnboardingChecker>
+    );
+    expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
+  });
+
+  it('does not redirect on profile fetch errors', () => {
+    setupMocks({ needsOnboarding: false, onboardingCompleted: false });
+    mockUseExhibitorProfile.mockReturnValue({
+      needsOnboarding: false,
+      onboardingCompleted: false,
+      isLoading: false,
+      error: new Error('Database error'),
+    });
     render(
       <ExhibitorOnboardingChecker>
         <div>Dashboard content</div>

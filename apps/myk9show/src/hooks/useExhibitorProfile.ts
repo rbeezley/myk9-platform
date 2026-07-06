@@ -249,8 +249,8 @@ export function useExhibitorProfile() {
 
       return mapToExhibitorProfile(profile as Record<string, unknown>);
     },
-    onSuccess: () => {
-      // Invalidate and refetch profile
+    onSuccess: createdProfile => {
+      queryClient.setQueryData(['exhibitorProfile', user?.id], createdProfile);
       queryClient.invalidateQueries({ queryKey: ['exhibitorProfile', user?.id] });
     },
   });

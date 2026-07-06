@@ -25,6 +25,8 @@ import { StepNotifications, NotificationPrefs } from './steps/StepNotifications'
 import { StepWelcome } from './steps/StepWelcome';
 
 const TOTAL_STEPS = 5;
+const PROFILE_STEP = 1;
+const DOGS_STEP = 2;
 
 const STEP_LABELS = ['Profile', 'Dogs', 'Address', 'Notifications', 'Welcome'];
 const STAFF_ROLES = new Set<UserRole>([
@@ -99,6 +101,7 @@ function ExhibitorOnboardingWizard({ user }: { user: User }) {
   const navigate = useNavigate();
   const {
     profile: exhibitorProfile,
+    isLoading: profileLoading,
     createProfileAsync,
     isCreatingProfile,
     completeOnboarding,
@@ -106,8 +109,10 @@ function ExhibitorOnboardingWizard({ user }: { user: User }) {
   } = useExhibitorProfile();
   const userMeta = user.user_metadata ?? {};
 
+  const firstAvailableStep = exhibitorProfile ? DOGS_STEP : PROFILE_STEP;
+
   // Wizard state
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(firstAvailableStep);
   const [stepError, setStepError] = useState('');
 
   // Step data
@@ -128,10 +133,35 @@ function ExhibitorOnboardingWizard({ user }: { user: User }) {
     pushResults: false,
     pushReminders: false,
   });
+  const visibleStep = Math.max(step, firstAvailableStep);
+
+  if (profileLoading) {
+    return (
+      <div
+        role="status"
+        aria-label="Loading exhibitor profile"
+        className="min-h-screen bg-background flex flex-col items-center justify-start py-10 px-4"
+      >
+        <div className="w-full max-w-lg space-y-6">
+          <Skeleton className="h-3 w-full rounded-full" />
+          <div className="rounded-xl border bg-card p-6">
+            <Skeleton className="mb-3 h-7 w-56" />
+            <Skeleton className="mb-6 h-4 w-80 max-w-full" />
+            <Skeleton className="h-40 w-full" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ── Step 1: create profile ──────────────────────────────────────────────────
   const handleProfileNext = async () => {
     setStepError('');
+    if (exhibitorProfile) {
+      setStep(DOGS_STEP);
+      return;
+    }
+
     if (!profileData.firstName.trim() || !profileData.lastName.trim()) {
       setStepError('First name and last name are required.');
       return;
@@ -197,7 +227,7 @@ function ExhibitorOnboardingWizard({ user }: { user: User }) {
 
   const goBack = () => {
     setStepError('');
-    setStep(s => Math.max(1, s - 1));
+    setStep(s => Math.max(firstAvailableStep, s - 1));
   };
 
   return (
@@ -212,11 +242,11 @@ function ExhibitorOnboardingWizard({ user }: { user: User }) {
         </div>
 
         {/* Progress */}
-        <StepIndicator current={step} total={TOTAL_STEPS} />
+        <StepIndicator current={visibleStep} total={TOTAL_STEPS} />
 
         {/* Step content */}
         <div className="rounded-xl border bg-card p-6 shadow-sm">
-          {step === 1 && (
+          {visibleStep === 1 && (
             <StepProfile
               data={profileData}
               email={user?.email ?? ''}
@@ -226,15 +256,16 @@ function ExhibitorOnboardingWizard({ user }: { user: User }) {
               error={stepError}
             />
           )}
-          {step === 2 && (
+          {visibleStep === 2 && (
             <StepDogs
               personId={exhibitorProfile?.person_id ?? user?.id ?? ''}
               onNext={handleDogsNext}
               onBack={goBack}
               onSkip={handleDogsSkip}
+              canGoBack={visibleStep > firstAvailableStep}
             />
           )}
-          {step === 3 && (
+          {visibleStep === 3 && (
             <StepAddress
               data={addressData}
               onChange={setAddressData}
@@ -243,7 +274,7 @@ function ExhibitorOnboardingWizard({ user }: { user: User }) {
               onSkip={handleAddressSkip}
             />
           )}
-          {step === 4 && (
+          {visibleStep === 4 && (
             <StepNotifications
               data={notifPrefs}
               onChange={setNotifPrefs}
@@ -252,7 +283,7 @@ function ExhibitorOnboardingWizard({ user }: { user: User }) {
               onSkip={handleNotifSkip}
             />
           )}
-          {step === 5 && (
+          {visibleStep === 5 && (
             <StepWelcome
               onFinish={handleFinish}
               onBack={goBack}

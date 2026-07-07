@@ -174,6 +174,52 @@ describe('EntryEditDialog — per-class handlers', () => {
         entryId: 'entry-container',
         handler: 'Chris Lee',
         handlerId: null,
+        clearHandlerId: false,
+      });
+    });
+  });
+
+  it('clears stale handler person links when secretary saves a text correction', async () => {
+    const entry = {
+      ...makeEntry('Scent Work'),
+      classes: [
+        {
+          id: 'entry-container',
+          name: 'Container Novice B',
+          number: '102',
+          fee: 30,
+          trialType: 'Scent Work',
+          handlerId: 'secretary-person-id',
+          status: 'entered' as const,
+          handler: 'Secretary User',
+        },
+      ],
+    };
+
+    const { user } = render(
+      <EntryEditDialog
+        open
+        entry={entry}
+        onOpenChange={noop}
+        onUpdate={noop}
+        ignoreModificationDeadline
+      />
+    );
+
+    const handler = await screen.findByRole('textbox', {
+      name: 'Handler for Container Novice B',
+    });
+
+    await user.clear(handler);
+    await user.type(handler, 'Jamie Walker');
+    await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+    await waitFor(() => {
+      expect(entryServiceMocks.updateEntryHandler).toHaveBeenCalledWith({
+        entryId: 'entry-container',
+        handler: 'Jamie Walker',
+        handlerId: null,
+        clearHandlerId: true,
       });
     });
   });

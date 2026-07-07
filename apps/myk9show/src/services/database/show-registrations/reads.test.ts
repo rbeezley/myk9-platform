@@ -313,6 +313,38 @@ describe('createShowRegistration', () => {
     expect(updatePayload).not.toHaveProperty('paid_amount');
   });
 
+  it('clears stale payment detail fields when an existing enrollment changes method', async () => {
+    const existingQuery = makeExistingEnrollmentQuery({
+      payment_status: 'paid',
+      payment_method: 'group_payment',
+      total_amount: 7000,
+      paid_amount: 70,
+    });
+    const updateQuery = makeExistingEnrollmentPaymentUpdateQuery();
+    mocks.from.mockReturnValueOnce(existingQuery).mockReturnValueOnce(updateQuery);
+
+    const result = await createShowRegistration(
+      'show-1',
+      'handler-1',
+      undefined,
+      { checkNumber: '1001' },
+      'check',
+      3000
+    );
+
+    expect(result.error).toBeNull();
+    expect(updateQuery.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payment_method: 'check',
+        payment_reference: null,
+        check_number: '1001',
+        payment_date: null,
+        group_reference: null,
+        payment_notes: null,
+      })
+    );
+  });
+
   it('does not rewrite existing enrollment financials for a waived add-on', async () => {
     const existingQuery = makeExistingEnrollmentQuery({
       payment_status: 'paid',

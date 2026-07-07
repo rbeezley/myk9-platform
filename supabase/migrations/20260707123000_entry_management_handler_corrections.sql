@@ -1,10 +1,13 @@
 -- Add a handler-correction RPC that works for show managers and preserves
 -- exhibitor-scoped behavior for self-service edits.
 
+DROP FUNCTION IF EXISTS public.update_entry_handler_for_entry_management(uuid, text, uuid);
+
 CREATE OR REPLACE FUNCTION public.update_entry_handler_for_entry_management(
   p_entry_id uuid,
   p_handler text,
-  p_handler_id uuid DEFAULT NULL
+  p_handler_id uuid DEFAULT NULL,
+  p_clear_handler_id boolean DEFAULT FALSE
 )
 RETURNS void
 LANGUAGE plpgsql
@@ -58,7 +61,11 @@ BEGIN
 
     UPDATE public.entries
        SET handler = p_handler,
-           handler_id = COALESCE(v_resolved_handler_id, v_existing_handler_id),
+           handler_id = CASE
+             WHEN v_resolved_handler_id IS NOT NULL THEN v_resolved_handler_id
+             WHEN p_clear_handler_id THEN NULL
+             ELSE v_existing_handler_id
+           END,
            updated_at = now()
      WHERE id = p_entry_id;
 
@@ -96,9 +103,9 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.update_entry_handler_for_entry_management(uuid, text, uuid)
+REVOKE ALL ON FUNCTION public.update_entry_handler_for_entry_management(uuid, text, uuid, boolean)
   FROM public;
-GRANT EXECUTE ON FUNCTION public.update_entry_handler_for_entry_management(uuid, text, uuid)
+GRANT EXECUTE ON FUNCTION public.update_entry_handler_for_entry_management(uuid, text, uuid, boolean)
   TO authenticated;
 
 NOTIFY pgrst, 'reload schema';

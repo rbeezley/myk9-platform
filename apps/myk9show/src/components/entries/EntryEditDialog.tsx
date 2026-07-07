@@ -219,6 +219,7 @@ export function EntryEditDialog({
             entryId: classEntry.id,
             handler: editedHandler,
             handlerId: null,
+            clearHandlerId: ignoreModificationDeadline,
           });
           if (error) {
             setError('Failed to update handler. Please try again.');

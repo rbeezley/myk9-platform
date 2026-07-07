@@ -217,9 +217,10 @@ export const updateEntryHandler = async (params: {
   entryId: string;
   handler: string;
   handlerId?: string | null;
+  clearHandlerId?: boolean | undefined;
 }) => {
   const startTime = Date.now();
-  const { entryId, handler, handlerId = null } = params;
+  const { entryId, handler, handlerId = null, clearHandlerId = false } = params;
 
   try {
     const { error } = await supabase.rpc(
@@ -228,6 +229,7 @@ export const updateEntryHandler = async (params: {
         p_entry_id: entryId,
         p_handler: handler,
         p_handler_id: handlerId,
+        p_clear_handler_id: clearHandlerId,
       } as never
     );
 

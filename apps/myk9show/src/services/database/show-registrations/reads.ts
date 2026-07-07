@@ -154,6 +154,7 @@ async function updateExistingEnrollmentPayment({
     totalAmountCents,
     existingTotalAmountCents: existing.totalAmount,
     existingPaidAmountDollars: existing.paidAmount,
+    includeEmptyPaymentDetails: paymentMethod !== undefined && paymentMethod !== 'waived',
     preservePaidAmountForPending: true,
     preserveFinancialForWaived: true,
   });

@@ -58,9 +58,8 @@ describe('submit_show_entries migration authorization', () => {
     );
 
     expect(migration).not.toContain('concat_ws');
-    expect(migration).toContain(
-      'handler_id = COALESCE(v_resolved_handler_id, v_existing_handler_id)'
-    );
+    expect(migration).toContain('WHEN p_clear_handler_id THEN NULL');
+    expect(migration).toContain('ELSE v_existing_handler_id');
   });
 
   it('returns the registration and submission ids expected by the client wrapper', () => {

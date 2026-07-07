@@ -33,7 +33,7 @@
 - [x] 5.2 Update relevant tracking docs if this completes or adds a launch-readiness backlog item.
 - [x] 5.3 Commit the implementation branch.
 - [x] 5.4 Open a PR with `Tracked in openspec change: prevent-duplicate-dog-identities` and the verification evidence.
-- [ ] 5.5 Confirm CI/review status before merge; do not archive until the PR is merged.
+- [x] 5.5 Confirm CI/review status before merge; PR #1191 merged to `main` on 2026-07-07.
 
 ## Validation Profile
 

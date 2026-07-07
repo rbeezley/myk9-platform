@@ -24,4 +24,4 @@
 ## 5. Shipping
 
 - [x] 5.1 Update tracking docs if this closes or adds a tracked launch-readiness item.
-- [ ] 5.2 Create PR, wait for CI/review, and merge after approval.
+- [x] 5.2 Create PR, wait for CI/review, and merge after approval. PR #1159 merged to `main` on 2026-07-05.

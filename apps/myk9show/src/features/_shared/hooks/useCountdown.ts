@@ -103,15 +103,18 @@ export function useCountdown(targetIso: string | null, timezone: string): Countd
   const [value, setValue] = useState<CountdownValue>(compute);
   const rafRef = useRef<number | null>(null);
   const prevSecondsRef = useRef<number>(-1);
+  const prevClosedRef = useRef<boolean | null>(null);
 
   useEffect(() => {
     if (!targetIso) return;
     prevSecondsRef.current = -1;
+    prevClosedRef.current = null;
 
     const tick = () => {
       const next = compute();
-      if (next.seconds !== prevSecondsRef.current) {
+      if (next.seconds !== prevSecondsRef.current || next.closed !== prevClosedRef.current) {
         prevSecondsRef.current = next.seconds;
+        prevClosedRef.current = next.closed;
         setValue(next);
       }
       if (!next.closed) {

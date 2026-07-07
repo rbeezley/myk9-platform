@@ -63,6 +63,8 @@ function makeExistingEnrollmentQuery() {
         payment_status: 'pending',
         payment_method: null,
         payment_reference: null,
+        total_amount: 3000,
+        paid_amount: 0,
         created_at: '2026-07-05T00:00:00Z',
         updated_at: '2026-07-05T00:00:00Z',
       },
@@ -80,6 +82,32 @@ function makeExistingEnrollmentQuery() {
         payment_status: 'pending',
         payment_method: null,
         payment_reference: null,
+        created_at: '2026-07-05T00:00:00Z',
+        updated_at: '2026-07-05T00:00:00Z',
+      },
+      error: null,
+    }),
+  };
+}
+
+function makeExistingEnrollmentPaymentUpdateQuery() {
+  return {
+    update: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    single: vi.fn().mockResolvedValue({
+      data: {
+        id: 'enrollment-existing',
+        show_id: 'show-1',
+        handler_id: 'handler-1',
+        confirmation_number: 'MK9-000123',
+        status: 'draft',
+        total_fees: 0,
+        payment_status: 'paid',
+        payment_method: 'secretary_paid',
+        payment_reference: 'receipt-200',
+        total_amount: 10000,
+        paid_amount: 100,
         created_at: '2026-07-05T00:00:00Z',
         updated_at: '2026-07-05T00:00:00Z',
       },
@@ -160,6 +188,61 @@ describe('createShowRegistration', () => {
         paid_amount: 70,
       })
     );
+  });
+
+  it('keeps check submissions pending because they are pay-at-show', async () => {
+    const query = makeNewEnrollmentQuery();
+    mocks.from.mockReturnValue(query);
+
+    const result = await createShowRegistration(
+      'show-1',
+      'handler-1',
+      undefined,
+      { checkNumber: '1001' },
+      'check',
+      7000
+    );
+
+    expect(result.error).toBeNull();
+    expect(query.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payment_status: PaymentStatus.PENDING,
+        payment_method: 'check',
+        check_number: '1001',
+        total_amount: 7000,
+        paid_amount: 0,
+      })
+    );
+  });
+
+  it('updates an existing enrollment with secretary-paid add-on totals', async () => {
+    const existingQuery = makeExistingEnrollmentQuery();
+    const updateQuery = makeExistingEnrollmentPaymentUpdateQuery();
+    mocks.from.mockReturnValueOnce(existingQuery).mockReturnValueOnce(updateQuery);
+
+    const result = await createShowRegistration(
+      'show-1',
+      'handler-1',
+      'receipt-200',
+      { paymentReference: 'receipt-200', paymentDate: '2026-07-07' },
+      'secretary_paid',
+      7000
+    );
+
+    expect(result.error).toBeNull();
+    expect(result.data?.id).toBe('enrollment-existing');
+    expect(existingQuery.insert).not.toHaveBeenCalled();
+    expect(updateQuery.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payment_status: 'paid',
+        payment_method: 'secretary_paid',
+        payment_reference: 'receipt-200',
+        payment_date: '2026-07-07',
+        total_amount: 10000,
+        paid_amount: 100,
+      })
+    );
+    expect(updateQuery.eq).toHaveBeenCalledWith('id', 'enrollment-existing');
   });
 });
 

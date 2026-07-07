@@ -27,6 +27,9 @@ describe('submit_show_entries migration authorization', () => {
     );
 
     expect(migration).toContain(
+      "WHEN p_payment_method IN ('secretary_paid', 'group_payment') THEN 'paid'"
+    );
+    expect(migration).not.toContain(
       "WHEN p_payment_method IN ('cash', 'check', 'secretary_paid', 'group_payment') THEN 'paid'"
     );
   });

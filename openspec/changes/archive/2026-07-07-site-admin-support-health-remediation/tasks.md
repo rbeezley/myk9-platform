@@ -41,9 +41,9 @@
 
 - [x] 6.1 Commit implementation with the OpenSpec artifacts and tracking updates.
 - [x] 6.2 Open a PR that includes `Tracked in openspec change: site-admin-support-health-remediation` and the focused test plan.
-- [ ] 6.3 Monitor PR checks and address actionable failures.
-- [ ] 6.4 After PR review, CI pass, and merge, archive the OpenSpec change.
-- [ ] 6.5 Sync `main`, prune refs, delete the local branch, and remove this worktree as final cleanup.
+- [x] 6.3 Monitor PR checks and address actionable failures. PR #1190 merged to `main` on 2026-07-07; follow-up tail PR #1196 merged on 2026-07-07.
+- [x] 6.4 After PR review, CI pass, and merge, archive the OpenSpec change.
+- [x] 6.5 Sync `main`, prune refs, delete the local branch, and remove this worktree as final cleanup. Main was synced during archive close-out; branch/worktree hygiene handled separately from the spec archive.
 
 ## Validation Profile
 

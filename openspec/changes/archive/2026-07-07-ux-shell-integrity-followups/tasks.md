@@ -58,4 +58,4 @@
 - [x] 8.2 Update `OPEN-TODOS.md` or another relevant tracking doc if the implementation closes a tracked backlog item.
 - [x] 8.3 Run `pnpm openspec validate ux-shell-integrity-followups --strict`.
 - [x] 8.4 Open a PR for the implementation branch and request review for the user-visible shell behavior.
-- [ ] 8.5 Monitor CI/review, fix actionable failures, merge when green, and archive the OpenSpec change after implementation is complete.
+- [x] 8.5 Monitor CI/review, fix actionable failures, merge when green, and archive the OpenSpec change after implementation is complete. PR #1114 merged to `main` on 2026-07-04.

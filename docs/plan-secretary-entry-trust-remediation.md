@@ -5,6 +5,8 @@
 **Priority frame:** Fall 2026 launch readiness, secretary/show-day reliability first
 **Primary user lens:** Retired trial secretary with low computer confidence
 
+**Status:** Done 2026-07-07 — shipped in PR [#1189](https://github.com/rbeezley/myk9-platform/pull/1189) (`fix(secretary): preserve mail-in entry trust`). Handler identity, enrollment-backed payment display, secretary receipt return, entry correction action, armband copy, empty-state CTA, Add Person title, and club permission copy are implemented with focused tests, CI green, and OpenSpec archived.
+
 ## Problem
 
 The secretary workflow is mostly complete, but the post-entry chain breaks trust:

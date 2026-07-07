@@ -40,7 +40,7 @@
 - [x] 5.3 Update `OPEN-TODOS.md` when the implementation closes the people/clubs parked scope or splits remaining merge-tooling work.
 - [x] 5.4 Commit the implementation branch.
 - [x] 5.5 Open a PR with `Tracked in openspec change: prevent-duplicate-people-clubs` and verification evidence.
-- [ ] 5.6 Confirm CI/review status before merge; do not archive until the PR is merged.
+- [x] 5.6 Confirm CI/review status before merge; PR #1197 merged to `main` on 2026-07-07 with required CI green. Vercel guides preview was rate-limited and non-blocking per preview quota policy.
 
 ## Validation Profile
 

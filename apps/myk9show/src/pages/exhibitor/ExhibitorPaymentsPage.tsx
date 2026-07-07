@@ -198,6 +198,17 @@ function AmountDueSection({
     );
   }
 
+  const singleOnlineShowBalance =
+    summary.onlineShowBalances.length === 1 ? summary.onlineShowBalances[0] : null;
+  const singleOnlineCoversFullDue =
+    summary.onlineDueCents === summary.amountDueCents && summary.payAtShowDueCents === 0;
+  const singleOnlineButtonLabel =
+    singleOnlineShowBalance && singleOnlineCoversFullDue
+      ? 'Finish payment'
+      : singleOnlineShowBalance
+        ? `Pay ${formatPaymentCents(singleOnlineShowBalance.onlineDueCents, 'usd')} online`
+        : null;
+
   return (
     <Card className="border-warning/40">
       <CardContent className="space-y-4 py-5">
@@ -211,11 +222,11 @@ function AmountDueSection({
               This matches Current Fees on My Shows for current entries.
             </p>
           </div>
-          {summary.onlineShowBalances.length === 1 && (
+          {singleOnlineShowBalance && singleOnlineButtonLabel && (
             <Button asChild className="min-h-11 shrink-0">
-              <Link to={summary.onlineShowBalances[0].paymentHref}>
+              <Link to={singleOnlineShowBalance.paymentHref}>
                 <CreditCard className="h-4 w-4 mr-1.5" />
-                Finish payment
+                {singleOnlineButtonLabel}
               </Link>
             </Button>
           )}

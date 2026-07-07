@@ -60,6 +60,33 @@ describe('moneyPresentation', () => {
     expect(rows.reduce((sum, row) => sum + row.amountCents, 0)).toBe(2300);
   });
 
+  it('keeps gross paid visible for refunded orders that have explicit entry refund rows', () => {
+    const rows = buildPaymentDisplayRows([
+      payment({
+        status: 'refunded',
+        refunds: [
+          {
+            entryId: 'entry-1',
+            amountCents: 5300,
+            date: '2026-06-12T00:00:00Z',
+            label: 'Copper - Advanced A',
+          },
+        ],
+      }),
+    ]);
+
+    expect(rows).toMatchObject([
+      { id: 'order-1:charge', kind: 'charge', amountCents: 5300, status: 'succeeded' },
+      {
+        id: 'order-1:refund:entry-1',
+        kind: 'refund',
+        amountCents: -5300,
+        status: 'refunded',
+      },
+    ]);
+    expect(rows.reduce((sum, row) => sum + row.amountCents, 0)).toBe(0);
+  });
+
   it('keeps legacy fully-refunded order rows as gross charge plus signed refund when no entry refund detail exists', () => {
     const rows = buildPaymentDisplayRows([payment({ status: 'refunded', refunds: [] })]);
 

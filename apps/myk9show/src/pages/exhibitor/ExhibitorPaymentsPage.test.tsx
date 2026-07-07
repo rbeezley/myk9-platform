@@ -236,6 +236,37 @@ describe('ExhibitorPaymentsPage', () => {
     );
   });
 
+  it('labels the single-show payment action with the online amount when pay-at-show money is also due', () => {
+    balanceState.data = {
+      currentFeesCents: 5500,
+      amountDueCents: 5500,
+      onlineDueCents: 2500,
+      payAtShowDueCents: 3000,
+      onlineShowBalances: [
+        {
+          showId: 'show-1',
+          showName: 'Spring Trial',
+          amountDueCents: 2500,
+          onlineDueCents: 2500,
+          payAtShowDueCents: 0,
+          entryIds: ['e1'],
+          paymentHref: '/cart?showId=show-1&entryIds=e1',
+        },
+      ],
+    };
+
+    render(<ExhibitorPaymentsPage />);
+
+    expect(screen.getByText('Amount due')).toBeInTheDocument();
+    expect(screen.getByText('$55.00')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /pay \$25.00 online/i })).toHaveAttribute(
+      'href',
+      '/cart?showId=show-1&entryIds=e1'
+    );
+    expect(screen.getByText(/\$30.00 is marked pay at show/i)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^finish payment$/i })).not.toBeInTheDocument();
+  });
+
   it('lists separate checkout links when multiple shows have online balances', () => {
     balanceState.data = {
       currentFeesCents: 5500,

@@ -126,7 +126,10 @@ export function buildPaymentDisplayRows(
       description: 'Online entry fees',
       amountCents: payment.amountCents,
       currency: payment.currency,
-      status: payment.status,
+      status:
+        isRefundedPaymentStatus(payment.status) && payment.refunds && payment.refunds.length > 0
+          ? 'succeeded'
+          : payment.status,
       reference: payment.reference,
       entryIds: payment.entryIds,
     };

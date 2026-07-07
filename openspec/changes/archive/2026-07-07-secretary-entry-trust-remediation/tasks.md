@@ -40,8 +40,8 @@
 - [x] 6.2 Run focused myK9Show tests for changed files, including registration conversion/submission, Entry Management mapping/grouping/card/action tests, armband dialog, and receipt tests.
 - [x] 6.3 Run targeted typecheck or broader checks if touched contracts cross package or app boundaries.
 - [x] 6.4 Run secretary E2E verification for the mail-in path if the local suite is usable; stop and report if it hangs for more than 60 seconds without useful output.
-- [ ] 6.5 Update relevant tracking docs when the remediation is complete.
-- [ ] 6.6 Open a PR with `Tracked in openspec change: secretary-entry-trust-remediation`, wait for CI/review, and merge before archiving.
+- [x] 6.5 Update relevant tracking docs when the remediation is complete.
+- [x] 6.6 Open a PR with `Tracked in openspec change: secretary-entry-trust-remediation`, wait for CI/review, and merge before archiving. PR #1189 merged to `main` on 2026-07-07 with required CI green; Vercel preview contexts were quota-limited and non-blocking per preview quota policy.
 
 ## Validation Profile
 

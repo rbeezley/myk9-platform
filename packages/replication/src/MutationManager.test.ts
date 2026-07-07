@@ -439,13 +439,17 @@ describe('MutationManager', () => {
       expect(vi.mocked(mockSupabase.from)).toHaveBeenCalledWith('classes');
     });
 
-    it('treats a 23505 duplicate-key error on INSERT as success (idempotent retry)', async () => {
+    it('treats a primary-key 23505 on INSERT as success (idempotent retry)', async () => {
       await mockDb.put(
         REPLICATION_STORES.PENDING_MUTATIONS,
         makeMutation({ id: 'mut-dup', tableName: 'entries', operation: 'INSERT' })
       );
 
-      const dupKeyError = { code: '23505', message: 'duplicate key value violates unique constraint' };
+      const dupKeyError = {
+        code: '23505',
+        message: 'duplicate key value violates unique constraint "entries_pkey"',
+        details: 'Key (id)=(entry-1) already exists.',
+      };
       vi.mocked(mockSupabase.from).mockReturnValueOnce({
         insert: vi.fn(() => ({
           select: vi.fn(() => Promise.resolve({ data: null, error: dupKeyError })),
@@ -466,13 +470,53 @@ describe('MutationManager', () => {
       expect(failed).toHaveLength(0);
     });
 
+    it('does NOT treat a non-primary-key 23505 on INSERT as success', async () => {
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({
+          id: 'mut-club-name-dup',
+          tableName: 'clubs',
+          operation: 'INSERT',
+          rowId: 'club-1',
+          data: { id: 'club-1', name: ' heartland  scent-work club ' },
+        })
+      );
+
+      const dupNameError = {
+        code: '23505',
+        message:
+          'duplicate key value violates unique constraint "clubs_live_normalized_name_unique"',
+        details: 'Key (normalize_club_name(name))=(HEARTLAND SCENT WORK CLUB) already exists.',
+      };
+      vi.mocked(mockSupabase.from).mockReturnValueOnce({
+        insert: vi.fn(() => ({
+          select: vi.fn(() => Promise.resolve({ data: null, error: dupNameError })),
+        })),
+      } as unknown as ReturnType<typeof mockSupabase.from>);
+
+      const results = await manager.uploadPendingMutations();
+
+      expect(results).toHaveLength(1);
+      expect(results[0]!.success).toBe(false);
+
+      const pending = await mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
+      expect(pending).toHaveLength(0);
+
+      const failed = await mockDb.getAll(REPLICATION_STORES.FAILED_MUTATIONS);
+      expect(failed).toHaveLength(1);
+      expect(failed[0]!.id).toBe('mut-club-name-dup');
+    });
+
     it('does NOT treat a 23505 on UPDATE as success — still permanently fails', async () => {
       await mockDb.put(
         REPLICATION_STORES.PENDING_MUTATIONS,
         makeMutation({ id: 'mut-upd-dup', tableName: 'entries', operation: 'UPDATE' })
       );
 
-      const dupKeyError = { code: '23505', message: 'duplicate key value violates unique constraint' };
+      const dupKeyError = {
+        code: '23505',
+        message: 'duplicate key value violates unique constraint',
+      };
       vi.mocked(mockSupabase.from).mockReturnValueOnce({
         update: vi.fn(() => ({
           eq: vi.fn(() => ({
@@ -662,9 +706,10 @@ describe('MutationManager', () => {
       const results = await manager.uploadPendingMutations();
 
       expect(results[0]!.success).toBe(false);
-      const row = (await mockDb.get(REPLICATION_STORES.REPLICATED_TABLES, ['entries', 'entry-occ'])) as
-        | ReplicatedRow<{ id: string }>
-        | undefined;
+      const row = (await mockDb.get(REPLICATION_STORES.REPLICATED_TABLES, [
+        'entries',
+        'entry-occ',
+      ])) as ReplicatedRow<{ id: string }> | undefined;
       // Token advanced (from the RPC's error DETAIL, not a table re-read) so the
       // NEXT app write isn't stale — stops regeneration for ringside roles that
       // are denied a direct entries read.
@@ -1594,7 +1639,12 @@ describe('MutationManager', () => {
     it('only touches UPDATE mutations for the target row', async () => {
       await mockDb.put(
         REPLICATION_STORES.PENDING_MUTATIONS,
-        makeMutation({ id: 'other-row', rowId: 'entry-2', serverVersion: 3, rpc: { name: 'r', fields: {} } })
+        makeMutation({
+          id: 'other-row',
+          rowId: 'entry-2',
+          serverVersion: 3,
+          rpc: { name: 'r', fields: {} },
+        })
       );
       await mockDb.put(
         REPLICATION_STORES.PENDING_MUTATIONS,
@@ -1603,8 +1653,12 @@ describe('MutationManager', () => {
 
       await manager.reconcilePendingMutationsForRow('entries', 'entry-1', 8);
 
-      expect((await mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, 'other-row'))?.serverVersion).toBe(3);
-      expect((await mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, 'an-insert'))?.serverVersion).toBe(3);
+      expect(
+        (await mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, 'other-row'))?.serverVersion
+      ).toBe(3);
+      expect(
+        (await mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, 'an-insert'))?.serverVersion
+      ).toBe(3);
     });
   });
 });

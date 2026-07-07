@@ -17,6 +17,7 @@ import { UserRole } from '@/types/auth-types';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { PERSON_ROLES, US_STATES } from './UserCreationPanel.constants';
+import { findLikelyDuplicatePersonCandidate } from '@/utils/personIdentity';
 import type { PersonFormData, PersonCreationPanelProps } from './UserCreationPanel.types';
 
 export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
@@ -182,32 +183,39 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
 
   // Check for duplicate people
   const checkForDuplicates = useCallback(() => {
-    const fullName = `${formData.firstName.trim()} ${formData.lastName.trim()}`.toLowerCase();
-    const emailLower = formData.email.trim().toLowerCase();
-
-    const foundPerson = people.find(person => {
-      const existingName = `${person.firstName} ${person.lastName}`.toLowerCase();
-      const existingEmail = person.email?.toLowerCase();
-
-      return existingName === fullName || existingEmail === emailLower;
+    const foundCandidate = findLikelyDuplicatePersonCandidate(people, {
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      email: formData.email,
+      phone: formData.phone,
+      streetAddress: formData.address,
+      city: formData.city,
+      state: formData.state,
+      zipCode: formData.zipCode,
     });
 
-    if (foundPerson) {
-      const matchType =
-        `${foundPerson.firstName} ${foundPerson.lastName}`.toLowerCase() === fullName
-          ? 'name'
-          : 'email';
+    if (foundCandidate) {
       setDuplicateWarning(
-        `A person with this ${matchType} already exists: ${foundPerson.firstName} ${foundPerson.lastName}`
+        `This looks like ${foundCandidate.person.firstName} ${foundCandidate.person.lastName} (${foundCandidate.reasons.join(', ')}).`
       );
-      setExistingPerson(foundPerson);
+      setExistingPerson(foundCandidate.person);
       return true;
     }
 
     setDuplicateWarning(null);
     setExistingPerson(null);
     return false;
-  }, [formData.firstName, formData.lastName, formData.email, people]);
+  }, [
+    formData.firstName,
+    formData.lastName,
+    formData.email,
+    formData.phone,
+    formData.address,
+    formData.city,
+    formData.state,
+    formData.zipCode,
+    people,
+  ]);
 
   // Real-time duplicate check as user types name or email
   useEffect(() => {
@@ -328,9 +336,13 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
           entity: newPerson as unknown as Record<string, unknown>,
         });
       } catch (error) {
+        const errorMessage =
+          error instanceof Error && error.message.trim()
+            ? error.message
+            : 'Failed to create person. Please try again.';
         logger.error('❌ Failed to create person:', 'components', {}, error as Error);
-        notifications.error('Failed to create person. Please try again.');
-        setErrors({ submit: 'Failed to create person. Please try again.' });
+        notifications.error(errorMessage);
+        setErrors({ submit: errorMessage });
       } finally {
         setIsSubmitting(false);
       }

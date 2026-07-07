@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,11 @@ import { mapDatabaseToUser } from '@/services/mappers/userMappers';
 import { logger } from '@/services/LoggingService';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { commonValidations } from '@/lib/validation';
+import { useUserStore } from '@/store/userStore';
+import {
+  findLikelyDuplicatePersonCandidate,
+  type PersonIdentityCandidate,
+} from '@/utils/personIdentity';
 import { z } from 'zod';
 import { replicatedShowDeskPeopleTable } from '@/services/replication/ReplicatedShowDeskPeopleTable';
 
@@ -25,12 +30,6 @@ interface CreateExhibitorDialogProps {
   onDuplicateSelected?: (existingExhibitor: User) => void;
   searchQuery?: string; // Pre-fill from search if provided
   offlineFirst?: boolean;
-}
-
-interface DuplicateCandidate {
-  person: User;
-  matchScore: number;
-  matchReasons: string[];
 }
 
 const exhibitorFormSchema = z.object({
@@ -66,27 +65,11 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
   offlineFirst = false,
 }) => {
   const form = useFormValidation(exhibitorFormSchema, INITIAL_FORM_DATA);
-  const [duplicates, setDuplicates] = useState<DuplicateCandidate[]>([]);
+  const { people, loadUsers } = useUserStore();
+  const [duplicates, setDuplicates] = useState<PersonIdentityCandidate[]>([]);
   const [activeTab, setActiveTab] = useState<'create' | 'duplicates'>('create');
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
-
-  // Mock people data for duplicate detection (in real app, this would come from a store/API)
-  const mockUsers: User[] = [
-    {
-      id: '1',
-      firstName: 'John',
-      lastName: 'Smith',
-      email: 'john.smith@email.com',
-      phone: '555-0123',
-      streetAddress: '123 Main St',
-      city: 'Anytown',
-      state: 'CA',
-      zipCode: '12345',
-      dogs: [],
-    },
-    // Add more mock data as needed
-  ];
 
   // Initialize form with search query if provided
   const resetForm = form.reset;
@@ -109,65 +92,47 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
     }
   }, [searchQuery, open, resetForm]);
 
+  React.useEffect(() => {
+    if (open && people.length === 0) {
+      loadUsers();
+    }
+  }, [loadUsers, open, people.length]);
+
   // Duplicate detection logic
-  const detectDuplicates = (data: ExhibitorFormData): DuplicateCandidate[] => {
-    const candidates: DuplicateCandidate[] = [];
+  const detectDuplicates = useCallback(
+    (data: ExhibitorFormData): PersonIdentityCandidate[] => {
+      const candidate = findLikelyDuplicatePersonCandidate(people, {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        phone: data.phone,
+        streetAddress: data.streetAddress,
+        city: data.city,
+        state: data.state,
+        zipCode: data.zipCode,
+      });
 
-    mockUsers.forEach(person => {
-      const matchReasons: string[] = [];
-      let score = 0;
+      return candidate ? [candidate] : [];
+    },
+    [people]
+  );
 
-      // Name matching (high weight)
-      const firstNameMatch = person.firstName.toLowerCase() === data.firstName.toLowerCase();
-      const lastNameMatch = person.lastName.toLowerCase() === data.lastName.toLowerCase();
+  React.useEffect(() => {
+    if (!open) return;
 
-      if (firstNameMatch && lastNameMatch) {
-        score += 90;
-        matchReasons.push('Exact name match');
-      } else if (lastNameMatch) {
-        score += 40;
-        matchReasons.push('Last name match');
-      } else if (firstNameMatch) {
-        score += 20;
-        matchReasons.push('First name match');
-      }
+    const hasSearchableIdentity =
+      form.data.email.includes('@') ||
+      (form.data.firstName.trim().length >= 2 && form.data.lastName.trim().length >= 2) ||
+      form.data.phone.trim().length >= 7;
 
-      // Email matching (high weight)
-      if (data.email && person.email === data.email) {
-        score += 80;
-        matchReasons.push('Email match');
-      }
+    if (!hasSearchableIdentity) return;
 
-      // Phone matching (medium weight)
-      if (data.phone && person.phone === data.phone) {
-        score += 60;
-        matchReasons.push('Phone match');
-      }
-
-      // Address matching (lower weight)
-      if (data.streetAddress && person.streetAddress === data.streetAddress) {
-        score += 30;
-        matchReasons.push('Address match');
-      }
-
-      // ZIP code matching (lower weight)
-      if (data.zipCode && person.zipCode === data.zipCode) {
-        score += 10;
-        matchReasons.push('ZIP code match');
-      }
-
-      // Only include candidates with meaningful scores
-      if (score >= 30) {
-        candidates.push({
-          person,
-          matchScore: score,
-          matchReasons,
-        });
-      }
-    });
-
-    return candidates.sort((a, b) => b.matchScore - a.matchScore);
-  };
+    const newDuplicates = detectDuplicates(form.data);
+    setDuplicates(newDuplicates);
+    if (newDuplicates.length > 0) {
+      setActiveTab('duplicates');
+    }
+  }, [detectDuplicates, form.data, open, people]);
 
   // Handle form field changes
   const handleFieldChange = (field: keyof ExhibitorFormData, value: string) => {
@@ -271,7 +236,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
   };
 
   // Handle selecting existing duplicate
-  const handleSelectDuplicate = (candidate: DuplicateCandidate) => {
+  const handleSelectDuplicate = (candidate: PersonIdentityCandidate) => {
     onDuplicateSelected?.(candidate.person);
     handleClose();
   };
@@ -435,8 +400,8 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
                           <h4 className="font-semibold">
                             {candidate.person.firstName} {candidate.person.lastName}
                           </h4>
-                          <Badge variant={candidate.matchScore >= 70 ? 'destructive' : 'secondary'}>
-                            {candidate.matchScore}% match
+                          <Badge variant={candidate.score >= 10 ? 'destructive' : 'secondary'}>
+                            Possible match
                           </Badge>
                         </div>
 
@@ -454,7 +419,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
                         <div className="mt-2">
                           <p className="text-xs text-muted-foreground mb-1">Match reasons:</p>
                           <div className="flex flex-wrap gap-1">
-                            {candidate.matchReasons.map((reason, reasonIdx) => (
+                            {candidate.reasons.map((reason, reasonIdx) => (
                               <Badge key={reasonIdx} variant="outline" className="text-xs">
                                 {reason}
                               </Badge>

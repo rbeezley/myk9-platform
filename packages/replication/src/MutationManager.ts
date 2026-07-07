@@ -501,6 +501,13 @@ export class MutationManager {
       // Sort mutations to respect dependencies
       const ordering = sortMutationsByDependencies(pending as PendingMutation[]);
       const sortedMutations = ordering.sorted;
+      const queuedMutationIds = new Set(sortedMutations.map(mutation => mutation.id));
+      const uploadedMutationIds = new Set<string>();
+      const blockedDependencyIds = new Set<string>();
+      const failedMutationRows = (await db.getAll(
+        REPLICATION_STORES.FAILED_MUTATIONS
+      )) as PendingMutation[];
+      const failedDependencyIds = new Set(failedMutationRows.map(mutation => mutation.id));
 
       if (ordering.circularCount > 0) {
         this.logger.warn(
@@ -516,7 +523,22 @@ export class MutationManager {
       let earliestBackoff: number | null = null;
 
       for (const mutation of sortedMutations) {
+        const unresolvedDependencies = (mutation.dependsOn ?? []).filter(
+          dependencyId =>
+            failedDependencyIds.has(dependencyId) ||
+            blockedDependencyIds.has(dependencyId) ||
+            (queuedMutationIds.has(dependencyId) && !uploadedMutationIds.has(dependencyId))
+        );
+        if (unresolvedDependencies.length > 0) {
+          blockedDependencyIds.add(mutation.id);
+          this.logger.log(
+            `[MutationManager] Skipping ${mutation.id} — waiting on dependencies ${unresolvedDependencies.join(', ')}`
+          );
+          continue;
+        }
+
         if (mutation.nextRetryAt && mutation.nextRetryAt > now) {
+          blockedDependencyIds.add(mutation.id);
           this.logger.log(
             `[MutationManager] Skipping ${mutation.id} — backoff until ${new Date(mutation.nextRetryAt).toISOString()}`
           );
@@ -535,6 +557,7 @@ export class MutationManager {
           String(mutation.rowId),
         ])) as ReplicatedRow<unknown> | undefined;
         if (replicatedRow?.syncStatus === 'conflict') {
+          blockedDependencyIds.add(mutation.id);
           this.logger.log(
             `[MutationManager] Skipping ${mutation.id} — ${mutation.tableName}/${mutation.rowId} has unresolved conflict`
           );
@@ -553,6 +576,7 @@ export class MutationManager {
           }
 
           await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, mutation.id);
+          uploadedMutationIds.add(mutation.id);
 
           results.push({
             success: true,
@@ -616,6 +640,7 @@ export class MutationManager {
               duration: 0,
               error: error.message,
             });
+            blockedDependencyIds.add(mutation.id);
             continue;
           }
           const failure = classifyMutationFailure({
@@ -627,6 +652,8 @@ export class MutationManager {
 
           if (failure.permanentlyFailed) {
             failedMutations.push(failure.mutation);
+            blockedDependencyIds.add(mutation.id);
+            failedDependencyIds.add(mutation.id);
             this.logger.error(
               `[MutationManager] Mutation ${mutation.id} (${mutation.tableName}/${mutation.operation}) failed permanently${failure.canRetry ? ' (max retries)' : ' (non-retryable)'}: ${failure.message}`,
               error
@@ -638,6 +665,7 @@ export class MutationManager {
             await db.put(REPLICATION_STORES.FAILED_MUTATIONS, failure.mutation);
             await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, mutation.id);
           } else {
+            blockedDependencyIds.add(mutation.id);
             this.logger.warn(
               `[MutationManager] Mutation ${mutation.id} failed (retry ${failure.mutation.retries}/${this.maxRetries}), next attempt after ${new Date(failure.mutation.nextRetryAt!).toISOString()}:`,
               error

@@ -35,6 +35,8 @@ const hoisted = vi.hoisted(() => {
     classes: makeConflictSpy('classes'),
     entries: makeConflictSpy('entries'),
     dogs: makeConflictSpy('dogs'),
+    dog_registrations: makeConflictSpy('dog_registrations'),
+    people: makeConflictSpy('people'),
     clubs: makeConflictSpy('clubs'),
     judge_assignments: makeConflictSpy('judge_assignments'),
     armbands: makeConflictSpy('armbands'),
@@ -97,6 +99,20 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
     setMutationManager: vi.fn(),
     sync: vi.fn().mockResolvedValue({ success: true, rowsAffected: 0 }),
     getConflictedRows: hoisted.conflictSpies.dogs,
+  },
+}));
+vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
+  replicatedDogRegistrationsTable: {
+    setMutationManager: vi.fn(),
+    sync: vi.fn().mockResolvedValue({ success: true, rowsAffected: 0 }),
+    getConflictedRows: hoisted.conflictSpies.dog_registrations,
+  },
+}));
+vi.mock('@/services/replication/ReplicatedShowDeskPeopleTable', () => ({
+  replicatedShowDeskPeopleTable: {
+    setMutationManager: vi.fn(),
+    sync: vi.fn().mockResolvedValue({ success: true, rowsAffected: 0 }),
+    getConflictedRows: hoisted.conflictSpies.people,
   },
 }));
 vi.mock('@/services/replication/ReplicatedClubsTable', () => ({
@@ -171,7 +187,12 @@ function renderProvider() {
   return render(
     <QueryClientProvider client={queryClient}>
       <NetworkStatusContext.Provider
-        value={{ isOnline: true, quality: null, showOfflineMessage: false, retryConnection: vi.fn() }}
+        value={{
+          isOnline: true,
+          quality: null,
+          showOfflineMessage: false,
+          retryConnection: vi.fn(),
+        }}
       >
         <ReplicationSyncProvider autoSync={false} syncOnReconnect={false}>
           <div />
@@ -235,8 +256,8 @@ describe('ReplicationSyncProvider — mount-time conflict re-surface', () => {
     renderProvider();
     await triggerAuth(fakeSession());
 
-    // 9 tables × 1 conflict each = 9 events
-    expect(dispatched).toHaveLength(9);
+    // 11 tables × 1 conflict each = 11 events
+    expect(dispatched).toHaveLength(11);
     expect(dispatched[0].detail).toMatchObject({
       rowId: 'row-1',
       fields: ['status'],
@@ -303,7 +324,7 @@ describe('ReplicationSyncProvider — mount-time conflict re-surface', () => {
   });
 
   it('continues resurfacing remaining tables when one table throws', async () => {
-    // First table (shows) throws — the other 8 should still dispatch their conflicts.
+    // First table (shows) throws — the other 10 should still dispatch their conflicts.
     conflictSpies.shows.mockRejectedValue(new Error('IDB transaction error'));
 
     const dispatched: CustomEvent[] = [];
@@ -315,8 +336,8 @@ describe('ReplicationSyncProvider — mount-time conflict re-surface', () => {
     renderProvider();
     await triggerAuth(fakeSession());
 
-    // shows threw → 8 remaining tables × 1 conflict each = 8 events
-    expect(dispatched).toHaveLength(8);
+    // shows threw → 10 remaining tables × 1 conflict each = 10 events
+    expect(dispatched).toHaveLength(10);
     // None of the dispatched events should be for the failing table
     for (const e of dispatched) {
       expect(e.detail.tableName).not.toBe('shows');

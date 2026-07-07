@@ -1449,6 +1449,91 @@ describe('MutationManager', () => {
       const waiting = await mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, 'mut-waiting');
       expect(waiting).toBeDefined();
     });
+
+    it('should hold a dependent mutation when its parent dependency is waiting backoff', async () => {
+      const futureRetry = Date.now() + 60_000;
+
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({
+          id: 'person-mutation',
+          tableName: 'people',
+          operation: 'INSERT',
+          rowId: 'person-1',
+          data: { id: 'person-1' },
+          nextRetryAt: futureRetry,
+        })
+      );
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({
+          id: 'dog-mutation',
+          tableName: 'dogs',
+          operation: 'INSERT',
+          rowId: 'dog-1',
+          data: { id: 'dog-1', owner_id: 'person-1' },
+          dependsOn: ['person-mutation'],
+        })
+      );
+
+      const results = await manager.uploadPendingMutations();
+
+      expect(results).toHaveLength(0);
+      expect(mockSupabase.from).not.toHaveBeenCalled();
+      await expect(
+        mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, 'dog-mutation')
+      ).resolves.toBeDefined();
+    });
+
+    it('should hold a dependent mutation when its parent dependency fails this pass', async () => {
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({
+          id: 'person-mutation',
+          tableName: 'people',
+          operation: 'INSERT',
+          rowId: 'person-1',
+          data: { id: 'person-1' },
+        })
+      );
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({
+          id: 'dog-mutation',
+          tableName: 'dogs',
+          operation: 'INSERT',
+          rowId: 'dog-1',
+          data: { id: 'dog-1', owner_id: 'person-1' },
+          dependsOn: ['person-mutation'],
+        })
+      );
+
+      vi.mocked(mockSupabase.from).mockImplementation(
+        table =>
+          ({
+            insert: vi.fn(() => ({
+              select: vi.fn(() =>
+                table === 'people'
+                  ? Promise.reject(new TypeError('fetch failed'))
+                  : Promise.resolve({ data: [{ id: 'unexpected-child-upload' }], error: null })
+              ),
+            })),
+          }) as unknown as ReturnType<typeof mockSupabase.from>
+      );
+
+      const results = await manager.uploadPendingMutations();
+
+      expect(results).toHaveLength(1);
+      expect(results[0]).toMatchObject({ success: false, tableName: 'people' });
+      expect(mockSupabase.from).toHaveBeenCalledTimes(1);
+      expect(mockSupabase.from).toHaveBeenCalledWith('people');
+      await expect(
+        mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, 'dog-mutation')
+      ).resolves.toMatchObject({
+        id: 'dog-mutation',
+        retries: 0,
+      });
+    });
   });
 
   // ========================================

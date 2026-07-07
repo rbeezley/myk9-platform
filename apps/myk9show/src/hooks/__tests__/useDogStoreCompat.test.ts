@@ -41,6 +41,7 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
 vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
   replicatedDogRegistrationsTable: {
     createRegistrationsForDog: mockCreateReplicatedDogRegistrationsForDog,
+    toSupabaseRow: (registration: Record<string, unknown>) => registration,
   },
 }));
 

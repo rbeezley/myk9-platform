@@ -186,12 +186,16 @@ export const useDogStoreCompat = () => {
       options.dependsOn ? { dependsOn: options.dependsOn } : {}
     );
 
+    let registrations: Record<string, unknown>[] = [];
     if (dogData.registrations && dogData.registrations.length > 0) {
       const dogMutationIds = await replicatedDogsTable.getPendingMutationIdsForRow(savedDog.id);
-      await replicatedDogRegistrationsTable.createRegistrationsForDog(
+      const savedRegistrations = await replicatedDogRegistrationsTable.createRegistrationsForDog(
         savedDog.id,
         dogData.registrations,
         dogMutationIds.length > 0 ? { dependsOn: dogMutationIds } : {}
+      );
+      registrations = savedRegistrations.map(registration =>
+        replicatedDogRegistrationsTable.toSupabaseRow(registration)
       );
       queryClient.invalidateQueries({ queryKey: queryKeys.registrationsByDog(savedDog.id) });
     }
@@ -201,7 +205,7 @@ export const useDogStoreCompat = () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.personDogs(savedDog.ownerId) });
     }
 
-    return mapDatabaseToDog(mapReplicatedDogToDbRow(savedDog));
+    return mapDatabaseToDog(mapReplicatedDogToDbRow(savedDog, { registrations }));
   };
 
   const updateDog = async (id: string, updates: Partial<DogInput>): Promise<Dog | null> => {

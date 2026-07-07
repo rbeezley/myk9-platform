@@ -78,6 +78,20 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     return saved;
   }
 
+  async getRegistrationsForDogs(dogIds: string[]): Promise<Record<string, unknown>[]> {
+    if (dogIds.length === 0) return [];
+
+    const dogIdSet = new Set(dogIds);
+    const registrations = await this.getAll();
+    return registrations
+      .filter(registration => dogIdSet.has(registration.dogId))
+      .map(registration => this.toSupabaseRow(registration));
+  }
+
+  async getRegistrationsForDog(dogId: string): Promise<Record<string, unknown>[]> {
+    return this.getRegistrationsForDogs([dogId]);
+  }
+
   protected resolveConflict(
     local: ReplicatedDogRegistration,
     _remote: ReplicatedDogRegistration
@@ -85,7 +99,7 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     return local;
   }
 
-  private toSupabaseRow(registration: ReplicatedDogRegistration): Record<string, unknown> {
+  toSupabaseRow(registration: ReplicatedDogRegistration): Record<string, unknown> {
     return {
       id: registration.id,
       dog_id: registration.dogId,

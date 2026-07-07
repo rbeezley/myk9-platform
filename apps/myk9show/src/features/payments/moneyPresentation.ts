@@ -79,10 +79,28 @@ export function paymentStatusLabel(status: string): string {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
-export function buildPaymentDisplayRows(payments: PaymentPresentationSource[]): PaymentDisplayRow[] {
+export function buildPaymentDisplayRows(
+  payments: PaymentPresentationSource[]
+): PaymentDisplayRow[] {
   return payments.flatMap(payment => {
-    if (isRefundedPaymentStatus(payment.status) && (!payment.refunds || payment.refunds.length === 0)) {
+    if (
+      isRefundedPaymentStatus(payment.status) &&
+      (!payment.refunds || payment.refunds.length === 0)
+    ) {
       return [
+        {
+          id: `${payment.id}:charge`,
+          kind: 'charge',
+          date: payment.date,
+          showId: payment.showId,
+          showName: payment.showName,
+          description: 'Online entry fees',
+          amountCents: payment.amountCents,
+          currency: payment.currency,
+          status: 'succeeded',
+          reference: payment.reference,
+          entryIds: payment.entryIds,
+        },
         {
           id: `${payment.id}:refund`,
           kind: 'refund',
@@ -108,7 +126,10 @@ export function buildPaymentDisplayRows(payments: PaymentPresentationSource[]): 
       description: 'Online entry fees',
       amountCents: payment.amountCents,
       currency: payment.currency,
-      status: payment.status,
+      status:
+        isRefundedPaymentStatus(payment.status) && payment.refunds && payment.refunds.length > 0
+          ? 'succeeded'
+          : payment.status,
       reference: payment.reference,
       entryIds: payment.entryIds,
     };

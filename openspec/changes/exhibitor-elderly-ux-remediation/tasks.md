@@ -10,11 +10,11 @@
 
 ## 2. Payment Confidence
 
-- [ ] 2.1 Identify the existing My Shows fee-summary and cart/payment data source for exhibitor unpaid balances.
-- [ ] 2.2 Add an amount-due section to My Payments that uses the same entry/cart/payment records.
-- [ ] 2.3 Link My Shows fee summaries to My Payments or the existing cart/checkout handoff with relevant context.
-- [ ] 2.4 Separate gross paid, refunds, and net paid in plain language in payment history.
-- [ ] 2.5 Add focused tests proving My Shows and My Payments display the same due amount and preserve the existing checkout handoff.
+- [x] 2.1 Identify the existing My Shows fee-summary and cart/payment data source for exhibitor unpaid balances.
+- [x] 2.2 Add an amount-due section to My Payments that uses the same entry/cart/payment records.
+- [x] 2.3 Link My Shows fee summaries to My Payments or the existing cart/checkout handoff with relevant context.
+- [x] 2.4 Separate gross paid, refunds, and net paid in plain language in payment history.
+- [x] 2.5 Add focused tests proving My Shows and My Payments display the same due amount and preserve the existing checkout handoff.
 
 ## 3. Exhibitor Show-Day Trust
 

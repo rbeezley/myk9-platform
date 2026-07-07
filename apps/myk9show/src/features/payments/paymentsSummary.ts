@@ -38,6 +38,15 @@ export interface PaymentDisplaySummaryRow {
   status: string;
 }
 
+export interface PaymentLedgerTotal {
+  currency: string;
+  grossPaidCents: number;
+  refundCents: number;
+  netPaidCents: number;
+  paymentCount: number;
+  refundCount: number;
+}
+
 // A row counts toward spend only once money has actually moved and stayed moved.
 // Pending/failed/cancelled rows aren't spend; refunded orders are excluded too
 // (see the refund note above — the row carries the gross charge, not the refund
@@ -88,5 +97,38 @@ export function summarizePaymentDisplayRows(rows: PaymentDisplaySummaryRow[]): C
 
   return [...byCurrency.values()]
     .filter(total => total.totalPaidCents > 0)
+    .sort((a, b) => (a.currency < b.currency ? -1 : 1));
+}
+
+export function summarizePaymentLedgerTotals(
+  rows: PaymentDisplaySummaryRow[]
+): PaymentLedgerTotal[] {
+  const byCurrency = new Map<string, PaymentLedgerTotal>();
+
+  for (const row of rows) {
+    const currency = (row.currency || 'usd').toLowerCase();
+    const acc = byCurrency.get(currency) ?? {
+      currency,
+      grossPaidCents: 0,
+      refundCents: 0,
+      netPaidCents: 0,
+      paymentCount: 0,
+      refundCount: 0,
+    };
+
+    if (row.amountCents < 0) {
+      acc.refundCents += Math.abs(row.amountCents);
+      acc.refundCount += 1;
+    } else if (PAID_STATUSES.has(row.status.toLowerCase())) {
+      acc.grossPaidCents += row.amountCents;
+      acc.paymentCount += 1;
+    }
+
+    acc.netPaidCents = Math.max(0, acc.grossPaidCents - acc.refundCents);
+    byCurrency.set(currency, acc);
+  }
+
+  return [...byCurrency.values()]
+    .filter(total => total.grossPaidCents > 0 || total.refundCents > 0)
     .sort((a, b) => (a.currency < b.currency ? -1 : 1));
 }

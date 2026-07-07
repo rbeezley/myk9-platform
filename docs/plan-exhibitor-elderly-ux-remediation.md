@@ -32,7 +32,7 @@ If a need already belongs to another page, add a clear link or filtered deep-lin
 
 ## Current Branch Status
 
-Branch/worktree: `codex/exhibitor-ux-audit`
+Branch/worktree: `codex/exhibitor-elderly-ux-remediation`
 
 OpenSpec change: `exhibitor-elderly-ux-remediation`
 
@@ -50,6 +50,10 @@ Already completed in this branch:
 - Onboarding Dogs is framed as optional, and empty Add Dog dialog cancellation closes without a discard/backdrop trap.
 - The onboarding shell hides global search, notifications, cart, theme, and AskQ actions while preserving account access.
 - Email/password sign-in now uses account sign-in copy after email classification while passcode copy remains unchanged.
+- My Shows and My Payments now share the same current-balance helper for unpaid entry fees.
+- My Shows sends a single-show online balance to the existing cart recovery URL and sends ambiguous/multi-show balances to My Payments.
+- My Payments now shows Amount due above history, separates pay-online from pay-at-show balances, and keeps existing cart checkout links.
+- My Payments history now separates gross paid, refunds, and net paid in plain language.
 - Focused tests added for those behaviors.
 
 Verification already run:
@@ -67,6 +71,19 @@ pnpm exec vitest run src/pages/RegistrationWizardPage/entryCloseGuard.test.ts sr
 ```
 
 Result: 14 test files passed, 155 tests passed.
+
+```bash
+pnpm typecheck
+```
+
+Result: passed.
+
+```bash
+cd apps/myk9show
+pnpm exec vitest run src/features/payments/entryBalanceSummary.test.ts src/features/payments/paymentsSummary.test.ts src/pages/exhibitor/ExhibitorPaymentsPage.test.tsx src/pages/MyEntriesPage/modules/useMyEntriesFilters.test.ts src/test/components/CompactStatsRow.test.tsx
+```
+
+Result: 5 test files passed, 59 tests passed.
 
 ```bash
 pnpm typecheck

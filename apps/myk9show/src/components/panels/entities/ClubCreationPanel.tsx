@@ -101,6 +101,9 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
     [clubAdminId, people]
   );
 
+  const preFilledClubId =
+    typeof context.preFilledData?.id === 'string' ? context.preFilledData.id : undefined;
+
   const duplicateCandidate = useMemo<ClubIdentityCandidate | null>(() => {
     if (context.mode === 'edit') return null;
     return findLikelyDuplicateClubCandidate(
@@ -113,14 +116,13 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
         state: formData.address.state,
       },
       {
-        excludeClubId:
-          typeof context.preFilledData?.id === 'string' ? context.preFilledData.id : undefined,
+        excludeClubId: preFilledClubId,
       }
     );
   }, [
     clubs,
     context.mode,
-    context.preFilledData?.id,
+    preFilledClubId,
     formData.name,
     formData.email,
     formData.website,
@@ -134,7 +136,7 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
     const safeClubs = Array.isArray(clubs) ? clubs : [];
 
     const isDuplicateName = safeClubs.some(
-      club => clubNamesMatch(club?.name, formData.name) && club.id !== context.preFilledData?.id // Allow same name for edit mode
+      club => clubNamesMatch(club?.name, formData.name) && club.id !== preFilledClubId // Allow same name for edit mode
     );
 
     const isValid =
@@ -151,7 +153,7 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
     formData.address.city,
     formData.address.state,
     clubs,
-    context.preFilledData?.id,
+    preFilledClubId,
   ]);
 
   const handleUseExistingClub = useCallback(async () => {

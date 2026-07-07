@@ -12,6 +12,7 @@ import { useWizardStore } from '@/store/wizardStore';
 import { createUser, updateUser } from '@/services/database/users';
 import { createJudgeQualification } from '@/services/database/judges';
 import { createClub } from '@/services/database/clubs';
+import { personEmailsMatch } from '@/utils/personIdentity';
 import type { CreateClubData } from './sections';
 
 export function useShowDetailsStepActions() {
@@ -26,7 +27,7 @@ export function useShowDetailsStepActions() {
       if (result.error) throw result.error;
       await loadClubs();
       updateShowData({ clubId: result.data!.id });
-      logger.debug('Club created and selected', 'wizard', { clubName: data.name });
+      logger.debug('Club created or reused and selected', 'wizard', { clubName: data.name });
     },
     [loadClubs, updateShowData]
   );
@@ -44,7 +45,7 @@ export function useShowDetailsStepActions() {
       // This is the wizard's #1 source of duplicate person rows.
       const normalizedEmail = data.email.trim().toLowerCase();
       const existing = normalizedEmail
-        ? people.find(p => (p.email ?? '').trim().toLowerCase() === normalizedEmail)
+        ? people.find(p => personEmailsMatch(p.email, data.email))
         : undefined;
       if (existing) {
         // Reuse the existing person, but keep their phone current. The form

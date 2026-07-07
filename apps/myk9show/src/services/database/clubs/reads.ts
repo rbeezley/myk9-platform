@@ -2,7 +2,9 @@
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
 import type { DbClubInsert, DbClubUpdate } from '../../../types/database-mappings';
+import type { Json } from '@/types/supabase';
 import type { TablesUpdate } from '@/types/supabase';
+import { translateClubIdentityError } from '@/utils/duplicateIdentityErrors';
 
 // Get all clubs
 export const getAllClubs = async () => {
@@ -121,20 +123,27 @@ export const createClub = async (clubData: DbClubInsert) => {
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase.from('clubs').insert([clubData]).select().single();
+    const { data, error } = await supabase.rpc('create_or_reuse_club', {
+      p_club: clubData as unknown as Json,
+    });
 
     const duration = Date.now() - startTime;
-    logQuery('club', 'insert', duration, error?.message);
+    logQuery('club', 'create_or_reuse', duration, error?.message);
 
     if (error) {
-      throw createDatabaseError(error, 'club', 'insert');
+      throw translateClubIdentityError(createDatabaseError(error, 'club', 'create_or_reuse'));
     }
 
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'club', 'insert');
-    logQuery('club', 'insert', duration, dbError.message);
+    const translated = translateClubIdentityError(error);
+    const dbError = createDatabaseError(translated, 'club', 'create_or_reuse');
+    const metadata = translated as { code?: string; details?: string; hint?: string };
+    if (metadata.code) dbError.code = metadata.code;
+    if (metadata.details) dbError.details = metadata.details;
+    if (metadata.hint) dbError.hint = metadata.hint;
+    logQuery('club', 'create_or_reuse', duration, dbError.message);
     return { data: null, error: dbError };
   }
 };
@@ -350,8 +359,7 @@ export const getClubsWithShowCounts = async () => {
       data?.map(club => {
         // Supabase returns aggregates as [{count: N}] on the relation key
         const showsAgg = (club as unknown as Record<string, unknown>).shows as
-          | Array<{ count: number }>
-          | undefined;
+          Array<{ count: number }> | undefined;
         // Remove the nested shows aggregate, preserve the typed club fields
         const cleanClub = { ...club };
         delete (cleanClub as Record<string, unknown>).shows;
@@ -405,13 +413,10 @@ export const checkClubNameExists = async (name: string, excludeId?: string) => {
   const startTime = Date.now();
 
   try {
-    let query = supabase.from('clubs').select('id, name').eq('name', name).is('deleted_at', null);
-
-    if (excludeId) {
-      query = query.neq('id', excludeId);
-    }
-
-    const { data, error } = await query;
+    const { data, error } = await supabase.rpc('find_live_club_by_normalized_name', {
+      p_name: name,
+      p_exclude_id: excludeId ?? null,
+    });
 
     const duration = Date.now() - startTime;
     logQuery('club', 'check_name_exists', duration, error?.message);
@@ -421,8 +426,8 @@ export const checkClubNameExists = async (name: string, excludeId?: string) => {
     }
 
     return {
-      exists: data && data.length > 0,
-      data: data?.[0] || null,
+      exists: data !== null,
+      data: data ?? null,
       error: null,
     };
   } catch (error) {

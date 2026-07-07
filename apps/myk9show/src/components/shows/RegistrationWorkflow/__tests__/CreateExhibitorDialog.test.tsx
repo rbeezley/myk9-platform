@@ -3,6 +3,7 @@ import { screen, waitFor } from '@/test/utils/testUtils';
 import { render, userEvent } from '@/test/utils/testUtils';
 import { UserRole } from '@/types/auth-types';
 import { createUser } from '@/services/database/users';
+import { useUserStore } from '@/store/userStore';
 import { CreateExhibitorDialog } from '../CreateExhibitorDialog';
 
 vi.mock('@/services/database/users', () => ({
@@ -14,6 +15,7 @@ const createUserMock = vi.mocked(createUser);
 describe('CreateExhibitorDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useUserStore.setState({ people: [], users: [] });
   });
 
   it('persists a mail-in exhibitor as a people row', async () => {
@@ -36,11 +38,7 @@ describe('CreateExhibitorDialog', () => {
     const user = userEvent.setup();
 
     render(
-      <CreateExhibitorDialog
-        open
-        onOpenChange={vi.fn()}
-        onExhibitorCreated={onExhibitorCreated}
-      />
+      <CreateExhibitorDialog open onOpenChange={vi.fn()} onExhibitorCreated={onExhibitorCreated} />
     );
 
     await user.type(screen.getByLabelText(/First Name/i), 'Molly');
@@ -78,5 +76,56 @@ describe('CreateExhibitorDialog', () => {
         })
       );
     });
+  });
+
+  it('offers a real loaded person as a duplicate instead of using mock data', async () => {
+    useUserStore.setState({
+      people: [
+        {
+          id: 'person-existing-1',
+          firstName: 'Tera',
+          lastName: 'Handler',
+          email: 'tera@example.com',
+          phone: '555-1212',
+          dogs: [],
+        },
+      ],
+      users: [
+        {
+          id: 'person-existing-1',
+          firstName: 'Tera',
+          lastName: 'Handler',
+          email: 'tera@example.com',
+          phone: '555-1212',
+          dogs: [],
+        },
+      ],
+    });
+
+    const onDuplicateSelected = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <CreateExhibitorDialog
+        open
+        onOpenChange={vi.fn()}
+        onExhibitorCreated={vi.fn()}
+        onDuplicateSelected={onDuplicateSelected}
+      />
+    );
+
+    await user.type(screen.getByLabelText(/First Name/i), 'Tera');
+    await user.type(screen.getByLabelText(/Last Name/i), 'Handler');
+    await user.type(screen.getByLabelText(/Email Address/i), 'TERA@example.com');
+
+    expect(await screen.findByText('Tera Handler')).toBeInTheDocument();
+    expect(screen.queryByText('John Smith')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Use This User' }));
+
+    expect(onDuplicateSelected).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'person-existing-1' })
+    );
+    expect(createUserMock).not.toHaveBeenCalled();
   });
 });

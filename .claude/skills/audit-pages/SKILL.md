@@ -19,13 +19,26 @@ Systematically visit every route in myK9Show, capture errors, fix what's address
 2. Tools: `preview_start` / `preview_navigate` / `preview_console_logs` / `preview_network` / `preview_snapshot` / `preview_resize`
 3. Log in as the role you're auditing before walking that role's routes (see credentials below)
 
-**Credentials (from `.env`):**
+**Credentials — canonical accounts only:**
 
-- Secretary: `secretary@myk9t.com`
-- Site admin: any account with `SITE_ADMIN` role
-- Exhibitor: `exhibitor1@myk9t.com`
-- Club admin: `club@myk9t.com` (password in `.env` or Supabase Auth dashboard)
-- Judge / other roles: accounts with those roles (check Supabase `user_roles` table if unsure)
+Use these `e2e-*@test.myk9.com` accounts. The old `*@myk9t.com` accounts (`secretary@myk9t.com`, `exhibitor1@myk9t.com`, `club@myk9t.com`, …) have **no `auth.users` row and cannot sign in** — do not use them. Confirmed in `apps/myk9show/src/test/e2e/helpers/testUsers.ts` (role wrappers use the env-backed canonical accounts; the old `club@myk9t.com` auth user was removed 2026-06-25).
+
+| Role       | Email                        | `TEST_USERS` key  |
+| ---------- | ---------------------------- | ----------------- |
+| Exhibitor  | `e2e-exhibitor@test.myk9.com` | `DEMO_EXHIBITOR` (protected demo account, seeded dogs) |
+| Secretary  | `e2e-secretary@test.myk9.com` | `SECRETARY`       |
+| Judge      | `e2e-judge@test.myk9.com`     | `JUDGE`           |
+| Club admin | `e2e-clubadmin@test.myk9.com` | `CLUB_ADMIN`      |
+| Admin      | `e2e-admin@test.myk9.com`     | `SITE_ADMIN`      |
+
+Passwords live in `.env.local` (all e2e accounts share one secret), not `.env`.
+
+**Two-step sign-in flow (SmartSignInPage).** The password field does not exist in the DOM until you advance past the email step, so log in with `preview_*` in this order:
+
+1. `preview_fill` the `credential-input` field with the email
+2. `preview_click` the Continue button (`continue-button`) — this reveals the password step in place
+3. `preview_fill` the `password-input` field (now visible) with the password
+4. `preview_click` the `sign-in-button` and wait for navigation off `/sign-in`
 
 ## Known Noise (do not re-log)
 

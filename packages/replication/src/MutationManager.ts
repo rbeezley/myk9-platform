@@ -750,6 +750,25 @@ export class MutationManager {
 
     switch (operation) {
       case 'INSERT': {
+        if (mutation.rpc) {
+          const { data: returned, error } = await withTimeout(
+            this.supabase.rpc(mutation.rpc.name, mutation.rpc.args ?? data),
+            TIMEOUT_PRESETS.standard,
+            `${tableName} rpc ${mutation.rpc.name}`
+          );
+          if (error) throw error;
+          if (
+            mutation.rpc.expectRowId &&
+            typeof returned === 'string' &&
+            returned !== mutation.rowId
+          ) {
+            throw new Error(
+              `${mutation.rpc.name} returned existing row ${returned} for local row ${mutation.rowId}`
+            );
+          }
+          return {};
+        }
+
         const { data: rows, error } = await withTimeout(
           this.supabase.from(tableName).insert(data).select('id'),
           TIMEOUT_PRESETS.standard,
@@ -782,11 +801,14 @@ export class MutationManager {
         // function returns the authoritative post-trigger version.
         if (mutation.rpc) {
           const { data: returned, error } = await withTimeout(
-            this.supabase.rpc(mutation.rpc.name, {
-              p_entry_id: data.id as string,
-              p_fields: mutation.rpc.fields,
-              p_expected_version: mutation.serverVersion ?? null,
-            }),
+            this.supabase.rpc(
+              mutation.rpc.name,
+              mutation.rpc.args ?? {
+                p_entry_id: data.id as string,
+                p_fields: mutation.rpc.fields ?? {},
+                p_expected_version: mutation.serverVersion ?? null,
+              }
+            ),
             TIMEOUT_PRESETS.standard,
             `${tableName} rpc ${mutation.rpc.name}`
           );

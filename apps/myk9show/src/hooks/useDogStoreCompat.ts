@@ -181,31 +181,48 @@ export const useDogStoreCompat = () => {
     const dogId = crypto.randomUUID();
     const replicatedDog = mapDogInputToReplicated(dogData, dogId);
 
-    const savedDog = await replicatedDogsTable.createDogWithId(
-      replicatedDog,
-      options.dependsOn ? { dependsOn: options.dependsOn } : {}
-    );
-
     let registrations: Record<string, unknown>[] = [];
     if (dogData.registrations && dogData.registrations.length > 0) {
-      const dogMutationIds = await replicatedDogsTable.getPendingMutationIdsForRow(savedDog.id);
-      const savedRegistrations = await replicatedDogRegistrationsTable.createRegistrationsForDog(
+      const registrationRows = dogData.registrations.map(registration => ({
+        organization: registration.organization || 'AKC',
+        registered_name: registration.registeredName || null,
+        registration_number: registration.number || '',
+        breed: registration.type || null,
+        status: registration.status || 'pending',
+      }));
+      const savedDog = await replicatedDogsTable.createDogWithRegistrationsRpc(
+        replicatedDog,
+        registrationRows,
+        options.dependsOn ? { dependsOn: options.dependsOn } : {}
+      );
+      const savedRegistrations = await replicatedDogRegistrationsTable.createLocalRegistrationsForDog(
         savedDog.id,
-        dogData.registrations,
-        dogMutationIds.length > 0 ? { dependsOn: dogMutationIds } : {}
+        dogData.registrations
       );
       registrations = savedRegistrations.map(registration =>
         replicatedDogRegistrationsTable.toSupabaseRow(registration)
       );
       queryClient.invalidateQueries({ queryKey: queryKeys.registrationsByDog(savedDog.id) });
+
+      await queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
+      if (savedDog.ownerId) {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.personDogs(savedDog.ownerId) });
+      }
+
+      return mapDatabaseToDog(mapReplicatedDogToDbRow(savedDog, { registrations }));
     }
+
+    const savedDog = await replicatedDogsTable.createDogWithId(
+      replicatedDog,
+      options.dependsOn ? { dependsOn: options.dependsOn } : {}
+    );
 
     await queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
     if (savedDog.ownerId) {
       await queryClient.invalidateQueries({ queryKey: queryKeys.personDogs(savedDog.ownerId) });
     }
 
-    return mapDatabaseToDog(mapReplicatedDogToDbRow(savedDog, { registrations }));
+    return mapDatabaseToDog(mapReplicatedDogToDbRow(savedDog));
   };
 
   const updateDog = async (id: string, updates: Partial<DogInput>): Promise<Dog | null> => {

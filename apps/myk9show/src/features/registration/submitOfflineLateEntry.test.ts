@@ -2,30 +2,32 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { submitOfflineLateEntry } from './submitOfflineLateEntry';
 
 const {
-  getEntriesByShowMock,
   createEntryMock,
   getPendingMutationIdsForRowMock,
+  getPendingRegistrationMutationIdsForDogMock,
 } = vi.hoisted(() => ({
-  getEntriesByShowMock: vi.fn(),
   createEntryMock: vi.fn(),
   getPendingMutationIdsForRowMock: vi.fn(),
+  getPendingRegistrationMutationIdsForDogMock: vi.fn(),
 }));
 
 vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: {
-    getEntriesByShow: getEntriesByShowMock,
     createEntry: createEntryMock,
   },
   replicatedDogsTable: {
     getPendingMutationIdsForRow: getPendingMutationIdsForRowMock,
+  },
+  replicatedDogRegistrationsTable: {
+    getPendingMutationIdsForDog: getPendingRegistrationMutationIdsForDogMock,
   },
 }));
 
 describe('submitOfflineLateEntry', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getEntriesByShowMock.mockResolvedValue([{ id: 'existing-entry', armband: '12' }]);
     getPendingMutationIdsForRowMock.mockResolvedValue(['dog-mutation-1']);
+    getPendingRegistrationMutationIdsForDogMock.mockResolvedValue(['registration-mutation-1']);
     createEntryMock.mockImplementation(entry =>
       Promise.resolve({
         ...entry,
@@ -81,26 +83,56 @@ describe('submitOfflineLateEntry', () => {
         handlerId: 'handler-1',
         isDayOfShow: true,
         paymentMethod: 'cash',
-        paymentStatus: 'paid',
+        paymentStatus: 'pending',
         entryStatus: 'confirmed',
         entry_status: 'confirmed',
         entryFee: 35,
-        armband: '13',
         jumpHeight: '16',
         specialRequests: 'Paid at desk',
       }),
-      'dog-mutation-1'
+      ['dog-mutation-1', 'registration-mutation-1']
     );
     expect(createEntryMock).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
         classId: 'class-2',
-        armband: '13',
         entryFee: 35,
       }),
-      'dog-mutation-1'
+      ['dog-mutation-1', 'registration-mutation-1']
     );
-    expect(result.armbandAssignments).toEqual([{ dogId: 'dog-1', armband: '13' }]);
+    expect(result.armbandAssignments).toEqual([]);
     expect(result.entryIds).toHaveLength(2);
+  });
+
+  it.each([
+    ['waived', 'waived'],
+    ['secretary_paid', 'paid'],
+    ['group_payment', 'paid'],
+    ['check', 'pending'],
+    ['cash', 'pending'],
+  ] as const)('maps %s payments to %s replicated payment status', async (paymentMethod, status) => {
+    await submitOfflineLateEntry({
+      showId: 'show-1',
+      paymentMethod,
+      showFeeInfo: {
+        preEntryFee: '25',
+        dayOfShowFee: '35',
+        startDate: '2026-07-01',
+      },
+      classes: [{ id: 'class-1', entryFee: 30 }],
+      classSelections: [
+        {
+          dogId: 'dog-1',
+          trialId: 'trial-1',
+          selectedClasses: [{ classId: 'class-1' }],
+        },
+      ],
+      handlerAssignments: {},
+    });
+
+    expect(createEntryMock).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentMethod, paymentStatus: status }),
+      ['dog-mutation-1', 'registration-mutation-1']
+    );
   });
 });

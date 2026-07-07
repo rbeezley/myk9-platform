@@ -139,18 +139,19 @@ export interface PendingMutation {
   failedAt?: number;
 
   /**
-   * Optional: apply this UPDATE through a SECURITY DEFINER RPC instead of a
-   * direct table UPDATE. Used by callers (e.g. at-show ringside) whose role is
-   * not admitted by the table's UPDATE RLS policy but IS admitted by a function
-   * that does its own per-row authorization. `fields` is the delta to write
-   * (the RPC's `p_fields`), kept separate from `data` (the full optimistic row
-   * persisted to IndexedDB). Only honored for UPDATE operations.
+   * Optional: apply this mutation through a SECURITY DEFINER RPC instead of the
+   * direct table path. Existing UPDATE callers use `fields`; RPC-backed creates
+   * can provide full `args`.
    */
   rpc?: {
     /** RPC function name, e.g. `ringside_update_entry`. */
     name: string;
     /** Delta payload passed as the RPC's `p_fields` argument. */
-    fields: Record<string, unknown>;
+    fields?: Record<string, unknown>;
+    /** Exact RPC argument object. If omitted, the legacy entry-update shape is used. */
+    args?: Record<string, unknown>;
+    /** When true, a UUID/string RPC return must match `rowId` or the mutation fails. */
+    expectRowId?: boolean;
   };
 }
 

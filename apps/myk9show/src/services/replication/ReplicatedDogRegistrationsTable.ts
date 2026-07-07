@@ -78,6 +78,40 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     return saved;
   }
 
+  async createLocalRegistrationsForDog(
+    dogId: string,
+    registrations: RegistrationInput[]
+  ): Promise<ReplicatedDogRegistration[]> {
+    const saved: ReplicatedDogRegistration[] = [];
+
+    for (const input of registrations) {
+      const normalized = normalizeRegistration(input);
+      const registration: ReplicatedDogRegistration = {
+        ...normalized,
+        dogId,
+        id: crypto.randomUUID(),
+        _version: 1,
+        _lastModified: new Date(),
+        _syncStatus: 'pending',
+        _localOnly: true,
+      };
+
+      await this.set(registration.id, registration, false);
+      saved.push(registration);
+    }
+
+    return saved;
+  }
+
+  async getPendingMutationIdsForDog(dogId: string): Promise<string[]> {
+    const registrations = (await this.getAll()).filter(registration => registration.dogId === dogId);
+    const pendingIds = await Promise.all(
+      registrations.map(registration => this.getPendingMutationIdsForRow(registration.id))
+    );
+
+    return pendingIds.flat();
+  }
+
   async getRegistrationsForDogs(dogIds: string[]): Promise<Record<string, unknown>[]> {
     if (dogIds.length === 0) return [];
 

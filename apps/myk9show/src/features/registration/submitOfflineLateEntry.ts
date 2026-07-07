@@ -1,6 +1,7 @@
 import type { ArmbandAssignment } from '@/components/shows/RegistrationWorkflow/ConfirmationStep.types';
 import { getShowEntryFee, type ShowFeeInfo } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
 import {
+  replicatedDogRegistrationsTable,
   replicatedDogsTable,
   replicatedEntriesTable,
   type ReplicatedEntry,
@@ -35,16 +36,9 @@ export interface SubmitOfflineLateEntryResult {
 }
 
 function paymentStatusFor(method: PaymentMethod): ReplicatedEntry['paymentStatus'] {
-  return method === 'waived' ? 'waived' : 'paid';
-}
-
-function nextArmbandNumber(entries: ReplicatedEntry[]): number {
-  const maxParsed = entries
-    .map(entry => parseInt(entry.armband ?? '', 10))
-    .filter(number => !Number.isNaN(number))
-    .reduce((max, number) => (number > max ? number : max), 0);
-
-  return maxParsed + 1;
+  if (method === 'waived') return 'waived';
+  if (method === 'secretary_paid' || method === 'group_payment') return 'paid';
+  return 'pending';
 }
 
 export async function submitOfflineLateEntry({
@@ -64,20 +58,14 @@ export async function submitOfflineLateEntry({
   }
 
   const classesById = new Map(classes.map(cls => [cls.id, cls]));
-  const existingEntries = await replicatedEntriesTable.getEntriesByShow(showId);
-  let nextArmband = nextArmbandNumber(existingEntries);
-  const armbandsByDog = new Map<string, string>();
   const armbandAssignments: ArmbandAssignment[] = [];
   const entryIds: string[] = [];
 
   for (const selection of classSelections) {
-    const dogArmband = armbandsByDog.get(selection.dogId) ?? String(nextArmband++);
-    if (!armbandsByDog.has(selection.dogId)) {
-      armbandsByDog.set(selection.dogId, dogArmband);
-      armbandAssignments.push({ dogId: selection.dogId, armband: dogArmband });
-    }
-
-    const dogMutationId = (await replicatedDogsTable.getPendingMutationIdsForRow(selection.dogId))[0];
+    const dependencyIds = [
+      ...(await replicatedDogsTable.getPendingMutationIdsForRow(selection.dogId)),
+      ...(await replicatedDogRegistrationsTable.getPendingMutationIdsForDog(selection.dogId)),
+    ];
 
     for (const selectedClass of selection.selectedClasses) {
       const handler = handlerAssignments[makeHandlerKey(selection.dogId, selectedClass.classId)];
@@ -99,7 +87,6 @@ export async function submitOfflineLateEntry({
         entryStatus: 'confirmed',
         entry_status: 'confirmed',
         entryFee,
-        armband: dogArmband,
         jumpHeight: selectedClass.jumpHeight,
         moveUpRequested: selectedClass.moveUpRequested,
         move_up_requested: selectedClass.moveUpRequested,
@@ -109,7 +96,7 @@ export async function submitOfflineLateEntry({
         updated_at: submittedAt,
       };
 
-      const createdEntry = await replicatedEntriesTable.createEntry(entry, dogMutationId);
+      const createdEntry = await replicatedEntriesTable.createEntry(entry, dependencyIds);
       entryIds.push(createdEntry.id);
     }
   }

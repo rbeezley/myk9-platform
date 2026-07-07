@@ -462,10 +462,10 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   /**
    * Create a new entry locally (queued for sync)
    * @param entry - Entry data (must include id)
-   * @param classMutationId - Optional mutation ID of the parent class (for dependency tracking)
+   * @param dependsOn - Optional mutation IDs that must upload before this entry
    * The mutation ID is available via `lastMutationId` for dependency tracking.
    */
-  async createEntry(entry: ReplicatedEntry, classMutationId?: string): Promise<ReplicatedEntry> {
+  async createEntry(entry: ReplicatedEntry, dependsOn: string | string[] = []): Promise<ReplicatedEntry> {
     const newEntry: ReplicatedEntry = {
       ...entry,
       _version: 1,
@@ -479,7 +479,11 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       'INSERT',
       entry.id,
       this.toSupabaseRow(newEntry),
-      classMutationId ? [classMutationId] : undefined
+      typeof dependsOn === 'string'
+        ? [dependsOn]
+        : dependsOn.length > 0
+          ? dependsOn
+          : undefined
     );
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created new entry ${entry.id}`);

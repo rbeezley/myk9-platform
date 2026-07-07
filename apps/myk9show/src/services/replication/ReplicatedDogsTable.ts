@@ -22,6 +22,14 @@ import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import type { Database } from '@/types/supabase';
 import { selectOwnedDogs } from '@/utils/dogOwnership';
 
+interface DogRegistrationRpcInput {
+  organization?: string | null;
+  registered_name?: string | null;
+  registration_number?: string | null;
+  breed?: string | null;
+  status?: string | null;
+}
+
 /**
  * Database row type from Supabase schema
  */
@@ -357,6 +365,40 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
     );
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created new dog ${newDog.id}`);
+    return newDog;
+  }
+
+  async createDogWithRegistrationsRpc(
+    dog: ReplicatedDog,
+    registrations: DogRegistrationRpcInput[],
+    options: { dependsOn?: string[] } = {}
+  ): Promise<ReplicatedDog> {
+    const newDog: ReplicatedDog = {
+      ...dog,
+      _version: 1,
+      _lastModified: new Date(),
+      _syncStatus: 'pending',
+      _localOnly: true,
+    };
+    const dogRow = this.toSupabaseRow(newDog);
+
+    await this.set(newDog.id, newDog, true);
+    const mutationId = await this.queueMutation(
+      'INSERT',
+      newDog.id,
+      dogRow,
+      options.dependsOn,
+      {
+        name: 'create_dog_with_registrations',
+        args: {
+          p_dog: dogRow,
+          p_registrations: registrations,
+        },
+        expectRowId: true,
+      }
+    );
+    this._lastMutationId = mutationId;
+    logger.log(`[${this.getTableName()}] Created new dog ${newDog.id} via registration RPC`);
     return newDog;
   }
 

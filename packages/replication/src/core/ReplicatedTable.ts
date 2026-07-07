@@ -165,8 +165,13 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     rowId: string,
     supabasePayload: Record<string, unknown>,
     dependsOn?: string[],
-    /** Optional: apply an UPDATE via a SECURITY DEFINER RPC (see PendingMutation.rpc). */
-    rpc?: { name: string; fields: Record<string, unknown> }
+    /** Optional: apply via a SECURITY DEFINER RPC (see PendingMutation.rpc). */
+    rpc?: {
+      name: string;
+      fields?: Record<string, unknown>;
+      args?: Record<string, unknown>;
+      expectRowId?: boolean;
+    }
   ): Promise<string | null> {
     if (!this.mutationManager) {
       this.logger.warn(`[${this.tableName}] No MutationManager set — mutation not queued`);

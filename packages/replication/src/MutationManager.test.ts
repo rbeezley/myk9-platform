@@ -598,6 +598,84 @@ describe('MutationManager', () => {
       });
     });
 
+    it('routes a tagged INSERT through exact RPC args, not a direct table insert', async () => {
+      vi.mocked(mockSupabase.rpc).mockResolvedValue({ data: 'dog-1', error: null } as never);
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({
+          id: 'mut-dog-rpc',
+          tableName: 'dogs',
+          operation: 'INSERT',
+          rowId: 'dog-1',
+          data: { id: 'dog-1', owner_id: 'person-1' },
+          rpc: {
+            name: 'create_dog_with_registrations',
+            args: {
+              p_dog: { id: 'dog-1', owner_id: 'person-1' },
+              p_registrations: [{ organization: 'AKC', registration_number: 'SW123456' }],
+            },
+            expectRowId: true,
+          },
+        })
+      );
+
+      const results = await manager.uploadPendingMutations();
+
+      expect(results[0]!.success).toBe(true);
+      expect(vi.mocked(mockSupabase.rpc)).toHaveBeenCalledWith('create_dog_with_registrations', {
+        p_dog: { id: 'dog-1', owner_id: 'person-1' },
+        p_registrations: [{ organization: 'AKC', registration_number: 'SW123456' }],
+      });
+      expect(vi.mocked(mockSupabase.from)).not.toHaveBeenCalled();
+    });
+
+    it('blocks dependents when an RPC INSERT returns a different row id', async () => {
+      vi.mocked(mockSupabase.rpc).mockResolvedValue({ data: 'existing-dog-1', error: null } as never);
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({
+          id: 'mut-dog-rpc',
+          tableName: 'dogs',
+          operation: 'INSERT',
+          rowId: 'dog-1',
+          data: { id: 'dog-1', owner_id: 'person-1' },
+          rpc: {
+            name: 'create_dog_with_registrations',
+            args: {
+              p_dog: { id: 'dog-1', owner_id: 'person-1' },
+              p_registrations: [{ organization: 'AKC', registration_number: 'SW123456' }],
+            },
+            expectRowId: true,
+          },
+        })
+      );
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({
+          id: 'mut-entry',
+          tableName: 'entries',
+          operation: 'INSERT',
+          rowId: 'entry-1',
+          data: { id: 'entry-1', dog_id: 'dog-1' },
+          dependsOn: ['mut-dog-rpc'],
+          timestamp: Date.now() + 1,
+        })
+      );
+
+      const results = await manager.uploadPendingMutations();
+      const pending = (await mockDb.getAll(
+        REPLICATION_STORES.PENDING_MUTATIONS
+      )) as PendingMutation[];
+      const failed = (await mockDb.getAll(
+        REPLICATION_STORES.FAILED_MUTATIONS
+      )) as PendingMutation[];
+
+      expect(results).toHaveLength(1);
+      expect(results[0]).toEqual(expect.objectContaining({ success: false, tableName: 'dogs' }));
+      expect(pending.map(mutation => mutation.id)).toEqual(['mut-entry']);
+      expect(failed.map(mutation => mutation.id)).toEqual(['mut-dog-rpc']);
+    });
+
     it('should detect RLS rejection (0 rows returned)', async () => {
       vi.mocked(mockSupabase.from).mockReturnValue({
         update: vi.fn(() => ({

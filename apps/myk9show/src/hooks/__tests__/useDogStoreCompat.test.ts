@@ -9,21 +9,25 @@ import type { DogInput } from '@/store/dogStore';
 const {
   mockSetReplicatedDog,
   mockCreateReplicatedDogWithId,
+  mockCreateReplicatedDogWithRegistrationsRpc,
   mockDeleteReplicatedDog,
   mockGetAllReplicatedDogs,
   mockGetPendingDogMutationIdsForRow,
   mockCreateMutateAsync,
   mockDeleteMutateAsync,
   mockCreateReplicatedDogRegistrationsForDog,
+  mockCreateLocalReplicatedDogRegistrationsForDog,
 } = vi.hoisted(() => ({
   mockSetReplicatedDog: vi.fn(),
   mockCreateReplicatedDogWithId: vi.fn(),
+  mockCreateReplicatedDogWithRegistrationsRpc: vi.fn(),
   mockDeleteReplicatedDog: vi.fn(),
   mockGetAllReplicatedDogs: vi.fn(),
   mockGetPendingDogMutationIdsForRow: vi.fn(),
   mockCreateMutateAsync: vi.fn(),
   mockDeleteMutateAsync: vi.fn(),
   mockCreateReplicatedDogRegistrationsForDog: vi.fn(),
+  mockCreateLocalReplicatedDogRegistrationsForDog: vi.fn(),
 }));
 
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
@@ -31,6 +35,7 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
     getAllDogs: mockGetAllReplicatedDogs,
     set: mockSetReplicatedDog,
     createDogWithId: mockCreateReplicatedDogWithId,
+    createDogWithRegistrationsRpc: mockCreateReplicatedDogWithRegistrationsRpc,
     getPendingMutationIdsForRow: mockGetPendingDogMutationIdsForRow,
     delete: mockDeleteReplicatedDog,
     get: vi.fn().mockResolvedValue(null),
@@ -41,6 +46,7 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
 vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
   replicatedDogRegistrationsTable: {
     createRegistrationsForDog: mockCreateReplicatedDogRegistrationsForDog,
+    createLocalRegistrationsForDog: mockCreateLocalReplicatedDogRegistrationsForDog,
     toSupabaseRow: (registration: Record<string, unknown>) => registration,
   },
 }));
@@ -117,8 +123,16 @@ describe('useDogStoreCompat.addDog — local-first', () => {
     vi.clearAllMocks();
     mockCreateMutateAsync.mockResolvedValue(mockDbDog);
     mockCreateReplicatedDogRegistrationsForDog.mockResolvedValue([]);
+    mockCreateLocalReplicatedDogRegistrationsForDog.mockResolvedValue([]);
     mockGetPendingDogMutationIdsForRow.mockResolvedValue(['dog-mutation-1']);
     mockCreateReplicatedDogWithId.mockImplementation(dog =>
+      Promise.resolve({
+        ...dog,
+        _syncStatus: 'pending',
+        _localOnly: true,
+      })
+    );
+    mockCreateReplicatedDogWithRegistrationsRpc.mockImplementation(dog =>
       Promise.resolve({
         ...dog,
         _syncStatus: 'pending',
@@ -287,7 +301,7 @@ describe('useDogStoreCompat.addDog — local-first', () => {
     expect(mockDeleteReplicatedDog).toHaveBeenCalled();
   });
 
-  it('creates a dog through the offline-first replicated path with dependencies and pending registrations', async () => {
+  it('creates a dog through the offline-first atomic registration RPC path', async () => {
     const registrations = [
       {
         organization: 'AKC',
@@ -297,6 +311,17 @@ describe('useDogStoreCompat.addDog — local-first', () => {
         status: 'pending',
       },
     ];
+    mockCreateLocalReplicatedDogRegistrationsForDog.mockResolvedValue([
+      {
+        id: 'registration-1',
+        dogId: 'dog-1',
+        organization: 'AKC',
+        registrationNumber: 'SW123456',
+        registeredName: 'Beacon Hill Fast Lane',
+        breed: 'Border Collie',
+        status: 'pending',
+      },
+    ]);
     const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
 
     await act(async () => {
@@ -306,7 +331,8 @@ describe('useDogStoreCompat.addDog — local-first', () => {
       );
     });
 
-    const [replicatedDog, options] = mockCreateReplicatedDogWithId.mock.calls[0];
+    const [replicatedDog, registrationRows, options] =
+      mockCreateReplicatedDogWithRegistrationsRpc.mock.calls[0];
     expect(replicatedDog).toEqual(
       expect.objectContaining({
         id: expect.any(String),
@@ -315,12 +341,22 @@ describe('useDogStoreCompat.addDog — local-first', () => {
         ownerId: 'person-123',
       })
     );
+    expect(registrationRows).toEqual([
+      {
+        organization: 'AKC',
+        registered_name: 'Beacon Hill Fast Lane',
+        registration_number: 'SW123456',
+        breed: 'Border Collie',
+        status: 'pending',
+      },
+    ]);
     expect(options).toEqual({ dependsOn: ['person-mutation-1'] });
-    expect(mockCreateReplicatedDogRegistrationsForDog).toHaveBeenCalledWith(
+    expect(mockCreateLocalReplicatedDogRegistrationsForDog).toHaveBeenCalledWith(
       replicatedDog.id,
-      registrations,
-      { dependsOn: ['dog-mutation-1'] }
+      registrations
     );
+    expect(mockCreateReplicatedDogWithId).not.toHaveBeenCalled();
+    expect(mockCreateReplicatedDogRegistrationsForDog).not.toHaveBeenCalled();
     expect(mockCreateMutateAsync).not.toHaveBeenCalled();
   });
 });

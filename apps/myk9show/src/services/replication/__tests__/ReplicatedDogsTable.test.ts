@@ -450,6 +450,86 @@ describe('ReplicatedDogsTable', () => {
         expect(dogsTable.lastMutationId).toBe('dog-mutation-1');
       });
 
+      it('queues dog plus registrations through the atomic RPC replay path', async () => {
+        const newDog = createMockDog({
+          id: 'dog-local-1',
+          name: 'Beacon',
+          breed: 'Border Collie',
+          ownerId: 'person-local-1',
+        });
+        const setSpy = vi.spyOn(dogsTable, 'set').mockResolvedValue();
+        const queueMutation = vi
+          .spyOn(
+            dogsTable as unknown as {
+              queueMutation: (
+                operation: string,
+                rowId: string,
+                payload: Record<string, unknown>,
+                dependencies?: string[],
+                rpc?: {
+                  name: string;
+                  args: Record<string, unknown>;
+                  expectRowId: boolean;
+                }
+              ) => Promise<string | null>;
+            },
+            'queueMutation'
+          )
+          .mockResolvedValue('dog-mutation-1');
+
+        await dogsTable.createDogWithRegistrationsRpc(
+          newDog,
+          [
+            {
+              organization: 'AKC',
+              registered_name: 'Beacon Hill Fast Lane',
+              registration_number: 'SW123456',
+              breed: 'Border Collie',
+              status: 'pending',
+            },
+          ],
+          { dependsOn: ['person-mutation-1'] }
+        );
+
+        expect(setSpy).toHaveBeenCalledWith(
+          'dog-local-1',
+          expect.objectContaining({
+            id: 'dog-local-1',
+            _syncStatus: 'pending',
+            _localOnly: true,
+          }),
+          true
+        );
+        expect(queueMutation).toHaveBeenCalledWith(
+          'INSERT',
+          'dog-local-1',
+          expect.objectContaining({
+            id: 'dog-local-1',
+            owner_id: 'person-local-1',
+          }),
+          ['person-mutation-1'],
+          {
+            name: 'create_dog_with_registrations',
+            args: {
+              p_dog: expect.objectContaining({
+                id: 'dog-local-1',
+                owner_id: 'person-local-1',
+              }),
+              p_registrations: [
+                {
+                  organization: 'AKC',
+                  registered_name: 'Beacon Hill Fast Lane',
+                  registration_number: 'SW123456',
+                  breed: 'Border Collie',
+                  status: 'pending',
+                },
+              ],
+            },
+            expectRowId: true,
+          }
+        );
+      });
+
       it('should create new dog with generated ID', async () => {
         const newDogData = {
           name: 'Rex',

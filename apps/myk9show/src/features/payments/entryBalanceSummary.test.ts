@@ -73,6 +73,18 @@ describe('summarizeEntryBalances', () => {
     expect(summary.onlineShowBalances[0].entryIds).toEqual(['online']);
   });
 
+  it('routes mixed online and pay-at-show balances to My Payments instead of a partial cart', () => {
+    const summary = summarizeEntryBalances(
+      [
+        entry({ id: 'online', paymentMethod: 'online', totalFee: 25 }),
+        entry({ id: 'cash', paymentMethod: 'cash', totalFee: 30 }),
+      ],
+      now
+    );
+
+    expect(buildEntryBalanceRecoveryHref(summary)).toBe('/exhibitor/payments?due=1');
+  });
+
   it('builds an exact cart recovery link for one online show', () => {
     const summary = summarizeEntryBalances(
       [

@@ -60,11 +60,19 @@ describe('moneyPresentation', () => {
     expect(rows.reduce((sum, row) => sum + row.amountCents, 0)).toBe(2300);
   });
 
-  it('keeps legacy fully-refunded order rows as signed refund rows when no entry refund detail exists', () => {
+  it('keeps legacy fully-refunded order rows as gross charge plus signed refund when no entry refund detail exists', () => {
     const rows = buildPaymentDisplayRows([payment({ status: 'refunded', refunds: [] })]);
 
     expect(rows).toMatchObject([
+      {
+        id: 'order-1:charge',
+        kind: 'charge',
+        description: 'Online entry fees',
+        amountCents: 5300,
+        status: 'succeeded',
+      },
       { id: 'order-1:refund', kind: 'refund', description: 'Refund', amountCents: -5300 },
     ]);
+    expect(rows.reduce((sum, row) => sum + row.amountCents, 0)).toBe(0);
   });
 });

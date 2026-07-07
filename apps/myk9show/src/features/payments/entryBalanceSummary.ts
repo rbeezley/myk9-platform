@@ -135,7 +135,11 @@ export function summarizeEntryBalances(
 }
 
 export function buildEntryBalanceRecoveryHref(summary: EntryBalanceSummary): string {
-  if (summary.onlineShowBalances.length === 1) {
+  if (
+    summary.onlineShowBalances.length === 1 &&
+    summary.onlineDueCents === summary.amountDueCents &&
+    summary.payAtShowDueCents === 0
+  ) {
     return summary.onlineShowBalances[0].paymentHref;
   }
   if (summary.amountDueCents > 0) return '/exhibitor/payments?due=1';

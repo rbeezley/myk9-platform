@@ -111,9 +111,13 @@ describe('ExhibitorPaymentsPage', () => {
   it('renders a refunded amount as a signed deduction, distinct from a charge', () => {
     state.data = [{ ...payment, status: 'refunded', netPaidCents: 0 }];
     render(<ExhibitorPaymentsPage />);
-    // Money-clarity bar: a refund must not read identically to a $53 charge.
+    // Money clarity: a fully refunded legacy order shows the original charge,
+    // its signed refund, and a zero net result.
+    expect(screen.getByText('Gross paid')).toBeInTheDocument();
+    expect(screen.getByText('Refunds')).toBeInTheDocument();
+    expect(screen.getByText('Net paid')).toBeInTheDocument();
+    expect(screen.getAllByText('$53.00').length).toBeGreaterThan(0);
     expect(screen.getAllByText('-$53.00').length).toBeGreaterThan(0);
-    expect(screen.queryByText('$53.00')).not.toBeInTheDocument();
     expect(screen.getByText('Refunded')).toBeInTheDocument();
   });
 
@@ -156,7 +160,7 @@ describe('ExhibitorPaymentsPage', () => {
     expect(screen.getByText('Net paid')).toBeInTheDocument();
     expect(screen.getAllByText('-$53.00').length).toBeGreaterThan(0);
     expect(screen.getAllByText('$100.00').length).toBeGreaterThan(0);
-    expect(screen.getByText('$47.00')).toBeInTheDocument();
+    expect(screen.getByText('$153.00')).toBeInTheDocument();
   });
 
   it('labels failed and pending statuses humanely (no raw lowercase tokens)', () => {
@@ -194,12 +198,11 @@ describe('ExhibitorPaymentsPage', () => {
     expect(screen.getByText('1 payment')).toBeInTheDocument();
   });
 
-  it('omits the summary header when the only order was refunded', () => {
+  it('shows a zero-net history summary when the only order was refunded', () => {
     state.data = [{ ...payment, status: 'refunded', netPaidCents: 0 }];
     render(<ExhibitorPaymentsPage />);
-    // Refunded orders contribute no spend, so no summary card renders…
     expect(screen.queryByText('Payment history')).toBeInTheDocument();
-    // …but the order still appears in the table.
+    expect(screen.getByText('1 payment, 1 refund')).toBeInTheDocument();
     expect(screen.getByText('Refunded')).toBeInTheDocument();
   });
 

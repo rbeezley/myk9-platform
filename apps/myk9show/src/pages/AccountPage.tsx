@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
   Bell,
@@ -76,8 +77,17 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
+function readSectionParam(searchParams: URLSearchParams): Section | null {
+  const section = searchParams.get('section');
+  if (!section) return null;
+  return NAV_GROUPS.some(group => group.items.some(item => item.key === section))
+    ? (section as Section)
+    : null;
+}
+
 export default function AccountPage() {
-  const [active, setActive] = useState<Section>('profile');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [active, setActive] = useState<Section>(() => readSectionParam(searchParams) ?? 'profile');
   const user = useAuthUser();
   const {
     preferences,
@@ -99,6 +109,11 @@ export default function AccountPage() {
     },
     []
   );
+
+  useEffect(() => {
+    const section = readSectionParam(searchParams);
+    if (section && section !== active) setActive(section);
+  }, [active, searchParams]);
 
   const showFlash = useCallback((msg: string, kind: 'success' | 'error' = 'success') => {
     if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
@@ -174,6 +189,20 @@ export default function AccountPage() {
     setActionLoading('import');
     input.click();
   }, [withAction, importPreferences, showFlash]);
+
+  const handleSectionChange = useCallback(
+    (section: Section) => {
+      setActive(section);
+      const nextParams = new URLSearchParams(searchParams);
+      if (section === 'profile') {
+        nextParams.delete('section');
+      } else {
+        nextParams.set('section', section);
+      }
+      setSearchParams(nextParams, { replace: true });
+    },
+    [searchParams, setSearchParams]
+  );
 
   const actionButtons = useMemo(
     () => [
@@ -283,7 +312,7 @@ export default function AccountPage() {
                       {group.items.map(({ key, label, icon: Icon }) => (
                         <li key={key} className="contents md:block">
                           <button
-                            onClick={() => setActive(key)}
+                            onClick={() => handleSectionChange(key)}
                             aria-current={active === key ? 'page' : undefined}
                             className={`flex min-h-11 w-auto items-center gap-2.5 whitespace-nowrap rounded-md px-3 py-2 text-sm transition-colors md:w-full md:whitespace-normal ${
                               active === key

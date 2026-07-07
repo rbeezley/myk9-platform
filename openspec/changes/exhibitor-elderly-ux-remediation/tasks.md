@@ -44,10 +44,10 @@
 
 ## 6. Onboarding Confidence
 
-- [ ] 6.1 Trace onboarding completion from save through redirect and reload using actual profile-completion state.
-- [ ] 6.2 Determine whether the observed Step 5 to Step 2 behavior is seed data, partial completion, or a state persistence bug.
-- [ ] 6.3 If setup is partial, show saved progress with "Finish setting up" and the missing setup item instead of restarting unexpectedly.
-- [ ] 6.4 Add hook/component tests for onboarding completion and partial-progress reload behavior.
+- [x] 6.1 Trace onboarding completion from save through redirect and reload using actual profile-completion state.
+- [x] 6.2 Determine whether the observed Step 5 to Step 2 behavior is seed data, partial completion, or a state persistence bug.
+- [x] 6.3 If setup is partial, show saved progress with "Finish setting up" and the missing setup item instead of restarting unexpectedly.
+- [x] 6.4 Add hook/component tests for onboarding completion and partial-progress reload behavior.
 
 ## 7. Verification, Tracking, And Shipping
 

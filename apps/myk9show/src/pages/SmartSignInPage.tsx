@@ -76,7 +76,9 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
       ? `Sign in to enter ${entryShow.name}`
       : passcodeOnly
         ? 'Enter a show passcode'
-        : 'Sign in or join a show';
+        : step === 'password'
+          ? 'Sign in to your account'
+          : 'Sign in or join a show';
 
   // Programmatic focus to the password field when the email branch reveals it.
   useEffect(() => {

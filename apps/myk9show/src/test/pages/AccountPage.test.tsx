@@ -90,7 +90,8 @@ describe('AccountPage', () => {
     mockForm.saving = false;
   });
 
-  const render = () => renderWithProviders(<AccountPage />, { initialRoute: '/account' });
+  const render = (initialRoute = '/account') =>
+    renderWithProviders(<AccountPage />, { initialRoute });
 
   it('renders the page heading', () => {
     render();
@@ -129,6 +130,15 @@ describe('AccountPage', () => {
     render();
     expect(screen.getByText('Profile photo')).toBeInTheDocument();
     expect(screen.getByText('Personal information')).toBeInTheDocument();
+  });
+
+  it('opens the requested section from the section query param', () => {
+    render('/account?section=notifications');
+    expect(screen.getByTestId('notification-settings')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Notifications' })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
   });
 
   it('switches to My dogs section on click', () => {

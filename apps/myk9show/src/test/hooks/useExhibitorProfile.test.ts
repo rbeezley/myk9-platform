@@ -21,6 +21,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
 // the optional early_adopter_until column was requested (the fallback path).
 const mockSupabaseQuery = vi.fn();
 const mockSupabaseInsert = vi.fn();
+const mockSupabaseUpdate = vi.fn();
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
@@ -29,8 +30,7 @@ vi.mock('@/lib/supabase', () => ({
         eq: (column: string, value: string) => ({
           maybeSingle: () =>
             mockSupabaseQuery(table, 'maybeSingle', { column, value, select: selectArg }),
-          single: () =>
-            mockSupabaseQuery(table, 'single', { column, value, select: selectArg }),
+          single: () => mockSupabaseQuery(table, 'single', { column, value, select: selectArg }),
         }),
       }),
       insert: (data: Record<string, unknown>) => ({
@@ -38,13 +38,20 @@ vi.mock('@/lib/supabase', () => ({
           single: () => mockSupabaseInsert(table, data),
         }),
       }),
+      update: (data: Record<string, unknown>) => ({
+        eq: (column: string, value: string) =>
+          mockSupabaseUpdate(table, data, {
+            column,
+            value,
+          }),
+      }),
     }),
   },
 }));
 
 // Create a wrapper component with QueryClient
-function createWrapper() {
-  const queryClient = new QueryClient({
+function createQueryClient() {
+  return new QueryClient({
     defaultOptions: {
       queries: {
         retry: false,
@@ -52,7 +59,9 @@ function createWrapper() {
       },
     },
   });
+}
 
+function createWrapper(queryClient = createQueryClient()) {
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return React.createElement(QueryClientProvider, { client: queryClient }, children);
   };
@@ -70,6 +79,50 @@ describe('useExhibitorProfile', () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+  });
+
+  describe('onboarding completion', () => {
+    it('updates cached profile completion state before refetch so completion redirect cannot see stale state', async () => {
+      const mockProfile = {
+        id: 'profile-123',
+        person_id: 'person-456',
+        auth_user_id: 'user-123',
+        default_handler_id: null,
+        subscription_tier: 'free',
+        subscription_expires_at: null,
+        stripe_customer_id: null,
+        onboarding_completed_at: null,
+        created_at: '2026-07-06T00:00:00.000Z',
+        updated_at: '2026-07-06T00:00:00.000Z',
+      };
+
+      mockSupabaseQuery.mockResolvedValue({ data: mockProfile, error: null });
+      mockSupabaseUpdate.mockResolvedValue({ error: null });
+      const queryClient = createQueryClient();
+
+      const { result } = renderHook(() => useExhibitorProfile(), {
+        wrapper: createWrapper(queryClient),
+      });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      const completedAt = await result.current.completeOnboarding();
+
+      expect(completedAt).toEqual(expect.any(String));
+      expect(
+        queryClient.getQueryData<{ onboarding_completed_at: string | null }>([
+          'exhibitorProfile',
+          'user-123',
+        ])?.onboarding_completed_at
+      ).toBe(completedAt);
+      expect(mockSupabaseUpdate).toHaveBeenCalledWith(
+        'exhibitor_profiles',
+        { onboarding_completed_at: completedAt },
+        { column: 'id', value: 'profile-123' }
+      );
+    });
   });
 
   describe('initial state', () => {

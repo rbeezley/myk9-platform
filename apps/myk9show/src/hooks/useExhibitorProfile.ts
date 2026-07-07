@@ -251,25 +251,41 @@ export function useExhibitorProfile() {
     },
     onSuccess: createdProfile => {
       queryClient.setQueryData(['exhibitorProfile', user?.id], createdProfile);
-      queryClient.invalidateQueries({ queryKey: ['exhibitorProfile', user?.id] });
     },
   });
 
   // Mark onboarding as complete
   const completeOnboardingMutation = useMutation({
-    mutationFn: async (): Promise<void> => {
+    mutationFn: async (): Promise<string> => {
       if (!user?.id) throw new Error('User not authenticated');
       if (!profile?.id) throw new Error('No exhibitor profile found');
 
+      const completedAt = new Date().toISOString();
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await (supabase.from('exhibitor_profiles') as any)
-        .update({ onboarding_completed_at: new Date().toISOString() })
+        .update({ onboarding_completed_at: completedAt })
         .eq('id', profile.id);
 
       if (error) throw error;
+      const completedProfile: ExhibitorProfile = {
+        ...profile,
+        onboarding_completed_at: completedAt,
+        updated_at: completedAt,
+      };
+      queryClient.setQueryData(['exhibitorProfile', user.id], completedProfile);
+      return completedAt;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['exhibitorProfile', user?.id] });
+    onSuccess: completedAt => {
+      queryClient.setQueryData<ExhibitorProfile | null>(['exhibitorProfile', user?.id], current =>
+        current
+          ? {
+              ...current,
+              onboarding_completed_at: completedAt,
+              updated_at: completedAt,
+            }
+          : current
+      );
     },
   });
 

@@ -44,6 +44,12 @@ Already completed in this branch:
 - Post-deadline My Entries cards provide "Message the show team" instead of silently dropping the edit path.
 - Dog height/weight conversion no longer saves blank invalid values as `NaN`.
 - Dog detail hides invalid or blank measurements instead of displaying `NaN` or accidental zero.
+- Exhibitor onboarding completion now updates the local profile cache with the saved timestamp before navigating to `/shows`.
+- Completed exhibitors who return to `/onboarding` are redirected to `/shows` instead of seeing an earlier wizard step.
+- First-run onboarding no longer asks for unsaved address or notification preferences; it keeps only durable Profile, optional Dogs, and Welcome steps.
+- Onboarding Dogs is framed as optional, and empty Add Dog dialog cancellation closes without a discard/backdrop trap.
+- The onboarding shell hides global search, notifications, cart, theme, and AskQ actions while preserving account access.
+- Email/password sign-in now uses account sign-in copy after email classification while passcode copy remains unchanged.
 - Focused tests added for those behaviors.
 
 Verification already run:
@@ -61,6 +67,19 @@ pnpm exec vitest run src/pages/RegistrationWizardPage/entryCloseGuard.test.ts sr
 ```
 
 Result: 14 test files passed, 155 tests passed.
+
+```bash
+pnpm typecheck
+```
+
+Result: passed.
+
+```bash
+cd apps/myk9show
+pnpm exec vitest run src/pages/onboarding/__tests__/ExhibitorOnboardingPage.test.tsx src/pages/onboarding/steps/__tests__/StepDogs.test.tsx src/pages/onboarding/steps/__tests__/StepWelcome.test.tsx src/test/hooks/useExhibitorProfile.test.ts src/components/exhibitor/__tests__/ExhibitorOnboardingChecker.test.tsx src/test/pages/AccountPage.test.tsx src/components/layout/AppHeader.test.tsx src/pages/SmartSignInPage.test.tsx src/components/panels/edit/__tests__/EditPanelWrapper.test.tsx
+```
+
+Result: 9 test files passed, 83 tests passed.
 
 ```bash
 pnpm typecheck

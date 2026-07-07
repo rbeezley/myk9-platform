@@ -150,8 +150,11 @@ function matches(check: HealthCheck, pattern: RegExp): boolean {
   return pattern.test(checkText(check));
 }
 
+const COVERAGE_INCOMPLETE_PATTERN =
+  /not checked|not evaluated|manual check|coverage (?:incomplete|missing|not checked|not evaluated)|(?:incomplete|missing) coverage|coverage gap|no coverage/;
+
 export function isCoverageIncomplete(check: HealthCheck): boolean {
-  return matches(check, /not checked|not evaluated|incomplete|manual check|coverage/);
+  return matches(check, COVERAGE_INCOMPLETE_PATTERN);
 }
 
 export function getHealthCheckRemediation(check: HealthCheck): HealthCheckRemediation {

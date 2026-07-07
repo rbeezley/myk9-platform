@@ -453,7 +453,7 @@ const UserRoleManagementPage: React.FC = () => {
             {roleStats.map(({ role, totalAssignments, activeAssignments, inactiveAssignments }) => (
               <Card key={role.id}>
                 <CardHeader>
-                  <CardTitle className="text-lg">{role.display_name}</CardTitle>
+                  <CardTitle className="text-lg">{role.display_name || role.name}</CardTitle>
                   <CardDescription>
                     <code className="text-xs bg-muted px-1 py-0.5 rounded">{role.name}</code>
                   </CardDescription>

@@ -229,6 +229,19 @@ describe('getHealthCheckRemediation', () => {
     expect(isCoverageIncomplete(check)).toBe(true);
     expect(getHealthCheckRemediation(check).coverageIncomplete).toBe(true);
   });
+
+  it('does not mark completed coverage checks as incomplete', () => {
+    const check = {
+      key: 'role_coverage',
+      label: 'Role coverage complete',
+      status: 'ok' as const,
+      detail: 'All role coverage checks complete',
+      checkedAt: '2026-07-04T12:00:00Z',
+    };
+
+    expect(isCoverageIncomplete(check)).toBe(false);
+    expect(getHealthCheckRemediation(check).coverageIncomplete).toBe(false);
+  });
 });
 
 describe('formatCheckedAgo', () => {

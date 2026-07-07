@@ -79,7 +79,6 @@ vi.mock('@/services/rbac/RBACService', () => ({
       {
         id: 'role-2',
         name: 'judge',
-        display_name: 'Judge',
         description: 'Trial judge',
         is_system: true,
         permissions: null,
@@ -165,5 +164,13 @@ describe('UserRoleManagementPage DataTable migration', () => {
     render(<UserRoleManagementPage />);
     await screen.findByRole('table');
     expect(screen.getByRole('button', { name: /assign role/i })).toBeInTheDocument();
+  });
+
+  it('falls back to role name in role summary cards when display_name is absent', async () => {
+    const { user } = render(<UserRoleManagementPage />);
+
+    await user.click(await screen.findByRole('tab', { name: /role summary/i }));
+
+    expect(screen.getByText('judge', { selector: '.text-lg' })).toBeInTheDocument();
   });
 });

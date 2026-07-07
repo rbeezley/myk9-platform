@@ -92,7 +92,7 @@ export class ReplicatedShowDeskPeopleTable extends ReplicatedTable<ReplicatedSho
       last_name: person.lastName,
       email: person.email ?? null,
       phone: person.phone ?? null,
-      address: person.address ?? null,
+      street_address: person.address ?? null,
       city: person.city ?? null,
       state: person.state ?? null,
       zip_code: person.zipCode ?? null,

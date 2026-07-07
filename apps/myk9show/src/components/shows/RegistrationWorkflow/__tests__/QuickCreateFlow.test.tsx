@@ -24,28 +24,34 @@ vi.mock('../CreateExhibitorDialog', () => ({
     }: {
       open: boolean;
       offlineFirst?: boolean;
-      onExhibitorCreated: (exhibitor: {
-        id: string;
-        firstName: string;
-        lastName: string;
-        email: string;
-        roles: UserRole[];
-        dogs: string[];
-      }) => void;
+      onExhibitorCreated: (
+        exhibitor: {
+          id: string;
+          firstName: string;
+          lastName: string;
+          email: string;
+          roles: UserRole[];
+          dogs: string[];
+        },
+        metadata?: { pendingMutationIds?: string[] }
+      ) => void;
     }) =>
       open ? (
         <button
           type="button"
           data-offline-first={String(offlineFirst)}
           onClick={() =>
-            onExhibitorCreated({
-              id: 'person-mailin-1',
-              firstName: 'Molly',
-              lastName: 'Mailbox',
-              email: 'molly.mailbox@example.com',
-              roles: ['exhibitor' as UserRole],
-              dogs: [],
-            })
+            onExhibitorCreated(
+              {
+                id: 'person-mailin-1',
+                firstName: 'Molly',
+                lastName: 'Mailbox',
+                email: 'molly.mailbox@example.com',
+                roles: ['exhibitor' as UserRole],
+                dogs: [],
+              },
+              { pendingMutationIds: ['person-mutation-1'] }
+            )
           }
         >
           Mock Create Exhibitor
@@ -62,9 +68,7 @@ describe('QuickCreateFlow', () => {
   it('opens AddDogPanel as secretary with the created exhibitor as owner', async () => {
     const user = userEvent.setup();
 
-    render(
-      <QuickCreateFlow open onOpenChange={vi.fn()} onFlowCompleted={vi.fn()} mode="single" />
-    );
+    render(<QuickCreateFlow open onOpenChange={vi.fn()} onFlowCompleted={vi.fn()} mode="single" />);
 
     fireEvent.click(screen.getByText('Mock Create Exhibitor'));
     await user.click(screen.getByRole('button', { name: 'Add First Dog' }));
@@ -75,6 +79,7 @@ describe('QuickCreateFlow', () => {
         open: true,
         userRole: UserRole.SECRETARY,
         currentUserPersonId: 'person-mailin-1',
+        offlineDependsOn: ['person-mutation-1'],
         variant: 'dialog',
       }),
       undefined
@@ -94,10 +99,7 @@ describe('QuickCreateFlow', () => {
       />
     );
 
-    expect(screen.getByText('Mock Create Exhibitor')).toHaveAttribute(
-      'data-offline-first',
-      'true'
-    );
+    expect(screen.getByText('Mock Create Exhibitor')).toHaveAttribute('data-offline-first', 'true');
 
     fireEvent.click(screen.getByText('Mock Create Exhibitor'));
     await user.click(screen.getByRole('button', { name: 'Add First Dog' }));
@@ -106,6 +108,7 @@ describe('QuickCreateFlow', () => {
       expect.objectContaining({
         offlineFirst: true,
         currentUserPersonId: 'person-mailin-1',
+        offlineDependsOn: ['person-mutation-1'],
       }),
       undefined
     );

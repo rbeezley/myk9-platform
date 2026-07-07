@@ -6,8 +6,9 @@ import { createUser } from '@/services/database/users';
 import { useUserStore } from '@/store/userStore';
 import { CreateExhibitorDialog } from '../CreateExhibitorDialog';
 
-const { mockCreatePerson } = vi.hoisted(() => ({
+const { mockCreatePerson, mockGetPendingPersonMutationIdsForRow } = vi.hoisted(() => ({
   mockCreatePerson: vi.fn(),
+  mockGetPendingPersonMutationIdsForRow: vi.fn(),
 }));
 
 vi.mock('@/services/database/users', () => ({
@@ -17,6 +18,7 @@ vi.mock('@/services/database/users', () => ({
 vi.mock('@/services/replication/ReplicatedShowDeskPeopleTable', () => ({
   replicatedShowDeskPeopleTable: {
     createPerson: mockCreatePerson,
+    getPendingMutationIdsForRow: mockGetPendingPersonMutationIdsForRow,
   },
 }));
 
@@ -38,6 +40,7 @@ describe('CreateExhibitorDialog', () => {
       zipCode: '75001',
       status: 'active',
     });
+    mockGetPendingPersonMutationIdsForRow.mockResolvedValue(['person-mutation-1']);
   });
 
   it('persists a mail-in exhibitor as a people row', async () => {
@@ -197,7 +200,8 @@ describe('CreateExhibitorDialog', () => {
           lastName: 'Mailbox',
           roles: [UserRole.EXHIBITOR],
           dogs: [],
-        })
+        }),
+        { pendingMutationIds: ['person-mutation-1'] }
       );
     });
   });

@@ -33,6 +33,7 @@ describe('ReplicatedShowDeskPeopleTable', () => {
       lastName: ' Walker ',
       email: ' jamie@example.com ',
       phone: ' 555-0100 ',
+      address: ' 12 Ring Road ',
     });
 
     expect(person).toEqual(
@@ -57,6 +58,7 @@ describe('ReplicatedShowDeskPeopleTable', () => {
         last_name: 'Walker',
         email: 'jamie@example.com',
         phone: '555-0100',
+        street_address: '12 Ring Road',
         status: 'active',
       })
     );

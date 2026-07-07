@@ -10,6 +10,7 @@ export interface AddDogPanelProps {
   currentUserPersonId?: string | undefined;
   variant?: EditPanelVariant;
   offlineFirst?: boolean | undefined;
+  offlineDependsOn?: string[] | undefined;
   /**
    * When provided, the "Dog saved" confirmation toast gains an "Enter a show"
    * next-action that calls this with the new dog (4.E). Opt-in per caller so it

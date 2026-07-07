@@ -32,7 +32,7 @@ import { syncDogRegistrations } from '@/hooks/dogStoreCompatHelpers';
 import { translateDogDbError } from '@/hooks/translateDogDbError';
 import { supabase } from '@/lib/supabase';
 import { selectOwnedDogs } from '@/utils/dogOwnership';
-import { savePendingDogRegistrationIntents } from '@/services/replication/PendingDogRegistrationIntents';
+import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
 
 /**
  * Compatibility hook that provides dogStore-like API using React Query
@@ -187,7 +187,12 @@ export const useDogStoreCompat = () => {
     );
 
     if (dogData.registrations && dogData.registrations.length > 0) {
-      await savePendingDogRegistrationIntents(savedDog.id, dogData.registrations);
+      const dogMutationIds = await replicatedDogsTable.getPendingMutationIdsForRow(savedDog.id);
+      await replicatedDogRegistrationsTable.createRegistrationsForDog(
+        savedDog.id,
+        dogData.registrations,
+        dogMutationIds.length > 0 ? { dependsOn: dogMutationIds } : {}
+      );
       queryClient.invalidateQueries({ queryKey: queryKeys.registrationsByDog(savedDog.id) });
     }
 

@@ -11,17 +11,19 @@ const {
   mockCreateReplicatedDogWithId,
   mockDeleteReplicatedDog,
   mockGetAllReplicatedDogs,
+  mockGetPendingDogMutationIdsForRow,
   mockCreateMutateAsync,
   mockDeleteMutateAsync,
-  mockSavePendingDogRegistrationIntents,
+  mockCreateReplicatedDogRegistrationsForDog,
 } = vi.hoisted(() => ({
   mockSetReplicatedDog: vi.fn(),
   mockCreateReplicatedDogWithId: vi.fn(),
   mockDeleteReplicatedDog: vi.fn(),
   mockGetAllReplicatedDogs: vi.fn(),
+  mockGetPendingDogMutationIdsForRow: vi.fn(),
   mockCreateMutateAsync: vi.fn(),
   mockDeleteMutateAsync: vi.fn(),
-  mockSavePendingDogRegistrationIntents: vi.fn(),
+  mockCreateReplicatedDogRegistrationsForDog: vi.fn(),
 }));
 
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
@@ -29,14 +31,17 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
     getAllDogs: mockGetAllReplicatedDogs,
     set: mockSetReplicatedDog,
     createDogWithId: mockCreateReplicatedDogWithId,
+    getPendingMutationIdsForRow: mockGetPendingDogMutationIdsForRow,
     delete: mockDeleteReplicatedDog,
     get: vi.fn().mockResolvedValue(null),
     getAll: mockGetAllReplicatedDogs,
   },
 }));
 
-vi.mock('@/services/replication/PendingDogRegistrationIntents', () => ({
-  savePendingDogRegistrationIntents: mockSavePendingDogRegistrationIntents,
+vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
+  replicatedDogRegistrationsTable: {
+    createRegistrationsForDog: mockCreateReplicatedDogRegistrationsForDog,
+  },
 }));
 
 vi.mock('@/hooks/queries/useDogsDatabase', () => ({
@@ -110,6 +115,8 @@ describe('useDogStoreCompat.addDog — local-first', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockCreateMutateAsync.mockResolvedValue(mockDbDog);
+    mockCreateReplicatedDogRegistrationsForDog.mockResolvedValue([]);
+    mockGetPendingDogMutationIdsForRow.mockResolvedValue(['dog-mutation-1']);
     mockCreateReplicatedDogWithId.mockImplementation(dog =>
       Promise.resolve({
         ...dog,
@@ -117,7 +124,6 @@ describe('useDogStoreCompat.addDog — local-first', () => {
         _localOnly: true,
       })
     );
-    mockSavePendingDogRegistrationIntents.mockResolvedValue(undefined);
     mockSetReplicatedDog.mockResolvedValue(undefined);
     mockDeleteReplicatedDog.mockResolvedValue(undefined);
     mockGetAllReplicatedDogs.mockResolvedValue([]);
@@ -309,9 +315,10 @@ describe('useDogStoreCompat.addDog — local-first', () => {
       })
     );
     expect(options).toEqual({ dependsOn: ['person-mutation-1'] });
-    expect(mockSavePendingDogRegistrationIntents).toHaveBeenCalledWith(
+    expect(mockCreateReplicatedDogRegistrationsForDog).toHaveBeenCalledWith(
       replicatedDog.id,
-      registrations
+      registrations,
+      { dependsOn: ['dog-mutation-1'] }
     );
     expect(mockCreateMutateAsync).not.toHaveBeenCalled();
   });

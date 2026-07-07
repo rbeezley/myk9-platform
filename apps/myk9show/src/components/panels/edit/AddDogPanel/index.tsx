@@ -39,6 +39,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   currentUserPersonId,
   variant = 'panel',
   offlineFirst = false,
+  offlineDependsOn,
   onEnterShowWithDog,
 }) => {
   const {
@@ -117,7 +118,12 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
 
     let newDog;
     try {
-      newDog = offlineFirst ? await addDogOfflineFirst(dogInput) : await addDog(dogInput);
+      newDog = offlineFirst
+        ? await addDogOfflineFirst(
+            dogInput,
+            offlineDependsOn && offlineDependsOn.length > 0 ? { dependsOn: offlineDependsOn } : {}
+          )
+        : await addDog(dogInput);
     } catch (error) {
       setLocalSaveError(getErrorMessage(error));
       throw error;

@@ -265,6 +265,8 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   const [showQuickCreateFlow, setShowQuickCreateFlow] = useState(false);
   const [showExhibitorDialog, setShowExhibitorDialog] = useState(false);
   const [showDogDialog, setShowDogDialog] = useState(false);
+  const [createdExhibitorId, setCreatedExhibitorId] = useState<string | undefined>(undefined);
+  const [createdExhibitorMutationIds, setCreatedExhibitorMutationIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeQuickFilter, setActiveQuickFilter] = useState('');
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
@@ -407,8 +409,13 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
     onSelectionChange([...selectedDogs, ...newDogIds]);
   };
 
-  const handleExhibitorCreated = (exhibitor: User) => {
+  const handleExhibitorCreated = (
+    exhibitor: User,
+    metadata?: { pendingMutationIds?: string[] | undefined }
+  ) => {
     logger.debug('Exhibitor created:', 'shows', { data: exhibitor });
+    setCreatedExhibitorId(exhibitor.id);
+    setCreatedExhibitorMutationIds(metadata?.pendingMutationIds ?? []);
     setShowDogDialog(true);
   };
 
@@ -747,6 +754,8 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
         onDogCreated={handleDogCreated}
         variant="dialog"
         offlineFirst={offlineFirst}
+        currentUserPersonId={createdExhibitorId}
+        offlineDependsOn={createdExhibitorMutationIds}
       />
     </div>
   );

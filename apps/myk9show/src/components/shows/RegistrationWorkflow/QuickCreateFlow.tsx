@@ -23,6 +23,7 @@ interface QuickCreateFlowProps {
 interface FlowState {
   step: 'exhibitor' | 'dogs' | 'review';
   exhibitor: User | null;
+  exhibitorPendingMutationIds: string[];
   dogs: Dog[];
   isComplete: boolean;
 }
@@ -30,6 +31,7 @@ interface FlowState {
 const INITIAL_FLOW_STATE: FlowState = {
   step: 'exhibitor',
   exhibitor: null,
+  exhibitorPendingMutationIds: [],
   dogs: [],
   isComplete: false,
 };
@@ -56,10 +58,14 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
   };
 
   // Handle exhibitor creation
-  const handleExhibitorCreated = (exhibitor: User) => {
+  const handleExhibitorCreated = (
+    exhibitor: User,
+    metadata?: { pendingMutationIds?: string[] | undefined }
+  ) => {
     setFlowState(prev => ({
       ...prev,
       exhibitor,
+      exhibitorPendingMutationIds: metadata?.pendingMutationIds ?? [],
       step: 'dogs',
     }));
     setShowExhibitorDialog(false);
@@ -422,6 +428,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
         currentUserPersonId={flowState.exhibitor?.id}
         variant="dialog"
         offlineFirst={offlineFirst}
+        offlineDependsOn={flowState.exhibitorPendingMutationIds}
       />
     </>
   );

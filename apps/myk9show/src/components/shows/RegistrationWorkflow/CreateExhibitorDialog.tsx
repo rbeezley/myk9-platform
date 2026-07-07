@@ -26,7 +26,10 @@ import { replicatedShowDeskPeopleTable } from '@/services/replication/Replicated
 interface CreateExhibitorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onExhibitorCreated: (exhibitor: User) => void;
+  onExhibitorCreated: (
+    exhibitor: User,
+    metadata?: { pendingMutationIds?: string[] | undefined }
+  ) => void;
   onDuplicateSelected?: (existingExhibitor: User) => void;
   searchQuery?: string; // Pre-fill from search if provided
   offlineFirst?: boolean;
@@ -185,7 +188,12 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
           associatedDogs: [],
         };
 
-        onExhibitorCreated(newExhibitor);
+        const pendingMutationIds = await replicatedShowDeskPeopleTable.getPendingMutationIdsForRow(
+          person.id
+        );
+        onExhibitorCreated(newExhibitor, {
+          pendingMutationIds,
+        });
         handleClose();
         return;
       }

@@ -48,6 +48,7 @@ function buildEnrollmentPaymentFields({
   totalAmountCents,
   existingTotalAmountCents = 0,
   includeEmptyPaymentDetails = false,
+  preservePaidAmountForPending = false,
 }: {
   paymentReference?: string | undefined;
   paymentDetails?: PaymentDetails | undefined;
@@ -55,16 +56,24 @@ function buildEnrollmentPaymentFields({
   totalAmountCents?: number | undefined;
   existingTotalAmountCents?: number | null | undefined;
   includeEmptyPaymentDetails?: boolean | undefined;
+  preservePaidAmountForPending?: boolean | undefined;
 }): TablesUpdate<'enrollments'> {
   const paymentStatus = paymentMethodToEnrollmentStatus(paymentMethod);
   const nextTotalAmountCents =
     totalAmountCents !== undefined ? (existingTotalAmountCents ?? 0) + totalAmountCents : undefined;
+  const shouldPreservePaidAmount =
+    preservePaidAmountForPending && paymentStatus === PaymentStatus.PENDING;
   const paidAmount = isEnrollmentPaidAtSubmit(paymentStatus)
     ? (nextTotalAmountCents ?? totalAmountCents ?? 0) / 100
     : 0;
 
   const fields: TablesUpdate<'enrollments'> = {
-    ...(paymentStatus ? { payment_status: paymentStatus, paid_amount: paidAmount } : {}),
+    ...(paymentStatus
+      ? {
+          payment_status: paymentStatus,
+          ...(!shouldPreservePaidAmount ? { paid_amount: paidAmount } : {}),
+        }
+      : {}),
     ...(paymentMethod ? { payment_method: paymentMethod } : {}),
     ...(nextTotalAmountCents !== undefined ? { total_amount: nextTotalAmountCents } : {}),
   };
@@ -131,6 +140,7 @@ async function updateExistingEnrollmentPayment({
         paymentMethod,
         totalAmountCents,
         existingTotalAmountCents: existing.totalAmount,
+        preservePaidAmountForPending: true,
       })
     )
     .eq('id', existing.id)

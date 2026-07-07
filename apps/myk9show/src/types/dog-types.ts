@@ -226,8 +226,8 @@ export interface DogInput {
   sex: 'male' | 'female';
   birthDate?: string | undefined;
   color?: string | undefined;
-  weight?: number | undefined;
-  height?: number | undefined;
+  weight?: number | null | undefined;
+  height?: number | null | undefined;
   ownerId: string;
   ownerName?: string | undefined;
   microchipNumber?: string | undefined;

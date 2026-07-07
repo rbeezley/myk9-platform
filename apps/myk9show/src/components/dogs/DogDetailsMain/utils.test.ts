@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Dog } from '@/types/dog-types';
+import { mapDogInputToUpdate } from '@/services/mappers/dogMappers';
 import { convertDogToDogInput, parseOptionalDogNumber } from './utils';
 
 const currentDog: Dog = {
@@ -12,9 +13,9 @@ const currentDog: Dog = {
 
 describe('DogDetailsMain utils', () => {
   describe('parseOptionalDogNumber', () => {
-    it('ignores blank values', () => {
-      expect(parseOptionalDogNumber('')).toBeUndefined();
-      expect(parseOptionalDogNumber('   ')).toBeUndefined();
+    it('returns null for blank values so edited fields can be cleared', () => {
+      expect(parseOptionalDogNumber('')).toBeNull();
+      expect(parseOptionalDogNumber('   ')).toBeNull();
     });
 
     it('ignores non-numeric values', () => {
@@ -27,10 +28,16 @@ describe('DogDetailsMain utils', () => {
     });
   });
 
-  it('does not save NaN measurements when dog measurement fields are cleared', () => {
+  it('clears measurements when edited dog measurement fields are blank', () => {
     const input = convertDogToDogInput({ height: '', weight: '' }, currentDog);
 
-    expect(input).not.toHaveProperty('height');
-    expect(input).not.toHaveProperty('weight');
+    expect(input.height).toBeNull();
+    expect(input.weight).toBeNull();
+    expect(mapDogInputToUpdate(input)).toEqual(
+      expect.objectContaining({
+        height: null,
+        weight: null,
+      })
+    );
   });
 });

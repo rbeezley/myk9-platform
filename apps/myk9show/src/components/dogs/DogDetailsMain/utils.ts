@@ -34,11 +34,11 @@ export function validateImageFile(file: File): { valid: boolean; error?: string 
   return { valid: true };
 }
 
-export function parseOptionalDogNumber(value: string | undefined): number | undefined {
+export function parseOptionalDogNumber(value: string | undefined): number | null | undefined {
   if (value === undefined) return undefined;
 
   const trimmed = value.trim();
-  if (!trimmed) return undefined;
+  if (!trimmed) return null;
 
   const parsed = Number(trimmed);
   return Number.isFinite(parsed) ? parsed : undefined;

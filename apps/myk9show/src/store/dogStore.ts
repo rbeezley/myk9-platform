@@ -16,8 +16,8 @@ export interface DogInput {
   birthDate?: string | undefined;
   sex: 'male' | 'female';
   color?: string | undefined;
-  weight?: number | undefined;
-  height?: number | undefined;
+  weight?: number | null | undefined;
+  height?: number | null | undefined;
   ownerId: string;
   ownerName?: string | undefined;
   microchipNumber?: string | undefined;

@@ -88,6 +88,7 @@ const TemplateManagementPage: React.FC = () => {
   });
 
   const [filteredTemplates, setFilteredTemplates] = useState(templates);
+  const [showAdvancedMaintenance, setShowAdvancedMaintenance] = useState(false);
 
   // Delete confirmation dialog state
   const [deleteDialog, setDeleteDialog] = useState<{
@@ -214,34 +215,6 @@ const TemplateManagementPage: React.FC = () => {
               </p>
             </div>
             <div className="flex w-full flex-wrap gap-2 md:w-auto md:justify-end">
-              {/* Save button temporarily removed */}
-              <Button
-                onClick={() => {
-                  logger.info('Force initializing templates', 'templates');
-                  initializeDefaultTemplates(true);
-                }}
-                variant="outline"
-                className="flex-1 text-xs sm:flex-none"
-              >
-                Force Initialize
-              </Button>
-              <Button
-                onClick={() => setShowResetDialog(true)}
-                variant="destructive"
-                className="flex-1 text-xs sm:flex-none"
-              >
-                Reset Templates
-              </Button>
-              <Button
-                onClick={() => {
-                  const removed = cleanupDuplicateTemplates();
-                  logger.info('Cleaned up duplicate templates', 'templates', { removed });
-                }}
-                variant="outline"
-                className="flex-1 text-xs sm:flex-none"
-              >
-                Clean Duplicates
-              </Button>
               <Button onClick={handleCreateNew} className="myk9-button-primary flex-1 sm:flex-none">
                 <Plus className="h-4 w-4" />
                 Create Template
@@ -249,6 +222,68 @@ const TemplateManagementPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        <div className="mb-6 rounded-lg border border-dashed bg-muted/20 p-4">
+          <button
+            type="button"
+            className="text-sm font-medium text-foreground"
+            aria-expanded={showAdvancedMaintenance}
+            aria-controls="template-advanced-maintenance"
+            onClick={() => setShowAdvancedMaintenance(current => !current)}
+          >
+            Advanced maintenance
+          </button>
+          {showAdvancedMaintenance && (
+            <div id="template-advanced-maintenance" className="mt-4 grid gap-3 md:grid-cols-3">
+              <div className="space-y-2 rounded-md border bg-background p-3">
+                <p className="text-sm font-medium">Reload defaults</p>
+                <p className="text-sm text-muted-foreground">
+                  Re-adds official templates when the local template cache is missing expected rows.
+                </p>
+                <Button
+                  onClick={() => {
+                    logger.info('Force initializing templates', 'templates');
+                    initializeDefaultTemplates(true);
+                  }}
+                  variant="outline"
+                  size="sm"
+                >
+                  Force Initialize
+                </Button>
+              </div>
+
+              <div className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 p-3">
+                <p className="text-sm font-medium">Reset local templates</p>
+                <p className="text-sm text-muted-foreground">
+                  Clears local template data before loading defaults. Use only when template data is
+                  corrupted.
+                </p>
+                <Button onClick={() => setShowResetDialog(true)} variant="destructive" size="sm">
+                  Reset Templates
+                </Button>
+              </div>
+
+              <div className="space-y-2 rounded-md border bg-background p-3">
+                <p className="text-sm font-medium">Clean duplicate cache rows</p>
+                <p className="text-sm text-muted-foreground">
+                  Removes duplicate locally cached templates without changing the canonical template
+                  list.
+                </p>
+                <Button
+                  onClick={() => {
+                    const removed = cleanupDuplicateTemplates();
+                    logger.info('Cleaned up duplicate templates', 'templates', { removed });
+                  }}
+                  variant="outline"
+                  size="sm"
+                >
+                  Clean Duplicates
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Error Display */}
         {error && (
           <Card className="border-red-200 bg-red-50 mb-6">

@@ -189,13 +189,19 @@ describe('sidebar "People" link visibility', () => {
     expect(people!.title).toBe('People');
   });
 
-  it('appears in Browse section for site_admin', () => {
+  it('does NOT appear in sidebar for pure site_admin', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN]);
+    const allHrefs = config.groups.flatMap(g => g.items.map(i => i.href));
+    expect(allHrefs).not.toContain('/people');
+  });
+
+  it('appears in Browse section for site_admin with secretary workflow', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN, UserRole.SECRETARY]);
     const browse = config.groups.find(g => g.title === 'Browse');
     expect(browse).toBeDefined();
-    const people = browse!.items.find(i => i.href === '/people');
+    const people = browse?.items.find(i => i.href === '/people');
     expect(people).toBeDefined();
-    expect(people!.title).toBe('People');
+    expect(people?.title).toBe('People');
   });
 
   it('does NOT appear in sidebar for exhibitor-only users', () => {

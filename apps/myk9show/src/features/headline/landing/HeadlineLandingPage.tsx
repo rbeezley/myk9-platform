@@ -48,7 +48,10 @@ function joinOrFallback(items: string[], fallback: string): string {
   return present.length > 0 ? present.join(' · ') : fallback;
 }
 
-function getHeroTitleParts(showName: string | null | undefined): { base: string; suffix: string | null } {
+function getHeroTitleParts(showName: string | null | undefined): {
+  base: string;
+  suffix: string | null;
+} {
   const base = showName?.trim() || 'Scent Work';
   return /\btrial\b/i.test(base) ? { base, suffix: null } : { base, suffix: 'Trial' };
 }
@@ -367,7 +370,8 @@ export function HeadlineLandingPage({
 
   const data = useHeritageLandingData(show, trial, allTrials);
   const classesHref = publicClassesHref(show?.id, allTrials);
-  const canEnterOnline = hasEntryClassInventory !== false;
+  const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
+  const canEnterOnline = hasEntryClassInventory !== false && !entryCountdown.closed;
 
   return (
     <div data-headline className="hd-shell">

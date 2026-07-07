@@ -34,9 +34,14 @@ If a need already belongs to another page, add a clear link or filtered deep-lin
 
 Branch/worktree: `codex/exhibitor-ux-audit`
 
+OpenSpec change: `exhibitor-elderly-ux-remediation`
+
 Already completed in this branch:
 
 - Closed Monogram show CTAs no longer advertise "Enter this show"; they show closed-state guidance instead.
+- Premium-style public landings now gate entry CTAs on both class readiness and entry-close state across Heritage, Field Guide, Magazine, Gazette, Banner, Poster, Headline, and Monogram.
+- Direct `/shows/:showId/register` URLs now stop on a closed-entry recovery screen before dog/class selection.
+- Post-deadline My Entries cards provide "Message the show team" instead of silently dropping the edit path.
 - Dog height/weight conversion no longer saves blank invalid values as `NaN`.
 - Dog detail hides invalid or blank measurements instead of displaying `NaN` or accidental zero.
 - Focused tests added for those behaviors.
@@ -49,6 +54,19 @@ npx vitest run src/components/dogs/DogDetailsMain/utils.test.ts src/components/d
 ```
 
 Result: 3 test files passed, 17 tests passed.
+
+```bash
+cd apps/myk9show
+pnpm exec vitest run src/pages/RegistrationWizardPage/entryCloseGuard.test.ts src/pages/__tests__/RegistrationWizardPage.workflowMode.test.tsx src/features/monogram/landing/__tests__/entryCtas.test.tsx src/features/heritage/landing/__tests__/heritageEnterCtaGating.test.tsx src/features/fieldGuide/landing/__tests__/fieldGuideEnterCtaGating.test.tsx src/features/magazine/landing/__tests__/magazineEnterCtaGating.test.tsx src/features/gazette/landing/__tests__/gazetteEnterCtaGating.test.tsx src/features/poster/landing/__tests__/posterEnterCtaGating.test.tsx src/features/banner/landing/__tests__/bannerEnterCtaGating.test.tsx src/features/headline/landing/__tests__/HeadlineLandingPage.test.tsx src/components/dogs/DogDetailsMain/utils.test.ts src/components/dogs/DogDetailsMain/sidebar/AboutCard.test.tsx src/pages/MyEntriesPage/modules/MyEntryCard.test.tsx
+```
+
+Result: 13 test files passed, 132 tests passed.
+
+```bash
+pnpm typecheck
+```
+
+Result: passed.
 
 ## Phase 1 - Stop Impossible Entry Paths
 
@@ -199,6 +217,18 @@ pnpm test:e2e -- <focused exhibitor specs>
 ```
 
 If the known test-suite hang appears for more than 60 seconds without useful output, stop and report the hang rather than retrying in a loop.
+
+## Validation Profile
+
+- Risk: high
+- Validation: full
+- Rationale: The full remediation touches entry gating, payments, show-day routing, check-in state, dog profile editing, and onboarding; ship each slice with focused tests, then run relevant app typecheck/E2E and browser audit evidence before considering that slice complete.
+
+## Rollback / Recovery
+
+- Each implementation slice should remain independently revertible because no shared-system writes or data migrations are planned.
+- If a slice exposes a contradictory state after merge, roll back the slice's UI/helper changes and keep the existing canonical pages as the fallback.
+- Do not archive the OpenSpec change until the final required remediation PR is merged or explicitly deferred in tracking.
 
 ## Rollout Order
 

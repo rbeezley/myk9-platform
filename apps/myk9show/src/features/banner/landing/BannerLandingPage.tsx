@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
+import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { ensureBannerFontsLoaded } from '../fonts';
 import { useBannerLandingData } from './useBannerLandingData';
 import { FlagMasthead } from './sections/FlagMasthead';
@@ -47,7 +48,8 @@ export function BannerLandingPage({
   const data = useBannerLandingData(show, trial, allTrials);
   const classesHref = publicClassesHref(show?.id, allTrials);
   const { brandColors } = data;
-  const canEnterOnline = hasEntryClassInventory !== false;
+  const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
+  const canEnterOnline = hasEntryClassInventory !== false && !entryCountdown.closed;
 
   return (
     <div

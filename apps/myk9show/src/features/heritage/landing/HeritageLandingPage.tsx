@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
+import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { ensureHeritageFontsLoaded } from '../fonts';
 import { useHeritageLandingData } from './useHeritageLandingData';
 import { StickyNav } from './sections/StickyNav';
@@ -46,7 +47,8 @@ export function HeritageLandingPage({
   // (entryWizardUrl) is auth-gated, so a signed-out visitor would bounce to /sign-in.
   // The trial details page is public and lists the offered classes (UX-P2-04-EXP).
   const classesHref = publicClassesHref(show?.id, allTrials);
-  const canEnterOnline = hasEntryClassInventory !== false;
+  const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
+  const canEnterOnline = hasEntryClassInventory !== false && !entryCountdown.closed;
 
   return (
     // INTENT: Heritage is a deliberately fixed-light public style. It keeps the

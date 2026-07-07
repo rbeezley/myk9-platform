@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
+import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { ensureMagazineFontsLoaded } from '../fonts';
 import { useMagazineLandingData } from './useMagazineLandingData';
 import { StickyNav } from './sections/StickyNav';
@@ -48,7 +49,8 @@ export function MagazineLandingPage({
 
   const data = useMagazineLandingData(show, trial, allTrials);
   const classesHref = publicClassesHref(show?.id, allTrials);
-  const canEnterOnline = hasEntryClassInventory !== false;
+  const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
+  const canEnterOnline = hasEntryClassInventory !== false && !entryCountdown.closed;
 
   const editionLabel = useMemo(() => {
     const year = data.trialStartDate
@@ -73,10 +75,7 @@ export function MagazineLandingPage({
       <meta property="og:title" content={`${data.showName} · ${data.clubName}`} />
       <meta property="og:description" content={data.showSubtitle} />
       <meta property="og:type" content="event" />
-      <meta
-        property="og:url"
-        content={typeof window !== 'undefined' ? window.location.href : ''}
-      />
+      <meta property="og:url" content={typeof window !== 'undefined' ? window.location.href : ''} />
       <meta name="twitter:card" content="summary_large_image" />
       {data.coverImageUrl && <meta property="og:image" content={data.coverImageUrl} />}
 

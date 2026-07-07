@@ -32,7 +32,7 @@
 - [x] 5.1 Run `pnpm openspec validate --changes prevent-duplicate-dog-identities`.
 - [x] 5.2 Update relevant tracking docs if this completes or adds a launch-readiness backlog item.
 - [x] 5.3 Commit the implementation branch.
-- [ ] 5.4 Open a PR with `Tracked in openspec change: prevent-duplicate-dog-identities` and the verification evidence.
+- [x] 5.4 Open a PR with `Tracked in openspec change: prevent-duplicate-dog-identities` and the verification evidence.
 - [ ] 5.5 Confirm CI/review status before merge; do not archive until the PR is merged.
 
 ## Validation Profile

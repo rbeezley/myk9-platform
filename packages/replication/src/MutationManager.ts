@@ -992,17 +992,23 @@ export class MutationManager {
     const replicatedRows = (await db.getAll(
       REPLICATION_STORES.REPLICATED_TABLES
     )) as ReplicatedRow<Record<string, unknown>>[];
+    const existingCanonicalDog = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, [
+      'dogs',
+      newRowId,
+    ])) as ReplicatedRow<Record<string, unknown>> | undefined;
 
     for (const row of replicatedRows) {
       if (row.tableName === 'dogs' && row.id === oldRowId) {
-        const remapped = this.remapDogIdReferences(row.data, oldRowId, newRowId, {
-          replacePrimaryId: true,
-        });
-        await db.put(REPLICATION_STORES.REPLICATED_TABLES, {
-          ...row,
-          id: newRowId,
-          data: remapped.data,
-        });
+        if (!existingCanonicalDog) {
+          const remapped = this.remapDogIdReferences(row.data, oldRowId, newRowId, {
+            replacePrimaryId: true,
+          });
+          await db.put(REPLICATION_STORES.REPLICATED_TABLES, {
+            ...row,
+            id: newRowId,
+            data: remapped.data,
+          });
+        }
         await db.delete(REPLICATION_STORES.REPLICATED_TABLES, [row.tableName, oldRowId]);
         continue;
       }

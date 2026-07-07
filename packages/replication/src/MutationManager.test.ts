@@ -642,6 +642,16 @@ describe('MutationManager', () => {
       );
       await mockDb.put(REPLICATION_STORES.REPLICATED_TABLES, {
         tableName: 'dogs',
+        id: 'existing-dog-1',
+        data: { id: 'existing-dog-1', name: 'Canonical Beacon', ownerId: 'person-1' },
+        version: 3,
+        lastSyncedAt: 123,
+        lastAccessedAt: 123,
+        isDirty: false,
+        syncStatus: 'synced',
+      } satisfies ReplicatedRow<Record<string, unknown>>);
+      await mockDb.put(REPLICATION_STORES.REPLICATED_TABLES, {
+        tableName: 'dogs',
         id: 'dog-1',
         data: { id: 'dog-1', name: 'Beacon', ownerId: 'person-1' },
         version: 1,
@@ -731,6 +741,7 @@ describe('MutationManager', () => {
         expect.objectContaining({ id: 'entry-1', dog_id: 'existing-dog-1' })
       );
       expect(remappedDog?.data.id).toBe('existing-dog-1');
+      expect(remappedDog?.data.name).toBe('Canonical Beacon');
       expect(remappedDog?.syncStatus).toBe('synced');
       expect(oldDog).toBeUndefined();
       expect(remappedEntry?.data.dogId).toBe('existing-dog-1');

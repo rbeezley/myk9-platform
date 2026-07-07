@@ -9,7 +9,11 @@ describe('Magazine landing Enter CTA gating', () => {
   describe('StickyNav', () => {
     it('renders the Enter link when canEnterOnline is omitted (default true)', () => {
       const { getByRole, queryByText } = render(
-        <StickyNav clubName="Test Kennel Club" editionLabel="Edition · 2026" entryWizardUrl={ENTRY_URL} />
+        <StickyNav
+          clubName="Test Kennel Club"
+          editionLabel="Edition · 2026"
+          entryWizardUrl={ENTRY_URL}
+        />
       );
 
       const link = getByRole('link', { name: /enter the trial/i });
@@ -43,6 +47,22 @@ describe('Magazine landing Enter CTA gating', () => {
       expect(queryByRole('link', { name: /enter the trial/i })).toBeNull();
       expect(getByText(/classes pending/i)).toBeInTheDocument();
     });
+
+    it('shows closed-entry copy when entries are closed', () => {
+      const { queryByRole, getByText, queryByText } = render(
+        <StickyNav
+          clubName="Test Kennel Club"
+          editionLabel="Edition · 2026"
+          entryWizardUrl={ENTRY_URL}
+          canEnterOnline={false}
+          entryClosed
+        />
+      );
+
+      expect(queryByRole('link', { name: /enter the trial/i })).toBeNull();
+      expect(getByText(/entries closed/i)).toBeInTheDocument();
+      expect(queryByText(/classes pending/i)).toBeNull();
+    });
   });
 
   describe('FinalEditorialBand', () => {
@@ -58,7 +78,9 @@ describe('Magazine landing Enter CTA gating', () => {
       const link = getByRole('link', { name: /open the entry wizard/i });
       expect(link).toHaveAttribute('href', ENTRY_URL);
       expect(
-        queryByText(/the secretary still needs to assign classes before online entry is available\./i)
+        queryByText(
+          /the secretary still needs to assign classes before online entry is available\./i
+        )
       ).toBeNull();
     });
 
@@ -93,6 +115,22 @@ describe('Magazine landing Enter CTA gating', () => {
         getByText(/the secretary still needs to assign classes before online entry is available\./i)
       ).toBeInTheDocument();
       expect(getByText(/classes are assigned/i)).toBeInTheDocument();
+    });
+
+    it('shows closed-entry guidance when entries are closed', () => {
+      const { queryByRole, getByText, queryByText } = render(
+        <FinalEditorialBand
+          entryWizardUrl={ENTRY_URL}
+          entryCloseDate={null}
+          timezone="America/New_York"
+          canEnterOnline={false}
+          entryClosed
+        />
+      );
+
+      expect(queryByRole('link', { name: /open the entry wizard/i })).toBeNull();
+      expect(getByText(/Contact the trial secretary/i)).toBeInTheDocument();
+      expect(queryByText(/classes are assigned/i)).toBeNull();
     });
   });
 });

@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
-import { useCountdown } from '@/features/_shared/hooks/useCountdown';
+import { isCountdownTargetClosed } from '@/features/_shared/hooks/useCountdown';
 import { ensureHeritageFontsLoaded } from '../fonts';
 import { useHeritageLandingData } from './useHeritageLandingData';
 import { StickyNav } from './sections/StickyNav';
@@ -47,8 +47,8 @@ export function HeritageLandingPage({
   // (entryWizardUrl) is auth-gated, so a signed-out visitor would bounce to /sign-in.
   // The trial details page is public and lists the offered classes (UX-P2-04-EXP).
   const classesHref = publicClassesHref(show?.id, allTrials);
-  const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
-  const canEnterOnline = hasEntryClassInventory !== false && !entryCountdown.closed;
+  const entryClosed = isCountdownTargetClosed(data.entryCloseDate, data.timezone);
+  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed;
 
   return (
     // INTENT: Heritage is a deliberately fixed-light public style. It keeps the
@@ -77,6 +77,7 @@ export function HeritageLandingPage({
         clubName={data.clubName}
         entryWizardUrl={data.entryWizardUrl}
         canEnterOnline={canEnterOnline}
+        entryClosed={entryClosed}
       />
 
       <main>
@@ -93,6 +94,7 @@ export function HeritageLandingPage({
           entryWizardUrl={data.entryWizardUrl}
           classesHref={classesHref}
           canEnterOnline={canEnterOnline}
+          entryClosed={entryClosed}
         />
 
         <WelcomeSection welcomeText={data.welcomeText} trialChairName={data.trialChairName} />
@@ -135,7 +137,11 @@ export function HeritageLandingPage({
           secretaryEmail={data.secretaryEmail}
         />
 
-        <FinalCtaBand entryWizardUrl={data.entryWizardUrl} canEnterOnline={canEnterOnline} />
+        <FinalCtaBand
+          entryWizardUrl={data.entryWizardUrl}
+          canEnterOnline={canEnterOnline}
+          entryClosed={entryClosed}
+        />
       </main>
 
       <HeritageFooter

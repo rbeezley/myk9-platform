@@ -38,10 +38,19 @@ describe('Poster StickyNav enter-CTA gating', () => {
 
   it('hides the Enter link and shows the fallback when canEnterOnline is false', () => {
     const { container, getByText } = render(
-      <StickyNav {...stickyNavProps} canEnterOnline={false} />,
+      <StickyNav {...stickyNavProps} canEnterOnline={false} />
     );
     expect(container.querySelector(`a[href="${ENTRY_URL}"]`)).toBeNull();
     expect(getByText('Classes pending')).toBeTruthy();
+  });
+
+  it('shows closed-entry copy when entries are closed', () => {
+    const { container, getByText, queryByText } = render(
+      <StickyNav {...stickyNavProps} canEnterOnline={false} entryClosed />
+    );
+    expect(container.querySelector(`a[href="${ENTRY_URL}"]`)).toBeNull();
+    expect(getByText('Entries closed')).toBeTruthy();
+    expect(queryByText('Classes pending')).toBeNull();
   });
 });
 
@@ -60,13 +69,20 @@ describe('Poster FinalCtaSection enter-CTA gating', () => {
 
   it('hides the Enter link and shows the fallback copy when canEnterOnline is false', () => {
     const { container, getByText } = render(
-      <FinalCtaSection {...finalCtaProps} canEnterOnline={false} />,
+      <FinalCtaSection {...finalCtaProps} canEnterOnline={false} />
     );
     expect(container.querySelector(`a[href="${ENTRY_URL}"]`)).toBeNull();
     expect(
-      getByText(
-        'The secretary still needs to assign classes before online entry is available.',
-      ),
+      getByText('The secretary still needs to assign classes before online entry is available.')
     ).toBeTruthy();
+  });
+
+  it('shows closed-entry guidance when entries are closed', () => {
+    const { container, getByText, queryByText } = render(
+      <FinalCtaSection {...finalCtaProps} canEnterOnline={false} entryClosed />
+    );
+    expect(container.querySelector(`a[href="${ENTRY_URL}"]`)).toBeNull();
+    expect(getByText(/Contact the trial secretary/i)).toBeTruthy();
+    expect(queryByText(/classes are assigned/i)).toBeNull();
   });
 });

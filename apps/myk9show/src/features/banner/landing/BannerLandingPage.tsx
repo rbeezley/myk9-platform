@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
-import { useCountdown } from '@/features/_shared/hooks/useCountdown';
+import { isCountdownTargetClosed } from '@/features/_shared/hooks/useCountdown';
 import { ensureBannerFontsLoaded } from '../fonts';
 import { useBannerLandingData } from './useBannerLandingData';
 import { FlagMasthead } from './sections/FlagMasthead';
@@ -48,8 +48,8 @@ export function BannerLandingPage({
   const data = useBannerLandingData(show, trial, allTrials);
   const classesHref = publicClassesHref(show?.id, allTrials);
   const { brandColors } = data;
-  const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
-  const canEnterOnline = hasEntryClassInventory !== false && !entryCountdown.closed;
+  const entryClosed = isCountdownTargetClosed(data.entryCloseDate, data.timezone);
+  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed;
 
   return (
     <div
@@ -94,6 +94,7 @@ export function BannerLandingPage({
         entryWizardUrl={data.entryWizardUrl}
         classesHref={classesHref}
         canEnterOnline={canEnterOnline}
+        entryClosed={entryClosed}
       />
 
       <StickyNav
@@ -148,6 +149,7 @@ export function BannerLandingPage({
           entryCloseDate={data.entryCloseDate}
           timezone={data.timezone}
           canEnterOnline={canEnterOnline}
+          entryClosed={entryClosed}
         />
       </main>
 

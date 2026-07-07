@@ -7,6 +7,7 @@ const landingDataState = vi.hoisted(() => ({
   showName: 'Spring Scent Work Trial',
   entryCount: 137,
   entryLimit: 360 as number | null,
+  entryClosed: false,
 }));
 
 vi.mock('@/features/headline/fonts', () => ({
@@ -14,12 +15,13 @@ vi.mock('@/features/headline/fonts', () => ({
 }));
 
 vi.mock('@/features/heritage/hooks/useCountdown', () => ({
+  isCountdownTargetClosed: () => landingDataState.entryClosed,
   useCountdown: () => ({
     days: 12,
     hours: 6,
     minutes: 38,
     seconds: 4,
-    closed: false,
+    closed: landingDataState.entryClosed,
     hasTarget: true,
   }),
 }));
@@ -84,6 +86,7 @@ describe('HeadlineLandingPage', () => {
     landingDataState.showName = 'Spring Scent Work Trial';
     landingDataState.entryCount = 137;
     landingDataState.entryLimit = 360;
+    landingDataState.entryClosed = false;
     if (originalTimezone) {
       process.env.TZ = originalTimezone;
     } else {
@@ -170,6 +173,20 @@ describe('HeadlineLandingPage', () => {
         'The secretary still needs to assign classes before online entry is available.'
       ).length
     ).toBeGreaterThan(0);
+  });
+
+  it('shows closed-entry guidance instead of classes-pending copy when entries are closed', () => {
+    landingDataState.entryClosed = true;
+
+    render(
+      <HeadlineLandingPage show={null} trial={null} allTrials={[]} hasEntryClassInventory={true} />
+    );
+
+    expect(screen.queryByRole('link', { name: /enter this show/i })).toBeNull();
+    expect(screen.getByText('Entries closed')).toBeTruthy();
+    expect(screen.queryByText('Classes pending')).toBeNull();
+    expect(screen.getAllByText(/late-entry help/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/no classes are assigned yet/i)).toBeNull();
   });
 
   it('does not present unknown entry limits as a false percentage', () => {

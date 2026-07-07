@@ -19,6 +19,7 @@ interface HeroBlockProps {
   entryWizardUrl: string;
   classesHref: string | null;
   canEnterOnline?: boolean;
+  entryClosed?: boolean;
 }
 
 function CountdownBlock({
@@ -99,6 +100,7 @@ export function HeroBlock({
   entryWizardUrl,
   classesHref,
   canEnterOnline = true,
+  entryClosed = false,
 }: HeroBlockProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>(0.1);
   const { days, hours, minutes, closed } = useCountdown(entryCloseDate, timezone);
@@ -230,7 +232,9 @@ export function HeroBlock({
                 fontFamily: "'EB Garamond', Georgia, serif",
               }}
             >
-              Entries are not available yet because no classes are assigned yet.
+              {entryClosed
+                ? 'Entries are closed for this show. Contact the trial secretary for late-entry help.'
+                : 'Entries are not available yet because no classes are assigned yet.'}
             </p>
           )}
           <SeeClassesLink

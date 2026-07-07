@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
-import { useCountdown } from '@/features/_shared/hooks/useCountdown';
+import { isCountdownTargetClosed } from '@/features/_shared/hooks/useCountdown';
 import { ensurePosterFontsLoaded } from '../fonts';
 import { posterColors } from '../tokens';
 import { usePosterLandingData } from './usePosterLandingData';
@@ -62,8 +62,8 @@ export function PosterLandingPage({
 
   const data = usePosterLandingData(show, trial, allTrials);
   const classesHref = publicClassesHref(show?.id, allTrials);
-  const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
-  const canEnterOnline = hasEntryClassInventory !== false && !entryCountdown.closed;
+  const entryClosed = isCountdownTargetClosed(data.entryCloseDate, data.timezone);
+  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed;
 
   // Build the show abbreviation from the first letters of words, e.g.
   // "Spring Scent Work" → "SSW". Falls back to first 4 chars if too short.
@@ -112,6 +112,7 @@ export function PosterLandingPage({
         entryLimit={data.entryLimit}
         entryWizardUrl={data.entryWizardUrl}
         canEnterOnline={canEnterOnline}
+        entryClosed={entryClosed}
       />
 
       <HeroBlock
@@ -152,6 +153,7 @@ export function PosterLandingPage({
           entryCloseDate={data.entryCloseDate}
           timezone={data.timezone}
           canEnterOnline={canEnterOnline}
+          entryClosed={entryClosed}
         />
       </main>
 

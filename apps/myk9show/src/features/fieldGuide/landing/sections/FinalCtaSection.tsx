@@ -17,6 +17,7 @@ interface FinalCtaSectionProps {
   entryLimit: number | null;
   /** When false, the show has no classes assigned — gate the Enter CTA. */
   canEnterOnline?: boolean;
+  entryClosed?: boolean;
 }
 
 /**
@@ -32,6 +33,7 @@ export function FinalCtaSection({
   timezone,
   entryLimit,
   canEnterOnline = true,
+  entryClosed = false,
 }: FinalCtaSectionProps) {
   const countdown = useCountdown(entryCloseDate, timezone);
   // Gate on countdown.closed (not just entryCloseDate presence) so a past close
@@ -88,6 +90,10 @@ export function FinalCtaSection({
               <>
                 Submit your <span style={{ color: fieldGuideColors.orange }}>entry</span>.
               </>
+            ) : entryClosed ? (
+              <>
+                Entries are <span style={{ color: fieldGuideColors.orange }}>closed</span>.
+              </>
             ) : (
               <>
                 Entries open when{' '}
@@ -106,94 +112,96 @@ export function FinalCtaSection({
             }}
           >
             {!canEnterOnline
-              ? 'The secretary still needs to assign classes before online entry is available.'
+              ? entryClosed
+                ? 'Contact the trial secretary for late-entry help.'
+                : 'The secretary still needs to assign classes before online entry is available.'
               : entryLimit != null
                 ? `${entryLimit} runs · first-received basis until the limit is hit.`
                 : 'First-received basis. Refunds (less processing fees) for written withdrawals received before close.'}
           </p>
         </div>
         {canEnterOnline && (
-        <div
-          style={{
-            background: fieldGuideColors.paper,
-            color: fieldGuideColors.ink,
-            padding: 24,
-          }}
-        >
           <div
             style={{
-              fontFamily: FIELD_GUIDE_MONO_FAMILY,
-              fontWeight: 600,
-              fontSize: 10.5,
-              letterSpacing: '0.04em',
-              color: fieldGuideColors.orangeDeep,
-              textTransform: 'uppercase',
-              marginBottom: 6,
-            }}
-          >
-            ONLINE ENTRY URL
-          </div>
-          <div
-            style={{
-              fontFamily: FIELD_GUIDE_DISPLAY_FAMILY,
-              fontWeight: 700,
-              fontSize: 16,
-              letterSpacing: '-0.005em',
+              background: fieldGuideColors.paper,
               color: fieldGuideColors.ink,
-              marginBottom: 16,
-              wordBreak: 'break-all',
+              padding: 24,
             }}
           >
-            {/* Show origin + path so the URL is correct on every environment
+            <div
+              style={{
+                fontFamily: FIELD_GUIDE_MONO_FAMILY,
+                fontWeight: 600,
+                fontSize: 10.5,
+                letterSpacing: '0.04em',
+                color: fieldGuideColors.orangeDeep,
+                textTransform: 'uppercase',
+                marginBottom: 6,
+              }}
+            >
+              ONLINE ENTRY URL
+            </div>
+            <div
+              style={{
+                fontFamily: FIELD_GUIDE_DISPLAY_FAMILY,
+                fontWeight: 700,
+                fontSize: 16,
+                letterSpacing: '-0.005em',
+                color: fieldGuideColors.ink,
+                marginBottom: 16,
+                wordBreak: 'break-all',
+              }}
+            >
+              {/* Show origin + path so the URL is correct on every environment
                 (staging vercel host, prod, preview deploys). Falls back to
                 the relative path during SSR / tests where `window` is undef. */}
-            {(typeof window !== 'undefined' ? window.location.host : '') + entryWizardUrl}
-          </div>
-          <a
-            href={entryWizardUrl}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: 44,
-              width: '100%',
-              textAlign: 'center',
-              padding: 14,
-              background: fieldGuideColors.orange,
-              color: fieldGuideColors.paper,
-              fontFamily: FIELD_GUIDE_DISPLAY_FAMILY,
-              fontWeight: 700,
-              fontSize: 14,
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase',
-              textDecoration: 'none',
-            }}
-          >
-            SUBMIT ENTRY →
-          </a>
-          <div style={{ marginTop: 10, textAlign: 'center' }}>
-            <SeeClassesLink
-              href={classesHref}
+              {(typeof window !== 'undefined' ? window.location.host : '') + entryWizardUrl}
+            </div>
+            <a
+              href={entryWizardUrl}
               style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: 44,
+                width: '100%',
+                textAlign: 'center',
+                padding: 14,
+                background: fieldGuideColors.orange,
                 color: fieldGuideColors.paper,
-                fontFamily: FIELD_GUIDE_BODY_FAMILY,
+                fontFamily: FIELD_GUIDE_DISPLAY_FAMILY,
+                fontWeight: 700,
+                fontSize: 14,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                textDecoration: 'none',
               }}
-            />
+            >
+              SUBMIT ENTRY →
+            </a>
+            <div style={{ marginTop: 10, textAlign: 'center' }}>
+              <SeeClassesLink
+                href={classesHref}
+                style={{
+                  color: fieldGuideColors.paper,
+                  fontFamily: FIELD_GUIDE_BODY_FAMILY,
+                }}
+              />
+            </div>
+            <div
+              style={{
+                fontFamily: FIELD_GUIDE_MONO_FAMILY,
+                fontWeight: 500,
+                fontSize: 10.5,
+                letterSpacing: '0.04em',
+                color: fieldGuideColors.mute,
+                marginTop: 10,
+                textAlign: 'center',
+              }}
+            >
+              ~3 MIN · SAVES &amp; RESUMES
+            </div>
           </div>
-          <div
-            style={{
-              fontFamily: FIELD_GUIDE_MONO_FAMILY,
-              fontWeight: 500,
-              fontSize: 10.5,
-              letterSpacing: '0.04em',
-              color: fieldGuideColors.mute,
-              marginTop: 10,
-              textAlign: 'center',
-            }}
-          >
-            ~3 MIN · SAVES &amp; RESUMES
-          </div>
-        </div>
         )}
       </div>
     </FieldGuideDarkBand>

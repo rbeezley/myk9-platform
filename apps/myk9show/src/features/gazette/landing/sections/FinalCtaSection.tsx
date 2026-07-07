@@ -8,6 +8,7 @@ interface FinalCtaSectionProps {
   entryCloseDate: string | null;
   timezone: string;
   canEnterOnline?: boolean;
+  entryClosed?: boolean;
 }
 
 /**
@@ -22,6 +23,7 @@ export function FinalCtaSection({
   entryCloseDate,
   timezone,
   canEnterOnline = true,
+  entryClosed = false,
 }: FinalCtaSectionProps) {
   const countdown = useCountdown(entryCloseDate, timezone);
   // Gate on countdown.closed (not just entryCloseDate presence) so a past close
@@ -71,11 +73,27 @@ export function FinalCtaSection({
         >
           {canEnterOnline ? (
             <>
-              You are <em style={{ fontStyle: 'italic', fontWeight: 400, color: 'rgba(247,241,227,0.85)' }}>cordially invited</em> to enter.
+              You are{' '}
+              <em style={{ fontStyle: 'italic', fontWeight: 400, color: 'rgba(247,241,227,0.85)' }}>
+                cordially invited
+              </em>{' '}
+              to enter.
+            </>
+          ) : entryClosed ? (
+            <>
+              Entries are{' '}
+              <em style={{ fontStyle: 'italic', fontWeight: 400, color: 'rgba(247,241,227,0.85)' }}>
+                closed
+              </em>
+              .
             </>
           ) : (
             <>
-              Entries open when <em style={{ fontStyle: 'italic', fontWeight: 400, color: 'rgba(247,241,227,0.85)' }}>classes are assigned</em>.
+              Entries open when{' '}
+              <em style={{ fontStyle: 'italic', fontWeight: 400, color: 'rgba(247,241,227,0.85)' }}>
+                classes are assigned
+              </em>
+              .
             </>
           )}
         </h2>
@@ -92,7 +110,9 @@ export function FinalCtaSection({
         >
           {canEnterOnline
             ? 'First-received basis until the limit is hit.'
-            : 'The secretary still needs to assign classes before online entry is available.'}
+            : entryClosed
+              ? 'Contact the trial secretary for late-entry help.'
+              : 'The secretary still needs to assign classes before online entry is available.'}
         </p>
         {canEnterOnline && (
           <a

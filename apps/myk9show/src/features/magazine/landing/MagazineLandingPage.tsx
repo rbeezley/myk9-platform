@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
-import { useCountdown } from '@/features/_shared/hooks/useCountdown';
+import { isCountdownTargetClosed } from '@/features/_shared/hooks/useCountdown';
 import { ensureMagazineFontsLoaded } from '../fonts';
 import { useMagazineLandingData } from './useMagazineLandingData';
 import { StickyNav } from './sections/StickyNav';
@@ -49,8 +49,8 @@ export function MagazineLandingPage({
 
   const data = useMagazineLandingData(show, trial, allTrials);
   const classesHref = publicClassesHref(show?.id, allTrials);
-  const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
-  const canEnterOnline = hasEntryClassInventory !== false && !entryCountdown.closed;
+  const entryClosed = isCountdownTargetClosed(data.entryCloseDate, data.timezone);
+  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed;
 
   const editionLabel = useMemo(() => {
     const year = data.trialStartDate
@@ -84,6 +84,7 @@ export function MagazineLandingPage({
         editionLabel={editionLabel}
         entryWizardUrl={data.entryWizardUrl}
         canEnterOnline={canEnterOnline}
+        entryClosed={entryClosed}
       />
 
       <main>
@@ -162,6 +163,7 @@ export function MagazineLandingPage({
           entryCloseDate={data.entryCloseDate}
           timezone={data.timezone}
           canEnterOnline={canEnterOnline}
+          entryClosed={entryClosed}
         />
       </main>
 

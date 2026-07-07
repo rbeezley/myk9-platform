@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
-import { useCountdown } from '@/features/_shared/hooks/useCountdown';
+import { isCountdownTargetClosed } from '@/features/_shared/hooks/useCountdown';
 import { ensureFieldGuideFontsLoaded } from '../fonts';
 import { useFieldGuideLandingData } from './useFieldGuideLandingData';
 import { TopStrip } from './sections/TopStrip';
@@ -45,8 +45,8 @@ export function FieldGuideLandingPage({
 
   const data = useFieldGuideLandingData(show, trial, allTrials);
   const classesHref = publicClassesHref(show?.id, allTrials);
-  const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
-  const canEnterOnline = hasEntryClassInventory !== false && !entryCountdown.closed;
+  const entryClosed = isCountdownTargetClosed(data.entryCloseDate, data.timezone);
+  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed;
 
   return (
     <div data-field-guide className="min-h-screen">
@@ -69,6 +69,7 @@ export function FieldGuideLandingPage({
         entryWizardUrl={data.entryWizardUrl}
         entryLimit={data.entryLimit}
         canEnterOnline={canEnterOnline}
+        entryClosed={entryClosed}
       />
 
       <DataGridHero
@@ -125,6 +126,7 @@ export function FieldGuideLandingPage({
         timezone={data.timezone}
         entryLimit={data.entryLimit}
         canEnterOnline={canEnterOnline}
+        entryClosed={entryClosed}
       />
 
       <FieldGuideFooter

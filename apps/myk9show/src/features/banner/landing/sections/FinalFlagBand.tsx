@@ -11,6 +11,7 @@ interface FinalFlagBandProps {
   entryCloseDate: string | null;
   timezone: string;
   canEnterOnline?: boolean;
+  entryClosed?: boolean;
   /** Prefix copy before the colored accent word. Default: "See you". */
   closingLead?: string;
   /** Colored accent word inside the final headline. Default: "ringside". */
@@ -23,6 +24,7 @@ export function FinalFlagBand({
   entryCloseDate,
   timezone,
   canEnterOnline = true,
+  entryClosed = false,
   closingLead = 'See you',
   closingAccent = 'ringside',
 }: FinalFlagBandProps) {
@@ -71,8 +73,11 @@ export function FinalFlagBand({
         >
           {canEnterOnline ? (
             <>
-              {closingLead}{' '}
-              <span style={{ color: brandColors.flagBright }}>{closingAccent}.</span>
+              {closingLead} <span style={{ color: brandColors.flagBright }}>{closingAccent}.</span>
+            </>
+          ) : entryClosed ? (
+            <>
+              Entries are <span style={{ color: brandColors.flagBright }}>closed.</span>
             </>
           ) : (
             <>
@@ -115,7 +120,9 @@ export function FinalFlagBand({
               opacity: 0.85,
             }}
           >
-            The secretary still needs to assign classes before online entry is available.
+            {entryClosed
+              ? 'Contact the trial secretary for late-entry help.'
+              : 'The secretary still needs to assign classes before online entry is available.'}
           </p>
         )}
       </BannerFlagBar>

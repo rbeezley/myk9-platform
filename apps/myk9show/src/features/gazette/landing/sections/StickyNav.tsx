@@ -8,6 +8,7 @@ interface StickyNavProps {
   /** Optional edition strip ("VOL LXXIX · NO 47"). */
   editionLabel?: string | null;
   canEnterOnline?: boolean;
+  entryClosed?: boolean;
 }
 
 const SECTIONS = [
@@ -27,11 +28,14 @@ export function StickyNav({
   entryWizardUrl,
   editionLabel,
   canEnterOnline = true,
+  entryClosed = false,
 }: StickyNavProps) {
   const [activeId, setActiveId] = useState<string>('welcome');
 
   useEffect(() => {
-    const sectionEls = SECTIONS.map(s => document.getElementById(s.id)).filter(Boolean) as HTMLElement[];
+    const sectionEls = SECTIONS.map(s => document.getElementById(s.id)).filter(
+      Boolean
+    ) as HTMLElement[];
     if (!sectionEls.length) return;
 
     const observer = new IntersectionObserver(
@@ -127,7 +131,7 @@ export function StickyNav({
               fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
             }}
           >
-            Classes pending
+            {entryClosed ? 'Entries closed' : 'Classes pending'}
           </span>
         )}
       </div>

@@ -53,6 +53,15 @@ function resolveTargetInstant(targetIso: string, timeZone: string): Date {
   return new Date(targetIso);
 }
 
+export function isCountdownTargetClosed(
+  targetIso: string | null,
+  timeZone: string,
+  nowMs: number = Date.now()
+): boolean {
+  if (!targetIso) return false;
+  return resolveTargetInstant(targetIso, timeZone).getTime() - nowMs <= 0;
+}
+
 export interface CountdownValue {
   days: number;
   hours: number;

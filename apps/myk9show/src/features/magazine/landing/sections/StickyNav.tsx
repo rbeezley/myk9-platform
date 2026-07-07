@@ -6,6 +6,7 @@ interface StickyNavProps {
   editionLabel: string;
   entryWizardUrl: string;
   canEnterOnline?: boolean;
+  entryClosed?: boolean;
 }
 
 const SECTIONS = [
@@ -32,6 +33,7 @@ export function StickyNav({
   editionLabel,
   entryWizardUrl,
   canEnterOnline = true,
+  entryClosed = false,
 }: StickyNavProps) {
   // `null` until the observer locks on to a section. Treated as "no active
   // anchor" so the nav doesn't paint a misleading highlight on shows where
@@ -154,7 +156,7 @@ export function StickyNav({
             fontFamily: 'var(--mz-display)',
           }}
         >
-          Classes pending
+          {entryClosed ? 'Entries closed' : 'Classes pending'}
         </span>
       )}
     </nav>

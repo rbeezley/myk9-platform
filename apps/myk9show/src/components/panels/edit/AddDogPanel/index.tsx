@@ -38,9 +38,17 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   userRole = UserRole.EXHIBITOR,
   currentUserPersonId,
   variant = 'panel',
+  offlineFirst = false,
+  offlineDependsOn,
   onEnterShowWithDog,
 }) => {
-  const { addDog, dogs, isLoading: isSaving, error: saveError } = useDogStoreCompat();
+  const {
+    addDog,
+    addDogOfflineFirst,
+    dogs,
+    isLoading: isSaving,
+    error: saveError,
+  } = useDogStoreCompat();
   const [localSaveError, setLocalSaveError] = useState<string | null>(null);
   const [duplicateCandidate, setDuplicateCandidate] = useState<DogIdentityCandidate | null>(null);
   const [allowSeparateDog, setAllowSeparateDog] = useState(false);
@@ -110,7 +118,12 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
 
     let newDog;
     try {
-      newDog = await addDog(dogInput);
+      newDog = offlineFirst
+        ? await addDogOfflineFirst(
+            dogInput,
+            offlineDependsOn && offlineDependsOn.length > 0 ? { dependsOn: offlineDependsOn } : {}
+          )
+        : await addDog(dogInput);
     } catch (error) {
       setLocalSaveError(getErrorMessage(error));
       throw error;

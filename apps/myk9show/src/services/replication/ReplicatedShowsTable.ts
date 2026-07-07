@@ -45,6 +45,7 @@ export interface ReplicatedShow {
   entryCloseDate?: string | undefined;
   preEntryFee?: number | undefined;
   dayOfShowFee?: number | undefined;
+  startingArmbandNumber?: number | undefined;
   clubId?: string | undefined;
   maxEntriesPerDog?: number | undefined;
   maxTotalEntries?: number | undefined;
@@ -89,6 +90,7 @@ function rowToShow(row: ShowRow): ReplicatedShow {
     entryCloseDate: row.entry_close_date ?? undefined,
     preEntryFee: row.pre_entry_fee ?? undefined,
     dayOfShowFee: row.day_of_show_fee ?? undefined,
+    startingArmbandNumber: row.starting_armband_number ?? 100,
     clubId: row.club_id ?? undefined,
     maxEntriesPerDog: row.max_entries_per_dog ?? undefined,
     maxTotalEntries: row.max_total_entries ?? undefined,
@@ -167,6 +169,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       entry_close_date: show.entryCloseDate || null,
       pre_entry_fee: show.preEntryFee ?? null,
       day_of_show_fee: show.dayOfShowFee ?? null,
+      starting_armband_number: show.startingArmbandNumber ?? 100,
       club_id: show.clubId ?? null,
       max_entries_per_dog: show.maxEntriesPerDog ?? null,
       max_total_entries: show.maxTotalEntries ?? null,

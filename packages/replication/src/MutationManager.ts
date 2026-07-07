@@ -42,6 +42,11 @@ import { type PendingMutation, type ReplicatedRow, type SyncResult } from './typ
 
 const POSTGRES_UNIQUE_VIOLATION = '23505';
 
+interface MutationExecutionResult {
+  newServerVersion?: number;
+  remappedRowId?: string;
+}
+
 function isPrimaryKeyDuplicateError(error: unknown, tableName: string, rowId: string): boolean {
   const candidate = error as { code?: unknown; message?: unknown; details?: unknown } | null;
   if (candidate?.code !== POSTGRES_UNIQUE_VIOLATION) return false;
@@ -183,6 +188,27 @@ export class MutationManager {
   async getPendingCount(): Promise<number> {
     const db = await databaseManager.getDatabase('MutationManager');
     return db.count(REPLICATION_STORES.PENDING_MUTATIONS);
+  }
+
+  /**
+   * List queued mutations for a specific table row.
+   *
+   * This is intentionally narrow: callers can depend on a local row's pending
+   * mutation without reaching into the queue store directly.
+   */
+  async getPendingMutationsForRow(tableName: string, rowId: string): Promise<PendingMutation[]> {
+    const db = await databaseManager.getDatabase('MutationManager');
+    const all = (await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS)) as PendingMutation[];
+
+    return all
+      .filter(mutation => mutation.tableName === tableName && mutation.rowId === rowId)
+      .sort((a, b) => {
+        const sequenceA = a.sequenceNumber ?? Number.MAX_SAFE_INTEGER;
+        const sequenceB = b.sequenceNumber ?? Number.MAX_SAFE_INTEGER;
+        if (sequenceA !== sequenceB) return sequenceA - sequenceB;
+        if (a.timestamp !== b.timestamp) return a.timestamp - b.timestamp;
+        return a.id.localeCompare(b.id);
+      });
   }
 
   // ========================================
@@ -480,6 +506,13 @@ export class MutationManager {
       // Sort mutations to respect dependencies
       const ordering = sortMutationsByDependencies(pending as PendingMutation[]);
       const sortedMutations = ordering.sorted;
+      const queuedMutationIds = new Set(sortedMutations.map(mutation => mutation.id));
+      const uploadedMutationIds = new Set<string>();
+      const blockedDependencyIds = new Set<string>();
+      const failedMutationRows = (await db.getAll(
+        REPLICATION_STORES.FAILED_MUTATIONS
+      )) as PendingMutation[];
+      const failedDependencyIds = new Set(failedMutationRows.map(mutation => mutation.id));
 
       if (ordering.circularCount > 0) {
         this.logger.warn(
@@ -495,7 +528,22 @@ export class MutationManager {
       let earliestBackoff: number | null = null;
 
       for (const mutation of sortedMutations) {
+        const unresolvedDependencies = (mutation.dependsOn ?? []).filter(
+          dependencyId =>
+            failedDependencyIds.has(dependencyId) ||
+            blockedDependencyIds.has(dependencyId) ||
+            (queuedMutationIds.has(dependencyId) && !uploadedMutationIds.has(dependencyId))
+        );
+        if (unresolvedDependencies.length > 0) {
+          blockedDependencyIds.add(mutation.id);
+          this.logger.log(
+            `[MutationManager] Skipping ${mutation.id} — waiting on dependencies ${unresolvedDependencies.join(', ')}`
+          );
+          continue;
+        }
+
         if (mutation.nextRetryAt && mutation.nextRetryAt > now) {
+          blockedDependencyIds.add(mutation.id);
           this.logger.log(
             `[MutationManager] Skipping ${mutation.id} — backoff until ${new Date(mutation.nextRetryAt).toISOString()}`
           );
@@ -505,43 +553,56 @@ export class MutationManager {
           continue;
         }
 
+        const queuedMutation = (await db.get(
+          REPLICATION_STORES.PENDING_MUTATIONS,
+          mutation.id
+        )) as PendingMutation | undefined;
+        if (!queuedMutation) {
+          continue;
+        }
+
         // Hold uploads for rows with unresolved conflicts. Uploading would either
         // be immediately OCC-rejected (noisy retry loop) or, if OCC were somehow
         // bypassed, silently overwrite the remote value the user just accepted via
         // "Take theirs". The mutation stays in the queue until the user resolves.
         const replicatedRow = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, [
-          mutation.tableName,
-          String(mutation.rowId),
+          queuedMutation.tableName,
+          String(queuedMutation.rowId),
         ])) as ReplicatedRow<unknown> | undefined;
         if (replicatedRow?.syncStatus === 'conflict') {
+          blockedDependencyIds.add(queuedMutation.id);
           this.logger.log(
-            `[MutationManager] Skipping ${mutation.id} — ${mutation.tableName}/${mutation.rowId} has unresolved conflict`
+            `[MutationManager] Skipping ${queuedMutation.id} — ${queuedMutation.tableName}/${queuedMutation.rowId} has unresolved conflict`
           );
           continue;
         }
 
         try {
-          const { newServerVersion } = await this.executeMutation(mutation);
-          await this.markReplicatedRowSynced(db, mutation, newServerVersion);
+          const { newServerVersion, remappedRowId } = await this.executeMutation(queuedMutation);
+          const uploadedMutation = remappedRowId
+            ? await this.remapUploadedRpcInsertRowId(db, queuedMutation, remappedRowId)
+            : queuedMutation;
+          await this.markReplicatedRowSynced(db, uploadedMutation, newServerVersion);
           if (newServerVersion !== undefined) {
             await this.updateMutationServerVersions(
-              mutation.tableName,
-              mutation.rowId,
+              uploadedMutation.tableName,
+              uploadedMutation.rowId,
               newServerVersion
             );
           }
 
-          await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, mutation.id);
+          await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, uploadedMutation.id);
+          uploadedMutationIds.add(uploadedMutation.id);
 
           results.push({
             success: true,
-            tableName: mutation.tableName,
-            operation: mutation.operation,
+            tableName: uploadedMutation.tableName,
+            operation: uploadedMutation.operation,
             rowsAffected: 1,
             duration: 0,
           });
 
-          this.logger.log(`[MutationManager] Mutation ${mutation.id} uploaded successfully`);
+          this.logger.log(`[MutationManager] Mutation ${uploadedMutation.id} uploaded successfully`);
         } catch (error) {
           if (error instanceof OccRejectionError) {
             // Concurrent server write rejected this stale offline mutation.
@@ -570,9 +631,9 @@ export class MutationManager {
             // capped) so it cannot hammer the server every flush cycle. This is a
             // separate counter from `retries` so the conflict is never dead-lettered
             // (which would destroy the offline edit) — it just slows down.
-            const occRetries = (mutation.occRetries ?? 0) + 1;
+            const occRetries = (queuedMutation.occRetries ?? 0) + 1;
             const occBackoff: PendingMutation = {
-              ...mutation,
+              ...queuedMutation,
               occRetries,
               nextRetryAt: now + calculateBackoffDelay(occRetries - 1, this.retryBackoffBase),
             };
@@ -589,16 +650,17 @@ export class MutationManager {
             );
             results.push({
               success: false,
-              tableName: mutation.tableName,
-              operation: mutation.operation,
+              tableName: queuedMutation.tableName,
+              operation: queuedMutation.operation,
               rowsAffected: 0,
               duration: 0,
               error: error.message,
             });
+            blockedDependencyIds.add(queuedMutation.id);
             continue;
           }
           const failure = classifyMutationFailure({
-            mutation,
+            mutation: queuedMutation,
             error,
             maxRetries: this.maxRetries,
             retryBackoffBase: this.retryBackoffBase,
@@ -606,8 +668,10 @@ export class MutationManager {
 
           if (failure.permanentlyFailed) {
             failedMutations.push(failure.mutation);
+            blockedDependencyIds.add(queuedMutation.id);
+            failedDependencyIds.add(queuedMutation.id);
             this.logger.error(
-              `[MutationManager] Mutation ${mutation.id} (${mutation.tableName}/${mutation.operation}) failed permanently${failure.canRetry ? ' (max retries)' : ' (non-retryable)'}: ${failure.message}`,
+              `[MutationManager] Mutation ${queuedMutation.id} (${queuedMutation.tableName}/${queuedMutation.operation}) failed permanently${failure.canRetry ? ' (max retries)' : ' (non-retryable)'}: ${failure.message}`,
               error
             );
             // Move permanently failed mutations out of the active queue but keep
@@ -615,10 +679,11 @@ export class MutationManager {
             // silently destroy offline work (e.g. ringside scores blocked by an
             // RLS/auth failure) with nothing for the user to review or retry.
             await db.put(REPLICATION_STORES.FAILED_MUTATIONS, failure.mutation);
-            await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, mutation.id);
+            await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, queuedMutation.id);
           } else {
+            blockedDependencyIds.add(queuedMutation.id);
             this.logger.warn(
-              `[MutationManager] Mutation ${mutation.id} failed (retry ${failure.mutation.retries}/${this.maxRetries}), next attempt after ${new Date(failure.mutation.nextRetryAt!).toISOString()}:`,
+              `[MutationManager] Mutation ${queuedMutation.id} failed (retry ${failure.mutation.retries}/${this.maxRetries}), next attempt after ${new Date(failure.mutation.nextRetryAt!).toISOString()}:`,
               error
             );
 
@@ -634,8 +699,8 @@ export class MutationManager {
 
           results.push({
             success: false,
-            tableName: mutation.tableName,
-            operation: mutation.operation,
+            tableName: queuedMutation.tableName,
+            operation: queuedMutation.operation,
             rowsAffected: 0,
             duration: 0,
             error: failure.message,
@@ -696,11 +761,26 @@ export class MutationManager {
    * Uses `select()` after upsert/delete to get the returned rows,
    * which lets us detect RLS silent rejections (0 rows affected = RLS blocked).
    */
-  private async executeMutation(mutation: PendingMutation): Promise<{ newServerVersion?: number }> {
+  private async executeMutation(mutation: PendingMutation): Promise<MutationExecutionResult> {
     const { tableName, operation, data } = mutation;
 
     switch (operation) {
       case 'INSERT': {
+        if (mutation.rpc) {
+          const { data: returned, error } = await withTimeout(
+            this.supabase.rpc(mutation.rpc.name, mutation.rpc.args ?? data),
+            TIMEOUT_PRESETS.standard,
+            `${tableName} rpc ${mutation.rpc.name}`
+          );
+          if (error) throw error;
+          if (mutation.rpc.expectRowId && typeof returned === 'string') {
+            if (returned !== mutation.rowId) {
+              return { remappedRowId: returned };
+            }
+          }
+          return {};
+        }
+
         const { data: rows, error } = await withTimeout(
           this.supabase.from(tableName).insert(data).select('id'),
           TIMEOUT_PRESETS.standard,
@@ -733,11 +813,14 @@ export class MutationManager {
         // function returns the authoritative post-trigger version.
         if (mutation.rpc) {
           const { data: returned, error } = await withTimeout(
-            this.supabase.rpc(mutation.rpc.name, {
-              p_entry_id: data.id as string,
-              p_fields: mutation.rpc.fields,
-              p_expected_version: mutation.serverVersion ?? null,
-            }),
+            this.supabase.rpc(
+              mutation.rpc.name,
+              mutation.rpc.args ?? {
+                p_entry_id: data.id as string,
+                p_fields: mutation.rpc.fields ?? {},
+                p_expected_version: mutation.serverVersion ?? null,
+              }
+            ),
             TIMEOUT_PRESETS.standard,
             `${tableName} rpc ${mutation.rpc.name}`
           );
@@ -865,6 +948,106 @@ export class MutationManager {
       // offline edit to the same row would carry a stale version and spuriously reject.
       ...(newServerVersion !== undefined && { serverVersion: newServerVersion }),
     });
+  }
+
+  private remapDogIdReferences<T extends Record<string, unknown>>(
+    data: T,
+    oldDogId: string,
+    newDogId: string,
+    options: { replacePrimaryId?: boolean } = {}
+  ): { data: T; changed: boolean } {
+    let changed = false;
+    const next: Record<string, unknown> = { ...data };
+
+    if (options.replacePrimaryId && next.id === oldDogId) {
+      next.id = newDogId;
+      changed = true;
+    }
+
+    for (const field of ['dog_id', 'dogId']) {
+      if (next[field] === oldDogId) {
+        next[field] = newDogId;
+        changed = true;
+      }
+    }
+
+    return { data: next as T, changed };
+  }
+
+  private async remapUploadedRpcInsertRowId(
+    db: Awaited<ReturnType<typeof databaseManager.getDatabase>>,
+    mutation: PendingMutation,
+    serverRowId: string
+  ): Promise<PendingMutation> {
+    const oldRowId = String(mutation.rowId);
+    const newRowId = String(serverRowId);
+    if (oldRowId === newRowId) return mutation;
+
+    if (mutation.tableName !== 'dogs') {
+      throw new Error(
+        `${mutation.rpc?.name ?? 'RPC'} returned row ${newRowId} for ${mutation.tableName}/${oldRowId}`
+      );
+    }
+
+    const replicatedRows = (await db.getAll(
+      REPLICATION_STORES.REPLICATED_TABLES
+    )) as ReplicatedRow<Record<string, unknown>>[];
+    const existingCanonicalDog = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, [
+      'dogs',
+      newRowId,
+    ])) as ReplicatedRow<Record<string, unknown>> | undefined;
+
+    for (const row of replicatedRows) {
+      if (row.tableName === 'dogs' && row.id === oldRowId) {
+        if (!existingCanonicalDog) {
+          const remapped = this.remapDogIdReferences(row.data, oldRowId, newRowId, {
+            replacePrimaryId: true,
+          });
+          await db.put(REPLICATION_STORES.REPLICATED_TABLES, {
+            ...row,
+            id: newRowId,
+            data: remapped.data,
+          });
+        }
+        await db.delete(REPLICATION_STORES.REPLICATED_TABLES, [row.tableName, oldRowId]);
+        continue;
+      }
+
+      const remapped = this.remapDogIdReferences(row.data, oldRowId, newRowId);
+      if (remapped.changed) {
+        await db.put(REPLICATION_STORES.REPLICATED_TABLES, {
+          ...row,
+          data: remapped.data,
+        });
+      }
+    }
+
+    const pendingMutations = (await db.getAll(
+      REPLICATION_STORES.PENDING_MUTATIONS
+    )) as PendingMutation[];
+    for (const pendingMutation of pendingMutations) {
+      if (pendingMutation.id === mutation.id) continue;
+      const remapped = this.remapDogIdReferences(pendingMutation.data, oldRowId, newRowId);
+      if (remapped.changed) {
+        await db.put(REPLICATION_STORES.PENDING_MUTATIONS, {
+          ...pendingMutation,
+          data: remapped.data,
+        });
+      }
+    }
+
+    this.logger.log(
+      `[MutationManager] Remapped offline dog ${oldRowId} to existing server dog ${newRowId}`
+    );
+
+    const remappedMutationData = this.remapDogIdReferences(mutation.data, oldRowId, newRowId, {
+      replacePrimaryId: true,
+    });
+    return {
+      ...mutation,
+      rowId: newRowId,
+      data: remappedMutationData.data,
+    };
   }
 
   /**

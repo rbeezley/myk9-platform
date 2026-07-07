@@ -138,6 +138,16 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   /**
+   * Return pending mutation ids for a row in this table.
+   * Used by dependency-aware local creates without exposing queue storage.
+   */
+  public async getPendingMutationIdsForRow(rowId: string): Promise<string[]> {
+    if (!this.mutationManager) return [];
+    const mutations = await this.mutationManager.getPendingMutationsForRow(this.tableName, rowId);
+    return mutations.map(mutation => mutation.id);
+  }
+
+  /**
    * Rebuild a full Supabase UPDATE payload from a local row after conflict
    * resolution. Subclasses with direct full-row UPDATE mutations should override
    * this with their table mapper; RPC/delta-only tables can keep the default.
@@ -155,8 +165,13 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     rowId: string,
     supabasePayload: Record<string, unknown>,
     dependsOn?: string[],
-    /** Optional: apply an UPDATE via a SECURITY DEFINER RPC (see PendingMutation.rpc). */
-    rpc?: { name: string; fields: Record<string, unknown> }
+    /** Optional: apply via a SECURITY DEFINER RPC (see PendingMutation.rpc). */
+    rpc?: {
+      name: string;
+      fields?: Record<string, unknown>;
+      args?: Record<string, unknown>;
+      expectRowId?: boolean;
+    }
   ): Promise<string | null> {
     if (!this.mutationManager) {
       this.logger.warn(`[${this.tableName}] No MutationManager set — mutation not queued`);

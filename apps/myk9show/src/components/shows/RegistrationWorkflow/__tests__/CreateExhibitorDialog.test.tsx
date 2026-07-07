@@ -6,8 +6,20 @@ import { createUser } from '@/services/database/users';
 import { useUserStore } from '@/store/userStore';
 import { CreateExhibitorDialog } from '../CreateExhibitorDialog';
 
+const { mockCreatePerson, mockGetPendingPersonMutationIdsForRow } = vi.hoisted(() => ({
+  mockCreatePerson: vi.fn(),
+  mockGetPendingPersonMutationIdsForRow: vi.fn(),
+}));
+
 vi.mock('@/services/database/users', () => ({
   createUser: vi.fn(),
+}));
+
+vi.mock('@/services/replication/ReplicatedShowDeskPeopleTable', () => ({
+  replicatedShowDeskPeopleTable: {
+    createPerson: mockCreatePerson,
+    getPendingMutationIdsForRow: mockGetPendingPersonMutationIdsForRow,
+  },
 }));
 
 const createUserMock = vi.mocked(createUser);
@@ -16,6 +28,19 @@ describe('CreateExhibitorDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useUserStore.setState({ people: [], users: [] });
+    mockCreatePerson.mockResolvedValue({
+      id: 'person-local-1',
+      firstName: 'Molly',
+      lastName: 'Mailbox',
+      email: 'molly.mailbox@example.com',
+      phone: '555-1000',
+      address: '123 Paper Trail',
+      city: 'Envelope',
+      state: 'TX',
+      zipCode: '75001',
+      status: 'active',
+    });
+    mockGetPendingPersonMutationIdsForRow.mockResolvedValue(['person-mutation-1']);
   });
 
   it('persists a mail-in exhibitor as a people row', async () => {
@@ -127,5 +152,57 @@ describe('CreateExhibitorDialog', () => {
       expect.objectContaining({ id: 'person-existing-1' })
     );
     expect(createUserMock).not.toHaveBeenCalled();
+  });
+
+  it('uses the show-desk people queue in offline-first mode', async () => {
+    createUserMock.mockRejectedValue(new Error('network unavailable'));
+    const onExhibitorCreated = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <CreateExhibitorDialog
+        open
+        onOpenChange={vi.fn()}
+        onExhibitorCreated={onExhibitorCreated}
+        offlineFirst
+      />
+    );
+
+    await user.type(screen.getByLabelText(/First Name/i), 'Molly');
+    await user.type(screen.getByLabelText(/Last Name/i), 'Mailbox');
+    await user.type(screen.getByLabelText(/Email Address/i), 'molly.mailbox@example.com');
+    await user.type(screen.getByLabelText(/Phone Number/i), '555-1000');
+    await user.type(screen.getByLabelText(/Street Address/i), '123 Paper Trail');
+    await user.type(screen.getByLabelText(/City/i), 'Envelope');
+    await user.type(screen.getByLabelText(/State/i), 'TX');
+    await user.type(screen.getByLabelText(/ZIP Code/i), '75001');
+
+    await user.click(screen.getByRole('button', { name: 'Create Exhibitor' }));
+
+    await waitFor(() => {
+      expect(mockCreatePerson).toHaveBeenCalledWith({
+        firstName: 'Molly',
+        lastName: 'Mailbox',
+        email: 'molly.mailbox@example.com',
+        phone: '555-1000',
+        address: '123 Paper Trail',
+        city: 'Envelope',
+        state: 'TX',
+        zipCode: '75001',
+      });
+    });
+    expect(createUserMock).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(onExhibitorCreated).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'person-local-1',
+          firstName: 'Molly',
+          lastName: 'Mailbox',
+          roles: [UserRole.EXHIBITOR],
+          dogs: [],
+        }),
+        { pendingMutationIds: ['person-mutation-1'] }
+      );
+    });
   });
 });

@@ -21,13 +21,18 @@ import {
   type PersonIdentityCandidate,
 } from '@/utils/personIdentity';
 import { z } from 'zod';
+import { replicatedShowDeskPeopleTable } from '@/services/replication/ReplicatedShowDeskPeopleTable';
 
 interface CreateExhibitorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onExhibitorCreated: (exhibitor: User) => void;
+  onExhibitorCreated: (
+    exhibitor: User,
+    metadata?: { pendingMutationIds?: string[] | undefined }
+  ) => void;
   onDuplicateSelected?: (existingExhibitor: User) => void;
   searchQuery?: string; // Pre-fill from search if provided
+  offlineFirst?: boolean;
 }
 
 const exhibitorFormSchema = z.object({
@@ -60,6 +65,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
   onExhibitorCreated,
   onDuplicateSelected,
   searchQuery = '',
+  offlineFirst = false,
 }) => {
   const form = useFormValidation(exhibitorFormSchema, INITIAL_FORM_DATA);
   const { people, loadUsers } = useUserStore();
@@ -155,6 +161,43 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
     setIsCreating(true);
     setCreateError(null);
     try {
+      if (offlineFirst) {
+        const person = await replicatedShowDeskPeopleTable.createPerson({
+          firstName: validatedData.firstName,
+          lastName: validatedData.lastName,
+          email: validatedData.email || null,
+          phone: validatedData.phone || null,
+          address: validatedData.streetAddress || null,
+          city: validatedData.city || null,
+          state: validatedData.state || null,
+          zipCode: validatedData.zipCode || null,
+        });
+
+        const newExhibitor: User = {
+          id: person.id,
+          firstName: person.firstName,
+          lastName: person.lastName,
+          email: person.email ?? '',
+          phone: person.phone ?? '',
+          streetAddress: person.address ?? undefined,
+          city: person.city ?? undefined,
+          state: person.state ?? undefined,
+          zipCode: person.zipCode ?? undefined,
+          roles: [UserRole.EXHIBITOR],
+          dogs: [],
+          associatedDogs: [],
+        };
+
+        const pendingMutationIds = await replicatedShowDeskPeopleTable.getPendingMutationIdsForRow(
+          person.id
+        );
+        onExhibitorCreated(newExhibitor, {
+          pendingMutationIds,
+        });
+        handleClose();
+        return;
+      }
+
       const { data, error } = await createUser({
         first_name: validatedData.firstName,
         last_name: validatedData.lastName,

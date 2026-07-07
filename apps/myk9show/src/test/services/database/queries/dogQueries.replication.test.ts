@@ -7,7 +7,12 @@ import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTa
 // available when vi.mock factories execute (vi.mock is hoisted above const).
 // ---------------------------------------------------------------------------
 
-const { mockDogsTable, mockEntriesTable } = vi.hoisted(() => ({
+const {
+  mockDogsTable,
+  mockEntriesTable,
+  mockDogRegistrationsTable,
+  mockServerRegistrationRows,
+} = vi.hoisted(() => ({
   mockDogsTable: {
     getAllDogs: vi.fn(),
     getDogById: vi.fn(),
@@ -18,6 +23,11 @@ const { mockDogsTable, mockEntriesTable } = vi.hoisted(() => ({
   mockEntriesTable: {
     getAll: vi.fn(),
   },
+  mockDogRegistrationsTable: {
+    getRegistrationsForDogs: vi.fn(),
+    getRegistrationsForDog: vi.fn(),
+  },
+  mockServerRegistrationRows: vi.fn(() => [] as Record<string, unknown>[]),
 }));
 
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
@@ -28,12 +38,16 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: mockEntriesTable,
 }));
 
+vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
+  replicatedDogRegistrationsTable: mockDogRegistrationsTable,
+}));
+
 // Mock supabase client (for loadOwnersMap and getDogById supplemental queries)
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     from: () => ({
       select: () => ({
-        in: () => Promise.resolve({ data: [], error: null }),
+        in: () => Promise.resolve({ data: mockServerRegistrationRows(), error: null }),
         eq: () => ({
           single: () =>
             Promise.resolve({
@@ -123,6 +137,9 @@ function makeEntry(overrides: Partial<ReplicatedEntry> = {}): ReplicatedEntry {
 describe('dogQueries (replication)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockServerRegistrationRows.mockReturnValue([]);
+    mockDogRegistrationsTable.getRegistrationsForDogs.mockResolvedValue([]);
+    mockDogRegistrationsTable.getRegistrationsForDog.mockResolvedValue([]);
   });
 
   // -----------------------------------------------------------------------
@@ -167,6 +184,70 @@ describe('dogQueries (replication)', () => {
       expect(row.spayed_neutered).toBe(true);
       expect(row.image_url).toBe('https://example.com/bella.jpg');
       expect(row.deleted_at).toBeNull();
+    });
+
+    it('includes local pending registrations when PostgREST has not synced them yet', async () => {
+      mockDogsTable.getAllDogs.mockResolvedValue([makeDog()]);
+      mockDogRegistrationsTable.getRegistrationsForDogs.mockResolvedValue([
+        {
+          id: 'registration-local-1',
+          dog_id: 'dog-1',
+          organization: 'AKC',
+          registration_number: 'SW123456',
+          registered_name: 'Beacon Hill Fast Lane',
+          breed: 'Golden Retriever',
+          status: 'pending',
+        },
+      ]);
+
+      const result = await getAllDogs('person-1');
+
+      const row = result.data[0] as Record<string, unknown>;
+      expect(row.registrations).toEqual([
+        expect.objectContaining({
+          id: 'registration-local-1',
+          dog_id: 'dog-1',
+          registration_number: 'SW123456',
+        }),
+      ]);
+    });
+
+    it('dedupes stale local registration rows after the server registration syncs with a different id', async () => {
+      mockDogsTable.getAllDogs.mockResolvedValue([makeDog()]);
+      mockServerRegistrationRows.mockReturnValue([
+        {
+          id: 'registration-server-1',
+          dog_id: 'dog-1',
+          organization: 'AKC',
+          registration_number: 'SW123456',
+          registered_name: 'Beacon Hill Fast Lane',
+          breed: 'Golden Retriever',
+          status: 'approved',
+        },
+      ]);
+      mockDogRegistrationsTable.getRegistrationsForDogs.mockResolvedValue([
+        {
+          id: 'registration-local-1',
+          dog_id: 'dog-1',
+          organization: 'akc',
+          registration_number: 'SW-123-456',
+          registered_name: 'Beacon Hill Fast Lane',
+          breed: 'Golden Retriever',
+          status: 'pending',
+        },
+      ]);
+
+      const result = await getAllDogs('person-1');
+
+      const row = result.data[0] as Record<string, unknown>;
+      expect(row.registrations).toEqual([
+        expect.objectContaining({
+          id: 'registration-server-1',
+          dog_id: 'dog-1',
+          registration_number: 'SW123456',
+          status: 'approved',
+        }),
+      ]);
     });
 
     it('returns empty array when no dogs match ownership', async () => {
@@ -230,6 +311,33 @@ describe('dogQueries (replication)', () => {
       expect(entries[0].dog_id).toBe('dog-1');
       expect(entries[0].class_id).toBe('class-1');
       expect(entries[0].show_id).toBe('show-1');
+    });
+
+    it('includes local pending registrations in dog detail reads', async () => {
+      mockDogsTable.getDogById.mockResolvedValue(makeDog());
+      mockEntriesTable.getAll.mockResolvedValue([]);
+      mockDogRegistrationsTable.getRegistrationsForDog.mockResolvedValue([
+        {
+          id: 'registration-local-1',
+          dog_id: 'dog-1',
+          organization: 'AKC',
+          registration_number: 'SW123456',
+          registered_name: 'Beacon Hill Fast Lane',
+          breed: 'Golden Retriever',
+          status: 'pending',
+        },
+      ]);
+
+      const result = await getDogById('dog-1');
+
+      const row = result.data as Record<string, unknown>;
+      expect(row.registrations).toEqual([
+        expect.objectContaining({
+          id: 'registration-local-1',
+          dog_id: 'dog-1',
+          registration_number: 'SW123456',
+        }),
+      ]);
     });
 
     it('returns { data: null, error: null } for missing dog', async () => {

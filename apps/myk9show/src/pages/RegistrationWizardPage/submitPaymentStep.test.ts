@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { submitPaymentStep, type SubmitPaymentStepContext } from './submitPaymentStep';
+import { PaymentStatus } from '@/types/show-registration-types';
 
 const submitShowRegistrationMock = vi.hoisted(() => vi.fn());
 const submitRegistrationCartCheckoutMock = vi.hoisted(() => vi.fn());
+const submitOfflineLateEntryMock = vi.hoisted(() => vi.fn());
 const notificationErrorMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/features/registration/submitShowRegistration', () => ({
@@ -11,6 +13,10 @@ vi.mock('@/features/registration/submitShowRegistration', () => ({
 
 vi.mock('@/features/registration/registrationCartCheckout', () => ({
   submitRegistrationCartCheckout: submitRegistrationCartCheckoutMock,
+}));
+
+vi.mock('@/features/registration/submitOfflineLateEntry', () => ({
+  submitOfflineLateEntry: submitOfflineLateEntryMock,
 }));
 
 vi.mock('@/lib/notifications', () => ({
@@ -33,6 +39,7 @@ function makeContextAndOrder(overrides: Partial<SubmitPaymentStepContext> = {}):
     isLateEntryMode: false,
     currentWorkflowMode: 'exhibitor',
     paymentMethod: 'check',
+    paymentStatus: PaymentStatus.PENDING,
     paymentDetails: {},
     ownerResolution: { ok: true, ownerId: 'owner-1' },
     exhibitorProfileId: 'profile-1',
@@ -95,6 +102,10 @@ describe('submitPaymentStep', () => {
       armbandFailures: [],
     });
     submitRegistrationCartCheckoutMock.mockResolvedValue(undefined);
+    submitOfflineLateEntryMock.mockResolvedValue({
+      armbandAssignments: [{ dogId: 'dog-1', armband: '13' }],
+      entryIds: ['entry-1'],
+    });
   });
 
   it('clears non-card cart lines after submit success and before sync', async () => {
@@ -157,7 +168,40 @@ describe('submitPaymentStep', () => {
 
     await submitPaymentStep(ctx);
 
-    expect(submitShowRegistrationMock).toHaveBeenCalledTimes(1);
+    expect(submitOfflineLateEntryMock).toHaveBeenCalledTimes(1);
+    expect(submitShowRegistrationMock).not.toHaveBeenCalled();
     expect(ctx.cart.clearCart).toHaveBeenCalledTimes(1);
+  });
+
+  it('routes staff late-entry non-card payment through offline replicated entry submission', async () => {
+    submitShowRegistrationMock.mockRejectedValue(new Error('Supabase unavailable'));
+    const { ctx, order } = makeContextAndOrder({
+      isLateEntryMode: true,
+      currentWorkflowMode: 'secretary_new',
+      paymentMethod: 'cash',
+      paymentStatus: PaymentStatus.PAID_BY_CASH,
+      classSelections: [
+        {
+          dogId: 'dog-1',
+          trialId: 'trial-1',
+          selectedClasses: [{ classId: 'class-1' }],
+        },
+      ],
+    });
+
+    await submitPaymentStep(ctx);
+
+    expect(submitOfflineLateEntryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        showId: 'show-1',
+        paymentMethod: 'cash',
+        paymentStatus: PaymentStatus.PAID_BY_CASH,
+        classSelections: ctx.classSelections,
+      })
+    );
+    expect(submitShowRegistrationMock).not.toHaveBeenCalled();
+    expect(ctx.setArmbandAssignments).toHaveBeenCalledWith([{ dogId: 'dog-1', armband: '13' }]);
+    expect(order).toEqual(['clearCart', 'triggerSync']);
+    expect(ctx.markStepComplete).toHaveBeenCalledWith(ctx.currentStep);
   });
 });

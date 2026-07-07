@@ -2,20 +2,21 @@
 // SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
 // Mutation functions (create, update, delete) remain on PostgREST.
 import { supabase, logQuery, createDatabaseError, type DatabaseError } from '../supabaseClient';
-import {
-  compareStringAsc,
-  readWithReplicationFallback,
-  sortedCopy,
-} from '../_shared/read-shape';
+import { compareStringAsc, readWithReplicationFallback, sortedCopy } from '../_shared/read-shape';
 import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
 import { logger } from '@/services/LoggingService';
 import type { DbDogInsert, DbDogUpdate } from '../../../types/database-mappings';
 import type { TablesUpdate } from '@/types/supabase';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
+import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
 import { mapReplicatedDogToDbRow } from '@/services/mappers/dogMappers';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import { selectOwnedDogs } from '@/utils/dogOwnership';
+import {
+  normalizeDogRegistrationNumber,
+  normalizeDogRegistrationOrganization,
+} from '@/utils/dogIdentity';
 
 // PostgREST OR filter for dogs owned or co-owned by a person
 const ownedByPerson = (personId: string) => `owner_id.eq.${personId},co_owner_id.eq.${personId}`;
@@ -57,22 +58,51 @@ async function loadOwnersMap(ownerIds: string[]): Promise<Map<string, OwnerRow>>
   return map;
 }
 
-// Registrations are not replicated to IndexedDB, so batch-load them from
-// PostgREST whenever we build the dog list from the replication store.
+function appendRegistrations(
+  map: Map<string, Record<string, unknown>[]>,
+  rows: Record<string, unknown>[] | null | undefined
+): void {
+  if (!rows) return;
+
+  for (const row of rows) {
+    const dogId = row.dog_id as string | undefined;
+    if (!dogId) continue;
+    const existing = map.get(dogId) ?? [];
+    const rowOrganization = normalizeDogRegistrationOrganization(row.organization as string | null);
+    const rowNumber = normalizeDogRegistrationNumber(row.registration_number as string | null);
+    const hasSameId = existing.some(registration => registration.id === row.id);
+    const hasSameRegistryIdentity =
+      rowOrganization !== '' &&
+      rowNumber !== '' &&
+      existing.some(
+        registration =>
+          normalizeDogRegistrationOrganization(registration.organization as string | null) ===
+            rowOrganization &&
+          normalizeDogRegistrationNumber(registration.registration_number as string | null) ===
+            rowNumber
+      );
+    if (!hasSameId && !hasSameRegistryIdentity) {
+      existing.push(row);
+    }
+    map.set(dogId, existing);
+  }
+}
+
+// Registrations can exist as pending local rows before PostGREST can see them.
+// Merge the local replica with server rows so offline-created dogs keep their
+// registration data after refresh and while the queue is waiting to upload.
 async function loadRegistrationsMap(
   dogIds: string[]
 ): Promise<Map<string, Record<string, unknown>[]>> {
   if (dogIds.length === 0) return new Map();
-  const { data } = await supabase.from('dog_registrations').select('*').in('dog_id', dogIds);
   const map = new Map<string, Record<string, unknown>[]>();
-  if (data) {
-    for (const row of data) {
-      const dogId = row.dog_id as string;
-      const existing = map.get(dogId) ?? [];
-      existing.push(row as Record<string, unknown>);
-      map.set(dogId, existing);
-    }
-  }
+  const [localRegistrations, serverResult] = await Promise.all([
+    replicatedDogRegistrationsTable.getRegistrationsForDogs(dogIds),
+    supabase.from('dog_registrations').select('*').in('dog_id', dogIds),
+  ]);
+
+  appendRegistrations(map, serverResult.data as Record<string, unknown>[] | null | undefined);
+  appendRegistrations(map, localRegistrations);
   return map;
 }
 
@@ -236,7 +266,10 @@ export const getAllDogs = async (personId: string, showAll = false) => {
     replication: async () => {
       const allDogs = await replicatedDogsTable.getAllDogs();
       const filtered = showAll ? allDogs : filterByOwnership(allDogs, personId);
-      const sortedDogs = sortedCopy(filtered, compareStringAsc(dog => dog.name));
+      const sortedDogs = sortedCopy(
+        filtered,
+        compareStringAsc(dog => dog.name)
+      );
       // Batch-load owner and registration data from PostgREST (not replicated)
       const dogIds = sortedDogs.map(d => d.id);
       const ownerIds = sortedDogs.map(d => d.ownerId).filter((id): id is string => !!id);
@@ -267,11 +300,12 @@ export const getDogById = async (id: string) => {
       const allEntries = await replicatedEntriesTable.getAll();
       const dogEntries = allEntries.filter(e => e.dogId === id);
 
-      // Load owner, registrations, and health records from PostgREST (not replicated)
-      const { data: supplemental } = await supabase
-        .from('dogs')
-        .select(
-          `
+      const [localRegistrations, supplementalResult] = await Promise.all([
+        replicatedDogRegistrationsTable.getRegistrationsForDog(id),
+        supabase
+          .from('dogs')
+          .select(
+            `
             owner:people!dogs_owner_id_fkey(
               id,
               first_name,
@@ -286,14 +320,21 @@ export const getDogById = async (id: string) => {
             registrations:dog_registrations(*),
             health_records(*)
           `
-        )
-        .eq('id', id)
-        .single();
+          )
+          .eq('id', id)
+          .single(),
+      ]);
 
+      const supplemental = supplementalResult.data;
       const owner = (supplemental as Record<string, unknown>)?.owner ?? null;
-      const registrations =
+      const registrationsMap = new Map<string, Record<string, unknown>[]>();
+      appendRegistrations(
+        registrationsMap,
         ((supplemental as Record<string, unknown>)?.registrations as Record<string, unknown>[]) ??
-        [];
+          []
+      );
+      appendRegistrations(registrationsMap, localRegistrations);
+      const registrations = registrationsMap.get(id) ?? [];
       const healthRecords =
         ((supplemental as Record<string, unknown>)?.health_records as Record<string, unknown>[]) ??
         [];
@@ -341,7 +382,10 @@ export const getDogsByOwner = async (ownerId: string) => {
   return readWithReplicationFallback({
     replication: async () => {
       const dogs = await replicatedDogsTable.getDogsByOwner(ownerId);
-      const sortedDogs = sortedCopy(dogs, compareStringAsc(dog => dog.name));
+      const sortedDogs = sortedCopy(
+        dogs,
+        compareStringAsc(dog => dog.name)
+      );
       const registrationsMap = await loadRegistrationsMap(sortedDogs.map(d => d.id));
       const data = sortedDogs.map(dog =>
         mapReplicatedDogToDbRow(dog, { registrations: registrationsMap.get(dog.id) ?? [] })
@@ -554,7 +598,10 @@ export const searchDogs = async (searchTerm: string, personId: string) => {
     replication: async () => {
       const results = await replicatedDogsTable.searchDogs(searchTerm);
       const filtered = filterByOwnership(results, personId);
-      const sortedDogs = sortedCopy(filtered, compareStringAsc(dog => dog.name));
+      const sortedDogs = sortedCopy(
+        filtered,
+        compareStringAsc(dog => dog.name)
+      );
       // No joins needed — minimal query matching original select('*')
       const data = sortedDogs.map(dog => mapReplicatedDogToDbRow(dog));
       return { data, error: null };
@@ -572,7 +619,10 @@ export const getDogsWithUpcomingShows = async (personId: string) => {
     replication: async () => {
       const allDogs = await replicatedDogsTable.getAllDogs();
       const filtered = filterByOwnership(allDogs, personId);
-      const sortedDogs = sortedCopy(filtered, compareStringAsc(dog => dog.name));
+      const sortedDogs = sortedCopy(
+        filtered,
+        compareStringAsc(dog => dog.name)
+      );
       // Batch-load owner names from PostgREST
       const ownerIds = sortedDogs.map(d => d.ownerId).filter((id): id is string => !!id);
       const ownersMap = await loadOwnersMap(ownerIds);
@@ -701,9 +751,7 @@ export interface OwnedLiveDog {
 // pre-check). Direct PostgREST read — admins can see these via RLS, and the guard
 // must be accurate regardless of replication sync state. Co-owned dogs are
 // excluded on purpose: they keep their primary owner, so they aren't orphaned.
-export const getOwnedLiveDogsByPerson = async (
-  personId: string
-): Promise<OwnedLiveDog[]> => {
+export const getOwnedLiveDogsByPerson = async (personId: string): Promise<OwnedLiveDog[]> => {
   const { data, error } = await supabase
     .from('dogs')
     .select('id, call_name, name')

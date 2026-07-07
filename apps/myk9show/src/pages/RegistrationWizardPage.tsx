@@ -244,6 +244,7 @@ function RegistrationWizardContent() {
                     setPaymentStatus={setPaymentStatus}
                     setEntryStatus={setEntryStatus}
                     dogsLoading={dogsLoading}
+                    offlineFirstCreate={isLateEntryMode && currentWorkflowMode !== 'exhibitor'}
                     agreedToEntryAgreement={agreedToEntryAgreement}
                     onAgreementChange={setAgreedToEntryAgreement}
                   />

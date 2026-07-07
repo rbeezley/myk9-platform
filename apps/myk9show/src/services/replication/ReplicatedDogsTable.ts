@@ -22,6 +22,14 @@ import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import type { Database } from '@/types/supabase';
 import { selectOwnedDogs } from '@/utils/dogOwnership';
 
+interface DogRegistrationRpcInput {
+  organization?: string | null;
+  registered_name?: string | null;
+  registration_number?: string | null;
+  breed?: string | null;
+  status?: string | null;
+}
+
 /**
  * Database row type from Supabase schema
  */
@@ -333,26 +341,73 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
   }
 
   /**
-   * Create a new dog locally (queued for sync)
-   * Dogs have no FK dependencies — uploaded independently.
+   * Create a new dog locally with a caller-supplied id (queued for sync).
    * The mutation ID is available via `lastMutationId`.
    */
-  async createDog(dog: Omit<ReplicatedDog, 'id'>): Promise<ReplicatedDog> {
-    const id = crypto.randomUUID();
+  async createDogWithId(
+    dog: ReplicatedDog,
+    options: { dependsOn?: string[] } = {}
+  ): Promise<ReplicatedDog> {
     const newDog: ReplicatedDog = {
       ...dog,
-      id,
       _version: 1,
       _lastModified: new Date(),
       _syncStatus: 'pending',
       _localOnly: true,
     };
 
-    await this.set(id, newDog, true);
-    const mutationId = await this.queueMutation('INSERT', id, this.toSupabaseRow(newDog));
+    await this.set(newDog.id, newDog, true);
+    const mutationId = await this.queueMutation(
+      'INSERT',
+      newDog.id,
+      this.toSupabaseRow(newDog),
+      options.dependsOn
+    );
     this._lastMutationId = mutationId;
-    logger.log(`[${this.getTableName()}] Created new dog ${id}`);
+    logger.log(`[${this.getTableName()}] Created new dog ${newDog.id}`);
     return newDog;
+  }
+
+  async createDogWithRegistrationsRpc(
+    dog: ReplicatedDog,
+    registrations: DogRegistrationRpcInput[],
+    options: { dependsOn?: string[] } = {}
+  ): Promise<ReplicatedDog> {
+    const newDog: ReplicatedDog = {
+      ...dog,
+      _version: 1,
+      _lastModified: new Date(),
+      _syncStatus: 'pending',
+      _localOnly: true,
+    };
+    const dogRow = this.toSupabaseRow(newDog);
+
+    await this.set(newDog.id, newDog, true);
+    const mutationId = await this.queueMutation(
+      'INSERT',
+      newDog.id,
+      dogRow,
+      options.dependsOn,
+      {
+        name: 'create_dog_with_registrations',
+        args: {
+          p_dog: dogRow,
+          p_registrations: registrations,
+        },
+        expectRowId: true,
+      }
+    );
+    this._lastMutationId = mutationId;
+    logger.log(`[${this.getTableName()}] Created new dog ${newDog.id} via registration RPC`);
+    return newDog;
+  }
+
+  /**
+   * Create a new dog locally (queued for sync).
+   * Dogs created without an owner dependency are uploaded independently.
+   */
+  async createDog(dog: Omit<ReplicatedDog, 'id'>): Promise<ReplicatedDog> {
+    return this.createDogWithId({ ...dog, id: crypto.randomUUID() });
   }
 }
 

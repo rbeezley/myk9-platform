@@ -32,6 +32,7 @@ import { syncDogRegistrations } from '@/hooks/dogStoreCompatHelpers';
 import { translateDogDbError } from '@/hooks/translateDogDbError';
 import { supabase } from '@/lib/supabase';
 import { selectOwnedDogs } from '@/utils/dogOwnership';
+import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
 
 /**
  * Compatibility hook that provides dogStore-like API using React Query
@@ -173,6 +174,57 @@ export const useDogStoreCompat = () => {
     }
   };
 
+  const addDogOfflineFirst = async (
+    dogData: DogInput,
+    options: { dependsOn?: string[] } = {}
+  ): Promise<Dog> => {
+    const dogId = crypto.randomUUID();
+    const replicatedDog = mapDogInputToReplicated(dogData, dogId);
+
+    let registrations: Record<string, unknown>[] = [];
+    if (dogData.registrations && dogData.registrations.length > 0) {
+      const registrationRows = dogData.registrations.map(registration => ({
+        organization: registration.organization || 'AKC',
+        registered_name: registration.registeredName || null,
+        registration_number: registration.number || '',
+        breed: registration.type || null,
+        status: registration.status || 'pending',
+      }));
+      const savedDog = await replicatedDogsTable.createDogWithRegistrationsRpc(
+        replicatedDog,
+        registrationRows,
+        options.dependsOn ? { dependsOn: options.dependsOn } : {}
+      );
+      const savedRegistrations = await replicatedDogRegistrationsTable.createLocalRegistrationsForDog(
+        savedDog.id,
+        dogData.registrations
+      );
+      registrations = savedRegistrations.map(registration =>
+        replicatedDogRegistrationsTable.toSupabaseRow(registration)
+      );
+      queryClient.invalidateQueries({ queryKey: queryKeys.registrationsByDog(savedDog.id) });
+
+      await queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
+      if (savedDog.ownerId) {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.personDogs(savedDog.ownerId) });
+      }
+
+      return mapDatabaseToDog(mapReplicatedDogToDbRow(savedDog, { registrations }));
+    }
+
+    const savedDog = await replicatedDogsTable.createDogWithId(
+      replicatedDog,
+      options.dependsOn ? { dependsOn: options.dependsOn } : {}
+    );
+
+    await queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
+    if (savedDog.ownerId) {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.personDogs(savedDog.ownerId) });
+    }
+
+    return mapDatabaseToDog(mapReplicatedDogToDbRow(savedDog));
+  };
+
   const updateDog = async (id: string, updates: Partial<DogInput>): Promise<Dog | null> => {
     logger.debug('updateDog called', 'dogs', {
       dogId: id,
@@ -263,6 +315,7 @@ export const useDogStoreCompat = () => {
 
     // Operations (compatible with dogStore API)
     addDog,
+    addDogOfflineFirst,
     updateDog,
     deleteDog,
     getDogById,

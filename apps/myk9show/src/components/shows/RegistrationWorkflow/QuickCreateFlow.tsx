@@ -17,11 +17,13 @@ interface QuickCreateFlowProps {
   onFlowCompleted: (exhibitor: User, dogs: Dog[]) => void;
   searchQuery?: string; // Pre-fill from search if provided
   mode?: 'single' | 'batch'; // Single dog or multiple dogs
+  offlineFirst?: boolean;
 }
 
 interface FlowState {
   step: 'exhibitor' | 'dogs' | 'review';
   exhibitor: User | null;
+  exhibitorPendingMutationIds: string[];
   dogs: Dog[];
   isComplete: boolean;
 }
@@ -29,6 +31,7 @@ interface FlowState {
 const INITIAL_FLOW_STATE: FlowState = {
   step: 'exhibitor',
   exhibitor: null,
+  exhibitorPendingMutationIds: [],
   dogs: [],
   isComplete: false,
 };
@@ -39,6 +42,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
   onFlowCompleted,
   searchQuery = '',
   mode = 'single',
+  offlineFirst = false,
 }) => {
   const [flowState, setFlowState] = useState<FlowState>(INITIAL_FLOW_STATE);
   const [showExhibitorDialog, setShowExhibitorDialog] = useState(false);
@@ -54,10 +58,14 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
   };
 
   // Handle exhibitor creation
-  const handleExhibitorCreated = (exhibitor: User) => {
+  const handleExhibitorCreated = (
+    exhibitor: User,
+    metadata?: { pendingMutationIds?: string[] | undefined }
+  ) => {
     setFlowState(prev => ({
       ...prev,
       exhibitor,
+      exhibitorPendingMutationIds: metadata?.pendingMutationIds ?? [],
       step: 'dogs',
     }));
     setShowExhibitorDialog(false);
@@ -409,6 +417,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
         onOpenChange={setShowExhibitorDialog}
         onExhibitorCreated={handleExhibitorCreated}
         searchQuery={searchQuery}
+        offlineFirst={offlineFirst}
       />
 
       <AddDogPanel
@@ -418,6 +427,8 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
         userRole={UserRole.SECRETARY}
         currentUserPersonId={flowState.exhibitor?.id}
         variant="dialog"
+        offlineFirst={offlineFirst}
+        offlineDependsOn={flowState.exhibitorPendingMutationIds}
       />
     </>
   );

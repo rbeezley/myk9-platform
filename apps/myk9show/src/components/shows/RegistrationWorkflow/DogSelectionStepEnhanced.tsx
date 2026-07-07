@@ -85,6 +85,7 @@ const SortableHeader: React.FC<{
 interface DogSelectionStepProps {
   selectedDogs: string[];
   onSelectionChange: (dogIds: string[]) => void;
+  offlineFirst?: boolean;
 }
 
 interface DogRowProps {
@@ -253,6 +254,7 @@ const DogRow: React.FC<DogRowProps> = ({ index, style, data }) => {
 export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   selectedDogs,
   onSelectionChange,
+  offlineFirst = false,
 }) => {
   const { dogs, isLoading: dogsLoading } = useDogStoreCompat();
   const { user, roles, canBulkOperations, canCreateExhibitor, getMaxDogsPerRegistration } =
@@ -263,6 +265,8 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   const [showQuickCreateFlow, setShowQuickCreateFlow] = useState(false);
   const [showExhibitorDialog, setShowExhibitorDialog] = useState(false);
   const [showDogDialog, setShowDogDialog] = useState(false);
+  const [createdExhibitorId, setCreatedExhibitorId] = useState<string | undefined>(undefined);
+  const [createdExhibitorMutationIds, setCreatedExhibitorMutationIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeQuickFilter, setActiveQuickFilter] = useState('');
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
@@ -405,8 +409,13 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
     onSelectionChange([...selectedDogs, ...newDogIds]);
   };
 
-  const handleExhibitorCreated = (exhibitor: User) => {
+  const handleExhibitorCreated = (
+    exhibitor: User,
+    metadata?: { pendingMutationIds?: string[] | undefined }
+  ) => {
     logger.debug('Exhibitor created:', 'shows', { data: exhibitor });
+    setCreatedExhibitorId(exhibitor.id);
+    setCreatedExhibitorMutationIds(metadata?.pendingMutationIds ?? []);
     setShowDogDialog(true);
   };
 
@@ -730,18 +739,23 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
         onFlowCompleted={handleQuickCreateFlowCompleted}
         searchQuery={searchQuery}
         mode="batch"
+        offlineFirst={offlineFirst}
       />
       <CreateExhibitorDialog
         open={showExhibitorDialog}
         onOpenChange={setShowExhibitorDialog}
         onExhibitorCreated={handleExhibitorCreated}
         searchQuery={searchQuery}
+        offlineFirst={offlineFirst}
       />
       <AddDogPanel
         open={showDogDialog}
         onClose={() => setShowDogDialog(false)}
         onDogCreated={handleDogCreated}
         variant="dialog"
+        offlineFirst={offlineFirst}
+        currentUserPersonId={createdExhibitorId}
+        offlineDependsOn={createdExhibitorMutationIds}
       />
     </div>
   );

@@ -20,6 +20,7 @@ interface FlagMastheadProps {
   entryWizardUrl: string;
   classesHref: string | null;
   canEnterOnline?: boolean;
+  entryClosed?: boolean;
 }
 
 /**
@@ -42,6 +43,7 @@ export function FlagMasthead({
   entryWizardUrl,
   classesHref,
   canEnterOnline = true,
+  entryClosed = false,
 }: FlagMastheadProps) {
   const dateRangeLabel = formatDateRange(trialStartDate, trialEndDate, timezone);
   const closesLabel = entryCloseDate
@@ -50,11 +52,7 @@ export function FlagMasthead({
   const venueLabel = [venueName, venueCity].filter(Boolean).join(', ') || null;
 
   return (
-    <BannerFlagBar
-      variant="masthead"
-      color={brandColors.flag}
-      textColor={brandColors.textOnFlag}
-    >
+    <BannerFlagBar variant="masthead" color={brandColors.flag} textColor={brandColors.textOnFlag}>
       <div
         style={{
           display: 'flex',
@@ -109,7 +107,9 @@ export function FlagMasthead({
               opacity: 0.85,
             }}
           >
-            Entries are not available yet because no classes are assigned yet.
+            {entryClosed
+              ? 'Entries are closed for this show. Contact the trial secretary for late-entry help.'
+              : 'Entries are not available yet because no classes are assigned yet.'}
           </p>
         )}
         <SeeClassesLink

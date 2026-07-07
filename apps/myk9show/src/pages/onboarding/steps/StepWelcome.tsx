@@ -5,6 +5,7 @@
 
 import { Button } from '@/components/ui/button';
 import { CheckCircle2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 interface StepWelcomeProps {
   onFinish: () => void;
@@ -25,8 +26,25 @@ export function StepWelcome({ onFinish, onBack, isSubmitting, error }: StepWelco
       <div>
         <h2 className="text-2xl font-semibold">You're all set!</h2>
         <p className="text-muted-foreground mt-2 text-sm">
-          Your exhibitor profile is ready. Browse upcoming shows, register your dogs, and track your
-          results — all in one place.
+          Your exhibitor profile is ready. Browse upcoming shows, enter your dogs, and track your
+          results all in one place.
+        </p>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Address lives in{' '}
+          <Link
+            className="font-medium text-primary underline-offset-4 hover:underline"
+            to="/account?section=profile"
+          >
+            Account Profile
+          </Link>
+          , and notifications live in{' '}
+          <Link
+            className="font-medium text-primary underline-offset-4 hover:underline"
+            to="/account?section=notifications"
+          >
+            Account Notifications
+          </Link>
+          .
         </p>
       </div>
 

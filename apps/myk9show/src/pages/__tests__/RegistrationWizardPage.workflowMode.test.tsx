@@ -25,6 +25,16 @@ import {
 
 const navigateMock = vi.hoisted(() => vi.fn());
 const mockIsSecretaryRoute = vi.hoisted(() => ({ current: false }));
+const mockShow = vi.hoisted(() => ({
+  current: {
+    id: 'show-1',
+    name: 'Test Show',
+    organization: null,
+    startDate: '2026-06-01',
+    entryCloseDate: undefined as string | undefined,
+    preEntryFee: '0',
+  },
+}));
 
 // ─── react-router-dom ────────────────────────────────────────────────────────
 vi.mock('react-router-dom', async () => {
@@ -53,15 +63,7 @@ vi.mock('@/store/showRegistrationStore', () => ({
 
 vi.mock('@/store/showStore', () => ({
   useShowStore: () => ({
-    shows: [
-      {
-        id: 'show-1',
-        name: 'Test Show',
-        organization: null,
-        startDate: '2026-06-01',
-        preEntryFee: '0',
-      },
-    ],
+    shows: [mockShow.current],
   }),
 }));
 
@@ -168,6 +170,7 @@ describe('RegistrationWizardPage — workflowMode derivation', () => {
     mockPermissions.isClubAdmin = false;
     mockPermissions.isSiteAdmin = false;
     mockIsSecretaryRoute.current = false;
+    mockShow.current.entryCloseDate = undefined;
   });
 
   it('uses exhibitor config when user is an exhibitor', async () => {
@@ -177,6 +180,24 @@ describe('RegistrationWizardPage — workflowMode derivation', () => {
     await waitFor(() => expect(screen.getByTestId('step-content')).toBeInTheDocument());
 
     expect(capturedWorkflowConfig?.features.advancedSearch).toBe(false);
+  });
+
+  it('blocks a direct closed-show wizard URL before step content renders', async () => {
+    mockShow.current.entryCloseDate = '2020-01-01';
+
+    render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
+
+    expect(
+      await screen.findByRole('heading', {
+        name: /this show is no longer accepting normal online entries/i,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /message the show team/i })).toHaveAttribute(
+      'href',
+      '/messages/show-1'
+    );
+    expect(screen.queryByTestId('step-content')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('nav')).not.toBeInTheDocument();
   });
 
   it('keeps the public show registration route in exhibitor self-service mode for secretary-owned dogs', async () => {

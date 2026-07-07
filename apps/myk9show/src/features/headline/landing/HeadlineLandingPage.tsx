@@ -48,7 +48,10 @@ function joinOrFallback(items: string[], fallback: string): string {
   return present.length > 0 ? present.join(' · ') : fallback;
 }
 
-function getHeroTitleParts(showName: string | null | undefined): { base: string; suffix: string | null } {
+function getHeroTitleParts(showName: string | null | undefined): {
+  base: string;
+  suffix: string | null;
+} {
   const base = showName?.trim() || 'Scent Work';
   return /\btrial\b/i.test(base) ? { base, suffix: null } : { base, suffix: 'Trial' };
 }
@@ -56,9 +59,11 @@ function getHeroTitleParts(showName: string | null | undefined): { base: string;
 function HeadlineNav({
   data,
   canEnterOnline = true,
+  entryClosed = false,
 }: {
   data: HeritageLandingData;
   canEnterOnline?: boolean;
+  entryClosed?: boolean;
 }) {
   return (
     <>
@@ -81,7 +86,7 @@ function HeadlineNav({
               Enter this show
             </a>
           ) : (
-            <span className="hd-nav-cta">Classes pending</span>
+            <span className="hd-nav-cta">{entryClosed ? 'Entries closed' : 'Classes pending'}</span>
           )}
         </div>
       </nav>
@@ -93,10 +98,12 @@ function Hero({
   data,
   classesHref,
   canEnterOnline = true,
+  entryClosed = false,
 }: {
   data: HeritageLandingData;
   classesHref: string | null;
   canEnterOnline?: boolean;
+  entryClosed?: boolean;
 }) {
   const countdown = useCountdown(data.entryCloseDate, data.timezone);
   const totalRuns = data.entryLimit ? `${data.entryLimit} runs` : 'Limit TBD';
@@ -148,7 +155,9 @@ function Hero({
             </a>
           ) : (
             <span className="hd-cta hd-cta-disabled">
-              Entries are not available yet because no classes are assigned yet.
+              {entryClosed
+                ? 'Entries are closed for this show. Contact the trial secretary for late-entry help.'
+                : 'Entries are not available yet because no classes are assigned yet.'}
             </span>
           )}
           <a className="hd-cta ghost" href="#particulars">
@@ -367,7 +376,9 @@ export function HeadlineLandingPage({
 
   const data = useHeritageLandingData(show, trial, allTrials);
   const classesHref = publicClassesHref(show?.id, allTrials);
-  const canEnterOnline = hasEntryClassInventory !== false;
+  const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
+  const entryClosed = entryCountdown.closed;
+  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed;
 
   return (
     <div data-headline className="hd-shell">
@@ -385,15 +396,20 @@ export function HeadlineLandingPage({
       <meta property="og:description" content={data.showSubtitle} />
       <meta property="og:type" content="event" />
 
-      <HeadlineNav data={data} canEnterOnline={canEnterOnline} />
+      <HeadlineNav data={data} canEnterOnline={canEnterOnline} entryClosed={entryClosed} />
       <main>
-        <Hero data={data} classesHref={classesHref} canEnterOnline={canEnterOnline} />
+        <Hero
+          data={data}
+          classesHref={classesHref}
+          canEnterOnline={canEnterOnline}
+          entryClosed={entryClosed}
+        />
         <Judges data={data} />
         <Particulars data={data} />
         <Roster data={data} />
         <ScheduleAndPlan data={data} />
         <Officers data={data} />
-        <FinalCta data={data} canEnterOnline={canEnterOnline} />
+        <FinalCta data={data} canEnterOnline={canEnterOnline} entryClosed={entryClosed} />
       </main>
       <Footer data={data} />
     </div>

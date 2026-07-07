@@ -45,13 +45,11 @@ import {
   selectedDogsOwner,
   type SelectedDogsOwnerResult,
 } from '@/features/registration/selectedDogsOwner';
-import {
-  isShowDeskLateEntryMode,
-  resolveRegistrationExit,
-} from '../RegistrationWizardPage.routes';
+import { isShowDeskLateEntryMode, resolveRegistrationExit } from '../RegistrationWizardPage.routes';
 import { proceedBlockedReason } from './proceedGating';
 import { buildDraftFormData } from './buildDraftFormData';
 import { autoAssignHandlers } from './autoAssignHandlers';
+import { getEntryCloseAvailability } from './entryCloseGuard';
 
 // Exhibitor self-service defaults to online card payment; on-behalf modes
 // (secretary/admin/club) can't use card checkout, so they start unset and must
@@ -321,6 +319,23 @@ export function useRegistrationWizardState() {
       ).total,
     [registrationData.selectedDogs, classSelections, dogs, classes, currentShow]
   );
+  const entryCloseAvailability = useMemo(
+    () =>
+      getEntryCloseAvailability({
+        showId,
+        startDate: currentShow?.startDate,
+        entryCloseDate: currentShow?.entryCloseDate,
+        isLateEntryMode,
+        workflowMode: currentWorkflowMode,
+      }),
+    [
+      showId,
+      currentShow?.startDate,
+      currentShow?.entryCloseDate,
+      isLateEntryMode,
+      currentWorkflowMode,
+    ]
+  );
 
   // Auto-assign dog owners as handlers for each entry (dog+class) when class
   // selections change. Derived key tracks the set of entries; the effect fires
@@ -453,6 +468,7 @@ export function useRegistrationWizardState() {
     optimisticState,
     completedSteps,
     liveTotalFees,
+    entryCloseAvailability,
     ownerResolution,
     proceedBlocked,
     canProceed,

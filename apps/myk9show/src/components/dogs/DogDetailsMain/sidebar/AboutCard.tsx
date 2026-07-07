@@ -27,6 +27,18 @@ function Row({
   );
 }
 
+function formatMeasurement(value: string | undefined, suffix: string): string | null {
+  if (value === undefined) return null;
+
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed)) return null;
+
+  return `${parsed}${suffix}`;
+}
+
 const AboutCard: React.FC<AboutCardProps> = ({ dog }) => {
   const [now] = useState(() => Date.now());
   const breeds =
@@ -64,8 +76,8 @@ const AboutCard: React.FC<AboutCardProps> = ({ dog }) => {
           value={dog.dateOfBirth ? formatDisplayDate(dog.dateOfBirth) : null}
         />
         <Row label="Microchip" value={dog.microchipNumber} mono />
-        <Row label="Height" value={dog.height != null ? `${dog.height}"` : null} />
-        <Row label="Weight" value={dog.weight != null ? `${dog.weight} lbs` : null} />
+        <Row label="Height" value={formatMeasurement(dog.height, '"')} />
+        <Row label="Weight" value={formatMeasurement(dog.weight, ' lbs')} />
         <Row label="Color" value={dog.color} />
       </CardContent>
     </Card>

@@ -34,6 +34,13 @@ describe('Gazette entry CTA gating', () => {
       expect(screen.queryByRole('link', { name: /^enter$/i })).not.toBeInTheDocument();
       expect(screen.getByText(/classes pending/i)).toBeInTheDocument();
     });
+
+    it('shows closed-entry copy when entries are closed', () => {
+      render(<StickyNav {...STICKY_PROPS} canEnterOnline={false} entryClosed />);
+      expect(screen.queryByRole('link', { name: /^enter$/i })).not.toBeInTheDocument();
+      expect(screen.getByText(/entries closed/i)).toBeInTheDocument();
+      expect(screen.queryByText(/classes pending/i)).not.toBeInTheDocument();
+    });
   });
 
   describe('FinalCtaSection', () => {
@@ -60,6 +67,15 @@ describe('Gazette entry CTA gating', () => {
         )
       ).toBeInTheDocument();
       expect(screen.getByText(/classes are assigned/i)).toBeInTheDocument();
+    });
+
+    it('shows closed-entry guidance when entries are closed', () => {
+      render(<FinalCtaSection {...FINAL_PROPS} canEnterOnline={false} entryClosed />);
+      expect(
+        screen.queryByRole('link', { name: /open the entry wizard/i })
+      ).not.toBeInTheDocument();
+      expect(screen.getByText(/Contact the trial secretary/i)).toBeInTheDocument();
+      expect(screen.queryByText(/classes are assigned/i)).not.toBeInTheDocument();
     });
   });
 });

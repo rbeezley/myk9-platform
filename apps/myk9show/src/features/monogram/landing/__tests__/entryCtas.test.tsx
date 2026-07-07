@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen } from '@/test/utils/testUtils';
 import { describe, expect, it } from 'vitest';
 import { StickyNav } from '../sections/StickyNav';
 import { HeroBlock } from '../sections/HeroBlock';
@@ -17,6 +17,21 @@ describe('Monogram entry CTAs', () => {
 
     expect(screen.queryByRole('link', { name: /enter this show/i })).not.toBeInTheDocument();
     expect(screen.getByText(/classes pending/i)).toBeInTheDocument();
+  });
+
+  it('replaces the sticky enter link when entries are closed', () => {
+    render(
+      <StickyNav
+        clubName="Monogram Kennel Club"
+        monogramLetters="MKC"
+        entryWizardUrl="/shows/show-1/register"
+        canEnterOnline={false}
+        entryClosed
+      />
+    );
+
+    expect(screen.queryByRole('link', { name: /enter this show/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/entries closed/i)).toBeInTheDocument();
   });
 
   it('replaces the hero enter link when classes are not ready', () => {
@@ -41,6 +56,28 @@ describe('Monogram entry CTAs', () => {
     expect(screen.getByText(/no classes are assigned yet/i)).toBeInTheDocument();
   });
 
+  it('replaces the hero enter link when entries are closed', () => {
+    render(
+      <HeroBlock
+        monogramLetters="MKC"
+        showName="Monogram Trial"
+        showSubtitle="AKC Licensed Trial"
+        trialStartDate="2026-06-12"
+        trialEndDate="2026-06-14"
+        entryCloseDate="2020-01-01"
+        entryLimit={null}
+        venueName="Show Grounds"
+        venueCity="Austin"
+        timezone="America/Chicago"
+        entryWizardUrl="/shows/show-1/register"
+        classesHref={null}
+      />
+    );
+
+    expect(screen.queryByRole('link', { name: /enter this show/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/late-entry help/i)).toBeInTheDocument();
+  });
+
   it('replaces the final enter link when classes are not ready', () => {
     render(
       <FinalCtaBand
@@ -54,6 +91,20 @@ describe('Monogram entry CTAs', () => {
 
     expect(screen.queryByRole('link', { name: /enter this show/i })).not.toBeInTheDocument();
     expect(screen.getByText(/classes are assigned/i)).toBeInTheDocument();
+  });
+
+  it('replaces the final enter link when entries are closed', () => {
+    render(
+      <FinalCtaBand
+        monogramLetters="MKC"
+        entryWizardUrl="/shows/show-1/register"
+        entryCloseDate="2020-01-01"
+        timezone="America/Chicago"
+      />
+    );
+
+    expect(screen.queryByRole('link', { name: /enter this show/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/late-entry help/i)).toBeInTheDocument();
   });
 
   describe('"Closes {date}" gating (ux-date-status-consistency)', () => {
@@ -75,6 +126,7 @@ describe('Monogram entry CTAs', () => {
       render(<HeroBlock {...heroBaseProps} entryCloseDate="2020-01-01" />);
       expect(screen.getByText('Closed')).toBeInTheDocument();
       expect(screen.queryByText(/Jan 1/)).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: /enter this show/i })).not.toBeInTheDocument();
     });
 
     it('HeroBlock shows the close date when entryCloseDate is still in the future', () => {

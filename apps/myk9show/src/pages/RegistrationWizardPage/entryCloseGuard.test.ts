@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getEntryCloseSubmitBlocker } from './entryCloseGuard';
+import { getEntryCloseAvailability, getEntryCloseSubmitBlocker } from './entryCloseGuard';
 
 describe('getEntryCloseSubmitBlocker', () => {
   it('blocks exhibitor submit after entries have closed', () => {
@@ -36,5 +36,22 @@ describe('getEntryCloseSubmitBlocker', () => {
         workflowMode: 'exhibitor',
       })
     ).toBeNull();
+  });
+
+  it('returns the closed-entry recovery path for direct wizard blocking', () => {
+    expect(
+      getEntryCloseAvailability({
+        showId: 'show-1',
+        startDate: '2026-08-01',
+        entryCloseDate: '2026-07-15',
+        today: '2026-07-16',
+        isLateEntryMode: false,
+        workflowMode: 'exhibitor',
+      })
+    ).toStrictEqual({
+      canEnter: false,
+      reason: 'Entries are closed for this show. Contact the trial secretary for late-entry help.',
+      recoveryHref: '/messages/show-1',
+    });
   });
 });

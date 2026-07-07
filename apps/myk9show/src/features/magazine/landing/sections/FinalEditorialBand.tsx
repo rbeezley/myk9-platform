@@ -8,6 +8,7 @@ interface FinalEditorialBandProps {
   entryCloseDate: string | null;
   timezone: string;
   canEnterOnline?: boolean;
+  entryClosed?: boolean;
 }
 
 /**
@@ -30,6 +31,7 @@ export function FinalEditorialBand({
   entryCloseDate,
   timezone,
   canEnterOnline = true,
+  entryClosed = false,
 }: FinalEditorialBandProps) {
   const countdown = useCountdown(entryCloseDate, timezone);
   // Gate on countdown.closed (not just entryCloseDate presence) so a past close
@@ -77,10 +79,13 @@ export function FinalEditorialBand({
           {canEnterOnline ? (
             <>
               You are{' '}
-              <em style={{ fontStyle: 'italic', color: 'var(--mz-gold-1)' }}>
-                cordially invited
-              </em>{' '}
+              <em style={{ fontStyle: 'italic', color: 'var(--mz-gold-1)' }}>cordially invited</em>{' '}
               to enter.
+            </>
+          ) : entryClosed ? (
+            <>
+              Entries are <em style={{ fontStyle: 'italic', color: 'var(--mz-gold-1)' }}>closed</em>
+              .
             </>
           ) : (
             <>
@@ -133,7 +138,9 @@ export function FinalEditorialBand({
               lineHeight: 1.5,
             }}
           >
-            The secretary still needs to assign classes before online entry is available.
+            {entryClosed
+              ? 'Contact the trial secretary for late-entry help.'
+              : 'The secretary still needs to assign classes before online entry is available.'}
           </p>
         )}
 

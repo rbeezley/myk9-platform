@@ -1,12 +1,10 @@
 /**
- * Exhibitor Onboarding Wizard — full-page, 5 steps.
+ * Exhibitor Onboarding Wizard — full-page setup.
  * Route: /onboarding (rendered outside UnifiedAppLayout — no sidebar).
  *
  * Step 1 – Profile        (required, creates exhibitor_profiles row)
  * Step 2 – Add Your Dogs  (skippable)
- * Step 3 – Mailing Address (skippable)
- * Step 4 – Notifications  (skippable)
- * Step 5 – Welcome        (sets onboarding_completed_at, navigates to /shows)
+ * Step 3 – Welcome        (sets onboarding_completed_at, navigates to /shows)
  */
 
 import { useEffect, useMemo, useState } from 'react';
@@ -20,15 +18,17 @@ import { getDashboardRoute } from '@/hooks/roleUtils';
 import { UserRole } from '@/types/auth-types';
 import { StepProfile, ProfileData } from './steps/StepProfile';
 import { StepDogs } from './steps/StepDogs';
-import { StepAddress, AddressData } from './steps/StepAddress';
-import { StepNotifications, NotificationPrefs } from './steps/StepNotifications';
 import { StepWelcome } from './steps/StepWelcome';
 
-const TOTAL_STEPS = 5;
 const PROFILE_STEP = 1;
 const DOGS_STEP = 2;
+const WELCOME_STEP = 3;
 
-const STEP_LABELS = ['Profile', 'Dogs', 'Address', 'Notifications', 'Welcome'];
+const STEP_LABELS: Record<number, string> = {
+  [PROFILE_STEP]: 'Profile',
+  [DOGS_STEP]: 'Dogs',
+  [WELCOME_STEP]: 'Welcome',
+};
 const STAFF_ROLES = new Set<UserRole>([
   UserRole.SITE_ADMIN,
   UserRole.SECRETARY,
@@ -36,14 +36,24 @@ const STAFF_ROLES = new Set<UserRole>([
   UserRole.CLUB_ADMIN,
 ]);
 
-function StepIndicator({ current, total }: { current: number; total: number }) {
-  const pct = Math.round(((current - 1) / (total - 1)) * 100);
+function StepIndicator({
+  current,
+  visibleSteps,
+}: {
+  current: number;
+  visibleSteps: readonly number[];
+}) {
+  const total = visibleSteps.length;
+  const currentIndex = Math.max(0, visibleSteps.indexOf(current));
+  const displayCurrent = currentIndex + 1;
+  const pct = total > 1 ? Math.round((currentIndex / (total - 1)) * 100) : 100;
+
   return (
-    <div className="space-y-1" aria-label={`Step ${current} of ${total}`}>
+    <div className="space-y-1" aria-label={`Step ${displayCurrent} of ${total}`}>
       <div className="flex justify-between text-xs text-muted-foreground">
-        <span>{STEP_LABELS[current - 1]}</span>
+        <span>{STEP_LABELS[current]}</span>
         <span>
-          {current} of {total}
+          {displayCurrent} of {total}
         </span>
       </div>
       <Progress value={pct} className="h-1.5" />
@@ -110,6 +120,13 @@ function ExhibitorOnboardingWizard({ user }: { user: User }) {
   const userMeta = user.user_metadata ?? {};
 
   const firstAvailableStep = exhibitorProfile ? DOGS_STEP : PROFILE_STEP;
+  const visibleSteps = useMemo<number[]>(
+    () =>
+      exhibitorProfile
+        ? [DOGS_STEP, WELCOME_STEP]
+        : [PROFILE_STEP, DOGS_STEP, WELCOME_STEP],
+    [exhibitorProfile]
+  );
 
   // Wizard state
   const [step, setStep] = useState(firstAvailableStep);
@@ -121,19 +138,12 @@ function ExhibitorOnboardingWizard({ user }: { user: User }) {
     lastName: (userMeta.last_name ?? userMeta.lastName ?? '') as string,
     phone: (userMeta.phone ?? '') as string,
   });
-  const [addressData, setAddressData] = useState<AddressData>({
-    street: '',
-    city: '',
-    state: '',
-    zip: '',
-  });
-  const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>({
-    emailResults: true,
-    emailReminders: true,
-    pushResults: false,
-    pushReminders: false,
-  });
-  const visibleStep = Math.max(step, firstAvailableStep);
+  const visibleStep = visibleSteps.includes(step) ? step : firstAvailableStep;
+
+  useEffect(() => {
+    if (profileLoading || !exhibitorProfile?.onboarding_completed_at) return;
+    navigate('/shows', { replace: true });
+  }, [exhibitorProfile?.onboarding_completed_at, navigate, profileLoading]);
 
   if (profileLoading) {
     return (
@@ -152,6 +162,10 @@ function ExhibitorOnboardingWizard({ user }: { user: User }) {
         </div>
       </div>
     );
+  }
+
+  if (exhibitorProfile?.onboarding_completed_at) {
+    return null;
   }
 
   // ── Step 1: create profile ──────────────────────────────────────────────────
@@ -175,7 +189,7 @@ function ExhibitorOnboardingWizard({ user }: { user: User }) {
         ...(trimmedPhone ? { phone: trimmedPhone } : {}),
       };
       await createProfileAsync(payload);
-      setStep(2);
+      setStep(DOGS_STEP);
     } catch (err) {
       setStepError(err instanceof Error ? err.message : 'Failed to create profile. Please retry.');
     }
@@ -184,37 +198,15 @@ function ExhibitorOnboardingWizard({ user }: { user: User }) {
   // ── Step 2: dogs are saved directly via AddDogPanel — just advance ───────────
   const handleDogsNext = () => {
     setStepError('');
-    setStep(3);
+    setStep(WELCOME_STEP);
   };
 
   const handleDogsSkip = () => {
     setStepError('');
-    setStep(3);
+    setStep(WELCOME_STEP);
   };
 
-  // ── Step 3: address (stored locally only — no DB column yet) ─────────────────
-  const handleAddressNext = () => {
-    setStepError('');
-    setStep(4);
-  };
-
-  const handleAddressSkip = () => {
-    setStepError('');
-    setStep(4);
-  };
-
-  // ── Step 4: notifications (stored locally only) ──────────────────────────────
-  const handleNotifNext = () => {
-    setStepError('');
-    setStep(5);
-  };
-
-  const handleNotifSkip = () => {
-    setStepError('');
-    setStep(5);
-  };
-
-  // ── Step 5: complete onboarding ───────────────────────────────────────────────
+  // ── Step 3: complete onboarding ───────────────────────────────────────────────
   const handleFinish = async () => {
     setStepError('');
     try {
@@ -242,7 +234,7 @@ function ExhibitorOnboardingWizard({ user }: { user: User }) {
         </div>
 
         {/* Progress */}
-        <StepIndicator current={visibleStep} total={TOTAL_STEPS} />
+        <StepIndicator current={visibleStep} visibleSteps={visibleSteps} />
 
         {/* Step content */}
         <div className="rounded-xl border bg-card p-6 shadow-sm">
@@ -265,25 +257,7 @@ function ExhibitorOnboardingWizard({ user }: { user: User }) {
               canGoBack={visibleStep > firstAvailableStep}
             />
           )}
-          {visibleStep === 3 && (
-            <StepAddress
-              data={addressData}
-              onChange={setAddressData}
-              onNext={handleAddressNext}
-              onBack={goBack}
-              onSkip={handleAddressSkip}
-            />
-          )}
-          {visibleStep === 4 && (
-            <StepNotifications
-              data={notifPrefs}
-              onChange={setNotifPrefs}
-              onNext={handleNotifNext}
-              onBack={goBack}
-              onSkip={handleNotifSkip}
-            />
-          )}
-          {visibleStep === 5 && (
+          {visibleStep === WELCOME_STEP && (
             <StepWelcome
               onFinish={handleFinish}
               onBack={goBack}

@@ -31,6 +31,13 @@ describe('FieldGuide Enter CTA gating', () => {
       expect(screen.queryByRole('link', { name: /enter/i })).toBeNull();
       expect(screen.getByText('Classes pending')).toBeInTheDocument();
     });
+
+    it('shows closed-entry copy when entries are closed', () => {
+      render(<TopStrip {...baseProps} canEnterOnline={false} entryClosed />);
+      expect(screen.queryByRole('link', { name: /enter/i })).toBeNull();
+      expect(screen.getByText('Entries closed')).toBeInTheDocument();
+      expect(screen.queryByText('Classes pending')).not.toBeInTheDocument();
+    });
   });
 
   describe('FinalCtaSection', () => {
@@ -58,10 +65,17 @@ describe('FieldGuide Enter CTA gating', () => {
       expect(screen.queryByRole('link', { name: /submit entry/i })).toBeNull();
       expect(
         screen.getByText(
-          'The secretary still needs to assign classes before online entry is available.',
-        ),
+          'The secretary still needs to assign classes before online entry is available.'
+        )
       ).toBeInTheDocument();
       expect(screen.getByText(/classes are assigned/i)).toBeInTheDocument();
+    });
+
+    it('shows closed-entry guidance when entries are closed', () => {
+      render(<FinalCtaSection {...baseProps} canEnterOnline={false} entryClosed />);
+      expect(screen.queryByRole('link', { name: /submit entry/i })).toBeNull();
+      expect(screen.getByText(/Contact the trial secretary/i)).toBeInTheDocument();
+      expect(screen.queryByText(/classes are assigned/i)).not.toBeInTheDocument();
     });
   });
 });

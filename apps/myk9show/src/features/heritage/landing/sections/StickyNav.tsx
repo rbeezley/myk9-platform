@@ -7,6 +7,7 @@ interface StickyNavProps {
   clubName: string;
   entryWizardUrl: string;
   canEnterOnline?: boolean;
+  entryClosed?: boolean;
 }
 
 const SECTIONS = [
@@ -16,7 +17,12 @@ const SECTIONS = [
   { id: 'day', label: 'On the Day' },
 ] as const;
 
-export function StickyNav({ clubName, entryWizardUrl, canEnterOnline = true }: StickyNavProps) {
+export function StickyNav({
+  clubName,
+  entryWizardUrl,
+  canEnterOnline = true,
+  entryClosed = false,
+}: StickyNavProps) {
   const [activeId, setActiveId] = useState<string>('overview');
 
   // Track active section via IntersectionObserver
@@ -120,7 +126,7 @@ export function StickyNav({ clubName, entryWizardUrl, canEnterOnline = true }: S
                 fontFamily: "'EB Garamond', Georgia, serif",
               }}
             >
-              Classes pending
+              {entryClosed ? 'Entries closed' : 'Classes pending'}
             </span>
           )}
         </div>

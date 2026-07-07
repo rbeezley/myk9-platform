@@ -9,6 +9,7 @@ interface TopStripProps {
   entryLimit: number | null;
   /** When false, the show has no classes assigned — gate the Enter CTA. */
   canEnterOnline?: boolean;
+  entryClosed?: boolean;
 }
 
 const SECTION_ANCHORS = ['§01', '§02', '§03', '§04', '§05', '§06', '§07'];
@@ -24,6 +25,7 @@ export function TopStrip({
   entryWizardUrl,
   entryLimit,
   canEnterOnline = true,
+  entryClosed = false,
 }: TopStripProps) {
   return (
     <FieldGuideDarkBand
@@ -85,7 +87,7 @@ export function TopStrip({
             color: fieldGuideColors.paperTranslucent,
           }}
         >
-          Classes pending
+          {entryClosed ? 'Entries closed' : 'Classes pending'}
         </span>
       )}
     </FieldGuideDarkBand>

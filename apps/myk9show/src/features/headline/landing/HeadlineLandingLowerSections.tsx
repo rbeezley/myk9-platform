@@ -87,9 +87,11 @@ export function Officers({ data }: { data: HeritageLandingData }) {
 export function FinalCta({
   data,
   canEnterOnline = true,
+  entryClosed = false,
 }: {
   data: HeritageLandingData;
   canEnterOnline?: boolean;
+  entryClosed?: boolean;
 }) {
   const countdown = useCountdown(data.entryCloseDate, data.timezone);
 
@@ -111,6 +113,12 @@ export function FinalCta({
                 <br />
                 <span className="accent">on the entry list.</span>
               </>
+            ) : entryClosed ? (
+              <>
+                Entries are
+                <br />
+                <span className="accent">closed.</span>
+              </>
             ) : (
               <>
                 Entries open when
@@ -126,6 +134,8 @@ export function FinalCta({
                 Entries are accepted through myK9Show until the closing date or the published limit
                 is reached.
               </>
+            ) : entryClosed ? (
+              'Contact the trial secretary for late-entry help.'
             ) : (
               'The secretary still needs to assign classes before online entry is available.'
             )}
@@ -143,7 +153,9 @@ export function FinalCta({
             </>
           ) : (
             <div className="helper">
-              The secretary still needs to assign classes before online entry is available.
+              {entryClosed
+                ? 'Contact the trial secretary for late-entry help.'
+                : 'The secretary still needs to assign classes before online entry is available.'}
             </div>
           )}
         </div>

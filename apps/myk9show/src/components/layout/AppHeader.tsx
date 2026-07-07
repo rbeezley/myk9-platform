@@ -57,6 +57,8 @@ const AppHeader: React.FC = () => {
   // (LandingHeader). Suppressing this global app bar on `/` for guests
   // avoids two stacked headers.
   const isGuestLanding = !user && location.pathname === '/';
+  const isOnboardingRoute =
+    location.pathname === '/onboarding' || location.pathname.startsWith('/onboarding/');
   // At-show ringside is a full-screen judge view on a phone (mirrors myK9Q's
   // standalone ringside). Suppress this global app bar so it doesn't eat
   // vertical space above the ringside page's own header.
@@ -71,73 +73,76 @@ const AppHeader: React.FC = () => {
 
   // Central keyboard shortcuts — independent of nav UI
   const shortcuts: ShortcutDefinition[] = useMemo(
-    () => [
-      {
-        id: 'command-palette',
-        label: 'Open command palette',
-        keys: 'Meta+K',
-        category: 'general',
-        action: openCommandPalette,
-        global: true,
-      },
-      {
-        id: 'shortcuts-overlay',
-        label: 'Show keyboard shortcuts',
-        keys: '?',
-        category: 'general',
-        action: () => setShortcutsOverlayOpen(true),
-      },
-      {
-        id: 'go-dogs',
-        label: 'Go to Dogs',
-        keys: 'G D',
-        category: 'navigation',
-        action: () => navigate('/dogs'),
-      },
-      {
-        id: 'go-people',
-        label: 'Go to People',
-        keys: 'G P',
-        category: 'navigation',
-        action: () => navigate('/people'),
-      },
-      {
-        id: 'go-shows',
-        label: 'Go to Shows',
-        keys: 'G S',
-        category: 'navigation',
-        action: () => navigate('/shows'),
-      },
-      {
-        id: 'go-clubs',
-        label: 'Go to Clubs',
-        keys: 'G C',
-        category: 'navigation',
-        action: () => navigate('/clubs'),
-      },
-      {
-        id: 'create-dog',
-        label: 'Create Dog',
-        keys: 'C D',
-        category: 'actions',
-        action: () => navigate('/dogs?add=true'),
-      },
-      {
-        id: 'create-person',
-        label: 'Create Person',
-        keys: 'C P',
-        category: 'actions',
-        action: () => navigate('/people?add=true'),
-      },
-      {
-        id: 'create-show',
-        label: 'New Show',
-        keys: 'C S',
-        category: 'actions',
-        action: () => navigate('/?wizard=true'),
-      },
-    ],
-    [navigate, openCommandPalette]
+    () =>
+      isOnboardingRoute
+        ? []
+        : [
+            {
+              id: 'command-palette',
+              label: 'Open command palette',
+              keys: 'Meta+K',
+              category: 'general',
+              action: openCommandPalette,
+              global: true,
+            },
+            {
+              id: 'shortcuts-overlay',
+              label: 'Show keyboard shortcuts',
+              keys: '?',
+              category: 'general',
+              action: () => setShortcutsOverlayOpen(true),
+            },
+            {
+              id: 'go-dogs',
+              label: 'Go to Dogs',
+              keys: 'G D',
+              category: 'navigation',
+              action: () => navigate('/dogs'),
+            },
+            {
+              id: 'go-people',
+              label: 'Go to People',
+              keys: 'G P',
+              category: 'navigation',
+              action: () => navigate('/people'),
+            },
+            {
+              id: 'go-shows',
+              label: 'Go to Shows',
+              keys: 'G S',
+              category: 'navigation',
+              action: () => navigate('/shows'),
+            },
+            {
+              id: 'go-clubs',
+              label: 'Go to Clubs',
+              keys: 'G C',
+              category: 'navigation',
+              action: () => navigate('/clubs'),
+            },
+            {
+              id: 'create-dog',
+              label: 'Create Dog',
+              keys: 'C D',
+              category: 'actions',
+              action: () => navigate('/dogs?add=true'),
+            },
+            {
+              id: 'create-person',
+              label: 'Create Person',
+              keys: 'C P',
+              category: 'actions',
+              action: () => navigate('/people?add=true'),
+            },
+            {
+              id: 'create-show',
+              label: 'New Show',
+              keys: 'C S',
+              category: 'actions',
+              action: () => navigate('/?wizard=true'),
+            },
+          ],
+    [isOnboardingRoute, navigate, openCommandPalette]
   );
 
   useKeyboardShortcuts(shortcuts);
@@ -152,17 +157,21 @@ const AppHeader: React.FC = () => {
         <div className="flex items-center justify-between h-full">
           {/* Left: Mobile navigation + logo */}
           <div className="flex min-w-0 items-center gap-2">
-            {user && openMobileNav && isMobileSidebarViewport && !isMobileNavOpen && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={openMobileNav}
-                className="md:hidden -ml-2 min-h-11 min-w-11 rounded-lg p-2"
-                aria-label="Open navigation"
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
-            )}
+            {user &&
+              !isOnboardingRoute &&
+              openMobileNav &&
+              isMobileSidebarViewport &&
+              !isMobileNavOpen && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={openMobileNav}
+                  className="md:hidden -ml-2 min-h-11 min-w-11 rounded-lg p-2"
+                  aria-label="Open navigation"
+                >
+                  <Menu className="h-5 w-5" />
+                </Button>
+              )}
             <Link to="/" className="flex min-h-11 min-w-0 items-center">
               <span className="truncate text-lg font-bold text-foreground tracking-tight">
                 myK9Show
@@ -171,7 +180,7 @@ const AppHeader: React.FC = () => {
           </div>
 
           {/* Center: Search (desktop) */}
-          {user && (
+          {user && !isOnboardingRoute && (
             <div className="hidden md:flex items-center">
               <Button
                 variant="ghost"
@@ -193,21 +202,23 @@ const AppHeader: React.FC = () => {
             {user ? (
               <>
                 {/* Mobile Search */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setCommandPaletteOpen(true)}
-                  className="min-h-11 min-w-11 p-2 md:hidden"
-                  aria-label="Search"
-                >
-                  <Search className="h-4 w-4" />
-                </Button>
+                {!isOnboardingRoute && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setCommandPaletteOpen(true)}
+                    className="min-h-11 min-w-11 p-2 md:hidden"
+                    aria-label="Search"
+                  >
+                    <Search className="h-4 w-4" />
+                  </Button>
+                )}
 
                 {/* Notifications */}
-                <NotificationBell />
+                {!isOnboardingRoute && <NotificationBell />}
 
                 {/* Cart Icon */}
-                {cartItemCount > 0 && (
+                {!isOnboardingRoute && cartItemCount > 0 && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -223,54 +234,58 @@ const AppHeader: React.FC = () => {
                 )}
 
                 {/* Theme Toggle */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={toggleTheme}
-                  className="min-h-11 min-w-11 rounded-lg p-2"
-                  aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-                >
-                  {theme === 'dark' ? (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                      className="w-4 h-4"
-                    >
-                      <path d="M21 12.79A9 9 0 0112.79 3a1 1 0 00-1.06 1.28A7 7 0 1019.72 13.85a1 1 0 001.28-1.06z" />
-                    </svg>
-                  ) : (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                      className="w-4 h-4"
-                    >
-                      <circle cx="12" cy="12" r="5" />
-                      <g stroke="currentColor" strokeWidth="2">
-                        <line x1="12" y1="1" x2="12" y2="3" />
-                        <line x1="12" y1="21" x2="12" y2="23" />
-                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-                        <line x1="1" y1="12" x2="3" y2="12" />
-                        <line x1="21" y1="12" x2="23" y2="12" />
-                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-                      </g>
-                    </svg>
-                  )}
-                </Button>
+                {!isOnboardingRoute && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={toggleTheme}
+                    className="min-h-11 min-w-11 rounded-lg p-2"
+                    aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                  >
+                    {theme === 'dark' ? (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="currentColor"
+                        viewBox="0 0 24 24"
+                        className="w-4 h-4"
+                      >
+                        <path d="M21 12.79A9 9 0 0112.79 3a1 1 0 00-1.06 1.28A7 7 0 1019.72 13.85a1 1 0 001.28-1.06z" />
+                      </svg>
+                    ) : (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="currentColor"
+                        viewBox="0 0 24 24"
+                        className="w-4 h-4"
+                      >
+                        <circle cx="12" cy="12" r="5" />
+                        <g stroke="currentColor" strokeWidth="2">
+                          <line x1="12" y1="1" x2="12" y2="3" />
+                          <line x1="12" y1="21" x2="12" y2="23" />
+                          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                          <line x1="1" y1="12" x2="3" y2="12" />
+                          <line x1="21" y1="12" x2="23" y2="12" />
+                          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                        </g>
+                      </svg>
+                    )}
+                  </Button>
+                )}
 
                 {/* AskQ Assistant */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={toggleAskQ}
-                  className="min-h-11 min-w-11 rounded-lg p-2"
-                  aria-label="AskQ Assistant"
-                >
-                  <MessageSquare className="h-4 w-4" />
-                </Button>
+                {!isOnboardingRoute && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={toggleAskQ}
+                    className="min-h-11 min-w-11 rounded-lg p-2"
+                    aria-label="AskQ Assistant"
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                  </Button>
+                )}
 
                 {/* Profile Dropdown */}
                 <DropdownMenu>

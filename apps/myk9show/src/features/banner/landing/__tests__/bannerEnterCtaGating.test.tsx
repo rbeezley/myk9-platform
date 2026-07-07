@@ -49,6 +49,13 @@ describe('Banner Enter CTA gating', () => {
         screen.getByText('Entries are not available yet because no classes are assigned yet.')
       ).toBeInTheDocument();
     });
+
+    it('shows closed-entry guidance when entries are closed', () => {
+      render(<FlagMasthead {...mastheadProps} canEnterOnline={false} entryClosed />);
+      expect(screen.queryByRole('link', { name: 'Enter this show' })).not.toBeInTheDocument();
+      expect(screen.getByText(/late-entry help/i)).toBeInTheDocument();
+      expect(screen.queryByText(/classes are assigned/i)).not.toBeInTheDocument();
+    });
   });
 
   describe('FinalFlagBand', () => {
@@ -67,9 +74,18 @@ describe('Banner Enter CTA gating', () => {
       render(<FinalFlagBand {...finalBandProps} canEnterOnline={false} />);
       expect(screen.queryByRole('link', { name: 'Enter this show' })).not.toBeInTheDocument();
       expect(
-        screen.getByText('The secretary still needs to assign classes before online entry is available.')
+        screen.getByText(
+          'The secretary still needs to assign classes before online entry is available.'
+        )
       ).toBeInTheDocument();
       expect(screen.getByText('classes are assigned.')).toBeInTheDocument();
+    });
+
+    it('shows closed-entry guidance when entries are closed', () => {
+      render(<FinalFlagBand {...finalBandProps} canEnterOnline={false} entryClosed />);
+      expect(screen.queryByRole('link', { name: 'Enter this show' })).not.toBeInTheDocument();
+      expect(screen.getByText(/Contact the trial secretary/i)).toBeInTheDocument();
+      expect(screen.queryByText(/classes are assigned/i)).not.toBeInTheDocument();
     });
 
     it('hides the stale "Closes {date}" line once entryCloseDate is in the past', () => {

@@ -629,8 +629,38 @@ describe('MutationManager', () => {
       expect(vi.mocked(mockSupabase.from)).not.toHaveBeenCalled();
     });
 
-    it('blocks dependents when an RPC INSERT returns a different row id', async () => {
+    it('remaps dog dependents when an RPC INSERT returns an existing dog id', async () => {
       vi.mocked(mockSupabase.rpc).mockResolvedValue({ data: 'existing-dog-1', error: null } as never);
+      await mockDb.put(REPLICATION_STORES.REPLICATED_TABLES, {
+        tableName: 'dogs',
+        id: 'dog-1',
+        data: { id: 'dog-1', name: 'Beacon', ownerId: 'person-1' },
+        version: 1,
+        lastSyncedAt: 0,
+        lastAccessedAt: 0,
+        isDirty: true,
+        syncStatus: 'pending',
+      } satisfies ReplicatedRow<Record<string, unknown>>);
+      await mockDb.put(REPLICATION_STORES.REPLICATED_TABLES, {
+        tableName: 'entries',
+        id: 'entry-1',
+        data: { id: 'entry-1', dogId: 'dog-1' },
+        version: 1,
+        lastSyncedAt: 0,
+        lastAccessedAt: 0,
+        isDirty: true,
+        syncStatus: 'pending',
+      } satisfies ReplicatedRow<Record<string, unknown>>);
+      await mockDb.put(REPLICATION_STORES.REPLICATED_TABLES, {
+        tableName: 'dog_registrations',
+        id: 'registration-1',
+        data: { id: 'registration-1', dogId: 'dog-1', registrationNumber: 'SW123456' },
+        version: 1,
+        lastSyncedAt: 0,
+        lastAccessedAt: 0,
+        isDirty: false,
+        syncStatus: 'synced',
+      } satisfies ReplicatedRow<Record<string, unknown>>);
       await mockDb.put(
         REPLICATION_STORES.PENDING_MUTATIONS,
         makeMutation({
@@ -669,11 +699,30 @@ describe('MutationManager', () => {
       const failed = (await mockDb.getAll(
         REPLICATION_STORES.FAILED_MUTATIONS
       )) as PendingMutation[];
+      const remappedDog = (await mockDb.get(REPLICATION_STORES.REPLICATED_TABLES, [
+        'dogs',
+        'existing-dog-1',
+      ])) as ReplicatedRow<Record<string, unknown>> | undefined;
+      const oldDog = await mockDb.get(REPLICATION_STORES.REPLICATED_TABLES, ['dogs', 'dog-1']);
+      const remappedEntry = (await mockDb.get(REPLICATION_STORES.REPLICATED_TABLES, [
+        'entries',
+        'entry-1',
+      ])) as ReplicatedRow<Record<string, unknown>> | undefined;
+      const remappedRegistration = (await mockDb.get(REPLICATION_STORES.REPLICATED_TABLES, [
+        'dog_registrations',
+        'registration-1',
+      ])) as ReplicatedRow<Record<string, unknown>> | undefined;
 
-      expect(results).toHaveLength(1);
-      expect(results[0]).toEqual(expect.objectContaining({ success: false, tableName: 'dogs' }));
-      expect(pending.map(mutation => mutation.id)).toEqual(['mut-entry']);
-      expect(failed.map(mutation => mutation.id)).toEqual(['mut-dog-rpc']);
+      expect(results).toHaveLength(2);
+      expect(results.every(result => result.success)).toBe(true);
+      expect(pending).toEqual([]);
+      expect(failed).toEqual([]);
+      expect(vi.mocked(mockSupabase.from)).toHaveBeenCalledWith('entries');
+      expect(remappedDog?.data.id).toBe('existing-dog-1');
+      expect(remappedDog?.syncStatus).toBe('synced');
+      expect(oldDog).toBeUndefined();
+      expect(remappedEntry?.data.dogId).toBe('existing-dog-1');
+      expect(remappedRegistration?.data.dogId).toBe('existing-dog-1');
     });
 
     it('should detect RLS rejection (0 rows returned)', async () => {

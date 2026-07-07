@@ -42,6 +42,11 @@ import { type PendingMutation, type ReplicatedRow, type SyncResult } from './typ
 
 const POSTGRES_UNIQUE_VIOLATION = '23505';
 
+interface MutationExecutionResult {
+  newServerVersion?: number;
+  remappedRowId?: string;
+}
+
 function isPrimaryKeyDuplicateError(error: unknown, tableName: string, rowId: string): boolean {
   const candidate = error as { code?: unknown; message?: unknown; details?: unknown } | null;
   if (candidate?.code !== POSTGRES_UNIQUE_VIOLATION) return false;
@@ -565,12 +570,15 @@ export class MutationManager {
         }
 
         try {
-          const { newServerVersion } = await this.executeMutation(mutation);
-          await this.markReplicatedRowSynced(db, mutation, newServerVersion);
+          const { newServerVersion, remappedRowId } = await this.executeMutation(mutation);
+          const uploadedMutation = remappedRowId
+            ? await this.remapUploadedRpcInsertRowId(db, mutation, remappedRowId)
+            : mutation;
+          await this.markReplicatedRowSynced(db, uploadedMutation, newServerVersion);
           if (newServerVersion !== undefined) {
             await this.updateMutationServerVersions(
-              mutation.tableName,
-              mutation.rowId,
+              uploadedMutation.tableName,
+              uploadedMutation.rowId,
               newServerVersion
             );
           }
@@ -745,7 +753,7 @@ export class MutationManager {
    * Uses `select()` after upsert/delete to get the returned rows,
    * which lets us detect RLS silent rejections (0 rows affected = RLS blocked).
    */
-  private async executeMutation(mutation: PendingMutation): Promise<{ newServerVersion?: number }> {
+  private async executeMutation(mutation: PendingMutation): Promise<MutationExecutionResult> {
     const { tableName, operation, data } = mutation;
 
     switch (operation) {
@@ -757,14 +765,10 @@ export class MutationManager {
             `${tableName} rpc ${mutation.rpc.name}`
           );
           if (error) throw error;
-          if (
-            mutation.rpc.expectRowId &&
-            typeof returned === 'string' &&
-            returned !== mutation.rowId
-          ) {
-            throw new Error(
-              `${mutation.rpc.name} returned existing row ${returned} for local row ${mutation.rowId}`
-            );
+          if (mutation.rpc.expectRowId && typeof returned === 'string') {
+            if (returned !== mutation.rowId) {
+              return { remappedRowId: returned };
+            }
           }
           return {};
         }
@@ -936,6 +940,100 @@ export class MutationManager {
       // offline edit to the same row would carry a stale version and spuriously reject.
       ...(newServerVersion !== undefined && { serverVersion: newServerVersion }),
     });
+  }
+
+  private remapDogIdReferences<T extends Record<string, unknown>>(
+    data: T,
+    oldDogId: string,
+    newDogId: string,
+    options: { replacePrimaryId?: boolean } = {}
+  ): { data: T; changed: boolean } {
+    let changed = false;
+    const next: Record<string, unknown> = { ...data };
+
+    if (options.replacePrimaryId && next.id === oldDogId) {
+      next.id = newDogId;
+      changed = true;
+    }
+
+    for (const field of ['dog_id', 'dogId']) {
+      if (next[field] === oldDogId) {
+        next[field] = newDogId;
+        changed = true;
+      }
+    }
+
+    return { data: next as T, changed };
+  }
+
+  private async remapUploadedRpcInsertRowId(
+    db: Awaited<ReturnType<typeof databaseManager.getDatabase>>,
+    mutation: PendingMutation,
+    serverRowId: string
+  ): Promise<PendingMutation> {
+    const oldRowId = String(mutation.rowId);
+    const newRowId = String(serverRowId);
+    if (oldRowId === newRowId) return mutation;
+
+    if (mutation.tableName !== 'dogs') {
+      throw new Error(
+        `${mutation.rpc?.name ?? 'RPC'} returned row ${newRowId} for ${mutation.tableName}/${oldRowId}`
+      );
+    }
+
+    const replicatedRows = (await db.getAll(
+      REPLICATION_STORES.REPLICATED_TABLES
+    )) as ReplicatedRow<Record<string, unknown>>[];
+
+    for (const row of replicatedRows) {
+      if (row.tableName === 'dogs' && row.id === oldRowId) {
+        const remapped = this.remapDogIdReferences(row.data, oldRowId, newRowId, {
+          replacePrimaryId: true,
+        });
+        await db.put(REPLICATION_STORES.REPLICATED_TABLES, {
+          ...row,
+          id: newRowId,
+          data: remapped.data,
+        });
+        await db.delete(REPLICATION_STORES.REPLICATED_TABLES, [row.tableName, oldRowId]);
+        continue;
+      }
+
+      const remapped = this.remapDogIdReferences(row.data, oldRowId, newRowId);
+      if (remapped.changed) {
+        await db.put(REPLICATION_STORES.REPLICATED_TABLES, {
+          ...row,
+          data: remapped.data,
+        });
+      }
+    }
+
+    const pendingMutations = (await db.getAll(
+      REPLICATION_STORES.PENDING_MUTATIONS
+    )) as PendingMutation[];
+    for (const pendingMutation of pendingMutations) {
+      if (pendingMutation.id === mutation.id) continue;
+      const remapped = this.remapDogIdReferences(pendingMutation.data, oldRowId, newRowId);
+      if (remapped.changed) {
+        await db.put(REPLICATION_STORES.PENDING_MUTATIONS, {
+          ...pendingMutation,
+          data: remapped.data,
+        });
+      }
+    }
+
+    this.logger.log(
+      `[MutationManager] Remapped offline dog ${oldRowId} to existing server dog ${newRowId}`
+    );
+
+    const remappedMutationData = this.remapDogIdReferences(mutation.data, oldRowId, newRowId, {
+      replacePrimaryId: true,
+    });
+    return {
+      ...mutation,
+      rowId: newRowId,
+      data: remappedMutationData.data,
+    };
   }
 
   /**

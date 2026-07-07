@@ -40,8 +40,7 @@ export interface AbortedShowRegistrationSubmissionResult {
 }
 
 export type SubmitShowRegistrationResult =
-  | ShowRegistrationSubmissionResult
-  | AbortedShowRegistrationSubmissionResult;
+  ShowRegistrationSubmissionResult | AbortedShowRegistrationSubmissionResult;
 
 interface SubmitShowRegistrationDeps {
   submitRegistration: (registrationId: string, paymentDetails?: PaymentDetails) => Promise<void>;
@@ -76,22 +75,17 @@ export interface SubmitShowRegistrationParams {
    */
   canAssignArmbands?: boolean | undefined;
   isActive?: (() => boolean) | undefined;
-  deps: Pick<
-    SubmitShowRegistrationDeps,
-    'submitRegistration' | 'confirmRegistration'
-  > &
+  deps: Pick<SubmitShowRegistrationDeps, 'submitRegistration' | 'confirmRegistration'> &
     Partial<SubmitShowRegistrationDeps>;
 }
 
-const DEFAULT_DEPS: Omit<
-  SubmitShowRegistrationDeps,
-  'submitRegistration' | 'confirmRegistration'
-> = {
-  createShowRegistration,
-  submitShowEntries,
-  claimNextArmband,
-  createSubmissionId: () => crypto.randomUUID(),
-};
+const DEFAULT_DEPS: Omit<SubmitShowRegistrationDeps, 'submitRegistration' | 'confirmRegistration'> =
+  {
+    createShowRegistration,
+    submitShowEntries,
+    claimNextArmband,
+    createSubmissionId: () => crypto.randomUUID(),
+  };
 
 function isStillActive(isActive: (() => boolean) | undefined): boolean {
   return isActive ? isActive() : true;
@@ -124,14 +118,6 @@ export async function submitShowRegistration({
   await resolvedDeps.submitRegistration(registrationId, paymentDetails);
   if (!isStillActive(isActive)) return { aborted: true };
 
-  const enrollment = await ensureEnrollment({
-    showId,
-    ownerResolution,
-    paymentDetails,
-    deps: resolvedDeps,
-  });
-  if (!isStillActive(isActive)) return { aborted: true };
-
   const entryInputs = registrationToEntries(
     showId,
     classSelections,
@@ -139,6 +125,17 @@ export async function submitShowRegistration({
     classes,
     showFeeInfo
   );
+  const totalAmountCents = entryInputs.reduce(
+    (sum, entry) => sum + Math.round((entry.registrationData.entryFee ?? 0) * 100),
+    0
+  );
+  const enrollment = await ensureEnrollment({
+    showId,
+    ownerResolution,
+    deps: resolvedDeps,
+  });
+  if (!isStillActive(isActive)) return { aborted: true };
+
   let armbandAssignments: ArmbandAssignment[] = [];
   let armbandFailures: ArmbandAssignmentFailure[] = [];
 
@@ -149,12 +146,23 @@ export async function submitShowRegistration({
       entries: entryInputs.map(entry => ({
         dogId: entry.dogId,
         classId: entry.classId,
+        handlerId: entry.registrationData.handlerId,
         handlerName: entry.registrationData.handler,
         paymentMethod,
         clientFeeCents: Math.round((entry.registrationData.entryFee ?? 0) * 100),
       })),
       submissionId: resolvedDeps.createSubmissionId(),
       paymentMethod,
+    });
+    if (!isStillActive(isActive)) return { aborted: true };
+
+    await recordEnrollmentPayment({
+      showId,
+      ownerResolution,
+      paymentMethod,
+      paymentDetails,
+      totalAmountCents,
+      deps: resolvedDeps,
     });
     if (!isStillActive(isActive)) return { aborted: true };
 
@@ -184,32 +192,62 @@ export async function submitShowRegistration({
 async function ensureEnrollment({
   showId,
   ownerResolution,
-  paymentDetails,
   deps,
 }: {
   showId: string;
   ownerResolution: SelectedDogsOwnerResult;
-  paymentDetails?: PaymentDetails | undefined;
   deps: SubmitShowRegistrationDeps;
 }): Promise<{ registrationNumber?: string | undefined; dbRegistrationId?: string | undefined }> {
+  assertResolvedEnrollmentOwner(ownerResolution);
+
+  const result = await deps.createShowRegistration(showId, ownerResolution.ownerId);
+
+  return {
+    registrationNumber: result.data?.confirmationNumber,
+    dbRegistrationId: result.data?.id,
+  };
+}
+
+async function recordEnrollmentPayment({
+  showId,
+  ownerResolution,
+  paymentMethod,
+  paymentDetails,
+  totalAmountCents,
+  deps,
+}: {
+  showId: string;
+  ownerResolution: SelectedDogsOwnerResult;
+  paymentMethod: PaymentMethod;
+  paymentDetails?: PaymentDetails | undefined;
+  totalAmountCents: number;
+  deps: SubmitShowRegistrationDeps;
+}): Promise<void> {
+  assertResolvedEnrollmentOwner(ownerResolution);
+
+  const result = await deps.createShowRegistration(
+    showId,
+    ownerResolution.ownerId,
+    paymentDetails?.paymentReference,
+    paymentDetails,
+    paymentMethod,
+    totalAmountCents
+  );
+
+  if (result.error) {
+    throw result.error;
+  }
+}
+
+function assertResolvedEnrollmentOwner(
+  ownerResolution: SelectedDogsOwnerResult
+): asserts ownerResolution is Extract<SelectedDogsOwnerResult, { ok: true }> {
   if (!ownerResolution.ok) {
     throw new Error(
       'Internal: payment submit reached with unresolved enrollment owner. ' +
         'Selected dogs span multiple owners or have no owner set.'
     );
   }
-
-  const result = await deps.createShowRegistration(
-    showId,
-    ownerResolution.ownerId,
-    paymentDetails?.paymentReference,
-    paymentDetails
-  );
-
-  return {
-    registrationNumber: result.data?.confirmationNumber,
-    dbRegistrationId: result.data?.id,
-  };
 }
 
 async function assignArmbandsForEntries({

@@ -58,6 +58,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   paymentMethod,
   paymentStatus = PaymentStatus.PENDING,
   entryStatus = EntryStatus.PENDING,
+  workflowMode = 'exhibitor',
   totalFees,
   showId,
   armbandAssignments = [],
@@ -303,6 +304,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
     0
   );
   const heroCopy = getConfirmationHeroCopy(entryStatus, paymentStatus);
+  const heroTitle = workflowMode === 'exhibitor' ? heroCopy.title : 'Mail-in entry submitted';
   const isRecorded = isRegistrationRecorded(entryStatus, paymentStatus);
   const HeroIcon = isRecorded ? CheckCircle : Clock4;
   const heroIconClassName = isRecorded
@@ -314,7 +316,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
       {/* Success Message */}
       <div className="text-center py-6">
         <HeroIcon className={heroIconClassName} />
-        <h2 className="text-2xl font-bold mb-2">{heroCopy.title}</h2>
+        <h2 className="text-2xl font-bold mb-2">{heroTitle}</h2>
         <p className="text-muted-foreground">{heroCopy.description}</p>
         <Badge variant="default" className="mt-3 text-lg py-1 px-4">
           {formatConfirmationNumberLabel(registrationNumber)}

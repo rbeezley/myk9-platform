@@ -41,7 +41,8 @@ describe('ArmbandDialog', () => {
       />
     );
 
-    expect(screen.getByRole('button', { name: 'Assign' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Assign armband' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Use next available' })).toBeInTheDocument();
     expect(
       screen.getByText('Enter an armband number to assign it to this entry.')
     ).toBeInTheDocument();

@@ -111,6 +111,102 @@ describe('submitShowRegistration', () => {
     );
   });
 
+  it('passes the selected handler id and name through the entry payload', async () => {
+    const params = makeParams({
+      handlerAssignments: {
+        'dog-1|class-1': {
+          handlerId: 'handler-grace',
+          handlerName: 'Grace Hollis',
+          isOwner: false,
+        },
+      },
+    });
+
+    await submitShowRegistration(params);
+
+    expect(params.deps.submitShowEntries).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entries: [
+          expect.objectContaining({
+            dogId: 'dog-1',
+            classId: 'class-1',
+            handlerId: 'handler-grace',
+            handlerName: 'Grace Hollis',
+          }),
+        ],
+      })
+    );
+  });
+
+  it('persists the initial secretary-paid enrollment totals and paid state after entries submit', async () => {
+    const params = makeParams({
+      paymentMethod: 'secretary_paid',
+      paymentDetails: {
+        paymentReference: 'receipt-100',
+        paymentDate: '2026-07-07',
+      },
+      classes: [{ id: 'class-1', entryFee: 20 }],
+    });
+
+    await submitShowRegistration(params);
+
+    expect(params.deps.createShowRegistration).toHaveBeenNthCalledWith(1, 'show-1', 'owner-1');
+    expect(params.deps.submitShowEntries).toHaveBeenCalledTimes(1);
+    expect(params.deps.createShowRegistration).toHaveBeenNthCalledWith(
+      2,
+      'show-1',
+      'owner-1',
+      'receipt-100',
+      expect.objectContaining({
+        paymentReference: 'receipt-100',
+        paymentDate: '2026-07-07',
+      }),
+      'secretary_paid',
+      3000
+    );
+  });
+
+  it('does not persist enrollment payment totals when entry submission fails', async () => {
+    const params = makeParams({
+      paymentMethod: 'secretary_paid',
+      paymentDetails: {
+        paymentReference: 'receipt-100',
+        paymentDate: '2026-07-07',
+      },
+    });
+    vi.mocked(params.deps.submitShowEntries!).mockRejectedValue(new Error('fee mismatch'));
+
+    await expect(submitShowRegistration(params)).rejects.toThrow('fee mismatch');
+
+    expect(params.deps.createShowRegistration).toHaveBeenCalledTimes(1);
+    expect(params.deps.createShowRegistration).toHaveBeenCalledWith('show-1', 'owner-1');
+  });
+
+  it('reports enrollment payment persistence failures after entries submit', async () => {
+    const params = makeParams({
+      paymentMethod: 'secretary_paid',
+      paymentDetails: {
+        paymentReference: 'receipt-100',
+        paymentDate: '2026-07-07',
+      },
+    });
+    vi.mocked(params.deps.createShowRegistration!)
+      .mockResolvedValueOnce({
+        data: { id: 'db-reg-2', confirmationNumber: 'MK9-000002' },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: null,
+        error: new Error('payment update failed'),
+      });
+
+    await expect(submitShowRegistration(params)).rejects.toThrow('payment update failed');
+
+    expect(params.deps.submitShowEntries).toHaveBeenCalledTimes(1);
+    expect(params.deps.createShowRegistration).toHaveBeenCalledTimes(2);
+    expect(params.deps.claimNextArmband).not.toHaveBeenCalled();
+  });
+
   it('does not duplicate claim-next armband patches through generic entry updates', async () => {
     const params = makeParams();
 

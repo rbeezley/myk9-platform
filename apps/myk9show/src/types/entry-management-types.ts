@@ -9,11 +9,14 @@ export type BulkActionResult = boolean | void;
  */
 
 export interface EntryClass {
+  /** Entry row id for mutation targets; class metadata is display-only here. */
   id: string;
   name: string;
   number: string;
   fee: number;
   jumpHeight?: string;
+  trialType?: string;
+  handlerId?: string | null;
   status: 'entered' | 'scratched' | 'moved' | 'absent';
   checkInStatus?: CheckInStatus;
   checkInTime?: Date;
@@ -29,6 +32,7 @@ export interface EntryManagementEntry {
   ownerName: string;
   ownerEmail: string;
   handlerName: string;
+  handlerId?: string | null;
   classes: EntryClass[];
   totalFee: number;
   paidAmount: number;

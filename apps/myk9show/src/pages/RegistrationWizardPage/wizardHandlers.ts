@@ -107,7 +107,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
           ? 'Late entry completed successfully'
           : 'Registration completed successfully'
       );
-      navigate(resolveRegistrationCompletionPath(showId, isLateEntryMode));
+      navigate(resolveRegistrationCompletionPath(showId, isLateEntryMode, state.isInsideSidebar));
       return;
     }
 

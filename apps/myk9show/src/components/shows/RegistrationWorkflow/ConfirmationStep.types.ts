@@ -3,6 +3,7 @@ import type {
   EntryStatus,
   PaymentStatus,
 } from '@/types/show-registration-types';
+import type { WorkflowMode } from './RegistrationWorkflow.types';
 import type { WaitlistEntryResult } from '@/store/cartStore';
 
 export interface ConfirmationStepProps {
@@ -19,6 +20,7 @@ export interface ConfirmationStepProps {
   paymentMethod: string;
   paymentStatus?: PaymentStatus | undefined;
   entryStatus?: EntryStatus | undefined;
+  workflowMode?: WorkflowMode | undefined;
   totalFees: number;
   showId: string;
   armbandAssignments?: ArmbandAssignment[] | undefined;

@@ -86,6 +86,27 @@ describe('EntryEditDialog — jump height visibility by discipline', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('can bypass exhibitor modification eligibility for secretary corrections', async () => {
+    entryServiceMocks.canModifyEntry.mockResolvedValue({
+      canModify: false,
+      reason: 'Entry deadline has passed',
+    });
+
+    render(
+      <EntryEditDialog
+        open
+        entry={makeEntry('Scent Work')}
+        onOpenChange={noop}
+        onUpdate={noop}
+        ignoreModificationDeadline
+      />
+    );
+
+    expect(await screen.findByText(/Container Novice A/)).toBeInTheDocument();
+    expect(screen.queryByText(/entry deadline has passed/i)).not.toBeInTheDocument();
+    expect(entryServiceMocks.canModifyEntry).not.toHaveBeenCalled();
+  });
+
   it('shows the Jump Height field for agility entries', async () => {
     render(
       <EntryEditDialog open entry={makeEntry('Agility')} onOpenChange={noop} onUpdate={noop} />
@@ -123,6 +144,7 @@ describe('EntryEditDialog — per-class handlers', () => {
           number: '102',
           fee: 30,
           trialType: 'Scent Work',
+          handlerId: 'handler-jamie',
           status: 'entered' as const,
           handler: 'Jamie Walker',
         },
@@ -151,6 +173,53 @@ describe('EntryEditDialog — per-class handlers', () => {
       expect(entryServiceMocks.updateEntryHandler).toHaveBeenCalledWith({
         entryId: 'entry-container',
         handler: 'Chris Lee',
+        handlerId: null,
+        clearHandlerId: false,
+      });
+    });
+  });
+
+  it('clears stale handler person links when secretary saves a text correction', async () => {
+    const entry = {
+      ...makeEntry('Scent Work'),
+      classes: [
+        {
+          id: 'entry-container',
+          name: 'Container Novice B',
+          number: '102',
+          fee: 30,
+          trialType: 'Scent Work',
+          handlerId: 'secretary-person-id',
+          status: 'entered' as const,
+          handler: 'Secretary User',
+        },
+      ],
+    };
+
+    const { user } = render(
+      <EntryEditDialog
+        open
+        entry={entry}
+        onOpenChange={noop}
+        onUpdate={noop}
+        ignoreModificationDeadline
+      />
+    );
+
+    const handler = await screen.findByRole('textbox', {
+      name: 'Handler for Container Novice B',
+    });
+
+    await user.clear(handler);
+    await user.type(handler, 'Jamie Walker');
+    await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+    await waitFor(() => {
+      expect(entryServiceMocks.updateEntryHandler).toHaveBeenCalledWith({
+        entryId: 'entry-container',
+        handler: 'Jamie Walker',
+        handlerId: null,
+        clearHandlerId: true,
       });
     });
   });

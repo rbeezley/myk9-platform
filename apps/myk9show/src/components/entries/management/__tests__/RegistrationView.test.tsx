@@ -47,6 +47,8 @@ function renderView(
   overrides: Partial<{
     workMode: EntryWorkMode;
     setWorkMode: (mode: EntryWorkMode) => void;
+    enrollmentGroups: EnrollmentGroup[];
+    showId: string;
   }> = {}
 ) {
   const props = {
@@ -139,6 +141,16 @@ describe('RegistrationView filter content routing', () => {
   it('shows enrollment cards in card view', () => {
     renderView('all', 'cards');
     expect(screen.getByTestId('enrollment-card')).toBeInTheDocument();
+  });
+
+  it('links truly empty Entry Management to the existing mail-in entry flow', () => {
+    renderView('all', 'cards', {
+      enrollmentGroups: [],
+      showId: 'show/a',
+    });
+
+    const link = screen.getByRole('link', { name: 'Add mail-in entry' });
+    expect(link).toHaveAttribute('href', '/secretary/register/show%2Fa');
   });
 
   // Move-ups / pulled are no longer rendered here. EntryManagementPage promotes

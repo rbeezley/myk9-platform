@@ -35,7 +35,7 @@ export const ArmbandDialog: React.FC<ArmbandDialogProps> = ({
   return (
     <Dialog
       open={dialogState.open}
-      onOpenChange={(open) => !open && setDialogState({ open: false, entry: null, value: '' })}
+      onOpenChange={open => !open && setDialogState({ open: false, entry: null, value: '' })}
     >
       <DialogContent>
         <DialogHeader>
@@ -50,7 +50,9 @@ export const ArmbandDialog: React.FC<ArmbandDialogProps> = ({
               <Input
                 id="armband-number"
                 value={dialogState.value}
-                onChange={(e) => setDialogState((prev) => ({ ...prev, value: e.target.value, error: null }))}
+                onChange={e =>
+                  setDialogState(prev => ({ ...prev, value: e.target.value, error: null }))
+                }
                 placeholder="Enter armband number"
                 className={dialogState.error ? 'border-destructive' : ''}
               />
@@ -61,13 +63,11 @@ export const ArmbandDialog: React.FC<ArmbandDialogProps> = ({
                 disabled={isProcessing}
                 title="Fill with next available number"
               >
-                Next
+                Use next available
               </Button>
             </div>
           </FormField>
-          {dialogState.error && (
-            <p className="text-sm text-destructive">{dialogState.error}</p>
-          )}
+          {dialogState.error && <p className="text-sm text-destructive">{dialogState.error}</p>}
           {!dialogState.value.trim() && !dialogState.error && (
             <p className="text-xs text-muted-foreground">
               Enter an armband number to assign it to this entry.
@@ -88,7 +88,7 @@ export const ArmbandDialog: React.FC<ArmbandDialogProps> = ({
                 Assigning...
               </>
             ) : (
-              'Assign'
+              'Assign armband'
             )}
           </Button>
         </DialogFooter>

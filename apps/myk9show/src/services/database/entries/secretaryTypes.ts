@@ -35,6 +35,9 @@ export interface SecretaryEntry {
     refund_notes: string | null;
     refunded_at: string | null;
   } | null;
+  trial: {
+    trial_type: string | null;
+  } | null;
   /** Joined person for handler_id — online entries set the FK, not the legacy text. */
   handler_person: { id: string; first_name: string | null; last_name: string | null } | null;
   dog: {

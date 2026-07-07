@@ -210,17 +210,27 @@ export const updateEntryDetails = async (params: {
   }
 };
 
-// Update entry handler — routes through update_entry_handler() RPC because the
-// entries_update RLS policy only permits show managers. The RPC enforces
-// owner/co-owner/handler scope server-side before writing the denormalized TEXT.
-export const updateEntryHandler = async (params: { entryId: string; handler: string }) => {
+// Update entry handler through an RPC because entries_update RLS only permits
+// show managers. The RPC preserves exhibitor owner/co-owner/handler scope, and
+// also lets show managers correct both handler text and handler_id.
+export const updateEntryHandler = async (params: {
+  entryId: string;
+  handler: string;
+  handlerId?: string | null;
+  clearHandlerId?: boolean | undefined;
+}) => {
   const startTime = Date.now();
-  const { entryId, handler } = params;
+  const { entryId, handler, handlerId = null, clearHandlerId = false } = params;
 
   try {
     const { error } = await supabase.rpc(
-      'update_entry_handler' as never,
-      { p_entry_id: entryId, p_handler: handler } as never
+      'update_entry_handler_for_entry_management' as never,
+      {
+        p_entry_id: entryId,
+        p_handler: handler,
+        p_handler_id: handlerId,
+        p_clear_handler_id: clearHandlerId,
+      } as never
     );
 
     const duration = Date.now() - startTime;
@@ -320,6 +330,7 @@ export async function submitShowEntries(params: {
   entries: Array<{
     dogId: string;
     classId: string;
+    handlerId?: string | undefined;
     handlerName: string;
     paymentMethod: string;
     clientFeeCents: number;
@@ -336,6 +347,7 @@ export async function submitShowEntries(params: {
   const rpcEntries = entries.map(e => ({
     dog_id: e.dogId,
     class_id: e.classId,
+    handler_id: e.handlerId ?? null,
     handler_name: e.handlerName,
     payment_method: e.paymentMethod,
     client_fee_cents: e.clientFeeCents,

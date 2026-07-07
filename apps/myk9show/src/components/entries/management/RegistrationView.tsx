@@ -1,10 +1,12 @@
 import React, { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { toast } from 'sonner';
 import { useEmailStatus } from '@/hooks/useEmailStatus';
 import { supabase } from '@/lib/supabase';
 import { ListControls } from '@/components/common/ListControls';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { Button } from '@/components/ui/button';
 
 import { EntryStatsCards } from './EntryStatsCards';
 import { EnrollmentCard } from './EnrollmentCard';
@@ -54,6 +56,8 @@ interface RegistrationViewProps {
   setEntryViewMode: (view: EntryManagementViewMode) => void;
   /** Filtered entries to display */
   filteredEntries: EntryManagementEntry[];
+  /** Selected show id, used for canonical add-entry links. */
+  showId?: string | undefined;
   /** All entries (for looking up entry by id in comp handler) */
   entries: EntryManagementEntry[];
   /** Bulk enrollment-level action handlers */
@@ -77,6 +81,7 @@ interface RegistrationViewProps {
     status: CheckInStatus
   ) => void;
   /** Dialog openers */
+  onOpenEditEntry?: ((entry: EntryManagementEntry) => void) | undefined;
   onOpenArmbandDialog: (entry: EntryManagementEntry) => void;
   onOpenCompDialog: (entry: EntryManagementEntry) => void;
   onUncompEntry: (entryId: string) => void;
@@ -110,12 +115,14 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   entryViewMode,
   setEntryViewMode,
   filteredEntries,
+  showId,
   entries,
   onBulkStatusChange,
   onBulkCheckIn,
   onPaymentStatusChange,
   onStatusChange,
   onCheckInStatusChange,
+  onOpenEditEntry,
   onOpenArmbandDialog,
   onOpenCompDialog,
   onUncompEntry,
@@ -205,11 +212,26 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   const isResendDisabled = (registrationId: string) =>
     (resendCooldowns[registrationId] || 0) > Date.now();
   const hasSearchFilter = searchTerm.trim().length > 0;
+  const isTrulyEmpty =
+    entries.length === 0 &&
+    !hasSearchFilter &&
+    paymentFilter === 'all' &&
+    attentionFilter === 'all';
   const emptyStateMessage = getEntryManagementEmptyStateMessage({
     attention: attentionFilter,
     hasSearch: hasSearchFilter,
     payment: paymentFilter,
   });
+  const emptyStateContent = (
+    <div className="space-y-3">
+      <p>{emptyStateMessage}</p>
+      {isTrulyEmpty && showId && (
+        <Button asChild>
+          <Link to={`/secretary/register/${encodeURIComponent(showId)}`}>Add mail-in entry</Link>
+        </Button>
+      )}
+    </div>
+  );
   const enrollmentCardList = (
     <div className="space-y-3">
       {enrollmentGroups.length > 0 ? (
@@ -220,6 +242,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
             onStatusChange={onStatusChange}
             onEntryRefunded={onRefresh}
             onCheckInStatusChange={onCheckInStatusChange}
+            onOpenEditEntry={onOpenEditEntry}
             onOpenArmbandDialog={onOpenArmbandDialog}
             onCompEntry={(entryId: string) => {
               const entry = group.entries.find(e => e.id === entryId);
@@ -241,7 +264,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
         ))
       ) : (
         <div className="rounded-lg border border-dashed border-border/70 bg-card/60 px-4 py-8 text-center text-sm text-muted-foreground">
-          {emptyStateMessage}
+          {emptyStateContent}
         </div>
       )}
     </div>
@@ -299,13 +322,14 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
           isResendDisabled={isResendDisabled}
           onStatusChange={onStatusChange}
           onCheckInEntry={entryId => onBulkCheckIn([entryId])}
+          onOpenEditEntry={onOpenEditEntry}
           onOpenArmbandDialog={onOpenArmbandDialog}
           onOpenCompDialog={onOpenCompDialog}
           onUncompEntry={onUncompEntry}
           onRemoveEntry={onRemoveEntry}
           onEntryRefunded={onRefresh}
           selection={tableSelection}
-          emptyState={emptyStateMessage}
+          emptyState={emptyStateContent}
           showReviewActions={workMode === 'review'}
         />
       ) : (

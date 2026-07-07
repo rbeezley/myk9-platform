@@ -5,10 +5,189 @@
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { mapDbToRegistration, mapDbToRegistrationArray } from '../../mappers/registrationMappers';
 import type { Registration, DbRegistration } from '@/types/registration-types';
-import type { PaymentDetails } from '@/types/show-registration-types';
+import {
+  PaymentStatus,
+  type PaymentDetails,
+  type PaymentMethod,
+} from '@/types/show-registration-types';
 import type { TablesUpdate } from '@/types/supabase';
 
 const POSTGRES_UNIQUE_VIOLATION = '23505';
+
+function paymentMethodToEnrollmentStatus(
+  paymentMethod: PaymentMethod | undefined
+): string | undefined {
+  switch (paymentMethod) {
+    case 'check':
+    case 'cash':
+      return PaymentStatus.PENDING;
+    case 'secretary_paid':
+    case 'group_payment':
+      return 'paid';
+    case 'waived':
+      return PaymentStatus.WAIVED;
+    case 'credit_card':
+      return PaymentStatus.PENDING;
+    default:
+      return undefined;
+  }
+}
+
+function isEnrollmentPaidAtSubmit(paymentStatus: string | undefined): boolean {
+  return (
+    paymentStatus === 'paid' ||
+    paymentStatus === PaymentStatus.PAID_BY_CHECK ||
+    paymentStatus === PaymentStatus.PAID_BY_CASH
+  );
+}
+
+function buildEnrollmentPaymentFields({
+  paymentReference,
+  paymentDetails,
+  paymentMethod,
+  totalAmountCents,
+  existingTotalAmountCents = 0,
+  existingPaidAmountDollars = 0,
+  includeEmptyPaymentDetails = false,
+  preservePaidAmountForPending = false,
+  preserveFinancialForWaived = false,
+}: {
+  paymentReference?: string | undefined;
+  paymentDetails?: PaymentDetails | undefined;
+  paymentMethod?: PaymentMethod | undefined;
+  totalAmountCents?: number | undefined;
+  existingTotalAmountCents?: number | null | undefined;
+  existingPaidAmountDollars?: number | null | undefined;
+  includeEmptyPaymentDetails?: boolean | undefined;
+  preservePaidAmountForPending?: boolean | undefined;
+  preserveFinancialForWaived?: boolean | undefined;
+}): TablesUpdate<'enrollments'> {
+  const paymentStatus = paymentMethodToEnrollmentStatus(paymentMethod);
+  const shouldPreserveFinancialForWaived = preserveFinancialForWaived && paymentStatus === 'waived';
+  const nextTotalAmountCents =
+    totalAmountCents !== undefined && !shouldPreserveFinancialForWaived
+      ? (existingTotalAmountCents ?? 0) + totalAmountCents
+      : undefined;
+  const isRecordedPaid = isEnrollmentPaidAtSubmit(paymentStatus);
+  const paidAmount = isRecordedPaid
+    ? (existingPaidAmountDollars ?? 0) + (totalAmountCents ?? 0) / 100
+    : 0;
+  const nextTotalAmountDollars =
+    nextTotalAmountCents !== undefined ? nextTotalAmountCents / 100 : undefined;
+  const resolvedPaymentStatus =
+    isRecordedPaid && nextTotalAmountDollars !== undefined && paidAmount < nextTotalAmountDollars
+      ? PaymentStatus.PENDING
+      : paymentStatus;
+  const shouldPreservePaidAmount =
+    preservePaidAmountForPending && paymentStatus === PaymentStatus.PENDING;
+
+  const fields: TablesUpdate<'enrollments'> = {
+    ...(resolvedPaymentStatus && !shouldPreserveFinancialForWaived
+      ? {
+          payment_status: resolvedPaymentStatus,
+          ...(!shouldPreservePaidAmount ? { paid_amount: paidAmount } : {}),
+        }
+      : {}),
+    ...(paymentMethod && !shouldPreserveFinancialForWaived
+      ? { payment_method: paymentMethod }
+      : {}),
+    ...(nextTotalAmountCents !== undefined ? { total_amount: nextTotalAmountCents } : {}),
+  };
+
+  if (includeEmptyPaymentDetails || paymentReference !== undefined) {
+    fields.payment_reference = paymentReference ?? null;
+  }
+  if (includeEmptyPaymentDetails || paymentDetails?.checkNumber !== undefined) {
+    fields.check_number = paymentDetails?.checkNumber ?? null;
+  }
+  if (includeEmptyPaymentDetails || paymentDetails?.paymentDate !== undefined) {
+    fields.payment_date = paymentDetails?.paymentDate ?? null;
+  }
+  if (includeEmptyPaymentDetails || paymentDetails?.groupReference !== undefined) {
+    fields.group_reference = paymentDetails?.groupReference ?? null;
+  }
+  if (includeEmptyPaymentDetails || paymentDetails?.paymentNotes !== undefined) {
+    fields.payment_notes = paymentDetails?.paymentNotes ?? null;
+  }
+
+  return fields;
+}
+
+function hasEnrollmentPaymentInput({
+  paymentReference,
+  paymentDetails,
+  paymentMethod,
+  totalAmountCents,
+}: {
+  paymentReference?: string | undefined;
+  paymentDetails?: PaymentDetails | undefined;
+  paymentMethod?: PaymentMethod | undefined;
+  totalAmountCents?: number | undefined;
+}): boolean {
+  return Boolean(
+    paymentReference || paymentDetails || paymentMethod || totalAmountCents !== undefined
+  );
+}
+
+function shouldPreserveFinancialForWaived(existing: Registration, paymentMethod?: PaymentMethod) {
+  if (paymentMethod !== 'waived') return false;
+  return (
+    existing.paymentStatus !== PaymentStatus.PENDING ||
+    (existing.totalAmount ?? 0) > 0 ||
+    (existing.paidAmount ?? 0) > 0
+  );
+}
+
+async function updateExistingEnrollmentPayment({
+  existing,
+  paymentReference,
+  paymentDetails,
+  paymentMethod,
+  totalAmountCents,
+  startTime,
+}: {
+  existing: Registration;
+  paymentReference?: string | undefined;
+  paymentDetails?: PaymentDetails | undefined;
+  paymentMethod?: PaymentMethod | undefined;
+  totalAmountCents?: number | undefined;
+  startTime: number;
+}): Promise<{
+  data: Registration | null;
+  error: ReturnType<typeof createDatabaseError> | null;
+}> {
+  const paymentFields = buildEnrollmentPaymentFields({
+    paymentReference,
+    paymentDetails,
+    paymentMethod,
+    totalAmountCents,
+    existingTotalAmountCents: existing.totalAmount,
+    existingPaidAmountDollars: existing.paidAmount,
+    includeEmptyPaymentDetails: paymentMethod !== undefined && paymentMethod !== 'waived',
+    preservePaidAmountForPending: true,
+    preserveFinancialForWaived: shouldPreserveFinancialForWaived(existing, paymentMethod),
+  });
+
+  if (Object.keys(paymentFields).length === 0) {
+    return { data: existing, error: null };
+  }
+
+  const { data, error } = await supabase
+    .from('enrollments')
+    .update(paymentFields)
+    .eq('id', existing.id)
+    .select('*')
+    .single();
+
+  const duration = Date.now() - startTime;
+  logQuery('enrollments', 'update_existing_payment', duration, error?.message);
+
+  if (error) {
+    throw createDatabaseError(error, 'enrollments', 'update_existing_payment');
+  }
+
+  return { data: mapDbToRegistration(data as DbRegistration), error: null };
+}
 
 function mapEnrollmentPaymentStatusToEntryStatus(
   paymentStatus: string
@@ -41,7 +220,9 @@ export const createShowRegistration = async (
   showId: string,
   handlerId: string,
   paymentReference?: string,
-  paymentDetails?: PaymentDetails
+  paymentDetails?: PaymentDetails,
+  paymentMethod?: PaymentMethod,
+  totalAmountCents?: number
 ): Promise<{
   data: Registration | null;
   error: ReturnType<typeof createDatabaseError> | null;
@@ -54,7 +235,25 @@ export const createShowRegistration = async (
       return existing;
     }
     if (existing.data) {
-      return existing;
+      if (
+        !hasEnrollmentPaymentInput({
+          paymentReference,
+          paymentDetails,
+          paymentMethod,
+          totalAmountCents,
+        })
+      ) {
+        return existing;
+      }
+
+      return updateExistingEnrollmentPayment({
+        existing: existing.data,
+        paymentReference,
+        paymentDetails,
+        paymentMethod,
+        totalAmountCents,
+        startTime,
+      });
     }
 
     const { data, error } = await supabase
@@ -62,11 +261,13 @@ export const createShowRegistration = async (
       .insert({
         show_id: showId,
         handler_id: handlerId,
-        payment_reference: paymentReference ?? null,
-        check_number: paymentDetails?.checkNumber ?? null,
-        payment_date: paymentDetails?.paymentDate ?? null,
-        group_reference: paymentDetails?.groupReference ?? null,
-        payment_notes: paymentDetails?.paymentNotes ?? null,
+        ...buildEnrollmentPaymentFields({
+          paymentReference,
+          paymentDetails,
+          paymentMethod,
+          totalAmountCents,
+          includeEmptyPaymentDetails: true,
+        }),
       })
       .select('*')
       .single();
@@ -77,7 +278,27 @@ export const createShowRegistration = async (
     if (error) {
       // Concurrent insert race: return the existing registration
       if (error.code === POSTGRES_UNIQUE_VIOLATION) {
-        return getRegistrationByShowAndHandler(showId, handlerId);
+        const existingAfterRace = await getRegistrationByShowAndHandler(showId, handlerId);
+        if (
+          existingAfterRace.error ||
+          !existingAfterRace.data ||
+          !hasEnrollmentPaymentInput({
+            paymentReference,
+            paymentDetails,
+            paymentMethod,
+            totalAmountCents,
+          })
+        ) {
+          return existingAfterRace;
+        }
+        return updateExistingEnrollmentPayment({
+          existing: existingAfterRace.data,
+          paymentReference,
+          paymentDetails,
+          paymentMethod,
+          totalAmountCents,
+          startTime,
+        });
       }
       throw createDatabaseError(error, 'enrollments', 'insert');
     }

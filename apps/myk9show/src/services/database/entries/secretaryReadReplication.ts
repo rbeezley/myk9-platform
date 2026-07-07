@@ -15,6 +15,10 @@ import {
   replicatedEntriesTable,
   type ReplicatedEntry,
 } from '@/services/replication/ReplicatedEntriesTable';
+import {
+  replicatedTrialsTable,
+  type ReplicatedTrial,
+} from '@/services/replication/ReplicatedTrialsTable';
 import { buildMapFromArray } from '../_shared/maps';
 import type { SecretaryEntry } from './secretaryTypes';
 
@@ -44,6 +48,7 @@ interface SecretaryEntryRelations {
   armbandsByDogId: ReadonlyMap<string, ReplicatedArmband>;
   peopleMap: ReadonlyMap<string, SecretaryPerson>;
   enrollmentsMap: ReadonlyMap<string, SecretaryEnrollment>;
+  trialsMap: ReadonlyMap<string, ReplicatedTrial>;
 }
 
 type SecretaryDog = Pick<ReplicatedDog, 'id' | 'name' | 'callName' | 'breed' | 'ownerId'>;
@@ -144,6 +149,7 @@ function toSecretaryEntry(
     armbandsByDogId,
     peopleMap,
     enrollmentsMap,
+    trialsMap,
   }: SecretaryEntryRelations
 ): SecretaryEntry {
   const dogId = entry.dogId ?? null;
@@ -157,6 +163,8 @@ function toSecretaryEntry(
   const enrollment = entry.registrationId
     ? (enrollmentsMap.get(entry.registrationId) ?? null)
     : null;
+  const trialId = entry.trialId ?? entry.trial_id ?? null;
+  const trial = trialId ? (trialsMap.get(trialId) ?? null) : null;
   const armband =
     entry.armband ??
     armbandsByEntryId.get(entry.id)?.armbandNumber ??
@@ -171,7 +179,7 @@ function toSecretaryEntry(
     id: entry.id,
     dog_id: dogId,
     class_id: classId,
-    trial_id: entry.trialId ?? entry.trial_id ?? null,
+    trial_id: trialId,
     show_id: entry.showId ?? null,
     handler: entry.handler ?? null,
     handler_id: handlerId,
@@ -208,6 +216,7 @@ function toSecretaryEntry(
           refunded_at: enrollment.refunded_at,
         }
       : null,
+    trial: trial ? { trial_type: trial.trialType ?? null } : null,
     handler_person: handler
       ? {
           id: handler.id,
@@ -248,13 +257,15 @@ export async function getReplicatedSecretaryEntriesForShow(showId: string) {
   // store with all entries deleted/filtered is NOT cold (allEntries.length > 0).
   const isColdStore = allEntries.length === 0;
   const entries = allEntries.filter(isNotDeleted);
-  const [dogs, classes, armbands] = await Promise.all([
+  const [dogs, classes, armbands, trials] = await Promise.all([
     replicatedDogsTable.getAllDogs(),
     replicatedClassesTable.getAll(),
     replicatedArmbandsTable.getByShow(showId),
+    replicatedTrialsTable.getTrialsByShow(showId),
   ]);
   const dogsMap = buildMapFromArray(dogs.filter(isNotDeleted), d => d.id);
   const classesMap = buildMapFromArray(classes.filter(isNotDeleted), c => c.id);
+  const trialsMap = buildMapFromArray(trials, t => t.id);
   const assignedArmbands = armbands.filter(a => a.isAvailable !== true);
   const armbandsByEntryId = buildMapFromArray(
     assignedArmbands.filter(a => a.entryId),
@@ -277,6 +288,7 @@ export async function getReplicatedSecretaryEntriesForShow(showId: string) {
         armbandsByDogId,
         peopleMap,
         enrollmentsMap,
+        trialsMap,
       })
     )
     .sort((a, b) =>

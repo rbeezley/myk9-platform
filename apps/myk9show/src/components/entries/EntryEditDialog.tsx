@@ -58,6 +58,7 @@ interface EntryClass {
   jumpHeight?: string;
   /** Trial discipline; gates the jump-height field (scent work has no jump height). */
   trialType?: string;
+  handlerId?: string | null;
   handler?: string;
   runOrder?: number;
   status: 'entered' | 'scratched' | 'moved' | 'absent';
@@ -77,11 +78,18 @@ interface EntryEditDialogProps {
   onOpenChange: (open: boolean) => void;
   entry: EntryData;
   onUpdate: () => void;
+  ignoreModificationDeadline?: boolean;
 }
 
 const JUMP_HEIGHTS = ['4"', '8"', '12"', '16"', '20"', '24"', '26"'];
 
-export function EntryEditDialog({ open, onOpenChange, entry, onUpdate }: EntryEditDialogProps) {
+export function EntryEditDialog({
+  open,
+  onOpenChange,
+  entry,
+  onUpdate,
+  ignoreModificationDeadline = false,
+}: EntryEditDialogProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -119,6 +127,13 @@ export function EntryEditDialog({ open, onOpenChange, entry, onUpdate }: EntryEd
       setIsLoading(true);
       setError(null);
 
+      if (ignoreModificationDeadline) {
+        setCanModify(true);
+        setModifyReason(undefined);
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const result = await canModifyEntry(entry.showId);
         setCanModify(result.canModify);
@@ -140,7 +155,7 @@ export function EntryEditDialog({ open, onOpenChange, entry, onUpdate }: EntryEd
     if (open && entry.showId) {
       checkModifications();
     }
-  }, [open, entry.showId]);
+  }, [open, entry.showId, ignoreModificationDeadline]);
 
   const handleJumpHeightChange = (classId: string, jumpHeight: string) => {
     setClassEdits(prev => ({
@@ -203,6 +218,8 @@ export function EntryEditDialog({ open, onOpenChange, entry, onUpdate }: EntryEd
           const { error } = await updateEntryHandler({
             entryId: classEntry.id,
             handler: editedHandler,
+            handlerId: null,
+            clearHandlerId: ignoreModificationDeadline,
           });
           if (error) {
             setError('Failed to update handler. Please try again.');
@@ -266,7 +283,7 @@ export function EntryEditDialog({ open, onOpenChange, entry, onUpdate }: EntryEd
               <Dog className="h-5 w-5" />
               Edit Entry
             </SheetTitle>
-            <SheetDescription>Modify your entry for {entry.showName}</SheetDescription>
+            <SheetDescription>Modify this entry for {entry.showName}</SheetDescription>
           </SheetHeader>
 
           <SheetBody>

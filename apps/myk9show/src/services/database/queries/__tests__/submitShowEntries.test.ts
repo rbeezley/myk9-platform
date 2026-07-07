@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { submitShowEntries } from '../../entries';
+import { submitShowEntries, updateEntryHandler } from '../../entries';
 
 // Mock the supabase client used by the entries module
 const mockRpc = vi.fn();
@@ -30,6 +30,7 @@ const baseParams = {
     {
       dogId: 'dog-uuid-1',
       classId: 'class-uuid-1',
+      handlerId: 'handler-uuid-1',
       handlerName: 'Jane Doe',
       paymentMethod: 'credit_card',
       clientFeeCents: 2500,
@@ -75,6 +76,7 @@ describe('submitShowEntries', () => {
         {
           dog_id: 'dog-uuid-1',
           class_id: 'class-uuid-1',
+          handler_id: 'handler-uuid-1',
           handler_name: 'Jane Doe',
           payment_method: 'credit_card',
           client_fee_cents: 2500,
@@ -82,6 +84,7 @@ describe('submitShowEntries', () => {
         {
           dog_id: 'dog-uuid-2',
           class_id: 'class-uuid-2',
+          handler_id: null,
           handler_name: 'John Doe',
           payment_method: 'credit_card',
           client_fee_cents: 2500,
@@ -123,5 +126,40 @@ describe('submitShowEntries', () => {
     });
 
     await expect(submitShowEntries(baseParams)).rejects.toThrow('fee mismatch');
+  });
+
+  it('updates handler corrections through the entry-management RPC with handler_id', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: null });
+
+    await updateEntryHandler({
+      entryId: 'entry-uuid-1',
+      handler: 'Grace Hollis',
+      handlerId: 'person-uuid-1',
+    });
+
+    expect(mockRpc).toHaveBeenCalledWith('update_entry_handler_for_entry_management', {
+      p_entry_id: 'entry-uuid-1',
+      p_handler: 'Grace Hollis',
+      p_handler_id: 'person-uuid-1',
+      p_clear_handler_id: false,
+    });
+  });
+
+  it('can request handler person clearing for secretary text corrections', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: null });
+
+    await updateEntryHandler({
+      entryId: 'entry-uuid-1',
+      handler: 'Grace Hollis',
+      handlerId: null,
+      clearHandlerId: true,
+    });
+
+    expect(mockRpc).toHaveBeenCalledWith('update_entry_handler_for_entry_management', {
+      p_entry_id: 'entry-uuid-1',
+      p_handler: 'Grace Hollis',
+      p_handler_id: null,
+      p_clear_handler_id: true,
+    });
   });
 });

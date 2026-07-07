@@ -48,6 +48,7 @@ interface EnrollmentCardProps {
     status: CheckInStatus
   ) => void;
   onOpenArmbandDialog: (entry: EntryManagementEntry) => void;
+  onOpenEditEntry?: ((entry: EntryManagementEntry) => void) | undefined;
   onCompEntry?: (entryId: string) => void;
   onUncompEntry?: (entryId: string) => void;
   onRemoveEntry: (entryId: string) => void;
@@ -75,6 +76,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   onEntryRefunded,
   onCheckInStatusChange,
   onOpenArmbandDialog,
+  onOpenEditEntry,
   onCompEntry,
   onUncompEntry,
   onRemoveEntry,
@@ -393,6 +395,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                   onEntryRefunded={onEntryRefunded}
                   onCheckInStatusChange={onCheckInStatusChange}
                   onOpenArmbandDialog={onOpenArmbandDialog}
+                  onOpenEditEntry={onOpenEditEntry}
                   onCompEntry={onCompEntry}
                   onUncompEntry={onUncompEntry}
                   onRemoveEntry={onRemoveEntry}

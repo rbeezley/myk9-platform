@@ -84,6 +84,12 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
         canDeleteClub={state.canDeleteClub}
       />
 
+      {!state.canEditClub && (
+        <div className="mb-6 rounded-md border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+          You can view this club, but you do not have permission to edit club details.
+        </div>
+      )}
+
       {/* Statistics Cards */}
       <ClubStatistics stats={state.stats} onTabChange={handleStatCardClick} />
 

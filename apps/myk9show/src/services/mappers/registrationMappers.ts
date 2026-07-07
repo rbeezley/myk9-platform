@@ -11,6 +11,8 @@ export function mapDbToRegistration(row: DbRegistration): Registration {
     handlerId: row.handler_id,
     paymentStatus: row.payment_status as Registration['paymentStatus'],
     paymentReference: row.payment_reference ?? undefined,
+    totalAmount: row.total_amount ?? undefined,
+    paidAmount: row.paid_amount ?? undefined,
     checkNumber: row.check_number ?? undefined,
     paymentDate: row.payment_date ?? undefined,
     groupReference: row.group_reference ?? undefined,

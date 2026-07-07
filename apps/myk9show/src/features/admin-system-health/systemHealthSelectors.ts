@@ -23,6 +23,14 @@ import type {
 // Site Admin — "The platform is healthy").
 export const STALE_AFTER_MS = 26 * 60 * 60 * 1000; // ~26 hours
 
+export interface HealthCheckRemediation {
+  ownerLabel: string;
+  actionLabel: string;
+  href: string;
+  nextStep: string;
+  coverageIncomplete: boolean;
+}
+
 const VALID_STATUSES: readonly HealthStatus[] = ['ok', 'warn', 'fail'];
 
 function isHealthStatus(value: unknown): value is HealthStatus {
@@ -132,6 +140,90 @@ export function statusToBadgeVariant(status: CheckStatus): BadgeVariant {
     default:
       return 'muted';
   }
+}
+
+function checkText(check: HealthCheck): string {
+  return `${check.key} ${check.label} ${check.detail}`.toLowerCase();
+}
+
+function matches(check: HealthCheck, pattern: RegExp): boolean {
+  return pattern.test(checkText(check));
+}
+
+export function isCoverageIncomplete(check: HealthCheck): boolean {
+  return matches(check, /not checked|not evaluated|incomplete|manual check|coverage/);
+}
+
+export function getHealthCheckRemediation(check: HealthCheck): HealthCheckRemediation {
+  const coverageIncomplete = isCoverageIncomplete(check);
+
+  if (matches(check, /sync|replication|queue|conflict/)) {
+    return {
+      ownerLabel: 'Sync Monitoring',
+      actionLabel: 'Open Sync',
+      href: '/admin/sync',
+      nextStep: 'Review device queues, conflicts, and sync errors.',
+      coverageIncomplete,
+    };
+  }
+
+  if (matches(check, /support|ticket|inbox/)) {
+    return {
+      ownerLabel: 'Support Inbox',
+      actionLabel: 'Open Support',
+      href: '/admin/support',
+      nextStep: 'Review the support queue and affected diagnostics.',
+      coverageIncomplete,
+    };
+  }
+
+  if (matches(check, /deleted|restore|recovery|trash/)) {
+    return {
+      ownerLabel: 'Deleted Items',
+      actionLabel: 'Open Deleted Items',
+      href: '/admin/deleted-items',
+      nextStep: 'Check whether missing data can be restored.',
+      coverageIncomplete,
+    };
+  }
+
+  if (matches(check, /permission|access|rbac|role|user role/)) {
+    return {
+      ownerLabel: 'Permissions',
+      actionLabel: 'Open Permissions',
+      href: '/admin/permissions',
+      nextStep: 'Review role assignments and access repair surfaces.',
+      coverageIncomplete,
+    };
+  }
+
+  if (matches(check, /payout|payment|stripe|money/)) {
+    return {
+      ownerLabel: 'Payout Ledger',
+      actionLabel: 'Open Payouts',
+      href: '/admin/payouts',
+      nextStep: 'Review payout/payment status and the money-path runbook.',
+      coverageIncomplete,
+    };
+  }
+
+  if (matches(check, /migration|deploy|cron|scheduler|background|edge|manual|job/)) {
+    return {
+      ownerLabel: 'Operations Runbook',
+      actionLabel: 'Open Admin Help',
+      href: '/admin/help',
+      nextStep: 'Use the operations runbook or admin help to assign the manual recovery owner.',
+      coverageIncomplete,
+    };
+  }
+
+  return {
+    ownerLabel: 'Owner incomplete',
+    actionLabel: 'Open Admin Help',
+    href: '/admin/help',
+    nextStep: 'No owner is mapped yet; use admin help or the operations runbook to triage.',
+    coverageIncomplete,
+  };
 }
 
 const MINUTE_MS = 60 * 1000;

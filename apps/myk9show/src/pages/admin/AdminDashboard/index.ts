@@ -11,5 +11,6 @@ export * from './admin-dashboard-types';
 export { useAdminDashboardData, calculateDashboardStats } from './useAdminDashboardData';
 
 // Components
+export { PlatformHealthSummary } from './PlatformHealthSummary';
 export { PlatformAdministrationSection } from './PlatformAdministrationSection';
 export { PlatformStatisticsSection } from './PlatformStatisticsSection';

@@ -63,6 +63,26 @@ const USER_ROLE_TAB_DEFS: PrimaryTabDef[] = [
   { id: 'roles', label: 'Role Summary', icon: ClipboardList },
 ];
 
+function getUserLabel(row: UserRole): { label: string; missingReason?: string } {
+  if (row.user_email && row.user_email !== 'Unknown User') {
+    return { label: row.user_email };
+  }
+  return {
+    label: 'Unresolved user',
+    missingReason: `No people label resolved for user_id ${row.user_id}`,
+  };
+}
+
+function getRoleLabel(row: UserRole): { label: string; code?: string; missingReason?: string } {
+  if (row.role?.display_name || row.role?.name) {
+    return { label: row.role.display_name ?? row.role.name, code: row.role.name };
+  }
+  return {
+    label: 'Unresolved role',
+    missingReason: `No roles row resolved for role_id ${row.role_id}`,
+  };
+}
+
 function makeColumns(
   onRevoke: (id: string, email: string, roleName: string) => void
 ): ColumnDef<UserRole, unknown>[] {
@@ -70,23 +90,37 @@ function makeColumns(
     {
       accessorKey: 'user_email',
       header: 'User',
-      cell: ({ row }) => (
-        <div>
-          <div className="font-medium">{row.original.user_email || 'Unknown User'}</div>
-          <div className="text-xs text-muted-foreground font-mono">{row.original.user_id}</div>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const label = getUserLabel(row.original);
+        return (
+          <div>
+            <div className="font-medium">{label.label}</div>
+            {label.missingReason && (
+              <div className="text-xs text-warning">{label.missingReason}</div>
+            )}
+            <div className="text-xs text-muted-foreground font-mono">{row.original.user_id}</div>
+          </div>
+        );
+      },
     },
     {
       id: 'role',
       header: 'Role',
       accessorFn: row => row.role?.display_name ?? row.role?.name ?? '',
-      cell: ({ row }) => (
-        <div>
-          <div className="font-medium">{row.original.role?.display_name || 'Unknown Role'}</div>
-          <code className="text-xs bg-muted px-1 py-0.5 rounded">{row.original.role?.name}</code>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const label = getRoleLabel(row.original);
+        return (
+          <div>
+            <div className="font-medium">{label.label}</div>
+            {label.missingReason && (
+              <div className="text-xs text-warning">{label.missingReason}</div>
+            )}
+            <code className="text-xs bg-muted px-1 py-0.5 rounded">
+              {label.code ?? row.original.role_id}
+            </code>
+          </div>
+        );
+      },
     },
     {
       id: 'scope',
@@ -171,8 +205,8 @@ function makeColumns(
               onClick={() =>
                 onRevoke(
                   row.original.id,
-                  row.original.user_email || 'Unknown User',
-                  row.original.role?.display_name || 'Unknown Role'
+                  getUserLabel(row.original).label,
+                  getRoleLabel(row.original).label
                 )
               }
             >

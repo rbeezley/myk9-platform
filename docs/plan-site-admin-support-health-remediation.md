@@ -1,10 +1,21 @@
 # Site Admin Support And Health Remediation Plan
 
 **Date:** 2026-07-06
-**Status:** Proposed
+**Status:** Core remediation implemented in `site-admin-support-health-remediation`; lower-priority polish deferred
 **Source audit:** [`docs/audits/2026-07-06-site-admin-support-health-ux-audit.md`](audits/2026-07-06-site-admin-support-health-ux-audit.md)
 **Role intent:** Site Admin — "The platform is healthy"
 **Launch frame:** Fall 2026 launch readiness; admin work supports troubleshooting and recovery, while secretary/show-day reliability remains the top product priority.
+
+## Implementation Update — 2026-07-06
+
+Core phases 1-4 have been implemented behind the existing admin surfaces:
+
+- `/admin/dashboard` now has a Platform Health summary linking to Health, Support, Sync Monitoring, and Deleted Items without duplicating those workflows.
+- `/admin/support` now turns recognized diagnostics into investigation actions, next checks, and copyable escalation context.
+- `/admin/health` now shows remediation owner/action metadata for degraded checks and recent run history without hover-only dots.
+- `/admin/permissions` and `/admin/permissions/users` now avoid unexplained unknown user/role labels for unresolved relationships and label `/admin/rbac-test` as debug-only.
+
+Phase 5 remains deferred polish: advanced template maintenance grouping, sidebar scan-cost reduction, console-warning cleanup, and stale docs/help/search cleanup.
 
 ## Goal
 

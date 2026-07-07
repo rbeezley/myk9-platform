@@ -52,6 +52,19 @@ vi.mock('@/services/rbac/RBACService', () => ({
         },
         assigned_by_email: 'admin@example.com',
       },
+      {
+        id: 'ur-3',
+        user_id: 'missing-user',
+        role_id: 'missing-role',
+        club_id: null,
+        show_id: null,
+        granted_by: null,
+        granted_at: '2026-03-20T14:30:00Z',
+        expires_at: null,
+        is_active: true,
+        scope_type: 'global',
+        scope_id: null,
+      },
     ]),
     getAllRoles: vi.fn().mockResolvedValue([
       {
@@ -114,6 +127,22 @@ describe('UserRoleManagementPage DataTable migration', () => {
     expect(screen.getByText('bob@example.com')).toBeInTheDocument();
   });
 
+  it('explains missing user and role relationships without unexplained unknown labels', async () => {
+    render(<UserRoleManagementPage />);
+    await screen.findByRole('table');
+
+    expect(screen.queryByText('Unknown User')).not.toBeInTheDocument();
+    expect(screen.queryByText('Unknown Role')).not.toBeInTheDocument();
+    expect(screen.getByText('Unresolved user')).toBeInTheDocument();
+    expect(
+      screen.getByText(/No people label resolved for user_id missing-user/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText('Unresolved role')).toBeInTheDocument();
+    expect(screen.getByText(/No roles row resolved for role_id missing-role/i)).toBeInTheDocument();
+    expect(screen.getAllByText('missing-user').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('missing-role').length).toBeGreaterThan(0);
+  });
+
   it('renders revoke action dropdown', async () => {
     render(<UserRoleManagementPage />);
     await screen.findByRole('table');
@@ -128,7 +157,7 @@ describe('UserRoleManagementPage DataTable migration', () => {
   it('renders Active and Inactive status badges', async () => {
     render(<UserRoleManagementPage />);
     await screen.findByRole('table');
-    expect(screen.getByText('Active')).toBeInTheDocument();
+    expect(screen.getAllByText('Active').length).toBeGreaterThan(0);
     expect(screen.getByText('Inactive')).toBeInTheDocument();
   });
 

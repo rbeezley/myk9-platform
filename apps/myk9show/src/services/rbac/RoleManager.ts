@@ -44,7 +44,23 @@ interface RolePermissionJoinRow {
 }
 
 interface UserRoleWithJoinedRole extends UserRolesRow {
-  role: RolesRow;
+  role: RolesRow | null;
+}
+
+interface PeopleLabelRow {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+}
+
+interface RolePermissionCountRow {
+  role_id: string;
+}
+
+interface UserRoleCountRow {
+  role_id: string;
+  is_active: boolean | null;
 }
 
 /** Map a DB roles row to the app's Role interface */
@@ -69,6 +85,38 @@ function toPermission(row: PermissionsRow): Permission {
     category: row.category,
     created_at: row.created_at,
   };
+}
+
+function formatPersonLabel(person: PeopleLabelRow | undefined): string | undefined {
+  if (!person) return undefined;
+  const name = [person.first_name, person.last_name].filter(Boolean).join(' ').trim();
+  if (name && person.email) return `${name} (${person.email})`;
+  return name || person.email || undefined;
+}
+
+function countByRoleId(rows: RolePermissionCountRow[] | UserRoleCountRow[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    counts.set(row.role_id, (counts.get(row.role_id) ?? 0) + 1);
+  }
+  return counts;
+}
+
+async function loadPeopleLabels(ids: string[]): Promise<Map<string, PeopleLabelRow>> {
+  if (ids.length === 0) return new Map();
+
+  const { data, error } = await supabase
+    .from('people')
+    .select('id, first_name, last_name, email')
+    .in('id', ids);
+
+  if (error) {
+    logger.warn('Failed to enrich RBAC user labels from people', 'rbac', { ids }, error);
+    return new Map();
+  }
+
+  const rows = (data ?? []) as PeopleLabelRow[];
+  return new Map(rows.map(person => [person.id, person]));
 }
 
 export class RoleManager {
@@ -476,13 +524,39 @@ export class RoleManager {
    * Get all roles
    */
   async getAllRoles(): Promise<Role[]> {
-    const { data, error } = await supabase.from('roles').select('*').order('name');
+    const [rolesResult, rolePermissionsResult, userRolesResult] = await Promise.all([
+      supabase.from('roles').select('*').order('name'),
+      supabase.from('role_permissions').select('role_id'),
+      supabase.from('user_roles').select('role_id, is_active'),
+    ]);
 
-    if (error) {
-      throw new Error(`Failed to get roles: ${error.message}`);
+    if (rolesResult.error) {
+      throw new Error(`Failed to get roles: ${rolesResult.error.message}`);
+    }
+    if (rolePermissionsResult.error) {
+      throw new Error(
+        `Failed to get role permission counts: ${rolePermissionsResult.error.message}`
+      );
+    }
+    if (userRolesResult.error) {
+      throw new Error(`Failed to get role assignment counts: ${userRolesResult.error.message}`);
     }
 
-    return (data || []).map(toRole);
+    const permissionCounts = countByRoleId(
+      (rolePermissionsResult.data ?? []) as RolePermissionCountRow[]
+    );
+    const userCounts = countByRoleId(
+      ((userRolesResult.data ?? []) as UserRoleCountRow[]).filter(row => row.is_active !== false)
+    );
+
+    return (rolesResult.data || []).map(row => {
+      const role = toRole(row);
+      return {
+        ...role,
+        permission_count: permissionCounts.get(role.id) ?? role.permissions?.length ?? 0,
+        user_count: userCounts.get(role.id) ?? 0,
+      };
+    });
   }
 
   /**
@@ -623,8 +697,20 @@ export class RoleManager {
     }
 
     const rows = (data || []) as unknown as UserRoleWithJoinedRole[];
-    return rows.map(
-      (item): UserRole => ({
+    const peopleIds = Array.from(
+      new Set(
+        rows
+          .flatMap(item => [item.user_id, item.granted_by])
+          .filter((id): id is string => typeof id === 'string' && id.length > 0)
+      )
+    );
+    const peopleById = await loadPeopleLabels(peopleIds);
+
+    return rows.map((item): UserRole => {
+      const role = item.role ? toRole(item.role) : undefined;
+      const userEmail = formatPersonLabel(peopleById.get(item.user_id));
+
+      return {
         id: item.id,
         user_id: item.user_id,
         role_id: item.role_id,
@@ -634,11 +720,11 @@ export class RoleManager {
         granted_at: item.granted_at,
         expires_at: item.expires_at,
         is_active: item.is_active,
-        role: toRole(item.role),
-        user_email: 'Unknown User',
-        assigned_by_email: 'System',
-      })
-    );
+        ...(role ? { role } : {}),
+        ...(userEmail ? { user_email: userEmail } : {}),
+        assigned_by_email: formatPersonLabel(peopleById.get(item.granted_by ?? '')) ?? 'System',
+      };
+    });
   }
 
   /**

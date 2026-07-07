@@ -18,6 +18,7 @@ thin index over focused docs, not one merged wall.)
 | [`supabase-auth-email.md`](supabase-auth-email.md) | A signup/confirmation email didn't arrive: how auth email is sent via Resend, the ~2/hour rate-limit gotcha, raising the limit, manual confirmation. |
 | [`staging-reseed.md`](staging-reseed.md) | Resetting the staging demo to clean seed data + the required post-reseed verification. |
 | [`ci-vercel-deploys.md`](ci-vercel-deploys.md) | Turning on (or troubleshooting) CI-gated production deploys. |
+| [`vercel-preview-quota.md`](vercel-preview-quota.md) | Preventing Vercel Hobby preview quota exhaustion: monorepo skip-unaffected settings, non-required previews, and push discipline. |
 
 The site-admin *role* (scope, what you must accomplish for fall, what you should never have
 to think about) is defined in [`../roles/admin.md`](../roles/admin.md).

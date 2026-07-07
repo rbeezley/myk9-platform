@@ -40,7 +40,7 @@
 ## 6. PR, CI, And Archive Gate
 
 - [x] 6.1 Commit implementation with the OpenSpec artifacts and tracking updates.
-- [ ] 6.2 Open a PR that includes `Tracked in openspec change: site-admin-support-health-remediation` and the focused test plan.
+- [x] 6.2 Open a PR that includes `Tracked in openspec change: site-admin-support-health-remediation` and the focused test plan.
 - [ ] 6.3 Monitor PR checks and address actionable failures.
 - [ ] 6.4 After PR review, CI pass, and merge, archive the OpenSpec change.
 - [ ] 6.5 Sync `main`, prune refs, delete the local branch, and remove this worktree as final cleanup.

@@ -80,6 +80,18 @@ describe('pageDirectory (invariant)', () => {
     );
   });
 
+  it('does not catalog deleted browser-local admin health pages', () => {
+    const paths = pageDirectory.map(e => e.path);
+    expect(paths).not.toContain('/admin/alerts');
+    expect(paths).not.toContain('/admin/performance');
+
+    const searchableText = pageDirectory
+      .filter(e => e.category === 'Admin')
+      .map(e => `${e.title} ${e.description}`)
+      .join(' ');
+    expect(searchableText).not.toMatch(/Alerts & Monitoring|Performance Dashboard/);
+  });
+
   it('every entry has a non-empty title and description', () => {
     const invalid = pageDirectory.filter(e => !e.title.trim() || !e.description.trim());
     expect(invalid).toEqual([]);

@@ -23,6 +23,7 @@ const mockMutationObserver = vi.fn().mockImplementation(function (this: Record<s
 });
 const mockAddEventListener = vi.fn();
 const mockFetch = vi.fn().mockResolvedValue({ ok: true });
+const performanceObserverObserveCalls: PerformanceObserverInit[] = [];
 
 // Mock performance API
 const mockPerformance = {
@@ -90,9 +91,12 @@ describe('MonitoringService', () => {
       this.takeRecords = vi.fn().mockReturnValue([]);
     });
     mockPerformanceObserver.mockImplementation(function (this: Record<string, unknown>, _callback: unknown) {
-      this.observe = vi.fn();
+      this.observe = vi.fn((options?: PerformanceObserverInit) => {
+        if (options) performanceObserverObserveCalls.push(options);
+      });
       this.disconnect = vi.fn();
     });
+    performanceObserverObserveCalls.length = 0;
     mockFetch.mockResolvedValue({ ok: true });
 
     // Restore external service mocks on window
@@ -124,6 +128,17 @@ describe('MonitoringService', () => {
   });
 
   describe('Performance Monitoring', () => {
+    it('does not combine buffered and entryTypes in PerformanceObserver options', () => {
+      monitoring.enablePerformanceMonitoring();
+
+      expect(performanceObserverObserveCalls).toEqual(
+        expect.arrayContaining([expect.objectContaining({ type: 'layout-shift', buffered: true })])
+      );
+      expect(performanceObserverObserveCalls).not.toContainEqual(
+        expect.objectContaining({ entryTypes: ['layout-shift'], buffered: true })
+      );
+    });
+
     it('should record performance metrics', () => {
       const name = 'api.response_time';
       const value = 150;

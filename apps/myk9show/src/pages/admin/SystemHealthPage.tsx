@@ -7,6 +7,7 @@
 // neutral indicators.
 
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Activity, AlertTriangle } from 'lucide-react';
 import { StatusBadge } from '@myk9/ui';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -16,6 +17,7 @@ import { useSystemHealthSnapshots } from '@/features/admin-system-health/useSyst
 import {
   deriveEffectiveStatus,
   formatCheckedAgo,
+  getHealthCheckRemediation,
   statusToBadgeVariant,
 } from '@/features/admin-system-health/systemHealthSelectors';
 import type {
@@ -130,17 +132,27 @@ function StaleOrEmptyWarning({ effective }: { effective: EffectiveHealth }) {
 function HistoryStrip({ history }: { history: SystemHealthSnapshot[] }) {
   if (history.length === 0) return null;
   return (
-    <div className="flex items-center gap-2" aria-label="Recent run history">
-      <span className="text-xs text-muted-foreground">Recent runs:</span>
-      <div className="flex items-center gap-1.5">
+    <div className="rounded-md border border-border bg-card p-4" aria-label="Recent run history">
+      <h2 className="text-sm font-semibold">Recent run history</h2>
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
         {history.map(run => (
-          <span
+          <div
             key={run.id}
             role="status"
-            title={`${CHECK_STATUS_LABEL[run.overallStatus]} · ${run.createdAt}`}
-            aria-label={`${CHECK_STATUS_LABEL[run.overallStatus]} run`}
-            className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${DOT_CLASS[run.overallStatus]}`}
-          />
+            aria-label={`${CHECK_STATUS_LABEL[run.overallStatus]} run ${run.createdAt}`}
+            className="flex items-center justify-between gap-3 rounded-md bg-muted/50 px-3 py-2"
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <span
+                aria-hidden="true"
+                className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${DOT_CLASS[run.overallStatus]}`}
+              />
+              <span className="truncate text-sm">
+                {CHECK_STATUS_LABEL[run.overallStatus]} · {run.source}
+              </span>
+            </span>
+            <span className="shrink-0 text-xs text-muted-foreground">{run.createdAt}</span>
+          </div>
         ))}
       </div>
     </div>
@@ -148,23 +160,35 @@ function HistoryStrip({ history }: { history: SystemHealthSnapshot[] }) {
 }
 
 function CheckRow({ check, now }: { check: SystemHealthSnapshot['checks'][number]; now: number }) {
+  const remediation = getHealthCheckRemediation(check);
+  const showAction = check.status !== 'ok' || remediation.coverageIncomplete;
+  const statusLabel = remediation.coverageIncomplete
+    ? 'Coverage incomplete'
+    : CHECK_STATUS_LABEL[check.status];
+
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-border py-3 last:border-b-0">
+    <div className="flex flex-col gap-3 border-b border-border py-3 last:border-b-0 md:flex-row md:items-center md:justify-between">
       <div className="min-w-0">
-        <p className="truncate font-medium">{check.label}</p>
-        {check.detail && (
-          <p className="mt-0.5 truncate text-sm text-muted-foreground">{check.detail}</p>
+        <p className="font-medium">{check.label}</p>
+        {check.detail && <p className="mt-0.5 text-sm text-muted-foreground">{check.detail}</p>}
+        {showAction && (
+          <div className="mt-2 rounded-md bg-muted/60 p-3 text-sm">
+            <p className="font-medium">{remediation.ownerLabel}</p>
+            <p className="mt-1 text-muted-foreground">{remediation.nextStep}</p>
+            <Link
+              to={remediation.href}
+              className="mt-2 inline-flex text-sm font-medium text-primary hover:underline"
+            >
+              {remediation.actionLabel}
+            </Link>
+          </div>
         )}
       </div>
       <div className="flex flex-shrink-0 items-center gap-3">
         <span className="text-xs text-muted-foreground">
           checked {formatCheckedAgo(check.checkedAt, now)}
         </span>
-        <StatusBadge
-          variant={statusToBadgeVariant(check.status)}
-          size="sm"
-          label={CHECK_STATUS_LABEL[check.status]}
-        />
+        <StatusBadge variant={statusToBadgeVariant(check.status)} size="sm" label={statusLabel} />
       </div>
     </div>
   );

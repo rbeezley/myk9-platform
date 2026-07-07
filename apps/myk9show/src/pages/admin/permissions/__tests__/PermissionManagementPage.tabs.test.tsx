@@ -60,7 +60,9 @@ describe('PermissionManagementPage tab consolidation', () => {
     });
     // Wait for the async permission count to resolve so the stat card is rendered.
     await screen.findByText('Total Permissions');
-    const inventoryLinks = container.querySelectorAll('a[href="/admin/permissions?tab=permissions"]');
+    const inventoryLinks = container.querySelectorAll(
+      'a[href="/admin/permissions?tab=permissions"]'
+    );
     expect(inventoryLinks.length).toBe(1);
   });
 
@@ -69,7 +71,14 @@ describe('PermissionManagementPage tab consolidation', () => {
     expect(screen.getByRole('heading', { name: 'Manage Roles' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Assign User Roles' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'View Audit Log' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Test Permissions' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Debug Permission Test' })).toBeInTheDocument();
+    expect(screen.getAllByText(/debug-only/i).length).toBeGreaterThan(0);
+  });
+
+  it('labels the current-user role count instead of implying platform active users', () => {
+    render(<PermissionManagementPage />, { initialRoute: '/admin/permissions' });
+    expect(screen.getByText('Your Active Roles')).toBeInTheDocument();
+    expect(screen.queryByText('Active Users')).not.toBeInTheDocument();
   });
 
   it('uses an en dash (not an em dash) for empty stat counts before they load', () => {

@@ -16,6 +16,7 @@ import { DashboardGreeting } from '@/components/ui/DashboardGreeting';
 import {
   useAdminDashboardData,
   calculateDashboardStats,
+  PlatformHealthSummary,
   PlatformAdministrationSection,
   PlatformStatisticsSection,
 } from './AdminDashboard/index';
@@ -88,6 +89,9 @@ const AdminDashboard: React.FC = () => {
       <div className="container mx-auto px-8 pt-8 pb-12 max-w-8xl">
         {/* Header */}
         <DashboardHeader firstName={firstName} />
+
+        {/* Platform Health Summary */}
+        <PlatformHealthSummary />
 
         {/* Platform Administration Section */}
         <PlatformAdministrationSection userCount={dashboardData.users.length} />

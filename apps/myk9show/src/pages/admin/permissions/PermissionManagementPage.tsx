@@ -59,9 +59,7 @@ const PermissionManagementPage: React.FC = () => {
       } catch (err) {
         // Counts fall back to the placeholder; the inventory tab surfaces the
         // error explicitly instead of a false "no permissions" empty state.
-        setPermissionsError(
-          err instanceof Error ? err.message : 'Failed to load permissions'
-        );
+        setPermissionsError(err instanceof Error ? err.message : 'Failed to load permissions');
       }
     }
     loadCounts();
@@ -89,16 +87,16 @@ const PermissionManagementPage: React.FC = () => {
       link: '/admin/permissions?tab=permissions',
     },
     {
-      title: 'Active Users',
+      title: 'Your Active Roles',
       value: userRoles.length.toString(),
-      description: 'Users with assigned roles',
+      description: 'Role assignments on your account',
       icon: Users,
       link: '/admin/permissions/users',
     },
     {
       title: 'Your Permissions',
       value: effectivePermissions.length.toString(),
-      description: 'Your effective permissions',
+      description: 'Debug-only effective permission view',
       icon: UserCheck,
       link: '/admin/rbac-test',
     },
@@ -124,8 +122,8 @@ const PermissionManagementPage: React.FC = () => {
       link: '/admin/permissions?tab=audit',
     },
     {
-      title: 'Test Permissions',
-      description: 'Debug and verify permissions',
+      title: 'Debug Permission Test',
+      description: 'Debug-only permission verification',
       icon: Activity,
       link: '/admin/rbac-test',
     },
@@ -190,7 +188,7 @@ const PermissionManagementPage: React.FC = () => {
                   >
                     <Link to="/admin/rbac-test">
                       <Activity className="h-4 w-4 mr-2" />
-                      Test Permissions
+                      Debug Permission Test
                     </Link>
                   </Button>
                   <Button asChild className="w-full sm:w-auto">
@@ -339,7 +337,7 @@ const PermissionManagementPage: React.FC = () => {
                         >
                           <Link to="/admin/rbac-test">
                             <FileText className="h-4 w-4 mr-2" />
-                            View All Permissions
+                            Debug Permission View
                           </Link>
                         </Button>
                       </div>

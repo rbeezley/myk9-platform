@@ -3,7 +3,9 @@ import {
   STALE_AFTER_MS,
   deriveEffectiveStatus,
   formatCheckedAgo,
+  getHealthCheckRemediation,
   isStale,
+  isCoverageIncomplete,
   normalizeCheckStatus,
   normalizeOverallStatus,
   parseSnapshot,
@@ -20,7 +22,13 @@ function row(overrides: Partial<SystemHealthSnapshotRow> = {}): SystemHealthSnap
     source: 'daily-health-check',
     overall_status: 'ok',
     checks: [
-      { key: 'migrations', label: 'Migration parity', status: 'ok', detail: 'in sync', checked_at: new Date(NOW - 60_000).toISOString() },
+      {
+        key: 'migrations',
+        label: 'Migration parity',
+        status: 'ok',
+        detail: 'in sync',
+        checked_at: new Date(NOW - 60_000).toISOString(),
+      },
     ],
     run_duration_ms: 1234,
     ...overrides,
@@ -71,7 +79,7 @@ describe('parseSnapshot', () => {
         ],
       })
     );
-    expect(parsed.checks.map((c) => c.key)).toEqual(['a', 'b']);
+    expect(parsed.checks.map(c => c.key)).toEqual(['a', 'b']);
     expect(parsed.checks[1]?.status).toBe('warn');
     expect(parsed.overallStatus).toBe('ok');
   });
@@ -161,6 +169,81 @@ describe('statusToBadgeVariant', () => {
   });
 });
 
+describe('getHealthCheckRemediation', () => {
+  it('routes sync checks to sync monitoring', () => {
+    const remediation = getHealthCheckRemediation({
+      key: 'replication_queue',
+      label: 'Replication queue',
+      status: 'warn',
+      detail: 'Queue is stale',
+      checkedAt: null,
+    });
+
+    expect(remediation).toMatchObject({
+      ownerLabel: 'Sync Monitoring',
+      actionLabel: 'Open Sync',
+      href: '/admin/sync',
+    });
+  });
+
+  it('routes payout checks to payouts', () => {
+    const remediation = getHealthCheckRemediation({
+      key: 'payout_cron',
+      label: 'Payout cron',
+      status: 'fail',
+      detail: 'Last payout run failed',
+      checkedAt: null,
+    });
+
+    expect(remediation).toMatchObject({
+      ownerLabel: 'Payout Ledger',
+      actionLabel: 'Open Payouts',
+      href: '/admin/payouts',
+    });
+  });
+
+  it('uses an owner-incomplete fallback for unknown keys', () => {
+    const remediation = getHealthCheckRemediation({
+      key: 'mystery',
+      label: 'Mystery check',
+      status: 'unknown',
+      detail: 'No metadata mapped',
+      checkedAt: null,
+    });
+
+    expect(remediation).toMatchObject({
+      ownerLabel: 'Owner incomplete',
+      href: '/admin/help',
+    });
+  });
+
+  it('detects coverage-incomplete checks distinctly', () => {
+    const check = {
+      key: 'manual_check',
+      label: 'Manual check',
+      status: 'unknown' as const,
+      detail: 'Coverage incomplete: not checked here',
+      checkedAt: null,
+    };
+
+    expect(isCoverageIncomplete(check)).toBe(true);
+    expect(getHealthCheckRemediation(check).coverageIncomplete).toBe(true);
+  });
+
+  it('does not mark completed coverage checks as incomplete', () => {
+    const check = {
+      key: 'role_coverage',
+      label: 'Role coverage complete',
+      status: 'ok' as const,
+      detail: 'All role coverage checks complete',
+      checkedAt: '2026-07-04T12:00:00Z',
+    };
+
+    expect(isCoverageIncomplete(check)).toBe(false);
+    expect(getHealthCheckRemediation(check).coverageIncomplete).toBe(false);
+  });
+});
+
 describe('formatCheckedAgo', () => {
   it('returns unknown for a missing or invalid time', () => {
     expect(formatCheckedAgo(null, NOW)).toBe('unknown');
@@ -174,8 +257,12 @@ describe('formatCheckedAgo', () => {
   it('renders minutes, hours, and days', () => {
     expect(formatCheckedAgo(new Date(NOW - 5 * 60_000).toISOString(), NOW)).toBe('5 min ago');
     expect(formatCheckedAgo(new Date(NOW - 3 * 60 * 60_000).toISOString(), NOW)).toBe('3 hr ago');
-    expect(formatCheckedAgo(new Date(NOW - 2 * 24 * 60 * 60_000).toISOString(), NOW)).toBe('2 days ago');
-    expect(formatCheckedAgo(new Date(NOW - 1 * 24 * 60 * 60_000).toISOString(), NOW)).toBe('1 day ago');
+    expect(formatCheckedAgo(new Date(NOW - 2 * 24 * 60 * 60_000).toISOString(), NOW)).toBe(
+      '2 days ago'
+    );
+    expect(formatCheckedAgo(new Date(NOW - 1 * 24 * 60 * 60_000).toISOString(), NOW)).toBe(
+      '1 day ago'
+    );
   });
 
   it('clamps future timestamps (clock skew) to just now', () => {

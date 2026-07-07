@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { submitPaymentStep, type SubmitPaymentStepContext } from './submitPaymentStep';
+import { PaymentStatus } from '@/types/show-registration-types';
 
 const submitShowRegistrationMock = vi.hoisted(() => vi.fn());
 const submitRegistrationCartCheckoutMock = vi.hoisted(() => vi.fn());
@@ -38,6 +39,7 @@ function makeContextAndOrder(overrides: Partial<SubmitPaymentStepContext> = {}):
     isLateEntryMode: false,
     currentWorkflowMode: 'exhibitor',
     paymentMethod: 'check',
+    paymentStatus: PaymentStatus.PENDING,
     paymentDetails: {},
     ownerResolution: { ok: true, ownerId: 'owner-1' },
     exhibitorProfileId: 'profile-1',
@@ -177,6 +179,7 @@ describe('submitPaymentStep', () => {
       isLateEntryMode: true,
       currentWorkflowMode: 'secretary_new',
       paymentMethod: 'cash',
+      paymentStatus: PaymentStatus.PAID_BY_CASH,
       classSelections: [
         {
           dogId: 'dog-1',
@@ -192,6 +195,7 @@ describe('submitPaymentStep', () => {
       expect.objectContaining({
         showId: 'show-1',
         paymentMethod: 'cash',
+        paymentStatus: PaymentStatus.PAID_BY_CASH,
         classSelections: ctx.classSelections,
       })
     );

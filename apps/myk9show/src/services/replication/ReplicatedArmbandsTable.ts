@@ -61,6 +61,7 @@ export interface AssignedArmbandInput {
   showId: string;
   dogId: string;
   armbandNumber: string;
+  dependsOn?: string[] | undefined;
 }
 
 /**
@@ -238,7 +239,12 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
     };
 
     await this.set(id, updated, true);
-    return this.queueMutation(existing ? 'UPDATE' : 'INSERT', id, this.toSupabaseRow(updated));
+    return this.queueMutation(
+      existing ? 'UPDATE' : 'INSERT',
+      id,
+      this.toSupabaseRow(updated),
+      input.dependsOn
+    );
   }
 }
 

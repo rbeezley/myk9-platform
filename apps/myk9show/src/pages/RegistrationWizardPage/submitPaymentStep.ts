@@ -28,6 +28,7 @@ import type {
   HandlerInfo,
   PaymentMethod,
   PaymentDetails,
+  PaymentStatus,
   ShowRegistration,
 } from '@/types/show-registration-types';
 import type { CartWithDetails, NewCartItem } from '@/store/cartStore';
@@ -60,6 +61,7 @@ export interface SubmitPaymentStepContext {
   isLateEntryMode: boolean;
   currentWorkflowMode: WorkflowMode;
   paymentMethod: PaymentMethod | undefined;
+  paymentStatus: PaymentStatus;
   paymentDetails: PaymentDetails;
   ownerResolution: SelectedDogsOwnerResult;
   exhibitorProfileId: string;
@@ -149,6 +151,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
         handlerAssignments: ctx.handlerAssignments,
         classes: ctx.classes,
         paymentMethod: ctx.paymentMethod,
+        paymentStatus: ctx.paymentStatus,
         paymentDetails: ctx.paymentDetails,
         showFeeInfo: ctx.showFeeInfo,
       });

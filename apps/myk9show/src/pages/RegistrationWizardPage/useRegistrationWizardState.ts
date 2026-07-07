@@ -440,6 +440,7 @@ export function useRegistrationWizardState() {
     setRegistrationNumber,
     isCreatingRegistration,
     setIsCreatingRegistration,
+    paymentStatus,
     setPaymentStatus,
     setEntryStatus,
     armbandAssignments,

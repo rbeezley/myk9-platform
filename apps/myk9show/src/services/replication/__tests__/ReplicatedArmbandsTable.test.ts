@@ -70,7 +70,8 @@ describe('ReplicatedArmbandsTable', () => {
         armband_number: '205',
         is_available: false,
         assigned_at: expect.any(String),
-      })
+      }),
+      undefined
     );
     expect(queueMutation.mock.calls[0]?.[2]).not.toHaveProperty('trial_id');
 
@@ -157,7 +158,41 @@ describe('ReplicatedArmbandsTable', () => {
         show_id: 'show-1',
         dog_id: 'dog-1',
         armband_number: '205',
-      })
+      }),
+      undefined
+    );
+  });
+
+  it('queues a new assigned armband behind supplied dependencies', async () => {
+    vi.stubGlobal('navigator', { onLine: false });
+    const queueMutation = vi.spyOn(
+      table as unknown as {
+        queueMutation: (
+          operation: string,
+          rowId: string,
+          payload: Record<string, unknown>,
+          dependencies?: string[]
+        ) => Promise<string | null>;
+      },
+      'queueMutation'
+    );
+
+    await table.upsertAssignedArmband({
+      showId: 'show-1',
+      dogId: 'dog-1',
+      armbandNumber: '205',
+      dependsOn: ['dog-mutation-1'],
+    });
+
+    expect(queueMutation).toHaveBeenCalledWith(
+      'INSERT',
+      expect.any(String),
+      expect.objectContaining({
+        show_id: 'show-1',
+        dog_id: 'dog-1',
+        armband_number: '205',
+      }),
+      ['dog-mutation-1']
     );
   });
 });

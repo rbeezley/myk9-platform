@@ -58,6 +58,21 @@ describe('submit_show_entries migration authorization', () => {
     );
 
     expect(migration).not.toContain('concat_ws');
-    expect(migration).toContain('handler_id = v_resolved_handler_id');
+    expect(migration).toContain(
+      'handler_id = COALESCE(v_resolved_handler_id, v_existing_handler_id)'
+    );
+  });
+
+  it('returns the registration and submission ids expected by the client wrapper', () => {
+    const migration = readFileSync(
+      resolve(
+        process.cwd(),
+        '../../supabase/migrations/20260706190500_submit_entries_preserve_selected_handler.sql'
+      ),
+      'utf8'
+    );
+
+    expect(migration).toContain("'registration_id', p_registration_id");
+    expect(migration).toContain("'submission_id', p_submission_id");
   });
 });

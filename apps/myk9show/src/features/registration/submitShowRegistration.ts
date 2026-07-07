@@ -225,7 +225,7 @@ async function recordEnrollmentPayment({
 }): Promise<void> {
   assertResolvedEnrollmentOwner(ownerResolution);
 
-  await deps.createShowRegistration(
+  const result = await deps.createShowRegistration(
     showId,
     ownerResolution.ownerId,
     paymentDetails?.paymentReference,
@@ -233,6 +233,10 @@ async function recordEnrollmentPayment({
     paymentMethod,
     totalAmountCents
   );
+
+  if (result.error) {
+    throw result.error;
+  }
 }
 
 function assertResolvedEnrollmentOwner(

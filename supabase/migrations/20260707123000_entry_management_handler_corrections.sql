@@ -58,7 +58,7 @@ BEGIN
 
     UPDATE public.entries
        SET handler = p_handler,
-           handler_id = v_resolved_handler_id,
+           handler_id = COALESCE(v_resolved_handler_id, v_existing_handler_id),
            updated_at = now()
      WHERE id = p_entry_id;
 

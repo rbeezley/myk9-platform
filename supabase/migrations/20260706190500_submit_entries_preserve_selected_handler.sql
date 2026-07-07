@@ -198,7 +198,9 @@ BEGIN
 
   -- 6. Build result and record submission for idempotency
   v_result := jsonb_build_object(
-    'entries', to_jsonb(v_entry_pairs)
+    'entries', to_jsonb(v_entry_pairs),
+    'registration_id', p_registration_id,
+    'submission_id', p_submission_id
   );
 
   INSERT INTO public.entry_submissions (id, result)

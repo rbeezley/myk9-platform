@@ -182,6 +182,31 @@ describe('submitShowRegistration', () => {
     expect(params.deps.createShowRegistration).toHaveBeenCalledWith('show-1', 'owner-1');
   });
 
+  it('reports enrollment payment persistence failures after entries submit', async () => {
+    const params = makeParams({
+      paymentMethod: 'secretary_paid',
+      paymentDetails: {
+        paymentReference: 'receipt-100',
+        paymentDate: '2026-07-07',
+      },
+    });
+    vi.mocked(params.deps.createShowRegistration!)
+      .mockResolvedValueOnce({
+        data: { id: 'db-reg-2', confirmationNumber: 'MK9-000002' },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: null,
+        error: new Error('payment update failed'),
+      });
+
+    await expect(submitShowRegistration(params)).rejects.toThrow('payment update failed');
+
+    expect(params.deps.submitShowEntries).toHaveBeenCalledTimes(1);
+    expect(params.deps.createShowRegistration).toHaveBeenCalledTimes(2);
+    expect(params.deps.claimNextArmband).not.toHaveBeenCalled();
+  });
+
   it('does not duplicate claim-next armband patches through generic entry updates', async () => {
     const params = makeParams();
 

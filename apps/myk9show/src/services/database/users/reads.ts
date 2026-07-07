@@ -2,6 +2,7 @@
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { logger } from '@/services/LoggingService';
 import type { DbUserInsert, DbUserUpdate } from '../../../types/database-mappings';
+import { translatePersonIdentityError } from '@/utils/duplicateIdentityErrors';
 
 // Shared select fragment for judge qualifications join
 const JUDGE_QUALIFICATIONS_SELECT = `judge_qualifications(
@@ -120,13 +121,13 @@ export const createUser = async (userData: DbUserInsert) => {
     logQuery('user', 'insert', duration, error?.message);
 
     if (error) {
-      throw createDatabaseError(error, 'user', 'insert');
+      throw translatePersonIdentityError(createDatabaseError(error, 'user', 'insert'));
     }
 
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'user', 'insert');
+    const dbError = createDatabaseError(translatePersonIdentityError(error), 'user', 'insert');
     logQuery('user', 'insert', duration, dbError.message);
     return { data: null, error: dbError };
   }

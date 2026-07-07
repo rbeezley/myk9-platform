@@ -2,7 +2,9 @@
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
 import type { DbClubInsert, DbClubUpdate } from '../../../types/database-mappings';
+import type { Json } from '@/types/supabase';
 import type { TablesUpdate } from '@/types/supabase';
+import { translateClubIdentityError } from '@/utils/duplicateIdentityErrors';
 
 // Get all clubs
 export const getAllClubs = async () => {
@@ -121,20 +123,26 @@ export const createClub = async (clubData: DbClubInsert) => {
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase.from('clubs').insert([clubData]).select().single();
+    const { data, error } = await supabase.rpc('create_or_reuse_club', {
+      p_club: clubData as unknown as Json,
+    });
 
     const duration = Date.now() - startTime;
-    logQuery('club', 'insert', duration, error?.message);
+    logQuery('club', 'create_or_reuse', duration, error?.message);
 
     if (error) {
-      throw createDatabaseError(error, 'club', 'insert');
+      throw translateClubIdentityError(createDatabaseError(error, 'club', 'create_or_reuse'));
     }
 
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'club', 'insert');
-    logQuery('club', 'insert', duration, dbError.message);
+    const dbError = createDatabaseError(
+      translateClubIdentityError(error),
+      'club',
+      'create_or_reuse'
+    );
+    logQuery('club', 'create_or_reuse', duration, dbError.message);
     return { data: null, error: dbError };
   }
 };
@@ -350,8 +358,7 @@ export const getClubsWithShowCounts = async () => {
       data?.map(club => {
         // Supabase returns aggregates as [{count: N}] on the relation key
         const showsAgg = (club as unknown as Record<string, unknown>).shows as
-          | Array<{ count: number }>
-          | undefined;
+          Array<{ count: number }> | undefined;
         // Remove the nested shows aggregate, preserve the typed club fields
         const cleanClub = { ...club };
         delete (cleanClub as Record<string, unknown>).shows;

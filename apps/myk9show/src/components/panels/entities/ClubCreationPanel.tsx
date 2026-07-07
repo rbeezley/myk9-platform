@@ -16,6 +16,11 @@ import { logger } from '@/services/LoggingService';
 import { UserRole } from '@/types/auth-types';
 import { panelManager } from '../PanelManager';
 import { BasePanelProps, EntityCreationResult } from '../types';
+import {
+  clubNamesMatch,
+  findLikelyDuplicateClubCandidate,
+  type ClubIdentityCandidate,
+} from '@/utils/clubIdentity';
 import type { Club } from '@/types/club-types';
 import type { User } from '@/types/user-types';
 
@@ -96,15 +101,40 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
     [clubAdminId, people]
   );
 
+  const duplicateCandidate = useMemo<ClubIdentityCandidate | null>(() => {
+    if (context.mode === 'edit') return null;
+    return findLikelyDuplicateClubCandidate(
+      Array.isArray(clubs) ? clubs : [],
+      {
+        name: formData.name,
+        email: formData.email,
+        website: formData.website,
+        city: formData.address.city,
+        state: formData.address.state,
+      },
+      {
+        excludeClubId:
+          typeof context.preFilledData?.id === 'string' ? context.preFilledData.id : undefined,
+      }
+    );
+  }, [
+    clubs,
+    context.mode,
+    context.preFilledData?.id,
+    formData.name,
+    formData.email,
+    formData.website,
+    formData.address.city,
+    formData.address.state,
+  ]);
+
   // Memoize validation to prevent unnecessary recalculations
   const validationState = useMemo(() => {
     // Defensive programming: ensure clubs is a valid array
     const safeClubs = Array.isArray(clubs) ? clubs : [];
 
     const isDuplicateName = safeClubs.some(
-      club =>
-        club?.name?.toLowerCase().trim() === formData.name.toLowerCase().trim() &&
-        club.id !== context.preFilledData?.id // Allow same name for edit mode
+      club => clubNamesMatch(club?.name, formData.name) && club.id !== context.preFilledData?.id // Allow same name for edit mode
     );
 
     const isValid =
@@ -123,6 +153,22 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
     clubs,
     context.preFilledData?.id,
   ]);
+
+  const handleUseExistingClub = useCallback(async () => {
+    if (!duplicateCandidate) return;
+
+    if (context.selectionCallback) {
+      await context.selectionCallback(
+        duplicateCandidate.club as unknown as Record<string, unknown>
+      );
+    }
+
+    onResult({
+      success: true,
+      action: 'save_and_close',
+      entity: duplicateCandidate.club as unknown as Record<string, unknown>,
+    });
+  }, [context, duplicateCandidate, onResult]);
 
   // Stable callback for state changes
   const handleStateChange = useCallback(() => {
@@ -312,10 +358,33 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
             />
             {validationState.isDuplicateName && (
               <p className="text-sm text-destructive">
-                A club with this name already exists. Please choose a different name.
+                A club with this name already exists. Use the existing club below instead.
               </p>
             )}
           </div>
+
+          {duplicateCandidate && (
+            <div className="rounded-md border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1">
+                  <p className="font-medium">This looks like {duplicateCandidate.club.name}.</p>
+                  <p>
+                    Matched by {duplicateCandidate.reasons.join(', ')}. Use the existing club to
+                    avoid creating a duplicate.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleUseExistingClub}
+                  className="border-warning/40 bg-background text-warning hover:bg-warning/15"
+                >
+                  Use Existing
+                </Button>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">

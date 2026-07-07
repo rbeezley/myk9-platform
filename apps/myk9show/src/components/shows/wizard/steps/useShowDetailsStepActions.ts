@@ -12,23 +12,35 @@ import { useWizardStore } from '@/store/wizardStore';
 import { createUser, updateUser } from '@/services/database/users';
 import { createJudgeQualification } from '@/services/database/judges';
 import { createClub } from '@/services/database/clubs';
+import { clubNamesMatch } from '@/utils/clubIdentity';
+import { personEmailsMatch } from '@/utils/personIdentity';
 import type { CreateClubData } from './sections';
 
 export function useShowDetailsStepActions() {
-  const { loadClubs } = useClubStore();
+  const { clubs, loadClubs } = useClubStore();
   const { people, loadPeople } = useUserStore();
   const { updateShowData } = useWizardStore();
 
   // Inline club creation — no panelManager needed
   const handleCreateClub = useCallback(
     async (data: CreateClubData): Promise<void> => {
+      const existing = clubs.find(club => clubNamesMatch(club.name, data.name));
+      if (existing) {
+        updateShowData({ clubId: existing.id });
+        logger.debug('Existing club selected instead of duplicate create', 'wizard', {
+          clubName: data.name,
+          clubId: existing.id,
+        });
+        return;
+      }
+
       const result = await createClub({ name: data.name, email: data.email });
       if (result.error) throw result.error;
       await loadClubs();
       updateShowData({ clubId: result.data!.id });
       logger.debug('Club created and selected', 'wizard', { clubName: data.name });
     },
-    [loadClubs, updateShowData]
+    [clubs, loadClubs, updateShowData]
   );
 
   const handleCreateOfficialPerson = useCallback(
@@ -44,7 +56,7 @@ export function useShowDetailsStepActions() {
       // This is the wizard's #1 source of duplicate person rows.
       const normalizedEmail = data.email.trim().toLowerCase();
       const existing = normalizedEmail
-        ? people.find(p => (p.email ?? '').trim().toLowerCase() === normalizedEmail)
+        ? people.find(p => personEmailsMatch(p.email, data.email))
         : undefined;
       if (existing) {
         // Reuse the existing person, but keep their phone current. The form

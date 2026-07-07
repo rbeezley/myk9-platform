@@ -8756,6 +8756,10 @@ export type Database = {
         Args: { p_dog: Json; p_registrations: Json }
         Returns: string
       }
+      create_or_reuse_club: {
+        Args: { p_club: Json }
+        Returns: Database["public"]["Tables"]["clubs"]["Row"]
+      }
       create_show_managed_dog: {
         Args: {
           p_akc_number?: string

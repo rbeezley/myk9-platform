@@ -177,6 +177,27 @@ export class MutationManager {
     return db.count(REPLICATION_STORES.PENDING_MUTATIONS);
   }
 
+  /**
+   * List queued mutations for a specific table row.
+   *
+   * This is intentionally narrow: callers can depend on a local row's pending
+   * mutation without reaching into the queue store directly.
+   */
+  async getPendingMutationsForRow(tableName: string, rowId: string): Promise<PendingMutation[]> {
+    const db = await databaseManager.getDatabase('MutationManager');
+    const all = (await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS)) as PendingMutation[];
+
+    return all
+      .filter(mutation => mutation.tableName === tableName && mutation.rowId === rowId)
+      .sort((a, b) => {
+        const sequenceA = a.sequenceNumber ?? Number.MAX_SAFE_INTEGER;
+        const sequenceB = b.sequenceNumber ?? Number.MAX_SAFE_INTEGER;
+        if (sequenceA !== sequenceB) return sequenceA - sequenceB;
+        if (a.timestamp !== b.timestamp) return a.timestamp - b.timestamp;
+        return a.id.localeCompare(b.id);
+      });
+  }
+
   // ========================================
   // FAILED MUTATION MANAGEMENT
   // ========================================

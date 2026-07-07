@@ -18,6 +18,7 @@ import { getErrorMessage } from '@myk9/core';
 import { notifications } from '@/lib/notifications';
 import { submitShowRegistration } from '@/features/registration/submitShowRegistration';
 import { submitRegistrationCartCheckout } from '@/features/registration/registrationCartCheckout';
+import { submitOfflineLateEntry } from '@/features/registration/submitOfflineLateEntry';
 import type { SubmitShowRegistrationParams } from '@/features/registration/submitShowRegistration';
 import type { SelectedDogsOwnerResult } from '@/features/registration/selectedDogsOwner';
 import type { ArmbandAssignment } from '@/components/shows/RegistrationWorkflow/ConfirmationStep.types';
@@ -138,6 +139,27 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
           navigate: path => ctx.navigate(path),
         },
       });
+      return;
+    }
+
+    if (ctx.isLateEntryMode && ctx.currentWorkflowMode !== 'exhibitor') {
+      const offlineResult = await submitOfflineLateEntry({
+        showId: ctx.showId,
+        classSelections: ctx.classSelections,
+        handlerAssignments: ctx.handlerAssignments,
+        classes: ctx.classes,
+        paymentMethod: ctx.paymentMethod,
+        paymentDetails: ctx.paymentDetails,
+        showFeeInfo: ctx.showFeeInfo,
+      });
+
+      if (offlineResult.armbandAssignments.length > 0) {
+        ctx.setArmbandAssignments(offlineResult.armbandAssignments);
+      }
+      await ctx.cart.clearCart();
+      ctx.triggerSync();
+      ctx.markStepComplete(ctx.currentStep);
+      ctx.setCurrentStep(prev => prev + 1);
       return;
     }
 

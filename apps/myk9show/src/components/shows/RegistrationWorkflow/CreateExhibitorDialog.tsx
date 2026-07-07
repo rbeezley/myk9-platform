@@ -16,6 +16,7 @@ import { logger } from '@/services/LoggingService';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { commonValidations } from '@/lib/validation';
 import { z } from 'zod';
+import { replicatedShowDeskPeopleTable } from '@/services/replication/ReplicatedShowDeskPeopleTable';
 
 interface CreateExhibitorDialogProps {
   open: boolean;
@@ -23,6 +24,7 @@ interface CreateExhibitorDialogProps {
   onExhibitorCreated: (exhibitor: User) => void;
   onDuplicateSelected?: (existingExhibitor: User) => void;
   searchQuery?: string; // Pre-fill from search if provided
+  offlineFirst?: boolean;
 }
 
 interface DuplicateCandidate {
@@ -61,6 +63,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
   onExhibitorCreated,
   onDuplicateSelected,
   searchQuery = '',
+  offlineFirst = false,
 }) => {
   const form = useFormValidation(exhibitorFormSchema, INITIAL_FORM_DATA);
   const [duplicates, setDuplicates] = useState<DuplicateCandidate[]>([]);
@@ -190,6 +193,38 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
     setIsCreating(true);
     setCreateError(null);
     try {
+      if (offlineFirst) {
+        const person = await replicatedShowDeskPeopleTable.createPerson({
+          firstName: validatedData.firstName,
+          lastName: validatedData.lastName,
+          email: validatedData.email || null,
+          phone: validatedData.phone || null,
+          address: validatedData.streetAddress || null,
+          city: validatedData.city || null,
+          state: validatedData.state || null,
+          zipCode: validatedData.zipCode || null,
+        });
+
+        const newExhibitor: User = {
+          id: person.id,
+          firstName: person.firstName,
+          lastName: person.lastName,
+          email: person.email ?? '',
+          phone: person.phone ?? '',
+          streetAddress: person.address ?? undefined,
+          city: person.city ?? undefined,
+          state: person.state ?? undefined,
+          zipCode: person.zipCode ?? undefined,
+          roles: [UserRole.EXHIBITOR],
+          dogs: [],
+          associatedDogs: [],
+        };
+
+        onExhibitorCreated(newExhibitor);
+        handleClose();
+        return;
+      }
+
       const { data, error } = await createUser({
         first_name: validatedData.firstName,
         last_name: validatedData.lastName,

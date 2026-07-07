@@ -200,6 +200,22 @@ describe('MutationManager', () => {
       const count = await manager.getPendingCount();
       expect(count).toBe(2);
     });
+
+    it('should return pending mutations for a specific table row', async () => {
+      const dogMutationId = await manager.queueMutation('dogs', 'INSERT', 'dog-1', {
+        id: 'dog-1',
+        name: 'Beacon',
+      });
+      await manager.queueMutation('entries', 'INSERT', 'entry-1', {
+        id: 'entry-1',
+        dog_id: 'dog-1',
+      });
+
+      const mutations = await manager.getPendingMutationsForRow('dogs', 'dog-1');
+
+      expect(mutations).toHaveLength(1);
+      expect(mutations[0]?.id).toBe(dogMutationId);
+    });
   });
 
   // ========================================

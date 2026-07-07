@@ -54,6 +54,14 @@ export {
   type ReplicatedDog,
 } from './ReplicatedDogsTable';
 
+// Show-desk people queue
+export {
+  ReplicatedShowDeskPeopleTable,
+  replicatedShowDeskPeopleTable,
+  type ReplicatedShowDeskPerson,
+  type ShowDeskPersonInput,
+} from './ReplicatedShowDeskPeopleTable';
+
 // Judge Assignments
 export {
   ReplicatedJudgeAssignmentsTable,

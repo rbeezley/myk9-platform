@@ -17,6 +17,7 @@ interface QuickCreateFlowProps {
   onFlowCompleted: (exhibitor: User, dogs: Dog[]) => void;
   searchQuery?: string; // Pre-fill from search if provided
   mode?: 'single' | 'batch'; // Single dog or multiple dogs
+  offlineFirst?: boolean;
 }
 
 interface FlowState {
@@ -39,6 +40,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
   onFlowCompleted,
   searchQuery = '',
   mode = 'single',
+  offlineFirst = false,
 }) => {
   const [flowState, setFlowState] = useState<FlowState>(INITIAL_FLOW_STATE);
   const [showExhibitorDialog, setShowExhibitorDialog] = useState(false);
@@ -409,6 +411,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
         onOpenChange={setShowExhibitorDialog}
         onExhibitorCreated={handleExhibitorCreated}
         searchQuery={searchQuery}
+        offlineFirst={offlineFirst}
       />
 
       <AddDogPanel
@@ -418,6 +421,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
         userRole={UserRole.SECRETARY}
         currentUserPersonId={flowState.exhibitor?.id}
         variant="dialog"
+        offlineFirst={offlineFirst}
       />
     </>
   );

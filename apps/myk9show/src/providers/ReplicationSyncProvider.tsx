@@ -38,6 +38,7 @@ import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTa
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
+import { replicatedShowDeskPeopleTable } from '@/services/replication/ReplicatedShowDeskPeopleTable';
 import { replicatedClubsTable } from '@/services/replication/ReplicatedClubsTable';
 import { replicatedJudgeAssignmentsTable } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
 import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmbandsTable';
@@ -82,6 +83,7 @@ const REPLICATED_TABLES = [
   { name: 'classes', table: replicatedClassesTable },
   { name: 'entries', table: replicatedEntriesTable },
   { name: 'dogs', table: replicatedDogsTable },
+  { name: 'people', table: replicatedShowDeskPeopleTable },
   { name: 'clubs', table: replicatedClubsTable },
   { name: 'judge_assignments', table: replicatedJudgeAssignmentsTable },
   { name: 'armbands', table: replicatedArmbandsTable },

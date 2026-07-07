@@ -8,26 +8,35 @@ import type { DogInput } from '@/store/dogStore';
 
 const {
   mockSetReplicatedDog,
+  mockCreateReplicatedDogWithId,
   mockDeleteReplicatedDog,
   mockGetAllReplicatedDogs,
   mockCreateMutateAsync,
   mockDeleteMutateAsync,
+  mockSavePendingDogRegistrationIntents,
 } = vi.hoisted(() => ({
   mockSetReplicatedDog: vi.fn(),
+  mockCreateReplicatedDogWithId: vi.fn(),
   mockDeleteReplicatedDog: vi.fn(),
   mockGetAllReplicatedDogs: vi.fn(),
   mockCreateMutateAsync: vi.fn(),
   mockDeleteMutateAsync: vi.fn(),
+  mockSavePendingDogRegistrationIntents: vi.fn(),
 }));
 
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
   replicatedDogsTable: {
     getAllDogs: mockGetAllReplicatedDogs,
     set: mockSetReplicatedDog,
+    createDogWithId: mockCreateReplicatedDogWithId,
     delete: mockDeleteReplicatedDog,
     get: vi.fn().mockResolvedValue(null),
     getAll: mockGetAllReplicatedDogs,
   },
+}));
+
+vi.mock('@/services/replication/PendingDogRegistrationIntents', () => ({
+  savePendingDogRegistrationIntents: mockSavePendingDogRegistrationIntents,
 }));
 
 vi.mock('@/hooks/queries/useDogsDatabase', () => ({
@@ -101,6 +110,14 @@ describe('useDogStoreCompat.addDog — local-first', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockCreateMutateAsync.mockResolvedValue(mockDbDog);
+    mockCreateReplicatedDogWithId.mockImplementation(dog =>
+      Promise.resolve({
+        ...dog,
+        _syncStatus: 'pending',
+        _localOnly: true,
+      })
+    );
+    mockSavePendingDogRegistrationIntents.mockResolvedValue(undefined);
     mockSetReplicatedDog.mockResolvedValue(undefined);
     mockDeleteReplicatedDog.mockResolvedValue(undefined);
     mockGetAllReplicatedDogs.mockResolvedValue([]);
@@ -261,6 +278,42 @@ describe('useDogStoreCompat.addDog — local-first', () => {
     });
 
     expect(mockDeleteReplicatedDog).toHaveBeenCalled();
+  });
+
+  it('creates a dog through the offline-first replicated path with dependencies and pending registrations', async () => {
+    const registrations = [
+      {
+        organization: 'AKC',
+        number: 'SW123456',
+        registeredName: 'Beacon Hill Fast Lane',
+        type: 'Border Collie',
+        status: 'pending',
+      },
+    ];
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+
+    await act(async () => {
+      await result.current.addDogOfflineFirst(
+        { ...baseDogInput, registrations },
+        { dependsOn: ['person-mutation-1'] }
+      );
+    });
+
+    const [replicatedDog, options] = mockCreateReplicatedDogWithId.mock.calls[0];
+    expect(replicatedDog).toEqual(
+      expect.objectContaining({
+        id: expect.any(String),
+        name: 'Biscuit',
+        breed: 'Beagle',
+        ownerId: 'person-123',
+      })
+    );
+    expect(options).toEqual({ dependsOn: ['person-mutation-1'] });
+    expect(mockSavePendingDogRegistrationIntents).toHaveBeenCalledWith(
+      replicatedDog.id,
+      registrations
+    );
+    expect(mockCreateMutateAsync).not.toHaveBeenCalled();
   });
 });
 

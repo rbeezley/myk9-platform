@@ -85,6 +85,7 @@ const SortableHeader: React.FC<{
 interface DogSelectionStepProps {
   selectedDogs: string[];
   onSelectionChange: (dogIds: string[]) => void;
+  offlineFirst?: boolean;
 }
 
 interface DogRowProps {
@@ -253,6 +254,7 @@ const DogRow: React.FC<DogRowProps> = ({ index, style, data }) => {
 export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   selectedDogs,
   onSelectionChange,
+  offlineFirst = false,
 }) => {
   const { dogs, isLoading: dogsLoading } = useDogStoreCompat();
   const { user, roles, canBulkOperations, canCreateExhibitor, getMaxDogsPerRegistration } =
@@ -730,18 +732,21 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
         onFlowCompleted={handleQuickCreateFlowCompleted}
         searchQuery={searchQuery}
         mode="batch"
+        offlineFirst={offlineFirst}
       />
       <CreateExhibitorDialog
         open={showExhibitorDialog}
         onOpenChange={setShowExhibitorDialog}
         onExhibitorCreated={handleExhibitorCreated}
         searchQuery={searchQuery}
+        offlineFirst={offlineFirst}
       />
       <AddDogPanel
         open={showDogDialog}
         onClose={() => setShowDogDialog(false)}
         onDogCreated={handleDogCreated}
         variant="dialog"
+        offlineFirst={offlineFirst}
       />
     </div>
   );

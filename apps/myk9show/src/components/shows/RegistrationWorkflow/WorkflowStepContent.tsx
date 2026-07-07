@@ -64,6 +64,8 @@ interface WorkflowStepContentProps {
   setEntryStatus: (status: EntryStatus) => void;
   /** True while dogs are loading (used for auto-select loading state) */
   dogsLoading?: boolean;
+  /** Use local-first create paths for show-desk late-entry capture. */
+  offlineFirstCreate?: boolean | undefined;
   /** Current state of the entry agreement checkbox on the payment step. */
   agreedToEntryAgreement?: boolean | undefined;
   /** Callback when the entry agreement checkbox is toggled on the payment step. */
@@ -91,6 +93,7 @@ export function WorkflowStepContent({
   setPaymentStatus,
   setEntryStatus,
   dogsLoading,
+  offlineFirstCreate = false,
   agreedToEntryAgreement,
   onAgreementChange,
 }: WorkflowStepContentProps) {
@@ -197,6 +200,7 @@ export function WorkflowStepContent({
             <DogSelectionStepEnhanced
               selectedDogs={registrationData.selectedDogs}
               onSelectionChange={onDogSelectionChange}
+              offlineFirst={offlineFirstCreate}
             />
           ) : (
             <DogSelectionStep

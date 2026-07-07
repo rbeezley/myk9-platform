@@ -1,14 +1,33 @@
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import type { MyPayment } from '@/features/payments/useMyPayments';
+import type { EntryBalanceSummary } from '@/features/payments/entryBalanceSummary';
 
 const state: { data: MyPayment[]; isLoading: boolean; isError: boolean } = {
   data: [],
   isLoading: false,
   isError: false,
 };
+const balanceState: {
+  data: EntryBalanceSummary;
+  isLoading: boolean;
+  isError: boolean;
+} = {
+  data: {
+    currentFeesCents: 0,
+    amountDueCents: 0,
+    onlineDueCents: 0,
+    payAtShowDueCents: 0,
+    onlineShowBalances: [],
+  },
+  isLoading: false,
+  isError: false,
+};
 vi.mock('@/features/payments/useMyPayments', () => ({
   useMyPayments: () => state,
+}));
+vi.mock('@/features/payments/useMyEntryBalanceSummary', () => ({
+  useMyEntryBalanceSummary: () => balanceState,
 }));
 
 import ExhibitorPaymentsPage from './ExhibitorPaymentsPage';
@@ -32,14 +51,23 @@ describe('ExhibitorPaymentsPage', () => {
     state.data = [payment];
     state.isLoading = false;
     state.isError = false;
+    balanceState.data = {
+      currentFeesCents: 0,
+      amountDueCents: 0,
+      onlineDueCents: 0,
+      payAtShowDueCents: 0,
+      onlineShowBalances: [],
+    };
+    balanceState.isLoading = false;
+    balanceState.isError = false;
   });
 
   it('renders a payment row with qualified description, amount, status, and receipt link', () => {
     render(<ExhibitorPaymentsPage />);
     expect(screen.getByText('Spring Trial')).toBeInTheDocument();
     expect(screen.getByText('Online entry fees')).toBeInTheDocument();
-    // $53.00 now appears twice — once in the summary card, once in the table row.
-    expect(screen.getAllByText('$53.00')).toHaveLength(2);
+    // $53.00 appears in the gross/net summary plus the table row.
+    expect(screen.getAllByText('$53.00')).toHaveLength(3);
     expect(screen.getByText('Paid')).toBeInTheDocument();
     expect(screen.queryByText('pi_abc123')).not.toBeInTheDocument();
     const receipt = screen.getByRole('link', { name: /receipt for spring trial/i });
@@ -49,9 +77,7 @@ describe('ExhibitorPaymentsPage', () => {
   });
 
   it('offers a cart-recovery retry link for a failed payment, scoped to its show + entries', () => {
-    state.data = [
-      { ...payment, status: 'failed', showId: 'show-1', entryIds: ['e1', 'e2'] },
-    ];
+    state.data = [{ ...payment, status: 'failed', showId: 'show-1', entryIds: ['e1', 'e2'] }];
     render(<ExhibitorPaymentsPage />);
     const retry = screen.getByRole('link', { name: /finish payment/i });
     expect(retry).toHaveAttribute('href', '/cart?showId=show-1&entryIds=e1%2Ce2');
@@ -63,7 +89,7 @@ describe('ExhibitorPaymentsPage', () => {
     state.data = [{ ...payment, status: 'failed', showId: 'show-1', entryIds: ['e1'] }];
     render(<ExhibitorPaymentsPage />);
     expect(screen.getByRole('link', { name: /finish payment/i })).toBeInTheDocument();
-    expect(screen.queryByText('Total paid')).not.toBeInTheDocument();
+    expect(screen.queryByText('Payment history')).not.toBeInTheDocument();
   });
 
   it('offers the retry link for a cancelled payment too', () => {
@@ -86,7 +112,7 @@ describe('ExhibitorPaymentsPage', () => {
     state.data = [{ ...payment, status: 'refunded', netPaidCents: 0 }];
     render(<ExhibitorPaymentsPage />);
     // Money-clarity bar: a refund must not read identically to a $53 charge.
-    expect(screen.getByText('-$53.00')).toBeInTheDocument();
+    expect(screen.getAllByText('-$53.00').length).toBeGreaterThan(0);
     expect(screen.queryByText('$53.00')).not.toBeInTheDocument();
     expect(screen.getByText('Refunded')).toBeInTheDocument();
   });
@@ -109,11 +135,11 @@ describe('ExhibitorPaymentsPage', () => {
     render(<ExhibitorPaymentsPage />);
     expect(screen.getByText('Online entry fees')).toBeInTheDocument();
     expect(screen.getByText('Refund - Copper - Advanced A')).toBeInTheDocument();
-    expect(screen.getByText('-$30.00')).toBeInTheDocument();
+    expect(screen.getAllByText('-$30.00').length).toBeGreaterThan(0);
     expect(screen.getByText('$23.00')).toBeInTheDocument();
   });
 
-  it('subtracts visible legacy refund rows from the Total paid summary', () => {
+  it('separates gross paid, refunds, and net paid in the history summary', () => {
     state.data = [
       { ...payment, id: 'paid-order', amountCents: 10000, netPaidCents: 10000 },
       {
@@ -125,8 +151,11 @@ describe('ExhibitorPaymentsPage', () => {
       },
     ];
     render(<ExhibitorPaymentsPage />);
-    expect(screen.getByText('-$53.00')).toBeInTheDocument();
-    expect(screen.getByText('$100.00')).toBeInTheDocument();
+    expect(screen.getByText('Gross paid')).toBeInTheDocument();
+    expect(screen.getByText('Refunds')).toBeInTheDocument();
+    expect(screen.getByText('Net paid')).toBeInTheDocument();
+    expect(screen.getAllByText('-$53.00').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('$100.00').length).toBeGreaterThan(0);
     expect(screen.getByText('$47.00')).toBeInTheDocument();
   });
 
@@ -161,7 +190,7 @@ describe('ExhibitorPaymentsPage', () => {
 
   it('shows a summary header with total paid and the payment count', () => {
     render(<ExhibitorPaymentsPage />);
-    expect(screen.getByText('Total paid')).toBeInTheDocument();
+    expect(screen.getByText('Payment history')).toBeInTheDocument();
     expect(screen.getByText('1 payment')).toBeInTheDocument();
   });
 
@@ -169,9 +198,80 @@ describe('ExhibitorPaymentsPage', () => {
     state.data = [{ ...payment, status: 'refunded', netPaidCents: 0 }];
     render(<ExhibitorPaymentsPage />);
     // Refunded orders contribute no spend, so no summary card renders…
-    expect(screen.queryByText('Total paid')).not.toBeInTheDocument();
+    expect(screen.queryByText('Payment history')).toBeInTheDocument();
     // …but the order still appears in the table.
     expect(screen.getByText('Refunded')).toBeInTheDocument();
+  });
+
+  it('shows current amount due from the same entry balance summary as My Shows', () => {
+    balanceState.data = {
+      currentFeesCents: 5500,
+      amountDueCents: 5500,
+      onlineDueCents: 5500,
+      payAtShowDueCents: 0,
+      onlineShowBalances: [
+        {
+          showId: 'show-1',
+          showName: 'Spring Trial',
+          amountDueCents: 5500,
+          onlineDueCents: 5500,
+          payAtShowDueCents: 0,
+          entryIds: ['e1', 'e2'],
+          paymentHref: '/cart?showId=show-1&entryIds=e1%2Ce2',
+        },
+      ],
+    };
+
+    render(<ExhibitorPaymentsPage />);
+
+    expect(screen.getByText('Amount due')).toBeInTheDocument();
+    expect(screen.getAllByText('$55.00').length).toBeGreaterThan(0);
+    expect(screen.getByText(/matches Current Fees on My Shows/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /finish payment/i })).toHaveAttribute(
+      'href',
+      '/cart?showId=show-1&entryIds=e1%2Ce2'
+    );
+  });
+
+  it('lists separate checkout links when multiple shows have online balances', () => {
+    balanceState.data = {
+      currentFeesCents: 5500,
+      amountDueCents: 5500,
+      onlineDueCents: 5500,
+      payAtShowDueCents: 0,
+      onlineShowBalances: [
+        {
+          showId: 'show-1',
+          showName: 'A Trial',
+          amountDueCents: 2500,
+          onlineDueCents: 2500,
+          payAtShowDueCents: 0,
+          entryIds: ['e1'],
+          paymentHref: '/cart?showId=show-1&entryIds=e1',
+        },
+        {
+          showId: 'show-2',
+          showName: 'B Trial',
+          amountDueCents: 3000,
+          onlineDueCents: 3000,
+          payAtShowDueCents: 0,
+          entryIds: ['e2'],
+          paymentHref: '/cart?showId=show-2&entryIds=e2',
+        },
+      ],
+    };
+
+    render(<ExhibitorPaymentsPage />);
+
+    expect(screen.getByText('A Trial')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /pay \$25.00/i })).toHaveAttribute(
+      'href',
+      '/cart?showId=show-1&entryIds=e1'
+    );
+    expect(screen.getByRole('link', { name: /pay \$30.00/i })).toHaveAttribute(
+      'href',
+      '/cart?showId=show-2&entryIds=e2'
+    );
   });
 
   it('shows the empty state when there are no payments', () => {

@@ -14,9 +14,10 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Receipt as ReceiptIcon, CreditCard } from 'lucide-react';
+import { Receipt as ReceiptIcon, CreditCard, WalletCards } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -27,7 +28,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useMyPayments } from '@/features/payments/useMyPayments';
+import { useMyEntryBalanceSummary } from '@/features/payments/useMyEntryBalanceSummary';
 import { buildFinishPaymentHref } from '@/features/payments/finishPaymentHref';
+import type { EntryBalanceSummary } from '@/features/payments/entryBalanceSummary';
 import {
   buildPaymentDisplayRows,
   formatPaymentCents,
@@ -37,7 +40,7 @@ import {
   paymentStatusLabel,
   type PaymentDisplayRow,
 } from '@/features/payments/moneyPresentation';
-import { summarizePaymentDisplayRows } from '@/features/payments/paymentsSummary';
+import { summarizePaymentLedgerTotals } from '@/features/payments/paymentsSummary';
 
 /** Placeholder for a missing cell value. Hyphen-minus, never an em dash (UI-copy rule). */
 const EMPTY = '-';
@@ -108,7 +111,7 @@ function PaymentRow({ row }: { row: PaymentDisplayRow }) {
  * cannot disappear from the header math.
  */
 function PaymentsSummary({ rows }: { rows: PaymentDisplayRow[] }) {
-  const totals = summarizePaymentDisplayRows(rows);
+  const totals = summarizePaymentLedgerTotals(rows);
   if (totals.length === 0) return null;
 
   return (
@@ -116,12 +119,32 @@ function PaymentsSummary({ rows }: { rows: PaymentDisplayRow[] }) {
       {totals.map(t => (
         <Card key={t.currency} className="border-primary/40">
           <CardContent className="py-4">
-            <p className="text-sm text-muted-foreground">Total paid</p>
-            <p className="text-2xl font-semibold tabular-nums text-primary">
-              {formatPaymentCents(t.totalPaidCents, t.currency)}
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="text-sm font-medium text-muted-foreground">Payment history</p>
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div>
+                <p className="text-xs text-muted-foreground">Gross paid</p>
+                <p className="text-xl font-semibold tabular-nums">
+                  {formatPaymentCents(t.grossPaidCents, t.currency)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Refunds</p>
+                <p className="text-xl font-semibold tabular-nums text-muted-foreground">
+                  {formatPaymentCents(-t.refundCents, t.currency)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Net paid</p>
+                <p className="text-xl font-semibold tabular-nums text-primary">
+                  {formatPaymentCents(t.netPaidCents, t.currency)}
+                </p>
+              </div>
+            </div>
+            <p className="mt-3 text-sm text-muted-foreground">
               {t.paymentCount} {t.paymentCount === 1 ? 'payment' : 'payments'}
+              {t.refundCount > 0
+                ? `, ${t.refundCount} ${t.refundCount === 1 ? 'refund' : 'refunds'}`
+                : ''}
             </p>
           </CardContent>
         </Card>
@@ -130,8 +153,111 @@ function PaymentsSummary({ rows }: { rows: PaymentDisplayRow[] }) {
   );
 }
 
+function AmountDueSection({
+  summary,
+  isLoading,
+  isError,
+}: {
+  summary: EntryBalanceSummary | undefined;
+  isLoading: boolean;
+  isError: boolean;
+}) {
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="space-y-3 py-5">
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-8 w-40" />
+          <Skeleton className="h-5 w-5/6" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Card>
+        <CardContent role="alert" className="py-5 text-sm text-muted-foreground">
+          We couldn&apos;t load your current balance. Your payment history is still below.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!summary || summary.amountDueCents <= 0) {
+    return (
+      <Card className="border-success/30">
+        <CardContent className="flex flex-col gap-2 py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">Amount due</p>
+            <p className="text-2xl font-semibold tabular-nums text-success">$0.00</p>
+          </div>
+          <p className="text-sm text-muted-foreground">Current entries are paid up.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="border-warning/40">
+      <CardContent className="space-y-4 py-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">Amount due</p>
+            <p className="text-3xl font-semibold tabular-nums text-warning">
+              {formatPaymentCents(summary.amountDueCents, 'usd')}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              This matches Current Fees on My Shows for current entries.
+            </p>
+          </div>
+          {summary.onlineShowBalances.length === 1 && (
+            <Button asChild className="min-h-11 shrink-0">
+              <Link to={summary.onlineShowBalances[0].paymentHref}>
+                <CreditCard className="h-4 w-4 mr-1.5" />
+                Finish payment
+              </Link>
+            </Button>
+          )}
+        </div>
+
+        {summary.onlineShowBalances.length > 1 && (
+          <div className="space-y-2">
+            {summary.onlineShowBalances.map(show => (
+              <div
+                key={show.showId}
+                className="flex flex-col gap-2 rounded-md border border-border/60 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <span className="text-sm font-medium">{show.showName}</span>
+                <Button asChild variant="outline" size="sm" className="min-h-11">
+                  <Link to={show.paymentHref}>
+                    Pay {formatPaymentCents(show.onlineDueCents, 'usd')}
+                  </Link>
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {summary.payAtShowDueCents > 0 && (
+          <p className="flex items-start gap-2 text-sm text-muted-foreground">
+            <WalletCards className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            {formatPaymentCents(summary.payAtShowDueCents, 'usd')} is marked pay at show. Check each
+            entry under My Shows for cash or check instructions.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function ExhibitorPaymentsPage() {
   const { data: payments, isLoading, isError } = useMyPayments();
+  const {
+    data: balanceSummary,
+    isLoading: isBalanceLoading,
+    isError: isBalanceError,
+  } = useMyEntryBalanceSummary();
   const paymentRows = payments ? buildPaymentDisplayRows(payments) : [];
 
   useEffect(() => {
@@ -143,9 +269,15 @@ export default function ExhibitorPaymentsPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">My Payments</h1>
         <p className="text-muted-foreground">
-          Your online entry payments. Receipts live with each entry under My Shows.
+          Current balances and online entry payments. Receipts live with each entry under My Shows.
         </p>
       </div>
+
+      <AmountDueSection
+        summary={balanceSummary}
+        isLoading={isBalanceLoading}
+        isError={isBalanceError}
+      />
 
       {isLoading ? (
         <Card>

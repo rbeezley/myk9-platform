@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   summarizeMyPayments,
   summarizePaymentDisplayRows,
+  summarizePaymentLedgerTotals,
   type PaymentSummaryRow,
 } from './paymentsSummary';
 
@@ -118,5 +119,43 @@ describe('summarizePaymentDisplayRows', () => {
         { amountCents: -3000, currency: 'usd', status: 'refunded' },
       ])
     ).toEqual([]);
+  });
+});
+
+describe('summarizePaymentLedgerTotals', () => {
+  it('separates gross paid, refunds, and net paid for the visible ledger', () => {
+    expect(
+      summarizePaymentLedgerTotals([
+        { amountCents: 10000, currency: 'usd', status: 'succeeded' },
+        { amountCents: -5300, currency: 'usd', status: 'refunded' },
+      ])
+    ).toEqual([
+      {
+        currency: 'usd',
+        grossPaidCents: 10000,
+        refundCents: 5300,
+        netPaidCents: 4700,
+        paymentCount: 1,
+        refundCount: 1,
+      },
+    ]);
+  });
+
+  it('ignores non-settled positive rows while still counting refund rows', () => {
+    expect(
+      summarizePaymentLedgerTotals([
+        { amountCents: 10000, currency: 'usd', status: 'failed' },
+        { amountCents: -3000, currency: 'usd', status: 'refunded' },
+      ])
+    ).toEqual([
+      {
+        currency: 'usd',
+        grossPaidCents: 0,
+        refundCents: 3000,
+        netPaidCents: 0,
+        paymentCount: 0,
+        refundCount: 1,
+      },
+    ]);
   });
 });

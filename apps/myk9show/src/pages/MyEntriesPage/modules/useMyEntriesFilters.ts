@@ -7,6 +7,7 @@
 import { useState, useMemo } from 'react';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { isPendingEntry, isWaitlistEntry } from '@/utils/entryPredicates';
+import { summarizeEntryBalances } from '@/features/payments/entryBalanceSummary';
 import { computeMyEntriesShowDateStats, isPastShowEntry } from './myEntriesStats.helpers';
 import type { MyEntry, MyEntryStats, EntryTabFilter } from './my-entries-types';
 
@@ -103,7 +104,6 @@ export function useMyEntriesFilters({
     const currentEntries = entries.filter(entry => !isPastShowEntry(entry, now));
     const currentAcceptedEntries = currentEntries.filter(isExhibitorInEntry);
     const currentPendingEntries = currentEntries.filter(isPendingEntry);
-    const currentSummaryEntries = [...currentAcceptedEntries, ...currentPendingEntries];
     // Date-aware, distinct-show counts (see myEntriesStats.helpers). A multi-day
     // show running today counts as upcoming, not past, matching the Show Today banner.
     const showDateStats = computeMyEntriesShowDateStats(entries, now);
@@ -118,10 +118,9 @@ export function useMyEntriesFilters({
     const totalFees = entries.reduce((sum, entry) => sum + entry.totalFee, 0);
     const paidFees = paidEntries.reduce((sum, e) => sum + e.totalFee, 0);
     const unpaidFees = unpaidEntries.reduce((sum, e) => sum + e.totalFee, 0);
-    const currentFees = currentSummaryEntries.reduce((sum, entry) => sum + entry.totalFee, 0);
-    const currentAmountDue = currentSummaryEntries
-      .filter(entry => entry.paymentStatus === PaymentStatus.PENDING)
-      .reduce((sum, entry) => sum + entry.totalFee, 0);
+    const balanceSummary = summarizeEntryBalances(entries, now);
+    const currentFees = balanceSummary.currentFeesCents / 100;
+    const currentAmountDue = balanceSummary.amountDueCents / 100;
 
     return {
       entryStats: {

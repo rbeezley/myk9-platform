@@ -1,7 +1,7 @@
 # Site Admin Support And Health Remediation Plan
 
 **Date:** 2026-07-06
-**Status:** Core remediation implemented in `site-admin-support-health-remediation`; first polish slice implemented in `codex/site-admin-support-health-polish`
+**Status:** Complete as of 2026-07-07
 **Source audit:** [`docs/audits/2026-07-06-site-admin-support-health-ux-audit.md`](audits/2026-07-06-site-admin-support-health-ux-audit.md)
 **Role intent:** Site Admin — "The platform is healthy"
 **Launch frame:** Fall 2026 launch readiness; admin work supports troubleshooting and recovery, while secretary/show-day reliability remains the top product priority.
@@ -15,7 +15,7 @@ Core phases 1-4 have been implemented behind the existing admin surfaces:
 - `/admin/health` now shows remediation owner/action metadata for degraded checks and recent run history without hover-only dots.
 - `/admin/permissions` and `/admin/permissions/users` now avoid unexplained unknown user/role labels for unresolved relationships and label `/admin/rbac-test` as debug-only.
 
-2026-07-07 polish update: template maintenance actions are now grouped under Advanced Maintenance with clearer risk copy, and pure site-admin sidebar navigation is reduced to the Admin group. Console-warning cleanup and stale docs/help/search cleanup remain deferred.
+2026-07-07 polish update: template maintenance actions are now grouped under Advanced Maintenance with clearer risk copy, pure site-admin sidebar navigation is reduced to the Admin group, repeated console-warning noise is reduced, and admin help/search is guarded against deleted Alerts/Performance pages.
 
 ## Goal
 
@@ -176,8 +176,8 @@ Do after Phases 1-4 unless these become cheap while touching the same files.
 
 - [x] Move template maintenance actions ("Force Initialize", "Reset Templates", "Clean Duplicates") into an Advanced Maintenance area with clearer risk copy.
 - [x] Reduce admin-mode sidebar scanning cost if cross-role groups remain distracting during site-admin work.
-- [ ] Clean up repeated console-warning noise only if the fix is local and does not distract from support/health flow work.
-- [ ] Audit stale docs/help/search references to deleted admin pages after one more mainline release.
+- [x] Clean up repeated console-warning noise only if the fix is local and does not distract from support/health flow work.
+- [x] Audit stale docs/help/search references to deleted admin pages after one more mainline release.
 
 ## Testing Plan
 

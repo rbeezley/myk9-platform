@@ -15,6 +15,7 @@ import {
   rowToEntry,
   type ReplicatedEntry,
 } from '../ReplicatedEntriesTable';
+import { logger } from '@myk9/core';
 
 // Mock dependencies
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -895,6 +896,17 @@ describe('ReplicatedEntriesTable', () => {
 
       expect(result.success).toBe(true);
       expect(result.rowsAffected).toBe(0);
+      expect(supabaseMock.from).not.toHaveBeenCalled();
+    });
+
+    it('warns only once when repeated entry sync attempts have no show scope', async () => {
+      vi.mocked(logger.warn).mockClear();
+
+      await table.sync('');
+      await table.sync('  ');
+
+      expect(logger.warn).toHaveBeenCalledTimes(1);
+      expect(logger.warn).toHaveBeenCalledWith('[entries] Skipping remote sync without show scope');
       expect(supabaseMock.from).not.toHaveBeenCalled();
     });
 

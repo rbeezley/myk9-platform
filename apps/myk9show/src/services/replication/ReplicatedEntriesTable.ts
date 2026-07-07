@@ -30,6 +30,7 @@ export type { ReplicatedEntry };
 export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   /** Most recent mutation ID from a create/update operation */
   private _lastMutationId: string | null = null;
+  private _hasWarnedMissingShowScope = false;
 
   /**
    * IDs deleted locally this session. The download sync skips these
@@ -126,7 +127,10 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   async sync(syncScopeId: string): Promise<SyncResult> {
     const showScopeId = syncScopeId.trim();
     if (!showScopeId) {
-      logger.warn(`[${this.getTableName()}] Skipping remote sync without show scope`);
+      if (!this._hasWarnedMissingShowScope) {
+        logger.warn(`[${this.getTableName()}] Skipping remote sync without show scope`);
+        this._hasWarnedMissingShowScope = true;
+      }
       return {
         tableName: this.getTableName(),
         success: true,

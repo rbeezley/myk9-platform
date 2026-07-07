@@ -204,10 +204,7 @@ class PerformanceMonitor {
             }
           });
         });
-        clsObserver.observe({
-          entryTypes: ['layout-shift'],
-          buffered: true,
-        } as PerformanceObserverInit);
+        clsObserver.observe({ type: 'layout-shift', buffered: true });
         this.observers.push(clsObserver);
 
         // Report final CLS only when the page is hidden (standard web-vitals approach)

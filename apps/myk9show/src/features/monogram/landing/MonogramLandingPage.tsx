@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
+import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { ensureMonogramFontsLoaded } from '../fonts';
 import { useMonogramLandingData } from './useMonogramLandingData';
 import { StickyNav } from './sections/StickyNav';
@@ -45,7 +46,8 @@ export function MonogramLandingPage({
 
   const data = useMonogramLandingData(show, trial, allTrials);
   const classesHref = publicClassesHref(show?.id, allTrials);
-  const canEnterOnline = hasEntryClassInventory !== false;
+  const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
+  const canEnterOnline = hasEntryClassInventory !== false && !entryCountdown.closed;
 
   return (
     <div
@@ -71,6 +73,7 @@ export function MonogramLandingPage({
         monogramLetters={data.monogramLetters}
         entryWizardUrl={data.entryWizardUrl}
         canEnterOnline={canEnterOnline}
+        entryClosed={entryCountdown.closed}
       />
 
       <main>

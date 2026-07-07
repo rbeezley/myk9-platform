@@ -123,6 +123,7 @@ describe('EntryEditDialog — per-class handlers', () => {
           number: '102',
           fee: 30,
           trialType: 'Scent Work',
+          handlerId: 'handler-jamie',
           status: 'entered' as const,
           handler: 'Jamie Walker',
         },
@@ -151,6 +152,7 @@ describe('EntryEditDialog — per-class handlers', () => {
       expect(entryServiceMocks.updateEntryHandler).toHaveBeenCalledWith({
         entryId: 'entry-container',
         handler: 'Chris Lee',
+        handlerId: 'handler-jamie',
       });
     });
   });

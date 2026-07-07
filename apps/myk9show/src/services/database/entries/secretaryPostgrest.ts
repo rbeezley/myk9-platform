@@ -42,6 +42,9 @@ const SECRETARY_ENTRIES_SELECT = `
           refund_notes,
           refunded_at
         ),
+        trial:trial_id (
+          trial_type
+        ),
         dog:dog_id (
           id,
           name,

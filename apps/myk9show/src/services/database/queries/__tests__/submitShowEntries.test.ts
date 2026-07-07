@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { submitShowEntries } from '../../entries';
+import { submitShowEntries, updateEntryHandler } from '../../entries';
 
 // Mock the supabase client used by the entries module
 const mockRpc = vi.fn();
@@ -126,5 +126,21 @@ describe('submitShowEntries', () => {
     });
 
     await expect(submitShowEntries(baseParams)).rejects.toThrow('fee mismatch');
+  });
+
+  it('updates handler corrections through the entry-management RPC with handler_id', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: null });
+
+    await updateEntryHandler({
+      entryId: 'entry-uuid-1',
+      handler: 'Grace Hollis',
+      handlerId: 'person-uuid-1',
+    });
+
+    expect(mockRpc).toHaveBeenCalledWith('update_entry_handler_for_entry_management', {
+      p_entry_id: 'entry-uuid-1',
+      p_handler: 'Grace Hollis',
+      p_handler_id: 'person-uuid-1',
+    });
   });
 });

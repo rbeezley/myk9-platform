@@ -197,7 +197,9 @@ describe('useEntryManagementData', () => {
           id: 'e1',
           show_id: 'show-1',
           handler: null,
+          handler_id: 'p1',
           handler_person: { id: 'p1', first_name: 'Richard', last_name: 'Beezley' },
+          trial: { trial_type: 'Agility' },
           dog: {
             id: 'd1',
             name: 'Alpha 1',
@@ -205,7 +207,7 @@ describe('useEntryManagementData', () => {
             breed: 'Mixed Breed',
             owner: { id: 'p1', first_name: 'Richard', last_name: 'Beezley', email: 'r@x.com' },
           },
-          class: null,
+          class: { id: 'class-1', name: 'Standard', class_number: '101' },
           registration: null,
         },
         {
@@ -229,6 +231,9 @@ describe('useEntryManagementData', () => {
 
     expect(result.current.entries[0]?.ownerName).toBe('Richard Beezley');
     expect(result.current.entries[0]?.handlerName).toBe('Richard Beezley');
+    expect(result.current.entries[0]?.handlerId).toBe('p1');
+    expect(result.current.entries[0]?.classes[0]?.handlerId).toBe('p1');
+    expect(result.current.entries[0]?.classes[0]?.trialType).toBe('Agility');
     expect(result.current.entries[1]?.ownerName).toBe('Jane Mailin');
     expect(result.current.entries[1]?.handlerName).toBe('Jane Mailin');
   });

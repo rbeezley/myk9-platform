@@ -218,6 +218,8 @@ const EntryManagementPage: React.FC = () => {
         fee: cls.fee,
         status: cls.status,
         handler: entry.handlerName,
+        handlerId: cls.handlerId ?? entry.handlerId ?? null,
+        ...(cls.trialType !== undefined ? { trialType: cls.trialType } : {}),
         ...(cls.jumpHeight !== undefined ? { jumpHeight: cls.jumpHeight } : {}),
       })),
     });

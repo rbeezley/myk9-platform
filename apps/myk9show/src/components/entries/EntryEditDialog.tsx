@@ -58,6 +58,7 @@ interface EntryClass {
   jumpHeight?: string;
   /** Trial discipline; gates the jump-height field (scent work has no jump height). */
   trialType?: string;
+  handlerId?: string | null;
   handler?: string;
   runOrder?: number;
   status: 'entered' | 'scratched' | 'moved' | 'absent';
@@ -203,6 +204,7 @@ export function EntryEditDialog({ open, onOpenChange, entry, onUpdate }: EntryEd
           const { error } = await updateEntryHandler({
             entryId: classEntry.id,
             handler: editedHandler,
+            handlerId: classEntry.handlerId ?? null,
           });
           if (error) {
             setError('Failed to update handler. Please try again.');

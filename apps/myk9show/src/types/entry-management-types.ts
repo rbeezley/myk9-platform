@@ -14,6 +14,8 @@ export interface EntryClass {
   number: string;
   fee: number;
   jumpHeight?: string;
+  trialType?: string;
+  handlerId?: string | null;
   status: 'entered' | 'scratched' | 'moved' | 'absent';
   checkInStatus?: CheckInStatus;
   checkInTime?: Date;
@@ -29,6 +31,7 @@ export interface EntryManagementEntry {
   ownerName: string;
   ownerEmail: string;
   handlerName: string;
+  handlerId?: string | null;
   classes: EntryClass[];
   totalFee: number;
   paidAmount: number;

@@ -210,17 +210,25 @@ export const updateEntryDetails = async (params: {
   }
 };
 
-// Update entry handler — routes through update_entry_handler() RPC because the
-// entries_update RLS policy only permits show managers. The RPC enforces
-// owner/co-owner/handler scope server-side before writing the denormalized TEXT.
-export const updateEntryHandler = async (params: { entryId: string; handler: string }) => {
+// Update entry handler through an RPC because entries_update RLS only permits
+// show managers. The RPC preserves exhibitor owner/co-owner/handler scope, and
+// also lets show managers correct both handler text and handler_id.
+export const updateEntryHandler = async (params: {
+  entryId: string;
+  handler: string;
+  handlerId?: string | null;
+}) => {
   const startTime = Date.now();
-  const { entryId, handler } = params;
+  const { entryId, handler, handlerId = null } = params;
 
   try {
     const { error } = await supabase.rpc(
-      'update_entry_handler' as never,
-      { p_entry_id: entryId, p_handler: handler } as never
+      'update_entry_handler_for_entry_management' as never,
+      {
+        p_entry_id: entryId,
+        p_handler: handler,
+        p_handler_id: handlerId,
+      } as never
     );
 
     const duration = Date.now() - startTime;

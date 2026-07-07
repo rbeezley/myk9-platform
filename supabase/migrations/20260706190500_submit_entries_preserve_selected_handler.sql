@@ -98,6 +98,16 @@ BEGIN
         USING ERRCODE = '22023';
     END IF;
 
+    IF NOT v_is_official AND v_handler_person_id IS NOT NULL AND NOT EXISTS (
+      SELECT 1
+      FROM public.dogs d
+      WHERE d.id = v_dog_id
+        AND v_handler_person_id IN (d.owner_id, d.co_owner_id)
+    ) THEN
+      RAISE EXCEPTION 'caller cannot assign handler % for dog %', v_handler_person_id, v_dog_id
+        USING ERRCODE = '42501';
+    END IF;
+
     v_handler_person_id := COALESCE(v_handler_person_id, v_caller_person_id);
 
     -- 5a. Ownership check

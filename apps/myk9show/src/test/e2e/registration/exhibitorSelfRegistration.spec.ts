@@ -122,6 +122,8 @@ async function selectFirstAvailableClass(page: Page) {
 test('exhibitor card entry hands off to cart checkout without enrollment writes', async ({
   page,
 }) => {
+  await page.clock.setFixedTime(new Date('2026-05-15T12:00:00.000Z'));
+
   const captured: CapturedWrites = {};
   await preventSharedEntryWrites(page, captured);
   await signInAsExhibitor(page, `/shows/${SHOW_ID}/register`);

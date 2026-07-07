@@ -8,6 +8,8 @@ const MOCK_CART_ID = '00000000-0000-4000-8000-00000000c001';
 
 test.describe('Secretary Entry Walk', () => {
   test('full wizard walk: search dog → select → pick class → submit', async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-05-15T12:00:00.000Z'));
+
     const errors: string[] = [];
     page.on('console', msg => {
       if (msg.type() === 'error') errors.push(`[${msg.type()}] ${msg.text()}`);
@@ -229,15 +231,15 @@ test.describe('Secretary Entry Walk', () => {
     await agreementLabel.click();
 
     // ── Step 5: Confirmation ───────────────────────────────────────────────
-    const nextBtn4 = page.getByRole('button', { name: /next/i });
-    await expect(nextBtn4).toBeEnabled();
-    await nextBtn4.click();
+    const submitEntry = page.getByRole('button', { name: /^Submit entry$/ });
+    await expect(submitEntry).toBeEnabled();
+    await submitEntry.click();
 
     await expect(page.getByRole('heading', { name: /^Entry submitted\./i })).toBeVisible({
       timeout: 10000,
     });
 
-    await page.getByRole('button', { name: 'Finish' }).click();
+    await page.getByRole('button', { name: 'Done' }).click();
     await expect(page).toHaveURL(new RegExp(`/shows/${TEST_SHOW_ID}`));
     await expect(
       page.getByRole('heading', { level: 2, name: LIVE_SECRETARY_SHOW_NAME })

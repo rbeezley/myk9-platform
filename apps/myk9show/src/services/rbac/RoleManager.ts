@@ -63,6 +63,15 @@ interface UserRoleCountRow {
   is_active: boolean | null;
 }
 
+interface RoleCountQueryResult {
+  data?: unknown[] | null;
+  error?: { message: string } | null;
+}
+
+interface SelectableRoleCountTable {
+  select?: (columns: string) => Promise<RoleCountQueryResult> | RoleCountQueryResult;
+}
+
 /** Map a DB roles row to the app's Role interface */
 function toRole(row: RolesRow): Role {
   return {
@@ -100,6 +109,32 @@ function countByRoleId(rows: RolePermissionCountRow[] | UserRoleCountRow[]): Map
     counts.set(row.role_id, (counts.get(row.role_id) ?? 0) + 1);
   }
   return counts;
+}
+
+async function loadRoleCountRows(
+  tableName: 'role_permissions' | 'user_roles',
+  columns: string
+): Promise<unknown[]> {
+  const table = supabase.from(tableName) as unknown as SelectableRoleCountTable;
+
+  if (typeof table.select !== 'function') {
+    logger.warn('Role count query surface unavailable', 'rbac', { tableName });
+    return [];
+  }
+
+  const { data, error } = await table.select(columns);
+
+  if (error) {
+    logger.warn(
+      'Failed to enrich RBAC role counts',
+      'rbac',
+      { tableName },
+      new Error(error.message)
+    );
+    return [];
+  }
+
+  return data ?? [];
 }
 
 async function loadPeopleLabels(ids: string[]): Promise<Map<string, PeopleLabelRow>> {
@@ -526,27 +561,17 @@ export class RoleManager {
   async getAllRoles(): Promise<Role[]> {
     const [rolesResult, rolePermissionsResult, userRolesResult] = await Promise.all([
       supabase.from('roles').select('*').order('name'),
-      supabase.from('role_permissions').select('role_id'),
-      supabase.from('user_roles').select('role_id, is_active'),
+      loadRoleCountRows('role_permissions', 'role_id'),
+      loadRoleCountRows('user_roles', 'role_id, is_active'),
     ]);
 
     if (rolesResult.error) {
       throw new Error(`Failed to get roles: ${rolesResult.error.message}`);
     }
-    if (rolePermissionsResult.error) {
-      throw new Error(
-        `Failed to get role permission counts: ${rolePermissionsResult.error.message}`
-      );
-    }
-    if (userRolesResult.error) {
-      throw new Error(`Failed to get role assignment counts: ${userRolesResult.error.message}`);
-    }
 
-    const permissionCounts = countByRoleId(
-      (rolePermissionsResult.data ?? []) as RolePermissionCountRow[]
-    );
+    const permissionCounts = countByRoleId(rolePermissionsResult as RolePermissionCountRow[]);
     const userCounts = countByRoleId(
-      ((userRolesResult.data ?? []) as UserRoleCountRow[]).filter(row => row.is_active !== false)
+      (userRolesResult as UserRoleCountRow[]).filter(row => row.is_active !== false)
     );
 
     return (rolesResult.data || []).map(row => {

@@ -273,6 +273,8 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     ['secretary', [UserRole.SECRETARY]],
     ['judge', [UserRole.JUDGE]],
     ['club admin', [UserRole.CLUB_ADMIN]],
+    ['chairman', [UserRole.CHAIRMAN]],
+    ['steward', [UserRole.STEWARD]],
   ] as const)(
     'multi-role sidebar (%s) has a Show Day group with Ringside → /at-show',
     (_label, roles) => {

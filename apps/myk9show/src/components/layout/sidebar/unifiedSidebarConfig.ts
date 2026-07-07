@@ -94,6 +94,8 @@ export function buildUnifiedSidebarConfig(
     UserRole.JUDGE,
     UserRole.SECRETARY,
     UserRole.CLUB_ADMIN,
+    UserRole.CHAIRMAN,
+    UserRole.STEWARD,
   ]);
   const isPureSiteAdmin = hasSiteAdmin && userRoles.length === 1;
 

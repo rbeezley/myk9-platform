@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@/test/utils/testUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEntryManagementData } from '../useEntryManagementData';
+import { PaymentStatus } from '@/types/show-registration-types';
 
 const mocks = vi.hoisted(() => ({
   getSecretaryShows: vi.fn(),
@@ -232,10 +233,48 @@ describe('useEntryManagementData', () => {
     expect(result.current.entries[0]?.ownerName).toBe('Richard Beezley');
     expect(result.current.entries[0]?.handlerName).toBe('Richard Beezley');
     expect(result.current.entries[0]?.handlerId).toBe('p1');
+    expect(result.current.entries[0]?.classes[0]?.id).toBe('e1');
     expect(result.current.entries[0]?.classes[0]?.handlerId).toBe('p1');
     expect(result.current.entries[0]?.classes[0]?.trialType).toBe('Agility');
     expect(result.current.entries[1]?.ownerName).toBe('Jane Mailin');
     expect(result.current.entries[1]?.handlerName).toBe('Jane Mailin');
+  });
+
+  it('maps waived entry and enrollment payment state without turning it into payment due', async () => {
+    mocks.getEntriesForShow.mockResolvedValue({
+      data: [
+        {
+          id: 'e1',
+          show_id: 'show-1',
+          payment_status: 'waived',
+          entry_fee: 30,
+          handler: 'Jane Mailin',
+          dog: null,
+          class: null,
+          registration: {
+            id: 'enrollment-1',
+            confirmation_number: 'MK9-000123',
+            payment_status: 'waived',
+            payment_reference: null,
+            total_amount: 3000,
+            paid_amount: 0,
+            refund_amount: null,
+            refund_notes: null,
+            refunded_at: null,
+          },
+        },
+      ],
+      error: null,
+    });
+
+    const { result } = renderHook(() => useEntryManagementData());
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+    act(() => result.current.setSelectedShowId('show-1'));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.entries[0]?.paymentStatus).toBe(PaymentStatus.WAIVED);
+    expect(result.current.entries[0]?.enrollmentPaymentStatus).toBe(PaymentStatus.WAIVED);
+    expect(result.current.entries[0]?.paidAmount).toBe(0);
   });
 
   it('partial refund keeps the net amount as paid, not $0 (Codex P2)', async () => {

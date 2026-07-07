@@ -91,6 +91,7 @@ export const ENTRY_MANAGEMENT_FILTERS: FilterDefinition[] = [
       { label: 'Payment due', value: PaymentStatus.PENDING },
       { label: 'Paid online', value: PaymentStatus.PAID_ONLINE },
       { label: 'Paid by check', value: PaymentStatus.PAID_BY_CHECK },
+      { label: 'Waived', value: PaymentStatus.WAIVED },
       { label: 'Refunded', value: PaymentStatus.REFUNDED },
     ],
   },

@@ -52,8 +52,8 @@ function makeExistingEnrollmentQuery(
   overrides: Partial<{
     payment_status: string;
     payment_method: string | null;
-    total_amount: number;
-    paid_amount: number;
+    total_amount: number | null;
+    paid_amount: number | null;
   }> = {}
 ) {
   return {
@@ -70,8 +70,12 @@ function makeExistingEnrollmentQuery(
         payment_status: overrides.payment_status ?? 'pending',
         payment_method: overrides.payment_method ?? null,
         payment_reference: null,
-        total_amount: overrides.total_amount ?? 3000,
-        paid_amount: overrides.paid_amount ?? 0,
+        total_amount: Object.prototype.hasOwnProperty.call(overrides, 'total_amount')
+          ? overrides.total_amount
+          : 3000,
+        paid_amount: Object.prototype.hasOwnProperty.call(overrides, 'paid_amount')
+          ? overrides.paid_amount
+          : 0,
         created_at: '2026-07-05T00:00:00Z',
         updated_at: '2026-07-05T00:00:00Z',
       },
@@ -367,6 +371,36 @@ describe('createShowRegistration', () => {
     expect(result.data?.id).toBe('enrollment-existing');
     expect(existingQuery.insert).not.toHaveBeenCalled();
     expect(mocks.from).toHaveBeenCalledTimes(1);
+  });
+
+  it('marks a first waived submission as waived after the blank enrollment is created', async () => {
+    const existingQuery = makeExistingEnrollmentQuery({
+      payment_status: PaymentStatus.PENDING,
+      payment_method: null,
+      total_amount: null,
+      paid_amount: 0,
+    });
+    const updateQuery = makeExistingEnrollmentPaymentUpdateQuery();
+    mocks.from.mockReturnValueOnce(existingQuery).mockReturnValueOnce(updateQuery);
+
+    const result = await createShowRegistration(
+      'show-1',
+      'handler-1',
+      undefined,
+      undefined,
+      'waived',
+      3000
+    );
+
+    expect(result.error).toBeNull();
+    expect(updateQuery.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payment_status: PaymentStatus.WAIVED,
+        payment_method: 'waived',
+        total_amount: 3000,
+        paid_amount: 0,
+      })
+    );
   });
 });
 

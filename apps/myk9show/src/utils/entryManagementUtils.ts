@@ -40,6 +40,9 @@ export const mapPaymentStatus = (status?: string | null): PaymentStatus => {
       return PaymentStatus.REFUNDED;
     case PaymentStatus.PARTIAL_REFUND:
       return PaymentStatus.PARTIAL_REFUND;
+    case 'waived':
+    case PaymentStatus.WAIVED:
+      return PaymentStatus.WAIVED;
     case 'pending':
     case PaymentStatus.PENDING:
     default:
@@ -82,6 +85,8 @@ export function getEntryPaidAmount(
       return 0;
     case PaymentStatus.PARTIAL_REFUND:
       return entry.totalFee;
+    case PaymentStatus.WAIVED:
+      return 0;
     case PaymentStatus.PENDING:
     default:
       return 0;
@@ -214,6 +219,8 @@ export function getPaymentStatusBadge(status: PaymentStatus): React.ReactNode {
       return React.createElement(Badge, { className: CHIP_TEAL }, 'Paid');
     case PaymentStatus.PENDING:
       return React.createElement(Badge, { className: CHIP_RED }, 'Payment Due');
+    case PaymentStatus.WAIVED:
+      return React.createElement(Badge, { className: CHIP_BLUE }, 'Waived');
     case PaymentStatus.REFUNDED:
       return React.createElement(
         Badge,

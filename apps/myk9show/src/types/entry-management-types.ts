@@ -9,6 +9,7 @@ export type BulkActionResult = boolean | void;
  */
 
 export interface EntryClass {
+  /** Entry row id for mutation targets; class metadata is display-only here. */
   id: string;
   name: string;
   number: string;

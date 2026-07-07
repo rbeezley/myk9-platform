@@ -25,7 +25,7 @@ function paymentMethodToEnrollmentStatus(
     case 'group_payment':
       return 'paid';
     case 'waived':
-      return 'waived';
+      return PaymentStatus.WAIVED;
     case 'credit_card':
       return PaymentStatus.PENDING;
     default:
@@ -129,6 +129,15 @@ function hasEnrollmentPaymentInput({
   );
 }
 
+function shouldPreserveFinancialForWaived(existing: Registration, paymentMethod?: PaymentMethod) {
+  if (paymentMethod !== 'waived') return false;
+  return (
+    existing.paymentStatus !== PaymentStatus.PENDING ||
+    (existing.totalAmount ?? 0) > 0 ||
+    (existing.paidAmount ?? 0) > 0
+  );
+}
+
 async function updateExistingEnrollmentPayment({
   existing,
   paymentReference,
@@ -156,7 +165,7 @@ async function updateExistingEnrollmentPayment({
     existingPaidAmountDollars: existing.paidAmount,
     includeEmptyPaymentDetails: paymentMethod !== undefined && paymentMethod !== 'waived',
     preservePaidAmountForPending: true,
-    preserveFinancialForWaived: true,
+    preserveFinancialForWaived: shouldPreserveFinancialForWaived(existing, paymentMethod),
   });
 
   if (Object.keys(paymentFields).length === 0) {

@@ -162,7 +162,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
         classes: entry.class
           ? [
               {
-                id: entry.class.id,
+                id: entry.id,
                 name: entry.class.name || 'Unknown Class',
                 number: entry.class.class_number || '',
                 fee: entry.entry_fee || 0,

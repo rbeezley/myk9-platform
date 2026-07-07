@@ -22,16 +22,12 @@ export enum PaymentStatus {
   PAID_BY_CASH = 'paid_by_cash',
   REFUNDED = 'refunded',
   PARTIAL_REFUND = 'partial_refund',
+  WAIVED = 'waived',
 }
 
 // Payment method options (exhibitor + secretary/admin options)
 export type PaymentMethod =
-  | 'credit_card'
-  | 'check'
-  | 'cash'
-  | 'secretary_paid'
-  | 'group_payment'
-  | 'waived';
+  'credit_card' | 'check' | 'cash' | 'secretary_paid' | 'group_payment' | 'waived';
 
 /** Supplemental payment metadata collected in the PaymentStep wizard. */
 export interface PaymentDetails {

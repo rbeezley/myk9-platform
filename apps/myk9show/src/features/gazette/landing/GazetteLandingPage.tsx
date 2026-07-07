@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
-import { isCountdownTargetClosed } from '@/features/_shared/hooks/useCountdown';
+import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { ensureGazetteFontsLoaded } from '../fonts';
 import { useGazetteLandingData } from './useGazetteLandingData';
 import { StickyNav } from './sections/StickyNav';
@@ -46,7 +46,8 @@ export function GazetteLandingPage({
 
   const data = useGazetteLandingData(show, trial, allTrials);
   const classesHref = publicClassesHref(show?.id, allTrials);
-  const entryClosed = isCountdownTargetClosed(data.entryCloseDate, data.timezone);
+  const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
+  const entryClosed = entryCountdown.closed;
   const canEnterOnline = hasEntryClassInventory !== false && !entryClosed;
 
   const editionLabel =

@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
-import { isCountdownTargetClosed } from '@/features/_shared/hooks/useCountdown';
+import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { ensurePosterFontsLoaded } from '../fonts';
 import { posterColors } from '../tokens';
 import { usePosterLandingData } from './usePosterLandingData';
@@ -62,7 +62,8 @@ export function PosterLandingPage({
 
   const data = usePosterLandingData(show, trial, allTrials);
   const classesHref = publicClassesHref(show?.id, allTrials);
-  const entryClosed = isCountdownTargetClosed(data.entryCloseDate, data.timezone);
+  const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
+  const entryClosed = entryCountdown.closed;
   const canEnterOnline = hasEntryClassInventory !== false && !entryClosed;
 
   // Build the show abbreviation from the first letters of words, e.g.

@@ -4,7 +4,7 @@ import type { Trial } from '@/components/trials/types/trial.types';
 import { useHeritageLandingData } from '@/features/heritage/landing/useHeritageLandingData';
 import type { HeritageLandingData } from '@/features/heritage/landing/types';
 import { formatJourneyDate } from '@/features/heritage/landing/utils/dateFormat';
-import { isCountdownTargetClosed, useCountdown } from '@/features/heritage/hooks/useCountdown';
+import { useCountdown } from '@/features/heritage/hooks/useCountdown';
 import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { ensureHeadlineFontsLoaded } from '../fonts';
@@ -376,7 +376,8 @@ export function HeadlineLandingPage({
 
   const data = useHeritageLandingData(show, trial, allTrials);
   const classesHref = publicClassesHref(show?.id, allTrials);
-  const entryClosed = isCountdownTargetClosed(data.entryCloseDate, data.timezone);
+  const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
+  const entryClosed = entryCountdown.closed;
   const canEnterOnline = hasEntryClassInventory !== false && !entryClosed;
 
   return (

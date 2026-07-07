@@ -9,9 +9,11 @@ import { Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { NoDataEmptyState } from '@/components/common/EmptyState';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useDogRegistrationManagement } from '@/hooks/queries/useRegistrationsDatabase';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { translateDogDbError } from '@/hooks/translateDogDbError';
 
 /**
  * Loose registration record supporting both camelCase (domain) and snake_case (DB) fields.
@@ -94,6 +96,7 @@ export default function RegistrationsSection({
 
   const selectedRegistration = useRegistrationsStore(state => state.selectedRegistration);
   const setSelectedRegistration = useRegistrationsStore(state => state.setSelectedRegistration);
+  const [registrationSaveError, setRegistrationSaveError] = useState<string | null>(null);
 
   const handleDeleteRegistration = () => {
     if (selectedRegistration && selectedRegistration.id) {
@@ -141,8 +144,11 @@ export default function RegistrationsSection({
       registration_date: data.registrationDate || null,
     };
 
-    createRegistration(registrationData);
-    setIsAddRegistrationDialogOpen(false);
+    setRegistrationSaveError(null);
+    createRegistration(registrationData, {
+      onSuccess: () => setIsAddRegistrationDialogOpen(false),
+      onError: error => setRegistrationSaveError(translateDogDbError(error).message),
+    });
   };
 
   // Handle updating an existing registration
@@ -167,9 +173,17 @@ export default function RegistrationsSection({
       registration_date: data.registrationDate || null,
     };
 
-    updateRegistration({ id: data.id, updates: registrationData });
-    setIsEditRegistrationDialogOpen(false);
-    setSelectedRegistration(null);
+    setRegistrationSaveError(null);
+    updateRegistration(
+      { id: data.id, updates: registrationData },
+      {
+        onSuccess: () => {
+          setIsEditRegistrationDialogOpen(false);
+          setSelectedRegistration(null);
+        },
+        onError: error => setRegistrationSaveError(translateDogDbError(error).message),
+      }
+    );
   };
 
   if (isLoading) {
@@ -200,6 +214,12 @@ export default function RegistrationsSection({
 
   return (
     <div>
+      {registrationSaveError && (
+        <Alert className="mb-4 border-destructive/30 bg-destructive/10">
+          <AlertDescription className="text-destructive">{registrationSaveError}</AlertDescription>
+        </Alert>
+      )}
+
       <div className="flex justify-between items-center mb-4">
         <Button
           onClick={() => setIsAddRegistrationDialogOpen(true)}

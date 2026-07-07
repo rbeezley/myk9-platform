@@ -110,11 +110,44 @@ export const useDogStoreCompat = () => {
             status: r.status || 'pending',
           }));
 
-        const { error: rpcError } = await supabase.rpc('create_dog_with_registrations', {
-          p_dog: dbData,
-          p_registrations: registrationsPayload,
-        });
+        const { data: rpcDogId, error: rpcError } = await supabase.rpc(
+          'create_dog_with_registrations',
+          {
+            p_dog: dbData,
+            p_registrations: registrationsPayload,
+          }
+        );
         if (rpcError) throw translateDogDbError(rpcError);
+
+        const savedDogId = typeof rpcDogId === 'string' ? rpcDogId : dogId;
+        if (savedDogId !== dogId) {
+          await replicatedDogsTable.delete(dogId);
+          await queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
+          if (dbData.owner_id) {
+            queryClient.invalidateQueries({ queryKey: queryKeys.personDogs(dbData.owner_id) });
+          }
+          queryClient.invalidateQueries({ queryKey: queryKeys.registrationsByDog(savedDogId) });
+
+          const existingLocalDog = await replicatedDogsTable.getDogById(savedDogId);
+          const existingLoadedDog = dogs.find(dog => dog.id === savedDogId);
+
+          if (existingLocalDog) {
+            return mapDatabaseToDog(mapReplicatedDogToDbRow(existingLocalDog));
+          }
+
+          if (existingLoadedDog) {
+            return existingLoadedDog;
+          }
+
+          notifications.info('That registration is already on an existing dog.', {
+            description: 'Using the existing dog record instead of creating a duplicate.',
+          });
+
+          return {
+            ...mapDatabaseToDog(mapReplicatedDogToDbRow(replicatedDog)),
+            id: savedDogId,
+          };
+        }
 
         await queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
         if (dbData.owner_id) {

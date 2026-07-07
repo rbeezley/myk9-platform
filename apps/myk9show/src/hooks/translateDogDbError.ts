@@ -25,6 +25,9 @@ export function translateDogDbError(err: unknown): Error {
     if (/microchip_number/i.test(message)) {
       return withCause('A dog with this microchip number already exists.', err);
     }
+    if (/dog_registrations_live_org_number_unique|registration number/i.test(message)) {
+      return withCause('A dog with this registration number already exists.', err);
+    }
     return withCause('This dog conflicts with an existing record.', err);
   }
 

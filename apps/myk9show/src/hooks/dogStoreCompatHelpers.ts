@@ -1,8 +1,13 @@
 // Pure helper functions for useDogStoreCompat
 
-import { updateRegistration, getRegistrationsByDog, createRegistration } from '@/services/database/registrations';
+import {
+  updateRegistration,
+  getRegistrationsByDog,
+  createRegistration,
+} from '@/services/database/registrations';
 import { logger } from '@/services/LoggingService';
 import type { DbDogRegistration } from '@/types/database-mappings';
+import { normalizeDogRegistrationOrganization } from '@/utils/dogIdentity';
 
 interface RegistrationInput {
   registeredName?: string | undefined;
@@ -17,10 +22,11 @@ interface RegistrationInput {
  */
 function findMatchingRegistration(
   inputReg: RegistrationInput,
-  existingRegs: DbDogRegistration[],
+  existingRegs: DbDogRegistration[]
 ): DbDogRegistration | undefined {
+  const inputOrganization = normalizeDogRegistrationOrganization(inputReg.organization || 'AKC');
   return existingRegs.find(
-    (er) => er.organization === inputReg.organization,
+    er => normalizeDogRegistrationOrganization(er.organization) === inputOrganization
   );
 }
 
@@ -33,7 +39,7 @@ function findMatchingRegistration(
  */
 export async function syncDogRegistrations(
   dogId: string,
-  registrations: RegistrationInput[],
+  registrations: RegistrationInput[]
 ): Promise<boolean> {
   if (registrations.length === 0) return false;
 

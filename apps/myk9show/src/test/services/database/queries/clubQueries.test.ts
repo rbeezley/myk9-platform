@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createClub } from '@/services/database/clubs';
+import { checkClubNameExists, createClub } from '@/services/database/clubs';
 import type { DbClubInsert } from '@/types/database-mappings';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
 
@@ -66,5 +66,19 @@ describe('Club Queries', () => {
 
     expect(result.data).toBeNull();
     expect(result.error?.message).toBe('A club with this name already exists.');
+  });
+
+  it('checks existing club names with normalized comparison', async () => {
+    mockSupabase.from.mockReturnValue(
+      createChainableQuery({
+        data: [{ id: 'club-1', name: 'Heartland Scent Work Club' }],
+        error: null,
+      })
+    );
+
+    const result = await checkClubNameExists(' heartland  scent-work club ');
+
+    expect(result.exists).toBe(true);
+    expect(result.data).toEqual({ id: 'club-1', name: 'Heartland Scent Work Club' });
   });
 });

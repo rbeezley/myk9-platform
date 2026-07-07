@@ -5,6 +5,7 @@ import type { DbClubInsert, DbClubUpdate } from '../../../types/database-mapping
 import type { Json } from '@/types/supabase';
 import type { TablesUpdate } from '@/types/supabase';
 import { translateClubIdentityError } from '@/utils/duplicateIdentityErrors';
+import { clubNamesMatch } from '@/utils/clubIdentity';
 
 // Get all clubs
 export const getAllClubs = async () => {
@@ -412,7 +413,7 @@ export const checkClubNameExists = async (name: string, excludeId?: string) => {
   const startTime = Date.now();
 
   try {
-    let query = supabase.from('clubs').select('id, name').eq('name', name).is('deleted_at', null);
+    let query = supabase.from('clubs').select('id, name').is('deleted_at', null);
 
     if (excludeId) {
       query = query.neq('id', excludeId);
@@ -427,9 +428,11 @@ export const checkClubNameExists = async (name: string, excludeId?: string) => {
       throw createDatabaseError(error, 'club', 'check_name_exists');
     }
 
+    const match = data?.find(club => clubNamesMatch(club.name, name)) ?? null;
+
     return {
-      exists: data && data.length > 0,
-      data: data?.[0] || null,
+      exists: match !== null,
+      data: match,
       error: null,
     };
   } catch (error) {

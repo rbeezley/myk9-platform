@@ -30,6 +30,11 @@ describe('core identity deduplication migration contracts', () => {
     expect(clubMigration).toContain('public.is_trial_secretary()');
     expect(clubMigration).toContain('public.is_club_admin()');
     expect(clubMigration).toContain('public.is_site_admin()');
+    expect(clubMigration).toContain('public.is_trial_secretary(v_existing.id)');
+    expect(clubMigration).toContain('public.is_club_admin(v_existing.id)');
+    expect(clubMigration).toContain(
+      'club name already exists but caller is not authorized to use matching club'
+    );
     expect(clubMigration).toContain(
       'REVOKE ALL ON FUNCTION public.create_or_reuse_club(jsonb) FROM PUBLIC'
     );

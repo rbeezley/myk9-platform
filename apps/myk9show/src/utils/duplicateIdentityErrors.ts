@@ -31,6 +31,13 @@ function isUniqueConflict(error: unknown): boolean {
 export function translateClubIdentityError(error: unknown): Error {
   const message = errorMessage(error);
 
+  if (/club name already exists.*not authorized|not authorized.*matching club/i.test(message)) {
+    return withCause(
+      'A club with this name already exists, but your account does not have access to use it.',
+      error
+    );
+  }
+
   if (
     isUniqueConflict(error) &&
     /clubs_live_normalized_name_unique|normalize_club_name|club.*name/i.test(message)

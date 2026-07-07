@@ -14,6 +14,17 @@ describe('duplicate identity error translation', () => {
     expect(error.message).toBe('A club with this name already exists.');
   });
 
+  it('translates unauthorized existing club reuse conflicts', () => {
+    const error = translateClubIdentityError({
+      code: '42501',
+      message: 'club name already exists but caller is not authorized to use matching club',
+    });
+
+    expect(error.message).toBe(
+      'A club with this name already exists, but your account does not have access to use it.'
+    );
+  });
+
   it('translates people email unique conflicts', () => {
     const error = translatePersonIdentityError({
       code: '23505',

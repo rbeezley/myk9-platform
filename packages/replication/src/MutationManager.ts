@@ -18,11 +18,7 @@ import type { Logger } from './dependencies';
 import { noopLogger } from './dependencies';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import { markPerf, measurePerf } from './perf';
-import {
-  withTimeout,
-  TIMEOUT_PRESETS,
-  calculateBackoffDelay,
-} from './mutation-utils';
+import { withTimeout, TIMEOUT_PRESETS, calculateBackoffDelay } from './mutation-utils';
 import { classifyMutationFailure } from './mutation-retry';
 import {
   classifyEmptyUpdateResult,
@@ -32,24 +28,36 @@ import {
   OccRejectionError,
 } from './mutation-occ';
 import { sortMutationsByDependencies } from './mutation-ordering';
-import {
-  getMutationQueueCapacity,
-  QUEUE_MAX_SIZE,
-} from './mutation-queue-capacity';
+import { getMutationQueueCapacity, QUEUE_MAX_SIZE } from './mutation-queue-capacity';
 import {
   MUTATION_BACKUP_STORAGE_KEY,
   parseMutationBackup,
   writeMutationBackup,
 } from './mutation-backup';
-import {
-  type PendingMutation,
-  type ReplicatedRow,
-  type SyncResult,
-} from './types';
+import { type PendingMutation, type ReplicatedRow, type SyncResult } from './types';
 
 // ============================================
 // CONSTANTS
 // ============================================
+
+const POSTGRES_UNIQUE_VIOLATION = '23505';
+
+function isPrimaryKeyDuplicateError(error: unknown, tableName: string, rowId: string): boolean {
+  const candidate = error as { code?: unknown; message?: unknown; details?: unknown } | null;
+  if (candidate?.code !== POSTGRES_UNIQUE_VIOLATION) return false;
+
+  const haystack = [candidate.message, candidate.details]
+    .filter((part): part is string => typeof part === 'string')
+    .join(' ')
+    .toLowerCase();
+  const tablePrimaryKey = `${tableName.toLowerCase()}_pkey`;
+  const normalizedRowId = rowId.toLowerCase();
+
+  return (
+    haystack.includes(tablePrimaryKey) ||
+    (haystack.includes('key (id)=') && haystack.includes(`(${normalizedRowId})`))
+  );
+}
 
 // ============================================
 // TYPES
@@ -201,8 +209,7 @@ export class MutationManager {
   async retryFailedMutation(mutationId: string): Promise<void> {
     const db = await databaseManager.getDatabase('MutationManager');
     const failed = (await db.get(REPLICATION_STORES.FAILED_MUTATIONS, mutationId)) as
-      | PendingMutation
-      | undefined;
+      PendingMutation | undefined;
     if (!failed) return;
 
     const requeued: PendingMutation = {
@@ -242,9 +249,7 @@ export class MutationManager {
   async discardPendingMutationsForRow(tableName: string, rowId: string): Promise<void> {
     const db = await databaseManager.getDatabase('MutationManager');
     const all = await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
-    const toDelete = all
-      .filter(m => m.tableName === tableName && m.rowId === rowId)
-      .map(m => m.id);
+    const toDelete = all.filter(m => m.tableName === tableName && m.rowId === rowId).map(m => m.id);
 
     if (toDelete.length === 0) return;
 
@@ -519,7 +524,11 @@ export class MutationManager {
           const { newServerVersion } = await this.executeMutation(mutation);
           await this.markReplicatedRowSynced(db, mutation, newServerVersion);
           if (newServerVersion !== undefined) {
-            await this.updateMutationServerVersions(mutation.tableName, mutation.rowId, newServerVersion);
+            await this.updateMutationServerVersions(
+              mutation.tableName,
+              mutation.rowId,
+              newServerVersion
+            );
           }
 
           await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, mutation.id);
@@ -697,11 +706,10 @@ export class MutationManager {
           TIMEOUT_PRESETS.standard,
           `${tableName} insert`
         );
-        if (error?.code === '23505') {
+        if (isPrimaryKeyDuplicateError(error, tableName, mutation.rowId)) {
           // Row already exists — retry hit a duplicate-key on a client-generated UUID.
           // The INSERT succeeded on a prior attempt; treat this as success.
           // INVARIANT: all offline-INSERT entities use client-generated UUIDs (verified Plan 006).
-          // If a future table uses a server-generated PK, 23505 here would mask a real collision.
           this.logger.log(
             `[MutationManager] 23505 on INSERT ${tableName}/${mutation.rowId} — prior attempt committed, treating as success`
           );
@@ -755,15 +763,17 @@ export class MutationManager {
           }
           // The RPC returns the new integer version (or null if the function
           // signals a no-op). Surface it so the local row's OCC token stays fresh.
-          const newServerVersion =
-            typeof returned === 'number' ? returned : undefined;
+          const newServerVersion = typeof returned === 'number' ? returned : undefined;
           return { newServerVersion };
         }
 
         // Build the query: add OCC precondition when serverVersion is set so a
         // concurrent server write (trigger bumped version) causes 0-row rejection
         // rather than silently overwriting with last-write-wins.
-        let updateQuery = this.supabase.from(tableName).update(data).eq('id', data.id as string);
+        let updateQuery = this.supabase
+          .from(tableName)
+          .update(data)
+          .eq('id', data.id as string);
         if (mutation.serverVersion !== undefined) {
           updateQuery = updateQuery.eq('version', mutation.serverVersion);
         }
@@ -841,8 +851,7 @@ export class MutationManager {
 
     const key = [mutation.tableName, String(mutation.rowId)];
     const existingRow = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, key)) as
-      | ReplicatedRow<unknown>
-      | undefined;
+      ReplicatedRow<unknown> | undefined;
 
     if (!existingRow?.isDirty) return;
 
@@ -874,8 +883,7 @@ export class MutationManager {
   ): Promise<void> {
     const key = [tableName, String(rowId)];
     const existingRow = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, key)) as
-      | ReplicatedRow<unknown>
-      | undefined;
+      ReplicatedRow<unknown> | undefined;
     if (!existingRow) return;
     if (existingRow.serverVersion === serverVersion) return;
 

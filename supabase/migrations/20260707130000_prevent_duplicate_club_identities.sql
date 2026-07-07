@@ -98,7 +98,14 @@ BEGIN
   LIMIT 1;
 
   IF v_existing.id IS NOT NULL THEN
-    RETURN v_existing;
+    IF public.is_site_admin()
+      OR public.is_club_admin(v_existing.id)
+      OR public.is_trial_secretary(v_existing.id) THEN
+      RETURN v_existing;
+    END IF;
+
+    RAISE EXCEPTION 'club name already exists but caller is not authorized to use matching club'
+      USING ERRCODE = '42501';
   END IF;
 
   INSERT INTO public.clubs (
@@ -162,7 +169,12 @@ EXCEPTION
     ORDER BY c.created_at NULLS LAST, c.id
     LIMIT 1;
 
-    IF v_existing.id IS NOT NULL THEN
+    IF v_existing.id IS NOT NULL
+      AND (
+        public.is_site_admin()
+        OR public.is_club_admin(v_existing.id)
+        OR public.is_trial_secretary(v_existing.id)
+      ) THEN
       RETURN v_existing;
     END IF;
 

@@ -336,9 +336,13 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
           entity: newPerson as unknown as Record<string, unknown>,
         });
       } catch (error) {
+        const errorMessage =
+          error instanceof Error && error.message.trim()
+            ? error.message
+            : 'Failed to create person. Please try again.';
         logger.error('❌ Failed to create person:', 'components', {}, error as Error);
-        notifications.error('Failed to create person. Please try again.');
-        setErrors({ submit: 'Failed to create person. Please try again.' });
+        notifications.error(errorMessage);
+        setErrors({ submit: errorMessage });
       } finally {
         setIsSubmitting(false);
       }

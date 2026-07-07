@@ -2,15 +2,35 @@
 --
 -- Read-only duplicate inventory query to run before pushing this migration:
 --
+--   WITH normalized AS (
+--     SELECT
+--       id,
+--       name,
+--       created_at,
+--       pg_catalog.btrim(
+--         pg_catalog.regexp_replace(
+--           pg_catalog.regexp_replace(
+--             pg_catalog.upper(pg_catalog.coalesce(name, '')),
+--             '[^A-Z0-9]+',
+--             ' ',
+--             'g'
+--           ),
+--           '\s+',
+--           ' ',
+--           'g'
+--         )
+--       ) AS normalized_name
+--     FROM public.clubs
+--     WHERE deleted_at IS NULL
+--   )
 --   SELECT
---     public.normalize_club_name(name) AS normalized_name,
+--     normalized_name,
 --     array_agg(id ORDER BY created_at NULLS LAST, id) AS club_ids,
 --     array_agg(name ORDER BY created_at NULLS LAST, id) AS club_names,
 --     count(*) AS club_count
---   FROM public.clubs
---   WHERE deleted_at IS NULL
---     AND public.normalize_club_name(name) <> ''
---   GROUP BY 1
+--   FROM normalized
+--   WHERE normalized_name <> ''
+--   GROUP BY normalized_name
 --   HAVING count(*) > 1;
 
 BEGIN;
@@ -182,8 +202,30 @@ EXCEPTION
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.find_live_club_by_normalized_name(
+  p_name text,
+  p_exclude_id uuid DEFAULT NULL
+)
+RETURNS public.clubs
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = ''
+AS $$
+  SELECT c.*
+  FROM public.clubs c
+  WHERE c.deleted_at IS NULL
+    AND public.normalize_club_name(c.name) = public.normalize_club_name(p_name)
+    AND public.normalize_club_name(p_name) <> ''
+    AND (p_exclude_id IS NULL OR c.id <> p_exclude_id)
+  ORDER BY c.created_at NULLS LAST, c.id
+  LIMIT 1;
+$$;
+
 REVOKE ALL ON FUNCTION public.create_or_reuse_club(jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.find_live_club_by_normalized_name(text, uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.create_or_reuse_club(jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.find_live_club_by_normalized_name(text, uuid) TO authenticated;
 
 COMMENT ON FUNCTION public.normalize_club_name(text) IS
   'Normalizes club names for exact live club identity comparisons.';
@@ -193,6 +235,9 @@ COMMENT ON INDEX public.clubs_live_normalized_name_unique IS
 
 COMMENT ON FUNCTION public.create_or_reuse_club(jsonb) IS
   'Creates a club or returns the existing live club with the same normalized name for authorized club creators.';
+
+COMMENT ON FUNCTION public.find_live_club_by_normalized_name(text, uuid) IS
+  'Finds one live club by exact normalized name without fetching all clubs client-side.';
 
 NOTIFY pgrst, 'reload schema';
 

@@ -69,15 +69,19 @@ describe('Club Queries', () => {
   });
 
   it('checks existing club names with normalized comparison', async () => {
-    mockSupabase.from.mockReturnValue(
+    mockSupabase.rpc.mockReturnValue(
       createChainableQuery({
-        data: [{ id: 'club-1', name: 'Heartland Scent Work Club' }],
+        data: { id: 'club-1', name: 'Heartland Scent Work Club' },
         error: null,
       })
     );
 
-    const result = await checkClubNameExists(' heartland  scent-work club ');
+    const result = await checkClubNameExists(' heartland  scent-work club ', 'other-club');
 
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('find_live_club_by_normalized_name', {
+      p_name: ' heartland  scent-work club ',
+      p_exclude_id: 'other-club',
+    });
     expect(result.exists).toBe(true);
     expect(result.data).toEqual({ id: 'club-1', name: 'Heartland Scent Work Club' });
   });

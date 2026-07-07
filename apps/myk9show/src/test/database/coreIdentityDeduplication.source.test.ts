@@ -17,6 +17,8 @@ const peopleMigration = readFileSync(
 describe('core identity deduplication migration contracts', () => {
   it('documents and enforces normalized live club-name uniqueness', () => {
     expect(clubMigration).toContain('Read-only duplicate inventory query');
+    expect(clubMigration).toContain('WITH normalized AS');
+    expect(clubMigration).toContain('pg_catalog.regexp_replace');
     expect(clubMigration).toContain('public.normalize_club_name(name)');
     expect(clubMigration).toContain('clubs_live_normalized_name_unique');
     expect(clubMigration).toContain('WHERE deleted_at IS NULL');
@@ -40,6 +42,22 @@ describe('core identity deduplication migration contracts', () => {
     );
     expect(clubMigration).toContain(
       'GRANT EXECUTE ON FUNCTION public.create_or_reuse_club(jsonb) TO authenticated'
+    );
+  });
+
+  it('creates a bounded normalized club lookup RPC for client-side existence checks', () => {
+    expect(clubMigration).toContain(
+      'CREATE OR REPLACE FUNCTION public.find_live_club_by_normalized_name'
+    );
+    expect(clubMigration).toContain(
+      'public.normalize_club_name(c.name) = public.normalize_club_name(p_name)'
+    );
+    expect(clubMigration).toContain('LIMIT 1');
+    expect(clubMigration).toContain(
+      'REVOKE ALL ON FUNCTION public.find_live_club_by_normalized_name(text, uuid) FROM PUBLIC'
+    );
+    expect(clubMigration).toContain(
+      'GRANT EXECUTE ON FUNCTION public.find_live_club_by_normalized_name(text, uuid) TO authenticated'
     );
   });
 

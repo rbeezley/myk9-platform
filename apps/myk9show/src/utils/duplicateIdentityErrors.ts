@@ -5,10 +5,36 @@
 
 const PG_UNIQUE_VIOLATION = '23505';
 
+function copyDatabaseMetadata(target: Error, source: unknown): Error {
+  const candidate = source as
+    | {
+        code?: unknown;
+        details?: unknown;
+        hint?: unknown;
+        table?: unknown;
+        operation?: unknown;
+      }
+    | null
+    | undefined;
+
+  for (const key of ['code', 'details', 'hint', 'table', 'operation'] as const) {
+    if (typeof candidate?.[key] === 'string') {
+      (target as Error & Record<typeof key, string>)[key] = candidate[key];
+    }
+  }
+
+  return target;
+}
+
 function withCause(message: string, cause: unknown): Error {
   const err = new Error(message);
   (err as Error & { cause?: unknown }).cause = cause;
-  return err;
+  return copyDatabaseMetadata(err, cause);
+}
+
+function preserveError(message: string, error: unknown): Error {
+  if (error instanceof Error) return copyDatabaseMetadata(error, error);
+  return withCause(message, error);
 }
 
 function errorCode(error: unknown): string {
@@ -45,7 +71,7 @@ export function translateClubIdentityError(error: unknown): Error {
     return withCause('A club with this name already exists.', error);
   }
 
-  return error instanceof Error ? error : new Error(message);
+  return preserveError(message, error);
 }
 
 export function translatePersonIdentityError(error: unknown): Error {
@@ -55,5 +81,5 @@ export function translatePersonIdentityError(error: unknown): Error {
     return withCause('A person with this email already exists.', error);
   }
 
-  return error instanceof Error ? error : new Error(message);
+  return preserveError(message, error);
 }

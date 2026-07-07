@@ -5,7 +5,6 @@ import type { DbClubInsert, DbClubUpdate } from '../../../types/database-mapping
 import type { Json } from '@/types/supabase';
 import type { TablesUpdate } from '@/types/supabase';
 import { translateClubIdentityError } from '@/utils/duplicateIdentityErrors';
-import { clubNamesMatch } from '@/utils/clubIdentity';
 
 // Get all clubs
 export const getAllClubs = async () => {
@@ -138,11 +137,12 @@ export const createClub = async (clubData: DbClubInsert) => {
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(
-      translateClubIdentityError(error),
-      'club',
-      'create_or_reuse'
-    );
+    const translated = translateClubIdentityError(error);
+    const dbError = createDatabaseError(translated, 'club', 'create_or_reuse');
+    const metadata = translated as { code?: string; details?: string; hint?: string };
+    if (metadata.code) dbError.code = metadata.code;
+    if (metadata.details) dbError.details = metadata.details;
+    if (metadata.hint) dbError.hint = metadata.hint;
     logQuery('club', 'create_or_reuse', duration, dbError.message);
     return { data: null, error: dbError };
   }
@@ -413,13 +413,10 @@ export const checkClubNameExists = async (name: string, excludeId?: string) => {
   const startTime = Date.now();
 
   try {
-    let query = supabase.from('clubs').select('id, name').is('deleted_at', null);
-
-    if (excludeId) {
-      query = query.neq('id', excludeId);
-    }
-
-    const { data, error } = await query;
+    const { data, error } = await supabase.rpc('find_live_club_by_normalized_name', {
+      p_name: name,
+      p_exclude_id: excludeId ?? null,
+    });
 
     const duration = Date.now() - startTime;
     logQuery('club', 'check_name_exists', duration, error?.message);
@@ -428,11 +425,9 @@ export const checkClubNameExists = async (name: string, excludeId?: string) => {
       throw createDatabaseError(error, 'club', 'check_name_exists');
     }
 
-    const match = data?.find(club => clubNamesMatch(club.name, name)) ?? null;
-
     return {
-      exists: match !== null,
-      data: match,
+      exists: data !== null,
+      data: data ?? null,
       error: null,
     };
   } catch (error) {

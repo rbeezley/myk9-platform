@@ -8760,6 +8760,10 @@ export type Database = {
         Args: { p_club: Json }
         Returns: Database["public"]["Tables"]["clubs"]["Row"]
       }
+      find_live_club_by_normalized_name: {
+        Args: { p_exclude_id?: string | null; p_name: string }
+        Returns: Database["public"]["Tables"]["clubs"]["Row"]
+      }
       create_show_managed_dog: {
         Args: {
           p_akc_number?: string

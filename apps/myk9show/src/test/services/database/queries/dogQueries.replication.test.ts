@@ -7,7 +7,12 @@ import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTa
 // available when vi.mock factories execute (vi.mock is hoisted above const).
 // ---------------------------------------------------------------------------
 
-const { mockDogsTable, mockEntriesTable, mockDogRegistrationsTable } = vi.hoisted(() => ({
+const {
+  mockDogsTable,
+  mockEntriesTable,
+  mockDogRegistrationsTable,
+  mockServerRegistrationRows,
+} = vi.hoisted(() => ({
   mockDogsTable: {
     getAllDogs: vi.fn(),
     getDogById: vi.fn(),
@@ -22,6 +27,7 @@ const { mockDogsTable, mockEntriesTable, mockDogRegistrationsTable } = vi.hoiste
     getRegistrationsForDogs: vi.fn(),
     getRegistrationsForDog: vi.fn(),
   },
+  mockServerRegistrationRows: vi.fn(() => [] as Record<string, unknown>[]),
 }));
 
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
@@ -41,7 +47,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     from: () => ({
       select: () => ({
-        in: () => Promise.resolve({ data: [], error: null }),
+        in: () => Promise.resolve({ data: mockServerRegistrationRows(), error: null }),
         eq: () => ({
           single: () =>
             Promise.resolve({
@@ -131,6 +137,7 @@ function makeEntry(overrides: Partial<ReplicatedEntry> = {}): ReplicatedEntry {
 describe('dogQueries (replication)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockServerRegistrationRows.mockReturnValue([]);
     mockDogRegistrationsTable.getRegistrationsForDogs.mockResolvedValue([]);
     mockDogRegistrationsTable.getRegistrationsForDog.mockResolvedValue([]);
   });
@@ -201,6 +208,44 @@ describe('dogQueries (replication)', () => {
           id: 'registration-local-1',
           dog_id: 'dog-1',
           registration_number: 'SW123456',
+        }),
+      ]);
+    });
+
+    it('dedupes stale local registration rows after the server registration syncs with a different id', async () => {
+      mockDogsTable.getAllDogs.mockResolvedValue([makeDog()]);
+      mockServerRegistrationRows.mockReturnValue([
+        {
+          id: 'registration-server-1',
+          dog_id: 'dog-1',
+          organization: 'AKC',
+          registration_number: 'SW123456',
+          registered_name: 'Beacon Hill Fast Lane',
+          breed: 'Golden Retriever',
+          status: 'approved',
+        },
+      ]);
+      mockDogRegistrationsTable.getRegistrationsForDogs.mockResolvedValue([
+        {
+          id: 'registration-local-1',
+          dog_id: 'dog-1',
+          organization: 'akc',
+          registration_number: 'SW-123-456',
+          registered_name: 'Beacon Hill Fast Lane',
+          breed: 'Golden Retriever',
+          status: 'pending',
+        },
+      ]);
+
+      const result = await getAllDogs('person-1');
+
+      const row = result.data[0] as Record<string, unknown>;
+      expect(row.registrations).toEqual([
+        expect.objectContaining({
+          id: 'registration-server-1',
+          dog_id: 'dog-1',
+          registration_number: 'SW123456',
+          status: 'approved',
         }),
       ]);
     });

@@ -13,6 +13,10 @@ import { replicatedDogRegistrationsTable } from '@/services/replication/Replicat
 import { mapReplicatedDogToDbRow } from '@/services/mappers/dogMappers';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import { selectOwnedDogs } from '@/utils/dogOwnership';
+import {
+  normalizeDogRegistrationNumber,
+  normalizeDogRegistrationOrganization,
+} from '@/utils/dogIdentity';
 
 // PostgREST OR filter for dogs owned or co-owned by a person
 const ownedByPerson = (personId: string) => `owner_id.eq.${personId},co_owner_id.eq.${personId}`;
@@ -64,7 +68,20 @@ function appendRegistrations(
     const dogId = row.dog_id as string | undefined;
     if (!dogId) continue;
     const existing = map.get(dogId) ?? [];
-    if (!existing.some(registration => registration.id === row.id)) {
+    const rowOrganization = normalizeDogRegistrationOrganization(row.organization as string | null);
+    const rowNumber = normalizeDogRegistrationNumber(row.registration_number as string | null);
+    const hasSameId = existing.some(registration => registration.id === row.id);
+    const hasSameRegistryIdentity =
+      rowOrganization !== '' &&
+      rowNumber !== '' &&
+      existing.some(
+        registration =>
+          normalizeDogRegistrationOrganization(registration.organization as string | null) ===
+            rowOrganization &&
+          normalizeDogRegistrationNumber(registration.registration_number as string | null) ===
+            rowNumber
+      );
+    if (!hasSameId && !hasSameRegistryIdentity) {
       existing.push(row);
     }
     map.set(dogId, existing);

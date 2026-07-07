@@ -47,6 +47,7 @@ function buildEnrollmentPaymentFields({
   paymentMethod,
   totalAmountCents,
   existingTotalAmountCents = 0,
+  existingPaidAmountDollars = 0,
   includeEmptyPaymentDetails = false,
   preservePaidAmountForPending = false,
 }: {
@@ -55,22 +56,30 @@ function buildEnrollmentPaymentFields({
   paymentMethod?: PaymentMethod | undefined;
   totalAmountCents?: number | undefined;
   existingTotalAmountCents?: number | null | undefined;
+  existingPaidAmountDollars?: number | null | undefined;
   includeEmptyPaymentDetails?: boolean | undefined;
   preservePaidAmountForPending?: boolean | undefined;
 }): TablesUpdate<'enrollments'> {
   const paymentStatus = paymentMethodToEnrollmentStatus(paymentMethod);
   const nextTotalAmountCents =
     totalAmountCents !== undefined ? (existingTotalAmountCents ?? 0) + totalAmountCents : undefined;
+  const isRecordedPaid = isEnrollmentPaidAtSubmit(paymentStatus);
+  const paidAmount = isRecordedPaid
+    ? (existingPaidAmountDollars ?? 0) + (totalAmountCents ?? 0) / 100
+    : 0;
+  const nextTotalAmountDollars =
+    nextTotalAmountCents !== undefined ? nextTotalAmountCents / 100 : undefined;
+  const resolvedPaymentStatus =
+    isRecordedPaid && nextTotalAmountDollars !== undefined && paidAmount < nextTotalAmountDollars
+      ? PaymentStatus.PENDING
+      : paymentStatus;
   const shouldPreservePaidAmount =
     preservePaidAmountForPending && paymentStatus === PaymentStatus.PENDING;
-  const paidAmount = isEnrollmentPaidAtSubmit(paymentStatus)
-    ? (nextTotalAmountCents ?? totalAmountCents ?? 0) / 100
-    : 0;
 
   const fields: TablesUpdate<'enrollments'> = {
-    ...(paymentStatus
+    ...(resolvedPaymentStatus
       ? {
-          payment_status: paymentStatus,
+          payment_status: resolvedPaymentStatus,
           ...(!shouldPreservePaidAmount ? { paid_amount: paidAmount } : {}),
         }
       : {}),
@@ -140,6 +149,7 @@ async function updateExistingEnrollmentPayment({
         paymentMethod,
         totalAmountCents,
         existingTotalAmountCents: existing.totalAmount,
+        existingPaidAmountDollars: existing.paidAmount,
         preservePaidAmountForPending: true,
       })
     )

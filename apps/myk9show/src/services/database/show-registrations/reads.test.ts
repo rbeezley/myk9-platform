@@ -222,7 +222,7 @@ describe('createShowRegistration', () => {
     );
   });
 
-  it('updates an existing enrollment with secretary-paid add-on totals', async () => {
+  it('keeps a partially paid existing enrollment pending after a secretary-paid add-on', async () => {
     const existingQuery = makeExistingEnrollmentQuery();
     const updateQuery = makeExistingEnrollmentPaymentUpdateQuery();
     mocks.from.mockReturnValueOnce(existingQuery).mockReturnValueOnce(updateQuery);
@@ -241,15 +241,44 @@ describe('createShowRegistration', () => {
     expect(existingQuery.insert).not.toHaveBeenCalled();
     expect(updateQuery.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        payment_status: 'paid',
+        payment_status: PaymentStatus.PENDING,
         payment_method: 'secretary_paid',
         payment_reference: 'receipt-200',
         payment_date: '2026-07-07',
         total_amount: 10000,
-        paid_amount: 100,
+        paid_amount: 70,
       })
     );
     expect(updateQuery.eq).toHaveBeenCalledWith('id', 'enrollment-existing');
+  });
+
+  it('marks an existing enrollment paid when secretary-paid add-ons cover the full total', async () => {
+    const existingQuery = makeExistingEnrollmentQuery({
+      payment_status: 'paid',
+      payment_method: 'secretary_paid',
+      total_amount: 3000,
+      paid_amount: 30,
+    });
+    const updateQuery = makeExistingEnrollmentPaymentUpdateQuery();
+    mocks.from.mockReturnValueOnce(existingQuery).mockReturnValueOnce(updateQuery);
+
+    const result = await createShowRegistration(
+      'show-1',
+      'handler-1',
+      'receipt-200',
+      { paymentReference: 'receipt-200', paymentDate: '2026-07-07' },
+      'secretary_paid',
+      7000
+    );
+
+    expect(result.error).toBeNull();
+    expect(updateQuery.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payment_status: 'paid',
+        total_amount: 10000,
+        paid_amount: 100,
+      })
+    );
   });
 
   it('preserves existing paid amount when a pay-later add-on updates total', async () => {

@@ -52,9 +52,9 @@ export function StepDogs({ personId, onNext, onBack, onSkip, canGoBack = true }:
   return (
     <div className="space-y-4" data-testid="step-dogs">
       <div>
-        <h2 className="text-xl font-semibold">Add your dogs</h2>
+        <h2 className="text-xl font-semibold">Add a dog now or do it later</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Add the dogs you compete with. You can always add more from your profile later.
+          You can keep going now and add dogs from Account whenever you are ready.
         </p>
       </div>
 

@@ -82,4 +82,28 @@ describe('EditPanelWrapper with schema', () => {
     await user.click(screen.getByRole('button', { name: /save/i }));
     expect(onSave).not.toHaveBeenCalled();
   });
+
+  it('closes force-enabled create forms without showing a discard dialog when unchanged', async () => {
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <EditPanelWrapper
+        open={true}
+        onClose={onClose}
+        title="Test"
+        initialData={{ name: '' }}
+        schema={testSchema}
+        onSave={vi.fn()}
+        forceHasChanges
+        variant="dialog"
+      >
+        <TestFormFields />
+      </EditPanelWrapper>
+    );
+
+    await user.click(screen.getByRole('button', { name: /cancel/i }));
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(screen.queryByText(/discard changes/i)).not.toBeInTheDocument();
+  });
 });

@@ -9,8 +9,8 @@ describe('PlatformAdministrationSection', () => {
     const userLink = screen.getByRole('link', { name: /User Management/i });
     expect(userLink).toHaveAttribute('href', '/admin/users');
 
-    const alertsLink = screen.getByRole('link', { name: /Alerts & Monitoring/i });
-    expect(alertsLink).toHaveAttribute('href', '/admin/alerts');
+    const healthLink = screen.getByRole('link', { name: /System Health/i });
+    expect(healthLink).toHaveAttribute('href', '/admin/health');
 
     const supportLink = screen.getByRole('link', { name: /Support Inbox/i });
     expect(supportLink).toHaveAttribute('href', '/admin/support');

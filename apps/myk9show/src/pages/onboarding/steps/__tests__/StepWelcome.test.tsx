@@ -18,6 +18,14 @@ describe('StepWelcome', () => {
     render(<StepWelcome {...makeProps()} />);
     expect(screen.getByTestId('step-welcome')).toBeInTheDocument();
     expect(screen.getByText(/you're all set/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /account profile/i })).toHaveAttribute(
+      'href',
+      '/account?section=profile'
+    );
+    expect(screen.getByRole('link', { name: /account notifications/i })).toHaveAttribute(
+      'href',
+      '/account?section=notifications'
+    );
   });
 
   it('calls onFinish when Browse Shows is clicked', () => {

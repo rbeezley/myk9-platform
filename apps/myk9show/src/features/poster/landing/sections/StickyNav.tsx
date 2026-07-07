@@ -14,6 +14,7 @@ interface StickyNavProps {
   entryLimit: number | null;
   entryWizardUrl: string;
   canEnterOnline?: boolean;
+  entryClosed?: boolean;
 }
 
 /**
@@ -36,6 +37,7 @@ export function StickyNav({
   entryLimit,
   entryWizardUrl,
   canEnterOnline = true,
+  entryClosed = false,
 }: StickyNavProps) {
   const dateLabel = formatDateRange(trialStartDate, trialEndDate, timezone, true);
   const venueLabel = [venueName, venueCity].filter(Boolean).join(', ').toUpperCase();
@@ -62,7 +64,7 @@ export function StickyNav({
             flexShrink: 0,
           }}
         >
-          Classes pending
+          {entryClosed ? 'Entries closed' : 'Classes pending'}
         </span>
       </PosterMonoStrip>
     );

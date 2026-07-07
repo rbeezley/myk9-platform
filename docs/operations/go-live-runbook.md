@@ -189,7 +189,7 @@ Importer tooling shipped (#833); the CSV is still header-only.
       _Verify:_ `select count(*) from judge_qualifications;` > 0; spot-check a known judge by name
       in the show-wizard judge picker.
       _Audit 2026-07-06:_ `pnpm qa:go-live:phase2 --allow-blocked` reports `0 judge data
-      rows after header`; importer tooling is present, but no preload migration should be
+    rows after header`; importer tooling is present, but no preload migration should be
       generated or pushed until real AKC/UKC exports are added.
 
 ### 2.2 Seed / fixture verification (staging, and prod if demo data is wanted)
@@ -252,8 +252,8 @@ recorded.
       _Rollback:_ rotate both back to the `sk_test_`/test `whsec_` values.
 - [ ] **3.4** **Purge sandbox-scoped Stripe IDs** (the 2026-06-10 "No such customer" failure in
       reverse; interim gate until MP-04 code makes it structural):
-      `delete from stripe_customers; update exhibitor_profiles set stripe_customer_id = null; delete from club_stripe_accounts;`
-      _Verify:_ both counts = 0.
+      `delete from stripe_customers where livemode = false; update exhibitor_profiles set stripe_customer_id = null where stripe_customer_id is not null and not exists (select 1 from stripe_customers where stripe_customers.stripe_customer_id = exhibitor_profiles.stripe_customer_id and stripe_customers.livemode = true); delete from club_stripe_accounts where livemode = false;`
+      _Verify:_ sandbox-scoped counts = 0; any `livemode = true` rows remain.
 - [ ] **3.5** Branding: rename the Stripe account display name "Myk9t" → **myK9Show**
       (Settings → Connect → Branding: name, icon, brand color).
 - [ ] **3.6** **Set the live platform payout schedule to Manual** (Balances → Manage payouts).

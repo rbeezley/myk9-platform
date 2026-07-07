@@ -34,6 +34,16 @@ export function validateImageFile(file: File): { valid: boolean; error?: string 
   return { valid: true };
 }
 
+export function parseOptionalDogNumber(value: string | undefined): number | null | undefined {
+  if (value === undefined) return undefined;
+
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 /**
  * Convert Dog form data to DogInput for database updates
  */
@@ -57,9 +67,9 @@ export function convertDogToDogInput(dogData: Partial<Dog>, currentDog: Dog): Pa
   const birthDate = dogData.dateOfBirth || dogData.birthDate;
   if (birthDate !== undefined) result.birthDate = birthDate;
   if (dogData.color !== undefined) result.color = dogData.color;
-  const weight = typeof dogData.weight === 'string' ? parseFloat(dogData.weight) : dogData.weight;
+  const weight = parseOptionalDogNumber(dogData.weight);
   if (weight !== undefined) result.weight = weight;
-  const height = typeof dogData.height === 'string' ? parseFloat(dogData.height) : dogData.height;
+  const height = parseOptionalDogNumber(dogData.height);
   if (height !== undefined) result.height = height;
   if (dogData.ownerName !== undefined) result.ownerName = dogData.ownerName;
   const microchipNumber = dogData.microchip || dogData.microchipNumber;

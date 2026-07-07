@@ -112,13 +112,6 @@ None — all items resolved.
 | ~~`apps/myk9show/src/pages/admin/TemplateEditorPageMinimal.tsx`~~ | ~~68~~ | ~~Fixed 2026-02-15 — editable fields + change tracking added~~ |
 | ~~`apps/myk9show/src/components/secretary/ResultsGrid.tsx`~~ | ~~75-76~~ | ~~Already complete — dynamic columns from classConfig.areaLimits~~ |
 
-### Data Lifecycle
-| File | Line | Missing Feature |
-|------|------|-----------------|
-| ~~`apps/myk9show/src/services/data-lifecycle/OrphanedRecordsCleaner.ts`~~ | ~~491~~ | ~~Already complete — restoreFromBackup + restoreRecord implemented~~ |
-| ~~`apps/myk9show/src/services/data-lifecycle/ArchiveScheduler.ts`~~ | ~~159, 217~~ | ~~Already complete — ArchivableResult building + notifications~~ |
-| ~~`apps/myk9show/src/services/data-lifecycle/DataExportImport.ts`~~ | ~~662~~ | ~~Already complete — import for all 5 data types + merge strategies~~ |
-
 ### Exhibitor Features
 | File | Line | Missing Feature |
 |------|------|-----------------|

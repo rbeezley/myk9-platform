@@ -8,6 +8,11 @@ import {
   refundAttemptCount,
 } from '../_shared/refundReuse.ts';
 import { alertAdmin } from '../_shared/alertAdmin.ts';
+import {
+  resolveWithdrawalRefundCents,
+  type WithdrawalPolicy,
+} from '../_shared/withdrawalPolicy.ts';
+import { acquireShowMoneyLock } from '../_shared/showMoneyLock.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -60,6 +65,8 @@ interface RefundRequest {
   entry_id: string;
   /** Omitted = full refund of the entry fee. */
   amount_cents?: number;
+  /** True = derive the amount from entries.withdrawal_policy_snapshot. */
+  use_policy_snapshot?: boolean;
   notes?: string;
 }
 
@@ -106,6 +113,9 @@ Deno.serve(async req => {
         payment_method,
         stripe_payment_intent_id,
         refunded_at,
+        withdrawal_policy_snapshot,
+        withdrawn_at,
+        trial:trial_id(timezone),
         show:show_id(id, club_id)
       `
       )
@@ -164,9 +174,33 @@ Deno.serve(async req => {
     }
 
     // entries.entry_fee is DECIMAL dollars; all validation runs in cents.
+    const entryFeeCents = Math.round((entry.entry_fee ?? 0) * 100);
+    let requestedCents = amount_cents;
+    if (body.use_policy_snapshot === true) {
+      const snapshot = (entry.withdrawal_policy_snapshot ?? null) as WithdrawalPolicy | null;
+      if (!snapshot) {
+        return corsResponse({ error: 'policy_snapshot_unavailable' }, 422);
+      }
+
+      const rawTrial = entry.trial as
+        { timezone?: string | null } | { timezone?: string | null }[] | null;
+      const trial = Array.isArray(rawTrial) ? rawTrial[0] : rawTrial;
+      const withdrawnAt = entry.withdrawn_at ? new Date(entry.withdrawn_at as string) : new Date();
+      const suggestion = resolveWithdrawalRefundCents(
+        snapshot,
+        entryFeeCents,
+        withdrawnAt,
+        trial?.timezone || 'America/New_York'
+      );
+      if (suggestion.requiresManual) {
+        return corsResponse({ error: 'policy_snapshot_manual_review' }, 422);
+      }
+      requestedCents = suggestion.refundCents;
+    }
+
     const validation = validateRefund({
-      entryFeeCents: Math.round((entry.entry_fee ?? 0) * 100),
-      requestedCents: amount_cents,
+      entryFeeCents,
+      requestedCents,
       paymentStatus: entry.payment_status,
       paymentMethod: entry.payment_method,
       stripePaymentIntentId: entry.stripe_payment_intent_id,
@@ -176,6 +210,20 @@ Deno.serve(async req => {
     if ('error' in validation) {
       console.log(`Refund for entry ${entry_id} rejected: ${validation.error}`);
       return corsResponse({ error: validation.error }, 422);
+    }
+
+    const moneyLock = await acquireShowMoneyLock(supabase, show.id, {
+      holder: 'stripe-refund-entry',
+      ttlMs: 5 * 60 * 1000,
+    });
+    if (!moneyLock.ok) {
+      return corsResponse(
+        {
+          error:
+            moneyLock.reason === 'locked' ? 'money_operation_in_progress' : 'money_lock_failed',
+        },
+        moneyLock.reason === 'locked' ? 409 : 500
+      );
     }
 
     // One refund per entry. The idempotency key covers fast retries, but
@@ -189,69 +237,80 @@ Deno.serve(async req => {
     // never paid. The attempt-count key suffix keeps a retry after a failure
     // from replaying the cached failure (same lesson as the cron's per-row
     // key); refunds.list remains the at-most-one-live-refund authority.
-    const prior = await stripe.refunds.list({
-      payment_intent: entry.stripe_payment_intent_id!,
-      limit: 100,
-    });
-    const existingRefund = findReusableRefund(prior.data, entry_id);
-    const refund =
-      existingRefund ??
-      (await stripe.refunds.create(
-        {
-          payment_intent: entry.stripe_payment_intent_id!,
-          amount: validation.amountCents,
-          metadata: { entry_id },
-        },
-        // Attempt count for THIS entry only: an intent-wide count would let a
-        // sibling entry's refund shift the key between two concurrent
-        // same-entry requests, defeating the dedupe (round-11 review).
-        { idempotencyKey: `refund-entry-${entry_id}-${refundAttemptCount(prior.data, entry_id)}` }
-      ));
-    if (existingRefund) {
+    try {
+      const prior = await stripe.refunds.list({
+        payment_intent: entry.stripe_payment_intent_id!,
+        limit: 100,
+      });
+      const existingRefund = findReusableRefund(prior.data, entry_id);
+      const refund =
+        existingRefund ??
+        (await stripe.refunds.create(
+          {
+            payment_intent: entry.stripe_payment_intent_id!,
+            amount: validation.amountCents,
+            metadata: { entry_id },
+          },
+          // Attempt count for THIS entry only: an intent-wide count would let a
+          // sibling entry's refund shift the key between two concurrent
+          // same-entry requests, defeating the dedupe (round-11 review).
+          { idempotencyKey: `refund-entry-${entry_id}-${refundAttemptCount(prior.data, entry_id)}` }
+        ));
+      if (existingRefund) {
+        console.log(
+          `Reusing existing refund ${existingRefund.id} for entry ${entry_id} — no new refund created`
+        );
+      }
+
+      // Entry-level refund columns (NUMERIC dollars), added alongside migration
+      // 176's enrollment-level columns which track manual desk refunds.
+      // refund.amount, not validation.amountCents: when an existing refund is
+      // reused, Stripe's recorded amount is the authoritative one.
+      const { data: stamped, error: updateError } = await supabase
+        .from('entries')
+        .update(buildEntryRefundStamp(refund.amount, notes, new Date().toISOString()))
+        .eq('id', entry_id)
+        .eq('payment_status', 'paid')
+        .or('refund_amount.is.null,refund_amount.eq.0')
+        .select('id');
+
+      if (updateError || !stamped?.length) {
+        // The Stripe refund DID happen; until the entry is stamped, the payout
+        // cron will overpay the club by this amount. Email, don't just log.
+        const detail = updateError?.message ?? 'entry was already refunded or no longer paid';
+        console.error(
+          `CRITICAL: refund ${refund.id} created for entry ${entry_id} but the entry update failed:`,
+          detail
+        );
+        await alertAdmin(
+          'Refund issued but not recorded — payout will overpay',
+          `<p>Stripe refund <code>${refund.id}</code> (${(refund.amount / 100).toFixed(2)} USD)
+           was issued for entry <code>${entry_id}</code>, but stamping the entry failed:</p>
+           <pre>${detail}</pre>
+           <p>Until the entry's refund columns are set, the payout cron computes the
+           show's transfer WITHOUT this refund. Recovery: retry the refund from the
+           entries page (it reuses the existing Stripe refund — no double refund), or
+           stamp the entry manually.</p>`
+        );
+        return corsResponse(
+          {
+            error: 'Refund issued but recording it failed — contact support',
+            refund_id: refund.id,
+          },
+          500
+        );
+      }
+
+      // refund.amount, not validation.amountCents: on a reused refund the
+      // requested amount may differ from what Stripe actually refunded, and the
+      // dialog toast reports this number.
       console.log(
-        `Reusing existing refund ${existingRefund.id} for entry ${entry_id} — no new refund created`
+        `Refunded ${refund.amount} cents for entry ${entry_id} (${refund.id}) by ${user.id}`
       );
+      return corsResponse({ refund_id: refund.id, amount_cents: refund.amount });
+    } finally {
+      await moneyLock.release();
     }
-
-    // Entry-level refund columns (NUMERIC dollars), added alongside migration
-    // 176's enrollment-level columns which track manual desk refunds.
-    // refund.amount, not validation.amountCents: when an existing refund is
-    // reused, Stripe's recorded amount is the authoritative one.
-    const { error: updateError } = await supabase
-      .from('entries')
-      .update(buildEntryRefundStamp(refund.amount, notes, new Date().toISOString()))
-      .eq('id', entry_id);
-
-    if (updateError) {
-      // The Stripe refund DID happen; until the entry is stamped, the payout
-      // cron will overpay the club by this amount. Email, don't just log.
-      console.error(
-        `CRITICAL: refund ${refund.id} created for entry ${entry_id} but the entry update failed:`,
-        updateError
-      );
-      await alertAdmin(
-        'Refund issued but not recorded — payout will overpay',
-        `<p>Stripe refund <code>${refund.id}</code> (${(refund.amount / 100).toFixed(2)} USD)
-         was issued for entry <code>${entry_id}</code>, but stamping the entry failed:</p>
-         <pre>${updateError.message}</pre>
-         <p>Until the entry's refund columns are set, the payout cron computes the
-         show's transfer WITHOUT this refund. Recovery: retry the refund from the
-         entries page (it reuses the existing Stripe refund — no double refund), or
-         stamp the entry manually.</p>`
-      );
-      return corsResponse(
-        { error: 'Refund issued but recording it failed — contact support', refund_id: refund.id },
-        500
-      );
-    }
-
-    // refund.amount, not validation.amountCents: on a reused refund the
-    // requested amount may differ from what Stripe actually refunded, and the
-    // dialog toast reports this number.
-    console.log(
-      `Refunded ${refund.amount} cents for entry ${entry_id} (${refund.id}) by ${user.id}`
-    );
-    return corsResponse({ refund_id: refund.id, amount_cents: refund.amount });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('stripe-refund-entry error:', message);

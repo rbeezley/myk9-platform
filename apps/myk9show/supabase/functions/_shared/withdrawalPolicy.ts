@@ -38,6 +38,16 @@ export interface ClubWithdrawalColumns {
 }
 
 const SERVICE_FEE_SENTENCE = 'Service fees are non-refundable.';
+const DEFAULT_TIMEZONE = 'America/New_York';
+
+export type WithdrawalRefundReason = 'before_cutoff' | 'after_cutoff' | 'no_cutoff' | 'no_policy';
+
+export interface WithdrawalRefundSuggestion {
+  refundCents: number;
+  retainedCents: number;
+  requiresManual: boolean;
+  reason: WithdrawalRefundReason;
+}
 
 function hasAny(...values: Array<string | number | null | undefined>): boolean {
   return values.some(v => v !== null && v !== undefined);
@@ -143,4 +153,70 @@ export function describeWithdrawalPolicyText(policy: WithdrawalPolicy | null): s
       policy.cutoffDate
     )}; after that, ${retained} is kept. ${SERVICE_FEE_SENTENCE}`
   );
+}
+
+function localCalendarDate(instant: Date, timeZone: string): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(instant);
+  } catch {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: DEFAULT_TIMEZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(instant);
+  }
+}
+
+export function resolveWithdrawalRefundCents(
+  policy: WithdrawalPolicy | null,
+  entryFeeCents: number,
+  asOf: Date,
+  timeZone: string
+): WithdrawalRefundSuggestion {
+  if (!policy) {
+    return {
+      refundCents: entryFeeCents,
+      retainedCents: 0,
+      requiresManual: true,
+      reason: 'no_policy',
+    };
+  }
+
+  if (!policy.cutoffDate) {
+    return {
+      refundCents: entryFeeCents,
+      retainedCents: 0,
+      requiresManual: true,
+      reason: 'no_cutoff',
+    };
+  }
+
+  const today = localCalendarDate(asOf, timeZone);
+  if (today <= policy.cutoffDate) {
+    return {
+      refundCents: entryFeeCents,
+      retainedCents: 0,
+      requiresManual: false,
+      reason: 'before_cutoff',
+    };
+  }
+
+  const rawRetained =
+    policy.retentionType === 'percent'
+      ? Math.round((entryFeeCents * policy.retentionValue) / 100)
+      : policy.retentionValue;
+  const retainedCents = Math.min(Math.max(rawRetained, 0), entryFeeCents);
+
+  return {
+    refundCents: entryFeeCents - retainedCents,
+    retainedCents,
+    requiresManual: false,
+    reason: 'after_cutoff',
+  };
 }

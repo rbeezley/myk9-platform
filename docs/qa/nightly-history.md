@@ -18,6 +18,16 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-07-07
+
+- **Playwright command:** pass after low-risk test repairs. Phase 1 promoted Vitest passed (`18/18`). Initial Phase 2 exact active Playwright reproduced the active flake set with `48 passed, 4 failed, 1 skipped (23.9m, --retries=0)`. After focused repairs, the exact Phase 2 command passed under budget with `52 passed, 1 skipped (3.4m, --retries=0)`.
+- **Route sweep:** pass. The committed `route-health-by-role.spec.ts` passed inside the final Phase 2 command for public, exhibitor, secretary, judge, club-admin, and admin. Standalone Phase 3 route-health also passed (`6/6`, `1.2m`, `--retries=0`).
+- **Active specs:** Vitest `18/18`; active Playwright `52/53` passed with the existing browse-shows card skip.
+- **Failures:** Closed `QA-TEST-FLAKE-032`. Initial failures were `basic/registrationSmoke.spec.ts` waiting on a stale home-page `myK9Show` brand gate before direct registration navigation, `cross-role-workflows.spec.ts` expecting a removed `Browse Shows` link after the current `Enter a Show` CTA, `registration/exhibitorSelfRegistration.spec.ts` using real wall-clock time against a seeded show after entry close, and `secretary-entry-walk.spec.ts` using the same time-sensitive seed plus stale payment/receipt labels. Final full proof exposed one additional disposable-entry Base UI menu detach, repaired with a bounded retry around the known detached-click shape.
+- **Fixes made:** test-only + docs. Updated `apps/myk9show/src/test/e2e/basic/registrationSmoke.spec.ts`, `apps/myk9show/src/test/e2e/cross-role-workflows.spec.ts`, `apps/myk9show/src/test/e2e/registration/exhibitorSelfRegistration.spec.ts`, `apps/myk9show/src/test/e2e/secretary-entry-walk.spec.ts`, `apps/myk9show/src/test/e2e/uat/secretary/disposable-entry.spec.ts`, and `docs/qa/findings.md`.
+- **Demotions/promotions:** none.
+- **Notes:** Ran from isolated detached worktree `.worktrees/nightly-qa-2026-07-07-021831` on `origin/main` `5b49a4a22638607518e7f51a3d056ad387495b41`, using `PLAYWRIGHT_PORT=6552`, `PLAYWRIGHT_BASE_URL=http://127.0.0.1:6552`, and `PLAYWRIGHT_HMR_PORT=26552`. The first Phase 2 attempt was blocked by sandbox `listen EPERM` on the generated ports, then succeeded outside the sandbox. `QA-ROLE-SCOPE-024` remains open and needs a separate seed/auth inventory; this run did not mutate Supabase or other shared systems.
+
 ### 2026-07-05
 
 - **Playwright command:** fail/stopped after one low-risk test repair. Phase 1 promoted Vitest initially failed before bootstrap because the isolated worktree had no dependencies, then passed after `bash scripts/bootstrap-worktree.sh` (`18/18`). Phase 2 exact active Playwright command exceeded the 30-minute global Nightly budget and was stopped at `23 passed, 3 failed, 1 interrupted, 1 skipped, 25 did not run (32.4m, --retries=0)`.

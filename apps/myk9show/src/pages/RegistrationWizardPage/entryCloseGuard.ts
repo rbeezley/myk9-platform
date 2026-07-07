@@ -9,6 +9,12 @@ export interface EntryCloseSubmitGuardContext {
   workflowMode: WorkflowMode;
 }
 
+export interface EntryCloseAvailability {
+  canEnter: boolean;
+  reason: string | null;
+  recoveryHref: string;
+}
+
 function parseCalendarDate(value?: string | null): Date | undefined {
   if (!value) return undefined;
   return parseLocalDateString(value.split('T')[0] ?? value);
@@ -32,4 +38,16 @@ export function getEntryCloseSubmitBlocker({
   }
 
   return null;
+}
+
+export function getEntryCloseAvailability(
+  context: EntryCloseSubmitGuardContext & { showId: string }
+): EntryCloseAvailability {
+  const reason = getEntryCloseSubmitBlocker(context);
+
+  return {
+    canEnter: reason === null,
+    reason,
+    recoveryHref: `/messages/${context.showId}`,
+  };
 }

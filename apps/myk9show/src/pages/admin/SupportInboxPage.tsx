@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Inbox, LifeBuoy, WifiOff } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Copy, Inbox, LifeBuoy, WifiOff } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -13,6 +13,7 @@ import {
   useUpdateSupportTicketStatus,
 } from '@/features/support/useSupportTickets';
 import type { SupportTicket, SupportTicketStatus } from '@/features/support/supportTickets';
+import { buildSupportInvestigationModel } from './supportDiagnosticActions';
 
 type SupportTicketFilter = SupportTicketStatus | 'all';
 
@@ -256,12 +257,44 @@ function StatusBadge({ status }: { status: SupportTicketStatus }) {
 }
 
 function DiagnosticsPanel({ ticket }: { ticket: SupportTicket }) {
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
   const diagnostics = ticket.diagnostics;
   const replication = diagnostics.connectivity.replication;
+  const investigation = buildSupportInvestigationModel(ticket);
+
+  const copyDiagnostics = async () => {
+    try {
+      await navigator.clipboard.writeText(investigation.escalationText);
+      setCopyState('copied');
+    } catch {
+      setCopyState('failed');
+    }
+  };
 
   return (
-    <aside className="rounded-md border border-border bg-background p-4">
-      <h4 className="text-sm font-semibold">Diagnostics</h4>
+    <aside className="space-y-4 rounded-md border border-border bg-background p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h4 className="text-sm font-semibold">Diagnostics</h4>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Actions use existing owner surfaces; raw values stay copyable for escalation.
+          </p>
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={copyDiagnostics}>
+          <Copy className="mr-2 h-3.5 w-3.5" />
+          {copyState === 'copied' ? 'Copied' : 'Copy'}
+        </Button>
+      </div>
+
+      {copyState === 'failed' && (
+        <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+          Copy failed. The diagnostic values below can still be selected manually.
+        </p>
+      )}
+
+      <InvestigationActions actions={investigation.actions} />
+      <NextChecks checks={investigation.nextChecks} ticketId={ticket.id} />
+
       <dl className="mt-3 space-y-3 text-sm">
         <div className="flex items-center justify-between gap-3">
           <dt className="text-muted-foreground">Online</dt>
@@ -299,6 +332,83 @@ function DiagnosticsPanel({ ticket }: { ticket: SupportTicket }) {
         </div>
       )}
     </aside>
+  );
+}
+
+function InvestigationActions({
+  actions,
+}: {
+  actions: ReturnType<typeof buildSupportInvestigationModel>['actions'];
+}) {
+  if (actions.length === 0) {
+    return (
+      <div className="rounded-md border border-dashed border-border p-3">
+        <h5 className="text-xs font-semibold uppercase text-muted-foreground">
+          Investigation actions
+        </h5>
+        <p className="mt-2 text-sm text-muted-foreground">
+          No direct route was captured. Copy diagnostics for escalation.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h5 className="text-xs font-semibold uppercase text-muted-foreground">
+        Investigation actions
+      </h5>
+      <div className="mt-2 space-y-2">
+        {actions.map(action => (
+          <Button
+            key={action.id}
+            variant="outline"
+            size="sm"
+            className="w-full justify-start"
+            asChild
+          >
+            <Link to={action.href}>
+              {action.label}
+              <span className="ml-2 truncate text-xs font-normal text-muted-foreground">
+                {action.description}
+              </span>
+            </Link>
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function NextChecks({
+  checks,
+  ticketId,
+}: {
+  checks: ReturnType<typeof buildSupportInvestigationModel>['nextChecks'];
+  ticketId: string;
+}) {
+  const visibleChecks =
+    checks.length > 0
+      ? checks
+      : [
+          {
+            id: 'copy-ticket',
+            label: 'Copy ticket link',
+            href: `/admin/support?ticketId=${ticketId}`,
+          },
+        ];
+
+  return (
+    <div>
+      <h5 className="text-xs font-semibold uppercase text-muted-foreground">Next checks</h5>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {visibleChecks.map(check => (
+          <Button key={check.id} variant="secondary" size="sm" asChild>
+            <Link to={check.href}>{check.label}</Link>
+          </Button>
+        ))}
+      </div>
+    </div>
   );
 }
 

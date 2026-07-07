@@ -3,11 +3,13 @@ import { EditPanelWrapper } from '../EditPanelWrapper';
 import { useEditPanel } from '../useEditPanel';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { AlertCircle } from 'lucide-react';
 import PhotoDialog from '@/components/common/PhotoDialog';
 import { AddEditRegistrationDialog } from '@/components/dogs/AddEditRegistrationDialog';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { DogInput } from '@/store/dogStore';
+import type { Dog } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
@@ -21,6 +23,7 @@ import { TabNavigation } from './TabNavigation';
 import { BasicInfoTab } from './BasicInfoTab';
 import { RegistrationTab } from './RegistrationTab';
 import { AdditionalInfoTab } from './AdditionalInfoTab';
+import { findLikelyDuplicateDogCandidate, type DogIdentityCandidate } from '@/utils/dogIdentity';
 
 export type { AddDogPanelProps } from './types';
 
@@ -37,8 +40,10 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   variant = 'panel',
   onEnterShowWithDog,
 }) => {
-  const { addDog, isLoading: isSaving, error: saveError } = useDogStoreCompat();
+  const { addDog, dogs, isLoading: isSaving, error: saveError } = useDogStoreCompat();
   const [localSaveError, setLocalSaveError] = useState<string | null>(null);
+  const [duplicateCandidate, setDuplicateCandidate] = useState<DogIdentityCandidate | null>(null);
+  const [allowSeparateDog, setAllowSeparateDog] = useState(false);
 
   // Stable initial data — recalculated when currentUserPersonId changes.
   // INTENT: when the panel opens with a contextual person (e.g. secretary
@@ -56,6 +61,29 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   // Handle save: map DogFormData -> DogInput and persist
   const handleSave = async (formData: DogFormData) => {
     setLocalSaveError(null);
+    setDuplicateCandidate(null);
+    if (!allowSeparateDog) {
+      const firstRegistration = formData.registrations[0];
+      const candidate = findLikelyDuplicateDogCandidate(dogs, {
+        ownerId: formData.ownerId,
+        callName: formData.callName,
+        registeredName: firstRegistration?.registeredName,
+        breed: firstRegistration?.breed,
+        sex: formData.gender === 'Female' ? 'female' : 'male',
+        dateOfBirth: formData.dateOfBirth,
+        microchipNumber: formData.microchip,
+        registrations: formData.registrations.map(registration => ({
+          organization: registration.organization,
+          registrationNumber: registration.registrationNumber,
+        })),
+      });
+
+      if (candidate) {
+        setDuplicateCandidate(candidate);
+        throw new Error('This looks like a dog already in myK9. Review the match before saving.');
+      }
+    }
+
     const weight = formData.weight ? parseFloat(formData.weight) : undefined;
     const height = formData.height ? parseFloat(formData.height) : undefined;
     const dogInput: DogInput = {
@@ -111,6 +139,24 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
     }
   };
 
+  const handleUseExistingDog = (dog: Dog) => {
+    notifications.success(`${dog.callName || dog.name} selected`, {
+      description: 'Add the new registry number from the dog profile if needed.',
+    });
+    try {
+      onDogCreated(dog);
+      onClose();
+    } catch (err) {
+      logger.error(
+        'onDogCreated callback threw after selecting an existing dog',
+        'dogs',
+        undefined,
+        err instanceof Error ? err : new Error(String(err))
+      );
+      notifications.warning('Existing dog selected, but a post-select step failed.');
+    }
+  };
+
   return (
     <EditPanelWrapper<DogFormData>
       open={open}
@@ -131,6 +177,12 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
         userRole={userRole}
         currentUserPersonId={currentUserPersonId}
         saveError={localSaveError ?? saveError}
+        duplicateCandidate={duplicateCandidate}
+        onUseExistingDog={handleUseExistingDog}
+        onCreateSeparateDog={() => {
+          setAllowSeparateDog(true);
+          setDuplicateCandidate(null);
+        }}
       />
     </EditPanelWrapper>
   );
@@ -142,6 +194,9 @@ interface AddDogPanelContentProps {
   userRole: UserRole;
   currentUserPersonId?: string | undefined;
   saveError: string | null;
+  duplicateCandidate: DogIdentityCandidate | null;
+  onUseExistingDog: (dog: Dog) => void;
+  onCreateSeparateDog: () => void;
 }
 
 const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
@@ -149,6 +204,9 @@ const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
   userRole,
   currentUserPersonId,
   saveError,
+  duplicateCandidate,
+  onUseExistingDog,
+  onCreateSeparateDog,
 }) => {
   const { form } = useEditPanel<DogFormData>();
 
@@ -217,6 +275,28 @@ const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
           <Alert className="border-destructive/30 bg-destructive/10 ">
             <AlertCircle className="h-4 w-4 text-destructive " />
             <AlertDescription className="text-destructive ">{saveError}</AlertDescription>
+          </Alert>
+        )}
+
+        {duplicateCandidate && (
+          <Alert className="border-amber-300 bg-amber-50 text-amber-950">
+            <AlertCircle className="h-4 w-4 text-amber-700" />
+            <AlertDescription>
+              <div className="space-y-3">
+                <p>
+                  This looks like {duplicateCandidate.dog.callName || duplicateCandidate.dog.name},
+                  already saved for this owner.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" onClick={() => onUseExistingDog(duplicateCandidate.dog)}>
+                    Use existing dog
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={onCreateSeparateDog}>
+                    Create separate dog
+                  </Button>
+                </div>
+              </div>
+            </AlertDescription>
           </Alert>
         )}
 

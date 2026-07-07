@@ -123,7 +123,53 @@ describe('SystemHealthPage', () => {
 
     const strip = screen.getByLabelText('Recent run history');
     expect(strip).toBeInTheDocument();
-    expect(screen.getByLabelText('OK run')).toBeInTheDocument();
-    expect(screen.getByLabelText('Fail run')).toBeInTheDocument();
+    expect(screen.getByLabelText(/OK run/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Fail run/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/daily-health-check/i).length).toBeGreaterThan(0);
+  });
+
+  it('renders degraded health checks with owner actions', () => {
+    const latest = freshSnapshot({
+      checks: [
+        {
+          key: 'replication_queue',
+          label: 'Replication queue',
+          status: 'warn',
+          detail: 'Queue is stale',
+          checkedAt: new Date().toISOString(),
+        },
+      ],
+    });
+    mockedHook.mockReturnValue(hookState({ data: { latest, history: [latest] } }));
+
+    render(<SystemHealthPage />);
+
+    expect(screen.getByText('Sync Monitoring')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Open Sync/i })).toHaveAttribute('href', '/admin/sync');
+    expect(screen.getByText(/Review device queues/i)).toBeInTheDocument();
+  });
+
+  it('renders coverage incomplete as a distinct state with a next action', () => {
+    const latest = freshSnapshot({
+      checks: [
+        {
+          key: 'manual_check',
+          label: 'Manual check',
+          status: 'unknown',
+          detail: 'Coverage incomplete: not checked here',
+          checkedAt: null,
+        },
+      ],
+    });
+    mockedHook.mockReturnValue(hookState({ data: { latest, history: [latest] } }));
+
+    render(<SystemHealthPage />);
+
+    expect(screen.getByText('Coverage incomplete')).toBeInTheDocument();
+    expect(screen.getByText('Operations Runbook')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Open Admin Help/i })).toHaveAttribute(
+      'href',
+      '/admin/help'
+    );
   });
 });

@@ -7,6 +7,7 @@ interface StickyNavProps {
   monogramLetters: string;
   entryWizardUrl: string;
   canEnterOnline?: boolean;
+  entryClosed?: boolean;
 }
 
 /**
@@ -23,6 +24,7 @@ export function StickyNav({
   monogramLetters,
   entryWizardUrl,
   canEnterOnline = true,
+  entryClosed = false,
 }: StickyNavProps) {
   return (
     <nav
@@ -95,7 +97,7 @@ export function StickyNav({
             color: monogramColors.mute,
           }}
         >
-          Classes pending
+          {entryClosed ? 'Entries closed' : 'Classes pending'}
         </span>
       )}
     </nav>

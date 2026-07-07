@@ -25,9 +25,28 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
 }));
 
 vi.mock('@/hooks/queries/useDogsDatabase', () => ({
-  useDogsQuery: () => ({ data: [], isLoading: false, error: null, isStale: false, isFetching: false, refetch: vi.fn() }),
-  useDogQuery: () => ({ data: null, isLoading: false, error: null, isStale: false, refetch: vi.fn() }),
-  useDogsByOwnerQuery: () => ({ data: [], isLoading: false, error: null, isStale: false, refetch: vi.fn() }),
+  useDogsQuery: () => ({
+    data: [],
+    isLoading: false,
+    error: null,
+    isStale: false,
+    isFetching: false,
+    refetch: vi.fn(),
+  }),
+  useDogQuery: () => ({
+    data: null,
+    isLoading: false,
+    error: null,
+    isStale: false,
+    refetch: vi.fn(),
+  }),
+  useDogsByOwnerQuery: () => ({
+    data: [],
+    isLoading: false,
+    error: null,
+    isStale: false,
+    refetch: vi.fn(),
+  }),
   useCreateDogMutation: () => ({ mutateAsync: mockMutateAsync, isPending: false, error: null }),
   useUpdateDogMutation: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }),
   useDeleteDogMutation: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }),
@@ -43,7 +62,9 @@ vi.mock('@/hooks/dogStoreCompatHelpers', () => ({
 // ---------------------------------------------------------------------------
 
 const makeWrapper = () => {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
   return ({ children }: { children: React.ReactNode }) =>
     React.createElement(QueryClientProvider, { client }, children);
 };
@@ -93,7 +114,9 @@ beforeEach(() => {
   mockReplicatedDogsTable.set.mockResolvedValue(undefined);
   mockReplicatedDogsTable.delete.mockResolvedValue(undefined);
   mockMutateAsync.mockResolvedValue(mockDbDogRow);
-  mockSupabase.rpc.mockResolvedValue({ data: 'dog-abc', error: null });
+  mockSupabase.rpc.mockImplementation((_name: string, args: { p_dog?: { id?: string } }) =>
+    Promise.resolve({ data: args.p_dog?.id ?? 'dog-abc', error: null })
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -136,7 +159,10 @@ describe('useDogStoreCompat.addDog — atomic RPC path (with registrations)', ()
   });
 
   it('rolls back IDB when the RPC returns an error', async () => {
-    mockSupabase.rpc.mockResolvedValue({ data: null, error: { message: 'DB error', code: '23505' } });
+    mockSupabase.rpc.mockResolvedValue({
+      data: null,
+      error: { message: 'DB error', code: '23505' },
+    });
 
     const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
 
@@ -145,6 +171,30 @@ describe('useDogStoreCompat.addDog — atomic RPC path (with registrations)', ()
     });
 
     expect(mockReplicatedDogsTable.delete).toHaveBeenCalled();
+  });
+
+  it('removes the optimistic dog when the RPC returns an existing dog id', async () => {
+    mockSupabase.rpc.mockResolvedValue({ data: 'existing-dog-id', error: null });
+    mockReplicatedDogsTable.getDogById.mockResolvedValue({
+      id: 'existing-dog-id',
+      name: 'Buddy',
+      callName: 'Buddy',
+      breed: 'Labrador',
+      sex: 'male',
+      ownerId: 'owner-123',
+    });
+
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+
+    let savedId = '';
+    await act(async () => {
+      const saved = await result.current.addDog(dogInputWithRegistrations);
+      savedId = saved.id;
+    });
+
+    expect(savedId).toBe('existing-dog-id');
+    expect(mockReplicatedDogsTable.delete).toHaveBeenCalled();
+    expect(mockReplicatedDogsTable.getDogById).toHaveBeenCalledWith('existing-dog-id');
   });
 
   it('skips registrations with no registeredName from the RPC payload', async () => {

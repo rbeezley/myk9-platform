@@ -344,12 +344,12 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
 
   const handleClose = useCallback(() => {
     if (confirmedCloseRef.current) return;
-    if ((hasChanges || forceHasChanges) && showUnsavedWarning) {
+    if (hasChanges && showUnsavedWarning) {
       setShowUnsavedDialog(true);
       return;
     }
     onClose();
-  }, [hasChanges, forceHasChanges, showUnsavedWarning, onClose]);
+  }, [hasChanges, showUnsavedWarning, onClose]);
 
   // Context value
   const contextValue: EditPanelContextValue<Record<string, unknown>> = {
@@ -459,7 +459,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
         footer={footer}
         headerActions={headerActions}
         className={cn('edit-panel-wrapper', className)}
-        preventClose={(hasChanges || forceHasChanges) && showUnsavedWarning}
+        preventClose={hasChanges && showUnsavedWarning}
       >
         <div className="flex flex-col h-full animate-in fade-in-0 duration-300 ease-out">
           {/* Error display — legacy path only (schema path uses inline FormField errors) */}

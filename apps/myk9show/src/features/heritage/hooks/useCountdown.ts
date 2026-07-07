@@ -4,4 +4,8 @@
  * it without copy-paste. Heritage call sites continue to import from this
  * path.
  */
-export { useCountdown, type CountdownValue } from '../../_shared/hooks/useCountdown';
+export {
+  isCountdownTargetClosed,
+  useCountdown,
+  type CountdownValue,
+} from '../../_shared/hooks/useCountdown';

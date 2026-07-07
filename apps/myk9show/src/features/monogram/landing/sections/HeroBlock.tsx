@@ -72,11 +72,13 @@ export function HeroBlock({
   canEnterOnline = true,
 }: HeroBlockProps) {
   const countdown = useCountdown(entryCloseDate, timezone);
+  const entryClosed = countdown.closed;
+  const canShowEntryCta = canEnterOnline && !entryClosed;
   const dateRangeLabel = formatDateRange(trialStartDate, trialEndDate, timezone);
   // Gate on countdown.closed (not just entryCloseDate presence) so a past close
   // date doesn't keep reading as still-pending after registration has closed.
   const closesLabel =
-    entryCloseDate && !countdown.closed
+    entryCloseDate && !entryClosed
       ? formatDateInTimezone(entryCloseDate, timezone, 'monthDay')
       : null;
   const venueLabel = [venueName, venueCity].filter(Boolean).join(' · ') || null;
@@ -180,7 +182,7 @@ export function HeroBlock({
           <div className="mg-hero__meta-cell" style={metaCellStyle}>
             <span style={SMALLCAPS_MUTE}>Closes</span>
             <span style={META_VALUE}>
-              {closesLabel || (countdown.closed ? 'Closed' : 'TBA')}
+              {closesLabel || (entryClosed ? 'Closed' : 'TBA')}
             </span>
           </div>
           <div className="mg-hero__meta-cell" style={metaCellStyle}>
@@ -201,7 +203,7 @@ export function HeroBlock({
           </div>
         </div>
 
-        {countdown.hasTarget && !countdown.closed && (
+        {countdown.hasTarget && !entryClosed && (
           <p
             style={{
               fontFamily: MONOGRAM_BODY_FAMILY,
@@ -218,7 +220,7 @@ export function HeroBlock({
             entries close
           </p>
         )}
-        {countdown.closed && (
+        {entryClosed && (
           <p
             style={{
               fontFamily: MONOGRAM_BODY_FAMILY,
@@ -234,7 +236,7 @@ export function HeroBlock({
           </p>
         )}
 
-        {canEnterOnline ? (
+        {canShowEntryCta ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
             <a
               href={entryWizardUrl}
@@ -281,7 +283,9 @@ export function HeroBlock({
               margin: 0,
             }}
           >
-            Entries are not available yet because no classes are assigned yet.
+            {entryClosed
+              ? 'Entries are closed for this show. Contact the trial secretary for late-entry help.'
+              : 'Entries are not available yet because no classes are assigned yet.'}
           </p>
         )}
       </div>

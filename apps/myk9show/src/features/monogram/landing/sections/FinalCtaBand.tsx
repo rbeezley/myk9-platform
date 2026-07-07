@@ -35,10 +35,12 @@ export function FinalCtaBand({
 }: FinalCtaBandProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLElement>();
   const countdown = useCountdown(entryCloseDate, timezone);
+  const entryClosed = countdown.closed;
+  const canShowEntryCta = canEnterOnline && !entryClosed;
   // Gate on countdown.closed (not just entryCloseDate presence) so a past close
   // date doesn't keep reading as still-pending after registration has closed.
   const closesLabel =
-    entryCloseDate && !countdown.closed
+    entryCloseDate && !entryClosed
       ? formatDateInTimezone(entryCloseDate, timezone, 'long')
       : null;
 
@@ -102,11 +104,19 @@ export function FinalCtaBand({
             fontWeight: 400,
           }}
         >
-          {canEnterOnline ? (
+          {canShowEntryCta ? (
             <>
               Enter your dog{' '}
               <span style={{ fontStyle: 'italic', color: monogramColors.leaf }}>
                 in confidence
+              </span>
+              .
+            </>
+          ) : entryClosed ? (
+            <>
+              Entries are{' '}
+              <span style={{ fontStyle: 'italic', color: monogramColors.leaf }}>
+                closed
               </span>
               .
             </>
@@ -120,7 +130,7 @@ export function FinalCtaBand({
             </>
           )}
         </h2>
-        {canEnterOnline ? (
+        {canShowEntryCta ? (
           <a
             href={entryWizardUrl}
             style={{
@@ -158,7 +168,9 @@ export function FinalCtaBand({
               maxWidth: 520,
             }}
           >
-            The secretary still needs to assign classes before online entry is available.
+            {entryClosed
+              ? 'Contact the trial secretary for late-entry help.'
+              : 'The secretary still needs to assign classes before online entry is available.'}
           </p>
         )}
       </div>

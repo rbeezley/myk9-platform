@@ -616,6 +616,7 @@ async function handleEntryCheckout(
     customer: customerId,
     line_items: lineItems,
     mode: 'payment',
+    payment_method_types: ['card'],
     expires_at: sessionExpiresAtEpoch,
     success_url: successUrl,
     cancel_url: cancelUrl,

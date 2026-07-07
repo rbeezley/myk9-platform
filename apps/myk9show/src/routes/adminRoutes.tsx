@@ -84,21 +84,12 @@ const UserRoleManagementPage = createEnhancedLazy(
   { ...RouteLazyPresets.mediumPriority, displayName: 'UserRoleManagementPage' }
 );
 
-// Performance and Data Management Dashboards - Heavy components (low priority)
-const PerformanceDashboard = createEnhancedLazy(
-  () =>
-    import('@/components/admin/PerformanceDashboard').then(m => ({
-      default: m.PerformanceDashboard,
-    })),
-  { ...RouteLazyPresets.lowPriority, displayName: 'PerformanceDashboard', timeout: 45000 }
-);
-
-const DataLifecycleManagement = createEnhancedLazy(
+const DeletedItemsPage = createEnhancedLazy(
   () =>
     import('@/components/admin/DataLifecycleManagement').then(m => ({
       default: m.DataLifecycleManagement,
     })),
-  { ...RouteLazyPresets.lowPriority, displayName: 'DataLifecycleManagement', timeout: 45000 }
+  { ...RouteLazyPresets.mediumPriority, displayName: 'DeletedItemsPage', timeout: 45000 }
 );
 
 // LoadTestDashboard - only available in development/testing builds
@@ -112,12 +103,6 @@ const LoadTestDashboard = import.meta.env.DEV
     )
   : null;
 
-// System Monitoring and Alert Management (medium priority)
-const AlertsPage = createEnhancedLazy(() => import('@/pages/AlertsPage'), {
-  ...RouteLazyPresets.mediumPriority,
-  displayName: 'AlertsPage',
-});
-
 const SystemHealthPage = createEnhancedLazy(() => import('@/pages/admin/SystemHealthPage'), {
   ...RouteLazyPresets.mediumPriority,
   displayName: 'SystemHealthPage',
@@ -128,19 +113,10 @@ const JudgeAnalyticsPage = createEnhancedLazy(() => import('@/pages/admin/JudgeA
   displayName: 'JudgeAnalyticsPage',
 });
 
-const OnboardingRequestsPage = createEnhancedLazy(
-  () => import('@/pages/admin/OnboardingRequestsPage'),
-  { ...RouteLazyPresets.mediumPriority, displayName: 'OnboardingRequestsPage' }
-);
-
 const RBACTestPage = createEnhancedLazy(
   () => import('@/pages/admin/RBACTestPage').then(m => ({ default: m.RBACTestPage })),
   { ...RouteLazyPresets.lowPriority, displayName: 'RBACTestPage' }
 );
-
-// Admin-specific components - Placeholder components for future development
-const SystemSettingsPage = () =>
-  React.createElement('div', { className: 'p-6 text-center' }, 'System Settings Coming Soon');
 
 // User Management Page - Enhanced lazy loading
 const UserManagementPage = createEnhancedLazy(() => import('@/pages/admin/UserManagementPage'), {
@@ -270,16 +246,6 @@ export const AdminRoutes = () => (
       )}
     />
     <Route
-      path="/admin/settings"
-      element={adminGuard(
-        <SuspenseWrapper>
-          <PageTransition>
-            <SystemSettingsPage />
-          </PageTransition>
-        </SuspenseWrapper>
-      )}
-    />
-    <Route
       path="/admin/users"
       element={adminGuard(
         <SuspenseWrapper>
@@ -366,23 +332,17 @@ export const AdminRoutes = () => (
       element={adminGuard(<Navigate to="/admin/permissions?tab=audit" replace />)}
     />
 
-    {/* Performance and Monitoring */}
-    <Route
-      path="/admin/performance"
-      element={adminGuard(
-        <SuspenseWrapper>
-          <PageTransition>
-            <PerformanceDashboard />
-          </PageTransition>
-        </SuspenseWrapper>
-      )}
-    />
+    {/* Deleted Items — real soft-delete restore surface */}
     <Route
       path="/admin/data-lifecycle"
+      element={adminGuard(<Navigate to="/admin/deleted-items" replace />)}
+    />
+    <Route
+      path="/admin/deleted-items"
       element={adminGuard(
         <SuspenseWrapper>
           <PageTransition>
-            <DataLifecycleManagement />
+            <DeletedItemsPage />
           </PageTransition>
         </SuspenseWrapper>
       )}
@@ -401,40 +361,12 @@ export const AdminRoutes = () => (
       />
     )}
 
-    {/* Alert Management */}
-    <Route
-      path="/admin/alerts"
-      element={adminGuard(
-        <SuspenseWrapper>
-          <PageTransition>
-            <AlertsPage />
-          </PageTransition>
-        </SuspenseWrapper>
-      )}
-    />
-
-    {/* Analytics — /admin/analytics redirects to exhibitor analytics (the AnalyticsPage
-        is a personal/exhibitor stats view, not platform admin analytics). Keep the
-        redirect so existing links and CTAs don't 404. */}
-    <Route path="/admin/analytics" element={<Navigate to="/exhibitor/analytics" replace />} />
     <Route
       path="/admin/judges/analytics"
       element={adminGuard(
         <SuspenseWrapper>
           <PageTransition>
             <JudgeAnalyticsPage />
-          </PageTransition>
-        </SuspenseWrapper>
-      )}
-    />
-
-    {/* Onboarding Requests */}
-    <Route
-      path="/admin/onboarding"
-      element={adminGuard(
-        <SuspenseWrapper>
-          <PageTransition>
-            <OnboardingRequestsPage />
           </PageTransition>
         </SuspenseWrapper>
       )}

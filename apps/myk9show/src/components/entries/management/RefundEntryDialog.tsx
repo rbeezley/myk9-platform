@@ -25,9 +25,17 @@ const ERROR_MESSAGES: Record<string, string> = {
   payout_in_progress: 'A payout to the club is in flight. Try again after it completes.',
   not_refundable: 'This entry has no refundable payment (it may already be refunded).',
   not_online_payment: 'This entry wasn’t paid online. Refund it the way it was paid.',
-  missing_payment_intent: 'This entry predates online payments and can’t be refunded through Stripe.',
+  missing_payment_intent:
+    'This entry predates online payments and can’t be refunded through Stripe.',
   amount_exceeds_fee: 'The refund can’t exceed the entry fee.',
   invalid_amount: 'Enter a refund amount greater than zero.',
+  policy_snapshot_unavailable:
+    'The policy recorded at payment is not available. Enter the refund amount manually.',
+  policy_snapshot_manual_review:
+    'This policy needs manual review. Enter the refund amount before issuing the refund.',
+  money_operation_in_progress:
+    'Another payout or refund is already running for this show. Try again in a moment.',
+  money_lock_failed: 'We could not safely reserve this refund. Try again in a moment.',
 };
 
 /** Minimal shape required by RefundEntryDialog — a subset of EntryManagementEntry. */
@@ -41,7 +49,12 @@ interface RefundEntryDialogProps {
   onRefunded: () => void;
 }
 
-export function RefundEntryDialog({ open, onOpenChange, entry, onRefunded }: RefundEntryDialogProps) {
+export function RefundEntryDialog({
+  open,
+  onOpenChange,
+  entry,
+  onRefunded,
+}: RefundEntryDialogProps) {
   const [mode, setMode] = useState<'full' | 'partial'>('full');
   const [partialAmount, setPartialAmount] = useState('');
   const [notes, setNotes] = useState('');
@@ -80,6 +93,11 @@ export function RefundEntryDialog({ open, onOpenChange, entry, onRefunded }: Ref
         ? 'Withdrawal policy: within the full-refund window. Full refund suggested.'
         : 'A withdrawal policy was recorded at payment, but the amount needs your judgment. Set it below.';
 
+  const snapshotSuggestedAmount =
+    suggestion?.hasPolicy && !suggestion.requiresManual && suggestion.refundCents < feeCents
+      ? (suggestion.refundCents / 100).toFixed(2)
+      : null;
+
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
       setMode('full');
@@ -93,18 +111,25 @@ export function RefundEntryDialog({ open, onOpenChange, entry, onRefunded }: Ref
   const handleRefund = async () => {
     if (!entry || inFlightRef.current) return;
 
+    const usePolicySnapshot =
+      mode === 'partial' &&
+      snapshotSuggestedAmount !== null &&
+      partialAmount === snapshotSuggestedAmount;
+
     let amountCents: number | undefined;
     if (mode === 'partial') {
-      const dollars = Number(partialAmount);
-      if (!Number.isFinite(dollars) || dollars <= 0) {
-        setError(ERROR_MESSAGES.invalid_amount);
-        return;
+      if (!usePolicySnapshot) {
+        const dollars = Number(partialAmount);
+        if (!Number.isFinite(dollars) || dollars <= 0) {
+          setError(ERROR_MESSAGES.invalid_amount);
+          return;
+        }
+        if (dollars > fee) {
+          setError(ERROR_MESSAGES.amount_exceeds_fee);
+          return;
+        }
+        amountCents = Math.round(dollars * 100);
       }
-      if (dollars > fee) {
-        setError(ERROR_MESSAGES.amount_exceeds_fee);
-        return;
-      }
-      amountCents = Math.round(dollars * 100);
     }
 
     inFlightRef.current = true;
@@ -116,6 +141,7 @@ export function RefundEntryDialog({ open, onOpenChange, entry, onRefunded }: Ref
           entry_id: entry.id,
           amount_cents: amountCents,
           notes: notes.trim() || undefined,
+          ...(usePolicySnapshot ? { use_policy_snapshot: true } : {}),
         },
       });
 

@@ -88,6 +88,16 @@ export function buildUnifiedSidebarConfig(
   nextShow?: NextShowContext
 ): SidebarConfig {
   const groups: NavGroup[] = [];
+  const hasSiteAdmin = hasAnyRole(userRoles, [UserRole.SITE_ADMIN]);
+  const hasShowManagementRole = hasAnyRole(userRoles, [UserRole.SECRETARY, UserRole.CLUB_ADMIN]);
+  const hasRingsideRole = hasAnyRole(userRoles, [
+    UserRole.JUDGE,
+    UserRole.SECRETARY,
+    UserRole.CLUB_ADMIN,
+    UserRole.CHAIRMAN,
+    UserRole.STEWARD,
+  ]);
+  const isPureSiteAdmin = hasSiteAdmin && userRoles.length === 1;
 
   // Exhibitor-only users get a unified, plain-English sidebar
   const isExhibitorOnly =
@@ -136,7 +146,7 @@ export function buildUnifiedSidebarConfig(
   } else {
     // Multi-role users: Build sections in priority order
     // 1. Admin section (highest priority)
-    if (hasAnyRole(userRoles, [UserRole.SITE_ADMIN])) {
+    if (hasSiteAdmin) {
       groups.push({
         title: 'Admin',
         items: [
@@ -188,8 +198,8 @@ export function buildUnifiedSidebarConfig(
     }
 
     // 2. Manage section (secretary / club admin)
-    if (hasAnyRole(userRoles, [UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN])) {
-      const manageDashboardHref = hasAnyRole(userRoles, [UserRole.SECRETARY, UserRole.SITE_ADMIN])
+    if (hasShowManagementRole) {
+      const manageDashboardHref = hasAnyRole(userRoles, [UserRole.SECRETARY])
         ? '/secretary/dashboard'
         : '/club-admin/members';
 
@@ -220,7 +230,9 @@ export function buildUnifiedSidebarConfig(
     // 2b. Show Day — the always-available Ringside entry. Placed high (right
     // after Manage) because for a judge it may be the only section that matters,
     // and on show day it's the primary destination for every staff role.
-    groups.push({ title: 'Show Day', items: [STAFF_RINGSIDE_NAV_ITEM] });
+    if (hasRingsideRole) {
+      groups.push({ title: 'Show Day', items: [STAFF_RINGSIDE_NAV_ITEM] });
+    }
 
     // 3. As Exhibitor section (exhibitor with other roles)
     if (hasAnyRole(userRoles, [UserRole.EXHIBITOR])) {
@@ -237,32 +249,34 @@ export function buildUnifiedSidebarConfig(
       });
     }
 
-    // 4. Browse section (always visible for non-exhibitor-only users)
-    const browseItems: NavItem[] = [
-      { title: 'Shows', href: '/shows', icon: Calendar, description: 'Find and explore shows' },
-      { title: 'Dogs', href: '/dogs', icon: Heart, description: 'Browse dogs' },
-    ];
-    // Clubs and People are secretary + admin only (privacy restriction — navigation-ia.md)
-    if (hasAnyRole(userRoles, [UserRole.SECRETARY, UserRole.SITE_ADMIN])) {
-      browseItems.push(
-        {
-          title: 'Clubs',
-          href: '/clubs',
-          icon: Building2,
-          description: 'Browse clubs',
-        },
-        {
-          title: 'People',
-          href: '/people',
-          icon: Users,
-          description: 'Browse people',
-        }
-      );
+    // 4. Browse section (visible for role workflows; pure site-admin discovery lives in Help)
+    if (!isPureSiteAdmin) {
+      const browseItems: NavItem[] = [
+        { title: 'Shows', href: '/shows', icon: Calendar, description: 'Find and explore shows' },
+        { title: 'Dogs', href: '/dogs', icon: Heart, description: 'Browse dogs' },
+      ];
+      // Clubs and People are secretary + admin only (privacy restriction — navigation-ia.md)
+      if (hasAnyRole(userRoles, [UserRole.SECRETARY, UserRole.SITE_ADMIN])) {
+        browseItems.push(
+          {
+            title: 'Clubs',
+            href: '/clubs',
+            icon: Building2,
+            description: 'Browse clubs',
+          },
+          {
+            title: 'People',
+            href: '/people',
+            icon: Users,
+            description: 'Browse people',
+          }
+        );
+      }
+      groups.push({ title: 'Browse', items: browseItems });
     }
-    groups.push({ title: 'Browse', items: browseItems });
 
     // 5. My Club section (club admin — only if club context is available)
-    if (clubContext && hasAnyRole(userRoles, [UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN])) {
+    if (clubContext && hasAnyRole(userRoles, [UserRole.CLUB_ADMIN])) {
       groups.push({
         title: 'My Club',
         items: [

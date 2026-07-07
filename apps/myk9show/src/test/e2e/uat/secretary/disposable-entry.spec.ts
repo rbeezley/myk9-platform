@@ -70,20 +70,16 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
 
     const entryStatusButton = page.getByRole('button', { name: /Change entry status/i }).first();
     await expect(entryStatusButton).toBeVisible({ timeout: 10000 });
-    await entryStatusButton.click();
     const acceptedItem = page.getByRole('menuitem', { name: 'Accepted', exact: true });
-    await expect(acceptedItem).toBeVisible({ timeout: 10000 });
-    await acceptedItem.click({ force: true });
+    await clickMenuItemWhenStable(() => entryStatusButton.click(), acceptedItem);
     await expect(entryStatusButton).toContainText('Accepted', { timeout: 10000 });
 
     const checkInStatusButton = page
       .getByRole('button', { name: /Change check-in status/i })
       .first();
     await expect(checkInStatusButton).toBeVisible({ timeout: 10000 });
-    await checkInStatusButton.click();
     const checkedInItem = page.getByRole('menuitem', { name: 'Checked-in' });
-    await expect(checkedInItem).toBeVisible({ timeout: 10000 });
-    await checkedInItem.click({ force: true });
+    await clickMenuItemWhenStable(() => checkInStatusButton.click(), checkedInItem);
     await expect(checkInStatusButton).toContainText(/Checked-in|Checked In/, { timeout: 10000 });
   });
 });
@@ -118,6 +114,22 @@ async function clickRowActionsWhenStable(rowActions: Locator) {
 
     try {
       await rowActions.click({ timeout: 3000 });
+      return;
+    } catch (error) {
+      if (attempt === 3 || !isDetachedDuringClick(error)) {
+        throw error;
+      }
+    }
+  }
+}
+
+async function clickMenuItemWhenStable(openMenu: () => Promise<void>, menuItem: Locator) {
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    await openMenu();
+    await expect(menuItem).toBeVisible({ timeout: 10000 });
+
+    try {
+      await menuItem.click({ timeout: 3000 });
       return;
     } catch (error) {
       if (attempt === 3 || !isDetachedDuringClick(error)) {

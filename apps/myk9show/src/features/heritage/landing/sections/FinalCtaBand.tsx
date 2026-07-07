@@ -4,9 +4,14 @@ import { heritageOrnaments } from '../../tokens';
 interface FinalCtaBandProps {
   entryWizardUrl: string;
   canEnterOnline?: boolean;
+  entryClosed?: boolean;
 }
 
-export function FinalCtaBand({ entryWizardUrl, canEnterOnline = true }: FinalCtaBandProps) {
+export function FinalCtaBand({
+  entryWizardUrl,
+  canEnterOnline = true,
+  entryClosed = false,
+}: FinalCtaBandProps) {
   return (
     <section
       id="enter"
@@ -38,6 +43,10 @@ export function FinalCtaBand({ entryWizardUrl, canEnterOnline = true }: FinalCta
             <>
               You are <em style={{ color: 'var(--hl-gold-on-dark)' }}>cordially</em> invited.
             </>
+          ) : entryClosed ? (
+            <>
+              Entries are <em style={{ color: 'var(--hl-gold-on-dark)' }}>closed</em>.
+            </>
           ) : (
             <>
               Entries open when{' '}
@@ -52,8 +61,8 @@ export function FinalCtaBand({ entryWizardUrl, canEnterOnline = true }: FinalCta
               className="text-sm leading-relaxed"
               style={{ color: 'var(--hl-paper-soft)', fontFamily: "'EB Garamond', Georgia, serif" }}
             >
-              Join us for this licensed trial and test your partnership against the finest scent work
-              standards.
+              Join us for this licensed trial and test your partnership against the finest scent
+              work standards.
             </p>
 
             <a
@@ -92,7 +101,10 @@ export function FinalCtaBand({ entryWizardUrl, canEnterOnline = true }: FinalCta
                   </p>
                   <p
                     className="mt-1 text-xs"
-                    style={{ color: 'var(--hl-paper-muted)', fontFamily: "'EB Garamond', Georgia, serif" }}
+                    style={{
+                      color: 'var(--hl-paper-muted)',
+                      fontFamily: "'EB Garamond', Georgia, serif",
+                    }}
                   >
                     {method.desc}
                   </p>
@@ -105,7 +117,9 @@ export function FinalCtaBand({ entryWizardUrl, canEnterOnline = true }: FinalCta
             className="text-sm leading-relaxed"
             style={{ color: 'var(--hl-paper-soft)', fontFamily: "'EB Garamond', Georgia, serif" }}
           >
-            The secretary still needs to assign classes before online entry is available.
+            {entryClosed
+              ? 'Contact the trial secretary for late-entry help.'
+              : 'The secretary still needs to assign classes before online entry is available.'}
           </p>
         )}
       </div>

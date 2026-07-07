@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderHook } from '@testing-library/react';
-import { useCountdown } from '../useCountdown';
+import { act, renderHook } from '@testing-library/react';
+import { isCountdownTargetClosed, useCountdown } from '../useCountdown';
 
 const originalTimezone = process.env.TZ;
 
@@ -64,9 +64,7 @@ describe('useCountdown', () => {
 
   it('treats a full ISO instant as an exact cutoff, not end-of-day', () => {
     vi.setSystemTime(new Date('2026-08-01T13:00:00Z'));
-    const { result } = renderHook(() =>
-      useCountdown('2026-08-01T12:00:00Z', 'America/New_York')
-    );
+    const { result } = renderHook(() => useCountdown('2026-08-01T12:00:00Z', 'America/New_York'));
     expect(result.current.closed).toBe(true);
   });
 
@@ -74,5 +72,45 @@ describe('useCountdown', () => {
     const { result } = renderHook(() => useCountdown(null, 'America/New_York'));
     expect(result.current.hasTarget).toBe(false);
     expect(result.current.closed).toBe(false);
+  });
+
+  it('flips to closed when the last visible open value is already 0 seconds', () => {
+    vi.setSystemTime(new Date('2026-08-01T12:00:00.000Z'));
+    const { result } = renderHook(() =>
+      useCountdown('2026-08-01T12:00:00.800Z', 'America/New_York')
+    );
+
+    expect(result.current.seconds).toBe(0);
+    expect(result.current.closed).toBe(false);
+
+    act(() => {
+      vi.advanceTimersByTime(900);
+    });
+
+    expect(result.current.seconds).toBe(0);
+    expect(result.current.closed).toBe(true);
+  });
+});
+
+describe('isCountdownTargetClosed', () => {
+  it('matches the show-timezone end-of-day cutoff without mounting the countdown hook', () => {
+    expect(
+      isCountdownTargetClosed(
+        '2026-08-01',
+        'America/New_York',
+        new Date('2026-08-02T04:00:00Z').getTime()
+      )
+    ).toBe(true);
+    expect(
+      isCountdownTargetClosed(
+        '2026-08-01',
+        'America/Los_Angeles',
+        new Date('2026-08-02T04:00:00Z').getTime()
+      )
+    ).toBe(false);
+  });
+
+  it('fails open when no close date is set', () => {
+    expect(isCountdownTargetClosed(null, 'America/New_York')).toBe(false);
   });
 });

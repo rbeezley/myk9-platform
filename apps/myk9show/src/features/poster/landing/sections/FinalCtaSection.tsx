@@ -16,6 +16,7 @@ interface FinalCtaSectionProps {
   entryCloseDate: string | null;
   timezone: string;
   canEnterOnline?: boolean;
+  entryClosed?: boolean;
 }
 
 /**
@@ -31,6 +32,7 @@ export function FinalCtaSection({
   entryCloseDate,
   timezone,
   canEnterOnline = true,
+  entryClosed = false,
 }: FinalCtaSectionProps) {
   const countdown = useCountdown(entryCloseDate, timezone);
   // Gate on countdown.closed (not just entryCloseDate presence) so a past close
@@ -54,11 +56,7 @@ export function FinalCtaSection({
         borderTop: `2px solid ${posterColors.ink}`,
       }}
     >
-      <PosterInkBlot
-        size={880}
-        position={{ top: -240, right: -240 }}
-        filter={null}
-      />
+      <PosterInkBlot size={880} position={{ top: -240, right: -240 }} filter={null} />
       <PosterRotatingSquare size={400} position={{ bottom: -100, left: -100 }} rotation={12} />
 
       <div
@@ -81,7 +79,9 @@ export function FinalCtaSection({
           }}
         >
           № 09 / ENTER
-          {closesLabel ? ` · CLOSES ${closesLabel}${closesTime ? ` · ${closesTime.toUpperCase()}` : ''}` : ''}
+          {closesLabel
+            ? ` · CLOSES ${closesLabel}${closesTime ? ` · ${closesTime.toUpperCase()}` : ''}`
+            : ''}
         </div>
         <h2
           style={{
@@ -110,10 +110,14 @@ export function FinalCtaSection({
                 Today.
               </span>
             </>
+          ) : entryClosed ? (
+            <>
+              Entries are <span style={{ color: posterColors.red }}>closed.</span>
+            </>
           ) : (
             <>
-              Entries open when{' '}
-              <span style={{ color: posterColors.red }}>classes</span> are assigned.
+              Entries open when <span style={{ color: posterColors.red }}>classes</span> are
+              assigned.
             </>
           )}
         </h2>
@@ -169,7 +173,9 @@ export function FinalCtaSection({
               margin: 0,
             }}
           >
-            The secretary still needs to assign classes before online entry is available.
+            {entryClosed
+              ? 'Contact the trial secretary for late-entry help.'
+              : 'The secretary still needs to assign classes before online entry is available.'}
           </p>
         )}
         <div style={{ marginTop: 14, position: 'relative', zIndex: 3 }}>

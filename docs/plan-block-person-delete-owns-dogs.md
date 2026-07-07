@@ -17,8 +17,9 @@ Deleting a person **orphans their dogs** — under both delete modes:
   (`dogs.owner_id/co_owner_id/breeder_id`, `entries.handler_id`) are
   `ON DELETE SET NULL`, so the dog/entries **survive but become ownerless**.
 
-Either way the dog is never removed — it lingers as an orphan. `OrphanedRecordsCleaner`
-already has a `dogs_without_owners` category, confirming orphans are unwanted cruft.
+Either way the dog is never removed — it lingers as an orphan. The removed local
+data-lifecycle cleanup tools had a `dogs_without_owners` category, confirming
+orphans are unwanted cruft.
 
 There is **no reassign-owner UI** today (`updateDog` doesn't expose `owner_id`; the
 dog hero doesn't show the owner), so the only way to avoid the orphan is to delete
@@ -36,7 +37,7 @@ owner, so it isn't orphaned; the dangling `co_owner_id` is minor untidiness).
 ## Approach
 The rule is an **invariant** ("a person who owns ≥1 live dog cannot be deleted"), so
 enforce it with a **DB trigger** — path-independent, covers the service, the edge
-function, the cleaner, and any future caller with zero changes to the 7 `deleteUser`
+function, and any future cleanup caller with zero changes to the 7 `deleteUser`
 callers. The UI dialog adds a friendly pre-check so the admin never hits the raw error.
 
 ## Phases

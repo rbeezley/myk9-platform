@@ -235,7 +235,7 @@ const RoleListPage: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Users:</span>
+                    <span className="text-muted-foreground">Active Users:</span>
                     <Badge variant="outline" className="text-xs">
                       {role.user_count || 0}
                     </Badge>
@@ -342,7 +342,7 @@ const RoleListPage: React.FC = () => {
               <div className="font-semibold text-lg">
                 {roles.reduce((sum, r) => sum + (r.user_count || 0), 0)}
               </div>
-              <div className="text-muted-foreground">Total Assignments</div>
+              <div className="text-muted-foreground">Active Assignments</div>
             </div>
           </div>
         </CardContent>

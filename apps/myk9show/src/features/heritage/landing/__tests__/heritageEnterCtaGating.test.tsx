@@ -29,6 +29,21 @@ describe('Heritage entry CTAs', () => {
       expect(screen.queryByRole('link', { name: /enter this show/i })).not.toBeInTheDocument();
       expect(screen.getByText(/classes pending/i)).toBeInTheDocument();
     });
+
+    it('shows closed-entry copy when entries are closed', () => {
+      render(
+        <StickyNav
+          clubName="Heritage Kennel Club"
+          entryWizardUrl={WIZARD_URL}
+          canEnterOnline={false}
+          entryClosed
+        />
+      );
+
+      expect(screen.queryByRole('link', { name: /enter this show/i })).not.toBeInTheDocument();
+      expect(screen.getByText(/entries closed/i)).toBeInTheDocument();
+      expect(screen.queryByText(/classes pending/i)).not.toBeInTheDocument();
+    });
   });
 
   describe('HeroBlock', () => {
@@ -73,6 +88,29 @@ describe('Heritage entry CTAs', () => {
       expect(screen.queryByRole('link', { name: /enter this show/i })).not.toBeInTheDocument();
       expect(screen.getByText(/no classes are assigned yet/i)).toBeInTheDocument();
     });
+
+    it('shows closed-entry guidance when entries are closed', () => {
+      render(
+        <HeroBlock
+          clubName="Heritage Kennel Club"
+          showName="Heritage Trial"
+          showSubtitle="AKC Licensed Trial"
+          entryCloseDate="2020-01-01"
+          trialStartDate="2026-06-12"
+          trialEndDate="2026-06-14"
+          venueName="Show Grounds"
+          venueCity="Austin"
+          timezone="America/Chicago"
+          entryWizardUrl={WIZARD_URL}
+          canEnterOnline={false}
+          entryClosed
+        />
+      );
+
+      expect(screen.queryByRole('link', { name: /enter this show/i })).not.toBeInTheDocument();
+      expect(screen.getByText(/late-entry help/i)).toBeInTheDocument();
+      expect(screen.queryByText(/no classes are assigned yet/i)).not.toBeInTheDocument();
+    });
   });
 
   describe('FinalCtaBand', () => {
@@ -91,6 +129,16 @@ describe('Heritage entry CTAs', () => {
 
       expect(screen.queryByRole('link', { name: /enter this show/i })).not.toBeInTheDocument();
       expect(screen.getByText(/secretary still needs to assign classes/i)).toBeInTheDocument();
+    });
+
+    it('shows closed-entry guidance when entries are closed', () => {
+      render(<FinalCtaBand entryWizardUrl={WIZARD_URL} canEnterOnline={false} entryClosed />);
+
+      expect(screen.queryByRole('link', { name: /enter this show/i })).not.toBeInTheDocument();
+      expect(screen.getByText(/Contact the trial secretary/i)).toBeInTheDocument();
+      expect(
+        screen.queryByText(/secretary still needs to assign classes/i)
+      ).not.toBeInTheDocument();
     });
   });
 });

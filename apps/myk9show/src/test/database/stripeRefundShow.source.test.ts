@@ -69,6 +69,13 @@ describe('stripe-refund-show wiring', () => {
     expect(source).toContain('Re-check the payout state just before issuing money');
   });
 
+  it('serializes bulk refunds with the payout cron via show_money_locks', () => {
+    expect(source).toContain('acquireShowMoneyLock');
+    expect(source).toContain("holder: 'stripe-refund-show'");
+    expect(source).toContain('money_operation_in_progress');
+    expect(source).toContain('await moneyLock.release()');
+  });
+
   it('paginates the cross-show check so a >1000-row truncation cannot hide it — #974 #2', () => {
     expect(source).toContain('INTENT_IN_BATCH');
     expect(source).toContain('.range(from, from + ENTRY_PAGE - 1)');

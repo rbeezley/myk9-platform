@@ -9,7 +9,7 @@
  * hook's values and handlers.
  */
 
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { notifications } from '@/lib/notifications';
@@ -41,6 +41,7 @@ function RegistrationWizardContent() {
     currentStep,
     completedSteps,
     currentStepId,
+    entryCloseAvailability,
     isLastStep,
     isLateEntryMode,
     currentWorkflowMode,
@@ -150,115 +151,150 @@ function RegistrationWizardContent() {
           {/* Main Content */}
           <div className="bg-card border border-border rounded-2xl shadow-sm min-h-[600px] flex flex-col">
             <div className="flex-1 p-4 sm:p-8">
-              {/* Draft controls */}
-              <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span className="font-medium">
-                    Step {currentStep + 1} of {steps.length}:
-                  </span>
-                  <span>{steps[currentStep]?.label}</span>
-                </div>
-                <DraftManager
-                  saveDraft={draftSave}
-                  loadDraft={draftLoad}
-                  deleteDraft={draftDelete}
-                  availableDrafts={availableDrafts}
-                  clearAllDrafts={clearAllDrafts}
-                  hasUnsavedChanges={!!hasUnsavedChanges}
-                  onDraftLoaded={handleDraftLoaded}
-                  onDraftSaved={() => notifications.success('Draft saved')}
-                />
-              </div>
-
-              <div className="border-t border-border mb-6" />
-
-              {/* Multi-owner / orphan-owner cart guard */}
-              {currentStepId === 'dog-selection' &&
-                registrationData.selectedDogs.length > 0 &&
-                !ownerResolution.ok && (
-                  <div
-                    role="alert"
-                    className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-                  >
-                    {ownerResolution.owners.length >= 2
-                      ? "This wizard processes one exhibitor's entries at a time. The selected dogs belong to multiple owners. Please remove all but one owner's dogs before continuing."
-                      : 'One or more selected dogs has no owner on file. An enrollment must be filed under an exhibitor — please add an owner to the dog (or remove it from the cart) before continuing.'}
+              {entryCloseAvailability.canEnter && (
+                <>
+                  {/* Draft controls */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <span className="font-medium">
+                        Step {currentStep + 1} of {steps.length}:
+                      </span>
+                      <span>{steps[currentStep]?.label}</span>
+                    </div>
+                    <DraftManager
+                      saveDraft={draftSave}
+                      loadDraft={draftLoad}
+                      deleteDraft={draftDelete}
+                      availableDrafts={availableDrafts}
+                      clearAllDrafts={clearAllDrafts}
+                      hasUnsavedChanges={!!hasUnsavedChanges}
+                      onDraftLoaded={handleDraftLoaded}
+                      onDraftSaved={() => notifications.success('Draft saved')}
+                    />
                   </div>
-                )}
 
-              {/* Step content */}
-              <WorkflowStepContent
-                currentStepId={currentStepId}
-                currentWorkflowConfig={currentWorkflowConfig}
-                currentWorkflowMode={currentWorkflowMode}
-                registrationData={registrationData}
-                optimisticState={optimisticState}
-                showId={showId}
-                registrationId={registrationId}
-                registrationNumber={registrationNumber}
-                currentRegistrationTotalFees={liveTotalFees}
-                armbandAssignments={armbandAssignments}
-                onDogSelectionChange={handleDogSelectionChange}
-                onClassSelectionChange={handleClassSelectionChange}
-                onHandlerAssignmentChange={handleHandlerAssignmentChange}
-                onPaymentMethodChange={(method: PaymentMethod) => handlePaymentMethodChange(method)}
-                onPaymentDetailsChange={(details: PaymentDetails) =>
-                  handlePaymentDetailsChange(details)
-                }
-                onPaymentStatusChange={(regId: string, status: PaymentStatus) =>
-                  handlePaymentStatusChange(regId, status)
-                }
-                onEntryStatusChange={(regId: string, status: EntryStatus, reason?: string) =>
-                  handleEntryStatusChange(regId, status, reason)
-                }
-                setPaymentStatus={setPaymentStatus}
-                setEntryStatus={setEntryStatus}
-                dogsLoading={dogsLoading}
-                agreedToEntryAgreement={agreedToEntryAgreement}
-                onAgreementChange={setAgreedToEntryAgreement}
-              />
+                  <div className="border-t border-border mb-6" />
+                </>
+              )}
+
+              {!entryCloseAvailability.canEnter ? (
+                <div className="mx-auto max-w-2xl rounded-xl border border-border bg-muted/30 p-6 text-center">
+                  <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                    Entries closed
+                  </p>
+                  <h3 className="mt-2 text-2xl font-semibold text-foreground">
+                    This show is no longer accepting normal online entries.
+                  </h3>
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                    {entryCloseAvailability.reason ??
+                      'Contact the show team if you need help with a late entry or a change.'}
+                  </p>
+                  <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+                    <Button asChild className="min-h-[44px]">
+                      <Link to={entryCloseAvailability.recoveryHref}>Message the show team</Link>
+                    </Button>
+                    <Button variant="outline" className="min-h-[44px]" onClick={handleExit}>
+                      {exitTarget.label}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Multi-owner / orphan-owner cart guard */}
+                  {currentStepId === 'dog-selection' &&
+                    registrationData.selectedDogs.length > 0 &&
+                    !ownerResolution.ok && (
+                      <div
+                        role="alert"
+                        className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+                      >
+                        {ownerResolution.owners.length >= 2
+                          ? "This wizard processes one exhibitor's entries at a time. The selected dogs belong to multiple owners. Please remove all but one owner's dogs before continuing."
+                          : 'One or more selected dogs has no owner on file. An enrollment must be filed under an exhibitor — please add an owner to the dog (or remove it from the cart) before continuing.'}
+                      </div>
+                    )}
+
+                  {/* Step content */}
+                  <WorkflowStepContent
+                    currentStepId={currentStepId}
+                    currentWorkflowConfig={currentWorkflowConfig}
+                    currentWorkflowMode={currentWorkflowMode}
+                    registrationData={registrationData}
+                    optimisticState={optimisticState}
+                    showId={showId}
+                    registrationId={registrationId}
+                    registrationNumber={registrationNumber}
+                    currentRegistrationTotalFees={liveTotalFees}
+                    armbandAssignments={armbandAssignments}
+                    onDogSelectionChange={handleDogSelectionChange}
+                    onClassSelectionChange={handleClassSelectionChange}
+                    onHandlerAssignmentChange={handleHandlerAssignmentChange}
+                    onPaymentMethodChange={(method: PaymentMethod) =>
+                      handlePaymentMethodChange(method)
+                    }
+                    onPaymentDetailsChange={(details: PaymentDetails) =>
+                      handlePaymentDetailsChange(details)
+                    }
+                    onPaymentStatusChange={(regId: string, status: PaymentStatus) =>
+                      handlePaymentStatusChange(regId, status)
+                    }
+                    onEntryStatusChange={(regId: string, status: EntryStatus, reason?: string) =>
+                      handleEntryStatusChange(regId, status, reason)
+                    }
+                    setPaymentStatus={setPaymentStatus}
+                    setEntryStatus={setEntryStatus}
+                    dogsLoading={dogsLoading}
+                    agreedToEntryAgreement={agreedToEntryAgreement}
+                    onAgreementChange={setAgreedToEntryAgreement}
+                  />
+                </>
+              )}
             </div>
 
             {/* Navigation */}
             <div className="relative px-4 sm:px-8 pb-6 sm:pb-8">
-              {proceedBlocked && !isSubmitting && (
-                <p role="status" className="mb-3 text-sm text-muted-foreground">
-                  {proceedBlocked}
-                </p>
-              )}
-              {isLastStep ? (
-                // The entry is already committed — this is the Receipt. No "Back"
-                // (it implied the submit could be undone); forward exits only (4.A).
-                <ReceiptExits
-                  isExhibitor={currentWorkflowMode === 'exhibitor'}
-                  showId={showId}
-                  onDone={handleNext}
-                  doneLabel={
-                    currentWorkflowMode === 'exhibitor'
-                      ? undefined
-                      : isLateEntryMode
-                        ? 'Return to Show Desk'
-                        : 'Return to Entry Management'
-                  }
-                  isLoading={isSubmitting}
-                />
-              ) : (
-                <WizardNavigation
-                  currentStep={currentStep}
-                  totalSteps={steps.length}
-                  canGoBack={true}
-                  canGoNext={canProceed()}
-                  onBack={handleBack}
-                  onNext={handleNext}
-                  // The Payment "Next" IS the commit — say so, method-aware (4.A).
-                  nextLabel={
-                    currentStepId === 'payment'
-                      ? getPaymentSubmitLabel(registrationData.paymentMethod)
-                      : 'Next'
-                  }
-                  backLabel={currentStep === 0 ? 'Cancel' : 'Back'}
-                  isLoading={isSubmitting}
-                />
+              {entryCloseAvailability.canEnter && (
+                <>
+                  {proceedBlocked && !isSubmitting && (
+                    <p role="status" className="mb-3 text-sm text-muted-foreground">
+                      {proceedBlocked}
+                    </p>
+                  )}
+                  {isLastStep ? (
+                    // The entry is already committed — this is the Receipt. No "Back"
+                    // (it implied the submit could be undone); forward exits only (4.A).
+                    <ReceiptExits
+                      isExhibitor={currentWorkflowMode === 'exhibitor'}
+                      showId={showId}
+                      onDone={handleNext}
+                      doneLabel={
+                        currentWorkflowMode === 'exhibitor'
+                          ? undefined
+                          : isLateEntryMode
+                            ? 'Return to Show Desk'
+                            : 'Return to Entry Management'
+                      }
+                      isLoading={isSubmitting}
+                    />
+                  ) : (
+                    <WizardNavigation
+                      currentStep={currentStep}
+                      totalSteps={steps.length}
+                      canGoBack={true}
+                      canGoNext={canProceed()}
+                      onBack={handleBack}
+                      onNext={handleNext}
+                      // The Payment "Next" IS the commit — say so, method-aware (4.A).
+                      nextLabel={
+                        currentStepId === 'payment'
+                          ? getPaymentSubmitLabel(registrationData.paymentMethod)
+                          : 'Next'
+                      }
+                      backLabel={currentStep === 0 ? 'Cancel' : 'Back'}
+                      isLoading={isSubmitting}
+                    />
+                  )}
+                </>
               )}
             </div>
           </div>

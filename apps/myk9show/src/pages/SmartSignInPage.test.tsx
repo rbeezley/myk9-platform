@@ -37,8 +37,7 @@ vi.mock('./validatePasscode', () => ({
 // signed-in tests still drive validatePasscode directly.
 const startAnonymousRingsideSessionMock = vi.fn();
 vi.mock('./ringsideAnonSession', () => ({
-  startAnonymousRingsideSession: (...args: unknown[]) =>
-    startAnonymousRingsideSessionMock(...args),
+  startAnonymousRingsideSession: (...args: unknown[]) => startAnonymousRingsideSessionMock(...args),
 }));
 
 let mockUser: { id: string } | null = null;
@@ -98,6 +97,7 @@ describe('SmartSignInPage', () => {
     await user.click(screen.getByTestId('continue-button'));
 
     expect(await screen.findByTestId('password-input')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /sign in to your account/i })).toBeInTheDocument();
     expect(screen.getByTestId('locked-credential')).toHaveTextContent('jane@example.com');
   });
 
@@ -154,9 +154,7 @@ describe('SmartSignInPage', () => {
     await user.type(screen.getByTestId('credential-input'), 'j9f3b');
     await user.click(screen.getByTestId('continue-button'));
 
-    await waitFor(() =>
-      expect(startAnonymousRingsideSessionMock).toHaveBeenCalledWith('j9f3b')
-    );
+    await waitFor(() => expect(startAnonymousRingsideSessionMock).toHaveBeenCalledWith('j9f3b'));
     // No name typed → grant carries a minted sessionId but no name.
     expect(setGrantSpy).toHaveBeenCalledWith(
       expect.objectContaining({

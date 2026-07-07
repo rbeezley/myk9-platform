@@ -92,7 +92,20 @@ describe('SupportInboxPage', () => {
     expect(screen.getByText('Payment receipt question')).toBeInTheDocument();
     expect(screen.getByTestId('support-thread')).toHaveTextContent('ticket-2:true');
     expect(screen.getByText('Diagnostics')).toBeInTheDocument();
-    expect(screen.getByText('/at-show/show-1')).toBeInTheDocument();
+    expect(screen.getAllByText('/at-show/show-1').length).toBeGreaterThan(0);
+    expect(screen.getByRole('link', { name: /Open reported page/i })).toHaveAttribute(
+      'href',
+      '/at-show/show-1'
+    );
+    expect(screen.getByRole('link', { name: /Open sync monitoring/i })).toHaveAttribute(
+      'href',
+      '/admin/sync'
+    );
+    expect(screen.getByRole('link', { name: /Open user access/i })).toHaveAttribute(
+      'href',
+      '/admin/permissions/users?userId=owner-1'
+    );
+    expect(screen.getByText('Next checks')).toBeInTheDocument();
   });
 
   it('updates status from the detail controls', async () => {
@@ -103,5 +116,40 @@ describe('SupportInboxPage', () => {
     await user.click(screen.getByRole('button', { name: /^Resolved$/ }));
 
     expect(mockMutate).toHaveBeenCalledWith('resolved');
+  });
+
+  it('shows a diagnostics empty state and copy action when no direct route exists', () => {
+    hookState.tickets = [
+      makeTicket({
+        diagnostics: {
+          ...makeTicket().diagnostics,
+          route: null,
+          context: { showId: null, trialId: null, entryId: null },
+          user: { authUserId: null, databaseUserId: null, role: null },
+          connectivity: {
+            online: true,
+            replication: {
+              status: null,
+              lastSyncAt: null,
+              queueSize: null,
+              conflictCount: null,
+              errorCount: null,
+              watermark: null,
+            },
+          },
+          clientErrors: [],
+        },
+        showId: null,
+        subject: 'General question',
+      }),
+    ];
+
+    render(<SupportInboxPage />, { initialRoute: '/admin/support?status=all&ticketId=ticket-1' });
+
+    expect(screen.getByText(/No direct route was captured/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Copy ticket link/i })).toHaveAttribute(
+      'href',
+      '/admin/support?ticketId=ticket-1'
+    );
   });
 });

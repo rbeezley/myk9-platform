@@ -12,7 +12,7 @@ import {
   deleteRegistration,
   searchRegistrations,
   getRegistrationStatistics,
-  validateRegistrationNumber
+  validateRegistrationNumber,
 } from '@/services/database/registrations';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { invalidateQueries } from '@/services/database/queryClient';
@@ -115,7 +115,11 @@ export const useRegistrationStatisticsQuery = () => {
 };
 
 // Validate registration number
-export const useValidateRegistrationNumber = (organization: string, registrationNumber: string, enabled = true) => {
+export const useValidateRegistrationNumber = (
+  organization: string,
+  registrationNumber: string,
+  enabled = true
+) => {
   return useQuery({
     queryKey: ['registrations', 'validate', organization, registrationNumber],
     queryFn: async () => {
@@ -138,7 +142,7 @@ export const useCreateRegistrationMutation = () => {
       if (error) throw error;
       return data;
     },
-    onMutate: async (newRegistration) => {
+    onMutate: async newRegistration => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: queryKeys.registrations });
 
@@ -165,21 +169,21 @@ export const useCreateRegistrationMutation = () => {
     onSuccess: (_data, variables) => {
       // Invalidate and refetch registration lists
       invalidateQueries.all('dogs');
-      
+
       // If registration has dog, invalidate dog's registrations
       if (variables.dog_id) {
-        queryClient.invalidateQueries({ 
-          queryKey: queryKeys.registrationsByDog(variables.dog_id) 
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.registrationsByDog(variables.dog_id),
         });
-        queryClient.invalidateQueries({ 
-          queryKey: queryKeys.dogRegistrations(variables.dog_id) 
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.dogRegistrations(variables.dog_id),
         });
       }
 
       // Invalidate organization specific queries
       if (variables.organization) {
         queryClient.invalidateQueries({
-          queryKey: ['registrations', 'organization', variables.organization]
+          queryKey: ['registrations', 'organization', variables.organization],
         });
       }
 
@@ -224,17 +228,17 @@ export const useUpdateRegistrationMutation = () => {
     onSuccess: (data, { id, updates }) => {
       // Update specific registration cache
       queryClient.setQueryData(queryKeys.registration(id), data);
-      
+
       // Invalidate registration lists to ensure consistency
       invalidateQueries.lists('dogs');
-      
+
       // If dog changed, invalidate both old and new dog registrations
       if (data?.dog_id) {
-        queryClient.invalidateQueries({ 
-          queryKey: queryKeys.registrationsByDog(data.dog_id) 
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.registrationsByDog(data.dog_id),
         });
-        queryClient.invalidateQueries({ 
-          queryKey: queryKeys.dogRegistrations(data.dog_id) 
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.dogRegistrations(data.dog_id),
         });
       }
 
@@ -243,7 +247,7 @@ export const useUpdateRegistrationMutation = () => {
         const org = data?.organization || updates.organization;
         if (org) {
           queryClient.invalidateQueries({
-            queryKey: ['registrations', 'organization', org]
+            queryKey: ['registrations', 'organization', org],
           });
         }
       }
@@ -264,7 +268,7 @@ export const useDeleteRegistrationMutation = () => {
       if (error) throw error;
       return data;
     },
-    onMutate: async (deletedId) => {
+    onMutate: async deletedId => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: queryKeys.registrations });
 
@@ -294,20 +298,20 @@ export const useDeleteRegistrationMutation = () => {
     onSuccess: (data, deletedId) => {
       // Remove from cache completely
       queryClient.removeQueries({ queryKey: queryKeys.registration(deletedId) });
-      
+
       // Invalidate registration lists
       invalidateQueries.all('dogs');
-      
+
       // Invalidate statistics since count changed
       queryClient.invalidateQueries({ queryKey: ['dog_registrations', 'statistics'] });
 
       // If we know the dog ID from the deleted registration, invalidate dog registrations
       if (data?.dog_id) {
-        queryClient.invalidateQueries({ 
-          queryKey: queryKeys.registrationsByDog(data.dog_id) 
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.registrationsByDog(data.dog_id),
         });
-        queryClient.invalidateQueries({ 
-          queryKey: queryKeys.dogRegistrations(data.dog_id) 
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.dogRegistrations(data.dog_id),
         });
       }
     },
@@ -344,17 +348,17 @@ export const useRegistrationManagement = () => {
     registrations: registrationsQuery.data,
     isLoading: registrationsQuery.isLoading,
     error: registrationsQuery.error,
-    
+
     // Mutations
     createRegistration: createMutation.mutate,
     isCreating: createMutation.isPending,
-    
+
     updateRegistration: updateMutation.mutate,
     isUpdating: updateMutation.isPending,
-    
+
     deleteRegistration: deleteMutation.mutate,
     isDeleting: deleteMutation.isPending,
-    
+
     // Utilities
     prefetchRegistration,
     refetch: registrationsQuery.refetch,
@@ -373,18 +377,20 @@ export const useDogRegistrationManagement = (dogId: string) => {
     registrations: dogRegistrationsQuery.data,
     isLoading: dogRegistrationsQuery.isLoading,
     error: dogRegistrationsQuery.error,
-    
+
     // Mutations (pre-filled with dogId)
-    createRegistration: (registrationData: Omit<DbDogRegistrationInsert, 'dog_id'>) => 
-      createMutation.mutate({ ...registrationData, dog_id: dogId }),
+    createRegistration: (
+      registrationData: Omit<DbDogRegistrationInsert, 'dog_id'>,
+      options?: Parameters<typeof createMutation.mutate>[1]
+    ) => createMutation.mutate({ ...registrationData, dog_id: dogId }, options),
     isCreating: createMutation.isPending,
-    
+
     updateRegistration: updateMutation.mutate,
     isUpdating: updateMutation.isPending,
-    
+
     deleteRegistration: deleteMutation.mutate,
     isDeleting: deleteMutation.isPending,
-    
+
     // Utilities
     refetch: dogRegistrationsQuery.refetch,
   };

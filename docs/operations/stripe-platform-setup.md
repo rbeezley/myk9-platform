@@ -17,21 +17,21 @@ Stripe has two parallel worlds — live mode and a play-money copy. On this acco
 (`acct_1GgAdNAtHgBcw875`, new-style dashboard) the copy is a **Sandbox**, not the old
 "test mode" toggle: top-left account menu ("Myk9t") → **Switch to sandbox** → `myK9Show dev`.
 A colored Sandbox banner shows which world you're in. Connect enablement, webhook endpoints,
-signing secrets, API keys, and products exist *separately* in the sandbox vs. live. The build
+signing secrets, API keys, and products exist _separately_ in the sandbox vs. live. The build
 happens entirely in the sandbox; go-live repeats three steps in live mode. (Wherever this
 runbook says "test mode," read "inside the sandbox.")
 
 ## How the money flows (the mental model)
 
-*Written after the 2026-06-10 sandbox walkthrough, where every step below was exercised
-with real (sandbox) money — including the failure paths.*
+_Written after the 2026-06-10 sandbox walkthrough, where every step below was exercised
+with real (sandbox) money — including the failure paths._
 
 **Life of an entry dollar.** An exhibitor pays their entry fees **plus the platform
 fee** (7% since 2026-06-10 — the `PLATFORM_FEE_PERCENT` secret; 3% lost money once
 Stripe's ~2.9% + 30¢ was paid) in one card charge. The whole amount lands in the **platform's Stripe balance**
 (pending ~2 business days while the card clears, then available). It sits there, pooled,
 for the entire entry period. Three days after the show's end date, the nightly payout run
-computes *online entry fees minus refunds* for that show and **transfers exactly that** to
+computes _online entry fees minus refunds_ for that show and **transfers exactly that** to
 the club's connected account. Stripe then auto-deposits it to the club's bank about a day
 later (their Express account pays out daily — never touch that setting). The fee stays in
 the platform balance: that's the platform's revenue, and it's also what absorbs Stripe's
@@ -40,17 +40,17 @@ the platform balance: that's the platform's revenue, and it's also what absorbs 
 **Three separate pipes — don't conflate them:**
 
 1. **Platform balance → club** (show payouts): driven by `cron-process-payouts`, nightly.
-   Stripe's payout-schedule setting has *nothing* to do with these transfers.
+   Stripe's payout-schedule setting has _nothing_ to do with these transfers.
 2. **Club's Stripe account → club's bank**: Stripe automatic daily (Express default).
    The treasurer does nothing, ever.
 3. **Platform balance → your bank** (your fee + premium revenue): **Manual only** — you
-   log in and click *Pay out* when you want your cut (monthly is fine). This is the only
+   log in and click _Pay out_ when you want your cut (monthly is fine). This is the only
    pipe the "Manual" payout-schedule setting controls, and it MUST stay Manual (see the
    payout-schedule section below): the default daily auto-sweep claims the clubs' pooled
    money for pipe 3 and starves pipe 1 forever.
 
 **Refunds.** Before payout: a secretary refund (entry withdrawn → refund dialog) sends
-that entry's fee back to the exhibitor's card *from the platform balance*, and the payout
+that entry's fee back to the exhibitor's card _from the platform balance_, and the payout
 math automatically subtracts it — the club is never paid for refunded money. The platform
 fee portion is not refunded. After payout: the app **blocks** Stripe refunds for that show
 (deliberate v1 rule) — the money is in the club's hands, so a late refund is the club's
@@ -66,12 +66,12 @@ is in my balance right now?") is the **site-admin Payout Ledger at `/admin/payou
 Status / Stripe transfer id per show, plus "Outstanding to clubs" and "Paid out to date"
 summary cards and the editable platform-fee %. SITE_ADMIN-gated (route guard + RLS).
 
-**Float rule of thumb.** Refunds and payouts draw from *available* balance. The clubs'
+**Float rule of thumb.** Refunds and payouts draw from _available_ balance. The clubs'
 money pooled in the balance naturally covers this — just don't sweep your own revenue out
 so aggressively that a same-week refund has nothing to draw on; keep a few hundred dollars
 of float.
 
-**When a transfer fails** you get an alert email (see *Ongoing operations*). The payout
+**When a transfer fails** you get an alert email (see _Ongoing operations_). The payout
 row is marked `failed` with the reason, nothing has moved, and the next nightly run
 retries from scratch — `insufficient available balance` is the benign, self-healing one
 (card money still clearing; the 3-day buffer usually prevents it entirely).
@@ -139,7 +139,7 @@ inherits from the live account's platform).
 ### 3. Webhook endpoint (test mode)
 
 - **Developers → Webhooks → Add endpoint** (or edit the existing one).
-Two destinations are needed because Stripe scopes them (each with its OWN signing secret):
+  Two destinations are needed because Stripe scopes them (each with its OWN signing secret):
 
 - **Destination 1 — scope "Your account"** (created 2026-06-09), URL
   `https://sojmvhhwsjxmfistvzbe.supabase.co/functions/v1/stripe-webhook`, events:
@@ -209,14 +209,25 @@ Toggle: **Live mode ON**. Three things exist per-mode and must be redone:
    in the other direction). In the SQL editor:
 
    ```sql
-   delete from public.stripe_customers;  -- pre-launch: all rows are sandbox test data
-   update public.exhibitor_profiles set stripe_customer_id = null
-    where stripe_customer_id is not null;
-   delete from public.club_stripe_accounts;  -- sandbox Express accounts; clubs re-onboard live
+   delete from public.stripe_customers
+    where livemode = false;
+
+   update public.exhibitor_profiles
+      set stripe_customer_id = null
+    where stripe_customer_id is not null
+      and not exists (
+        select 1
+          from public.stripe_customers
+         where stripe_customers.stripe_customer_id = exhibitor_profiles.stripe_customer_id
+           and stripe_customers.livemode = true
+      );
+
+   delete from public.club_stripe_accounts
+    where livemode = false;
    ```
 
-   (Pre-launch this is a clean wipe; if real data ever shares the table, filter on the
-   sandbox account's IDs instead.)
+   This keeps any live-mode rows intact while removing cached sandbox customers/accounts
+   that live-mode Stripe cannot resolve.
 
 Then verify the mode-independent pieces survived (`supabase secrets list` —
 `PLATFORM_FEE_PERCENT`, `PAYOUT_CRON_SECRET` persist; verify, don't assume), run one real
@@ -243,13 +254,13 @@ by phone.
 - **Changing the bank account your platform pays out to**: Dashboard (live mode) →
   Settings (gear) → **Bank accounts and currencies** → add the new account, set it as
   payout default, remove the old. Verification is instant via bank login or 1–2 days by
-  micro-deposits; in-flight payouts still go to the old account. (A *club* changing theirs
+  micro-deposits; in-flight payouts still go to the old account. (A _club_ changing theirs
   does it in their own Stripe Express dashboard → payout settings — never through myK9Show
   or your dashboard.)
 
 ## Payout cron operations (the nightly transfer job)
 
-*Written 2026-06-27 after finding the cron had failed silently for 5+ nights.*
+_Written 2026-06-27 after finding the cron had failed silently for 5+ nights._
 
 **How it's wired.** The nightly job `nightly-show-payouts` (pg_cron, `0 2 * * *`) is a
 small SQL `DO` block that reads three secrets from **Supabase Vault**, then `net.http_post`s
@@ -259,11 +270,11 @@ superseded by `20260619130000_payout_cron_vault_secret`. Do not re-introduce the
 
 **The three Vault secrets it needs** (exact lowercase names — the cron does `where name = …`):
 
-| Vault secret | Value |
-| --- | --- |
+| Vault secret             | Value                                                                       |
+| ------------------------ | --------------------------------------------------------------------------- |
 | `edge_function_base_url` | `https://sojmvhhwsjxmfistvzbe.supabase.co/functions/v1` (NO trailing slash) |
-| `service_role_key` | the project service-role key (Settings → API → `service_role`) |
-| `payout_cron_secret` | **must byte-match** the edge-fn `PAYOUT_CRON_SECRET` env secret |
+| `service_role_key`       | the project service-role key (Settings → API → `service_role`)              |
+| `payout_cron_secret`     | **must byte-match** the edge-fn `PAYOUT_CRON_SECRET` env secret             |
 
 Set/rotate them in the dashboard **Project Settings → Vault**. Because edge-fn secrets are
 write-only (a lost value can't be read back), the way to make the two `*_cron_secret` ends
@@ -348,6 +359,6 @@ column to `now()`; to extend, set a later date.
 ## What you never configure
 
 - Payout schedules on club accounts — Express defaults (automatic daily) are correct; the
-  platform controls timing by *when it transfers*, not by payout schedules.
+  platform controls timing by _when it transfers_, not by payout schedules.
 - Products or prices for entries — entry line items are created dynamically per cart.
 - Anything on a club's behalf inside their Express account.

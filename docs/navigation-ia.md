@@ -17,7 +17,7 @@ Dedicated exhibitor home screen. At a glance: upcoming entries with status (Pend
 
 **Admin** → `/admin/dashboard`
 
-At a glance: system health overview. Fall 2026 nav: Dashboard, Users, Roles & Permissions only. All other admin items hidden.
+At a glance: system health overview. Fall 2026 nav: Dashboard, System Health, Users, Role Requests, Roles & Permissions, Payments, Support, Help. Deleted Items remains a direct admin recovery route for soft-deleted records.
 
 **Judge / Steward** → deferred. All judge routes parked; myK9Q is the primary judge surface for fall. Remove Judging section from nav entirely.
 
@@ -39,7 +39,8 @@ At a glance: system health overview. Fall 2026 nav: Dashboard, Users, Roles & Pe
 | Entry History `/exhibitor/entries/history`                                                                         | remove from sidebar         | Remove from nav                                 | Not in feature audit or any journey step; spurious nav item                                                                                                                                     |
 | Browse Clubs `/clubs`, Calendar `/calendar`                                                                        | park                        | Hide from nav                                   | Real features, not on fall golden path; no consolidation needed                                                                                                                                 |
 | Result Entry Dashboard `/results/dashboard`, TV Display `/tv/:showId`                                              | park                        | Hide from nav                                   | Not on golden path; myK9Q is canonical for scoring                                                                                                                                              |
-| Admin: Alerts, Performance, Analytics, Data Lifecycle, Performance Mode, Load Testing, Sync, Templates, Onboarding | park                        | Hide from nav                                   | All per classification rules                                                                                                                                                                    |
+| Admin: Alerts, Performance, Analytics, Performance Mode, Load Testing, Sync, Templates, Onboarding                | delete/park                 | Hide from nav                                   | Alerts and Performance were deleted as browser-local false-operational surfaces; the remaining parked items stay hidden per classification rules.                                               |
+| Admin Data Lifecycle shell                                                                                        | keep only restore concern   | `/admin/deleted-items`                          | Old archive/scheduler/cleanup tabs were removed; real soft-delete restore/permanent-delete stays as Deleted Items.                                                                              |
 | Judging section: `/judge/dashboard`, `/judge/stats`, `/judge/check-in`                                             | park                        | Hide from nav (remove section)                  | Deferred to post-fall                                                                                                                                                                           |
 
 ---

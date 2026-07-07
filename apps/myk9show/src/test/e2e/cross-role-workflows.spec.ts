@@ -44,8 +44,11 @@ test.describe('Cross-role workflow smoke', () => {
 
     await expect(page).toHaveURL(/\/exhibitor\/entries|\/my-entries/);
     await expect(page.getByRole('heading', { name: 'My Shows' })).toBeVisible({ timeout: 15000 });
-    await expect(page.getByRole('button', { name: 'Enter a Show' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Browse Shows' })).toBeVisible();
+    await page.getByRole('button', { name: 'Enter a Show' }).click();
+    await expect(page).toHaveURL(/\/shows$/);
+    await expect(page.getByRole('heading', { name: 'Shows', exact: true })).toBeVisible({
+      timeout: 15000,
+    });
   });
 
   test('judge can land on the assignment dashboard without myK9Show scoring controls', async ({

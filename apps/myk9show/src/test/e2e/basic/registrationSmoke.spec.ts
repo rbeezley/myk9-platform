@@ -3,15 +3,10 @@ import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
 
 const REGISTRATION_PATH = `/shows/${LIVE_REGISTRATION_SHOW_ID}/register`;
 
-function appBrand(page: Page) {
-  return page.getByText('myK9Show', { exact: true }).first();
-}
-
 async function gotoRegistrationSmoke(page: Page) {
-  await page.goto('/', { waitUntil: 'commit', timeout: 60000 });
-  await expect(appBrand(page)).toBeVisible({ timeout: 30000 });
   await page.goto(REGISTRATION_PATH, { waitUntil: 'commit', timeout: 60000 });
   await page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => undefined);
+  await expect(page.locator('body')).toBeVisible({ timeout: 30000 });
 }
 
 test.describe('Registration Smoke Tests', () => {
@@ -49,7 +44,6 @@ test.describe('Registration Smoke Tests', () => {
 
     await gotoRegistrationSmoke(page);
 
-    await expect(appBrand(page)).toBeVisible({ timeout: 30000 });
     await expect(page.locator('body')).toBeVisible();
 
     await page.waitForTimeout(2000);

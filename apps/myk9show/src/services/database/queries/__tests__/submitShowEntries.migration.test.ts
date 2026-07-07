@@ -16,4 +16,18 @@ describe('submit_show_entries migration authorization', () => {
     expect(migration).toContain('v_handler_person_id IN (d.owner_id, d.co_owner_id)');
     expect(migration).toContain("USING ERRCODE = '42501'");
   });
+
+  it('stores desk-paid submit entries as paid on insert', () => {
+    const migration = readFileSync(
+      resolve(
+        process.cwd(),
+        '../../supabase/migrations/20260706190500_submit_entries_preserve_selected_handler.sql'
+      ),
+      'utf8'
+    );
+
+    expect(migration).toContain(
+      "WHEN p_payment_method IN ('cash', 'check', 'secretary_paid', 'group_payment') THEN 'paid'"
+    );
+  });
 });

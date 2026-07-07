@@ -138,6 +138,31 @@ describe('submitShowRegistration', () => {
     );
   });
 
+  it('persists the initial secretary-paid enrollment totals and paid state', async () => {
+    const params = makeParams({
+      paymentMethod: 'secretary_paid',
+      paymentDetails: {
+        paymentReference: 'receipt-100',
+        paymentDate: '2026-07-07',
+      },
+      classes: [{ id: 'class-1', entryFee: 20 }],
+    });
+
+    await submitShowRegistration(params);
+
+    expect(params.deps.createShowRegistration).toHaveBeenCalledWith(
+      'show-1',
+      'owner-1',
+      'receipt-100',
+      expect.objectContaining({
+        paymentReference: 'receipt-100',
+        paymentDate: '2026-07-07',
+      }),
+      'secretary_paid',
+      3000
+    );
+  });
+
   it('does not duplicate claim-next armband patches through generic entry updates', async () => {
     const params = makeParams();
 

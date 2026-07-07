@@ -152,7 +152,7 @@ describe('EntryEditDialog — per-class handlers', () => {
       expect(entryServiceMocks.updateEntryHandler).toHaveBeenCalledWith({
         entryId: 'entry-container',
         handler: 'Chris Lee',
-        handlerId: 'handler-jamie',
+        handlerId: null,
       });
     });
   });

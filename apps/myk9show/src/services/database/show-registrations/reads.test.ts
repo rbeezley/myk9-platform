@@ -88,6 +88,33 @@ function makeExistingEnrollmentQuery() {
   };
 }
 
+function makeNewEnrollmentQuery() {
+  return {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    insert: vi.fn().mockReturnThis(),
+    single: vi.fn().mockResolvedValue({
+      data: {
+        id: 'enrollment-new',
+        show_id: 'show-1',
+        handler_id: 'handler-1',
+        confirmation_number: 'MK9-999999',
+        status: 'draft',
+        total_fees: 0,
+        payment_status: 'paid',
+        payment_method: 'secretary_paid',
+        payment_reference: 'receipt-100',
+        total_amount: 7000,
+        paid_amount: 70,
+        created_at: '2026-07-05T00:00:00Z',
+        updated_at: '2026-07-05T00:00:00Z',
+      },
+      error: null,
+    }),
+  };
+}
+
 describe('createShowRegistration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -105,6 +132,34 @@ describe('createShowRegistration', () => {
     expect(query.select).toHaveBeenCalledWith('*');
     expect(query.eq).toHaveBeenCalledWith('show_id', 'show-1');
     expect(query.eq).toHaveBeenCalledWith('handler_id', 'handler-1');
+  });
+
+  it('persists secretary-paid enrollment payment state on initial insert', async () => {
+    const query = makeNewEnrollmentQuery();
+    mocks.from.mockReturnValue(query);
+
+    const result = await createShowRegistration(
+      'show-1',
+      'handler-1',
+      'receipt-100',
+      { paymentReference: 'receipt-100', paymentDate: '2026-07-07' },
+      'secretary_paid',
+      7000
+    );
+
+    expect(result.error).toBeNull();
+    expect(query.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        show_id: 'show-1',
+        handler_id: 'handler-1',
+        payment_status: 'paid',
+        payment_method: 'secretary_paid',
+        payment_reference: 'receipt-100',
+        payment_date: '2026-07-07',
+        total_amount: 7000,
+        paid_amount: 70,
+      })
+    );
   });
 });
 

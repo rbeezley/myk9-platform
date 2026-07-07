@@ -5,10 +5,42 @@
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { mapDbToRegistration, mapDbToRegistrationArray } from '../../mappers/registrationMappers';
 import type { Registration, DbRegistration } from '@/types/registration-types';
-import type { PaymentDetails } from '@/types/show-registration-types';
+import {
+  PaymentStatus,
+  type PaymentDetails,
+  type PaymentMethod,
+} from '@/types/show-registration-types';
 import type { TablesUpdate } from '@/types/supabase';
 
 const POSTGRES_UNIQUE_VIOLATION = '23505';
+
+function paymentMethodToEnrollmentStatus(
+  paymentMethod: PaymentMethod | undefined
+): string | undefined {
+  switch (paymentMethod) {
+    case 'check':
+      return PaymentStatus.PAID_BY_CHECK;
+    case 'cash':
+      return PaymentStatus.PAID_BY_CASH;
+    case 'secretary_paid':
+    case 'group_payment':
+      return 'paid';
+    case 'waived':
+      return 'waived';
+    case 'credit_card':
+      return PaymentStatus.PENDING;
+    default:
+      return undefined;
+  }
+}
+
+function isEnrollmentPaidAtSubmit(paymentStatus: string | undefined): boolean {
+  return (
+    paymentStatus === 'paid' ||
+    paymentStatus === PaymentStatus.PAID_BY_CHECK ||
+    paymentStatus === PaymentStatus.PAID_BY_CASH
+  );
+}
 
 function mapEnrollmentPaymentStatusToEntryStatus(
   paymentStatus: string
@@ -41,7 +73,9 @@ export const createShowRegistration = async (
   showId: string,
   handlerId: string,
   paymentReference?: string,
-  paymentDetails?: PaymentDetails
+  paymentDetails?: PaymentDetails,
+  paymentMethod?: PaymentMethod,
+  totalAmountCents?: number
 ): Promise<{
   data: Registration | null;
   error: ReturnType<typeof createDatabaseError> | null;
@@ -57,11 +91,19 @@ export const createShowRegistration = async (
       return existing;
     }
 
+    const paymentStatus = paymentMethodToEnrollmentStatus(paymentMethod);
+    const totalAmountDollars = (totalAmountCents ?? 0) / 100;
+    const paidAmount = isEnrollmentPaidAtSubmit(paymentStatus) ? totalAmountDollars : 0;
+
     const { data, error } = await supabase
       .from('enrollments')
       .insert({
         show_id: showId,
         handler_id: handlerId,
+        ...(paymentStatus ? { payment_status: paymentStatus } : {}),
+        ...(paymentMethod ? { payment_method: paymentMethod } : {}),
+        ...(totalAmountCents !== undefined ? { total_amount: totalAmountCents } : {}),
+        ...(paymentStatus ? { paid_amount: paidAmount } : {}),
         payment_reference: paymentReference ?? null,
         check_number: paymentDetails?.checkNumber ?? null,
         payment_date: paymentDetails?.paymentDate ?? null,

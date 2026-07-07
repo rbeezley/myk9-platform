@@ -204,7 +204,7 @@ export function EntryEditDialog({ open, onOpenChange, entry, onUpdate }: EntryEd
           const { error } = await updateEntryHandler({
             entryId: classEntry.id,
             handler: editedHandler,
-            handlerId: classEntry.handlerId ?? null,
+            handlerId: null,
           });
           if (error) {
             setError('Failed to update handler. Please try again.');

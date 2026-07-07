@@ -118,14 +118,6 @@ export async function submitShowRegistration({
   await resolvedDeps.submitRegistration(registrationId, paymentDetails);
   if (!isStillActive(isActive)) return { aborted: true };
 
-  const enrollment = await ensureEnrollment({
-    showId,
-    ownerResolution,
-    paymentDetails,
-    deps: resolvedDeps,
-  });
-  if (!isStillActive(isActive)) return { aborted: true };
-
   const entryInputs = registrationToEntries(
     showId,
     classSelections,
@@ -133,6 +125,20 @@ export async function submitShowRegistration({
     classes,
     showFeeInfo
   );
+  const totalAmountCents = entryInputs.reduce(
+    (sum, entry) => sum + Math.round((entry.registrationData.entryFee ?? 0) * 100),
+    0
+  );
+  const enrollment = await ensureEnrollment({
+    showId,
+    ownerResolution,
+    paymentMethod,
+    paymentDetails,
+    totalAmountCents,
+    deps: resolvedDeps,
+  });
+  if (!isStillActive(isActive)) return { aborted: true };
+
   let armbandAssignments: ArmbandAssignment[] = [];
   let armbandFailures: ArmbandAssignmentFailure[] = [];
 
@@ -179,12 +185,16 @@ export async function submitShowRegistration({
 async function ensureEnrollment({
   showId,
   ownerResolution,
+  paymentMethod,
   paymentDetails,
+  totalAmountCents,
   deps,
 }: {
   showId: string;
   ownerResolution: SelectedDogsOwnerResult;
+  paymentMethod: PaymentMethod;
   paymentDetails?: PaymentDetails | undefined;
+  totalAmountCents: number;
   deps: SubmitShowRegistrationDeps;
 }): Promise<{ registrationNumber?: string | undefined; dbRegistrationId?: string | undefined }> {
   if (!ownerResolution.ok) {
@@ -198,7 +208,9 @@ async function ensureEnrollment({
     showId,
     ownerResolution.ownerId,
     paymentDetails?.paymentReference,
-    paymentDetails
+    paymentDetails,
+    paymentMethod,
+    totalAmountCents
   );
 
   return {

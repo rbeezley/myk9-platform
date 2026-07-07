@@ -180,6 +180,7 @@ BEGIN
       v_server_fee,
       'submitted',
       CASE
+        WHEN p_payment_method IN ('cash', 'check', 'secretary_paid', 'group_payment') THEN 'paid'
         WHEN p_payment_method IN ('waived') THEN 'waived'
         ELSE 'pending'
       END,

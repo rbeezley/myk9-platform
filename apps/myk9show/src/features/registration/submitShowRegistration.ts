@@ -132,9 +132,6 @@ export async function submitShowRegistration({
   const enrollment = await ensureEnrollment({
     showId,
     ownerResolution,
-    paymentMethod,
-    paymentDetails,
-    totalAmountCents,
     deps: resolvedDeps,
   });
   if (!isStillActive(isActive)) return { aborted: true };
@@ -156,6 +153,16 @@ export async function submitShowRegistration({
       })),
       submissionId: resolvedDeps.createSubmissionId(),
       paymentMethod,
+    });
+    if (!isStillActive(isActive)) return { aborted: true };
+
+    await recordEnrollmentPayment({
+      showId,
+      ownerResolution,
+      paymentMethod,
+      paymentDetails,
+      totalAmountCents,
+      deps: resolvedDeps,
     });
     if (!isStillActive(isActive)) return { aborted: true };
 
@@ -185,6 +192,25 @@ export async function submitShowRegistration({
 async function ensureEnrollment({
   showId,
   ownerResolution,
+  deps,
+}: {
+  showId: string;
+  ownerResolution: SelectedDogsOwnerResult;
+  deps: SubmitShowRegistrationDeps;
+}): Promise<{ registrationNumber?: string | undefined; dbRegistrationId?: string | undefined }> {
+  assertResolvedEnrollmentOwner(ownerResolution);
+
+  const result = await deps.createShowRegistration(showId, ownerResolution.ownerId);
+
+  return {
+    registrationNumber: result.data?.confirmationNumber,
+    dbRegistrationId: result.data?.id,
+  };
+}
+
+async function recordEnrollmentPayment({
+  showId,
+  ownerResolution,
   paymentMethod,
   paymentDetails,
   totalAmountCents,
@@ -196,15 +222,10 @@ async function ensureEnrollment({
   paymentDetails?: PaymentDetails | undefined;
   totalAmountCents: number;
   deps: SubmitShowRegistrationDeps;
-}): Promise<{ registrationNumber?: string | undefined; dbRegistrationId?: string | undefined }> {
-  if (!ownerResolution.ok) {
-    throw new Error(
-      'Internal: payment submit reached with unresolved enrollment owner. ' +
-        'Selected dogs span multiple owners or have no owner set.'
-    );
-  }
+}): Promise<void> {
+  assertResolvedEnrollmentOwner(ownerResolution);
 
-  const result = await deps.createShowRegistration(
+  await deps.createShowRegistration(
     showId,
     ownerResolution.ownerId,
     paymentDetails?.paymentReference,
@@ -212,11 +233,17 @@ async function ensureEnrollment({
     paymentMethod,
     totalAmountCents
   );
+}
 
-  return {
-    registrationNumber: result.data?.confirmationNumber,
-    dbRegistrationId: result.data?.id,
-  };
+function assertResolvedEnrollmentOwner(
+  ownerResolution: SelectedDogsOwnerResult
+): asserts ownerResolution is Extract<SelectedDogsOwnerResult, { ok: true }> {
+  if (!ownerResolution.ok) {
+    throw new Error(
+      'Internal: payment submit reached with unresolved enrollment owner. ' +
+        'Selected dogs span multiple owners or have no owner set.'
+    );
+  }
 }
 
 async function assignArmbandsForEntries({

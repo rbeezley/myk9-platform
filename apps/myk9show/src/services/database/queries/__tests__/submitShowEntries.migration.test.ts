@@ -33,4 +33,31 @@ describe('submit_show_entries migration authorization', () => {
       "WHEN p_payment_method IN ('cash', 'check', 'secretary_paid', 'group_payment') THEN 'paid'"
     );
   });
+
+  it('requires officials for all privileged payment methods', () => {
+    const migration = readFileSync(
+      resolve(
+        process.cwd(),
+        '../../supabase/migrations/20260706190500_submit_entries_preserve_selected_handler.sql'
+      ),
+      'utf8'
+    );
+
+    expect(migration).toContain(
+      "IF p_payment_method IN ('waived', 'secretary_paid', 'group_payment') AND NOT v_is_official THEN"
+    );
+  });
+
+  it('does not infer handler ids from free-text names during corrections', () => {
+    const migration = readFileSync(
+      resolve(
+        process.cwd(),
+        '../../supabase/migrations/20260707123000_entry_management_handler_corrections.sql'
+      ),
+      'utf8'
+    );
+
+    expect(migration).not.toContain('concat_ws');
+    expect(migration).toContain('handler_id = v_resolved_handler_id');
+  });
 });

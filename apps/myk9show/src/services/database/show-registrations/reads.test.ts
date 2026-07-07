@@ -312,6 +312,30 @@ describe('createShowRegistration', () => {
     );
     expect(updatePayload).not.toHaveProperty('paid_amount');
   });
+
+  it('does not rewrite existing enrollment financials for a waived add-on', async () => {
+    const existingQuery = makeExistingEnrollmentQuery({
+      payment_status: 'paid',
+      payment_method: 'secretary_paid',
+      total_amount: 7000,
+      paid_amount: 70,
+    });
+    mocks.from.mockReturnValueOnce(existingQuery);
+
+    const result = await createShowRegistration(
+      'show-1',
+      'handler-1',
+      undefined,
+      undefined,
+      'waived',
+      3000
+    );
+
+    expect(result.error).toBeNull();
+    expect(result.data?.id).toBe('enrollment-existing');
+    expect(existingQuery.insert).not.toHaveBeenCalled();
+    expect(mocks.from).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('updateEnrollmentPaymentStatus', () => {

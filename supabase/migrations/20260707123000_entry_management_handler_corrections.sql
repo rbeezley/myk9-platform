@@ -54,13 +54,6 @@ BEGIN
           USING ERRCODE = '22023';
       END IF;
       v_resolved_handler_id := p_handler_id;
-    ELSIF btrim(COALESCE(p_handler, '')) <> '' THEN
-      SELECT p.id
-        INTO v_resolved_handler_id
-        FROM public.people p
-       WHERE concat_ws(' ', NULLIF(btrim(p.first_name), ''), NULLIF(btrim(p.last_name), '')) =
-             btrim(p_handler)
-       LIMIT 1;
     END IF;
 
     UPDATE public.entries

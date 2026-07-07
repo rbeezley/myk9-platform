@@ -138,7 +138,7 @@ describe('submitShowRegistration', () => {
     );
   });
 
-  it('persists the initial secretary-paid enrollment totals and paid state', async () => {
+  it('persists the initial secretary-paid enrollment totals and paid state after entries submit', async () => {
     const params = makeParams({
       paymentMethod: 'secretary_paid',
       paymentDetails: {
@@ -150,7 +150,10 @@ describe('submitShowRegistration', () => {
 
     await submitShowRegistration(params);
 
-    expect(params.deps.createShowRegistration).toHaveBeenCalledWith(
+    expect(params.deps.createShowRegistration).toHaveBeenNthCalledWith(1, 'show-1', 'owner-1');
+    expect(params.deps.submitShowEntries).toHaveBeenCalledTimes(1);
+    expect(params.deps.createShowRegistration).toHaveBeenNthCalledWith(
+      2,
       'show-1',
       'owner-1',
       'receipt-100',
@@ -161,6 +164,22 @@ describe('submitShowRegistration', () => {
       'secretary_paid',
       3000
     );
+  });
+
+  it('does not persist enrollment payment totals when entry submission fails', async () => {
+    const params = makeParams({
+      paymentMethod: 'secretary_paid',
+      paymentDetails: {
+        paymentReference: 'receipt-100',
+        paymentDate: '2026-07-07',
+      },
+    });
+    vi.mocked(params.deps.submitShowEntries!).mockRejectedValue(new Error('fee mismatch'));
+
+    await expect(submitShowRegistration(params)).rejects.toThrow('fee mismatch');
+
+    expect(params.deps.createShowRegistration).toHaveBeenCalledTimes(1);
+    expect(params.deps.createShowRegistration).toHaveBeenCalledWith('show-1', 'owner-1');
   });
 
   it('does not duplicate claim-next armband patches through generic entry updates', async () => {

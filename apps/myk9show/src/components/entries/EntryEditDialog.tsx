@@ -78,11 +78,18 @@ interface EntryEditDialogProps {
   onOpenChange: (open: boolean) => void;
   entry: EntryData;
   onUpdate: () => void;
+  ignoreModificationDeadline?: boolean;
 }
 
 const JUMP_HEIGHTS = ['4"', '8"', '12"', '16"', '20"', '24"', '26"'];
 
-export function EntryEditDialog({ open, onOpenChange, entry, onUpdate }: EntryEditDialogProps) {
+export function EntryEditDialog({
+  open,
+  onOpenChange,
+  entry,
+  onUpdate,
+  ignoreModificationDeadline = false,
+}: EntryEditDialogProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -120,6 +127,13 @@ export function EntryEditDialog({ open, onOpenChange, entry, onUpdate }: EntryEd
       setIsLoading(true);
       setError(null);
 
+      if (ignoreModificationDeadline) {
+        setCanModify(true);
+        setModifyReason(undefined);
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const result = await canModifyEntry(entry.showId);
         setCanModify(result.canModify);
@@ -141,7 +155,7 @@ export function EntryEditDialog({ open, onOpenChange, entry, onUpdate }: EntryEd
     if (open && entry.showId) {
       checkModifications();
     }
-  }, [open, entry.showId]);
+  }, [open, entry.showId, ignoreModificationDeadline]);
 
   const handleJumpHeightChange = (classId: string, jumpHeight: string) => {
     setClassEdits(prev => ({

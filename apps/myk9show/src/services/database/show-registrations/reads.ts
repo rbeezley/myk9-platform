@@ -50,6 +50,7 @@ function buildEnrollmentPaymentFields({
   existingPaidAmountDollars = 0,
   includeEmptyPaymentDetails = false,
   preservePaidAmountForPending = false,
+  preserveFinancialForWaived = false,
 }: {
   paymentReference?: string | undefined;
   paymentDetails?: PaymentDetails | undefined;
@@ -59,10 +60,14 @@ function buildEnrollmentPaymentFields({
   existingPaidAmountDollars?: number | null | undefined;
   includeEmptyPaymentDetails?: boolean | undefined;
   preservePaidAmountForPending?: boolean | undefined;
+  preserveFinancialForWaived?: boolean | undefined;
 }): TablesUpdate<'enrollments'> {
   const paymentStatus = paymentMethodToEnrollmentStatus(paymentMethod);
+  const shouldPreserveFinancialForWaived = preserveFinancialForWaived && paymentStatus === 'waived';
   const nextTotalAmountCents =
-    totalAmountCents !== undefined ? (existingTotalAmountCents ?? 0) + totalAmountCents : undefined;
+    totalAmountCents !== undefined && !shouldPreserveFinancialForWaived
+      ? (existingTotalAmountCents ?? 0) + totalAmountCents
+      : undefined;
   const isRecordedPaid = isEnrollmentPaidAtSubmit(paymentStatus);
   const paidAmount = isRecordedPaid
     ? (existingPaidAmountDollars ?? 0) + (totalAmountCents ?? 0) / 100
@@ -77,13 +82,15 @@ function buildEnrollmentPaymentFields({
     preservePaidAmountForPending && paymentStatus === PaymentStatus.PENDING;
 
   const fields: TablesUpdate<'enrollments'> = {
-    ...(resolvedPaymentStatus
+    ...(resolvedPaymentStatus && !shouldPreserveFinancialForWaived
       ? {
           payment_status: resolvedPaymentStatus,
           ...(!shouldPreservePaidAmount ? { paid_amount: paidAmount } : {}),
         }
       : {}),
-    ...(paymentMethod ? { payment_method: paymentMethod } : {}),
+    ...(paymentMethod && !shouldPreserveFinancialForWaived
+      ? { payment_method: paymentMethod }
+      : {}),
     ...(nextTotalAmountCents !== undefined ? { total_amount: nextTotalAmountCents } : {}),
   };
 
@@ -140,19 +147,24 @@ async function updateExistingEnrollmentPayment({
   data: Registration | null;
   error: ReturnType<typeof createDatabaseError> | null;
 }> {
+  const paymentFields = buildEnrollmentPaymentFields({
+    paymentReference,
+    paymentDetails,
+    paymentMethod,
+    totalAmountCents,
+    existingTotalAmountCents: existing.totalAmount,
+    existingPaidAmountDollars: existing.paidAmount,
+    preservePaidAmountForPending: true,
+    preserveFinancialForWaived: true,
+  });
+
+  if (Object.keys(paymentFields).length === 0) {
+    return { data: existing, error: null };
+  }
+
   const { data, error } = await supabase
     .from('enrollments')
-    .update(
-      buildEnrollmentPaymentFields({
-        paymentReference,
-        paymentDetails,
-        paymentMethod,
-        totalAmountCents,
-        existingTotalAmountCents: existing.totalAmount,
-        existingPaidAmountDollars: existing.paidAmount,
-        preservePaidAmountForPending: true,
-      })
-    )
+    .update(paymentFields)
     .eq('id', existing.id)
     .select('*')
     .single();

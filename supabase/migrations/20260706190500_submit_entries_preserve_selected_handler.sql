@@ -72,7 +72,7 @@ BEGIN
   );
 
   -- 4. Payment method authorization
-  IF p_payment_method IN ('waived', 'secretary_paid') AND NOT v_is_official THEN
+  IF p_payment_method IN ('waived', 'secretary_paid', 'group_payment') AND NOT v_is_official THEN
     RAISE EXCEPTION 'unauthorized payment method: % requires secretary or admin role', p_payment_method
       USING ERRCODE = '42501';
   END IF;

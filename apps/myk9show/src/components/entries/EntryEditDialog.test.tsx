@@ -86,6 +86,27 @@ describe('EntryEditDialog — jump height visibility by discipline', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('can bypass exhibitor modification eligibility for secretary corrections', async () => {
+    entryServiceMocks.canModifyEntry.mockResolvedValue({
+      canModify: false,
+      reason: 'Entry deadline has passed',
+    });
+
+    render(
+      <EntryEditDialog
+        open
+        entry={makeEntry('Scent Work')}
+        onOpenChange={noop}
+        onUpdate={noop}
+        ignoreModificationDeadline
+      />
+    );
+
+    expect(await screen.findByText(/Container Novice A/)).toBeInTheDocument();
+    expect(screen.queryByText(/entry deadline has passed/i)).not.toBeInTheDocument();
+    expect(entryServiceMocks.canModifyEntry).not.toHaveBeenCalled();
+  });
+
   it('shows the Jump Height field for agility entries', async () => {
     render(
       <EntryEditDialog open entry={makeEntry('Agility')} onOpenChange={noop} onUpdate={noop} />

@@ -45,7 +45,7 @@
 - [x] 6.2 Run OpenSpec validation with `pnpm openspec validate --changes offline-show-desk-late-entry`.
 - [x] 6.3 Run a focused TypeScript check for touched packages/apps, at minimum `pnpm --filter @myk9/replication typecheck` and the relevant myK9Show typecheck command available in the repo.
 - [x] 6.4 Run implementation verification with the OpenSpec verify-change process and fix critical findings.
-- [ ] 6.5 Commit implementation changes and open a PR with `Tracked in openspec change: offline-show-desk-late-entry` in the body.
+- [x] 6.5 Commit implementation changes and open a PR with `Tracked in openspec change: offline-show-desk-late-entry` in the body.
 - [ ] 6.6 Wait for CI/review and merge before archiving the OpenSpec change.
 
 ## Validation Profile

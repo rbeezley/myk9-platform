@@ -41,6 +41,20 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     }
   });
 
+  it('pure site-admin sidebar stays focused on admin operations', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN]);
+    expect(config.groups.map(g => g.title)).toEqual(['Admin']);
+  });
+
+  it('site admin with secretary role still gets staff workflow groups', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN, UserRole.SECRETARY]);
+    const titles = config.groups.map(g => g.title);
+    expect(titles).toContain('Admin');
+    expect(titles).toContain('Manage');
+    expect(titles).toContain('Show Day');
+    expect(titles).toContain('Browse');
+  });
+
   // ── Manage ───────────────────────────────────────────────────────────────
   it('manage sidebar items are in lifecycle order (no next show)', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
@@ -254,9 +268,8 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     expect(oldSection).toBeUndefined();
   });
 
-  // ── Ringside (Show Day) — permanent, every role ──────────────────────────
+  // ── Ringside (Show Day) — permanent for staff roles ─────────────────────
   it.each([
-    ['admin', [UserRole.SITE_ADMIN]],
     ['secretary', [UserRole.SECRETARY]],
     ['judge', [UserRole.JUDGE]],
     ['club admin', [UserRole.CLUB_ADMIN]],

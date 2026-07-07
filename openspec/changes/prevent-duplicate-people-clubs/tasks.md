@@ -39,7 +39,7 @@
 - [x] 5.2 Run the club duplicate inventory query or dry-run before requesting approval for any shared database push.
 - [x] 5.3 Update `OPEN-TODOS.md` when the implementation closes the people/clubs parked scope or splits remaining merge-tooling work.
 - [x] 5.4 Commit the implementation branch.
-- [ ] 5.5 Open a PR with `Tracked in openspec change: prevent-duplicate-people-clubs` and verification evidence.
+- [x] 5.5 Open a PR with `Tracked in openspec change: prevent-duplicate-people-clubs` and verification evidence.
 - [ ] 5.6 Confirm CI/review status before merge; do not archive until the PR is merged.
 
 ## Validation Profile

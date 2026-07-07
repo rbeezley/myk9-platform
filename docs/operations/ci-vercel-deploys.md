@@ -124,6 +124,10 @@ on) while the workflow is fixed.
 - **Preview deploys for PRs** are unchanged — they keep coming from Vercel's Git
   integration (`git.deploymentEnabled.main: false` disables Git deploys only for
   the `main` branch, so other-branch previews still build).
+- **Preview deployment quota controls** live in
+  [`vercel-preview-quota.md`](vercel-preview-quota.md). Keep Vercel preview
+  contexts non-required and use monorepo skip-unaffected project behavior instead
+  of an Ignored Build Step quota workaround.
 
 See also [`VERCEL-SETUP.md`](../architecture/VERCEL-SETUP.md) for project URLs,
 root directories, and required `VITE_*` env vars.

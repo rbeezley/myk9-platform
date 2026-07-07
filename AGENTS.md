@@ -111,6 +111,14 @@ cd apps/myk9show && npx vitest run -t "pattern"
 - **myK9Show staging:** myk9-platform-myk9show.vercel.app (auto-deploys from `main`)
 - **Legacy production myK9Qv3:** myk9q.com (separate repo, untouched)
 
+### Vercel Hobby quota / preview deploy discipline
+
+This repo has multiple Vercel projects on a Hobby account, so PR preview deployments can hit the daily deployment-created limit. Follow [`docs/operations/vercel-preview-quota.md`](docs/operations/vercel-preview-quota.md) for the full runbook.
+
+- Before pushing a PR branch, batch local fixes and run the relevant local checks/review first; avoid micro-pushes that only exercise Vercel again.
+- Vercel preview contexts are intentionally not required by the GitHub `main-required-checks` ruleset. If a guides/app preview is rate-limited but GitHub required checks are green, treat that as non-blocking unless the preview itself is needed for visual QA.
+- Before changing Vercel project settings, confirm the shared-system mutation with the user. The desired Vercel setting is monorepo skip-unaffected projects, not an Ignored Build Step workaround.
+
 ## Key Patterns
 
 ### Offline-first data

@@ -24,6 +24,16 @@ describe('translateDogDbError', () => {
     expect(result.message).toBe('This dog conflicts with an existing record.');
   });
 
+  it('surfaces the registration-number-specific message for exact identity conflicts', () => {
+    const raw = {
+      code: '23505',
+      message:
+        'duplicate key value violates unique constraint "dog_registrations_live_org_number_unique"',
+    };
+    const result = translateDogDbError(raw);
+    expect(result.message).toBe('A dog with this registration number already exists.');
+  });
+
   it('detects duplicate key via message when code is missing', () => {
     const raw = { message: 'duplicate key value on microchip_number index' };
     const result = translateDogDbError(raw);

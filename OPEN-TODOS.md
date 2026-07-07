@@ -164,7 +164,7 @@ From live walk-throughs during the multi-registry Phase 4 verification. Full det
 
 ## Post-Fall (parked — do not pick up before Phase 3 exit)
 
-- [ ] **Prevent Duplicate Rows in Core Tables** — Add uniqueness constraints on people/dogs/clubs after a duplicate audit and merge migration.
+- [~] **Prevent Duplicate Rows in Core Tables** — Dog registry-identity prevention moved prelaunch in OpenSpec change `prevent-duplicate-dog-identities`: exact live `dog_registrations` identities get normalized uniqueness, duplicate-aware dog create, and existing-surface warnings. Remaining parked scope: broader people/clubs/core-table duplicate audit and merge tooling.
 - [ ] **Configurable Exhibitor Convenience Fee** — ~~Add site-admin default~~ The site-admin-default half moved into the PRE-LAUNCH "Admin payout ledger + platform fee setting" item (2026-06-10). What remains parked here: the **per-show/per-club override** — build when a real club negotiates a custom rate (safe by construction: the fee never enters payout math).
 - [ ] **Role-Mode Icon Switcher for Sidebar Nav** — Replace labelled section groups with an icon-mode switcher; brainstorm before implementing.
 - [ ] **Queue-based Offline Dog Create** — Extend MutationManager to `dogs` table and replace rollback behavior with queued offline create.

@@ -631,6 +631,15 @@ describe('MutationManager', () => {
 
     it('remaps dog dependents when an RPC INSERT returns an existing dog id', async () => {
       vi.mocked(mockSupabase.rpc).mockResolvedValue({ data: 'existing-dog-1', error: null } as never);
+      const entryInsertMock = vi.fn(() => ({
+        select: vi.fn(() => Promise.resolve({ data: [{ id: 'entry-1' }], error: null })),
+      }));
+      vi.mocked(mockSupabase.from).mockImplementation(
+        () =>
+          ({
+            insert: entryInsertMock,
+          }) as never
+      );
       await mockDb.put(REPLICATION_STORES.REPLICATED_TABLES, {
         tableName: 'dogs',
         id: 'dog-1',
@@ -718,6 +727,9 @@ describe('MutationManager', () => {
       expect(pending).toEqual([]);
       expect(failed).toEqual([]);
       expect(vi.mocked(mockSupabase.from)).toHaveBeenCalledWith('entries');
+      expect(entryInsertMock).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'entry-1', dog_id: 'existing-dog-1' })
+      );
       expect(remappedDog?.data.id).toBe('existing-dog-1');
       expect(remappedDog?.syncStatus).toBe('synced');
       expect(oldDog).toBeUndefined();

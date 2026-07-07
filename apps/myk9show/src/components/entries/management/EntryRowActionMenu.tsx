@@ -21,6 +21,7 @@ export interface EntryRowActionMenuProps {
   onStatusChange?: ((entryId: string, status: EntryStatus) => void) | undefined;
   onCheckInEntry?: ((entryId: string) => void) | undefined;
   onOpenArmbandDialog?: ((entry: EntryManagementEntry) => void) | undefined;
+  onOpenEditEntry?: ((entry: EntryManagementEntry) => void) | undefined;
   onOpenCompDialog?: ((entry: EntryManagementEntry) => void) | undefined;
   onUncompEntry?: ((entryId: string) => void) | undefined;
   onRemoveEntry?: ((entryId: string) => void) | undefined;
@@ -41,6 +42,7 @@ export function EntryRowActionMenu({
   onStatusChange,
   onCheckInEntry,
   onOpenArmbandDialog,
+  onOpenEditEntry,
   onOpenCompDialog,
   onUncompEntry,
   onRemoveEntry,
@@ -50,6 +52,14 @@ export function EntryRowActionMenu({
   onOpenRefund,
 }: EntryRowActionMenuProps) {
   const actions: RowAction[] = [
+    {
+      id: 'edit',
+      label: 'Edit entry',
+      sectionLabel: 'Entry',
+      icon: <PencilLine className="h-4 w-4" />,
+      onSelect: () => onOpenEditEntry?.(entry),
+      hidden: !onOpenEditEntry,
+    },
     {
       id: 'accept',
       label: 'Accept entry',

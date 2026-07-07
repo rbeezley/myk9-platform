@@ -266,7 +266,7 @@ export function EntryEditDialog({ open, onOpenChange, entry, onUpdate }: EntryEd
               <Dog className="h-5 w-5" />
               Edit Entry
             </SheetTitle>
-            <SheetDescription>Modify your entry for {entry.showName}</SheetDescription>
+            <SheetDescription>Modify this entry for {entry.showName}</SheetDescription>
           </SheetHeader>
 
           <SheetBody>

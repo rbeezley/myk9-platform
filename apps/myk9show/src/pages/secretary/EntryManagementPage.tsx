@@ -30,9 +30,11 @@ import {
   TrialScopeBar,
   RegistrationView,
 } from '@/components/entries/management';
+import { EntryEditDialog } from '@/components/entries/EntryEditDialog';
 import { MoveUpRequestsTab } from '@/components/entries/MoveUpRequestsTab';
 import { PullManagementTab } from '@/components/entries/PullManagementTab';
 import { groupEntriesByEnrollment, type EnrollmentGroup } from '@/utils/enrollmentGrouping';
+import type { EntryManagementEntry } from '@/types/entry-management-types';
 
 const PAGE_TABS: PrimaryTabDef[] = [
   { id: 'entries', label: 'Entries' },
@@ -143,6 +145,7 @@ const EntryManagementPage: React.FC = () => {
     () => groupEntriesByEnrollment(filteredEntries),
     [filteredEntries]
   );
+  const selectedShow = shows.find(s => s.id === selectedShowId) ?? null;
 
   const {
     isProcessing,
@@ -164,7 +167,7 @@ const EntryManagementPage: React.FC = () => {
     entries,
     setEntries,
     selectedShowId,
-    selectedShow: shows.find(s => s.id === selectedShowId) ?? null,
+    selectedShow,
     loadEntries,
     setError,
     user,
@@ -197,6 +200,28 @@ const EntryManagementPage: React.FC = () => {
     dogName: '',
     className: '',
   });
+  const [editEntry, setEditEntry] = useState<
+    React.ComponentProps<typeof EntryEditDialog>['entry'] | null
+  >(null);
+
+  const openEditEntry = (entry: EntryManagementEntry) => {
+    setEditEntry({
+      id: entry.id,
+      showId: entry.showId,
+      showName: selectedShow?.name ?? 'this show',
+      dogName: entry.dogName,
+      handler: entry.handlerName,
+      classes: entry.classes.map(cls => ({
+        id: cls.id,
+        name: cls.name,
+        number: cls.number,
+        fee: cls.fee,
+        status: cls.status,
+        handler: entry.handlerName,
+        ...(cls.jumpHeight !== undefined ? { jumpHeight: cls.jumpHeight } : {}),
+      })),
+    });
+  };
 
   useEffect(() => {
     auditService.log({
@@ -387,12 +412,14 @@ const EntryManagementPage: React.FC = () => {
                   entryViewMode={entryViewMode}
                   setEntryViewMode={setEntryViewMode}
                   filteredEntries={filteredEntries}
+                  showId={selectedShowId}
                   entries={entries}
                   onBulkStatusChange={handleEnrollmentBulkStatusChange}
                   onBulkCheckIn={handleEnrollmentBulkCheckIn}
                   onPaymentStatusChange={handleEnrollmentPaymentChange}
                   onStatusChange={handleStatusChange}
                   onCheckInStatusChange={handleCheckInStatusChange}
+                  onOpenEditEntry={openEditEntry}
                   onOpenArmbandDialog={entry =>
                     setArmbandDialog({
                       open: true,
@@ -496,6 +523,16 @@ const EntryManagementPage: React.FC = () => {
         }}
         isProcessing={isProcessing}
       />
+      {editEntry && (
+        <EntryEditDialog
+          open={true}
+          onOpenChange={open => {
+            if (!open) setEditEntry(null);
+          }}
+          entry={editEntry}
+          onUpdate={() => loadEntries(selectedShowId)}
+        />
+      )}
     </div>
   );
 };

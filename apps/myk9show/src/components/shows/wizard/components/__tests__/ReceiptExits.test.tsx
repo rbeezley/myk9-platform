@@ -36,4 +36,20 @@ describe('ReceiptExits (4.A honest exits)', () => {
     expect(onDone).toHaveBeenCalledTimes(1);
     expect(navigateMock).not.toHaveBeenCalled();
   });
+
+  it('uses the supplied staff completion label', async () => {
+    const user = userEvent.setup();
+    const onDone = vi.fn();
+    render(
+      <ReceiptExits
+        isExhibitor={false}
+        showId="show-1"
+        onDone={onDone}
+        doneLabel="Return to Entry Management"
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /return to entry management/i }));
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
 });

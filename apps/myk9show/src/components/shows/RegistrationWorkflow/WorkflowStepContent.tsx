@@ -26,6 +26,7 @@ import { notifications } from '@/lib/notifications';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info } from 'lucide-react';
 import type { WorkflowConfig } from './RegistrationWorkflow.types';
+import type { WorkflowMode } from './RegistrationWorkflow.types';
 import type { ArmbandAssignment } from './ConfirmationStep.types';
 
 interface OptimisticRegistrationState {
@@ -39,6 +40,7 @@ interface OptimisticRegistrationState {
 interface WorkflowStepContentProps {
   currentStepId: string;
   currentWorkflowConfig: WorkflowConfig;
+  currentWorkflowMode: WorkflowMode;
   registrationData: RegistrationFormData;
   optimisticState: OptimisticRegistrationState;
   showId: string;
@@ -71,6 +73,7 @@ interface WorkflowStepContentProps {
 export function WorkflowStepContent({
   currentStepId,
   currentWorkflowConfig,
+  currentWorkflowMode,
   registrationData,
   optimisticState,
   showId,
@@ -306,6 +309,7 @@ export function WorkflowStepContent({
             paymentMethod={optimisticState.formData.paymentMethod || ''}
             paymentStatus={optimisticState.paymentStatus}
             entryStatus={optimisticState.entryStatus}
+            workflowMode={currentWorkflowMode}
             totalFees={currentRegistrationTotalFees}
             showId={showId}
             armbandAssignments={armbandAssignments}

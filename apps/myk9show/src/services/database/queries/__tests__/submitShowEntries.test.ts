@@ -30,6 +30,7 @@ const baseParams = {
     {
       dogId: 'dog-uuid-1',
       classId: 'class-uuid-1',
+      handlerId: 'handler-uuid-1',
       handlerName: 'Jane Doe',
       paymentMethod: 'credit_card',
       clientFeeCents: 2500,
@@ -75,6 +76,7 @@ describe('submitShowEntries', () => {
         {
           dog_id: 'dog-uuid-1',
           class_id: 'class-uuid-1',
+          handler_id: 'handler-uuid-1',
           handler_name: 'Jane Doe',
           payment_method: 'credit_card',
           client_fee_cents: 2500,
@@ -82,6 +84,7 @@ describe('submitShowEntries', () => {
         {
           dog_id: 'dog-uuid-2',
           class_id: 'class-uuid-2',
+          handler_id: null,
           handler_name: 'John Doe',
           payment_method: 'credit_card',
           client_fee_cents: 2500,

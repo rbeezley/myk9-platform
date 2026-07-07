@@ -4,10 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DataTable, type DataTableColumnMeta } from '@/components/ui/data-table';
-import {
-  getEffectivePaymentStatus,
-  getPaymentStatusBadge,
-} from '@/utils/entryManagementUtils';
+import { getEffectivePaymentStatus, getPaymentStatusBadge } from '@/utils/entryManagementUtils';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { EmailStatusIcon } from '@/components/entries/EmailStatusIcon';
 import { EntryStatusLine } from '@/components/entries/EntryStatusLine';
@@ -35,6 +32,7 @@ interface EntriesTableViewProps {
   isResendDisabled?: ((registrationId: string) => boolean) | undefined;
   onStatusChange?: ((entryId: string, status: EntryStatus) => void) | undefined;
   onCheckInEntry?: ((entryId: string) => void) | undefined;
+  onOpenEditEntry?: ((entry: EntryManagementEntry) => void) | undefined;
   onOpenArmbandDialog?: ((entry: EntryManagementEntry) => void) | undefined;
   onOpenCompDialog?: ((entry: EntryManagementEntry) => void) | undefined;
   onUncompEntry?: ((entryId: string) => void) | undefined;
@@ -284,6 +282,7 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
   isResendDisabled,
   onStatusChange,
   onCheckInEntry,
+  onOpenEditEntry,
   onOpenArmbandDialog,
   onOpenCompDialog,
   onUncompEntry,
@@ -306,6 +305,7 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
     const hasAnyAction =
       onStatusChange ||
       onCheckInEntry ||
+      onOpenEditEntry ||
       onOpenArmbandDialog ||
       onOpenCompDialog ||
       onUncompEntry ||
@@ -315,6 +315,7 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
       ? {
           ...(onStatusChange ? { onStatusChange } : {}),
           ...(onCheckInEntry ? { onCheckInEntry } : {}),
+          ...(onOpenEditEntry ? { onOpenEditEntry } : {}),
           ...(onOpenArmbandDialog ? { onOpenArmbandDialog } : {}),
           ...(onOpenCompDialog ? { onOpenCompDialog } : {}),
           ...(onUncompEntry ? { onUncompEntry } : {}),
@@ -342,6 +343,7 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
     isResendDisabled,
     onStatusChange,
     onCheckInEntry,
+    onOpenEditEntry,
     onOpenArmbandDialog,
     onOpenCompDialog,
     onUncompEntry,

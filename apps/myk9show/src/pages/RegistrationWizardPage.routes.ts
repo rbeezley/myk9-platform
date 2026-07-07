@@ -62,9 +62,10 @@ export function resolveRegistrationExit(
 
 export function resolveRegistrationCompletionPath(
   showId: string,
-  isLateEntryMode: boolean
+  isLateEntryMode: boolean,
+  isInsideSidebar = false
 ): string {
-  return (
-    resolveRegistrationExitPath(showId, isLateEntryMode) ?? `/shows/${encodeURIComponent(showId)}`
-  );
+  if (isLateEntryMode) return resolveRegistrationExitPath(showId, true)!;
+  if (isInsideSidebar) return `/shows/${encodeURIComponent(showId)}/entry-management`;
+  return `/shows/${encodeURIComponent(showId)}`;
 }

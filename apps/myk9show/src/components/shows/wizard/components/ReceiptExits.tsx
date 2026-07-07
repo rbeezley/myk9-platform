@@ -17,17 +17,24 @@ export interface ReceiptExitsProps {
   showId: string;
   /** Completion navigation for staff/on-behalf flows (resolveRegistrationCompletionPath). */
   onDone: () => void;
+  doneLabel?: string | undefined;
   isLoading?: boolean;
 }
 
-export function ReceiptExits({ isExhibitor, showId, onDone, isLoading = false }: ReceiptExitsProps) {
+export function ReceiptExits({
+  isExhibitor,
+  showId,
+  onDone,
+  doneLabel = 'Done',
+  isLoading = false,
+}: ReceiptExitsProps) {
   const navigate = useNavigate();
 
   if (!isExhibitor) {
     return (
       <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-8 mt-8">
         <Button onClick={onDone} disabled={isLoading} className="gap-2 px-6 py-3">
-          Done
+          {doneLabel}
           <ArrowRight className="h-4 w-4" />
         </Button>
       </div>

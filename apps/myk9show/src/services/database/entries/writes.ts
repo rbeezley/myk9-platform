@@ -320,6 +320,7 @@ export async function submitShowEntries(params: {
   entries: Array<{
     dogId: string;
     classId: string;
+    handlerId?: string | undefined;
     handlerName: string;
     paymentMethod: string;
     clientFeeCents: number;
@@ -336,6 +337,7 @@ export async function submitShowEntries(params: {
   const rpcEntries = entries.map(e => ({
     dog_id: e.dogId,
     class_id: e.classId,
+    handler_id: e.handlerId ?? null,
     handler_name: e.handlerName,
     payment_method: e.paymentMethod,
     client_fee_cents: e.clientFeeCents,

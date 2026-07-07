@@ -354,6 +354,9 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
   // showAdvancedFields = false,
 }) => {
   const queryClient = useQueryClient();
+  const isCreateMode = !userId;
+  const title = isCreateMode ? 'Add Person' : 'Edit User';
+  const subtitle = isCreateMode ? 'Create a person profile' : `Editing profile for ${userName}`;
   // Convert user data to form data
   const initialFormData = useMemo(() => userToFormData(initialUserData), [initialUserData]);
 
@@ -381,14 +384,14 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
     <EditPanelWrapper<UserFormData>
       open={open}
       onClose={onClose}
-      title="Edit User"
-      subtitle={`Editing profile for ${userName}`}
+      title={title}
+      subtitle={subtitle}
       size="xl"
       initialData={initialFormData}
       onSave={handleSave}
       schema={userFormSchema}
       enableAutoSave={enableAutoSave}
-      saveLabel="Save Changes"
+      saveLabel={isCreateMode ? 'Add Person' : 'Save Changes'}
       cancelLabel="Cancel"
     >
       <UserEditForm userId={userId} />

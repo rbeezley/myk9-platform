@@ -40,8 +40,7 @@ export interface AbortedShowRegistrationSubmissionResult {
 }
 
 export type SubmitShowRegistrationResult =
-  | ShowRegistrationSubmissionResult
-  | AbortedShowRegistrationSubmissionResult;
+  ShowRegistrationSubmissionResult | AbortedShowRegistrationSubmissionResult;
 
 interface SubmitShowRegistrationDeps {
   submitRegistration: (registrationId: string, paymentDetails?: PaymentDetails) => Promise<void>;
@@ -76,22 +75,17 @@ export interface SubmitShowRegistrationParams {
    */
   canAssignArmbands?: boolean | undefined;
   isActive?: (() => boolean) | undefined;
-  deps: Pick<
-    SubmitShowRegistrationDeps,
-    'submitRegistration' | 'confirmRegistration'
-  > &
+  deps: Pick<SubmitShowRegistrationDeps, 'submitRegistration' | 'confirmRegistration'> &
     Partial<SubmitShowRegistrationDeps>;
 }
 
-const DEFAULT_DEPS: Omit<
-  SubmitShowRegistrationDeps,
-  'submitRegistration' | 'confirmRegistration'
-> = {
-  createShowRegistration,
-  submitShowEntries,
-  claimNextArmband,
-  createSubmissionId: () => crypto.randomUUID(),
-};
+const DEFAULT_DEPS: Omit<SubmitShowRegistrationDeps, 'submitRegistration' | 'confirmRegistration'> =
+  {
+    createShowRegistration,
+    submitShowEntries,
+    claimNextArmband,
+    createSubmissionId: () => crypto.randomUUID(),
+  };
 
 function isStillActive(isActive: (() => boolean) | undefined): boolean {
   return isActive ? isActive() : true;
@@ -149,6 +143,7 @@ export async function submitShowRegistration({
       entries: entryInputs.map(entry => ({
         dogId: entry.dogId,
         classId: entry.classId,
+        handlerId: entry.registrationData.handlerId,
         handlerName: entry.registrationData.handler,
         paymentMethod,
         clientFeeCents: Math.round((entry.registrationData.entryFee ?? 0) * 100),

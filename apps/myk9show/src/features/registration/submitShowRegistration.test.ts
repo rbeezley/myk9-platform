@@ -111,6 +111,33 @@ describe('submitShowRegistration', () => {
     );
   });
 
+  it('passes the selected handler id and name through the entry payload', async () => {
+    const params = makeParams({
+      handlerAssignments: {
+        'dog-1|class-1': {
+          handlerId: 'handler-grace',
+          handlerName: 'Grace Hollis',
+          isOwner: false,
+        },
+      },
+    });
+
+    await submitShowRegistration(params);
+
+    expect(params.deps.submitShowEntries).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entries: [
+          expect.objectContaining({
+            dogId: 'dog-1',
+            classId: 'class-1',
+            handlerId: 'handler-grace',
+            handlerName: 'Grace Hollis',
+          }),
+        ],
+      })
+    );
+  });
+
   it('does not duplicate claim-next armband patches through generic entry updates', async () => {
     const params = makeParams();
 

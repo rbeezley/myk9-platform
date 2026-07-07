@@ -42,6 +42,7 @@ function RegistrationWizardContent() {
     completedSteps,
     currentStepId,
     isLastStep,
+    isLateEntryMode,
     currentWorkflowMode,
     handleStepClick,
     draftSave,
@@ -189,6 +190,7 @@ function RegistrationWizardContent() {
               <WorkflowStepContent
                 currentStepId={currentStepId}
                 currentWorkflowConfig={currentWorkflowConfig}
+                currentWorkflowMode={currentWorkflowMode}
                 registrationData={registrationData}
                 optimisticState={optimisticState}
                 showId={showId}
@@ -231,6 +233,13 @@ function RegistrationWizardContent() {
                   isExhibitor={currentWorkflowMode === 'exhibitor'}
                   showId={showId}
                   onDone={handleNext}
+                  doneLabel={
+                    currentWorkflowMode === 'exhibitor'
+                      ? undefined
+                      : isLateEntryMode
+                        ? 'Return to Show Desk'
+                        : 'Return to Entry Management'
+                  }
                   isLoading={isSubmitting}
                 />
               ) : (

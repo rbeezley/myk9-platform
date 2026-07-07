@@ -56,5 +56,5 @@
 - [ ] 7.3 Run focused exhibitor Playwright coverage for open show, closed show, existing show-day entry, amount due, and elderly low-tech pass when seed data supports it.
 - [x] 7.4 Run relevant TypeScript verification for touched app areas.
 - [x] 7.5 Update `docs/plan-exhibitor-elderly-ux-remediation.md`, `OPEN-TODOS.md`, or the relevant tracker after each completed slice.
-- [ ] 7.6 Keep PR #1188 updated with the OpenSpec change link and evidence for completed tasks.
+- [x] 7.6 Keep PR #1188 updated with the OpenSpec change link and evidence for completed tasks.
 - [ ] 7.7 Merge only after focused verification, review, and CI are green; archive the OpenSpec change only after the final required PR for this remediation is merged.

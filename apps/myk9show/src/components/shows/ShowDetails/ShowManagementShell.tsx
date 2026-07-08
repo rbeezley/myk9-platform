@@ -270,6 +270,11 @@ export function ShowManagementShell({
                 <option value="" disabled>
                   Choose section
                 </option>
+                {activeManagementSection === 'classes' && (
+                  <option value="classes" disabled>
+                    Class Management
+                  </option>
+                )}
                 {SHOW_MANAGEMENT_SECTIONS.map(({ label, path }) => (
                   <option key={path} value={path}>
                     {label}

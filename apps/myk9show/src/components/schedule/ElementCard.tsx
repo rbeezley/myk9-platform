@@ -30,7 +30,7 @@ export function ElementCard({ element, onClick }: ElementCardProps) {
         {formattedTime}
         {element.levelRange && ` · ${element.levelRange}`}
       </div>
-      <div className="mt-1 text-[11px] font-medium text-muted-foreground">Opens trial details</div>
+      <div className="mt-1 text-sm font-medium text-muted-foreground">Opens trial details</div>
     </button>
   );
 }

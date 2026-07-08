@@ -42,6 +42,49 @@ vi.mock('@/hooks/queries/useReportData', () => ({
   }),
 }));
 
+vi.mock('@/hooks/queries/useEntryFormData', () => ({
+  useEntryFormData: () => ({
+    dogs: [
+      {
+        dogId: 'dog-1',
+        callName: 'Star',
+        breed: 'Golden Retriever',
+        sex: 'Female',
+        dateOfBirth: '2022-03-15',
+        registration: {
+          registeredName: "GCH Oakwood's Rising Star",
+          registrationNumber: 'DN12345678',
+          organization: 'AKC',
+          variety: null,
+        },
+        breeder: 'John Doe',
+        sire: "CH Oakwood's Golden Boy",
+        dam: "Oakwood's Shining Light",
+        owner: {
+          firstName: 'Sarah',
+          lastName: 'Johnson',
+          streetAddress: '456 Oak Ave',
+          city: 'Dallas',
+          state: 'TX',
+          zipCode: '75001',
+          phone: '(214) 555-0123',
+          email: 'sarah@example.com',
+        },
+        handler: null,
+        armband: 101,
+        entries: [],
+        agreementDate: '2026-04-01T12:00:00Z',
+      },
+    ],
+    secretary: null,
+    trials: [{ id: 'trial-1', date: '2026-04-12', trialNumber: 1 }],
+    classes: [],
+    show: null,
+    isLoading: false,
+    isError: false,
+  }),
+}));
+
 vi.mock('../ReportPreview', () => ({
   ReportPreview: (props: { trialId: string; classId: string }) => (
     <div data-testid="report-preview" data-trial-id={props.trialId} data-class-id={props.classId}>
@@ -59,6 +102,17 @@ describe('ReportsPage', () => {
   it('renders Print button', () => {
     render(<ReportsPage />, { initialRoute: '/shows/show-1/reports' });
     expect(screen.getByRole('button', { name: /print/i })).toBeInTheDocument();
+  });
+
+  it('offers the official AKC entry form PDF when a dog is selected', async () => {
+    render(<ReportsPage />, {
+      initialRoute: '/shows/show-1/reports?report=akc-scent-work-entry-form&dogId=dog-1',
+    });
+
+    expect(
+      await screen.findByRole('button', { name: /Download AKC Entry Form PDF/i })
+    ).toBeEnabled();
+    expect(screen.getByRole('status')).toHaveTextContent('Signature');
   });
 
   it('resets stale class scope when the trial changes', async () => {

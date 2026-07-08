@@ -81,5 +81,7 @@ describe('formatPdfFieldLabel', () => {
   it('turns official PDF field names into readable labels', () => {
     expect(formatPdfFieldLabel('TotalRunsAtClosing')).toBe('Total Runs At Closing');
     expect(formatPdfFieldLabel('Club Name do not abbreviate')).toBe('Club Name do not abbreviate');
+    expect(formatPdfFieldLabel('AKCRegistrionNumber')).toBe('AKC Registration Number');
+    expect(formatPdfFieldLabel('AKCPALILPCP')).toBe('AKC/PAL/ILP/CP');
   });
 });

@@ -34,6 +34,7 @@ export interface UseEntryFormDataOptions {
   showId: string;
   trialId?: string | undefined;
   dogId?: string | undefined;
+  enabled?: boolean | undefined;
 }
 
 export interface UseEntryFormDataResult {
@@ -294,6 +295,7 @@ async function fetchEntryFormData(
 }
 
 export function useEntryFormData({
+  enabled = true,
   showId,
   trialId,
   dogId,
@@ -301,7 +303,7 @@ export function useEntryFormData({
   const query = useQuery({
     queryKey: ['entry-form-data', showId, trialId ?? 'all', dogId ?? 'all'],
     queryFn: () => fetchEntryFormData(showId, trialId, dogId),
-    enabled: !!showId,
+    enabled: enabled && !!showId,
     ...cacheStrategies.moderate,
   });
 

@@ -36,9 +36,22 @@ describe('organization form templates', () => {
     });
   });
 
+  it('returns the AKC Scent Work entry form mapping by id', () => {
+    expect(getOrganizationFormTemplate('akc-scent-work-entry-form')).toMatchObject({
+      label: 'AKC Scent Work Entry Form',
+      sourcePath: 'docs/AKC-forms/SW-EntryForm.pdf',
+    });
+  });
+
   it('resolves the AKC trial secretary report runtime URL from the registry id', () => {
     expect(getOrganizationFormTemplateUrl('akc-scent-work-trial-secretary-report')).toContain(
       'SW-TSReport.pdf'
+    );
+  });
+
+  it('resolves the AKC Scent Work entry form runtime URL from the registry id', () => {
+    expect(getOrganizationFormTemplateUrl('akc-scent-work-entry-form')).toContain(
+      'SW-EntryForm.pdf'
     );
   });
 });

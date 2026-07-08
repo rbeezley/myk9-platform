@@ -12,8 +12,15 @@ import { printIframe } from './reportPreviewUtils';
 import { ArmbandLabelsReport } from '@/components/reports/labels/ArmbandLabelsReport';
 import { ResultLabelsReport } from '@/components/reports/labels/ResultLabelsReport';
 import { LabelModeHeader } from '@/components/reports/labels/LabelModeChrome';
+import { useEntryFormData } from '@/hooks/queries/useEntryFormData';
 import { buildTrialReportProps } from './reportDataMapping';
 import { downloadPdfBytes } from '@/features/organization-forms/downloadPdf';
+import {
+  buildAKCScentWorkEntryFormFilename,
+  buildAKCScentWorkEntryFormValues,
+} from '@/features/organization-forms/akcScentWorkEntryForm';
+import { AKC_SCENT_WORK_ENTRY_FORM_REQUIRED_FIELDS } from '@/features/organization-forms/akcScentWorkEntryFormFields';
+import { findMissingPdfRequiredFieldLabels } from '@/features/organization-forms/pdfFormCompleteness';
 import {
   buildOfficialPdfFilename,
   getOfficialPdfMissingFieldLabels,
@@ -69,6 +76,7 @@ export default function ReportsPage() {
   const [sortOrder, setSortOrder] = useState(report?.defaultSort ?? 'run-order');
   const [isDownloadingOfficialPdf, setIsDownloadingOfficialPdf] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const isAKCEntryFormReport = reportType === 'akc-scent-work-entry-form';
 
   const { show, trials, classes, entries, isLoading, isError, refetch } = useReportData({
     show: currentShow,
@@ -140,6 +148,12 @@ export default function ReportsPage() {
   });
 
   const dogOptions = dogOptionsRaw ?? [];
+  const entryFormData = useEntryFormData({
+    showId: showId ?? '',
+    trialId: trialId === 'all' ? undefined : trialId,
+    dogId: dogId === 'all' ? undefined : dogId,
+    enabled: isAKCEntryFormReport && dogId !== 'all',
+  });
 
   const handleReportTypeChange = (value: string) => {
     setReportType(value);
@@ -186,6 +200,23 @@ export default function ReportsPage() {
     return getOfficialPdfMissingFieldLabels(reportType, officialPdfProps);
   }, [officialPdfProps, reportType]);
 
+  const officialEntryPdfDog = isAKCEntryFormReport ? (entryFormData.dogs[0] ?? null) : null;
+  const officialEntryPdfValues = useMemo(() => {
+    if (!officialEntryPdfDog) return null;
+    return buildAKCScentWorkEntryFormValues({
+      dog: officialEntryPdfDog,
+      trials: entryFormData.trials,
+    });
+  }, [entryFormData.trials, officialEntryPdfDog]);
+
+  const officialEntryPdfMissingFieldLabels = useMemo(() => {
+    if (!officialEntryPdfValues) return [];
+    return findMissingPdfRequiredFieldLabels(
+      AKC_SCENT_WORK_ENTRY_FORM_REQUIRED_FIELDS,
+      officialEntryPdfValues
+    );
+  }, [officialEntryPdfValues]);
+
   const handleOfficialPdfDownload = useCallback(async () => {
     if (!officialPdfProps) {
       toast.error('Select a trial before downloading the official PDF');
@@ -208,6 +239,34 @@ export default function ReportsPage() {
     }
   }, [officialPdfConfig, officialPdfProps]);
 
+  const handleOfficialEntryPdfDownload = useCallback(async () => {
+    if (dogId === 'all') {
+      toast.error('Select a dog before downloading the official entry PDF');
+      return;
+    }
+    if (!officialEntryPdfDog || !officialEntryPdfValues) {
+      toast.error('The entry form data is still loading. Try again in a moment.');
+      return;
+    }
+
+    setIsDownloadingOfficialPdf(true);
+    try {
+      const { buildOfficialPdfBytesFromValues } =
+        await import('@/features/organization-forms/officialPdfDownload');
+      const bytes = await buildOfficialPdfBytesFromValues(
+        'akc-scent-work-entry-form',
+        officialEntryPdfValues
+      );
+      downloadPdfBytes(bytes, buildAKCScentWorkEntryFormFilename(officialEntryPdfDog));
+      toast.success('Official PDF downloaded');
+    } catch (error) {
+      console.error('[reports] official AKC entry PDF download failed', error);
+      toast.error('Could not download the official PDF');
+    } finally {
+      setIsDownloadingOfficialPdf(false);
+    }
+  }, [dogId, officialEntryPdfDog, officialEntryPdfValues]);
+
   const officialPdfAction = officialPdfConfig
     ? {
         disabled: isLoading || isError || !show || trialId === 'all',
@@ -216,6 +275,20 @@ export default function ReportsPage() {
         missingFieldLabels: officialPdfMissingFieldLabels,
         onClick: handleOfficialPdfDownload,
       }
+    : isAKCEntryFormReport
+      ? {
+          disabled:
+            isLoading ||
+            isError ||
+            entryFormData.isLoading ||
+            entryFormData.isError ||
+            dogId === 'all' ||
+            !officialEntryPdfValues,
+          isLoading: isDownloadingOfficialPdf,
+          label: dogId === 'all' ? 'Select dog for official PDF' : 'Download AKC Entry Form PDF',
+          missingFieldLabels: officialEntryPdfMissingFieldLabels,
+          onClick: handleOfficialEntryPdfDownload,
+        }
     : undefined;
 
   return (

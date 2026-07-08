@@ -25,6 +25,9 @@ export function findMissingPdfRequiredFieldLabels(
 }
 
 export function formatPdfFieldLabel(fieldName: string): string {
+  if (fieldName === 'AKCRegistrionNumber') return 'AKC Registration Number';
+  if (fieldName === 'AKCPALILPCP') return 'AKC/PAL/ILP/CP';
+
   return fieldName
     .replace(/[_-]+/g, ' ')
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')

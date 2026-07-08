@@ -1,4 +1,5 @@
 import { AKC_JUDGE_REPORT_REQUIRED_FIELDS } from './akcJudgeReportFields';
+import { AKC_SCENT_WORK_ENTRY_FORM_REQUIRED_FIELDS } from './akcScentWorkEntryFormFields';
 import { AKC_TRIAL_SECRETARY_REPORT_REQUIRED_FIELDS } from './akcTrialSecretaryReportFields';
 import { AKC_TRIAL_CHAIRMAN_REPORT_REQUIRED_FIELDS } from './akcTrialChairmanReportFields';
 import { UKC_NOSEWORK_TRIAL_REPORT_REQUIRED_FIELDS } from './ukcNoseworkTrialReportFields';
@@ -6,6 +7,7 @@ import { UKC_NOSEWORK_TRIAL_REPORT_REQUIRED_FIELDS } from './ukcNoseworkTrialRep
 export type OrganizationFormRegistry = 'AKC' | 'UKC';
 
 export type OrganizationFormTemplateId =
+  | 'akc-scent-work-entry-form'
   | 'akc-scent-work-trial-secretary-report'
   | 'akc-scent-work-judge-report'
   | 'akc-scent-work-trial-chairman-report'
@@ -21,6 +23,13 @@ export interface OrganizationFormTemplate {
 }
 
 export const ORGANIZATION_FORM_TEMPLATES = [
+  {
+    id: 'akc-scent-work-entry-form',
+    label: 'AKC Scent Work Entry Form',
+    registry: 'AKC',
+    sourcePath: 'docs/AKC-forms/SW-EntryForm.pdf',
+    requiredFields: AKC_SCENT_WORK_ENTRY_FORM_REQUIRED_FIELDS,
+  },
   {
     id: 'akc-scent-work-trial-secretary-report',
     label: 'AKC Scent Work Trial Secretary Report',
@@ -52,6 +61,10 @@ export const ORGANIZATION_FORM_TEMPLATES = [
 ] as const satisfies readonly OrganizationFormTemplate[];
 
 const ORGANIZATION_FORM_TEMPLATE_URLS: Record<OrganizationFormTemplateId, string> = {
+  'akc-scent-work-entry-form': new URL(
+    '../../../../../docs/AKC-forms/SW-EntryForm.pdf',
+    import.meta.url
+  ).href,
   'akc-scent-work-trial-secretary-report': new URL(
     '../../../../../docs/AKC-forms/SW-TSReport.pdf',
     import.meta.url

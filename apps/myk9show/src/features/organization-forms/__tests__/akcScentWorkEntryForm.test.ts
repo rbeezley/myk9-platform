@@ -6,6 +6,8 @@ import { PDFDocument } from 'pdf-lib';
 import type { EntryFormDog, EntryFormTrial } from '@/lib/reports/entryFormTypes';
 import {
   buildAKCScentWorkEntryFormFilename,
+  buildAKCScentWorkEntryFormPacketFilename,
+  buildAKCScentWorkEntryFormPacketPdfBytes,
   buildAKCScentWorkEntryFormValues,
 } from '../akcScentWorkEntryForm';
 import { AKC_SCENT_WORK_ENTRY_FORM_FIELDS } from '../akcScentWorkEntryFormFields';
@@ -148,6 +150,21 @@ describe('buildAKCScentWorkEntryFormValues', () => {
     );
   });
 
+  it('builds a flattened multi-dog packet from the real AKC Entry Form PDF', async () => {
+    const bytes = await buildAKCScentWorkEntryFormPacketPdfBytes({
+      dogs: [
+        { ...dog, dogId: 'dog-2', callName: 'Rocket', armband: 88 },
+        dog,
+      ],
+      trials,
+      templateBytes: new Uint8Array(await readFile(templatePath)),
+    });
+    const pdf = await PDFDocument.load(bytes);
+
+    expect(pdf.getPageCount()).toBe(2);
+    expect(pdf.getForm().getFields()).toEqual([]);
+  });
+
   it('uses the call name when no registered name is available', () => {
     const values = buildAKCScentWorkEntryFormValues({
       dog: { ...dog, registration: null },
@@ -163,6 +180,12 @@ describe('buildAKCScentWorkEntryFormFilename', () => {
   it('uses the registered name and armband number', () => {
     expect(buildAKCScentWorkEntryFormFilename(dog)).toBe(
       'akc-entry-form-GCH-Oakwood-s-Rising-Star-101.pdf'
+    );
+  });
+
+  it('uses the show name for packet downloads', () => {
+    expect(buildAKCScentWorkEntryFormPacketFilename('Spring Scent Trial 2026')).toBe(
+      'akc-entry-form-packet-Spring-Scent-Trial-2026.pdf'
     );
   });
 });

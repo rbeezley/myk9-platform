@@ -17,6 +17,8 @@ import { buildClassReportProps, buildTrialReportProps } from './reportDataMappin
 import { downloadPdfBytes } from '@/features/organization-forms/downloadPdf';
 import {
   buildAKCScentWorkEntryFormFilename,
+  buildAKCScentWorkEntryFormPacketFilename,
+  buildAKCScentWorkEntryFormPacketPdfBytes,
   buildAKCScentWorkEntryFormValues,
 } from '@/features/organization-forms/akcScentWorkEntryForm';
 import {
@@ -158,7 +160,7 @@ export default function ReportsPage() {
     showId: showId ?? '',
     trialId: trialId === 'all' ? undefined : trialId,
     dogId: dogId === 'all' ? undefined : dogId,
-    enabled: isAKCEntryFormReport && dogId !== 'all',
+    enabled: isAKCEntryFormReport,
   });
 
   const handleReportTypeChange = (value: string) => {
@@ -219,7 +221,8 @@ export default function ReportsPage() {
     return getOfficialPdfMissingFieldLabels(reportType, officialPdfProps);
   }, [officialPdfProps, reportType]);
 
-  const officialEntryPdfDog = isAKCEntryFormReport ? (entryFormData.dogs[0] ?? null) : null;
+  const officialEntryPdfDog =
+    isAKCEntryFormReport && dogId !== 'all' ? (entryFormData.dogs[0] ?? null) : null;
   const officialEntryPdfValues = useMemo(() => {
     if (!officialEntryPdfDog) return null;
     return buildAKCScentWorkEntryFormValues({
@@ -229,12 +232,32 @@ export default function ReportsPage() {
   }, [entryFormData.trials, officialEntryPdfDog]);
 
   const officialEntryPdfMissingFieldLabels = useMemo(() => {
-    if (!officialEntryPdfValues) return [];
-    return findMissingPdfRequiredFieldLabels(
-      AKC_SCENT_WORK_ENTRY_FORM_REQUIRED_FIELDS,
-      officialEntryPdfValues
-    );
-  }, [officialEntryPdfValues]);
+    if (!isAKCEntryFormReport) return [];
+
+    const values =
+      dogId === 'all'
+        ? entryFormData.dogs.map(dog =>
+            buildAKCScentWorkEntryFormValues({
+              dog,
+              trials: entryFormData.trials,
+            })
+          )
+        : officialEntryPdfValues
+          ? [officialEntryPdfValues]
+          : [];
+
+    const labels = new Set<string>();
+    for (const value of values) {
+      for (const label of findMissingPdfRequiredFieldLabels(
+        AKC_SCENT_WORK_ENTRY_FORM_REQUIRED_FIELDS,
+        value
+      )) {
+        labels.add(label);
+      }
+    }
+
+    return [...labels];
+  }, [dogId, entryFormData.dogs, entryFormData.trials, isAKCEntryFormReport, officialEntryPdfValues]);
 
   const handleOfficialPdfDownload = useCallback(async () => {
     if (!officialPdfProps) {
@@ -259,24 +282,42 @@ export default function ReportsPage() {
   }, [officialPdfConfig, officialPdfProps]);
 
   const handleOfficialEntryPdfDownload = useCallback(async () => {
-    if (dogId === 'all') {
-      toast.error('Select a dog before downloading the official entry PDF');
+    if (dogId !== 'all' && (!officialEntryPdfDog || !officialEntryPdfValues)) {
+      toast.error('The entry form data is still loading. Try again in a moment.');
       return;
     }
-    if (!officialEntryPdfDog || !officialEntryPdfValues) {
-      toast.error('The entry form data is still loading. Try again in a moment.');
+    if (dogId === 'all' && entryFormData.dogs.length === 0) {
+      toast.error('No dogs are ready for an official entry form packet yet.');
       return;
     }
 
     setIsDownloadingOfficialPdf(true);
     try {
-      const { buildOfficialPdfBytesFromValues } =
-        await import('@/features/organization-forms/officialPdfDownload');
-      const bytes = await buildOfficialPdfBytesFromValues(
-        'akc-scent-work-entry-form',
-        officialEntryPdfValues
-      );
-      downloadPdfBytes(bytes, buildAKCScentWorkEntryFormFilename(officialEntryPdfDog));
+      let bytes: Uint8Array;
+      let filename: string;
+
+      if (dogId === 'all') {
+        const response = await fetch(getOrganizationFormTemplateUrl('akc-scent-work-entry-form'));
+        if (!response.ok) {
+          throw new Error('Unable to load AKC Scent Work entry form template.');
+        }
+        bytes = await buildAKCScentWorkEntryFormPacketPdfBytes({
+          dogs: entryFormData.dogs,
+          trials: entryFormData.trials,
+          templateBytes: new Uint8Array(await response.arrayBuffer()),
+        });
+        filename = buildAKCScentWorkEntryFormPacketFilename(show?.name ?? currentShow?.name);
+      } else {
+        const { buildOfficialPdfBytesFromValues } =
+          await import('@/features/organization-forms/officialPdfDownload');
+        bytes = await buildOfficialPdfBytesFromValues(
+          'akc-scent-work-entry-form',
+          officialEntryPdfValues!
+        );
+        filename = buildAKCScentWorkEntryFormFilename(officialEntryPdfDog!);
+      }
+
+      downloadPdfBytes(bytes, filename);
       toast.success('Official PDF downloaded');
     } catch (error) {
       console.error('[reports] official AKC entry PDF download failed', error);
@@ -284,7 +325,15 @@ export default function ReportsPage() {
     } finally {
       setIsDownloadingOfficialPdf(false);
     }
-  }, [dogId, officialEntryPdfDog, officialEntryPdfValues]);
+  }, [
+    currentShow?.name,
+    dogId,
+    entryFormData.dogs,
+    entryFormData.trials,
+    officialEntryPdfDog,
+    officialEntryPdfValues,
+    show?.name,
+  ]);
 
   const handleOfficialScoreSheetPdfDownload = useCallback(async () => {
     if (trialId === 'all' || classId === 'all') {
@@ -332,10 +381,12 @@ export default function ReportsPage() {
             isError ||
             entryFormData.isLoading ||
             entryFormData.isError ||
-            dogId === 'all' ||
-            !officialEntryPdfValues,
+            (dogId === 'all' ? entryFormData.dogs.length === 0 : !officialEntryPdfValues),
           isLoading: isDownloadingOfficialPdf,
-          label: dogId === 'all' ? 'Select dog for official PDF' : 'Download AKC Entry Form PDF',
+          label:
+            dogId === 'all'
+              ? 'Download AKC Entry Form Packet'
+              : 'Download AKC Entry Form PDF',
           missingFieldLabels: officialEntryPdfMissingFieldLabels,
           onClick: handleOfficialEntryPdfDownload,
         }

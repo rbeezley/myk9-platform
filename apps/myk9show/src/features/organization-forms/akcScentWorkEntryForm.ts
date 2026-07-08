@@ -1,7 +1,9 @@
 import type { EntryFormDog, EntryFormTrial } from '@/lib/reports/entryFormTypes';
 import { buildClassGrid } from '@/lib/reports/entryFormUtils';
 import type { PdfFormFillValues } from './pdfForm';
+import { fillPdfForm } from './pdfForm';
 import { AKC_SCENT_WORK_ENTRY_FORM_FIELDS } from './akcScentWorkEntryFormFields';
+import { PDFDocument } from 'pdf-lib';
 
 type EntryGridLevel = 'Novice' | 'Advanced' | 'Excellent' | 'Master';
 type EntryGridElement =
@@ -270,6 +272,34 @@ export function buildAKCScentWorkEntryFormFilename(dog: EntryFormDog): string {
   return `akc-entry-form-${dogToken}${armbandToken}.pdf`;
 }
 
+export function buildAKCScentWorkEntryFormPacketFilename(showName: string | null | undefined): string {
+  const showToken = sanitizeFilenameToken(showName ?? '') || 'show';
+  return `akc-entry-form-packet-${showToken}.pdf`;
+}
+
+export async function buildAKCScentWorkEntryFormPacketPdfBytes(input: {
+  dogs: EntryFormDog[];
+  trials: EntryFormTrial[];
+  templateBytes: Uint8Array;
+}): Promise<Uint8Array> {
+  const outputPdf = await PDFDocument.create();
+
+  for (const dog of sortDogsForPacket(input.dogs)) {
+    const filledBytes = await fillPdfForm(
+      input.templateBytes,
+      buildAKCScentWorkEntryFormValues({ dog, trials: input.trials }),
+      { flatten: true }
+    );
+    const filledPdf = await PDFDocument.load(filledBytes);
+    const copiedPages = await outputPdf.copyPages(filledPdf, filledPdf.getPageIndices());
+    for (const page of copiedPages) {
+      outputPdf.addPage(page);
+    }
+  }
+
+  return outputPdf.save();
+}
+
 function addGridValues(input: {
   checkboxes: NonNullable<PdfFormFillValues['checkboxes']>;
   dog: EntryFormDog;
@@ -310,6 +340,15 @@ function addText(
 
 function registeredName(dog: EntryFormDog): string {
   return dog.registration?.registeredName?.trim() || dog.callName;
+}
+
+function sortDogsForPacket(dogs: EntryFormDog[]): EntryFormDog[] {
+  return [...dogs].sort((a, b) => {
+    const armbandA = a.armband ?? Number.MAX_SAFE_INTEGER;
+    const armbandB = b.armband ?? Number.MAX_SAFE_INTEGER;
+    if (armbandA !== armbandB) return armbandA - armbandB;
+    return registeredName(a).localeCompare(registeredName(b));
+  });
 }
 
 function personName(person: { firstName: string | null; lastName: string | null }): string {

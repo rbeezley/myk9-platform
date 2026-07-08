@@ -142,6 +142,17 @@ describe('ReportsPage', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Signature');
   });
 
+  it('offers the official AKC entry form packet when all dogs are selected', async () => {
+    render(<ReportsPage />, {
+      initialRoute: '/shows/show-1/reports?report=akc-scent-work-entry-form',
+    });
+
+    expect(
+      await screen.findByRole('button', { name: /Download AKC Entry Form Packet/i })
+    ).toBeEnabled();
+    expect(screen.getByRole('status')).toHaveTextContent('Signature');
+  });
+
   it('offers the official AKC score sheet PDF when a class is selected', async () => {
     render(<ReportsPage />, {
       initialRoute: '/shows/show-1/reports?report=scoresheet&trialId=trial-1&classId=class-1',

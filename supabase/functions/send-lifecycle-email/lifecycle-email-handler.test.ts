@@ -95,6 +95,24 @@ function baseTables(overrides: Record<string, Row[]> = {}) {
     ],
     show_lifecycle_email_steps: [{ id: 'step-1', show_id: 'show-1', step_type: 'accepted' }],
     show_lifecycle_email_jobs: [readyJob],
+    entries: [
+      {
+        id: 'entry-1',
+        show_id: 'show-1',
+        registration_id: 'reg-1',
+        dog_id: 'dog-1',
+        handler: 'Jamie Handler',
+      },
+    ],
+    dogs: [{ id: 'dog-1', owner_id: 'person-1' }],
+    people: [
+      {
+        id: 'person-1',
+        first_name: 'Jamie',
+        last_name: 'Handler',
+        email: 'jamie@example.com',
+      },
+    ],
     ...overrides,
   };
 }
@@ -218,7 +236,7 @@ describe('send-lifecycle-email handler', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('saves a reviewed decision email as a ready job for later', async () => {
+  it('saves a reviewed decision email with server-derived recipient fields', async () => {
     const { supabase, calls } = makeSupabase(baseTables());
     const fetch = vi.fn();
     const handler = createSendLifecycleEmailHandler({
@@ -232,9 +250,10 @@ describe('send-lifecycle-email handler', () => {
         show_id: 'show-1',
         step_type: 'accepted',
         recipient_scope: 'enrollment',
+        entry_id: 'entry-1',
         enrollment_id: 'reg-1',
-        recipient_email: 'jamie@example.com',
-        recipient_name: 'Jamie',
+        recipient_email: 'tampered@example.com',
+        recipient_name: 'Tampered',
         subject: 'Entry accepted',
         body: 'You are accepted.',
         secretary_note: 'Please bring a crate.',
@@ -253,10 +272,45 @@ describe('send-lifecycle-email handler', () => {
         value: expect.objectContaining({
           step_id: 'step-1',
           status: 'ready',
+          entry_id: 'entry-1',
+          enrollment_id: 'reg-1',
+          recipient_email: 'jamie@example.com',
+          recipient_name: 'Jamie Handler',
           idempotency_key: 'idem-ready',
         }),
       })
     );
+  });
+
+  it('rejects save_ready when the enrollment does not match the entry', async () => {
+    const { supabase } = makeSupabase(baseTables());
+    const fetch = vi.fn();
+    const handler = createSendLifecycleEmailHandler({
+      fetch: fetch as unknown as typeof globalThis.fetch,
+      resendApiKey: 'resend-key',
+    });
+
+    await expect(
+      handler({
+        body: {
+          action: 'save_ready',
+          show_id: 'show-1',
+          step_type: 'accepted',
+          recipient_scope: 'enrollment',
+          entry_id: 'entry-1',
+          enrollment_id: 'reg-other',
+          recipient_email: 'tampered@example.com',
+          recipient_name: 'Tampered',
+          subject: 'Entry accepted',
+          body: 'You are accepted.',
+          secretary_note: '',
+          idempotency_key: 'idem-mismatch',
+        },
+        user: { id: 'secretary-1' },
+        supabase,
+      })
+    ).rejects.toThrow('Lifecycle email enrollment does not match this entry');
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it('links ready correction emails to the originally sent job', async () => {
@@ -273,6 +327,7 @@ describe('send-lifecycle-email handler', () => {
         show_id: 'show-1',
         step_type: 'accepted',
         recipient_scope: 'enrollment',
+        entry_id: 'entry-1',
         enrollment_id: 'reg-1',
         recipient_email: 'jamie@example.com',
         recipient_name: 'Jamie',
@@ -314,6 +369,7 @@ describe('send-lifecycle-email handler', () => {
           show_id: 'show-1',
           step_type: 'accepted',
           recipient_scope: 'enrollment',
+          entry_id: 'entry-1',
           enrollment_id: 'reg-1',
           recipient_email: 'jamie@example.com',
           recipient_name: 'Jamie',

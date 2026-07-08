@@ -48,6 +48,31 @@ interface RoleRow {
   roles?: { name?: string | null } | null;
 }
 
+interface SaveReadyEntryRow {
+  id: string;
+  show_id: string | null;
+  registration_id: string | null;
+  dog_id: string | null;
+  handler: string | null;
+}
+
+interface DogOwnerRow {
+  owner_id: string | null;
+}
+
+interface PersonRecipientRow {
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+}
+
+interface SaveReadyRecipient {
+  entryId: string | null;
+  enrollmentId: string | null;
+  recipientEmail: string | null;
+  recipientName: string | null;
+}
+
 interface LifecycleEmailJobRow {
   id: string;
   show_id: string;
@@ -155,6 +180,7 @@ async function saveReadyJob(args: {
 
   if (stepError) throw new HttpError(500, 'Failed to load lifecycle email step');
   if (!step) throw new HttpError(404, 'Lifecycle email step not found');
+  const recipient = await resolveSaveReadyRecipient(args);
 
   const { data: job, error: jobError } = (await args.supabase
     .from('show_lifecycle_email_jobs')
@@ -164,10 +190,10 @@ async function saveReadyJob(args: {
       step_type: args.payload.step_type,
       status: 'ready',
       recipient_scope: args.payload.recipient_scope,
-      entry_id: args.payload.entry_id ?? null,
-      enrollment_id: args.payload.enrollment_id ?? null,
-      recipient_email: args.payload.recipient_email ?? null,
-      recipient_name: args.payload.recipient_name ?? null,
+      entry_id: recipient.entryId,
+      enrollment_id: recipient.enrollmentId,
+      recipient_email: recipient.recipientEmail,
+      recipient_name: recipient.recipientName,
       subject: args.payload.subject ?? null,
       body: args.payload.body ?? null,
       secretary_note: args.payload.secretary_note ?? null,
@@ -190,6 +216,70 @@ async function saveReadyJob(args: {
   if (!job?.id) throw new HttpError(500, 'Failed to save lifecycle email');
 
   return { jobId: job?.id };
+}
+
+async function resolveSaveReadyRecipient(args: {
+  payload: SendLifecycleEmailPayload;
+  supabase: LifecycleEmailSupabaseClient;
+}): Promise<SaveReadyRecipient> {
+  if (args.payload.recipient_scope !== 'entry' && args.payload.recipient_scope !== 'enrollment') {
+    throw new HttpError(400, 'save_ready requires an entry or enrollment recipient');
+  }
+  if (!args.payload.entry_id) throw new HttpError(400, 'entry_id is required');
+
+  const { data: entry, error: entryError } = (await args.supabase
+    .from('entries')
+    .select('id, show_id, registration_id, dog_id, handler')
+    .eq('id', args.payload.entry_id)
+    .single()) as QueryResult<SaveReadyEntryRow>;
+
+  if (entryError) throw new HttpError(500, 'Failed to load lifecycle email entry');
+  if (!entry) throw new HttpError(404, 'Lifecycle email entry not found');
+  if (entry.show_id !== args.payload.show_id) {
+    throw new HttpError(400, 'Lifecycle email entry does not belong to this show');
+  }
+  if (
+    args.payload.recipient_scope === 'enrollment' &&
+    (!args.payload.enrollment_id || entry.registration_id !== args.payload.enrollment_id)
+  ) {
+    throw new HttpError(400, 'Lifecycle email enrollment does not match this entry');
+  }
+
+  const owner = entry.dog_id ? await fetchDogOwner(args.supabase, entry.dog_id) : null;
+  return {
+    entryId: entry.id,
+    enrollmentId: args.payload.recipient_scope === 'enrollment' ? entry.registration_id : null,
+    recipientEmail: owner?.email ?? null,
+    recipientName: formatPersonName(owner) ?? entry.handler ?? null,
+  };
+}
+
+async function fetchDogOwner(
+  supabase: LifecycleEmailSupabaseClient,
+  dogId: string
+): Promise<PersonRecipientRow | null> {
+  const { data: dog, error: dogError } = (await supabase
+    .from('dogs')
+    .select('owner_id')
+    .eq('id', dogId)
+    .single()) as QueryResult<DogOwnerRow>;
+
+  if (dogError) throw new HttpError(500, 'Failed to load lifecycle email dog');
+  if (!dog?.owner_id) return null;
+
+  const { data: owner, error: ownerError } = (await supabase
+    .from('people')
+    .select('first_name, last_name, email')
+    .eq('id', dog.owner_id)
+    .single()) as QueryResult<PersonRecipientRow>;
+
+  if (ownerError) throw new HttpError(500, 'Failed to load lifecycle email recipient');
+  return owner ?? null;
+}
+
+function formatPersonName(person: PersonRecipientRow | null): string | null {
+  const name = [person?.first_name, person?.last_name].filter(Boolean).join(' ').trim();
+  return name || null;
 }
 
 function getErrorMessage(error: unknown): string | null {

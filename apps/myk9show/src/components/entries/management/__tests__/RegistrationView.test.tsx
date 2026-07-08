@@ -6,6 +6,7 @@ import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
 import type { EntryManagementEntry, EntryStats } from '@/types/entry-management-types';
 import type { EntryWorkMode } from '../entryManagementFilters';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import { createChainableQuery, mockSupabase } from '@/test/mocks/supabase';
 
 // Mock the heavy children down to markers so the test isolates RegistrationView's
 // own tab-content routing (the F6b fix) rather than their data-fetching.
@@ -242,6 +243,39 @@ describe('RegistrationView filter content routing', () => {
       onStatusChange,
     });
 
+    await user.click(screen.getByRole('button', { name: /accept mocked entry/i }));
+
+    expect(onStatusChange).toHaveBeenCalledWith('entry-1', EntryStatus.ACCEPTED);
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
+  it('does not open automatic decision email review when that lifecycle step is disabled', async () => {
+    mockSupabase.from.mockImplementation((table: string) =>
+      createChainableQuery({
+        data:
+          table === 'show_lifecycle_email_steps'
+            ? [{ show_id: 'show-1', step_type: 'accepted', is_enabled: false }]
+            : [],
+        error: null,
+      })
+    );
+    const onStatusChange = vi.fn().mockResolvedValue(undefined);
+    const { user } = renderView('all', 'cards', {
+      entries: [reviewedEntry],
+      filteredEntries: [reviewedEntry],
+      enrollmentGroups: [
+        { groupKey: 'g1', enrollmentId: 'reg-1', entries: [reviewedEntry] },
+      ] as unknown as EnrollmentGroup[],
+      showName: 'Heartland Trial',
+      showId: 'show-1',
+      onStatusChange,
+    });
+
+    await waitFor(() => {
+      expect(mockSupabase.from).toHaveBeenCalledWith('show_lifecycle_email_steps');
+    });
     await user.click(screen.getByRole('button', { name: /accept mocked entry/i }));
 
     expect(onStatusChange).toHaveBeenCalledWith('entry-1', EntryStatus.ACCEPTED);

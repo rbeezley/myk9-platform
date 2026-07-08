@@ -11,6 +11,7 @@ import { LifecycleEmailPreviewDialog } from './LifecycleEmailPreviewDialog';
 import {
   entryDecisionLifecycleEmailQueryKey,
   fetchEntryDecisionEmailStatuses,
+  fetchShowLifecycleEmailSummary,
   saveLifecycleEmailJobForLater,
   sendLifecycleEmailJobs,
   type EntryDecisionEmailJob,
@@ -69,6 +70,13 @@ export function useEntryDecisionLifecycleEmails({
     enabled: Boolean(showId && entryIds.length > 0),
     staleTime: 15_000,
   });
+  const summaryQuery = useQuery({
+    queryKey: showId ? ['show-lifecycle-emails', showId] : ['show-lifecycle-emails', 'none'],
+    queryFn: () =>
+      fetchShowLifecycleEmailSummary({ supabase: lifecycleClient, showId: showId ?? '' }),
+    enabled: Boolean(showId),
+    staleTime: 30_000,
+  });
   const [prompt, setPrompt] = useState<DecisionEmailPrompt | null>(null);
   const [isSending, setIsSending] = useState(false);
 
@@ -105,6 +113,8 @@ export function useEntryDecisionLifecycleEmails({
   };
 
   const openDecisionPrompt = (entry: EntryManagementEntry, stepType: DecisionStepType) => {
+    const step = summaryQuery.data?.steps.find(candidate => candidate.stepType === stepType);
+    if (step?.isEnabled === false) return;
     setPrompt({ entry, stepType });
   };
 

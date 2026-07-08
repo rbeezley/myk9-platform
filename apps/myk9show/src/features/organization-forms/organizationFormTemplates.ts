@@ -4,6 +4,8 @@ import { AKC_SCENT_WORK_ENTRY_FORM_REQUIRED_FIELDS } from './akcScentWorkEntryFo
 import { AKC_SCENT_WORK_TRANSFER_FORM_REQUIRED_FIELDS } from './akcScentWorkTransferFormFields';
 import { AKC_TRIAL_SECRETARY_REPORT_REQUIRED_FIELDS } from './akcTrialSecretaryReportFields';
 import { AKC_TRIAL_CHAIRMAN_REPORT_REQUIRED_FIELDS } from './akcTrialChairmanReportFields';
+import { UKC_NOSEWORK_CHANGE_ENTRY_FORM_REQUIRED_FIELDS } from './ukcNoseworkChangeEntryFormFields';
+import { UKC_NOSEWORK_ENTRY_FORM_REQUIRED_FIELDS } from './ukcNoseworkEntryFormFields';
 import { UKC_NOSEWORK_TRIAL_REPORT_REQUIRED_FIELDS } from './ukcNoseworkTrialReportFields';
 
 export type OrganizationFormRegistry = 'AKC' | 'UKC';
@@ -16,6 +18,11 @@ export type OrganizationFormTemplateId =
   | 'akc-scent-work-trial-secretary-report'
   | 'akc-scent-work-judge-report'
   | 'akc-scent-work-trial-chairman-report'
+  | 'ukc-nosework-entry-form'
+  | 'ukc-nosework-change-entry-form'
+  | 'ukc-nosework-judges-book-element'
+  | 'ukc-nosework-judges-book-handler-discrimination'
+  | 'ukc-nosework-trial-score-sheet'
   | 'ukc-nosework-trial-report';
 
 export interface OrganizationFormTemplate {
@@ -78,6 +85,41 @@ export const ORGANIZATION_FORM_TEMPLATES = [
     requiredFields: AKC_TRIAL_CHAIRMAN_REPORT_REQUIRED_FIELDS,
   },
   {
+    id: 'ukc-nosework-entry-form',
+    label: 'UKC Nosework Entry Form',
+    registry: 'UKC',
+    sourcePath: 'docs/UKC-forms/NW-Entry.pdf',
+    requiredFields: UKC_NOSEWORK_ENTRY_FORM_REQUIRED_FIELDS,
+  },
+  {
+    id: 'ukc-nosework-change-entry-form',
+    label: 'UKC Nosework Change Entry Form',
+    registry: 'UKC',
+    sourcePath: 'docs/UKC-forms/NW-ChangeEntry.pdf',
+    requiredFields: UKC_NOSEWORK_CHANGE_ENTRY_FORM_REQUIRED_FIELDS,
+  },
+  {
+    id: 'ukc-nosework-judges-book-element',
+    label: 'UKC Nosework Judges Book: Element Trial',
+    registry: 'UKC',
+    sourcePath: 'docs/UKC-forms/NW-JudgesBook-Element.pdf',
+    requiredFields: [],
+  },
+  {
+    id: 'ukc-nosework-judges-book-handler-discrimination',
+    label: 'UKC Nosework Judges Book: Handler Discrimination',
+    registry: 'UKC',
+    sourcePath: 'docs/UKC-forms/NW-JudgesBook-HandlerDiscrimination.pdf',
+    requiredFields: [],
+  },
+  {
+    id: 'ukc-nosework-trial-score-sheet',
+    label: 'UKC Nosework Trial Score Sheet',
+    registry: 'UKC',
+    sourcePath: 'docs/UKC-forms/NW-TrialScoreSheet.pdf',
+    requiredFields: [],
+  },
+  {
     id: 'ukc-nosework-trial-report',
     label: 'UKC Nosework Trial Report',
     registry: 'UKC',
@@ -113,6 +155,24 @@ const ORGANIZATION_FORM_TEMPLATE_URLS: Record<OrganizationFormTemplateId, string
   ).href,
   'akc-scent-work-trial-chairman-report': new URL(
     '../../../../../docs/AKC-forms/SW-TCReport.pdf',
+    import.meta.url
+  ).href,
+  'ukc-nosework-entry-form': new URL('../../../../../docs/UKC-forms/NW-Entry.pdf', import.meta.url)
+    .href,
+  'ukc-nosework-change-entry-form': new URL(
+    '../../../../../docs/UKC-forms/NW-ChangeEntry.pdf',
+    import.meta.url
+  ).href,
+  'ukc-nosework-judges-book-element': new URL(
+    '../../../../../docs/UKC-forms/NW-JudgesBook-Element.pdf',
+    import.meta.url
+  ).href,
+  'ukc-nosework-judges-book-handler-discrimination': new URL(
+    '../../../../../docs/UKC-forms/NW-JudgesBook-HandlerDiscrimination.pdf',
+    import.meta.url
+  ).href,
+  'ukc-nosework-trial-score-sheet': new URL(
+    '../../../../../docs/UKC-forms/NW-TrialScoreSheet.pdf',
     import.meta.url
   ).href,
   'ukc-nosework-trial-report': new URL(

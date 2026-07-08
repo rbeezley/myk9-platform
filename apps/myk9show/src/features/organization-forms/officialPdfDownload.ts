@@ -12,12 +12,15 @@ export async function buildOfficialPdfBytes(
   config: OfficialPdfReportConfig,
   props: ReportProps
 ): Promise<Uint8Array> {
+  if (config.downloadMode === 'static') {
+    return downloadOfficialPdfTemplateBytes(config.templateId);
+  }
+
   return buildOfficialPdfBytesFromValues(config.templateId, config.values(props));
 }
 
-export async function buildOfficialPdfBytesFromValues(
-  templateId: OrganizationFormTemplateId,
-  values: PdfFormFillValues
+export async function downloadOfficialPdfTemplateBytes(
+  templateId: OrganizationFormTemplateId
 ): Promise<Uint8Array> {
   const response = await fetch(getOrganizationFormTemplateUrl(templateId));
   if (!response.ok) {
@@ -25,8 +28,17 @@ export async function buildOfficialPdfBytesFromValues(
     throw new Error(`Unable to load the ${template.label} template.`);
   }
 
+  return new Uint8Array(await response.arrayBuffer());
+}
+
+export async function buildOfficialPdfBytesFromValues(
+  templateId: OrganizationFormTemplateId,
+  values: PdfFormFillValues
+): Promise<Uint8Array> {
+  const templateBytes = await downloadOfficialPdfTemplateBytes(templateId);
+
   // Keep AcroForm fields editable so secretaries can add official notes before submission.
-  return fillPdfForm(new Uint8Array(await response.arrayBuffer()), values, {
+  return fillPdfForm(templateBytes, values, {
     flatten: false,
   });
 }

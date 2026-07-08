@@ -3,6 +3,8 @@ import { renderHook } from '@testing-library/react';
 import { createTestQueryClient } from '@/test/utils/testUtils';
 import { QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
+import type { EntryFormRegistration } from '@/lib/reports/entryFormTypes';
+import { chooseEntryFormRegistration, useEntryFormData } from '../useEntryFormData';
 
 // Mock supabase
 vi.mock('@/lib/supabase', () => ({
@@ -21,13 +23,25 @@ vi.mock('@/lib/supabase', () => ({
   },
 }));
 
-import { useEntryFormData } from '../useEntryFormData';
-
 function createWrapper() {
   const queryClient = createTestQueryClient();
   return ({ children }: { children: React.ReactNode }) =>
     React.createElement(QueryClientProvider, { client: queryClient }, children);
 }
+
+const akcRegistration: EntryFormRegistration = {
+  organization: 'AKC',
+  registeredName: 'AKC Dog',
+  registrationNumber: 'AKC123',
+  variety: null,
+};
+
+const ukcRegistration: EntryFormRegistration = {
+  organization: 'UKC',
+  registeredName: 'UKC Dog',
+  registrationNumber: 'UKC123',
+  variety: null,
+};
 
 describe('useEntryFormData', () => {
   it('returns isLoading true when showId is provided', () => {
@@ -43,5 +57,17 @@ describe('useEntryFormData', () => {
     });
     expect(result.current.isLoading).toBe(false);
     expect(result.current.dogs).toEqual([]);
+  });
+});
+
+describe('chooseEntryFormRegistration', () => {
+  it('preserves AKC as the default preferred registration', () => {
+    expect(chooseEntryFormRegistration(ukcRegistration, akcRegistration)).toBe(akcRegistration);
+  });
+
+  it('prefers UKC when UKC official forms request it', () => {
+    expect(chooseEntryFormRegistration(akcRegistration, ukcRegistration, 'UKC')).toBe(
+      ukcRegistration
+    );
   });
 });

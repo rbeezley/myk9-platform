@@ -60,23 +60,32 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
     await expect(page.getByText(seed.className).first()).toBeVisible();
     await page.getByRole('button', { name: 'Cards view' }).click();
 
+    const entryCard = page.locator('.border.rounded-lg').filter({ hasText: seed.dogName }).first();
+    await expect(entryCard).toBeVisible({ timeout: 10000 });
+
     await openArmbandDialog(page);
     const armbandDialog = page.getByRole('dialog', { name: 'Assign Armband' });
     await expect(armbandDialog).toBeVisible();
     await armbandDialog.getByLabel('Armband Number').fill(seed.armband);
     await armbandDialog.getByRole('button', { name: 'Assign' }).click();
     await expect(armbandDialog).not.toBeVisible({ timeout: 10000 });
-    await expect(page.getByText(seed.armband).first()).toBeVisible();
+    await expect(entryCard.getByText(seed.armband).first()).toBeVisible();
 
-    const entryStatusButton = page.getByRole('button', { name: /Change entry status/i }).first();
+    const entryStatusButton = entryCard.getByRole('button', {
+      name: new RegExp(
+        `Change entry status for ${escapeRegExp(seed.dogName)} in ${escapeRegExp(seed.className)}`
+      ),
+    });
     await expect(entryStatusButton).toBeVisible({ timeout: 10000 });
     const acceptedItem = page.getByRole('menuitem', { name: 'Accepted', exact: true });
     await clickMenuItemWhenStable(() => entryStatusButton.click(), acceptedItem);
     await expect(entryStatusButton).toContainText('Accepted', { timeout: 10000 });
 
-    const checkInStatusButton = page
-      .getByRole('button', { name: /Change check-in status/i })
-      .first();
+    const checkInStatusButton = entryCard.getByRole('button', {
+      name: new RegExp(
+        `Change check-in status for ${escapeRegExp(seed.dogName)} in ${escapeRegExp(seed.className)}`
+      ),
+    });
     await expect(checkInStatusButton).toBeVisible({ timeout: 10000 });
     const checkedInItem = page.getByRole('menuitem', { name: 'Checked-in' });
     await clickMenuItemWhenStable(() => checkInStatusButton.click(), checkedInItem);
@@ -141,4 +150,8 @@ async function clickMenuItemWhenStable(openMenu: () => Promise<void>, menuItem: 
 
 function isDetachedDuringClick(error: unknown) {
   return error instanceof Error && /detached from the DOM/i.test(error.message);
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

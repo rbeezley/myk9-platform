@@ -188,6 +188,8 @@ async function selectFirstContainerClass(page: Page) {
 }
 
 test('reaches payment with one selected dog and one selected class', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-05-15T12:00:00.000Z'));
+
   await preventSharedWrites(page);
   await signInAsSecretary(page, `/secretary/register/${SHOW_ID}`);
   await gotoSecretaryRegistration(page);
@@ -214,7 +216,7 @@ test('reaches payment with one selected dog and one selected class', async ({ pa
   const exhibitorAgreement = page.getByText(/The exhibitor has read and agrees/i);
   if (await exhibitorAgreement.isVisible().catch(() => false)) {
     await exhibitorAgreement.click({ force: true });
-    await expect(page.getByRole('button', { name: /^Next/ })).toBeEnabled();
+    await expect(page.getByRole('button', { name: /^Submit entry$/ })).toBeEnabled();
   }
 });
 

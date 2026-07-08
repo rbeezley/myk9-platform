@@ -123,6 +123,8 @@ async function captureMailInWrites(page: Page, captured: CapturedMailInWrites) {
 test('secretary can create a mail-in exhibitor and dog without auth user creation', async ({
   page,
 }) => {
+  await page.clock.setFixedTime(new Date('2026-05-15T12:00:00.000Z'));
+
   const captured: CapturedMailInWrites = {};
   await captureMailInWrites(page, captured);
 

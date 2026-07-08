@@ -69,6 +69,8 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
   test('mail-in registration can find a non-owned dog and reach class selection', async ({
     page,
   }) => {
+    await page.clock.setFixedTime(new Date('2026-05-15T12:00:00.000Z'));
+
     await signInAsSecretary(page, `/secretary/register/${SHOW_ID}`);
 
     await expect(page.getByRole('heading', { name: 'Add mail-in entry' })).toBeVisible({

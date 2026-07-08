@@ -2,8 +2,10 @@ import { test, expect, type Page } from '@playwright/test';
 import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
 
 const REGISTRATION_PATH = `/shows/${LIVE_REGISTRATION_SHOW_ID}/register`;
+const OPEN_ENTRY_DATE = new Date('2026-05-15T12:00:00.000Z');
 
 async function gotoRegistrationSmoke(page: Page) {
+  await page.clock.setFixedTime(OPEN_ENTRY_DATE);
   await page.goto(REGISTRATION_PATH, { waitUntil: 'commit', timeout: 60000 });
   await page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => undefined);
   await expect(page.locator('body')).toBeVisible({ timeout: 30000 });
@@ -46,7 +48,6 @@ test.describe('Registration Smoke Tests', () => {
 
     await expect(page.locator('body')).toBeVisible();
 
-    await page.waitForTimeout(2000);
     expect(errors.filter(e => !e.includes('Warning:'))).toHaveLength(0);
   });
 
@@ -74,7 +75,6 @@ test.describe('Registration Smoke Tests', () => {
     }
 
     // Should not crash
-    await page.waitForTimeout(1000);
     await expect(page.locator('body')).toBeVisible();
   });
 });

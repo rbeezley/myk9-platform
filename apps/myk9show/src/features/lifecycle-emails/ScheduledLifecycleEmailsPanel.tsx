@@ -124,6 +124,7 @@ function ScheduledEmailStepRow({
   const failedLabel = step.failedCount > 0 ? `${step.failedCount} failed` : null;
   const warningLabel = step.warningCount > 0 ? `${step.warningCount} warning` : null;
   const countLabel = [readyLabel, sentLabel, failedLabel, warningLabel].filter(Boolean).join(' · ');
+  const hasReviewableJobs = step.readyCount > 0 || step.failedCount > 0;
 
   return (
     <div className="rounded-md border border-border/70 px-3 py-2">
@@ -139,7 +140,7 @@ function ScheduledEmailStepRow({
           onCheckedChange={onToggle}
         />
       </div>
-      {step.readyCount > 0 ? (
+      {hasReviewableJobs ? (
         <Button
           type="button"
           variant="outline"

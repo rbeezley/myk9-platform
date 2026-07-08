@@ -169,4 +169,53 @@ describe('ScheduledLifecycleEmailsPanel', () => {
       );
     });
   });
+
+  it('opens batch review when a step only has failed retryable jobs', async () => {
+    mockFetchSummary.mockResolvedValueOnce({
+      steps: [
+        {
+          stepType: 'two_week_reminder',
+          isEnabled: true,
+          readyCount: 0,
+          sentCount: 0,
+          failedCount: 1,
+          skippedCount: 0,
+          dismissedCount: 0,
+          warningCount: 0,
+        },
+      ],
+      receipts: {
+        sentCount: 0,
+        failedCount: 0,
+        latestSentAtByRegistrationId: {},
+      },
+    });
+    mockFetchJobs.mockResolvedValueOnce([
+      {
+        id: 'job-failed',
+        stepType: 'two_week_reminder',
+        status: 'failed',
+        recipientEmail: 'failed@example.com',
+        recipientName: 'Failed',
+        subject: 'Two weeks away',
+        body: 'See you soon.',
+        secretaryNote: '',
+        previewWarnings: ['Previous send failed.'],
+      },
+    ]);
+    const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
+
+    await user.click(await screen.findByRole('button', { name: 'Review' }));
+
+    expect(await screen.findByText('1 failed recipient is ready to retry.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Send now' }));
+
+    await waitFor(() => {
+      expect(mockSendJobs).toHaveBeenCalledWith(
+        expect.objectContaining({
+          jobIds: ['job-failed'],
+        })
+      );
+    });
+  });
 });
